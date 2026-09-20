@@ -5,6 +5,7 @@ import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { getMessage as getAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
+import { assertAgentAdmission, assertProtocolDefinition } from './repair-protocol.mjs';
 
 const ROOT = process.cwd();
 const COORD_DIR = path.resolve(ROOT, process.env.FLIXO_COORDINATION_DIR ?? 'diagnostics/agents');
@@ -28,6 +29,12 @@ for (let i = 2; i < process.argv.length; i += 1) {
   args.set(key, value ?? null);
 }
 const command = String(process.argv[2] ?? '').toLowerCase();
+const gitBranch = () => execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim();
+const GOVERNANCE_FILES = ['AGENTS.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/PROTOCOL-HIERARCHY.md', 'docs/PROTOCOL-REGISTRY.json', 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json'];
+const STALE_SESSION_KILL_SWITCH = 'STALE_SESSION_KILL_SWITCH';
+const governanceFingerprint = () => createHash('sha256').update(GOVERNANCE_FILES.map((file) => `${file}:${createHash('sha256').update(fs.readFileSync(path.resolve(ROOT, file), 'utf8'), 'utf8').digest('hex')}`).join('|'), 'utf8').digest('hex');
+const assertMutationTopology = () => { if (MUTATING_COMMANDS.has(command) && gitBranch() !== 'execution') throw new Error('COORDINATION_MUTATION_BRANCH_BLOCKED'); };
+
 const requireArg = (name) => { const value = String(args.get(name) ?? '').trim(); if (!value) throw new Error(`Missing --${name}`); return value; };
 const optional = (name, fallback = '') => String(args.get(name) ?? fallback).trim();
 const list = (name, separator = ',') => optional(name).split(separator).map((v) => v.trim()).filter(Boolean);
@@ -74,16 +81,39 @@ const storageKey = (value) => createHash('sha256').update(value).digest('hex');
 const visibilityPath = (sessionId) => path.join(VISIBILITY_DIR, `${storageKey(sessionId)}.json`);
 const packetPath = (taskId) => path.join(PACKET_DIR, `${storageKey(taskId)}.json`);
 const readVisibility = (sessionId) => { const file = visibilityPath(sessionId); if (!fs.existsSync(file)) throw new Error(`AGENT_VISIBILITY_RECORD_MISSING=${sessionId}`); return JSON.parse(fs.readFileSync(file, 'utf8')); };
-const assertOpenVisibility = (task, sessionId, agentId) => { const record = readVisibility(sessionId); if (record.visibilityState !== 'OPEN' || record.status !== 'RUNNING') throw new Error(`AGENT_VISIBILITY_NOT_OPEN=${sessionId}`); if (record.taskId !== task.taskId) throw new Error('AGENT_VISIBILITY_TASK_MISMATCH'); if (record.agentId !== agentId) throw new Error('AGENT_VISIBILITY_AGENT_MISMATCH'); return record; };
+const assertOpenVisibility = (task, sessionId, agentId) => { const record = readVisibility(sessionId); if (record.visibilityState !== 'OPEN' || record.status !== 'RUNNING') throw new Error(`AGENT_VISIBILITY_NOT_OPEN=${sessionId}`); if (record.taskId !== task.taskId) throw new Error('AGENT_VISIBILITY_TASK_MISMATCH'); if (record.agentId !== agentId) throw new Error('AGENT_VISIBILITY_AGENT_MISMATCH'); if (record.entrySha && record.entrySha !== sha()) throw new Error('AGENT_VISIBILITY_STALE_ENTRY_SHA'); return record; };
+const staleSessionRecord = (sessionId, session, reason) => {
+  const staleAtSha = sha();
+  state.staleSessions[sessionId] = { ...session, staleAt: now(), staleAtSha, staleReason: reason };
+  const task = session.taskId ? state.tasks[session.taskId] : null;
+  if (task?.sessionId === sessionId && task.status === 'RUNNING') { task.status = 'STALE'; task.staleReason = reason; task.staleAt = now(); }
+  unlock(sessionId);
+  delete state.activeSessions[sessionId];
+  try { const file = visibilityPath(sessionId); if (fs.existsSync(file)) { const visibility = JSON.parse(fs.readFileSync(file, 'utf8')); visibility.status = 'STALE'; visibility.staleReason = reason; visibility.staleAt = now(); visibility.updatedAt = now(); fs.writeFileSync(file, JSON.stringify(visibility, null, 2) + '\n'); } } catch {}
+};
+const reconcileStaleSessions = () => {
+  const current = sha();
+  for (const [sessionId, session] of Object.entries(state.activeSessions)) {
+    if (session.entrySha && session.entrySha !== current) staleSessionRecord(sessionId, session, 'ENTRY_SHA_MISMATCH');
+    else if (session.governanceFingerprint && session.governanceFingerprint !== currentGovernanceFingerprint) staleSessionRecord(sessionId, session, 'GOVERNANCE_DRIFT');
+  }
+};
 const visibleAgents = () => { if (!fs.existsSync(VISIBILITY_DIR)) return []; return fs.readdirSync(VISIBILITY_DIR).filter((entry) => entry.endsWith('.json')).sort().map((entry) => { try { const item = JSON.parse(fs.readFileSync(path.join(VISIBILITY_DIR, entry), 'utf8')); return { taskId: item.taskId ?? null, sessionId: item.sessionId ?? entry.slice(0,-5), agentId: item.agentId ?? null, role: item.role ?? null, status: item.status ?? null, finalStatus: item.finalStatus ?? null, entrySha: item.entrySha ?? null, exitSha: item.exitSha ?? null, finalSummary: item.finalSummary ?? null, remainingWork: item.remainingWork ?? [], openRcas: item.openRcas ?? [], updatedAt: item.updatedAt ?? null }; } catch { return { sessionId: entry.slice(0,-5), status: 'MALFORMED_EVIDENCE' }; } }); };
 const MUTATING_COMMANDS = new Set(['task-create', 'task-claim', 'task-release', 'task-complete', 'ingest-handoff', 'state']);
 const writeLocked = MUTATING_COMMANDS.has(command);
+assertMutationTopology();
 if (writeLocked) acquireWriteLock();
 process.on('exit', releaseWriteLock);
-const defaultState = () => ({ schemaVersion: 1, authority: 'AGENT_COORDINATION_CONTROL_PLANE', authoritativeSha: sha(), revision: 0, transactionId: null, updatedAt: now(), tasks: {}, activeSessions: {} });
-const defaultLocks = () => ({ schemaVersion: 1, authority: 'AGENT_SCOPE_LOCKS', revision: 0, transactionId: null, locks: {} });
+const defaultState = () => ({ schemaVersion: 1, authority: 'AGENT_COORDINATION_CONTROL_PLANE', authoritativeSha: sha(), governanceFingerprint: governanceFingerprint(), revision: 0, transactionId: null, updatedAt: now(), tasks: {}, activeSessions: {}, staleSessions: {} });
+const defaultLocks = () => ({ schemaVersion: 1, authority: 'AGENT_SCOPE_LOCKS', governanceFingerprint: governanceFingerprint(), revision: 0, transactionId: null, locks: {} });
 const state = readJson(QUEUE_FILE, defaultState());
 const locks = readJson(LOCK_FILE, defaultLocks());
+state.staleSessions = state.staleSessions ?? {};
+const currentGovernanceFingerprint = governanceFingerprint();
+if (state.governanceFingerprint && state.governanceFingerprint !== currentGovernanceFingerprint) throw new Error('COORDINATION_GOVERNANCE_DRIFT');
+if (locks.governanceFingerprint && locks.governanceFingerprint !== currentGovernanceFingerprint) throw new Error('COORDINATION_GOVERNANCE_DRIFT');
+state.governanceFingerprint = currentGovernanceFingerprint;
+locks.governanceFingerprint = currentGovernanceFingerprint;
 let initialRevision = Number(state.revision ?? 0);
 if (Number(locks.revision ?? initialRevision) !== initialRevision) throw new Error('COORDINATION_STATE_VERSION_MISMATCH');
 if ((locks.transactionId ?? null) !== (state.transactionId ?? null)) throw new Error('COORDINATION_TRANSACTION_MISMATCH');
@@ -91,10 +121,12 @@ function save() {
   const persisted = readJson(QUEUE_FILE, defaultState());
   const persistedLocks = readJson(LOCK_FILE, defaultLocks());
   if (Number(persisted.revision ?? 0) !== initialRevision || Number(persistedLocks.revision ?? initialRevision) !== initialRevision) throw new Error('COORDINATION_STATE_VERSION_CONFLICT');
+  const governance = governanceFingerprint();
+  if ((persisted.governanceFingerprint ?? governance) !== governance || (persistedLocks.governanceFingerprint ?? governance) !== governance) throw new Error('COORDINATION_GOVERNANCE_DRIFT');
   const nextRevision = initialRevision + 1;
   const transactionId = `${sha()}:${nextRevision}:${process.pid}:${Date.now()}`;
-  const nextState = { ...state, authoritativeSha: sha(), revision: nextRevision, transactionId, updatedAt: now() };
-  const nextLocks = { ...locks, revision: nextRevision, transactionId };
+  const nextState = { ...state, authoritativeSha: sha(), governanceFingerprint: governance, revision: nextRevision, transactionId, updatedAt: now() };
+  const nextLocks = { ...locks, governanceFingerprint: governance, revision: nextRevision, transactionId };
   writeJsonAtomic(QUEUE_FILE, nextState);
   writeJsonAtomic(LOCK_FILE, nextLocks);
   Object.assign(state, { authoritativeSha: nextState.authoritativeSha, revision: nextRevision, transactionId, updatedAt: nextState.updatedAt });
@@ -108,11 +140,12 @@ function lock(sessionId, agentId, rca, scope) {
     if ((rca && item.rca && rca === item.rca) || overlap(scope, new Set(item.scope ?? []))) throw new Error(`COORDINATION_CONFLICT=${id}`);
   }
   const lockId = `${sessionId}:${sha()}`;
-  locks.locks[lockId] = { lockId, sessionId, agentId, rca: rca || null, scope, entrySha: sha(), acquiredAt: now(), status: 'ACTIVE' };
+  locks.locks[lockId] = { lockId, sessionId, agentId, rca: rca || null, scope, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, acquiredAt: now(), status: 'ACTIVE' };
   return lockId;
 }
 function unlock(sessionId) { for (const item of Object.values(locks.locks)) if (item.sessionId === sessionId && item.status === 'ACTIVE') { item.status = 'RELEASED'; item.releasedAt = now(); } }
 ensure();
+if (writeLocked) reconcileStaleSessions();
 if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'state', 'visible', 'ingest-handoff'].includes(command)) throw new Error('Usage: agent-coordination.mjs task-create|task-claim|task-release|task-complete|state|visible|ingest-handoff');
 
 if (command === 'task-create') {
@@ -154,7 +187,7 @@ if (command === 'task-claim') {
     }
   }
   task.status = 'RUNNING'; task.claimedBy = agentId; task.sessionId = sessionId; task.claimedAt = now(); task.entrySha = sha(); task.lockId = lockId;
-  state.activeSessions[sessionId] = { sessionId, agentId, taskId, lockId, entrySha: sha(), ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}), updatedAt: now() };
+  state.activeSessions[sessionId] = { sessionId, agentId, taskId, lockId, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, protocolHash: assertProtocolDefinition().protocolHash, ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}), updatedAt: now() };
   const packetFile = packetPath(taskId); const packet = readJson(packetFile, task); packet.claim = { sessionId, agentId, lockId, claimedAt: now(), entrySha: sha(), ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}) }; writeJson(packetFile, packet); save(); console.log(JSON.stringify(task, null, 2));
 }
 
@@ -179,9 +212,40 @@ if (command === 'task-complete') {
 }
 
 if (command === 'ingest-handoff') {
-  const previous = requireArg('from-session'); const file = path.join(HANDOFF_DIR, `${storageKey(previous)}.json`); if (!fs.existsSync(file)) throw new Error(`HANDOFF_NOT_FOUND=${previous}`);
-  const report = JSON.parse(fs.readFileSync(file, 'utf8')); if (!['VERIFIED', 'BLOCKED'].includes(report.status)) throw new Error('PREDECESSOR_NOT_CLOSED');
-  const sessionId = requireArg('session'); const agentId = requireArg('agent'); state.activeSessions[sessionId] = { sessionId, agentId, continuationFrom: previous, inheritedExitSha: report.exitSha ?? null, inheritedRemainingWork: report.remainingWork ?? [], inheritedOpenRcas: report.openRcas ?? [], inheritedNextPlan: report.executionPlanNext ?? [], updatedAt: now() }; save(); console.log(JSON.stringify(state.activeSessions[sessionId], null, 2));
+  const previous = requireArg('from-session');
+  const file = path.join(HANDOFF_DIR, `${storageKey(previous)}.json`);
+  if (!fs.existsSync(file)) throw new Error(`HANDOFF_NOT_FOUND=${previous}`);
+  const report = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (!['VERIFIED', 'BLOCKED'].includes(report.status)) throw new Error('PREDECESSOR_NOT_CLOSED');
+  const currentSha = sha();
+  if (!/^[a-f0-9]{40}$/u.test(String(report.exitSha ?? '')) || report.exitSha !== currentSha) throw new Error('HANDOFF_STALE_EXIT_SHA');
+  const sessionId = requireArg('session');
+  const agentId = requireArg('agent');
+  const role = optional('role', 'implementation');
+  assertAgentAdmission({ actor: role, branch: gitBranch(), mutation: false });
+  const taskId = optional('task', String(report.taskId ?? ''));
+  if (!taskId || report.taskId !== taskId) throw new Error('HANDOFF_TASK_MISMATCH');
+  if (state.activeSessions[sessionId]) throw new Error('SESSION_ALREADY_ACTIVE');
+  const requestedScope = list('scope');
+  const predecessorScope = new Set(report.scope ?? []);
+  if (requestedScope.some((item) => !predecessorScope.has(item))) throw new Error('HANDOFF_SCOPE_EXPANSION_BLOCKED');
+  state.activeSessions[sessionId] = {
+    sessionId,
+    agentId,
+    role,
+    taskId,
+    continuationFrom: previous,
+    inheritedExitSha: report.exitSha,
+    entrySha: currentSha,
+    governanceFingerprint: currentGovernanceFingerprint,
+    protocolHash: assertProtocolDefinition().protocolHash,
+    inheritedRemainingWork: report.remainingWork ?? [],
+    inheritedOpenRcas: report.openRcas ?? [],
+    inheritedNextPlan: report.executionPlanNext ?? [],
+    updatedAt: now(),
+  };
+  save();
+  console.log(JSON.stringify(state.activeSessions[sessionId], null, 2));
 }
 if (command === 'visible') { console.log(JSON.stringify(visibleAgents(), null, 2)); }
 if (command === 'state') { save(); console.log(JSON.stringify({ ...state, visibleAgents: visibleAgents() }, null, 2)); }

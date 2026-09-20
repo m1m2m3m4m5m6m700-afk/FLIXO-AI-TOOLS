@@ -28,14 +28,15 @@ for (const [sessionId, agentId] of [['race-session-a','executionAgent-a'], ['rac
   fs.writeFileSync(path.join(visibilityDir, visibilityKey(sessionId) + '.json'), JSON.stringify({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'OPEN', taskId, sessionId, agentId, role: 'executionAgent', entrySha: currentSha, exitSha: null, status: 'RUNNING', finalStatus: null, finalSummary: null, updatedAt: new Date().toISOString() }, null, 2) + '\n');
 }
 
-const run = (sessionId, agentId) => new Promise((resolve) => {
-  const child = spawn(process.execPath, ['scripts/ci/agent-coordination.mjs', 'task-claim', `--task=${taskId}`, `--session=${sessionId}`, `--agent=${agentId}`], { cwd: root, env: { ...process.env, FLIXO_COORDINATION_DIR: coordDir, FLIXO_AGENT_VISIBILITY_DIR: visibilityDir }, stdio: ['ignore', 'pipe', 'pipe'] });
+const runArgs = (args) => new Promise((resolve) => {
+  const child = spawn(process.execPath, ['scripts/ci/agent-coordination.mjs', ...args], { cwd: root, env: { ...process.env, FLIXO_COORDINATION_DIR: coordDir, FLIXO_AGENT_VISIBILITY_DIR: visibilityDir }, stdio: ['ignore', 'pipe', 'pipe'] });
   let stdout = '';
   let stderr = '';
   child.stdout.on('data', (chunk) => { stdout += chunk; });
   child.stderr.on('data', (chunk) => { stderr += chunk; });
   child.on('close', (code) => resolve({ code, stdout, stderr }));
 });
+const run = (sessionId, agentId) => runArgs(['task-claim', `--task=${taskId}`, `--session=${sessionId}`, `--agent=${agentId}`]);
 
 try {
   const results = await Promise.all([run('race-session-a', 'executionAgent-a'), run('race-session-b', 'executionAgent-b')]);
@@ -49,6 +50,47 @@ try {
   assert.equal(finalState.revision, 1);
   assert.equal(finalLocks.revision, 1);
   assert.equal(finalState.transactionId, finalLocks.transactionId);
+
+  const staleSessionId = 'stale-session';
+  const staleTaskId = 'stale-task';
+  const staleSha = '0'.repeat(40);
+  const staleLockId = 'stale-lock';
+  finalState.tasks[staleTaskId] = { taskId: staleTaskId, title: 'Stale kill-switch regression', status: 'RUNNING', sessionId: staleSessionId, claimedBy: 'executionAgent-stale', scope: ['stale'], dependsOn: [] };
+  finalState.activeSessions[staleSessionId] = { sessionId: staleSessionId, agentId: 'executionAgent-stale', taskId: staleTaskId, lockId: staleLockId, entrySha: staleSha, governanceFingerprint: finalState.governanceFingerprint, updatedAt: new Date().toISOString() };
+  finalLocks.locks[staleLockId] = { lockId: staleLockId, sessionId: staleSessionId, agentId: 'executionAgent-stale', scope: ['stale'], entrySha: staleSha, status: 'ACTIVE', acquiredAt: new Date().toISOString() };
+  fs.writeFileSync(path.join(coordDir, 'coordination-state.json'), JSON.stringify(finalState, null, 2) + '\n');
+  fs.writeFileSync(path.join(coordDir, 'coordination-locks.json'), JSON.stringify(finalLocks, null, 2) + '\n');
+  fs.writeFileSync(path.join(visibilityDir, visibilityKey(staleSessionId) + '.json'), JSON.stringify({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'OPEN', taskId: staleTaskId, sessionId: staleSessionId, agentId: 'executionAgent-stale', role: 'executionAgent', entrySha: staleSha, status: 'RUNNING', finalStatus: null, finalSummary: null, updatedAt: new Date().toISOString() }, null, 2) + '\n');
+  const staleResult = await runArgs(['state']);
+  assert.equal(staleResult.code, 0, `stale reconciliation should succeed: ${JSON.stringify(staleResult)}`);
+  const reconciledState = JSON.parse(fs.readFileSync(path.join(coordDir, 'coordination-state.json'), 'utf8'));
+  const reconciledLocks = JSON.parse(fs.readFileSync(path.join(coordDir, 'coordination-locks.json'), 'utf8'));
+  assert.equal(reconciledState.tasks[staleTaskId].status, 'STALE');
+  assert.equal(reconciledState.activeSessions[staleSessionId], undefined);
+  assert.equal(reconciledState.staleSessions[staleSessionId].staleReason, 'ENTRY_SHA_MISMATCH');
+  assert.equal(reconciledLocks.locks[staleLockId].status, 'RELEASED');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(visibilityDir, visibilityKey(staleSessionId) + '.json'), 'utf8')).status, 'STALE');
+  console.log('STALE_SESSION_KILL_SWITCH=PASS');
+
+  const handoffSessionId = 'handoff-next';
+  const predecessor = 'handoff-prev';
+  const handoffFile = path.join(coordDir, 'handoffs', visibilityKey(predecessor) + '.json');
+  fs.writeFileSync(handoffFile, JSON.stringify({ schemaVersion: 1, reportId: `${predecessor}:${currentSha}`, sessionId: predecessor, agentId: 'executionAgent-prev', role: 'executionAgent', taskId: 'handoff-task', status: 'VERIFIED', scope: ['handoff-scope'], exitSha: currentSha, remainingWork: [], openRcas: [], executionPlanNext: [] }, null, 2) + '\n');
+  const admittedHandoff = await runArgs(['ingest-handoff', `--from-session=${predecessor}`, `--session=${handoffSessionId}`, '--agent=executionAgent-next', '--role=executionAgent', '--task=handoff-task', '--scope=handoff-scope']);
+  assert.equal(admittedHandoff.code, 0, `fresh handoff must be admitted: ${JSON.stringify(admittedHandoff)}`);
+  const postHandoffState = JSON.parse(fs.readFileSync(path.join(coordDir, 'coordination-state.json'), 'utf8'));
+  assert.equal(postHandoffState.activeSessions[handoffSessionId].entrySha, currentSha);
+  assert.equal(postHandoffState.activeSessions[handoffSessionId].inheritedExitSha, currentSha);
+  assert.equal(postHandoffState.activeSessions[handoffSessionId].role, 'executionAgent');
+  console.log('HANDOFF_ADMISSION_PARITY=PASS');
+
+  const stalePredecessor = 'handoff-prev-stale';
+  fs.writeFileSync(path.join(coordDir, 'handoffs', visibilityKey(stalePredecessor) + '.json'), JSON.stringify({ schemaVersion: 1, reportId: `${stalePredecessor}:${staleSha}`, sessionId: stalePredecessor, agentId: 'executionAgent-prev', role: 'executionAgent', taskId: 'handoff-task', status: 'VERIFIED', scope: ['handoff-scope'], exitSha: staleSha, remainingWork: [], openRcas: [], executionPlanNext: [] }, null, 2) + '\n');
+  const rejectedHandoff = await runArgs(['ingest-handoff', `--from-session=${stalePredecessor}`, '--session=handoff-rejected', '--agent=executionAgent-next', '--role=executionAgent', '--task=handoff-task', '--scope=handoff-scope']);
+  assert.notEqual(rejectedHandoff.code, 0);
+  assert.match(rejectedHandoff.stderr, /HANDOFF_STALE_EXIT_SHA/);
+  console.log('HANDOFF_STALE_FAIL_CLOSED=PASS');
+
   console.log('AGENT_COORDINATION_ATOMIC_TEST=PASS');
   console.log('COORDINATION_SINGLE_WINNER=PASS');
   console.log('COORDINATION_REVISION=PASS');

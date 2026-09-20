@@ -46,6 +46,14 @@ const requiredReads = ['PROJECTS.md', 'المهام.md', 'AGENTS.md', 'docs/EXEC
 const split = (value, separator = ',') => String(value ?? '').split(separator).map((v) => v.trim()).filter(Boolean);
 const storageKey = (id) => createHash('sha256').update(id).digest('hex');
 const admissionDigest = (file) => createHash('sha256').update(fs.readFileSync(path.resolve(ROOT, file), 'utf8'), 'utf8').digest('hex');
+const governanceFingerprint = (sources) => createHash('sha256').update(sources.map((item) => `${item.path}:${item.sha256}`).join('|'), 'utf8').digest('hex');
+const assertLiveSession = (record) => {
+  const currentSha = gitSha();
+  if (record.entrySha !== currentSha) throw new Error('AGENT_SESSION_STALE_ENTRY_SHA');
+  const currentGovernance = governanceFingerprint(requiredReads.map((file) => ({ path: file, sha256: admissionDigest(file) })));
+  if (record.governanceFingerprint && record.governanceFingerprint !== currentGovernance) throw new Error('AGENT_SESSION_GOVERNANCE_DRIFT');
+  if (record.branch && record.branch !== gitBranch()) throw new Error('AGENT_SESSION_BRANCH_DRIFT');
+};
 const readCanonicalAdmissionSources = () => {
   const sources = requiredReads.map((file) => ({ path: file, sha256: admissionDigest(file) }));
   const protocolRegistry = JSON.parse(fs.readFileSync(path.resolve(ROOT, 'docs/PROTOCOL-REGISTRY.json'), 'utf8'));
@@ -92,6 +100,7 @@ if (command === 'event') {
   if (record.agentId !== agentId) throw new Error('Session owner mismatch: ' + sessionId);
   if (record.taskId !== taskId) throw new Error('AGENT_EVENT_TASK_MISMATCH');
   if (record.status !== 'RUNNING') throw new Error('AGENT_EVENT_REQUIRES_ACTIVE_SESSION');
+  assertLiveSession(record);
   const type = String(args.get('type') ?? '').trim().toUpperCase();
   const summary = String(args.get('summary') ?? '').trim();
   const allowed = new Set(['PROGRESS','FINDING','BLOCKER','CHANGE','TEST','VERIFICATION','HANDOFF','NOTE']);
@@ -140,8 +149,10 @@ if (command === 'event') {
   if (fs.existsSync(file)) throw new Error(`Session already exists: ${sessionId}`);
   const missing = requiredReads.filter((entry) => !fs.existsSync(path.resolve(ROOT, entry)));
   if (missing.length) throw new Error(`Mandatory reads missing: ${missing.join(', ')}`);
+  const currentSha = gitSha();
   const admissionSources = readCanonicalAdmissionSources();
-
+  const currentGovernanceFingerprint = governanceFingerprint(admissionSources.sources);
+  const sha = currentSha;
   const existingHandoffs = fs.readdirSync(handoffDir).filter((entry) => entry.endsWith('.json'));
   let continuation = null;
   if (fromSession) {
@@ -149,6 +160,7 @@ if (command === 'event') {
     if (!fs.existsSync(predecessorFile)) throw new Error(`Previous handoff report not found: ${fromSession}`);
     const predecessor = JSON.parse(fs.readFileSync(predecessorFile, 'utf8'));
     if (!['VERIFIED', 'BLOCKED'].includes(predecessor.status)) throw new Error(`Previous session is not closed: ${fromSession}`);
+    if (!/^[a-f0-9]{40}$/u.test(String(predecessor.exitSha ?? '')) || predecessor.exitSha !== currentSha) throw new Error(`CONTINUATION_STALE_EXIT_SHA=${fromSession}`);
     continuation = {
       continuationFrom: fromSession,
       inheritedExitSha: predecessor.exitSha ?? null,
@@ -163,7 +175,6 @@ if (command === 'event') {
     throw new Error('Continuation handoff required: use --from-session=<previous-session> or explicitly declare --bootstrap=true.');
   }
 
-  const sha = gitSha();
   let inboundMessage = null;
   if (rawMessageFile) {
     inboundMessage = ingestAgentMessage(JSON.parse(fs.readFileSync(path.resolve(ROOT, rawMessageFile), 'utf8')), sha);
@@ -180,8 +191,10 @@ if (command === 'event') {
     sessionId,
     agentId,
     role,
-    entrySha: sha,
-    baseSha: sha,
+    entrySha: currentSha,
+    baseSha: currentSha,
+    branch: gitBranch(),
+    governanceFingerprint: currentGovernanceFingerprint,
     startedAt: now(),
     scope,
     readFiles: [...requiredReads],

@@ -75,3 +75,11 @@ Mutating coordination commands are serialized by an OS-level write lock created 
 Queue state and lock state carry a shared monotonic `revision` and `transactionId`. A writer re-reads both files under the write lock before commit and fails closed on any revision or transaction mismatch. Persistence uses temporary files followed by atomic rename; readers reject mismatched state versions rather than accepting a partial transaction.
 
 The canonical regression `scripts/ci/test-agent-coordination.mjs` starts concurrent `task-claim` processes against the same task and requires exactly one winner. This is the executable proof for the coordination race invariant.
+
+## Admission parity, stale-session kill switch and topology
+
+`ingest-handoff` must enforce the same admission boundary as session entry: the repository must be on `execution`, the predecessor must be closed, its `exitSha` must equal the current exact SHA, the continuation task must match, requested scope may not expand beyond the predecessor scope, and the successor role must pass the canonical repair admission check.
+
+Every active coordination session stores its entry SHA, protocol hash and governance fingerprint. Before any mutating coordination command, the control plane reconciles active sessions. A changed entry SHA or governance fingerprint moves the session to `STALE`, marks its owned task `STALE`, releases its lock, removes it from `activeSessions`, and preserves a stale-session record. A stale session cannot regain ownership.
+
+Mutating coordination commands are topology-bound to `execution`. `main` is read-only for this control plane. Governance drift and branch drift fail closed; they are never silently repaired by the coordination layer.
