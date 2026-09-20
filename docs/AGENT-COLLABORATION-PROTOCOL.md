@@ -364,3 +364,16 @@ Lease expiry transfers a worker package to its configured counterpart exactly on
 Persistence is server-side in Supabase. GitHub Actions supplies the automatic RED trigger and one-minute lease recovery watcher. External workers may use push endpoints or polling.
 
 A normal ChatGPT UI session is not directly addressable by GitHub. The final account-to-account connection therefore requires an external GPT runtime bridge or poller controlled by the corresponding account/operator. Secrets remain server-side.
+
+
+## Action Vault — P20 resident repair triad
+
+The Action Vault is an extension of P20, not a second protocol. Its three permanent residents have deliberately separated duties:
+
+- `ACTION-REPAIR` (`actionRepairBot`) is the only Action Vault mutation role. It may repair only on `execution`, after Repair Protocol admission, exact-SHA binding, ownership lock, causal diagnosis and bounded proof obligations.
+- `ACTION-REPAIR-2` (`actionRepairVerifier`) is an independent adversarial verifier. It challenges the RCA, tests alternative hypotheses, checks changed-scope legitimacy and validates post-repair evidence. It has no mutation or certification authority.
+- `ACTION-HISTORIAN-3` (`actionHistorian`) is the learning/recurrence specialist. It records lessons, anti-lessons, rejected strategies and prevention rules from exact-SHA evidence. It has no mutation or authority-granting power.
+
+A shared Action Vault mission requires `triadId`, `messageId`, `taskId`, failure fingerprint, entry/target SHA, owner, proof obligations and stop conditions. Blind retries are forbidden. Three identical cycles without verifiable progress open escalation and preserve the anti-lesson.
+
+A reusable repair rule is not promoted from one success: the memory promotion gate requires at least two independently verified successful exact-SHA cases plus an explicit prevention rule. The Action Vault can preserve continuity through escalation, but escalation is never closure; only canonical GREEN can close the repair cycle.
