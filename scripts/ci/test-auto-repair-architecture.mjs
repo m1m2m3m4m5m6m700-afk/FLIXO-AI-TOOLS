@@ -6,7 +6,7 @@ import { isPathAllowed, isProtectedPath, repairPolicy } from './auto-repair-poli
 import { confidenceGate } from './auto-repair/confidence.mjs';
 import { selectSpecialist } from './auto-repair/specialists.mjs';
 import { impactedTests } from './auto-repair/reproduction.mjs';
-import { summarizeDiff } from './auto-repair/evidence.mjs';
+import { summarizeDiff, mutationAttribution } from './auto-repair/evidence.mjs';
 import { runRegression } from './auto-repair/regression.mjs';
 import { snapshot } from './auto-repair/rollback.mjs';
 import { runAstRepair } from './auto-repair/ast-repair.mjs';
@@ -157,6 +157,43 @@ const ranked = rankLessons({
 assert.equal(ranked[0].anti, undefined);
 assert.equal(ranked[0].rule, 'eslint-unused');
 assert.equal(ranked.at(-1).anti, true);
+
+const attribution = mutationAttribution({
+  agentIdentity: 'repairAgent',
+  taskId: 'AUTO-REPAIR-001',
+  baselineSHA: 'a'.repeat(40),
+  changedFiles: ['src/example.ts', 'src/example.ts'],
+  rcaFingerprint: 'f'.repeat(64),
+  hypothesis: 'lint',
+  strategy: 'eslint-unused',
+  targetedTests: [['npx', ['eslint', 'src/example.ts']]],
+  fullTests: [['npm', ['run', 'test:static']]],
+  resultingSHA: 'b'.repeat(40),
+  outcome: 'mutation-applied',
+});
+assert.equal(attribution.schemaVersion, 2);
+assert.equal(attribution.agentIdentity, 'repairAgent');
+assert.equal(attribution.taskId, 'AUTO-REPAIR-001');
+assert.deepEqual(attribution.changedFiles, ['src/example.ts']);
+assert.equal(attribution.rcaFingerprint, 'f'.repeat(64));
+assert.equal(attribution.hypothesis, 'lint');
+assert.equal(attribution.strategy, 'eslint-unused');
+assert.equal(attribution.targetedTests.length, 1);
+assert.equal(attribution.fullTests.length, 1);
+assert.equal(attribution.resultingSHAKnown, true);
+assert.equal(attribution.exactShaBound, true);
+assert.equal(attribution.outcome, 'mutation-applied');
+
+const pendingAttribution = mutationAttribution({
+  agentIdentity: 'repairAgent',
+  taskId: 'AUTO-REPAIR-002',
+  baselineSHA: 'c'.repeat(40),
+  changedFiles: ['src/example.ts'],
+  outcome: 'mutation-applied',
+});
+assert.equal(pendingAttribution.resultingSHA, null);
+assert.equal(pendingAttribution.resultingSHAKnown, false);
+assert.equal(pendingAttribution.exactShaBound, false);
 
 const engineSource = fs.readFileSync('scripts/ci/auto-repair-engine.mjs', 'utf8');
 assert.match(engineSource, /file: selected\?\.file \?\? plan\.reasoning\?\.location\?\.file/);
