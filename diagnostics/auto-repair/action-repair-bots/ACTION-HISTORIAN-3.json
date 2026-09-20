@@ -4,7 +4,7 @@
   "displayName": "بوت سجل Actions 3",
   "kind": "ACTION_HISTORIAN_INDEXER",
   "status": "READY",
-  "role": "HISTORIAN_AND_SOLUTION_INDEXER",
+  "role": "FAILURE_LEDGER_AND_LEARNING_RECORDER",
   "mission": "الوكيل الثالث هو أمين السجل: يسجل كل RED وكل محاولة إصلاح وكل فشل وتسليم وتعلم، مع exact provenance، لبناء ذاكرة يمكن الرجوع إليها.",
   "headquarters": "diagnostics/auto-repair/action-vault",
   "mutationAuthority": false,
