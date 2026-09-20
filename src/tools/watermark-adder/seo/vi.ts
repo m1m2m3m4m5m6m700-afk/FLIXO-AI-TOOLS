@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const vi: LocalizedToolSeo = { title:'Thêm hình mờ vào ảnh', description:'Thêm hình mờ văn bản trực tiếp trong trình duyệt.', intro:'Nhập nội dung hình mờ và xử lý ảnh cục bộ mà không tải tệp gốc lên máy chủ.', keywords:['thêm watermark vào ảnh','hình mờ ảnh','chèn chữ vào ảnh'], howTo:['Tải ảnh lên.','Nhập nội dung hình mờ.','Áp dụng và tải kết quả xuống.'], features:['Xử lý cục bộ','Hình mờ văn bản','Tải xuống nhanh'], altText:['Trình chỉnh sửa hình mờ','Xem trước văn bản','Ảnh có hình mờ'] };

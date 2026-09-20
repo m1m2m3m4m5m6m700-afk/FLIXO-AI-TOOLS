@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "phase": "CI-4",
+  "status": "COMPLETE",
+  "verifiedSha": "d674d95bd9fafd6dd4a8e7fc62e026f5ae90de26",
+  "base": "6080e0a404e13130ff7d4268b944cedcbdc313c6",
+  "acceptance": {
+    "schema": "PASS",
+    "immutableEvidenceId": "PASS",
+    "atomicWrites": "PASS",
+    "manifest": "PASS",
+    "manifestHash": "PASS",
+    "ledgerSelfTests": "PASS",
+    "shadowWorkflow": "PASS"
+  },
+  "safety": {
+    "mainModified": false,
+    "branchProtectionModified": false,
+    "requiredChecksModified": false,
+    "productionConfigurationModified": false,
+    "legacyWorkflowDeleted": false,
+    "legacyWorkflowBehaviorModified": false
+  },
+  "exitDecision": "PASS",
+  "nextPhaseAllowed": true
+}

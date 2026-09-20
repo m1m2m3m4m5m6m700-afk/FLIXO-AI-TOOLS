@@ -1,0 +1,296 @@
+{
+  "schemaVersion": 1,
+  "status": "NOT_CERTIFIED",
+  "score": 90,
+  "generatedAt": "2026-09-19T18:06:00Z",
+  "sha": "b560185b937cbcc8072d207bc314e46623c3e9ba",
+  "mainSha": "cd188f48b00be65fc5135d005d06e96a54bcb19c",
+  "pr": 754,
+  "categories": {
+    "architecture": {
+      "points": 20,
+      "max": 20,
+      "result": "PASS",
+      "controls": [
+        {
+          "control": "canonical-architecture",
+          "implementation": "CI contract + registry assertions",
+          "execution": "FLIXO Test System / Static + Build",
+          "evidence": "run:35459718314; job:105941276711",
+          "result": "PASS"
+        },
+        {
+          "control": "architecture-validation",
+          "implementation": "architecture checks in engineering baseline",
+          "execution": "exact SHA b560185",
+          "evidence": "job:105941276711",
+          "result": "PASS"
+        },
+        {
+          "control": "single-certification-authority",
+          "implementation": "single fail-closed Certification job",
+          "execution": "Certification",
+          "evidence": "run:35459718314; job:105942150522",
+          "result": "PASS"
+        }
+      ]
+    },
+    "codeQuality": {
+      "points": 14,
+      "max": 15,
+      "result": "PARTIAL",
+      "controls": [
+        {
+          "control": "typecheck",
+          "implementation": "WP0 exact-SHA typecheck",
+          "execution": "WP0",
+          "evidence": "run:35459718326",
+          "result": "PASS"
+        },
+        {
+          "control": "lint",
+          "implementation": "eslint",
+          "execution": "Static + Build",
+          "evidence": "run:35459718314; job:105941276711",
+          "result": "PASS"
+        },
+        {
+          "control": "static",
+          "implementation": "canonical static verification",
+          "execution": "WP0 + Static + Build",
+          "evidence": "run:35459718326; run:35459718314",
+          "result": "PASS"
+        },
+        {
+          "control": "build",
+          "implementation": "canonical build + artifact identity",
+          "execution": "Static + Build",
+          "evidence": "run:35459718314; job:105941276711",
+          "result": "PASS"
+        },
+        {
+          "control": "complexity",
+          "implementation": "report:complexity",
+          "execution": "not present in current exact-SHA certification evidence",
+          "evidence": "UNVERIFIED",
+          "result": "NOT_PROVEN"
+        }
+      ]
+    },
+    "testing": {
+      "points": 20,
+      "max": 20,
+      "result": "PASS",
+      "controls": [
+        {
+          "control": "unit-suite",
+          "implementation": "26 unit checks",
+          "execution": "Static + Build",
+          "evidence": "job:105941276711; UNIT_SUITE_FAILURES=0",
+          "result": "PASS"
+        },
+        {
+          "control": "browser-fast",
+          "implementation": "3 browsers × 2 shards",
+          "execution": "FLIXO Test System",
+          "evidence": "Certification observed 6 FAST artifacts",
+          "result": "PASS"
+        },
+        {
+          "control": "browser-deep",
+          "implementation": "3 browsers × required deep shard matrix",
+          "execution": "FLIXO Test System",
+          "evidence": "Certification observed 21 DEEP artifacts / 60 semantic locale-browser units",
+          "result": "PASS"
+        },
+        {
+          "control": "negative-controls",
+          "implementation": "fail-closed corruption/evidence controls",
+          "execution": "Static + Build + Certification",
+          "evidence": "job:105941276711; job:105942150522",
+          "result": "PASS"
+        },
+        {
+          "control": "exact-sha-provenance",
+          "implementation": "EXPECTED_SHA + artifact binding",
+          "execution": "Certification",
+          "evidence": "job:105942150522",
+          "result": "PASS"
+        }
+      ]
+    },
+    "ciCd": {
+      "points": 15,
+      "max": 15,
+      "result": "PASS_WITH_EXTERNAL_BLOCKER",
+      "controls": [
+        {
+          "control": "exact-sha-workflows",
+          "implementation": "EXPECTED_SHA/checkout/evidence binding",
+          "execution": "WP0 + Certification",
+          "evidence": "run:35459718326; run:35459718314",
+          "result": "PASS"
+        },
+        {
+          "control": "concurrency",
+          "implementation": "serialized mutation / supersedable observers",
+          "execution": "static control contracts",
+          "evidence": "job:105941276711",
+          "result": "PASS"
+        },
+        {
+          "control": "certification-graph",
+          "implementation": "single fail-closed certification engine",
+          "execution": "Certification",
+          "evidence": "job:105942150522",
+          "result": "PASS"
+        },
+        {
+          "control": "vercel-status",
+          "implementation": "external provider status classification",
+          "execution": "PR #754",
+          "evidence": "Vercel=build-rate-limit",
+          "result": "BLOCKED_EXTERNAL"
+        }
+      ]
+    },
+    "security": {
+      "points": 13,
+      "max": 15,
+      "result": "PARTIAL",
+      "controls": [
+        {
+          "control": "repository-security-baseline",
+          "implementation": "repository security baseline",
+          "execution": "exact SHA",
+          "evidence": "run:35459718326",
+          "result": "PASS"
+        },
+        {
+          "control": "dependency-audit",
+          "implementation": "npm audit + zero-debt",
+          "execution": "Static + Build",
+          "evidence": "job:105941276711; npm audit vulnerabilities: 0",
+          "result": "PASS"
+        },
+        {
+          "control": "workflow-security",
+          "implementation": "canonical trust perimeter and immutable repair controls",
+          "execution": "WP0/Static",
+          "evidence": "job:105941276711",
+          "result": "PASS"
+        },
+        {
+          "control": "administrative-enforcement",
+          "implementation": "branch protection/rulesets/CODEOWNERS enforcement",
+          "execution": "not machine-provable with currently available GitHub connector capabilities",
+          "evidence": "NOT_PROVEN",
+          "result": "NOT_PROVEN"
+        }
+      ]
+    },
+    "autoRepair": {
+      "points": 7,
+      "max": 10,
+      "result": "PARTIAL",
+      "controls": [
+        {
+          "control": "repair-boundary",
+          "implementation": "bounded repair policy + protected trust perimeter",
+          "execution": "auto-repair architecture contracts",
+          "evidence": "job:105941276711",
+          "result": "PASS"
+        },
+        {
+          "control": "verified-repair-handoff-contract",
+          "implementation": "canonical handoff gate",
+          "execution": "contract/static tests",
+          "evidence": "scripts/ci/test-auto-repair-final.mjs; diagnostics/auto-repair/HANDOFF-CONTRACT-v3.md",
+          "result": "PASS"
+        },
+        {
+          "control": "fresh-real-handoff-cycle",
+          "implementation": "RED → verified-repair → Executor on a live current cycle",
+          "execution": "issue #722 remains open pending fresh live proof",
+          "evidence": "issue:722",
+          "result": "NOT_PROVEN"
+        }
+      ]
+    },
+    "productionReadiness": {
+      "points": 0,
+      "max": 3,
+      "result": "BLOCKED",
+      "controls": [
+        {
+          "control": "production-provider",
+          "implementation": "canonical production provider access",
+          "execution": "Vercel control-plane",
+          "evidence": "project/deployment access currently unavailable/rate-limited through connected execution path",
+          "result": "BLOCKED_EXTERNAL"
+        },
+        {
+          "control": "production-write-readback",
+          "implementation": "server write → production read-back exact-SHA",
+          "execution": "production verification",
+          "evidence": "issue:664/676",
+          "result": "NOT_PROVEN"
+        },
+        {
+          "control": "production-exact-sha",
+          "implementation": "production deployment identity read-back",
+          "execution": "production verification",
+          "evidence": "issue:664/676",
+          "result": "NOT_PROVEN"
+        }
+      ]
+    },
+    "documentationGovernance": {
+      "points": 1,
+      "max": 2,
+      "result": "PARTIAL",
+      "controls": [
+        {
+          "control": "root-cause-docs",
+          "implementation": "RCA registry + PROJECTS.md + task ledger",
+          "execution": "current SHA",
+          "evidence": "RC-041 and prior RCA entries",
+          "result": "PASS"
+        },
+        {
+          "control": "administrative-governance-proof",
+          "implementation": "branch/ruleset/review/CODEOWNERS enforcement",
+          "execution": "live admin state",
+          "evidence": "NOT_PROVEN",
+          "result": "NOT_PROVEN"
+        }
+      ]
+    }
+  },
+  "finalGate": {
+    "zeroCriticalOpenIssue": false,
+    "unresolvedCriticalIssues": 3,
+    "unverifiedCriticalControls": 2,
+    "staleEvidence": false,
+    "falseGreen": false,
+    "exactShaVerified": true,
+    "burnIn": "NOT_PROVEN",
+    "autoRepair": "NOT_CERTIFIED",
+    "security": "PARTIAL",
+    "ciCd": "CERTIFIED_INTERNAL",
+    "production": "NOT_CERTIFIED",
+    "blockers": [
+      "Issue #722: fresh live verified-repair -> Executor handoff proof is still absent.",
+      "Issues #664/#676: production provider/binding and exact write/read-back proof remain unproven.",
+      "Administrative enforcement (branch protection/rulesets/review/CODEOWNERS) is not machine-proven with available connector access.",
+      "Vercel reports external build-rate-limit on the PR status."
+    ]
+  },
+  "certification": {
+    "score": 90,
+    "scoreBasis": "Only directly evidenced controls receive points; missing administrative/production/auto-repair live-cycle proof is not scored as PASS.",
+    "falseGreen": false,
+    "staleEvidence": false,
+    "unresolvedCriticalIssues": 3
+  }
+}

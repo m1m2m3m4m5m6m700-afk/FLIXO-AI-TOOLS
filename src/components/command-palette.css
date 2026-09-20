@@ -1,0 +1,13 @@
+.flixo-command-palette__backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:start center;padding:8vh 16px;background:rgba(2,6,10,.72);backdrop-filter:blur(10px)}
+.flixo-command-palette{width:min(720px,100%);overflow:hidden;border:1px solid rgba(103,232,249,.24);border-radius:22px;background:#0b1118;box-shadow:0 30px 100px rgba(0,0,0,.5)}
+.flixo-command-palette__header,.flixo-command-palette__footer{display:flex;align-items:center;gap:8px;padding:12px 16px;color:#8fa1b2;font-size:.8rem}
+.flixo-command-palette__header{justify-content:space-between;border-bottom:1px solid rgba(100,130,155,.14)}
+.flixo-command-palette__footer{border-top:1px solid rgba(100,130,155,.14)}
+.flixo-command-palette input{width:100%;box-sizing:border-box;border:0;border-bottom:1px solid rgba(100,130,155,.14);outline:0;padding:18px 16px;background:#0f1721;color:#eef8ff;font:inherit;font-size:1rem}
+.flixo-command-palette input::placeholder{color:#5f7385}
+.flixo-command-palette__results{max-height:55vh;overflow:auto;padding:8px}
+.flixo-command-palette__item{display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:100%;padding:12px 14px;border:0;border-radius:12px;background:transparent;color:#eef8ff;text-align:start;cursor:pointer}
+.flixo-command-palette__item:hover,.flixo-command-palette__item:focus-visible{outline:0;background:rgba(103,232,249,.08)}
+.flixo-command-palette__item span{color:#7f93a6;font-size:.78rem;line-height:1.45}
+.flixo-command-palette__empty{padding:24px;color:#7f93a6;text-align:center}
+.flixo-command-palette kbd{padding:3px 7px;border:1px solid rgba(100,130,155,.22);border-radius:6px;background:#101821;color:#b9c8d4;font-size:.7rem}

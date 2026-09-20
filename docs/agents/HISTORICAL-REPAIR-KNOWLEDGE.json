@@ -1,0 +1,242 @@
+{
+  "schemaVersion": 1,
+  "protocol": "HISTORICAL-REPAIR-KNOWLEDGE-v1",
+  "purpose": "Advisory knowledge recovered from verified historical FLIXO repair architecture. Historical entries never bypass current RCA, scope, exact-SHA, regression, certification, or merge gates.",
+  "activationPolicy": {
+    "mode": "ADVISORY_ONLY",
+    "exactShaProofRequired": true,
+    "freshReproductionRequired": true,
+    "noBlindMutation": true,
+    "rejectedOrRevertedRulesRemainBlocked": true
+  },
+  "entries": [
+    {
+      "id": "hist-evidence-reasoning",
+      "rootCause": "diagnosis",
+      "rule": "evidence-first-reasoning",
+      "lesson": "Use evidence-first causal reasoning before mutation; ambiguity blocks mutation.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35424403916"
+        }
+      ]
+    },
+    {
+      "id": "hist-exact-source",
+      "rootCause": "lint",
+      "rule": "exact-source-location",
+      "lesson": "Require a verified exact source location before deterministic lint mutation.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35424403916"
+        }
+      ]
+    },
+    {
+      "id": "hist-external-isolation",
+      "rootCause": "external-tooling",
+      "rule": "external-provider-isolation",
+      "lesson": "Separate provider/tooling failures from source-repair attempts; remain fail-closed.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35427463513"
+        }
+      ]
+    },
+    {
+      "id": "hist-historical-rollback",
+      "rootCause": "recurrence",
+      "rule": "proof-gated-historical-rollback",
+      "lesson": "A verified historical repair can be reverted only after ancestry, policy, causal proof and regression checks; preserve provenance.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35420543755"
+        }
+      ]
+    },
+    {
+      "id": "hist-revert-antipattern",
+      "rootCause": "recurrence",
+      "rule": "block-reverted-rule-repetition",
+      "lesson": "A rule that caused a verified historical rollback becomes an anti-pattern and cannot be blindly reapplied.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35420543755"
+        }
+      ]
+    },
+    {
+      "id": "hist-cross-fingerprint",
+      "rootCause": "learning",
+      "rule": "cross-fingerprint-generalization",
+      "lesson": "Generalize a playbook only after distinct fingerprints provide repeated successful evidence; never infer generality from one case.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35420543755"
+        }
+      ]
+    },
+    {
+      "id": "hist-unbounded-supervision",
+      "rootCause": "orchestration",
+      "rule": "supervised-cycle-continuation",
+      "lesson": "Outer repair supervision may continue across fresh canonical failures while each individual mutation/verification cycle remains bounded.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35425840484"
+        }
+      ]
+    },
+    {
+      "id": "hist-stale-recursion",
+      "rootCause": "orchestration",
+      "rule": "reject-stale-failure-targets",
+      "lesson": "Do not recursively target stale failures; bind each cycle to the authoritative active failure SHA/run.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35424403916"
+        }
+      ]
+    },
+    {
+      "id": "hist-isolated-diagnostics",
+      "rootCause": "trust-boundary",
+      "rule": "isolate-agent-diagnostics",
+      "lesson": "Keep Task Agent diagnostics and learning state outside the repair worktree so evidence cannot contaminate source mutation.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35420543755"
+        }
+      ]
+    },
+    {
+      "id": "hist-debt-fingerprint",
+      "rootCause": "technical-debt",
+      "rule": "deterministic-finding-fingerprint",
+      "lesson": "Technical-debt findings require deterministic fingerprints so repeated audits identify the same defect without duplicate learning.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35420543755"
+        }
+      ]
+    },
+    {
+      "id": "hist-pre-mutation-selftest",
+      "rootCause": "trust-boundary",
+      "rule": "self-test-before-mutation",
+      "lesson": "Run the repair-agent architecture/self-test before allowing mutation.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35420543755"
+        }
+      ]
+    },
+    {
+      "id": "hist-exact-scout",
+      "rootCause": "evidence",
+      "rule": "fresh-exact-sha-scout",
+      "lesson": "Scout evidence must be fresh and bound to the exact target SHA before it can influence repair.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35420543755"
+        }
+      ]
+    },
+    {
+      "id": "hist-repair-preflight-recursion",
+      "rootCause": "orchestration",
+      "rule": "block-preflight-recursion",
+      "lesson": "When the repair agent fails before RCA at an immutable boundary or control-plane preflight, stop identical recursive dispatch and change the dispatcher strategy first.",
+      "evidence": [
+        {
+          "commitSha": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+          "runId": "35474186515"
+        },
+        {
+          "commitSha": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+          "runId": "35474291055"
+        },
+        {
+          "commitSha": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+          "runId": "35474346798"
+        }
+      ]
+    },
+    {
+      "id": "hist-gh-cli-query-shape",
+      "rootCause": "orchestration",
+      "rule": "gh-cli-json-jq-contract",
+      "lesson": "Treat GitHub CLI command syntax as repair code: structured JSON should be piped to jq for --arg filtering instead of mixing unsupported gh --jq and jq options.",
+      "evidence": [
+        {
+          "commitSha": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+          "runId": "35474291055"
+        },
+        {
+          "commitSha": "89cee10f43acf1244d064dab19f9a351b8acafcf",
+          "runId": "35474371698"
+        }
+      ]
+    },
+    {
+      "id": "hist-regex-contract-escaping",
+      "rootCause": "lint",
+      "rule": "regex-contract-escape-discipline",
+      "lesson": "In CI source assertions, distinguish JavaScript RegExp escaping from YAML/shell quoting and verify the exact emitted workflow literal before publication.",
+      "evidence": [
+        {
+          "commitSha": "89cee10f43acf1244d064dab19f9a351b8acafcf",
+          "runId": "35474433320"
+        },
+        {
+          "commitSha": "cc208a65323355b8846d7aa6d7e85f742feb8909",
+          "runId": "35474506727"
+        }
+      ]
+    },
+    {
+      "id": "hist-canonical-registry-symmetry",
+      "rootCause": "architecture",
+      "rule": "canonical-registry-symmetry",
+      "lesson": "A new repair-control workflow is incomplete until the workflow, validator, supervisor and canonical control-plane registry agree on its identity and authority.",
+      "evidence": [
+        {
+          "commitSha": "b7676df7aa32ad7e718f524ad84aa826d3b28b6c",
+          "runId": "35474506727"
+        },
+        {
+          "commitSha": "11a69c066357a565d2cc26afd516d4b2d1eb6f7b",
+          "runId": "35474573378"
+        }
+      ]
+    },
+    {
+      "id": "hist-primary-red-order",
+      "rootCause": "orchestration",
+      "rule": "primary-red-before-secondary-certification",
+      "lesson": "When multiple gates fail on one SHA, repair the earliest canonical gate first; downstream certification/browser errors can be secondary symptoms of an earlier static/control-plane defect.",
+      "evidence": [
+        {
+          "commitSha": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+          "runId": "35474371698"
+        },
+        {
+          "commitSha": "11a69c066357a565d2cc26afd516d4b2d1eb6f7b",
+          "runId": "35474573378"
+        }
+      ]
+    }
+  ]
+}

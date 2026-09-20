@@ -1,0 +1,43 @@
+name: FLIXO Agent Repair Supervisor
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: flixo-agent-repair-supervisor-observer
+  cancel-in-progress: true
+
+permissions:
+  actions: read
+  contents: read
+  checks: read
+
+jobs:
+  supervise:
+    name: Observe current branch heads and report RED until GREEN
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Observe main and execution without dispatch authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          REQUIRED='FLIXO Test System|FLIXO WP0 Trust Baseline|FLIXO Test Impact|FLIXO Test Impact Execution|FLIXO Continuous Delivery|Repository Security Baseline|Claude Security Review|Daily·FLIXO Green Gate'
+          for BRANCH in main execution; do
+            SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
+            RUNS="$(gh run list --repo "$GITHUB_REPOSITORY" --branch "$BRANCH" --commit "$SHA" --limit 100 --json databaseId,name,status,conclusion,headSha,createdAt)"
+            GREEN="$(printf '%s' "$RUNS" | jq -r --arg sha "$SHA" 'map(select(.headSha == $sha and .name == "Daily·FLIXO Green Gate" and .conclusion == "success")) | sort_by(.createdAt) | last.databaseId // empty')"
+            FAILED="$(printf '%s' "$RUNS" | jq -r --arg sha "$SHA" --arg names "$REQUIRED" 'map(select(.headSha == $sha and (.name as $n | ($names | split("|") | index($n) != null)))) | map(select(.conclusion == "failure" or .conclusion == "timed_out")) | sort_by(.createdAt) | last.databaseId // empty')"
+            if [ -n "$GREEN" ]; then
+              echo "GREEN branch=$BRANCH sha=$SHA verification_run=$GREEN"
+            elif [ -n "$FAILED" ]; then
+              echo "RED_OBSERVED branch=$BRANCH sha=$SHA run=$FAILED"
+              echo "DISPATCH_AUTHORITY=CANONICAL_REPAIR_GATE_ONLY"
+            else
+              echo "WAITING branch=$BRANCH sha=$SHA"
+            fi
+          done

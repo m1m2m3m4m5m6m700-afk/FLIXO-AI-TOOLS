@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "phase": "CI-3",
+  "status": "COMPLETE",
+  "verifiedSha": "fb2322a90b5af8434630f18c9cc362be79252ebb",
+  "base": "128b638f7bd1f87a03b95fa4ab6c4dac83300d74",
+  "acceptance": {
+    "dependencyGraph": "PASS",
+    "cycleDetection": "PASS",
+    "topologicalOrder": "PASS",
+    "dependencyClosure": "PASS",
+    "blockedPropagation": "PASS",
+    "deterministicPlan": "PASS",
+    "planHash": "PASS",
+    "planReproducibility": "PASS",
+    "shadowWorkflow": "PASS"
+  },
+  "safety": {
+    "mainModified": false,
+    "branchProtectionModified": false,
+    "requiredChecksModified": false,
+    "productionConfigurationModified": false,
+    "legacyWorkflowDeleted": false,
+    "legacyWorkflowBehaviorModified": false
+  },
+  "exitDecision": "PASS",
+  "nextPhaseAllowed": true
+}

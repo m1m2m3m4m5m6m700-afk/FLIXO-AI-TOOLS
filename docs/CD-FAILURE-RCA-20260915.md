@@ -1,0 +1,3 @@
+# CD failure RCA — 2026-09-15
+
+Root cause and repair contract for workflow run 34993826676. The causal failure was certified-CI resolution; evidence upload then failed secondarily because the evidence file was never created. Repair must use the triggering workflow_run ID for workflow_run events, retain exact SHA/conclusion validation, reserve API lookup for manual dispatch, and always create evidence before controlled failure.

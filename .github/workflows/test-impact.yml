@@ -1,0 +1,56 @@
+name: FLIXO Test Impact
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: flixo-test-impact-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  impact:
+    name: Test Impact Graph
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Build impact plan
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+        run: node scripts/ci/test-impact.mjs --base="$BASE_SHA"
+      - name: Verify impact evidence identity
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test -s diagnostics/ci/test-impact.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const p = JSON.parse(fs.readFileSync('diagnostics/ci/test-impact.json', 'utf8'));
+          const expected = process.env.EXPECTED_SHA;
+          if (p.sha !== expected) throw new Error(`Impact SHA mismatch: ${p.sha} != ${expected}`);
+          if (p.evidenceClass !== 'PRIMARY_EXECUTION') throw new Error('Impact evidence must be PRIMARY_EXECUTION');
+          if (!Array.isArray(p.commands) || p.commands.length === 0) throw new Error('Impact plan must contain commands');
+          if (!Array.isArray(p.domains) || p.domains.length === 0) throw new Error('Impact plan must contain domains');
+          NODE
+      - name: Verify evidence reducer contract
+        run: node scripts/ci/test-evidence-reducer.mjs
+      - name: Upload impact evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-test-impact-${{ github.run_id }}
+          path: diagnostics/ci/test-impact.json
+          if-no-files-found: error
+          retention-days: 14

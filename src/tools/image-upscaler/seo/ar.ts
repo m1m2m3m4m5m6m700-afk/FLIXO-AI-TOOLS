@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const ar: LocalizedToolSeo = { title: 'تكبير الصور أونلاين', description: 'كبّر أبعاد الصور داخل المتصفح بمعالجة محلية.', intro: 'كبّر صور JPG وPNG وWebP للشاشات والمستندات ومنشورات التواصل دون رفع الصورة الأصلية إلى خادم.', keywords: ['تكبير الصور', 'رفع دقة الصورة', 'توضيح الصور'], howTo: ['اختر صورة.', 'حدد نسبة التكبير.', 'نزّل الصورة المكبرة.'], features: ['معالجة محلية', 'دعم JPG وPNG وWebP', 'تحكم سهل بالحجم'], altText: ['واجهة تكبير الصور'] };

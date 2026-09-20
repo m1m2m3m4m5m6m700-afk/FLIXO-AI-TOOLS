@@ -1,0 +1,111 @@
+name: FLIXO Agent Repair Handoff Gate
+
+on:
+  workflow_run:
+    workflows: ["FLIXO Auto Repair Bot"]
+    types: [completed]
+    branches: [execution]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: flixo-repair-handoff-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+env:
+  REPAIR_RUN_ID: ${{ github.event.workflow_run.id }}
+  REPAIR_SHA: ${{ github.event.workflow_run.head_sha }}
+  REPAIR_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+  REPAIR_TARGET_BRANCH: ${{ github.event.workflow_run.head_branch }}
+
+jobs:
+  validate-handoff:
+    name: Validate repair handoff boundary
+    if: github.event.workflow_run.conclusion != 'skipped' && github.event.workflow_run.conclusion != 'cancelled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted validators from main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Download repair handoff artifact
+        if: env.REPAIR_RUN_CONCLUSION == 'success' || env.REPAIR_RUN_CONCLUSION == 'failure' || env.REPAIR_RUN_CONCLUSION == 'timed_out'
+        uses: actions/download-artifact@v7
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.REPAIR_RUN_ID }}
+          pattern: flixo-auto-repair-*-${{ env.REPAIR_RUN_ID }}
+          path: /tmp/repair-handoff
+          merge-multiple: true
+
+      - name: Validate handoff targets the current execution branch head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$REPAIR_TARGET_BRANCH" = "execution"
+          CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test -s /tmp/repair-handoff/flixo-prepared-repair-handoff.json
+          HANDOFF_EXECUTION_SHA="$(node -e "const h=require('/tmp/repair-handoff/flixo-prepared-repair-handoff.json');process.stdout.write(h.executionSha||'')")"
+          HANDOFF_BRANCH="$(node -e "const h=require('/tmp/repair-handoff/flixo-prepared-repair-handoff.json');process.stdout.write(h.headBranch||'')")"
+          test -n "$HANDOFF_EXECUTION_SHA"
+          test "$HANDOFF_BRANCH" = "$REPAIR_TARGET_BRANCH"
+          test "$HANDOFF_EXECUTION_SHA" = "$CURRENT_EXECUTION_SHA" || {
+            echo "FAIL CLOSED: handoff SHA $HANDOFF_EXECUTION_SHA is superseded by execution $CURRENT_EXECUTION_SHA."
+            exit 1
+          }
+
+      - name: Validate canonical handoff contract
+        if: env.REPAIR_RUN_CONCLUSION == 'success' || env.REPAIR_RUN_CONCLUSION == 'failure' || env.REPAIR_RUN_CONCLUSION == 'timed_out'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/repair-handoff
+          outcome="$(cat flixo-engine-outcome)"
+          learning="$(cat flixo-learning-outcome)"
+          if [ "$outcome" = "verified-repair" ]; then
+            test -f flixo-prepared-repair-handoff.json
+            test -f flixo-prepared-repair.patch
+            node -e 'const fs=require("fs"); const h=JSON.parse(fs.readFileSync("flixo-prepared-repair-handoff.json","utf8")); if(h.mode!=="VERIFIED_REPAIR") throw new Error(`Invalid mode: ${h.mode}`); if(h.applyBy!=="AUTO_REPAIR_BOT") throw new Error(`Invalid owner: ${h.applyBy}`); if(h.requiresCanonicalCI!==true) throw new Error("Canonical CI requirement missing");'
+            test "$learning" = "success"
+          else
+            test "$learning" != "success"
+            echo "No verified repair was produced; recording escalation-only outcome."
+          fi
+
+      - name: Record machine-readable handoff decision
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/repair-handoff
+          if [ "$REPAIR_RUN_CONCLUSION" = "skipped" ] || [ "$REPAIR_RUN_CONCLUSION" = "cancelled" ]; then
+            STATE="SKIPPED_SOURCE_RUN"
+            DECISION="NO_HANDOFF_TO_APPLY"
+            [ "$REPAIR_RUN_CONCLUSION" = "cancelled" ] && STATE="CANCELLED_SOURCE_RUN"
+            REPAIR_RUN_ID="$REPAIR_RUN_ID" REPAIR_SHA="$REPAIR_SHA" STATE="$STATE" node -e 'const fs=require("fs"); const result={schemaVersion:1,protocol:"AGENT-REPAIR-HANDOFF-GATE-v3",repairRunId:process.env.REPAIR_RUN_ID,failedSha:process.env.REPAIR_SHA,gateState:process.env.STATE,decision:"NO_HANDOFF_TO_APPLY",generatedAt:new Date().toISOString()}; fs.writeFileSync("/tmp/repair-handoff/repair-handoff-gate.json",JSON.stringify(result,null,2)+"\n");'
+            exit 0
+          fi
+          if [ ! -f /tmp/repair-handoff/flixo-engine-outcome ] || [ ! -f /tmp/repair-handoff/flixo-learning-outcome ] || [ ! -f /tmp/repair-handoff/flixo-root-cause.json ]; then
+            REPAIR_RUN_ID="$REPAIR_RUN_ID" REPAIR_SHA="$REPAIR_SHA" node -e 'const fs=require("fs"); const result={schemaVersion:1,protocol:"AGENT-REPAIR-HANDOFF-GATE-v3",repairRunId:process.env.REPAIR_RUN_ID,failedSha:process.env.REPAIR_SHA,gateState:"HANDOFF_ARTIFACT_UNAVAILABLE",decision:"ESCALATION_ONLY",reason:"Expected Auto Repair evidence artifact was unavailable.",generatedAt:new Date().toISOString()}; fs.writeFileSync("/tmp/repair-handoff/repair-handoff-gate.json",JSON.stringify(result,null,2)+"\n");'
+            exit 1
+          fi
+          cd /tmp/repair-handoff
+          outcome="$(cat flixo-engine-outcome)"
+          learning="$(cat flixo-learning-outcome)"
+          OUTCOME="$outcome" LEARNING="$learning" REPAIR_RUN_ID="$REPAIR_RUN_ID" REPAIR_SHA="$REPAIR_SHA" node -e 'const fs=require("fs"); const crypto=require("crypto"); const hFile="flixo-prepared-repair-handoff.json"; const hasH=fs.existsSync(hFile); const h=hasH?JSON.parse(fs.readFileSync(hFile,"utf8")):{}; const o=process.env.OUTCOME; const l=process.env.LEARNING; const result={schemaVersion:1,protocol:"AGENT-REPAIR-HANDOFF-GATE-v3",repairRunId:process.env.REPAIR_RUN_ID,failedSha:process.env.REPAIR_SHA,mode:h.mode??null,applyBy:h.applyBy??null,requiresCanonicalCI:h.requiresCanonicalCI??null,engineOutcome:o,learningOutcome:l,decision:o==="verified-repair"&&l==="success"&&h.mode==="VERIFIED_REPAIR"&&h.applyBy==="AUTO_REPAIR_BOT"&&h.requiresCanonicalCI===true?"READY_FOR_EXECUTION":"ESCALATION_ONLY",handoffSha256:hasH?crypto.createHash("sha256").update(fs.readFileSync(hFile)).digest("hex"):null,generatedAt:new Date().toISOString()}; fs.writeFileSync("repair-handoff-gate.json",JSON.stringify(result,null,2)+"\n");'
+
+      - name: Upload handoff gate evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-repair-handoff-gate-${{ github.event.workflow_run.id }}
+          path: /tmp/repair-handoff/repair-handoff-gate.json
+          if-no-files-found: error
+          retention-days: 30

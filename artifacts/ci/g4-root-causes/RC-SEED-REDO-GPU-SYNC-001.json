@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "rootCauseId": "RC-SEED-REDO-GPU-SYNC-001",
+  "classification": "FLAKY_TEST",
+  "status": "RECOVERING",
+  "contract": "G4",
+  "scope": {
+    "route": "/en/seed",
+    "browser": "chromium",
+    "mode": "FAST",
+    "test": "Seed: Undo and Redo restore and reapply a GPU color change"
+  },
+  "trigger": "Run 34308048377 on c5093b0b98b926e0ef1f19e0b36fa00858bd2fa8 failed at tests/seed.spec.ts:79 after a fixed 150ms wait; the same exact SHA/test/browser/shard passed on run attempt 2.",
+  "propagationPath": "React settings/history update -> useEffect dependency -> requestAnimationFrame -> WebGL render -> framebuffer -> Playwright canvas screenshot, with no explicit application-level render completion boundary.",
+  "violatedInvariant": "Browser pixel assertions must observe the framebuffer produced by the committed state, not a time-based approximation of render completion.",
+  "responsibleSource": "src/tools/seed/index.tsx render scheduling and tests/seed.spec.ts time-based synchronization.",
+  "observableSymptom": "Chromium FAST shard-2 intermittently compared the post-redo canvas against the earlier edited screenshot and received false equality.",
+  "preRepairEvidence": {
+    "failedRunId": "34308048377",
+    "failedAttempt": 1,
+    "failedSha": "c5093b0b98b926e0ef1f19e0b36fa00858bd2fa8",
+    "rerunAttempt": 2,
+    "rerunSha": "c5093b0b98b926e0ef1f19e0b36fa00858bd2fa8",
+    "rerunResult": "PASS",
+    "failedTest": "tests/seed.spec.ts:63:1"
+  },
+  "repair": "Expose canvas data-render-revision after successful SeedGLEngine.render() and make GPU pixel assertions await a revision change instead of sleeping for a fixed duration.",
+  "repairTargets": ["src/tools/seed/index.tsx", "tests/seed.spec.ts"],
+  "verification": [
+    "npx playwright test tests/seed.spec.ts --project=chromium",
+    "npx playwright test tests/seed.spec.ts --project=firefox",
+    "npx playwright test tests/seed.spec.ts --project=webkit"
+  ],
+  "recordedAgainstSha": "6c72eaf5f581e33d2616991e158d3a8375275661",
+  "recordedAt": "2026-09-09T03:56:00Z"
+}

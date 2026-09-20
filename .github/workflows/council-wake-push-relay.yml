@@ -1,0 +1,107 @@
+name: FLIXO Council Wake Push Relay
+# WAKE_RELAY_ACTIVE: PRESIDENT-controlled exact-SHA transport
+
+on:
+  push:
+    branches: [execution]
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+  id-token: write
+
+concurrency:
+  group: flixo-council-wake-push-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  wake:
+    if: >-
+      contains(github.event.head_commit.message || '', 'PRESIDENT WAKE')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Parse wake command
+        id: parse
+        env:
+          MESSAGE: ${{ github.event.head_commit.message || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROLE="$(printf '%s\n' "$MESSAGE" | sed -nE 's/.*ROLE=([A-Z]+).*/\1/p' | head -n1)"
+          WP="$(printf '%s\n' "$MESSAGE" | sed -nE 's/.*WORK_PACKAGE=([A-Z][A-Z0-9_-]{3,80}).*/\1/p' | head -n1)"
+          test -n "$ROLE"
+          test "$WP" =~ ^[A-Z][A-Z0-9_-]{3,80}$
+          echo "role=$ROLE" >> "$GITHUB_OUTPUT"
+          echo "work_package=$WP" >> "$GITHUB_OUTPUT"
+          echo "entry_sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Verify exact execution SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENTRY_SHA: ${{ steps.parse.outputs.entry_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$CURRENT" = "$ENTRY_SHA"
+
+      - name: Wake external Council runtime
+        if: ${{ steps.parse.outputs.role == 'DEPUTY' || steps.parse.outputs.role == 'TASK' || steps.parse.outputs.role == 'EXECUTION' || steps.parse.outputs.role == 'REVIEW' || steps.parse.outputs.role == 'CERTIFICATION' }}
+        env:
+          ENTRY_SHA: ${{ steps.parse.outputs.entry_sha }}
+          ROLE: ${{ steps.parse.outputs.role }}
+          WORK_PACKAGE: ${{ steps.parse.outputs.work_package }}
+          RUNTIME_URL: https://zrpsmgdrtwzrhkjwwujo.supabase.co/functions/v1/flixo-council-runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          OIDC_TOKEN="$(curl -fsSL             -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$RUNTIME_URL"             | jq -r '.value')"
+          test -n "$OIDC_TOKEN" && test "$OIDC_TOKEN" != "null"
+
+          MESSAGE_ID="push-wake-${{ github.run_id }}-$ROLE"
+          curl -fsSL             -H "Authorization: Bearer $OIDC_TOKEN"             -H "Content-Type: application/json"             -X POST "$RUNTIME_URL?action=dispatch"             --data-binary @- > /tmp/council-dispatch.json <<JSON
+          {
+            "messageId": "$MESSAGE_ID",
+            "idempotencyKey": "$MESSAGE_ID",
+            "taskId": "COUNCIL-OPERATIONS-001",
+            "workPackageId": "$WORK_PACKAGE",
+            "entrySha": "$ENTRY_SHA",
+            "primaryAccountId": "CHIEF",
+            "fallbackAccountId": "CHIEF",
+            "requestedByAccountId": "SYSTEM",
+            "councilRole": "$ROLE",
+            "payload": {
+              "source": "FLIXO Council Wake Push Relay",
+              "commitMessage": ${{ toJSON(github.event.head_commit.message) }},
+              "exactSha": "$ENTRY_SHA"
+            }
+          }
+JSON
+          jq -e '.ok == true' /tmp/council-dispatch.json >/dev/null
+          jq -r '"DISPATCH_ID=" + .dispatchId + "\nDISPATCH_STATUS=" + .status + "\nPUSH_RESULT=" + (.push|tostring)' /tmp/council-dispatch.json
+
+      - name: Publish wake receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROLE: ${{ steps.parse.outputs.role }}
+          WORK_PACKAGE: ${{ steps.parse.outputs.work_package }}
+          ENTRY_SHA: ${{ steps.parse.outputs.entry_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### PRESIDENT WAKE RECEIPT
+
+**Role:** \`$ROLE\`
+**Work Package:** \`$WORK_PACKAGE\`
+**Exact SHA:** \`$ENTRY_SHA\`
+**Transport:** push → OIDC → Supabase Council Runtime
+**Result:** QUEUED
+
+This receipt proves the exact-SHA wake was accepted into the canonical runtime queue. Agent ACK is separate evidence and is not inferred from queue acceptance."
+
+      - name: Stop on unsupported role
+        if: ${{ steps.parse.outputs.role != 'DEPUTY' && steps.parse.outputs.role != 'TASK' && steps.parse.outputs.role != 'EXECUTION' && steps.parse.outputs.role != 'REVIEW' && steps.parse.outputs.role != 'CERTIFICATION' }}
+        run: |
+          echo "WAKE_ROLE_NOT_SUPPORTED_FOR_EXTERNAL_TRANSPORT"
+          exit 1

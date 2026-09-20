@@ -1,0 +1,71 @@
+name: FLIXO Council Network Probe
+
+on:
+  push:
+    branches: [execution]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flixo-council-network-probe
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    name: External DNS + HTTPS reachability
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNTIME_URL: https://zrpsmgdrtwzrhkjwwujo.supabase.co/functions/v1/flixo-council-runtime?action=runtime-state
+    steps:
+      - name: Bind probe to exact execution SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT="$(git ls-remote https://github.com/$GITHUB_REPOSITORY.git refs/heads/execution | awk '{print $1}')"
+          test -n "$CURRENT"
+          test "$CURRENT" = "$GITHUB_SHA"
+          printf 'EXECUTION_SHA=%s\n' "$CURRENT"
+
+      - name: DNS resolution
+        shell: bash
+        run: |
+          set -euo pipefail
+          HOST="$(printf '%s\n' "$RUNTIME_URL" | sed -E 's#https://([^/]+)/.*#\1#')"
+          getent ahostsv4 "$HOST" | head -n 5
+          test "$(getent ahostsv4 "$HOST" | wc -l)" -gt 0
+          echo "DNS=PASS"
+
+      - name: HTTPS reachability and HTTP response
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          HTTP_CODE="$(curl -sS --max-time 15 --connect-timeout 10 -o /tmp/runtime-response.txt -w '%{http_code}' "$RUNTIME_URL")"
+          CURL_EXIT=$?
+          set -e
+          if [ "$CURL_EXIT" -ne 0 ]; then
+            echo "HTTPS=FAIL"
+            echo "CURL_EXIT=$CURL_EXIT"
+            exit 1
+          fi
+          case "$HTTP_CODE" in
+            ''|000) echo "HTTPS=FAIL"; exit 1 ;;
+            *) echo "HTTPS=PASS"; echo "HTTP_STATUS=$HTTP_CODE" ;;
+          esac
+          echo "RESPONSE_BODY_BEGIN"
+          head -c 2000 /tmp/runtime-response.txt || true
+          echo
+          echo "RESPONSE_BODY_END"
+
+      - name: Emit fail-closed verdict
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "NETWORK_PROBE_COMPLETED=true"
+          echo "NO_WAKE_CREATED=true"
+          echo "NO_DISPATCH_SENT=true"
+          echo "MAIN_MUTATION=NONE"

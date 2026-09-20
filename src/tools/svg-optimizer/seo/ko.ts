@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const ko: LocalizedToolSeo = Object.freeze({title:'온라인 SVG 최적화 도구 | FLIXO',description:'브라우저에서 SVG 파일을 바로 최적화하고 최소화하세요.',intro:'FLIXO는 SVG 파일을 브라우저에서 로컬로 줄이며 서버에 업로드하지 않습니다.',keywords:['SVG 최적화','SVG 압축','SVG 최소화'],howTo:['SVG를 선택하세요.','파일을 최적화하세요.','최적화된 SVG를 다운로드하세요.'],features:['로컬 처리','더 작은 파일','업로드 불필요','직접 다운로드'],altText:['SVG 최적화 화면','최적화된 SVG 미리보기','최적화 SVG 다운로드']});
