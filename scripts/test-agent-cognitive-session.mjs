@@ -39,4 +39,6 @@ const missingCropPlan = buildIntentPlan('crop the image');
 assert.equal(missingCropPlan.status, 'NEEDS_INPUT');
 assert.equal(missingCropPlan.missing[0]?.id, 'crop-geometry');
 assert.equal(toExecutionPlan(missingCropPlan), null);
+
+await import('./test-agent-knowledge-vault.mjs');
 console.log('Agent cognitive session tests passed.');
