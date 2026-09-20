@@ -90,6 +90,8 @@ const db = async (path: string, init: RequestInit = {}) => {
   return body;
 };
 
+const queryBody = (url: URL): Body => Object.fromEntries(url.searchParams.entries());
+
 const jsonBody = async (req: Request): Promise<Body> => {
   const raw = await req.text();
   if (raw.length > 1_000_000) throw new Error("COUNCIL_BODY_TOO_LARGE");
@@ -335,13 +337,13 @@ Deno.serve(async (req) => {
     }
 
 
-    if (action === "activate" && req.method === "POST") {
-      const body = await jsonBody(req);
+    if (action === "activate" && (req.method === "POST" || req.method === "GET")) {
+      const body = req.method === "GET" ? queryBody(url) : await jsonBody(req);
       const dispatchId = String(body.dispatchId ?? "").trim();
       const activationToken = String(body.activationToken ?? req.headers.get("x-council-activation") ?? "").trim();
       const declaredAgentId = String(body.agentId ?? "").trim();
       const exactSha = sha(body.entrySha);
-      const sessionId = String(body.sessionId ?? crypto.randomUUID()).trim();
+      const sessionId = String(body.sessionId ?? req.headers.get("x-council-session-id") ?? crypto.randomUUID()).trim();
       if (!dispatchId || !activationToken || !declaredAgentId || !sessionId) {
         throw new Error("COUNCIL_ACTIVATION_REQUIRED");
       }
@@ -444,14 +446,15 @@ Deno.serve(async (req) => {
       const result = await db("/rest/v1/rpc/council_ack_dispatch", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ p_dispatch_id: String(body.dispatchId), p_account_id: account, p_session_id: String(body.sessionId), p_exact_sha: sha(body.entrySha) }),
+        body: JSON.stringify({ p_dispatch_id: dispatchId, p_account_id: account, p_session_id: String(hb.sessionId), p_exact_sha: sha(hb.entrySha) }),
       });
       return response({ ok: true, dispatch: Array.isArray(result) ? result[0] ?? null : result }, 200, requestId);
     }
 
-    if (action === "heartbeat" && req.method === "POST") {
-      const account = accountFrom(body.accountId);
-      const dispatchId = String(body.dispatchId);
+    if (action === "heartbeat" && (req.method === "POST" || req.method === "GET")) {
+      const hb = req.method === "GET" ? queryBody(url) : body;
+      const account = accountFrom(hb.accountId);
+      const dispatchId = String(hb.dispatchId);
       authAccountOrSession(req, account, dispatchId);
       const result = await db("/rest/v1/rpc/council_heartbeat_dispatch", {
         method: "POST",
@@ -461,11 +464,12 @@ Deno.serve(async (req) => {
       return response({ ok: true, dispatch: Array.isArray(result) ? result[0] ?? null : result }, 200, requestId);
     }
 
-    if (action === "complete" && req.method === "POST") {
-      const account = accountFrom(body.accountId);
-      const dispatchId = String(body.dispatchId);
+    if (action === "complete" && (req.method === "POST" || req.method === "GET")) {
+      const cmp = req.method === "GET" ? queryBody(url) : body;
+      const account = accountFrom(cmp.accountId);
+      const dispatchId = String(cmp.dispatchId);
       authAccountOrSession(req, account, dispatchId);
-      const status = String(body.status ?? "DONE");
+      const status = String(cmp.status ?? "DONE");
       if (!["DONE", "FAILED"].includes(status)) throw new Error("COUNCIL_COMPLETE_STATUS_INVALID");
       const result = await db("/rest/v1/rpc/council_complete_dispatch", {
         method: "POST",
@@ -473,11 +477,11 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           p_dispatch_id: String(body.dispatchId),
           p_account_id: account,
-          p_session_id: String(body.sessionId),
-          p_exact_sha: sha(body.entrySha),
+          p_session_id: String(cmp.sessionId),
+          p_exact_sha: sha(cmp.entrySha),
           p_status: status,
-          p_evidence: body.evidence ?? {},
-          p_payload: body.payload ?? {},
+          p_evidence: cmp.evidence ?? {},
+          p_payload: cmp.payload ?? {},
         }),
       });
       return response({ ok: true, dispatch: Array.isArray(result) ? result[0] ?? null : result }, 200, requestId);
