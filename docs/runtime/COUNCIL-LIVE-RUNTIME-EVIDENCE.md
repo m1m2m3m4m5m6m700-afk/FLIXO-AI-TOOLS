@@ -1,18 +1,21 @@
 # Council live-runtime evidence contract
 
-The repository contract deliberately separates source-controlled RPC evidence from live Supabase runtime evidence.
+Source-controlled RPC evidence and live runtime evidence are separate trust domains.
 
 SOURCE_VERIFIED means the authoritative SQL, security boundary, exact-SHA/session invariants, and validators exist in Git and pass CI.
 
-LIVE_VERIFIED is a separate assertion. It must come from an actual runtime readback performed against the deployed Council runtime and must bind the readback to the exact execution SHA. Required fields:
+LIVE_VERIFIED must come from the dedicated protected workflow: FLIXO Council Live Runtime Verification.
 
+The workflow is manual, uses the protected environment flixo-live-runtime-verification, performs only read-only runtime probes against the live Supabase project, binds the result to the requested execution SHA, and publishes an immutable GitHub Actions artifact.
+
+Required evidence fields:
 - state: LIVE_VERIFIED
-- verifiedSha: 40-hex execution SHA
+- verifiedSha: the exact 40-hex execution SHA
 - verifiedAt: ISO-8601 timestamp
-- provider: the real production provider
-- verifier: non-empty verifier identity
-- evidenceRef: immutable runtime-readback reference
+- provider: supabase
+- verifier: workflow/run identity
+- evidenceRef: immutable workflow/run reference
 
-The promotion gate consumes this evidence separately and fails closed when the file is absent, stale, malformed, or not LIVE_VERIFIED.
+The promotion gate downloads the successful live-runtime artifact for the exact SHA and validates it before certification.
 
-No source-controlled declaration may be used to claim that the live database was migrated or is healthy without an actual runtime readback. The current repository therefore remains non-certifiable until this evidence is produced by an authorized runtime verification process.
+A source-controlled JSON declaration cannot substitute for the live artifact. The live workflow requires protected environment secrets and therefore cannot be satisfied by changing files inside the pull request.
