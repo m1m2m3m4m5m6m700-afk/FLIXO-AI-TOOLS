@@ -28,6 +28,19 @@ A task cannot become `DONE` while `remainingWork` or `openRcas` exist. A session
 
 Task completion records exact exit SHA, evidence and findings. Primary certification remains owned by the canonical certification authority. Coordination state never substitutes for product evidence.
 
+## Communication ingress and delivery
+
+Agent communication is part of this same control plane; it is not a second registry or protocol.
+
+`Master Inbox (Issue #761) → agent-communication-relay.yml → agent-communication.mjs → agent-session.mjs → agent-coordination.mjs`.
+
+The inbox lifecycle is `RECEIVED → READ → CONSUMED`. `STALE` and `BLOCKED_CONFLICT` are fail-closed states.
+
+Every actionable message carries `messageId`, `idempotencyKey`, `recipient`, `taskId`, `scope`, `entrySha`, `risk`, dependencies and proof obligations. A duplicate delivery is a NO-OP. Reuse of a message identity with different content is an idempotency collision.
+
+The event-driven relay is the primary delivery mechanism. Polling/supervision is recovery only. An agent session carrying an inbound `messageId` must read that message before task claim; task claim then revalidates message SHA, recipient, task and scope before acquiring the ownership lock.
+
+Receipt or READ state never grants execution authority.
 ## CLI
 
 `node scripts/ci/agent-coordination.mjs task-create ...`
