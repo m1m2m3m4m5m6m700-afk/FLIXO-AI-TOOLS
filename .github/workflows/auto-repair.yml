@@ -849,7 +849,7 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/ci/action-vault-intelligence-benchmark.mjs
-          echo "ACTION_VAULT_GATE_INTEGRITY_BENCHMARK=100"
+          jq -r '"ACTION_VAULT_INTELLIGENCE_BENCHMARK_SCORE="+(.score|tostring)' /tmp/action-vault-intelligence-benchmark.json
 
       - name: Mark mutation boundary after verifier dual-control
         if: steps.action_repair_primary_approval.outcome == 'success'
@@ -1002,6 +1002,12 @@ jobs:
           export FLIXO_EXPECTED_TARGET_SHA="$CURRENT_SHA"
           echo 'BRANCH_CONFLICT_RECOVERY=REQUALIFY_SAME_MISSION'
           node /tmp/flixo-repair-controller/scripts/ci/repair-strategy.mjs
+           node scripts/ci/action-repair-programmer-twin.mjs --sha="$CURRENT_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --run-id="$TARGET_RUN_ID" --log="$FLIXO_FAILURE_LOG" --file-selection="$FLIXO_FILE_SELECTION_PATH" --diagnosis=/tmp/flixo-root-cause.json --output=/tmp/action-repair-programmer-twin.json
+           node scripts/ci/test-action-repair-programmer-twin.mjs
+           node scripts/ci/action-system-cognitive-awareness.mjs --task="$TARGET_RUN_ID" --sha="$CURRENT_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --run-id="$TARGET_RUN_ID" --file-selection="$FLIXO_FILE_SELECTION_PATH" --log="$FLIXO_FAILURE_LOG" --diagnosis=/tmp/flixo-root-cause.json --twin=/tmp/action-repair-programmer-twin.json --output=/tmp/action-system-cognitive-awareness.json
+           node scripts/ci/test-action-system-cognitive-awareness.mjs /tmp/action-system-cognitive-awareness.json
+           node scripts/ci/action-vault-pre-mutation-proof.mjs --sha="$CURRENT_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --run-id="$TARGET_RUN_ID" --log="$FLIXO_FAILURE_LOG" --diagnosis=/tmp/flixo-root-cause.json --strategy=/tmp/flixo-repair-strategy.json --file-selection="$FLIXO_FILE_SELECTION_PATH" --awareness=/tmp/action-system-cognitive-awareness.json --twin=/tmp/action-repair-programmer-twin.json --primary-proof=/tmp/action-primary-correctness-proof.json --output=/tmp/action-vault-pre-mutation-proof.json
+           test -s /tmp/action-vault-pre-mutation-proof.json
           node scripts/ci/action-repair-dual-control.mjs audit --agent=ACTION-REPAIR-2 --partner=ACTION-REPAIR --target-sha="$CURRENT_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --run-id="$TARGET_RUN_ID" --memory="$FLIXO_ACTION_REPAIR_ASSISTANT_MEMORY" --strategy=/tmp/flixo-repair-strategy.json --evidence=/tmp/flixo-root-cause.json --file-selection="$FLIXO_FILE_SELECTION_PATH" --programmer-twin-parity="$FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH" --proposal=/tmp/action-repair-2-proposal.json
           node scripts/ci/action-repair-dual-control.mjs approve --agent=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$CURRENT_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --proposal=/tmp/action-repair-2-proposal.json --approval=/tmp/action-repair-2-approval.json
           node scripts/ci/action-repair-dual-control.mjs heartbeat --primary=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$CURRENT_SHA" --state=READY_FOR_MUTATION --out=/tmp/action-repair-pair-heartbeat.json
