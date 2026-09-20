@@ -150,7 +150,11 @@ jobs:
           ALL_GREEN=false
 
           for ((poll=1; poll<=MAX_POLLS; poll++)); do
-            gh_with_backoff run list --repo "$GITHUB_REPOSITORY" --commit "$EXPECTED_SHA" --limit 100 --json databaseId,name,status,conclusion,headSha,headBranch,updatedAt > /tmp/exact-runs.json
+            # Query the commit-scoped Actions endpoint directly. The gh run-list command
+            # first resolves workflow metadata via /actions/workflows, which can hit the
+            # installation API rate limit even when the commit itself is healthy.
+            gh_with_backoff api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXPECTED_SHA&per_page=100" > /tmp/exact-runs-response.json
+            jq '.workflow_runs' /tmp/exact-runs-response.json > /tmp/exact-runs.json
             WAITING=false
 
             for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
