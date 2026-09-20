@@ -141,3 +141,97 @@
   margin:7px 1px 0 !important;
   font-size:.62rem !important;
 }
+
+
+/* 2026-09-20 — dedicated phone surface for the FLIXO chat rectangle. */
+@media (max-width:640px){
+  .flixo-ai-agent{
+    width:100% !important;
+    max-width:none !important;
+    margin:12px 0 18px !important;
+    padding:11px !important;
+    border-radius:14px !important;
+  }
+  .flixo-ai-agent-header{
+    align-items:flex-start !important;
+    margin-bottom:6px !important;
+  }
+  .flixo-ai-agent-header h2{font-size:.86rem !important}
+  .flixo-ai-agent-header p{
+    display:none !important;
+  }
+  .flixo-ai-agent-badge{
+    padding:4px 6px !important;
+    font-size:.5rem !important;
+  }
+  .flixo-ai-agent-chat{
+    max-height:150px !important;
+    gap:6px !important;
+    margin-bottom:7px !important;
+  }
+  .flixo-ai-agent-message{
+    max-width:94% !important;
+    font-size:.66rem !important;
+  }
+  .flixo-ai-agent-message>div{
+    padding:6px 8px !important;
+    border-radius:9px !important;
+  }
+  .flixo-ai-agent-avatar{
+    width:20px !important;
+    height:20px !important;
+  }
+  .flixo-ai-agent-inputs label{font-size:.58rem !important}
+  .flixo-ai-agent-inputs input[type=text]{
+    min-height:38px !important;
+    font-size:.7rem !important;
+    padding:8px 9px !important;
+  }
+  .flixo-ai-agent-inputs input[type=file]{
+    min-height:34px !important;
+    padding:6px !important;
+    font-size:.6rem !important;
+  }
+  .flixo-ai-agent-examples{
+    flex-wrap:nowrap !important;
+    overflow-x:auto !important;
+    scrollbar-width:none;
+    padding-bottom:1px;
+  }
+  .flixo-ai-agent-examples::-webkit-scrollbar{display:none}
+  .flixo-ai-agent-examples button{
+    flex:0 0 auto !important;
+    white-space:nowrap;
+    font-size:.58rem !important;
+    padding:5px 7px !important;
+  }
+  .flixo-ai-agent-actions{
+    flex-direction:row !important;
+    gap:5px !important;
+  }
+  .flixo-ai-agent-actions .primary-button{
+    min-height:32px !important;
+    font-size:.64rem !important;
+  }
+  .flixo-ai-agent-plan-topline{
+    align-items:center !important;
+  }
+  .flixo-ai-agent-intent,
+  .flixo-ai-agent-confirm,
+  .flixo-ai-agent-error,
+  .flixo-ai-agent-success,
+  .flixo-ai-agent-progress{
+    font-size:.61rem !important;
+    padding:7px !important;
+  }
+  .flixo-ai-agent-plan ol{
+    max-height:150px !important;
+    overflow:auto !important;
+  }
+  .flixo-ai-agent-plan li{
+    padding:7px !important;
+  }
+  .flixo-ai-agent-note{
+    display:none !important;
+  }
+}
