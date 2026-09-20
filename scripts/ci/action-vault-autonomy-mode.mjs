@@ -32,7 +32,6 @@ eq('botMayModifyTests',read.trustBoundary?.botMayModifyTests,false);
 if(JSON.stringify(read.requiredCollaborators)!==JSON.stringify(['ACTION-REPAIR-2','ACTION-HISTORIAN-3']))errors.push('requiredCollaborators');
 if(!Array.isArray(read.autonomyScope?.allowed)||read.autonomyScope.allowed.length<5)errors.push('autonomyScope.allowed');
 if(!Array.isArray(read.autonomyScope?.prohibited)||read.autonomyScope.prohibited.length<5)errors.push('autonomyScope.prohibited');
-if(!Array.isArray(read.failureBehavior?.criticalPath)||read.failureBehavior.criticalPath!=='STOP_AND_REQUIRE_HUMAN_AUTHORIZATION'){}
 if(read.failureBehavior?.criticalPath!=='STOP_AND_REQUIRE_HUMAN_AUTHORIZATION')errors.push('criticalPath');
 if(read.failureBehavior?.staleSha!=='PAUSE_REQUALIFY_CONTINUE_SAME_MISSION')errors.push('staleSha');
 if(read.failureBehavior?.conflictRecovery!=='IN_PLACE_ONLY')errors.push('conflictRecovery');
