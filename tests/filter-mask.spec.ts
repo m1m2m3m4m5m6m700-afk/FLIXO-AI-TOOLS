@@ -147,7 +147,7 @@ test.describe('Filter Mask live camera surface', () => {
     const section = page.getByRole('region', { name: 'Filter Mask' });
     const selected = section.getByRole('button', { name: /Warm effect\.warm/ }).first();
     await expect(selected).toHaveAttribute('aria-pressed', 'true');
-    await expect(section.locator('input[type="range"]')).toHaveValue('65');
+    await expect(section.getByRole('slider').last()).toHaveValue('65');
     await expect(section.getByRole('slider', { name: 'Zoom' })).toHaveValue('1.6');
     await expect(section.getByRole('button', { name: 'Mirror off' })).toHaveAttribute('aria-pressed', 'false');
     await expect(page).toHaveURL(/canonicalId=effect\.warm/);
@@ -170,9 +170,9 @@ test.describe('Filter Mask live camera surface', () => {
     await expect(handoff).toContainText('65%');
 
     const openPreview = handoff.getByRole('link', { name: 'Open live preview' });
-    await expect(openPreview).toHaveAttribute('href', '/en/filter-mask?canonicalId=effect.warm&intensity=65');
+    await expect(openPreview).toHaveAttribute('href', '/en/filter-mask?canonicalId=effect.warm&intensity=65&zoom=1&mirror=true');
     await openPreview.click();
-    await expect(page).toHaveURL(/\/en\/filter-mask\?canonicalId=effect\.warm&intensity=65/);
+    await expect(page).toHaveURL(/\/en\/filter-mask\?canonicalId=effect\.warm&intensity=65&zoom=1&mirror=true/);
     await expect(page.getByRole('button', { name: /Warm effect\.warm/ }).first()).toHaveAttribute('aria-pressed', 'true');
   });
   test('persists favorites and exposes recent filter shortcuts', async ({ page }) => {
