@@ -80,7 +80,7 @@ jobs:
           test -n "$PR_NUMBER" || { echo "FAIL CLOSED: PR number missing."; exit 1; }
           test "$BASE" = "main" || { echo "FAIL CLOSED: base=$BASE"; exit 1; }
           test "$HEAD_BRANCH" = "execution" || { echo "FAIL CLOSED: head=$HEAD_BRANCH"; exit 1; }
-          test "$STATE" = "OPEN" || { echo "FAIL CLOSED: PR state=$STATE"; exit 1; }
+          test "${STATE,,}" = "open" || { echo "FAIL CLOSED: PR state=$STATE"; exit 1; }
           test -n "$HEAD_SHA" || { echo "FAIL CLOSED: PR head SHA missing."; exit 1; }
 
           CURRENT_EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
