@@ -66,7 +66,18 @@
     "CHANGE_SURFACE_SELECTION",
     "EXCLUSION_REASONING",
     "MINIMAL_FILE_SURFACE_PLANNING",
-    "FILE_LEVEL_REGRESSION_SURFACE_SELECTION"
+    "FILE_LEVEL_REGRESSION_SURFACE_SELECTION",
+    "SYSTEM_COGNITIVE_AWARENESS",
+    "WHOLE_SYSTEM_CONTEXT_REASONING",
+    "MULTI_LAYER_IMPACT_REASONING",
+    "TEMPORAL_STATE_REASONING",
+    "DEPENDENCY_AWARE_REASONING",
+    "CONTRADICTION_PRESERVATION",
+    "UNCERTAINTY_MODELING",
+    "ADVERSARIAL_SYSTEM_REVIEW",
+    "DOWNSTREAM_RISK_FORECASTING",
+    "PROOF_OBLIGATION_REASONING",
+    "STALE_EVIDENCE_DETECTION"
   ],
   "sharedSources": [
     "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
@@ -122,7 +133,12 @@
     "agent2CannotBypassAgent1": true,
     "agent2MustTryToFalsifyPrimary": true,
     "agent2CounterexampleBlocksMutation": true,
-    "noCounterexampleIsNotGreen": true
+    "noCounterexampleIsNotGreen": true,
+    "cognitiveScopeMayExceedAuthority": true,
+    "cognitiveExpansionDoesNotGrantMutationAuthority": true,
+    "systemContextRequiredBeforeDecision": true,
+    "unknownsMustBeExplicit": true,
+    "contradictionsMustBePreserved": true
   },
   "members": [
     {
@@ -178,7 +194,6 @@
     "authority": {
       "taskOwnership": "single_active_programming_owner",
       "repairOwner": "ACTION-REPAIR",
-      "predictionOwner": "RETIRED_AS_PRIMARY_ROLE",
       "historian": "ACTION-HISTORIAN-3",
       "noParallelSourceMutation": true,
       "predictionCannotAuthorizeMutation": true,
@@ -189,7 +204,8 @@
       "primaryProofOwner": "ACTION-REPAIR",
       "falsificationOwner": "ACTION-REPAIR-2",
       "counterexampleBlocksMutation": true,
-      "noCounterexampleIsNotGreen": true
+      "noCounterexampleIsNotGreen": true,
+      "historicalPrediction": "SUPPORTING_EVIDENCE_ONLY"
     },
     "sharedArtifact": "diagnostics/auto-repair/action-vault/current-collaboration.json",
     "hardRule": "ANY_ACTIONABLE_RED_REQUIRES_ALL_THREE_TO_CONTRIBUTE_BEFORE_OWNER_MUTATION",
@@ -269,9 +285,9 @@
         "ACTION-REPAIR:revised-proof-or-defense"
       ],
       "beforeMutation": "FILE_SELECTION + PRIMARY_CORRECTNESS_PROOF + ADVERSARIAL_FALSIFICATION + NO_VALID_COUNTEREXAMPLE",
-      "onPredictionFailure": "ACTION-REPAIR-2_REISSUES_PREDICTION_WITH_COUNTEREXAMPLES",
       "onRepairFailure": "ACTION-REPAIR-2_RECORDS_COUNTEREXAMPLE_AND_ACTION-REPAIR_REBUILDS_PRIMARY_PROOF",
-      "noAutomaticGreen": "true"
+      "noAutomaticGreen": "true",
+      "onFalsificationCounterexample": "ACTION-REPAIR-2_RECORDS_COUNTEREXAMPLE_AND_ACTION-REPAIR_REBUILDS_PRIMARY_PROOF"
     },
     "prediction": {
       "enabled": false,
@@ -432,7 +448,12 @@
       "patchSynthesis": true,
       "sandboxSimulation": true,
       "differentialVerification": true,
-      "automaticMutation": false
+      "automaticMutation": false,
+      "systemCognitiveAwareness": true,
+      "contextBeforeRoleReasoning": true,
+      "reEvaluateOnNewEvidence": true,
+      "preserveUnknowns": true,
+      "preserveContradictions": true
     },
     "efficiency": {
       "parallelCognitiveReads": true,
@@ -477,8 +498,10 @@
       ],
       "mutationAuthority": "OWNER_ONLY",
       "requiredInputs": [
-        "ACTION-REPAIR-2:PREDICTIVE_REPAIR_PACKET",
-        "ACTION-HISTORIAN-3:FAILURE_LEDGER_RECORD"
+        "ACTION-HISTORIAN-3:FILE_SELECTION_DECISION",
+        "ACTION-REPAIR-2:ADVERSARIAL_FALSIFICATION_REPORT",
+        "SYSTEM_COGNITIVE_AWARENESS",
+        "EXACT_SHA_FAILURE_EVIDENCE"
       ],
       "intelligenceCapabilities": [
         "CURRENT_ACTION_LOG_ANALYSIS",
@@ -537,6 +560,7 @@
       "requiredInputs": [
         "ACTION-HISTORIAN-3:FILE_SELECTION_DECISION",
         "ACTION-REPAIR:PRIMARY_CORRECTNESS_PROOF",
+        "SYSTEM_COGNITIVE_AWARENESS",
         "EXACT_SHA_FAILURE_EVIDENCE"
       ],
       "intelligenceCapabilities": [
@@ -618,5 +642,41 @@
     "missionClosureDoesNotSuspendResidentAgents": true,
     "handoffMeans": "INTERNAL_COORDINATION_ONLY; NEVER_RESIDENT_WITHDRAWAL"
   },
-  "requiredPrinciple": "ACTION-REPAIR_PROVES_CORRECTNESS; ACTION-REPAIR-2_ATTEMPTS_TO_PROVE_ACTION-REPAIR_WRONG"
+  "requiredPrinciple": "ACTION-REPAIR_PROVES_CORRECTNESS; ACTION-REPAIR-2_ATTEMPTS_TO_PROVE_ACTION-REPAIR_WRONG",
+  "cognitiveExpansion": {
+    "enabled": true,
+    "protocol": "ACTION-SYSTEM-COGNITIVE-AWARENESS-v1",
+    "runtime": "scripts/ci/action-system-cognitive-awareness.mjs",
+    "artifact": "/tmp/action-system-cognitive-awareness.json",
+    "principle": "UNDERSTAND_THE_WIDER_SYSTEM_BEFORE_ACTING_WITHIN_THE_ROLE",
+    "roleScope": "COGNITIVE_SCOPE_EXPANDS; AUTHORITY_SCOPE_DOES_NOT",
+    "requiredDomains": [
+      "TASK_SEMANTICS",
+      "REPOSITORY_CONTEXT",
+      "CAUSAL_CONTEXT",
+      "HISTORICAL_CONTEXT",
+      "SAFETY_GOVERNANCE",
+      "ADVERSARIAL_CONTEXT",
+      "OPERATIONAL_CONTEXT",
+      "TEMPORAL_CONTEXT",
+      "SYSTEMIC_IMPACT"
+    ],
+    "mandatoryHabits": [
+      "read_current_exact_sha",
+      "separate_fact_hypothesis_prediction",
+      "generate_alternatives",
+      "trace_upstream_downstream_effects",
+      "model_next_state",
+      "preserve_unknowns",
+      "preserve_contradictions",
+      "reevaluate_on_new_evidence",
+      "never_expand_authority"
+    ],
+    "roleAwareness": {
+      "ACTION-REPAIR": "whole-system context before correctness proof",
+      "ACTION-REPAIR-2": "whole-system context before adversarial falsification",
+      "ACTION-HISTORIAN-3": "whole-system context before file-scope selection"
+    },
+    "mutationAuthorityUnchanged": true
+  }
 }
