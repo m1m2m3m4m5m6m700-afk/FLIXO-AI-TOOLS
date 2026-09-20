@@ -106,6 +106,9 @@ assert(contractDriftPlan.candidates.some((candidate) => candidate.id === 'contra
 const asyncFixtureRoot = fs.mkdtempSync('/tmp/flixo-async-repair-');
 fs.mkdirSync(asyncFixtureRoot + '/src', { recursive: true });
 fs.writeFileSync(asyncFixtureRoot + '/src/test.ts', "export async function demo(): string { return 'ok'; }\n");
+const errorOnlySource = fs.readFileSync('scripts/ci/auto-repair/error-only-programmer.mjs', 'utf8');
+assert.match(errorOnlySource, /typescript-async-return-contract/);
+assert.match(errorOnlySource, /TS1064_ASYNC_PROMISE_RETURN/);
 const asyncMutation = runAstRepair(asyncFixtureRoot, {
   id: 'typescript-async-contract',
   file: 'src/test.ts',
