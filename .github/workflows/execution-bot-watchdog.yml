@@ -11,6 +11,9 @@ on:
       - Claude Security Review
     types: [completed]
     branches: [execution]
+  # Independent periodic wake: if the repair chain vanishes, the observer recreates the wake.
+  schedule:
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -28,9 +31,10 @@ jobs:
     name: Exact-SHA observer wake
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
       (
-        github.event.workflow_run.name != 'FLIXO Test System' &&
-        github.event.workflow_run.conclusion != 'success'
+        github.event.workflow_run.conclusion != 'success' ||
+        github.event.workflow_run.name == 'FLIXO Auto Repair Bot'
       )
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -50,7 +54,27 @@ jobs:
             exit 0
           fi
 
+      - name: Decide scheduled wake from durable GREEN evidence
+        id: scheduled_wake
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          LATEST="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --limit 1 --json status,conclusion,headSha)"
+          ACTIVE="$(printf '%s' "$LATEST" | jq -r 'map(select(.status == "queued" or .status == "in_progress")) | length')"
+          GREEN="$(printf '%s' "$LATEST" | jq -r --arg sha "$EXECUTION_SHA" 'map(select(.headSha == $sha and .status == "completed" and .conclusion == "success")) | length')"
+          if [ "$ACTIVE" -gt 0 ] || [ "$GREEN" -gt 0 ]; then
+            echo 'WATCHDOG_SCHEDULED_WAKE_NOT_REQUIRED=true'
+            echo 'wake=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'WATCHDOG_SCHEDULED_WAKE_REQUIRED=true'
+            echo 'wake=true' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Dispatch canonical observer only
+        if: github.event_name != 'schedule' || steps.scheduled_wake.outputs.wake == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
