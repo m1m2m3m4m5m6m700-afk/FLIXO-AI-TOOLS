@@ -1,7 +1,7 @@
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import { assertExecutionAllowed, type TaskContext } from '@/lib/agent/task-state';
 import { authorizeExecution } from '@/lib/agent/execution-gate';
-import { classifyExecutionFailure, createExecutionAuditEvent, type ExecutionAuditEvent } from '@/lib/agent/execution-observability';
+import { classifyExecutionFailure, createExecutionAuditEvent, deriveRecoveryMetadata, type ExecutionAuditEvent } from '@/lib/agent/execution-observability';
 import { assertExecutionResourceBudget, getCapability, validateCapabilityParameters, type CapabilityParameters } from '@/lib/agent/capability-registry';
 import { getToolById, TOOL_CATALOG } from '@/config/registry';
 import { getToolExecutor, repairToolParameters } from '@/lib/workflows/executor-registry';
@@ -78,7 +78,8 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
     assertExecutionResourceBudget(step.toolId, stableBlob);
     let verified = false;
     let lastOutput: Blob | null = null;
-    const maxAttempts = Math.max(1, tool.recovery.maxAttempts);
+    const recoveryMetadata = deriveRecoveryMetadata(tool);
+    const maxAttempts = Math.max(1, recoveryMetadata.maxAttempts);
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       const authorization = authorizeExecution({
@@ -148,6 +149,25 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
       }
 
       if (!verified && attempt < maxAttempts - 1) {
+        const recoveryAudit = createExecutionAuditEvent({
+          task,
+          capabilityId: step.toolId,
+          tool,
+          stage: 'RECOVERY',
+          outcome: recoveryMetadata.retryAllowed ? 'ALLOW' : 'BLOCK',
+          errorClass: 'OUTPUT',
+          message: recoveryMetadata.retryAllowed
+            ? `Recovery attempt ${attempt + 1} is allowed by the canonical tool recovery policy.`
+            : `Recovery is blocked for '${step.toolId}' by the canonical tool recovery policy.`,
+        });
+        onProgress({
+          currentStepIndex: i + 1,
+          totalSteps: plan.steps.length,
+          currentToolId: step.toolId,
+          task,
+          retry: attempt + 1,
+          auditEvents: [authorization.audit, executionAudit, verificationAudit, recoveryAudit],
+        });
         const repaired = repairToolParameters(tool, params, attempt + 1);
         if (repaired) params = validateCapabilityParameters(step.toolId, repaired);
         else if (lastOutput === null) throw new PipelineVerificationError(`Verification failed for '${step.toolId}'.`, stableBlob, i, step.toolId);
