@@ -62,9 +62,33 @@ jobs:
           process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
           NODE
 
+      - name: Resolve message branch by exact SHA
+        id: target
+        if: steps.message.outcome == 'success' && hashFiles('message.json') != ''
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main execution
+          MESSAGE_SHA="$(node -e "const x=require('./message.json'); process.stdout.write(x.entrySha)")"
+          MAIN_SHA="$(git rev-parse origin/main)"
+          EXECUTION_SHA="$(git rev-parse origin/execution)"
+          case "$MESSAGE_SHA" in
+            "$MAIN_SHA") TARGET_REF=main ;;
+            "$EXECUTION_SHA") TARGET_REF=execution ;;
+            *) TARGET_REF='' ;;
+          esac
+          if [ -z "$TARGET_REF" ]; then
+            echo "MESSAGE_TARGET_SHA_STALE=$MESSAGE_SHA"
+            echo 'status=STALE' >> "$GITHUB_OUTPUT"
+          else
+            git checkout --detach "origin/$TARGET_REF"
+            echo "target_ref=$TARGET_REF" >> "$GITHUB_OUTPUT"
+            echo "status=READY" >> "$GITHUB_OUTPUT"
+          fi
+          echo "message_sha=$MESSAGE_SHA" >> "$GITHUB_OUTPUT"
+
       - name: Ingest incoming message immediately
         id: ingest
-        if: steps.message.outcome == 'success' && hashFiles('message.json') != ''
+        if: steps.target.outputs.status == 'READY' && hashFiles('message.json') != ''
         run: |
           set -euo pipefail
           node scripts/ci/agent-communication.mjs validate --message-file=message.json
@@ -86,6 +110,7 @@ jobs:
           **Status:** `$MESSAGE_STATUS`
           **Entry SHA:** `$MESSAGE_SHA`
           **Receipt:** `IMMEDIATE_EVENT_RECEIPT`
+          **Target ref:** `${{ steps.target.outputs.target_ref }}`
 
           The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute.
 
@@ -106,6 +131,13 @@ jobs:
           gh workflow run agent-repair-supervisor.yml --repo "$GITHUB_REPOSITORY" --ref main
           echo 'AGENT_MESSAGE_REPAIR_WAKE=DISPATCHED'
 
+      - name: Record stale-message evidence
+        if: steps.target.outputs.status == 'STALE'
+        run: |
+          set -euo pipefail
+          printf '%s\n' 'MESSAGE_STALE=FAIL_CLOSED' > /tmp/flixo-agent-message-stale.txt
+          printf '%s\n' "ENTRY_SHA=${{ steps.target.outputs.message_sha }}" >> /tmp/flixo-agent-message-stale.txt
+
       - name: Preserve communication evidence
         if: always()
         uses: actions/upload-artifact@v6
@@ -115,5 +147,6 @@ jobs:
             message.json
             /tmp/flixo-agent-message-receipt.json
             /tmp/flixo-agent-message-skip
+            /tmp/flixo-agent-message-stale.txt
           if-no-files-found: ignore
           retention-days: 30
