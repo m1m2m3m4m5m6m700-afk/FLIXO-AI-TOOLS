@@ -495,5 +495,68 @@
       "next exact-SHA required-workflow completion leaves at most one surviving watchdog wake per source SHA"
     ],
     "prevention": "Watchdog observation is supersedable per exact source SHA (cancel-in-progress=true); source-head reads use public git ref resolution instead of installation API polling; the evidence-bearing Green Gate remains non-canceling."
+  },
+  "RC-CI-CD-TRUST-MANUAL-PROMOTION-001": {
+    "category": "CI_CD_TRUST",
+    "description": "CI/CD trust validation retained invariants from the removed workflow_run automatic promotion model while cd.yml had been migrated to manual-only promotion, causing the validator to reject a valid current CD surface.",
+    "repairTargets": [
+      "scripts/ci/validate-ci-cd-trust.mjs"
+    ],
+    "verification": [
+      "npm run verify:ci-cd-trust"
+    ],
+    "prevention": "Trust validators must assert the current canonical CD trigger/identity contract and must not retain deleted automatic-promotion tokens."
+  },
+  "RC-INDEX-READY-TOOL-COUNT-001": {
+    "category": "INDEXING_CONTRACT",
+    "description": "The canonical tool catalog contains 23 unique tool definitions, but exactly 22 are ready and one is unavailable. The indexing validator counted every definition and rejected the valid registry.",
+    "repairTargets": [
+      "scripts/validate-indexing.mjs",
+      "src/config/canonical-tool-definition.ts"
+    ],
+    "verification": [
+      "npm run validate:indexing",
+      "npm run validate:tool-registry"
+    ],
+    "prevention": "Readiness-gated validators must count the canonical ready tool surface, while preserving the full registry including unavailable entries."
+  },
+  "RC-PLAYWRIGHT-FILTER-MASK-FIXTURE-001": {
+    "category": "BROWSER_CONTRACT",
+    "description": "tests/filter-mask.spec.ts imported @playwright/test directly and bypassed the canonical universal-runtime-evidence fixture, violating the single Playwright runtime ownership contract.",
+    "repairTargets": [
+      "tests/filter-mask.spec.ts"
+    ],
+    "verification": [
+      "npm run validate:playwright-surface",
+      "FLIXO Test System Browser suites"
+    ],
+    "prevention": "All repository browser specs must consume ./fixtures/universal-runtime-evidence rather than importing @playwright/test directly."
+  },
+  "RC-FILTER-MASK-GPU-UPLOAD-SCOPE-001": {
+    "category": "TYPESCRIPT",
+    "description": "The WebGL renderer upload closure referenced video outside its lexical scope, producing TS2304 during typecheck/build.",
+    "repairTargets": [
+      "src/tools/filter-mask/gpu-renderer.ts"
+    ],
+    "verification": [
+      "npm run typecheck",
+      "npm run test:build"
+    ],
+    "prevention": "GPU texture upload helpers must receive their media source explicitly instead of capturing an out-of-scope render parameter."
+  },
+  "RC-FILTER-MASK-LINT-CLEANUP-001": {
+    "category": "LINT",
+    "description": "The current Filter Mask/repair support changes left unused helpers/imports, browser globals in a Node external runner, an empty expected-failure catch, JSX cleanup expressions, an unused recording ref, and a reassignable GPU renderer variable.",
+    "repairTargets": [
+      "scripts/ci/adversarial-repair-twin.mjs",
+      "scripts/ci/error-learning-log.mjs",
+      "scripts/ci/test-error-teaching-router.mjs",
+      "scripts/external/test-tool-output-external.mjs",
+      "src/tools/filter-mask/index.tsx"
+    ],
+    "verification": [
+      "npm run lint"
+    ],
+    "prevention": "After every repair wave, lint the exact changed surface and remove only demonstrably unused symbols/unsafe Node lint globals without changing runtime behavior."
   }
 }
