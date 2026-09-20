@@ -25,7 +25,7 @@ export function FilterMaskTool() {
   const liveFilter = intensity === 100 || selected.cssFilter === 'none' ? selected.cssFilter : selected.cssFilter + ' opacity(' + intensity / 100 + ')';
 
   useEffect(() => () => {
-    recorderRef.current?.state === 'recording' && recorderRef.current.stop();
+    if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
     streamRef.current?.getTracks().forEach((track) => track.stop());
   }, []);
 
