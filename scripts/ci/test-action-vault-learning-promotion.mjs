@@ -14,6 +14,6 @@ assert.throws(()=>promoteVerifiedLearning({
  taskId:'T1',fingerprint:'fp1',targetSha:sha,executionSha:sha,proofIds:['P1'],greenRecord:{...green,conclusion:'failure'},lesson:{}
 }),/CANONICAL_GREEN_REQUIRED/u);
 assert.throws(()=>promoteVerifiedLearning({
- taskId:'T1',fingerprint:'fp1',targetSha:sha,executionSha:'b'.repeat(40),proofIds:['P1'],greenRecord,lesson:{}
+ taskId:'T1',fingerprint:'fp1',targetSha:sha,executionSha:'b'.repeat(40),proofIds:['P1'],greenRecord:green,lesson:{}
 }),/GREEN_SHA_MISMATCH/u);
 console.log('ACTION_VAULT_LEARNING_PROMOTION=PASS');
