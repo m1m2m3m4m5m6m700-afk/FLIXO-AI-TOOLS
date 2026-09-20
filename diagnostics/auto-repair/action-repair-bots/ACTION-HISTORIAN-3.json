@@ -101,5 +101,8 @@
     "sameTask": true,
     "sameFingerprint": true,
     "sameSha": true
-  }
+  },
+  "copyable": true,
+  "transferableKnowledgeOnly": true,
+  "permanentIndependentAuthority": false
 }
