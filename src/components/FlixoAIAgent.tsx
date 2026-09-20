@@ -309,10 +309,9 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
 
     const nextPlan = buildPlan(command, responseCopy);
     if (!nextPlan) {
-      const hasPending = Boolean(memory.pendingQuestion);
-      pushMessage('agent', hasPending
-        ? memory.pendingQuestion ?? responseCopy.clarification
-        : responseCopy.clarification);
+      const latestMemory = loadConversationMemory();
+      const pendingQuestion = latestMemory.pendingQuestion;
+      pushMessage('agent', pendingQuestion ?? responseCopy.clarification);
       return;
     }
 
