@@ -1,10 +1,11 @@
-## PROMPT TRIAD — CANONICAL EXECUTION SURFACE
+## UNIFIED PROMPT — CANONICAL EXECUTION SURFACE
 
-PROMPT-01 = project orchestration and completion sequencing.
-PROMPT-02 = causal error intelligence and repair.
-PROMPT-03 = product/platform/agent development.
-Current status remains authoritative in المهام.md. Each task has one prompt owner.
-Canonical files: docs/agents/PROMPT-01-MASTER-EXECUTION.md, docs/agents/PROMPT-02-ERROR-REPAIR.md, docs/agents/PROMPT-03-FLIXO-PRODUCT.md.
+The repository has exactly one active execution prompt:
+RPR-UNIFIED-EXECUTION-001 → docs/agents/PROMPT-UNIFIED-EXECUTION.md.
+
+It absorbs orchestration, causal repair, task preparation, contract-drift, external classification, product/platform implementation, Action Vault learning, Exact-SHA verification and GREEN-closure intent.
+
+The customer-facing runtime behavior contract remains in src/lib/agent/flixo-agent-master-prompt.ts; it is a protected application runtime contract, not a second repair-authority prompt.
 
 ## Agent Communication Priority
 
