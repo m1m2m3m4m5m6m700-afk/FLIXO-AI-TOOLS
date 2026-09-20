@@ -33,12 +33,17 @@ jobs:
 
       - name: 02 — Verify exact execution checkout identity and bind agent to execution
         shell: bash
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref || '' }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
+          PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || '' }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            test "${{ github.event.pull_request.head.ref }}" = "execution"
-            test "${{ github.event.pull_request.base.ref }}" = "main"
-            test "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}"
+            test "$PR_HEAD_REF" = "execution"
+            test "$PR_BASE_REF" = "main"
+            test "$PR_HEAD_REPOSITORY" = "$EXPECTED_REPOSITORY"
           else
             test "${{ github.event_name }}" = "push"
             test "${{ github.ref }}" = "refs/heads/execution"
