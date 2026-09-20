@@ -77,7 +77,7 @@ Every prompt selection MUST be bound to the current target SHA and recorded with
 
 After each repair attempt the learning record SHOULD preserve the prompt used, outcome, verification state, changed files, exact SHA, lesson/anti-lesson decision, and provenance. SUCCESS produces lesson evidence; FAILURE produces anti-lesson evidence; REVERTED produces strategy-rejection evidence; PROPOSED and BLOCKED_EXTERNAL do not increase internal repair confidence.
 
-`RPR-CORE-MASTER-001` is the master repair prompt. Specialist prompts are subordinate execution instructions and MUST NOT create a competing policy, control plane, registry, or certification authority.
+`RPR-UNIFIED-EXECUTION-001` is the sole active repository execution prompt. Historical specialist prompt families are absorbed/retired and MUST NOT create a competing policy, control plane, registry, or certification authority.
 
 ## Scout evidence consumption invariant
 **MANDATORY FOR EVERY MUTATION:** before the Executive Controller or any authorized Execution Agent changes a repository file, it MUST consume the latest applicable Code Scout report for the current investigation scope and exact baseline SHA, when a Scout report is required by the lifecycle/risk gate. The report must be treated as evidence, not as authorization.
