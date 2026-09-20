@@ -197,7 +197,11 @@
       "MINIMAL_PATCH",
       "REGRESSION_DESIGN",
       "SELF_CRITIQUE",
-      "VERIFICATION"
+      "VERIFICATION",
+      "SEMANTIC_CODE_GRAPH",
+      "IMPACT_ANALYSIS",
+      "PATCH_RISK_REVIEW",
+      "REGRESSION_PREDICTION"
     ]
   },
   "subAgents": {
@@ -229,5 +233,15 @@
       "output": "diagnostics/auto-repair/action-vault/code-mentor/latest-packet.json",
       "verifiedLessons": "diagnostics/auto-repair/action-vault/code-mentor/lessons.ndjson"
     }
+  },
+  "softwareEngineerCore": {
+    "id": "LOCAL-SOFTWARE-ENGINEER-CORE",
+    "runtime": "scripts/ci/action-software-engineer-core.mjs",
+    "protocol": "LOCAL_SOFTWARE_ENGINEER_CORE_V1",
+    "mode": "DEEP",
+    "readOnly": true,
+    "requiredBeforeMutation": true,
+    "requiredDuringSelfCheck": true,
+    "output": "diagnostics/auto-repair/action-vault/software-engineer-core/latest.json"
   }
 }
