@@ -202,6 +202,90 @@ function buildFalsificationPlan(causal, strategyRanking) {
     { id: 'RECURRENCE_GUARD', action: 'Reject a repeated strategy without materially new evidence.', target: strategyRanking.selected?.id ?? 'none' },
   ];
 }
+const ROOT_CAUSE_REPAIR_RULES = Object.freeze({
+  lint: ['eslint-unused', 'prepared-source-change'],
+  format: ['prettier-file', 'prepared-source-change'],
+  typescript: ['typescript-missing-import', 'prepared-source-change', 'typescript-diagnostic'],
+  'typescript-async-contract': ['typescript-async-contract', 'prepared-source-change'],
+  playwright: ['playwright-diagnostic'],
+  'webkit-render': ['webkit-proposal'],
+  build: ['build-diagnostic'],
+  certification: ['certification-proposal'],
+  'contract-drift': [],
+  'noncanonical-automation': [],
+  'liveness-contract': [],
+  'external-tooling': [],
+  unknown: [],
+});
+
+const STRATEGY_FOCUS = Object.freeze({
+  'reproduce-exact': 'REPRODUCE_EXACT_FAILURE',
+  'minimize-failure': 'MINIMIZE_TO_SMALLEST_CAUSAL_SURFACE',
+  'diff-forensics': 'TRACE_FIRST_CAUSAL_CHANGE',
+  'environment-audit': 'ISOLATE_RUNTIME_AND_DEPENDENCY_CAUSE',
+  'workflow-forensics': 'TRACE_WORKFLOW_AUTHORITY_AND_TRANSPORT',
+  'observability-trace': 'TRACE_TRIGGER_PROPAGATION_AND_SYMPTOM',
+  'historical-analogy': 'COMPARE_VERIFIED_PRIORS_WITH_CURRENT_EXACT_SHA',
+  'synthetic-reproduction': 'BUILD_MINIMAL_CAUSAL_REPRODUCTION',
+  'alternate-hypothesis': 'FALSIFY_STRONGEST_COMPETING_HYPOTHESIS',
+  'supervising-escalation': 'ESCALATE_WITH_NEW_EVIDENCE_AND_TEACHING_PACKET',
+});
+
+function buildSteeringDirective({ causal, strategyId, ranking, targetSha, fingerprint: failureFingerprint }) {
+  const mutationAllowed = causal.decision === 'ALLOW_BOUNDED_MUTATION'
+    && causal.mutationAllowed === true
+    && causal.ambiguity === false
+    && causal.confidence >= 0.75;
+  const steeringMode = causal.decision === 'BLOCK_EXTERNAL'
+    ? 'EXTERNAL_ISOLATION'
+    : mutationAllowed
+      ? 'BOUNDED_SOURCE_REPAIR'
+      : 'EVIDENCE_ONLY';
+  const preferredRepairRules = mutationAllowed
+    ? (ROOT_CAUSE_REPAIR_RULES[causal.rootCause] ?? [])
+    : [];
+  const route = steeringMode === 'EXTERNAL_ISOLATION'
+    ? ['CLASSIFY_PROVIDER', 'ISOLATE_EXTERNAL', 'NO_SOURCE_MUTATION', 'REVALIDATE_PROVIDER']
+    : steeringMode === 'BOUNDED_SOURCE_REPAIR'
+      ? ['CAPTURE', 'REPRODUCE', 'FALSIFY', 'TRACE_CANONICAL_OWNER', 'SELECT_REPAIR_RULE', 'MUTATE_SOURCE_ONCE', 'TARGETED_REGRESSION', 'CANONICAL_CI', 'LEARN']
+      : ['CAPTURE', 'REPRODUCE_OR_DISPROVE', 'FALSIFY', 'TRACE_CANONICAL_OWNER', 'EXPAND_EVIDENCE', 'REDISPATCH'];
+  return Object.freeze({
+    schemaVersion: 1,
+    authority: 'DETERMINISTIC_REPAIR_STEERING',
+    exactShaRequired: true,
+    targetSha: targetSha || null,
+    failureFingerprint: failureFingerprint || null,
+    rootCause: causal.rootCause,
+    causalConfidence: causal.confidence,
+    decision: causal.decision,
+    steeringMode,
+    strategyId,
+    focus: STRATEGY_FOCUS[strategyId] ?? 'EVIDENCE_FIRST_CAUSAL_REASONING',
+    primaryMethod: causal.rootMethods?.[0] ?? 'exact-reproduction',
+    preferredRepairRules,
+    rankedAlternatives: (ranking?.portfolio ?? []).map((item) => item.id),
+    route,
+    mutation: {
+      allowed: steeringMode === 'BOUNDED_SOURCE_REPAIR',
+      authority: 'REPAIR_ENGINE_ONLY',
+      scope: 'SOURCE_FILES_DIRECTLY_BOUND_TO_CURRENT_FAILURE',
+      maxSourceMutationPassesPerCycle: 1,
+      noControlPlaneMutation: true,
+    },
+    verification: {
+      targetedRequired: true,
+      canonicalGreenRequired: true,
+      exactShaRequired: true,
+      regressionBeforePublication: true,
+    },
+    escalation: {
+      onAmbiguity: 'EVIDENCE_ONLY',
+      onExternal: 'EXTERNAL_ISOLATION',
+      onStall: 'REQUIRES_NEW_EVIDENCE_AND_NEW_STRATEGY',
+      terminalOnly: 'CANONICAL_GREEN',
+    },
+  });
+}
 function priorRepairArtifactCount() {
   const token = process.env.GH_TOKEN;
   const repo = process.env.GITHUB_REPOSITORY;
@@ -269,6 +353,13 @@ const [strategyId, strategy] = strategies[index];
 const threshold = INTRACTABLE_THRESHOLD;
 const teachingEscalation = record?.status === 'INTRACTABLE' || nextAttempt > threshold || allStrategiesExhausted;
 const sameStrategyRepeated = priorStrategies.filter((value) => value === strategyId).length > 0;
+const steeringDirective = buildSteeringDirective({
+  causal,
+  strategyId,
+  ranking: intelligentRanking,
+  targetSha: process.env.FLIXO_EXPECTED_TARGET_SHA ?? process.env.FLIXO_TARGET_SHA ?? '',
+  fingerprint: stableCaseFingerprint,
+});
 if (allStrategiesExhausted) {
   console.log(JSON.stringify({
     strategyRotation: 'FULL_ROTATION_AFTER_EXHAUSTION',
@@ -294,6 +385,7 @@ const teachingPacket = {
     securitySignals: securityFindings,
     selectedBy: selectedRepairStrategy ? 'TWIN_OR_EXTERNAL_SELECTION' : intelligentSelectedId ? 'V12_CAUSAL_PORTFOLIO' : 'DETERMINISTIC_ROTATION',
     noBlindRepeat: true,
+    steering: steeringDirective,
   },
 };
 
@@ -322,6 +414,7 @@ fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
     mutationAuthority: 'REPAIR_ENGINE_ONLY',
     greenAuthority: 'CANONICAL_CI_ONLY',
   },
+  steering: steeringDirective,
   cycle: nextAttempt,
   twin: {
     present: Boolean(twinProposal || twinA || twinB || twinSelection),

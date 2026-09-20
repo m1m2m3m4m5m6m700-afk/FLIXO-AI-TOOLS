@@ -7,6 +7,33 @@ import { inferFailureResolution } from './inference-fallback.mjs';
 import { buildErrorOnlyRepairModel } from './error-only-programmer.mjs';
 import { buildCausalDiscriminator } from '../action-causal-discriminator.mjs';
 import { buildMetaCausalModel } from '../meta-causal-model.mjs';
+import fs from 'node:fs';
+
+function loadRepairSteering(targetSha, failureFingerprint) {
+  const steeringPath = process.env.FLIXO_REPAIR_STEERING_PATH ?? '/tmp/flixo-repair-strategy.json';
+  if (!fs.existsSync(steeringPath)) {
+    if (process.env.FLIXO_REPAIR_STEERING_REQUIRED === 'true') throw new Error('REPAIR_STEERING_REQUIRED_MISSING');
+    return null;
+  }
+  let envelope;
+  try {
+    envelope = JSON.parse(fs.readFileSync(steeringPath, 'utf8'));
+  } catch (error) {
+    if (process.env.FLIXO_REPAIR_STEERING_REQUIRED === 'true') throw new Error('REPAIR_STEERING_INVALID_JSON', { cause: error });
+    return null;
+  }
+  const steering = envelope.steering;
+  if (!steering || steering.authority !== 'DETERMINISTIC_REPAIR_STEERING') {
+    if (process.env.FLIXO_REPAIR_STEERING_REQUIRED === 'true') throw new Error('REPAIR_STEERING_AUTHORITY_INVALID');
+    return null;
+  }
+  if (steering.exactShaRequired !== true || steering.targetSha !== targetSha) throw new Error('REPAIR_STEERING_TARGET_SHA_MISMATCH');
+  if (failureFingerprint && steering.failureFingerprint && steering.failureFingerprint !== failureFingerprint) {
+    throw new Error('REPAIR_STEERING_FINGERPRINT_MISMATCH');
+  }
+  return steering;
+}
+
 
 const plans = [
   { id: 'external-tooling', features: ['external-tooling'], confidence: 99, mutate: false, commands: [] },
@@ -47,6 +74,7 @@ export function planRepair(log, { historical = [], memory } = {}) {
     : null;
 
   const failureFingerprint = process.env.FLIXO_FAILURE_FINGERPRINT ?? '';
+  const steering = loadRepairSteering(targetSha, failureFingerprint);
   const exactCases = (memory?.cases ?? []).filter((item) => item.fingerprint === failureFingerprint);
   const doNotRepeat = [...new Set(exactCases.flatMap((item) => [
     ...(item.failedStrategies ?? []),
@@ -158,21 +186,25 @@ export function planRepair(log, { historical = [], memory } = {}) {
 
   const causalSelectedRule = causalDiscriminator.ranking.selectedStrategy;
   const useCausalSelection = !causalMutationGate && Boolean(causalSelectedRule);
-  const selectedRule = prepared.ok && reasoning.decision === 'ALLOW_BOUNDED_MUTATION'
-    ? 'prepared-source-change'
-    : useCausalSelection
-      ? causalSelectedRule
-      : /TS1064\b|return type of an async function|Did you mean to write ['"]?Promise/iu.test(log)
-        ? 'typescript-async-contract'
-        : /TS2304\b|Cannot find name ["']/iu.test(log)
-        ? 'typescript-missing-import'
-        : inferenceEligible && inferenceFallback.hypothesis.strategyId
-        ? inferenceFallback.hypothesis.strategyId
-        : reasoning.rootCause === 'format'
-          ? 'prettier-file'
-          : reasoning.rootCause === 'lint'
-            ? 'eslint-unused'
-            : reasoning.rootCause;
+  const steeringPreferredRule = steering?.steeringMode === 'BOUNDED_SOURCE_REPAIR'
+    ? (steering.preferredRepairRules ?? []).find((ruleId) => candidates.some((candidate) => candidate.id === ruleId))
+    : null;
+  const selectedRule = steeringPreferredRule
+    ?? (prepared.ok && reasoning.decision === 'ALLOW_BOUNDED_MUTATION'
+      ? 'prepared-source-change'
+      : useCausalSelection
+        ? causalSelectedRule
+        : /TS1064\b|return type of an async function|Did you mean to write ['"]?Promise/iu.test(log)
+          ? 'typescript-async-contract'
+          : /TS2304\b|Cannot find name ["']/iu.test(log)
+          ? 'typescript-missing-import'
+          : inferenceEligible && inferenceFallback.hypothesis.strategyId
+            ? inferenceFallback.hypothesis.strategyId
+            : reasoning.rootCause === 'format'
+              ? 'prettier-file'
+              : reasoning.rootCause === 'lint'
+                ? 'eslint-unused'
+                : reasoning.rootCause);
 
 
   const requiresSourceLocation = selectedRule === 'prettier-file' || selectedRule === 'eslint-unused';
@@ -187,7 +219,8 @@ export function planRepair(log, { historical = [], memory } = {}) {
     )
     ?? null;
 
-  const fallbackSelectionAllowed = !causalMutationGate && !metaMutationGate && (inferenceEligible || reasoning.decision === 'ALLOW_BOUNDED_MUTATION');
+  const steeringSelectionAllowed = !steering || steering.steeringMode === 'BOUNDED_SOURCE_REPAIR';
+  const fallbackSelectionAllowed = steeringSelectionAllowed && !causalMutationGate && !metaMutationGate && (inferenceEligible || reasoning.decision === 'ALLOW_BOUNDED_MUTATION');
   const selected = fallbackSelectionAllowed &&
     selectedCandidate &&
     (!requiresSourceLocation ||
@@ -218,6 +251,9 @@ export function planRepair(log, { historical = [], memory } = {}) {
     causalMutationGate,
     metaCausalModel,
     metaMutationGate,
+    steering,
+    steeringSelectionAllowed,
+    steeringPreferredRule,
     candidates,
     selected,
     blockedReason:

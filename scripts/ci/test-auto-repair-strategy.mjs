@@ -16,6 +16,11 @@ assert(twinSelectionIndex >= 0 && selectedStrategyIndex >= 0 && twinSelectionInd
 assert.match(source, /requiredHypothesisChange/);
 assert.match(source, /requiredEvidenceDelta/);
 assert.match(source, /doNotRepeat/);
+assert.match(source, /DETERMINISTIC_REPAIR_STEERING/);
+assert.match(source, /buildSteeringDirective/);
+assert.match(source, /preferredRepairRules/);
+assert.match(source, /maxSourceMutationPassesPerCycle: 1/);
+assert.match(source, /CANONICAL_GREEN/);
 assert.match(source, /sameStrategyRepeated/);
 assert.doesNotMatch(source, /threshold \?\? 10/);
 assert.match(source, /loadAttemptLedger/);

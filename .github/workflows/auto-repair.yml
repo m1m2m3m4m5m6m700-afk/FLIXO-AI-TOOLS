@@ -749,6 +749,9 @@ jobs:
           ACTIVE_BROTHER="$(cat /tmp/flixo-active-action-brother)"
           export FLIXO_REPAIR_STRATEGY_ID="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId||'')")"
           export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
+          export FLIXO_REPAIR_STEERING_PATH=/tmp/flixo-repair-strategy.json
+          export FLIXO_REPAIR_STEERING_REQUIRED=true
+          node --input-type=module -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync(process.env.FLIXO_REPAIR_STEERING_PATH,'utf8'));if(x.steering?.exactShaRequired!==true || x.steering?.targetSha!==process.env.FLIXO_EXPECTED_TARGET_SHA) throw new Error('REPAIR_STEERING_BOUNDARY_MISMATCH');"
           case "$ACTIVE_BROTHER" in
             A) FLIXO_REPAIR_ACTOR='actionRepairBot' node /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs ;;
             B) FLIXO_REPAIR_ACTOR='assistantRepairAgent' node /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs ;;
