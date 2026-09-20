@@ -7,9 +7,10 @@ on:
     - cron: '*/15 * * * *'
   workflow_run:
     workflows:
-      # Canonical trigger: one completed Test System cycle wakes the watcher.
+      # Canonical triggers: completed Test System or Auto Repair cycles wake the watcher.
       # The watcher still inspects every required workflow/check on the exact SHA.
       - FLIXO Test System
+      - FLIXO Auto Repair Bot
     types: [completed]
     branches: [execution, main]
 
