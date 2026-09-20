@@ -1,4 +1,4 @@
-// Canonical Action Vault for the Repair Agent. Advice is bounded, evidence-first context; it never grants mutation or certification authority.\nimport { createHash } from 'node:crypto';
+// Canonical shared Action Vault. All registered agents may read/learn; agent3 alone may mutate vault knowledge. Advice never grants repair execution or certification authority.\nimport { createHash } from 'node:crypto';
 import { z } from 'zod';
 
 export const ADVICE_VAULT_PROTOCOL = 'FLIXO-ACTION-VAULT-1M-v2' as const;
