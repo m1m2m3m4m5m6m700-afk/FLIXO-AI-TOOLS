@@ -551,7 +551,7 @@ jobs:
           SIGNATURE="$(node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8')); process.stdout.write(x.signature||'unknown')")"
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
           test "$(git branch --show-current)" = execution
-          FLIXO_TASK_AGENT_OUTPUT_DIR=/tmp/flixo-task-agent node /tmp/flixo-repair-controller/scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$SIGNATURE" --failure-evidence=/tmp/flixo-repair-summary.txt --execution-prompt="${FLIXO_EXECUTION_PROMPT_PATH:-}"
+          FLIXO_TASK_AGENT_OUTPUT_DIR=/tmp/flixo-task-agent node /tmp/flixo-repair-controller/scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$FLIXO_FAILURE_FINGERPRINT" --failure-evidence=/tmp/flixo-repair-summary.txt --execution-prompt="${FLIXO_EXECUTION_PROMPT_PATH:-}"
           test -s /tmp/flixo-task-agent/latest.json
 
       - name: Bind selected Prompt ID to learning provenance
@@ -615,6 +615,26 @@ jobs:
           if [ "$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(String(x.teachingEscalation))")" = "true" ]; then
             echo 'Teaching escalation recorded; continuing with the next repair strategy.'
           fi
+
+      - name: Build evidence-backed causal root proof
+        id: root_cause_proof
+        if: steps.strategy.outcome == 'success'
+        run: |
+          set -euo pipefail
+          SHA="$(cat /tmp/flixo-failed-sha)"
+          FP="$FLIXO_FAILURE_FINGERPRINT"
+          node scripts/ci/action-root-cause-proof.mjs \
+            --sha="$SHA" \
+            --fingerprint="$FP" \
+            --run-id="$TARGET_RUN_ID" \
+            --log="$FLIXO_FAILURE_LOG" \
+            --diagnosis=/tmp/flixo-root-cause.json \
+            --strategy=/tmp/flixo-repair-strategy.json \
+            --file-selection="$FLIXO_FILE_SELECTION_PATH" \
+            --output=/tmp/action-root-cause-proof.json
+          node scripts/ci/test-action-root-cause-proof.mjs
+          jq -e --arg sha "$SHA" --arg fp "$FP" '.protocol == "CAUSAL-EVIDENCE-GRAPH-v1" and .status == "PROVEN" and .targetSha == $sha and .failureFingerprint == $fp and .sourceMutationAllowed == false and .proofClaims.ROOT_CAUSE_LINKED_TO_FAILURE_SIGNAL == true and .proofClaims.LOCATION_LINKED_TO_CAUSE == true and .proofClaims.MECHANISM_EXPLAINED == true and .proofClaims.ALTERNATIVES_CHALLENGED == true' /tmp/action-root-cause-proof.json >/dev/null
+          echo "FLIXO_ROOT_CAUSE_PROOF_PATH=/tmp/action-root-cause-proof.json" >> "$GITHUB_ENV"
 
       - name: Enforce divergent twin decision before mutation
         if: steps.strategy.outcome == 'success'
@@ -691,6 +711,7 @@ jobs:
             --file-selection="$FLIXO_FILE_SELECTION_PATH" \
             --log="$FLIXO_FAILURE_LOG" \
             --diagnosis=/tmp/flixo-root-cause.json \
+            --root-cause=/tmp/action-root-cause-proof.json \
             --twin=/tmp/action-repair-programmer-twin.json \
             --output=/tmp/action-system-cognitive-awareness.json
           node scripts/ci/test-action-system-cognitive-awareness.mjs /tmp/action-system-cognitive-awareness.json
@@ -774,6 +795,7 @@ jobs:
             --diagnosis=/tmp/flixo-root-cause.json \
             --strategy=/tmp/flixo-repair-strategy.json \
             --file-selection="$FLIXO_FILE_SELECTION_PATH" \
+            --root-cause=/tmp/action-root-cause-proof.json \
             --awareness=/tmp/action-system-cognitive-awareness.json \
             --twin=/tmp/action-repair-programmer-twin.json \
             --primary-proof=/tmp/action-primary-correctness-proof.json \
