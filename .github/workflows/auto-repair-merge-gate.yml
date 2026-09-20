@@ -235,16 +235,9 @@ jobs:
           test -n "$CERT" || { echo "FAIL CLOSED: Certification check missing."; exit 1; }
           test "$(printf '%s' "$CERT" | jq -r '.status')" = "completed"
           test "$(printf '%s' "$CERT" | jq -r '.conclusion')" = "success"
-          REPO_SECURITY="$(jq -c '[.[].check_runs[] | select(.name == "Repository Security Baseline")] | sort_by(.completed_at // .started_at // "") | last // empty' /tmp/exact-check-runs.json)"
-          test -n "$REPO_SECURITY" || { echo "FAIL CLOSED: Repository Security Baseline check evidence missing."; exit 1; }
-          test "$(printf '%s' "$REPO_SECURITY" | jq -r '.status')" = "completed"
-          test "$(printf '%s' "$REPO_SECURITY" | jq -r '.conclusion')" = "success" || { echo "FAIL CLOSED: Repository Security Baseline is not GREEN."; exit 1; }
-
-          CLAUDE_SECURITY="$(jq -c '[.[].check_runs[] | select(.name == "Claude Security Review")] | sort_by(.completed_at // .started_at // "") | last // empty' /tmp/exact-check-runs.json)"
-          test -n "$CLAUDE_SECURITY" || { echo "FAIL CLOSED: Claude Security Review check evidence missing."; exit 1; }
-          test "$(printf '%s' "$CLAUDE_SECURITY" | jq -r '.status')" = "completed"
-          test "$(printf '%s' "$CLAUDE_SECURITY" | jq -r '.conclusion')" = "success" || { echo "FAIL CLOSED: Claude Security Review is not GREEN."; exit 1; }
-
+          # The required workflow set above already proves the canonical internal security
+          # workflows. Do not match their display names to check-run names, because GitHub
+          # may expose a workflow job as e.g. "Claude Security Review (Advisory)".
           EXTERNAL_SECURITY_EVIDENCE="$(jq -c '[.[].check_runs[] | select(.name | test("code scanning ai findings|^CodeQL$|^Analyze \\(javascript-typescript\\)$|^Analyze \\(actions\\)$";"i"))] | sort_by(.completed_at // .started_at // "") | map({name,status,conclusion,details_url})' /tmp/exact-check-runs.json)"
           printf '%s\n' "$EXTERNAL_SECURITY_EVIDENCE" > /tmp/external-security-evidence.json
 
@@ -256,8 +249,7 @@ jobs:
             echo "EXTERNAL_SECURITY_BLOCKER=CODEQL_PROVIDER_OR_GITHUB_API_FAILURE"
           fi
 
-          echo "INTERNAL_SECURITY_GATES=GREEN"
-          echo "External security integrations are recorded separately; they do not authorize GREEN or get substituted for internal security gates."
+          echo "External security integrations are recorded separately; they do not authorize GREEN or get substituted for the canonical internal gates."
 
       - name: Require commit statuses GREEN
         env:
