@@ -173,9 +173,45 @@ export function markConsumed(messageId, agentId, observedSha = currentSha(), exe
   saveIndex(index);
   return record;
 }
-if (!['validate','ingest','read','ack','presence'].includes(command)) throw new Error('Usage: agent-communication.mjs validate|ingest|read|ack|presence');
+if (!['validate','ingest','read','ack','presence','send-master'].includes(command)) throw new Error('Usage: agent-communication.mjs validate|ingest|read|ack|presence|send-master');
 try {
-  if (command === 'presence') {
+  if (command === 'send-master') {
+    const actor = arg('agent');
+    const taskId = arg('task');
+    const intent = arg('intent', 'CELL_DIRECT_MASTER_REQUEST');
+    const messageId = arg('message-id') || `cell-master:${actor}:${taskId}:${Date.now().toString(36)}`;
+    const idempotencyKey = arg('idempotency-key') || `${messageId}:${arg('sha', currentSha())}`;
+    const risk = arg('risk', 'MEDIUM').toUpperCase();
+    const exactSha = arg('sha', currentSha());
+    const payloadText = arg('payload', '{}');
+    if (!/^CELL-\\d{3}$/u.test(actor)) throw new Error('CELL_DIRECT_MASTER_AGENT_INVALID');
+    assertActorKnown(actor);
+    if (!taskId) throw new Error('CELL_DIRECT_MASTER_TASK_REQUIRED');
+    if (!['LOW','MEDIUM','HIGH','CRITICAL'].includes(risk)) throw new Error('CELL_DIRECT_MASTER_RISK_INVALID');
+    if (!/^[0-9a-f]{40}$/u.test(exactSha)) throw new Error('CELL_DIRECT_MASTER_EXACT_SHA_INVALID');
+    let payload;
+    try { payload = JSON.parse(payloadText); } catch { throw new Error('CELL_DIRECT_MASTER_PAYLOAD_INVALID'); }
+    const message = {
+      schemaVersion: 1,
+      messageId,
+      idempotencyKey,
+      actor,
+      recipient: 'assistantController',
+      intent,
+      taskId,
+      scope: ['CELL_DIRECT_MASTER_CHANNEL'],
+      entrySha: exactSha,
+      risk,
+      dependencies: ['MASTER_INBOX','CURRENT_EXACT_SHA'],
+      expectedEvidence: ['MASTER_RECEIPT','EXACT_SHA_REVALIDATION'],
+      stopConditions: ['MASTER_DECISION','STALE_SHA','CONFLICT'],
+      proofObligations: ['MESSAGE_IDEMPOTENCY','EXACT_SHA_REVALIDATION'],
+      createdAt: now(),
+      source: 'CELL_DIRECT_MASTER',
+      payload: { ...payload, directMasterChannel: true, sourceBot: actor },
+    };
+    console.log(JSON.stringify(ingest(message, currentSha()), null, 2));
+  } else if (command === 'presence') {
     const bot = arg('bot');
     const taskId = arg('task');
     const priority = arg('priority', 'P1').toUpperCase();
