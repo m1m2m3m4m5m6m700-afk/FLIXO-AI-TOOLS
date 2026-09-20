@@ -10,7 +10,7 @@ on:
 # Superseded PR/branch runs are obsolete once a newer commit arrives.
 # The exact-SHA identity gates still validate the newest run before it can pass.
 concurrency:
-  group: flixo-test-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
+  group: flixo-test-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
