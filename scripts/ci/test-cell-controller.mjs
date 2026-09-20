@@ -1,22 +1,25 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import {loadCellControllerState,selectBotForTask} from './cell-controller.mjs';
+
 const {registry}=loadCellControllerState();
 assert.equal(registry.bots.length,50);
-assert.equal(registry.bots.every(bot=>bot.lifecycle?.rawStateForbidden===true),true);
-const actionTask=selectBotForTask({taskId:'x',shortName:'ACTERR',title:'Read GitHub Actions errors'});
-assert.equal(actionTask.status,'ASSIGNED');
-assert.equal(actionTask.botId,'CELL-001');
-assert.equal(actionTask.executionMode,'LEARNED_SPECIALIZATION');
-const wakeTask=selectBotForTask({taskId:'wake',title:'Wake the whole system'});
-assert.equal(wakeTask.botId,'CELL-002');
-const twinATask=selectBotForTask({taskId:'a',title:'Twin A repair analysis'});
-assert.equal(twinATask.botId,'CELL-003');
-const twinBTask=selectBotForTask({taskId:'b',title:'Twin B alternative analysis'});
-assert.equal(twinBTask.botId,'CELL-004');
-const selectorTask=selectBotForTask({taskId:'s',title:'Select the best repair option'});
-assert.equal(selectorTask.botId,'CELL-005');
-const genericTask=selectBotForTask({taskId:'y',title:'Investigate unrelated project task',objective:'general project execution'});
-assert.notEqual(genericTask.botId,'CELL-001');
-assert.equal(genericTask.executionMode,'GENERAL_EXECUTOR');
-console.log('CELL_CONTROLLER=PASS');
+assert.equal(registry.bots.every(bot=>bot.id.startsWith('CELL-')),true);
+assert.equal(registry.bots.some(bot=>bot.id.startsWith('ACTION-')),false);
+assert.equal(Object.prototype.hasOwnProperty.call(registry,'actionRepairCohort'),false);
+
+const tasks=[
+ {taskId:'x',shortName:'ACTERR',title:'Read GitHub Actions errors'},
+ {taskId:'wake',title:'Wake the whole system'},
+ {taskId:'a',title:'Twin A repair analysis'},
+ {taskId:'b',title:'Twin B alternative analysis'},
+ {taskId:'s',title:'Select the best repair option'}
+];
+for(const task of tasks){
+ const result=selectBotForTask(task);
+ assert.equal(result.status,'ASSIGNED');
+ assert.match(result.botId,/^CELL-\d{3}$/u);
+ assert.equal(result.executionMode,'GENERAL_EXECUTOR');
+ assert.equal(result.sameIncidentContext,false);
+}
+console.log('CELL_CONTROLLER_SEPARATION=PASS');
