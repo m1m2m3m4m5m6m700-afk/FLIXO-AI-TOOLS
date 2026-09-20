@@ -55,7 +55,7 @@ assert.ok(task.includes("const executionAuthority = 'TASK_PREPARATION_ONLY';"));
 assert.ok(task.includes("TASK-AGENT-PREPARATION-v3"));
 assert.ok(task.includes("applyAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT'"));
 
-assert.ok(taskContract.includes('preparation-only'));
+assert.ok(taskContract.toLowerCase().includes('preparation-only'));
 assert.ok(taskContract.includes('MUST NOT'));
 assert.ok(taskContract.includes('mutate repository source'));
 

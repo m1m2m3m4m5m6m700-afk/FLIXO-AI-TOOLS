@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { deriveRepairIdentity, deriveLeaseEventRef, deriveRecoveryRef, evaluateNoProgress, staleRecoveryDecision, REPAIR_OUTCOMES } from './repair-control-plane.mjs';
+import { deriveRepairIdentity, deriveLeaseEventRef, deriveRecoveryRef, staleRecoveryDecision, REPAIR_OUTCOMES } from './repair-control-plane.mjs';
 
 const API_VERSION = '2022-11-28';
 const DEFAULT_STALE_AFTER_MS = 60 * 60 * 1000;
@@ -30,7 +30,7 @@ async function api(method, path, body = undefined, { root = apiRoot, authToken =
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const raw = await response.text();
-  let data = null;
+  let data;
   try { data = raw ? JSON.parse(raw) : null; } catch { data = { raw }; }
   return { status: response.status, ok: response.ok, data };
 }
@@ -56,11 +56,6 @@ function identityFromArgs() {
     targetRunId: getArg('targetRunId'),
     branch: getArg('branch', 'execution'),
   });
-}
-
-function tagObjectName(prefix, attempt, runId) {
-  const safe = String(runId || 'unknown').replace(/[^A-Za-z0-9._-]+/gu, '-').slice(0, 40) || 'unknown';
-  return `${prefix}-${Number(attempt)}-${safe}`;
 }
 
 async function createAnnotatedTag(refName, objectSha, metadata) {
@@ -90,7 +85,7 @@ export async function createRefAtomically({ apiRoot: root = 'https://api.github.
     body: JSON.stringify({ ref: refName, sha: objectSha }),
   });
   const raw = await response.text();
-  let data = null;
+  let data;
   try { data = raw ? JSON.parse(raw) : null; } catch { data = { raw }; }
   return { status: response.status, decision: statusDecision(response.status), data };
 }
@@ -109,8 +104,9 @@ async function readRef(refName) {
 async function readTagObject(tagSha) {
   const result = await api('GET', `/repos/${repo}/git/tags/${encodeURIComponent(tagSha)}`);
   if (!result.ok) return { status: result.status, metadata: null };
-  let metadata = null;
-  try { metadata = JSON.parse(String(result.data?.message ?? '')); } catch { metadata = null; }
+  const metadata = (() => {
+    try { return JSON.parse(String(result.data?.message ?? '')); } catch { return null; }
+  })();
   return { status: result.status, metadata, data: result.data };
 }
 
