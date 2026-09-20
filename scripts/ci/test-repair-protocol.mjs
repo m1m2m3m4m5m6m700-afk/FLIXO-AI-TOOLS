@@ -73,7 +73,7 @@ const verifierProof = {
   alternativeHypotheses:[{id:'alt-1',basis:'independent-cause'}],
   falsificationChecks:[{id:'f-1',command:'echo falsify'}],
   counterEvidence:{rejectedHypothesis:'alt-1',evidenceRef:'test'},
-  mutationRecommendation:'ALLOW',
+  mutationRecommendation:'ALLOW',role:'EXACT_PROGRAMMER_TWIN_VERIFIER',challengeMode:'PROGRAMMER_TWIN',programmerTwinParity:{intelligenceParity:'EXACT',authorityParity:'SEPARATED_BY_DESIGN'},
   remainingRisks:['canonical-ci'],
 };
 assert.deepEqual(
@@ -82,6 +82,8 @@ assert.deepEqual(
 );
 assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifierProof,targetSha:'b'.repeat(40)},targetSHA,failureFingerprint:'action-repair-test'}),/SHA_MISMATCH/);
 assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifierProof,alternativeHypotheses:[]},targetSHA,failureFingerprint:'action-repair-test'}),/ALTERNATIVES_MISSING/);
+assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifierProof,role:'OLD_PREDICTOR'},targetSHA,failureFingerprint:'action-repair-test'}),/PROGRAMMER_TWIN_ROLE_INVALID/);
+assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifierProof,programmerTwinParity:{intelligenceParity:'MISMATCH',authorityParity:'SEPARATED_BY_DESIGN'}},targetSHA,failureFingerprint:'action-repair-test'}),/PROGRAMMER_TWIN_PARITY_INVALID/);
 const vaultMutationSession={
   ...actionRepairSession,
   state:'FAILURE_CAPTURED',
