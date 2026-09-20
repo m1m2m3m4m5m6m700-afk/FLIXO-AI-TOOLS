@@ -210,6 +210,8 @@
       "DIFFERENTIAL_VERIFICATION",
       "TRANSACTIONAL_REPAIR",
       "COUNTERFACTUAL_PATCH_REVIEW",
+      "META_CAUSAL_ANALYSIS",
+      "CAUSAL_OBSERVABILITY",
       "CAUSAL_DISCRIMINATION",
       "HYPOTHESIS_SEPARATION",
       "EVIDENCE_MARGIN_SELECTION"
@@ -243,6 +245,22 @@
       "promotionOnlyAfterCanonicalGreen": true,
       "output": "diagnostics/auto-repair/action-vault/code-mentor/latest-packet.json",
       "verifiedLessons": "diagnostics/auto-repair/action-vault/code-mentor/lessons.ndjson"
+    },
+    "metaCausalModel": {
+      "protocol": "META-CAUSAL-MODEL-v1",
+      "runtime": "scripts/ci/meta-causal-model.mjs",
+      "invariant": "The repair system must preserve trustworthy causal observability while evidence, authority, time, boundaries and learning remain coherent.",
+      "requiredBeforeMutation": true,
+      "strictIdentityAtRuntime": true,
+      "failClosedOnSystemicIncoherence": true,
+      "governingRoots": [
+        "CAUSAL-OBSERVABILITY-LOSS",
+        "TEMPORAL-IDENTITY-COLLAPSE",
+        "AUTHORITY-TOPOLOGY-COLLAPSE",
+        "BOUNDARY-CONTAMINATION",
+        "FEEDBACK-LEARNING-LOOP-FAILURE",
+        "CAUSAL-CONTROL-PLANE-INCOHERENCE"
+      ]
     },
     "causalDiscriminator": {
       "protocol": "CAUSAL-DISCRIMINATOR-v1",
