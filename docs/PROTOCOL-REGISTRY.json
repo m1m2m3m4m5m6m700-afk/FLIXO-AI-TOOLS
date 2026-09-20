@@ -3,6 +3,7 @@
   "authority": "FLIXO_PROTOCOL_REGISTRY",
   "policy": "No standalone protocol may be added unless the Protocol Addition Gate passes. Existing protocols must absorb compatible requirements instead of creating duplicates.",
   "precedence": [
+    "SUPREME_AUTOMATION_RESIDENCY",
     "MASTER_EXECUTION_AND_SAFETY",
     "ZERO_FALSE_GREEN_AND_EVIDENCE",
     "ROOT_CAUSE_FIRST_REPAIR",
@@ -12,6 +13,14 @@
     "CI_PERFORMANCE_AND_OPERATIONS"
   ],
   "protocols": [
+    {
+      "id": "P00",
+      "name": "Supreme Automation Residency / Agent Liveness",
+      "class": "EXECUTION",
+      "status": "SUPREME_MANDATORY",
+      "enforcement": "scripts/ci/agent-liveness-protocol.mjs + enforcement tests + 5-minute heartbeat + canonical Green Gate recovery",
+      "invariant": "The repair automation plane is permanently resident while work is open; heartbeat is mandatory every 5 minutes; sleep, idle, silent stop, abandonment, self-disable and self-abort are forbidden; run/session/lease termination triggers automatic recovery; manual wake is never required; GREEN does not suspend residency."
+    },
     {
       "id": "P01",
       "name": "Master Execution Contract",
