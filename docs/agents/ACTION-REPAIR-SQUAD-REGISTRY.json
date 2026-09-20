@@ -41,7 +41,13 @@
       "ACTION-REPAIR",
       "ACTION-REPAIR-2",
       "ACTION-HISTORIAN-3"
-    ]
+    ],
+    "noClosureBeforeCanonicalGreen": true,
+    "coreThreeNeverLeaveActionVault": true,
+    "coreThreeMaxOperationsPerBot": 2000000,
+    "coreThreeAutomaticVisitsPerDay": 3,
+    "coreThreeTotalAutomaticVisits": 9,
+    "supervisorEscalationAfterFailedAttempts": 20
   },
   "workers": [
     {
@@ -634,5 +640,23 @@
       "executionAuthority": "RECORD_INDEX_ESCALATE_ONLY",
       "cooperation": "MANDATORY_ON_RED"
     }
+  },
+  "residencyPolicy": {
+    "id": "ACTION-RESIDENCY-POLICY",
+    "path": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
+    "residents": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ],
+    "alwaysResident": true,
+    "leaveVault": false,
+    "maxOperationsPerBot": 2000000,
+    "visitsPerBotPerDay": 3,
+    "totalAutomaticVisitsPerDay": 9,
+    "closure": "CANONICAL_GREEN_ONLY",
+    "escalationAfterFailedAttempts": 20,
+    "supervisorRecipient": "assistantController",
+    "supervisorRoute": "scripts/ci/agent-communication.mjs -> .github/workflows/agent-communication-relay.yml"
   }
 }
