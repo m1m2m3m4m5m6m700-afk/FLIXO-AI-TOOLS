@@ -163,6 +163,7 @@ jobs:
           else
             echo "CONTROL_PLANE_FINGERPRINT_SOURCE=WATCHER_INPUT"
           fi
+          echo "FLIXO_FAILURE_FINGERPRINT=$FAILURE_FINGERPRINT" >> "$GITHUB_ENV"
           EXPECTED_LEASE_REF="$(node scripts/ci/repair-control-plane.mjs lease-ref \
             --fingerprint="$FAILURE_FINGERPRINT" \
             --failedSha="$FAILED_SHA" \
@@ -706,7 +707,7 @@ jobs:
       - name: Record durable repair lease outcome
         if: always()
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set +e
           if [ ! -s /tmp/flixo-lease-verification.json ]; then
@@ -722,7 +723,7 @@ jobs:
           if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ]; then
             OUTCOME="VERIFIED_HISTORICAL_REVERT"
             VERIFICATION="verified-historical-revert"
-          elif [ "$ENGINE_OUTCOME" = "verified-repair" ] && [ "\${{ steps.verify.outputs.verified }}" = "true" ]; then
+          elif [ "$ENGINE_OUTCOME" = "verified-repair" ] && [ "${{ steps.verify.outputs.verified }}" = "true" ]; then
             OUTCOME="VERIFIED_REPAIR"
             VERIFICATION="verified-repair"
           elif [ "$ENGINE_OUTCOME" = "blocked-external" ]; then
