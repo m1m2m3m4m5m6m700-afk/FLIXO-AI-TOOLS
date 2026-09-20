@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 
-const root=process.cwd();
 const manifest=JSON.parse(fs.readFileSync('docs/agents/error-learning-log/manifest.json','utf8'));
 const index=JSON.parse(fs.readFileSync('docs/agents/error-learning-log/index.json','utf8'));
 
