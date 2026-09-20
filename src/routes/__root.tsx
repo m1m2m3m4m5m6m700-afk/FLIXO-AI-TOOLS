@@ -68,8 +68,8 @@ export const rootRoute = createRootRoute({
       { name: 'twitter:image', content: `${SITE_ORIGIN}/flixo-logo.webp` },
     ],
     links: [
-      { rel: 'icon', href: '/flixo-favicon.png', type: 'image/svg+xml' },
-      { rel: 'alternate icon', href: '/flixo-favicon.png', type: 'image/svg+xml' },
+      { rel: 'icon', href: '/flixo-favicon.png', type: 'image/png' },
+      { rel: 'alternate icon', href: '/flixo-favicon.png', type: 'image/png' },
       { rel: 'apple-touch-icon', href: '/flixo-logo.webp' },
     ],
   }),
