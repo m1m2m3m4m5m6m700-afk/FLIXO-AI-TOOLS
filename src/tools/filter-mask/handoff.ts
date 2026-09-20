@@ -14,9 +14,9 @@ export type FilterMaskHandoff = Readonly<{
 
 const clampIntensity = (value: number): number => Math.min(100, Math.max(25, Math.round(value)));
 const clampZoom = (value: number): number => Math.min(2, Math.max(1, Math.round(value * 10) / 10));
-const ASPECT_RATIOS = ['9:16', '4:5', '1:1', '16:9'] as const;
+export const FILTER_MASK_ASPECT_RATIOS = ['9:16', '4:5', '1:1', '16:9'] as const;
 const normalizeAspectRatio = (value: string | undefined): FilterMaskParameters['aspectRatio'] =>
-  ASPECT_RATIOS.includes(value as FilterMaskParameters['aspectRatio']) ? value as FilterMaskParameters['aspectRatio'] : '9:16';
+  FILTER_MASK_ASPECT_RATIOS.includes(value as FilterMaskParameters['aspectRatio']) ? value as FilterMaskParameters['aspectRatio'] : '9:16';
 
 export function createFilterMaskHandoff(
   filter: LiveFilterDefinition,
