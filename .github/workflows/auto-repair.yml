@@ -485,6 +485,25 @@ jobs:
           echo "TWIN_A_READY=true"
           echo "TWIN_B_READY=true"
 
+      - name: CELL-005 select best repair option from history and twin A/B
+        id: cell_selector
+        if: steps.twin.outcome == 'success' && steps.strategy_selector_guard.outcome == 'success'
+        run: |
+          set -euo pipefail
+          node scripts/ci/action-repair-five-workers.mjs \
+            --role=select \
+            --target-sha="$(cat /tmp/flixo-failed-sha)" \
+            --run-id="$TARGET_RUN_ID" \
+            --fingerprint="$FLIXO_FAILURE_FINGERPRINT" \
+            --historical="${FLIXO_HISTORICAL_SOLUTION_PATH:-/tmp/flixo-historical-solution-index.json}" \
+            --twin-a="${FLIXO_TWIN_A_PATH:-/tmp/flixo-twin-a.json}" \
+            --twin-b="${FLIXO_TWIN_B_PATH:-/tmp/flixo-twin-b.json}" \
+            --output=/tmp/flixo-selected-repair-option.json
+          SELECTED="$(jq -r '.selection.selectedStrategy // empty' /tmp/flixo-selected-repair-option.json)"
+          test -n "$SELECTED"
+          echo "FLIXO_SELECTED_REPAIR_STRATEGY=$SELECTED" >> "$GITHUB_ENV"
+          echo "CELL_005_SELECTED_STRATEGY=$SELECTED"
+          echo "FLIXO_SELECTION_PATH=/tmp/flixo-selected-repair-option.json" >> "$GITHUB_ENV"
       - name: Run Phase 1 AI failure intelligence and exact-target preflight
         env:
           FLIXO_CURRENT_TARGET_SHA_FILE: /tmp/flixo-failed-sha
@@ -549,6 +568,15 @@ jobs:
           fi
           test -s "$FLIXO_REPAIR_ATTEMPT_LEDGER"
           node --input-type=module -e "const fs=require('fs');const l=JSON.parse(fs.readFileSync(process.env.FLIXO_REPAIR_ATTEMPT_LEDGER,'utf8'));if(l.chainId!==process.env.FLIXO_REPAIR_CHAIN_ID)throw new Error('REPAIR_ATTEMPT_LEDGER_CHAIN_MISMATCH');console.log(JSON.stringify({chainId:l.chainId,rejected:l.rejected?.length||0,attempts:l.attempts?.length||0}));"
+      - name: Validate five-worker selector inputs
+        id: strategy_selector_guard
+        if: steps.twin.outcome == 'success'
+        run: |
+          set -euo pipefail
+          test -s "${FLIXO_HISTORICAL_SOLUTION_PATH:-/tmp/flixo-historical-solution-index.json}"
+          test -s "${FLIXO_TWIN_A_PATH:-/tmp/flixo-twin-a.json}"
+          test -s "${FLIXO_TWIN_B_PATH:-/tmp/flixo-twin-b.json}"
+          echo "FIVE_WORKER_SELECTOR_INPUTS=READY"
       - name: Select repair strategy and continue strict RED repair
         id: strategy
         env:
