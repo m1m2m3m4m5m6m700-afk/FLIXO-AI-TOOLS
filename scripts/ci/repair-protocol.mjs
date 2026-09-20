@@ -46,7 +46,7 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
   if(mutation&&!['FAILURE_CAPTURED','MUTATION_AUTHORIZED'].includes(session.state)) throw new Error('REPAIR_PROTOCOL_MUTATION_STATE_BLOCKED');
   if(mutation&&actor==='actionRepairAssistant') {
     const approval=session?.assistantApproval;
-    if(approval?.approver!=='ACTION-REPAIR'||approval?.approvedFor!=='ACTION-REPAIR-2'||!shaOk(approval.entrySha)||approval.entrySha!==session.targetSHA) throw new Error('REPAIR_PROTOCOL_ASSISTANT_PRIMARY_APPROVAL_REQUIRED');
+    const handoff=session?.authorityHandoff; const validHandoff=handoff?.from==='ACTION-REPAIR'&&handoff?.to==='ACTION-REPAIR-2'&&handoff?.targetSHA===session.targetSHA&&handoff?.failureFingerprint===session.failureFingerprint; const validApproval=approval?.approver==='ACTION-REPAIR'&&approval?.approvedFor==='ACTION-REPAIR-2'&&shaOk(approval.entrySha)&&approval.entrySha===session.targetSHA; if(!validHandoff&&!validApproval) throw new Error('REPAIR_PROTOCOL_ASSISTANT_AUTHORITY_TRANSFER_REQUIRED');
   }
   if(mutation&&actor==='assistantRepairAgent') {
     const fallback=session?.fallback;
