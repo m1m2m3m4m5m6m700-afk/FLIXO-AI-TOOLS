@@ -324,6 +324,7 @@ jobs:
           FLIXO_TEACHING_SESSIONS_OUTPUT: /tmp/flixo-teaching-sessions.json
         run: |
           set -euo pipefail
+          node scripts/ci/test-repair-teaching-sessions.mjs
           node scripts/ci/repair-teaching-sessions.mjs
           test -s /tmp/flixo-teaching-sessions.json
           jq -e '.exactShaRequired == true and (.sessions | length) == 10 and .closure.result == "OPEN_UNTIL_PROVEN"' /tmp/flixo-teaching-sessions.json >/dev/null
