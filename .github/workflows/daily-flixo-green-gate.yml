@@ -275,28 +275,28 @@ jobs:
           fi
 
           BODY="$(cat <<EOF
-<!-- FLIXO_AGENT_COUNCIL_WAKE -->
-### AGENT 2 WAKE — FAILURE RECOVERY
-ENTRY SHA: $SHA
-ROLE: EXECUTION
-WORK PACKAGE: ROOT-CAUSE-SPINE-001
-TASK ID: AGENT-2-FAILURE-RECOVERY-001
-WAKE ID: $WAKE_ID
-STATUS: $STATUS
-PRIMARY WORKFLOW: $PRIMARY_WORKFLOW
-TARGET RUN ID: ${TARGET_RUN_ID:-NONE}
-FAILURE FINGERPRINT: $SAFE_FINGERPRINT
-ROOT CAUSE HINT: ${ROOT_CAUSE:-UNKNOWN_RCA}
-PROMPT BUNDLE DIGEST: $PROMPT_DIGEST
-PROMPT COUNT: $PROMPT_COUNT
-PROMPT ARTIFACT: flixo-repair-execution-prompts-$GITHUB_RUN_ID
-
-REQUIRED MODE: RCA → REPAIR → TARGETED REGRESSION → AFFECTED-CONTRACT VERIFICATION
-TEST POLICY: Reproduce the demonstrated failure first. Test the smallest affected surface. Do NOT rerun the full suite merely because a new commit exists; expand verification only when the repaired invariant, contract, security boundary, or certification proof requires it.
-LEARNING POLICY: Record symptom, trigger, propagation, violated invariant, causal root, repair rationale, targeted proof, exact SHA, and lesson/anti-lesson for the next small task.
-FAIL-CLOSED: Missing evidence, stale SHA, ambiguous RCA, or scope mismatch must block mutation and request investigation.
-
-<!-- FLIXO_AGENT_2_WAKE:${WAKE_ID} -->
+          <!-- FLIXO_AGENT_COUNCIL_WAKE -->
+          ### AGENT 2 WAKE — FAILURE RECOVERY
+          ENTRY SHA: $SHA
+          ROLE: EXECUTION
+          WORK PACKAGE: ROOT-CAUSE-SPINE-001
+          TASK ID: AGENT-2-FAILURE-RECOVERY-001
+          WAKE ID: $WAKE_ID
+          STATUS: $STATUS
+          PRIMARY WORKFLOW: $PRIMARY_WORKFLOW
+          TARGET RUN ID: ${TARGET_RUN_ID:-NONE}
+          FAILURE FINGERPRINT: $SAFE_FINGERPRINT
+          ROOT CAUSE HINT: ${ROOT_CAUSE:-UNKNOWN_RCA}
+          PROMPT BUNDLE DIGEST: $PROMPT_DIGEST
+          PROMPT COUNT: $PROMPT_COUNT
+          PROMPT ARTIFACT: flixo-repair-execution-prompts-$GITHUB_RUN_ID
+          
+          REQUIRED MODE: RCA → REPAIR → TARGETED REGRESSION → AFFECTED-CONTRACT VERIFICATION
+          TEST POLICY: Reproduce the demonstrated failure first. Test the smallest affected surface. Do NOT rerun the full suite merely because a new commit exists; expand verification only when the repaired invariant, contract, security boundary, or certification proof requires it.
+          LEARNING POLICY: Record symptom, trigger, propagation, violated invariant, causal root, repair rationale, targeted proof, exact SHA, and lesson/anti-lesson for the next small task.
+          FAIL-CLOSED: Missing evidence, stale SHA, ambiguous RCA, or scope mismatch must block mutation and request investigation.
+          
+          <!-- FLIXO_AGENT_2_WAKE:${WAKE_ID} -->
 EOF
 )"
           gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
