@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import { deriveRepairIdentity, deriveLeaseEventRef, deriveRecoveryRef, staleRecoveryDecision, REPAIR_OUTCOMES } from './repair-control-plane.mjs';
+import { assertState, checkHeartbeat, AGENT_LIVENESS_PROTOCOL } from './agent-liveness-protocol.mjs';
 
 const API_VERSION = '2022-11-28';
 const DEFAULT_STALE_AFTER_MS = 60 * 60 * 1000;
+const DEFAULT_HEARTBEAT_TTL_MS = AGENT_LIVENESS_PROTOCOL.leaseTtlMs;
 
 const args = Object.fromEntries(process.argv.slice(2).filter((arg) => arg.startsWith('--')).map((arg) => {
   const [key, ...rest] = arg.slice(2).split('=');
@@ -290,6 +292,56 @@ async function commandVerify() {
   console.log(JSON.stringify({ status: 'LEASE_ACTIVE', leaseRef: identity.leaseRef, repairChainId: identity.repairChainId, attempt }, null, 2));
 }
 
+async function commandHeartbeat() {
+  const identity = identityFromArgs();
+  const failedSha = getArg('failedSha');
+  const meta = await readLeaseMetadata(identity.leaseRef, failedSha);
+  if (!meta.exists) throw new Error('REPAIR_LEASE_MISSING');
+  if (meta.metadata?.failedSha && meta.metadata.failedSha !== failedSha) throw new Error('REPAIR_LEASE_FAILED_SHA_MISMATCH');
+
+  const repairRunId = getArg('repairRunId', process.env.GITHUB_RUN_ID);
+  const livenessState = getArg('livenessState', 'ACTIVE');
+  const progress = getArg('progress', 'false') === 'true';
+  const now = Date.now();
+  const heartbeatAt = new Date(now).toISOString();
+  const expiresAt = new Date(now + DEFAULT_HEARTBEAT_TTL_MS).toISOString();
+  assertState(livenessState, { workAssigned: true });
+  const previousHeartbeat = getArg('previousHeartbeat', heartbeatAt);
+  const heartbeatCheck = checkHeartbeat({ state: livenessState, lastHeartbeatAt: previousHeartbeat, now });
+  if (heartbeatCheck.ok === false && heartbeatCheck.action === 'RECOVERY_REQUIRED' && getArg('forceRecoveryHeartbeat', 'false') !== 'true') {
+    throw new Error('REPAIR_LEASE_HEARTBEAT_STALE_USE_RECOVERY');
+  }
+
+  const event = await emitEvent(identity, 'HEARTBEAT', `heartbeat-${repairRunId}-${now}`, {
+    repairKey: identity.claimKey,
+    repairChainId: identity.repairChainId,
+    failedSha,
+    targetRunId: getArg('targetRunId'),
+    repairRunId,
+    attempt: Number(getArg('attempt', '1')),
+    leaseOwner: getArg('leaseOwner', 'AUTO_REPAIR_BOT'),
+    leaseState: 'LEASE_ACTIVE',
+    livenessState,
+    heartbeatAt,
+    expiresAt,
+    progress,
+    progressAt: progress ? heartbeatAt : getArg('progressAt', heartbeatAt),
+    state: 'LEASE_ACTIVE',
+    at: heartbeatAt,
+  });
+  console.log(JSON.stringify({
+    status: event.decision === 'ACQUIRED' || event.decision === 'ALREADY_CLAIMED' || event.decision === 'TAG_OBJECT_CREATED' ? 'HEARTBEAT_RECORDED' : event.decision,
+    heartbeatAt,
+    expiresAt,
+    leaseRef: identity.leaseRef,
+    repairChainId: identity.repairChainId,
+    livenessState,
+    progress,
+    event,
+  }, null, 2));
+  if (!['ACQUIRED', 'ALREADY_CLAIMED', 'TAG_OBJECT_CREATED'].includes(event.decision)) process.exitCode = 1;
+}
+
 async function commandOutcome() {
   const identity = identityFromArgs();
   const failedSha = getArg('failedSha');
@@ -487,13 +539,14 @@ async function commandRecover() {
 }
 
 function usage() {
-  throw new Error('Usage: repair-lease.mjs claim|verify|outcome|recover');
+  throw new Error('Usage: repair-lease.mjs claim|verify|heartbeat|outcome|recover');
 }
 
 if (import.meta.url === (await import('node:url')).pathToFileURL(process.argv[1] ?? '').href) {
   try {
     if (command === 'claim') await commandClaim();
     else if (command === 'verify') await commandVerify();
+    else if (command === 'heartbeat') await commandHeartbeat();
     else if (command === 'outcome') await commandOutcome();
     else if (command === 'recover') await commandRecover();
     else usage();
