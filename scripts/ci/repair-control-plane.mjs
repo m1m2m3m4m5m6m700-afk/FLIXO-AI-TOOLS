@@ -165,8 +165,9 @@ export function staleRecoveryDecision({
   if (activeRuns.length > 0) reasons.push('ACTIVE_REPAIR_SESSION_PRESENT');
   if (String(currentExecutionSha ?? '') !== String(failedSha ?? '')) reasons.push('EXECUTION_SHA_CHANGED');
   if (verified) reasons.push('SUCCESSFUL_REPAIR_ALREADY_VERIFIED');
-  // Circuit-open is a strategy-rotation signal, not a terminal/stale-recovery blocker.
+  if (progress.circuitOpen) reasons.push('NO_PROGRESS_REQUIRES_STRATEGY_ROTATION');
   return Object.freeze({
+    // Circuit-open blocks this stale-recovery attempt but is explicitly non-terminal: the caller must rotate strategy and continue the repair chain.
     eligible: reasons.length === 0,
     ageMs,
     noProgress: progress,
