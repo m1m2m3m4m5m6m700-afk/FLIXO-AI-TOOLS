@@ -298,7 +298,20 @@ jobs:
             done
           }
           gh_with_backoff api "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_SHA/status" > /tmp/exact-status.json
-          jq -e '[.statuses[] | select(.state != "success")] | length == 0' /tmp/exact-status.json
+          # Commit statuses may include provider-managed integrations that are outside the
+          # repository's canonical promotion contract (for example Vercel build-rate limits).
+          # Preserve them as evidence, but only internal statuses can fail this gate.
+          CANONICAL_STATUS_FAILURES="$(jq -c '[.statuses[]
+            | select(.context != "Vercel")
+            | select(.state != "success")
+            | {context,state,target_url}]' /tmp/exact-status.json)"
+          printf '%s\n' "$CANONICAL_STATUS_FAILURES" > /tmp/exact-canonical-status-failures.json
+          jq -e 'length == 0' /tmp/exact-canonical-status-failures.json >/dev/null
+          VERCEL_STATUS="$(jq -c '[.statuses[] | select(.context == "Vercel") | {context,state,target_url}]' /tmp/exact-status.json)"
+          printf '%s\n' "$VERCEL_STATUS" > /tmp/exact-external-status-evidence.json
+          if jq -e 'any(.[]; .state != "success")' /tmp/exact-external-status-evidence.json >/dev/null; then
+            echo "EXTERNAL_STATUS_EVIDENCE=Vercel:$VERCEL_STATUS"
+          fi
 
       - name: Race-safe final SHA readback
         env:
