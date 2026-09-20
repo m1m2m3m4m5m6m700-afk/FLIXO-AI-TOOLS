@@ -89,18 +89,34 @@ const normalizeFilterQuery = (value: string): string =>
     .replace(/\\s+/g, ' ')
     .trim();
 
+const GENERIC_FILTER_TERMS = new Set([
+  'live', 'filter', 'filters', 'camera',
+  'فلتر', 'فلاتر', 'مباشر', 'الكاميرا',
+]);
+
+const scoreLiveFilter = (query: string, filter: LiveFilterDefinition): number => {
+  const normalized = normalizeFilterQuery(query);
+  const target = normalizeFilterQuery(`${filter.canonicalId} ${filter.label} ${filter.family}`);
+  if (!normalized) return 0;
+  if (target === normalized) return 100;
+  if (normalizeFilterQuery(filter.canonicalId) === normalized) return 100;
+  if (normalizeFilterQuery(filter.label) === normalized) return 100;
+
+  const tokens = normalized.split(' ').filter((token) => token && !GENERIC_FILTER_TERMS.has(token));
+  if (tokens.length === 0) return 1;
+  const hits = tokens.filter((token) => target.includes(token)).length;
+  return hits === tokens.length ? 50 + hits : hits;
+};
+
 export const findLiveFilters = (query: string): readonly LiveFilterDefinition[] => {
   const normalized = normalizeFilterQuery(query);
   if (!normalized) return LIVE_FILTER_REGISTRY;
-  return LIVE_FILTER_REGISTRY.filter((filter) =>
-    normalizeFilterQuery(`${filter.canonicalId} ${filter.label} ${filter.family}`).includes(normalized),
-  );
+  return [...LIVE_FILTER_REGISTRY]
+    .map((filter) => ({ filter, score: scoreLiveFilter(normalized, filter) }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score || a.filter.canonicalId.localeCompare(b.filter.canonicalId))
+    .map(({ filter }) => filter);
 };
 
-export const resolveLiveFilter = (query: string): LiveFilterDefinition | undefined => {
-  const normalized = normalizeFilterQuery(query);
-  if (!normalized) return undefined;
-  return LIVE_FILTER_REGISTRY.find((filter) => normalizeFilterQuery(filter.canonicalId) === normalized)
-    ?? LIVE_FILTER_REGISTRY.find((filter) => normalizeFilterQuery(filter.label) === normalized)
-    ?? findLiveFilters(normalized)[0];
-};
+export const resolveLiveFilter = (query: string): LiveFilterDefinition | undefined =>
+  findLiveFilters(query)[0];
