@@ -60,6 +60,7 @@ export type ToolDefinition = Readonly<{
 }>;
 
 const IMAGE_TOOL_CONFIGS: readonly ToolSource[] = Object.freeze([
+  { id: 'filter-mask', title: 'Filter Mask', path: '/en/filter-mask', description: 'Live camera filters with instant local preview.', category: 'Images', isReady: true, aliases: ['/en/filters'], component: lazy(() => import('@/tools/filter-mask').then((m) => ({ default: m.FilterMaskTool }))) },
   { id: 'image-compressor', title: 'Image Compressor', path: '/en/image-compressor', description: 'Reduce JPG, PNG, and WebP file size in your browser.', category: 'Images', isReady: true, aliases: ['/ar/image-compressor'], component: lazy(() => import('@/tools/image-compressor/index.tsx').then((m) => ({ default: m.ImageCompressor }))) },
   { id: 'background-remover', title: 'Background Remover', path: '/en/background-remover', description: 'Remove connected, uniform backgrounds locally.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/background-remover').then((m) => ({ default: m.BackgroundRemoverTool }))) },
   { id: 'image-upscaler', title: 'Image Upscaler', path: '/en/image-upscaler', description: 'Increase image dimensions with high-quality resampling.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/image-upscaler').then((m) => ({ default: m.ImageUpscalerTool }))) },
@@ -100,6 +101,7 @@ const PARAMETER_SCHEMAS: Readonly<Record<string, ZodType>> = {
 };
 
 const TOOL_INTENTS: Readonly<Record<string, readonly string[]>> = {
+  'filter-mask': ['live filter', 'camera filter', 'live camera', 'filters', 'فلتر مباشر', 'فلاتر الكاميرا'],
   'image-compressor': ['compress', 'smaller', 'reduce size', 'file size', 'lighter', 'ضغط الصور', 'تصغير حجم الصورة'],
   'background-remover': ['remove background', 'transparent background', 'cut out background', 'background removal', 'إزالة الخلفية', 'خلفية شفافة'],
   'image-upscaler': ['upscale', 'sharper', 'higher quality', 'increase resolution', 'make it clearer', 'رفع الجودة', 'زيادة الدقة'],
