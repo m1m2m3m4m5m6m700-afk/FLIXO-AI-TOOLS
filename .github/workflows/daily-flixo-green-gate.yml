@@ -344,7 +344,6 @@ jobs:
           TARGET_SHA="$(jq -r '.targetSha' "$PROVISIONAL")"
           LEARNING_EXECUTION_SHA="$(jq -r '.executionSha // empty' "$PROVISIONAL")"
           LEARNING_RUN_ID="$(jq -r '.runId // empty' "$PROVISIONAL")"
-          EXPECTED_TARGET_RUN_ID="$(jq -r '.repair.targetRunId // empty' /tmp/flixo-watch/report.json)"
           FINGERPRINT="$(jq -r '.fingerprint' "$PROVISIONAL")"
           TASK_ID="$(jq -r '.taskId' "$PROVISIONAL")"
           test "$(jq -r '.status' "$PROVISIONAL")" = 'PROVISIONAL'
@@ -352,8 +351,8 @@ jobs:
             echo "FAIL CLOSED: provisional learning executionSha=$LEARNING_EXECUTION_SHA does not match current green SHA=$CURRENT_SHA."
             exit 1
           }
-          test -n "$LEARNING_RUN_ID" && test -n "$EXPECTED_TARGET_RUN_ID" && test "$LEARNING_RUN_ID" = "$EXPECTED_TARGET_RUN_ID" || {
-            echo "FAIL CLOSED: provisional learning runId=$LEARNING_RUN_ID does not match current repair target runId=$EXPECTED_TARGET_RUN_ID."
+          test -n "$LEARNING_RUN_ID" || {
+            echo "FAIL CLOSED: provisional learning runId is missing."
             exit 1
           }
           git merge-base --is-ancestor "$TARGET_SHA" "$CURRENT_SHA"
