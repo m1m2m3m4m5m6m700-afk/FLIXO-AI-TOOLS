@@ -33,7 +33,7 @@ export default async function adminCenters(req: AdminRequest, res: ServerRespons
   }
 
   const center = rawCenter as Center;
-  const authorization = authorizeAdminRequestWithDurableSession(req, CENTER_CAPABILITY[center]);
+  const authorization = await authorizeAdminRequestWithDurableSession(req, CENTER_CAPABILITY[center]);
 
   if ('status' in authorization) {
     if (authorization.status === 405) res.setHeader('Allow', 'GET');
