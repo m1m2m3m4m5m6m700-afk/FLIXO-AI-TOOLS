@@ -22,9 +22,9 @@ rst is a P0 execution invariant. The canonical ingress is Master Inbox Issue #76
 ```text
 SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
-CURRENT MAIN SHA = `9150a5770bf113baf6d5b58439351bf3c5b42514`
-ACTIVE PR = #771 OPEN / execution → main (current repair/integration lane); #759 is historical/merged
-CURRENT PR HEAD = authoritative GitHub PR #771 head; do not duplicate a mutable SHA in this map
+CURRENT MAIN SHA = authoritative GitHub main ref; never duplicate a mutable SHA in this map
+ACTIVE PR = #774 OPEN / execution → main (current verification/repair lane); #759 is historical/merged
+CURRENT PR HEAD = authoritative GitHub PR #774 head; do not duplicate a mutable SHA in this map
 NO-NEW-BRANCH = ABSOLUTE; only execution and main are active agent branches; existing historical branches are not valid work paths
 STATE = BLOCKED_EXTERNAL
 CANONICAL TEST SYSTEM = FRESH EVIDENCE REQUIRED ON CURRENT MAIN/EXECUTION HEAD; prior exact-head evidence is stale
@@ -46,7 +46,7 @@ NO CLOSED/VERIFIED LABEL IN THIS FILE IS CURRENT GREEN PROOF UNLESS IT IS REPROV
 ```text
 TASK LEDGER = المهام.md §15.0 LIVE DISCOVERY OVERLAY
 CURRENT EXECUTION SHA = authoritative GitHub execution branch ref; do not duplicate a mutable SHA in this map
-OPEN PR = #771 → main; #759 is historical/merged
+OPEN PR = #774 → main; #759 is historical/merged
 DEPENDENT PR = none; prior non-canonical PRs are historical and not active work paths
 LIVE EXTERNAL BLOCKERS = GitHub/Copilot model rejection + Vercel deployment rate-limit
 LIVE AUTOMATION RCA = continuous-error-watch input artifact missing on main automation cycle
