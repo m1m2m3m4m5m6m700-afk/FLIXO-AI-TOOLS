@@ -35,7 +35,13 @@
     "independentAuthorityMayTransfer": false,
     "actionRepairExecutor": "ACTION-REPAIR",
     "actionIndexOwner": "ACTION-REPAIR",
-    "actionIndexSearchRequired": true
+    "actionIndexSearchRequired": true,
+    "sameIntelligenceForCoreThree": true,
+    "coreThree": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ]
   },
   "workers": [
     {
@@ -583,6 +589,50 @@
       "chatDoesNotGrantMutationAuthority": true,
       "taskOwnershipRemainsWithActiveRepairBot": true,
       "canonicalCiRemainsGreenAuthority": true
+    }
+  },
+  "threeBotCollaboration": {
+    "id": "ACTION-THREE-BOT-COLLABORATION",
+    "contract": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
+    "runtime": "scripts/ci/action-three-bot-collaboration.mjs",
+    "activeOn": "ANY_ACTIONABLE_RED",
+    "participants": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ],
+    "sameMission": true,
+    "sameFailureFingerprint": true,
+    "sameExactSha": true,
+    "sameFailedRun": true,
+    "mandatoryEvidenceExchange": true,
+    "mandatoryChallenge": true,
+    "mandatoryHistorianRecord": true,
+    "repairObjective": "ONE_SHARED_REPAIR_OBJECTIVE",
+    "authority": "ONE_ACTIVE_REPAIR_OWNER",
+    "handoff": "ONLY_AFTER_DOCUMENTED_FAILURE_OR_UNREPAIRED",
+    "greenAuthority": "DAILY_FLIXO_GREEN_GATE",
+    "noMonitoringBot": true,
+    "separateFromCell": true
+  },
+  "coreThreeBotContract": {
+    "ACTION-REPAIR": {
+      "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
+      "role": "PRIMARY_REPAIR_OWNER",
+      "executionAuthority": "MUTATE_WHEN_TASK_OWNER",
+      "cooperation": "MANDATORY_ON_RED"
+    },
+    "ACTION-REPAIR-2": {
+      "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
+      "role": "SECONDARY_REPAIR_OWNER",
+      "executionAuthority": "MUTATE_WHEN_TASK_OWNER_AFTER_HANDOFF",
+      "cooperation": "MANDATORY_ON_RED"
+    },
+    "ACTION-HISTORIAN-3": {
+      "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
+      "role": "HISTORIAN_AND_SOLUTION_INDEXER",
+      "executionAuthority": "RECORD_INDEX_ESCALATE_ONLY",
+      "cooperation": "MANDATORY_ON_RED"
     }
   }
 }
