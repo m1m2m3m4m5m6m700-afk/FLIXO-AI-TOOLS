@@ -49,6 +49,44 @@ const lifecycle = derivePolicyLifecycle({
 assert.equal(lifecycle.status, 'ROLLBACK_TO_BASELINE');
 assert.equal(lifecycle.routingEligible, false);
 assert.equal(lifecycle.activePolicySource, 'BASELINE');
+assert.equal(lifecycle.routingEligible, false);
+
+const nonComparableLifecycle = derivePolicyLifecycle({
+  policy: { byRootCause: {}, global: {} },
+  baselineReport: {
+    activePolicy: { byRootCause: {}, global: {} },
+    policy: { byRootCause: {}, global: {} },
+    trainingProvenance: { goldenBenchmarkExcluded: false },
+  },
+  antiForgetting: {
+    status: 'BASELINE_NOT_COMPARABLE',
+    regression: false,
+    comparable: false,
+    candidate: { successAccuracy: 0.9, failureAvoidance: 0.9 },
+  },
+  goldenRows: [{ fingerprint: 'golden', outcome: 'success', strategyId: 'reproduce-exact' }],
+});
+assert.equal(nonComparableLifecycle.status, 'HOLD_BASELINE_RECALIBRATION');
+assert.equal(nonComparableLifecycle.routingEligible, false);
+
+const noGoldenLifecycle = derivePolicyLifecycle({
+  policy: { byRootCause: {}, global: {} },
+  baselineReport: {
+    activePolicy: { byRootCause: {}, global: {} },
+    policy: { byRootCause: {}, global: {} },
+    trainingProvenance: { goldenBenchmarkExcluded: true },
+  },
+  antiForgetting: {
+    status: 'NO_GOLDEN_CASES',
+    regression: false,
+    comparable: false,
+    candidate: { successAccuracy: 0.9, failureAvoidance: 0.9 },
+  },
+  goldenRows: [],
+});
+assert.equal(noGoldenLifecycle.status, 'HOLD_GOLDEN_BENCHMARK');
+assert.equal(noGoldenLifecycle.routingEligible, false);
+
 
 const recurrenceRows = sampleRows.map((row, index) => ({
   ...row,

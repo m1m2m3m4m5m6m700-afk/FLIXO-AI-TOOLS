@@ -633,10 +633,26 @@ export function derivePolicyLifecycle({ policy, baselineReport, antiForgetting, 
           : 'PROMOTE_CANDIDATE'
       : 'BOOTSTRAP_CANDIDATE';
   const activePolicy = rollbackRequired ? baselinePolicy : policy;
+  const comparable = antiForgetting?.comparable === true;
+  const benchmarkReady = goldenRows.length > 0;
+  const routingEligible = !rollbackRequired
+    && (baselinePolicy ? comparable && benchmarkReady : benchmarkReady);
+  const finalStatus = rollbackRequired
+    ? 'ROLLBACK_TO_BASELINE'
+    : baselinePolicy
+      ? routingEligible
+        ? 'PROMOTE_CANDIDATE'
+        : antiForgetting?.status === 'BASELINE_NOT_COMPARABLE'
+          ? 'HOLD_BASELINE_RECALIBRATION'
+          : 'HOLD_GOLDEN_BENCHMARK'
+      : routingEligible
+        ? 'BOOTSTRAP_CANDIDATE'
+        : 'HOLD_GOLDEN_BENCHMARK';
   return {
     schemaVersion: 1,
     algorithm: 'POLICY_LIFECYCLE_GUARD-v1',
-    status,
+    status: finalStatus,
+    previousStatus: status,
     rollbackRequired,
     candidatePolicyHash: candidateHash,
     baselinePolicyHash: baselineHash,
@@ -649,7 +665,7 @@ export function derivePolicyLifecycle({ policy, baselineReport, antiForgetting, 
       regression: Boolean(antiForgetting?.regression),
       comparableBaseline: Boolean(antiForgetting?.comparable),
     },
-    routingEligible: !rollbackRequired,
+    routingEligible,
     activePolicy,
   };
 }
