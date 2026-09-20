@@ -63,6 +63,20 @@ jobs:
           node scripts/ci/action-bot-chat.mjs --op=assign --from=ACTION-MASTER --to=ACTION-REPAIR --task="$TASK" --fingerprint="$FP" --sha="$SHA" --objective="VAULT CHANGE WAKE: prepare bounded repair path for the changed Action Vault surface; do not mutate until a RED and collaboration evidence exist."
           printf '%s\n' "TASK=$TASK" "FINGERPRINT=$FP" "BEFORE_SHA=$BEFORE_SHA" "AFTER_SHA=$SHA" > /tmp/action-vault-wake.txt
 
+      - name: Build advanced agent reasoning packet
+        env:
+          SHA: ${{ steps.sha.outputs.after }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          TASK="ACTION-VAULT-CHANGE:${SHA}"
+          FP="VAULT_CHANGE:${SHA}"
+          node scripts/ci/action-agent-runtime.mjs --task="$TASK" --fingerprint="$FP" --sha="$SHA" --run-id="$RUN_ID" --output=/tmp/action-agent-runtime.json
+          node scripts/ci/action-agent-history.mjs --task="$TASK" --fingerprint="$FP" --sha="$SHA" --run-id="$RUN_ID" --agent=ACTION-MASTER --lane=COMMANDER --phase=CONTEXT_RETRIEVAL --summary="Loaded historical Action experience and built the advanced reasoning packet for this Vault change." --evidence=docs/agents/historical-action-errors/index.json,docs/agents/historical-action-errors/agent-activity/index.json --output=/tmp/action-agent-history-master.json
+          node scripts/ci/action-agent-history.mjs --task="$TASK" --fingerprint="$FP" --sha="$SHA" --run-id="$RUN_ID" --agent=ACTION-REPAIR --lane=PRIMARY --phase=CONTEXT_RETRIEVAL --summary="Primary agent loaded historical cases, rejected strategies, and prepared bounded repair context." --evidence=diagnostics/auto-repair/memory.json,docs/agents/historical-action-errors/index.json --output=/tmp/action-agent-history-primary.json
+          node scripts/ci/action-agent-history.mjs --task="$TASK" --fingerprint="$FP" --sha="$SHA" --run-id="$RUN_ID" --agent=ACTION-REPAIR-2 --lane=ADVERSARIAL --phase=INDEPENDENT_REVIEW --summary="Adversarial agent loaded historical anti-lessons and prepared independent falsification context." --evidence=docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json,docs/agents/historical-action-errors/index.json --output=/tmp/action-agent-history-adversarial.json
+          node scripts/ci/action-agent-history.mjs --task="$TASK" --fingerprint="$FP" --sha="$SHA" --run-id="$RUN_ID" --agent=ACTION-HISTORIAN-3 --lane=HISTORIAN --phase=CONTEXT_RETRIEVAL --summary="Historian indexed the changed Vault surface and bound the mission to the historical Action corpus." --evidence=docs/agents/historical-action-errors/index.json,docs/agents/historical-action-errors/agent-activity/index.json --output=/tmp/action-agent-history-historian.json
+
       - name: Derive impacted surface
         env:
           BEFORE_SHA: ${{ steps.sha.outputs.before }}
@@ -79,6 +93,20 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/ci/action-vault-targeted-test.mjs --before="$BEFORE_SHA" --after="$AFTER_SHA" --execute=true --output=/tmp/action-vault-targeted-execution.json
+
+      - name: Record targeted verification into historical agent activity
+        if: always()
+        env:
+          SHA: ${{ steps.sha.outputs.after }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          TASK="ACTION-VAULT-CHANGE:${SHA}"
+          FP="VAULT_CHANGE:${SHA}"
+          SUMMARY="Targeted Action Vault regression completed for the impacted surface; canonical GREEN remains the final proof authority."
+          node scripts/ci/action-agent-history.mjs --task="$TASK" --fingerprint="$FP" --sha="$SHA" --run-id="$RUN_ID" --agent=ACTION-REPAIR --lane=PRIMARY --phase=VERIFY --summary="$SUMMARY" --evidence=/tmp/action-vault-targeted-execution.json --output=/tmp/action-agent-history-verify-primary.json
+          node scripts/ci/action-agent-history.mjs --task="$TASK" --fingerprint="$FP" --sha="$SHA" --run-id="$RUN_ID" --agent=ACTION-REPAIR-2 --lane=ADVERSARIAL --phase=VERIFY --summary="Independent review recorded the targeted regression evidence; no certification authority is granted." --evidence=/tmp/action-vault-targeted-execution.json --output=/tmp/action-agent-history-verify-adversarial.json
+          node scripts/ci/action-agent-history.mjs --task="$TASK" --fingerprint="$FP" --sha="$SHA" --run-id="$RUN_ID" --agent=ACTION-HISTORIAN-3 --lane=HISTORIAN --phase=LEARN --summary="Historian recorded the verification artifact and preserved the exact-SHA provenance chain for future retrieval." --evidence=/tmp/action-vault-targeted-execution.json --output=/tmp/action-agent-history-verify-historian.json
 
       - name: Publish agent wake and targeted evidence
         if: always()
