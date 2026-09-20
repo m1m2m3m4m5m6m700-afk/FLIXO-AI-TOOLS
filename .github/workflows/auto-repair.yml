@@ -86,7 +86,7 @@ jobs:
     outputs:
       twin_a: ${{ steps.publish_twin_outputs.outputs.twin_a }}
       twin_b: ${{ steps.publish_twin_outputs.outputs.twin_b }}
-    timeout-minutes: 20
+    timeout-minutes: 45
     permissions:
       contents: read
       actions: read
