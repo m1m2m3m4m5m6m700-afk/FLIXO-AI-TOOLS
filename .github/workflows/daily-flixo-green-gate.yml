@@ -192,8 +192,8 @@ jobs:
           process.stdout.write(JSON.stringify({ promptCount: bundle.promptCount, digest: bundle.digest }));
           NODE
           )"
-          PROMPT_COUNT="$(node --input-type=module -e "const fs=require('node:fs'); const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); process.stdout.write(String(x.promptCount))" )"
-          PROMPT_DIGEST="$(node --input-type=module -e "const fs=require('node:fs'); const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); process.stdout.write(String(x.digest))" )"
+          PROMPT_COUNT="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); process.stdout.write(String(x.promptCount))" )"
+          PROMPT_DIGEST="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); process.stdout.write(String(x.digest))" )"
           echo "REPAIR_PROMPT_COUNT=$PROMPT_COUNT"
           echo "REPAIR_PROMPT_DIGEST=$PROMPT_DIGEST"
           echo "REPAIR_PROMPT_SOURCE_RUN_ID=$GITHUB_RUN_ID"
