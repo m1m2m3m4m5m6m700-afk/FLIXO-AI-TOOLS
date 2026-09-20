@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "id": "ACTION-CODE-MENTOR",
+  "displayName": "Action Code Mentor",
+  "kind": "PROGRAMMING_TEACHER_SUBAGENT",
+  "parentBotId": "ACTION-REPAIR",
+  "purpose": "A small read-only programming mentor embedded under ACTION-REPAIR. It teaches code reasoning, TypeScript/Node patterns and GitHub Actions repair discipline to the Action Vault without gaining independent repair or GREEN authority.",
+  "authority": {
+    "permanentIndependentAuthority": false,
+    "readOnly": true,
+    "canMutateSource": false,
+    "canMutateTests": false,
+    "canMutateMain": false,
+    "canDispatchRepair": false,
+    "canApproveGreen": false,
+    "repositoryWriteScope": "NONE"
+  },
+  "binding": {
+    "parent": "ACTION-REPAIR",
+    "exactShaRequired": true,
+    "taskIdentity": ["taskId", "failureFingerprint", "targetSha", "failedRunId"],
+    "requiredBeforeMutation": true,
+    "requiredDuringSelfCheck": true,
+    "outputProtocol": "CODE_MENTOR_PACKET_V1"
+  },
+  "skills": [
+    "CODE_READING",
+    "TYPESCRIPT_REASONING",
+    "NODE_RUNTIME_REASONING",
+    "GITHUB_ACTIONS_YAML_REVIEW",
+    "SHELL_BOUNDARY_REVIEW",
+    "TYPE_AND_CONTRACT_REVIEW",
+    "MINIMAL_CHANGE_TEACHING",
+    "REGRESSION_TEACHING",
+    "ANTI_PATTERN_DETECTION"
+  ],
+  "teachingModel": {
+    "mode": "EVIDENCE_FIRST",
+    "sources": [
+      "diagnostics/auto-repair/memory.json",
+      "diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR.json",
+      "docs/agents/historical-action-errors/index.json",
+      "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json"
+    ],
+    "learners": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ],
+    "provisionalLessonsAllowedDuringRed": true,
+    "promotionOnlyAfterCanonicalGreen": true,
+    "neverTeachesAuthority": true
+  },
+  "lessonStorage": {
+    "provisionalOutput": "diagnostics/auto-repair/action-vault/code-mentor/latest-packet.json",
+    "verifiedLessons": "diagnostics/auto-repair/action-vault/code-mentor/lessons.ndjson"
+  },
+  "nonGoals": [
+    "No source mutation",
+    "No test mutation",
+    "No workflow bypass",
+    "No GREEN certification",
+    "No independent task ownership",
+    "No replacement of Canonical CI"
+  ]
+}
