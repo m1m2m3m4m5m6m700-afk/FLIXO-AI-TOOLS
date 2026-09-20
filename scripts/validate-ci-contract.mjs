@@ -119,17 +119,25 @@ for (const [file, source] of [
   }
 }
 
-if (/actions\/upload-artifact@[^\n]*\n[\s\S]*?flixo-repair-twins-/.test(autoRepairWorkflow) ||
+if (/flixo-repair-twins-/.test(autoRepairWorkflow) ||
     /gh run download.*flixo-repair-twins-/.test(autoRepairWorkflow) ||
     /actions\/download-artifact/.test(autoRepairWorkflow)) {
-  console.error('CI contract failed: auto-repair twin results must cross jobs only through exact-SHA job outputs, not downloadable artifacts.');
+  console.error('CI contract failed: auto-repair twin results must not cross the repair trust boundary through downloadable artifacts.');
   process.exit(1);
 }
-if (!/adversarial_twin:[\s\S]*?outputs:\s*[\s\S]*?twin_a:[\s\S]*?twin_b:/.test(autoRepairWorkflow) ||
-    !/repair:[\s\S]*?needs:\s*adversarial_twin/.test(autoRepairWorkflow) ||
-    !/base64 -w0 \/tmp\/flixo-twin\/twin-a\.json/.test(autoRepairWorkflow) ||
-    !/base64 -d > \/tmp\/flixo-twin-a\.json/.test(autoRepairWorkflow)) {
-  console.error('CI contract failed: adversarial twin handoff must be an encoded, exact-SHA job-output boundary.');
+const localTwinBoundary =
+  /name: Run adversarial twins locally inside the canonical repair trust domain[\s\S]*?id: twin/.test(autoRepairWorkflow) &&
+  /git worktree add --detach \/tmp\/flixo-twin-target "\$EXPECTED_SHA"/.test(autoRepairWorkflow) &&
+  /A\) OUTPUT=\/tmp\/flixo-twin-a\.json/.test(autoRepairWorkflow) &&
+  /B\) OUTPUT=\/tmp\/flixo-twin-b\.json/.test(autoRepairWorkflow) &&
+  /FLIXO_TWIN_DETACHED='true'/.test(autoRepairWorkflow) &&
+  /validate-adversarial-repair-twin\.mjs/.test(autoRepairWorkflow) &&
+  /ACTION-WISE select best repair option from history and twin A\/B[\s\S]*?if: steps\.twin\.outcome == 'success'/.test(autoRepairWorkflow) &&
+  /--twin-a=\/tmp\/flixo-twin-a\.json/.test(autoRepairWorkflow) &&
+  /--twin-b=\/tmp\/flixo-twin-b\.json/.test(autoRepairWorkflow) &&
+  !/repair:[\s\S]*?needs:\s*adversarial_twin/.test(autoRepairWorkflow);
+if (!localTwinBoundary) {
+  console.error('CI contract failed: adversarial twin execution must remain inside the canonical repair job, on a fixed detached exact-SHA worktree, with bounded fixed-path validated handoff.');
   process.exit(1);
 }
 if (/FLIXO_SELECTED_REPAIR_STRATEGY=\$SELECTED/.test(autoRepairWorkflow) ||
