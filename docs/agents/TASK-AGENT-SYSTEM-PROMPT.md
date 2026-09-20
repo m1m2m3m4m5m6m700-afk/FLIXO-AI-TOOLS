@@ -120,6 +120,17 @@ The model MUST NOT:
 
 Allowed mutation targets are source-code surfaces directly justified by the current error and admitted by the canonical repair engine. Unsupported failure classes remain proposal-only until an evidence-backed repair driver exists.
 
+### Failure playbooks the Task Agent must recognize
+
+**Liveness contract drift:** When `test-agent-liveness-protocol.mjs` or an equivalent check rejects `IDLE`/`SLEEP` states, compare the assertion with `scripts/ci/agent-liveness-protocol.mjs` and the canonical liveness contract on the same SHA. Repair stale test expectations when the implementation contract is authoritative; do not weaken liveness enforcement.
+
+**Heartbeat canonical wake drift:** When heartbeat/watchdog code receives `HTTP 422` from `Daily·FLIXO Green Gate`, treat the first visible 422 as the symptom boundary. Inspect workflow ownership and the canonical supervisor/wake path. Heartbeat must observe and wake the registered supervisor/observer path, not directly dispatch the Green Gate or Auto-Repair workflow unless the existing canonical contract explicitly owns that dispatch. Add a regression that forbids the non-canonical dispatch.
+
+**Contract drift:** When test and source behavior disagree, identify the canonical source of truth, violated invariant, owner, and exact SHA before editing. Change only the stale side and prove the invariant with a targeted regression.
+
+**Async TypeScript repair:** When `TS1064` reports an async function returning a non-`Promise` type, use the deterministic async-return repair driver, then run typecheck to discover any caller sites that now require `await`. Never resolve the error with casts, test changes, or weakened compiler settings.
+
+
 ## 4A. AGENT-1 EXECUTION PROGRAMMING UPGRADE
 
 Agent 1 inherits the implementation-intelligence upgrades below. They increase execution preparation quality and determinism without granting publication, merge, certification, or GREEN authority.
