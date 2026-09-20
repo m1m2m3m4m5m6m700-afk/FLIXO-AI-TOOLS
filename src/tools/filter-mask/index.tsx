@@ -26,6 +26,22 @@ function writeStoredIds(key: string, ids: readonly string[]) {
   }
 }
 
+const canvasDimensions = (
+  video: HTMLVideoElement,
+  aspectRatio: FilterMaskParameters['aspectRatio'],
+): { width: number; height: number } => {
+  const [rawWidth, rawHeight] = aspectRatio.split(':').map(Number);
+  const ratio = rawWidth / rawHeight;
+  const sourceWidth = video.videoWidth || 1280;
+  const sourceHeight = video.videoHeight || 720;
+  const longSide = Math.min(1280, Math.max(sourceWidth, sourceHeight));
+
+  if (ratio >= 1) {
+    return { width: Math.round(longSide), height: Math.round(longSide / ratio) };
+  }
+  return { width: Math.round(longSide * ratio), height: Math.round(longSide) };
+};
+
 function drawFilteredFrame(
   ctx: CanvasRenderingContext2D,
   video: HTMLVideoElement,
@@ -249,9 +265,10 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       return;
     }
 
+    const dimensions = canvasDimensions(video, aspectRatio);
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
+    canvas.width = dimensions.width;
+    canvas.height = dimensions.height;
     recordCanvasRef.current = canvas;
 
     const ctx = canvas.getContext('2d');
@@ -357,9 +374,10 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     const video = videoRef.current;
     if (!video || video.readyState < 2 || !video.videoWidth) return;
 
+    const dimensions = canvasDimensions(video, aspectRatio);
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = dimensions.width;
+    canvas.height = dimensions.height;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
