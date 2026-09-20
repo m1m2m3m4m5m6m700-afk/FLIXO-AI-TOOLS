@@ -121,6 +121,8 @@ jobs:
             diagnostics/auto-repair/action-vault/chat.jsonl
             diagnostics/auto-repair/action-vault/chat-index.json
             diagnostics/auto-repair/action-vault/current-collaboration.json
+            docs/agents/historical-action-errors/agent-activity/index.json
+            docs/agents/historical-action-errors/agent-activity/*.json
           if-no-files-found: ignore
           retention-days: 14
 
