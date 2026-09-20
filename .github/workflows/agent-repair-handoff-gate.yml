@@ -50,9 +50,9 @@ jobs:
         run: |
           set -euo pipefail
           test "$REPAIR_TARGET_BRANCH" = "execution"
-          CURRENT_TARGET_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           test -s /tmp/repair-handoff/flixo-prepared-repair-handoff.json
-          HANDOFF_TARGET_SHA="$(node -e "const h=require('/tmp/repair-handoff/flixo-prepared-repair-handoff.json');process.stdout.write(h.executionSha||'')")"
+          HANDOFF_EXECUTION_SHA="$(node -e "const h=require('/tmp/repair-handoff/flixo-prepared-repair-handoff.json');process.stdout.write(h.executionSha||'')")"
           HANDOFF_BRANCH="$(node -e "const h=require('/tmp/repair-handoff/flixo-prepared-repair-handoff.json');process.stdout.write(h.headBranch||'')")"
           test -n "$HANDOFF_TARGET_SHA"
           test "$HANDOFF_BRANCH" = "$REPAIR_TARGET_BRANCH"
