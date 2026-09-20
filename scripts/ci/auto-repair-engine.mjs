@@ -258,7 +258,7 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     failureFingerprint: fingerprint,
     verifierProof: actionVaultVerifierProof,
     cognitiveAwareness,
-    rootCauseProof: preMutationProof.patchCorrectness,
+    rootCauseProof: preMutationProof.rootCauseProof,
     fileSelection,
     programmerTwinParity,
     falsificationReport: programmerTwinReport,
