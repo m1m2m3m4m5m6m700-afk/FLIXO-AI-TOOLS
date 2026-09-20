@@ -43,7 +43,12 @@
     "SEMANTIC_CODE_GRAPH",
     "PATCH_RISK_REVIEW",
     "REGRESSION_PREDICTION",
-    "IMPACT_ANALYSIS"
+    "IMPACT_ANALYSIS",
+    "PATCH_SYNTHESIS",
+    "SANDBOX_REPAIR_SIMULATION",
+    "DIFFERENTIAL_VERIFICATION",
+    "TRANSACTIONAL_REPAIR",
+    "COUNTERFACTUAL_PATCH_REVIEW"
   ],
   "sharedSources": [
     "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
@@ -69,7 +74,12 @@
     "diagnostics/auto-repair/action-vault/historical-predictions/latest.json",
     "diagnostics/auto-repair/action-vault/failure-ledger.ndjson",
     "scripts/ci/action-software-engineer-core.mjs",
-    "diagnostics/auto-repair/action-vault/software-engineer-core/latest.json"
+    "diagnostics/auto-repair/action-vault/software-engineer-core/latest.json",
+    "scripts/ci/action-patch-synthesis.mjs",
+    "scripts/ci/action-repair-sandbox.mjs",
+    "scripts/ci/action-differential-verifier.mjs",
+    "scripts/ci/action-repair-engineering.mjs",
+    "diagnostics/auto-repair/action-vault/repair-engineering"
   ],
   "safetyBoundary": {
     "intelligenceDoesNotImplyMutationAuthority": true,
@@ -124,6 +134,8 @@
       "ACTION-REPAIR-2 searches historical indexes and repair catalog and produces a ranked predictive repair packet",
       "ACTION-REPAIR runs the Local Software Engineer Core to inspect code semantics, impact and patch risk",
       "ACTION-REPAIR reads the code as a programmer and combines current evidence with historical prediction and semantic review",
+      "ACTION-REPAIR synthesizes one or more bounded patch candidates from explicit evidence anchors before mutation",
+      "ACTION-REPAIR simulates candidate repairs in an isolated detached worktree and requires differential verification before source mutation",
       "ACTION-REPAIR may apply the minimal source repair only as active owner",
       "ACTION-HISTORIAN-3 records every attempt and every failure regardless of outcome",
       "Canonical GREEN closes the mission and promotes only verified learning"
@@ -159,6 +171,9 @@
         "CROSS_LEARNING",
         "CHALLENGE",
         "SYNTHESIS",
+        "PATCH_SYNTHESIS",
+        "SANDBOX_SIMULATION",
+        "DIFFERENTIAL_VERIFICATION",
         "OWNER_MUTATION",
         "VERIFICATION",
         "GREEN_LEARNING",
@@ -252,6 +267,35 @@
       "regressionPrediction": true,
       "mutationByCore": false,
       "canonicalGreen": "DAILY_FLIXO_GREEN_GATE"
+    },
+    "repairEngineering": {
+      "enabled": true,
+      "planner": "scripts/ci/action-repair-engineering.mjs",
+      "patchSynthesis": "scripts/ci/action-patch-synthesis.mjs",
+      "sandbox": "scripts/ci/action-repair-sandbox.mjs",
+      "differentialVerifier": "scripts/ci/action-differential-verifier.mjs",
+      "protocol": "REPAIR_ENGINEERING_PIPELINE_V1",
+      "patchProtocol": "BOUNDED_PATCH_SYNTHESIS_V1",
+      "sandboxProtocol": "REPAIR_SANDBOX_SIMULATION_V1",
+      "differentialProtocol": "DIFFERENTIAL_REPAIR_VERIFICATION_V1",
+      "owner": "ACTION-REPAIR",
+      "readOnlyDuringPlanning": true,
+      "mutationDuringSimulation": false,
+      "exactShaRequired": true,
+      "detachedWorktreeRequired": true,
+      "allowedChecks": [
+        "node --check scripts/ci/*",
+        "node scripts/ci/*",
+        "npm run typecheck",
+        "npm run lint",
+        "npm run build",
+        "npm run test:*"
+      ],
+      "testsImmutable": true,
+      "mainImmutable": true,
+      "gateWeakeningRejected": true,
+      "canonicalGreenRequired": true,
+      "noAutomaticGreen": true
     }
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
@@ -266,16 +310,19 @@
     "supervisorRoute": "scripts/ci/agent-communication.mjs -> .github/workflows/agent-communication-relay.yml -> assistantController"
   },
   "agentRuntime": {
-    "protocol": "ACTION-AGENT-RUNTIME-v1",
+    "protocol": "ACTION-AGENT-RUNTIME-v2",
     "runtimeScript": "scripts/ci/action-agent-runtime.mjs",
     "historyScript": "scripts/ci/action-agent-history.mjs",
     "phases": [
       "INTAKE",
       "CONTEXT_RETRIEVAL",
       "PLAN",
+      "SYNTHESIZE",
+      "SIMULATE",
       "EXECUTE",
       "SELF_CHECK",
       "INDEPENDENT_REVIEW",
+      "DIFFERENTIAL_VERIFY",
       "VERIFY",
       "LEARN"
     ],
@@ -293,7 +340,11 @@
       "independentReview": true,
       "structuredOutput": true,
       "toolBudget": true,
-      "noSelfApproval": true
+      "noSelfApproval": true,
+      "patchSynthesis": true,
+      "sandboxSimulation": true,
+      "differentialVerification": true,
+      "automaticMutation": false
     },
     "efficiency": {
       "parallelCognitiveReads": true,
@@ -328,7 +379,12 @@
         "SEMANTIC_CODE_GRAPH",
         "PATCH_RISK_REVIEW",
         "REGRESSION_PREDICTION",
-        "IMPACT_ANALYSIS"
+        "IMPACT_ANALYSIS",
+        "PATCH_SYNTHESIS",
+        "SANDBOX_REPAIR_SIMULATION",
+        "DIFFERENTIAL_VERIFICATION",
+        "TRANSACTIONAL_REPAIR",
+        "COUNTERFACTUAL_PATCH_REVIEW"
       ],
       "mutationAuthority": "OWNER_ONLY",
       "requiredInputs": [
