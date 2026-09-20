@@ -2,8 +2,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { recordAttempt, recordFailedAttempt, recordHandoff, recordPredictionGenerated } from './action-failure-ledger.mjs';
 import { buildPrediction } from './action-historical-predictor.mjs';
+import { selectFileScope } from './action-file-selection-intelligence.mjs';
 
 const ROOT=process.cwd();
 const VAULT=path.resolve(ROOT,'diagnostics/auto-repair/action-vault');
@@ -14,7 +16,7 @@ const BOTS=Object.freeze(['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3'
 const LANES=Object.freeze({
   'ACTION-REPAIR':'PROGRAMMER_THINKING_AND_BOUNDED_SOURCE_REPAIR',
   'ACTION-REPAIR-2':'HISTORICAL_INDEX_EXPLORATION_AND_REPAIR_PREDICTION',
-  'ACTION-HISTORIAN-3':'FAILURE_LEDGER_AND_LEARNING_RECORDING'
+  'ACTION-HISTORIAN-3':'FILE_SELECTION_INTELLIGENCE_AND_FAILURE_LEARNING'
 });
 const PHASES=Object.freeze(['PARALLEL_DISCOVERY','PARALLEL_ANALYSIS','CROSS_LEARNING','CHALLENGE','SYNTHESIS','PATCH_SYNTHESIS','SANDBOX_SIMULATION','DIFFERENTIAL_VERIFICATION','OWNER_MUTATION','VERIFICATION','GREEN_LEARNING','CLOSED']);
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):fallback};
@@ -30,6 +32,7 @@ const summary=String(arg('summary')).trim();
 const kind=String(arg('kind','OBSERVATION')).trim().toUpperCase();
 const evidence=String(arg('evidence','')).split(',').map(x=>x.trim()).filter(Boolean);
 const greenRecordPath=String(arg('green-record')).trim();
+const fileSelectionPath=String(arg('file-selection')).trim();
 const now=()=>new Date().toISOString();
 const read=()=>JSON.parse(fs.readFileSync(STATE,'utf8'));
 const write=(value)=>{fs.mkdirSync(VAULT,{recursive:true});fs.writeFileSync(STATE,JSON.stringify(value,null,2)+'\n')};
@@ -43,17 +46,33 @@ if(!fs.existsSync(CHAT_PROTOCOL)) throw new Error('ACTION_THREE_BOT_CHAT_PROTOCO
 const profile=JSON.parse(fs.readFileSync(PROFILE,'utf8'));
 if(profile.roleMatrix?.['ACTION-REPAIR']?.mission!=='THINK_AS_PROGRAMMER_AND_APPLY_BOUNDED_SOURCE_REPAIR') throw new Error('ACTION_THREE_BOT_PROGRAMMER_ROLE_INVALID');
 if(profile.roleMatrix?.['ACTION-REPAIR-2']?.mission!=='SEARCH_HISTORICAL_INDEX_AND_ACTION_REPAIR_CATALOG_THEN_PREDICT_A_CANDIDATE_SOLUTION') throw new Error('ACTION_THREE_BOT_PREDICTOR_ROLE_INVALID');
-if(profile.roleMatrix?.['ACTION-HISTORIAN-3']?.mission!=='RECORD_EVERY_FAILURE_ATTEMPT_HANDOFF_AND_VERIFIED_OUTCOME_FOR_LIFELONG_REPAIR_MEMORY') throw new Error('ACTION_THREE_BOT_HISTORIAN_ROLE_INVALID');
+if(profile.roleMatrix?.['ACTION-HISTORIAN-3']?.mission!=='SELECT_AND_EXCLUDE_THE_MINIMAL_FILE_SURFACE_FROM_PATH_LEVEL_EVIDENCE_THEN_RECORD_FAILURE_LEARNING') throw new Error('ACTION_THREE_BOT_FILE_SELECTION_ROLE_INVALID');
+if(profile.cooperation?.fileSelectionIntelligence?.runtime!=='scripts/ci/action-file-selection-intelligence.mjs') throw new Error('ACTION_THREE_BOT_FILE_SELECTION_RUNTIME_INVALID');
 if(profile.cooperation?.enabled!==true) throw new Error('ACTION_THREE_BOT_COOPERATION_DISABLED');
 if(JSON.stringify(profile.cooperation.participants)!==JSON.stringify(BOTS)) throw new Error('ACTION_THREE_BOT_PARTICIPANT_SET_INVALID');
 if(profile.cooperation.authority?.noParallelSourceMutation!==true) throw new Error('ACTION_THREE_BOT_PARALLEL_SOURCE_MUTATION_FORBIDDEN');
 if(profile.cooperation?.repairEngineering?.enabled!==true) throw new Error('ACTION_THREE_BOT_REPAIR_ENGINEERING_DISABLED');
 if(profile.cooperation?.repairEngineering?.owner!=='ACTION-REPAIR') throw new Error('ACTION_THREE_BOT_REPAIR_ENGINEERING_OWNER_INVALID');
 
+const execFileList=(command)=>execFileSync(command[0],command.slice(1),{encoding:'utf8'}).split('\\0').filter(Boolean);
+const buildSelection=()=>{
+  const selection=fileSelectionPath&&fs.existsSync(fileSelectionPath)
+    ? JSON.parse(fs.readFileSync(fileSelectionPath,'utf8'))
+    : selectFileScope({
+        taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,
+        trackedFiles:execFileList(['git','ls-files','-z']),
+        changedFiles:execFileList(['git','diff-tree','--no-commit-id','--name-only','-r',targetSha]),
+        failureLog:logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):''
+      });
+  if(selection.agentId!=='ACTION-HISTORIAN-3'||selection.protocol!=='ACTION-FILE-SELECTION-INTELLIGENCE-v1'||selection.targetSha!==targetSha||selection.failureFingerprint!==fingerprint||selection.pathOnlyAnalysis!==true||selection.codeContentRead!==false||selection.sourceMutationAllowed!==false||selection.decision!=='SELECTED'||!Array.isArray(selection.selectedFiles)||selection.selectedFiles.length<1) throw new Error('ACTION_THREE_BOT_FILE_SELECTION_INVALID');
+  return selection;
+};
 const ensureState=()=>{
+  const fileSelection=buildSelection();
   if(fs.existsSync(STATE)){
     const state=read();
     if(state.taskId!==task||state.failureFingerprint!==fingerprint||state.targetSha!==targetSha||state.failedRunId!==runId) throw new Error('ACTION_THREE_BOT_COLLAB_ACTIVE_IDENTITY_MISMATCH');
+    if(state.fileSelectionDecision?.targetSha!==targetSha||state.fileSelectionDecision?.failureFingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_FILE_SELECTION_STATE_MISMATCH');
     return state;
   }
   const log=logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'';
@@ -74,9 +93,11 @@ const ensureState=()=>{
     contributions:{},
     exchange:{status:'PENDING',digest:null,at:null,receipts:{}},
     challenge:{status:'PENDING',checks:[]},
-    authorization:{status:'BLOCKED',owner:null,authorizedAt:null,reason:'WAITING_FOR_ALL_THREE_CONTRIBUTIONS_AND_CROSS_LEARNING'},
+    fileSelectionDecision:fileSelection,
+    authorization:{status:'BLOCKED',owner:null,authorizedAt:null,reason:'WAITING_FOR_FILE_SELECTION_AND_ALL_THREE_CONTRIBUTIONS_AND_CROSS_LEARNING'},
     greenRecord:null,
-    outputs:{hypotheses:[],challenges:[],selectedRepair:null,regression:null,handoff:null,lessons:[],antiLessons:[]},
+    outputs:{hypotheses:[],challenges:[],selectedRepair:null,regression:null,handoff:null,lessons:[],antiLessons:[],fileSelectionDecision:fileSelection},
+    collaborationRules:{sameTask:true,sameFingerprint:true,sameSha:true,evidenceExchangeBeforeMutation:true,fileSelectionBeforeProgramming:true,programmerOnlyForCodeReasoning:true},
     createdAt:now(),updatedAt:now()
   };
   write(state); return state;
@@ -85,14 +106,14 @@ const ensureState=()=>{
 let state=ensureState();
 
 if(op==='start'){
-  state.phase='PARALLEL_DISCOVERY';state.status='ACTIVE';state.updatedAt=now();write(state);
+  state.phase='FILE_SELECTION';state.status='ACTIVE';state.updatedAt=now();write(state);
 } else if(op==='contribute'){
   validBot(bot);
   if(!summary) throw new Error('ACTION_THREE_BOT_CONTRIBUTION_SUMMARY_REQUIRED');
-  if(!['OBSERVATION','RCA','HYPOTHESIS','CHALLENGE','PLAN','EVIDENCE','LESSON_CANDIDATE','PROGRAMMING_ANALYSIS','HISTORICAL_PREDICTION','PROPOSED_REPAIR','FAILURE_RECORD','HANDOFF_RECORD'].includes(kind)) throw new Error('ACTION_THREE_BOT_CONTRIBUTION_KIND_INVALID');
+  if(!['OBSERVATION','RCA','HYPOTHESIS','CHALLENGE','PLAN','EVIDENCE','LESSON_CANDIDATE','PROGRAMMING_ANALYSIS','HISTORICAL_PREDICTION','PROPOSED_REPAIR','FAILURE_RECORD','HANDOFF_RECORD','FILE_SELECTION'].includes(kind)) throw new Error('ACTION_THREE_BOT_CONTRIBUTION_KIND_INVALID');
   if(bot==='ACTION-REPAIR' && !['PROGRAMMING_ANALYSIS','RCA','HYPOTHESIS','PLAN'].includes(kind)) throw new Error('ACTION_THREE_BOT_PROGRAMMER_CONTRIBUTION_INVALID');
   if(bot==='ACTION-REPAIR-2' && !['HISTORICAL_PREDICTION','PROPOSED_REPAIR','CHALLENGE'].includes(kind)) throw new Error('ACTION_THREE_BOT_PREDICTOR_CONTRIBUTION_INVALID');
-  if(bot==='ACTION-HISTORIAN-3' && !['FAILURE_RECORD','HANDOFF_RECORD','EVIDENCE'].includes(kind)) throw new Error('ACTION_THREE_BOT_HISTORIAN_CONTRIBUTION_INVALID');
+  if(bot==='ACTION-HISTORIAN-3' && !['FAILURE_RECORD','HANDOFF_RECORD','EVIDENCE','FILE_SELECTION'].includes(kind)) throw new Error('ACTION_THREE_BOT_HISTORIAN_CONTRIBUTION_INVALID');
   const contributionId=bot+'-'+shaDigest(task+'|'+fingerprint+'|'+targetSha+'|'+bot+'|'+summary).slice(0,20);
   state.contributions[bot]={contributionId,bot,lane:LANES[bot],kind,summary:summary.slice(0,12000),evidence,targetSha,fingerprint,createdAt:now(),verified:false};
   recordAttempt({taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,botId:bot,attemptedStrategy:summary.slice(0,1000),result:'CONTRIBUTION_RECORDED',evidence});
@@ -117,6 +138,7 @@ if(op==='start'){
   if(owner==='ACTION-HISTORIAN-3') throw new Error('ACTION_THREE_BOT_HISTORIAN_CANNOT_MUTATE');
   for(const id of BOTS) if(!state.contributions[id]) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_MISSING_CONTRIBUTION='+id);
   if(state.exchange.status!=='COMPLETE') throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_EXCHANGE_INCOMPLETE');
+  if(state.fileSelectionDecision?.decision!=='SELECTED'||state.fileSelectionDecision?.targetSha!==targetSha||state.fileSelectionDecision?.failureFingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_FILE_SELECTION');
   if(state.participants.some(x=>!x.learnedFromPeers)) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_CROSS_LEARNING_INCOMPLETE');
   if(owner!=='ACTION-REPAIR') throw new Error('ACTION_THREE_BOT_ONLY_PROGRAMMER_OWNER_MAY_MUTATE');
   if(!state.outputs.predictiveRepair && !state.contributions['ACTION-REPAIR-2']) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_NO_PREDICTIVE_EVIDENCE');
@@ -144,6 +166,6 @@ if(op==='start'){
   state.phase='CLOSED';state.status='CLOSED_GREEN';state.updatedAt=now();write(state);
 } else throw new Error('ACTION_THREE_BOT_COLLAB_OPERATION_INVALID='+op);
 
-const result={status:'PASS',protocol:'ACTION-VAULT-PARALLEL-COLLABORATION-v1',op,taskId:task,fingerprint,targetSha,phase:state.phase,authorization:state.authorization,exchange:state.exchange,contributionBots:Object.keys(state.contributions),sharedArtifact:STATE};
+const result={status:'PASS',protocol:'ACTION-VAULT-PARALLEL-COLLABORATION-v1',op,taskId:task,fingerprint,targetSha,phase:state.phase,authorization:state.authorization,exchange:state.exchange,fileSelectionDecision:state.fileSelectionDecision,collaborationRules:state.collaborationRules,contributionBots:Object.keys(state.contributions),sharedArtifact:STATE};
 fs.writeFileSync(output,JSON.stringify(state,null,2)+'\n');
 console.log(JSON.stringify(result,null,2));
