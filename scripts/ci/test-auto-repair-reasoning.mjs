@@ -117,7 +117,7 @@ assert.equal(correlated.crossWorkflowCorrelation.firstCommonFailure?.fingerprint
 assert.equal(correlated.crossWorkflowCorrelation.commonSHA, null);
 assert.equal(correlated.crossWorkflowCorrelation.confidence, 'MULTI_WORKFLOW_UNPROVEN');
 assert.equal(correlated.crossWorkflowCorrelation.mutationAllowed, false);
-assert.equal(correlated.evidenceProfile.channels.crossWorkflowCorrelation, true);
+assert.equal(correlated.evidenceProfile.channels.crossWorkflowCorrelation, false);
 assert.equal(correlated.evidenceProfile.diversity >= 2, true);
 fs.writeFileSync(workflowEnvPath, JSON.stringify([
   { workflow: 'Test System', runId: 'r-d', fingerprint: 'fp-c', targetSha: 'd'.repeat(40) },
@@ -126,6 +126,7 @@ fs.writeFileSync(workflowEnvPath, JSON.stringify([
 const unprovenCorrelation = reasonFailure('ERROR eslint: no-unused-vars at a.ts:1:1', { targetDir: tempDir, scoutPath: undefined });
 assert.equal(unprovenCorrelation.crossWorkflowCorrelation.confidence, 'CORRELATED');
 assert.equal(unprovenCorrelation.crossWorkflowCorrelation.commonSHA, 'd'.repeat(40));
+assert.equal(unprovenCorrelation.evidenceProfile.channels.crossWorkflowCorrelation, true);
 assert.equal(unprovenCorrelation.crossWorkflowCorrelation.mutationAllowed, false);
 fs.writeFileSync(workflowEnvPath, JSON.stringify([
   { workflow: 'Test System', runId: 'r-f', fingerprint: 'fp-e', targetSha: 'e'.repeat(40) },
