@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, completionGate, buildRecoveryDirective, idleAdmission, sleepAdmission } from './agent-liveness-protocol.mjs';
+import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, completionGate, buildRecoveryDirective, sessionTerminationDirective, idleAdmission, sleepAdmission } from './agent-liveness-protocol.mjs';
 
 assert.equal(assertLivenessDefinition(), true);
 assert.deepEqual([...AGENT_LIVENESS_PROTOCOL.forbiddenStates].sort(), ['ABANDONED','SILENT'].sort());
@@ -9,10 +9,30 @@ for (const forbidden of AGENT_LIVENESS_PROTOCOL.forbiddenStates) assert.throws((
 
 assert.doesNotThrow(() => assertTransition('ACTIVE', 'WAITING_EXTERNAL', { workAssigned: true }));
 assert.doesNotThrow(() => assertTransition('ACTIVE', 'RECOVERING', { workAssigned: true }));
-assert.doesNotThrow(() => assertTransition('VERIFYING', 'COMPLETE', { workAssigned: true, authorization: null }));
+assert.throws(() => assertTransition('VERIFYING', 'COMPLETE', { workAssigned: true, authorization: null }), /GREEN_RECORD_REQUIRED/u);
 assert.throws(() => assertTransition('ACTIVE', 'IDLE', { workAssigned: true }), /FORBIDDEN|TRANSITION|REST/u);
 assert.throws(() => assertTransition('ACTIVE', 'SLEEP', { workAssigned: true }), /FORBIDDEN|TRANSITION|REST/u);
 assert.throws(() => assertTransition('ACTIVE', 'ABORTED', { workAssigned: true }), /ABORT_AUTHORITY/u);
+assert.equal(AGENT_LIVENESS_PROTOCOL.protocolVersion, '2.1.0');
+
+const completionGreen = {
+  source: 'DAILY_FLIXO_GREEN_GATE',
+  conclusion: 'success',
+  zeroRed: true,
+  exactShaVerified: true,
+  targetSha: 'b'.repeat(40),
+  taskId: 'T-COMPLETE',
+  fingerprint: 'FP-COMPLETE',
+  recordId: 'GREEN-COMPLETE',
+  recordedAt: new Date().toISOString(),
+};
+assert.doesNotThrow(() => assertTransition('VERIFYING', 'COMPLETE', {
+  workAssigned: true,
+  greenRecord: completionGreen,
+  targetSha: completionGreen.targetSha,
+  taskId: completionGreen.taskId,
+  fingerprint: completionGreen.fingerprint,
+}));
 
 assert.throws(() => idleAdmission({ workAssigned: false }), /GREEN_RECORD_REQUIRED/u);
 assert.throws(() => assertTransition('COMPLETE','SLEEP',{workAssigned:false}), /GREEN_RECORD_REQUIRED/u);
@@ -46,5 +66,15 @@ const recovery = buildRecoveryDirective({ reason: 'HEARTBEAT_STALE', currentStat
 assert.equal(recovery.action, 'RECOVER_AND_CONTINUE');
 assert.equal(recovery.to, 'RECOVERING');
 assert.equal(recovery.newEvidenceRequired, true);
+const sessionEnd = sessionTerminationDirective({ canonicalGreen: false, reason: 'SESSION_BUDGET_EXHAUSTED' });
+assert.equal(sessionEnd.action, 'RECOVER_AND_REDISPATCH');
+assert.equal(sessionEnd.taskRemainsOpen, true);
+assert.equal(sessionTerminationDirective({
+  canonicalGreen: true,
+  greenRecord: completionGreen,
+  targetSha: completionGreen.targetSha,
+  taskId: completionGreen.taskId,
+  fingerprint: completionGreen.fingerprint,
+}).action, 'CLOSE_ALLOWED');
 
 console.log('AGENT_LIVENESS_CONTRACT=PASS');
