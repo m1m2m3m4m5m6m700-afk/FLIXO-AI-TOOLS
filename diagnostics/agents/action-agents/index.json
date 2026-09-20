@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "authority": "ACTION_AGENT_TRIAD_CONTROL_PLANE",
+  "reviewRequiredForWorkers": true,
+  "certificationAuthority": "CANONICAL_CERTIFICATION_ONLY",
+  "agents": [
+    {
+      "agentId": "CHIEF",
+      "profileId": "ACTION_COMMANDER_V1",
+      "memoryFile": "CHIEF.json"
+    },
+    {
+      "agentId": "WORKER_A",
+      "profileId": "ACTION_PRIMARY_REPAIR_V1",
+      "memoryFile": "WORKER_A.json"
+    },
+    {
+      "agentId": "WORKER_B",
+      "profileId": "ACTION_ADVERSARIAL_REPAIR_V1",
+      "memoryFile": "WORKER_B.json"
+    }
+  ]
+}
