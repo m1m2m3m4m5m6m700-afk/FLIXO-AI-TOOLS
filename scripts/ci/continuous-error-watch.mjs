@@ -125,7 +125,11 @@ function externalCheckBlock(check, log) {
     kind: 'BLOCKED_EXTERNAL',
     checkName: String(check.name ?? '').trim(),
     state,
-    rootCause: providerFailure(log) ? 'PROVIDER_RATE_LIMIT_OR_DEPLOYMENT_SERVICE_FAILURE' : 'EXTERNAL_PROVIDER_UNRESOLVED',
+    rootCause: state === 'action_required'
+      ? 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED'
+      : providerFailure(log)
+        ? 'PROVIDER_RATE_LIMIT_OR_DEPLOYMENT_SERVICE_FAILURE'
+        : 'EXTERNAL_PROVIDER_UNRESOLVED',
   };
 }
 
@@ -279,7 +283,7 @@ export function evaluateGreen({
 
   const externalCandidates = checkRuns.map((check) => externalCheckBlock(check, logForCheck(check, logs))).filter(Boolean);
   report.externalBlockers = externalCandidates;
-  if (externalCandidates.some((item) => ['failure', 'action_required', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state))) {
+  if (externalCandidates.some((item) => ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state))) {
     report.rootCause = 'EXTERNAL_CHECK_BLOCKED';
   }
   const securityBlock = securityProviderBlock(securityCheck, logForCheck(securityCheck, logs));
@@ -338,8 +342,13 @@ export function evaluateGreen({
   }
 
   if (report.externalBlockers.length) {
-    const blocker = report.externalBlockers.find((item) => ['failure', 'action_required', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state));
-    if (blocker) {
+    const approvalBlocker = report.externalBlockers.find((item) => item.state === 'action_required');
+    const blocker = report.externalBlockers.find((item) => ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state));
+    if (approvalBlocker) {
+      report.status = 'FAIL_CLOSED';
+      report.rootCause = approvalBlocker.rootCause;
+      report.repair.required = false;
+    } else if (blocker) {
       report.status = blocker.kind === 'BLOCKED_EXTERNAL' ? 'BLOCKED_EXTERNAL' : 'FAIL_CLOSED';
       report.rootCause = blocker.rootCause;
       report.repair.required = false;
@@ -351,8 +360,12 @@ export function evaluateGreen({
     report.rootCause = report.errors.find((item) => item.type === 'UNEXPECTED_WORKFLOW_RED')?.workflow ?? 'INTERNAL_WORKFLOW_FAILURE';
   } else if (report.errors.length) {
     report.status = report.rootCause ? 'BLOCKED_EXTERNAL' : 'FAIL_CLOSED';
+  } else if (report.externalBlockers.some((item) => item.state === 'action_required')) {
+    report.status = 'FAIL_CLOSED';
+    report.rootCause = report.externalBlockers.find((item) => item.state === 'action_required')?.rootCause
+      ?? 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED';
   } else if (report.externalBlockers.some((item) =>
-    ['failure', 'action_required', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state)
+    ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state)
   )) {
     report.status = report.externalBlockers.some((item) => item.kind === 'BLOCKED_EXTERNAL')
       ? 'BLOCKED_EXTERNAL'
