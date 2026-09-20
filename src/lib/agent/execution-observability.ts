@@ -39,7 +39,7 @@ export function classifyExecutionFailure(error:unknown):ExecutionAuditEvent['err
 export async function createExecutionAuditEvent({task,capabilityId,tool,stage,outcome,message,errorClass,timestamp=new Date().toISOString()}:{
   task:TaskContext; capabilityId:string; tool:ToolDefinition; stage:ExecutionAuditStage; outcome:ExecutionAuditOutcome;
   message?:string; errorClass?:ExecutionAuditEvent['errorClass']; timestamp?:string;
-}):ExecutionAuditEvent{
+}):Promise<ExecutionAuditEvent>{
   const security=deriveToolSecurityProfile(tool);
   const base={schemaVersion:1 as const,timestamp,traceId:task.traceId,taskId:task.taskId,capabilityId,stage,outcome,executionMode:tool.executionMode,permission:security.permission,risk:security.risk,network:security.network,message:sanitizeMessage(message),errorClass};
   return Object.freeze({...base,eventId:await digest(base)});
