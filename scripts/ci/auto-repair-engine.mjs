@@ -128,6 +128,7 @@ const evidence = {
   specialist,
   candidates: plan.candidates,
   reasoning: plan.reasoning,
+  inferenceFallback: plan.inferenceFallback ?? null,
   reusableKnowledge,
   selected: selected?.id ?? null,
   historicalRollbackCandidate: historicalRollbackCandidate ? historicalRollbackRecord(historicalRollbackCandidate) : null,
@@ -159,7 +160,15 @@ const diagnosisGate = {
   ambiguous: diagnosis?.ambiguity ?? true,
   directFailureSignal: diagnosis?.directFailureSignal ?? false,
   reasoningDecision,
-  allowed: Boolean(diagnosis) && diagnosis.diagnosisQuality === 'strong' && diagnosis.causalConfidence >= 0.75 && !diagnosis.ambiguity && diagnosis.directFailureSignal && reasoningDecision === 'ALLOW_BOUNDED_MUTATION',
+  inferenceFallback: plan.inferenceFallback?.prediction ?? null,
+  allowed: (
+    Boolean(diagnosis) &&
+    diagnosis.diagnosisQuality === 'strong' &&
+    diagnosis.causalConfidence >= 0.75 &&
+    !diagnosis.ambiguity &&
+    diagnosis.directFailureSignal &&
+    reasoningDecision === 'ALLOW_BOUNDED_MUTATION'
+  ) || Boolean(plan.inferenceFallback?.prediction?.eligibleForBoundedMutation),
 };
 evidence.diagnosisGate = diagnosisGate;
 
