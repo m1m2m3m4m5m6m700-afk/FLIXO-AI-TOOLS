@@ -21,6 +21,8 @@ const workflow = workflowSource.replace(/\\"/g, '"');
 const testEngine = readFileSync('scripts/test.mjs', 'utf8');
 const certifyEngine = readFileSync('scripts/ci/certify.mjs', 'utf8');
 const certifyCore = readFileSync('scripts/ci/certify-core.mjs', 'utf8');
+const autoRepairWorkflow = readFileSync('.github/workflows/auto-repair.yml', 'utf8');
+const cellMasterConsultWorkflow = readFileSync('.github/workflows/cell-master-consult.yml', 'utf8');
 const resultState = readFileSync('scripts/ci/result-state.mjs', 'utf8');
 
 const required = [
@@ -125,6 +127,29 @@ for (const [file, source] of [
     console.error('CI contract failed: ' + file + ' must remain non-canceling because it carries repair state.');
     process.exit(1);
   }
+}
+
+if (/actions\/upload-artifact@[^\n]*\n[\s\S]*?flixo-repair-twins-/.test(autoRepairWorkflow) ||
+    /gh run download.*flixo-repair-twins-/.test(autoRepairWorkflow) ||
+    /actions\/download-artifact/.test(autoRepairWorkflow)) {
+  console.error('CI contract failed: auto-repair twin results must cross jobs only through exact-SHA job outputs, not downloadable artifacts.');
+  process.exit(1);
+}
+if (!/adversarial_twin:[\s\S]*?outputs:\s*[\s\S]*?twin_a:[\s\S]*?twin_b:/.test(autoRepairWorkflow) ||
+    !/repair:[\s\S]*?needs:\s*adversarial_twin/.test(autoRepairWorkflow) ||
+    !/base64 -w0 \/tmp\/flixo-twin\/twin-a\.json/.test(autoRepairWorkflow) ||
+    !/base64 -d > \/tmp\/flixo-twin-a\.json/.test(autoRepairWorkflow)) {
+  console.error('CI contract failed: adversarial twin handoff must be an encoded, exact-SHA job-output boundary.');
+  process.exit(1);
+}
+if (/FLIXO_SELECTED_REPAIR_STRATEGY=\$SELECTED/.test(autoRepairWorkflow) ||
+    /ACTION_WISE_NO_SOLUTION=true.*GITHUB_ENV/.test(autoRepairWorkflow)) {
+  console.error('CI contract failed: selected repair strategy must not be written into GITHUB_ENV from untrusted JSON.');
+  process.exit(1);
+}
+if (!/permissions:\s*\n\s*contents:\s*read\s*\n\s*actions:\s*read/.test(cellMasterConsultWorkflow)) {
+  console.error('CI contract failed: cell-master-consult.yml must declare explicit read-only token permissions.');
+  process.exit(1);
 }
 if (!/cancel-in-progress:\s*false/.test(greenGateWorkflow) ||
     !/group:\s*flixo-continuous-error-watch-\$\{\{\s*github\.run_id\s*\}\}/.test(greenGateWorkflow)) {
