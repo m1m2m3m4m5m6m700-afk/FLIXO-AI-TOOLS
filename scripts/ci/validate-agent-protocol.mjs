@@ -90,7 +90,7 @@ if (taskAgentSource) {
 }
 const repairProtocolSource = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';
 if (repairProtocolSource.includes("mutationAgents: ['repairAgent','implementation','executionAgent','taskAgent']")) fail('TASK_AGENT_MUTATION_AUTHORITY_PRESENT');
-if (repairProtocolSource.includes("mutationAgents: ['repairAgent','implementation','executionAgent']") === false) fail('REPAIR_MUTATION_AUTHORITY_SET_INVALID');
+if (repairProtocolSource.includes("mutationAgents: ['repairAgent','executionAgent']") === false) fail('REPAIR_MUTATION_AUTHORITY_SET_INVALID');
 
 const repairProtocol = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';
 const repairEngine = exists('scripts/ci/auto-repair-engine.mjs') ? read('scripts/ci/auto-repair-engine.mjs') : '';
