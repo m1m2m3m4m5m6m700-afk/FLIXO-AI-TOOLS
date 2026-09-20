@@ -20,7 +20,7 @@ const scheduleRuns=runs
     id:Number(r.id ?? r.databaseId ?? 0),
     status:r.status ?? null,
     conclusion:r.conclusion ?? null,
-    startedAt:r.runStartedAt ?? r.createdAt ?? null,
+    startedAt:r.startedAt ?? r.runStartedAt ?? r.createdAt ?? null,
     createdAt:r.createdAt ?? null,
     updatedAt:r.updatedAt ?? null,
     headSha:r.headSha ?? null,
