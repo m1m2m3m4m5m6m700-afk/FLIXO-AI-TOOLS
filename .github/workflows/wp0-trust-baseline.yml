@@ -58,3 +58,94 @@ jobs:
           printf '%s\n' "$ACTUAL_SHA" > flixo-wp0-head-sha.txt
 
       - name: 03 — Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: 04 — Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: 05 — Task state, confirmation and cancellation contract
+        run: |
+          set -euo pipefail
+          npm run test:agent-execution-gate
+          npm run test:agent-execution-control
+          npm run test:agent-capability
+
+      - name: 06 — Task identity and provenance contracts
+        run: |
+          set -euo pipefail
+          npm run test:checkpoint-producer
+          npm run test:execution-sha-provenance
+
+      - name: 07 — Canonical CI/CD trust and exact-SHA gate
+        run: npm run verify:ci-cd-trust
+
+      - name: 08 — WP0 static trust and readiness alignment gate
+        run: node scripts/ci/validate-wp0-trust-baseline.mjs
+
+      - name: 09 — Auto-Repair memory evidence integrity
+        run: node scripts/ci/validate-auto-repair-memory.mjs
+
+      - name: 10 — Repository security trust perimeter
+        run: node scripts/ci/repository-security-baseline.mjs
+
+      - name: 11 — Engineering baseline
+        run: npm run validate:baseline
+
+      - name: 10 — Typecheck
+        run: npm run typecheck
+
+      - name: 11 — Canonical static verification
+        run: npm run test:static
+
+      - name: 12 — Canonical build verification
+        run: npm run test:build
+
+      - name: 13 — Emit exact-SHA WP0 evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA="$(git rev-parse HEAD)"
+          test "$SHA" = "$EXPECTED_SHA"
+          mkdir -p dist/wp0-evidence
+          printf '%s\n' "$SHA" > dist/wp0-evidence/flixo-head-sha.txt
+          cat > dist/wp0-evidence/wp0-verdict.json <<EOF
+          {
+            "schema_version": 1,
+            "authority": "WP0_TRUST_BASELINE_SINGLE_PATH",
+            "status": "PASS",
+            "exactSha": "$SHA",
+            "controls": {
+              "taskState": true,
+              "confirmationCancellation": true,
+              "taskTraceIdentity": true,
+              "canonicalVerification": true,
+              "exactShaEvidence": true,
+              "readinessAlignment": true,
+              "ciCdTrustBoundary": true,
+              "staticVerification": true,
+              "buildVerification": true
+            }
+          }
+          EOF
+
+      - name: 14 — Upload WP0 evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-wp0-evidence-${{ github.event.pull_request.head.sha || github.sha }}
+          path: dist/wp0-evidence/
+          if-no-files-found: warn
+
+      - name: 15 — Final WP0 decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -f dist/wp0-evidence/flixo-head-sha.txt
+          test "$(cat dist/wp0-evidence/flixo-head-sha.txt)" = "$EXPECTED_SHA"
+          grep -q '"status": "PASS"' dist/wp0-evidence/wp0-verdict.json
+          echo "WP0 TRUST BASELINE: PASS"
+          echo "EXACT SHA: $EXPECTED_SHA"
