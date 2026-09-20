@@ -8,6 +8,7 @@ export type FilterMaskCopy = Readonly<{
   switchCamera: string;
   photo: string;
   recordVideo: string;
+  recording: string;
   stopRecording: string;
   cameraUnavailable: string;
   cameraDenied: string;
@@ -46,6 +47,7 @@ const EN: FilterMaskCopy = {
   switchCamera: 'Switch camera',
   photo: 'Photo',
   recordVideo: 'Record video',
+  recording: 'Recording',
   stopRecording: 'Stop recording',
   cameraUnavailable: 'Camera is not available in this browser.',
   cameraDenied: 'Camera or microphone access was denied or unavailable.',
