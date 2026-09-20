@@ -154,6 +154,7 @@ export function runGate(root = ROOT) {
   const targetedTestPath = path.resolve(root, 'scripts/ci/test-action-vault-targeted-test.mjs');
   const predictorPath = path.resolve(root, 'scripts/ci/action-historical-predictor.mjs');
   const ledgerPath = path.resolve(root, 'scripts/ci/action-failure-ledger.mjs');
+  const engineerCorePath = path.resolve(root, 'scripts/ci/action-software-engineer-core.mjs');
 
   for (const file of [profilePath, residencyPath, gradePath, mentorPath, parallelProtocolPath, sleepAdmissionPath, collaborationScriptPath, targetedProtocolPath, targetedPlannerPath, targetedTestPath, predictorPath, ledgerPath]) {
     if (!exists(file)) err(errors, 'REQUIRED_VAULT_CONTRACT_MISSING', path.relative(root, file));
@@ -212,6 +213,15 @@ export function runGate(root = ROOT) {
   if (intelligence?.cooperation?.mentorship?.parentBot !== 'ACTION-REPAIR') err(errors, 'CODE_MENTOR_PARENT_INVALID');
   if (intelligence?.cooperation?.mentorship?.readOnly !== true) err(errors, 'CODE_MENTOR_READ_ONLY_MISSING');
   if (intelligence?.cooperation?.mentorship?.promotedOnlyAfterCanonicalGreen !== true) err(errors, 'CODE_MENTOR_GREEN_PROMOTION_MISSING');
+  if (intelligence?.cooperation?.softwareEngineerCore?.enabled !== true) err(errors, 'SOFTWARE_ENGINEER_CORE_DISABLED');
+  if (intelligence?.cooperation?.softwareEngineerCore?.runtime !== 'scripts/ci/action-software-engineer-core.mjs') err(errors, 'SOFTWARE_ENGINEER_CORE_RUNTIME_INVALID');
+  if (intelligence?.cooperation?.softwareEngineerCore?.protocol !== 'LOCAL_SOFTWARE_ENGINEER_CORE_V1') err(errors, 'SOFTWARE_ENGINEER_CORE_PROTOCOL_INVALID');
+  if (intelligence?.cooperation?.softwareEngineerCore?.owner !== 'ACTION-REPAIR') err(errors, 'SOFTWARE_ENGINEER_CORE_OWNER_INVALID');
+  if (intelligence?.cooperation?.softwareEngineerCore?.readOnly !== true) err(errors, 'SOFTWARE_ENGINEER_CORE_MUTATION_ENABLED');
+  if (intelligence?.cooperation?.softwareEngineerCore?.requiredBeforeMutation !== true) err(errors, 'SOFTWARE_ENGINEER_CORE_PREMUTATION_MISSING');
+  if (intelligence?.cooperation?.softwareEngineerCore?.exactShaRequired !== true) err(errors, 'SOFTWARE_ENGINEER_CORE_SHA_MISSING');
+  if (intelligence?.cooperation?.softwareEngineerCore?.mutationByCore !== false) err(errors, 'SOFTWARE_ENGINEER_CORE_SELF_MUTATION_ENABLED');
+  if (!exists(engineerCorePath)) err(errors, 'SOFTWARE_ENGINEER_CORE_RUNTIME_MISSING');
   if (intelligence?.cooperation?.prediction?.runtime !== 'scripts/ci/action-historical-predictor.mjs') err(errors, 'HISTORICAL_PREDICTOR_RUNTIME_INVALID');
   if (intelligence?.cooperation?.prediction?.packetProtocol !== 'PREDICTIVE_REPAIR_PACKET_V1') err(errors, 'HISTORICAL_PREDICTOR_PACKET_INVALID');
   if (intelligence?.cooperation?.failureLedger?.runtime !== 'scripts/ci/action-failure-ledger.mjs') err(errors, 'FAILURE_LEDGER_RUNTIME_INVALID');
