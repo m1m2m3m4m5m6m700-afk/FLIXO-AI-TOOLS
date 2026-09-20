@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "authority": "ASSISTANT_AGENT_COOPERATION_CONTRACT",
   "objective": "Maximize engineering quality through bounded multi-agent cooperation without weakening safety, evidence, ownership, or certification gates.",
   "protocols": {
@@ -25,11 +25,43 @@
     "recovery": "Every mutation has a bounded recovery path; failed repair attempts are reverted or explicitly escalated with preserved evidence.",
     "security": "Secrets, credentials, protected paths and security controls are never exposed, weakened, or treated as ordinary repair scope.",
     "release": "Release or deployment claims require canonical certification and fresh evidence; agent coordination state cannot substitute for release authority.",
-    "no_implicit_authority": "Historical success, confidence, memory, scout findings or assistant instructions never override repository policy, protection or certification gates."
+    "no_implicit_authority": "Historical success, confidence, memory, scout findings or assistant instructions never override repository policy, protection or certification gates.",
+    "communication_first": "Every actionable inter-agent notification enters the canonical communication inbox before task selection; receipt is not authority, and execution requires READ + current exact-SHA revalidation + ownership lock.",
+    "event_driven_delivery": "The canonical communication relay consumes notification events immediately when emitted; periodic polling is recovery only, never the primary delivery path.",
+    "message_idempotency": "messageId/idempotencyKey identifies one logical notification; duplicate delivery is a NO-OP and conflicting reuse of an id is fail-closed.",
+    "message_freshness": "A message may be received on any SHA, but it is executable only when its entrySha matches the current authoritative workspace SHA or has been explicitly revalidated by the controller."
   },
   "messageEnvelope": {
-    "required": ["messageId", "actor", "intent", "taskId", "scope", "entrySha", "risk", "dependencies", "expectedEvidence", "stopConditions", "proofObligations"],
-    "completion": ["status", "exitSha", "changedFiles", "commands", "evidenceRefs", "remainingWork", "openRcas", "nextAction", "decisionTrace", "verificationState", "ownershipState"]
+    "required": [
+      "messageId",
+      "actor",
+      "intent",
+      "taskId",
+      "scope",
+      "entrySha",
+      "risk",
+      "dependencies",
+      "expectedEvidence",
+      "stopConditions",
+      "proofObligations",
+      "recipient",
+      "createdAt"
+    ],
+    "completion": [
+      "status",
+      "exitSha",
+      "changedFiles",
+      "commands",
+      "evidenceRefs",
+      "remainingWork",
+      "openRcas",
+      "nextAction",
+      "decisionTrace",
+      "verificationState",
+      "ownershipState",
+      "messageId",
+      "messageStatus"
+    ]
   },
   "roles": {
     "assistantController": "Plans, prioritizes, interprets user intent, assigns bounded work, reviews evidence and decides continue, narrow, escalate or close.",
@@ -68,7 +100,37 @@
   "investigation": {
     "canonicalReport": "diagnostics/investigation/code-scout-latest.json",
     "reportProtocol": "docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md",
-    "consumers": ["executionAgent", "reviewAgent", "assistantController", "testAgent", "securityAgent", "performanceAgent"],
+    "consumers": [
+      "executionAgent",
+      "reviewAgent",
+      "assistantController",
+      "testAgent",
+      "securityAgent",
+      "performanceAgent"
+    ],
     "rule": "A scout finding never authorizes a change; consumers must independently verify it against the current exact SHA and authoritative contracts."
+  },
+  "messageLifecycle": [
+    "RECEIVED",
+    "READ",
+    "CONSUMED",
+    "STALE",
+    "BLOCKED_CONFLICT"
+  ],
+  "communication": {
+    "authority": "ASSISTANT_AGENT_COOPERATION_CONTRACT",
+    "ingress": "Master Inbox / Issue #761",
+    "relay": ".github/workflows/agent-communication-relay.yml",
+    "implementation": "scripts/ci/agent-communication.mjs",
+    "sessionConsumer": "scripts/ci/agent-session.mjs",
+    "rules": [
+      "READ_INBOX",
+      "INGEST_HANDOFF",
+      "REVALIDATE_EXACT_SHA",
+      "LOCK_SCOPE",
+      "EXECUTE"
+    ],
+    "noSecondRegistry": true,
+    "noSecondProtocol": true
   }
 }
