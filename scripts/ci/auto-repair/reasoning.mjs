@@ -221,23 +221,34 @@ function crossWorkflowCorrelation({ workflow = null, failures = [] } = {}) {
     .filter((item) => item && (item.workflow || item.runId || item.fingerprint))
     .slice(-20);
   const workflowCount = new Set(normalized.map((item) => item.workflow).filter(Boolean)).size;
+  const shaFor = (item) => String(item?.targetSha ?? item?.failedSha ?? item?.headSha ?? item?.executionSha ?? '').trim().toLowerCase();
   const grouped = new Map();
   for (const item of normalized) {
     const fingerprint = String(item.fingerprint ?? '');
     if (!fingerprint) continue;
-    const entry = grouped.get(fingerprint) ?? { fingerprint, records: [], workflows: new Set() };
+    const entry = grouped.get(fingerprint) ?? { fingerprint, records: [], workflows: new Set(), shas: new Set() };
     entry.records.push(item);
     if (item.workflow) entry.workflows.add(String(item.workflow));
+    const sha = shaFor(item);
+    if (/^[0-9a-f]{40}$/.test(sha)) entry.shas.add(sha);
     grouped.set(fingerprint, entry);
   }
   const common = [...grouped.values()]
     .filter((entry) => entry.records.length > 1 && entry.workflows.size > 1)
-    .sort((a, b) => b.records.length - a.records.length || a.records[0].fingerprint.localeCompare(b.records[0].fingerprint))[0];
+    .map((entry) => ({
+      ...entry,
+      shaQualified: entry.shas.size === 1,
+      shaEvidence: [...entry.shas][0] ?? null,
+    }))
+    .filter((entry) => entry.shaQualified)
+    .sort((a, b) => b.records.length - a.records.length || a.fingerprint.localeCompare(b.fingerprint))[0];
+  const firstCommonFailure = common?.records[0] ?? normalized[0] ?? null;
   return {
     schemaVersion: 1,
     workflow,
     observedFailures: normalized,
-    firstCommonFailure: common?.records[0] ?? normalized[0] ?? null,
+    firstCommonFailure,
+    commonSHA: common?.shaEvidence ?? null,
     confidence: common
       ? 'CORRELATED'
       : normalized.length > 1 && workflowCount > 1
