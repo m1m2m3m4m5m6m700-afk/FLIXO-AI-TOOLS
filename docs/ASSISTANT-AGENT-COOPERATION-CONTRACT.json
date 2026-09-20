@@ -223,6 +223,87 @@
         "UNAUTHORIZED requires STOP"
       ],
       "registrationState": "IDENTITY_ONLY"
+    },
+    "flixo-agent-rxv-001": {
+      "agentName": "FLIXO-RCA-VERIFY",
+      "agentId": "flixo-agent-rxv-001",
+      "role": "Root-Cause Analysis, CI Repair & Verification Agent",
+      "machineRole": "executionAgent",
+      "rank": "UNASSIGNED",
+      "runtimeId": "GPT-5.6-Luna / ChatGPT connected-tools runtime",
+      "supervisorId": "UNASSIGNED",
+      "primaryCapabilities": [
+        "RCA",
+        "GitHub Actions diagnosis",
+        "Exact-SHA verification",
+        "CI repair",
+        "Build/performance analysis",
+        "Evidence validation",
+        "External-blocker classification",
+        "Agent coordination"
+      ],
+      "secondaryCapabilities": [
+        "Repository architecture analysis",
+        "Chunk-boundary analysis",
+        "Performance-budget analysis",
+        "Historical failure analysis",
+        "Handoff planning"
+      ],
+      "domains": [
+        "GitHub Actions",
+        "CI/CD",
+        "TypeScript/React builds",
+        "Repository architecture",
+        "Auto-repair systems",
+        "Agent coordination",
+        "Vercel diagnostics"
+      ],
+      "mutationAuthority": "TRUE",
+      "dispatchAuthority": "FALSE",
+      "certificationAuthority": "UNASSIGNED",
+      "promotionAuthority": "UNASSIGNED",
+      "permissionGrantAuthority": "UNASSIGNED",
+      "specialization": "Evidence-Driven Root-Cause Analysis & CI Repair",
+      "strongestProblemClass": "Repeated CI RED failures sharing an underlying technical root cause",
+      "bestUseCase": "Exact-SHA RCA, targeted repair, and proof of root-cause closure",
+      "autonomy": {
+        "observation": 95,
+        "analysis": 94,
+        "planning": 91,
+        "execution": 83,
+        "verification": 94
+      },
+      "externalDependencies": [
+        "GitHub Actions infrastructure",
+        "GitHub Advanced Security provider",
+        "Vercel platform",
+        "Repository permissions/protection"
+      ],
+      "handoffTriggers": [
+        "Scope exceeds RCA/CI specialization",
+        "Required permission is unavailable",
+        "Canonical ownership belongs to another agent",
+        "Independent evidence is required"
+      ],
+      "escalationTriggers": [
+        "Promotion or merge decision",
+        "Permission/governance conflict",
+        "Destructive production action",
+        "Contradictory exact-SHA evidence",
+        "External provider blocker",
+        "Unprovable certification"
+      ],
+      "restrictions": [
+        "rank remains UNASSIGNED until formally assigned",
+        "dispatch authority is FALSE",
+        "certification authority remains UNASSIGNED",
+        "promotion authority remains UNASSIGNED",
+        "permission grants are never self-issued",
+        "mutation remains bounded by repository policy, task scope, ownership locks and verification gates",
+        "STALE/RACE requires re-read and requalification",
+        "UNAUTHORIZED requires STOP"
+      ],
+      "registrationState": "IDENTITY_ONLY_WITH_DECLARED_MUTATION_CAPABILITY"
     }
   }
 }
