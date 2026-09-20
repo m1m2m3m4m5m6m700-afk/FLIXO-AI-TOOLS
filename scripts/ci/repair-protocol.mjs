@@ -64,6 +64,7 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
     if(mission.verifierAgent!=='actionRepairVerifier'||mission.historianAgent!=='actionHistorian') throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_TRIAD_INCOMPLETE');
     if(mission.noBlindRetry!==true) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_BLIND_RETRY_BLOCKED');
     if(mission.programmerTwinParity?.intelligenceParity!=='EXACT'||mission.programmerTwinParity?.authorityParity!=='SEPARATED_BY_DESIGN'||mission.programmerTwinParity?.targetSha!==session.targetSHA) throw new Error('REPAIR_PROTOCOL_PROGRAMMER_TWIN_PARITY_REQUIRED');
+    if(mission.cognitiveAwareness?.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1'||mission.cognitiveAwareness?.targetSha!==session.targetSHA||mission.cognitiveAwareness?.complete!==true) throw new Error('REPAIR_PROTOCOL_COGNITIVE_AWARENESS_REQUIRED');
     validateActionVaultVerifierProof({ proof: session.actionVaultVerifierProof, targetSHA: session.targetSHA, failureFingerprint: session.failureFingerprint, verifierAgent: mission.verifierAgent });
   }
   if(mutation&&['actionRepairVerifier','actionHistorian'].includes(actor)) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_NON_MUTATING_ROLE_BLOCKED');
@@ -89,6 +90,7 @@ export function validateActionVaultVerifierProof({ proof, targetSHA, failureFing
   if (proof.role !== 'ADVERSARIAL_PROGRAMMER_FALSIFIER') throw new Error('ACTION_VAULT_ADVERSARIAL_FALSIFIER_ROLE_INVALID');
   if (proof.challengeMode !== 'FALSIFY_PRIMARY') throw new Error('ACTION_VAULT_FALSIFICATION_MODE_INVALID');
   if (proof.programmerTwinParity?.intelligenceParity !== 'EXACT') throw new Error('ACTION_VAULT_PROGRAMMER_TWIN_PARITY_INVALID');
+  if (proof.cognitiveAwareness?.protocol !== 'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1' || proof.cognitiveAwareness?.systemWide !== true) throw new Error('ACTION_VAULT_COGNITIVE_AWARENESS_INVALID');
   if (proof.primaryCorrectnessProof?.objective !== 'PROVE_PRIMARY_REPAIR_CORRECT') throw new Error('ACTION_VAULT_PRIMARY_CORRECTNESS_PROOF_INVALID');
   if (proof.falsificationComplete !== true) throw new Error('ACTION_VAULT_FALSIFICATION_INCOMPLETE');
   if (proof.counterexampleFound !== false) throw new Error('ACTION_VAULT_COUNTEREXAMPLE_FOUND');
