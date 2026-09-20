@@ -89,7 +89,7 @@ assert.ok(safeExecution.includes('Task Agent is explicitly not a mutation role')
 
 const legacy = prompts.prompts.find((item) => item.promptId === 'RPR-EXISTING-SAFE-TASK-001');
 assert.equal(legacy?.status, 'DEPRECATED');
-assert.deepEqual(legacy?.supersededBy, ['RPR-EXISTING-TASK-PREP-001']);
+assert.deepEqual(legacy?.supersededBy, ['RPR-PROMPT-02-ERROR-INTELLIGENCE-001']);
 
 assert.equal(cooperation.schemaVersion, 5);
 assert.ok(cooperation.protocols.action_vault_reasoning.includes('ACTION-REPAIR'));
