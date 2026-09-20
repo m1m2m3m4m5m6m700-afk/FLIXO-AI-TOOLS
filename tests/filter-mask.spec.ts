@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/universal-runtime-evidence';
 
 test.describe('Filter Mask live camera surface', () => {
   test('exposes the canonical live-filter catalog and selection controls', async ({ page }) => {
