@@ -102,7 +102,7 @@ const server = http.createServer((req, res) => {
     const key = payload.ref;
     if (claimedRefs.has(key)) {
       res.writeHead(422, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ message: 'Reference already exists' }));
+      res.end(JSON.stringify({ message: 'provider-wording-changed-no-lease-error-text-contract' }));
       return;
     }
     claimedRefs.add(key);
