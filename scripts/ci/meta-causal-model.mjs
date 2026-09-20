@@ -39,6 +39,7 @@ export function buildMetaCausalModel({
   failedRunId='',
   taskId='',
   branch='execution',
+  strictIdentity=true,
   historicalKnowledge=[],
   exactCases=[],
   doNotRepeat=[],
@@ -59,9 +60,9 @@ export function buildMetaCausalModel({
   }
 
   const hardBlocks=[];
-  if(!/^[a-f0-9]{40}$/iu.test(targetSha)) hardBlocks.push('EXACT_SHA_MISSING');
-  if(!failedRunId) hardBlocks.push('FAILED_RUN_ID_MISSING');
-  if(!taskId) hardBlocks.push('TASK_ID_MISSING');
+  if(strictIdentity && !/^[a-f0-9]{40}$/iu.test(targetSha)) hardBlocks.push('EXACT_SHA_MISSING');
+  if(strictIdentity && !failedRunId) hardBlocks.push('FAILED_RUN_ID_MISSING');
+  if(strictIdentity && !taskId) hardBlocks.push('TASK_ID_MISSING');
   if(branch !== 'execution') hardBlocks.push('MUTATION_BRANCH_NOT_EXECUTION');
   if(currentHeadSha && currentHeadSha !== targetSha){
     hardBlocks.push('CURRENT_HEAD_DIFFERS_FROM_TARGET_SHA');
