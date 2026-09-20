@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { preparedPlan } from './prepared-source-change.mjs';
 import { inferFailureResolution } from './inference-fallback.mjs';
 import { buildErrorOnlyRepairModel } from './error-only-programmer.mjs';
+import { buildCausalDiscriminator } from '../action-causal-discriminator.mjs';
 
 const plans = [
   { id: 'external-tooling', features: ['external-tooling'], confidence: 99, mutate: false, commands: [] },
@@ -43,6 +44,26 @@ export function planRepair(log, { historical = [], memory } = {}) {
   const reusableKnowledge = memory
     ? deriveReusableKnowledge(memory, { rootCause: reasoning.rootCause, features })
     : null;
+
+  const failureFingerprint = process.env.FLIXO_FAILURE_FINGERPRINT ?? '';
+  const exactCases = (memory?.cases ?? []).filter((item) => item.fingerprint === failureFingerprint);
+  const doNotRepeat = [...new Set(exactCases.flatMap((item) => [
+    ...(item.failedStrategies ?? []),
+    ...(item.outcome === 'FAILED' ? (item.rules ?? []) : []),
+  ]).filter(Boolean))];
+  const causalDiscriminator = buildCausalDiscriminator({
+    failureLog: log,
+    exactCases,
+    doNotRepeat,
+    fingerprint: failureFingerprint,
+    targetSha,
+  });
+  const causalHasSignal = causalDiscriminator.hypotheses.length > 0;
+  const causalMutationGate = causalHasSignal && (
+    causalDiscriminator.ranking.ambiguous ||
+    causalDiscriminator.capabilityScore < 0.68
+  );
+
 
   const candidates = plans
     .filter((plan) => plan.features.some((feature) => features.includes(feature)))
@@ -113,19 +134,24 @@ export function planRepair(log, { historical = [], memory } = {}) {
       ]),
   );
 
+  const causalSelectedRule = causalDiscriminator.ranking.selectedStrategy;
+  const useCausalSelection = !causalMutationGate && Boolean(causalSelectedRule);
   const selectedRule = prepared.ok && reasoning.decision === 'ALLOW_BOUNDED_MUTATION'
     ? 'prepared-source-change'
-    : /TS1064\b|return type of an async function|Did you mean to write ['"]?Promise/iu.test(log)
-      ? 'typescript-async-contract'
-      : /TS2304\b|Cannot find name ['\"]/iu.test(log)
-      ? 'typescript-missing-import'
-      : inferenceEligible && inferenceFallback.hypothesis.strategyId
-      ? inferenceFallback.hypothesis.strategyId
-      : reasoning.rootCause === 'format'
-        ? 'prettier-file'
-        : reasoning.rootCause === 'lint'
-          ? 'eslint-unused'
-          : reasoning.rootCause;
+    : useCausalSelection
+      ? causalSelectedRule
+      : /TS1064\\b|return type of an async function|Did you mean to write ['"]?Promise/iu.test(log)
+        ? 'typescript-async-contract'
+        : /TS2304\\b|Cannot find name ['\"]/iu.test(log)
+        ? 'typescript-missing-import'
+        : inferenceEligible && inferenceFallback.hypothesis.strategyId
+        ? inferenceFallback.hypothesis.strategyId
+        : reasoning.rootCause === 'format'
+          ? 'prettier-file'
+          : reasoning.rootCause === 'lint'
+            ? 'eslint-unused'
+            : reasoning.rootCause;
+
 
   const requiresSourceLocation = selectedRule === 'prettier-file' || selectedRule === 'eslint-unused';
   const selectedCandidate =
@@ -139,7 +165,7 @@ export function planRepair(log, { historical = [], memory } = {}) {
     )
     ?? null;
 
-  const fallbackSelectionAllowed = inferenceEligible || reasoning.decision === 'ALLOW_BOUNDED_MUTATION';
+  const fallbackSelectionAllowed = !causalMutationGate && (inferenceEligible || reasoning.decision === 'ALLOW_BOUNDED_MUTATION');
   const selected = fallbackSelectionAllowed &&
     selectedCandidate &&
     (!requiresSourceLocation ||
@@ -166,12 +192,16 @@ export function planRepair(log, { historical = [], memory } = {}) {
       reason: prepared.reason ?? null,
       files: prepared.files ?? prepared.changes?.map((item) => item.path) ?? [],
     },
+    causalDiscriminator,
+    causalMutationGate,
     candidates,
     selected,
     blockedReason:
       reasoning.decision === 'BLOCK_EXTERNAL'
         ? 'external-tooling'
-        : selected
+        : causalMutationGate
+          ? 'causal-discriminator-ambiguous'
+          : selected
           ? null
           : inferenceFallback.hypothesis.novelty === 'NEW_HYPOTHESIS'
             ? 'new-hypothesis-proposal-only'
