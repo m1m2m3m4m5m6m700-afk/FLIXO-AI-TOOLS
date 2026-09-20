@@ -50,7 +50,9 @@ assert.match(dailyGateWorkflow, /const observedBranch = read\('\/tmp\/flixo-watc
 assert.match(dailyGateWorkflow, /observedBranch,/);
 assert.doesNotMatch(dailyGateWorkflow, /- FLIXO WP0 Trust Baseline\n\s+- FLIXO Test Impact/);
 assert.doesNotMatch(dailyGateWorkflow, /gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i);
-assert.match(handoffGateWorkflow, /branches: \[execution, main\]/);
+assert.match(handoffGateWorkflow, /branches: \[execution\]/);
+assert.match(handoffGateWorkflow, /test "\$REPAIR_TARGET_BRANCH" = "execution"/);
+assert.match(dailyGateWorkflow, /CURRENT_EXECUTION_SHA=.*git\/ref\/heads\/execution/);
 assert.match(autoRepairWorkflow, /Initialize Repair Control Plane cycle/);
 assert.match(autoRepairWorkflow, /to=EVIDENCE_LOCKED/);
 assert.match(autoRepairWorkflow, /to=RCA/);
