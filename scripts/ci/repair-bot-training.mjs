@@ -589,9 +589,6 @@ function calibratePolicy(policy, testRows) {
   return { algorithm: 'EMPIRICAL_BUCKET_CALIBRATION', expectedCalibrationError: ece == null ? null : Number(ece.toFixed(4)), buckets, abstention: { recommendedThreshold: admissible.sort((a, b) => a.threshold - b.threshold)[0]?.threshold ?? 0.75, rule: 'LOW_CONFIDENCE_OR_AMBIGUOUS_STATE_REQUIRES_MORE_EVIDENCE', candidates } };
 }
 
-function buildGoldenReplaySet(rows) {
-  return rows.filter((row) => verifiedOutcome(row) && parseInt(sha256(row.fingerprint).slice(0, 2), 16) % 3 === 0).slice(0, 200);
-}
 
 function evaluatePolicyAgainstRows(policy, rows) {
   let successes = 0, successHits = 0, failures = 0, avoided = 0;
