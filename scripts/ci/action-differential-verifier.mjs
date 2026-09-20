@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
-const sha256 = (value) => crypto.createHash('sha256').update(String(value), 'utf8').digest('hex');
+const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const exactSha = (value) => /^[a-f0-9]{40}$/u.test(String(value));
 
 const runGit = (cwd, args) => execFileSync('git', args, {
