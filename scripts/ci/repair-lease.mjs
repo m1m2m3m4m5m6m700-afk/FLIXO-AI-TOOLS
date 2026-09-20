@@ -13,17 +13,16 @@ const getArg = (name, fallback = '') => String(args[name] ?? fallback).trim();
 
 const repo = getArg('repo', process.env.GITHUB_REPOSITORY);
 const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || '';
-const apiRoot = 'https://api.github.com';
+const apiRoot = process.env.FLIXO_REPAIR_LEASE_API_ROOT || 'https://api.github.com';
 
-if (!repo) throw new Error('REPAIR_LEASE_REPOSITORY_REQUIRED');
-if (!token) throw new Error('REPAIR_LEASE_GITHUB_TOKEN_REQUIRED');
-
-async function api(method, path, body = undefined) {
-  const response = await fetch(`${apiRoot}${path}`, {
+async function api(method, path, body = undefined, { root = apiRoot, authToken = token } = {}) {
+  if (!repo) throw new Error('REPAIR_LEASE_REPOSITORY_REQUIRED');
+  if (!authToken) throw new Error('REPAIR_LEASE_GITHUB_TOKEN_REQUIRED');
+  const response = await fetch(`${root}${path}`, {
     method,
     headers: {
       accept: 'application/vnd.github+json',
-      authorization: `Bearer ${token}`,
+      authorization: `Bearer ${authToken}`,
       'x-github-api-version': API_VERSION,
       'content-type': 'application/json',
       'user-agent': 'FLIXO-repair-lease',
@@ -36,7 +35,7 @@ async function api(method, path, body = undefined) {
   return { status: response.status, ok: response.ok, data };
 }
 
-function statusDecision(status) {
+export function statusDecision(status) {
   if (status === 201) return 'ACQUIRED';
   if (status === 422) return 'ALREADY_CLAIMED';
   if (status === 401 || status === 403) return 'AUTH_FAILURE';
@@ -76,16 +75,28 @@ async function createAnnotatedTag(refName, objectSha, metadata) {
   return { status: tag.status, decision: 'TAG_OBJECT_CREATED', tag: tag.data?.sha ?? null };
 }
 
-async function createRef(refName, objectSha) {
-  const result = await api('POST', `/repos/${repo}/git/refs`, {
-    ref: refName,
-    sha: objectSha,
+export async function createRefAtomically({ apiRoot: root = 'https://api.github.com', repoName, authToken, refName, objectSha } = {}) {
+  if (!repoName) throw new Error('REPAIR_LEASE_REPOSITORY_REQUIRED');
+  if (!authToken) throw new Error('REPAIR_LEASE_GITHUB_TOKEN_REQUIRED');
+  const response = await fetch(`${root}/repos/${repoName}/git/refs`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/vnd.github+json',
+      authorization: `Bearer ${authToken}`,
+      'x-github-api-version': API_VERSION,
+      'content-type': 'application/json',
+      'user-agent': 'FLIXO-repair-lease',
+    },
+    body: JSON.stringify({ ref: refName, sha: objectSha }),
   });
-  return {
-    status: result.status,
-    decision: statusDecision(result.status),
-    data: result.data,
-  };
+  const raw = await response.text();
+  let data = null;
+  try { data = raw ? JSON.parse(raw) : null; } catch { data = { raw }; }
+  return { status: response.status, decision: statusDecision(response.status), data };
+}
+
+async function createRef(refName, objectSha) {
+  return createRefAtomically({ apiRoot, repoName: repo, authToken: token, refName, objectSha });
 }
 
 async function readRef(refName) {
@@ -403,13 +414,17 @@ function usage() {
   throw new Error('Usage: repair-lease.mjs claim|verify|outcome|recover');
 }
 
-try {
-  if (command === 'claim') await commandClaim();
-  else if (command === 'verify') await commandVerify();
-  else if (command === 'outcome') await commandOutcome();
-  else if (command === 'recover') await commandRecover();
-  else usage();
-} catch (error) {
-  console.error(String(error?.stack ?? error));
-  process.exitCode = 1;
+if (import.meta.url === (await import('node:url')).pathToFileURL(process.argv[1] ?? '').href) {
+  try {
+    if (command === 'claim') await commandClaim();
+    else if (command === 'verify') await commandVerify();
+    else if (command === 'outcome') await commandOutcome();
+    else if (command === 'recover') await commandRecover();
+    else usage();
+  } catch (error) {
+    console.error(String(error?.stack ?? error));
+    process.exitCode = 1;
+  }
 }
+
+export { identityFromArgs };
