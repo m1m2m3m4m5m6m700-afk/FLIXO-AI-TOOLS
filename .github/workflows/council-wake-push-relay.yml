@@ -101,13 +101,13 @@ jobs:
           set -euo pipefail
           gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### PRESIDENT WAKE RECEIPT
 
-**Role:** \`$ROLE\`
-**Work Package:** \`$WORK_PACKAGE\`
-**Exact SHA:** \`$ENTRY_SHA\`
-**Transport:** push → OIDC → Supabase Council Runtime
-**Result:** QUEUED
+          **Role:** \`$ROLE\`
+          **Work Package:** \`$WORK_PACKAGE\`
+          **Exact SHA:** \`$ENTRY_SHA\`
+          **Transport:** push → OIDC → Supabase Council Runtime
+          **Result:** QUEUED
 
-This receipt proves the exact-SHA wake was accepted into the canonical runtime queue. Agent ACK is separate evidence and is not inferred from queue acceptance."
+          This receipt proves the exact-SHA wake was accepted into the canonical runtime queue. Agent ACK is separate evidence and is not inferred from queue acceptance."
 
       - name: Stop on unsupported role
         if: ${{ steps.parse.outputs.role != 'DEPUTY' && steps.parse.outputs.role != 'TASK' && steps.parse.outputs.role != 'EXECUTION' && steps.parse.outputs.role != 'REVIEW' && steps.parse.outputs.role != 'CERTIFICATION' }}

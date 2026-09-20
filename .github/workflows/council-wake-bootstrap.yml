@@ -40,16 +40,16 @@ jobs:
           set -euo pipefail
           gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### COUNCIL WAKE BOOTSTRAP SMOKE
 
-**Workflow:** \`FLIXO Council Wake Bootstrap\`
-**Trigger:** \`push\`
-**Main SHA:** \`$SHA\`
-**Result:** WORKFLOW_EXECUTED
+          **Workflow:** \`FLIXO Council Wake Bootstrap\`
+          **Trigger:** \`push\`
+          **Main SHA:** \`$SHA\`
+          **Result:** WORKFLOW_EXECUTED
 
-This proves the default-branch bootstrap workflow is registered and executable. It does not assert agent ACK.
+          This proves the default-branch bootstrap workflow is registered and executable. It does not assert agent ACK.
 
-<!-- FLIXO_COUNCIL_BOOTSTRAP_SMOKE:$SHA -->"
+          <!-- FLIXO_COUNCIL_BOOTSTRAP_SMOKE:$SHA -->"
 
-  wake:
+            wake:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (
@@ -191,10 +191,10 @@ COUNCIL_PUSH=" + (.push|tostring)' /tmp/council-dispatch.json
           set -euo pipefail
           gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### PRESIDENT WAKE RECEIPT
 
-**Role:** \`$ROLE\`
-**Work Package:** \`$WORK_PACKAGE\`
-**Exact SHA:** \`$ENTRY_SHA\`
-**Result:** ACCEPTED
-**Bootstrap:** main-default-branch ingress
+          **Role:** \`$ROLE\`
+          **Work Package:** \`$WORK_PACKAGE\`
+          **Exact SHA:** \`$ENTRY_SHA\`
+          **Result:** ACCEPTED
+          **Bootstrap:** main-default-branch ingress
 
-<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->"
+          <!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->"
