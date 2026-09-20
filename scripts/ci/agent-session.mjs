@@ -149,6 +149,9 @@ if (command === 'event') {
   } else if (rawMessageId) {
     inboundMessage = readAgentMessage(rawMessageId, agentId, sha);
   }
+  if (inboundMessage && inboundMessage.status !== 'READ' && inboundMessage.status !== 'CONSUMED') {
+    throw new Error('AGENT_MESSAGE_NOT_EXECUTION_READY=' + inboundMessage.status);
+  }
   const record = {
     schemaVersion: 3,
     repairProtocol: { ...assertProtocolDefinition(), compliance: 'VALIDATED_AT_ENTRY', admission: protocolAdmission },
