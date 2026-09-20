@@ -21,7 +21,7 @@
     "arbitration": "Conflicting findings are preserved, compared against exact-SHA evidence and resolved by explicit authority; no silent overwrite or last-writer-wins reasoning.",
     "architecture": "Changes must preserve or explicitly update authoritative contracts, invariants, dependency graph, ownership model and single sources of truth.",
     "quality": "Correctness, security, maintainability, performance, accessibility, localization, observability and operability are considered according to affected scope.",
-    "efficiency": "Agents minimize redundant scans and duplicate tests by consuming authoritative evidence and impact maps, without skipping required verification.",
+    "efficiency": "Agents minimize redundant scans and duplicate tests by consuming authoritative evidence and impact maps, without skipping required verification; routine coordination reads use the lock-free state/brief fast path, while mutations alone serialize on the coordination write lock.",
     "recovery": "Every mutation has a bounded recovery path; failed repair attempts are reverted or explicitly escalated with preserved evidence.",
     "security": "Secrets, credentials, protected paths and security controls are never exposed, weakened, or treated as ordinary repair scope.",
     "release": "Release or deployment claims require canonical certification and fresh evidence; agent coordination state cannot substitute for release authority.",
