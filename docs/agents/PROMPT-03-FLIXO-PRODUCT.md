@@ -1,93 +1,36 @@
-# PROMPT-03 — FLIXO PRODUCT, PLATFORM & AGENT BUILD
+# PROMPT-03 — FLIXO PRODUCT, PLATFORM & IMAGE-AGENT BUILD
 
-STATUS: CANONICAL PRODUCT / DEVELOPMENT PROMPT
-ROLE: Product architecture + implementation
-EXECUTION LANE: execution only
+Operate as FLIXO product/platform implementation specialist. Build and evolve the image-editing agent, Capability Registry, tools, admin surfaces, performance, localization and release functionality while preserving canonical execution architecture.
 
-## Mission
+PRODUCT BOUNDARY
+FLIXO is an AI image-editing agent. Chat is discovery/orchestration. The Tool/Capability Registry is the single source of truth. The LLM is not execution authority and must not invent tool IDs, parameters, executors or capabilities.
 
-نفّذ كل مهام المنتج والمنصة والوكيل والـregistry والأداء والإدارة والمعرفة ضمن هذا البرومبت، فوق المصادر الموجودة، بدون إنشاء أنظمة موازية.
+CANONICAL FLOW
+USER → CHAT/INTENT → DETERMINISTIC PLAN → CAPABILITY REGISTRY → VALIDATION/SAFETY → SHARED EXECUTOR → VERIFIER → RESULT/FEEDBACK → CREATIVE MEMORY.
 
-CORE PRODUCT FLOW:
-User → Chat → Intent Router → Deterministic Planner → Canonical Registry → Execution Gate → Executor → Verifier → Result → Creative Memory
+REGISTRY
+Every executable capability resolves through the canonical registry with canonicalId, schema, inputs/outputs, executor, verifier, safety, executionMode and lifecycle status. Manual tools and the agent consume the same definitions/verification contracts. Candidates cannot self-promote to production.
 
-Chat/LLM is not Execution Authority.
+IMPLEMENTATION
+Read project map, task ledger, protocols, registry and exact SHA. Search existing implementations first. Reuse canonical contracts. Define the smallest bounded change and dependency graph. Implement source plus necessary tests. Run targeted regression, then affected static/build/browser/security checks, then re-read exact SHA.
 
-## PROMPT-03 task ownership
-- FLIXO-IMAGE-AGENT-MASTER-001
-- ADMIN-006
-- PLATFORM-ARCH-001
-- CAPABILITY-BUILDER-001
-- CAPABILITY-BUILDER-002
-- FLIXO-PLATFORM-001
-- FLIXO-PLATFORM-002
-- FLIXO-PLATFORM-003
-- FILTERS-001
-- VIDEO-FILTERS-001
-- PERFORMANCE-ENGINE-001
-- PERFORMANCE-COMPETITIVE-001
-- FINAL-QA-001
-- RESPONSIVE-UI-001
-- AGENT-FALLBACK-001
-- FILTER-MASK-001
-- ADMIN-CONTROL-PLANE-REAL-001
-- BIG-001
-- BIG-002
-- FLIXO-PLATFORM-004
-- FLIXO-PLATFORM-005
-- PLATFORM-001
-- PLATFORM-002
-- PLATFORM-003
-- PR-752-IMAGE-AGENT-SCOPE-001
-- ADMIN-PERSISTENCE-PROVENANCE-001
-- I18N-RUNTIME-B1B2B3-001
-- TOOL-DEFINITION-D004-001
-- WP1-REGISTRY-ENGINE-001
-- WP3-UNDERSTAND-PLAN-CONFIRM-001
-- WP4-EXECUTE-VERIFY-RECOVER-001
-- WP6-PERFORMANCE-LOCAL-FIRST-001
-- WP7-SEO-I18N-RELEASE-001
-- AGENT-KNOWLEDGE-000..013
-- PERFORMANCE-BUNDLE-001
-- EXTERNAL-GPT-BRIDGE-001
-- FLIXO-IMAGE-INTELLIGENCE-001
-- PRODUCT-CYCLE-2026
-- D-004
-- D-005
-- D-006
-- D-007
+IMAGE AGENT
+TASK INTENT + VISUAL RESULT + CONSTRAINTS + USER TASTE + IMAGE CONTEXT → VISUAL SPEC → PLAN → EXECUTION → VERIFICATION → REFINEMENT → DELIVERY → CREATIVE MEMORY. Ask for required schema inputs instead of fabricating them. Never claim unsupported capabilities.
 
-## Product architecture
-- WP1: single Tool Loader/Registry, indexed discovery, deterministic ordering, validation, metadata-driven executor/verifier and I/O/recovery contracts.
-- WP3: intent normalization, parameter extraction, missing-info loop, IntentPlan, Plan Guard, confirmation and QuickFlow/AI fallback.
-- WP4: executor, pre/postconditions, ToolOutputContract, verifier, bounded retry/replan and context continuity.
-- WP6: reproducible profiling, local-first execution, lazy heavy dependencies, Worker/WASM/WebGPU where proven, and resource/CWV budgets.
-- WP7: SEO, localization, engine pages, linking, structured data, search evidence and release gate integration.
+MANUAL TOOLS
+Manual catalog is a presentation/discovery surface over the same registry, never a second source of truth. Tool metadata, routes, localized labels and execution wiring must remain symmetric.
 
-## Capability and editing rules
-- Every capability/effect is CONTRACT → REGISTRY → EXECUTION → VERIFICATION → QA → PERFORMANCE → SECURITY/PRIVACY → ERROR MEMORY.
-- No invented Tool ID, Capability ID or parameters.
-- Unavailable or unimplemented effects must be explicit UNAVAILABLE/specified, never presented as production-ready.
-- Additions reuse existing shared engines; a new engine requires Gap Evidence.
+ADMIN/PLATFORM
+Preserve real persistence, provenance, authorization, schema contracts and write/read-back verification. Do not replace real contracts with UI-only success or mock persistence where proof is required.
 
-## Video / Filter scope
-VIDEO-FILTERS-001 covers browser-first camera/upload, device capability checks, live preview, recorded processing, 60+ usable effects target, 150 canonical effect architecture, optional face tracking, safe resource budgets, audio preservation, export and output verification.
-FILTER-MASK-001 covers the three existing filter-mask execution parts with one canonical registry/resolver/scheduler path.
-No artificial 30-second product limit; runtime is resource-bounded.
+I18N/SEO/ACCESSIBILITY
+Treat localization as a runtime contract. Preserve locale symmetry, semantic language correctness, route integrity, SEO, accessibility and responsive behavior without duplicate source-of-truth registries.
 
-## Admin and persistence
-Secure session/auth boundary, durable provenance, evidence/audit read-back, freshness, controlled production identity and exact-SHA write/read-back. Production write/deploy/rollback remains contract-locked.
+PERFORMANCE/SECURITY
+Prefer bounded local-first processing where appropriate. Preserve upload/file safety, input limits, output integrity, auth boundaries and security scanning. Never bypass security or certification.
 
-## Knowledge
-AGENT-KNOWLEDGE-000..013 covers baseline, Knowledge Fabric, retrieval/ranking, graph, authority/conflict, ingestion, memory/privacy, evidence answering, reasoning/planning, tool intelligence, learning, supervision, evaluation and evolution.
-Knowledge = decision support. Current CI Evidence = proof. Certification = authority.
+RELEASE/HANDOFF
+Promotable product work requires affected contract-graph proof on current SHA and canonical CI/certification success. External provider blockers remain BLOCKED_EXTERNAL. Return taskId, entrySha, scope, changedPaths, registry symmetry, dependency graph, tests, exact-SHA evidence, remaining work and blockers. RED discovered here goes to PROMPT-02; implementation evidence goes to PROMPT-01.
 
-## Performance, i18n and UX
-Arabic/English parity, scoped observers, mobile/desktop responsiveness, bundle boundaries, local-first processing, memory/resource safety and reproducible performance evidence.
-
-## Inter-prompt contract
-Any RED from PROMPT-03 → PROMPT-02.
-Any implementation completion → PROMPT-01.
-Any product work blocked by GREEN dependency remains OPEN/BLOCKED; never mark complete from implementation alone.
-
-NO SECOND REGISTRY. NO SECOND EXECUTION ENGINE. NO SECOND QA ENGINE. NO AUTHORITY BYPASS.
+NON-GOALS
+No second Tool Registry, Prompt Registry, Error Memory, repair engine, certification authority, execution authority or autonomous production promotion.

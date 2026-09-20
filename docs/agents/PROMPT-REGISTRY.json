@@ -23,16 +23,11 @@
   "sharedMemory": "diagnostics/auto-repair/memory.json",
   "validationModule": "scripts/ci/prompt-registry.mjs",
   "promptQualityGate": [
-    "duplicate-check",
-    "fingerprint-coverage",
-    "rca-coverage",
-    "scope-check",
-    "safety-check",
-    "verification-completeness",
-    "learning-completeness",
-    "provenance-check",
-    "exact-sha-binding",
-    "overlap-check"
+    "schema-complete",
+    "no-active-duplicates",
+    "source-path-exists",
+    "overlap-reviewed",
+    "exact-sha-bound"
   ],
   "cooperationProtocol": {
     "beforeCreate": [
@@ -66,818 +61,271 @@
   "provenance": {
     "inventoryBaselineSha": "d78e8db4c6b4b7e0655368183eac15694498c344",
     "inventoryBaselineReason": "Registry inventory was built after reading the mandatory source-of-truth set on the exact execution baseline.",
-    "memorySource": "diagnostics/auto-repair/memory.json"
+    "memorySource": "diagnostics/auto-repair/memory.json",
+    "consolidation": "Three canonical active prompts; redundant specialist prompt families removed"
   },
   "prompts": [
     {
-      "promptId": "RPR-MASTER-LIFECYCLE-001",
-      "title": "FLIXO Master Repair Prompt Intelligence",
-      "path": "المهام.md",
-      "domain": "cross-cutting-repair",
-      "agentRole": "prompt-coordinator",
+      "promptId": "RPR-MASTER-EXECUTION-001",
+      "title": "FLIXO Master Execution, Coordination & Green Closure",
+      "domain": "cross-cutting-orchestration",
+      "agentRole": "master-controller",
+      "sourcePath": "docs/agents/PROMPT-01-MASTER-EXECUTION.md",
       "failureClasses": [
-        "repair-lifecycle-coordination",
-        "prompt-selection",
-        "cross-agent-overlap"
+        "ALL_REPAIRABLE",
+        "CI_ORCHESTRATION",
+        "COORDINATION",
+        "RELEASE"
       ],
-      "fingerprints": [],
+      "fingerprints": [
+        "SHA_RACE",
+        "STALE_EVIDENCE",
+        "OWNERSHIP_CONFLICT",
+        "REQUIRED_CHECK_INCOMPLETE"
+      ],
       "rootCauses": [
-        "orchestration",
-        "cross-cutting-control"
+        "stale-evidence",
+        "scope-conflict",
+        "ownership-conflict",
+        "false-green"
       ],
-      "scope": {
-        "allowed": [
-          "read prompt registry",
-          "select or reuse specialist prompt",
-          "prepare prompt handoff",
-          "record provenance and learning metadata"
-        ],
-        "forbidden": [
-          "source mutation without repair authority",
-          "policy changes",
-          "gate weakening",
-          "test suppression",
-          "certification"
-        ],
-        "protected": [
-          "docs/PROTOCOL-REGISTRY.json",
-          "scripts/ci/repair-protocol.mjs",
-          "scripts/ci/control-plane-registry.mjs",
-          "certification surfaces"
-        ],
-        "verificationBoundary": [
-          "prompt registry validation",
-          "duplicate/overlap check",
-          "exact-SHA handoff validation"
-        ]
-      },
+      "scope": "orchestration, ownership, dependency sequencing, agent handoff, CI closure and promotion",
       "repairStrategy": [
-        "read-before-write",
-        "causal-match-before-selection",
-        "reuse-before-create",
-        "fail-closed-on-ambiguous-overlap"
+        "current-SHA binding",
+        "scope locks",
+        "work-family dispatch",
+        "terminal required checks",
+        "canonical promotion"
       ],
       "verificationPlan": [
-        "validate-prompt-registry",
-        "test-prompt-registry",
-        "exact-SHA-bound-handoff"
+        "targeted verification",
+        "affected contract graph",
+        "required CI",
+        "security",
+        "exact-SHA certification"
       ],
       "learningRequirements": [
-        "record promptId with repair outcome provenance",
-        "record lesson or anti-lesson according to outcome",
-        "preserve provenance and strategy rejection signals"
+        "cycleLessons",
+        "handoff provenance",
+        "fresh-state evidence"
       ],
       "status": "ACTIVE",
-      "version": 1,
-      "createdBy": "FLIXO Prompt Intelligence Layer",
-      "lastUpdatedBy": "FLIXO Prompt Intelligence Layer",
+      "version": "1.0.0",
+      "createdBy": "prompt-consolidation",
+      "lastUpdatedBy": "prompt-consolidation",
       "provenance": {
-        "sourceFiles": [
-          "المهام.md",
-          "docs/AGENT-COLLABORATION-PROTOCOL.md",
-          "docs/AGENT-HANDOFF-REPORT-SCHEMA.md",
-          "diagnostics/auto-repair/memory.json"
-        ],
-        "sourceSha": "d78e8db4c6b4b7e0655368183eac15694498c344"
+        "source": "three-prompt consolidation",
+        "replacedFamilies": [
+          "RPR-MASTER-LIFECYCLE-001",
+          "RPR-EXISTING-TASK-PREP-001",
+          "RPR-EXISTING-SAFE-TASK-001",
+          "RPR-EXISTING-ACTIVE-CYCLE-001",
+          "RPR-ORCHESTRATION-PREFLIGHT-001",
+          "RPR-EXTERNAL-TOOLING-001",
+          "RPR-REGEX-CONTRACT-001",
+          "RPR-ARCHITECTURE-REGISTRY-001",
+          "RPR-CANONICAL-CONTRACT-DRIFT-001"
+        ]
       },
       "relatedPrompts": [
-        "RPR-ORCHESTRATION-PREFLIGHT-001",
-        "RPR-EXTERNAL-TOOLING-001",
-        "RPR-REGEX-CONTRACT-001",
-        "RPR-ARCHITECTURE-REGISTRY-001"
+        "RPR-ERROR-REPAIR-001",
+        "RPR-FLIXO-PRODUCT-001"
       ],
       "supersedes": [],
       "supersededBy": [],
       "antiPatterns": [
-        "generic solve-and-test prompt",
-        "duplicate specialist for same causal key",
-        "prompt-only declaration of GREEN"
+        "false-green",
+        "historical-certification",
+        "third-branch",
+        "duplicate-authority"
       ],
-      "exactShaRequirements": {
-        "required": true,
-        "bindAtExecution": true,
-        "source": "prompt-handoff.exactSha",
-        "mustEqual": "current repair target SHA",
-        "historicalProvenanceIsNotProof": true
-      }
+      "exactShaRequirements": [
+        "current execution SHA",
+        "invalidate on SHA change",
+        "targeted verification",
+        "affected graph verification",
+        "canonical certification"
+      ]
     },
     {
-      "promptId": "RPR-EXISTING-TASK-PREP-001",
-      "title": "FLIXO Task Agent System Prompt",
-      "path": "المهام.md",
-      "domain": "task-preparation",
-      "agentRole": "taskAgent",
+      "promptId": "RPR-ERROR-REPAIR-001",
+      "title": "FLIXO Error Intelligence, Root-Cause Repair & Prompt Governance",
+      "domain": "error-intelligence-and-repair",
+      "agentRole": "repair-agent",
+      "sourcePath": "docs/agents/PROMPT-02-ERROR-REPAIR.md",
       "failureClasses": [
-        "task-preparation",
-        "scope-drift",
-        "missing-proof-obligations"
+        "SOURCE",
+        "TEST_CONTRACT",
+        "CI_ORCHESTRATION",
+        "SECURITY",
+        "EXTERNAL_PROVIDER",
+        "FLAKY_RACE",
+        "UNKNOWN_RCA"
       ],
-      "fingerprints": [],
+      "fingerprints": [
+        "fingerprint-match",
+        "contract-drift",
+        "external-provider-signature",
+        "sha-race",
+        "duplicate-dispatch"
+      ],
       "rootCauses": [
-        "task-planning",
-        "scope-integrity"
+        "symptom-only-repair",
+        "stale-contract",
+        "duplicate-control-path",
+        "provider-failure",
+        "race-condition"
       ],
-      "scope": {
-        "allowed": [
-          "read task ledger",
-          "prepare bounded implementation packet",
-          "map diagnosis to scope and tests"
-        ],
-        "forbidden": [
-          "publication",
-          "merge",
-          "certification"
-        ],
-        "protected": [
-          "canonical protocol authority",
-          "certification authority"
-        ],
-        "verificationBoundary": [
-          "task packet validation",
-          "scope and proof obligation validation"
-        ]
-      },
+      "scope": "failure diagnosis, causal repair, contract drift, CI/security/external classification and prompt consolidation",
       "repairStrategy": [
-        "prepare-from-evidence",
-        "scope-lock",
-        "dependency-check"
-      ],
-      "verificationPlan": [
-        "task-agent contract",
-        "handoff schema",
-        "exact-SHA baseline comparison"
-      ],
-      "learningRequirements": [
-        "carry promptId into handoff when a repair prompt is used",
-        "preserve rejected scope decisions"
-      ],
-      "status": "ACTIVE",
-      "version": 1,
-      "createdBy": "pre-existing repository prompt",
-      "lastUpdatedBy": "pre-existing repository prompt",
-      "provenance": {
-        "sourceFiles": [
-          "المهام.md",
-          "docs/AGENT-COORDINATION-CONTROL-PLANE.md"
-        ],
-        "sourceSha": "d78e8db4c6b4b7e0655368183eac15694498c344"
-      },
-      "relatedPrompts": [
-        "RPR-MASTER-LIFECYCLE-001",
-        "RPR-EXISTING-SAFE-TASK-001"
-      ],
-      "supersedes": [],
-      "supersededBy": [],
-      "antiPatterns": [
-        "scope expansion to chase downstream failures",
-        "new test instead of demonstrated source correction"
-      ],
-      "exactShaRequirements": {
-        "required": true,
-        "bindAtExecution": true,
-        "source": "task-packet.baselineSha",
-        "mustEqual": "authoritative baseline SHA",
-        "historicalProvenanceIsNotProof": true
-      }
-    },
-    {
-      "promptId": "RPR-EXISTING-SAFE-TASK-001",
-      "title": "FLIXO Safe Task Agent Execution",
-      "path": "docs/agents/SAFE-TASK-AGENT-EXECUTION.md",
-      "domain": "safe-repair-execution",
-      "agentRole": "taskAgent",
-      "failureClasses": [
-        "repair-execution-boundary",
-        "source-repair-vs-regression",
-        "handoff-integrity"
-      ],
-      "fingerprints": [],
-      "rootCauses": [
-        "scope-integrity",
-        "repair-proof"
-      ],
-      "scope": {
-        "allowed": [
-          "consume immutable diagnosis",
-          "perform bounded source repair",
-          "run targeted regression",
-          "preserve proof obligations"
-        ],
-        "forbidden": [
-          "test-only substitution for source correction",
-          "scope drift",
-          "closure without exact-SHA proof",
-          "direct source mutation by taskAgent",
-          "commit/push/merge/certification authority"
-        ],
-        "protected": [
-          "repair control plane",
-          "certification authority",
-          "security boundaries"
-        ],
-        "verificationBoundary": [
-          "root-cause correction",
-          "targeted regression",
-          "canonical exact-SHA evidence"
-        ]
-      },
-      "repairStrategy": [
-        "root-cause-first",
-        "bounded-diff",
-        "proof-before-closure"
-      ],
-      "verificationPlan": [
-        "safe-task contract",
+        "capture evidence",
+        "fingerprint",
+        "RCA/falsify",
+        "causal repair",
         "targeted regression",
+        "affected graph",
+        "learn"
+      ],
+      "verificationPlan": [
+        "targeted regression",
+        "contract verification",
+        "required CI",
+        "external classification",
         "exact-SHA proof"
       ],
       "learningRequirements": [
-        "preserve causal correction and prevention outcome",
-        "carry promptId through handoff"
-      ],
-      "status": "DEPRECATED",
-      "version": 1,
-      "createdBy": "pre-existing repository prompt",
-      "lastUpdatedBy": "pre-existing repository prompt",
-      "provenance": {
-        "sourceFiles": [
-          "docs/agents/SAFE-TASK-AGENT-EXECUTION.md",
-          "docs/AGENT-COLLABORATION-PROTOCOL.md"
-        ],
-        "sourceSha": "d78e8db4c6b4b7e0655368183eac15694498c344",
-        "note": "Deprecated because its legacy wording granted direct mutation authority to taskAgent; canonical Task Agent authority is preparation-only. Repair mutation belongs to repairAgent/executionAgent."
-      },
-      "relatedPrompts": [
-        "RPR-EXISTING-TASK-PREP-001",
-        "RPR-EXISTING-ACTIVE-CYCLE-001"
-      ],
-      "supersedes": [],
-      "supersededBy": [
-        "RPR-EXISTING-TASK-PREP-001"
-      ],
-      "antiPatterns": [
-        "test-only fix",
-        "unbounded mutation",
-        "history-only verification"
-      ],
-      "exactShaRequirements": {
-        "required": true,
-        "bindAtExecution": true,
-        "source": "handoff.entrySha",
-        "mustEqual": "authoritative execution baseline",
-        "historicalProvenanceIsNotProof": true
-      }
-    },
-    {
-      "promptId": "RPR-EXISTING-ACTIVE-CYCLE-001",
-      "title": "FLIXO Active Repair Cycle Prompt",
-      "path": "docs/agents/ACTIVE-REPAIR-CYCLE-PROTOCOL.md",
-      "domain": "repair-cycle",
-      "agentRole": "repairAgent",
-      "failureClasses": [
-        "active-repair-cycle",
-        "recurrence",
-        "learning-handoff"
-      ],
-      "fingerprints": [],
-      "rootCauses": [
-        "repair-orchestration"
-      ],
-      "scope": {
-        "allowed": [
-          "execute lifecycle stages already authorized by protocol",
-          "retain failure and verification evidence",
-          "emit learning outcome"
-        ],
-        "forbidden": [
-          "authority escalation",
-          "policy override",
-          "closure without proof"
-        ],
-        "protected": [
-          "repair protocol",
-          "control plane",
-          "certification"
-        ],
-        "verificationBoundary": [
-          "targeted regression",
-          "affected-contract verification",
-          "recurrence proof",
-          "exact-SHA evidence"
-        ]
-      },
-      "repairStrategy": [
-        "failure-capture-first",
-        "root-cause-first",
-        "bounded-repair",
-        "recurrence-check"
-      ],
-      "verificationPlan": [
-        "targeted-regression",
-        "full-required-verification",
-        "recurrence-check",
-        "exact-SHA-proof"
-      ],
-      "learningRequirements": [
-        "lesson on success",
-        "anti-lesson on failure",
-        "rejection signal on revert"
+        "RCA",
+        "strategy/antiLesson",
+        "verification",
+        "recurrence prevention",
+        "blocker antiLesson"
       ],
       "status": "ACTIVE",
-      "version": 1,
-      "createdBy": "pre-existing repository prompt",
-      "lastUpdatedBy": "pre-existing repository prompt",
+      "version": "1.0.0",
+      "createdBy": "prompt-consolidation",
+      "lastUpdatedBy": "prompt-consolidation",
       "provenance": {
-        "sourceFiles": [
-          "docs/agents/ACTIVE-REPAIR-CYCLE-PROTOCOL.md",
-          "docs/AGENT-COLLABORATION-PROTOCOL.md"
-        ],
-        "sourceSha": "d78e8db4c6b4b7e0655368183eac15694498c344"
+        "source": "three-prompt consolidation",
+        "replacedFamilies": [
+          "RPR-MASTER-LIFECYCLE-001",
+          "RPR-EXISTING-TASK-PREP-001",
+          "RPR-EXISTING-SAFE-TASK-001",
+          "RPR-EXISTING-ACTIVE-CYCLE-001",
+          "RPR-ORCHESTRATION-PREFLIGHT-001",
+          "RPR-EXTERNAL-TOOLING-001",
+          "RPR-REGEX-CONTRACT-001",
+          "RPR-ARCHITECTURE-REGISTRY-001",
+          "RPR-CANONICAL-CONTRACT-DRIFT-001"
+        ]
       },
       "relatedPrompts": [
-        "RPR-MASTER-LIFECYCLE-001"
+        "RPR-MASTER-EXECUTION-001",
+        "RPR-FLIXO-PRODUCT-001"
       ],
       "supersedes": [],
       "supersededBy": [],
       "antiPatterns": [
-        "blind retry",
-        "regression-only closure",
-        "history-only proof"
+        "test-weakening",
+        "blind-retry",
+        "gate-bypass",
+        "external-masking",
+        "unbounded-repair"
       ],
-      "exactShaRequirements": {
-        "required": true,
-        "bindAtExecution": true,
-        "source": "repair-session.targetSHA",
-        "mustEqual": "repair session target SHA",
-        "historicalProvenanceIsNotProof": true
-      }
+      "exactShaRequirements": [
+        "current execution SHA",
+        "invalidate on SHA change",
+        "targeted verification",
+        "affected graph verification",
+        "canonical certification"
+      ]
     },
     {
-      "promptId": "RPR-ORCHESTRATION-PREFLIGHT-001",
-      "title": "Orchestration Preflight Repair Specialist",
-      "path": "المهام.md",
-      "domain": "orchestration",
-      "agentRole": "repairAgent",
+      "promptId": "RPR-FLIXO-PRODUCT-001",
+      "title": "FLIXO Product, Platform & Image-Agent Build",
+      "domain": "product-platform-agent",
+      "agentRole": "development-agent",
+      "sourcePath": "docs/agents/PROMPT-03-FLIXO-PRODUCT.md",
       "failureClasses": [
-        "repeated-identical-preflight-red",
-        "recursive-repair-dispatch",
-        "stale-repair-target",
-        "gh-cli-contract"
+        "PRODUCT",
+        "IMAGE_AGENT",
+        "REGISTRY",
+        "ADMIN",
+        "I18N",
+        "PERFORMANCE",
+        "SECURITY"
       ],
       "fingerprints": [
-        "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
-        "89cee10f43acf1244d064dab19f9a351b8acafcf"
+        "registry-asymmetry",
+        "unsupported-capability",
+        "route-drift",
+        "i18n-runtime-drift",
+        "persistence-failure"
       ],
       "rootCauses": [
-        "orchestration"
+        "duplicate-source-of-truth",
+        "llm-execution-authority",
+        "ui-only-persistence",
+        "locale-asymmetry"
       ],
-      "scope": {
-        "allowed": [
-          "repair dispatcher/preflight correctness in declared scope",
-          "fix command-shape validation",
-          "add deterministic guards and targeted regressions"
-        ],
-        "forbidden": [
-          "repeat identical preflight attempt",
-          "blind retry",
-          "stale rebase",
-          "gate weakening",
-          "mutation outside diagnosed orchestration scope"
-        ],
-        "protected": [
-          "repair-protocol authority",
-          "canonical CI certification",
-          "exact-SHA identity"
-        ],
-        "verificationBoundary": [
-          "reproduce preflight failure",
-          "falsify old strategy",
-          "targeted orchestration regression",
-          "canonical required gates"
-        ]
-      },
+      "scope": "image agent, Capability Registry, tools, admin, localization, performance, safety and release",
       "repairStrategy": [
-        "freeze-target-before-mutation",
-        "stop-on-identical-preflight-fingerprint",
-        "test-exact-command-shape",
-        "reject-stale-rebase"
+        "inspect registry",
+        "reuse contracts",
+        "bounded implementation",
+        "targeted regression",
+        "affected graph verification"
       ],
       "verificationPlan": [
-        "preflight architecture test",
-        "repair control-plane test",
-        "exact-SHA identity",
-        "canonical CI"
+        "unit/contract",
+        "registry symmetry",
+        "runtime/browser",
+        "security",
+        "exact-SHA"
       ],
       "learningRequirements": [
-        "record promptId",
-        "record rejected strategy when preflight repeats",
-        "promote only after verified recurrence check"
+        "implementation lesson",
+        "registry lesson",
+        "performance lesson",
+        "prevention"
       ],
       "status": "ACTIVE",
-      "version": 1,
-      "createdBy": "FLIXO Prompt Intelligence Layer",
-      "lastUpdatedBy": "FLIXO Prompt Intelligence Layer",
+      "version": "1.0.0",
+      "createdBy": "prompt-consolidation",
+      "lastUpdatedBy": "prompt-consolidation",
       "provenance": {
-        "sourceFiles": [
-          "diagnostics/auto-repair/memory.json",
-          "scripts/ci/auto-repair-engine.mjs",
-          "scripts/ci/repair-protocol.mjs"
-        ],
-        "sourceSha": "d78e8db4c6b4b7e0655368183eac15694498c344"
+        "source": "three-prompt consolidation",
+        "replacedFamilies": [
+          "RPR-MASTER-LIFECYCLE-001",
+          "RPR-EXISTING-TASK-PREP-001",
+          "RPR-EXISTING-SAFE-TASK-001",
+          "RPR-EXISTING-ACTIVE-CYCLE-001",
+          "RPR-ORCHESTRATION-PREFLIGHT-001",
+          "RPR-EXTERNAL-TOOLING-001",
+          "RPR-REGEX-CONTRACT-001",
+          "RPR-ARCHITECTURE-REGISTRY-001",
+          "RPR-CANONICAL-CONTRACT-DRIFT-001"
+        ]
       },
       "relatedPrompts": [
-        "RPR-MASTER-LIFECYCLE-001",
-        "RPR-EXISTING-ACTIVE-CYCLE-001"
+        "RPR-MASTER-EXECUTION-001",
+        "RPR-ERROR-REPAIR-001"
       ],
       "supersedes": [],
       "supersededBy": [],
       "antiPatterns": [
-        "recursive dispatch after preflight failure",
-        "rebasing a verified repair onto a moved execution head",
-        "using later certification symptoms as primary RCA"
+        "second-registry",
+        "invented-tool-id",
+        "invented-parameter",
+        "mock-success",
+        "security-bypass"
       ],
-      "exactShaRequirements": {
-        "required": true,
-        "bindAtExecution": true,
-        "source": "repair-target.failedSha",
-        "mustEqual": "failed SHA captured at preflight",
-        "historicalProvenanceIsNotProof": true
-      }
-    },
-    {
-      "promptId": "RPR-EXTERNAL-TOOLING-001",
-      "title": "External Tooling Blocker Specialist",
-      "path": "المهام.md",
-      "domain": "external-tooling",
-      "agentRole": "repairAgent",
-      "failureClasses": [
-        "provider-model-rejection",
-        "external-rate-limit",
-        "external-service-block"
-      ],
-      "fingerprints": [
-        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-      ],
-      "rootCauses": [
-        "external-tooling"
-      ],
-      "scope": {
-        "allowed": [
-          "prove external failure",
-          "record provider signature",
-          "add repository-side false-repair guards when independently justified"
-        ],
-        "forbidden": [
-          "pretend external failure is source RCA",
-          "blind retries",
-          "downgrade required checks",
-          "change security thresholds to hide provider rejection",
-          "claim internal repair success"
-        ],
-        "protected": [
-          "security gates",
-          "certification",
-          "provider authority"
-        ],
-        "verificationBoundary": [
-          "fresh exact-SHA evidence",
-          "provider error signature",
-          "external-block classification",
-          "no unrelated source mutation"
-        ]
-      },
-      "repairStrategy": [
-        "classify-before-mutation",
-        "preserve-external-block",
-        "do-not-retry-identical-provider-error",
-        "keep-internal-code-unchanged-unless-independent-RCA-exists"
-      ],
-      "verificationPlan": [
-        "provider evidence freshness",
-        "external guard regression",
-        "explicit BLOCKED_EXTERNAL disposition"
-      ],
-      "learningRequirements": [
-        "record outcome as blocked-external",
-        "publish anti-lesson for incorrect internal workaround",
-        "never increase repair-success confidence from external blockage"
-      ],
-      "status": "ACTIVE",
-      "version": 1,
-      "createdBy": "FLIXO Prompt Intelligence Layer",
-      "lastUpdatedBy": "FLIXO Prompt Intelligence Layer",
-      "provenance": {
-        "sourceFiles": [
-          "diagnostics/auto-repair/memory.json",
-          "docs/AGENT-COLLABORATION-PROTOCOL.md"
-        ],
-        "sourceSha": "d78e8db4c6b4b7e0655368183eac15694498c344"
-      },
-      "relatedPrompts": [
-        "RPR-MASTER-LIFECYCLE-001"
-      ],
-      "supersedes": [],
-      "supersededBy": [],
-      "antiPatterns": [
-        "treating provider CAPI rejection as source-code defect",
-        "rerun loops with unchanged external rejection",
-        "marking blocked-external as repaired"
-      ],
-      "exactShaRequirements": {
-        "required": true,
-        "bindAtExecution": true,
-        "source": "evidence.entrySha",
-        "mustEqual": "SHA on which external evidence was observed",
-        "historicalProvenanceIsNotProof": true
-      }
-    },
-    {
-      "promptId": "RPR-REGEX-CONTRACT-001",
-      "title": "Regex Contract Repair Specialist",
-      "path": "المهام.md",
-      "domain": "lint-contracts",
-      "agentRole": "repairAgent",
-      "failureClasses": [
-        "regex-lint",
-        "escaped-command-assertion",
-        "contract-test-literal-mismatch"
-      ],
-      "fingerprints": [
-        "cc208a65323355b8846d7aa6d7e85f742feb8909",
-        "b7676df7aa32ad7e718f524ad84aa826d3b28b6c"
-      ],
-      "rootCauses": [
-        "lint",
-        "contract-validation"
-      ],
-      "scope": {
-        "allowed": [
-          "repair the failing assertion or source regex in the diagnosed file",
-          "add focused regression for exact emitted contract"
-        ],
-        "forbidden": [
-          "broad lint reformatting",
-          "changing product behavior to satisfy an assertion",
-          "weakening assertion semantics",
-          "cross-command multiline regex matching"
-        ],
-        "protected": [
-          "canonical workflow behavior",
-          "security assertions",
-          "exact emitted command shape"
-        ],
-        "verificationBoundary": [
-          "reproduce exact lint/contract failure",
-          "repair only necessary escaping",
-          "targeted test",
-          "static gate"
-        ]
-      },
-      "repairStrategy": [
-        "preserve-contract-semantics",
-        "minimize-escaping-change",
-        "prefer-literal-aware-assertion",
-        "test-exact-emitted-text"
-      ],
-      "verificationPlan": [
-        "targeted assertion test",
-        "lint",
-        "static gate",
-        "exact-SHA evidence"
-      ],
-      "learningRequirements": [
-        "record exact assertion failure and syntax correction",
-        "publish anti-lesson for extra-escape regression",
-        "retain promptId in provenance"
-      ],
-      "status": "ACTIVE",
-      "version": 1,
-      "createdBy": "FLIXO Prompt Intelligence Layer",
-      "lastUpdatedBy": "FLIXO Prompt Intelligence Layer",
-      "provenance": {
-        "sourceFiles": [
-          "diagnostics/auto-repair/memory.json",
-          "scripts/ci/validate-agent-protocol.mjs",
-          "scripts/ci/test-auto-repair-architecture.mjs"
-        ],
-        "sourceSha": "d78e8db4c6b4b7e0655368183eac15694498c344"
-      },
-      "relatedPrompts": [
-        "RPR-MASTER-LIFECYCLE-001"
-      ],
-      "supersedes": [],
-      "supersededBy": [],
-      "antiPatterns": [
-        "addslashes-until-lint-passes",
-        "cross-command multiline regex",
-        "test-only patch without source correction"
-      ],
-      "exactShaRequirements": {
-        "required": true,
-        "bindAtExecution": true,
-        "source": "evidence.entrySha",
-        "mustEqual": "SHA under test",
-        "historicalProvenanceIsNotProof": true
-      }
-    },
-    {
-      "promptId": "RPR-ARCHITECTURE-REGISTRY-001",
-      "title": "Canonical Registry Symmetry Specialist",
-      "path": "المهام.md",
-      "domain": "architecture-control-plane",
-      "agentRole": "repairAgent",
-      "failureClasses": [
-        "registry-symmetry",
-        "noncanonical-automation",
-        "control-plane-registration-gap"
-      ],
-      "fingerprints": [
-        "11a69c066357a565d2cc26afd516d4b2d1eb6f7b"
-      ],
-      "rootCauses": [
-        "architecture"
-      ],
-      "scope": {
-        "allowed": [
-          "align existing repair-control surface with canonical registry",
-          "add/update corresponding validator and regression together"
-        ],
-        "forbidden": [
-          "create a second registry",
-          "introduce a parallel control plane",
-          "silently delete historical evidence",
-          "weaken registry validator"
-        ],
-        "protected": [
-          "docs/PROTOCOL-REGISTRY.json",
-          "scripts/ci/control-plane-registry.mjs",
-          "canonical certification surface"
-        ],
-        "verificationBoundary": [
-          "registry/workflow symmetry check",
-          "architecture regression",
-          "static/build",
-          "exact-SHA proof"
-        ]
-      },
-      "repairStrategy": [
-        "canonical-source-first",
-        "atomic-registry-validator-workflow-update",
-        "fail-closed-on-unregistered-control-surface"
-      ],
-      "verificationPlan": [
-        "architecture registry test",
-        "static gate",
-        "canonical CI/control-plane validation",
-        "exact-SHA identity"
-      ],
-      "learningRequirements": [
-        "record promptId",
-        "record symmetry rule",
-        "mark unregistered automation as architecture defect"
-      ],
-      "status": "ACTIVE",
-      "version": 1,
-      "createdBy": "FLIXO Prompt Intelligence Layer",
-      "lastUpdatedBy": "FLIXO Prompt Intelligence Layer",
-      "provenance": {
-        "sourceFiles": [
-          "diagnostics/auto-repair/memory.json",
-          "scripts/ci/control-plane-registry.mjs",
-          "docs/PROTOCOL-HIERARCHY.md"
-        ],
-        "sourceSha": "d78e8db4c6b4b7e0655368183eac15694498c344"
-      },
-      "relatedPrompts": [
-        "RPR-MASTER-LIFECYCLE-001"
-      ],
-      "supersedes": [],
-      "supersededBy": [],
-      "antiPatterns": [
-        "workflow-without-registry-entry",
-        "validator-only-fix",
-        "parallel-registry"
-      ],
-      "exactShaRequirements": {
-        "required": true,
-        "bindAtExecution": true,
-        "source": "evidence.entrySha",
-        "mustEqual": "SHA containing the registry-aligned repair",
-        "historicalProvenanceIsNotProof": true
-      }
-    },
-    {
-      "promptId": "RPR-CANONICAL-CONTRACT-DRIFT-001",
-      "title": "Canonical Contract & Automation Drift Repair Specialist",
-      "path": "docs/agents/prompts/CANONICAL-CONTRACT-DRIFT-001.md",
-      "domain": "canonical-contract-repair",
-      "agentRole": "repairAgent",
-      "failureClasses": [
-        "canonical-contract-drift",
-        "liveness-contract",
-        "noncanonical-automation",
-        "workflow-invocation",
-        "http-422",
-        "contract-test-mismatch"
-      ],
-      "fingerprints": [],
-      "rootCauses": [
-        "noncanonical-automation",
-        "liveness-contract",
-        "contract-drift"
-      ],
-      "scope": {
-        "allowed": [
-          "restore consumers/tests to the current canonical liveness contract",
-          "remove duplicate/manual workflow dispatch when canonical ownership is proven",
-          "repair narrow contract assertions and ownership-path logic",
-          "add focused regression for the demonstrated state/dispatch contract"
-        ],
-        "forbidden": [
-          "changing canonical policy only to satisfy stale assertions",
-          "ignoring or retrying canonical HTTP 422 responses without RCA",
-          "duplicate workflow dispatch",
-          "gate weakening",
-          "test suppression",
-          "third branch or main mutation",
-          "closure without exact-SHA proof"
-        ],
-        "protected": [
-          "scripts/ci/agent-liveness-protocol.mjs",
-          ".github/workflows/agent-repair-heartbeat.yml",
-          ".github/workflows/execution-bot-watchdog.yml",
-          ".github/workflows/daily-flixo-green-gate.yml",
-          "repair control plane",
-          "security and certification surfaces"
-        ],
-        "verificationBoundary": [
-          "exact failure reproduction",
-          "current canonical contract comparison",
-          "targeted liveness/heartbeat regression",
-          "affected contract validation",
-          "canonical CI",
-          "exact-SHA evidence"
-        ]
-      },
-      "repairStrategy": [
-        "canonical-source-first",
-        "contract-drift-detection",
-        "single-owner-dispatch",
-        "minimal-causal-repair",
-        "targeted-regression-before-full-verification",
-        "fail-closed-on-ambiguous-authority"
-      ],
-      "verificationPlan": [
-        "test-agent-liveness-protocol",
-        "test-auto-repair-architecture",
-        "validate-auto-repair-boundary",
-        "targeted heartbeat/watchdog contract verification",
-        "affected static/build checks",
-        "canonical required CI",
-        "exact-SHA recheck"
-      ],
-      "learningRequirements": [
-        "record exact canonical source consulted",
-        "record whether consumer or authoritative contract was repaired",
-        "record duplicate-dispatch prevention outcome",
-        "record lesson or anti-lesson with exact SHA and run evidence"
-      ],
-      "status": "ACTIVE",
-      "version": 1,
-      "createdBy": "FLIXO Prompt Intelligence Layer",
-      "lastUpdatedBy": "FLIXO Prompt Intelligence Layer",
-      "provenance": {
-        "sourceFiles": [
-          "scripts/ci/agent-liveness-protocol.mjs",
-          "scripts/ci/agent-repair-heartbeat.yml",
-          ".github/workflows/daily-flixo-green-gate.yml",
-          "scripts/ci/validate-auto-repair-boundary.mjs",
-          "diagnostics/auto-repair/memory.json"
-        ],
-        "sourceSha": "d78e8db4c6b4b7e0655368183eac15694498c344",
-        "note": "Specialist prompt created from recurring liveness contract drift and noncanonical heartbeat dispatch failures."
-      },
-      "relatedPrompts": [
-        "RPR-ORCHESTRATION-PREFLIGHT-001",
-        "RPR-EXISTING-ACTIVE-CYCLE-001",
-        "RPR-MASTER-LIFECYCLE-001"
-      ],
-      "supersedes": [],
-      "supersededBy": [],
-      "antiPatterns": [
-        "legacy forbidden-state assertions",
-        "direct Daily Green Gate dispatch from heartbeat",
-        "HTTP 422 retry masking",
-        "parallel wake authority",
-        "test-only closure"
-      ],
-      "exactShaRequirements": {
-        "required": true,
-        "bindAtExecution": true,
-        "source": "repair-target.failedSha",
-        "mustEqual": "current repair target SHA",
-        "historicalProvenanceIsNotProof": true
-      }
+      "exactShaRequirements": [
+        "current execution SHA",
+        "invalidate on SHA change",
+        "targeted verification",
+        "affected graph verification",
+        "canonical certification"
+      ]
     }
   ]
 }

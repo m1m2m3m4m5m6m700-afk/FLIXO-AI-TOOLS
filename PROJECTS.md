@@ -77,7 +77,7 @@ ADMIN PROVENANCE = production Vercel→Supabase binding not proven
 | BUILD-002 | CLOSED / VERIFIED | Preserve canonical artifact identity producer/consumer contract |
 | TEST-001 | CLOSED / VERIFIED | Preserve deterministic ownership registry and validator |
 | AGENT-PROTOCOL-003 | CLOSED / VERIFIED | Preserve proof-driven fail-closed repair lifecycle and learning/prevention contracts |
-| AGENT-PROMPT-INTEL-001 | IMPLEMENTED / VERIFICATION PENDING | Shared Prompt Registry + causal deduplication + quality gate + Task Agent prompt provenance | Run current main canonical static/contract verification; reconcile execution exact-SHA before promotion |
+| AGENT-PROMPT-INTEL-001 | CONSOLIDATED / VERIFICATION PENDING | Shared Prompt Registry + causal deduplication + quality gate + Task Agent prompt provenance | Run current main canonical static/contract verification; reconcile execution exact-SHA before promotion |
 | DEBT-001 | BLOCKED_EXTERNAL | Deterministic validator delivered; required exact-head external security/Vercel gates are unresolved |
 | TOOL-EXPANSION | CANDIDATE | Activate only after a fresh deterministic scope is proven |
 
@@ -217,8 +217,7 @@ PURPOSE = Build one shared Prompt Intelligence Layer over Error Detection → Fi
 CANONICAL REGISTRY = docs/agents/PROMPT-REGISTRY.json
 VALIDATOR ENTRYPOINT = scripts/ci/validate-prompt-registry.mjs
 REGISTRY ENGINE = scripts/ci/prompt-registry.mjs
-MASTER PROMPT = RPR-MASTER-LIFECYCLE-001 → المهام.md
-SPECIALIST PROMPTS = RPR-ORCHESTRATION-PREFLIGHT-001, RPR-EXTERNAL-TOOLING-001, RPR-REGEX-CONTRACT-001, RPR-ARCHITECTURE-REGISTRY-001; task preparation uses RPR-EXISTING-TASK-PREP-001
+ACTIVE PROMPTS = RPR-MASTER-EXECUTION-001, RPR-ERROR-REPAIR-001, RPR-FLIXO-PRODUCT-001; canonical text lives in docs/agents/PROMPT-01-MASTER-EXECUTION.md, docs/agents/PROMPT-02-ERROR-REPAIR.md, docs/agents/PROMPT-03-FLIXO-PRODUCT.md
 LEARNING PROVENANCE = promptId + promptVersion + masterPromptId + promptDecision + promptRegistrySha
 EXACT-SHA = prompt selection is bound to the active repair target SHA; Prompt text never grants authority.
 DUPLICATION RULE = compare failureClasses + rootCauses + scope + repairStrategy + verificationPlan; hard duplicates cannot be ACTIVE together.
