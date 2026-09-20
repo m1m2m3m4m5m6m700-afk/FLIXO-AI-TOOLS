@@ -184,8 +184,16 @@ jobs:
           node --experimental-strip-types scripts/ci/generate-repair-execution-prompts.mjs             /tmp/flixo-watch/input.json             /tmp/flixo-watch/report.json             /tmp/flixo-watch/execution-prompts.json             /tmp/flixo-watch/execution-prompts.md
           test -s /tmp/flixo-watch/execution-prompts.json
           test -s /tmp/flixo-watch/execution-prompts.md
-          PROMPT_COUNT="$(jq -r '.promptCount' /tmp/flixo-watch/execution-prompts.json)"
-          PROMPT_DIGEST="$(jq -r '.digest' /tmp/flixo-watch/execution-prompts.json)"
+          PROMPT_META="$(node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const bundle = JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json', 'utf8'));
+          if (!Number.isInteger(bundle.promptCount) || bundle.promptCount < 0) throw new Error('PROMPT_BUNDLE_PROMPT_COUNT_INVALID');
+          if (!/^[a-f0-9]{64}$/u.test(String(bundle.digest ?? ''))) throw new Error('PROMPT_BUNDLE_DIGEST_INVALID');
+          process.stdout.write(JSON.stringify({ promptCount: bundle.promptCount, digest: bundle.digest }));
+          NODE
+          )"
+          PROMPT_COUNT="$(node --input-type=module -e "const x=JSON.parse(process.env.PROMPT_META); process.stdout.write(String(x.promptCount))" )"
+          PROMPT_DIGEST="$(node --input-type=module -e "const x=JSON.parse(process.env.PROMPT_META); process.stdout.write(String(x.digest))" )"
           echo "REPAIR_PROMPT_COUNT=$PROMPT_COUNT"
           echo "REPAIR_PROMPT_DIGEST=$PROMPT_DIGEST"
           echo "REPAIR_PROMPT_SOURCE_RUN_ID=$GITHUB_RUN_ID"
