@@ -39,7 +39,7 @@ if(!selectedPaths.includes(diagnosis.location.file)) throw new Error('ACTION_PRI
 if(!strategy.strategyId && !strategy.selected?.id) throw new Error('ACTION_PRIMARY_PROOF_STRATEGY_REQUIRED');
 
 const proof={
-  schemaVersion:1,
+  schemaVersion:2,
   protocol:'ACTION-PRIMARY-CORRECTNESS-PROOF-v1',
   role:'PRIMARY_CORRECTNESS_PROVER',
   agentId:'ACTION-REPAIR',
