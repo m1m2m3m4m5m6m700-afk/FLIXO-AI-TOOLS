@@ -3,7 +3,7 @@ import { assertExecutionResourceBudget, getCapability, validateCapabilityParamet
 import { getToolById, TOOL_CATALOG } from '@/config/registry';
 import { getToolExecutor, repairToolParameters } from '@/lib/workflows/executor-registry';
 import { assertToolOutputContract, getToolOutputContractForDefinition, type ToolOutputResult } from '@/lib/contracts/tool-output-contracts';
-import { appendPipelineStepReceipt, createPipelineReceiptChain, createPipelineStepReceipt, type PipelineReceiptChain, type PipelineStepReceipt } from '@/lib/workflows/pipeline-receipt';
+import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelineReceiptChain, createPipelineStepReceipt, type PipelineReceiptChain, type PipelineStepReceipt } from '@/lib/workflows/pipeline-receipt';
 
 export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; outputBlob?: Blob; retry?: number; receipt?: PipelineStepReceipt; receiptChain?: PipelineReceiptChain; }
 export class PipelineVerificationError extends Error {
@@ -101,5 +101,6 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
     if (!verified) throw new PipelineVerificationError(`Verification failed for '${step.toolId}'.`, stableBlob, i, step.toolId);
   }
 
+  await assertPipelineReceiptChain(receiptChain);
   return currentBlob;
 }
