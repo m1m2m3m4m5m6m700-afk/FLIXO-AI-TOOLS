@@ -7,6 +7,8 @@ import { execFileSync } from 'node:child_process';
 import { validatePatchOperation, applyPatchOperations } from './action-patch-synthesis.mjs';
 import { runAstRepair } from './auto-repair/ast-repair.mjs';
 import { verifyDifferential } from './action-differential-verifier.mjs';
+import { buildDifferentialProof } from './differential-repair-proof.mjs';
+import { searchRegressionCounterexamples } from './regression-counterexamples.mjs';
 
 const exactSha = (value) => /^[a-f0-9]{40}$/u.test(String(value));
 const sha256 = (value) => crypto.createHash('sha256').update(String(value), 'utf8').digest('hex');
@@ -19,6 +21,7 @@ const run = (cwd, file, args, timeout = 120_000) => execFileSync(file, args, {
 });
 
 const parseCheck = (check) => {
+  if (Array.isArray(check) && check.length === 2) return [String(check[0]), Array.isArray(check[1]) ? check[1] : []];
   const value = String(check).trim();
   if (value === 'npm run typecheck') return ['npm', ['run', 'typecheck']];
   if (value === 'npm run lint') return ['npm', ['run', 'lint']];
@@ -185,6 +188,7 @@ export function simulateAstRepair({
   targetSha,
   selected,
   checks = [],
+  failureLog = '',
 } = {}) {
   if (!taskId || !fingerprint || !exactSha(targetSha)) throw new Error('SANDBOX_AST_IDENTITY_REQUIRED');
   if (!selected || typeof selected !== 'object') throw new Error('SANDBOX_AST_SELECTION_REQUIRED');
@@ -199,12 +203,22 @@ export function simulateAstRepair({
     added = true;
     const head = runGit(worktree, ['rev-parse', 'HEAD']).trim();
     if (head !== targetSha) throw new Error('SANDBOX_AST_TARGET_SHA_MISMATCH');
+    const baseFiles = {};
     runAstRepair(worktree, selected);
     const diff = runGit(worktree, ['diff', '--binary']);
-    const changedFiles = runGit(worktree, ['diff', '--name-only', targetSha]).split(/\\r?\\n/u).filter(Boolean);
+    const changedFiles = runGit(worktree, ['diff', '--name-only', targetSha]).split(/\r?\n/u).filter(Boolean);
     if (!diff || !changedFiles.length) throw new Error('SANDBOX_AST_PATCH_EMPTY');
+    for (const file of changedFiles) {
+      try { baseFiles[file] = runGit(worktree, ['show', `HEAD:${file}`]); } catch { baseFiles[file] = ''; }
+    }
+    const candidateFiles = {};
+    for (const file of changedFiles) {
+      try { candidateFiles[file] = fs.readFileSync(path.join(worktree, file), 'utf8'); } catch { candidateFiles[file] = ''; }
+    }
     const unexpected = changedFiles.filter((file) => !allowedPaths.includes(file));
     if (unexpected.length) throw new Error('SANDBOX_AST_SCOPE_EXCEEDED=' + unexpected.join(','));
+    let diffCheck = true;
+    try { runGit(worktree, ['diff', '--check']); } catch { diffCheck = false; }
     const results = runSandboxChecks(worktree, checks);
     const differential = verifyDifferential({
       repoRoot: worktree,
@@ -217,12 +231,39 @@ export function simulateAstRepair({
       baselineStatus: 'PASS',
       requireExecutionEvidence: true,
     });
+    const differentialProof = buildDifferentialProof({
+      targetSha,
+      failureFingerprint: fingerprint,
+      changedPaths: changedFiles,
+      baseFiles,
+      candidateFiles,
+      diff,
+      protectedPaths: ['scripts/ci/repair-protocol.mjs', 'scripts/ci/auto-repair-engine.mjs', '.github/workflows/auto-repair.yml', 'scripts/ci/auto-repair/'],
+      verification: {
+        ok: results.length > 0 && results.every((item) => item.status === 'PASS'),
+        diffCheck,
+        commands: checks,
+      },
+      scopeFiles: allowedPaths,
+    });
+    const regressionCounterexamples = searchRegressionCounterexamples({
+      targetSha,
+      failureFingerprint: fingerprint,
+      selectedFiles: allowedPaths,
+      relatedFiles: changedFiles,
+      diff,
+      sourceFiles: { ...baseFiles, ...candidateFiles },
+      failureLog,
+    });
     const failed = results.find((item) => item.status !== 'PASS' || Number(item.exitCode ?? 1) !== 0);
     const patchDigest = sha256(diff);
+    const status = failed || differential.status !== 'PASS' || differentialProof.status !== 'PASS' || regressionCounterexamples.counterexampleFound
+      ? 'FAIL'
+      : 'PASS';
     return {
-      schemaVersion: 2,
-      protocol: 'REPAIR_SANDBOX_SIMULATION_V1',
-      status: failed || differential.status !== 'PASS' ? 'FAIL' : 'PASS',
+      schemaVersion: 3,
+      protocol: 'REPAIR-SANDBOX-SIMULATION-PROOF-v2',
+      status,
       taskId,
       failureFingerprint: fingerprint,
       targetSha,
@@ -234,12 +275,25 @@ export function simulateAstRepair({
       patchDigest,
       checks: results,
       differential,
+      differentialProof,
+      regressionCounterexamples,
+      baseFiles,
+      candidateFiles,
+      candidateDiff: diff,
+      scopeOk: unexpected.length === 0,
+      behavioralVerification: {
+        ok: results.length > 0 && results.every((item) => item.status === 'PASS'),
+        commands: checks,
+        diffCheck,
+      },
       patchCorrectnessProof: {
-        status: failed || differential.status !== 'PASS' ? 'UNPROVEN' : 'PROVEN',
+        status,
         targetSha,
         patchDigest,
         differentialStatus: differential.status,
-        executionEvidence: results,
+        differentialProofStatus: differentialProof.status,
+        counterexampleStatus: regressionCounterexamples.status,
+        executedChecks: results,
         mutationPerformed: false,
       },
     };
