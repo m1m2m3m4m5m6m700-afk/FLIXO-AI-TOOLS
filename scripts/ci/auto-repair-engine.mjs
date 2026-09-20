@@ -88,9 +88,11 @@ const historicalRollbackCandidate = findHistoricalRepairCandidate(targetDir, {
   historyLimit: Number(process.env.FLIXO_HISTORY_LIMIT ?? 30),
 });
 
-if ((known?.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint && !historicalRollbackCandidate) {
-  console.log('AUTO_REPAIR_RESULT=LEARNING_MEMORY_BLOCK');
-  process.exit(0);
+// Continuous RED invariant: learning may escalate and rotate strategy, but it may never
+// terminate an actionable repair chain. Canonical GREEN is the only closure authority.
+if ((known?.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint) {
+  console.log('AUTO_REPAIR_RESULT=LEARNING_ESCALATION_CONTINUE');
+  console.log('AUTO_REPAIR_REASON=MAX_ATTEMPTS_IS_NOT_A_TERMINAL_STATE');
 }
 if (repairPolicy.requireCleanGitBeforeRepair && git(['status', '--porcelain']).trim()) throw new Error('AUTO_REPAIR_DIRTY_WORKTREE');
 
