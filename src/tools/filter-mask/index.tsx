@@ -359,6 +359,33 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
   }
 
+  async function shareSetup() {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'FLIXO Filter Mask', url });
+        setError('');
+        return;
+      } catch (cause) {
+        if (cause instanceof DOMException && cause.name === 'AbortError') return;
+        setError(copy.shareSetupFailed);
+        return;
+      }
+    }
+
+    if (!navigator.clipboard?.writeText) {
+      setError(copy.shareSetupUnsupported);
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setError('');
+    } catch {
+      setError(copy.shareSetupFailed);
+    }
+  }
+
   async function shareResult() {
     if (!capturedUrl) return;
     const filename = capturedKind === 'video' ? 'flixo-filter-mask.webm' : 'flixo-filter-mask.jpg';
@@ -597,6 +624,9 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
           </a>
           <button type="button" onClick={() => void shareResult()}>
             {copy.share}
+          </button>
+          <button type="button" onClick={() => void shareSetup()}>
+            {copy.shareSetup}
           </button>
         </div>
       )}
