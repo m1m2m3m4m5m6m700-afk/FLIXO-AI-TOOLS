@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { runGate, validateBotProfile, validateExecutionBoundaries, EXPECTED_BOTS } from './action-vault-agent-gate.mjs';
 
 const result = runGate();
@@ -7,7 +8,7 @@ assert.equal(result.status, 'PASS', JSON.stringify(result, null, 2));
 assert.equal(result.botCount, 3);
 assert.ok(result.errors.length === 0, JSON.stringify(result.errors));
 assert.deepEqual(result.bots.map((x) => x.botId), EXPECTED_BOTS);
-const intelligence = JSON.parse(require('node:fs').readFileSync('diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json','utf8'));
+const intelligence = JSON.parse(fs.readFileSync('diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json','utf8'));
 assert.equal(intelligence.cooperation.softwareEngineerCore.protocol, 'LOCAL_SOFTWARE_ENGINEER_CORE_V1');
 assert.equal(intelligence.cooperation.softwareEngineerCore.owner, 'ACTION-REPAIR');
 assert.equal(intelligence.cooperation.softwareEngineerCore.readOnly, true);
