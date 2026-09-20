@@ -5,6 +5,8 @@ const read = (file) => fs.readFileSync(file, 'utf8');
 const watchdog = read('.github/workflows/execution-bot-watchdog.yml');
 const mergeGate = read('.github/workflows/auto-repair-merge-gate.yml');
 const dailyGate = read('.github/workflows/daily-flixo-green-gate.yml');
+const liveness = read('scripts/ci/agent-liveness-protocol.mjs');
+const lease = read('scripts/ci/repair-lease.mjs');
 
 assert.match(watchdog, /workflow_run:/);
 assert.match(watchdog, /FLIXO Test System/);
@@ -39,4 +41,14 @@ assert.match(mergeGate, /Certification/);
 assert.match(mergeGate, /Repository Security Baseline/);
 assert.doesNotMatch(mergeGate, /continue-on-error:\s*true/i);
 assert.doesNotMatch(mergeGate, /gh\s+pr\s+merge/i);
+assert.match(liveness, /AGENT_LIVENESS_PROTOCOL/);
+assert.match(liveness, /NO_SLEEP_WHILE_WORK_ASSIGNED/);
+assert.match(liveness, /NO_IDLE_WHILE_WORK_ASSIGNED/);
+assert.match(liveness, /RECOVER_AND_CONTINUE/);
+assert.match(liveness, /maxNoProgressHeartbeats: 3/);
+assert.match(liveness, /heartbeatEveryMs: 5 \* 60 \* 1000/);
+assert.match(lease, /commandHeartbeat/);
+assert.match(lease, /AGENT_LIVENESS_PROTOCOL/);
+assert.match(lease, /REPAIR_LEASE_HEARTBEAT_STALE_USE_RECOVERY/);
+
 console.log('REPAIR_SUPERVISION_CONTRACT=PASS');
