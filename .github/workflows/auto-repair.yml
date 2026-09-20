@@ -168,9 +168,12 @@ jobs:
   repair:
     name: Single-lane diagnose, execute, verify and learn on execution
     needs: adversarial_twin
+    # The adversarial twin is an evidence enhancer, not a hard availability dependency.
+    # A twin failure must never suppress the canonical RCA/repair lane.
     if: >-
+      always() &&
       github.event_name == 'workflow_dispatch' &&
-      needs.adversarial_twin.result == 'success'
+      needs.adversarial_twin.result != 'cancelled'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -548,6 +551,7 @@ jobs:
 
       - name: Materialize validated twin outputs from read-only job
         id: twin
+        if: needs.adversarial_twin.result == 'success'
         env:
           TWIN_A_B64: ${{ needs.adversarial_twin.outputs.twin_a }}
           TWIN_B_B64: ${{ needs.adversarial_twin.outputs.twin_b }}
@@ -563,6 +567,14 @@ jobs:
           done
           printf '%s\n' 'FLIXO_TWIN_A_PATH=/tmp/flixo-twin-a.json' >> "$GITHUB_ENV"
           printf '%s\n' 'FLIXO_TWIN_B_PATH=/tmp/flixo-twin-b.json' >> "$GITHUB_ENV"
+
+      - name: Continue canonical repair lane without adversarial twin
+        if: always() && needs.adversarial_twin.result != 'success'
+        run: |
+          set -euo pipefail
+          echo 'TWIN_FALLBACK_MODE=CANONICAL_RCA_WITHOUT_TWIN'
+          echo 'TWIN_FALLBACK_REASON=ADVERSARIAL_TWIN_UNAVAILABLE'
+          echo 'No twin output is admitted as repair authority; RCA and exact-SHA verification remain mandatory.'
 
       - name: ACTION-REPAIR comprehensive knowledge audit
         id: action_repair_knowledge_audit

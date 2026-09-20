@@ -598,11 +598,16 @@ async function commandRecover() {
   const active = await activeRepairRuns(identity, failedSha);
   const currentRef = await readRef('refs/heads/execution');
   const currentExecutionSha = String(currentRef?.data?.object?.sha ?? '');
+  const leaseAgeMs = Math.max(0, Date.now() - Date.parse(String(meta.metadata?.createdAt ?? '')));
+  // The initial claim records the Green Gate run ID, not the Auto Repair run ID.
+  // After a short dispatch-settlement window, absence of an active repair run means
+  // the dispatch was orphaned and must be recoverable without waiting for staleAfterMs.
   const orphanedDispatch = !terminalRepairFailure &&
     active.length === 0 &&
     outcomes.length === 0 &&
     !latestActiveState?.repairRunId &&
-    !meta.metadata?.repairRunId;
+    String(meta.metadata?.leaseOwner ?? '') === 'DAILY_FLIXO_GREEN_GATE' &&
+    leaseAgeMs >= 2 * 60 * 1000;
   const decision = staleRecoveryDecision({
     leaseCreatedAt: meta.metadata?.createdAt,
     staleAfterMs: Number(getArg('staleAfterMs', String(DEFAULT_STALE_AFTER_MS))),
