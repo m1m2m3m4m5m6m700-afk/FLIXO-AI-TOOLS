@@ -91,7 +91,14 @@ export function normalizeAdviceRecord(
   },
 ): AdviceRecord {
   const now = input.now ?? new Date().toISOString();
-  const { now: _now, fingerprint: suppliedFingerprint, createdAt: suppliedCreatedAt, updatedAt: suppliedUpdatedAt, ...rest } = input;
+  const {
+    fingerprint: suppliedFingerprint,
+    createdAt: suppliedCreatedAt,
+    updatedAt: suppliedUpdatedAt,
+    now: _now,
+    ...rest
+  } = input;
+  void _now;
   const fingerprint = createAdviceFingerprint(rest);
   if (suppliedFingerprint && suppliedFingerprint !== fingerprint) {
     throw new Error('ADVICE_FINGERPRINT_MISMATCH');
@@ -147,7 +154,12 @@ export function partitionAdvice(records: readonly AdviceRecord[]) {
   const unique = assertAdviceVaultCapacity(records);
   const shards = Array.from({ length: ADVICE_VAULT_SHARD_COUNT }, () => [] as AdviceRecord[]);
   for (const record of unique) shards[shardForAdvice(record)].push(record);
-  for (const shard of shards) shard.sort((a, b) => a.fingerprint.localeCompare(b.fingerprint));
+  for (const shard of shards) {
+    shard.sort((a, b) => a.fingerprint.localeCompare(b.fingerprint));
+    if (shard.length > ADVICE_VAULT_SHARD_SIZE) {
+      throw new Error(`ADVICE_VAULT_SHARD_SKEW:${shard.length}>${ADVICE_VAULT_SHARD_SIZE}`);
+    }
+  }
   return shards;
 }
 
@@ -156,17 +168,16 @@ export function evaluateAdvicePromotion(records: readonly AdviceRecord[]): Advic
   const usable = unique.filter((record) =>
     record.status === 'CURRENT' &&
     record.confidence >= 0.9 &&
-    record.quality >= 0.8 &&
-    record.evidence.every((evidence) => evidence.outcome !== 'REVERTED'),
+    record.quality >= 0.8,
   );
   const evidence = usable.flatMap((record) => record.evidence);
   const distinctFailureFingerprints = new Set(evidence.map((item) => item.fingerprint)).size;
   const attempts = evidence.filter((item) => item.outcome !== 'UNKNOWN').length;
   const successes = evidence.filter((item) => item.outcome === 'SUCCESS').length;
   const successRate = attempts === 0 ? 0 : successes / attempts;
-  const exactShaEvidence = evidence.some((item) => item.targetSha !== null);
+  const exactShaEvidence = evidence.some((item) => item.outcome === 'SUCCESS' && item.targetSha !== null);
 
-  if (usable.some((record) => record.evidence.some((item) => item.outcome === 'REVERTED'))) {
+  if (evidence.some((item) => item.outcome === 'REVERTED')) {
     return {
       status: 'BLOCKED',
       distinctFailureFingerprints,
