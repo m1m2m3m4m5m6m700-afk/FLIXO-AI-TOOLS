@@ -329,13 +329,35 @@ jobs:
             exit 1
           }
 
+      - name: Acquire protected live runtime evidence for the exact SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ env.EXPECTED_SHA }}
+        run: |
+          set -euo pipefail
+          LIVE_RUN_ID="$(
+            gh api "repos/$GITHUB_REPOSITORY/actions/workflows/council-live-runtime-verification.yml/runs?head_sha=$EXPECTED_SHA&status=success&per_page=20" \
+              | jq -r --arg sha "$EXPECTED_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")] | sort_by(.updated_at) | last.id // empty'
+          )"
+          test -n "$LIVE_RUN_ID" || {
+            echo "FAIL CLOSED: no successful protected live-runtime verification exists for exact SHA $EXPECTED_SHA."
+            exit 1
+          }
+          rm -rf /tmp/live-runtime-evidence
+          mkdir -p /tmp/live-runtime-evidence
+          gh run download "$LIVE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "flixo-council-live-runtime-evidence-$EXPECTED_SHA" \
+            --dir /tmp/live-runtime-evidence
+          test -s /tmp/live-runtime-evidence/council-live-runtime-evidence.json
+          jq -e --arg sha "$EXPECTED_SHA" '.state == "LIVE_VERIFIED" and .verifiedSha == $sha' /tmp/live-runtime-evidence/council-live-runtime-evidence.json
       - name: Enforce promotion closure and emit unified Evidence Bundle
         env:
           EXPECTED_SHA: ${{ env.EXPECTED_SHA }}
           EXACT_RUNS_PATH: /tmp/exact-runs.json
           EXACT_STATUS_PATH: /tmp/exact-status.json
           EXACT_CHECKS_PATH: /tmp/exact-check-runs.json
-          LIVE_RUNTIME_EVIDENCE_PATH: docs/runtime/council-live-runtime-evidence.json
+          LIVE_RUNTIME_EVIDENCE_PATH: /tmp/live-runtime-evidence/council-live-runtime-evidence.json
           EVIDENCE_OUTPUT_PATH: /tmp/flixo-promotion-evidence.json
         run: node scripts/ci/validate-promotion-closure.mjs
 
