@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 
-export const ADVICE_VAULT_PROTOCOL = 'FLIXO-ADVICE-VAULT-200K-v1' as const;
-export const ADVICE_VAULT_CAPACITY = 200_000 as const;
+export const ADVICE_VAULT_PROTOCOL = 'FLIXO-ADVICE-VAULT-1M-v1' as const;
+export const ADVICE_VAULT_CAPACITY = 1_000_000 as const;
 export const ADVICE_VAULT_SHARD_SIZE = 10_000 as const;
 export const ADVICE_VAULT_SHARD_COUNT = ADVICE_VAULT_CAPACITY / ADVICE_VAULT_SHARD_SIZE;
 export const ADVICE_RETRIEVAL_CANDIDATE_LIMIT = 128 as const;
@@ -138,7 +138,7 @@ export function detectAdviceConflicts(records: readonly AdviceRecord[]) {
 }
 
 export function assertAdviceVaultCapacity(records: readonly AdviceRecord[]): AdviceRecord[] {
-  const unique = deduplicateAdvice(records);
+  if (records.length > ADVICE_VAULT_CAPACITY) {\n    throw new Error(`ADVICE_VAULT_CAPACITY_EXCEEDED:${records.length}>${ADVICE_VAULT_CAPACITY}`);\n  }\n  const unique = deduplicateAdvice(records);
   if (unique.length > ADVICE_VAULT_CAPACITY) {
     throw new Error(`ADVICE_VAULT_CAPACITY_EXCEEDED:${unique.length}>${ADVICE_VAULT_CAPACITY}`);
   }
@@ -220,7 +220,7 @@ export function summarizeAdviceVault(records: readonly AdviceRecord[]) {
     capacity: ADVICE_VAULT_CAPACITY,
     materialized: unique.length,
     remaining: ADVICE_VAULT_CAPACITY - unique.length,
-    shards: shards.length,
+    shards: shards.length,\n    shardSize: ADVICE_VAULT_SHARD_SIZE,
     maxShardSize: Math.max(0, ...shards.map((shard) => shard.length)),
     current: unique.filter((record) => record.status === 'CURRENT').length,
     revoked: unique.filter((record) => record.status === 'REVOKED').length,
