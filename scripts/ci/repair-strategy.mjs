@@ -91,6 +91,11 @@ function canonicalSecuritySurface(targetDir) {
   return findings.sort((a, b) => rank[a.severity] - rank[b.severity] || a.path.localeCompare(b.path) || a.id.localeCompare(b.id)).slice(0, 40);
 }
 
+function behavioralTrainingRecommendation(training, rootCause, previousStrategy, rejected=[]) {
+  const list=training?.behaviorModel?.transitions?.[[String(rootCause??'unknown').toLowerCase(),String(previousStrategy??'START').toLowerCase()].join('|')] ?? [];
+  return list.find((item)=>!rejected.includes(item.strategyId)) ?? null;
+}
+
 function strategyTrainingStats(training, id, rootCause) {
   const global = training?.policy?.global?.[id] ?? {};
   const contextual = training?.policy?.byRootCause?.[rootCause]?.find((item) => item.strategyId === id) ?? null;
@@ -349,6 +354,8 @@ const rejected = new Set([
 ].filter(Boolean).map(String));
 const causal = causalIntelligence(log, memory, stableCaseFingerprint, process.cwd());
 const securityFindings = canonicalSecuritySurface(process.cwd());
+const behavioralPreviousStrategy = priorStrategies.at(-1) ?? 'START';
+const behavioralRecommendation = behavioralTrainingRecommendation(training, causal.rootCause, behavioralPreviousStrategy, [...rejected]);
 const intelligentRanking = rankIntelligentStrategies({ memory, causal, rejected, priorStrategies, twinPreferredStrategy, training });
 const unusedIndexes = strategies.map((_, i) => i).filter((i) => !priorStrategies.includes(strategies[i][0])).filter((i) => !rejected.has(strategies[i][0]));
 const ledgerAvailableIndexes = unusedIndexes.filter((i) => !isRepairRejected(attemptLedger, { chainId, caseFingerprint: stableCaseFingerprint, strategyId: strategies[i][0] }));
@@ -358,10 +365,14 @@ const rotationIndexes = strategies.map((_, i) => i).filter((i) => !twinPreferred
 const availableIndexes = allStrategiesExhausted ? (rotationIndexes.length ? rotationIndexes : strategies.map((_, i) => i)) : ledgerAvailableIndexes;
 const selectedIndex = selectedRepairStrategy ? strategies.findIndex(([id]) => id === selectedRepairStrategy) : -1;
 const intelligentSelectedId = intelligentRanking.selected?.id ?? null;
+const behaviorPreferredId = behavioralRecommendation?.strategyId ?? null;
 const intelligentIndex = intelligentSelectedId ? strategies.findIndex(([id]) => id === intelligentSelectedId) : -1;
+const behaviorIndex = behaviorPreferredId ? strategies.findIndex(([id]) => id === behaviorPreferredId) : -1;
 const index = selectedIndex >= 0 && availableIndexes.includes(selectedIndex)
   ? selectedIndex
-  : intelligentIndex >= 0 && availableIndexes.includes(intelligentIndex)
+  : behaviorIndex >= 0 && availableIndexes.includes(behaviorIndex)
+    ? behaviorIndex
+    : intelligentIndex >= 0 && availableIndexes.includes(intelligentIndex)
     ? intelligentIndex
     : (divergentIndexes[0] ?? availableIndexes[(Math.max(0, nextAttempt - 1)) % availableIndexes.length]);
 const [strategyId, strategy] = strategies[index];
@@ -399,6 +410,7 @@ const teachingPacket = {
     falsificationPlan: buildFalsificationPlan(causal, intelligentRanking),
     securitySignals: securityFindings,
     training,
+    behavioralRecommendation,
     selectedBy: selectedRepairStrategy ? 'TWIN_OR_EXTERNAL_SELECTION' : intelligentSelectedId ? 'V12_CAUSAL_PORTFOLIO' : 'DETERMINISTIC_ROTATION',
     noBlindRepeat: true,
     steering: steeringDirective,
@@ -433,6 +445,7 @@ fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   },
   steering: steeringDirective,
   trainingMode: training?.decision?.mode ?? 'MISSING',
+  behavioralRecommendation,
   cycle: nextAttempt,
   twin: {
     present: Boolean(twinProposal || twinA || twinB || twinSelection),
