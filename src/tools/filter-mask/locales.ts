@@ -14,6 +14,13 @@ export type FilterMaskCopy = Readonly<{
   recordVideo: string;
   recording: string;
   stopRecording: string;
+  pauseRecording: string;
+  resumeRecording: string;
+  cancelRecording: string;
+  recordingPerformance: string;
+  recordingBackendGpu: string;
+  recordingBackendCanvas: string;
+  recordingWakeLockUnavailable: string;
   cameraUnavailable: string;
   cameraDenied: string;
   recordingUnsupported: string;
@@ -69,6 +76,13 @@ const EN: FilterMaskCopy = {
   recordVideo: 'Record video',
   recording: 'Recording',
   stopRecording: 'Stop recording',
+  pauseRecording: 'Pause recording',
+  resumeRecording: 'Resume recording',
+  cancelRecording: 'Cancel recording',
+  recordingPerformance: 'Performance',
+  recordingBackendGpu: 'GPU',
+  recordingBackendCanvas: 'Canvas',
+  recordingWakeLockUnavailable: 'Screen wake lock is not available; recording will continue normally.',
   cameraUnavailable: 'Camera is not available in this browser.',
   cameraDenied: 'Camera or microphone access was denied or unavailable.',
   recordingUnsupported: 'Video recording with live effects is not supported in this browser.',
