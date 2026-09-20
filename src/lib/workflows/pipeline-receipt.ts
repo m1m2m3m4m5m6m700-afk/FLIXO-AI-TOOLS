@@ -21,11 +21,42 @@ async function sha256Blob(blob: Blob): Promise<string> {
 export type PipelineReceiptChain = Readonly<{
   schemaVersion: '1';
   catalogFingerprint: string;
+  planFingerprint: string;
   steps: readonly PipelineStepReceipt[];
   chainSha256: string;
 }>;
 
 const EMPTY_CHAIN_SHA256 = '0'.repeat(64);
+const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+
+export type PipelinePlanIdentity = Readonly<{
+  workflowName: string;
+  confidence: number;
+  catalogFingerprint: string;
+  steps: readonly Readonly<{
+    toolId: string;
+    params?: Readonly<Record<string, string | number | boolean | undefined>>;
+  }>[];
+}>;
+
+function canonicalPlanPayload(plan: PipelinePlanIdentity): string {
+  return JSON.stringify([
+    plan.workflowName,
+    plan.confidence,
+    plan.catalogFingerprint,
+    plan.steps.map((step) => [
+      step.toolId,
+      Object.entries(step.params ?? {}).sort(([left], [right]) => left.localeCompare(right)),
+    ]),
+  ]);
+}
+
+export async function createPipelinePlanFingerprint(plan: PipelinePlanIdentity): Promise<string> {
+  if (plan.catalogFingerprint !== TOOL_CATALOG.fingerprint) throw new Error('Pipeline plan catalog fingerprint is stale.');
+  const fingerprint = await sha256Text(canonicalPlanPayload(plan));
+  if (!SHA256_PATTERN.test(fingerprint)) throw new Error('Pipeline plan fingerprint generation failed.');
+  return fingerprint;
+}
 
 function canonicalReceiptPayload(receipt: PipelineStepReceipt): string {
   return JSON.stringify([
@@ -46,11 +77,13 @@ async function sha256Text(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export function createPipelineReceiptChain(catalogFingerprint: string): PipelineReceiptChain {
+export function createPipelineReceiptChain(catalogFingerprint: string, planFingerprint: string): PipelineReceiptChain {
   if (catalogFingerprint !== TOOL_CATALOG.fingerprint) throw new Error('Pipeline receipt chain catalog fingerprint is stale.');
+  if (!SHA256_PATTERN.test(planFingerprint)) throw new Error('Pipeline receipt chain plan fingerprint is invalid.');
   return Object.freeze({
     schemaVersion: '1',
     catalogFingerprint,
+    planFingerprint,
     steps: Object.freeze([]),
     chainSha256: EMPTY_CHAIN_SHA256,
   });
@@ -78,6 +111,7 @@ export async function appendPipelineStepReceipt(
   return Object.freeze({
     schemaVersion: '1',
     catalogFingerprint: chain.catalogFingerprint,
+    planFingerprint: chain.planFingerprint,
     steps: Object.freeze([...chain.steps, receipt]),
     chainSha256,
   });
@@ -87,7 +121,8 @@ export async function appendPipelineStepReceipt(
 export async function assertPipelineReceiptChain(chain: PipelineReceiptChain): Promise<void> {
   if (chain.schemaVersion !== '1') throw new Error('Unsupported pipeline receipt chain schema version.');
   if (chain.catalogFingerprint !== TOOL_CATALOG.fingerprint) throw new Error('Pipeline receipt chain catalog fingerprint is stale.');
-  let rebuilt = createPipelineReceiptChain(chain.catalogFingerprint);
+  if (!SHA256_PATTERN.test(chain.planFingerprint)) throw new Error('Pipeline receipt chain plan fingerprint is invalid.');
+  let rebuilt = createPipelineReceiptChain(chain.catalogFingerprint, chain.planFingerprint);
   for (const receipt of chain.steps) {
     rebuilt = await appendPipelineStepReceipt(rebuilt, receipt);
   }
