@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from '../fixtures/universal-runtime-evidence';
 
 test.describe('FLIXO logo resilience', () => {
   test('global logo renders the canonical cache-busted asset', async ({ page }) => {
