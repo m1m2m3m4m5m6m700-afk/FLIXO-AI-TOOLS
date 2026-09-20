@@ -13,6 +13,7 @@ export function FilterMaskTool() {
   const [selectedId, setSelectedId] = useState('effect.original');
   const [intensity, setIntensity] = useState(100);
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
+  const [capturedKind, setCapturedKind] = useState<'photo' | 'video' | null>(null);
 
   const selected = LIVE_FILTER_REGISTRY.find((filter) => filter.canonicalId === selectedId) ?? LIVE_FILTER_REGISTRY[0];
   const filters = useMemo(() => {
@@ -24,6 +25,9 @@ export function FilterMaskTool() {
   useEffect(() => () => {
     recorderRef.current?.state === 'recording' && recorderRef.current.stop();
     streamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
+
+  useEffect(() => () => {
     if (capturedUrl) URL.revokeObjectURL(capturedUrl);
   }, [capturedUrl]);
 
@@ -79,6 +83,7 @@ export function FilterMaskTool() {
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'video/webm' });
         const url = URL.createObjectURL(blob);
         setCapturedUrl((previous) => { if (previous) URL.revokeObjectURL(previous); return url; });
+        setCapturedKind('video');
         setRecording(false);
       };
       recorder.onerror = () => { setRecording(false); setError('Video recording failed.'); };
@@ -110,6 +115,7 @@ export function FilterMaskTool() {
     if (!blob) return;
     const url = URL.createObjectURL(blob);
     setCapturedUrl((previous) => { if (previous) URL.revokeObjectURL(previous); return url; });
+    setCapturedKind('photo');
   }
 
   return (
@@ -134,7 +140,7 @@ export function FilterMaskTool() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(120px,1fr))', gap: 8 }}>
         {filters.map((filter) => <button key={filter.canonicalId} type="button" aria-pressed={filter.canonicalId === selectedId} onClick={() => setSelectedId(filter.canonicalId)}><strong>{filter.label}</strong><small style={{ display: 'block', opacity: .6 }}>{filter.canonicalId}</small></button>)}
       </div>
-      {capturedUrl && <div><a href={capturedUrl} download={recording ? 'flixo-filter-mask.webm' : 'flixo-filter-mask.jpg'}>Download result</a></div>}
+      {capturedUrl && <div><a href={capturedUrl} download={capturedKind === 'video' ? 'flixo-filter-mask.webm' : 'flixo-filter-mask.jpg'}>Download result</a></div>}
     </section>
   );
 }
