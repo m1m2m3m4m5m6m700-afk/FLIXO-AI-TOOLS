@@ -23,6 +23,7 @@ const fileSelectionPath=arg('file-selection','');
 const awarenessPath=arg('awareness','');
 const twinPath=arg('twin','');
 const primaryProofPath=arg('primary-proof','');
+const rootCauseProofPath=arg('root-cause','');
 
 const shaOk=(v)=>/^[a-f0-9]{40}$/.test(String(v??''));
 if(!shaOk(targetSha)||!fingerprint||!runId)throw new Error('PRE_MUTATION_IDENTITY_REQUIRED');
@@ -39,6 +40,7 @@ const selection=readJson(fileSelectionPath);
 const awareness=readJson(awarenessPath);
 const twin=readJson(twinPath);
 const primaryProof=readJson(primaryProofPath);
+const rootCauseProof=readJson(rootCauseProofPath);
 
 const failures=[];
 if(currentSha!==targetSha)failures.push('EXACT_SHA_MISMATCH');
@@ -110,6 +112,7 @@ const patchCorrectness=buildPatchCorrectnessProof({
     ok:simulation?.behavioralVerification?.ok===true,
   },
   primaryProof,
+  rootCauseProof,
   scopeCheck:simulation?.scopeOk===true,
   noTestMutation:!(simulation?.changedFiles||[]).some(f=>/(^|\/)(?:tests?|__tests__)\//u.test(f)),
   noControlPlaneMutation:!(simulation?.changedFiles||[]).some(f=>/^scripts\/ci\/|^\.github\/workflows\//u.test(f)),
@@ -122,6 +125,7 @@ const proofCompleteness={
  EXACT_SHA:currentSha===targetSha,
  FAILURE_FINGERPRINT:Boolean(fingerprint),
  COGNITIVE_AWARENESS_PROVEN:awareness.awarenessCompleteness?.complete===true,
+ CAUSAL_EVIDENCE_GRAPH_PROVEN:rootCauseProof.status==='PROVEN',
  ROOT_CAUSE_PROVEN:patchCorrectness.proofCompleteness?.ROOT_CAUSE_PROVEN===true,
  FILE_SELECTION_PROVEN:patchCorrectness.proofCompleteness?.PATCH_TARGET_PROVEN===true,
  PROGRAMMER_TWIN_PARITY_PROVEN:patchCorrectness.proofCompleteness?.PROGRAMMER_TWIN_PARITY_PROVEN===true,
@@ -149,6 +153,7 @@ const report={
  targetIdentity,
  diagnosis,
  primaryCorrectnessProof:primaryProof,
+ rootCauseProof,
  cognitiveAwareness:{protocol:awareness.protocol,complete:awareness.awarenessCompleteness?.complete===true},
  programmerTwin:{protocol:twin.protocol,status:twin.status,falsificationComplete:twin.falsificationComplete,counterexampleFound:twin.counterexampleFound,falsificationSearches:twin.falsificationSearches||[]},
  sandboxSimulation:simulation,
