@@ -15,7 +15,7 @@ if(!RUN_ID) throw new Error('ACTION_REPAIR_KNOWLEDGE_AUDIT_RUN_ID_REQUIRED');
 const readJson=(file,fallback={})=>{try{return JSON.parse(fs.readFileSync(path.join(ROOT,file),'utf8'))}catch{return fallback}};
 const readText=(file)=>{try{return fs.readFileSync(path.join(ROOT,file),'utf8')}catch{return ''}};
 const memory=readJson('diagnostics/auto-repair/memory.json',{});
-const actionIndex=readJson('diagnostics/auto-repair/action-repair-bots/ACTION-INDEX.json',{});
+const actionIndex=readJson(process.env.FLIXO_ACTION_INDEX_MEMORY_PATH ?? 'diagnostics/auto-repair/action-repair-bots/ACTION-INDEX.json',{});
 const historical=readJson('docs/agents/historical-action-errors/index.json',{});
 const historicalManifest=readJson('docs/agents/historical-action-errors/manifest.json',{});
 const knowledge=readJson('docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json',{});
