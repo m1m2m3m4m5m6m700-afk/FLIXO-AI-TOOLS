@@ -362,7 +362,12 @@ export function FilterMaskTool() {
           playsInline
           muted
           aria-hidden="true"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            transform: `${mirror ? 'scaleX(-1)' : ''} scale(${zoom})`.trim(),
+          }}
         />
         <video
           ref={videoRef}
