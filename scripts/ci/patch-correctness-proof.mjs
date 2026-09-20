@@ -26,7 +26,8 @@ export function buildPatchCorrectnessProof({
  const failures=[];
  if(!shaOk(targetSha)) failures.push('PATCH_SHA_INVALID');
  if(!failureFingerprint) failures.push('PATCH_FINGERPRINT_MISSING');
- const rcaProven=Boolean(diagnosis?.diagnosisQuality==='strong'&&Number(diagnosis?.causalConfidence??0)>=0.75&&diagnosis?.ambiguity===false&&diagnosis?.directFailureSignal===true&&diagnosis?.rootCause&&diagnosis?.location?.file);
+ const causalGraphProven=Boolean(rootCauseProof?.protocol==='CAUSAL-EVIDENCE-GRAPH-v1'&&rootCauseProof?.status==='PROVEN'&&rootCauseProof?.targetSha===targetSha&&rootCauseProof?.failureFingerprint===failureFingerprint&&rootCauseProof?.sourceMutationAllowed===false&&rootCauseProof?.proofClaims?.ROOT_CAUSE_LINKED_TO_FAILURE_SIGNAL===true&&rootCauseProof?.proofClaims?.LOCATION_LINKED_TO_CAUSE===true&&rootCauseProof?.proofClaims?.MECHANISM_EXPLAINED===true&&rootCauseProof?.proofClaims?.ALTERNATIVES_CHALLENGED===true);
+ const rcaProven=Boolean(causalGraphProven&&diagnosis?.diagnosisQuality==='strong'&&Number(diagnosis?.causalConfidence??0)>=0.75&&diagnosis?.ambiguity===false&&diagnosis?.directFailureSignal===true&&diagnosis?.rootCause&&diagnosis?.location?.file);
  const targetProven=Boolean(fileSelection?.decision==='SELECTED'&&fileSelection?.targetSha===targetSha&&fileSelection?.failureFingerprint===failureFingerprint&&fileSelection?.selectedFiles?.some(x=>x.path===diagnosis?.location?.file));
  const mechanismProven=Boolean(plan?.id&&plan?.file&&(!fileSelection?.selectedFiles?.length||fileSelection.selectedFiles.some(x=>x.path===plan.file)));
  const scopeProven=Boolean(scopeCheck&&simulation?.scopeOk===true&&differential?.scopeProof===true);
@@ -38,6 +39,7 @@ export function buildPatchCorrectnessProof({
  const awarenessProven=Boolean(awareness?.protocol==='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1'&&awareness?.targetSha===targetSha&&awareness?.failureFingerprint===failureFingerprint&&awareness?.awarenessCompleteness?.complete===true);
  const counterexamplesExhausted=Boolean(regressionCounterexamples?.exhausted===true&&regressionCounterexamples?.counterexampleFound===false&&twin?.counterexampleFound===false);
  const primaryProven=Boolean(primaryProof?.status==='PRIMARY_CORRECTNESS_PROVEN'&&primaryProof?.proofObjective==='PROVE_PRIMARY_REPAIR_CORRECT'&&primaryProof?.targetSha===targetSha&&primaryProof?.failureFingerprint===failureFingerprint);
+ if(!causalGraphProven) failures.push('CAUSAL_EVIDENCE_GRAPH_NOT_PROVEN');
  if(!rcaProven) failures.push('ROOT_CAUSE_NOT_PROVEN');
  if(!targetProven) failures.push('PATCH_TARGET_NOT_PROVEN');
  if(!mechanismProven) failures.push('PATCH_MECHANISM_NOT_PROVEN');
@@ -55,6 +57,7 @@ export function buildPatchCorrectnessProof({
  if(noMainMutation!==true) failures.push('MAIN_MUTATION_POLICY_FAILED');
  if(noGateWeakening!==true) failures.push('GATE_WEAKENING_POLICY_FAILED');
  const all={
+  CAUSAL_EVIDENCE_GRAPH_PROVEN:causalGraphProven,
   ROOT_CAUSE_PROVEN:rcaProven,
   PATCH_TARGET_PROVEN:targetProven,
   PATCH_MECHANISM_PROVEN:mechanismProven,
