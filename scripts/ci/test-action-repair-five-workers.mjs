@@ -5,14 +5,14 @@ import {execFileSync} from 'node:child_process';
 
 const registry=JSON.parse(fs.readFileSync('docs/agents/ACTION-REPAIR-SQUAD-REGISTRY.json','utf8'));
 assert.equal(registry.separation.separateFromCell,true);
-assert.equal(registry.separation.cellBotCount,50);
+assert.equal(registry.separation.cellBotCount,200);
 assert.equal(registry.separation.includedInCellCount,false);
 assert.deepEqual(registry.workers.map(x=>x.id),['ACTION-TWIN-1','ACTION-TWIN-2','ACTION-INDEX','ACTION-WISE','ACTION-WAKE']);
 assert.equal(registry.repairExecutor.id,'ACTION-REPAIR');
 assert.equal(registry.repairExecutor.protocolActor,'actionRepairBot');
 assert.equal(registry.repairExecutor.mutationAuthority,true);
 assert.equal(registry.repairExecutor.executionAuthority,'SOURCE_MUTATION_VIA_REPAIR_PROTOCOL');
-assert.equal(registry.repairExecutor.maxAttemptsPerFingerprint,1000000);
+assert.equal(registry.repairExecutor.maxAttemptsPerFingerprint,2000000);
 const expected={
  'ACTION-TWIN-1':'ACTION_REPAIR_TWIN_A',
  'ACTION-TWIN-2':'ACTION_REPAIR_TWIN_B',
@@ -29,7 +29,7 @@ for(const [id,role] of Object.entries(expected)){
  assert.match(worker.personalMemoryFile,/^diagnostics\/auto-repair\/action-repair-bots\//u);
 }
 const cell=JSON.parse(fs.readFileSync('docs/agents/CELL-BOT-REGISTRY.json','utf8'));
-assert.equal(cell.bots.length,50);
+assert.equal(cell.bots.length,200);
 assert.equal(cell.bots.some(x=>/^ACTION-/u.test(x.id)),false);
 assert.equal(Object.prototype.hasOwnProperty.call(cell,'actionRepairCohort'),false);
 
