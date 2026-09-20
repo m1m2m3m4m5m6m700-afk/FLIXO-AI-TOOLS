@@ -1,5 +1,5 @@
 /* global self, caches, URL, fetch */
-const CACHE_NAME = 'flixo-shell-v3';
+const CACHE_NAME = 'flixo-shell-v4';
 const SHELL_ASSETS = ['/', '/en', '/manifest.webmanifest', '/flixo-logo.webp', '/flixo-favicon.png'];
 
 self.addEventListener('install', (event) => {
