@@ -35,6 +35,8 @@ jobs:
           node scripts/ci/test-council-directive.mjs
           node scripts/ci/test-repair-control-plane.mjs
           node scripts/ci/test-repair-lease.mjs
+          node scripts/ci/agent-liveness-protocol.mjs validate
+          node scripts/ci/test-agent-liveness-protocol.mjs
           echo 'COUNCIL_OVERSIGHT_CONTRACT=PASS'
           echo 'COUNCIL_ROLE=SUPERVISOR'
           echo 'COUNCIL_AUTHORITY=OBSERVE_COORDINATE_HANDOFF_ONLY'
