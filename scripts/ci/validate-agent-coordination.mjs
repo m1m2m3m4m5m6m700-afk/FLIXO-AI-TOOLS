@@ -48,6 +48,9 @@ if (contract?.actionVaultContinuity?.roles?.['ACTION-REPAIR']?.mutationAuthority
 if (contract?.actionVaultContinuity?.roles?.['ACTION-REPAIR-2']?.mutationAuthority !== false) failures.push('ACTION_REPAIR_2_MUTATION_ROLE_INVALID');
 if (contract?.actionVaultContinuity?.roles?.['ACTION-HISTORIAN-3']?.mutationAuthority !== false) failures.push('ACTION_HISTORIAN_MUTATION_ROLE_INVALID');
 if (contract?.actionVaultContinuity?.retryPolicy !== 'NO_BLIND_RETRY') failures.push('ACTION_VAULT_RETRY_POLICY_INVALID');
+if (contract?.actionVaultContinuity?.preMutationChallenge?.required !== true) failures.push('ACTION_VAULT_PREMUTATION_CHALLENGE_MISSING');
+if (contract?.actionVaultContinuity?.preMutationChallenge?.artifact !== 'actionVaultVerifierProof') failures.push('ACTION_VAULT_VERIFIER_ARTIFACT_INVALID');
+if (contract?.actionVaultContinuity?.preMutationChallenge?.verifier !== 'actionRepairVerifier') failures.push('ACTION_VAULT_VERIFIER_ROLE_INVALID');
 if (contract?.actionVaultContinuity?.verificationRule && !contract.actionVaultContinuity.verificationRule.includes('independently')) failures.push('ACTION_VAULT_INDEPENDENT_VERIFICATION_INVALID');
     if (!/no.*mutation|read.*repository state/i.test(contract?.roles?.codeScout ?? '')) failures.push('CODE_SCOUT_MUTATION_BOUNDARY_MISSING');
     for (const tier of ['LOW','MEDIUM','HIGH','CRITICAL']) if (typeof contract?.decisionGates?.[tier] !== 'string') failures.push(`COOPERATION_RISK_GATE_MISSING=${tier}`);
@@ -108,7 +111,7 @@ else {
 const sessionSource = exists('scripts/ci/agent-session.mjs') ? read('scripts/ci/agent-session.mjs') : '';
 for (const role of ['actionRepairBot','actionRepairVerifier','actionHistorian']) if (!sessionSource.includes(role)) failures.push(`ACTION_VAULT_SESSION_ROLE_MISSING=${role}`);
 const repairSource = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';
-for (const marker of ['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','NO_BLIND_RETRY','ACTION_VAULT_SHA_MISMATCH','ACTION_VAULT_TRIAD_INCOMPLETE']) if (!repairSource.includes(marker)) failures.push(`ACTION_VAULT_REPAIR_MARKER_MISSING=${marker}`);
+for (const marker of ['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','NO_BLIND_RETRY','ACTION_VAULT_SHA_MISMATCH','ACTION_VAULT_TRIAD_INCOMPLETE','ACTION_VAULT_VERIFIER_PROOF_REQUIRED','ACTION_VAULT_ALTERNATIVES_MISSING','ACTION_VAULT_FALSIFICATION_CHECKS_MISSING']) if (!repairSource.includes(marker)) failures.push(`ACTION_VAULT_REPAIR_MARKER_MISSING=${marker}`);
 const sha = execFileSync('git', ['rev-parse','HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 const result = { schemaVersion: 7, authority: 'AGENT_COORDINATION_GUARD', status: failures.length ? 'FAIL' : 'PASS', checkedSha: sha, controlPlane: 'scripts/ci/agent-coordination.mjs', sessionTool: 'scripts/ci/agent-session.mjs', cooperationContract: 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json', scoutProtocol: 'docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md', scout: 'scripts/ci/code-read-only-scout.mjs', protocolRegistry: 'docs/PROTOCOL-REGISTRY.json#P20', runtimeStatePolicy: 'generated-and-ignored', atomicCoordination: 'WRITE_LOCK_PLUS_OPTIMISTIC_REVISION_AND_ATOMIC_RENAME', failures };
 fs.mkdirSync(path.resolve(root,'diagnostics/agents'), { recursive:true });
