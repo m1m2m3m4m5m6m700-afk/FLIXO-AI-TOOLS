@@ -9,6 +9,8 @@ on:
       - 'scripts/ci/validate-council-rpc-contract.mjs'
       - 'scripts/ci/control-plane-registry.mjs'
       - 'db/council-external-accounts.sql'
+      - 'scripts/ci/validate-promotion-closure.mjs'
+      - 'scripts/ci/test-promotion-closure.mjs'
       - 'docs/security.md'
       - '.github/CODEOWNERS'
   push:
