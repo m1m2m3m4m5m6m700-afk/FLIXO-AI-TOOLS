@@ -135,7 +135,7 @@
   "agentGrade": {
     "lifecycle": "READY",
     "shortName": "ACTR",
-    "upgradeNumber": 1,
+    "upgradeNumber": 2,
     "upgradePriority": 95,
     "nextUpgrade": {
       "id": "ACTR-U2",
@@ -165,5 +165,29 @@
     "sameTask": true,
     "sameFingerprint": true,
     "sameSha": true
+  },
+  "agentRuntime": {
+    "protocol": "ACTION-AGENT-RUNTIME-v1",
+    "modelProfile": "ACTION_PRIMARY_REPAIR_V1",
+    "reasoningEffort": "HIGH",
+    "cognitiveLoop": [
+      "INTAKE",
+      "CONTEXT_RETRIEVAL",
+      "PLAN",
+      "EXECUTE",
+      "SELF_CHECK",
+      "INDEPENDENT_REVIEW",
+      "VERIFY",
+      "LEARN"
+    ],
+    "historicalActivity": "docs/agents/historical-action-errors/agent-activity",
+    "runtime": "scripts/ci/action-agent-runtime.mjs",
+    "activityLedger": "scripts/ci/action-agent-history.mjs",
+    "toolBudget": 24,
+    "selfCritique": true,
+    "independentReview": true,
+    "structuredOutput": true,
+    "failClosed": true,
+    "noSelfApproval": true
   }
 }
