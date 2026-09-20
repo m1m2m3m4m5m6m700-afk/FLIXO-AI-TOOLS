@@ -118,6 +118,31 @@ function behavioralTrainingRecommendation(training, rootCause, previousStrategy,
   return list.find((item)=>!rejected.includes(item.strategyId)) ?? null;
 }
 
+function trainingAbstentionDecision(training, causal, stateActionRecommendation, behavioralRecommendation) {
+  const eligible = training?.decision?.eligibleToInfluenceRouting === true;
+  if (!eligible) return { eligible: false, abstain: false, mode: 'TRAINING_UNAVAILABLE', confidence: 0, threshold: null, reason: 'TRAINING_NOT_ELIGIBLE' };
+  const threshold = Number(training?.decision?.calibration?.recommendedAbstentionThreshold ?? training?.calibration?.abstention?.recommendedThreshold ?? 0.75);
+  const contextual = training?.policy?.byRootCause?.[String(causal.rootCause ?? 'unknown').toLowerCase()]?.[0] ?? null;
+  const trainedConfidence = Number(stateActionRecommendation?.confidence ?? behavioralRecommendation?.confidence ?? contextual?.confidence ?? contextual?.successRate ?? 0);
+  const causalConfidence = Number(causal?.confidence ?? 0);
+  const ambiguous = causal?.ambiguity === true;
+  const lowConfidence = trainedConfidence < threshold || causalConfidence < 0.55;
+  const abstain = ambiguous || lowConfidence;
+  const reasons = [];
+  if (ambiguous) reasons.push('CAUSAL_AMBIGUITY');
+  if (trainedConfidence < threshold) reasons.push('TRAINING_CONFIDENCE_BELOW_THRESHOLD');
+  if (causalConfidence < 0.55) reasons.push('CAUSAL_CONFIDENCE_BELOW_THRESHOLD');
+  return {
+    eligible: true,
+    abstain,
+    mode: abstain ? 'COLLECT_MORE_EVIDENCE' : 'TRAINED_ROUTING',
+    confidence: Number(trainedConfidence.toFixed(4)),
+    causalConfidence: Number(causalConfidence.toFixed(4)),
+    threshold: Number(threshold.toFixed(4)),
+    reason: reasons.join('|') || 'CONFIDENCE_SUFFICIENT',
+  };
+}
+
 function strategyTrainingStats(training, id, rootCause) {
   const global = training?.policy?.global?.[id] ?? {};
   const contextual = training?.policy?.byRootCause?.[rootCause]?.find((item) => item.strategyId === id) ?? null;
@@ -394,15 +419,22 @@ const behaviorPreferredId = behavioralRecommendation?.strategyId ?? null;
 const intelligentIndex = intelligentSelectedId ? strategies.findIndex(([id]) => id === intelligentSelectedId) : -1;
 const stateActionIndex = stateActionPreferredId ? strategies.findIndex(([id]) => id === stateActionPreferredId) : -1;
 const behaviorIndex = behaviorPreferredId ? strategies.findIndex(([id]) => id === behaviorPreferredId) : -1;
+const trainingAbstention = trainingAbstentionDecision(training, causal, stateActionRecommendation, behavioralRecommendation);
+const evidenceFirstIds = ['reproduce-exact','minimize-failure','diff-forensics','workflow-forensics','observability-trace'];
+const evidenceFirstIndexes = evidenceFirstIds
+  .map((id) => strategies.findIndex(([strategyId]) => strategyId === id))
+  .filter((candidateIndex) => candidateIndex >= 0 && availableIndexes.includes(candidateIndex));
 const index = selectedIndex >= 0 && availableIndexes.includes(selectedIndex)
   ? selectedIndex
-  : stateActionIndex >= 0 && availableIndexes.includes(stateActionIndex)
-    ? stateActionIndex
-    : behaviorIndex >= 0 && availableIndexes.includes(behaviorIndex)
-    ? behaviorIndex
-    : intelligentIndex >= 0 && availableIndexes.includes(intelligentIndex)
-    ? intelligentIndex
-    : (divergentIndexes[0] ?? availableIndexes[(Math.max(0, nextAttempt - 1)) % availableIndexes.length]);
+  : trainingAbstention.abstain && evidenceFirstIndexes.length
+    ? evidenceFirstIndexes[0]
+    : stateActionIndex >= 0 && availableIndexes.includes(stateActionIndex)
+      ? stateActionIndex
+      : behaviorIndex >= 0 && availableIndexes.includes(behaviorIndex)
+      ? behaviorIndex
+      : intelligentIndex >= 0 && availableIndexes.includes(intelligentIndex)
+      ? intelligentIndex
+      : (divergentIndexes[0] ?? availableIndexes[(Math.max(0, nextAttempt - 1)) % availableIndexes.length]);
 const [strategyId, strategy] = strategies[index];
 const threshold = INTRACTABLE_THRESHOLD;
 const teachingEscalation = record?.status === 'INTRACTABLE' || nextAttempt > threshold || allStrategiesExhausted;
@@ -442,6 +474,7 @@ const teachingPacket = {
     behavioralRecommendation,
     selectedBy: selectedRepairStrategy ? 'TWIN_OR_EXTERNAL_SELECTION' : stateActionPreferredId ? 'TRAINED_STATE_ACTION' : behaviorPreferredId ? 'TRAINED_BEHAVIOR_SEQUENCE' : intelligentSelectedId ? 'V12_CAUSAL_PORTFOLIO' : 'DETERMINISTIC_ROTATION',
     noBlindRepeat: true,
+    trainingDecision: trainingAbstention,
     steering: steeringDirective,
   },
 };
@@ -474,6 +507,7 @@ fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   },
   steering: steeringDirective,
   trainingMode: training?.decision?.mode ?? 'MISSING',
+  trainingDecision: trainingAbstention,
   stateActionRecommendation,
   behavioralRecommendation,
   cycle: nextAttempt,

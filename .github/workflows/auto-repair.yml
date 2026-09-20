@@ -1088,7 +1088,7 @@ jobs:
           esac
           git diff --binary "$PARENT_SHA" "$EXECUTION_SHA" > /tmp/flixo-prepared-repair.patch
           test -s /tmp/flixo-prepared-repair.patch
-          node --input-type=module <<'NODE'
+          FAILED_SHA="$FAILED_SHA" FIRST_REPAIR_SHA="$FIRST_REPAIR_SHA" node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import crypto from 'node:crypto';
           import { execFileSync } from 'node:child_process';
