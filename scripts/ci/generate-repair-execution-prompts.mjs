@@ -283,6 +283,36 @@ const taskFallback = (() => {
   return null;
 })();
 const allPrompts = [...prompts, ...blockerPrompts, ...(taskFallback ? [taskFallback] : [])];
+const ACTION_BOTS = ['ACTION-REPAIR', 'ACTION-REPAIR-2', 'ACTION-HISTORIAN-3'];
+const VISIT_MODES = ['DISCOVER', 'CHALLENGE', 'LEARN'];
+const automaticVisits = ACTION_BOTS.flatMap((botId) =>
+  VISIT_MODES.map((mode, visitIndex) => ({
+    visitId: `daily-visit-${botId}-${visitIndex + 1}`,
+    botId,
+    visitNumber: visitIndex + 1,
+    mode,
+    exactSha: executionSha,
+    taskBinding: 'CURRENT_RED_OR_HIGHEST_PRIORITY_INCOMPLETE_TASK',
+    mandatory: true,
+    automatic: true,
+    prompt: [
+      'FLIXO ACTION VAULT AUTOMATIC VISIT',
+      `Bot: ${botId}`,
+      `Visit: ${visitIndex + 1}/3`,
+      `Mode: ${mode}`,
+      `Exact execution SHA: ${executionSha}`,
+      '',
+      'Remain inside ACTION-VAULT. Do not close the shared task.',
+      'Use the same shared intelligence, historical index, 4000-rule index and 5000-rule teaching corpus as the other two bots.',
+      'For an active RED, collaborate on the same task, fingerprint and exact SHA; exchange evidence and challenge the proposed repair before mutation.',
+      mode === 'DISCOVER'
+        ? 'Discover the strongest current evidence, historical analogies, root-cause candidates and missing evidence.'
+        : mode === 'CHALLENGE'
+          ? 'Challenge the current RCA and repair hypothesis; identify contradictions, anti-lessons, stale evidence or a safer minimal repair.'
+          : 'Record the result, lesson and anti-lesson; verify that the task remains open until Canonical GREEN.',
+    ].join('\\n'),
+  })),
+);
 const masterPrompt = [
   'FLIXO DAILY VISIT — MASTER REPAIR EXECUTION PROMPT',
   `Exact execution SHA: ${executionSha}`,
@@ -313,6 +343,8 @@ const bundle = {
   uniqueFailureCount: prompts.length,
   externalBlockerCount: blockerPrompts.length,
   prompts: allPrompts,
+  automaticVisits,
+  automaticVisitPolicy: { visitsPerBotPerDay: 3, botCount: ACTION_BOTS.length, totalAutomaticVisitsPerDay: automaticVisits.length, residentsNeverLeaveVault: true, closure: 'CANONICAL_GREEN_ONLY' },
   learningContract: {
     memorySource: 'diagnostics/auto-repair/memory.json',
     learningMode: 'ADVISORY_WITH_FRESH_PROOF_REQUIRED',
