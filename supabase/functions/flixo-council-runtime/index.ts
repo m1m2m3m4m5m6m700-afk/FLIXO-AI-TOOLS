@@ -69,10 +69,10 @@ const authGitHubWorkflow = async (req: Request, allowedWorkflows: string[]) => {
   const event = String(claims.event_name ?? "");
   const ref = String(claims.ref ?? "");
   const allowed = allowedWorkflows.some((workflow) => {
-    if (workflow === "FLIXO Master Agent Activation Relay") return event === "workflow_run" && ref === "refs/heads/execution";
-    if (workflow === "FLIXO External Council Lease Watcher") return (event === "schedule" && ref === "refs/heads/main") || (event === "workflow_dispatch" && (ref === "refs/heads/main" || ref === "refs/heads/execution"));
-    if (workflow === "FLIXO Council Wake Push Relay") return event === "push" && ref === "refs/heads/execution";
-    if (workflow === "FLIXO Cell Master Consult Relay") return event === "workflow_dispatch" && (ref === "refs/heads/execution" || ref === "refs/heads/main");
+    if (workflow === "FLIXO Master Agent Activation Relay") return event === "workflow_run" && ref === "refs/heads/execution" && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/agent-master-activation.yml@");
+    if (workflow === "FLIXO External Council Lease Watcher") return ((event === "schedule" && ref === "refs/heads/main") || (event === "workflow_dispatch" && (ref === "refs/heads/main" || ref === "refs/heads/execution"))) && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/council-external-lease-watch.yml@");
+    if (workflow === "FLIXO Council Wake Push Relay") return event === "push" && ref === "refs/heads/execution" && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/council-wake-push-relay.yml@");
+    if (workflow === "FLIXO Cell Master Consult Relay") return event === "workflow_dispatch" && (ref === "refs/heads/execution" || ref === "refs/heads/main") && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/cell-master-consult.yml@");
     return false;
   });
   if (!allowed) throw new Error("COUNCIL_GITHUB_OIDC_CONTEXT_REJECTED");
@@ -168,7 +168,7 @@ const verifySessionToken = (token: string) => {
 
 const sessionAuth = (req: Request, account: Account, dispatchId?: string) => {
   const url = new URL(req.url);
-  const token = (req.headers.get("x-council-session") ?? url.searchParams.get("session"))?.trim() ?? "";
+  const token = (req.headers.get("x-council-session") ?? "").trim();
   if (!token) return false;
   const claims = verifySessionToken(token);
   if (claims.accountId !== account) throw new Error("COUNCIL_SESSION_ACCOUNT_MISMATCH");
@@ -355,8 +355,8 @@ Deno.serve(async (req) => {
     }
 
 
-    if (action === "activate" && (req.method === "POST" || req.method === "GET")) {
-      const body = req.method === "GET" ? queryBody(url) : await jsonBody(req);
+    if (action === "activate" && req.method === "POST") {
+      const body = await jsonBody(req);
       const dispatchId = String(body.dispatchId ?? "").trim();
       const activationToken = String(body.activationToken ?? req.headers.get("x-council-activation") ?? "").trim();
       const declaredAgentId = String(body.agentId ?? "").trim();
@@ -486,8 +486,8 @@ Deno.serve(async (req) => {
       return response({ ok: true, dispatch: Array.isArray(result) ? result[0] ?? null : result }, 200, requestId);
     }
 
-    if (action === "heartbeat" && (req.method === "POST" || req.method === "GET")) {
-      const hb = req.method === "GET" ? queryBody(url) : body;
+    if (action === "heartbeat" && req.method === "POST") {
+      const hb = body;
       const account = accountFrom(hb.accountId);
       const dispatchId = String(hb.dispatchId ?? "").trim();
       const sessionId = String(hb.sessionId ?? "").trim();
@@ -502,8 +502,8 @@ Deno.serve(async (req) => {
       return response({ ok: true, dispatch: Array.isArray(result) ? result[0] ?? null : result }, 200, requestId);
     }
 
-    if (action === "complete" && (req.method === "POST" || req.method === "GET")) {
-      const cmp = req.method === "GET" ? queryBody(url) : body;
+    if (action === "complete" && req.method === "POST") {
+      const cmp = body;
       const account = accountFrom(cmp.accountId);
       const dispatchId = String(cmp.dispatchId ?? "").trim();
       const sessionId = String(cmp.sessionId ?? "").trim();
