@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "botId": "ACTION-REPAIR-2",
+  "displayName": "بوت مساعد إصلاح Actions",
+  "kind": "ACTION_REPAIR_ASSISTANT",
+  "headquarters": "docs/agents/historical-action-errors",
+  "purpose": "Audit every RED, retain non-green cases, challenge and assist ACTION-REPAIR-1.",
+  "mutationAuthority": true,
+  "executionAuthority": "MUTATION_GATED_BY_ACTION_REPAIR",
+  "requiredApprover": "ACTION-REPAIR",
+  "mutationScope": "ERROR_ONLY",
+  "branch": "execution",
+  "records": [],
+  "lessons": [],
+  "antiLessons": [],
+  "proposals": [],
+  "approvals": [],
+  "heartbeats": [],
+  "rules": {
+    "recordEveryRedNotGreen": true,
+    "learnBeforeGreen": true,
+    "promoteOnlyAfterCanonicalGreen": true,
+    "neverExecuteWithoutPrimaryApproval": true
+  },
+  "lock": {
+    "partner": "ACTION-REPAIR",
+    "sameExactSha": true,
+    "sameFingerprint": true,
+    "mutualHeartbeat": true,
+    "failClosed": true
+  },
+  "updatedAt": "2026-09-20T16:00:00.000Z"
+}
