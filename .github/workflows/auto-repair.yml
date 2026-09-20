@@ -673,7 +673,29 @@ jobs:
       - name: Verify auto-repair security boundary before mutation
         run: node scripts/ci/test-auto-repair-security-boundary.mjs
 
-      - name: ACTION-REPAIR-2 audit, non-green learning and dual-control proposal
+      - name: Verify exact ACTION-REPAIR / ACTION-REPAIR-2 programmer intelligence parity
+        if: steps.strategy.outcome == 'success'
+        run: |
+          set -euo pipefail
+          SHA="$(cat /tmp/flixo-failed-sha)"
+          FP="$FLIXO_FAILURE_FINGERPRINT"
+          node scripts/ci/action-repair-twin-parity.mjs \
+            --sha="$SHA" \
+            --fingerprint="$FP" \
+            --output=/tmp/action-repair-twin-parity.json
+          node scripts/ci/test-action-repair-twin-parity.mjs
+          jq -e --arg sha "$SHA" --arg fp "$FP" '
+            .status == "EXACT_INTELLIGENCE_PARITY" and
+            .intelligenceParity == "EXACT" and
+            .authorityParity == "SEPARATED_BY_DESIGN" and
+            .primaryAgent == "ACTION-REPAIR" and
+            .twinAgent == "ACTION-REPAIR-2" and
+            .targetSha == $sha and
+            .failureFingerprint == $fp
+          ' /tmp/action-repair-twin-parity.json >/dev/null
+          echo "FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH=/tmp/action-repair-twin-parity.json" >> "$GITHUB_ENV"
+
+      - name: ACTION-REPAIR-2 programmer twin challenge and dual-control proposal
         id: action_repair_assistant
         if: steps.strategy.outcome == 'success'
         env:
@@ -683,7 +705,7 @@ jobs:
           TARGET_RUN_ID: ${{ env.TARGET_RUN_ID }}
         run: |
           set -euo pipefail
-          node scripts/ci/action-repair-dual-control.mjs audit --agent=ACTION-REPAIR-2 --partner=ACTION-REPAIR --target-sha="$FLIXO_EXPECTED_TARGET_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --run-id="$TARGET_RUN_ID" --memory="$FLIXO_ACTION_REPAIR_ASSISTANT_MEMORY" --strategy=/tmp/flixo-repair-strategy.json --evidence=/tmp/flixo-root-cause.json --file-selection="$FLIXO_FILE_SELECTION_PATH" --proposal=/tmp/action-repair-2-proposal.json
+          node scripts/ci/action-repair-dual-control.mjs audit --agent=ACTION-REPAIR-2 --partner=ACTION-REPAIR --target-sha="$FLIXO_EXPECTED_TARGET_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --run-id="$TARGET_RUN_ID" --memory="$FLIXO_ACTION_REPAIR_ASSISTANT_MEMORY" --strategy=/tmp/flixo-repair-strategy.json --evidence=/tmp/flixo-root-cause.json --file-selection="$FLIXO_FILE_SELECTION_PATH" --programmer-twin-parity="$FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH" --proposal=/tmp/action-repair-2-proposal.json
           test -s /tmp/action-repair-2-proposal.json
 
       - name: ACTION-REPAIR-1 approval for ACTION-REPAIR-2
