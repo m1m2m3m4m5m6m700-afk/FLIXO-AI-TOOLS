@@ -196,6 +196,7 @@ const pendingAttribution = mutationAttribution({
 assert.equal(pendingAttribution.resultingSHA, null);
 assert.equal(pendingAttribution.resultingSHAKnown, false);
 assert.equal(pendingAttribution.exactShaBound, false);
+assert.equal(pendingAttribution.outcome, 'unknown');
 
 const engineSource = fs.readFileSync('scripts/ci/auto-repair-engine.mjs', 'utf8');
 assert.match(engineSource, /file: selected\?\.file \?\? plan\.reasoning\?\.location\?\.file/);
