@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process';
 const ROOT = process.cwd();
 const INBOX_DIR = path.resolve(ROOT, 'diagnostics/agents/inbox');
 const INDEX_FILE = path.join(INBOX_DIR, 'index.json');
+const CELL_REGISTRY_FILE = path.resolve(ROOT, 'docs/agents/CELL-BOT-REGISTRY.json');
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
   const token = process.argv[i];
@@ -34,6 +35,14 @@ const writeJson = (file, value) => {
 };
 const ensure = () => { fs.mkdirSync(INBOX_DIR, { recursive: true }); };
 const roles = new Set(['assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','diagnosticAgent','ALL_AGENTS']);
+const loadCellBotIds = () => {
+  if (!fs.existsSync(CELL_REGISTRY_FILE)) return new Set();
+  const registry = readJson(CELL_REGISTRY_FILE, { bots: [] });
+  return new Set(Array.isArray(registry.bots) ? registry.bots.map((bot) => String(bot.id)) : []);
+};
+const assertActorKnown = (actor) => {
+  if (/^CELL-\\d{3}$/u.test(actor) && !loadCellBotIds().has(actor)) throw new Error('AGENT_MESSAGE_UNKNOWN_CELL_BOT=' + actor);
+};
 const required = ['messageId','actor','recipient','intent','taskId','scope','entrySha','risk','dependencies','expectedEvidence','stopConditions','proofObligations','createdAt'];
 const asArray = (value, name) => {
   if (!Array.isArray(value) || value.length === 0 || value.some((item) => typeof item !== 'string' || !item.trim())) {
@@ -51,6 +60,7 @@ export function validateMessage(message, observedSha = currentSha()) {
   safeId(String(message.messageId), 'message_id');
   safeId(String(message.taskId), 'task_id');
   if (typeof message.actor !== 'string' || !message.actor.trim()) throw new Error('AGENT_MESSAGE_ACTOR_INVALID');
+  assertActorKnown(String(message.actor));
   if (!roles.has(String(message.recipient))) throw new Error('AGENT_MESSAGE_RECIPIENT_INVALID');
   if (typeof message.entrySha !== 'string' || !/^[0-9a-f]{40}$/u.test(message.entrySha)) throw new Error('AGENT_MESSAGE_ENTRY_SHA_INVALID');
   for (const field of ['scope','dependencies','expectedEvidence','stopConditions','proofObligations']) asArray(message[field], field);
@@ -163,9 +173,46 @@ export function markConsumed(messageId, agentId, observedSha = currentSha(), exe
   saveIndex(index);
   return record;
 }
-if (!['validate','ingest','read','ack'].includes(command)) throw new Error('Usage: agent-communication.mjs validate|ingest|read|ack');
+if (!['validate','ingest','read','ack','presence'].includes(command)) throw new Error('Usage: agent-communication.mjs validate|ingest|read|ack|presence');
 try {
-  if (command === 'validate') {
+  if (command === 'presence') {
+    const bot = arg('bot');
+    const taskId = arg('task');
+    const priority = arg('priority', 'P1').toUpperCase();
+    const reason = arg('reason');
+    const requestedAction = arg('requested-action');
+    const evidence = String(args.get('evidence') ?? '').split(',').map((value) => value.trim()).filter(Boolean);
+    const blocking = String(args.get('blocking', 'true')).toLowerCase() !== 'false';
+    const exactSha = arg('sha', currentSha());
+    if (!/^CELL-\\d{3}$/u.test(bot)) throw new Error('AGENT_PRESENCE_BOT_INVALID');
+    assertActorKnown(bot);
+    if (!['P0','P1','P2','P3'].includes(priority)) throw new Error('AGENT_PRESENCE_PRIORITY_INVALID');
+    if (!taskId) throw new Error('AGENT_PRESENCE_TASK_REQUIRED');
+    if (!reason) throw new Error('AGENT_PRESENCE_REASON_REQUIRED');
+    if (!requestedAction) throw new Error('AGENT_PRESENCE_REQUESTED_ACTION_REQUIRED');
+    if (!evidence.length) throw new Error('AGENT_PRESENCE_EVIDENCE_REQUIRED');
+    if (!/^[0-9a-f]{40}$/u.test(exactSha)) throw new Error('AGENT_PRESENCE_EXACT_SHA_INVALID');
+    const message = {
+      schemaVersion: 1,
+      messageId: 'presence:' + bot + ':' + taskId + ':' + Date.now().toString(36),
+      idempotencyKey: 'presence:' + bot + ':' + taskId + ':' + exactSha,
+      actor: bot,
+      recipient: 'assistantController',
+      intent: 'PRESENCE_REQUEST',
+      taskId,
+      scope: ['CELL_HQ_PRESENCE'],
+      entrySha: exactSha,
+      risk: priority === 'P0' ? 'CRITICAL' : priority === 'P1' ? 'HIGH' : priority === 'P2' ? 'MEDIUM' : 'LOW',
+      dependencies: ['CELL_HQ'],
+      expectedEvidence: evidence,
+      stopConditions: ['CONTROLLER_DECISION'],
+      proofObligations: ['EXACT_SHA_REVALIDATION'],
+      createdAt: now(),
+      source: 'CELL_HQ',
+      payload: { botId: bot, channel: 'PRESENCE', priority, reason, requestedAction, blocking, evidence },
+    };
+    console.log(JSON.stringify(ingest(message, currentSha()), null, 2));
+  } else if (command === 'validate') {
     const file = arg('message-file');
     if (!file) throw new Error('AGENT_MESSAGE_FILE_REQUIRED');
     const message = JSON.parse(fs.readFileSync(path.resolve(ROOT, file), 'utf8'));
