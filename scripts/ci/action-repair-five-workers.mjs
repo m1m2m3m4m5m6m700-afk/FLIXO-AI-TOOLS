@@ -36,7 +36,7 @@ const digest=s=>crypto.createHash('sha256').update(String(s),'utf8').digest('hex
 const requireIdentity=()=>{if(!sha(targetSha))throw new Error('FIVE_ACTION_REPAIR_TARGET_SHA_INVALID');if(!runId)throw new Error('FIVE_ACTION_REPAIR_RUN_ID_REQUIRED');if(!fingerprint)throw new Error('FIVE_ACTION_REPAIR_FINGERPRINT_REQUIRED')};
 const registry=readJson(REGISTRY);
 const workerIds=Array.isArray(registry.workers)?registry.workers.map(worker=>worker.id):[];
-if(!Array.isArray(workerIds)||workerIds.length!==5||new Set(workerIds).size!==5||workerIds.some(id=>!/^ACTION-\d{3}$/u.test(id)))throw new Error('FIVE_ACTION_REPAIR_SQUAD_REGISTRY_INVALID');
+if(!Array.isArray(workerIds)||workerIds.length!==5||new Set(workerIds).size!==5||workerIds.some(id=>!/^ACTION-(?:INDEX|WAKE|TWIN-1|TWIN-2|WISE)$/u.test(id)))throw new Error('FIVE_ACTION_REPAIR_SQUAD_REGISTRY_INVALID');
 const missing=SHARED_REFS.filter(ref=>!fs.existsSync(path.join(ROOT,ref)));
 if(missing.length)throw new Error('FIVE_ACTION_REPAIR_SHARED_REFERENCE_MISSING='+missing.join(','));
 const rawLog=logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'';
@@ -64,7 +64,7 @@ function scoreOption(option, historicalCount){
 }
 function selectBest({historical=[],twinA=null,twinB=null}){
  if(!twinA || !twinB) return {disposition:'BLOCK',reason:'BOTH_TWINS_REQUIRED'};
- const options=[{id:'TWIN_A',source:'CELL-003',value:twinA},{id:'TWIN_B',source:'CELL-004',value:twinB}]
+ const options=[{id:'TWIN_A',source:'ACTION-TWIN-1',value:twinA},{id:'TWIN_B',source:'ACTION-TWIN-2',value:twinB}]
    .map(({id,source,value})=>({id,source,value,strategyId:optionStrategy(value)}))
    .filter(x=>x.strategyId);
  if(options.length<2) return {disposition:'BLOCK',reason:'BOTH_TWINS_MUST_PROVIDE_ACTIONABLE_STRATEGY'};
@@ -90,13 +90,13 @@ if(role==='wake'){
  const branch=arg('branch','execution');
  if(branch!=='execution')throw new Error('ACTION_WAKE_BRANCH_BLOCKED');
  if(!['PUSH_READY','RED_INTERNAL','BLOCKED_EXTERNAL','FAIL_CLOSED'].includes(status))throw new Error('ACTION_WAKE_STATUS_NOT_ACTIONABLE');
- const result={schemaVersion:1,botId:'ACTION-WAKE',role:ROLE_MAP['ACTION-002'],action:'WAKE_ACTION_REPAIR_SQUAD',dispatcher:'FLIXO Execution Bot Watchdog',targetRunId:runId,targetSha,failureFingerprint:fingerprint,status,mutationAuthority:false,directDispatch:false,wholeCellReady:true,sharedReferences:SHARED_REFS,canonicalNextStep:status==='PUSH_READY'?'DAILY_FLIXO_GREEN_GATE':'EXISTING_CANONICAL_DISPATCHER'};
+ const result={schemaVersion:1,botId:'ACTION-WAKE',role:ROLE_MAP['ACTION-WAKE'],action:'WAKE_ACTION_REPAIR_SQUAD',dispatcher:'FLIXO Execution Bot Watchdog',targetRunId:runId,targetSha,failureFingerprint:fingerprint,status,mutationAuthority:false,directDispatch:false,wholeCellReady:true,sharedReferences:SHARED_REFS,canonicalNextStep:status==='PUSH_READY'?'DAILY_FLIXO_GREEN_GATE':'EXISTING_CANONICAL_DISPATCHER'};
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));process.exit(0);
 }
 if(role==='index'){
  requireIdentity();
  const records=historicalSolutions(12);
- const result={schemaVersion:1,botId:'ACTION-INDEX',role:ROLE_MAP['ACTION-001'],targetSha,runId,failureFingerprint:fingerprint,logDigest,queryTerms:topTerms,historicalMatchCount:records.length,historicalMatches:records,sameReferences:true,sharedReferences:SHARED_REFS,mutationAuthority:false,recommendation:records.length?'HISTORICAL_CANDIDATES_FOUND':'NO_HISTORICAL_MATCH'};
+ const result={schemaVersion:1,botId:'ACTION-INDEX',role:ROLE_MAP['ACTION-INDEX'],targetSha,runId,failureFingerprint:fingerprint,logDigest,queryTerms:topTerms,historicalMatchCount:records.length,historicalMatches:records,sameReferences:true,sharedReferences:SHARED_REFS,mutationAuthority:false,recommendation:records.length?'HISTORICAL_CANDIDATES_FOUND':'NO_HISTORICAL_MATCH'};
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify({status:'PASS',role,resultCount:records.length,output:out},null,2));process.exit(0);
 }
 if(role==='select'){
@@ -108,7 +108,7 @@ if(role==='select'){
  const twinA=aFile&&fs.existsSync(aFile)?readJson(aFile):null;
  const twinB=bFile&&fs.existsSync(bFile)?readJson(bFile):null;
  const selection=selectBest({historical,twinA,twinB});
- const result={schemaVersion:1,botId:'ACTION-WISE',role:ROLE_MAP['ACTION-005'],targetSha,runId,failureFingerprint:fingerprint,mutationAuthority:false,canonicalMutationOwner:'repairAgent',historicalSolutionCount:historical.length,twinAAvailable:Boolean(twinA),twinBAvailable:Boolean(twinB),selection};
+ const result={schemaVersion:1,botId:'ACTION-WISE',role:ROLE_MAP['ACTION-WISE'],targetSha,runId,failureFingerprint:fingerprint,mutationAuthority:false,canonicalMutationOwner:'repairAgent',historicalSolutionCount:historical.length,twinAAvailable:Boolean(twinA),twinBAvailable:Boolean(twinB),selection};
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));process.exit(selection.disposition==='SELECTED'?0:2);
 }
 const logExists=Boolean(logPath&&fs.existsSync(logPath));
