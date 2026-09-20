@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import {recordRedSignal,createLearningRequest,closeLearningRequest,recordVerifiedGreen,copyHistoricalIndexToActionIndexBot} from './action-repair-memory.mjs';
+import {recordRedSignal,createLearningRequest,closeLearningRequest,recordVerifiedGreen,copyHistoricalIndexToActionIndexBot,requestMasterRepair} from './action-repair-memory.mjs';
 
 const ROOT=process.cwd();
 const arg=(name,fallback='')=>{const p='--'+name+'=';const v=process.argv.find(x=>x.startsWith(p));return v?v.slice(p.length):fallback};
@@ -26,6 +26,27 @@ if(op==='open-red'){
  const x=recordRedSignal({fingerprint,runId,targetSha,workflow,job,normalizedFailure,rawFailure:process.env.FLIXO_FAILURE_LOG});
  const y=createLearningRequest({fingerprint,runId,targetSha,workflow,job,normalizedFailure,master:'repairAgent',requiredFields:['rootCause','solution.strategyId','solution.rule','solution.changedPaths','verification','evidenceRef']});
  console.log(JSON.stringify({master:'repairAgent',operation:op,status:'OPEN_FOR_REPAIR_AND_LEARNING',signalId:x.redSignals.at(-1)?.signalId,requestId:y.learningRequests.at(-1)?.requestId},null,2));
+ process.exit(0);
+}
+if(op==='request-master'){
+ const evidenceFile=arg('evidence-file',process.env.FLIXO_ACTION_REPAIR_SEARCH_PATH||'');
+ const evidence=evidenceFile&&fs.existsSync(evidenceFile)?JSON.parse(fs.readFileSync(evidenceFile,'utf8')):null;
+ const selectedFile=arg('selected-file','');
+ const attemptedStrategies=selectedFile&&fs.existsSync(selectedFile)?(JSON.parse(fs.readFileSync(selectedFile,'utf8')).selection?.ranked??[]).map(x=>x.strategyId).filter(Boolean):[];
+ const x=requestMasterRepair({
+   botId:arg('bot-id','ACTION-REPAIR'),
+   taskId:arg('task-id','ACTION-MASTER:'+runId+':'+String(fingerprint).slice(0,16)),
+   fingerprint,runId,targetSha,workflow,job,normalizedFailure,
+   reason:arg('reason','NO_ACTIONABLE_INDEX_SOLUTION'),
+   searchedIndex:arg('searched-index','docs/agents/historical-action-errors/index.json'),
+   searchedTerms:evidence?.queryTerms??[],
+   attemptedStrategies,
+   rejectedStrategies:attemptedStrategies,
+   evidenceGap:arg('evidence-gap','INDEX_AND_CURRENT_EVIDENCE_DID_NOT_PRODUCE_VERIFIED_ACTIONABLE_SOLUTION'),
+   requestedPlan:arg('requested-plan','MASTER_REPAIR_ROOT_CAUSE_UPDATE_INDEX_ADD_NEW_PLAN'),
+   proposedHypothesis:arg('proposed-hypothesis','')
+ });
+ console.log(JSON.stringify({master:'repairAgent',operation:op,status:'OPEN_MASTER_REQUIRED',requestId:x.learningRequests.find(r=>r.requestId)?.requestId??null},null,2));
  process.exit(0);
 }
 if(op==='close-green'){
