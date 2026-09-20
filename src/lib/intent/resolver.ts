@@ -77,6 +77,11 @@ export const resolveFilterMaskSelection = (input: string) => {
   const intensity = intensityMatch ? Number(intensityMatch[1]) : 100;
   const zoom = zoomMatch ? Number(zoomMatch[1]) : 1;
   const aspectToken = aspectMatch?.[0]?.replace(/\s+/g, '').toLocaleLowerCase();
+  const quality = /(?:1080p|1080\s*p|full\s*hd|fhd|عالي\s*الجودة|فل\s*إتش\s*دي)/i.test(input)
+    ? '1080p'
+    : /(?:720p|720\s*p|hd|1280\s*[x×]\s*720)/i.test(input)
+      ? '720p'
+      : '1080p';
   const aspectRatio = aspectToken === 'vertical' || aspectToken === 'portrait' || aspectToken === 'عمودي' || aspectToken === 'طولي' || aspectToken === '9:16'
     ? '9:16'
     : aspectToken === '4:5' ? '4:5'
@@ -87,5 +92,6 @@ export const resolveFilterMaskSelection = (input: string) => {
     intensity: Number.isFinite(intensity) ? intensity : 100,
     zoom: Number.isFinite(zoom) ? zoom : 1,
     aspectRatio,
+    captureQuality: quality,
   });
 };
