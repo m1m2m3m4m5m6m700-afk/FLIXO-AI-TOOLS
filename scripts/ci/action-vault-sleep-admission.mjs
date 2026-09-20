@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import { sleepAdmission, idleAdmission } from './agent-liveness-protocol.mjs';
 
 const ROOT=process.cwd();
 const arg=(name,f='')=>{const p='--'+name+'=';const x=process.argv.find(v=>v.startsWith(p));return x?x.slice(p.length):f};
@@ -9,32 +8,36 @@ const taskId=arg('task');
 const fingerprint=arg('fingerprint');
 const targetSha=arg('target-sha');
 const recordFile=arg('green-record');
-const state=arg('state','SLEEP');
+const requestedState=arg('state','SLEEP').toUpperCase();
 
-const readGreen=()=>{
-  if(!recordFile) throw new Error('ACTION_VAULT_GREEN_RECORD_REQUIRED');
+if(!taskId || !fingerprint || !/^[a-f0-9]{40}$/u.test(targetSha)) throw new Error('ACTION_VAULT_RESIDENCY_IDENTITY_REQUIRED');
+
+if(recordFile){
   const file=path.resolve(ROOT,recordFile);
   if(!fs.existsSync(file)) throw new Error('ACTION_VAULT_GREEN_RECORD_NOT_FOUND');
-  return JSON.parse(fs.readFileSync(file,'utf8'));
-};
-
-if(!taskId || !fingerprint || !/^[a-f0-9]{40}$/u.test(targetSha)) throw new Error('ACTION_VAULT_SLEEP_IDENTITY_REQUIRED');
-
-try{
-  const greenRecord=readGreen();
-  const result = state==='IDLE'
-    ? idleAdmission({workAssigned:false,greenRecord,targetSha,taskId,fingerprint})
-    : sleepAdmission({workAssigned:false,greenRecord,targetSha,taskId,fingerprint});
-  console.log(JSON.stringify({
-    status:'PASS',
-    protocol:'ACTION-VAULT-SLEEP-ADMISSION-v1',
-    admission:result,
-    taskId,
-    fingerprint,
-    targetSha,
-    greenRecordId:greenRecord.recordId
-  },null,2));
-}catch(error){
-  console.error('ACTION_VAULT_SLEEP_ADMISSION_BLOCK='+String(error?.message??error));
-  process.exit(1);
+  JSON.parse(fs.readFileSync(file,'utf8'));
 }
+
+const result={
+  status:'BLOCKED',
+  protocol:'ACTION-VAULT-PERMANENT-RESIDENCY-v1',
+  admission:'DENIED_PERMANENTLY',
+  taskId,
+  fingerprint,
+  targetSha,
+  requestedState,
+  rules:{
+    sleep:false,
+    idle:false,
+    freeze:false,
+    withdrawal:false,
+    leaveVault:false
+  },
+  requiredState:'READY_RESIDENT',
+  reason:'ACTION_VAULT_AGENTS_MUST_REMAIN_RESIDENT; MISSION_CLOSURE_OR_GREEN_DOES_NOT_CREATE_A_SLEEP_OR_WITHDRAWAL_STATE'
+};
+console.log(JSON.stringify(result,null,2));
+
+// This executable intentionally exits successfully after proving the attempted
+// transition is blocked. Callers must treat admission.status=BLOCKED as refusal,
+// never as permission to suspend an agent.
