@@ -45,7 +45,7 @@ const twinProposalPath = process.env.FLIXO_TWIN_PROPOSAL_PATH ?? '';
 const twinProposal = twinProposalPath ? readJson(twinProposalPath, null) : null;
 const twinA = process.env.FLIXO_TWIN_A_PATH ? readJson(process.env.FLIXO_TWIN_A_PATH, null) : null;
 const twinB = process.env.FLIXO_TWIN_B_PATH ? readJson(process.env.FLIXO_TWIN_B_PATH, null) : null;
-const selectedRepairStrategy = String(process.env.FLIXO_SELECTED_REPAIR_STRATEGY ?? '').trim();
+const selectedRepairStrategy = String(twinSelection?.selection?.selectedStrategy ?? '').trim();
 const twinPreferredStrategy = selectedRepairStrategy
   || String(twinProposal?.challenge?.preferredAlternativeStrategy ?? twinA?.challenge?.preferredAlternativeStrategy ?? twinB?.challenge?.preferredAlternativeStrategy ?? '').trim();
 const twinSelection = process.env.FLIXO_SELECTION_PATH ? readJson(process.env.FLIXO_SELECTION_PATH, null) : null;
