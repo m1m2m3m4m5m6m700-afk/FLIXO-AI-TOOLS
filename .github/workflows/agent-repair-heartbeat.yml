@@ -21,6 +21,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
+      - name: Checkout liveness contract
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: execution
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate no-sleep liveness contract
+        run: |
+          set -euo pipefail
+          node scripts/ci/agent-liveness-protocol.mjs validate
+          echo 'OPEN_WORK_SLEEP=FORBIDDEN'
+          echo 'STALE_HEARTBEAT_ACTION=RECOVER_AND_CONTINUE'
+
       - name: Check supervisor liveness and current GREEN state
         id: state
         env:
