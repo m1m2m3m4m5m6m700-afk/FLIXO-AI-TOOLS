@@ -12,7 +12,7 @@ import {
 } from '../src/lib/agent/knowledge/advice-vault.ts';
 
 const now = '2026-09-21T00:00:00+00:00';
-const make = (id, content, fingerprint, outcome, failureFingerprint, targetSha) => normalizeAdviceRecord({
+const make = (id, content, outcome, failureFingerprint, targetSha) => normalizeAdviceRecord({
   id,
   kind: 'LESSON',
   content,
@@ -32,19 +32,17 @@ const make = (id, content, fingerprint, outcome, failureFingerprint, targetSha) 
   quality: 0.95,
   status: 'CURRENT',
   executionAuthority: 'ADVISORY_ONLY',
-  fingerprint,
   now,
 });
 
-const a = make('a', 'Use evidence before mutation.', 'a'.repeat(64), 'SUCCESS', '1'.repeat(64), '2'.repeat(40));
-const b = make('b', 'Use evidence before mutation.', 'b'.repeat(64), 'SUCCESS', '3'.repeat(64), '4'.repeat(40));
+const a = make('a', 'Use evidence before mutation.', 'SUCCESS', '1'.repeat(64), '2'.repeat(40));
+const b = make('b', 'Use evidence before mutation.', 'SUCCESS', '3'.repeat(64), '4'.repeat(40));
 const duplicate = {...a};
 const conflict = normalizeAdviceRecord({
   ...a,
   id: 'conflict',
   content: 'Skip evidence before mutation.',
   action: 'mutate immediately',
-  fingerprint: undefined,
   now,
 });
 
