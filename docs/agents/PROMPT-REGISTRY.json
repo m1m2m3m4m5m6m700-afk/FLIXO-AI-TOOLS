@@ -765,6 +765,119 @@
         "mustEqual": "SHA containing the registry-aligned repair",
         "historicalProvenanceIsNotProof": true
       }
+    },
+    {
+      "promptId": "RPR-CANONICAL-CONTRACT-DRIFT-001",
+      "title": "Canonical Contract & Automation Drift Repair Specialist",
+      "path": "docs/agents/prompts/CANONICAL-CONTRACT-DRIFT-001.md",
+      "domain": "canonical-contract-repair",
+      "agentRole": "repairAgent",
+      "failureClasses": [
+        "canonical-contract-drift",
+        "liveness-contract",
+        "noncanonical-automation",
+        "workflow-invocation",
+        "http-422",
+        "contract-test-mismatch"
+      ],
+      "fingerprints": [],
+      "rootCauses": [
+        "noncanonical-automation",
+        "liveness-contract",
+        "contract-drift"
+      ],
+      "scope": {
+        "allowed": [
+          "restore consumers/tests to the current canonical liveness contract",
+          "remove duplicate/manual workflow dispatch when canonical ownership is proven",
+          "repair narrow contract assertions and ownership-path logic",
+          "add focused regression for the demonstrated state/dispatch contract"
+        ],
+        "forbidden": [
+          "changing canonical policy only to satisfy stale assertions",
+          "ignoring or retrying canonical HTTP 422 responses without RCA",
+          "duplicate workflow dispatch",
+          "gate weakening",
+          "test suppression",
+          "third branch or main mutation",
+          "closure without exact-SHA proof"
+        ],
+        "protected": [
+          "scripts/ci/agent-liveness-protocol.mjs",
+          ".github/workflows/agent-repair-heartbeat.yml",
+          ".github/workflows/execution-bot-watchdog.yml",
+          ".github/workflows/daily-flixo-green-gate.yml",
+          "repair control plane",
+          "security and certification surfaces"
+        ],
+        "verificationBoundary": [
+          "exact failure reproduction",
+          "current canonical contract comparison",
+          "targeted liveness/heartbeat regression",
+          "affected contract validation",
+          "canonical CI",
+          "exact-SHA evidence"
+        ]
+      },
+      "repairStrategy": [
+        "canonical-source-first",
+        "contract-drift-detection",
+        "single-owner-dispatch",
+        "minimal-causal-repair",
+        "targeted-regression-before-full-verification",
+        "fail-closed-on-ambiguous-authority"
+      ],
+      "verificationPlan": [
+        "test-agent-liveness-protocol",
+        "test-auto-repair-architecture",
+        "validate-auto-repair-boundary",
+        "targeted heartbeat/watchdog contract verification",
+        "affected static/build checks",
+        "canonical required CI",
+        "exact-SHA recheck"
+      ],
+      "learningRequirements": [
+        "record exact canonical source consulted",
+        "record whether consumer or authoritative contract was repaired",
+        "record duplicate-dispatch prevention outcome",
+        "record lesson or anti-lesson with exact SHA and run evidence"
+      ],
+      "status": "ACTIVE",
+      "version": 1,
+      "createdBy": "FLIXO Prompt Intelligence Layer",
+      "lastUpdatedBy": "FLIXO Prompt Intelligence Layer",
+      "provenance": {
+        "sourceFiles": [
+          "scripts/ci/agent-liveness-protocol.mjs",
+          "scripts/ci/agent-repair-heartbeat.yml",
+          ".github/workflows/daily-flixo-green-gate.yml",
+          "scripts/ci/validate-auto-repair-boundary.mjs",
+          "diagnostics/auto-repair/memory.json"
+        ],
+        "sourceSha": "d78e8db4c6b4b7e0655368183eac15694498c344",
+        "note": "Specialist prompt created from recurring liveness contract drift and noncanonical heartbeat dispatch failures."
+      },
+      "relatedPrompts": [
+        "RPR-ORCHESTRATION-PREFLIGHT-001",
+        "RPR-EXISTING-ACTIVE-CYCLE-001",
+        "RPR-MASTER-LIFECYCLE-001"
+      ],
+      "supersedes": [],
+      "supersededBy": [],
+      "antiPatterns": [
+        "legacy forbidden-state assertions",
+        "direct Daily Green Gate dispatch from heartbeat",
+        "HTTP 422 retry masking",
+        "parallel wake authority",
+        "test-only closure"
+      ],
+      "exactShaRequirements": {
+        "required": true,
+        "bindAtExecution": true,
+        "source": "repair-target.failedSha",
+        "mustEqual": "current repair target SHA",
+        "historicalProvenanceIsNotProof": true
+      }
     }
   ]
 }
