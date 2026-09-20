@@ -8,7 +8,7 @@ on:
 # A newer commit supersedes older advisory security-review evidence for the same PR/branch.
 # The surviving run still reviews the exact PR head SHA.
 concurrency:
-  group: claude-security-${{ github.event.pull_request.number || github.ref }}
+  group: claude-security-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 # Advisory only: this workflow never modifies source code and is not a merge gate.
@@ -22,6 +22,12 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
+      - name: Fail closed when this commit is superseded
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+        run: node scripts/ci/assert-current-commit.mjs
       - name: Checkout PR head
         uses: actions/checkout@v5
         with:
