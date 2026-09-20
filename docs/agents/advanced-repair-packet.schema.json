@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "flixo://contracts/advanced-repair-packet/v1",
+  "title": "FLIXO Advanced Repair Packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "repairChainId", "entrySha", "failureFingerprint", "evidence", "hypotheses", "falsification", "scope", "verification", "provenance", "state"],
+  "properties": {
+    "schemaVersion": {"type": "integer", "minimum": 1},
+    "repairChainId": {"type": "string", "minLength": 1},
+    "entrySha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "failureFingerprint": {"type": "string", "minLength": 1},
+    "evidence": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["kind", "reference"], "properties": {"kind": {"type": "string"}, "reference": {"type": "string"}}, "additionalProperties": false}},
+    "hypotheses": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["id", "statement", "status"], "properties": {"id": {"type": "string"}, "statement": {"type": "string"}, "status": {"enum": ["OPEN", "FALSIFIED", "SUPPORTED", "UNKNOWN"]}}, "additionalProperties": false}},
+    "falsification": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["hypothesisId", "test", "result"], "properties": {"hypothesisId": {"type": "string"}, "test": {"type": "string"}, "result": {"enum": ["PASS", "FAIL", "NOT_RUN"]}}, "additionalProperties": false}},
+    "scope": {"type": "object", "required": ["allowedPaths", "dependencyImpact"], "properties": {"allowedPaths": {"type": "array", "items": {"type": "string"}}, "dependencyImpact": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": false},
+    "verification": {"type": "object", "required": ["requiredCommands", "targetShaBound"], "properties": {"requiredCommands": {"type": "array", "minItems": 1, "items": {"type": "string"}}, "targetShaBound": {"const": true}}, "additionalProperties": false},
+    "provenance": {"type": "object", "required": ["actor", "mutationDigest"], "properties": {"actor": {"type": "string"}, "mutationDigest": {"type": "string"}}, "additionalProperties": false},
+    "state": {"enum": ["OPEN_RCA", "INVESTIGATING", "DIAGNOSED", "UNKNOWN_RCA", "BLOCKED", "READY_FOR_PLAN", "REJECTED"]}
+  }
+}
