@@ -35,12 +35,12 @@ on:
         type: string
 
 permissions:
-  # Full repository repair-plane permissions.
-  # The executor can mutate code on execution, manage Actions, update PRs,
-  # publish repair/status evidence, annotate issues, and handle security findings.
+  # Sole source-mutation authority for the repair plane.
+  # Actions administration is intentionally NOT granted: peer observers may wake
+  # the bot, but cannot use it to disable or reconfigure Actions.
   # It still cannot bypass the execution-only mutation boundary or write main.
   contents: write
-  actions: write
+  # No Actions-admin capability: peer agents cannot be controlled by the repair bot.
   checks: read
   pull-requests: write
   issues: write
@@ -386,7 +386,6 @@ jobs:
 
       - name: Bind Task Agent preparation to the active repair cycle on execution
         id: task_agent
-        continue-on-error: true
         run: |
           set -euo pipefail
           SIGNATURE="$(node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8')); process.stdout.write(x.signature||'unknown')")"
@@ -450,35 +449,9 @@ jobs:
           set -euo pipefail
           node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=MUTATING --actor=REPAIR_AGENT --reason=BOUNDED_SOURCE_MUTATION
 
-      - name: Select assistant fallback only when primary agents are unavailable
-        id: assistant_fallback
-        if: always() && (steps.task_agent.outcome != 'success' || steps.strategy.outcome != 'success')
-        env:
-          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
-          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          FINGERPRINT="$(node --input-type=module -e "import fs from 'node:fs'; import { fingerprintFailure } from './scripts/ci/auto-repair-learning.mjs'; process.stdout.write(fingerprintFailure(fs.readFileSync(process.env.FLIXO_FAILURE_LOG,'utf8')))" )"
-          PRIMARY_ACTIVE=false
-          if [ -f diagnostics/agents/coordination-state.json ]; then
-            if jq -e '.activeSessions | to_entries | any(.[]; (.value.role == "repairAgent" or .value.role == "executionAgent") and (.value.taskId != null))' diagnostics/agents/coordination-state.json >/dev/null; then PRIMARY_ACTIVE=true; fi
-          fi
-          RULE="$(FALLBACK_FINGERPRINT="$FINGERPRINT" node --input-type=module -e "import fs from 'node:fs'; const m=JSON.parse(fs.readFileSync(process.env.FLIXO_REPAIR_MEMORY,'utf8')); const fp=process.env.FALLBACK_FINGERPRINT; const c=(m.cases||[]).find(x=>x.fingerprint===fp); const valid=p=>p && Number(p.successes||0)>=2 && Number(p.attempts||0)>=2 && Number(p.successRate||0)>=0.9 && Number(p.successfulFingerprintSupport||0)>=2 && !(c?.revertedRules||[]).includes(p.rule); const hit=(m.playbooks||[]).filter(valid).find(p=>(p.successfulFingerprints||[]).includes(fp)); process.stdout.write(hit?.rule||'')" )"
-          if [ "$PRIMARY_ACTIVE" = false ] && [ -n "$RULE" ]; then
-            node --input-type=module -e "import fs from 'node:fs'; const fp=process.env.FINGERPRINT; const x={fallbackEligible:true,actor:'assistantRepairAgent',primaryAgentsUnavailable:true,approvedLearnedRule:process.env.FALLBACK_RULE,learnedRuleConfidence:Number(process.env.FALLBACK_CONFIDENCE),learnedRuleSupport:Number(process.env.FALLBACK_SUPPORT),targetSha:process.env.FLIXO_EXPECTED_TARGET_SHA}; fs.writeFileSync('/tmp/flixo-assistant-fallback-proof.json',JSON.stringify({...x,failureFingerprint:fp},null,2)+'\\n')"
-            FINGERPRINT="$FINGERPRINT" FALLBACK_RULE="$RULE" FALLBACK_CONFIDENCE=0.9 FALLBACK_SUPPORT=2 node --input-type=module -e "import fs from 'node:fs'; const fp=process.env.FINGERPRINT; const x=JSON.parse(fs.readFileSync('/tmp/flixo-assistant-fallback-proof.json','utf8')); x.approvedLearnedRule=process.env.FALLBACK_RULE; x.learnedRuleConfidence=Number(process.env.FALLBACK_CONFIDENCE); x.learnedRuleSupport=Number(process.env.FALLBACK_SUPPORT); fs.writeFileSync('/tmp/flixo-assistant-fallback-proof.json',JSON.stringify({...x,failureFingerprint:fp},null,2)+'\\n')"
-            echo "FLIXO_REPAIR_ACTOR=assistantRepairAgent" >> "$GITHUB_ENV"
-            echo "FLIXO_ASSISTANT_FALLBACK_PROOF_PATH=/tmp/flixo-assistant-fallback-proof.json" >> "$GITHUB_ENV"
-            echo 'ASSISTANT_FALLBACK_SELECTED=true'
-          else
-            echo 'ASSISTANT_FALLBACK_SELECTED=false'
-            echo 'FALLBACK_NOT_ELIGIBLE=true'
-          fi
-
-      - name: Execute bounded root-cause repair under selected repair authority
+      - name: FLIXO Auto Repair Bot — sole mutation authority for the active RED target
         id: execute_repair
-        if: always() && steps.strategy.outcome == 'success' && steps.install_target.outcome == 'success'
+        if: steps.strategy.outcome == 'success' && steps.install_target.outcome == 'success'
         env:
           FLIXO_TARGET_DIR: ${{ github.workspace }}
           FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
