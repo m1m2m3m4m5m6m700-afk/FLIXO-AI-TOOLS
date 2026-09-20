@@ -1,5 +1,6 @@
 import type { AdminCapability } from './control-plane.ts';
-import { ADMIN_CAPABILITIES, ADMIN_ROLE_CAPABILITY_MATRIX } from './module-registry.ts';
+import { ADMIN_ROLE_CAPABILITY_MATRIX } from './module-registry.ts';
+import { ADMIN_CAPABILITIES } from './control-plane.ts';
 
 export type AdminRole = keyof typeof ADMIN_ROLE_CAPABILITY_MATRIX;
 
@@ -9,7 +10,7 @@ export const ADMIN_ROLES = Object.keys(ADMIN_ROLE_CAPABILITY_MATRIX) as AdminRol
 
 export const capabilitiesForRole = (role: AdminRole): readonly AdminCapability[] => {
   const declared = ADMIN_ROLE_CAPABILITY_MATRIX[role] ?? [];
-  return declared.filter((capability): capability is AdminCapability => ACTIVE_CAPABILITY_SET.has(capability));
+  return declared.filter((capability) => ACTIVE_CAPABILITY_SET.has(capability)) as readonly AdminCapability[];
 };
 
 export const isAdminRole = (value: unknown): value is AdminRole =>
