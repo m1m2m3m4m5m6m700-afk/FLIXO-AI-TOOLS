@@ -118,10 +118,17 @@ export async function appendPipelineStepReceipt(
 }
 
 
-export async function assertPipelineReceiptChain(chain: PipelineReceiptChain): Promise<void> {
+export async function assertPipelineReceiptChain(
+  chain: PipelineReceiptChain,
+  plan?: PipelinePlanIdentity,
+): Promise<void> {
   if (chain.schemaVersion !== '1') throw new Error('Unsupported pipeline receipt chain schema version.');
   if (chain.catalogFingerprint !== TOOL_CATALOG.fingerprint) throw new Error('Pipeline receipt chain catalog fingerprint is stale.');
   if (!SHA256_PATTERN.test(chain.planFingerprint)) throw new Error('Pipeline receipt chain plan fingerprint is invalid.');
+  if (plan) {
+    const expectedPlanFingerprint = await createPipelinePlanFingerprint(plan);
+    if (expectedPlanFingerprint !== chain.planFingerprint) throw new Error('Pipeline receipt chain plan fingerprint does not match the execution plan.');
+  }
   let rebuilt = createPipelineReceiptChain(chain.catalogFingerprint, chain.planFingerprint);
   for (const receipt of chain.steps) {
     rebuilt = await appendPipelineStepReceipt(rebuilt, receipt);
