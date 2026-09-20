@@ -95,6 +95,7 @@ for (const marker of ["'repairAgent'", "'executionAgent'", "'assistantRepairAgen
 
 const repairProtocol = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';
 const repairEngine = exists('scripts/ci/auto-repair-engine.mjs') ? read('scripts/ci/auto-repair-engine.mjs') : '';
+const errorOnlyProgrammer = exists('scripts/ci/auto-repair/error-only-programmer.mjs') ? read('scripts/ci/auto-repair/error-only-programmer.mjs') : '';
 const proofContract = exists('scripts/ci/auto-repair-proof.mjs') ? read('scripts/ci/auto-repair-proof.mjs') : '';
 const repairMarkers = [
   'schemaVersion: 6',
@@ -122,6 +123,8 @@ for (const requiredImport of [
   ['scripts/ci/auto-repair-engine.mjs', "from './repair-protocol.mjs'"],
 ]) { const source = exists(requiredImport[0]) ? read(requiredImport[0]) : ''; if (!source.includes(requiredImport[1])) fail('REPAIR_PROTOCOL_NOT_CONSUMED', requiredImport[0]); }
 for (const marker of repairMarkers) if (repairEngine && !repairEngine.includes(marker)) fail('REPAIR_PROTOCOL_MISSING', marker);
+for (const marker of ["./auto-repair/error-only-programmer.mjs", 'buildErrorOnlyRepairModel', 'error-only-programmer-blocked']) if (repairEngine && !repairEngine.includes(marker)) fail('ERROR_ONLY_PROGRAMMER_NOT_WIRED', marker);
+for (const marker of ['ERROR_ONLY_PROGRAMMER_MODEL', 'SOURCE_ERROR_REPAIR_ONLY', 'NEVER_MUTATE_TESTS', 'NEVER_MUTATE_CONTROL_PLANE', 'EXACT_SHA_REQUIRED']) if (errorOnlyProgrammer && !errorOnlyProgrammer.includes(marker)) fail('ERROR_ONLY_PROGRAMMER_CONTRACT_MISSING', marker);
 for (const marker of ['validateRepairProof', 'preventionRuleFor', 'escalationReason', 'target-sha-missing', 'recurrence-proof-second-pass']) if (proofContract && !proofContract.includes(marker)) fail('REPAIR_PROOF_CONTRACT_MISSING', marker);
 if (repairEngine && !repairEngine.includes('if (!verified)')) fail('REPAIR_PROTOCOL_MISSING', 'fail-closed-verification');
 if (repairEngine && !repairEngine.includes('validateErrorOnlyMutation')) fail('REPAIR_PROTOCOL_MISSING', 'error-only-mutation-binding');
