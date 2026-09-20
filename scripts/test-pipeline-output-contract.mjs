@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { getToolOutputContractForDefinition } from '../src/lib/contracts/tool-output-contracts.ts';
 import { getToolDefinition } from '../src/config/canonical-tool-definition.ts';
 import { verifyPipelineOutput } from '../src/lib/workflows/pipeline-runner.ts';
+import { createPipelineStepReceipt } from '../src/lib/workflows/pipeline-receipt.ts';
+import { TOOL_CATALOG } from '../src/config/registry.ts';
 
 const input = new Blob(['input'], { type: 'image/png' });
 const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01]);
@@ -34,4 +36,18 @@ assert.equal(
   false,
 );
 
-console.log('Pipeline output contract tests passed.');
+const receipt = await createPipelineStepReceipt({
+  toolId: 'image-compressor',
+  stepIndex: 1,
+  attempt: 0,
+  inputBlob: input,
+  outputBlob: validPng,
+  catalogFingerprint: TOOL_CATALOG.fingerprint,
+  verified: true,
+});
+assert.match(receipt.inputSha256, /^[a-f0-9]{64}$/);
+assert.match(receipt.outputSha256, /^[a-f0-9]{64}$/);
+assert.equal(receipt.recoveryApplied, false);
+assert.equal(receipt.verified, true);
+
+console.log('Pipeline output contract + artifact receipt tests passed.');
