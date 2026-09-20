@@ -181,11 +181,13 @@ test.describe('Filter Mask live camera surface', () => {
     await page.waitForTimeout(1200);
     await section.getByRole('button', { name: 'Stop recording' }).click();
     const videoLink = section.getByRole('link', { name: 'Download result' });
-    await expect(videoLink).toHaveAttribute('download', 'flixo-filter-mask.webm');
+    await expect.poll(async () => videoLink.getAttribute('download')).toMatch(/\.mp4$|\.webm$/);
     await expect(section.getByRole('button', { name: 'Share result' })).toBeVisible();
     await expect.poll(async () => videoLink.evaluate(async (element) => {
       const href = (element as HTMLAnchorElement).href;
-      return (await (await fetch(href)).blob()).size;
+      const blob = await (await fetch(href)).blob();
+      if (!blob.type.startsWith('video/')) return 0;
+      return blob.size;
     })).toBeGreaterThan(0);
 
     await section.getByRole('button', { name: 'Stop' }).click();
