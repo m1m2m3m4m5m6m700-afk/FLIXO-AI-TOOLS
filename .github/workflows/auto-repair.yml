@@ -74,6 +74,10 @@ env:
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
   FLIXO_DIAGNOSTIC_LINE_LIMIT: '5000'
   FLIXO_REPAIR_ATTEMPT_LEDGER: /tmp/flixo-repair-attempt-ledger.json
+  # CELL-001 is the standing Actions index/learning custodian.
+  FLIXO_CELL_BOT_ID: CELL-001
+  FLIXO_CELL_TASK_SHORT_NAME: ACTION_SOLUTION_INDEXER
+  FLIXO_CELL_TASK_NAME: ACTION_SOLUTION_INDEXER
 
 jobs:
   adversarial_twin:
@@ -433,6 +437,18 @@ jobs:
           } > /tmp/flixo-repair-summary.txt
           node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=EVIDENCE_LOCKED --actor=AUTO_REPAIR_BOT --reason=FAILURE_EVIDENCE_CAPTURED
 
+      - name: CELL-001 index current Actions failure against historical corpus
+        if: steps.capture.outcome == 'success'
+        run: |
+          set -euo pipefail
+          SHA="$(cat /tmp/flixo-failed-sha)"
+          FP="$FLIXO_FAILURE_FINGERPRINT"
+          test -n "$FP"
+          node scripts/ci/action-repair-five-workers.mjs --role=index --target-sha="$SHA" --run-id="$TARGET_RUN_ID" --fingerprint="$FP" --log="$FLIXO_FAILURE_LOG" --output=/tmp/flixo-historical-solution-index.json
+          test -s /tmp/flixo-historical-solution-index.json
+          echo 'FLIXO_HISTORICAL_SOLUTION_PATH=/tmp/flixo-historical-solution-index.json' >> "$GITHUB_ENV"
+          echo "CELL_001_HISTORICAL_INDEX_READY=$(jq -r '.historicalMatchCount' /tmp/flixo-historical-solution-index.json)"
+
       - name: Await the parallel adversarial twin before strategy selection
         id: twin
         env:
@@ -728,9 +744,20 @@ jobs:
             exit 1
           fi
           STRATEGY_ID="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId||'')")"
-          FLIXO_REPAIR_STRATEGY_ID="$STRATEGY_ID" FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" FLIXO_LEARNING_OUTCOME="$LEARNING_OUTCOME" FLIXO_VERIFICATION="$ENGINE_OUTCOME" FLIXO_TARGET_SHA="$TARGET_SHA" FLIXO_REVERTED_COMMIT="$REVERTED_COMMIT" FLIXO_TRUSTED_MEMORY_SHA="${FLIXO_TRUSTED_MEMORY_SHA:-}" node scripts/ci/auto-repair-learning.mjs
+          FLIXO_REPAIR_STRATEGY_ID="$STRATEGY_ID" FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" FLIXO_LEARNING_OUTCOME="$LEARNING_OUTCOME" FLIXO_VERIFICATION="$ENGINE_OUTCOME" FLIXO_TARGET_SHA="$TARGET_SHA" FLIXO_REVERTED_COMMIT="$REVERTED_COMMIT" FLIXO_RUN_ID="$TARGET_RUN_ID" FLIXO_FAILED_SHA="$FLIXO_EXPECTED_TARGET_SHA" FLIXO_TASK_ID="ACTION-REPAIR:$TARGET_RUN_ID" FLIXO_CELL_BOT_ID="${FLIXO_CELL_BOT_ID:-CELL-001}" FLIXO_CELL_TASK_SHORT_NAME="${FLIXO_CELL_TASK_SHORT_NAME:-ACTION_SOLUTION_INDEXER}" FLIXO_CELL_TASK_NAME="${FLIXO_CELL_TASK_NAME:-ACTION_SOLUTION_INDEXER}" FLIXO_TRUSTED_MEMORY_SHA="${FLIXO_TRUSTED_MEMORY_SHA:-}" node scripts/ci/auto-repair-learning.mjs
           printf '%s\n' "$ENGINE_OUTCOME" > /tmp/flixo-engine-outcome
           printf '%s\n' "$LEARNING_OUTCOME" > /tmp/flixo-learning-outcome
+
+      - name: Publish CELL-001 Actions memory for every repair task
+        if: always() && steps.capture.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-cell-001-action-memory-${{ github.run_id }}
+          path: |
+            diagnostics/auto-repair/cell-bots/CELL-001.json
+            /tmp/flixo-historical-solution-index.json
+          if-no-files-found: ignore
+          retention-days: 90
 
       - name: Promote verified repair learning state
         if: steps.verify.outputs.verified == 'true'
