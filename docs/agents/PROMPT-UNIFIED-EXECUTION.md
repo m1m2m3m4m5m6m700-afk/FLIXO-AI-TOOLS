@@ -448,6 +448,19 @@ Action Vault is advisory knowledge.
 
 All registered agents may read and learn.
 
+### Action Vault triad governance
+
+For every actionable RED, the existing three-resident Action Vault operates as one shared intelligence:
+`VAULT-1 programmer defense → VAULT-2 programmer falsification → VAULT-3 catalog review/selection → bounded repair → verification → learning`.
+
+VAULT-1 and VAULT-2 must have equal programming intelligence and opposite proof objectives: VAULT-1 constructs and defends the repair; VAULT-2 attempts to prove it wrong. VAULT-3 has the same base reasoning capability with knowledge/catalog curation and arbitration specialization.
+
+All three may create and revise candidate repair artifacts. Source mutation remains admitted and serialized by the existing Repair Protocol/control plane. At 20 unresolved occurrences of the same stable failure fingerprint, VAULT-3 becomes supervisor and VAULT-1/VAULT-2 are suspended from autonomous source mutation for that fingerprint. VAULT-3 must review catalog advice and both proposals, reject repeated failed strategies, and leave a learning/advice contribution from each seat.
+
+Catalog misses are mandatory learning events and new advice remains candidate-only until exact-SHA verification and canonical GREEN. See `docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md` and `scripts/ci/action-vault-triad-governor.mjs`.
+
+All of this remains subordinate to exact-SHA evidence and canonical certification; no agent can self-certify GREEN.
+
 Knowledge steward mutation is limited to the canonical vault governance and does not authorize repository repair.
 
 For every meaningful repair outcome, preserve:
