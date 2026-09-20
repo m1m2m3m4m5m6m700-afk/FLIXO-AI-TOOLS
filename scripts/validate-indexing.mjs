@@ -64,7 +64,7 @@ if (!indexSource.includes('<html lang="en" dir="ltr">')) throw new Error('index.
 if (!indexSource.includes('<meta name="viewport"')) throw new Error('index.html is missing the viewport declaration.');
 if (!indexSource.includes('<link rel="manifest" href="/manifest.webmanifest"')) throw new Error('index.html is missing the web manifest.');
 if (!indexSource.includes('<link rel="icon" type="image/png" href="/flixo-favicon.png"')) throw new Error('index.html must use the canonical favicon.');
-if (!indexSource.includes('<link rel="preload" as="image" href="/flixo-logo.webp" type="image/webp"')) throw new Error('index.html must preload the canonical FLIXO logo.');
+if (!/<link rel="preload" as="image" href="\/flixo-logo\.webp(?:\?[^"]*)?" type="image\/webp"/u.test(indexSource)) throw new Error('index.html must preload the canonical FLIXO logo.');
 if (/flixo-logo\.jpg|logo\.jpg|logo\.svg|favicon\.svg/.test(indexSource)) throw new Error('index.html references legacy logo assets.');
 
 if (!rootSource.includes("{ name: 'description', content:")) throw new Error('Root route is missing the base description metadata.');
