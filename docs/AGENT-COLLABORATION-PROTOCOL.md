@@ -170,6 +170,26 @@ The Task Agent consumes `مهام.md` plus authoritative diagnosis/handoff evide
 
 It may prepare source/test code artifacts, but those artifacts are proposals until the Executive Controller independently reviews and applies them.
 
+## Direct CELL → MASTER communication invariant
+
+Every registered CELL-\d{3} agent has a direct communication path to assistantController through the canonical scripts/ci/agent-communication.mjs inbox.
+
+The direct channel accepts mission requests, evidence packets, RCA escalation, conflict notices and Master-repair requests. It does not grant mutation, certification, promotion or permission authority.
+
+Required envelope:
+`messageId + idempotencyKey + actor(CELL-xxx) + recipient(assistantController) + taskId + entrySha + risk + scope + expectedEvidence + stopConditions + proofObligations`.
+
+A CELL agent may request Master intervention when:
+- no safe repair exists in its available knowledge;
+- the historical index has no applicable verified strategy;
+- independent results conflict;
+- scope or authority is ambiguous;
+- a new root cause requires a new repair plan.
+
+The Master receives the request, revalidates the exact SHA, decides the next mission, and returns the result through the same canonical inbox. Any new verified repair knowledge is then eligible for normal Knowledge Engine/index learning.
+
+The channel never becomes an alternate mutation or certification path.
+
 ## Communication-first execution invariant
 
 The existing agent communication architecture is the first operational dependency for every agent.
