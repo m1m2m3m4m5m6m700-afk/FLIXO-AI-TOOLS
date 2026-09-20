@@ -51,7 +51,7 @@ for (let i = 0; i < lines.length; i += 1) {
   }
 }
 
-const prompt = readFileSync('docs/agents/prompts/RPR-ERROR-RCA-001.md', 'utf8');
+const prompt = readFileSync('المهام.md', 'utf8');
 if (!prompt.includes('docs/agents/ERROR-TEACHING-500.md') || !prompt.includes('docs/agents/ERROR-TEACHING-ADDITIONAL-500.md') || !prompt.includes('5000-rule')) {
   console.error('ERROR_TEACHING_CONTRACT_ERROR=RCA_prompt_not_bound_to_teaching_corpus');
   process.exit(1);

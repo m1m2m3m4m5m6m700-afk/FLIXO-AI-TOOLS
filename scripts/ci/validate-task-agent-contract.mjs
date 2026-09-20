@@ -4,7 +4,6 @@ import fs from 'node:fs';
 const required = [
   'المهام.md',
   'docs/agents/TASK-AGENT.md',
-  'docs/agents/TASK-AGENT-SYSTEM-PROMPT.md',
   'scripts/ci/task-agent.mjs',
   'scripts/ci/test-task-agent-contract.mjs',
   'docs/agents/SELF-HEALING-AGENT-SCOPE-PROTOCOL.md',

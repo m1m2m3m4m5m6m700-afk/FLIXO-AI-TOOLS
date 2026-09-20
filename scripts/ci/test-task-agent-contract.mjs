@@ -4,7 +4,6 @@ import fs from 'node:fs';
 
 const taskFile = fs.readFileSync('المهام.md', 'utf8');
 const contract = fs.readFileSync('docs/agents/TASK-AGENT.md', 'utf8');
-const systemPrompt = fs.readFileSync('docs/agents/TASK-AGENT-SYSTEM-PROMPT.md', 'utf8');
 const agent = fs.readFileSync('scripts/ci/task-agent.mjs', 'utf8');
 const execution = fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8');
 const repairProtocol = fs.readFileSync('scripts/ci/repair-protocol.mjs', 'utf8');
@@ -12,7 +11,7 @@ const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 
 assert.ok(taskFile.length > 0, 'المهام.md must exist and be non-empty');
 
-for (const text of [contract, systemPrompt]) {
+for (const text of [contract, taskFile]) {
   assert.match(text, /preparation-only/i);
   assert.match(text, /MUST NOT/i);
   assert.match(text, /mutate/i);

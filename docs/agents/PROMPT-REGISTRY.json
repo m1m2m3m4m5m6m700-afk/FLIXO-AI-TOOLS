@@ -72,7 +72,7 @@
     {
       "promptId": "RPR-MASTER-LIFECYCLE-001",
       "title": "FLIXO Master Repair Prompt Intelligence",
-      "path": "AI_AGENT_MASTER_PROMPT.md",
+      "path": "المهام.md",
       "domain": "cross-cutting-repair",
       "agentRole": "prompt-coordinator",
       "failureClasses": [
@@ -133,7 +133,7 @@
       "lastUpdatedBy": "FLIXO Prompt Intelligence Layer",
       "provenance": {
         "sourceFiles": [
-          "AI_AGENT_MASTER_PROMPT.md",
+          "المهام.md",
           "docs/AGENT-COLLABORATION-PROTOCOL.md",
           "docs/AGENT-HANDOFF-REPORT-SCHEMA.md",
           "diagnostics/auto-repair/memory.json"
@@ -164,7 +164,7 @@
     {
       "promptId": "RPR-EXISTING-TASK-PREP-001",
       "title": "FLIXO Task Agent System Prompt",
-      "path": "docs/agents/TASK-AGENT-SYSTEM-PROMPT.md",
+      "path": "المهام.md",
       "domain": "task-preparation",
       "agentRole": "taskAgent",
       "failureClasses": [
@@ -217,7 +217,7 @@
       "lastUpdatedBy": "pre-existing repository prompt",
       "provenance": {
         "sourceFiles": [
-          "docs/agents/TASK-AGENT-SYSTEM-PROMPT.md",
+          "المهام.md",
           "docs/AGENT-COORDINATION-CONTROL-PLANE.md"
         ],
         "sourceSha": "d78e8db4c6b4b7e0655368183eac15694498c344"
@@ -415,7 +415,7 @@
     {
       "promptId": "RPR-ORCHESTRATION-PREFLIGHT-001",
       "title": "Orchestration Preflight Repair Specialist",
-      "path": "docs/agents/prompts/ORCHESTRATION-PREFLIGHT-001.md",
+      "path": "المهام.md",
       "domain": "orchestration",
       "agentRole": "repairAgent",
       "failureClasses": [
@@ -507,7 +507,7 @@
     {
       "promptId": "RPR-EXTERNAL-TOOLING-001",
       "title": "External Tooling Blocker Specialist",
-      "path": "docs/agents/prompts/EXTERNAL-TOOLING-001.md",
+      "path": "المهام.md",
       "domain": "external-tooling",
       "agentRole": "repairAgent",
       "failureClasses": [
@@ -594,7 +594,7 @@
     {
       "promptId": "RPR-REGEX-CONTRACT-001",
       "title": "Regex Contract Repair Specialist",
-      "path": "docs/agents/prompts/REGEX-CONTRACT-001.md",
+      "path": "المهام.md",
       "domain": "lint-contracts",
       "agentRole": "repairAgent",
       "failureClasses": [
@@ -683,7 +683,7 @@
     {
       "promptId": "RPR-ARCHITECTURE-REGISTRY-001",
       "title": "Canonical Registry Symmetry Specialist",
-      "path": "docs/agents/prompts/ARCHITECTURE-REGISTRY-001.md",
+      "path": "المهام.md",
       "domain": "architecture-control-plane",
       "agentRole": "repairAgent",
       "failureClasses": [
