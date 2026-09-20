@@ -434,7 +434,7 @@ if (command === 'task-complete') {
   const session = state.activeSessions[sessionId] ?? { sessionId, agentId: task.claimedBy, teamId, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, protocolHash: assertProtocolDefinition().protocolHash };
   session.teamId = teamId;
   session.completedTaskIds = [...new Set([...(session.completedTaskIds ?? []), taskId])];
-  session.readyForTeamClose = continuation.state === 'NONE';
+  session.readyForTeamClose = remaining.length === 0;
   session.updatedAt = now();
   state.activeSessions[sessionId] = session;
   state.activeSessions[sessionId] = state.activeSessions[sessionId] ?? { sessionId, agentId: task.claimedBy, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, protocolHash: assertProtocolDefinition().protocolHash, updatedAt: now() };
