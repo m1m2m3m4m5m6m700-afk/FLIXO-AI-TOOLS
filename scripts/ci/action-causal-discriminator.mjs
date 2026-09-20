@@ -5,7 +5,7 @@ const SIGNALS = Object.freeze([
     id: 'typescript-async-contract',
     className: 'TYPE_CONTRACT',
     patterns: [
-      /TS1064\\b/iu,
+      /TS1064\b/iu,
       /return type of an async function or method must be the global Promise/iu,
       /Did you mean to write ['"]?Promise/iu,
     ],
@@ -15,7 +15,7 @@ const SIGNALS = Object.freeze([
   {
     id: 'typescript-missing-import',
     className: 'TYPE_CONTRACT',
-    patterns: [/TS2304\\b/iu, /Cannot find name ['"][^'"]+['"]/iu],
+    patterns: [/TS2304\b/iu, /Cannot find name ['"][^'"]+['"]/iu],
     mutationAllowed: true,
     targetScope: 'exact-source-import',
   },
@@ -69,8 +69,8 @@ function hash(value){
 
 function sourceLocationHints(log){
   return [...new Set(
-    String(log??'').match(/(?:^|[\\s(])((?:src|scripts|\.github|diagnostics|docs)\\/[A-Za-z0-9_./-]+\\.(?:mjs|cjs|js|jsx|ts|tsx|yml|yaml|json))(?:[:)]|\\s|$)/g)
-      ?.map((value)=>value.replace(/^[\\s(]+|[:)\\s]+$/g,'')) ?? []
+    String(log??'').match(/(?:^|[\s(])((?:src|scripts|\.github|diagnostics|docs)\/[A-Za-z0-9_./-]+\.(?:mjs|cjs|js|jsx|ts|tsx|yml|yaml|json))(?:[:)]|\s|$)/g)
+      ?.map((value)=>value.replace(/^[\s(]+|[:)\s]+$/g,'')) ?? []
   )].slice(0,12);
 }
 
