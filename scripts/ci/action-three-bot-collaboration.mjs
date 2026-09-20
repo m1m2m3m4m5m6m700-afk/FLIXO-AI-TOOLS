@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { recordAttempt, recordFailedAttempt, recordHandoff, recordPredictionGenerated } from './action-failure-ledger.mjs';
+import { recordAttempt, recordFailedAttempt, recordHandoff } from './action-failure-ledger.mjs';
 import { buildPrediction } from './action-historical-predictor.mjs';
 import { selectFileScope } from './action-file-selection-intelligence.mjs';
 
