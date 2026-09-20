@@ -4,7 +4,7 @@
 يعمل ACTION-REPAIR وACTION-REPAIR-2 وACTION-HISTORIAN-3 بالتوازي في التحليل والتعلم، وليس بالتوازي في تعديل المصدر.
 
 ## القاعدة العليا
-ALL THREE THINK IN PARALLEL → ALL THREE EXCHANGE → ONE OWNER MUTATES → ALL THREE VERIFY → GREEN → SHARED LEARNING
+ALL THREE THINK IN PARALLEL → ALL THREE EXCHANGE → ONE ADMITTED MUTATION SEAT MUTATES → ALL THREE VERIFY → GREEN → SHARED LEARNING
 
 ## المسارات
 ACTION-REPAIR: RCA الحالي → خطة إصلاح محدودة → regression plan → تنفيذ فقط بعد اكتمال التبادل.
@@ -48,3 +48,14 @@ ACTION-REPAIR contribution + ACTION-REPAIR-2 contribution + ACTION-HISTORIAN-3 c
 ## السلطة
 Knowledge ≠ Mutation Authority ≠ Certification.
 Canonical CI وحدها تثبت GREEN.
+
+
+## Triad Governor Extension
+
+The parallel collaboration contract is extended by `ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-v1`.
+
+VAULT-1 and VAULT-2 have equal programming intelligence and may each prepare and apply a candidate source repair when they are the admitted mutation seat. VAULT-3 may prepare and apply a source repair only in `SUPERVISOR_20` after the same stable failure fingerprint reaches 20 unresolved occurrences.
+
+Only one mutation seat may write source at a time. The other seats remain active for challenge, evidence, catalog review and learning.
+
+Every RED is logged. Every catalog miss is logged. New advice is candidate-only until exact-SHA canonical GREEN promotes it into the Action Vault catalog.
