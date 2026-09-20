@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { getMessage as getAgentMessage } from './agent-communication.mjs';
 
 const ROOT = process.cwd();
 const COORD_DIR = path.resolve(ROOT, 'diagnostics/agents');
@@ -68,9 +69,22 @@ if (command === 'task-claim') {
   const task = state.tasks[taskId]; if (!task) throw new Error(`Unknown task: ${taskId}`); if (!['READY', 'QUEUED'].includes(task.status)) throw new Error(`Task not claimable: ${task.status}`);
   for (const dep of task.dependsOn ?? []) if (state.tasks[dep]?.status !== 'DONE') throw new Error(`DEPENDENCY_BLOCK=${dep}`);
   assertOpenVisibility(task, sessionId, agentId);
+  const visibility = readVisibility(sessionId);
+  let inboundMessage = null;
+  const requestedMessageId = optional('message-id');
+  const sessionMessageId = visibility.messageId ?? null;
+  const messageId = requestedMessageId || sessionMessageId;
+  if (messageId) {
+    inboundMessage = getAgentMessage(messageId);
+    if (!['READ','CONSUMED'].includes(inboundMessage.status)) throw new Error('COORDINATION_MESSAGE_NOT_READ=' + inboundMessage.status);
+    if (inboundMessage.entrySha !== sha()) throw new Error('COORDINATION_MESSAGE_SHA_STALE');
+    if (!(inboundMessage.recipient === 'ALL_AGENTS' || inboundMessage.recipient === agentId)) throw new Error('COORDINATION_MESSAGE_RECIPIENT_MISMATCH');
+    if (inboundMessage.taskId !== taskId) throw new Error('COORDINATION_MESSAGE_TASK_MISMATCH');
+    if (!overlap(task.scope ?? [], new Set(inboundMessage.scope ?? []))) throw new Error('COORDINATION_MESSAGE_SCOPE_MISMATCH');
+  }
   const lockId = lock(sessionId, agentId, task.rca, task.scope); task.status = 'RUNNING'; task.claimedBy = agentId; task.sessionId = sessionId; task.claimedAt = now(); task.entrySha = sha(); task.lockId = lockId;
-  state.activeSessions[sessionId] = { sessionId, agentId, taskId, lockId, entrySha: sha(), updatedAt: now() };
-  const packetFile = packetPath(taskId); const packet = readJson(packetFile, task); packet.claim = { sessionId, agentId, lockId, claimedAt: now(), entrySha: sha() }; writeJson(packetFile, packet); save(); console.log(JSON.stringify(task, null, 2));
+  state.activeSessions[sessionId] = { sessionId, agentId, taskId, lockId, entrySha: sha(), ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}), updatedAt: now() };
+  const packetFile = packetPath(taskId); const packet = readJson(packetFile, task); packet.claim = { sessionId, agentId, lockId, claimedAt: now(), entrySha: sha(), ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}) }; writeJson(packetFile, packet); save(); console.log(JSON.stringify(task, null, 2));
 }
 
 if (command === 'task-release') {
