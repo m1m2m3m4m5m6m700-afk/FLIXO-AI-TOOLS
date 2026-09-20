@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 2,
+  "botId": "ACTION-HISTORIAN-3",
+  "displayName": "بوت سجل Actions 3",
+  "kind": "ACTION_HISTORIAN_INDEXER",
+  "status": "READY",
+  "role": "HISTORIAN_AND_SOLUTION_INDEXER",
+  "mission": "يسجل كل RED وكل محاولات الإصلاح ونتائج GREEN، ويشارك في التشخيص والاستدلال والبحث والتحدي والتعلم بنفس القدرة المعرفية للبوتين الآخرين، دون امتلاك سلطة تعديل المصدر.",
+  "headquarters": "diagnostics/auto-repair/action-vault",
+  "mutationAuthority": false,
+  "executionAuthority": "RECORD_INDEX_ESCALATE_ONLY",
+  "canWriteRepository": true,
+  "canWriteTestLogs": false,
+  "canModifyWorkflowLogs": false,
+  "canMutateSource": false,
+  "canDispatchRepair": false,
+  "masterEscalationOnFirstRepositoryOccurrence": true,
+  "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-HISTORIAN-3.json",
+  "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
+  "cooperationRole": "HISTORIAN_AND_SOLUTION_INDEXER",
+  "cooperationMode": "MANDATORY_SHARED_MISSION_ON_RED",
+  "sharedCapabilities": "ACTION-THREE-BOT-INTELLIGENCE",
+  "requiredCollaborators": [
+    "ACTION-REPAIR",
+    "ACTION-REPAIR-2"
+  ],
+  "collaborationContract": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
+  "sharedMissionRequires": [
+    "sameTaskId",
+    "sameFailureFingerprint",
+    "sameTargetSha",
+    "sameFailedRunId"
+  ],
+  "capabilitiesParity": [
+    "diagnose",
+    "infer",
+    "search",
+    "learn",
+    "challenge",
+    "plan",
+    "regression-plan",
+    "master-escalation",
+    "4000-index-search",
+    "5000-rule-search"
+  ],
+  "contributionPolicy": {
+    "intake": true,
+    "independentRca": true,
+    "evidenceChallenge": true,
+    "recordEveryAttempt": true,
+    "recordHandoff": true,
+    "recordGreenChain": true,
+    "updateSolutionIndexOnlyFromEvidence": true
+  },
+  "executionBoundary": {
+    "singleActiveRepairOwner": true,
+    "sourceMutation": false,
+    "testMutation": false,
+    "workflowLogMutation": false,
+    "canEscalateMaster": true,
+    "canonicalGreen": "DAILY_FLIXO_GREEN_GATE"
+  },
+  "state": {
+    "status": "READY",
+    "taskCount": 0,
+    "lastTaskId": null,
+    "lastUpdatedAt": null
+  }
+}
