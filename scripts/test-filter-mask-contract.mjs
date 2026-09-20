@@ -1,12 +1,17 @@
 import assert from 'node:assert/strict';
 import { LIVE_FILTER_REGISTRY, findLiveFilters, getLiveFilter, resolveLiveFilter } from '../src/tools/filter-mask/registry.ts';
 import { buildFilterMaskUrl, createFilterMaskHandoff, parseFilterMaskHandoff } from '../src/tools/filter-mask/handoff.ts';
+import { resolveFilterMaskSelection } from '../src/lib/intent/resolver.ts';
 assert.ok(LIVE_FILTER_REGISTRY.length >= 60);
 assert.equal(new Set(LIVE_FILTER_REGISTRY.map((filter) => filter.canonicalId)).size, LIVE_FILTER_REGISTRY.length);
 assert.ok(LIVE_FILTER_REGISTRY.every((filter) => filter.version === 1 && filter.supportsLive));
 assert.equal(getLiveFilter('effect.original')?.canonicalId, 'effect.original');
 assert.equal(getLiveFilter('missing'), undefined);
 assert.equal(resolveLiveFilter('warm live filter')?.canonicalId, 'effect.warm');
+assert.equal(resolveFilterMaskSelection('Warm live filter 65%')?.canonicalId, 'effect.warm');
+assert.equal(resolveFilterMaskSelection('Warm live filter 65%')?.parameters.intensity, 65);
+assert.equal(resolveFilterMaskSelection('Warm live filter 1.6x')?.parameters.zoom, 1.6);
+assert.equal(resolveFilterMaskSelection('compress image'), null);
 assert.equal(findLiveFilters('cinematic')[0]?.family, 'cinematic');
 const handoff = createFilterMaskHandoff(getLiveFilter('effect.warm')!, { intensity: 63, zoom: 1.6, mirror: false });
 assert.equal(handoff.parameters.intensity, 63);
