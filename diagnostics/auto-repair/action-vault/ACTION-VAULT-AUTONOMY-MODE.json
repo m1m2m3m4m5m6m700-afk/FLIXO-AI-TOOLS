@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "id": "ACTION-VAULT-AUTONOMY-MODE",
+  "authority": "ACTION_VAULT_AUTONOMOUS_OPERATING_CONTRACT",
+  "mode": "BOT_FIRST_AUTONOMOUS",
+  "objective": "جعل وكلاء Action Vault هم المشغل الأساسي لدورات RED الروتينية من التشخيص حتى الإصلاح والتحقق والتعلم، دون الحاجة إلى تدخل بشري في الخطوات الروتينية، مع إبقاء حدود الأمان والتصديق خارج صلاحيتهم.",
+  "defaultExecutor": "ACTION-REPAIR",
+  "requiredCollaborators": [
+    "ACTION-REPAIR-2",
+    "ACTION-HISTORIAN-3"
+  ],
+  "dispatchAuthority": "DAILY_FLIXO_GREEN_GATE",
+  "certificationAuthority": "DAILY_FLIXO_GREEN_GATE",
+  "routineHumanApprovalRequired": false,
+  "criticalHumanAuthorizationRequired": true,
+  "autonomyScope": {
+    "allowed": [
+      "RED intake",
+      "RCA",
+      "historical search",
+      "adversarial challenge",
+      "sandbox simulation",
+      "bounded source repair",
+      "targeted regression",
+      "learning capture",
+      "handoff",
+      "recovery"
+    ],
+    "prohibited": [
+      "main mutation",
+      "test mutation",
+      "gate weakening",
+      "self-certification",
+      "permission grants",
+      "critical irreversible policy changes",
+      "bypassing canonical GREEN"
+    ]
+  },
+  "executionContract": {
+    "branch": "execution",
+    "oneActiveMutationOwner": true,
+    "exactShaRequired": true,
+    "verifierRequiredBeforeMutation": true,
+    "targetedRegressionRequired": true,
+    "canonicalGreenRequiredForClosure": true,
+    "nonGreenCycleRemainsOpen": true,
+    "nonGreenLearningEphemeral": true,
+    "noBlindRetry": true
+  },
+  "failureBehavior": {
+    "unavailableBot": "ESCALATE_AND_KEEP_MISSION_OPEN",
+    "staleSha": "FAIL_CLOSED_AND_REQUALIFY",
+    "conflictingEvidence": "FAIL_CLOSED_AND_ARBITRATE",
+    "externalFailure": "CLASSIFY_EXTERNAL_NO_SOURCE_MUTATION",
+    "criticalPath": "STOP_AND_REQUIRE_HUMAN_AUTHORIZATION"
+  },
+  "trustBoundary": {
+    "botMayOperateRoutinelyWithoutHuman": true,
+    "botMayCertify": false,
+    "botMayPromoteWithoutGreen": false,
+    "botMayGrantPermissions": false,
+    "botMayWriteMain": false,
+    "botMayModifyTests": false
+  },
+  "activation": "This mode is active only when the canonical Action Vault contracts and agent gate are valid; it does not bypass trust graduation or canonical CI proof.",
+  "revalidationTriggers": [
+    "governance drift",
+    "mutation boundary change",
+    "certification authority change",
+    "false-green incident",
+    "strategy revocation",
+    "repeated no-progress RED"
+  ]
+}
