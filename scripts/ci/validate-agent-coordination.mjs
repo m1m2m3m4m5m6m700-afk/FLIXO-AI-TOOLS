@@ -17,7 +17,7 @@ const expected = {
   'docs/AGENT-HANDOFF-REPORT-SCHEMA.md': ['completedWork', 'failedWork', 'remainingWork', 'executionPlanNext', 'handoffToNextAgent'],
   'docs/AGENT-COLLABORATION-PROTOCOL.md': ['Multi-Agent', 'handoff', 'scope', 'RCA', 'Assistant/controller', 'Execution Agent', 'Evidence over assertion', 'Stop-and-escalate', 'Challenge-before-mutation', 'Independent review', 'Decision trace', 'Parallel execution protocol', 'Conflict arbitration', 'Quality dimensions'],
   'docs/agents/ledger/README.md': ['Agent Visibility Ledger', 'docs/agents/ledger/<sessionId>.json', 'taskId', 'finalStatus', 'finalSummary', 'visibilityState'],
-  'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json': ['ASSISTANT_AGENT_COOPERATION_CONTRACT', 'assistantController', 'codeScout', 'executionAgent', 'reviewAgent', 'testAgent', 'securityAgent', 'performanceAgent', 'certificationAuthority', 'messageEnvelope', 'no_implicit_authority', 'parallelism', 'arbitration', 'architecture', 'quality', 'efficiency', 'recovery', 'security', 'release'],
+  'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json': ['ASSISTANT_AGENT_COOPERATION_CONTRACT', 'assistantController', 'codeScout', 'executionAgent', 'reviewAgent', 'testAgent', 'securityAgent', 'performanceAgent', 'certificationAuthority', 'messageEnvelope', 'no_implicit_authority', 'parallelism', 'arbitration', 'architecture', 'quality', 'efficiency', 'recovery', 'security', 'release', 'communication_first', 'event_driven_delivery', 'message_idempotency', 'message_freshness'],
   'docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md': ['READ', 'WRITE', 'FORBIDDEN', 'NO_SOURCE_MUTATION', 'code-scout-latest.json', 'execution agents'],
 };
 
