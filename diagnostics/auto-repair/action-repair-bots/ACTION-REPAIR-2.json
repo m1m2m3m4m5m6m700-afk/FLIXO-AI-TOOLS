@@ -107,16 +107,19 @@
   "transferableKnowledgeOnly": true,
   "permanentIndependentAuthority": false,
   "agentRuntime": {
-    "protocol": "ACTION-AGENT-RUNTIME-v1",
+    "protocol": "ACTION-AGENT-RUNTIME-v2",
     "modelProfile": "ACTION_HISTORICAL_EXPLORER_V2",
     "reasoningEffort": "HIGH",
     "cognitiveLoop": [
       "INTAKE",
       "CONTEXT_RETRIEVAL",
       "PLAN",
+      "SYNTHESIZE",
+      "SIMULATE",
       "EXECUTE",
       "SELF_CHECK",
       "INDEPENDENT_REVIEW",
+      "DIFFERENTIAL_VERIFY",
       "VERIFY",
       "LEARN"
     ],
@@ -137,7 +140,9 @@
       "PATTERN_RANKING",
       "REPAIR_PREDICTION",
       "COUNTEREXAMPLE_SEARCH",
-      "OWNER_HANDOFF"
+      "OWNER_HANDOFF",
+      "PATCH_CANDIDATE_REVIEW",
+      "COUNTERFACTUAL_PATCH_REVIEW"
     ]
   },
   "repositoryWriteScope": "ACTION_VAULT_MEMORY_ONLY",
