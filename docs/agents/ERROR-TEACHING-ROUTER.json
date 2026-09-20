@@ -296,7 +296,15 @@
         "dependency",
         "control",
         "repair",
-        "memory"
+        "memory",
+        "contract",
+        "drift",
+        "liveness",
+        "heartbeat",
+        "422",
+        "wake",
+        "async",
+        "TS1064"
       ],
       "classes": [
         "tool-registry",
@@ -309,7 +317,11 @@
         "dependency-debt",
         "control-plane",
         "repair-recursion",
-        "memory-learning"
+        "memory-learning",
+        "contract-drift",
+        "liveness-contract",
+        "heartbeat-canonical-wake",
+        "async-typescript-contract"
       ]
     }
   ],
