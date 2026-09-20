@@ -1,17 +1,18 @@
-# FLIXO Agent Knowledge Vault — 1,000,000 Advisory Entries
+# FLIXO Repair Agent Action Vault — 1,000,000 Advisory Entries
 
-**Protocol:** `FLIXO-ADVICE-VAULT-1M-v1`
+**Protocol:** `FLIXO-REPAIR-ACTION-VAULT-1M-v1`  
+**Owner:** `repairAgent`
 
 ## Purpose
 
-Provide a bounded, provenance-first capacity for up to **1,000,000 normalized lessons/advice records** without turning the knowledge layer into an execution authority.
+Provide the **Repair Agent** with a bounded, provenance-first capacity for up to **1,000,000 normalized lessons/advice records** without turning the Action Vault into an execution authority.
 
 This is a **capacity and governance implementation**, not a claim that 1,000,000 entries have been fabricated or already populated.
 
 ## Canonical position
 
 ```text
-Existing Knowledge Fabric
+Existing Repair-Agent Knowledge Fabric
         ↓
 Advice normalization + SHA-256 fingerprint
         ↓
@@ -26,7 +27,7 @@ Advisory context only
 Existing Registry → Resolver → Executor → Verifier → Exact-SHA gates
 ```
 
-The Vault does **not** create a second registry, executor, mutation path, certification path, or prompt authority.
+The Action Vault is owned by `repairAgent`. It does **not** create a second registry, executor, mutation path, certification path, or prompt authority.
 
 ## Record contract
 
@@ -119,6 +120,9 @@ One success ≠ General rule
 
 Focused coverage is implemented in:
 
-`scripts/test-agent-knowledge-vault.mjs`
+`scripts/test-agent-knowledge-vault.mjs
+
+Canonical implementation:
+`scripts/ci/action-vault/repair-agent-advice-vault.ts``
 
 The existing cognitive-agent test suite should import the same contract test so the vault cannot silently drift away from the canonical agent test lane.
