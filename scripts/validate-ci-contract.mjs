@@ -10,8 +10,10 @@ const workflowTexts = workflowFiles.map((file) => ({
 
 const workflowSource = readFileSync('.github/workflows/ci.yml', 'utf8');
 const wp0Workflow = readFileSync('.github/workflows/wp0-trust-baseline.yml', 'utf8');
+const impactPlanWorkflow = readFileSync('.github/workflows/test-impact.yml', 'utf8');
 const impactExecutionWorkflow = readFileSync('.github/workflows/test-impact-execution.yml', 'utf8');
 const securityBaselineWorkflow = readFileSync('.github/workflows/repository-security-baseline.yml', 'utf8');
+const claudeSecurityWorkflow = readFileSync('.github/workflows/claude-security-review.yml', 'utf8');
 const greenGateWorkflow = readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
 const workflow = workflowSource.replace(/\\"/g, '"');
 const testEngine = readFileSync('scripts/test.mjs', 'utf8');
@@ -56,6 +58,7 @@ for (const [label, source] of [
 const exactShaVerificationWorkflows = [
   ['ci.yml', workflow],
   ['wp0-trust-baseline.yml', wp0Workflow],
+  ['test-impact.yml', impactPlanWorkflow],
   ['test-impact-execution.yml', impactExecutionWorkflow],
   ['repository-security-baseline.yml', securityBaselineWorkflow],
 ];
@@ -73,6 +76,21 @@ for (const [file, source] of exactShaVerificationWorkflows) {
     console.error('CI contract failed: ' + file + ' must retain exact-SHA verification.');
     process.exit(1);
   }
+}
+
+if (!/cancel-in-progress:\s*true/.test(claudeSecurityWorkflow)) {
+  console.error('CI contract failed: claude-security-review.yml must cancel superseded advisory reviews.');
+  process.exit(1);
+}
+if (!/group:\s*claude-security-\$\{\{\s*github\.event\.pull_request\.number\s*\|\|\s*github\.ref\s*\}\}/.test(claudeSecurityWorkflow)) {
+  console.error('CI contract failed: claude-security-review.yml must group by PR/branch, not commit SHA.');
+  process.exit(1);
+}
+if (/github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha/.test(
+  claudeSecurityWorkflow.match(/concurrency:[\s\S]*?(?=\n#|\npermissions:)/)?.[0] ?? '',
+)) {
+  console.error('CI contract failed: claude-security-review.yml must not use head SHA as its concurrency-group identity.');
+  process.exit(1);
 }
 
 for (const [file, source] of [
