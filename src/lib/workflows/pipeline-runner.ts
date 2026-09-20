@@ -3,7 +3,7 @@ import { assertExecutionResourceBudget, getCapability, validateCapabilityParamet
 import { getToolById, TOOL_CATALOG } from '@/config/registry';
 import { getToolExecutor, repairToolParameters } from '@/lib/workflows/executor-registry';
 import { assertToolOutputContract, getToolOutputContractForDefinition, type ToolOutputResult } from '@/lib/contracts/tool-output-contracts';
-import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelineReceiptChain, createPipelineStepReceipt, type PipelineReceiptChain, type PipelineStepReceipt } from '@/lib/workflows/pipeline-receipt';
+import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelinePlanFingerprint, createPipelineReceiptChain, createPipelineStepReceipt, type PipelineReceiptChain, type PipelineStepReceipt } from '@/lib/workflows/pipeline-receipt';
 
 export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; outputBlob?: Blob; retry?: number; receipt?: PipelineStepReceipt; receiptChain?: PipelineReceiptChain; }
 export class PipelineVerificationError extends Error {
@@ -57,7 +57,8 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
   if (plan.catalogFingerprint !== TOOL_CATALOG.fingerprint) throw new Error('Execution plan is stale because the canonical tool catalog changed.');
   if (plan.steps.length === 0 || plan.steps.length > 4) throw new Error('FLIXO plans must contain 1 to 4 steps.');
   let currentBlob: Blob = initialFile;
-  let receiptChain = createPipelineReceiptChain(TOOL_CATALOG.fingerprint);
+  const planFingerprint = await createPipelinePlanFingerprint(plan);
+  let receiptChain = createPipelineReceiptChain(TOOL_CATALOG.fingerprint, planFingerprint);
 
   for (let i = 0; i < plan.steps.length; i += 1) {
     const step = plan.steps[i];
