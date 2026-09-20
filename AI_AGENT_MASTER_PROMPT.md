@@ -1,3 +1,9 @@
+## Branch Command — Immutable Two-Branch Topology
+
+**DO NOT CREATE A NEW BRANCH.** The only active branches are `execution` and `main`, with the single authorized flow `execution → main`.
+
+Never create a feature/fix/chore/repair/agent/test/temp/backup/experimental branch, even to isolate a failure or resolve a conflict. Stay on `execution`, repair in place, verify the exact SHA, and continue. Promotion uses the existing `execution → main` integration PR. Any proposed third branch is a fail-closed condition, not a fallback strategy.
+
 # FLIXO-AI-TOOLS — AI AGENT MASTER PROMPT
 
 ## الهدف
@@ -20,6 +26,19 @@
 10. `diagnostics/auto-repair/memory.json`
 
 هذه الملفات هي عقود التنفيذ الحالية للمشروع، وليست اقتراحات. بوابة الوكيل الحالية تفرض قراءة خريطة المشروع والمهام والبروتوكولات قبل العمل. fileciteturn178file0
+
+## Prompt Intelligence Layer
+
+قبل إنشاء أو تعديل أي repair prompt:
+`DISCOVER → READ PROMPT REGISTRY → SEARCH FINGERPRINT → SEARCH RCA → SEARCH SIMILAR PROMPTS → SEARCH LESSONS → SEARCH ANTI-LESSONS → CHECK OVERLAP → CHECK CONFLICT → REUSE/EXTEND/MERGE/SPECIALIZE → REGISTER → REVIEW → HANDOFF`.
+
+المرجع المشترك هو `docs/agents/PROMPT-REGISTRY.json`. لا تنشئ Agent Registry ثانية ولا Prompt Registry ثانية.
+
+لا تعتبر Prompt جديدًا إلا إذا وُجد فرق سببي حقيقي في failure class أو RCA أو scope أو agent role أو verification boundary. المقارنة الوظيفية تتم على الحقول السببية المنظمة، وليس تشابه النص.
+
+أي Prompt يجب أن يربط تعليماته بالـtarget SHA الحالي، وأن يحتوي على LEARNING INSTRUCTIONS، Verification Boundary، Allowed/Forbidden/Protected scope، ومنهج Learning/Anti-Learning.
+
+فشل duplicate/overlap/RCA/scope/safety/verification/learning/provenance/exact-SHA لأي Prompt يعني `PROMPT_REVIEW_REQUIRED` وليس ACTIVE.
 
 ## قاعدة العمل الأساسية
 

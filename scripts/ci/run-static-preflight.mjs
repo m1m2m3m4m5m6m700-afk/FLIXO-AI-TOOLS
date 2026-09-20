@@ -4,6 +4,8 @@ import { spawn } from 'node:child_process';
 const checks = [
   ['test-ownership', 'npm', ['run', 'validate:test-ownership']],
   ['agent-protocol', 'npm', ['run', 'validate:agent-protocol']],
+  ['prompt-registry', 'npm', ['run', 'validate:prompt-registry']],
+  ['prompt-intelligence', 'npm', ['run', 'test:prompt-intelligence']],
   ['agent-coordination', 'npm', ['run', 'validate:agent-coordination']],
   ['code-scout', 'npm', ['run', 'validate:code-scout']],
   ['technical-debt-contract', 'npm', ['run', 'validate:technical-debt-audit']],

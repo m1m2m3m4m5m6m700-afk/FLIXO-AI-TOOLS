@@ -13,16 +13,17 @@ Communication-first is a P0 execution invariant. The canonical ingress is Master
 ```text
 SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
-CURRENT MAIN SHA = 5115ac0528a7b18ae9ae3d392ccbfd2257900ea3
-ACTIVE PR = #750 OPEN / execution → main
+CURRENT MAIN SHA = 22e67525a2e406d449fa158d67674281c7a75168
+ACTIVE PR = #759 OPEN / execution → main (canonical integration lane)
 CURRENT PR HEAD = authoritative GitHub PR #750 head; do not duplicate a mutable SHA in this map
+NO-NEW-BRANCH = ABSOLUTE; only execution and main are active agent branches; existing historical branches are not valid work paths
 STATE = BLOCKED_EXTERNAL
-CANONICAL TEST SYSTEM = FRESH EVIDENCE REQUIRED AFTER c2640bad; prior exact-head evidence is stale for current execution
+CANONICAL TEST SYSTEM = FRESH EVIDENCE REQUIRED ON CURRENT MAIN/EXECUTION HEAD; prior exact-head evidence is stale
 CURRENT EXECUTION PRE-REPAIR EVIDENCE = Test System PASS; Test Impact PASS; Claude Security Review PASS
 REPOSITORY SECURITY = FAIL on exact head: GitHub Advanced Security Code Scanning AI returned CAPI 400 model-not-supported
 WP0 TRUST BASELINE = CURRENT-HEAD VERIFICATION REQUIRED
 VERCEL = BLOCKED_EXTERNAL: provider deployment rate-limit
-EXACT-SHA GREEN = NOT PROVEN
+EXACT-SHA GREEN = NOT PROVEN; prompt-intelligence verification is pending on the current canonical SHA
 ADMIN STATES = historical labels below are not current exact-SHA proof; revalidation required after the active repair cycle
 PRODUCTION DEPLOYMENT EXACT-SHA = NOT PROVEN IN CURRENT EVIDENCE
 POST-MERGE MAIN SHA VERIFIED = 5115ac0528a7b18ae9ae3d392ccbfd2257900ea3
@@ -59,6 +60,7 @@ ADMIN PROVENANCE = production Vercel→Supabase binding not proven
 | BUILD-002 | CLOSED / VERIFIED | Preserve canonical artifact identity producer/consumer contract |
 | TEST-001 | CLOSED / VERIFIED | Preserve deterministic ownership registry and validator |
 | AGENT-PROTOCOL-003 | CLOSED / VERIFIED | Preserve proof-driven fail-closed repair lifecycle and learning/prevention contracts |
+| AGENT-PROMPT-INTEL-001 | IMPLEMENTED / VERIFICATION PENDING | Shared Prompt Registry + causal deduplication + quality gate + Task Agent prompt provenance | Run current main canonical static/contract verification; reconcile execution exact-SHA before promotion |
 | DEBT-001 | BLOCKED_EXTERNAL | Deterministic validator delivered; required exact-head external security/Vercel gates are unresolved |
 | TOOL-EXPANSION | CANDIDATE | Activate only after a fresh deterministic scope is proven |
 
@@ -190,6 +192,22 @@ TARGETED REGRESSION = PASS: critical CI/repair verification commands have explic
 INVARIANT PROOF = PASS: ownership registry is unique/non-empty, required npm scripts exist, CI and auto-repair consumers are present, and execution-surface classifications are valid
 CLOSURE EVIDENCE = RECORDED
 ```
+
+## AGENT-PROMPT-INTEL-001
+
+STATUS = IMPLEMENTED / VERIFICATION PENDING
+PURPOSE = Build one shared Prompt Intelligence Layer over Error Detection → Fingerprint → RCA → Memory → Strategy → Repair → Verification → Learning without creating a second agent registry or repair engine.
+CANONICAL REGISTRY = docs/agents/PROMPT-REGISTRY.json
+VALIDATOR = scripts/ci/validate-prompt-registry.mjs
+COMPARISON ENGINE = scripts/ci/prompt-intelligence.mjs
+MASTER PROMPT = RPR-CORE-MASTER-001 → AI_AGENT_MASTER_PROMPT.md
+SPECIALIST PROMPTS = RPR-ERROR-RCA-001, RPR-PROMPT-INTEL-001, RPR-TASK-REPAIR-001
+LEARNING PROVENANCE = promptId + promptVersion + masterPromptId + promptDecision + promptRegistrySha
+EXACT-SHA = prompt selection is bound to the active repair target SHA; Prompt text never grants authority.
+DUPLICATION RULE = compare failureClasses + rootCauses + scope + repairStrategy + verificationPlan; hard duplicates cannot be ACTIVE together.
+QUALITY GATE = duplicate + fingerprint + RCA + scope + safety + verification + learning + provenance + exact-SHA + overlap.
+CURRENT BLOCKER = execution branch remains historically divergent from main; canonical verification must run after synchronization.
+NEXT ACTION = fresh exact-SHA canonical static/contract verification on main, then synchronize execution and verify the resulting execution SHA.
 
 ## AGENT-PROTOCOL-003
 

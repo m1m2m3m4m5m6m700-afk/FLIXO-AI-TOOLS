@@ -32,7 +32,7 @@ const autoRepairWorkflow = fs.readFileSync('.github/workflows/auto-repair.yml', 
 const dailyGateWorkflow = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
 const handoffGateWorkflow = fs.readFileSync('.github/workflows/agent-repair-handoff-gate.yml', 'utf8');
 assert.doesNotMatch(autoRepairWorkflow, /workflow_run:/);
-assert.doesNotMatch(autoRepairWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml/i);
+assert.match(autoRepairWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml/i);
 assert.match(autoRepairWorkflow, /CURRENT_TARGET_SHA=/);
 assert.match(autoRepairWorkflow, /execution advanced during repair; refusing stale publication/);
 assert.match(autoRepairWorkflow, /REMOTE_EXECUTION_SHA.*FAILED_SHA/);
@@ -50,7 +50,7 @@ assert.match(dailyGateWorkflow, /const observedBranch = read\('\/tmp\/flixo-watc
 assert.match(dailyGateWorkflow, /observedBranch,/);
 assert.doesNotMatch(dailyGateWorkflow, /- FLIXO WP0 Trust Baseline\n\s+- FLIXO Test Impact/);
 assert.doesNotMatch(dailyGateWorkflow, /gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i);
-assert.match(handoffGateWorkflow, /branches: \[execution\]/);
+assert.match(handoffGateWorkflow, /branches: \[execution, main\]/);
 assert.match(autoRepairWorkflow, /Initialize Repair Control Plane cycle/);
 assert.match(autoRepairWorkflow, /to=EVIDENCE_LOCKED/);
 assert.match(autoRepairWorkflow, /to=RCA/);
@@ -60,8 +60,8 @@ assert.match(autoRepairWorkflow, /to=LOCAL_VERIFICATION/);
 assert.match(autoRepairWorkflow, /to=PUBLISHED_TO_EXECUTION/);
 assert.match(autoRepairWorkflow, /to=CANONICAL_CI/);
 assert.match(dailyGateWorkflow, /failure_fingerprint=\\$FAILURE_FINGERPRINT/);
-assert.match(handoffGateWorkflow, /CURRENT_EXECUTION_SHA=/);
-assert.match(handoffGateWorkflow, /HANDOFF_EXECUTION_SHA/);
+assert.match(handoffGateWorkflow, /CURRENT_TARGET_SHA=/);
+assert.match(handoffGateWorkflow, /HANDOFF_TARGET_SHA/);
 
 
 const externalLog = [
@@ -111,3 +111,9 @@ assert.equal(causal.ok,true);
 const graph=buildRepairKnowledgeGraph({fingerprint:fingerprintFailure('example failure'),targetSha:'a'.repeat(40),diagnosis:{rootCause:'lint'},plan:{id:'eslint-unused',file:'src/example.ts'},simulation:{ok:true,reason:'SIMULATION_PASS'},selfCritic:{ok:true,verdict:'ACCEPT'},causalProof:causal});
 assert.equal(graph.valid,true);
 assert.equal(graph.nodes.length,8);
+
+const supervisorWorkflow = fs.readFileSync('.github/workflows/agent-repair-supervisor.yml', 'utf8');
+assert.match(supervisorWorkflow, /push:/);
+assert.match(supervisorWorkflow, /branches: \[execution, main\]/);
+assert.match(supervisorWorkflow, /gh workflow run auto-repair\.yml/);
+assert.match(supervisorWorkflow, /SUPERSEDED/);

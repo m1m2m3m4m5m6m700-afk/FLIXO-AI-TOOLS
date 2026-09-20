@@ -910,7 +910,170 @@
     }
   ],
   "playbooks": [],
-  "lessons": [],
+  "lessons": [
+    {
+      "id": "89cee10f43acf1244d06",
+      "fingerprint": "89cee10f43acf1244d064dab19f9a351b8acafcf",
+      "rootCause": "orchestration",
+      "rule": "gh-cli-json-jq-contract",
+      "attempts": 1,
+      "successes": 1,
+      "failures": 0,
+      "confidence": 0.8,
+      "evidence": [
+        {
+          "verification": "targeted-gate-pass",
+          "provenance": {
+            "source": "FLIXO Auto Repair historical RED analysis",
+            "failedSha": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+            "executionSha": "",
+            "targetSha": "89cee10f43acf1244d064dab19f9a351b8acafcf",
+            "mergedMainSha": "89cee10f43acf1244d064dab19f9a351b8acafcf",
+            "revertedCommit": "",
+            "runId": "35474291055"
+          }
+        },
+        {
+          "verification": "self-recovery-no-longer-blocked-before-next-gate",
+          "provenance": {
+            "source": "FLIXO Test System",
+            "failedSha": "89cee10f43acf1244d064dab19f9a351b8acafcf",
+            "executionSha": "",
+            "targetSha": "89cee10f43acf1244d064dab19f9a351b8acafcf",
+            "mergedMainSha": "89cee10f43acf1244d064dab19f9a351b8acafcf",
+            "revertedCommit": "",
+            "runId": "35474371698"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Use supported gh syntax: gh run list --json ... | jq --arg ...; never pass --arg as a gh --jq flag.",
+        "After changing self-recovery shell code, run the workflow architecture/static gate before allowing recursive dispatch.",
+        "Treat gh CLI syntax as production code and test the exact command shape."
+      ],
+      "lastSeenAt": "2026-09-19T22:48:35Z"
+    },
+    {
+      "id": "cc208a65323355b8846d",
+      "fingerprint": "cc208a65323355b8846d7aa6d7e85f742feb8909",
+      "rootCause": "lint",
+      "rule": "regex-contract-escape-discipline",
+      "attempts": 1,
+      "successes": 1,
+      "failures": 0,
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "verification": "targeted-lint-cleared",
+          "provenance": {
+            "source": "FLIXO Test System",
+            "failedSha": "89cee10f43acf1244d064dab19f9a351b8acafcf",
+            "executionSha": "",
+            "targetSha": "cc208a65323355b8846d7aa6d7e85f742feb8909",
+            "mergedMainSha": "cc208a65323355b8846d7aa6d7e85f742feb8909",
+            "revertedCommit": "",
+            "runId": "35474433320"
+          }
+        }
+      ],
+      "preventionRules": [
+        "When repairing regex-based source assertions, preserve only syntactically necessary escapes.",
+        "Do not repair a lint error by adding extra backslash escaping inside a JavaScript RegExp literal.",
+        "Re-run the exact linter on the edited file before moving to broader CI."
+      ],
+      "lastSeenAt": "2026-09-19T22:50:01Z"
+    },
+    {
+      "id": "b7676df7aa32ad7e718f",
+      "fingerprint": "b7676df7aa32ad7e718f524ad84aa826d3b28b6c",
+      "rootCause": "lint",
+      "rule": "repair-test-regex-contract",
+      "attempts": 1,
+      "successes": 1,
+      "failures": 0,
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "verification": "targeted-static-gate-advanced",
+          "provenance": {
+            "source": "FLIXO Test System",
+            "failedSha": "cc208a65323355b8846d7aa6d7e85f742feb8909",
+            "executionSha": "",
+            "targetSha": "b7676df7aa32ad7e718f524ad84aa826d3b28b6c",
+            "mergedMainSha": "b7676df7aa32ad7e718f524ad84aa826d3b28b6c",
+            "revertedCommit": "",
+            "runId": "35474506727"
+          }
+        }
+      ],
+      "preventionRules": [
+        "When a CI architecture test matches shell literals, test the assertion against the exact emitted workflow text.",
+        "Distinguish YAML/shell quoting from JavaScript regex escaping; one extra slash can create a new RED.",
+        "Prefer a literal-aware assertion helper when feasible instead of brittle escaped-string regexes."
+      ],
+      "lastSeenAt": "2026-09-19T22:51:37Z"
+    },
+    {
+      "id": "11a69c066357a565d2cc",
+      "fingerprint": "11a69c066357a565d2cc26afd516d4b2d1eb6f7b",
+      "rootCause": "architecture",
+      "rule": "canonical-registry-symmetry",
+      "attempts": 1,
+      "successes": 1,
+      "failures": 0,
+      "confidence": 1,
+      "evidence": [
+        {
+          "verification": "static-build-green-and-browser-matrix-started",
+          "provenance": {
+            "source": "FLIXO Test System",
+            "failedSha": "b7676df7aa32ad7e718f524ad84aa826d3b28b6c",
+            "executionSha": "",
+            "targetSha": "11a69c066357a565d2cc26afd516d4b2d1eb6f7b",
+            "mergedMainSha": "11a69c066357a565d2cc26afd516d4b2d1eb6f7b",
+            "revertedCommit": "",
+            "runId": "35474573378"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Every new repair-control workflow must be registered in the canonical control-plane registry before it can trigger CI.",
+        "Validator, registry, workflow, and supervisor must be updated as one atomic architecture change.",
+        "A workflow that exists but is absent from the canonical registry is a control-plane defect, not a harmless metadata difference."
+      ],
+      "lastSeenAt": "2026-09-19T22:53:07Z"
+    },
+    {
+      "id": "7b032e2a10f99e6bbf65",
+      "fingerprint": "7b032e2a10f99e6bbf65f67e6827e74c64abf9a8",
+      "rootCause": "orchestration",
+      "rule": "primary-red-before-secondary-certification",
+      "attempts": 1,
+      "successes": 1,
+      "failures": 0,
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "verification": "root-cause-order-confirmed",
+          "provenance": {
+            "source": "FLIXO Test System certification chain",
+            "failedSha": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+            "executionSha": "",
+            "targetSha": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+            "mergedMainSha": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+            "revertedCommit": "",
+            "runId": "35474371698"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Repair the earliest failing canonical gate first; later certification failures may be downstream symptoms.",
+        "Do not let browser/certification REDs outrank a pre-RCA static or boundary failure on the same SHA.",
+        "Use dependency order to build the root-cause tree before choosing a mutation."
+      ],
+      "lastSeenAt": "2026-09-19T22:48:35Z"
+    }
+  ],
   "antiLessons": [
     {
       "id": "2737bd695a8549ae5a46",
@@ -1013,6 +1176,49 @@
       ],
       "preventionRules": [],
       "lastSeenAt": "2026-09-19T06:48:35.261Z"
+    },
+    {
+      "id": "83b077936ef0130cd635",
+      "fingerprint": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+      "rootCause": "orchestration",
+      "rule": "block-preflight-recursion",
+      "attempts": 1,
+      "successes": 0,
+      "failures": 1,
+      "confidence": 1,
+      "evidence": [
+        {
+          "verification": "repeated-identical-preflight-failure",
+          "provenance": {
+            "source": "FLIXO Auto Repair Chain repeated RED",
+            "failedSha": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+            "executionSha": "",
+            "targetSha": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+            "mergedMainSha": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+            "revertedCommit": "",
+            "runId": "35474346798"
+          }
+        },
+        {
+          "verification": "repeated-identical-preflight-failure",
+          "provenance": {
+            "source": "FLIXO Auto Repair Chain repeated RED",
+            "failedSha": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+            "executionSha": "",
+            "targetSha": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+            "mergedMainSha": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+            "revertedCommit": "",
+            "runId": "35474291055"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Never recursively dispatch the same repair target when the preflight/immutability boundary fails before RCA.",
+        "Mark the target as infrastructure-preflight blocked and require a supervisor-level strategy change.",
+        "A repeated preflight RED is evidence against the dispatcher state, not evidence for another identical repair attempt."
+      ],
+      "lastSeenAt": "2026-09-19T22:47:14Z"
     }
-  ]
+  ],
+  "actionHistory": []
 }

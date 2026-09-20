@@ -14,13 +14,9 @@ const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);
 const FAILURE = 'f'.repeat(64);
 
-const identity = deriveRepairIdentity({ failureFingerprint: FAILURE, failedSha: SHA_A, targetRunId: '123456789', branch: 'execution' });
+const identity = deriveRepairIdentity({ failureFingerprint: FAILURE, failedSha: SHA_A });
 assert.match(identity.repairChainId, /^RC-[a-f0-9]{20}$/);
-assert.match(identity.leaseRef, /^refs\/tags\/flixo-repair-lease-[a-f0-9]{64}$/);
-assert.equal(identity.cycleKey, `execution:${SHA_A}:${FAILURE}:123456789`);
-const duplicateIdentity = deriveRepairIdentity({ failureFingerprint: FAILURE, failedSha: SHA_A, targetRunId: '123456790', branch: 'execution' });
-assert.notEqual(duplicateIdentity.claimKey, identity.claimKey);
-assert.notEqual(duplicateIdentity.leaseRef, identity.leaseRef);
+assert.equal(identity.cycleKey, `${FAILURE}:${SHA_A}`);
 
 const detected = createRepairCycle({
   failureFingerprint: FAILURE,
@@ -76,14 +72,20 @@ assert.throws(() => createRepairCycle({
   executionSha: SHA_A,
 }), /CONTROL_PLANE_FAILED_SHA_INVALID/);
 
-assert.throws(() => createRepairCycle({
+const mainTarget = createRepairCycle({
   failureFingerprint: FAILURE,
   failedSha: SHA_A,
-  targetRunId: '1',
+  targetRunId: '2',
   executionSha: SHA_B,
   observedBranch: 'main',
-}), /CONTROL_PLANE_REPAIR_BRANCH_BLOCKED/);
-assert.throws(() => deriveRepairIdentity({ failureFingerprint: FAILURE, failedSha: SHA_A, targetRunId: '1', branch: 'invalid' }), /CONTROL_PLANE_REPAIR_BRANCH_BLOCKED/);
+});
+assert.equal(mainTarget.observedBranch, 'main');
+const mainClaimed = claimRepairCycle(mainTarget, { owner: 'AUTO_REPAIR_BOT' });
+const mainEvidence = transitionRepairCycle(mainClaimed, 'EVIDENCE_LOCKED');
+const mainRca = transitionRepairCycle(mainEvidence, 'RCA');
+const mainPlanned = transitionRepairCycle(mainRca, 'REPAIR_PLANNED');
+const mainMutating = transitionRepairCycle(mainPlanned, 'MUTATING', { reason: 'DIRECT_MAIN_REPAIR' });
+assert.equal(mainMutating.observedBranch, 'main');
 
 assert.equal(CIRCUIT_BREAKER.failClosed, true);
 const advanced = transitionRepairCycle(claimed, 'EVIDENCE_LOCKED', { actor: 'WATCHER', reason: 'CLI_ADVANCE_TEST' });

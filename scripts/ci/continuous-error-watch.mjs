@@ -27,6 +27,7 @@ export const REPAIRABLE_WORKFLOWS = Object.freeze([
   'FLIXO Test Impact Execution',
   'Repository Security Baseline',
   'Claude Security Review',
+  'Daily·FLIXO Green Gate',
 ]);
 
 const SECURITY_CHECK_PATTERNS = Object.freeze([
@@ -46,6 +47,8 @@ const CERTIFICATION_CHECK_PATTERNS = Object.freeze([
 const EXTERNAL_CHECK_PATTERNS = Object.freeze([
   /^vercel$/i,
   /^vercel deployment$/i,
+  /cloudflare.*deploy/i,
+  /deploy.*cloudflare/i,
 ]);
 
 const PROVIDER_FAILURE_PATTERNS = Object.freeze([

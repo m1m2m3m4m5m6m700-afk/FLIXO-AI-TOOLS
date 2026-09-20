@@ -1,0 +1,121 @@
+name: FLIXO Agent Repair Supervisor
+
+on:
+  push:
+    branches:
+      - execution
+      - main
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: flixo-agent-repair-supervisor
+  cancel-in-progress: true
+
+permissions:
+  actions: write
+  contents: read
+  checks: read
+
+jobs:
+  supervise:
+    name: Monitor current branch heads until GREEN
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - name: Monitor main and execution continuously
+        id: observe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEADLINE=$(( $(date +%s) + 20400 ))
+          REQUIRED='FLIXO Test System|FLIXO WP0 Trust Baseline|FLIXO Test Impact|FLIXO Test Impact Execution|FLIXO Continuous Delivery|Repository Security Baseline|Claude Security Review|Daily·FLIXO Green Gate'
+          LAST_FAILURE_MAIN=''
+          LAST_FAILURE_EXECUTION=''
+          NEXT_RETRY_MAIN=0
+          NEXT_RETRY_EXECUTION=0
+
+          while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+            ALL_GREEN=true
+
+            for BRANCH in main execution; do
+              SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
+              RUNS="$(gh run list --repo "$GITHUB_REPOSITORY" --branch "$BRANCH" --commit "$SHA" --limit 100 --json databaseId,name,status,conclusion,headSha,createdAt)"
+              GREEN="$(printf '%s' "$RUNS" | jq -r --arg sha "$SHA" 'map(select(.headSha == $sha and .name == "Daily·FLIXO Green Gate" and .conclusion == "success")) | sort_by(.createdAt) | last.databaseId // empty')"
+              FAILED="$(printf '%s' "$RUNS" | jq -r --arg sha "$SHA" --arg names "$REQUIRED" 'map(select(.headSha == $sha and (.name as $n | ($names | split("|") | index($n) != null)))) | map(select(.conclusion == "failure" or .conclusion == "timed_out")) | sort_by(.createdAt) | last.databaseId // empty')"
+
+              if [ -n "$GREEN" ]; then
+                echo "GREEN branch=$BRANCH sha=$SHA run=$GREEN"
+                continue
+              fi
+
+              ALL_GREEN=false
+              if [ -n "$FAILED" ]; then
+                NOW="$(date +%s)"
+                if [ "$BRANCH" = 'main' ]; then
+                  LAST_FAILURE="$LAST_FAILURE_MAIN"
+                  NEXT_RETRY="$NEXT_RETRY_MAIN"
+                else
+                  LAST_FAILURE="$LAST_FAILURE_EXECUTION"
+                  NEXT_RETRY="$NEXT_RETRY_EXECUTION"
+                fi
+                if [ "$FAILED" != "$LAST_FAILURE" ] || [ "$NOW" -ge "$NEXT_RETRY" ]; then
+                  ACTIVE_REPAIR="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 30 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
+                  if [ "$ACTIVE_REPAIR" -eq 0 ]; then
+                    echo "RED_DETECTED branch=$BRANCH sha=$SHA run=$FAILED"
+                    gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref main -f "target_run_id=$FAILED" -f "chain_id=supervisor-$BRANCH-$SHA-$FAILED"
+                    echo "DEDICATED_REPAIR_AGENT_DISPATCHED branch=$BRANCH run=$FAILED sha=$SHA"
+                    LAST_FAILURE="$FAILED"
+                    NEXT_RETRY=$((NOW + 120))
+                  else
+                    echo "RED_REPAIR_ALREADY_ACTIVE branch=$BRANCH run=$FAILED active=$ACTIVE_REPAIR"
+                    LAST_FAILURE="$FAILED"
+                    NEXT_RETRY=$((NOW + 60))
+                  fi
+                fi
+                if [ "$BRANCH" = 'main' ]; then
+                  LAST_FAILURE_MAIN="$LAST_FAILURE"
+                  NEXT_RETRY_MAIN="$NEXT_RETRY"
+                else
+                  LAST_FAILURE_EXECUTION="$LAST_FAILURE"
+                  NEXT_RETRY_EXECUTION="$NEXT_RETRY"
+                fi
+              else
+                echo "WAITING_FOR_GREEN branch=$BRANCH sha=$SHA"
+              fi
+            done
+
+            if [ "$ALL_GREEN" = true ]; then
+              echo 'SUPERVISOR_TERMINAL=GREEN'
+              echo 'status=green' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 30
+          done
+
+          echo 'SUPERVISOR_WINDOW_EXHAUSTED_NON_GREEN'
+          echo 'status=continue' >> "$GITHUB_OUTPUT"
+
+      - name: Continue supervision until GREEN
+        if: steps.observe.outputs.status == 'continue'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run agent-repair-supervisor.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo 'SUPERVISOR_CONTINUATION_DISPATCHED=true'
+
+      - name: Record terminal state
+        if: always()
+        run: |
+          RESULT="${{ steps.observe.outputs.status || 'unknown' }}"
+          echo "SUPERVISOR_RESULT=$RESULT"
+          if [ "$RESULT" = 'green' ]; then
+            echo 'SUPERVISOR_TERMINAL=GREEN'
+          else
+            echo 'SUPERVISOR_TERMINAL=NON_GREEN_CONTINUE'
+          fi
