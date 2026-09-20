@@ -18,6 +18,10 @@ const fileSelection=write('selection.json',{
   decision:'SELECTED',targetSha:sha,failureFingerprint:'fp',
   selectedFiles:[{path:'src/example.ts'}],excludedFiles:[]
 });
+const rootCauseProof=write('root-cause-proof.json',{
+  protocol:'CAUSAL-EVIDENCE-GRAPH-v1',status:'PROVEN',targetSha:sha,failureFingerprint:'fp',sourceMutationAllowed:false,digest:'d'.repeat(64),
+  chain:{rootCause:'eslint-unused'},graph:{responsibleSource:'src/example.ts'},proofClaims:{ROOT_CAUSE_LINKED_TO_FAILURE_SIGNAL:true,LOCATION_LINKED_TO_CAUSE:true,MECHANISM_EXPLAINED:true,ALTERNATIVES_CHALLENGED:true}
+});
 const awareness=write('awareness.json',{
   protocol:'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1',
   targetSha:sha,
@@ -26,7 +30,7 @@ const awareness=write('awareness.json',{
   awarenessCompleteness:{requiredDomains:['TASK_SEMANTICS','REPOSITORY_CONTEXT','CAUSAL_CONTEXT','HISTORICAL_CONTEXT','SAFETY_GOVERNANCE','ADVERSARIAL_CONTEXT','OPERATIONAL_CONTEXT','TEMPORAL_CONTEXT','SYSTEMIC_IMPACT'],complete:true}
 });
 const out=path.join(dir,'proof.json');
-execFileSync(process.execPath,['scripts/ci/action-primary-correctness-proof.mjs','--task=task','--run-id=1','--sha='+sha,'--fingerprint=fp','--diagnosis='+diagnosis,'--strategy='+strategy,'--file-selection='+fileSelection,'--awareness='+awareness,'--output='+out],{stdio:'pipe'});
+execFileSync(process.execPath,['scripts/ci/action-primary-correctness-proof.mjs','--task=task','--run-id=1','--sha='+sha,'--fingerprint=fp','--diagnosis='+diagnosis,'--strategy='+strategy,'--file-selection='+fileSelection,'--root-cause='+rootCauseProof,'--awareness='+awareness,'--output='+out],{stdio:'pipe'});
 const proof=JSON.parse((await import('node:fs')).readFileSync(out,'utf8'));
 assert.equal(proof.role,'PRIMARY_CORRECTNESS_PROVER');
 assert.equal(proof.status,'PRIMARY_CORRECTNESS_PROVEN');
@@ -34,5 +38,6 @@ assert.equal(proof.proofObjective,'PROVE_PRIMARY_REPAIR_CORRECT');
 assert.equal(proof.sourceMutationAllowed,false);
 assert.equal(proof.proofBasis.diagnosisCurrentSha,true);
 assert.ok(Array.isArray(proof.remainingRisks));
+assert.equal(proof.causalEvidenceGraph.protocol,'CAUSAL-EVIDENCE-GRAPH-v1');
 assert.equal(proof.obligationsForVerifier.length,4);
 console.log('ACTION_PRIMARY_CORRECTNESS_PROOF=PASS');
