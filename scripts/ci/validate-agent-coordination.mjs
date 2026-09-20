@@ -9,7 +9,7 @@ const read = (file) => fs.readFileSync(path.resolve(root, file), 'utf8');
 const exists = (file) => fs.existsSync(path.resolve(root, file));
 
 const expected = {
-  'scripts/ci/agent-coordination.mjs': ['task-create', 'task-claim', 'task-release', 'task-complete', 'visible', 'ingest-handoff', 'COORDINATION_CONFLICT', 'AGENT_VISIBILITY', 'TASK_COMPLETION_REQUIRES_VERIFIED_AGENT_STATUS', 'getAgentMessage', 'COORDINATION_MESSAGE_NOT_READ', 'COORDINATION_MESSAGE_SHA_STALE'],
+  'scripts/ci/agent-coordination.mjs': ['task-create', 'task-claim', 'task-release', 'task-complete', 'visible', 'ingest-handoff', 'COORDINATION_CONFLICT', 'AGENT_VISIBILITY', 'TASK_COMPLETION_REQUIRES_VERIFIED_AGENT_STATUS', 'getAgentMessage', 'COORDINATION_MESSAGE_NOT_READ', 'COORDINATION_MESSAGE_SHA_STALE', 'consumeAgentMessage'],
   'scripts/ci/agent-communication.mjs': ['validateMessage', 'ingest', 'markRead', 'markConsumed', 'AGENT_MESSAGE_IDEMPOTENCY_COLLISION', 'AGENT_MESSAGE_STALE_REQUIRES_REVALIDATION'],
   'scripts/ci/test-agent-communication.mjs': ['AGENT_COMMUNICATION_TEST=PASS', 'MESSAGE_IDEMPOTENCY=PASS', 'STALE_MESSAGE_FAIL_CLOSED=PASS'],
   '.github/workflows/agent-communication-relay.yml': ['issue_comment', 'Immediate agent message receive', 'agent-communication.mjs', 'IMMEDIATE_EVENT_RECEIPT'],
