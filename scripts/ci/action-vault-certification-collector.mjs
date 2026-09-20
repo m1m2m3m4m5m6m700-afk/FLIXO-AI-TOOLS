@@ -39,6 +39,10 @@ for(const run of Object.values(exactRuns)){
 }
 const testSkipped=[...Object.values(jobData).flatMap(jobs=>jobs.flatMap(job=>(job.steps??[]).filter(step=>step.conclusion==='skipped'&&/(test|check|gate|cert|proof|falsif|simulat|regress)/iu.test(String(step.name??'')))))];
 const continueOnErrorScan=spawnSync('git',['grep','-n','continue-on-error:','--','.github/workflows'],{encoding:'utf8',env:process.env});
+const canonicalRedRuns=Object.values(exactRuns).filter(run=>run?.status!=='completed'||run?.conclusion!=='success');
+const canonicalRedSteps=[...Object.values(jobData).flatMap(jobs=>jobs.flatMap(job=>(job.steps??[]).filter(step=>['failure','timed_out','action_required','cancelled'].includes(step.conclusion)))))];
+const projectRedCount=canonicalRedRuns.length+canonicalRedSteps.length;
+if(projectRedCount!==0)throw new Error('PROJECT_RED_COUNT_NOT_ZERO');
 const allIntelligenceTestsPass=requiredPass&&testSuite.status===0&&benchmarkReport.allCasesPass===true;
 const allSecurityTestsPass=['FLIXO WP0 Trust Baseline','Repository Security Baseline','Claude Security Review'].every(name=>exactRuns[name]?.conclusion==='success');
 const allProofTestsPass=requiredPass;
@@ -64,7 +68,7 @@ const greenRecord={
 const certification=evaluateCertification({
  benchmarkScore:benchmarkReport.score,benchmarkVersion:benchmarkReport.benchmarkVersion,
  exactSha:gitHead,executionSha:gitHead,canonicalGreenRecord:greenRecord,
- projectRedCount:0,globalChecks,failedTests:[],blockedCases:[],remainingRisks:[]
+ projectRedCount,globalChecks,failedTests:[],blockedCases:[],remainingRisks:[]
 });
 const result={score:certification.score,benchmarkVersion:benchmarkReport.benchmarkVersion,testedCapabilities:benchmarkReport.cases?.map(c=>c.name)??[],passedTests:benchmarkReport.cases?.filter(c=>c.passed).map(c=>c.name)??[],failedTests:benchmarkReport.cases?.filter(c=>!c.passed).map(c=>c.name)??[],blockedCases:certification.blockedCases??[],proofArtifacts:verifiedLearning.proofIds,simulationArtifacts:verifiedLearning.proofIds.filter(x=>/SANDBOX|POST-MUTATION/u.test(x)),differentialArtifacts:verifiedLearning.proofIds.filter(x=>/DIFFERENTIAL/u.test(x)),falsificationArtifacts:verifiedLearning.proofIds.filter(x=>/FALSIFICATION|COUNTEREXAMPLE/u.test(x)),exactSha:gitHead,executionSha:gitHead,canonicalGreenRecord:greenRecord,certificationStatus:certification.certificationStatus,remainingRisks:certification.remainingRisks??[],knownLimitations:certification.certificationStatus==='100/100 VERIFIED'?[]:['Certification remains fail-closed until every exact-SHA workflow, Action Vault test suite, benchmark, CI contract, and learning evidence is proven.'],
 verifiedLearning,globalChecks,requiredRuns:exactRuns,benchmark:benchmarkReport};
