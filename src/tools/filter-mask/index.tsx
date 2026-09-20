@@ -148,27 +148,42 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       return;
     }
 
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    const previousStream = streamRef.current;
+    let stream: MediaStream | null = null;
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: facingMode },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: true,
-      });
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: facingMode },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: true,
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: facingMode },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+      }
 
-      streamRef.current = stream;
       const videos = [baseVideoRef.current, videoRef.current].filter(Boolean) as HTMLVideoElement[];
       videos.forEach((video) => {
         video.srcObject = stream;
       });
       await Promise.all(videos.map((video) => video.play()));
+
+      previousStream?.getTracks().forEach((track) => track.stop());
+      streamRef.current = stream;
       setRunning(true);
     } catch {
-      setRunning(false);
+      stream?.getTracks().forEach((track) => track.stop());
+      setRunning(Boolean(previousStream?.active));
       setError(copy.cameraDenied);
     }
   }
