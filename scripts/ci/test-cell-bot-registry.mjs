@@ -10,9 +10,12 @@ assert(registry.bots.every((bot)=>bot.permissions.length===0));
 assert(registry.bots.every((bot)=>bot.supervisor==='assistantController'));
 assert(registry.bots.every((bot)=>bot.taskPolicy==='ONE_TASK_AT_A_TIME'));
 assert(registry.bots.every((bot)=>bot.scopePolicy==='ASSIGNED_SCOPE_ONLY'));
-assert(registry.bots.every((bot)=>bot.lifecycle?.rawStateForbidden===true));
-assert(registry.bots.every((bot)=>!['RAW','UNPROVISIONED'].includes(bot.status)));
-assert.deepEqual(registry.lifecycle.allowedStates,['LEARNING','SPECIALIZING','UPGRADING','READY','RECYCLE']);
+assert(registry.bots.every((bot)=>bot.lifecycle?.bootstrapOnly===true));
+assert(registry.bots.every((bot)=>bot.status==='RAW'));
+assert(registry.bots.every((bot)=>bot.taskIdentity?.state==='UNLEARNED'));
+assert(registry.bots.every((bot)=>bot.currentAssignment===null));
+assert.deepEqual(registry.lifecycle.allowedStates,['RAW','LEARNING','SPECIALIZING','UPGRADING','READY','RECYCLE']);
+assert.equal(registry.lifecycle.firstTaskExitGate,'CLOSED_ATTENDANCE + INDEPENDENT_RESULT_REVIEW');
 
 const squad=registry.actionRepairCohort;
 assert.deepEqual(squad.workerIds,['CELL-001','CELL-002','CELL-003','CELL-004','CELL-005']);
@@ -31,17 +34,17 @@ for(const id of squad.workerIds){
   assert.equal(squad.workerModes[id],expected[id]);
   const bot=registry.bots.find((item)=>item.id===id);
   assert.ok(bot);
-  assert.equal(bot.taskIdentity.shortName,expected[id]);
+  assert.equal(squad.workerModes[id],expected[id]);
   assert.equal(bot.cellCouncil,'CELL_TRISEAT_CONTROLLER');
   assert.equal(bot.reassignmentPolicy,'ANY_ADMITTED_TASK');
   assert.equal(bot.returnPolicy,'RETURN_TO_POOL_WITH_KNOWLEDGE');
   assert.equal(bot.personalMemoryFile,'diagnostics/auto-repair/cell-bots/'+id+'.json');
 }
 const actionReader=registry.bots.find((bot)=>bot.id==='CELL-001');
-assert.equal(actionReader.taskIdentity.fullName,'ACTION_SOLUTION_INDEXER');
-assert.equal(actionReader.currentAssignment.taskId,'CELL-TASK-ACTION-REPAIR-SQUAD');
-assert.equal(actionReader.currentAssignment.mutationAuthority,false);
-assert.equal(actionReader.upgradeTarget.upgradePriority,95);
+assert.equal(actionReader.status,'RAW');
+assert.equal(actionReader.taskIdentity.fullName,'UNLEARNED_TASK');
+assert.equal(actionReader.currentAssignment,null);
+assert.equal(actionReader.upgradeTarget.upgradePriority,1);
 assert.equal(actionReader.memoryPolicy,'LEARN_PERSIST_COPYABLE_REUSE');
 
 assert(registry.bots.every((bot)=>bot.capabilityMode==='SPECIALIZED_PLUS_GENERAL'));
