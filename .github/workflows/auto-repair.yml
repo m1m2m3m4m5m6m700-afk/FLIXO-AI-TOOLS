@@ -62,6 +62,7 @@ env:
   FLIXO_FAILURE_FINGERPRINT: ${{ inputs.failure_fingerprint || '' }}
   FLIXO_REPAIR_LEASE_REF: ${{ inputs.repair_lease_ref || '' }}
   FLIXO_REPAIR_LEASE_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
+  FLIXO_REPAIR_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
   FLIXO_PROMPT_SOURCE_RUN_ID: ${{ inputs.prompt_source_run_id || '' }}
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
   # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
@@ -426,6 +427,41 @@ jobs:
             grep -E -i 'error|failed|failure|timeout|cancelled|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(|DEEP_[A-Z_]+_MISSING|execution graph completeness' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
           } > /tmp/flixo-repair-summary.txt
           node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=EVIDENCE_LOCKED --actor=AUTO_REPAIR_BOT --reason=FAILURE_EVIDENCE_CAPTURED
+
+      - name: Await the parallel adversarial twin before strategy selection
+        id: twin
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TWIN_ARTIFACT_NAME: flixo-repair-twin-${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-twin-download
+          found=false
+          for attempt in $(seq 1 90); do
+            COUNT="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq --arg name "$TWIN_ARTIFACT_NAME" '[.artifacts[] | select(.name == $name and .expired == false)] | length')"
+            if [ "$COUNT" -gt 0 ]; then
+              rm -rf /tmp/flixo-twin-download/*
+              gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$TWIN_ARTIFACT_NAME" --dir /tmp/flixo-twin-download
+              if [ -s /tmp/flixo-twin-download/twin-result.json ]; then
+                found=true
+                break
+              fi
+            fi
+            sleep 10
+          done
+          test "$found" = true || { echo 'FAIL CLOSED: adversarial twin result did not arrive.'; exit 1; }
+          TWIN_SHA="$(jq -r '.targetSha // empty' /tmp/flixo-twin-download/twin-result.json)"
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          test "$TWIN_SHA" = "$FAILED_SHA" || {
+            echo "FAIL CLOSED: twin SHA $TWIN_SHA does not match repair target $FAILED_SHA."
+            exit 1
+          }
+          jq -e '.mutationAuthority == false and .repositoryWrite == false and .actionsWrite == false' /tmp/flixo-twin-download/twin-result.json > /dev/null
+          cp /tmp/flixo-twin-download/twin-result.json /tmp/flixo-twin-result.json
+          echo 'FLIXO_TWIN_PROPOSAL_PATH=/tmp/flixo-twin-result.json' >> "$GITHUB_ENV"
+          echo "TWIN_RESULT_READY=true"
+          echo "TWIN_PREFERRED_STRATEGY=$(jq -r '.challenge.preferredAlternativeStrategy // "none"' /tmp/flixo-twin-result.json)"
+          echo "TWIN_DISPOSITION=$(jq -r '.challenge.disposition // "unknown"' /tmp/flixo-twin-result.json)"
 
       - name: Run Phase 1 AI failure intelligence and exact-target preflight
         env:
