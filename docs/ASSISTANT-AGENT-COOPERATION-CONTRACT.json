@@ -52,7 +52,8 @@
       "permissionGrantAuthorityGranted": false,
       "staleMessage": "FAIL_CLOSED",
       "conflict": "MASTER_ARBITRATION_REQUIRED"
-    }
+    },
+    "action_vault_reasoning": "The Action Vault is a bounded extension of P20 for the resident repair triad: ACTION-REPAIR performs only admitted repair mutation, ACTION-REPAIR-2 independently challenges the causal explanation and verification evidence without mutation, and ACTION-HISTORIAN-3 records lessons/anti-lessons and recurrence prevention without mutation. A triad mission must preserve exact SHA, failure fingerprint, ownership, independent roles, targeted regression and final evidence; memory never grants authority and blind retries are forbidden."
   },
   "messageEnvelope": {
     "required": [
@@ -106,7 +107,10 @@
     "councilPresident": "assistantController: presidential control, assignment and integration decisions; no mutation or certification",
     "councilDeputy": "verification: queue sequencing, dependency ordering, ownership and handoff management; no mutation or certification",
     "councilInvestigator": "analysis: fingerprint, RCA, falsification and proof-obligation ownership; no mutation or reassignment",
-    "externalRuntime": "External account adapter: transports Wake/ACK/heartbeat/completion between GitHub/Supabase and external GPT runtimes. It grants no mutation or certification authority."
+    "externalRuntime": "External account adapter: transports Wake/ACK/heartbeat/completion between GitHub/Supabase and external GPT runtimes. It grants no mutation or certification authority.",
+    "actionRepairBot": "ACTION-REPAIR / actionRepairBot: bounded mutation specialist for GitHub Actions repair. It may mutate only on execution, only after repair-protocol admission, only inside the diagnosed scope, and never self-certifies or widens gates.",
+    "actionRepairVerifier": "ACTION-REPAIR-2 / actionRepairVerifier: adversarial verification specialist. It independently challenges RCA, alternative hypotheses, changed-scope legitimacy and regression evidence; it has no mutation, commit, push, merge or certification authority.",
+    "actionHistorian": "ACTION-HISTORIAN-3 / actionHistorian: learning and recurrence specialist. It records exact-SHA lessons, anti-lessons, rejected strategies, recurrence conditions and prevention rules; it has no mutation, commit, push, merge or certification authority."
   },
   "decisionGates": {
     "LOW": "Auto-execute only inside declared scope with deterministic verification and no protected-path impact.",
@@ -364,6 +368,7 @@
   },
   "actionVaultContinuity": {
     "enabled": true,
+    "missionContractVersion": 2,
     "vault": "diagnostics/auto-repair/action-vault",
     "residents": [
       "ACTION-REPAIR",
@@ -372,11 +377,129 @@
     ],
     "alwaysResident": true,
     "leaveVault": false,
+    "activeOnlyAfterCanonicalAssignment": true,
     "maxOperationsPerBot": 2000000,
     "automaticVisitsPerBotPerDay": 3,
     "automaticVisitsPerDay": 9,
     "redCollaboration": "MANDATORY_THREE_BOT_SHARED_MISSION",
+    "roles": {
+      "ACTION-REPAIR": {
+        "agent": "actionRepairBot",
+        "purpose": "causal repair execution",
+        "mutationAuthority": true,
+        "certificationAuthority": false,
+        "requiredInputs": [
+          "exactSha",
+          "failureFingerprint",
+          "diagnosis",
+          "ownershipLock",
+          "repairProtocolAdmission",
+          "proofObligations"
+        ],
+        "requiredOutputs": [
+          "changedFiles",
+          "repairRationale",
+          "targetedRegression",
+          "exitSha",
+          "handoffEvidence"
+        ],
+        "forbidden": [
+          "gate weakening",
+          "silent skip",
+          "unrelated cleanup",
+          "test-only symptom masking",
+          "self-certification",
+          "main mutation",
+          "third branch"
+        ]
+      },
+      "ACTION-REPAIR-2": {
+        "agent": "actionRepairVerifier",
+        "purpose": "independent adversarial verification",
+        "mutationAuthority": false,
+        "certificationAuthority": false,
+        "requiredInputs": [
+          "exactSha",
+          "failureFingerprint",
+          "repairEvidence",
+          "alternativeHypotheses"
+        ],
+        "requiredOutputs": [
+          "challengeResult",
+          "counterEvidence",
+          "verificationState",
+          "remainingRisks"
+        ],
+        "forbidden": [
+          "source mutation",
+          "commit",
+          "push",
+          "merge",
+          "certification",
+          "rewriting evidence"
+        ]
+      },
+      "ACTION-HISTORIAN-3": {
+        "agent": "actionHistorian",
+        "purpose": "learning and recurrence prevention",
+        "mutationAuthority": false,
+        "certificationAuthority": false,
+        "requiredInputs": [
+          "exactSha",
+          "failureFingerprint",
+          "rca",
+          "strategy",
+          "verificationResult"
+        ],
+        "requiredOutputs": [
+          "lesson",
+          "antiLesson",
+          "recurrenceRule",
+          "preventionRule",
+          "memoryProvenance"
+        ],
+        "forbidden": [
+          "source mutation",
+          "authority grant",
+          "confidence-only promotion",
+          "deleting failed history"
+        ]
+      }
+    },
+    "missionSequence": [
+      "CAPTURE",
+      "FINGERPRINT",
+      "RCA",
+      "FALSIFY",
+      "REPAIR",
+      "TARGETED_REGRESSION",
+      "ADVERSARIAL_VERIFY",
+      "LEARN",
+      "EXACT_SHA_RECHECK",
+      "HANDOFF"
+    ],
+    "sharedMissionEnvelopeRequired": [
+      "triadId",
+      "messageId",
+      "taskId",
+      "failureFingerprint",
+      "entrySha",
+      "targetSha",
+      "ownerAgent",
+      "proofObligations",
+      "stopConditions"
+    ],
+    "independenceRule": "ACTION-REPAIR-2 and ACTION-HISTORIAN-3 must not impersonate ACTION-REPAIR or reuse its mutation authority.",
+    "verificationRule": "ACTION-REPAIR-2 must receive the post-repair evidence independently; ACTION-REPAIR cannot declare the verifier result on its behalf.",
+    "memoryPromotionRule": "A reusable repair rule requires at least two independently verified successful exact-SHA cases plus one explicit prevention rule; one success never promotes authority.",
+    "retryPolicy": "NO_BLIND_RETRY",
     "failedAttemptEscalationThreshold": 20,
+    "stalledCycleRule": {
+      "maxIdenticalCycles": 3,
+      "condition": "same failure fingerprint without verifiable progress",
+      "action": "PERSIST_ANTI_LESSON_AND_ESCALATE_TO_ASSISTANT_CONTROLLER",
+      "failClosed": true
+    },
     "supervisorRecipient": "assistantController",
     "supervisorRoute": "scripts/ci/agent-communication.mjs -> .github/workflows/agent-communication-relay.yml -> scripts/ci/council-wake-dispatch.mjs",
     "escalationIsNotClosure": true,
