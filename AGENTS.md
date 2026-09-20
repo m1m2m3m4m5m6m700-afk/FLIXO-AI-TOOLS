@@ -84,6 +84,16 @@ The agent MUST:
 
 Any workflow, script, task packet, or agent that attempts to create, push, or merge a third branch is non-compliant and must fail closed.
 
+## LATEST-COMMIT-ONLY TEST EXECUTION
+
+For push/synchronize-driven test verification, the repository tests only the newest branch head:
+- A newer commit supersedes older test/verification runs for the same branch.
+- Core test workflows use `cancel-in-progress: true` and exact head branch/repository concurrency identity.
+- `.github/workflows/latest-commit-test-supersession.yml` cancels stale test/verification runs across workflows by comparing each run's `headSha` with the newest branch SHA.
+- Current-SHA runs are never canceled by the supersession controller merely because another current-SHA workflow exists.
+- A cancellation race is fail-closed: the stale-SHA guard aborts the old run before it can publish valid evidence.
+- Repair/heartbeat/residency automation is intentionally outside the test supersession allowlist so a push cannot strand an active repair cycle.
+
 ## TESTING ECONOMY
 
 Routine changes use targeted regression first. Full canonical CI is required whenever the governing contract, affected graph, release boundary, or task closure requires it.
