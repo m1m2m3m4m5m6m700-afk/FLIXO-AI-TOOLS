@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { validateCodeMentorProfile } from './action-code-mentor.mjs';
 
 export const EXPECTED_BOTS = Object.freeze([
   'ACTION-REPAIR',
@@ -44,7 +45,7 @@ export function validateBotProfile(profile) {
 
 export function validateThreeBotIntelligence(profile, bots) {
   const errors = [];
-  if (profile?.schemaVersion !== 1) err(errors, 'INTELLIGENCE_SCHEMA_INVALID');
+  if (profile?.schemaVersion !== 3) err(errors, 'INTELLIGENCE_SCHEMA_INVALID');
   if (profile?.parity?.cognitiveCapabilitiesEqual !== true ||
       profile?.parity?.knowledgeSourcesEqual !== true ||
       profile?.parity?.reasoningModesEqual !== true ||
@@ -140,6 +141,7 @@ export function runGate(root = ROOT) {
   const profilePath = path.join(vault, 'ACTION-THREE-BOT-INTELLIGENCE.json');
   const residencyPath = path.join(vault, 'ACTION-RESIDENCY-POLICY.json');
   const gradePath = path.join(vault, 'ACTION-VAULT-AGENT-GRADE.json');
+  const mentorPath = path.join(vault, 'ACTION-CODE-MENTOR.json');
   const parallelProtocolPath = path.resolve(root, 'docs/agents/ACTION-VAULT-PARALLEL-COLLABORATION-PROTOCOL.md');
   const sleepAdmissionPath = path.resolve(root, 'scripts/ci/action-vault-sleep-admission.mjs');
   const collaborationScriptPath = path.resolve(root, 'scripts/ci/action-three-bot-collaboration.mjs');
@@ -166,11 +168,15 @@ export function runGate(root = ROOT) {
   let intelligence = null;
   let residency = null;
   let grade = null;
+  let mentor = null;
   try { if (exists(profilePath)) intelligence = readJson(profilePath); } catch { err(errors, 'INTELLIGENCE_PROFILE_INVALID_JSON'); }
   try { if (exists(residencyPath)) residency = readJson(residencyPath); } catch { err(errors, 'RESIDENCY_POLICY_INVALID_JSON'); }
   try { if (exists(gradePath)) grade = readJson(gradePath); } catch { err(errors, 'AGENT_GRADE_INVALID_JSON'); }
+  try { if (exists(mentorPath)) mentor = readJson(mentorPath); } catch { err(errors, 'CODE_MENTOR_INVALID_JSON'); }
 
   for (const profile of profiles) errors.push(...validateBotProfile(profile));
+  if (mentor) errors.push(...validateCodeMentorProfile(mentor));
+  else err(errors, 'CODE_MENTOR_PROFILE_MISSING');
   if (intelligence) errors.push(...validateThreeBotIntelligence(intelligence, profiles));
   if (residency) errors.push(...validateResidency(residency));
   errors.push(...validateExecutionBoundaries(profiles));
@@ -196,6 +202,10 @@ export function runGate(root = ROOT) {
     if (residency.automaticVisits?.visitModes?.includes('EXCHANGE') !== true) err(errors, 'RESIDENCY_EXCHANGE_VISIT_MISSING');
   }
 
+  if (intelligence?.cooperation?.mentorship?.enabled !== true) err(errors, 'CODE_MENTOR_COOPERATION_MISSING');
+  if (intelligence?.cooperation?.mentorship?.parentBot !== 'ACTION-REPAIR') err(errors, 'CODE_MENTOR_PARENT_INVALID');
+  if (intelligence?.cooperation?.mentorship?.readOnly !== true) err(errors, 'CODE_MENTOR_READ_ONLY_MISSING');
+  if (intelligence?.cooperation?.mentorship?.promotedOnlyAfterCanonicalGreen !== true) err(errors, 'CODE_MENTOR_GREEN_PROMOTION_MISSING');
   if (intelligence?.cooperation?.parallelExecution?.cognitiveParallelism !== true) err(errors, 'PARALLEL_COGNITIVE_MODE_MISSING');
   if (intelligence?.cooperation?.parallelExecution?.sourceMutationParallelism !== false) err(errors, 'PARALLEL_SOURCE_MUTATION_MUST_REMAIN_FALSE');
   if (intelligence?.cooperation?.parallelExecution?.allThreeContributionsRequired !== true) err(errors, 'ALL_THREE_CONTRIBUTIONS_REQUIRED_MISSING');
