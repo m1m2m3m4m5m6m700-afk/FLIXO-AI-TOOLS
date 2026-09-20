@@ -1,0 +1,88 @@
+name: FLIXO Historical Action Error Index
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: 'UTC ISO start of the historical slice'
+        required: false
+        default: '2026-08-10T00:00:00Z'
+        type: string
+      end:
+        description: 'UTC ISO end of the historical slice'
+        required: false
+        default: ''
+        type: string
+      batch_days:
+        description: 'Days per scan window'
+        required: false
+        default: '1'
+        type: string
+  schedule:
+    - cron: '17 */2 * * *'
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: flixo-historical-action-error-index
+  cancel-in-progress: false
+
+jobs:
+  index:
+    name: Backfill and index real GitHub Action failures
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - name: Checkout execution
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: execution
+          fetch-depth: 1
+
+      - name: Resolve historical window
+        id: window
+        shell: bash
+        run: |
+          set -euo pipefail
+          START='\${{ inputs.start || '' }}'
+          END='\${{ inputs.end || '' }}'
+          if [ -z "$START" ]; then START='2026-08-10T00:00:00Z'; fi
+          if [ -z "$END" ]; then END="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; fi
+          echo "start=$START" >> "$GITHUB_OUTPUT"
+          echo "end=$END" >> "$GITHUB_OUTPUT"
+
+      - name: Backfill real Action error lines
+        env:
+          GH_TOKEN: \${{ github.token }}
+          FLIXO_HISTORY_START: \${{ steps.window.outputs.start }}
+          FLIXO_HISTORY_END: \${{ steps.window.outputs.end }}
+          FLIXO_HISTORY_BATCH_DAYS: \${{ inputs.batch_days || '1' }}
+          FLIXO_HISTORY_OUT: /tmp/flixo-historical-errors
+        run: node scripts/ci/backfill-historical-action-errors.mjs
+
+      - name: Merge occurrences into instant index
+        run: |
+          set -euo pipefail
+          mkdir -p docs/agents/historical-action-errors/records
+          for file in /tmp/flixo-historical-errors/*.json; do
+            [ -f "$file" ] || continue
+            node scripts/ci/historical-action-error-index.mjs add "$file"
+          done
+          test -s docs/agents/historical-action-errors/index.json
+          test -s docs/agents/historical-action-errors/manifest.json
+
+      - name: Validate historical index
+        run: node scripts/ci/test-historical-action-error-index.mjs
+
+      - name: Persist historical corpus on execution
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = execution
+          git add docs/agents/historical-action-errors
+          git diff --cached --quiet && exit 0
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "chore(memory): index historical GitHub Action errors [skip ci]"
+          git push origin execution
