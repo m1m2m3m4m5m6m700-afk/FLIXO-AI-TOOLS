@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { INTRACTABLE_THRESHOLD, fingerprintFailure } from './auto-repair-learning.mjs';
 import { reasonFailure } from './auto-repair/reasoning.mjs';
@@ -118,11 +119,12 @@ function behavioralTrainingRecommendation(training, rootCause, previousStrategy,
   return list.find((item)=>!rejected.includes(item.strategyId)) ?? null;
 }
 
-function trainingAbstentionDecision(training, causal, stateActionRecommendation, behavioralRecommendation) {
+function trainingAbstentionDecision(training, causal, stateActionRecommendation, behavioralRecommendation, rejectedStrategies = []) {
   const eligible = training?.decision?.eligibleToInfluenceRouting === true;
-  if (!eligible) return { eligible: false, abstain: false, mode: 'TRAINING_UNAVAILABLE', confidence: 0, threshold: null, reason: 'TRAINING_NOT_ELIGIBLE' };
+  if (!eligible) return { eligible: false, abstain: false, mode: 'TRAINING_UNAVAILABLE', confidence: 0, threshold: null, reason: 'TRAINING_NOT_ELIGIBLE', nextEvidence: null };
   const threshold = Number(training?.decision?.calibration?.recommendedAbstentionThreshold ?? training?.calibration?.abstention?.recommendedThreshold ?? 0.75);
-  const contextual = training?.policy?.byRootCause?.[String(causal.rootCause ?? 'unknown').toLowerCase()]?.[0] ?? null;
+  const activePolicy = training?.activePolicy ?? training?.policy;
+  const contextual = activePolicy?.byRootCause?.[String(causal.rootCause ?? 'unknown').toLowerCase()]?.[0] ?? null;
   const trainedConfidence = Number(stateActionRecommendation?.confidence ?? behavioralRecommendation?.confidence ?? contextual?.confidence ?? contextual?.successRate ?? 0);
   const causalConfidence = Number(causal?.confidence ?? 0);
   const ambiguous = causal?.ambiguity === true;
@@ -132,6 +134,36 @@ function trainingAbstentionDecision(training, causal, stateActionRecommendation,
   if (ambiguous) reasons.push('CAUSAL_AMBIGUITY');
   if (trainedConfidence < threshold) reasons.push('TRAINING_CONFIDENCE_BELOW_THRESHOLD');
   if (causalConfidence < 0.55) reasons.push('CAUSAL_CONFIDENCE_BELOW_THRESHOLD');
+function chooseNextEvidenceStrategy(causal, rejectedStrategies = [], priorStrategies = []) {
+  const map = {
+    lint: ['reproduce-exact','diff-forensics','minimize-failure'],
+    format: ['reproduce-exact','diff-forensics','environment-audit'],
+    typescript: ['reproduce-exact','diff-forensics','synthetic-reproduction'],
+    'typescript-async-contract': ['reproduce-exact','diff-forensics','synthetic-reproduction'],
+    playwright: ['reproduce-exact','synthetic-reproduction','observability-trace'],
+    'webkit-render': ['reproduce-exact','observability-trace','synthetic-reproduction'],
+    build: ['reproduce-exact','environment-audit','diff-forensics'],
+    certification: ['reproduce-exact','workflow-forensics','observability-trace'],
+    'contract-drift': ['diff-forensics','workflow-forensics','reproduce-exact'],
+    'liveness-contract': ['workflow-forensics','observability-trace','reproduce-exact'],
+    'noncanonical-automation': ['workflow-forensics','diff-forensics','observability-trace'],
+    'external-tooling': ['environment-audit','workflow-forensics','reproduce-exact'],
+    unknown: ['reproduce-exact','minimize-failure','diff-forensics'],
+  };
+  const source = map[String(causal?.rootCause ?? 'unknown').toLowerCase()] ?? map.unknown;
+  const excluded = new Set([...(rejectedStrategies ?? []), ...(priorStrategies ?? []).slice(-3)]);
+  const candidates = [...source, ...map.unknown]
+    .filter((id, index, all) => all.indexOf(id) === index)
+    .filter((id) => !excluded.has(id));
+  const chosen = candidates[0] ?? 'reproduce-exact';
+  return {
+    strategyId: chosen,
+    alternatives: candidates.slice(1,4),
+    rationale: 'EVIDENCE_INFORMATION_GAIN_BY_ROOT_CAUSE',
+    source: 'DETERMINISTIC_EVIDENCE_ROUTER',
+  };
+}
+
   return {
     eligible: true,
     abstain,
@@ -142,6 +174,7 @@ function trainingAbstentionDecision(training, causal, stateActionRecommendation,
     reason: reasons.join('|') || 'CONFIDENCE_SUFFICIENT',
   };
 }
+
 
 function strategyTrainingStats(training, id, rootCause) {
   const global = training?.policy?.global?.[id] ?? {};
@@ -419,14 +452,23 @@ const behaviorPreferredId = behavioralRecommendation?.strategyId ?? null;
 const intelligentIndex = intelligentSelectedId ? strategies.findIndex(([id]) => id === intelligentSelectedId) : -1;
 const stateActionIndex = stateActionPreferredId ? strategies.findIndex(([id]) => id === stateActionPreferredId) : -1;
 const behaviorIndex = behaviorPreferredId ? strategies.findIndex(([id]) => id === behaviorPreferredId) : -1;
-const trainingAbstention = trainingAbstentionDecision(training, causal, stateActionRecommendation, behavioralRecommendation);
+const trainingAbstention = trainingAbstentionDecision(training, causal, stateActionRecommendation, behavioralRecommendation, [...rejected]);
+const nextEvidence = trainingAbstention.abstain
+  ? chooseNextEvidenceStrategy(causal, [...rejected], priorStrategies)
+  : null;
+const trainingDecision = Object.freeze({ ...trainingAbstention, nextEvidence });
 const evidenceFirstIds = ['reproduce-exact','minimize-failure','diff-forensics','workflow-forensics','observability-trace'];
 const evidenceFirstIndexes = evidenceFirstIds
   .map((id) => strategies.findIndex(([strategyId]) => strategyId === id))
   .filter((candidateIndex) => candidateIndex >= 0 && availableIndexes.includes(candidateIndex));
+const nextEvidenceIndex = trainingDecision.nextEvidence?.strategyId
+  ? strategies.findIndex(([strategyId]) => strategyId === trainingDecision.nextEvidence.strategyId)
+  : -1;
 const index = selectedIndex >= 0 && availableIndexes.includes(selectedIndex)
   ? selectedIndex
-  : trainingAbstention.abstain && evidenceFirstIndexes.length
+  : trainingDecision.abstain && nextEvidenceIndex >= 0 && availableIndexes.includes(nextEvidenceIndex)
+    ? nextEvidenceIndex
+  : trainingDecision.abstain && evidenceFirstIndexes.length
     ? evidenceFirstIndexes[0]
     : stateActionIndex >= 0 && availableIndexes.includes(stateActionIndex)
       ? stateActionIndex
@@ -446,6 +488,36 @@ const steeringDirective = buildSteeringDirective({
   targetSha: process.env.FLIXO_EXPECTED_TARGET_SHA ?? process.env.FLIXO_TARGET_SHA ?? '',
   fingerprint: stableCaseFingerprint,
 });
+
+const decisionTracePayload = {
+  schemaVersion: 1,
+  authority: 'REPLAYABLE_REPAIR_DECISION_TRACE',
+  targetSha: process.env.FLIXO_EXPECTED_TARGET_SHA ?? process.env.FLIXO_TARGET_SHA ?? null,
+  failureFingerprint: stableCaseFingerprint,
+  causalRootCause: causal.rootCause,
+  causalConfidence: causal.confidence,
+  causalFeatures: [...(causal.features ?? [])].map(String).sort(),
+  attempt: nextAttempt,
+  previousStrategy: behavioralPreviousStrategy,
+  rejectedStrategies: [...rejected].map(String).sort(),
+  training: {
+    mode: training?.decision?.mode ?? 'MISSING',
+    eligible: trainingDecision.eligible,
+    abstain: trainingDecision.abstain,
+    confidence: trainingDecision.confidence,
+    threshold: trainingDecision.threshold,
+    nextEvidenceStrategy: trainingDecision.nextEvidence?.strategyId ?? null,
+    activePolicyHash: training?.trainingProvenance?.activePolicyHash ?? training?.decision?.policyLifecycle?.activePolicyHash ?? null,
+  },
+  decision: {
+    selectedStrategy: strategyId,
+    selectedBy: selectedRepairStrategy ? 'TWIN_OR_EXTERNAL_SELECTION' : trainingDecision.abstain ? 'TRAINING_ABSTENTION_EVIDENCE_ROUTER' : stateActionPreferredId ? 'TRAINED_STATE_ACTION' : behaviorPreferredId ? 'TRAINED_BEHAVIOR_SEQUENCE' : intelligentSelectedId ? 'V12_CAUSAL_PORTFOLIO' : 'DETERMINISTIC_ROTATION',
+  },
+};
+const decisionTrace = {
+  ...decisionTracePayload,
+  traceHash: createHash('sha256').update(JSON.stringify(decisionTracePayload), 'utf8').digest('hex'),
+};
 if (allStrategiesExhausted) {
   console.log(JSON.stringify({
     strategyRotation: 'FULL_ROTATION_AFTER_EXHAUSTION',
@@ -474,7 +546,9 @@ const teachingPacket = {
     behavioralRecommendation,
     selectedBy: selectedRepairStrategy ? 'TWIN_OR_EXTERNAL_SELECTION' : stateActionPreferredId ? 'TRAINED_STATE_ACTION' : behaviorPreferredId ? 'TRAINED_BEHAVIOR_SEQUENCE' : intelligentSelectedId ? 'V12_CAUSAL_PORTFOLIO' : 'DETERMINISTIC_ROTATION',
     noBlindRepeat: true,
-    trainingDecision: trainingAbstention,
+    trainingDecision,
+    nextEvidence,
+    decisionTrace,
     steering: steeringDirective,
   },
 };
@@ -507,7 +581,9 @@ fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   },
   steering: steeringDirective,
   trainingMode: training?.decision?.mode ?? 'MISSING',
-  trainingDecision: trainingAbstention,
+  trainingDecision,
+  nextEvidence,
+  decisionTrace,
   stateActionRecommendation,
   behavioralRecommendation,
   cycle: nextAttempt,

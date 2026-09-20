@@ -1041,6 +1041,9 @@ jobs:
           import fs from 'node:fs';
           const report=JSON.parse(fs.readFileSync('/tmp/flixo-repair-training.json','utf8'));
           const engineOutcome=fs.readFileSync('/tmp/flixo-engine-outcome','utf8').trim();
+          const lifecycle=report.decision?.policyLifecycle ?? {};
+          const activePolicy=lifecycle.activePolicy ?? report.activePolicy ?? report.policy;
+          report.activePolicy=activePolicy;
           report.persistence={
             status:engineOutcome==='verified-repair'?'DURABLE_VERIFIED_TRAINING':'DURABLE_VERIFIED_HISTORICAL_REVERT',
             failedSha:process.env.FAILED_SHA,
@@ -1048,6 +1051,10 @@ jobs:
             targetRunId:process.env.TARGET_RUN_ID,
             repairRunId:process.env.GITHUB_RUN_ID,
             verification:engineOutcome,
+            policyLifecycleStatus:lifecycle.status ?? 'UNKNOWN',
+            activePolicySource:lifecycle.activePolicySource ?? 'CANDIDATE',
+            activePolicyHash:lifecycle.activePolicyHash ?? null,
+            rollbackApplied:lifecycle.status==='ROLLBACK_TO_BASELINE',
             promotedAt:new Date().toISOString(),
           };
           fs.writeFileSync('diagnostics/auto-repair/training-state.json',JSON.stringify(report,null,2)+'\\n');

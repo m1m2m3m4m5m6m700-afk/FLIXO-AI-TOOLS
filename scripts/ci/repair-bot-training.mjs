@@ -149,6 +149,47 @@ function split(rows) {
   return {train,test};
 }
 
+export function buildGoldenReplaySet(rows) {
+  return rows
+    .filter((row) => verifiedOutcome(row) && parseInt(sha256(row.fingerprint).slice(0, 2), 16) % 3 === 0)
+    .slice(0, 200);
+}
+
+export function partitionTrainingRows(rows) {
+  const goldenRows = buildGoldenReplaySet(rows);
+  const goldenFingerprints = new Set(goldenRows.map((row) => row.fingerprint));
+  const trainableRows = rows.filter((row) => !goldenFingerprints.has(row.fingerprint));
+  const { train, test } = split(trainableRows);
+  return {
+    goldenRows,
+    trainableRows,
+    train,
+    test,
+    goldenFingerprintCount: goldenFingerprints.size,
+    leakageOverlap: trainableRows.filter((row) => goldenFingerprints.has(row.fingerprint)).length,
+  };
+}
+
+function buildExperienceLedger(rows) {
+  const ids = rows
+    .map((row) => hashObject({
+      source: row.source,
+      fingerprint: row.fingerprint,
+      rootCause: row.rootCause,
+      strategyId: row.strategyId,
+      outcome: row.outcome,
+      failedSha: row.failedSha ?? null,
+      targetSha: row.targetSha ?? null,
+    }))
+    .sort();
+  return {
+    algorithm: 'VERIFIED_EXPERIENCE_LEDGER-v1',
+    count: ids.length,
+    ids,
+    hash: hashObject(ids),
+  };
+}
+
 function fit(rows) {
   const cells=new Map();
   for(const row of rows){
@@ -565,10 +606,55 @@ function evaluatePolicyAgainstRows(policy, rows) {
 
 function antiForgettingCheck(candidatePolicy, baselineReport, goldenRows) {
   const candidate = evaluatePolicyAgainstRows(candidatePolicy, goldenRows);
-  if (!baselineReport?.policy) return { status: 'NO_BASELINE', candidate, regression: false };
-  const baseline = evaluatePolicyAgainstRows(baselineReport.policy, goldenRows);
+  if (!goldenRows.length) {
+    return { status: 'NO_GOLDEN_CASES', candidate, regression: false, comparable: false };
+  }
+  if (!baselineReport?.policy && !baselineReport?.activePolicy) {
+    return { status: 'NO_BASELINE', candidate, regression: false, comparable: false };
+  }
+  if (baselineReport?.trainingProvenance?.goldenBenchmarkExcluded !== true) {
+    return { status: 'BASELINE_NOT_COMPARABLE', candidate, regression: false, comparable: false };
+  }
+  const baselinePolicy = baselineReport.activePolicy ?? baselineReport.policy;
+  const baseline = evaluatePolicyAgainstRows(baselinePolicy, goldenRows);
   const regression = candidate.successAccuracy + 0.05 < baseline.successAccuracy || candidate.failureAvoidance + 0.05 < baseline.failureAvoidance;
-  return { status: regression ? 'REJECT_TRAINING' : 'PASS', candidate, baseline, regression };
+  return { status: regression ? 'REJECT_TRAINING' : 'PASS', candidate, baseline, regression, comparable: true };
+}
+
+export function derivePolicyLifecycle({ policy, baselineReport, antiForgetting, goldenRows }) {
+  const baselinePolicy = baselineReport?.activePolicy ?? baselineReport?.policy ?? null;
+  const candidateHash = hashObject(policy);
+  const baselineHash = baselinePolicy ? hashObject(baselinePolicy) : null;
+  const rollbackRequired = Boolean(antiForgetting?.regression && baselinePolicy);
+  const status = rollbackRequired
+    ? 'ROLLBACK_TO_BASELINE'
+    : baselinePolicy
+      ? antiForgetting?.status === 'BASELINE_NOT_COMPARABLE'
+        ? 'PROMOTE_CANDIDATE_REBASELINE_REQUIRED'
+        : antiForgetting?.status === 'NO_GOLDEN_CASES'
+          ? 'PROMOTE_CANDIDATE_BENCHMARK_PENDING'
+          : 'PROMOTE_CANDIDATE'
+      : 'BOOTSTRAP_CANDIDATE';
+  const activePolicy = rollbackRequired ? baselinePolicy : policy;
+  return {
+    schemaVersion: 1,
+    algorithm: 'POLICY_LIFECYCLE_GUARD-v1',
+    status,
+    rollbackRequired,
+    candidatePolicyHash: candidateHash,
+    baselinePolicyHash: baselineHash,
+    activePolicyHash: hashObject(activePolicy),
+    activePolicySource: rollbackRequired ? 'BASELINE' : 'CANDIDATE',
+    benchmark: {
+      heldOut: true,
+      cases: goldenRows.length,
+      candidateEvaluation: antiForgetting?.candidate ?? null,
+      regression: Boolean(antiForgetting?.regression),
+      comparableBaseline: Boolean(antiForgetting?.comparable),
+    },
+    routingEligible: !rollbackRequired,
+    activePolicy,
+  };
 }
 
 function buildRecurrenceProfile(rows, focusFingerprint = null) {
@@ -595,32 +681,36 @@ function evaluateBehavior(model,examples){
 
 export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],lessons:[],antiLessons:[],actionHistory:[]}),log='',diagnosis=readJson(DIAGNOSIS,null)}={}) {
   const rows=dedupe([...memoryExamples(memory),...historicalExamples(),...negativeExamples(memory)]);
-  const {train,test}=split(rows);
-  const prioritizedRows=buildPrioritizedReplay(rows);
+  const partition = partitionTrainingRows(rows);
+  const { goldenRows, trainableRows, train, test } = partition;
+  const prioritizedRows=buildPrioritizedReplay(trainableRows);
   const policy=fit(train);
   const evaluation=evaluate(policy,test);
   const rootCause=norm(diagnosis?.rootCause ?? 'unknown');
   const preferred=policy.byRootCause[rootCause]?.[0] ?? null;
   const sufficient=train.length>=8;
-  const behaviorRows=buildBehaviorExamples(rows);
+  const experienceLedger = buildExperienceLedger(trainableRows);
+  const behaviorRows=buildBehaviorExamples(trainableRows);
   const {train:behaviorTrain,test:behaviorTest}=split(behaviorRows);
   const behaviorModel=fitBehaviorModel(behaviorTrain,5);
   const behaviorEvaluation=evaluateBehavior(behaviorModel,behaviorTest);
-  const stateRows=buildStateExamples(rows);
+  const stateRows=buildStateExamples(trainableRows);
   const {train:stateTrain,test:stateTest}=split(stateRows);
   const stateModel=trainStatePolicy(stateTrain,8);
   const stateEvaluation=evaluateStatePolicy(stateModel,stateTest);
-  const recurrence=buildRecurrenceProfile(rows, fingerprintFailure(String(log ?? '')) || null);
+  const recurrence=buildRecurrenceProfile(trainableRows, fingerprintFailure(String(log ?? '')) || null);
   const counterfactualRows=buildCounterfactualExamples(rows);
   const adversarialRows=buildAdversarialTrainingSet(stateRows).concat(counterfactualRows.map((row) => ({ ...row, variant:'COUNTERFACTUAL_REPLAY', previousStrategy:row.previousStrategy ?? 'START' })));
   const {train:adversarialTrain,test:adversarialTest}=split(adversarialRows);
   const adversarialModel=trainAdversarialPolicy(adversarialTrain,6);
   const adversarialEvaluation=evaluateAdversarial(adversarialModel,adversarialTest);
   const calibration=calibratePolicy(policy,test);
-  const goldenReplay=buildGoldenReplaySet(rows);
+  const goldenReplay = goldenRows;
   const baselineReport=readJson(BASELINE_TRAINING,null);
   const antiForgetting=antiForgettingCheck(policy,baselineReport,goldenReplay);
-  const mastery=masteryProfile({rows,behaviorEvaluation,stateEvaluation,calibration,recurrence});
+  const policyLifecycle = derivePolicyLifecycle({ policy, baselineReport, antiForgetting, goldenRows: goldenReplay });
+  const activePolicy = policyLifecycle.activePolicy;
+  const mastery=masteryProfile({rows:trainableRows,behaviorEvaluation,stateEvaluation,calibration,recurrence});
   const stateCompetent=stateEvaluation.successAccuracy>=.65 && stateEvaluation.failureAvoidance>=.60;
   const adversarialCompetent=adversarialEvaluation.score>=.60;
   const calibrationCompetent=calibration.expectedCalibrationError==null || calibration.expectedCalibrationError<=.20;
@@ -635,6 +725,10 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
     currentRootCause:rootCause,
     dataset:{
       total:rows.length,train:train.length,evaluation:test.length,
+      trainable:trainableRows.length,
+      heldOutGolden:goldenRows.length,
+      goldenFingerprintCount:partition.goldenFingerprintCount,
+      goldenLeakageOverlap:partition.leakageOverlap,
       sources:[...new Set(rows.map(x=>x.source))],
       positiveExamples:rows.filter(x=>x.outcome==='success').length,
       negativeExamples:rows.filter(x=>x.outcome==='failure').length
@@ -651,22 +745,38 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
     counterfactualEvaluation:{cases:counterfactualRows.length,sourceIntegrity:counterfactualRows.every((row)=>row.source==='counterfactual')},
     recurrence,
     calibration,
-    goldenReplay:{cases:goldenReplay.length,evaluation:evaluatePolicyAgainstRows(policy,goldenReplay)},
+    goldenReplay:{
+      cases:goldenReplay.length,
+      excludedFromTraining:true,
+      leakageOverlap:partition.leakageOverlap,
+      fingerprints:goldenReplay.map((row)=>row.fingerprint).filter((value,index,array)=>array.indexOf(value)===index).slice(0,200),
+      evaluation:evaluatePolicyAgainstRows(policy,goldenReplay)
+    },
+    policyLifecycle,
+    activePolicy,
     antiForgetting,
     prioritizedReplay:{algorithm:'DETERMINISTIC_PRIORITY_REPLAY-v1',cases:prioritizedRows.length,topCases:prioritizedRows.slice(0,20).map((row)=>({fingerprint:row.fingerprint,rootCause:row.rootCause,strategyId:row.strategyId,outcome:row.outcome,priority:row.replayPriority}))},
     mastery,
     evaluation,
     decision:{
-      mode:sufficient&&competent?'TRAINED_POLICY':rows.length?'BOOTSTRAP_POLICY':'CURRICULUM_ONLY',
+      mode:sufficient&&competent&&policyLifecycle.routingEligible?'TRAINED_POLICY':rows.length?'BOOTSTRAP_POLICY':'CURRICULUM_ONLY',
       competent,sufficient,
       eligibilityChecks:{datasetSize:rows.length>=8,policyAccuracy:evaluation.accuracy>=.70,negativeAvoidance:evaluation.negativeAvoidance==null||evaluation.negativeAvoidance>=.60,stateAction:stateCompetent,adversarial:adversarialCompetent,calibration:calibrationCompetent,antiForgetting:antiForgettingCompetent,mastery:mastery.overall>=.65},
-      eligibleToInfluenceRouting:rows.length>=8 && competent,
+      eligibleToInfluenceRouting:rows.length>=8 && competent && policyLifecycle.routingEligible && partition.leakageOverlap===0,
       behavioralTraining:{epochs:5,trainedExamples:behaviorTrain.length,evaluationExamples:behaviorTest.length,competent:behaviorEvaluation.successAccuracy>=.65 && behaviorEvaluation.failureAvoidance>=.60},
       stateActionTraining:{algorithm:'TABULAR_STATE_ACTION_Q',update:stateModel.update,epochs:8,trainedExamples:stateTrain.length,evaluationExamples:stateTest.length,prioritizedReplay:stateModel.prioritizedReplay,competent:stateEvaluation.successAccuracy>=.65 && stateEvaluation.failureAvoidance>=.60},
       adversarialTraining:{algorithm:'ADVERSARIAL_CONTEXT_REPLAY',epochs:6,trainedExamples:adversarialTrain.length,evaluationExamples:adversarialTest.length,score:adversarialEvaluation.score,competent:adversarialEvaluation.score>=.60},
       counterfactualTraining:{algorithm:'EVIDENCE_BACKED_COUNTERFACTUAL_REJECTION',examples:counterfactualRows.length,sourceOnlyFromRejectedMemory:true},
       calibration:{algorithm:calibration.algorithm,ece:calibration.expectedCalibrationError,recommendedAbstentionThreshold:calibration.abstention.recommendedThreshold,competent:calibrationCompetent},
       antiForgetting:{status:antiForgetting.status,regression:antiForgetting.regression,competent:antiForgettingCompetent,goldenReplayCases:goldenReplay.length},
+      policyLifecycle:{
+        status:policyLifecycle.status,
+        rollbackRequired:policyLifecycle.rollbackRequired,
+        routingEligible:policyLifecycle.routingEligible,
+        candidatePolicyHash:policyLifecycle.candidatePolicyHash,
+        activePolicyHash:policyLifecycle.activePolicyHash,
+        activePolicySource:policyLifecycle.activePolicySource
+      },
       masteryThreshold:0.65,
       masteryOverall:mastery.overall,
       rule:'TRAINING_INFLUENCES_SELECTION_BUT_NEVER_GRANTS_MUTATION_OR_GREEN_AUTHORITY'
@@ -675,7 +785,8 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
     trainingObjectives:[
       'ROOT_CAUSE_IDENTIFICATION','EVIDENCE_DRIVEN_ACTION_SELECTION','SUCCESS_AND_FAILURE_LEARNING','TRAINING_GRADUATION',
       'ANTI_LESSON_AVOIDANCE','BEHAVIORAL_SEQUENCE_LEARNING','STATE_ACTION_LEARNING','FEEDBACK_REWARD_LEARNING','COUNTERFACTUAL_AVOIDANCE','EXTERNAL_FAILURE_SEPARATION','FRESH_EXACT_SHA_VERIFICATION',
-      'PRIORITIZED_EXPERIENCE_REPLAY','CONFIDENCE_CALIBRATION','ABSTENTION','RECURRENCE_PREDICTION','ANTI_CATASTROPHIC_FORGETTING','SKILL_SPECIFIC_MASTERY'
+      'PRIORITIZED_EXPERIENCE_REPLAY','CONFIDENCE_CALIBRATION','ABSTENTION','RECURRENCE_PREDICTION','ANTI_CATASTROPHIC_FORGETTING','SKILL_SPECIFIC_MASTERY',
+      'HELD_OUT_GOLDEN_BENCHMARK','CONTINUOUS_EXPERIENCE_LEDGER','POLICY_PROMOTION_GATE','POLICY_ROLLBACK','REPLAYABLE_DECISION_PROVENANCE'
     ],
     trainingProvenance:{
       targetSha:process.env.FLIXO_EXPECTED_TARGET_SHA ?? process.env.FLIXO_TARGET_SHA ?? null,
@@ -690,6 +801,13 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
       calibrationHash:hashObject(calibration),
       recurrenceHash:hashObject(recurrence),
       evaluationHash:hashObject({evaluation,stateEvaluation,adversarialEvaluation,antiForgetting}),
+      goldenBenchmarkHash:hashObject(goldenReplay.map((row)=>row.fingerprint).sort()),
+      experienceLedgerHash:experienceLedger.hash,
+      experienceIds:experienceLedger.ids,
+      goldenBenchmarkExcluded:true,
+      activePolicyHash:policyLifecycle.activePolicyHash,
+      activePolicySource:policyLifecycle.activePolicySource,
+      previousTrainingHash:baselineReport?.trainingProvenance?.policyHash ?? null,
       algorithmVersions:{
         behavioral:'SEQUENCE_TRANSITIONS-v1',
         state:'BELLMAN_BOOTSTRAPPED_STATE_TRANSITIONS-v2',
