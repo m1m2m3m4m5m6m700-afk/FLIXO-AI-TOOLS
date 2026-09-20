@@ -21,7 +21,6 @@ const hybrid = createHybridScorer((_query, record) => record.id === 'k' ? 1 : 0)
 const ranked = rankKnowledge({ text: 'Verified fact', scope: 'test', limit: 5, minConfidence: 0.5 }, [r], hybrid);
 assert.equal(ranked[0].record.id, 'k');
 assert.equal(ranked[0].signals.semantic, 1);
-console.log('Agent cognitive session tests passed.');
 const readyIntentPlan = buildIntentPlan('compress the image');
 assert.equal(readyIntentPlan.status, 'READY');
 assert.equal(readyIntentPlan.confirmationRequired, true);
@@ -40,3 +39,4 @@ const missingCropPlan = buildIntentPlan('crop the image');
 assert.equal(missingCropPlan.status, 'NEEDS_INPUT');
 assert.equal(missingCropPlan.missing[0]?.id, 'crop-geometry');
 assert.equal(toExecutionPlan(missingCropPlan), null);
+console.log('Agent cognitive session tests passed.');
