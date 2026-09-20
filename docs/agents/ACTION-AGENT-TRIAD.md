@@ -17,3 +17,14 @@ Worker B must additionally return `challenge`. Workers cannot self-approve or ce
 
 Runtime loop:
 `ADMIT → ACK → HEARTBEAT → EXECUTE → RESULT VALIDATION → REVIEW → COMPLETE → HANDOFF`.
+
+## Advanced cognition
+
+All three profiles now use `FLIXO_ADVANCED_AGENT_RUNTIME_V1`.
+
+Required cognitive phases:
+`INTAKE → CONTEXT_RETRIEVAL → PLAN → EXECUTE → SELF_CHECK → INDEPENDENT_REVIEW → VERIFY → LEARN`.
+
+The runtime requires exact-SHA binding, evidence-first operation, bounded tool budget, explicit unknowns, self-check, alternative consideration and independent review. The result carries a concise decision trace rather than private chain-of-thought.
+
+Model choice is provider-neutral: the external executor may route the profile to a frontier reasoning model, but FLIXO's correctness gates depend on the returned evidence and verification contract, not on the model brand.
