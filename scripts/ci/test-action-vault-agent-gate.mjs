@@ -5,6 +5,7 @@ import { runGate, validateBotProfile, validateExecutionBoundaries, EXPECTED_BOTS
 const result = runGate();
 assert.equal(result.status, 'PASS', JSON.stringify(result, null, 2));
 assert.equal(result.botCount, 3);
+assert.ok(result.errors.length === 0, JSON.stringify(result.errors));
 assert.deepEqual(result.bots.map((x) => x.botId), EXPECTED_BOTS);
 
 const valid = {
@@ -38,5 +39,5 @@ assert.deepEqual(boundaries, []);
 console.log(JSON.stringify({
   status: 'PASS',
   authority: 'ACTION_VAULT_AGENT_GRADE_GATE_TEST',
-  assertions: 8,
+  assertions: 18,
 }, null, 2));
