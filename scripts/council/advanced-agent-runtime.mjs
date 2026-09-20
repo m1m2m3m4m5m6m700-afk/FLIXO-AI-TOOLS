@@ -41,7 +41,7 @@ export function buildAdvancedAgentEnvelope({
   for(const [v,n] of [[accountId,'account_id'],[profileId,'profile_id'],[missionId,'mission_id'],[workPackageId,'work_package_id'],[taskId,'task_id'],[role,'role'],[objective,'objective']])required(v,n);
   if(!SHA.test(String(exactSha??'')))throw new Error('ADVANCED_AGENT_EXACT_SHA_INVALID');
   if(!Array.isArray(requiredCapabilities))throw new Error('ADVANCED_AGENT_CAPABILITIES_INVALID');
-  if(!GRADE_SCORE.hasOwnProperty(evidenceGradeMinimum))throw new Error('ADVANCED_AGENT_EVIDENCE_GRADE_INVALID');
+  if(!Object.hasOwn(GRADE_SCORE, evidenceGradeMinimum))throw new Error('ADVANCED_AGENT_EVIDENCE_GRADE_INVALID');
   if(!Number.isInteger(toolBudget)||toolBudget<1||toolBudget>100)throw new Error('ADVANCED_AGENT_TOOL_BUDGET_INVALID');
   if(!Number.isInteger(maxReasoningLoops)||maxReasoningLoops<1||maxReasoningLoops>7)throw new Error('ADVANCED_AGENT_REASONING_LOOPS_INVALID');
   return Object.freeze({
@@ -89,7 +89,7 @@ export function validateAdvancedAgentResult({
     [result.unknowns,'unknowns'],
     [result.alternativesConsidered,'alternatives_considered'],
   ])arr(v,n);
-  if(!GRADE_SCORE.hasOwnProperty(String(result.evidenceGrade??'')))throw new Error('ADVANCED_AGENT_RESULT_EVIDENCE_GRADE_INVALID');
+  if(!Object.hasOwn(GRADE_SCORE, String(result.evidenceGrade??'')))throw new Error('ADVANCED_AGENT_RESULT_EVIDENCE_GRADE_INVALID');
   if(GRADE_SCORE[String(result.evidenceGrade)]<GRADE_SCORE[envelope.evidenceGradeMinimum])throw new Error('ADVANCED_AGENT_RESULT_EVIDENCE_BELOW_MINIMUM');
   if(result.selfApproved===true)throw new Error('ADVANCED_AGENT_RESULT_SELF_APPROVAL_FORBIDDEN');
   if(result.certificationDecision)throw new Error('ADVANCED_AGENT_RESULT_CERTIFICATION_FORBIDDEN');
