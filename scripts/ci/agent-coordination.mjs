@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { getMessage as getAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
 import { assertAgentAdmission, assertProtocolDefinition } from './repair-protocol.mjs';
+import { buildKnowledgeRecord, persistKnowledge } from './cell-learning.mjs';
 
 const ROOT = process.cwd();
 const COORD_DIR = path.resolve(ROOT, process.env.FLIXO_COORDINATION_DIR ?? 'diagnostics/agents');
@@ -266,6 +267,32 @@ function lock(sessionId, agentId, rca, scope) {
   return lockId;
 }
 function unlock(sessionId) { for (const item of Object.values(locks.locks)) if (item.sessionId === sessionId && item.status === 'ACTIVE') { item.status = 'RELEASED'; item.releasedAt = now(); } }
+function recordCellTaskKnowledge(task, { outcome, verification, sessionId }) {
+  const botId = String(task.ownerAgent ?? '').match(/^CELL-\d{3}$/u)?.[0] ?? null;
+  const record = buildKnowledgeRecord({
+    botId,
+    taskId: task.taskId,
+    taskShortName: task.shortName ?? null,
+    taskName: task.title ?? task.taskId,
+    fingerprint: task.errorFingerprint ?? task.missionId ?? task.taskId,
+    rootCause: task.rca ?? 'general-task',
+    rule: task.repairStrategy ?? null,
+    outcome,
+    verification,
+    targetSha: sha(),
+    failedSha: task.failedSha ?? null,
+    runId: process.env.FLIXO_RUN_ID ?? null,
+    source: 'FLIXO Agent Coordination / Task Completion',
+    changedPaths: Array.isArray(task.scope) ? task.scope : [],
+    taskVersion: Number(task.taskVersion ?? 1),
+    attempts: Number(task.attempts ?? 1),
+    successes: outcome === 'success' ? 1 : 0,
+    upgradeNumber: Number(task.upgradeNumber ?? 0),
+    upgradePriority: Number(task.upgradePriority ?? 1),
+    weakness: task.weakness ?? null,
+  });
+  return { botId, result: persistKnowledge(record), knowledge: record };
+}
 ensure();
 if (writeLocked) reconcileStaleSessions();
 if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next', 'state', 'brief', 'visible', 'ingest-handoff'].includes(command)) throw new Error('Usage: agent-coordination.mjs task-create|task-claim|task-release|task-complete|task-next|state|brief|visible|ingest-handoff');
@@ -343,7 +370,7 @@ if (command === 'task-claim') {
 if (command === 'task-release') {
   const taskId = requireArg('task'); const sessionId = requireArg('session'); const task = state.tasks[taskId]; if (!task) throw new Error(`Unknown task: ${taskId}`); if (task.sessionId !== sessionId) throw new Error('TASK_OWNER_MISMATCH');
   const visibility = readVisibility(sessionId); if (visibility.taskId !== taskId) throw new Error('AGENT_VISIBILITY_TASK_MISMATCH'); if (!['VERIFIED','BLOCKED'].includes(visibility.finalStatus)) throw new Error('TASK_RELEASE_REQUIRES_CLOSED_AGENT_STATUS');
-  task.status = optional('status', 'READY').toUpperCase(); task.releasedAt = now(); task.remainingWork = list('remaining-work'); task.openRcas = list('open-rcas'); unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify(task, null, 2));
+  task.status = optional('status', 'READY').toUpperCase(); task.releasedAt = now(); task.remainingWork = list('remaining-work'); task.openRcas = list('open-rcas'); const cellLearning = visibility.finalStatus === 'BLOCKED' ? recordCellTaskKnowledge(task, { outcome: 'blocked', verification: 'task-blocked', sessionId }) : null; unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ task, cellLearning }, null, 2));
 }
 
 if (command === 'task-complete') {
@@ -357,6 +384,7 @@ if (command === 'task-complete') {
   if (handoff.taskId !== taskId || visibility.taskId !== taskId) throw new Error('TASK_COMPLETION_TASK_MISMATCH');
   if (handoff.exitSha !== sha() || visibility.exitSha !== sha()) throw new Error('TASK_COMPLETION_STALE_EXIT_SHA');
   if (!visibility.finalSummary) throw new Error('TASK_COMPLETION_FINAL_SUMMARY_MISSING');
+  const cellLearning = recordCellTaskKnowledge(task, { outcome: 'success', verification: 'canonical-task-verified', sessionId });
   task.status = 'DONE'; task.completedAt = now(); task.exitSha = sha(); task.evidence = list('evidence'); task.findings = list('findings'); task.finalStatus = visibility.finalStatus; task.finalSummary = visibility.finalSummary; task.visibilityPath = path.relative(ROOT, visibilityPath(sessionId));
   const ledgerNext = selectNextLedgerTask(taskId);
   if (ledgerNext) {
@@ -390,7 +418,7 @@ if (command === 'task-complete') {
     task.nextTask = null;
     state.nextDispatch = null;
   }
-  unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ completedTask: task, nextTask: task.nextTask, councilDispatch: state.nextDispatch }, null, 2));
+  unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ completedTask: task, cellLearning, nextTask: task.nextTask, councilDispatch: state.nextDispatch }, null, 2));
 }
 
 if (command === 'task-next') {
