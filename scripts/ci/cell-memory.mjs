@@ -13,7 +13,7 @@ const empty=(id)=>({schemaVersion:1,authority:'CELL_BOT_PERSONAL_MEMORY',botId:i
 
 export function loadBotMemory(botId){
   const id=idOf(botId);fs.mkdirSync(BOT_MEMORY_DIR,{recursive:true});
-  try{const data=JSON.parse(fs.readFileSync(fileOf(id),'utf8'));if(data.botId===id||data.botId==='DERIVED_FROM_FILENAME')return {...empty(id),...data,botId:id};}catch{}
+  try{const data=JSON.parse(fs.readFileSync(fileOf(id),'utf8'));if(data.botId===id||data.botId==='DERIVED_FROM_FILENAME')return {...empty(id),...data,botId:id};}catch{ /* best-effort memory read */ }
   return empty(id);
 }
 export function saveBotMemory(memory){
