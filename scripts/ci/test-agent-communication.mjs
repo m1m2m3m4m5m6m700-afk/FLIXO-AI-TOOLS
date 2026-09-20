@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
-import { ingest, validateMessage } from './agent-communication.mjs';
+import { ingest, validateMessage, markRead, markConsumed } from './agent-communication.mjs';
 
 const root = process.cwd();
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
@@ -39,6 +39,13 @@ try {
   assert.equal(first.status, 'RECEIVED');
   const duplicate = ingest(base, sha);
   assert.equal(duplicate.duplicate, true);
+  const read = markRead(id, 'assistantController', sha);
+  assert.equal(read.status, 'READ');
+  assert.throws(() => markConsumed(id, 'assistantController', sha, false), /EXECUTION_ADMISSION_REQUIRED/);
+  const consumed = markConsumed(id, 'assistantController', sha, true);
+  assert.equal(consumed.status, 'CONSUMED');
+  const consumedDuplicate = markConsumed(id, 'assistantController', sha, true);
+  assert.equal(consumedDuplicate.duplicate, true);
   assert.throws(
     () => ingest({ ...base, idempotencyKey: id + ':2', intent: 'CONFLICTING_INTENT' }, sha),
     /IDEMPOTENCY_COLLISION/
