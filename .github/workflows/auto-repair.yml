@@ -401,7 +401,7 @@ jobs:
                     )
                   | .databaseId
                 ][0] // empty
-'
+          '
           )"
 
           if [ -z "$PROMPT_RUN_ID" ]; then
