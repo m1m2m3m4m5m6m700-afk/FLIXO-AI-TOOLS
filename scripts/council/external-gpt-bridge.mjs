@@ -9,18 +9,24 @@ const ACCOUNTS = Object.freeze({
     wakePortEnv: 'COUNCIL_CHIEF_BRIDGE_PORT',
     executorEndpointEnv: 'COUNCIL_CHIEF_AGENT_ENDPOINT',
     executorTokenEnv: 'COUNCIL_CHIEF_AGENT_TOKEN',
+    modelProfileEnv: 'COUNCIL_CHIEF_MODEL_PROFILE',
+    reasoningEffortEnv: 'COUNCIL_CHIEF_REASONING_EFFORT',
   }),
   WORKER_A: Object.freeze({
     tokenEnv: 'COUNCIL_WORKER_A_TOKEN',
     wakePortEnv: 'COUNCIL_WORKER_A_BRIDGE_PORT',
     executorEndpointEnv: 'COUNCIL_WORKER_A_AGENT_ENDPOINT',
     executorTokenEnv: 'COUNCIL_WORKER_A_AGENT_TOKEN',
+    modelProfileEnv: 'COUNCIL_WORKER_A_MODEL_PROFILE',
+    reasoningEffortEnv: 'COUNCIL_WORKER_A_REASONING_EFFORT',
   }),
   WORKER_B: Object.freeze({
     tokenEnv: 'COUNCIL_WORKER_B_TOKEN',
     wakePortEnv: 'COUNCIL_WORKER_B_BRIDGE_PORT',
     executorEndpointEnv: 'COUNCIL_WORKER_B_AGENT_ENDPOINT',
     executorTokenEnv: 'COUNCIL_WORKER_B_AGENT_TOKEN',
+    modelProfileEnv: 'COUNCIL_WORKER_B_MODEL_PROFILE',
+    reasoningEffortEnv: 'COUNCIL_WORKER_B_REASONING_EFFORT',
   }),
 });
 
@@ -51,6 +57,8 @@ export const buildConfig = (account, env = process.env) => {
   const token = envValue(env, spec.tokenEnv);
   const executorEndpoint = envValue(env, spec.executorEndpointEnv);
   const executorToken = envValue(env, spec.executorTokenEnv);
+  const modelProfile = envValue(env, spec.modelProfileEnv, false) || 'FRONTIER_REASONING';
+  const reasoningEffort = envValue(env, spec.reasoningEffortEnv, false) || 'HIGH';
   const portRaw = envValue(env, spec.wakePortEnv, false) || '8781';
   const port = Number(portRaw);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('COUNCIL_BRIDGE_PORT_INVALID');
@@ -60,6 +68,8 @@ export const buildConfig = (account, env = process.env) => {
     token,
     executorEndpoint,
     executorToken,
+    modelProfile,
+    reasoningEffort,
     port,
   });
 };
@@ -163,6 +173,9 @@ export const executeExternalAgent = async (config, dispatch, sessionId, fetchImp
     workPackageId: String(dispatch.work_package_id ?? dispatch.workPackageId ?? ''),
     actionAgentTriadVersion: ACTION_AGENT_TRIAD_VERSION,
     actionAgentProfileId: getActionAgentProfile(config.accountId).profileId,
+    modelProfile: config.modelProfile,
+    reasoningEffort: config.reasoningEffort,
+    capabilities: { toolCalling: true, structuredOutput: true, selfCritique: true, independentReview: config.accountId !== 'CHIEF' },
     cognitionEnvelope: buildActionAgentCognitionEnvelope({
       accountId: config.accountId,
       dispatch,
