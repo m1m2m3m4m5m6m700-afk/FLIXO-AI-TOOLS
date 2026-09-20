@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { assertAgentAdmission, assertProtocolDefinition } from './repair-protocol.mjs';
 import { ingest as ingestAgentMessage, markRead as readAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
+import { loadPromptRegistry, validatePromptRegistry, loadErrorMemory } from './prompt-registry.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -41,9 +42,29 @@ const visibilityDir = path.resolve(ROOT, 'docs/agents/ledger');
 const handoffDir = path.resolve(ROOT, 'diagnostics/agents/handoffs');
 const now = () => new Date().toISOString();
 const gitSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
-const requiredReads = ['AGENTS.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md', 'docs/AGENT-COORDINATION-CONTROL-PLANE.md', 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json', 'scripts/ci/agent-communication.mjs', 'docs/MINIMAL-CI-FINAL-ARCHITECTURE.md', 'scripts/ci/test-plan.json', 'scripts/ci/assertion-registry.json'];
+const requiredReads = ['PROJECTS.md', 'المهام.md', 'AGENTS.md', 'docs/EXECUTION-BRANCH-PROTOCOL.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md', 'docs/AGENT-COORDINATION-CONTROL-PLANE.md', 'docs/PROTOCOL-HIERARCHY.md', 'docs/PROTOCOL-REGISTRY.json', 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json', 'docs/agents/PROMPT-REGISTRY.json', 'diagnostics/auto-repair/memory.json', 'scripts/ci/agent-communication.mjs', 'docs/MINIMAL-CI-FINAL-ARCHITECTURE.md', 'scripts/ci/test-plan.json', 'scripts/ci/assertion-registry.json'];
 const split = (value, separator = ',') => String(value ?? '').split(separator).map((v) => v.trim()).filter(Boolean);
 const storageKey = (id) => createHash('sha256').update(id).digest('hex');
+const admissionDigest = (file) => createHash('sha256').update(fs.readFileSync(path.resolve(ROOT, file), 'utf8'), 'utf8').digest('hex');
+const readCanonicalAdmissionSources = () => {
+  const sources = requiredReads.map((file) => ({ path: file, sha256: admissionDigest(file) }));
+  const protocolRegistry = JSON.parse(fs.readFileSync(path.resolve(ROOT, 'docs/PROTOCOL-REGISTRY.json'), 'utf8'));
+  if (protocolRegistry.authority !== 'FLIXO_PROTOCOL_REGISTRY') throw new Error('AGENT_ADMISSION_PROTOCOL_REGISTRY_INVALID');
+  if (protocolRegistry.protocols?.find((item) => item?.id === 'P20')?.status !== 'MANDATORY') throw new Error('AGENT_ADMISSION_P20_NOT_MANDATORY');
+  const promptRegistry = loadPromptRegistry();
+  const promptValidation = validatePromptRegistry(promptRegistry);
+  if (!promptValidation.ok) throw new Error('AGENT_ADMISSION_PROMPT_REGISTRY_INVALID');
+  const memory = loadErrorMemory();
+  if (!memory || !Array.isArray(memory.cases) || !Array.isArray(memory.lessons) || !Array.isArray(memory.antiLessons)) {
+    throw new Error('AGENT_ADMISSION_MEMORY_INVALID');
+  }
+  return {
+    sources,
+    promptRegistry: { status: promptValidation.status, promptCount: promptValidation.promptCount },
+    memory: { version: memory.version ?? null, cases: memory.cases.length, lessons: memory.lessons.length, antiLessons: memory.antiLessons.length },
+    protocol: { schemaVersion: protocolRegistry.schemaVersion, protocolCount: protocolRegistry.protocols.length },
+  };
+};
 const sessionPath = (id) => path.join(sessionDir, `${storageKey(id)}.json`);
 const handoffPath = (id) => path.join(handoffDir, `${storageKey(id)}.json`);
 const visibilityPath = (id) => path.join(visibilityDir, `${storageKey(id)}.json`);
@@ -119,6 +140,7 @@ if (command === 'event') {
   if (fs.existsSync(file)) throw new Error(`Session already exists: ${sessionId}`);
   const missing = requiredReads.filter((entry) => !fs.existsSync(path.resolve(ROOT, entry)));
   if (missing.length) throw new Error(`Mandatory reads missing: ${missing.join(', ')}`);
+  const admissionSources = readCanonicalAdmissionSources();
 
   const existingHandoffs = fs.readdirSync(handoffDir).filter((entry) => entry.endsWith('.json'));
   let continuation = null;
@@ -163,6 +185,7 @@ if (command === 'event') {
     startedAt: now(),
     scope,
     readFiles: [...requiredReads],
+    admissionSources,
     currentRca: rca,
     taskId,
     ...(inboundMessage ? { messageId: inboundMessage.messageId, messageStatus: inboundMessage.status, messageEntrySha: inboundMessage.entrySha, messageReadBy: agentId, messagePriority: 'P0_COMMUNICATION_FIRST' } : {}),
