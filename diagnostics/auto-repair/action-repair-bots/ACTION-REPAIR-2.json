@@ -1,14 +1,14 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "botId": "ACTION-REPAIR-2",
-  "displayName": "بوت مساعد إصلاح Actions",
-  "kind": "ACTION_REPAIR_ASSISTANT",
+  "displayName": "بوت استكشاف فهرس Actions والتنبؤ بالإصلاح",
+  "kind": "ACTION_HISTORICAL_EXPLORER",
   "headquarters": "docs/agents/historical-action-errors",
-  "purpose": "Audit every RED, retain non-green cases, challenge and assist ACTION-REPAIR-1.",
-  "mutationAuthority": true,
-  "executionAuthority": "MUTATION_GATED_BY_ACTION_REPAIR",
+  "purpose": "يستكشف فهرس أخطاء Actions وقائمة الإصلاحات التاريخية، يطابق الحالة الحالية مع السوابق، ويرتب حلولًا محتملة ويقدم حزمة إصلاح تنبؤية للوكيل 1.",
+  "mutationAuthority": false,
+  "executionAuthority": "HISTORICAL_PREDICTION_PROPOSAL_ONLY",
   "requiredApprover": "ACTION-REPAIR",
-  "mutationScope": "ERROR_ONLY",
+  "mutationScope": "NONE",
   "branch": "execution",
   "records": [],
   "lessons": [],
@@ -24,7 +24,15 @@
     "mutationRequiresOwnership": true,
     "handoffActivatesOwnership": true,
     "preHandoffMutation": false,
-    "postHandoffOwnerMutation": true
+    "postHandoffOwnerMutation": true,
+    "searchHistoricalIndexBeforeProposal": true,
+    "searchActionIndex4000BeforeProposal": true,
+    "producePredictionPacket": true,
+    "proposeCandidateRepair": true,
+    "attachExactSha": true,
+    "requireOwnerReviewBeforeMutation": true,
+    "neverMutateSource": true,
+    "neverMutateTests": true
   },
   "lock": {
     "partner": "ACTION-REPAIR",
@@ -35,7 +43,7 @@
   },
   "updatedAt": "2026-09-20T16:00:00.000Z",
   "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
-  "cooperationRole": "SECONDARY_REPAIR_OWNER",
+  "cooperationRole": "HISTORICAL_INDEX_EXPLORER_AND_PREDICTOR",
   "cooperationMode": "MANDATORY_SHARED_MISSION_ON_RED",
   "sharedCapabilities": "ACTION-THREE-BOT-INTELLIGENCE",
   "requiredCollaborators": [
@@ -51,11 +59,14 @@
   ],
   "executionBoundary": {
     "singleActiveRepairOwner": true,
-    "canMutateWhenOwner": true,
+    "canMutateWhenOwner": false,
     "canMutateBeforeHandoff": false,
     "canMutateTests": false,
     "canMutateMain": false,
-    "canonicalGreen": "DAILY_FLIXO_GREEN_GATE"
+    "canonicalGreen": "DAILY_FLIXO_GREEN_GATE",
+    "sourceMutation": false,
+    "testMutation": false,
+    "canDispatchRepair": false
   },
   "agentGrade": {
     "lifecycle": "READY",
@@ -97,7 +108,7 @@
   "permanentIndependentAuthority": false,
   "agentRuntime": {
     "protocol": "ACTION-AGENT-RUNTIME-v1",
-    "modelProfile": "ACTION_ADVERSARIAL_REPAIR_V1",
+    "modelProfile": "ACTION_HISTORICAL_EXPLORER_V2",
     "reasoningEffort": "HIGH",
     "cognitiveLoop": [
       "INTAKE",
@@ -112,11 +123,35 @@
     "historicalActivity": "docs/agents/historical-action-errors/agent-activity",
     "runtime": "scripts/ci/action-agent-runtime.mjs",
     "activityLedger": "scripts/ci/action-agent-history.mjs",
-    "toolBudget": 24,
+    "toolBudget": 32,
     "selfCritique": true,
     "independentReview": true,
     "structuredOutput": true,
     "failClosed": true,
-    "noSelfApproval": true
+    "noSelfApproval": true,
+    "roleMission": "INDEX_EXPLORATION_HISTORICAL_REPAIR_PREDICTION",
+    "reasoningModes": [
+      "FAILURE_SEARCH",
+      "HISTORICAL_MATCHING",
+      "SOLUTION_RETRIEVAL",
+      "PATTERN_RANKING",
+      "REPAIR_PREDICTION",
+      "COUNTEREXAMPLE_SEARCH",
+      "OWNER_HANDOFF"
+    ]
+  },
+  "repositoryWriteScope": "ACTION_VAULT_MEMORY_ONLY",
+  "outputs": {
+    "predictionPacket": "diagnostics/auto-repair/action-vault/historical-predictions/latest.json",
+    "requiredFields": [
+      "similarCases",
+      "candidateStrategies",
+      "predictedFiles",
+      "predictedChecks",
+      "confidence",
+      "unknowns",
+      "whyNotCertain"
+    ],
+    "status": "PROVISIONAL_UNTIL_GREEN"
   }
 }
