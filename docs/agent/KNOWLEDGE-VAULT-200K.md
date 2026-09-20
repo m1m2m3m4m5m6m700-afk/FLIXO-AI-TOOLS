@@ -1,12 +1,12 @@
-# FLIXO Agent Knowledge Vault — 200,000 Advisory Entries
+# FLIXO Agent Knowledge Vault — 1,000,000 Advisory Entries
 
-**Protocol:** `FLIXO-ADVICE-VAULT-200K-v1`
+**Protocol:** `FLIXO-ADVICE-VAULT-1M-v1`
 
 ## Purpose
 
-Provide a bounded, provenance-first capacity for up to **200,000 normalized lessons/advice records** without turning the knowledge layer into an execution authority.
+Provide a bounded, provenance-first capacity for up to **1,000,000 normalized lessons/advice records** without turning the knowledge layer into an execution authority.
 
-This is a **capacity and governance implementation**, not a claim that 200,000 entries have been fabricated or already populated.
+This is a **capacity and governance implementation**, not a claim that 1,000,000 entries have been fabricated or already populated.
 
 ## Canonical position
 
@@ -17,7 +17,7 @@ Advice normalization + SHA-256 fingerprint
         ↓
 Deduplication / conflict detection
         ↓
-20 deterministic shards × 10,000 maximum records
+100 deterministic shards × 10,000 maximum records
         ↓
 Evidence-aware retrieval
         ↓
@@ -46,11 +46,11 @@ Evidence can reference an exact target SHA. Historical evidence never certifies 
 
 ## Scale model
 
-The vault accepts at most 200,000 unique entries.
+The vault accepts at most 1,000,000 unique entries.
 
-It is partitioned into **20 deterministic shards**, each bounded at 10,000 entries. Shard assignment is derived from the first eight hexadecimal characters of the advice fingerprint, so the same advice deterministically lands in the same shard.
+It is partitioned into **100 deterministic shards**, each bounded at 10,000 entries. Shard assignment is derived from the first eight hexadecimal characters of the advice fingerprint, so the same advice deterministically lands in the same shard.
 
-The system never needs to deserialize all 200,000 entries to perform the policy checks that belong to a single shard.
+The system never needs to deserialize all 1,000,000 entries to perform the policy checks that belong to a single shard.
 
 ## Quality gates
 
@@ -61,7 +61,7 @@ The system never needs to deserialize all 200,000 entries to perform the policy 
 3. Reject fingerprint mismatch.
 4. Deduplicate by fingerprint.
 5. Detect conflicting actions for the same scope/root-cause/kind.
-6. Enforce the global 200,000 capacity.
+6. Enforce the global 1,000,000 capacity.
 
 ### Retrieval
 
@@ -85,7 +85,7 @@ This status is still advisory. The existing repair-control-plane and verificatio
 
 ## Memory hygiene
 
-Do not manufacture records to reach the number 200,000.
+Do not manufacture records to reach the number 1,000,000.
 
 Populate the vault from real sources:
 
