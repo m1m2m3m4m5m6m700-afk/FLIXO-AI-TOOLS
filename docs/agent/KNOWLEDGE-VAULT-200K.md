@@ -1,7 +1,9 @@
 # FLIXO Repair Agent Action Vault — 1,000,000 Advisory Entries
 
-**Protocol:** `FLIXO-REPAIR-ACTION-VAULT-1M-v1`  
-**Owner:** `repairAgent`
+**Protocol:** `FLIXO-ACTION-VAULT-1M-v2`  
+**Knowledge Steward:** `agent3`  
+**Read/learn:** all registered agents  
+**Mutation:** `agent3` only
 
 ## Purpose
 
@@ -27,7 +29,7 @@ Advisory context only
 Existing Registry → Resolver → Executor → Verifier → Exact-SHA gates
 ```
 
-The Action Vault is owned by `repairAgent`. It does **not** create a second registry, executor, mutation path, certification path, or prompt authority.
+The Action Vault is knowledge-owned by `agent3`. It does **not** create a second registry, executor, mutation path, certification path, or prompt authority.
 
 ## Record contract
 
@@ -126,3 +128,20 @@ Canonical implementation:
 `scripts/ci/action-vault/repair-agent-advice-vault.ts`
 
 The existing cognitive-agent test suite should import the same contract test so the vault cannot silently drift away from the canonical agent test lane.
+
+
+## Agent roles
+
+During official repair work:
+
+- **Agent 1** and **Agent 2** are independent competing repair agents. Both have read/learn access and may use vault advice as advisory context. Neither may mutate the Action Vault.
+- **Agent 3** is the non-programmer knowledge steward. Agent 3 extracts lessons from verified evidence, normalizes and deduplicates advice, organizes shards, resolves knowledge conflicts, maintains retrieval metadata compatible with the existing search system, and may update/revoke/reclassify vault records.
+- Agent 3 does **not** gain source-code mutation, repair execution, merge, or certification authority from this role.
+
+The canonical access contract is implemented in:
+`scripts/ci/action-vault/repair-agent-advice-vault.ts`
+
+Allowed Agent 3 Action Vault mutations are limited to:
+`UPSERT_ADVICE`, `REVOKE_ADVICE`, `RECLASSIFY_ADVICE`, `MERGE_DUPLICATES`, `RESOLVE_CONFLICT`, `REBALANCE_SHARD_METADATA`, `UPDATE_RETRIEVAL_METADATA`.
+
+Unknown operation, execution operation, gate mutation, or certification operation fails closed.
