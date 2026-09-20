@@ -32,6 +32,6 @@ When supplied, the previous session MUST be closed as `VERIFIED` or `BLOCKED`, i
 
 The new session MUST record `continuationFrom, inheritedExitSha, inheritedRemainingWork, inheritedOpenRcas, inheritedNextPlan`.
 
-Before editing, the successor MUST compare the inherited `exitSha` with the current exact `main` SHA and re-check ownership of RCA and mutable scope. A handoff never silently transfers ownership and never overrides newer repository state.
+Before editing, the successor MUST compare the inherited `exitSha` with the current exact `execution` SHA and re-check ownership of RCA and mutable scope. Handoff admission MUST fail closed when the predecessor `exitSha` is stale, the requested scope expands, or the repository topology is not `execution`. A handoff never silently transfers ownership and never overrides newer repository state.
 
 Handoff reports are continuity evidence, not final certification evidence. They MUST NOT convert FAIL, CANCELLED, NOT_EXECUTED, MISSING_EVIDENCE, or MALFORMED_EVIDENCE into PASS.

@@ -177,7 +177,7 @@ Before implementation work, create or claim a task through the shared control pl
 `node scripts/ci/agent-coordination.mjs task-create ...`
 `node scripts/ci/agent-coordination.mjs task-claim --task=<id> --session=<id> --agent=<id>`
 
-The control plane rejects overlapping active RCA or mutable scope ownership. Dependencies must be complete before a task is claimable.
+The control plane rejects overlapping active RCA or mutable scope ownership. Mutating coordination is permitted only on `execution`; `main` remains read-only. Handoff ingestion requires the predecessor exact `exitSha` to equal the current `execution` SHA and cannot expand the predecessor scope. Active sessions whose entry SHA or governance fingerprint becomes stale are revoked fail-closed.
 
 A claimed task is not complete until its exact exit SHA, evidence, findings, remaining work, and RCA state are recorded.
 
