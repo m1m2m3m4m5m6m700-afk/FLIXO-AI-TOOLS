@@ -1,47 +1,3 @@
-name: FLIXO Cell Master Consult Relay
-
-on:
-  workflow_dispatch:
-    inputs:
-      agent:
-        description: Registered CELL agent ID
-        required: true
-        type: string
-      task:
-        description: Current task ID
-        required: true
-        type: string
-      entry_sha:
-        description: Exact execution SHA
-        required: true
-        type: string
-      risk:
-        description: Risk level
-        required: true
-        default: MEDIUM
-        type: choice
-        options: [LOW, MEDIUM, HIGH, CRITICAL]
-      question:
-        description: Teaching question for Master inbox
-        required: true
-        type: string
-      obstacle:
-        description: Blocking obstacle
-        required: false
-        type: string
-      evidence:
-        description: Comma-separated evidence references
-        required: false
-        type: string
-      request_id:
-        description: Stable request identity
-        required: true
-        type: string
-
-permissions:
-  contents: read
-
-concurrency:
   group: flixo-cell-master-consult-${{ inputs.request_id }}
   cancel-in-progress: false
 
@@ -87,53 +43,41 @@ jobs:
           EVIDENCE: ${{ inputs.evidence }}
         run: |
           set -euo pipefail
-          cat > /tmp/cell-master-message.json <<'JSON'
-{
-  "schemaVersion": 1,
-  "messageId": "${REQUEST_ID}",
-  "idempotencyKey": "${REQUEST_ID}:${ENTRY_SHA}",
-  "actor": "${AGENT}",
-  "recipient": "assistantController",
-  "intent": "CELL_MASTER_TEACHING_CONSULT",
-  "taskId": "${TASK}",
-  "scope": ["MASTER_INBOX_TEACHING_CONSULT"],
-  "entrySha": "${ENTRY_SHA}",
-  "risk": "${RISK}",
-  "dependencies": ["MASTER_INBOX","CURRENT_EXACT_SHA"],
-  "expectedEvidence": ["MASTER_RECEIPT","TEACHING_RESPONSE","EXACT_SHA_REVALIDATION"],
-  "stopConditions": ["STALE_SHA","CONFLICT","MASTER_UNAVAILABLE"],
-  "proofObligations": ["MESSAGE_IDEMPOTENCY","EXACT_SHA_REVALIDATION"],
-  "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "source": "CELL_MASTER_CONSULT",
-  "payload": {
-    "requestKind": "MASTER_TEACHING_CONSULT",
-    "requestedByAgent": "${AGENT}",
-    "risk": "${RISK}",
-    "question": "${QUESTION}",
-    "obstacle": "${OBSTACLE}",
-    "evidence": "${EVIDENCE}",
-    "requireTeaching": true,
-    "returnToAgent": "${AGENT}",
-    "preserveInMissionMemory": true,
-    "promoteAfterVerification": true,
-    "masterExecution": {"target":"MASTER_INBOX","selection":"ANY_CONNECTED_MASTER_MODEL","modelPinned":false}
-  }
-}
-JSON
+          jq -n             --arg agent "$AGENT"             --arg task "$TASK"             --arg sha "$ENTRY_SHA"             --arg request "$REQUEST_ID"             --arg risk "$RISK"             --arg question "$QUESTION"             --arg obstacle "$OBSTACLE"             --arg evidence "$EVIDENCE"             '{
+              schemaVersion:1,
+              messageId:$request,
+              idempotencyKey:($request+":"+$sha),
+              actor:$agent,
+              recipient:"assistantController",
+              intent:"CELL_MASTER_TEACHING_CONSULT",
+              taskId:$task,
+              scope:["MASTER_INBOX_TEACHING_CONSULT"],
+              entrySha:$sha,
+              risk:$risk,
+              dependencies:["MASTER_INBOX","CURRENT_EXACT_SHA"],
+              expectedEvidence:["MASTER_RECEIPT","TEACHING_RESPONSE","EXACT_SHA_REVALIDATION"],
+              stopConditions:["STALE_SHA","CONFLICT","MASTER_UNAVAILABLE"],
+              proofObligations:["MESSAGE_IDEMPOTENCY","EXACT_SHA_REVALIDATION"],
+              createdAt:(now|todateiso8601),
+              source:"CELL_MASTER_CONSULT",
+              payload:{
+                requestKind:"MASTER_TEACHING_CONSULT",
+                requestedByAgent:$agent,
+                risk:$risk,
+                question:$question,
+                obstacle:(if $obstacle=="" then null else $obstacle end),
+                evidence:(if $evidence=="" then [] else ($evidence|split(",")|map(select(length>0))) end),
+                requireTeaching:true,
+                returnToAgent:$agent,
+                preserveInMissionMemory:true,
+                promoteAfterVerification:true,
+                masterExecution:{
+                  target:"MASTER_INBOX",
+                  selection:"ANY_CONNECTED_MASTER_MODEL",
+                  modelPinned:false
+                }
+              }
+            }' > /tmp/cell-master-message.json
           jq -e --arg sha "$ENTRY_SHA" --arg agent "$AGENT" '.entrySha==$sha and .actor==$agent and .recipient=="assistantController" and .payload.masterExecution.selection=="ANY_CONNECTED_MASTER_MODEL" and .payload.masterExecution.modelPinned==false' /tmp/cell-master-message.json >/dev/null
 
       - name: Ingest CELL request into canonical Master inbox
-        run: |
-          set -euo pipefail
-          node scripts/ci/agent-communication.mjs validate --message-file=/tmp/cell-master-message.json
-          node scripts/ci/agent-communication.mjs ingest --message-file=/tmp/cell-master-message.json | tee /tmp/master-consult-response.json
-          jq -e '.status=="RECEIVED" or .status=="STALE"' /tmp/master-consult-response.json >/dev/null
-
-      - name: Publish consult evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: flixo-cell-master-consult-${{ github.run_id }}
-          path: /tmp/master-consult-response.json
-          if-no-files-found: ignore
-          retention-days: 14
