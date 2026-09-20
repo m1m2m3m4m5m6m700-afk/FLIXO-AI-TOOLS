@@ -47,6 +47,7 @@ for(const file of [
   'scripts/ci/cell-learning.mjs',
   'scripts/ci/cell-memory.mjs',
   'scripts/ci/cell-wake-preparation.mjs',
+  'scripts/ci/cell-wake.mjs',
   'scripts/ci/swarm-controller.mjs'
 ]){
   execFileSync(process.execPath,['--check',file],{stdio:'pipe'});
