@@ -4,6 +4,7 @@ export const REPAIR_GATE_AUTOMATION = Object.freeze([
   'execution-sync.yml',
   'execution-bot-watchdog.yml',
   'auto-repair-merge-gate.yml',
+  'advanced-repair-contract.yml',
 ]);
 
 export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
