@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { getMessage as getAgentMessage, markConsumed as consumeAgentMessage, createMessage, sendMessage, respondToMessage, listPendingResponses } from './agent-communication.mjs';
 import { assertAgentAdmission, assertProtocolDefinition } from './repair-protocol.mjs';
+import { buildRepairAgentContext, recordAgentLearningEvent } from './auto-repair-learning.mjs';
 
 const ROOT = process.cwd();
 const COORD_DIR = path.resolve(ROOT, process.env.FLIXO_COORDINATION_DIR ?? 'diagnostics/agents');
@@ -117,6 +118,12 @@ locks.governanceFingerprint = currentGovernanceFingerprint;
 let initialRevision = Number(state.revision ?? 0);
 if (Number(locks.revision ?? initialRevision) !== initialRevision) throw new Error('COORDINATION_STATE_VERSION_MISMATCH');
 if ((locks.transactionId ?? null) !== (state.transactionId ?? null)) throw new Error('COORDINATION_TRANSACTION_MISMATCH');
+function repairAgentContextPath() { return path.resolve(ROOT, 'diagnostics/auto-repair/repair-agent-context.json'); }
+function publishRepairAgentContext() {
+  const context = buildRepairAgentContext({ teamId: DEFAULT_TEAM_ID, currentSha: sha(), tasks: Object.values(state.tasks ?? {}), activeSessions: Object.values(state.activeSessions ?? {}) });
+  fs.mkdirSync(path.dirname(repairAgentContextPath()), { recursive: true });
+  fs.writeFileSync(repairAgentContextPath(), JSON.stringify(context, null, 2) + '\n');
+}
 function save() {
   const persisted = readJson(QUEUE_FILE, defaultState());
   const persistedLocks = readJson(LOCK_FILE, defaultLocks());
@@ -132,6 +139,7 @@ function save() {
   Object.assign(state, { authoritativeSha: nextState.authoritativeSha, revision: nextRevision, transactionId, updatedAt: nextState.updatedAt });
   Object.assign(locks, { revision: nextRevision, transactionId });
   initialRevision = nextRevision;
+  publishRepairAgentContext();
 }
 function overlap(a, b) { return a.some((x) => b.has(x)); }
 function lock(sessionId, agentId, rca, scope) {
@@ -364,6 +372,7 @@ if (command === 'task-create') {
   if (state.tasks[taskId]) throw new Error(`Task already exists: ${taskId}`);
   const task = { taskId, teamId: optional('team', DEFAULT_TEAM_ID), title: requireArg('title'), priority: Number(optional('priority', '50')), lane: optional('lane', 'fast-path'), rca: optional('rca') || null, scope: list('scope'), objective: optional('objective'), knownFailure: optional('known-failure'), evidenceRequired: list('evidence-required'), dependsOn: list('depends-on'), status: 'READY', createdAt: now() };
   for (const dep of task.dependsOn) if (!state.tasks[dep]) throw new Error(`Unknown dependency: ${dep}`);
+  recordAgentLearningEvent({ teamId: task.teamId, eventType: 'TASK_CREATED', taskId, actor: 'assistantController', entrySha: sha(), information: `Task created: ${task.title}`, lesson: `Repair Agent must know this task before subsequent repair decisions.`, evidence: [task.scope, task.evidenceRequired].flat().filter(Boolean) });
   state.tasks[taskId] = task;
   writeJson(packetPath(taskId), { schemaVersion: 1, ...task, entrySha: sha(), createdAt: now(), nextActions: [], continuation: null });
   save();
@@ -403,6 +412,7 @@ if (command === 'task-claim') {
       throw error;
     }
   }
+  recordAgentLearningEvent({ teamId, eventType: 'TASK_CLAIMED', taskId, actor: agentId, entrySha: sha(), information: `Task claimed by ${agentId}: ${task.title}`, lesson: `Repair Agent observes active ownership and scope before advising further work.`, evidence: task.scope ?? [] });
   task.status = 'RUNNING'; task.claimedBy = agentId; task.sessionId = sessionId; task.claimedAt = now(); task.entrySha = sha(); task.lockId = lockId;
   state.activeSessions[sessionId] = { sessionId, agentId, taskId, teamId, lockId, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, protocolHash: assertProtocolDefinition().protocolHash, collaborationState: 'ACTIVE', collaborationRequired: true, teamBarrier: 'ACTIVE', readyForTeamClose: false, ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}), updatedAt: now() };
   const packetFile = packetPath(taskId); const packet = readJson(packetFile, task); packet.claim = { sessionId, agentId, lockId, claimedAt: now(), entrySha: sha(), ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}) }; writeJson(packetFile, packet); save(); console.log(JSON.stringify(task, null, 2));
@@ -425,6 +435,7 @@ if (command === 'task-complete') {
   if (handoff.taskId !== taskId || visibility.taskId !== taskId) throw new Error('TASK_COMPLETION_TASK_MISMATCH');
   if (handoff.exitSha !== sha() || visibility.exitSha !== sha()) throw new Error('TASK_COMPLETION_STALE_EXIT_SHA');
   if (!visibility.finalSummary) throw new Error('TASK_COMPLETION_FINAL_SUMMARY_MISSING');
+  recordAgentLearningEvent({ teamId: String(state.activeSessions[sessionId]?.teamId ?? task.teamId ?? DEFAULT_TEAM_ID), eventType: 'TASK_COMPLETED', taskId, actor: task.claimedBy ?? null, entrySha: sha(), information: `Task completed: ${task.title}`, lesson: 'Repair Agent receives the completed task result and remaining team state before the next repair decision.', evidence: [...(task.evidence ?? []), ...(task.findings ?? [])] });
   task.status = 'DONE'; task.completedAt = now(); task.exitSha = sha(); task.evidence = list('evidence'); task.findings = list('findings'); task.finalStatus = visibility.finalStatus; task.finalSummary = visibility.finalSummary; task.visibilityPath = path.relative(ROOT, visibilityPath(sessionId));
   unlock(sessionId);
 
