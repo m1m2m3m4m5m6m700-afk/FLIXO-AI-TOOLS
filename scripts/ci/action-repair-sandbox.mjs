@@ -97,6 +97,11 @@ export function simulateRepair({
   try {
     runGit(repoRoot, ['worktree', 'add', '--detach', worktree, targetSha]);
     added = true;
+    const nodeModules = path.join(repoRoot, 'node_modules');
+    const sandboxNodeModules = path.join(worktree, 'node_modules');
+    if (fs.existsSync(nodeModules) && !fs.existsSync(sandboxNodeModules)) {
+      try { fs.symlinkSync(nodeModules, sandboxNodeModules, 'junction'); } catch {}
+    }
     const head = runGit(worktree, ['rev-parse', 'HEAD']).trim();
     if (head !== targetSha) throw new Error('SANDBOX_TARGET_SHA_MISMATCH');
 
