@@ -10,6 +10,8 @@ assert.equal(COUNCIL_DIRECTIVE.thirdBranchAllowed, false);
 assert.equal(COUNCIL_DIRECTIVE.branchCreationAllowed, false);
 assert.equal(COUNCIL_DIRECTIVE.taskRegistryCount, 1);
 assert.equal(COUNCIL_DIRECTIVE.repeatedRedRequiresNewStrategyOrEvidence, true);
+assert.match(COUNCIL_DIRECTIVE.focusWithoutFreeze, /do not enter FREEZE/i);
+assert.match(COUNCIL_DIRECTIVE.operatingMessage, /FOCUS ON THE ASSIGNED WORK PACKAGE/i);
 assert.ok(COUNCIL_DIRECTIVE.roles.coordinator);
 assert.ok(COUNCIL_DIRECTIVE.roles.learning);
 assert.ok(COUNCIL_DIRECTIVE.closure.includes('exact-sha'));
