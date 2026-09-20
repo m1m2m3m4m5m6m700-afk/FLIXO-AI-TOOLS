@@ -5,6 +5,7 @@ import {
   assertHistoricalClassClosure,
   assertRecurrencePrevention,
   validateProvenanceClosure,
+  buildProvenanceClosure,
   preventionRuleFor,
   assertCanonicalSymmetry,
 } from './root-closure-contract.mjs';
@@ -63,7 +64,36 @@ const valid = {
 assert.doesNotThrow(() => validateProvenanceClosure(valid));
 assert.throws(() => validateProvenanceClosure({ ...valid, artifactDigest: 'bad' }), /PROVENANCE_ARTIFACT_DIGEST_INVALID/);
 assert.equal(preventionRuleFor('typescript').startsWith('RECURRENCE-TYPESCRIPT:'), true);
-assert.equal(assertCanonicalSymmetry({ mainSha: 'a'.repeat(40), executionSha: 'a'.repeat(40), branch: 'main' }).ok, true);
+assert.equal(assertCanonicalSymmetry({
+  mainSha: 'a'.repeat(40),
+  executionSha: 'a'.repeat(40),
+  mainContractDigest: 'b'.repeat(64),
+  executionContractDigest: 'b'.repeat(64),
+  branch: 'main',
+}).ok, true);
+assert.throws(() => assertCanonicalSymmetry({
+  mainSha: 'a'.repeat(40),
+  executionSha: 'a'.repeat(40),
+  mainContractDigest: 'b'.repeat(64),
+  executionContractDigest: 'c'.repeat(64),
+  branch: 'main',
+}), /SYMMETRY_CONTRACT_DIGEST_DIVERGENCE/);
 assert.equal(assertCanonicalSymmetry({ branch: 'execution' }).mode, 'PRE_MERGE_PENDING');
+
+const generated = buildProvenanceClosure({
+  assertionId: 'ASSERT-GENERATED-001',
+  executionUnit: 'Test System / Certification',
+  runId: '1',
+  jobId: '2',
+  stepId: 'certify',
+  exactSha: 'e'.repeat(40),
+  artifactId: '3',
+  artifactDigest: 'f'.repeat(64),
+  rcaId: 'RCA-NONE-EXACT-SHA',
+  certificationId: 'CERT-1',
+  mergeCommitSha: 'e'.repeat(40),
+  mergedFromSha: 'e'.repeat(40),
+});
+assert.doesNotThrow(() => validateProvenanceClosure(generated));
 
 console.log('PROJECT ROOT CLOSURE CONTRACT: PASS');
