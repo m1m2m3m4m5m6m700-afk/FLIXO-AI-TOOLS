@@ -79,17 +79,17 @@ if(exactHistoricalIds.length) hypothesisBase[0].score+=0.2;
 if(historicalActivity.length) hypothesisBase[1].score+=0.1;
 
 const toolBudget={
-  maxToolCalls:24,
-  maxHistoricalRecords:100,
-  maxMessagesPerAgent:200,
-  maxCandidateHypotheses:8,
+  maxToolCalls:36,
+  maxHistoricalRecords:150,
+  maxMessagesPerAgent:300,
+  maxCandidateHypotheses:12,
   stopOnRepeatedStrategy:true,
   stopOnEvidenceMismatch:true,
   parallelReadsAllowed:true,
   parallelMutationAllowed:false,
-  maxCandidatePatches:8,
-  maxSandboxCandidates:4,
-  maxSandboxChecks:8
+  maxCandidatePatches:12,
+  maxSandboxCandidates:6,
+  maxSandboxChecks:12
 };
 
 const mentorPaths=(process.env.FLIXO_ACTION_CODE_MENTOR_PATHS??'').split(',').map((x)=>x.trim()).filter(Boolean);
