@@ -89,6 +89,8 @@ jobs:
           FLIXO_WAKE_SHA="$EXECUTION_SHA" node scripts/ci/cell-wake-preparation.mjs
           test -s /tmp/flixo-cell-wake.json
           node scripts/ci/test-cell-wake-preparation.mjs
+          node scripts/ci/action-repair-five-workers.mjs --role=wake --status=PUSH_READY --target-sha="$EXECUTION_SHA" --run-id="$GITHUB_RUN_ID" --fingerprint="PUSH:$EXECUTION_SHA" --output=/tmp/flixo-cell-wake-coordinator.json
+          test -s /tmp/flixo-cell-wake-coordinator.json
           echo "CELL_WAKE_READY=true"
 
       - name: Dispatch canonical observer only
@@ -105,7 +107,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-cell-wake-${{ github.run_id }}
-          path: /tmp/flixo-cell-wake.json
+          path: |
+            /tmp/flixo-cell-wake.json
+            /tmp/flixo-cell-wake-coordinator.json
           if-no-files-found: ignore
           retention-days: 30
 
