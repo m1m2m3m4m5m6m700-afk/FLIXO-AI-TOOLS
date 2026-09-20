@@ -38,6 +38,7 @@ must(runId,'ACTION_AGENT_RUNTIME_RUN_ID_REQUIRED');
 const historyIndex=readJson(path.join(ROOT,'docs/agents/historical-action-errors/index.json'),{byFingerprint:{},byNormalized:{},byClass:{},byWorkflow:{},recordCount:0});
 const actionMemory=readJson(path.join(ROOT,'diagnostics/auto-repair/memory.json'),{cases:[],actionHistory:[],lessons:[],antiLessons:[]});
 const activityIndex=readJson(path.join(ROOT,'docs/agents/historical-action-errors/agent-activity/index.json'),{byFingerprint:{},records:[]});
+const historicalKnowledge=readJson(path.join(ROOT,'docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json'),{entries:[]});
 const failureLog=logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'';
 
 const ansiEscape=new RegExp(String.fromCharCode(27)+'\\[[0-?]*[ -/]*[@-~]','g');
