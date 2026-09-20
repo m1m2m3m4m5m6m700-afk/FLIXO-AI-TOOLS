@@ -4,10 +4,26 @@
   "source": "github-actions-logs",
   "externalDiagnosis": false,
   "proofAuthority": "CURRENT_EXACT_SHA_CI_ONLY",
-  "byFingerprint": {},
-  "byNormalized": {},
-  "byClass": {},
-  "byWorkflow": {},
-  "recordCount": 0,
-  "updatedAt": null
+  "byFingerprint": {
+    "7df3741a26b08c90c31b8bae635540cbfde4267f535484d498a1489f88e808ac": [
+      "HAE-7df3741a26b08c90c31b8bae"
+    ]
+  },
+  "byNormalized": {
+    "Error: CI/CD TRUST FAILURE: CD manual promotion guard is missing": [
+      "HAE-7df3741a26b08c90c31b8bae"
+    ]
+  },
+  "byClass": {
+    "generic-failure": [
+      "HAE-7df3741a26b08c90c31b8bae"
+    ]
+  },
+  "byWorkflow": {
+    "FLIXO WP0 Trust Baseline": [
+      "HAE-7df3741a26b08c90c31b8bae"
+    ]
+  },
+  "recordCount": 1,
+  "updatedAt": "2026-09-20T11:48:34Z"
 }
