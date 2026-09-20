@@ -62,6 +62,7 @@ jobs:
             fs.writeFileSync('message.json', JSON.stringify(message, null, 2) + '\\n');
             if (!message.messageId) throw new Error('AGENT_MESSAGE_ID_MISSING');
             process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'MESSAGE_ID=' + message.messageId + '\\n');
             process.exit(0);
           }
           if (!match) {
