@@ -1,12 +1,29 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "agentId": "WORKER_B",
-  "profileId": "ACTION_ADVERSARIAL_REPAIR_V1",
+  "profileId": "ACTION_FRONTIER_ADVERSARIAL_V2",
   "role": "ADVERSARIAL_ACTION_REPAIR",
+  "cognitionTier": "FRONTIER_ADVERSARIAL",
+  "modelProfile": "FRONTIER_ADVERSARIAL_REASONING",
+  "reasoningEffort": "MAXIMUM",
   "mutationMode": "DELEGATED_REPAIR_ONLY",
   "certificationAuthority": false,
   "state": "READY",
-  "taskCount": 0,
+  "toolBudget": 32,
+  "maxReasoningLoops": 7,
+  "maxHypotheses": 5,
+  "evidenceGradeMinimum": "E4",
+  "capabilities": [
+    "RCA",
+    "FALSIFICATION",
+    "ADVERSARIAL_REVIEW",
+    "ACTION_DIAGNOSTICS",
+    "TOOL_CALLING",
+    "MEMORY_RETRIEVAL",
+    "SIMULATION",
+    "SELF_CRITIQUE",
+    "VERIFICATION"
+  ],
   "verifiedResults": 0,
   "knownWeaknesses": []
 }

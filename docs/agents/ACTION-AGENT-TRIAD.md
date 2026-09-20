@@ -1,30 +1,28 @@
-# FLIXO Action Agent Triad
+# FLIXO Action Agent Triad — Frontier Specialists
 
-The three external runtime identities are a bounded Action-agent team.
+`WORKER_A` and `WORKER_B` are the two specialized Action-vault agents.
 
-| Identity | Profile | Responsibility | Mutation |
-|---|---|---|---|
-| CHIEF | ACTION_COMMANDER_V1 | triage, dispatch, evidence aggregation, handoff | NONE |
-| WORKER_A | ACTION_PRIMARY_REPAIR_V1 | primary Actions RCA and delegated repair | DELEGATED_REPAIR_ONLY |
-| WORKER_B | ACTION_ADVERSARIAL_REPAIR_V1 | independent challenge, alternative RCA, fallback repair | DELEGATED_REPAIR_ONLY |
+WORKER_A profile: ACTION_FRONTIER_REPAIR_V2 — primary RCA, code intelligence, competing hypotheses, memory retrieval, bounded tool loops, simulation, self-critique and verification.
 
-Every dispatch is bound to `missionId + workPackageId + taskId + exactSha`.
+WORKER_B profile: ACTION_FRONTIER_ADVERSARIAL_V2 — independent RCA, falsification, red-team challenge, counterexample search, memory retrieval, simulation, self-critique and verification.
 
-Every worker result must contain:
-`finding + evidence + evidenceGrade + unknowns + lesson + antiLesson + skillCandidate + directBenefit + nextAction + decisionTrace`.
 
-Worker B must additionally return `challenge`. Workers cannot self-approve or certify. Their results require independent review before becoming trusted repair knowledge.
+Both agents use:
+- frontier specialist cognition
+- provider-neutral frontier reasoning routing
+- MAXIMUM reasoning effort
+- minimum evidence grade E4
+- 32-tool budget and up to 7 bounded reasoning loops
+- up to 5 competing hypotheses
+- pre-mutation simulation
+- counterexample search
+- independent review
+- no self-approval and no certification authority
+- delegated repair only
 
-Runtime loop:
-`ADMIT → ACK → HEARTBEAT → EXECUTE → RESULT VALIDATION → REVIEW → COMPLETE → HANDOFF`.
+Cognitive loop:
+INTAKE → MEMORY_RETRIEVAL → CONTEXT_GRAPH → HYPOTHESIS_COMPETITION → PLAN → TOOL_LOOP → SIMULATION → EXECUTE → COUNTEREXAMPLE_SEARCH → SELF_CRITIQUE → INDEPENDENT_REVIEW → VERIFY → LEARN
 
-## Advanced cognition
+The protocol returns structured evidence and concise decision traces rather than private chain-of-thought. The protocol layer does not change model weights; actual reasoning quality depends on the external model configured by the executor.
 
-All three profiles now use `FLIXO_ADVANCED_AGENT_RUNTIME_V1`.
-
-Required cognitive phases:
-`INTAKE → CONTEXT_RETRIEVAL → PLAN → EXECUTE → SELF_CHECK → INDEPENDENT_REVIEW → VERIFY → LEARN`.
-
-The runtime requires exact-SHA binding, evidence-first operation, bounded tool budget, explicit unknowns, self-check, alternative consideration and independent review. The result carries a concise decision trace rather than private chain-of-thought.
-
-Model choice is provider-neutral: the external executor may route the profile to a frontier reasoning model, but FLIXO's correctness gates depend on the returned evidence and verification contract, not on the model brand.
+Exact SHA binding, canonical CI, and authority boundaries remain unchanged.

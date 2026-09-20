@@ -111,7 +111,7 @@ export function assertExactSha(value: unknown): asserts value is string {
 
 
 export const ACTION_AGENT_TRIAD = Object.freeze({
- CHIEF: Object.freeze({ profileId:'ACTION_COMMANDER_V1', role:'ACTION_COMMANDER', mutationMode:'NONE', certificationAuthority:false }),
- WORKER_A: Object.freeze({ profileId:'ACTION_PRIMARY_REPAIR_V1', role:'PRIMARY_ACTION_REPAIR', mutationMode:'DELEGATED_REPAIR_ONLY', certificationAuthority:false }),
- WORKER_B: Object.freeze({ profileId:'ACTION_ADVERSARIAL_REPAIR_V1', role:'ADVERSARIAL_ACTION_REPAIR', mutationMode:'DELEGATED_REPAIR_ONLY', certificationAuthority:false }),
+ CHIEF: Object.freeze({ profileId:'ACTION_COMMANDER_V1', role:'ACTION_COMMANDER', cognitionTier:'ADVANCED', mutationMode:'NONE', certificationAuthority:false }),
+ WORKER_A: Object.freeze({ profileId:'ACTION_FRONTIER_REPAIR_V2', role:'PRIMARY_ACTION_REPAIR', cognitionTier:'FRONTIER_SPECIALIST', modelProfile:'FRONTIER_CODING_REASONING', reasoningEffort:'MAXIMUM', mutationMode:'DELEGATED_REPAIR_ONLY', certificationAuthority:false }),
+ WORKER_B: Object.freeze({ profileId:'ACTION_FRONTIER_ADVERSARIAL_V2', role:'ADVERSARIAL_ACTION_REPAIR', cognitionTier:'FRONTIER_ADVERSARIAL', modelProfile:'FRONTIER_ADVERSARIAL_REASONING', reasoningEffort:'MAXIMUM', mutationMode:'DELEGATED_REPAIR_ONLY', certificationAuthority:false }),
 });
