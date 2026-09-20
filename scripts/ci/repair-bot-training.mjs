@@ -326,6 +326,66 @@ function evaluateStatePolicy(model, examples) {
   };
 }
 
+function buildAdversarialTrainingSet(rows) {
+  const verified=rows.filter((row)=>row.outcome==='success'||row.outcome==='failure');
+  const out=[];
+  for(const row of verified){
+    const alternateFeatures=[...(row.features??[]),row.rootCause==='external-tooling'?'provider':'context-shift'].filter(Boolean);
+    out.push({
+      ...row,
+      variant:'CONTEXT_SHIFT',
+      features:[...new Set(alternateFeatures)],
+      reward:row.outcome==='success'?2:-2,
+    });
+    if(row.previousStrategy && row.previousStrategy!=='START'){
+      out.push({
+        ...row,
+        variant:'REPEATED_ACTION_TRAP',
+        previousStrategy:row.strategyId,
+        reward:row.outcome==='success'?1:-3,
+      });
+    }
+  }
+  return out;
+}
+
+function trainAdversarialPolicy(examples,epochs=6){
+  const cells=new Map();
+  for(let epoch=0;epoch<epochs;epoch++){
+    for(const row of examples){
+      const key=[row.rootCause,featureSignature(row.features),row.previousStrategy].join('|');
+      const action=row.strategyId;
+      const id=key+'|'+action;
+      const cell=cells.get(id) ?? {key,action,reward:0,observations:0};
+      cell.reward += row.reward*(1-(epoch/(epochs*2)));
+      cell.observations += 1;
+      cells.set(id,cell);
+    }
+  }
+  const policy={};
+  for(const cell of cells.values()){
+    const candidate={strategyId:cell.action,score:Number((cell.reward/Math.max(1,cell.observations)).toFixed(4)),observations:cell.observations};
+    (policy[cell.key] ??= []).push(candidate);
+  }
+  for(const list of Object.values(policy)) list.sort((a,b)=>b.score-a.score||b.observations-a.observations||a.strategyId.localeCompare(b.strategyId));
+  return {schemaVersion:1,algorithm:'ADVERSARIAL_CONTEXT_REPLAY',epochs,policy};
+}
+
+function evaluateAdversarial(model,examples){
+  let correct=0,total=0;
+  for(const row of examples){
+    const predicted=model.policy[[row.rootCause,featureSignature(row.features),row.previousStrategy].join('|')]?.[0]?.strategyId;
+    if(row.outcome==='success'){
+      total+=1;
+      if(predicted===row.strategyId) correct+=1;
+    } else if(predicted && predicted!==row.strategyId){
+      correct+=1;
+      total+=1;
+    }
+  }
+  return {cases:total,score:Number((correct/Math.max(1,total)).toFixed(4))};
+}
+
 function masteryProfile({ rows, behaviorEvaluation, stateEvaluation }) {
   const verified = rows.filter((row) => row.outcome === 'success' || row.outcome === 'failure');
   const counts = Object.fromEntries(CURRICULUM.map(([, skill]) => [skill, 0]));
@@ -399,6 +459,8 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
     behaviorEvaluation,
     stateModel,
     stateEvaluation,
+    adversarialModel,
+    adversarialEvaluation,
     mastery,
     evaluation,
     decision:{
@@ -407,6 +469,7 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
       eligibleToInfluenceRouting:rows.length>=4 && evaluation.accuracy>=.55 && behaviorEvaluation.successAccuracy>=.55,
       behavioralTraining:{epochs:5,trainedExamples:behaviorTrain.length,evaluationExamples:behaviorTest.length,competent:behaviorEvaluation.successAccuracy>=.65 && behaviorEvaluation.failureAvoidance>=.60},
       stateActionTraining:{algorithm:'TABULAR_STATE_ACTION_Q',epochs:8,trainedExamples:stateTrain.length,evaluationExamples:stateTest.length,competent:stateEvaluation.successAccuracy>=.65 && stateEvaluation.failureAvoidance>=.60},
+      adversarialTraining:{algorithm:'ADVERSARIAL_CONTEXT_REPLAY',epochs:6,trainedExamples:adversarialTrain.length,evaluationExamples:adversarialTest.length,score:adversarialEvaluation.score,competent:adversarialEvaluation.score>=.60},
       masteryThreshold:0.65,
       masteryOverall:mastery.overall,
       rule:'TRAINING_INFLUENCES_SELECTION_BUT_NEVER_GRANTS_MUTATION_OR_GREEN_AUTHORITY'
