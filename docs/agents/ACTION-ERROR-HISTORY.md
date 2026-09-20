@@ -5,6 +5,131 @@ Repository: `m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS`
 
 > هذا الملف يجمع السجل التاريخي الذي يحتفظ به المستودع من GitHub Actions عبر Error Memory/Root-Cause learning، مع سجل الحوادث التاريخي القديم ونتائج الإصلاح الموثقة. ليس تصديرًا حرفيًا لكل Run في واجهة GitHub؛ أداة GitHub المتاحة هنا لا توفر endpoint مُصفحًا لكل تاريخ التشغيل، لذلك تم الاعتماد على السجلات التاريخية التي حفظها المستودع نفسه.
 
+
+
+## 0. Earliest documented Action failure
+
+**Earliest failure currently recoverable from the repository's historical records: F-001 — Invalid E2E Artifact Names.**
+
+- Era: **GitHub Actions Run #1324/#1325**
+- Surface: Playwright E2E diagnostics upload
+- Failure: artifact upload rejected names such as `e2e-diagnostics-shard-2/6`
+- Root cause: the Playwright shard value `N/M` was reused as an artifact name; GitHub artifact names cannot contain `/`.
+- Repair: decoupled test shard syntax from artifact labels and used `N-of-M` naming.
+- Historical status: **Fixed**.
+- This is the earliest Action-specific failure explicitly recorded in `docs/ERROR_MEMORY.md`. The repository snapshot does **not** provide enough retained evidence to prove that no earlier GitHub Actions failure ever occurred before this run era, so this file calls it the **earliest documented/recoverable failure**, not an absolute proof of the repository's first-ever failure.
+
+## Chronological failure history
+
+### Era 1 — First documented E2E/CI incidents
+
+1. **F-001 — Invalid E2E artifact names — Run #1324/#1325**
+   - Root: invalid artifact naming contract.
+   - Result: **fixed**.
+
+2. **F-002 — upload-artifact Node 20 deprecation**
+   - Root: workflow still used the older action major.
+   - Repair: upgraded to `actions/upload-artifact@v6`.
+   - Result: **fixed and subsequently observed successfully finalizing artifacts**.
+
+3. **F-003 — duplicate meta description**
+   - Root: legacy `index.html` metadata duplicated route-owned SEO metadata.
+   - Repair: removed legacy shell description.
+   - Result: **fixed**.
+
+4. **F-004 — E2E SEO text contract drift**
+   - Root: assertion followed stale wording instead of the intended SEO contract.
+   - Repair: aligned assertion with the stable production contract.
+   - Result: **fixed**.
+
+5. **F-005 — E2E result-presentation timeout**
+   - Root symptom: test waited on presentation text.
+   - Repair attempt: wider processing window + output-oriented verification.
+   - Result: **superseded** because the later run exposed a deeper production defect rather than proving the timing change was sufficient.
+
+6. **F-006 — SVG decode failure**
+   - Historical run: **#1329, E2E Shard 2**.
+   - Root: `createImageBitmap(file)` was not reliable for SVG in Chromium CI.
+   - Repair: SVG-safe `HTMLImageElement + object URL` fallback; raster path retained.
+   - Result: **code fixed; historical record explicitly says CI revalidation was still required at the time of recording**.
+
+7. **F-007 — router/registry contract false positive**
+   - Historical run: **#2028**.
+   - Root: validator inferred routes from source text and mishandled non-ready registry entries.
+   - Repair: TypeScript AST analysis recognizing `createRoute(...)` and `imageToolRoute(...)`, plus ready/non-ready route separation.
+   - Verification: **Run #2035 PASS**, merged as `130f77f6905ddfa88322e1f2ad48cae47c2d4e93`.
+   - Result: **fixed and CI-verified**.
+
+### Era 2 — Canonical repair/verification architecture
+
+The repository then accumulated a machine-readable root-cause catalog and historical learning system. Examples explicitly represented in `scripts/ci/root-causes.json` include:
+
+- CI/security baseline import and path-policy defects.
+- CI contract lint and evidence-regex defects.
+- control-plane registry drift.
+- watcher cancellation/evidence/target-selection defects.
+- workflow syntax defects.
+- router literal mismatch.
+- build stylesheet import defect.
+- Task Agent governance-marker drift.
+- Firefox `networkidle` synchronization instability.
+- Auto-Repair expected-SHA propagation failure.
+- Auto-Repair stale-base/rebase drift.
+- Auto-Repair downstream postflight masking.
+- duplicate watcher-run storms.
+- historical-learning provenance gaps.
+
+Each catalog entry records its repair targets and the verification command(s) expected to prove the invariant.
+
+### Era 3 — High-frequency repair wave
+
+The current machine Error Memory contains:
+
+- **19 fingerprint cases**
+- **47 distinct historical Action run IDs referenced by provenance**
+- **2 represented workflows** in those historical provenance records
+- **6 root-cause kinds** in those cases.
+
+The dominant recorded fingerprint family in this current extraction is `webkit-render`, followed by `typescript`, `unknown`, `build`, `certification`, and `external-tooling`.
+
+The current Error Memory explicitly distinguishes:
+- historical failures,
+- proposals,
+- engine-level unrepaired attempts,
+
+and does **not** treat any of these automatically as verified repair.
+
+### Era 4 — 2026-09-19 current historical-learning wave
+
+The current repository records many newer exact-SHA incidents, including:
+
+- WebKit/static/build fingerprint families around runs **35419365959 → 35420543755**.
+- repeated TypeScript failures across runs **35419232849 → 35420228023**.
+- unknown WP0 runner failures around **35417216668** and **35417501209**.
+- repeated external-tooling/repair-engine failures from runs **35424089172** through **35427463513**.
+- later documented external provider blockers: Vercel deployment rate limiting and GitHub Code Scanning AI model rejection.
+
+These modern records are retained as historical evidence and are subject to exact-SHA requalification; they do not certify the current head.
+
+## Historical repair-result taxonomy
+
+For the complete history, the repair result must be read from the strongest available evidence in this order:
+
+`verified-repair` → exact-SHA canonical CI/verification → `reverted-repair` → `blocked-external` → `unrepaired` / `failed` / `proposed`.
+
+A source-code commit by itself is never recorded here as proof of repair.
+
+## Evidence boundary
+
+The repository preserves two complementary histories:
+
+1. **Incident history** — human-readable F-001..F-007 and later incident records.
+2. **Machine history** — Error Memory fingerprints, run IDs, failed SHAs, workflows, outcomes, and root-cause catalog entries.
+
+The machine history currently reaches back farther in Action-run identity than the human-readable incident ledger, but the retained repository data does not provide a complete paginated export of every GitHub Actions run ever executed. Therefore the strongest defensible statement is:
+
+**F-001 / Run #1324/#1325 is the earliest GitHub Actions failure currently documented and recoverable from the repository's retained history.**
+
 ## 1. Coverage
 
 - Error Memory schema: 10
