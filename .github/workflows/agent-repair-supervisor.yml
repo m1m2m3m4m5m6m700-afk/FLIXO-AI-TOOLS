@@ -29,6 +29,17 @@ jobs:
       - name: Enforce Council directive
         run: node scripts/ci/test-council-directive.mjs
 
+      - name: Establish Council oversight contract
+        run: |
+          set -euo pipefail
+          node scripts/ci/test-council-directive.mjs
+          node scripts/ci/test-repair-control-plane.mjs
+          node scripts/ci/test-repair-lease.mjs
+          echo 'COUNCIL_OVERSIGHT_CONTRACT=PASS'
+          echo 'COUNCIL_ROLE=SUPERVISOR'
+          echo 'COUNCIL_AUTHORITY=OBSERVE_COORDINATE_HANDOFF_ONLY'
+          echo 'COUNCIL_GREEN_AUTHORITY=Daily·FLIXO Green Gate'
+
       - name: Observe main and execution without dispatch authority
         env:
           GH_TOKEN: ${{ github.token }}
@@ -45,6 +56,7 @@ jobs:
               echo "GREEN branch=$BRANCH sha=$SHA verification_run=$GREEN"
             elif [ -n "$FAILED" ]; then
               echo "RED_OBSERVED branch=$BRANCH sha=$SHA run=$FAILED"
+              echo "COUNCIL_DECISION=ESCALATE_TO_CANONICAL_REPAIR_GATE"
               echo "DISPATCH_AUTHORITY=CANONICAL_REPAIR_GATE_ONLY"
             else
               echo "WAITING branch=$BRANCH sha=$SHA"
