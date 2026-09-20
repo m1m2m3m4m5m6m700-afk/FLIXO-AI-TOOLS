@@ -11,6 +11,7 @@ const RECORDS_DIR = path.join(DIR, 'records');
 
 const sha256 = (value) => crypto.createHash('sha256').update(String(value), 'utf8').digest('hex');
 const normalize = (line) => String(line)
+  .replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\s*/u, '')
   .replace(/\x1b\[[0-?]*[ -/]*[@-~]/gu, '')
   .replace(/https?:\/\/[^\s]+/gu, '<URL>')
   .replace(/0x[0-9a-f]+/giu, '<HEX>')
