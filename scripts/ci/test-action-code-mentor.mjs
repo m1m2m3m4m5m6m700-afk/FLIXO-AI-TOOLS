@@ -14,6 +14,8 @@ const profile = {
   parentBotId: 'ACTION-REPAIR',
   localOnly: true,
   networkAccess: false,
+  localOnly: true,
+  networkAccess: false,
   authority: {
     permanentIndependentAuthority: false,
     readOnly: true,
@@ -98,6 +100,8 @@ assert.equal(packet.curriculum.typeDiagnostics, true);
 assert.ok(packet.repositoryIndex.counts.files >= 2);
 assert.ok(Array.isArray(packet.codeFindings));
 assert.ok(packet.simulation.predictedChecks.includes('npm run typecheck'));
+assert.ok(packet.semanticDiagnostics.enabled);
+assert.ok(packet.repositoryIndex.counts.files >= 2);
 
 assert.throws(
   () => buildMentorPacket({
