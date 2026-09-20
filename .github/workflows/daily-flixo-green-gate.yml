@@ -20,12 +20,11 @@ permissions:
   checks: read
   pull-requests: read
 
-# Every observation is evidence-bearing and must complete; never cancel a watcher because a newer observation arrived.
-# The repair lane itself is also non-canceling. Both layers use exact event identity.
+# At most one canonical Green Gate may actively observe a given exact source SHA.
+# A newer observation for the same SHA supersedes the older duplicate; it does not change the source SHA.
 concurrency:
-  # Unique group per observation: queued evidence must never supersede another queued observation.
-  group: flixo-continuous-error-watch-${{ github.run_id }}
-  cancel-in-progress: false
+  group: flixo-continuous-error-watch-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: true
 
 jobs:
   watch:
