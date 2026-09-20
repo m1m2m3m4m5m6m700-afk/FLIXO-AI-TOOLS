@@ -177,7 +177,7 @@ export function planRepair(log, { historical = [], memory } = {}) {
         ? selectedCandidate.file
         : reasoning.location?.file ?? null,
       symbol: selectedCandidate.id === 'typescript-missing-import'
-        ? String(log.match(/Cannot find name ["']([^'\"]+)["']/iu)?.[1] ?? '').trim()
+        ? String(log.match(/Cannot find name ["']([^"']+)["']/iu)?.[1] ?? '').trim()
         : undefined,
       diagnosticCode: selectedCandidate.id === 'typescript-missing-import' ? 'TS2304' : selectedCandidate.id === 'typescript-async-contract' ? 'TS1064' : undefined,
       diagnosticLine: reasoning.location?.line ?? null,
