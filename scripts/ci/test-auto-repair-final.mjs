@@ -34,10 +34,13 @@ const handoffGateWorkflow = fs.readFileSync('.github/workflows/agent-repair-hand
 assert.doesNotMatch(autoRepairWorkflow, /workflow_run:/);
 assert.match(autoRepairWorkflow, /adversarial_twin:/);
 assert.match(autoRepairWorkflow, /Await the parallel adversarial twin/);
-assert.match(autoRepairWorkflow, /TWIN_RESULT_READY=true/);
-assert.match(autoRepairWorkflow, /FLIXO_TWIN_PROPOSAL_PATH/);
+assert.match(autoRepairWorkflow, /TWIN_A_READY=true/);
+assert.match(autoRepairWorkflow, /TWIN_B_READY=true/);
+assert.match(autoRepairWorkflow, /FLIXO_TWIN_A_PATH/);
+assert.match(autoRepairWorkflow, /FLIXO_TWIN_B_PATH/);
 assert.match(autoRepairWorkflow, /Enforce divergent twin decision before mutation/);
-assert.match(autoRepairWorkflow, /TWIN_DIVERGENCE_GATE=PASS/);
+assert.match(autoRepairWorkflow, /TWIN_DECISION_GATE=PASS/);
+assert.match(autoRepairWorkflow, /CELL-005 select best repair option/);
 assert.match(autoRepairWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml/i);
 assert.match(autoRepairWorkflow, /CURRENT_TARGET_SHA=/);
 assert.match(autoRepairWorkflow, /execution advanced during repair; refusing stale publication/);
