@@ -36,6 +36,10 @@ jobs:
           echo 'OPEN_WORK_SLEEP=FORBIDDEN'
           echo 'STALE_HEARTBEAT_ACTION=RECOVER_AND_CONTINUE'
           echo 'GREEN_DOES_NOT_SUSPEND_RESIDENCY=true'
+          echo 'MANUAL_WAKE_REQUIRED=false'
+          echo 'SELF_DISABLE_ALLOWED=false'
+          echo 'SELF_ABORT_ALLOWED=false'
+          echo 'RUN_END_DOES_NOT_END_TASK=true'
 
       - name: Verify five-minute heartbeat compliance
         id: heartbeat_compliance
