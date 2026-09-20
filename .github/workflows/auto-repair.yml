@@ -743,7 +743,7 @@ jobs:
           SHA="$(cat /tmp/flixo-failed-sha)"
           FP="$FLIXO_FAILURE_FINGERPRINT"
           TASK_ID="ACTION-RED:$TARGET_RUN_ID:$FP"
-          node scripts/ci/action-three-bot-collaboration.mjs             --task="$TASK_ID"             --fingerprint="$FP"             --sha="$SHA"             --run-id="$TARGET_RUN_ID"             --log="$FLIXO_FAILURE_LOG"             --file-selection="$FLIXO_FILE_SELECTION_PATH"             --programmer-twin-parity="$FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH"             --output=/tmp/action-three-bot-collaboration.json
+          node scripts/ci/action-three-bot-collaboration.mjs             --task="$TASK_ID"             --fingerprint="$FP"             --sha="$SHA"             --run-id="$TARGET_RUN_ID"             --log="$FLIXO_FAILURE_LOG"             --file-selection="$FLIXO_FILE_SELECTION_PATH"             --programmer-twin-parity="$FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH"             --primary-proof="$FLIXO_PRIMARY_CORRECTNESS_PROOF_PATH"             --awareness="$FLIXO_SYSTEM_COGNITIVE_AWARENESS_PATH"             --output=/tmp/action-three-bot-collaboration.json
           test -s /tmp/action-three-bot-collaboration.json
           jq -e --arg sha "$SHA" --arg fp "$FP" --arg run "$TARGET_RUN_ID" '
             .status == "ACTIVE" and
