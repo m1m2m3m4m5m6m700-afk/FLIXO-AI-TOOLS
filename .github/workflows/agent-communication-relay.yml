@@ -1,0 +1,119 @@
+name: FLIXO Agent Communication Relay
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+
+concurrency:
+  group: flixo-agent-communication-${{ github.event.comment.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  receive:
+    name: Immediate agent message receive
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.issue.number == 761 &&
+        github.event.comment.body != '' &&
+        (
+          github.event.comment.user.login == 'github-actions[bot]' ||
+          github.event.comment.user.login == github.repository_owner
+        )
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout canonical communication implementation
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Extract and validate incoming message
+        id: message
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const body = process.env.COMMENT_BODY || '';
+          const match = body.match(/<!-- FLIXO_AGENT_MESSAGE -->[\\s\\S]*?\`\`\`json\\s*([\\s\\S]*?)\\s*\`\`\`/u);
+          if (!match) {
+            if (process.env.EVENT_NAME === 'workflow_dispatch') {
+              throw new Error('MANUAL_MESSAGE_PAYLOAD_REQUIRED');
+            }
+            fs.writeFileSync('/tmp/flixo-agent-message-skip', 'NO_CANONICAL_AGENT_MESSAGE\\n');
+            process.exit(0);
+          }
+          const message = JSON.parse(match[1]);
+          fs.writeFileSync('/tmp/flixo-agent-message.json', JSON.stringify(message, null, 2) + '\\n');
+          if (!message.messageId) throw new Error('AGENT_MESSAGE_ID_MISSING');
+          process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
+          NODE
+
+      - name: Ingest incoming message immediately
+        id: ingest
+        if: hashFiles('/tmp/flixo-agent-message.json') != ''
+        run: |
+          set -euo pipefail
+          node scripts/ci/agent-communication.mjs validate --message-file=/tmp/flixo-agent-message.json
+          node scripts/ci/agent-communication.mjs ingest --message-file=/tmp/flixo-agent-message.json | tee /tmp/flixo-agent-message-receipt.json
+          jq -r '"MESSAGE_STATUS=" + .status + "\\nMESSAGE_ID=" + .messageId + "\\nMESSAGE_ENTRY_SHA=" + .entrySha' /tmp/flixo-agent-message-receipt.json >> "$GITHUB_OUTPUT"
+
+      - name: Publish immediate receipt to master inbox
+        if: steps.ingest.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MESSAGE_ID: ${{ steps.ingest.outputs.MESSAGE_ID }}
+          MESSAGE_STATUS: ${{ steps.ingest.outputs.MESSAGE_STATUS }}
+          MESSAGE_SHA: ${{ steps.ingest.outputs.MESSAGE_ENTRY_SHA }}
+        run: |
+          set -euo pipefail
+          gh issue comment 761 --repo "$GITHUB_REPOSITORY" --body "### AGENT MESSAGE RECEIVED
+
+          **Message:** `$MESSAGE_ID`
+          **Status:** `$MESSAGE_STATUS`
+          **Entry SHA:** `$MESSAGE_SHA`
+          **Receipt:** `IMMEDIATE_EVENT_RECEIPT`
+
+          The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute.
+
+          <!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->"
+
+      - name: Wake repair supervision for repair-class messages
+        if: >-
+          steps.ingest.outcome == 'success' &&
+          (
+            contains(toJSON(github.event.comment.body || ''), 'REPAIR') ||
+            contains(toJSON(github.event.comment.body || ''), 'FAILURE') ||
+            contains(toJSON(github.event.comment.body || ''), 'RED')
+          )
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run agent-repair-supervisor.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo 'AGENT_MESSAGE_REPAIR_WAKE=DISPATCHED'
+
+      - name: Preserve communication evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-agent-message-${{ github.run_id }}
+          path: |
+            /tmp/flixo-agent-message.json
+            /tmp/flixo-agent-message-receipt.json
+            /tmp/flixo-agent-message-skip
+          if-no-files-found: ignore
+          retention-days: 30
