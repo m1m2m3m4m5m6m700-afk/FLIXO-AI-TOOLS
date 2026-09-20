@@ -6,6 +6,7 @@ const map={rules:[{domain:'a',patterns:['src/a/**'],commands:['npm run typecheck
 const cover=minimizeTestSet(['src/a/x.ts','src/b/y.ts'],map);assert.equal(cover.complete,true);assert.deepEqual(cover.selectedCommands,['npm run typecheck']);
 const full=minimizeTestSet(['unknown/file.bin'],map);assert.equal(full.forceFull,true);
 const strategy=rankRepairStrategies({strategyId:'reproduce-exact',attempt:2},{cases:[]});assert.equal(strategy.deterministicNext,'minimize-failure');assert.equal(strategy.repairAttemptRequired,true);
+const noRepeat=rankRepairStrategies({strategyId:'reproduce-exact',attempt:1,rejectedByDurableLedger:[{strategyId:'reproduce-exact'}]},{cases:[]});assert.notEqual(noRepeat.deterministicNext,'reproduce-exact');assert.equal(noRepeat.durableRejected,true);
 assert.equal(strategy.sourceSha, null);
 const blocked=securityGuardian({changedFiles:['.env.production'],branch:'execution'});assert.equal(blocked.status,'BLOCK');assert.ok(blocked.violations.some(x=>x.startsWith('SENSITIVE_PATH:')));
 const integrity=validateReleaseIntegrity({expectedSourceSha:'a'.repeat(40),executionSha:'b'.repeat(40),currentExecutionSha:'b'.repeat(40),prHeadSha:'b'.repeat(40),evidenceSha:'b'.repeat(40)});assert.equal(integrity.status,'BLOCK');
