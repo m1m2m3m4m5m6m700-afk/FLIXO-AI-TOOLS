@@ -44,7 +44,7 @@ export function validateBotProfile(profile) {
 
 export function validateThreeBotIntelligence(profile, bots) {
   const errors = [];
-  if (profile?.schemaVersion !== 4) err(errors, 'INTELLIGENCE_SCHEMA_INVALID');
+  if (profile?.schemaVersion !== 5) err(errors, 'INTELLIGENCE_SCHEMA_INVALID');
   if (profile?.parity?.model !== 'ROLE_SPECIALIZATION_WITH_SHARED_SAFETY' ||
       profile?.parity?.commonSafetyEqual !== true ||
       profile?.parity?.commonIdentityBindingEqual !== true ||
@@ -212,6 +212,7 @@ export function runGate(root = ROOT) {
     if (residency.residency?.noWithdrawal !== true) err(errors, 'WITHDRAWAL_FORBIDDEN_MISSING');
     if (residency.residency?.postGreenState !== 'READY_RESIDENT') err(errors, 'POST_GREEN_RESIDENCY_STATE_INVALID');
     if (residency.residency?.sleepAdmissionMode !== 'DENY_ALL_STATES') err(errors, 'SLEEP_ADMISSION_NOT_PERMANENTLY_DENIED');
+    if (residency.residency?.sleepState !== 'PERMANENTLY_FORBIDDEN') err(errors, 'SLEEP_STATE_NOT_PERMANENTLY_FORBIDDEN');
         if (residency.automaticVisits?.visitModes?.includes('EXCHANGE') !== true) err(errors, 'RESIDENCY_EXCHANGE_VISIT_MISSING');
   }
 
