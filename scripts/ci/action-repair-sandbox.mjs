@@ -21,11 +21,11 @@ const parseCheck = (check) => {
   if (value === 'npm run lint') return ['npm', ['run', 'lint']];
   if (value === 'npm run build') return ['npm', ['run', 'build']];
   if (/^npm run test:[A-Za-z0-9:_-]+$/u.test(value)) return ['npm', ['run', value.slice('npm run '.length)]];
-  if (/^node (?:--(?:import|require)=\\S+ )?(?:scripts|diagnostics)\\/.test(value)) {
-    const parts = value.split(/\\s+/u);
+  if (/^node (?:--(?:import|require)=\S+ )?(?:scripts|diagnostics)\//u.test(value)) {
+    const parts = value.split(/\s+/u);
     return ['node', parts.slice(1)];
   }
-  if (/^node --check (?:scripts|diagnostics)\\//u.test(value)) {
+  if (/^node --check (?:scripts|diagnostics)\//u.test(value)) {
     const parts = value.split(/\\s+/u);
     return ['node', parts.slice(1)];
   }
