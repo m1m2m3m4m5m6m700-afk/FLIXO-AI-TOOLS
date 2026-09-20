@@ -9,6 +9,8 @@ assert.ok(LIVE_FILTER_REGISTRY.length >= 100);
 assert.equal(new Set(LIVE_FILTER_REGISTRY.map((filter) => filter.canonicalId)).size, LIVE_FILTER_REGISTRY.length);
 assert.ok(LIVE_FILTER_REGISTRY.every((filter) => filter.version === 1 && filter.supportsLive));
 assert.ok(LIVE_FILTER_REGISTRY.every((filter) => filterParametersForTest(filter.cssFilter) !== null));
+assert.equal(filterParametersForTest('brightness(1) blur(2px)'), null);
+assert.equal(filterParametersForTest('brightness(110%) contrast(90%)'), null);
 assert.equal(getLiveFilter('effect.original')?.canonicalId, 'effect.original');
 assert.equal(getLiveFilter('missing'), undefined);
 assert.equal(resolveLiveFilter('warm live filter')?.canonicalId, 'effect.warm');
