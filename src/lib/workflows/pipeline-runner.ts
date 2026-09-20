@@ -126,7 +126,7 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
           onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, outputBlob: output, retry: attempt, receipt, receiptChain, auditEvents: auditEventsForAttempt });
           break;
         }
-        onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, retry: attempt, auditEvents });
+        onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, retry: attempt, auditEvents: auditEventsForAttempt });
       } catch (error) {
         const message = error instanceof Error ? error.message : `Step '${step.toolId}' failed.`;
         const failureAudit = createExecutionAuditEvent({
