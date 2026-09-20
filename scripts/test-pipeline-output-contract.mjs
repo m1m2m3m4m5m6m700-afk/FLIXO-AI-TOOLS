@@ -121,6 +121,12 @@ await assert.rejects(
   /plan fingerprint/,
 );
 
+const tamperedTaskIdentity = Object.freeze({ ...receiptChain, taskId: 'task-other' });
+await assert.rejects(
+  () => assertPipelineReceiptChain(tamperedTaskIdentity),
+  /digest or length mismatch/,
+);
+
 const tamperedChain = Object.freeze({ ...receiptChain, chainSha256: 'f'.repeat(64) });
 await assert.rejects(
   () => assertPipelineReceiptChain(tamperedChain),
