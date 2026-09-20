@@ -161,8 +161,8 @@ if (!/EXECUTION_SHA="\$\(git rev-parse HEAD\)"[\s\S]*EXPECTED_PUSH_SHA="\$GITHUB
   console.error('CI contract failed: push watchdog wake must remain bound to the exact checked-out event SHA.');
   process.exit(1);
 }
-if (!/gh workflow run daily-flixo-green-gate\.yml[\s\S]*ACTIVE_TEST_SYSTEM="[\s\S]*gh run list --repo "\$GITHUB_REPOSITORY" --workflow "FLIXO Test System"[\s\S]*--commit "\$EXECUTION_SHA"[\s\S]*status == "queued"[\s\S]*status == "in_progress"[\s\S]*FAIL CLOSED: no exact-SHA canonical Test System run is active/.test(executionWatchdogWorkflow)) {
-  console.error('CI contract failed: watchdog canonical observer fallback must remain exact-SHA and fail-closed.');
+if (!/name: Dispatch canonical Test System on exact SHA and verify admission[\s\S]*gh workflow run ci\.yml --repo "\$GITHUB_REPOSITORY" --ref execution[\s\S]*gh run list --repo "\$GITHUB_REPOSITORY" --workflow "FLIXO Test System"[\s\S]*--commit "\$EXECUTION_SHA"[\s\S]*status == "queued"[\s\S]*status == "in_progress"[\s\S]*FAIL CLOSED: canonical FLIXO Test System did not start for exact SHA/.test(executionWatchdogWorkflow)) {
+  console.error('CI contract failed: watchdog must dispatch the canonical Test System and admit only an active exact-SHA run.');
   process.exit(1);
 }
 if (!/cancel-in-progress:\s*false/.test(greenGateWorkflow) ||
