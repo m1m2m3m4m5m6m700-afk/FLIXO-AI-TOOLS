@@ -16,11 +16,11 @@ Before every task:
 1. Read `PROJECTS.md`.
 2. Read `المهام.md`.
 3. Read `AGENTS.md` and relevant agent/collaboration contracts.
-4. When the task is caused by a failure, read `docs/agents/ERROR-TEACHING-500.md` and match the failure to the most relevant teaching rules before forming an RCA.
+4. When the task is caused by a failure, route it through `docs/agents/ERROR-TEACHING-ROUTER.json` or `scripts/ci/error-teaching-router.mjs`, then read the routed group before forming an RCA.
 5. Inspect the existing implementation before changing anything.
 6. Recover historical context when it materially explains the task, but never treat historical code as automatically authoritative.
 
-The 500-rule error corpus is **teaching guidance only**. Current exact-SHA evidence, active protocols, validators, and authority boundaries always outrank historical teaching.
+The 1000-rule error corpus is **teaching guidance only**. Routing is the retrieval mechanism; do not scan all 1000 rules by default. Current exact-SHA evidence, active protocols, validators, and authority boundaries always outrank historical teaching.
 
 Never rebuild the project or replace its architecture. Extend the existing system.
 
@@ -188,7 +188,7 @@ If the baseline SHA changes while preparing the patch:
 
 For a failure-driven task:
 1. capture the exact failure and SHA;
-2. match the failure to the 500-rule corpus;
+2. route the failure to its group file and match the failure to the 1000-rule corpus;
 3. treat the matched rule as a hypothesis aid, not proof;
 4. identify trigger → propagation → violated invariant → causal source;
 5. falsify the RCA before mutation;
