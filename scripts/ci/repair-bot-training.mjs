@@ -9,6 +9,7 @@ const MEMORY = process.env.FLIXO_REPAIR_MEMORY ?? path.join(ROOT, 'diagnostics/a
 const FAILURE_LOG = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const OUTPUT = process.env.FLIXO_REPAIR_TRAINING_PATH ?? '/tmp/flixo-repair-training.json';
 const DIAGNOSIS = process.env.FLIXO_REPAIR_DIAGNOSIS_PATH ?? '/tmp/flixo-root-cause.json';
+const BASELINE_TRAINING = process.env.FLIXO_REPAIR_TRAINING_BASELINE_PATH ?? path.join(ROOT, 'diagnostics/auto-repair/training-state.json');
 
 export const STRATEGIES = Object.freeze([
   'reproduce-exact','minimize-failure','diff-forensics','environment-audit','workflow-forensics',
@@ -23,6 +24,45 @@ const FAILURE = new Set(['failure','unrepaired','blocked','reverted-repair','rev
 const sha256 = (v) => createHash('sha256').update(String(v), 'utf8').digest('hex');
 const readJson = (file, fallback) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; } };
 const norm = (v) => String(v ?? '').trim().toLowerCase();
+
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalize(value[key])]));
+  return value;
+}
+const canonicalJson = (value) => JSON.stringify(canonicalize(value));
+const hashObject = (value) => sha256(canonicalJson(value));
+const verifiedOutcome = (row) => row.outcome === 'success' || row.outcome === 'failure';
+
+function recurrenceIndex(rows) {
+  const index = new Map();
+  for (const row of rows) {
+    const key = [row.fingerprint, row.rootCause].join('|');
+    const cell = index.get(key) ?? { fingerprint: row.fingerprint, rootCause: row.rootCause, total: 0, successes: 0, failures: 0, verified: 0 };
+    cell.total += 1;
+    if (row.outcome === 'success') cell.successes += 1;
+    if (row.outcome === 'failure') cell.failures += 1;
+    if (verifiedOutcome(row)) cell.verified += 1;
+    index.set(key, cell);
+  }
+  return index;
+}
+
+function experiencePriority(row, recurrenceCell) {
+  const sourceScore = row.source === 'verified-repair-memory' || row.source === 'historical-actions' ? 1 : row.source === 'anti-lesson' || row.source === 'rejected-history' ? 0.85 : 0.5;
+  const outcomeScore = row.outcome === 'success' ? 1 : row.outcome === 'failure' ? 0.95 : 0.35;
+  const provenanceScore = row.failedSha && row.targetSha ? 1 : 0.7;
+  const ambiguityPenalty = row.rootCause === 'unknown' ? 0.35 : 0;
+  const repetition = Math.min(1, Math.max(0, (recurrenceCell?.total ?? 1) - 1) / 4);
+  const novelty = 1 / Math.max(1, recurrenceCell?.total ?? 1);
+  return Number(Math.max(0, Math.min(1, sourceScore * 0.30 + outcomeScore * 0.25 + provenanceScore * 0.20 + repetition * 0.15 + novelty * 0.10 - ambiguityPenalty)).toFixed(5));
+}
+
+function buildPrioritizedReplay(rows) {
+  const index = recurrenceIndex(rows);
+  return rows.map((row) => ({ ...row, replayPriority: experiencePriority(row, index.get([row.fingerprint, row.rootCause].join('|'))) }))
+    .sort((a, b) => b.replayPriority - a.replayPriority || a.fingerprint.localeCompare(b.fingerprint) || a.strategyId.localeCompare(b.strategyId));
+}
 
 function memoryExamples(memory) {
   const out = [];
@@ -112,7 +152,7 @@ function split(rows) {
 function fit(rows) {
   const cells=new Map();
   for(const row of rows){
-    if(row.outcome==='observation') continue;
+    if(!verifiedOutcome(row)) continue;
     const key=row.rootCause+'|'+row.strategyId;
     const cell=cells.get(key) ?? {rootCause:row.rootCause,strategyId:row.strategyId,success:0,failure:0};
     if(row.outcome==='success') cell.success+=1; else cell.failure+=1;
@@ -224,7 +264,8 @@ function attemptBucket(attempt = 0) {
 
 function buildStateExamples(rows) {
   const grouped = new Map();
-  for (const row of rows) {
+  const sequenceRows = rows.filter((row) => row.source === 'verified-repair-memory' || row.source === 'historical-actions');
+  for (const row of sequenceRows) {
     const key = [row.fingerprint, row.rootCause].join('|');
     const list = grouped.get(key) ?? [];
     list.push(row);
@@ -234,19 +275,23 @@ function buildStateExamples(rows) {
   for (const list of grouped.values()) {
     list.sort((a, b) => String(a.at ?? '').localeCompare(String(b.at ?? '')));
     let previousStrategy = 'START';
-    list.forEach((row, index) => {
-      states.push({
-        fingerprint: row.fingerprint,
-        rootCause: norm(row.rootCause),
-        featureSignature: featureSignature(row.features),
-        attemptBucket: attemptBucket(index),
-        previousStrategy,
-        strategyId: row.strategyId,
-        outcome: row.outcome,
-        reward: row.outcome === 'success' ? 4 : row.outcome === 'failure' ? -3 : 0,
-      });
-      previousStrategy = row.strategyId;
-    });
+    const sequence = list.map((row, index) => ({
+      fingerprint: row.fingerprint,
+      rootCause: norm(row.rootCause),
+      featureSignature: featureSignature(row.features),
+      attemptBucket: attemptBucket(index),
+      previousStrategy,
+      strategyId: row.strategyId,
+      outcome: row.outcome,
+      reward: row.outcome === 'success' ? 4 : row.outcome === 'failure' ? -3 : 0,
+      terminal: index === list.length - 1 || row.outcome === 'success',
+    }));
+    for (let index = 0; index < sequence.length; index += 1) {
+      const current = sequence[index];
+      const next = sequence[index + 1];
+      states.push({ ...current, nextStateKey: current.terminal || !next ? null : stateKey(next) });
+      previousStrategy = current.strategyId;
+    }
   }
   return states;
 }
@@ -255,20 +300,31 @@ function stateKey(state) {
   return [norm(state.rootCause), norm(state.featureSignature), norm(state.attemptBucket), norm(state.previousStrategy)].join('|');
 }
 
+function maxQForState(q, statePrefix) {
+  let max = 0;
+  for (const [qKey, value] of q.entries()) {
+    if (qKey.startsWith(statePrefix + '|')) max = Math.max(max, Number(value) || 0);
+  }
+  return max;
+}
+
 function trainStatePolicy(examples, epochs = 8) {
   const q = new Map();
   const visits = new Map();
   const alpha = 0.22;
   const gamma = 0.78;
-  const learningRate = 1 / Math.max(1, epochs);
+  const replay = buildPrioritizedReplay(examples);
   for (let epoch = 0; epoch < epochs; epoch += 1) {
-    for (const row of examples) {
-      if (row.outcome === 'observation') continue;
+    for (const row of replay) {
+      if (!verifiedOutcome(row)) continue;
       const key = stateKey(row);
       const qKey = key + '|' + row.strategyId;
       const old = Number(q.get(qKey) ?? 0);
-      const shapedReward = row.reward * (1 + epoch * learningRate * 0.25);
-      q.set(qKey, old + alpha * (shapedReward - old));
+      const priorityWeight = 0.75 + Number(row.replayPriority ?? 0.5) * 0.5;
+      const shapedReward = row.reward * priorityWeight;
+      const bootstrap = row.terminal || !row.nextStateKey ? 0 : gamma * maxQForState(q, row.nextStateKey);
+      const target = shapedReward + bootstrap;
+      q.set(qKey, old + alpha * (target - old));
       visits.set(key, Number(visits.get(key) ?? 0) + 1);
     }
   }
@@ -280,10 +336,8 @@ function trainStatePolicy(examples, epochs = 8) {
     const item = { strategyId, qValue: Number(value.toFixed(4)), visits: Number(visits.get(key) ?? 0) };
     (policy[key] ??= []).push(item);
   }
-  for (const list of Object.values(policy)) {
-    list.sort((a, b) => b.qValue - a.qValue || b.visits - a.visits || a.strategyId.localeCompare(b.strategyId));
-  }
-  return { schemaVersion: 1, algorithm: 'TABULAR_STATE_ACTION_Q', epochs, alpha, gamma, policy };
+  for (const list of Object.values(policy)) list.sort((a, b) => b.qValue - a.qValue || b.visits - a.visits || a.strategyId.localeCompare(b.strategyId));
+  return { schemaVersion: 2, algorithm: 'TABULAR_STATE_ACTION_Q', update: 'BELLMAN_BOOTSTRAPPED_STATE_TRANSITIONS', epochs, alpha, gamma, prioritizedReplay: true, policy };
 }
 
 function predictStatePolicy(model, { rootCause = 'unknown', features = [], attempt = 0, previousStrategy = 'START', rejected = [] } = {}) {
@@ -386,7 +440,7 @@ function evaluateAdversarial(model,examples){
   return {cases:total,score:Number((correct/Math.max(1,total)).toFixed(4))};
 }
 
-function masteryProfile({ rows, behaviorEvaluation, stateEvaluation }) {
+function masteryProfile({ rows, behaviorEvaluation, stateEvaluation, calibration, recurrence }) {
   const verified = rows.filter((row) => row.outcome === 'success' || row.outcome === 'failure');
   const counts = Object.fromEntries(CURRICULUM.map(([, skill]) => [skill, 0]));
   for (const row of verified) {
@@ -405,7 +459,7 @@ function masteryProfile({ rows, behaviorEvaluation, stateEvaluation }) {
     }
   }
   const competence = {
-    exact_sha: Math.min(1, verified.length / 10),
+    exact_sha: Math.min(1, verified.filter((row) => row.failedSha && row.targetSha).length / 10),
     root_cause: Math.min(1, counts.root_cause / 8),
     hypothesis: Math.min(1, counts.hypothesis / 8),
     strategy_selection: stateEvaluation.successAccuracy,
@@ -413,11 +467,119 @@ function masteryProfile({ rows, behaviorEvaluation, stateEvaluation }) {
     external_isolation: counts.external_isolation ? 1 : 0,
     minimal_repair: behaviorEvaluation.successAccuracy,
     regression: counts.regression ? 1 : 0,
-    recurrence: counts.recurrence ? 1 : 0,
+    recurrence: recurrence.overallRisk === 'LOW' ? 1 : recurrence.overallRisk === 'MEDIUM' ? 0.70 : 0.45,
     closure: counts.closure ? 1 : 0,
+    evidence_ranking: calibration.expectedCalibrationError == null ? 0 : Math.max(0, 1 - calibration.expectedCalibrationError),
+    recurrence_prevention: recurrence.highestRisk?.risk === 'HIGH' ? 0.45 : 1,
   };
   const average = Object.values(competence).reduce((sum, value) => sum + value, 0) / Object.values(competence).length;
   return { sampleCounts: counts, competence, overall: Number(average.toFixed(4)) };
+}
+
+function buildCounterfactualExamples(rows) {
+  const rejectedByCase = new Map();
+  for (const row of rows) {
+    if (row.source !== 'anti-lesson' && row.source !== 'rejected-history') continue;
+    const key = [row.fingerprint, row.rootCause].join('|');
+    const set = rejectedByCase.get(key) ?? new Set();
+    set.add(row.strategyId);
+    rejectedByCase.set(key, set);
+  }
+  const out = [];
+  for (const row of rows) {
+    if ((row.source !== 'verified-repair-memory' && row.source !== 'historical-actions') || row.outcome !== 'success') continue;
+    const rejected = rejectedByCase.get([row.fingerprint, row.rootCause].join('|')) ?? new Set();
+    for (const strategyId of rejected) {
+      if (strategyId === row.strategyId || !STRATEGIES.includes(strategyId)) continue;
+      out.push({ ...row, source: 'counterfactual', strategyId, previousStrategy: row.strategyId, outcome: 'counterfactual', counterfactualOf: row.strategyId, counterfactualReason: 'EXPLICITLY_REJECTED_STRATEGY_FROM_DURABLE_MEMORY', reward: -4 });
+    }
+  }
+  return out;
+}
+
+function trainCounterfactualModel(examples) {
+  const policy = {};
+  for (const row of examples) {
+    const key = [row.rootCause, featureSignature(row.features), row.previousStrategy].join('|');
+    (policy[key] ??= []).push({ strategyId: row.strategyId, penalty: 4, observations: 1, source: row.source });
+  }
+  for (const list of Object.values(policy)) list.sort((a, b) => b.penalty - a.penalty || a.strategyId.localeCompare(b.strategyId));
+  return { schemaVersion: 1, algorithm: 'EVIDENCE_BACKED_COUNTERFACTUAL_REJECTION', policy, cases: examples.length };
+}
+
+function predictPolicyWithConfidence(policy, row) {
+  const contextual = policy?.byRootCause?.[norm(row.rootCause)] ?? [];
+  const global = policy?.global ?? {};
+  const candidates = (contextual.length ? contextual : Object.entries(global).map(([strategyId, value]) => ({ strategyId, ...value }))).slice();
+  candidates.sort((a, b) => Number(b.successRate ?? 0) - Number(a.successRate ?? 0) || a.strategyId.localeCompare(b.strategyId));
+  const candidate = candidates[0] ?? null;
+  return { strategyId: candidate?.strategyId ?? null, confidence: Number(Math.max(0, Math.min(1, Number(candidate?.successRate ?? 0))).toFixed(4)) };
+}
+
+function calibratePolicy(policy, testRows) {
+  const scored = testRows.filter(verifiedOutcome);
+  const buckets = [];
+  for (let bucket = 0; bucket < 5; bucket += 1) {
+    const lower = bucket / 5;
+    const upper = (bucket + 1) / 5;
+    const rows = scored.filter((row) => {
+      const confidence = predictPolicyWithConfidence(policy, row).confidence;
+      return confidence >= lower && (bucket === 4 ? confidence <= upper : confidence < upper);
+    });
+    if (!rows.length) continue;
+    const accuracy = rows.filter((row) => {
+      const prediction = predictPolicyWithConfidence(policy, row);
+      return row.outcome === 'success' ? prediction.strategyId === row.strategyId : prediction.strategyId !== row.strategyId;
+    }).length / rows.length;
+    buckets.push({ lower, upper, observations: rows.length, meanConfidence: Number((rows.reduce((sum, row) => sum + predictPolicyWithConfidence(policy, row).confidence, 0) / rows.length).toFixed(4)), accuracy: Number(accuracy.toFixed(4)) });
+  }
+  const total = scored.length;
+  const ece = total ? buckets.reduce((sum, bucket) => sum + Math.abs(bucket.meanConfidence - bucket.accuracy) * bucket.observations, 0) / total : null;
+  const thresholds = [0.45, 0.55, 0.65, 0.70, 0.75, 0.80, 0.85];
+  const candidates = thresholds.map((threshold) => {
+    const active = scored.filter((row) => predictPolicyWithConfidence(policy, row).confidence >= threshold);
+    const positives = active.filter((row) => row.outcome === 'success');
+    const negatives = active.filter((row) => row.outcome === 'failure');
+    const successAccuracy = positives.length ? positives.filter((row) => predictPolicyWithConfidence(policy, row).strategyId === row.strategyId).length / positives.length : 1;
+    const failureAvoidance = negatives.length ? negatives.filter((row) => predictPolicyWithConfidence(policy, row).strategyId !== row.strategyId).length / negatives.length : 1;
+    return { threshold, activeCases: active.length, abstainedCases: scored.length - active.length, successAccuracy: Number(successAccuracy.toFixed(4)), failureAvoidance: Number(failureAvoidance.toFixed(4)) };
+  });
+  const admissible = candidates.filter((item) => item.successAccuracy >= 0.70 && item.failureAvoidance >= 0.60);
+  return { algorithm: 'EMPIRICAL_BUCKET_CALIBRATION', expectedCalibrationError: ece == null ? null : Number(ece.toFixed(4)), buckets, abstention: { recommendedThreshold: admissible.sort((a, b) => a.threshold - b.threshold)[0]?.threshold ?? 0.75, rule: 'LOW_CONFIDENCE_OR_AMBIGUOUS_STATE_REQUIRES_MORE_EVIDENCE', candidates } };
+}
+
+function buildGoldenReplaySet(rows) {
+  return rows.filter((row) => verifiedOutcome(row) && parseInt(sha256(row.fingerprint).slice(0, 2), 16) % 3 === 0).slice(0, 200);
+}
+
+function evaluatePolicyAgainstRows(policy, rows) {
+  let successes = 0, successHits = 0, failures = 0, avoided = 0;
+  for (const row of rows) {
+    if (!verifiedOutcome(row)) continue;
+    const prediction = predictPolicyWithConfidence(policy, row);
+    if (row.outcome === 'success') { successes += 1; if (prediction.strategyId === row.strategyId) successHits += 1; }
+    else { failures += 1; if (prediction.strategyId !== row.strategyId) avoided += 1; }
+  }
+  return { cases: successes + failures, successAccuracy: Number((successHits / Math.max(1, successes)).toFixed(4)), failureAvoidance: Number((avoided / Math.max(1, failures)).toFixed(4)) };
+}
+
+function antiForgettingCheck(candidatePolicy, baselineReport, goldenRows) {
+  const candidate = evaluatePolicyAgainstRows(candidatePolicy, goldenRows);
+  if (!baselineReport?.policy) return { status: 'NO_BASELINE', candidate, regression: false };
+  const baseline = evaluatePolicyAgainstRows(baselineReport.policy, goldenRows);
+  const regression = candidate.successAccuracy + 0.05 < baseline.successAccuracy || candidate.failureAvoidance + 0.05 < baseline.failureAvoidance;
+  return { status: regression ? 'REJECT_TRAINING' : 'PASS', candidate, baseline, regression };
+}
+
+function buildRecurrenceProfile(rows, focusFingerprint = null) {
+  const index = recurrenceIndex(rows);
+  const cases = [...index.values()].map((item) => {
+    const repeatDensity = Math.min(1, Math.max(0, item.total - 1) / 4);
+    const failureDensity = item.verified ? item.failures / item.verified : 0;
+    const riskScore = Number(Math.min(1, repeatDensity * 0.55 + failureDensity * 0.45).toFixed(4));
+    return { ...item, riskScore, risk: riskScore >= 0.75 ? 'HIGH' : riskScore >= 0.45 ? 'MEDIUM' : 'LOW' };
+  }).sort((a, b) => b.riskScore - a.riskScore || b.total - a.total);
+  return { algorithm: 'HEURISTIC_RECURRENCE_RISK-v1', cases: cases.slice(0, 100), focused: focusFingerprint ? cases.filter((item) => item.fingerprint === focusFingerprint) : [], highestRisk: cases[0] ?? null, overallRisk: cases.some((item) => item.risk === 'HIGH') ? 'HIGH' : cases.some((item) => item.risk === 'MEDIUM') ? 'MEDIUM' : 'LOW' };
 }
 
 function evaluateBehavior(model,examples){
@@ -434,6 +596,7 @@ function evaluateBehavior(model,examples){
 export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],lessons:[],antiLessons:[],actionHistory:[]}),log='',diagnosis=readJson(DIAGNOSIS,null)}={}) {
   const rows=dedupe([...memoryExamples(memory),...historicalExamples(),...negativeExamples(memory)]);
   const {train,test}=split(rows);
+  const prioritizedRows=buildPrioritizedReplay(rows);
   const policy=fit(train);
   const evaluation=evaluate(policy,test);
   const rootCause=norm(diagnosis?.rootCause ?? 'unknown');
@@ -447,14 +610,22 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
   const {train:stateTrain,test:stateTest}=split(stateRows);
   const stateModel=trainStatePolicy(stateTrain,8);
   const stateEvaluation=evaluateStatePolicy(stateModel,stateTest);
-  const adversarialRows=buildAdversarialTrainingSet(stateRows);
+  const recurrence=buildRecurrenceProfile(rows, fingerprintFailure(String(log ?? '')) || null);
+  const counterfactualRows=buildCounterfactualExamples(rows);
+  const adversarialRows=buildAdversarialTrainingSet(stateRows).concat(counterfactualRows.map((row) => ({ ...row, variant:'COUNTERFACTUAL_REPLAY', previousStrategy:row.previousStrategy ?? 'START' })));
   const {train:adversarialTrain,test:adversarialTest}=split(adversarialRows);
   const adversarialModel=trainAdversarialPolicy(adversarialTrain,6);
   const adversarialEvaluation=evaluateAdversarial(adversarialModel,adversarialTest);
-  const mastery=masteryProfile({rows,behaviorEvaluation,stateEvaluation});
+  const calibration=calibratePolicy(policy,test);
+  const goldenReplay=buildGoldenReplaySet(rows);
+  const baselineReport=readJson(BASELINE_TRAINING,null);
+  const antiForgetting=antiForgettingCheck(policy,baselineReport,goldenReplay);
+  const mastery=masteryProfile({rows,behaviorEvaluation,stateEvaluation,calibration,recurrence});
   const stateCompetent=stateEvaluation.successAccuracy>=.65 && stateEvaluation.failureAvoidance>=.60;
   const adversarialCompetent=adversarialEvaluation.score>=.60;
-  const competent=evaluation.accuracy>=.70 && (evaluation.negativeAvoidance==null || evaluation.negativeAvoidance>=.60) && stateCompetent && adversarialCompetent && mastery.overall>=.65;
+  const calibrationCompetent=calibration.expectedCalibrationError==null || calibration.expectedCalibrationError<=.20;
+  const antiForgettingCompetent=antiForgetting.status!=='REJECT_TRAINING';
+  const competent=evaluation.accuracy>=.70 && (evaluation.negativeAvoidance==null || evaluation.negativeAvoidance>=.60) && stateCompetent && adversarialCompetent && mastery.overall>=.65 && calibrationCompetent && antiForgettingCompetent;
   return {
     schemaVersion:1,
     protocol:'FLIXO-REPAIR-BOT-BEHAVIORAL-TRAINING-v1',
@@ -476,16 +647,26 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
     stateEvaluation,
     adversarialModel,
     adversarialEvaluation,
+    counterfactualModel:trainCounterfactualModel(counterfactualRows),
+    counterfactualEvaluation:{cases:counterfactualRows.length,sourceIntegrity:counterfactualRows.every((row)=>row.source==='counterfactual')},
+    recurrence,
+    calibration,
+    goldenReplay:{cases:goldenReplay.length,evaluation:evaluatePolicyAgainstRows(policy,goldenReplay)},
+    antiForgetting,
+    prioritizedReplay:{algorithm:'DETERMINISTIC_PRIORITY_REPLAY-v1',cases:prioritizedRows.length,topCases:prioritizedRows.slice(0,20).map((row)=>({fingerprint:row.fingerprint,rootCause:row.rootCause,strategyId:row.strategyId,outcome:row.outcome,priority:row.replayPriority}))},
     mastery,
     evaluation,
     decision:{
       mode:sufficient&&competent?'TRAINED_POLICY':rows.length?'BOOTSTRAP_POLICY':'CURRICULUM_ONLY',
       competent,sufficient,
-      eligibilityChecks:{datasetSize:rows.length>=8,policyAccuracy:evaluation.accuracy>=.70,negativeAvoidance:evaluation.negativeAvoidance==null||evaluation.negativeAvoidance>=.60,stateAction:stateCompetent,adversarial:adversarialCompetent,mastery:mastery.overall>=.65},
+      eligibilityChecks:{datasetSize:rows.length>=8,policyAccuracy:evaluation.accuracy>=.70,negativeAvoidance:evaluation.negativeAvoidance==null||evaluation.negativeAvoidance>=.60,stateAction:stateCompetent,adversarial:adversarialCompetent,calibration:calibrationCompetent,antiForgetting:antiForgettingCompetent,mastery:mastery.overall>=.65},
       eligibleToInfluenceRouting:rows.length>=8 && competent,
       behavioralTraining:{epochs:5,trainedExamples:behaviorTrain.length,evaluationExamples:behaviorTest.length,competent:behaviorEvaluation.successAccuracy>=.65 && behaviorEvaluation.failureAvoidance>=.60},
-      stateActionTraining:{algorithm:'TABULAR_STATE_ACTION_Q',epochs:8,trainedExamples:stateTrain.length,evaluationExamples:stateTest.length,competent:stateEvaluation.successAccuracy>=.65 && stateEvaluation.failureAvoidance>=.60},
+      stateActionTraining:{algorithm:'TABULAR_STATE_ACTION_Q',update:stateModel.update,epochs:8,trainedExamples:stateTrain.length,evaluationExamples:stateTest.length,prioritizedReplay:stateModel.prioritizedReplay,competent:stateEvaluation.successAccuracy>=.65 && stateEvaluation.failureAvoidance>=.60},
       adversarialTraining:{algorithm:'ADVERSARIAL_CONTEXT_REPLAY',epochs:6,trainedExamples:adversarialTrain.length,evaluationExamples:adversarialTest.length,score:adversarialEvaluation.score,competent:adversarialEvaluation.score>=.60},
+      counterfactualTraining:{algorithm:'EVIDENCE_BACKED_COUNTERFACTUAL_REJECTION',examples:counterfactualRows.length,sourceOnlyFromRejectedMemory:true},
+      calibration:{algorithm:calibration.algorithm,ece:calibration.expectedCalibrationError,recommendedAbstentionThreshold:calibration.abstention.recommendedThreshold,competent:calibrationCompetent},
+      antiForgetting:{status:antiForgetting.status,regression:antiForgetting.regression,competent:antiForgettingCompetent,goldenReplayCases:goldenReplay.length},
       masteryThreshold:0.65,
       masteryOverall:mastery.overall,
       rule:'TRAINING_INFLUENCES_SELECTION_BUT_NEVER_GRANTS_MUTATION_OR_GREEN_AUTHORITY'
@@ -493,8 +674,31 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
     preferredStrategy:preferred,
     trainingObjectives:[
       'ROOT_CAUSE_IDENTIFICATION','EVIDENCE_DRIVEN_ACTION_SELECTION','SUCCESS_AND_FAILURE_LEARNING','TRAINING_GRADUATION',
-      'ANTI_LESSON_AVOIDANCE','BEHAVIORAL_SEQUENCE_LEARNING','STATE_ACTION_LEARNING','FEEDBACK_REWARD_LEARNING','COUNTERFACTUAL_AVOIDANCE','EXTERNAL_FAILURE_SEPARATION','FRESH_EXACT_SHA_VERIFICATION'
-    ]
+      'ANTI_LESSON_AVOIDANCE','BEHAVIORAL_SEQUENCE_LEARNING','STATE_ACTION_LEARNING','FEEDBACK_REWARD_LEARNING','COUNTERFACTUAL_AVOIDANCE','EXTERNAL_FAILURE_SEPARATION','FRESH_EXACT_SHA_VERIFICATION',
+      'PRIORITIZED_EXPERIENCE_REPLAY','CONFIDENCE_CALIBRATION','ABSTENTION','RECURRENCE_PREDICTION','ANTI_CATASTROPHIC_FORGETTING','SKILL_SPECIFIC_MASTERY'
+    ],
+    trainingProvenance:{
+      targetSha:process.env.FLIXO_EXPECTED_TARGET_SHA ?? process.env.FLIXO_TARGET_SHA ?? null,
+      datasetHash:hashObject(prioritizedRows.map(({replayPriority,...row})=>row)),
+      memoryHash:hashObject(memory),
+      baselineTrainingPath:BASELINE_TRAINING,
+      curriculumHash:hashObject(CURRICULUM),
+      policyHash:hashObject(policy),
+      statePolicyHash:hashObject(stateModel),
+      adversarialPolicyHash:hashObject(adversarialModel),
+      counterfactualHash:hashObject(counterfactualRows),
+      calibrationHash:hashObject(calibration),
+      recurrenceHash:hashObject(recurrence),
+      evaluationHash:hashObject({evaluation,stateEvaluation,adversarialEvaluation,antiForgetting}),
+      algorithmVersions:{
+        behavioral:'SEQUENCE_TRANSITIONS-v1',
+        state:'BELLMAN_BOOTSTRAPPED_STATE_TRANSITIONS-v2',
+        replay:'DETERMINISTIC_PRIORITY_REPLAY-v1',
+        counterfactual:'EVIDENCE_BACKED_COUNTERFACTUAL_REJECTION-v1',
+        calibration:'EMPIRICAL_BUCKET_CALIBRATION-v1',
+        recurrence:'HEURISTIC_RECURRENCE_RISK-v1'
+      }
+    }
   };
 }
 
