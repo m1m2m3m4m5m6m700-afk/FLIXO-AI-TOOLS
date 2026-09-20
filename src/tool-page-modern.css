@@ -171,3 +171,21 @@ html[dir="rtl"] .tool-page-modern{font-family:"Noto Sans Arabic","Noto Kufi Arab
     transition:none;
   }
 }
+
+
+/* 2026-09-20 — explicit compact logo slot for tool navigation. */
+.tool-page-modern__brand{
+  position:relative;
+  z-index:2;
+  visibility:visible;
+  opacity:1;
+  flex:0 0 auto;
+}
+.tool-page-modern__brand-logo{
+  visibility:visible;
+  opacity:1;
+}
+@media (max-width:680px){
+  .tool-page-modern__brand{min-width:34px;min-height:34px}
+  .tool-page-modern__brand-logo{width:30px;height:30px}
+}
