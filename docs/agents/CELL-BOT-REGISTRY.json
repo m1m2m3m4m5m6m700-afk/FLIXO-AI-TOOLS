@@ -32,7 +32,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "RAW-CELL-006",
+        "shortName": "RAW-CELL-001",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -80,7 +80,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "RAW-CELL-006",
+        "shortName": "RAW-CELL-002",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -128,7 +128,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "RAW-CELL-006",
+        "shortName": "RAW-CELL-003",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -176,7 +176,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "RAW-CELL-006",
+        "shortName": "RAW-CELL-004",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -224,7 +224,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "RAW-CELL-006",
+        "shortName": "RAW-CELL-005",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
