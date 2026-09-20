@@ -92,7 +92,7 @@ const staleSessionRecord = (sessionId, session, reason) => {
   if (task?.sessionId === sessionId && task.status === 'RUNNING') { task.status = 'STALE'; task.staleReason = reason; task.staleAt = now(); }
   unlock(sessionId);
   delete state.activeSessions[sessionId];
-  try { const file = visibilityPath(sessionId); if (fs.existsSync(file)) { const visibility = JSON.parse(fs.readFileSync(file, 'utf8')); visibility.status = 'STALE'; visibility.staleReason = reason; visibility.staleAt = now(); visibility.updatedAt = now(); fs.writeFileSync(file, JSON.stringify(visibility, null, 2) + '\n'); } } catch {}
+  try { const file = visibilityPath(sessionId); if (fs.existsSync(file)) { const visibility = JSON.parse(fs.readFileSync(file, 'utf8')); visibility.status = 'STALE'; visibility.staleReason = reason; visibility.staleAt = now(); visibility.updatedAt = now(); fs.writeFileSync(file, JSON.stringify(visibility, null, 2) + '\n'); } } catch { return false; }
 };
 const reconcileStaleSessions = () => {
   const current = sha();
