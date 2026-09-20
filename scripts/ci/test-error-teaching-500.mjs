@@ -1,9 +1,14 @@
 import { readFileSync } from 'node:fs';
 
-const path = 'docs/agents/ERROR-TEACHING-500.md';
-const lines = readFileSync(path, 'utf8').split(/\r?\n/u).filter((line) => line.trim());
+const paths = [
+  'docs/agents/ERROR-TEACHING-500.md',
+  'docs/agents/ERROR-TEACHING-ADDITIONAL-500.md',
+];
+const lines = paths.flatMap((path) =>
+  readFileSync(path, 'utf8').split(/\r?\n/u).filter((line) => /^T\d{3} \|/u.test(line)),
+);
 
-if (lines.length !== 500) {
+if (lines.length !== 1000) {
   console.error(`ERROR_TEACHING_CONTRACT_ERROR=expected_500_nonempty_lines actual_${lines.length}`);
   process.exit(1);
 }
@@ -24,7 +29,7 @@ for (let i = 0; i < lines.length; i += 1) {
 }
 
 const prompt = readFileSync('docs/agents/prompts/RPR-ERROR-RCA-001.md', 'utf8');
-if (!prompt.includes('docs/agents/ERROR-TEACHING-500.md')) {
+if (!prompt.includes('docs/agents/ERROR-TEACHING-500.md') || !prompt.includes('docs/agents/ERROR-TEACHING-ADDITIONAL-500.md')) {
   console.error('ERROR_TEACHING_CONTRACT_ERROR=RCA_prompt_not_bound_to_teaching_corpus');
   process.exit(1);
 }
@@ -34,4 +39,4 @@ if (!prompt.includes('TEACHING_RULE_MATCHED') || !prompt.includes('TEACHING_RULE
 }
 
 console.log('ERROR_TEACHING_CONTRACT=PASS');
-console.log('ERROR_TEACHING_LINES=500');
+console.log('ERROR_TEACHING_LINES=1000');
