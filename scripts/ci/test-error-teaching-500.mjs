@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 
 const basePath = 'docs/agents/ERROR-TEACHING-500.md';
 const additionalPath = 'docs/agents/ERROR-TEACHING-ADDITIONAL-500.md';
-const baseLines = readFileSync(basePath, 'utf8').split(/\r?\n/u).filter((line) => /^T\d{3} \|/u.test(line));
-const additionalLines = readFileSync(additionalPath, 'utf8').split(/\r?\n/u).filter((line) => /^T\d{3} \|/u.test(line));
+const baseLines = readFileSync(basePath, 'utf8').split(/\r?\n/u).filter((line) => /^T\d{3,4} \|/u.test(line));
+const additionalLines = readFileSync(additionalPath, 'utf8').split(/\r?\n/u).filter((line) => /^T\d{3,4} \|/u.test(line));
 const lines = [...baseLines, ...additionalLines];
 
 if (lines.length !== 1000) {
