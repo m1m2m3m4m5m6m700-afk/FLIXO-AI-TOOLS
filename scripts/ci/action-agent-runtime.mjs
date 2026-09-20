@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import { buildMentorPacket } from './action-code-mentor.mjs';
 import { buildSoftwareEngineerPacket } from './action-software-engineer-core.mjs';
 import { buildPrediction } from './action-historical-predictor.mjs';
+import { buildRepairEngineeringPlan, executeRepairEngineering } from './action-repair-engineering.mjs';
 
 const ROOT=process.cwd();
 const arg=(name,fallback='')=>{const p='--'+name+'=';const v=process.argv.find(x=>x.startsWith(p));return v?v.slice(p.length):fallback};
@@ -63,7 +64,7 @@ const evidenceItems=[
   {id:'CURRENT_CANONICAL_CI',strength:0,required:true,binding:'PROVE_AFTER_REPAIR'}
 ];
 
-const phases=['INTAKE','CONTEXT_RETRIEVAL','PLAN','EXECUTE','SELF_CHECK','INDEPENDENT_REVIEW','VERIFY','LEARN'];
+const phases=['INTAKE','CONTEXT_RETRIEVAL','PLAN','SYNTHESIZE','SIMULATE','EXECUTE','SELF_CHECK','INDEPENDENT_REVIEW','DIFFERENTIAL_VERIFY','VERIFY','LEARN'];
 const lanes={
   CHIEF:{agentId:'ACTION-MASTER',profile:'ACTION_COMMANDER_V1',lane:'ORCHESTRATION_AND_TOOL_SELECTION'},
   PRIMARY:{agentId:'ACTION-REPAIR',profile:'ACTION_FRONTIER_REPAIR_V2',lane:'PROGRAMMER_THINKING_AND_SOURCE_REPAIR'},
@@ -86,7 +87,10 @@ const toolBudget={
   stopOnRepeatedStrategy:true,
   stopOnEvidenceMismatch:true,
   parallelReadsAllowed:true,
-  parallelMutationAllowed:false
+  parallelMutationAllowed:false,
+  maxCandidatePatches:8,
+  maxSandboxCandidates:4,
+  maxSandboxChecks:8
 };
 
 const mentorPaths=(process.env.FLIXO_ACTION_CODE_MENTOR_PATHS??'').split(',').map((x)=>x.trim()).filter(Boolean);
@@ -108,6 +112,23 @@ const historicalPrediction=buildPrediction({
   workflow:process.env.FLIXO_FAILED_WORKFLOW??'',
   job:process.env.FLIXO_FAILED_JOB??''
 });
+const repairCandidatesRaw=process.env.FLIXO_REPAIR_CANDIDATES??'';
+let repairCandidates=[];
+if(repairCandidatesRaw){
+  try{
+    const parsed=JSON.parse(repairCandidatesRaw);
+    must(Array.isArray(parsed),'ACTION_AGENT_RUNTIME_REPAIR_CANDIDATES_NOT_ARRAY');
+    repairCandidates=parsed.slice(0,toolBudget.maxCandidatePatches);
+  }catch(error){
+    throw new Error('ACTION_AGENT_RUNTIME_REPAIR_CANDIDATES_INVALID:'+String(error?.message??error));
+  }
+}
+const repairEngineeringPlan=buildRepairEngineeringPlan({taskId:task,fingerprint,targetSha,candidates:repairCandidates});
+let repairEngineeringExecution=null;
+if(repairCandidates.length && process.env.FLIXO_RUN_REPAIR_SIMULATION==='1'){
+  repairEngineeringExecution=executeRepairEngineering({repoRoot:ROOT,taskId:task,fingerprint,targetSha,candidates:repairCandidates.slice(0,toolBudget.maxSandboxCandidates)});
+}
+
 const codeMentor=buildMentorPacket({
   taskId:task,
   fingerprint,
@@ -135,7 +156,7 @@ const safety={
 const profileConfig=(profile)=>MODEL_DEFAULTS[profile]??MODEL_DEFAULTS.ACTION_PRIMARY_REPAIR_V1;
 const runtime={
   schemaVersion:1,
-  protocol:'ACTION-AGENT-RUNTIME-v1',
+  protocol:'ACTION-AGENT-RUNTIME-v2',
   status:'READY',
   identity:{taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,identityDigest:sha256(task+'|'+fingerprint+'|'+targetSha+'|'+runId)},
   modelProfiles:Object.fromEntries(Object.entries(lanes).map(([lane,agent])=>[agent.agentId,{...agent,config:profileConfig(agent.profile)}])),
@@ -155,15 +176,17 @@ const runtime={
   codeMentor:{requiredByActionRepair:true,packet:codeMentor},
   historicalPrediction:{requiredByActionRepair:true,provider:'ACTION-REPAIR-2',packet:historicalPrediction},
   softwareEngineerCore:{requiredByActionRepair:true,provider:'ACTION-REPAIR',packet:softwareEngineerCore},
+  repairEngineering:{requiredByActionRepair:true,provider:'ACTION-REPAIR',plan:repairEngineeringPlan,execution:repairEngineeringExecution},
   toolBudget,
   safety,
   lifecycle:{current:'INTAKE',next:'CONTEXT_RETRIEVAL',closure:'CANONICAL_GREEN_ONLY'},
   outputContract:{
-    required:[ 'currentEvidence','unknowns','historicalMatches','candidateHypotheses','codeMentorPacket','historicalPredictionPacket','softwareEngineerCorePacket','selectedStrategy','selfCritique','independentReview','targetedRegression','exactSha','canonicalGreen' ],
+    required:[ 'currentEvidence','unknowns','historicalMatches','candidateHypotheses','codeMentorPacket','historicalPredictionPacket','softwareEngineerCorePacket','repairEngineeringPacket','differentialVerification','selectedStrategy','selfCritique','independentReview','targetedRegression','exactSha','canonicalGreen' ],
     selectedStrategyMayBeNull:true,
     mutationMayBeNull:true
   },
-  generatedAt:new Date().toISOString()
+  generatedAt:new Date().toISOString(),
+  engineeringPolicy:{patchSynthesis:true,sandboxSimulation:true,differentialVerification:true,automaticMutation:false,canonicalGreenOnly:true}
 };
 fs.mkdirSync(path.dirname(path.resolve(output)),{recursive:true});
 fs.writeFileSync(path.resolve(output),JSON.stringify(runtime,null,2)+'\n');
