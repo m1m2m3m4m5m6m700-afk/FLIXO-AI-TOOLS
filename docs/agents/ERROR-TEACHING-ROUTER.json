@@ -1,0 +1,325 @@
+{
+  "schemaVersion": 1,
+  "corpus": {
+    "base": "docs/agents/ERROR-TEACHING-500.md",
+    "additional": "docs/agents/ERROR-TEACHING-ADDITIONAL-500.md",
+    "rules": 1000
+  },
+  "retrievalOrder": [
+    "exact_class",
+    "class_prefix",
+    "alias",
+    "keyword"
+  ],
+  "failClosed": true,
+  "groups": [
+    {
+      "file": "docs/agents/error-teaching/ci-control.md",
+      "prefixes": [
+        "stale",
+        "concurrency",
+        "queued",
+        "cancelled",
+        "skipped",
+        "sha",
+        "head",
+        "force",
+        "new",
+        "wrong",
+        "main",
+        "graphql",
+        "rest",
+        "gh"
+      ],
+      "classes": [
+        "stale-sha",
+        "concurrency",
+        "queued-run",
+        "cancelled-run",
+        "skipped-check",
+        "sha-mismatch",
+        "stale-certificate",
+        "head-race",
+        "force-push",
+        "new-branch",
+        "wrong-branch",
+        "main-edit",
+        "graphql-comment",
+        "rest-comment",
+        "gh-cli"
+      ]
+    },
+    {
+      "file": "docs/agents/error-teaching/workflow.md",
+      "prefixes": [
+        "workflow"
+      ],
+      "classes": [
+        "workflow-schedule",
+        "workflow-concurrency-key",
+        "workflow-reusable-call",
+        "workflow-needs-edge",
+        "workflow-output-contract",
+        "workflow-if-guard",
+        "workflow-always-guard",
+        "workflow-time-input",
+        "workflow-ref-resolution",
+        "workflow-base-sha",
+        "workflow-head-sha",
+        "workflow-pr-event",
+        "workflow-sync-event",
+        "workflow-reopen-event",
+        "workflow-dispatch-auth"
+      ]
+    },
+    {
+      "file": "docs/agents/error-teaching/matrix.md",
+      "prefixes": [
+        "matrix"
+      ],
+      "classes": [
+        "matrix-json-input",
+        "matrix-version-drift",
+        "matrix-duplicate",
+        "matrix-order",
+        "matrix-label",
+        "matrix-output",
+        "matrix-artifact",
+        "matrix-job-name",
+        "matrix-runner",
+        "matrix-coverage"
+      ]
+    },
+    {
+      "file": "docs/agents/error-teaching/runner.md",
+      "prefixes": [
+        "runner"
+      ],
+      "classes": [
+        "runner-image",
+        "runner-preinstall",
+        "runner-cache",
+        "runner-git",
+        "runner-fetch",
+        "runner-submodules",
+        "runner-permissions",
+        "runner-disk",
+        "runner-cpu",
+        "runner-concurrency",
+        "runner-cleanup"
+      ]
+    },
+    {
+      "file": "docs/agents/error-teaching/node-runtime.md",
+      "prefixes": [
+        "node"
+      ],
+      "classes": [
+        "node-version",
+        "node-package-manager",
+        "node-module-format",
+        "node-json",
+        "node-url",
+        "node-fetch",
+        "node-abort",
+        "node-timer",
+        "node-worker",
+        "node-child"
+      ]
+    },
+    {
+      "file": "docs/agents/error-teaching/vite-build.md",
+      "prefixes": [
+        "vite",
+        "typescript",
+        "eslint",
+        "build",
+        "package",
+        "npm",
+        "cache"
+      ],
+      "classes": [
+        "typescript",
+        "eslint",
+        "build-chunk",
+        "package-lock",
+        "npm-install",
+        "cache-stale",
+        "vite-asset",
+        "vite-manifest",
+        "vite-ssr",
+        "vite-dynamic-import",
+        "vite-source-map",
+        "vite-minify",
+        "vite-deps",
+        "vite-public-dir",
+        "vite-html",
+        "vite-hmr"
+      ]
+    },
+    {
+      "file": "docs/agents/error-teaching/routing.md",
+      "prefixes": [
+        "router",
+        "route"
+      ],
+      "classes": [
+        "route-tree",
+        "route-mismatch",
+        "router-param",
+        "router-locale",
+        "router-loader",
+        "router-action",
+        "router-error",
+        "router-search",
+        "router-history",
+        "router-link",
+        "router-prefetch",
+        "router-redirect",
+        "router-trailing-slash"
+      ]
+    },
+    {
+      "file": "docs/agents/error-teaching/browser-rendering.md",
+      "prefixes": [
+        "playwright",
+        "browser",
+        "hydration",
+        "ssr",
+        "react"
+      ],
+      "classes": [
+        "playwright-webkit",
+        "playwright-firefox",
+        "browser-shard",
+        "browser-timeout",
+        "browser-permission",
+        "hydration",
+        "ssr-client",
+        "react-ref",
+        "react-memo",
+        "react-callback",
+        "react-render",
+        "react-portal",
+        "react-event",
+        "react-form",
+        "react-controlled",
+        "react-keyboard",
+        "react-focus"
+      ]
+    },
+    {
+      "file": "docs/agents/error-teaching/i18n.md",
+      "prefixes": [
+        "i18n",
+        "locale"
+      ],
+      "classes": [
+        "i18n",
+        "locale-generation",
+        "i18n-locale-map",
+        "i18n-key-shape",
+        "i18n-empty",
+        "i18n-direction",
+        "i18n-separator",
+        "i18n-casing",
+        "i18n-encoding",
+        "i18n-interpolation",
+        "i18n-rich-text",
+        "i18n-resource-load"
+      ]
+    },
+    {
+      "file": "docs/agents/error-teaching/seo.md",
+      "prefixes": [
+        "seo",
+        "soft",
+        "sitemap"
+      ],
+      "classes": [
+        "seo-canonical",
+        "soft-404",
+        "sitemap"
+      ]
+    },
+    {
+      "file": "docs/agents/error-teaching/artifacts.md",
+      "prefixes": [
+        "artifact"
+      ],
+      "classes": [
+        "artifact-mismatch",
+        "artifact-integrity",
+        "artifact-compression",
+        "artifact-archive",
+        "artifact-permission",
+        "artifact-consumer",
+        "artifact-version",
+        "artifact-producer",
+        "artifact-collision",
+        "artifact-metadata",
+        "artifact-manifest",
+        "artifact-integrity-index"
+      ]
+    },
+    {
+      "file": "docs/agents/error-teaching/integrations.md",
+      "prefixes": [
+        "vercel",
+        "capi",
+        "supabase"
+      ],
+      "classes": [
+        "vercel-rate-limit",
+        "capi-model",
+        "supabase-query",
+        "supabase-index",
+        "supabase-transaction"
+      ]
+    },
+    {
+      "file": "docs/agents/error-teaching/agent-repair.md",
+      "prefixes": [
+        "tool",
+        "canonical",
+        "test",
+        "g3",
+        "file",
+        "upload",
+        "code",
+        "dependency",
+        "control",
+        "repair",
+        "memory"
+      ],
+      "classes": [
+        "tool-registry",
+        "canonical-definition",
+        "test-ownership",
+        "g3-output",
+        "file-safety",
+        "upload-boundary",
+        "code-scanning",
+        "dependency-debt",
+        "control-plane",
+        "repair-recursion",
+        "memory-learning"
+      ]
+    }
+  ],
+  "aliases": {
+    "i18n": "docs/agents/error-teaching/i18n.md",
+    "localization": "docs/agents/error-teaching/i18n.md",
+    "translation": "docs/agents/error-teaching/i18n.md",
+    "rtl": "docs/agents/error-teaching/i18n.md",
+    "locale": "docs/agents/error-teaching/i18n.md",
+    "seo": "docs/agents/error-teaching/seo.md",
+    "browser": "docs/agents/error-teaching/browser-rendering.md",
+    "playwright": "docs/agents/error-teaching/browser-rendering.md",
+    "workflow": "docs/agents/error-teaching/workflow.md",
+    "ci": "docs/agents/error-teaching/ci-control.md",
+    "artifact": "docs/agents/error-teaching/artifacts.md",
+    "repair": "docs/agents/error-teaching/agent-repair.md",
+    "supabase": "docs/agents/error-teaching/integrations.md"
+  }
+}

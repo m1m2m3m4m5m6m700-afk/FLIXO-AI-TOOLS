@@ -6,6 +6,7 @@ import { getReadyToolConfigs } from '@/config/tools';
 import { findToolIntent } from '@/lib/intent-router';
 import { extractParameters } from '@/lib/agent/intent/parameter-extractor';
 import { detectAgentLocale } from '@/lib/agent/language-detector';
+import { confirmTask, createTaskContext, transitionTask, type TaskContext } from '@/lib/agent/task-state';
 import {
   classifyConversation,
   contextualizeCommand,
@@ -17,6 +18,9 @@ import {
 } from '@/lib/agent/conversation';
 import { AGENT_I18N } from '@/data/agent-locales';
 import type { Locale } from '@/lib/i18n';
+import { buildFilterMaskUrl, type FilterMaskHandoff } from '@/tools/filter-mask/handoff';
+import { getLiveFilter } from '@/tools/filter-mask/registry';
+import { resolveFilterMaskSelection } from '@/lib/intent/resolver';
 import './FlixoAIAgent.css';
 
 type AgentState = 'idle' | 'ready' | 'running' | 'success' | 'error';
@@ -64,15 +68,41 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     return turns.map((turn, index) => ({ id: index + 1, role: turn.role, text: turn.text }));
   });
   const [messageId, setMessageId] = useState(() => loadConversationMemory().turns.length + 1);
+  const [filterHandoff, setFilterHandoff] = useState<FilterMaskHandoff | null>(null);
 
   const contextualQuery = useMemo(() => contextualizeCommand(query, memory), [query, memory]);
   const intent = useMemo(() => contextualQuery.trim() ? findToolIntent(contextualQuery, getReadyToolConfigs())[0] : null, [contextualQuery]);
   const planned = useMemo(() => contextualQuery.trim() ? planFromIntent(contextualQuery) : null, [contextualQuery]);
   const filterMaskMatch = intent?.tool.id === 'filter-mask';
+
+  const resolveFilterMaskHandoff = (command: string) => resolveFilterMaskSelection(command);
+
   const pushMessage = (role: Message['role'], text: string) => {
     setMessages((current) => [...current, { id: messageId, role, text }]);
     setMessageId((value) => value + 1);
     setMemory((current) => rememberTurn(current, { role, text }));
+  };
+  const applyFilterMaskHandoff = (command: string, detectedLocale: Locale) => {
+    const nextHandoff = resolveFilterMaskHandoff(command);
+    if (!nextHandoff) return false;
+    setFilterHandoff(nextHandoff);
+    setPlan(null);
+    setState('ready');
+    setError(null);
+    setMemory((current) => setConversationTask(current, {
+      command,
+      toolId: 'filter-mask',
+      planReady: false,
+    }));
+    const selected = getLiveFilter(nextHandoff.canonicalId);
+    const label = selected?.label ?? nextHandoff.canonicalId;
+    pushMessage(
+      'agent',
+      detectedLocale === 'ar'
+        ? 'جهزت Filter Mask. الاختيار: ' + label + ' (' + nextHandoff.canonicalId + ')، الشدة ' + nextHandoff.parameters.intensity + '%، التكبير ' + nextHandoff.parameters.zoom.toFixed(1) + '×، النسبة ' + nextHandoff.parameters.aspectRatio + '، والجودة ' + nextHandoff.parameters.captureQuality + '. افتح المعاينة المباشرة.'
+        : 'Filter Mask is ready. Selection: ' + label + ' (' + nextHandoff.canonicalId + '), intensity ' + nextHandoff.parameters.intensity + '%, zoom ' + nextHandoff.parameters.zoom.toFixed(1) + '×, aspect ' + nextHandoff.parameters.aspectRatio + ', quality ' + nextHandoff.parameters.captureQuality + '. Open the live preview.',
+    );
+    return true;
   };
 
   const buildPlan = (command: string, responseCopy = copy): ExecutionPlan | null => {
@@ -99,8 +129,22 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     setState('running'); setError(null);
     setMemory((current) => setConversationTask(current, { command: current.activeCommand ?? '', planReady: false }));
     pushMessage('agent', `${responseCopy.success} ${nextPlan.steps.length} ${responseCopy.step}.`);
-    try { const output = await runWorkflowPipeline(file, nextPlan, setProgress); setResult(output); setState('success'); pushMessage('agent', responseCopy.success); }
-    catch (cause) { const message = cause instanceof Error ? cause.message : 'Execution failed.'; setError(message); setState('error'); pushMessage('agent', `${responseCopy.stopped} ${message}`); }
+    let task: TaskContext = createTaskContext();
+    try {
+      task = transitionTask(task, 'PLANNED');
+      task = transitionTask(task, 'AWAITING_CONFIRMATION');
+      task = confirmTask(task);
+      const output = await runWorkflowPipeline(file, nextPlan, task, setProgress);
+      task = transitionTask(task, 'VERIFYING');
+      task = transitionTask(task, 'COMPLETED');
+      setResult(output); setState('success'); pushMessage('agent', responseCopy.success);
+    } catch (cause) {
+      if (task.state === 'EXECUTING' || task.state === 'VERIFYING' || task.state === 'RECOVERING') {
+        try { task = transitionTask(task, 'FAILED'); } catch { /* preserve the original execution error */ }
+      }
+      const message = cause instanceof Error ? cause.message : 'Execution failed.';
+      setError(message); setState('error'); pushMessage('agent', `${responseCopy.stopped} ${message}`);
+    }
   };
 
   const sendMessage = async () => {
@@ -128,20 +172,12 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       setState('idle');
       setError(null);
       setMemory((current) => clearConversationTask(current));
+      setFilterHandoff(null);
       pushMessage('agent', responseCopy.cancelled);
       return;
     }
 
-    if (filterMaskMatch) {
-      setPlan(null);
-      setState('ready');
-      setError(null);
-      setMemory((current) => setConversationTask(current, { command, toolId: 'filter-mask', planReady: false }));
-      pushMessage('agent', detectedLocale === 'ar'
-        ? 'وجدت Filter Mask في الكتالوج. افتح الكاميرا المباشرة لاختيار الفلتر ومعاينته.'
-        : 'I found Filter Mask in the canonical catalog. Open the live camera to preview and choose a filter.');
-      return;
-    }
+    if (filterMaskMatch && applyFilterMaskHandoff(command, detectedLocale)) return;
 
     const conversationKind = classifyConversation(command);
     const naturalReply = conversationalReply(conversationKind, responseCopy);
@@ -194,6 +230,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     const detectedLocale = detectAgentLocale(command, locale);
     const responseCopy = AGENT_I18N[detectedLocale] ?? copy;
     pushMessage('user', command); setQuery('');
+    if (filterMaskMatch && applyFilterMaskHandoff(command, detectedLocale)) return;
     const naturalReply = conversationalReply(classifyConversation(command), responseCopy);
     if (naturalReply) { pushMessage('agent', naturalReply); return; }
     if (GENERIC_CROP_REQUEST.test(command)) {
@@ -228,6 +265,15 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         <div className="flixo-ai-agent-plan">
           <div className="flixo-ai-agent-plan-topline"><strong>{copy.thinking}</strong><span>{state === 'running' ? copy.executing : state === 'success' ? copy.completed : state === 'error' ? copy.needsAttention : copy.planReady}</span></div>
           {intent && <div className="flixo-ai-agent-intent">{copy.nearestTool} <strong>{intent.tool.title}</strong> · {intent.score}%</div>}
+          {filterHandoff && (
+            <div className="flixo-ai-agent-confirm" data-testid="filter-mask-handoff">
+              <strong>{filterHandoff.canonicalId}</strong>
+              <span> · intensity {filterHandoff.parameters.intensity}% · zoom {filterHandoff.parameters.zoom.toFixed(1)}× · {filterHandoff.parameters.aspectRatio} · {filterHandoff.parameters.mirror ? 'mirror' : 'direct'}</span>
+              <a className="primary-button" href={buildFilterMaskUrl(locale, filterHandoff)}>
+                {locale === 'ar' ? 'فتح المعاينة المباشرة' : 'Open live preview'}
+              </a>
+            </div>
+          )}
           {planned?.steps?.length ? <ol>{planned.steps.map((step, index) => <li key={`${step.toolId}-${index}`}><span>{index + 1}</span><div><strong>{step.toolId}</strong><small>{JSON.stringify(step.params ?? {})}</small></div></li>)}</ol> : <p className="flixo-ai-agent-empty">{copy.empty}</p>}
           {progress && <div className="flixo-ai-agent-progress"><span>{copy.step} {progress.currentStepIndex}/{progress.totalSteps}</span><strong>{progress.currentToolId}</strong>{progress.retry ? <small>{copy.retry} {progress.retry}</small> : null}</div>}
           {error && <div className="flixo-ai-agent-error" role="alert">{error}</div>}

@@ -77,3 +77,10 @@ Agent 2 must stop mutation when:
 - the evidence points to an external blocker that repository changes cannot fix.
 
 Never suppress a failure, weaken a gate, skip a required proof, or convert an external blocker into a source-code workaround.
+
+## Continuous Liveness Contract
+
+An open repair session is never allowed to become SLEEP/IDLE/SILENT/ABANDONED. Waiting for CI or an external provider uses `WAITING_EXTERNAL` with heartbeat. Missing heartbeat or expired lease moves the session to `RECOVERING` and triggers the existing supervisor/wake path.
+
+Heartbeat command: `node scripts/ci/repair-lease.mjs heartbeat ...`
+Liveness contract: `scripts/ci/agent-liveness-protocol.mjs`

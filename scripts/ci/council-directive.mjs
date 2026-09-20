@@ -26,7 +26,19 @@ export const COUNCIL_DIRECTIVE = Object.freeze({
     learning: 'record strategy, outcome, SHA, evidence, anti-pattern and next strategy',
   }),
   forbidden: Object.freeze(['fake-green','retry-until-green','test-weakening','symptom-only-repair','stale-evidence-as-proof','third-branch','branch-creation','force-reset-main','parallel-task-registry','llm-direct-execution']),
-  operatingMessage: 'FOCUS ON THE ASSIGNED WORK PACKAGE. DO NOT ENTER FREEZE. CONTINUE THE CURRENT CONTROLLED LIFECYCLE UNTIL VERIFIED OR A REAL BLOCKER REQUIRES STOP.',
+  operatingMessage: 'FOCUS ON THE ASSIGNED WORK PACKAGE. DO NOT ENTER FREEZE, SLEEP, IDLE, SILENT, OR ABANDONED. CONTINUE THE CURRENT CONTROLLED LIFECYCLE UNTIL VERIFIED OR AN EXPLICIT AUTHORITY DECISION ABORTS IT.',
+  liveness: Object.freeze({
+    protocol: 'AGENT_LIVENESS_PROTOCOL',
+    heartbeatEveryMinutes: 5,
+    heartbeatGraceMinutes: 2,
+    leaseTtlMinutes: 15,
+    progressWindowMinutes: 10,
+    maxNoProgressHeartbeats: 3,
+    forbiddenStates: Object.freeze(['SLEEP','IDLE','SILENT','ABANDONED']),
+    staleAction: 'RECOVER_AND_CONTINUE',
+    externalWaitAction: 'WAITING_EXTERNAL_WITH_HEARTBEAT',
+    abortRequires: 'EXPLICIT_ABORT_AUTHORITY',
+  }),
   closure: Object.freeze(['cause-proven','root-fixed','targeted-pass','related-pass','protected-pass','required-ci-pass','security-pass','exact-sha','handoff-complete','task-complete']),
 });
 
@@ -37,5 +49,6 @@ export function assertCouncilDirective(directive = COUNCIL_DIRECTIVE) {
   if (directive.greenAuthority !== 'Daily·FLIXO Green Gate' || directive.exactShaRequired !== true) throw new Error('COUNCIL_DIRECTIVE_GREEN_AUTHORITY_INVALID');
   if (directive.llmDirectExecution !== false || directive.thirdBranchAllowed !== false || directive.branchCreationAllowed !== false) throw new Error('COUNCIL_DIRECTIVE_EXECUTION_BOUNDARY_INVALID');
   if (directive.taskRegistryCount !== 1 || directive.repeatedRedRequiresNewStrategyOrEvidence !== true) throw new Error('COUNCIL_DIRECTIVE_COORDINATION_INVALID');
+  if (directive.liveness?.protocol !== 'AGENT_LIVENESS_PROTOCOL' || directive.liveness?.forbiddenStates?.includes('SLEEP') !== true || directive.liveness?.staleAction !== 'RECOVER_AND_CONTINUE') throw new Error('COUNCIL_DIRECTIVE_LIVENESS_INVALID');
   return true;
 }

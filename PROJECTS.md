@@ -24,7 +24,7 @@ SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
 CURRENT MAIN SHA = `9150a5770bf113baf6d5b58439351bf3c5b42514`
 ACTIVE PR = #771 OPEN / execution → main (current repair/integration lane); #759 is historical/merged
-CURRENT PR HEAD = authoritative GitHub PR #759 head; do not duplicate a mutable SHA in this map
+CURRENT PR HEAD = authoritative GitHub PR #771 head; do not duplicate a mutable SHA in this map
 NO-NEW-BRANCH = ABSOLUTE; only execution and main are active agent branches; existing historical branches are not valid work paths
 STATE = BLOCKED_EXTERNAL
 CANONICAL TEST SYSTEM = FRESH EVIDENCE REQUIRED ON CURRENT MAIN/EXECUTION HEAD; prior exact-head evidence is stale
@@ -382,3 +382,17 @@ REMOVED = validate-certification-graph.mjs alias; verify:contracts duplicate pac
 PRESERVED = security, coverage, artifact identity, exact-SHA, WP0 trust, browser FAST/DEEP, certification, and frozen ACCEL constraints.
 NEXT = fresh Canonical CI → WP0/Security → FAST/DEEP → Certification → exact-SHA verification → main merge.
 CONSTRAINTS = ACCEL FROZEN; zero coverage/security reduction; execution → main only.
+
+
+## 2026-09-20 — BUILD WAVE BATCH BINDING
+
+Implementation ledger only; not GREEN/certification evidence.
+
+- ERROR-INTELLIGENCE-001: IMPLEMENTED / VERIFICATION PENDING — Repair Hypothesis + Regression Sentinel.
+- BATCH-1: IMPLEMENTED / VERIFICATION PENDING — control/evidence spine.
+- BATCH-2: IMPLEMENTED / VERIFICATION PENDING — deterministic catalog fingerprint.
+- BATCH-3: IMPLEMENTED / VERIFICATION PENDING — execution security/trace/recovery contracts.
+- BATCH-4: IMPLEMENTED / VERIFICATION PENDING — shared contract harness.
+- BATCH-5: IMPLEMENTED / VERIFICATION PENDING — performance manifest.
+- BATCH-6: IMPLEMENTED / VERIFICATION PENDING — release evidence binding.
+- BATCH-7: IMPLEMENTED / VERIFICATION PENDING — deterministic hybrid knowledge retrieval.
