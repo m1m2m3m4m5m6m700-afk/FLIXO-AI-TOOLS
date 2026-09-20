@@ -177,6 +177,8 @@ const runtime={
   historicalPrediction:{requiredByActionRepair:true,provider:'ACTION-REPAIR-2',packet:historicalPrediction},
   softwareEngineerCore:{requiredByActionRepair:true,provider:'ACTION-REPAIR',packet:softwareEngineerCore},
   repairEngineering:{requiredByActionRepair:true,provider:'ACTION-REPAIR',plan:repairEngineeringPlan,execution:repairEngineeringExecution},
+  repairEngineeringPacket:repairEngineeringPlan,
+  differentialVerification:repairEngineeringExecution?.simulations?.map((item)=>item.differential??null).filter(Boolean)??[],
   toolBudget,
   safety,
   lifecycle:{current:'INTAKE',next:'CONTEXT_RETRIEVAL',closure:'CANONICAL_GREEN_ONLY'},
