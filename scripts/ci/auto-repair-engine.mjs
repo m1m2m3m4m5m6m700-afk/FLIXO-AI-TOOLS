@@ -19,6 +19,7 @@ import { buildCausalProof } from './auto-repair/causal-proof.mjs';
 import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
 import { assertAgentAdmission, createRepairSession, captureFailure, authorizeMutation, completeRepairSession, validateErrorOnlyMutation, validateMinimalRepairScope, validateTargetedRegressionSelection } from './repair-protocol.mjs';
 import { loadAttemptLedger, isRepairRejected, rejectionReasons } from './repair-attempt-ledger.mjs';
+import { buildErrorOnlyRepairModel } from './auto-repair/error-only-programmer.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
@@ -421,6 +422,34 @@ if (!selected) {
   recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', outcome: 'proposed', verification: 'none', provenance: { targetSha }, preventionRule: 'No safe mutation candidate; escalate with evidence.' });
   writeMemory(memory);
   console.log(`AUTO_REPAIR_RESULT=PROPOSAL_ONLY\nAUTO_REPAIR_PLAN=none\nAUTO_REPAIR_FINGERPRINT=${fingerprint}`);
+  process.exit(0);
+}
+
+const errorOnlyProgrammer = buildErrorOnlyRepairModel({
+  log,
+  diagnosis,
+  selected,
+  targetSha,
+  failedSha: process.env.FLIXO_FAILURE_SHA || null,
+});
+evidence.errorOnlyProgrammer = errorOnlyProgrammer;
+if (!errorOnlyProgrammer.repair.mutationAllowed) {
+  evidence.outcome = 'proposal-only';
+  evidence.escalation = { required: true, reason: 'error-only-programmer-blocked', blockedReasons: errorOnlyProgrammer.blockedReasons };
+  writeEvidence(evidencePath, evidence);
+  recordOutcome(memory, {
+    fingerprint,
+    normalizedFailure,
+    features,
+    rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown',
+    rule: selected?.id,
+    outcome: 'proposed',
+    verification: 'error-only-programmer-blocked',
+    provenance: { targetSha, blockedReasons: errorOnlyProgrammer.blockedReasons },
+    preventionRule: 'Only mutate source code when the selected repair is tied to the demonstrated current error.',
+  });
+  writeMemory(memory);
+  console.log(`AUTO_REPAIR_RESULT=PROPOSAL_ONLY\\nAUTO_REPAIR_REASON=error-only-programmer-blocked`);
   process.exit(0);
 }
 
