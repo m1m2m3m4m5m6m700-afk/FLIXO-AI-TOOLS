@@ -90,9 +90,18 @@ test.describe('Filter Mask live camera surface', () => {
       };
       paint();
       const cameraStream = source.captureStream(30);
+      let requestCount = 0;
       Object.defineProperty(navigator, 'mediaDevices', {
         configurable: true,
-        value: { getUserMedia: async () => cameraStream },
+        value: {
+          getUserMedia: async (constraints: MediaStreamConstraints) => {
+            requestCount += 1;
+            if (requestCount === 1 && constraints.audio) {
+              throw new DOMException('Microphone permission denied', 'NotAllowedError');
+            }
+            return cameraStream;
+          },
+        },
       });
     });
 
@@ -105,6 +114,7 @@ test.describe('Filter Mask live camera surface', () => {
 
     await section.getByRole('button', { name: 'Start camera' }).first().click();
     await expect(section.getByRole('button', { name: 'Stop' }).first()).toBeEnabled();
+    await expect(section.locator('video[aria-label="Filter Mask live camera"]')).toHaveJSProperty('srcObject', expect.anything());
 
     const video = section.locator('video[aria-label="Filter Mask live camera"]');
     await expect.poll(async () => video.evaluate((node) => {
