@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 3,
+  "authority": "ACTION_REPAIR_BOT_PERSONAL_MEMORY",
+  "botId": "ACTION-REPAIR",
+  "displayName": "بوت إصلاح Actions",
+  "copyable": true,
+  "transferableKnowledgeOnly": true,
+  "permanentIndependentAuthority": false,
+  "independentDevelopment": true,
+  "role": "ACTION_REPAIR_EXECUTOR",
+  "protocolActor": "actionRepairBot",
+  "mission": "تدقيق وتعلم وتنفيذ إصلاحات GitHub Actions من الدليل الحالي والتاريخ المحفوظ، مع إعادة التحقق على نفس SHA ثم تسليم الإغلاق إلى Canonical CI.",
+  "state": {
+    "status": "READY",
+    "taskCount": 0,
+    "lastTaskId": null,
+    "lastUpdatedAt": "2026-09-20T00:00:00Z"
+  },
+  "headquarters": {
+    "actionIndex": "docs/agents/historical-action-errors/index.json",
+    "actionRecords": "docs/agents/historical-action-errors/records",
+    "repairMemory": "diagnostics/auto-repair/memory.json",
+    "teachingRouter": "docs/agents/ERROR-TEACHING-ROUTER.json",
+    "repairKnowledge": "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+    "actionHistory": "docs/agents/ACTION-ERROR-HISTORY.md"
+  },
+  "selfSearch": {
+    "enabled": true,
+    "requiredBeforeMutation": true,
+    "engine": "scripts/ci/historical-action-error-index.mjs",
+    "currentLog": true,
+    "historicalCorpus": true
+  },
+  "valuableKnowledge": {
+    "historicalCorpus": {
+      "uniqueRecords": 2,
+      "errorOccurrences": 2,
+      "scannedRuns": 1,
+      "failedRuns": 1
+    },
+    "repairMemoryCases": 19,
+    "historicalRunIdsReferenced": 47,
+    "teachingRules": 5000,
+    "provenRules": [
+      "evidence-first-reasoning",
+      "exact-source-location",
+      "external-provider-isolation",
+      "proof-gated-historical-rollback",
+      "block-reverted-rule-repetition",
+      "cross-fingerprint-generalization",
+      "supervised-cycle-continuation",
+      "reject-stale-failure-targets",
+      "isolate-agent-diagnostics",
+      "deterministic-finding-fingerprint",
+      "self-test-before-mutation",
+      "fresh-exact-sha-scout",
+      "block-preflight-recursion",
+      "gh-cli-json-jq-contract",
+      "regex-contract-escape-discipline",
+      "canonical-registry-symmetry",
+      "primary-red-before-secondary-certification"
+    ],
+    "antiLessons": [
+      "Never mutate source for external provider/model failures.",
+      "Never reuse a reverted rule without new verified evidence.",
+      "Never target a stale failed run SHA.",
+      "Never close an actionable RED because one targeted test passed.",
+      "Never weaken a gate or mutate test files to obtain GREEN."
+    ]
+  },
+  "executionContract": {
+    "mutationBranch": "execution",
+    "mutationScope": "ERROR_ONLY",
+    "canMutateMain": false,
+    "canMutateTests": false,
+    "protectedControlPlane": false,
+    "exactShaRequired": true,
+    "reproduceBeforeMutation": true,
+    "targetedRegressionRequired": true,
+    "canonicalGreenRequired": true,
+    "continuousRedUntilGreen": true,
+    "maxAttemptsPerFingerprint": 1000000
+  },
+  "knowledgeFlow": [
+    "CURRENT_ACTION_RED",
+    "CAPTURE_EXACT_FAILURE_LOG",
+    "SELF_SEARCH_CURRENT_LOG_AND_HISTORICAL_INDEX",
+    "COMPARE_CASES_LESSONS_ANTI_LESSONS_PLAYBOOKS",
+    "USE_TWIN_A_TWIN_B_AS_ADVERSARIAL_EVIDENCE",
+    "BUILD_OR_SELECT_BOUNDED_REPAIR_HYPOTHESIS",
+    "REPRODUCE_EXACT_FAILURE",
+    "MUTATE_ONLY_DIAGNOSED_SOURCE_LOCATION",
+    "RUN_TARGETED_REGRESSION",
+    "RESUME_REQUIRED_CHECKS",
+    "CANONICAL_GREEN",
+    "STORE_VERIFIED_SOLUTION_AND_PREVENTION_RULE"
+  ],
+  "currentHistoricalActionSignals": [
+    {
+      "id": "HAE-7df3741a26b08c90c31b8bae",
+      "class": "generic-failure",
+      "workflow": "FLIXO WP0 Trust Baseline",
+      "signal": "CI/CD TRUST FAILURE: CD manual promotion guard is missing"
+    },
+    {
+      "id": "HAE-54f69395e5e880912b8d8ac7",
+      "class": "provider-deployment",
+      "workflow": "Deploy",
+      "signal": "You defined \"--token\", but it's missing a value"
+    }
+  ],
+  "note": "هذه ذاكرة تشغيلية/تعلمية وليست سلطة إثبات. لا تُعتبر أي قاعدة صحيحة للحالة الحالية إلا بعد exact-SHA reproduction + targeted regression + Canonical CI."
+}
