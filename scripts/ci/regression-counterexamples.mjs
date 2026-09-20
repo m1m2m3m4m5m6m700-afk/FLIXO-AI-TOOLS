@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-import path from 'node:path';
 
 const normalize=(v)=>String(v??'').replace(/\r\n?/g,'\n');
 const read=(p)=>{try{return fs.readFileSync(p,'utf8');}catch{return null;}};
-const exists=(p)=>Boolean(p&&fs.existsSync(p));
 
 function searchResult(id, question, result, evidence=[], validCounterexample=false){
   return {id, searched:true, question, result, evidence, validCounterexample};
