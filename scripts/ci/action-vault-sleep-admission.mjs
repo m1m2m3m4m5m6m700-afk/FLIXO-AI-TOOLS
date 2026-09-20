@@ -4,9 +4,7 @@ import path from 'node:path';
 import { sleepAdmission, idleAdmission } from './agent-liveness-protocol.mjs';
 
 const ROOT=process.cwd();
-const GREEN_DIR=path.resolve(ROOT,'diagnostics/auto-repair/action-vault/green-records');
 const arg=(name,f='')=>{const p='--'+name+'=';const x=process.argv.find(v=>v.startsWith(p));return x?x.slice(p.length):f};
-const op=arg('op','assert');
 const taskId=arg('task');
 const fingerprint=arg('fingerprint');
 const targetSha=arg('target-sha');
