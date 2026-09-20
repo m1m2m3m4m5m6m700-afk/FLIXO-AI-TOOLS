@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const ROOT=process.cwd();
 const memoryDir=()=>path.resolve(ROOT, process.env.FLIXO_ACTION_MEMORY_DIR ?? 'diagnostics/auto-repair/action-repair-bots');
-const ID_RE=/^ACTION-(INDEX|WISE|WAKE|TWIN-1|TWIN-2)$/u;
+const ID_RE=/^ACTION-(INDEX|WISE|WAKE|TWIN-1|TWIN-2|REPAIR)$/u;
 const fileOf=id=>path.join(memoryDir(),String(id)+'.json');
 const valid=id=>{if(!ID_RE.test(String(id))) throw new Error('ACTION_BOT_ID_INVALID'); return String(id)};
 const now=()=>new Date().toISOString();
