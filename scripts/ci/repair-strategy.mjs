@@ -51,10 +51,6 @@ const priorStrategies = [
   ...(entry?.rejectedStrategies ?? []),
   ...(entry?.strategies ?? []),
 ].map(String);
-const rejected = new Set([
-  ...(entry?.revertedRules ?? []),
-  ...(entry?.rules ?? []).filter((rule) => (entry?.outcomes ?? []).some((item) => item?.rule === rule && item?.outcome !== 'success')),
-]);
 const unusedIndexes = strategies.map((_, i) => i).filter((i) => !priorStrategies.includes(strategies[i][0]));
 const index = unusedIndexes[0] ?? ((Math.max(0, nextAttempt - 1)) % strategies.length);
 const [strategyId, strategy] = strategies[index];
