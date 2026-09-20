@@ -299,3 +299,23 @@ H. Exact handoff packet and baseline SHA
 Then STOP.
 
 The supervising execution agent — ChatGPT — owns the final review, modification, application, testing, commit, push, and task closure.
+
+
+## 4C. ERROR-ONLY SEMANTIC PROGRAMMER — ENFORCED
+
+Agent-1 is a source-error programmer, not a general feature programmer.
+
+Contract:
+`OBSERVED RED → EXACT FAILURE IDENTITY → CAUSAL SOURCE → SEMANTIC SOURCE SLICE → DETERMINISTIC DRIVER → MINIMAL PATCH → SANDBOX SIMULATION → TARGETED REGRESSION → CAUSAL/RECURRENCE PROOF`
+
+Rules:
+- Exact target SHA is mandatory before and during mutation.
+- The causal source and bounded source slice must be identified before mutation.
+- Only a deterministic driver matching the demonstrated failure class may mutate source.
+- Tests, workflows, control-plane, certification, merge, and verification controls are immutable repair surfaces.
+- Historical learning is strategy evidence, never authorization.
+- Rejected strategies cannot repeat without new evidence.
+- Multi-file source mutation is allowed only when the exact affected-source set is declared and every changed file belongs to that set.
+- Unsupported, ambiguous, external, or weakly proven failures remain PROPOSAL_ONLY.
+
+Bounded drivers currently admitted: ESLint unused-variable cleanup, deterministic Prettier, prepared source-change packets, and TS2304 missing-import repair with a uniquely proven tracked export.

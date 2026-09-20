@@ -23,7 +23,19 @@ assert.throws(
 );
 assert.deepEqual(
   validateErrorOnlyMutation({failureLocation:'src/failure.ts',selectedFile:'src/failure.ts',changedPaths:['src/failure.ts']}),
-  {mode:'ERROR_ONLY',failureLocation:'src/failure.ts',selectedFile:'src/failure.ts',changedPaths:['src/failure.ts'],testMutation:false},
+  {mode:'ERROR_ONLY',failureLocation:'src/failure.ts',selectedFile:'src/failure.ts',selectedFiles:['src/failure.ts'],changedPaths:['src/failure.ts'],testMutation:false,controlPlaneMutation:false,exactTargetSet:true},
+);
+assert.deepEqual(
+  validateErrorOnlyMutation({failureLocation:'src/failure.ts',selectedFiles:['src/failure.ts','src/helper.ts'],changedPaths:['src/failure.ts','src/helper.ts']}),
+  {mode:'ERROR_ONLY',failureLocation:'src/failure.ts',selectedFile:'src/failure.ts',selectedFiles:['src/failure.ts','src/helper.ts'],changedPaths:['src/failure.ts','src/helper.ts'],testMutation:false,controlPlaneMutation:false,exactTargetSet:true},
+);
+assert.throws(
+  () => validateErrorOnlyMutation({failureLocation:'src/failure.ts',selectedFiles:['src/helper.ts'],changedPaths:['src/helper.ts']}),
+  /REPAIR_PROTOCOL_ERROR_TARGET_MISMATCH|REPAIR_PROTOCOL_CAUSAL_SOURCE_NOT_IN_TARGET_SET/,
+);
+assert.throws(
+  () => validateErrorOnlyMutation({failureLocation:'src/failure.ts',selectedFiles:['src/failure.ts','scripts/ci/repair-protocol.mjs'],changedPaths:['src/failure.ts']}),
+  /REPAIR_PROTOCOL_CONTROL_PLANE_MUTATION_BLOCKED/,
 );
 assert.deepEqual(
   validateMinimalRepairScope({affectedPaths:['src/failure.ts','src/helper.ts'],changedPaths:['src/failure.ts']}),

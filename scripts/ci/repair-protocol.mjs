@@ -57,23 +57,36 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
   }
   return Object.freeze({actor,branch,mutation,protocol,admitted:true});
 }
-export function validateErrorOnlyMutation({failureLocation,selectedFile,changedPaths=[]}={}) {
-  const location = typeof failureLocation === 'string' ? failureLocation.trim().replace(/\\/g, '/') : '';
-  const selected = typeof selectedFile === 'string' ? selectedFile.trim().replace(/\\/g, '/') : '';
-  const changed = [...new Set(changedPaths.map((value) => String(value).trim().replace(/\\/g, '/')).filter(Boolean))];
+export function validateErrorOnlyMutation({failureLocation,selectedFile,selectedFiles=[],changedPaths=[]}={}) {
+  const normalize = (value) => String(value ?? '').trim().replace(/\\/g, '/');
+  const location = normalize(failureLocation);
+  const explicitFiles = (Array.isArray(selectedFiles) ? selectedFiles : [selectedFiles]).map(normalize).filter(Boolean);
+  const selected = normalize(selectedFile);
+  const targets = [...new Set((explicitFiles.length ? explicitFiles : [selected]).filter(Boolean))];
+  const changed = [...new Set(changedPaths.map(normalize).filter(Boolean))];
   if (!location) throw new Error('REPAIR_PROTOCOL_ERROR_LOCATION_REQUIRED');
-  if (!selected) throw new Error('REPAIR_PROTOCOL_ERROR_TARGET_REQUIRED');
-  if (selected !== location) throw new Error('REPAIR_PROTOCOL_ERROR_TARGET_MISMATCH');
-  if (changed.length !== 1 || changed[0] !== location) throw new Error('REPAIR_PROTOCOL_ERROR_SCOPE_EXCEEDED');
-  if (/(^|[\\\\/])(?:tests?|__tests__)(?:[\\\\/]|$)/iu.test(location) || /(?:\\.(?:spec|test)\\.(?:mjs|cjs|js|ts|tsx|jsx))$/iu.test(location) || /(^|[\\\\/])test-[^/]+\\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu.test(location)) {
-    throw new Error('REPAIR_PROTOCOL_TEST_MUTATION_BLOCKED');
+  if (!targets.length) throw new Error('REPAIR_PROTOCOL_ERROR_TARGET_REQUIRED');
+  if (targets.length === 1 && targets[0] !== location) throw new Error('REPAIR_PROTOCOL_ERROR_TARGET_MISMATCH');
+  if (targets.length > 1 && !targets.includes(location)) throw new Error('REPAIR_PROTOCOL_ERROR_CAUSAL_SOURCE_NOT_IN_TARGET_SET');
+  if (!changed.length) throw new Error('REPAIR_PROTOCOL_ERROR_SCOPE_EXCEEDED');
+  const sourcePattern = /\\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu;
+  const testPattern = /(^|[\\\\/])(?:tests?|__tests__)(?:[\\\\/]|$)|(?:^|[\\\\/])test-[^/]+\\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu;
+  const controlPattern = /^(?:scripts\\/ci\\/(?:repair-|auto-repair)|scripts\\/ci\\/agent-|scripts\\/ci\\/control-plane)|^\\.github\\/workflows\\//u;
+  for (const file of [...targets, ...changed]) {
+    if (!sourcePattern.test(file)) throw new Error('REPAIR_PROTOCOL_SOURCE_FILE_TYPE_BLOCKED=' + file);
+    if (testPattern.test(file)) throw new Error('REPAIR_PROTOCOL_TEST_MUTATION_BLOCKED');
+    if (controlPattern.test(file)) throw new Error('REPAIR_PROTOCOL_CONTROL_PLANE_MUTATION_BLOCKED=' + file);
   }
+  if (changed.some((file) => !targets.includes(file))) throw new Error('REPAIR_PROTOCOL_ERROR_SCOPE_EXCEEDED');
   return Object.freeze({
     mode: 'ERROR_ONLY',
     failureLocation: location,
-    selectedFile: selected,
+    selectedFile: targets[0],
+    selectedFiles: targets,
     changedPaths: changed,
     testMutation: false,
+    controlPlaneMutation: false,
+    exactTargetSet: true,
   });
 }
 
