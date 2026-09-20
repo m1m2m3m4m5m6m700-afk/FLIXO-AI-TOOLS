@@ -32,7 +32,9 @@
     "message_freshness": "A message may be received on any SHA, but it is executable only when its entrySha matches the current authoritative workspace SHA or has been explicitly revalidated by the controller.",
     "council_hierarchy": "assistantController is the Council President; verification is the Council Deputy; analysis is the Council Investigator. These titles add coordination responsibility but no new mutation or certification authority.",
     "large_work_packages": "Executable work is grouped into causally coherent Work Packages carrying missionId, workPackageId, ownerRole, ownerAgent, workItems, acceptanceCriteria and proofObligations. Independent causes remain separate.",
-    "wake_dispatch": "President Wake is a fail-closed exact-SHA activation request processed by the canonical communication relay with scripts/ci/council-wake-dispatch.mjs. It dispatches only reusable workflows or records an external-agent wake requirement."
+    "wake_dispatch": "President Wake is a fail-closed exact-SHA activation request processed by the canonical communication relay with scripts/ci/council-wake-dispatch.mjs. It dispatches only reusable workflows or records an external-agent wake requirement.",
+    "external_account_runtime": "P20 extension: CHIEF, WORKER_A and WORKER_B are external runtime identities persisted in Supabase. Only CHIEF may dispatch worker Work Packages; workers may ACK, heartbeat and complete their assigned work.",
+    "external_wake": "GitHub RED wakes CHIEF through the canonical external-runtime route. CHIEF dispatches Worker A/B. A worker is active only after ACK on the current exact SHA. Lease expiry triggers one deterministic fallback."
   },
   "messageEnvelope": {
     "required": [
@@ -85,7 +87,8 @@
     "assistantRepairAgent": "Fallback repair executor. It runs learned internal repairs only when both repairAgent and executionAgent are unavailable, using a previously verified rule with exact-SHA revalidation; it remains bound to all normal verification, certification, ownership and commit controls.",
     "councilPresident": "assistantController: presidential control, assignment and integration decisions; no mutation or certification",
     "councilDeputy": "verification: queue sequencing, dependency ordering, ownership and handoff management; no mutation or certification",
-    "councilInvestigator": "analysis: fingerprint, RCA, falsification and proof-obligation ownership; no mutation or reassignment"
+    "councilInvestigator": "analysis: fingerprint, RCA, falsification and proof-obligation ownership; no mutation or reassignment",
+    "externalRuntime": "External account adapter: transports Wake/ACK/heartbeat/completion between GitHub/Supabase and external GPT runtimes. It grants no mutation or certification authority."
   },
   "decisionGates": {
     "LOW": "Auto-execute only inside declared scope with deterministic verification and no protected-path impact.",
@@ -142,7 +145,8 @@
     "noSecondRegistry": true,
     "noSecondProtocol": true,
     "dispatcher": ".github/workflows/agent-communication-relay.yml",
-    "activeLegacyInbox": "Issue #761 is archived and rejected as an activation source"
+    "activeLegacyInbox": "Issue #761 is archived and rejected as an activation source",
+    "externalRuntime": "/api/council/external-runtime"
   },
   "fallbackRepair": {
     "trigger": "repairAgent AND executionAgent unavailable",
@@ -160,5 +164,16 @@
       "verification failure",
       "protected-path conflict"
     ]
+  },
+  "accounts": [
+    "CHIEF",
+    "WORKER_A",
+    "WORKER_B"
+  ],
+  "leasePolicy": {
+    "chiefSeconds": 180,
+    "workerSeconds": 120,
+    "maxAttempts": 2,
+    "fallback": "lease-expiry-only"
   }
 }

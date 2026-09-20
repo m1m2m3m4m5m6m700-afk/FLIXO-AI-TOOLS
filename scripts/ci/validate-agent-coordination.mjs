@@ -55,6 +55,8 @@ if (exists('docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json')) {
   } catch { failures.push('COOPERATION_JSON_INVALID'); }
 }
 
+if (exists('.github/workflows/agent-master-activation.yml') && read('.github/workflows/agent-master-activation.yml').includes('issue comment 761')) failures.push('LEGACY_761_ACTIVATION_DETECTED');
+
 const scout = exists('scripts/ci/code-read-only-scout.mjs') ? read('scripts/ci/code-read-only-scout.mjs') : '';
 if (!scout) failures.push('SCOUT_SCRIPT_MISSING');
 else {

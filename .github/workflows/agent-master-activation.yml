@@ -51,3 +51,17 @@ jobs:
             echo "$MARKER"
           } > /tmp/activation-comment.md
           gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body-file /tmp/activation-comment.md
+
+      - name: Dispatch canonical RED wake to Chief GPT runtime
+        env:
+          COUNCIL_RUNTIME_URL: ${{ secrets.COUNCIL_RUNTIME_URL }}
+          COUNCIL_DISPATCH_SECRET: ${{ secrets.COUNCIL_DISPATCH_SECRET }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$COUNCIL_RUNTIME_URL"
+          test -n "$COUNCIL_DISPATCH_SECRET"
+          curl -fsS --max-time 15             -X POST             -H "Authorization: Bearer $COUNCIL_DISPATCH_SECRET"             -H "Content-Type: application/json"             --data "$(jq -nc               --arg messageId "github-red-$RUN_ID-$SHA"               --arg idempotencyKey "github-red-$RUN_ID-$SHA"               --arg taskId "GREEN-RECOVERY-001"               --arg workPackageId "ROOT-CAUSE-SPINE-001"               --arg entrySha "$SHA"               --arg sourceRun "$RUN_ID"               '{messageId:$messageId,idempotencyKey:$idempotencyKey,taskId:$taskId,workPackageId:$workPackageId,entrySha:$entrySha,requestedByAccountId:"SYSTEM",primaryAccountId:"CHIEF",fallbackAccountId:"CHIEF",source:"github-master-activation",payload:{workflowRunId:$sourceRun,reason:"canonical-red"}}')"             "${COUNCIL_RUNTIME_URL%/}/api/council/external-runtime?action=dispatch"
+          echo "COUNCIL_CHIEF_WAKE=DISPATCHED"

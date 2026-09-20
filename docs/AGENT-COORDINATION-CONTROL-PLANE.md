@@ -103,3 +103,19 @@ Claimable work must be a large Work Package with `missionId + workPackageId + ow
 `task-next` returns an unassigned ledger task to `assistantController` as `PENDING_ASSIGNMENT`; it never silently assigns work to the previous worker.
 
 President Wake is exact-SHA bound and dispatched by the canonical communication relay. Reusable routes: SCOUT→`code-read-only-scout.yml`, INVESTIGATOR→`ultra-investigator.yml`, PERFORMANCE→`root-cause-diagnostics.yml`, TEST→`test-matrix-contract.yml`, SECURITY→`repository-security-baseline.yml`. Roles without reusable workflows are `EXTERNAL_AGENT_WAKE_REQUIRED` and must never be represented as executed.
+
+
+## External GPT account bridge
+
+P20 also coordinates external runtime accounts through the canonical transport `/api/council/external-runtime`.
+
+The Account Registry is `src/lib/council-account-registry.ts` and the durable state is persisted in Supabase tables `flix_council_accounts`, `flix_council_dispatches`, and `flix_council_events`.
+
+Account boundaries:
+- `CHIEF`: orchestration only; may dispatch Worker A/B.
+- `WORKER_A`: bounded worker; may receive, ACK, heartbeat and complete.
+- `WORKER_B`: bounded worker; may receive, ACK, heartbeat and complete.
+
+A Worker's lease is bound to the exact repository SHA in its Dispatch. Expiry transfers the package to the configured counterpart once. The second expiry stays unresolved for Chief review.
+
+The external bridge does not grant GitHub mutation, merge, deployment or certification authority. It is a transport and durable handoff layer only.

@@ -329,3 +329,16 @@ Every executable task is a causally coherent large Work Package carrying `missio
 Claim admission fails closed when ownerRole is missing/mismatched, when the agent is not the assigned owner, when required Work Package fields are missing, or when the session scope does not cover the task scope. Unassigned ledger tasks return to the President as PENDING_ASSIGNMENT.
 
 Wake lifecycle: `PRESIDENT WAKE → exact-SHA validation → role/work-package validation → canonical communication relay → reusable workflow dispatch OR external-agent wake → session → claim → execute → handoff → President decision`. Wake never grants mutation authority.
+
+
+## External GPT account runtime
+
+P20 now carries a transport layer for exactly three external account identities: `CHIEF`, `WORKER_A`, `WORKER_B`.
+
+The runtime chain is `GitHub RED → CHIEF → WORKER_A/B → ACK + lease → heartbeat → completion → HANDOFF_READY → CHIEF`. Only CHIEF may dispatch worker packages.
+
+Lease expiry transfers a worker package to its configured counterpart exactly once. A second expiry remains unresolved and is returned to CHIEF; retry recursion is bounded.
+
+Persistence is server-side in Supabase. GitHub Actions supplies the automatic RED trigger and one-minute lease recovery watcher. External workers may use push endpoints or polling.
+
+A normal ChatGPT UI session is not directly addressable by GitHub. The final account-to-account connection therefore requires an external GPT runtime bridge or poller controlled by the corresponding account/operator. Secrets remain server-side.

@@ -1,0 +1,30 @@
+name: FLIXO External Council Lease Watcher
+
+on:
+  schedule:
+    - cron: '* * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flixo-council-external-lease-watch
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    name: Recover expired external-agent leases
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Recover expired leases and wake fallback
+        env:
+          COUNCIL_RUNTIME_URL: ${{ secrets.COUNCIL_RUNTIME_URL }}
+          COUNCIL_DISPATCH_SECRET: ${{ secrets.COUNCIL_DISPATCH_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$COUNCIL_RUNTIME_URL"
+          test -n "$COUNCIL_DISPATCH_SECRET"
+          curl -fsS --max-time 15             -X POST             -H "Authorization: Bearer $COUNCIL_DISPATCH_SECRET"             -H "Content-Type: application/json"             --data '{"limit":10}'             "${COUNCIL_RUNTIME_URL%/}/api/council/external-runtime?action=recover"
