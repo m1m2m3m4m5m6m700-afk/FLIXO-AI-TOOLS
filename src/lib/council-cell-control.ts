@@ -4,6 +4,8 @@ export const CELL_HEADQUARTERS_ID = 'CELL-HQ' as const;
 export const CELL_CONTROL_SEAT_ID = 'CELL-CONTROL-SEAT' as const;
 export const CELL_PRIMARY_RUNTIME_ID = 'CHIEF' as const;
 export const CELL_CHAIR = 'assistantController' as const;
+export const CELL_RESULT_REVIEWER_ID = 'CELL-RESULT-REVIEWER' as const;
+export const CELL_RESULT_REVIEWER_ROLE = 'INDEPENDENT_RESULT_REVIEWER' as const;
 
 export const CELL_COMMUNICATION_CHANNELS = Object.freeze(['CONTROL','PRESENCE','RCA','TASK','VERIFY','KNOWLEDGE'] as const);
 export const CELL_RESPONSIBLE_AGENTS = Object.freeze([
@@ -37,6 +39,30 @@ export type CellPresenceRequest = {
   exactSha: string; evidence: string[]; requestedAction: string; blocking: boolean;
   target: typeof CELL_CHAIR;
 };
+export type CellResultReview = {
+  reviewId: string;
+  reviewerId: typeof CELL_RESULT_REVIEWER_ID;
+  botId: RawCellBotId;
+  taskId: string;
+  planId: string;
+  planVersion: number;
+  entrySha: string;
+  exitSha: string;
+  verdict: 'ACCEPT' | 'REVISE' | 'REJECT' | 'ESCALATE';
+  score: number;
+  criteria: {
+    taskCompletion: number;
+    evidenceQuality: number;
+    planAlignment: number;
+    correctness: number;
+    knowledgeQuality: number;
+  };
+  findings: string[];
+  evidence: string[];
+  upgradeSignals: string[];
+  nextAction: 'RETURN_TO_POOL' | 'REWORK' | 'PRESENCE_REQUEST' | 'ESCALATE_TO_CONTROLLER';
+};
+
 export type CellKnowledgeReturn = {
   knowledgeId: string; botId: RawCellBotId; taskId: string; planId: string; planVersion: number;
   exactSha: string; statement: string; evidence: string[]; validation: string;
@@ -65,6 +91,24 @@ export function createPresenceRequest(input: Omit<CellPresenceRequest,'channel'|
   if (!Array.isArray(input.evidence) || !input.evidence.length) throw new Error('CELL_PRESENCE_EVIDENCE_REQUIRED');
   return Object.freeze({...input,channel:'PRESENCE' as const,target:CELL_CHAIR});
 }
+export function assertCellResultReview(r: CellResultReview): void {
+  for (const [v,n] of [[r.reviewId,'review_id'],[r.taskId,'task_id'],[r.planId,'plan_id']] as const) required(v,n);
+  if (r.reviewerId !== CELL_RESULT_REVIEWER_ID) throw new Error('CELL_RESULT_REVIEWER_ID_INVALID');
+  if (!Number.isInteger(r.planVersion) || r.planVersion < 1) throw new Error('CELL_REVIEW_PLAN_VERSION_INVALID');
+  sha(r.entrySha); sha(r.exitSha);
+  if (!['ACCEPT','REVISE','REJECT','ESCALATE'].includes(r.verdict)) throw new Error('CELL_REVIEW_VERDICT_INVALID');
+  if (!Number.isInteger(r.score) || r.score < 0 || r.score > 100) throw new Error('CELL_REVIEW_SCORE_INVALID');
+  for (const [key,value] of Object.entries(r.criteria)) {
+    if (!Number.isInteger(value) || value < 0 || value > 100) throw new Error('CELL_REVIEW_CRITERION_INVALID=' + key);
+  }
+  if (!Array.isArray(r.findings) || !Array.isArray(r.evidence) || !Array.isArray(r.upgradeSignals)) {
+    throw new Error('CELL_REVIEW_ARRAYS_INVALID');
+  }
+  if (!['RETURN_TO_POOL','REWORK','PRESENCE_REQUEST','ESCALATE_TO_CONTROLLER'].includes(r.nextAction)) {
+    throw new Error('CELL_REVIEW_NEXT_ACTION_INVALID');
+  }
+}
+
 export function assertKnowledgeReturn(r: CellKnowledgeReturn): void {
   for (const [v,n] of [[r.knowledgeId,'knowledge_id'],[r.botId,'bot_id'],[r.taskId,'task_id'],[r.planId,'plan_id'],
     [r.statement,'statement'],[r.validation,'validation'],[r.reusableLesson,'reusable_lesson']] as const) required(v,n);
