@@ -40,3 +40,11 @@ assert.ok(RAW_CELL_BOTS.every((bot) =>
 assert.equal(getRawCellBot('CELL-017').botId, 'CELL-017');
 assert.throws(() => getRawCellBot('CELL-051'), /COUNCIL_CELL_BOT_UNKNOWN/);
 console.log('COUNCIL_CELL_50_RAW_BOTS=PASS');
+
+import { ACTION_AGENT_TRIAD } from '../src/lib/council-account-registry.ts';
+assert.equal(ACTION_AGENT_TRIAD.CHIEF.mutationMode,'NONE');
+assert.equal(ACTION_AGENT_TRIAD.WORKER_A.mutationMode,'DELEGATED_REPAIR_ONLY');
+assert.equal(ACTION_AGENT_TRIAD.WORKER_B.mutationMode,'DELEGATED_REPAIR_ONLY');
+assert.equal(ACTION_AGENT_TRIAD.WORKER_A.certificationAuthority,false);
+assert.equal(ACTION_AGENT_TRIAD.WORKER_B.certificationAuthority,false);
+console.log('ACTION_AGENT_TRIAD_PROFILES=PASS');
