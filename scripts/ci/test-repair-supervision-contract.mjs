@@ -3,12 +3,19 @@ import fs from 'node:fs';
 
 const read = (file) => fs.readFileSync(file, 'utf8');
 const watchdog = read('.github/workflows/execution-bot-watchdog.yml');
+const twin = read('.github/workflows/auto-repair.yml');
 const mergeGate = read('.github/workflows/auto-repair-merge-gate.yml');
 const dailyGate = read('.github/workflows/daily-flixo-green-gate.yml');
 const liveness = read('scripts/ci/agent-liveness-protocol.mjs');
 const lease = read('scripts/ci/repair-lease.mjs');
 
 assert.match(watchdog, /workflow_run:/);
+assert.match(twin, /adversarial_twin:/);
+assert.match(twin, /contents:\s+read/);
+assert.match(twin, /actions:\s+read/);
+assert.match(twin, /READ_ONLY_ADVERSARIAL_TWIN|adversarial-repair-twin\.mjs/);
+assert.match(twin, /Await the parallel adversarial twin/);
+assert.match(twin, /FLIXO_TWIN_PROPOSAL_PATH/);
 assert.match(watchdog, /schedule:/);
 assert.match(watchdog, /cron: '\*\/5 \* \* \* \*'/);
 assert.match(watchdog, /github\.event\.name == 'schedule'/);
