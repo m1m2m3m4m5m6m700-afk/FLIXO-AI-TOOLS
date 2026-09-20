@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { fingerprintFailure, normalizeFailure } from './fingerprint.mjs';
 
 const SHA_RE = /^[a-f0-9]{40}$/u;
@@ -29,8 +31,6 @@ function deriveSemanticSourceSlice({ targetDir = process.cwd(), location = null 
   const line = Number(location?.line ?? 0);
   if (!file || !line) return Object.freeze({ available: false, file: file || null, line: line || null, symbol: null, startLine: null, endLine: null });
   try {
-    const fs = require('node:fs');
-    const path = require('node:path');
     const lines = fs.readFileSync(path.resolve(targetDir, file), 'utf8').split(/\r?\n/u);
     const start = Math.max(0, line - 8);
     const end = Math.min(lines.length, line + 7);

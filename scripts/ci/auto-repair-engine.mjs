@@ -222,6 +222,12 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     const diffSummary = summarizeDiff(changed);
     evidence.diff = diffSummary;
     evidence.changedPaths = diffSummary.files;
+  evidence.errorOnlyMutationPostDiff = validateErrorOnlyMutation({
+    failureLocation: diagnosis?.location?.file ?? selected?.file ?? evidence.errorOnlyMutation.selectedFiles[0],
+    selectedFile: selected?.file ?? evidence.errorOnlyMutation.selectedFiles[0],
+    selectedFiles: evidence.errorOnlyMutation.selectedFiles,
+    changedPaths: diffSummary.files,
+  });
     evidence.errorOnlyMutation = validateErrorOnlyMutation({
       failureLocation: diagnosis?.location?.file,
       selectedFile: historicalRollbackCandidate?.file ?? diagnosis?.location?.file,
@@ -431,6 +437,7 @@ const errorOnlyProgrammer = buildErrorOnlyRepairModel({
   selected,
   targetSha,
   failedSha: process.env.FLIXO_FAILURE_SHA || null,
+  targetDir,
 });
 evidence.errorOnlyProgrammer = errorOnlyProgrammer;
 if (!errorOnlyProgrammer.repair.mutationAllowed) {
@@ -531,21 +538,15 @@ const before = snapshot(targetDir);
   }
 
 try {
-  if (selected?.id === 'prepared-source-change') {
-    evidence.errorOnlyMutation = {
-      mode: 'PREPARED_SOURCE_CHANGE_SET',
-      selectedFile: selected?.file ?? null,
-      changedPaths: selected?.files ?? [],
-      testMutation: false,
-      preparedPacketDigest: selected?.packetDigest ?? null,
-    };
-  } else {
-    evidence.errorOnlyMutation = validateErrorOnlyMutation({
-      failureLocation: diagnosis?.location?.file,
-      selectedFile: selected?.file,
-      changedPaths: [selected?.file],
-    });
-  }
+  const declaredRepairFiles = selected?.id === 'prepared-source-change'
+    ? (selected?.files ?? []).filter(Boolean)
+    : [selected?.file].filter(Boolean);
+  evidence.errorOnlyMutation = validateErrorOnlyMutation({
+    failureLocation: diagnosis?.location?.file ?? selected?.file ?? declaredRepairFiles[0],
+    selectedFile: selected?.file ?? declaredRepairFiles[0],
+    selectedFiles: declaredRepairFiles,
+    changedPaths: declaredRepairFiles,
+  });
   evidence.repair = runAstRepair(targetDir, selected);
   const changed = git(['diff', '--binary']);
   const diffSummary = summarizeDiff(changed);
