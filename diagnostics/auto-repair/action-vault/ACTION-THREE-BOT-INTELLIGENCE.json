@@ -162,6 +162,14 @@
         "failedRunId"
       ],
       "crossLearningRequired": true
+    },
+    "targetedRepair": {
+      "protocolRef": "docs/agents/ACTION-VAULT-TARGETED-REPAIR-PROTOCOL.md",
+      "planner": "scripts/ci/action-vault-targeted-test.mjs",
+      "rule": "REPAIR_AND_RETEST_ONLY_THE_IMPACTED_SURFACE_FIRST",
+      "fullSuiteInFastLoop": false,
+      "exactShaRequired": true,
+      "canonicalGreenRequired": true
     }
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
