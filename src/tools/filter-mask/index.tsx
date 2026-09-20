@@ -1,0 +1,1 @@
+export function FilterMaskTool(){return <section><h2>Filter Mask</h2><p>Live filter surface.</p></section>}
