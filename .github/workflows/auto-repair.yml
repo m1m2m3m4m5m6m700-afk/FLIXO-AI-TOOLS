@@ -492,6 +492,19 @@ jobs:
           echo "TWIN_A_READY=true"
           echo "TWIN_B_READY=true"
 
+      - name: ACTION-REPAIR comprehensive knowledge audit
+        id: action_repair_knowledge_audit
+        run: |
+          set -euo pipefail
+          node scripts/ci/action-repair-knowledge-audit.mjs \
+            --target-sha="$(cat /tmp/flixo-failed-sha)" \
+            --run-id="$TARGET_RUN_ID" \
+            --fingerprint="$FLIXO_FAILURE_FINGERPRINT" \
+            --output=/tmp/flixo-action-repair-knowledge-audit.json
+          test -s /tmp/flixo-action-repair-knowledge-audit.json
+          jq -e '.botId=="ACTION-REPAIR" and .targetSha==env.FLIXO_EXPECTED_TARGET_SHA and .hardConstraints.exactShaRequired==true and .selfSearch.enabled==true' /tmp/flixo-action-repair-knowledge-audit.json >/dev/null
+          echo "FLIXO_ACTION_REPAIR_KNOWLEDGE_AUDIT=/tmp/flixo-action-repair-knowledge-audit.json" >> "$GITHUB_ENV"
+
       - name: ACTION-REPAIR self-search current Actions log and historical index
         id: action_repair_search
         env:
