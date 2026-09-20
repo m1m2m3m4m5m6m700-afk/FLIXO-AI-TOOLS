@@ -30,5 +30,8 @@ assert.equal(typeof report.decision.eligibleToInfluenceRouting,'boolean');
 assert.ok(report.curriculum.every((item)=>['MASTERED','TRAINING','UNSEEN'].includes(item.status)));
 assert.equal(report.behaviorModel.epochs,5);
 assert.ok(report.behaviorEvaluation);
+assert.equal(report.stateModel.algorithm,'TABULAR_STATE_ACTION_Q');
+assert.equal(report.adversarialModel.algorithm,'ADVERSARIAL_CONTEXT_REPLAY');
+assert.ok(report.adversarialEvaluation);
 assert.ok(report.competency);
 console.log('REPAIR_BOT_TRAINING_CONTRACT_SELF_TEST=PASS');
