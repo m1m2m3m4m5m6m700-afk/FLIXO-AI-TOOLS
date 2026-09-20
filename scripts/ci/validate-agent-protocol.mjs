@@ -38,7 +38,7 @@ const requiredAgentsMarkers = [
   'mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure',
   'docs/PROTOCOL-REGISTRY.json',
   '`PROJECTS.md` → `المهام.md` → `AGENTS.md`',
-  'TASK GATE', 'SHARED PROMPT GATE', 'PROMPT-REGISTRY.json',
+  'TASK GATE', 'ZERO-NEW-BRANCH COMMAND', 'execution → main', 'A branch-creation attempt is a protocol violation', 'SHARED PROMPT GATE', 'PROMPT-REGISTRY.json',
 ];
 if (exists('AGENTS.md')) {
   const text = read('AGENTS.md');
