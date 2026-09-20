@@ -14,8 +14,6 @@ const profile = {
   parentBotId: 'ACTION-REPAIR',
   localOnly: true,
   networkAccess: false,
-  localOnly: true,
-  networkAccess: false,
   authority: {
     permanentIndependentAuthority: false,
     readOnly: true,
