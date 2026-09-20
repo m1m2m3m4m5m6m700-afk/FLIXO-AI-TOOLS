@@ -318,11 +318,26 @@ export function evaluateGreen({
     }
   }
 
+  const internalCancelledWithEvidence = report.errors.some((item) => {
+    if (item.type !== 'REQUIRED_WORKFLOW_RED' || item.status !== 'cancelled') return false;
+    const run = workflowRuns.find((candidate) => candidate?.databaseId === item.runId);
+    if (!run || run.headSha !== executionSha || run.headBranch !== observedBranch) return false;
+    const cancellation = classifyCancelledRun(run, workflowRuns);
+    const evidence = String(logs[String(run.databaseId)] ?? '').trim();
+    return cancellation?.state === 'CANCELLED_UNSUPERSEDED' &&
+      Boolean(evidence) &&
+      !/EVIDENCE_CAPTURE=FAILED/i.test(evidence);
+  });
+
   if (report.repair.required) {
     report.status = 'RED_INTERNAL';
     report.rootCause = report.errors.find((item) => item.type === 'UNEXPECTED_WORKFLOW_RED')?.workflow ?? 'INTERNAL_WORKFLOW_FAILURE';
   } else if (report.errors.length) {
-    report.status = report.rootCause ? 'BLOCKED_EXTERNAL' : 'FAIL_CLOSED';
+    report.status = report.rootCause
+      ? 'BLOCKED_EXTERNAL'
+      : internalCancelledWithEvidence
+        ? 'RED_INTERNAL'
+        : 'FAIL_CLOSED';
   } else {
     report.status = 'GREEN';
     report.rootCause = null;
