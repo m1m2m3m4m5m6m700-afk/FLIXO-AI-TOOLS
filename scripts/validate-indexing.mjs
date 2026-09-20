@@ -72,4 +72,4 @@ if (!rootSource.includes("{ name: 'description', content:")) throw new Error('Ro
 if (!manifestSource.includes('"start_url": "/en"')) throw new Error('Manifest start_url must resolve to a localized public route.');
 if (!manifestSource.includes('"src": "/flixo-logo.webp"')) throw new Error('Manifest must use the canonical FLIXO logo asset.');
 
-console.log(`Indexing validation passed: ${expectedLocales.length} locales, ${toolIds.length} canonical image tools, localized tool canonical/hreflang symmetry, canonical HTTPS origin, and robots/sitemap contracts are aligned.`);
+console.log(`Indexing validation passed: ${expectedLocales.length} locales, ${readyToolIds.length} canonical ready image tools, localized tool canonical/hreflang symmetry, canonical HTTPS origin, and robots/sitemap contracts are aligned.`);
