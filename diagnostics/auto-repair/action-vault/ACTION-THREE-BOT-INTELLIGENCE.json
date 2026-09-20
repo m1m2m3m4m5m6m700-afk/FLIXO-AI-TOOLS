@@ -58,7 +58,11 @@
     "docs/agents/historical-action-errors/agent-activity/index.json",
     "docs/agents/historical-action-errors/agent-activity",
     "diagnostics/auto-repair/action-vault/ACTION-CODE-MENTOR.json",
-    "scripts/ci/action-code-mentor.mjs"
+    "scripts/ci/action-code-mentor.mjs",
+    "scripts/ci/action-historical-predictor.mjs",
+    "scripts/ci/action-failure-ledger.mjs",
+    "diagnostics/auto-repair/action-vault/historical-predictions/latest.json",
+    "diagnostics/auto-repair/action-vault/failure-ledger.ndjson"
   ],
   "safetyBoundary": {
     "intelligenceDoesNotImplyMutationAuthority": true,
