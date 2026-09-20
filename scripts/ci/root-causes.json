@@ -546,17 +546,18 @@
   },
   "RC-FILTER-MASK-LINT-CLEANUP-001": {
     "category": "LINT",
-    "description": "The current Filter Mask/repair support changes left unused helpers/imports, browser globals in a Node external runner, an empty expected-failure catch, JSX cleanup expressions, an unused recording ref, and a reassignable GPU renderer variable.",
+    "description": "The current Filter Mask/repair support changes left unused helpers/imports, browser globals in a Node external runner, empty catches, JSX cleanup expressions, an unused recording ref, and a reassignable GPU renderer variable.",
     "repairTargets": [
       "scripts/ci/adversarial-repair-twin.mjs",
       "scripts/ci/error-learning-log.mjs",
       "scripts/ci/test-error-teaching-router.mjs",
       "scripts/external/test-tool-output-external.mjs",
+      "scripts/ci/backfill-historical-action-errors.mjs",
       "src/tools/filter-mask/index.tsx"
     ],
     "verification": [
       "npm run lint"
     ],
-    "prevention": "After every repair wave, lint the exact changed surface and remove only demonstrably unused symbols/unsafe Node lint globals without changing runtime behavior."
+    "prevention": "After every repair wave, lint the exact changed surface and remove only demonstrably unused symbols/unsafe Node lint globals without changing runtime behavior. Empty catches must document the intentionally ignored parse/expected-failure path."
   }
 }
