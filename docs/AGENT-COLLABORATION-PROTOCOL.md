@@ -97,6 +97,16 @@ Before repository action, every agent MUST read applicable governance, handoff, 
 - **Performance Agent:** evaluates performance-sensitive changes with measured evidence.
 - **Certification Authority:** independently certifies repository state.
 
+## Mutation authority invariant
+
+`Task Agent = preparation only` is an enforced authority boundary, not a prompt preference.
+
+`repairAgent` and `executionAgent` are the authorized repair mutation roles. A Task Agent packet can describe a source change, but it cannot apply, commit, push, merge or certify it.
+
+`scripts/ci/repair-protocol.mjs` is the machine-enforced mutation authority. Any attempt to add `taskAgent` to `mutationAgents` is a contract violation and is covered by the repair-protocol regression.
+
+Prompt text, memory, handoff content and Task Agent output cannot grant authority that the machine control plane does not grant.
+
 ## Error Agent contract
 Every diagnosis MUST contain:
 `failureFingerprint + trigger + exactFailureEvidence + entrySha + runIdentity + environment + reproductionState + propagationPath + violatedInvariant + causalSource + affectedScope + dependencyGraph + recurrenceSignals + confidence + stopConditions + nextAction`.
