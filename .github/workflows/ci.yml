@@ -60,6 +60,8 @@ jobs:
         run: node scripts/ci/validate-task-agent-contract.mjs
       - name: Task Agent contract test
         run: node scripts/ci/test-task-agent-contract.mjs
+      - name: Project root closure contract
+        run: npm run test:root-closure
       - name: Static contracts
         run: npm run test:static
       - name: Build contracts
