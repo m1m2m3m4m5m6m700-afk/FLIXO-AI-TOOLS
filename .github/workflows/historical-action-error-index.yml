@@ -48,8 +48,12 @@ jobs:
           set -euo pipefail
           START='\${{ inputs.start || '' }}'
           END='\${{ inputs.end || '' }}'
-          if [ -z "$START" ]; then START='2026-08-10T00:00:00Z'; fi
-          if [ -z "$END" ]; then END="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; fi
+          if [ -z "$START" ]; then
+            START="$(node --input-type=module -e "import fs from 'node:fs'; const p='docs/agents/historical-action-errors/manifest.json'; const m=JSON.parse(fs.readFileSync(p,'utf8')); process.stdout.write(m.nextCursor || m.repositoryCreatedAt || '2026-08-10T00:00:00Z')")"
+          fi
+          if [ -z "$END" ]; then
+            END="$(node --input-type=module -e "const s=new Date(process.env.START); const n=new Date(); const e=new Date(Math.min(s.getTime()+86400000,n.getTime())); process.stdout.write(e.toISOString())" )"
+          fi
           echo "start=$START" >> "$GITHUB_OUTPUT"
           echo "end=$END" >> "$GITHUB_OUTPUT"
 
