@@ -326,12 +326,7 @@
         "source": "handoff.entrySha",
         "mustEqual": "authoritative execution baseline",
         "historicalProvenanceIsNotProof": true
-      },
-      "forbiddenScope": [
-        "test-only substitution for source correction",
-        "scope drift",
-        "closure without exact-SHA proof"
-      ]
+      }
     },
     {
       "promptId": "RPR-EXISTING-ACTIVE-CYCLE-001",
