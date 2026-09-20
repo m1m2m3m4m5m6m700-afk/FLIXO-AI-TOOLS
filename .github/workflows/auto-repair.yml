@@ -765,7 +765,10 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-repair-control-plane-${{ github.run_id }}
-          path: /tmp/flixo-repair-control-plane.json
+          path: |
+            /tmp/flixo-repair-control-plane.json
+            /tmp/flixo-lease-verification.json
+            /tmp/flixo-repair-lease-outcome.json
           if-no-files-found: warn
           retention-days: 14
 
