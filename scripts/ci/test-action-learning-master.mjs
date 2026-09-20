@@ -1,0 +1,22 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {execFileSync} from 'node:child_process';
+const dir='/tmp/flixo-action-master-test';
+fs.rmSync(dir,{recursive:true,force:true});
+const env={...process.env,FLIXO_ACTION_MEMORY_DIR:dir,FLIXO_EXPECTED_TARGET_SHA:'0123456789abcdef0123456789abcdef01234567',TARGET_RUN_ID:'TEST-MASTER',FLIXO_FAILURE_FINGERPRINT:'fp-master',FLIXO_NORMALIZED_FAILURE:'Error: example RED'};
+const run=(op,extra=[])=>JSON.parse(execFileSync('node',['scripts/ci/action-learning-master.mjs','--op='+op,...extra],{env,encoding:'utf8'}));
+const opened=run('open-red',['--workflow=FLIXO Test System','--job=Static + Build']);
+assert.equal(opened.status,'OPEN_FOR_REPAIR_AND_LEARNING');
+let memory=JSON.parse(fs.readFileSync(dir+'/ACTION-INDEX.json','utf8'));
+assert.equal(memory.redSignals.at(-1).status,'RED_OPEN');
+assert.equal(memory.learningRequests.at(-1).status,'OPEN');
+const solutionFile=dir+'/solution.json';
+fs.writeFileSync(solutionFile,JSON.stringify({strategyId:'test-strategy',rule:'test-rule',rootCause:'test-root',changedPaths:['a']}));
+const green=run('close-green',['--solution-file='+solutionFile,'--verification=verified-repair','--evidence-ref=proof://test']);
+assert.equal(green.status,'GREEN_SOLUTION_LEARNED');
+memory=JSON.parse(fs.readFileSync(dir+'/ACTION-INDEX.json','utf8'));
+assert.equal(memory.redSignals.at(-1).status,'GREEN_VERIFIED');
+assert.equal(memory.learningRequests.at(-1).status,'CLOSED_VALIDATED');
+assert.equal(memory.learningRequests.at(-1).master,'repairAgent');
+console.log('ACTION_LEARNING_MASTER=PASS');
