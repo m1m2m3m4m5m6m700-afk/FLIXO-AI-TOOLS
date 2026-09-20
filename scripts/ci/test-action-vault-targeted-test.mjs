@@ -7,5 +7,5 @@ assert.ok(protocol.includes('TARGETED REGRESSION'));
 assert.ok(protocol.includes('Canonical CI'));
 assert.ok(protocol.includes('EXACT-SHA'));
 assert.ok(protocol.includes('COLLABORATION'));
-for(const marker of ['affected paths','ACTION-VAULT-AGENT-GRADE.json','ACTION-THREE-BOT-INTELLIGENCE','ACTION-RESIDENCY-POLICY','validate-ci-contract.mjs','fullSuiteRequired']) assert.ok(script.toLowerCase().includes(marker.toLowerCase()),'missing '+marker);
+for(const marker of ['changedPaths','ACTION-VAULT-AGENT-GRADE.json','ACTION-THREE-BOT-INTELLIGENCE','ACTION-RESIDENCY-POLICY','validate-ci-contract.mjs','fullSuiteRequired']) assert.ok(script.toLowerCase().includes(marker.toLowerCase()),'missing '+marker);
 console.log(JSON.stringify({status:'PASS',protocol:'ACTION-VAULT-TARGETED-REPAIR-v1',assertions:8},null,2));
