@@ -15,7 +15,7 @@ const runGit = (cwd, args) => execFileSync('git', args, {
 
 const readDigest = (file) => sha256(fs.readFileSync(file));
 
-const gateWeakening = /continue-on-error\\s*:\\s*true|continue-on-error\\s*:\\s*\$\\{\\{\\s*true|force\\s*:\\s*true|\\|\\|\\s*true|exit\\s+0\\b/iu;
+const gateWeakening = /continue-on-error\s*:\s*true|continue-on-error\s*:\s*\$\{\{\s*true|force\s*:\s*true|\|\|\s*true|exit\s+0\b/iu;
 
 export function snapshotPaths(root, paths) {
   const result = {};
@@ -45,7 +45,7 @@ export function verifyDifferential({
   let weakening = [];
   for (const file of actual) {
     const absolute = path.resolve(repoRoot, file);
-    const inspectGate = /^\\.github\\/workflows\\//u.test(file) || file.startsWith('scripts/ci/');
+    const inspectGate = /^\.github\/workflows\//u.test(file) || file.startsWith('scripts/ci/');
     if (inspectGate && fs.existsSync(absolute) && gateWeakening.test(fs.readFileSync(absolute, 'utf8'))) weakening.push(file);
   }
 
