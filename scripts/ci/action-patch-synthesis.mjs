@@ -24,8 +24,8 @@ const protectedPath = (file) =>
   file.startsWith('coverage/') ||
   file.startsWith('tests/') ||
   file.startsWith('__tests__/') ||
-  /(^|/)test[^/]*\\.(?:js|jsx|ts|tsx|mjs|cjs)$/u.test(file) ||
-  /(?:^|/).*\\.(?:test|spec)\\.(?:js|jsx|ts|tsx|mjs|cjs)$/u.test(file);
+  /(^|\/)test[^/]*\.(?:js|jsx|ts|tsx|mjs|cjs)$/u.test(file) ||
+  /(?:^|\/).*\.(?:test|spec)\.(?:js|jsx|ts|tsx|mjs|cjs)$/u.test(file);
 
 const gateWeakening = (file, content) =>
   (/^\.github\/workflows\//u.test(file) || file.startsWith('scripts/ci/')) &&
