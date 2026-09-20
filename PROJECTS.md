@@ -50,6 +50,13 @@ NO CLOSED/VERIFIED LABEL IN THIS FILE IS CURRENT GREEN PROOF UNLESS IT IS REPROV
 ```
 
 
+## ACTIVE ACTION VAULT TRIAD GOVERNANCE
+
+- VAULT-TRIAD-001 = IMPLEMENTED / VERIFICATION PENDING
+- Scope: three-resident shared intelligence; VAULT-1/2 programmer parity with opposed proof objectives; VAULT-3 catalog curator/supervisor after 20 unresolved occurrences.
+- Machine contract: `docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md` + `scripts/ci/action-vault-triad-governor.mjs`.
+- Exact-SHA proof and canonical GREEN remain mandatory.
+
 ## LIVE DISCOVERY SYNC — 2026-09-19
 
 ```text
