@@ -1,0 +1,56 @@
+name: FLIXO External Tool Output Oracle
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Public FLIXO base URL to test
+        required: true
+        type: string
+  schedule:
+    - cron: '17 2 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  external-tool-output:
+    name: External output conformance
+    runs-on: ubuntu-latest
+    env:
+      TARGET_URL: ${{ inputs.base_url || vars.FLIXO_EXTERNAL_BASE_URL || '' }}
+      FLIXO_EXTERNAL_REPORT: external-test-results/tool-output-report.json
+    steps:
+      - name: Checkout exact workflow revision
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Validate external target is configured
+        run: |
+          if [ -z "$TARGET_URL" ]; then
+            echo "EXTERNAL_BASE_URL_REQUIRED"
+            exit 1
+          fi
+
+      - name: Run external tool output oracle
+        run: node scripts/external/test-tool-output-external.mjs --base-url="$TARGET_URL"
+
+      - name: Publish external output report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-external-tool-output-report
+          path: external-test-results/tool-output-report.json
+          if-no-files-found: warn
+          retention-days: 14
