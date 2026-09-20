@@ -71,6 +71,7 @@ const authGitHubWorkflow = async (req: Request, allowedWorkflows: string[]) => {
   const allowed = allowedWorkflows.some((workflow) => {
     if (workflow === "FLIXO Master Agent Activation Relay") return event === "workflow_run" && ref === "refs/heads/execution";
     if (workflow === "FLIXO External Council Lease Watcher") return (event === "schedule" && ref === "refs/heads/main") || (event === "workflow_dispatch" && (ref === "refs/heads/main" || ref === "refs/heads/execution"));
+    if (workflow === "FLIXO Cell Master Consult Relay") return event === "workflow_dispatch" && (ref === "refs/heads/execution" || ref === "refs/heads/main");
     return false;
   });
   if (!allowed) throw new Error("COUNCIL_GITHUB_OIDC_CONTEXT_REJECTED");
