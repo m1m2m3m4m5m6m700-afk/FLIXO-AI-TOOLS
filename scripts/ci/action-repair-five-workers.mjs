@@ -78,8 +78,8 @@ if(role==='wake'){
  const status=arg('status',process.env.FLIXO_WATCH_STATUS||'RED_INTERNAL');
  const branch=arg('branch','execution');
  if(branch!=='execution')throw new Error('ACTION_WAKE_BRANCH_BLOCKED');
- if(!['RED_INTERNAL','BLOCKED_EXTERNAL','FAIL_CLOSED'].includes(status))throw new Error('ACTION_WAKE_STATUS_NOT_ACTIONABLE');
- const result={schemaVersion:1,botId:'CELL-002',role:ROLE_MAP['CELL-002'],action:'WAKE_CANONICAL_REPAIR_SURFACE',dispatcher:'Daily·FLIXO Green Gate',targetRunId:runId,targetSha,failureFingerprint:fingerprint,status,mutationAuthority:false,directDispatch:false,canonicalNextStep:'EXISTING_CANONICAL_DISPATCHER'};
+ if(!['PUSH_READY','RED_INTERNAL','BLOCKED_EXTERNAL','FAIL_CLOSED'].includes(status))throw new Error('ACTION_WAKE_STATUS_NOT_ACTIONABLE');
+ const result={schemaVersion:1,botId:'CELL-002',role:ROLE_MAP['CELL-002'],action:'WAKE_WHOLE_CELL',dispatcher:'FLIXO Execution Bot Watchdog',targetRunId:runId,targetSha,failureFingerprint:fingerprint,status,mutationAuthority:false,directDispatch:false,wholeCellReady:true,sharedReferences:SHARED_REFS,canonicalNextStep:status==='PUSH_READY'?'DAILY_FLIXO_GREEN_GATE':'EXISTING_CANONICAL_DISPATCHER'};
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));process.exit(0);
 }
 if(role==='index'){
