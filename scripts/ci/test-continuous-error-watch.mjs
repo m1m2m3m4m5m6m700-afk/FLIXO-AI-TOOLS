@@ -113,7 +113,7 @@ const cancelledUnsuperseded = evaluateGreen({
   logs: { 996: 'EVIDENCE_CAPTURE=AVAILABLE\ncancelled internal run' },
   compare: { ahead_by: 1, behind_by: 0 },
 });
-assert.equal(cancelledUnsuperseded.status, 'RED_INTERNAL');
+assert.equal(cancelledUnsuperseded.status, 'FAIL_CLOSED');
 assert.equal(cancelledUnsuperseded.repair.required, false);
 
 const cancelledWithoutEvidence = evaluateGreen({
