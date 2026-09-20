@@ -213,7 +213,7 @@ jobs:
 
       - name: Wake Agent 2 with exact-SHA failure packet
         if: >-
-          steps.generate_prompts.outcome == 'success' &&
+          steps.evaluate.outcome == 'success' &&
           steps.capture.outputs.branch == 'execution' &&
           (
             steps.evaluate.outputs.status == 'RED_INTERNAL' ||
@@ -232,8 +232,12 @@ jobs:
           TARGET_RUN_ID="$(jq -r '.repair.targetRunId // empty' "$REPORT")"
           FAILURE_FINGERPRINT="$(jq -r '.repair.failureFingerprint // empty' "$REPORT")"
           PRIMARY_WORKFLOW="$(jq -r '[.errors[] | select(.workflow != null) | .workflow] | .[0] // "unknown-workflow"' "$REPORT")"
-          PROMPT_DIGEST="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); process.stdout.write(String(x.digest ?? ''))")"
-          PROMPT_COUNT="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); process.stdout.write(String(x.promptCount ?? 0))")"
+          PROMPT_DIGEST="NOT_AVAILABLE"
+          PROMPT_COUNT="0"
+          if [ -s /tmp/flixo-watch/execution-prompts.json ]; then
+            PROMPT_DIGEST="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); process.stdout.write(String(x.digest ?? ''))")"
+            PROMPT_COUNT="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); process.stdout.write(String(x.promptCount ?? 0))")"
+          fi
           test "$SHA" = "$(cat /tmp/flixo-watch/execution-sha)"
           [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
           test -n "$STATUS"
