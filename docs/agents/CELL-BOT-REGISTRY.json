@@ -81,7 +81,13 @@
           "evidence",
           "validation"
         ]
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [
+        "ACTERR"
+      ],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-002",
@@ -115,7 +121,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-003",
@@ -149,7 +159,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-004",
@@ -183,7 +197,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-005",
@@ -217,7 +235,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-006",
@@ -251,7 +273,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-007",
@@ -285,7 +311,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-008",
@@ -319,7 +349,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-009",
@@ -353,7 +387,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-010",
@@ -387,7 +425,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-011",
@@ -421,7 +463,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-012",
@@ -455,7 +501,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-013",
@@ -489,7 +539,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-014",
@@ -523,7 +577,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-015",
@@ -557,7 +615,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-016",
@@ -591,7 +653,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-017",
@@ -625,7 +691,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-018",
@@ -659,7 +729,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-019",
@@ -693,7 +767,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-020",
@@ -727,7 +805,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-021",
@@ -761,7 +843,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-022",
@@ -795,7 +881,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-023",
@@ -829,7 +919,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-024",
@@ -863,7 +957,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-025",
@@ -897,7 +995,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-026",
@@ -931,7 +1033,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-027",
@@ -965,7 +1071,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-028",
@@ -999,7 +1109,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-029",
@@ -1033,7 +1147,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-030",
@@ -1067,7 +1185,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-031",
@@ -1101,7 +1223,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-032",
@@ -1135,7 +1261,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-033",
@@ -1169,7 +1299,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-034",
@@ -1203,7 +1337,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-035",
@@ -1237,7 +1375,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-036",
@@ -1271,7 +1413,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-037",
@@ -1305,7 +1451,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-038",
@@ -1339,7 +1489,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-039",
@@ -1373,7 +1527,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-040",
@@ -1407,7 +1565,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-041",
@@ -1441,7 +1603,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-042",
@@ -1475,7 +1641,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-043",
@@ -1509,7 +1679,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-044",
@@ -1543,7 +1717,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-045",
@@ -1577,7 +1755,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-046",
@@ -1611,7 +1793,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-047",
@@ -1645,7 +1831,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-048",
@@ -1679,7 +1869,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-049",
@@ -1713,7 +1907,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     },
     {
       "id": "CELL-050",
@@ -1747,7 +1945,11 @@
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
-      }
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
     }
   ],
   "lifecycle": {
@@ -1776,5 +1978,13 @@
     "levelStartsAt": 0,
     "promotionRule": "validated observation + evidence + controller reassessment",
     "specializationRule": "learned short name becomes the current task identity only after validation"
+  },
+  "taskExecutionModel": {
+    "controller": "assistantController",
+    "selection": "LEARNED_CAPABILITY_MATCH_THEN_GENERAL_EXECUTOR",
+    "learnedMemory": "diagnostics/auto-repair/cell-knowledge/index.json",
+    "universalTaskRule": "Any bot may receive any admitted project task; learned specialization changes routing priority, not task eligibility.",
+    "scopeRule": "Execution remains limited to the exact task scope delegated by the control plane.",
+    "reuseRule": "After task closure the bot returns to the reusable pool with its learned knowledge retained."
   }
 }
