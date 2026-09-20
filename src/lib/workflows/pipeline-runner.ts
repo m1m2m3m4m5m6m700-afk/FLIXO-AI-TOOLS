@@ -102,6 +102,6 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
     if (!verified) throw new PipelineVerificationError(`Verification failed for '${step.toolId}'.`, stableBlob, i, step.toolId);
   }
 
-  await assertPipelineReceiptChain(receiptChain);
+  await assertPipelineReceiptChain(receiptChain, plan);
   return currentBlob;
 }
