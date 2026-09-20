@@ -51,7 +51,7 @@ jobs:
             echo
             echo "$MARKER"
           } > /tmp/activation-comment.md
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --field body@"/tmp/activation-comment.md" >/dev/null
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$(cat /tmp/activation-comment.md)" >/dev/null
 
       - name: Dispatch canonical RED wake to Chief GPT runtime
         env:
