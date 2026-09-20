@@ -30,7 +30,7 @@ permissions:
 # The active run still validates its exact SHA.
 concurrency:
   group: repository-security-baseline-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   baseline:
