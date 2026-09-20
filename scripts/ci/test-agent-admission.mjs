@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-import { validateErrorOnlyMutation } from './repair-protocol.mjs';
+import { assertAgentAdmission, REPAIR_PROTOCOL, REPAIR_PROTOCOL_HASH, validateErrorOnlyMutation } from './repair-protocol.mjs';
 
 const session = fs.readFileSync('scripts/ci/agent-session.mjs', 'utf8');
 const repair = fs.readFileSync('scripts/ci/repair-protocol.mjs', 'utf8');
@@ -45,6 +45,10 @@ for (const role of ["'repairAgent'", "'executionAgent'", "'assistantRepairAgent'
 assert.ok(repair.includes('primaryAgentsUnavailable'));
 assert.ok(repair.includes('minConfidence: 0.90'));
 assert.ok(repair.includes('minSupport: 2'));
+assert.ok(repair.includes('actionRepairBot'));
+assert.ok(repair.includes('actionRepairVerifier'));
+assert.ok(repair.includes('actionHistorian'));
+for (const role of ['actionRepairBot','actionRepairVerifier','actionHistorian']) assert.ok(session.includes(role));
 assert.ok(!repair.includes("mutationAgents: ['repairAgent','implementation','executionAgent','taskAgent']"));
 assert.ok(!repair.includes("mutationAgents: ['repairAgent','implementation','executionAgent']"));
 assert.ok(repair.includes("mode: 'ERROR_ONLY'"));
@@ -84,10 +88,34 @@ assert.equal(legacy?.status, 'DEPRECATED');
 assert.deepEqual(legacy?.supersededBy, ['RPR-EXISTING-TASK-PREP-001']);
 
 assert.equal(cooperation.schemaVersion, 5);
+assert.ok(cooperation.protocols.action_vault_reasoning.includes('ACTION-REPAIR'));
+assert.equal(cooperation.actionVaultContinuity?.missionContractVersion, 2);
+assert.deepEqual(cooperation.actionVaultContinuity?.residents, ['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3']);
+assert.equal(cooperation.actionVaultContinuity?.roles?.['ACTION-REPAIR']?.mutationAuthority, true);
+assert.equal(cooperation.actionVaultContinuity?.roles?.['ACTION-REPAIR-2']?.mutationAuthority, false);
+assert.equal(cooperation.actionVaultContinuity?.roles?.['ACTION-HISTORIAN-3']?.mutationAuthority, false);
 assert.ok(cooperation.protocols.communication_first);
 assert.ok(cooperation.protocols.message_idempotency);
 assert.ok(cooperation.protocols.message_freshness);
 assert.equal(protocolRegistry.protocols.find((item) => item.id === 'P20')?.status, 'MANDATORY');
+
+const targetSHA = 'a'.repeat(40);
+const actionVaultSession = {
+  protocolId: REPAIR_PROTOCOL.protocolId,
+  protocolVersion: REPAIR_PROTOCOL.protocolVersion,
+  protocolHash: REPAIR_PROTOCOL_HASH,
+  state: 'FAILURE_CAPTURED',
+  targetSHA,
+  actionVaultMission: {
+    role: 'ACTION-REPAIR', triadId: 'triad-test', messageId: 'msg-test', taskId: 'task-test',
+    failureFingerprint: 'fp-test', entrySha: targetSHA, targetSha: targetSHA, ownerAgent: 'actionRepairBot',
+    verifierAgent: 'actionRepairVerifier', historianAgent: 'actionHistorian', proofObligations: ['proof'], stopConditions: ['GREEN'], noBlindRetry: true,
+  },
+};
+assert.doesNotThrow(() => assertAgentAdmission({ actor: 'actionRepairBot', branch: 'execution', mutation: true, session: actionVaultSession }));
+assert.throws(() => assertAgentAdmission({ actor: 'actionRepairBot', branch: 'execution', mutation: true, session: { ...actionVaultSession, actionVaultMission: { ...actionVaultSession.actionVaultMission, verifierAgent: 'wrong' } } }), /ACTION_VAULT_TRIAD_INCOMPLETE/);
+assert.throws(() => assertAgentAdmission({ actor: 'actionRepairBot', branch: 'execution', mutation: true, session: { ...actionVaultSession, actionVaultMission: { ...actionVaultSession.actionVaultMission, noBlindRetry: false } } }), /BLIND_RETRY_BLOCKED/);
+assert.throws(() => assertAgentAdmission({ actor: 'actionRepairVerifier', branch: 'execution', mutation: true, session: actionVaultSession }), /NON_MUTATING_ROLE_BLOCKED/);
 
 console.log('AGENT_ADMISSION_CONTRACT=PASS');
 console.log('TASK_AGENT_MUTATION_AUTHORITY=BLOCKED');
