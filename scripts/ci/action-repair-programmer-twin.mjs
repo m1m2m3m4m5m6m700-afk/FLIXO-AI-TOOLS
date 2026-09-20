@@ -59,7 +59,7 @@ const sourceGraph=sources.map(source=>{
       if(new RegExp('\\b'+escapeRegExp(symbol)+'\\s*\\(','u').test(c))callers.push({symbol,file});
     }
   }
-  const callees=source.functions.flatMap(symbol=>defs.filter(candidate=>candidate!==symbol&&new RegExp('\\b'+escapeRegExp(candidate)+'\\s*\\(','u').test(content)).slice(0,50);
+  const callees=source.functions.flatMap(symbol=>defs.filter(candidate=>candidate!==symbol&&new RegExp('\\b'+escapeRegExp(candidate)+'\\s*\\(','u').test(content)).slice(0,50));
   return {
     file:source.file,
     callers,
