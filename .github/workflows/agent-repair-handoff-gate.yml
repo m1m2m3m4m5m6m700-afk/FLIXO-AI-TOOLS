@@ -49,7 +49,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          CURRENT_TARGET_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$REPAIR_TARGET_BRANCH" --jq '.object.sha')"
+          test "$REPAIR_TARGET_BRANCH" = "execution"
+          CURRENT_TARGET_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           test -s /tmp/repair-handoff/flixo-prepared-repair-handoff.json
           HANDOFF_TARGET_SHA="$(node -e "const h=require('/tmp/repair-handoff/flixo-prepared-repair-handoff.json');process.stdout.write(h.executionSha||'')")"
           HANDOFF_BRANCH="$(node -e "const h=require('/tmp/repair-handoff/flixo-prepared-repair-handoff.json');process.stdout.write(h.headBranch||'')")"
