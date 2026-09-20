@@ -98,7 +98,9 @@ jobs:
           FLIXO_CELL_WAKE_OUTPUT: /tmp/flixo-cell-wake.json
         run: |
           set -euo pipefail
-          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          EXECUTION_SHA="$(git rev-parse HEAD)"
+          EXPECTED_PUSH_SHA="$GITHUB_SHA"
+          test "$EXECUTION_SHA" = "$EXPECTED_PUSH_SHA"
           FLIXO_WAKE_SHA="$EXECUTION_SHA" node scripts/ci/cell-wake-preparation.mjs
           test -s /tmp/flixo-cell-wake.json
           node scripts/ci/test-cell-wake-preparation.mjs
