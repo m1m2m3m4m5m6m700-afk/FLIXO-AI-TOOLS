@@ -14,7 +14,7 @@ const CENTER_TYPES=Object.freeze(['RED_OPEN','HISTORICAL_MATCHES','TWIN_A','TWIN
 
 export function loadActionBotMemory(botId){
  const id=valid(botId); fs.mkdirSync(memoryDir(),{recursive:true});
- try { const x=JSON.parse(fs.readFileSync(fileOf(id),'utf8')); if(x.botId===id) return x; } catch {}
+ try { const x=JSON.parse(fs.readFileSync(fileOf(id),'utf8')); if(x.botId===id) return x; } catch { /* best-effort legacy memory read */ }
  return {
   schemaVersion:2, authority:'ACTION_REPAIR_BOT_PERSONAL_MEMORY', botId:id,
   copyable:true, transferableKnowledgeOnly:true, permanentIndependentAuthority:false,
