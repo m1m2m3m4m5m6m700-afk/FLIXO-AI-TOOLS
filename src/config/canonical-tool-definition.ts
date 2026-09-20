@@ -27,6 +27,9 @@ export type ToolSource = Readonly<{
   component: LazyExoticComponent<ComponentType>;
 }>;
 
+// ToolConfig is the canonical source shape consumed by the definition builder.
+type ToolConfig = ToolSource;
+
 export type CapabilityState = 'RECOGNIZED' | 'PLANNABLE' | 'EXECUTABLE' | 'UNAVAILABLE';
 export type ExecutionMode = 'LOCAL' | 'HYBRID' | 'CLOUD';
 export type CapabilityParameters = Record<string, string | number | boolean>;
@@ -126,6 +129,12 @@ const verifierFor = (toolId: string): CapabilityVerifier => {
   return defaultVerifier;
 };
 
+const executionFor = (mode: ExecutionMode): ToolExecution => {
+  if (mode === 'LOCAL') return 'browser-local';
+  if (mode === 'HYBRID') return 'browser-worker';
+  return 'remote';
+};
+
 const stateFor = (tool: ToolConfig): CapabilityState => {
   if (!tool.isReady) return 'UNAVAILABLE';
   if (EXECUTABLE_IDS.has(tool.id)) return 'EXECUTABLE';
@@ -148,7 +157,7 @@ export function toToolDefinition(tool: ToolConfig): ToolDefinition {
   const intents = Object.freeze(TOOL_INTENTS[tool.id] ?? []);
   const operational: ToolOperationalProfile = Object.freeze({
     lifecycle: tool.isReady ? 'ready' : 'experimental',
-    execution: executionMode === 'LOCAL' ? 'browser-local' : executionMode === 'HYBRID' ? 'browser-worker' : 'remote',
+    execution: executionFor(executionMode),
     contracts: Object.freeze(['structural', 'runtime', 'artifact'] as const),
     executorId: capabilityState === 'EXECUTABLE' ? tool.id : null,
     outputContractId: tool.isReady ? tool.id : null,
