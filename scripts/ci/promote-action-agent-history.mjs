@@ -21,6 +21,24 @@ if(green.executionSha!==targetSha)throw new Error('ACTION_AGENT_HISTORY_PROMOTIO
 const root=path.join(ROOT,'docs/agents/historical-action-errors/agent-activity');
 const indexPath=path.join(root,'index.json');
 const ix=read(indexPath,{schemaVersion:1,records:[],byFingerprint:{},byAgent:{},byClass:{}});
+if(externalRoot){
+  const external=path.resolve(ROOT,externalRoot);
+  const exIndex=read(path.join(external,'index.json'),null);
+  if(exIndex){
+    for(const summary of exIndex.records??[]){
+      const sourceFile=path.join(external,path.basename(summary.file||summary.id+'.json'));
+      if(!fs.existsSync(sourceFile))continue;
+      const destination=path.join(root,summary.id+'.json');
+      fs.mkdirSync(root,{recursive:true});
+      fs.copyFileSync(sourceFile,destination);
+      ix.records=[...(ix.records??[]).filter(x=>x.id!==summary.id),summary];
+      ix.byFingerprint=ix.byFingerprint??{};
+      if(summary.fingerprint)ix.byFingerprint[summary.fingerprint]=[...(ix.byFingerprint[summary.fingerprint]??[]).filter(x=>x!==summary.id),summary.id].slice(-100);
+      ix.byAgent=ix.byAgent??{};
+      for(const participant of summary.participants??[])ix.byAgent[participant]=[...(ix.byAgent[participant]??[]).filter(x=>x!==summary.id),summary.id].slice(-1000);
+    }
+  }
+}
 let promoted=0;
 for(const summary of ix.records??[]){
   if(summary.status!=='PROVISIONAL'||summary.targetSha!==targetSha)continue;
