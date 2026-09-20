@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "ACTION-RESIDENCY-POLICY",
   "scope": "ACTION-VAULT",
   "residents": [
@@ -15,16 +15,22 @@
     "visitCompletionNeverClosesTask": true,
     "failedAttemptNeverClosesTask": true,
     "escalationNeverClosesTask": true,
-    "sleepState": "SLEEP_ALLOWED_ONLY_AFTER_GREEN_RECORD",
+    "sleepState": "PERMANENTLY_FORBIDDEN",
     "noSleepBeforeGreen": true,
     "noIdleBeforeGreen": true,
     "greenRecordPath": "diagnostics/auto-repair/action-vault/green-records",
-    "sleepAdmissionProtocol": "scripts/ci/action-vault-sleep-admission.mjs"
+    "sleepAdmissionProtocol": "scripts/ci/action-vault-sleep-admission.mjs",
+    "noSleepAfterGreen": true,
+    "noIdleAfterGreen": true,
+    "noFreeze": true,
+    "noWithdrawal": true,
+    "postGreenState": "READY_RESIDENT",
+    "sleepAdmissionMode": "DENY_ALL_STATES"
   },
   "operations": {
     "maxOperationsPerBot": 2000000,
     "budgetScope": "PER_BOT",
-    "exhaustionBehavior": "REMAIN_RESIDENT_AND_KEEP_TASK_OPEN; REQUIRE_HANDOFF_OR_MASTER_ESCALATION; NEVER_MARK_GREEN",
+    "exhaustionBehavior": "REMAIN_RESIDENT; KEEP_MISSION_OPEN_OR_READY_RESIDENT; REQUIRE_INTERNAL_HANDOFF_OR_MASTER_ESCALATION; NEVER_SLEEP; NEVER_IDLE; NEVER_WITHDRAW; NEVER_MARK_GREEN",
     "budgetIsNotClosure": true,
     "greenAuthority": "DAILY_FLIXO_GREEN_GATE"
   },
@@ -49,7 +55,9 @@
     "sameMissionOnRed": true,
     "sameFailureFingerprintOnRed": true,
     "sameExactShaOnRed": true,
-    "noSleepDuringMission": true
+    "noSleepDuringMission": true,
+    "noFreezeDuringMission": true,
+    "noWithdrawalDuringMission": true
   },
   "escalation": {
     "thresholdAfterFailedAttempts": 20,
@@ -64,25 +72,5 @@
     "continueRepairAfterEscalation": true,
     "repeatedEscalationIdempotent": true
   },
-  "note": "This policy adds continuity and capacity. It does not authorize bypassing exact-SHA, repair scope, verification or canonical GREEN.",
-  "sleepAdmission": {
-    "required": true,
-    "authority": "DAILY_FLIXO_GREEN_GATE",
-    "requiredFields": [
-      "recordId",
-      "taskId",
-      "fingerprint",
-      "targetSha",
-      "conclusion",
-      "zeroRed",
-      "exactShaVerified",
-      "recordedAt"
-    ],
-    "allowedConclusion": "success",
-    "zeroRedRequired": true,
-    "exactShaRequired": true,
-    "openWorkBlocksSleep": true,
-    "staleGreenRecordBlocksSleep": true,
-    "mismatchBlocksSleep": true
-  }
+  "note": "Permanent residency contract: Action Vault agents never enter sleep, freeze, idle, withdrawal, or vault-exit states. Mission closure after Canonical GREEN changes the mission state only; resident agents remain READY_RESIDENT. Exact-SHA, repair scope, verification and Canonical GREEN remain mandatory."
 }
