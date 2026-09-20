@@ -350,6 +350,8 @@ jobs:
           node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=RCA --actor=INVESTIGATOR --reason=TRUSTED_ROOT_CAUSE_CLASSIFIED
 
       - name: Bind Task Agent preparation to the active repair cycle on execution
+        id: task_agent
+        continue-on-error: true
         run: |
           set -euo pipefail
           SIGNATURE="$(node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8')); process.stdout.write(x.signature||'unknown')")"
@@ -359,7 +361,7 @@ jobs:
           test -s /tmp/flixo-task-agent/latest.json
 
       - name: Bind selected Prompt ID to learning provenance
-        if: success()
+        if: steps.task_agent.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -422,28 +424,42 @@ jobs:
         run: |
           set -euo pipefail
           export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
-      - name: Select assistant fallback only when primary repair agents are unavailable
+      - name: Select assistant fallback only when primary agents are unavailable
         id: assistant_fallback
+        if: always() && (steps.task_agent.outcome != 'success' || steps.strategy.outcome != 'success')
+        env:
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
         shell: bash
         run: |
           set -euo pipefail
+          FINGERPRINT="$(node --input-type=module -e "import fs from 'node:fs'; import { fingerprintFailure } from './scripts/ci/auto-repair-learning.mjs'; process.stdout.write(fingerprintFailure(fs.readFileSync(process.env.FLIXO_FAILURE_LOG,'utf8')))" )"
           PRIMARY_ACTIVE=false
           if [ -f diagnostics/agents/coordination-state.json ]; then
             if jq -e '.activeSessions | to_entries | any(.[]; (.value.role == "repairAgent" or .value.role == "executionAgent") and (.value.taskId != null))' diagnostics/agents/coordination-state.json >/dev/null; then PRIMARY_ACTIVE=true; fi
           fi
-          RULE="$(node --input-type=module -e "import fs from 'node:fs'; const m=JSON.parse(fs.readFileSync(process.env.FLIXO_REPAIR_MEMORY,'utf8')); const c=m.cases?.find(x=>x.fingerprint===process.env.FALLBACK_FINGERPRINT); const ok=(r)=>Number(r?.attempts||0)>=2&&Number(r?.successRate||0)>=0.9&&!((c?.revertedRules||[]).includes(r?.rule)); const p=(m.playbooks||[]).filter(ok).sort((a,b)=>Number(b.successRate||0)-Number(a.successRate||0)||Number(b.successes||0)-Number(a.successes||0))[0]; process.stdout.write(p?.rule||'')" )"
+          RULE="$(FALLBACK_FINGERPRINT="$FINGERPRINT" node --input-type=module -e "import fs from 'node:fs'; const m=JSON.parse(fs.readFileSync(process.env.FLIXO_REPAIR_MEMORY,'utf8')); const fp=process.env.FALLBACK_FINGERPRINT; const c=(m.cases||[]).find(x=>x.fingerprint===fp); const valid=p=>p && Number(p.successes||0)>=2 && Number(p.attempts||0)>=2 && Number(p.successRate||0)>=0.9 && Number(p.successfulFingerprintSupport||0)>=2 && !(c?.revertedRules||[]).includes(p.rule); const hit=(m.playbooks||[]).filter(valid).find(p=>(p.successfulFingerprints||[]).includes(fp)); process.stdout.write(hit?.rule||'')" )"
           if [ "$PRIMARY_ACTIVE" = false ] && [ -n "$RULE" ]; then
-            printf '%s\n' '{"fallbackEligible":true}' > /tmp/flixo-assistant-fallback-proof.json
-            node --input-type=module -e "import fs from 'node:fs'; const p='/tmp/flixo-assistant-fallback-proof.json'; const x=JSON.parse(fs.readFileSync(p,'utf8')); x.actor='assistantRepairAgent'; x.primaryAgentsUnavailable=true; x.approvedLearnedRule=process.env.FALLBACK_RULE; x.learnedRuleConfidence=0.9; x.learnedRuleSupport=2; x.targetSha=process.env.FLIXO_EXPECTED_TARGET_SHA; fs.writeFileSync(p,JSON.stringify(x,null,2)+'\n')"
+            node --input-type=module -e "import fs from 'node:fs'; const fp=process.env.FINGERPRINT; const x={fallbackEligible:true,actor:'assistantRepairAgent',primaryAgentsUnavailable:true,approvedLearnedRule:process.env.FALLBACK_RULE,learnedRuleConfidence:Number(process.env.FALLBACK_CONFIDENCE),learnedRuleSupport:Number(process.env.FALLBACK_SUPPORT),targetSha:process.env.FLIXO_EXPECTED_TARGET_SHA}; fs.writeFileSync('/tmp/flixo-assistant-fallback-proof.json',JSON.stringify({...x,failureFingerprint:fp},null,2)+'\\n')"
+            FINGERPRINT="$FINGERPRINT" FALLBACK_RULE="$RULE" FALLBACK_CONFIDENCE=0.9 FALLBACK_SUPPORT=2 node --input-type=module -e "import fs from 'node:fs'; const fp=process.env.FINGERPRINT; const x=JSON.parse(fs.readFileSync('/tmp/flixo-assistant-fallback-proof.json','utf8')); x.approvedLearnedRule=process.env.FALLBACK_RULE; x.learnedRuleConfidence=Number(process.env.FALLBACK_CONFIDENCE); x.learnedRuleSupport=Number(process.env.FALLBACK_SUPPORT); fs.writeFileSync('/tmp/flixo-assistant-fallback-proof.json',JSON.stringify({...x,failureFingerprint:fp},null,2)+'\\n')"
             echo "FLIXO_REPAIR_ACTOR=assistantRepairAgent" >> "$GITHUB_ENV"
             echo "FLIXO_ASSISTANT_FALLBACK_PROOF_PATH=/tmp/flixo-assistant-fallback-proof.json" >> "$GITHUB_ENV"
-            echo "ASSISTANT_FALLBACK_SELECTED=true"
+            echo 'ASSISTANT_FALLBACK_SELECTED=true'
           else
-            echo "FLIXO_REPAIR_ACTOR=repairAgent" >> "$GITHUB_ENV"
-            echo "ASSISTANT_FALLBACK_SELECTED=false"
+            echo 'ASSISTANT_FALLBACK_SELECTED=false'
+            echo 'FALLBACK_NOT_ELIGIBLE=true'
           fi
-          node /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs
 
+      - name: Execute bounded root-cause repair under selected repair authority
+        id: execute_repair
+        if: always() && steps.strategy.outcome == 'success' && steps.install_target.outcome == 'success'
+        env:
+          FLIXO_TARGET_DIR: ${{ github.workspace }}
+          FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
+        run: |
+          set -euo pipefail
+          export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
+          node /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs
       - name: Build Phase 1 AI impact and CI orchestration plan
         id: ai_phase1
         if: always() && steps.strategy.outcome == 'success'
