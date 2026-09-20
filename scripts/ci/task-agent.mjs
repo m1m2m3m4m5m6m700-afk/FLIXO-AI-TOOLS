@@ -222,7 +222,7 @@ for (const task of selected) {
       fingerprint,
       error: repairMode.includes('ACTIVE') ? 'SEE_FAILURE_EVIDENCE' : 'UNOBSERVED',
       rootCause: diagnosis?.rootCause ?? 'REQUIRES_EVIDENCE',
-      repair: 'PREPARE_SOURCE_FIX_FOR_AUTHORIZED_EXECUTION_AGENT',
+      repair: 'PREPARE_SOURCE_FIX_FOR_AUTHORIZED_EXECUTION_OR_REPAIR_AGENT',
       verification: 'REQUIRED_AFTER_SOURCE_REPAIR',
     },
     cognition: diagnosis ? {
