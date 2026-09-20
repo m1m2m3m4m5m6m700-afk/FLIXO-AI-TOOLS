@@ -50,7 +50,7 @@ const mockFetch = async (url, init = {}) => {
     return new Response(JSON.stringify({
       status: 'DONE',
       evidence: { executor: 'mock', verified: true },
-      payload: { agentResult: { profileId:'ACTION_PRIMARY_REPAIR_V1', exactSha:SHA, finding:['test finding'], evidence:['test evidence'], evidenceGrade:'E4', unknowns:[], lesson:'test lesson', antiLesson:'test antiLesson', skillCandidate:'test-skill', directBenefit:'test benefit', nextAction:'handoff', decisionTrace:'test trace', reviewRequired:true, selfApproved:false } },
+      payload: { agentResult: { profileId:'ACTION_PRIMARY_REPAIR_V1', exactSha:SHA, objective:'test wake', requiredCapabilities:['RCA'], planSummary:'bounded plan', decision:'REVIEW', verification:'test verification', selfCritique:'test self-check', alternativesConsidered:['alternative'], verificationPassed:true, finding:['test finding'], evidence:['test evidence'], evidenceGrade:'E4', unknowns:[], lesson:'test lesson', antiLesson:'test antiLesson', skillCandidate:'test-skill', directBenefit:'test benefit', nextAction:'handoff', decisionTrace:'test trace', reviewRequired:true, selfApproved:false } },
     }), { status: 200 });
   }
 
