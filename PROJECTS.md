@@ -2,13 +2,12 @@
 
 Communication-fi
 
-## GREEN-RECOVERY-001 — CLOSED / GREEN
+## GREEN-RECOVERY-001 — VERIFIED EVIDENCE / CLOSURE PENDING CURRENT SHA
 
 - Exact SHA: `c5fcf7be89cb7f4a3a56a4fce91f0853d523e5ce`
-- Canonical CI: PASS
-- Certification: PASS
-- Exact-SHA Merge Gate: PASS
-- Internal RED on exact SHA: none
+- Historical verification on c5fcf7be: PASS
+- Current execution SHA must re-certify before closure
+- Internal RED currently tracked by GREEN-RECOVERY-001 task gate
 - External blocker: Vercel deployment rate-limit (`BLOCKED_EXTERNAL`), not masked.
 rst is a P0 execution invariant. The canonical ingress is Master Inbox Issue #761, the event-driven relay is `.github/workflows/agent-communication-relay.yml`, and the runtime is `scripts/ci/agent-communication.mjs` consumed by `agent-session` and `agent-coordination`. This must remain within the existing agent control plane; no parallel registry/protocol is permitted.
 
