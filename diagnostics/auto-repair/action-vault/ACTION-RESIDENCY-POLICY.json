@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "id": "ACTION-RESIDENCY-POLICY",
+  "scope": "ACTION-VAULT",
+  "residents": [
+    "ACTION-REPAIR",
+    "ACTION-REPAIR-2",
+    "ACTION-HISTORIAN-3"
+  ],
+  "residency": {
+    "alwaysResident": true,
+    "leaveVault": false,
+    "idleState": "RESIDENT_READY",
+    "taskMustRemainOpenUntil": "CANONICAL_GREEN",
+    "visitCompletionNeverClosesTask": true,
+    "failedAttemptNeverClosesTask": true,
+    "escalationNeverClosesTask": true
+  },
+  "operations": {
+    "maxOperationsPerBot": 2000000,
+    "budgetScope": "PER_BOT",
+    "exhaustionBehavior": "REMAIN_RESIDENT_AND_KEEP_TASK_OPEN; REQUIRE_HANDOFF_OR_MASTER_ESCALATION; NEVER_MARK_GREEN",
+    "budgetIsNotClosure": true,
+    "greenAuthority": "DAILY_FLIXO_GREEN_GATE"
+  },
+  "automaticVisits": {
+    "visitsPerBotPerDay": 3,
+    "botCount": 3,
+    "totalAutomaticVisitsPerDay": 9,
+    "scheduleOwner": "DAILY_FLIXO_GREEN_GATE",
+    "interventionRequired": false,
+    "visitIdentity": [
+      "botId",
+      "visitNumber",
+      "day",
+      "exactSha"
+    ],
+    "visitModes": [
+      "DISCOVER",
+      "CHALLENGE",
+      "LEARN"
+    ],
+    "sameMissionOnRed": true,
+    "sameFailureFingerprintOnRed": true,
+    "sameExactShaOnRed": true
+  },
+  "escalation": {
+    "thresholdAfterFailedAttempts": 20,
+    "triggerOnNextRetryAttempt": 21,
+    "recipient": "assistantController",
+    "route": "CANONICAL_AGENT_COMMUNICATION_RELAY",
+    "relayWorkflow": ".github/workflows/agent-communication-relay.yml",
+    "implementation": "scripts/ci/agent-communication.mjs",
+    "wakeDispatcher": "scripts/ci/council-wake-dispatch.mjs",
+    "risk": "HIGH",
+    "taskRemainsOpen": true,
+    "continueRepairAfterEscalation": true,
+    "repeatedEscalationIdempotent": true
+  },
+  "note": "This policy adds continuity and capacity. It does not authorize bypassing exact-SHA, repair scope, verification or canonical GREEN."
+}
