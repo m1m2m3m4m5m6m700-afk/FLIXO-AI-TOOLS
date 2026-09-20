@@ -60,7 +60,10 @@ export function buildPrediction({
     rootCause:item.record.rootCause??null,
     normalized:item.record.normalized??item.record.normalizedFailure??null,
     failedShas:item.record.shas??item.record.provenance?.failedSha?[item.record.provenance.failedSha]:[],
-    strategies:item.record.rules??item.record.successfulStrategies??[],
+    strategies:[...(item.record.rules??[]),...(item.record.successfulStrategies??[]),...(item.record.action?[item.record.action]:[]),...(item.record.teaching?[item.record.teaching]:[])],
+    historicalAction:item.record.action??null,
+    historicalTeaching:item.record.teaching??null,
+    verificationRule:item.record.verify??null,
     changedPaths:item.record.changedPaths??item.record.solution?.changedPaths??[]
   }));
 
@@ -69,7 +72,8 @@ export function buildPrediction({
     const key=typeof rule==='string'?rule:JSON.stringify(rule);
     strategyCounts.set(key,(strategyCounts.get(key)||0)+1);
   }
-  const candidateStrategies=[...strategyCounts.entries()].map(([strategy,count])=>({strategy,count,confidence:Number(Math.min(0.95,0.35+count*0.1).toFixed(3))})).sort((a,b)=>b.confidence-a.confidence).slice(0,10);
+  const candidateStrategies=[...strategyCounts.entries()].map(([strategy,count])=>({strategy,count,confidence:Number(Math.min(0.95,0.35+count*0.1).toFixed(3))})).sort((a,b)=>b.confidence-a.confidence).slice(0,15);
+  const predictedActions=similarCases.filter(x=>x.historicalAction).slice(0,10).map(x=>({id:x.id,action:x.historicalAction,teaching:x.historicalTeaching,verify:x.verificationRule,score:x.score}));
   const predictedFiles=[...new Set(similarCases.flatMap(x=>x.changedPaths??[]).filter(Boolean))].slice(0,30);
   const predictedChecks=[...new Set([
     'node scripts/ci/action-vault-agent-gate.mjs',
@@ -105,7 +109,8 @@ export function buildPrediction({
       mode:'OWNER_REVIEW_REQUIRED',
       predictedFiles,
       predictedChecks,
-      candidateStrategy:candidateStrategies[0]?.strategy??null,
+      candidateStrategy:candidateStrategies[0]?.strategy??predictedActions[0]?.action??null,
+      historicalActions:predictedActions,
       confidence,
       notCertain:true
     },
