@@ -23,6 +23,7 @@ assert.equal(intelligence.agentRuntime.requirements.differentialVerification, tr
 
 const valid = {
   botId: 'ACTION-REPAIR',
+  role: 'PRIMARY_PROGRAMMING_REPAIR_OWNER',
   permanentIndependentAuthority: false,
   transferableKnowledgeOnly: true,
   intelligenceProfileRef: 'diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json',
