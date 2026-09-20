@@ -39,6 +39,7 @@ const requiredAgentsMarkers = [
   'mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure',
   'docs/PROTOCOL-REGISTRY.json',
   '`PROJECTS.md` → `المهام.md` → `AGENTS.md`',
+  'cycleLessons', 'Mandatory cycle lesson list',
   'TASK GATE', 'Task Agent = preparation only',
 ];
 if (exists('AGENTS.md')) {
@@ -76,7 +77,7 @@ const requiredProtocolMarkers = [
   'causal defect', 'trigger → propagation path → violated invariant → responsible source → observable symptom',
   'targeted regression', 'affected dependency/contract graph', 'Communication-first execution invariant',
   'mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure',
-  'symptom-only workaround', 'new deterministic failure',
+  'symptom-only workaround', 'new deterministic failure', 'cycleLessons', 'Verified fixes become lessons/playbooks',
 ];
 if (exists('docs/AGENT-COLLABORATION-PROTOCOL.md')) {
   const text = read('docs/AGENT-COLLABORATION-PROTOCOL.md');
