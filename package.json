@@ -141,7 +141,8 @@
     "validate:release-evidence-binding": "node scripts/ci/release-evidence-binding.mjs",
     "test:error-teaching": "node scripts/ci/test-error-teaching-500.mjs",
     "test:error-teaching-router": "node scripts/ci/test-error-teaching-router.mjs",
-    "test:agent-liveness": "node scripts/ci/test-agent-liveness-protocol.mjs"
+    "test:agent-liveness": "node scripts/ci/test-agent-liveness-protocol.mjs",
+    "test:external-output": "node scripts/external/test-tool-output-external.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
