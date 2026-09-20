@@ -104,6 +104,69 @@ const accountFrom = (value: unknown): Account => {
   return account;
 };
 
+
+const sha256Hex = (value: string) =>
+  crypto.createHash("sha256").update(value).digest("hex");
+
+const base64urlJson = (value: Record<string, unknown>) =>
+  Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
+
+const issueSessionToken = (claims: {
+  accountId: Account;
+  agentId: string;
+  dispatchId: string;
+  sessionId: string;
+  expiresAt: number;
+}) => {
+  const payload = base64urlJson({
+    ...claims,
+    typ: "FLIXO_COUNCIL_SESSION",
+  });
+  const signature = crypto.createHmac("sha256", env("SUPABASE_SERVICE_ROLE_KEY"))
+    .update(payload)
+    .digest("base64url");
+  return payload + "." + signature;
+};
+
+const verifySessionToken = (token: string) => {
+  const parts = token.split(".");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) throw new Error("COUNCIL_SESSION_INVALID");
+  const expected = crypto.createHmac("sha256", env("SUPABASE_SERVICE_ROLE_KEY"))
+    .update(parts[0])
+    .digest("base64url");
+  if (!constantTimeEqual(parts[1], expected)) throw new Error("COUNCIL_SESSION_INVALID");
+  let claims: Record<string, unknown>;
+  try {
+    claims = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8")) as Record<string, unknown>;
+  } catch {
+    throw new Error("COUNCIL_SESSION_INVALID");
+  }
+  const expiresAt = Number(claims.expiresAt ?? 0);
+  if (claims.typ !== "FLIXO_COUNCIL_SESSION" || !Number.isFinite(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000)) {
+    throw new Error("COUNCIL_SESSION_EXPIRED");
+  }
+  return claims;
+};
+
+const sessionAuth = (req: Request, account: Account, dispatchId?: string) => {
+  const token = req.headers.get("x-council-session")?.trim() ?? "";
+  if (!token) return false;
+  const claims = verifySessionToken(token);
+  if (claims.accountId !== account) throw new Error("COUNCIL_SESSION_ACCOUNT_MISMATCH");
+  if (dispatchId && claims.dispatchId !== dispatchId) throw new Error("COUNCIL_SESSION_DISPATCH_MISMATCH");
+  return true;
+};
+
+const authAccountOrSession = (req: Request, account: Account, dispatchId?: string) => {
+  if (bearer(req)) {
+    authAccount(req, account);
+    return;
+  }
+  if (!sessionAuth(req, account, dispatchId)) {
+    throw new Error("COUNCIL_ACCOUNT_UNAUTHORIZED");
+  }
+};
+
 const accountFromBearer = (req: Request): Account => {
   const token = bearer(req);
   if (!token) throw new Error("COUNCIL_ACCOUNT_UNAUTHORIZED");
@@ -270,6 +333,96 @@ Deno.serve(async (req) => {
       return response({ ok: true, accountId: "CHIEF", events: rows }, 200, requestId);
     }
 
+
+    if (action === "activate" && req.method === "POST") {
+      const body = await jsonBody(req);
+      const dispatchId = String(body.dispatchId ?? "").trim();
+      const activationToken = String(body.activationToken ?? req.headers.get("x-council-activation") ?? "").trim();
+      const declaredAgentId = String(body.agentId ?? "").trim();
+      const exactSha = sha(body.entrySha);
+      const sessionId = String(body.sessionId ?? crypto.randomUUID()).trim();
+      if (!dispatchId || !activationToken || !declaredAgentId || !sessionId) {
+        throw new Error("COUNCIL_ACTIVATION_REQUIRED");
+      }
+
+      const rows = await db(
+        "/rest/v1/flix_council_dispatches?dispatch_id=eq." +
+        encodeURIComponent(dispatchId) +
+        "&select=dispatch_id,recipient_account_id,status,entry_sha,lease_expires_at,payload&limit=1"
+      ) as Array<Record<string, unknown>>;
+      const row = rows?.[0];
+      if (!row) throw new Error("COUNCIL_DISPATCH_NOT_FOUND");
+      const account = accountFrom(row.recipient_account_id);
+      if (row.status !== "LEASED") throw new Error("COUNCIL_DISPATCH_NOT_ACTIVATABLE");
+      if (String(row.entry_sha) !== exactSha) throw new Error("COUNCIL_EXACT_SHA_MISMATCH");
+
+      const runtime = await getAccountState(account);
+      if (!runtime.identityVerified || declaredAgentId !== runtime.identity?.agentId) {
+        throw new Error("COUNCIL_AGENT_IDENTITY_REJECTED");
+      }
+
+      const payload = row.payload && typeof row.payload === "object" && !Array.isArray(row.payload)
+        ? row.payload as Record<string, unknown>
+        : {};
+      if (payload.activationConsumedAt) throw new Error("COUNCIL_ACTIVATION_ALREADY_CONSUMED");
+      const expectedHash = String(payload.activationTokenHash ?? "").trim();
+      if (!expectedHash || !constantTimeEqual(sha256Hex(activationToken), expectedHash)) {
+        throw new Error("COUNCIL_ACTIVATION_REJECTED");
+      }
+
+      const acked = await db("/rest/v1/rpc/council_ack_dispatch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          p_dispatch_id: dispatchId,
+          p_account_id: account,
+          p_session_id: sessionId,
+          p_exact_sha: exactSha,
+        }),
+      });
+      const ackedRow = Array.isArray(acked) ? acked[0] ?? null : acked;
+      if (!ackedRow) throw new Error("COUNCIL_ACTIVATION_ACK_MISSING");
+
+      const consumedPayload = {
+        ...payload,
+        activationConsumedAt: new Date().toISOString(),
+        activationTokenHash: undefined,
+      };
+      delete consumedPayload.activationTokenHash;
+      await db(
+        "/rest/v1/flix_council_dispatches?dispatch_id=eq." +
+        encodeURIComponent(dispatchId) +
+        "&status=eq.ACKED",
+        {
+          method: "PATCH",
+          headers: {
+            "content-type": "application/json",
+            prefer: "return=minimal",
+          },
+          body: JSON.stringify({ payload: consumedPayload }),
+        }
+      );
+
+      const expiresAt = Math.floor(Date.now() / 1000) + 3600;
+      const sessionToken = issueSessionToken({
+        accountId: account,
+        agentId: declaredAgentId,
+        dispatchId,
+        sessionId,
+        expiresAt,
+      });
+
+      return response({
+        ok: true,
+        activation: "ACKED",
+        accountId: account,
+        identity: runtime.identity,
+        identityVerified: runtime.identityVerified,
+        dispatch: ackedRow,
+        session: { sessionId, expiresAt, token: sessionToken },
+      }, 200, requestId);
+    }
+
     const body = await jsonBody(req);
 
     if (action === "dispatch" && req.method === "POST") {
@@ -297,7 +450,8 @@ Deno.serve(async (req) => {
 
     if (action === "heartbeat" && req.method === "POST") {
       const account = accountFrom(body.accountId);
-      authAccount(req, account);
+      const dispatchId = String(body.dispatchId);
+      authAccountOrSession(req, account, dispatchId);
       const result = await db("/rest/v1/rpc/council_heartbeat_dispatch", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -308,7 +462,8 @@ Deno.serve(async (req) => {
 
     if (action === "complete" && req.method === "POST") {
       const account = accountFrom(body.accountId);
-      authAccount(req, account);
+      const dispatchId = String(body.dispatchId);
+      authAccountOrSession(req, account, dispatchId);
       const status = String(body.status ?? "DONE");
       if (!["DONE", "FAILED"].includes(status)) throw new Error("COUNCIL_COMPLETE_STATUS_INVALID");
       const result = await db("/rest/v1/rpc/council_complete_dispatch", {
