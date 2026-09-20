@@ -190,7 +190,8 @@
     "test:action-vault-certification": "node scripts/ci/test-action-vault-certification.mjs",
     "test:action-vault-intelligence": "node scripts/ci/test-action-vault-intelligence-benchmark.mjs",
     "test:action-vault-pre-mutation-proof": "node scripts/ci/test-action-vault-pre-mutation-proof.mjs",
-    "test:action-vault-mutation-order": "node scripts/ci/test-action-vault-mutation-order.mjs"
+    "test:action-vault-mutation-order": "node scripts/ci/test-action-vault-mutation-order.mjs",
+    "test:repair-bot-teaching": "node scripts/ci/validate-repair-bot-teaching-sessions.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
