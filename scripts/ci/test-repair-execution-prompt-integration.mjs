@@ -23,9 +23,10 @@ assert.match(daily, /flixo-repair-execution-prompts-/u);
 assert.match(daily, /prompt_source_run_id=/u);
 
 assert.match(auto, /prompt_source_run_id:/u);
-assert.match(auto, /Consume Daily Visit execution prompt bundle/u);
-assert.match(auto, /gh run download/u);
-assert.match(auto, /prompt bundle SHA/u);
+assert.match(auto, /FLIXO_EXECUTION_PROMPT_SOURCE=TRUSTED_WORKTREE_ONLY/u);
+assert.doesNotMatch(auto, /Consume Daily Visit execution prompt bundle/u);
+assert.doesNotMatch(auto, /gh run download/u);
+assert.doesNotMatch(auto, /prompt bundle SHA/u);
 assert.match(auto, /--execution-prompt=/u);
 
 assert.match(taskAgent, /execution-prompt/u);
