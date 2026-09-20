@@ -482,7 +482,8 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         recordFrameRef.current = null;
         if (recordTimerRef.current !== null) window.clearInterval(recordTimerRef.current);
         recordTimerRef.current = null;
-        outputStream.getTracks().forEach((track) => track.stop());
+        // Stop only the canvas capture track. The audio track belongs to the live camera stream and must remain reusable.
+        outputStream.getVideoTracks().forEach((track) => track.stop());
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'video/webm' });
         const url = URL.createObjectURL(blob);
         setCapturedUrl((previous) => {
