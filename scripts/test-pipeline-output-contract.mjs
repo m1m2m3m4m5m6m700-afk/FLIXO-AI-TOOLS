@@ -89,7 +89,14 @@ receiptChain = await appendPipelineStepReceipt(receiptChain, secondReceipt);
 assert.equal(receiptChain.steps.length, 2);
 assert.equal(receiptChain.steps[1].inputSha256, receiptChain.steps[0].outputSha256);
 assert.equal(receiptChain.steps[1].recoveryApplied, true);
-await assertPipelineReceiptChain(receiptChain);
+await assertPipelineReceiptChain(receiptChain, plan);
+await assert.rejects(
+  () => assertPipelineReceiptChain(receiptChain, {
+    ...plan,
+    confidence: 0.92,
+  }),
+  /does not match the execution plan/,
+);
 
 const tamperedPlanChain = Object.freeze({ ...receiptChain, planFingerprint: 'f'.repeat(64) });
 await assert.rejects(
