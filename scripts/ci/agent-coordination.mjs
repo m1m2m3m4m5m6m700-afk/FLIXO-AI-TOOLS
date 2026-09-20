@@ -429,11 +429,12 @@ if (command === 'task-complete') {
   unlock(sessionId);
 
   const teamId = String((state.activeSessions[sessionId]?.teamId ?? task.teamId ?? DEFAULT_TEAM_ID));
+  const teamWorkRemaining = unresolvedRequiredTasks(taskId).filter((candidate) => String(candidate.teamId ?? DEFAULT_TEAM_ID) === String(teamId));
   const continuation = mandatoryContinuation(sessionId, task.claimedBy, taskId, teamId);
   const session = state.activeSessions[sessionId] ?? { sessionId, agentId: task.claimedBy, teamId, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, protocolHash: assertProtocolDefinition().protocolHash };
   session.teamId = teamId;
   session.completedTaskIds = [...new Set([...(session.completedTaskIds ?? []), taskId])];
-  session.readyForTeamClose = remaining.length === 0;
+  session.readyForTeamClose = teamWorkRemaining.length === 0;
   session.updatedAt = now();
   state.activeSessions[sessionId] = session;
   state.activeSessions[sessionId] = state.activeSessions[sessionId] ?? { sessionId, agentId: task.claimedBy, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, protocolHash: assertProtocolDefinition().protocolHash, updatedAt: now() };
