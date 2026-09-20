@@ -303,6 +303,30 @@ export function FilterMaskTool() {
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
   }
 
+  async function shareResult() {
+    if (!capturedUrl) return;
+    const filename = capturedKind === 'video' ? 'flixo-filter-mask.webm' : 'flixo-filter-mask.jpg';
+
+    if (!navigator.share) {
+      setError('Sharing is not available in this browser. Use Download result instead.');
+      return;
+    }
+
+    try {
+      const blob = await (await fetch(capturedUrl)).blob();
+      const file = new File([blob], filename, { type: blob.type });
+      if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+        setError('This device cannot share this file. Use Download result instead.');
+        return;
+      }
+      await navigator.share({ title: 'FLIXO Filter Mask', files: [file] });
+      setError('');
+    } catch (cause) {
+      if (cause instanceof DOMException && cause.name === 'AbortError') return;
+      setError('Sharing failed. Use Download result instead.');
+    }
+  }
+
   async function capture() {
     const video = videoRef.current;
     if (!video || video.readyState < 2 || !video.videoWidth) return;
@@ -494,13 +518,16 @@ export function FilterMaskTool() {
       </div>
 
       {capturedUrl && (
-        <div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <a
             href={capturedUrl}
             download={capturedKind === 'video' ? 'flixo-filter-mask.webm' : 'flixo-filter-mask.jpg'}
           >
             Download result
           </a>
+          <button type="button" onClick={() => void shareResult()}>
+            Share result
+          </button>
         </div>
       )}
     </section>
