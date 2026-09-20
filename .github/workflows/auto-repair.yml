@@ -35,10 +35,17 @@ on:
         type: string
 
 permissions:
+  # Full repository repair-plane permissions.
+  # The executor can mutate code on execution, manage Actions, update PRs,
+  # publish repair/status evidence, annotate issues, and handle security findings.
+  # It still cannot bypass the execution-only mutation boundary or write main.
   contents: write
   actions: write
   checks: read
   pull-requests: write
+  issues: write
+  statuses: write
+  security-events: write
 
 concurrency:
   # Serialize one canonical repair chain; the chain identity includes branch, SHA, fingerprint and target run ID.
