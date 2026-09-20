@@ -80,6 +80,11 @@ export function validateStatic() {
   must(!/git rebase "\$REMOTE_EXECUTION_SHA"/.test(auto), 'auto-repair-no-stale-rebase');
   must(auto.includes('EVIDENCE_CAPTURE=FAILED'), 'auto-repair-evidence-capture-fail-closed');
   must(handoffGate.includes('branches: [execution]'), 'handoff-gate-execution-trigger');
+  must(/permissions:\s*\n\s+contents:\s+read\n\s+checks:\s+read/.test(supervisor) && !/actions:\s*write/.test(supervisor), 'supervisor-read-only');
+  must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(supervisor), 'supervisor-no-direct-repair-dispatch');
+  must(!/push:\s*\n\s+branches:/m.test(supervisor) && !/pull_request:/m.test(supervisor), 'supervisor-observer-only-trigger');
+  must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(heartbeat), 'heartbeat-no-direct-repair-dispatch');
+  must(/gh\s+workflow\s+run\s+agent-repair-supervisor\.yml/.test(heartbeat), 'heartbeat-observer-only-wakeup');
   must(handoffGate.includes('CURRENT_EXECUTION_SHA=') && handoffGate.includes('HANDOFF_EXECUTION_SHA'), 'handoff-gate-current-head-check');
   must(/cannot repair itself/.test(auto), 'auto-repair-self-protection');
   must(!/continue-on-error:\s*true/i.test(auto), 'auto-repair-no-continue-on-error');
