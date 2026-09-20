@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { ACTION_AGENT_TRIAD_VERSION, getActionAgentProfile, assertActionAgentDispatch, validateActionAgentResult } from './action-agent-triad.mjs';
 
 const ACCOUNTS = Object.freeze({
   CHIEF: Object.freeze({
@@ -101,8 +102,10 @@ export const pollDispatch = async (config, fetchImpl = globalThis.fetch) => {
   if (!body?.identityVerified || !identity || !identity.agentId || !identity.machineRole) {
     throw new Error('COUNCIL_BRIDGE_AGENT_IDENTITY_UNVERIFIED');
   }
-  const entrySha = exactSha(dispatch.entry_sha ?? dispatch.entrySha);
-  return Object.freeze({ ...dispatch, entry_sha: entrySha, identity });
+  const entrySha=exactSha(dispatch.entry_sha ?? dispatch.entrySha);
+  assertActionAgentDispatch({accountId:config.accountId,exactSha:entrySha,taskId:dispatch.task_id ?? dispatch.taskId,workPackageId:dispatch.work_package_id ?? dispatch.workPackageId,missionId:dispatch.mission_id ?? dispatch.missionId ?? dispatch.payload?.missionId ?? dispatch.work_package_id ?? dispatch.workPackageId});
+  const profile=getActionAgentProfile(config.accountId);
+  return Object.freeze({...dispatch,entry_sha:entrySha,identity,actionAgentProfileId:profile.profileId,actionAgentTriadVersion:ACTION_AGENT_TRIAD_VERSION});
 };
 
 export const ackDispatch = async (config, dispatch, sessionId, fetchImpl = globalThis.fetch) =>
@@ -158,6 +161,8 @@ export const executeExternalAgent = async (config, dispatch, sessionId, fetchImp
     exactSha: exactSha(dispatch.entry_sha ?? dispatch.entrySha),
     taskId: String(dispatch.task_id ?? dispatch.taskId ?? ''),
     workPackageId: String(dispatch.work_package_id ?? dispatch.workPackageId ?? ''),
+    actionAgentTriadVersion: ACTION_AGENT_TRIAD_VERSION,
+    actionAgentProfileId: getActionAgentProfile(config.accountId).profileId,
     payload: dispatch.payload ?? {},
   };
   const body = await requestJson(fetchImpl, endpoint, {
@@ -172,12 +177,11 @@ export const executeExternalAgent = async (config, dispatch, sessionId, fetchImp
   });
   if (!body || typeof body !== 'object') throw new Error('COUNCIL_BRIDGE_EXECUTOR_RESPONSE_INVALID');
   const status = String(body.status ?? 'DONE');
-  if (!['DONE', 'FAILED'].includes(status)) throw new Error('COUNCIL_BRIDGE_EXECUTOR_STATUS_INVALID');
-  return {
-    status,
-    evidence: body.evidence && typeof body.evidence === 'object' ? body.evidence : {},
-    payload: body.payload && typeof body.payload === 'object' ? body.payload : {},
-  };
+  if (!['DONE','FAILED'].includes(status)) throw new Error('COUNCIL_BRIDGE_EXECUTOR_STATUS_INVALID');
+  const evidence=body.evidence&&typeof body.evidence==='object'?body.evidence:{};
+  const payload=body.payload&&typeof body.payload==='object'?body.payload:{};
+  const validation=validateActionAgentResult({accountId:config.accountId,dispatch,status,payload});
+  return {status,evidence:{...evidence,actionAgentValidation:validation},payload};
 };
 
 export function createBridge({ config, fetchImpl = globalThis.fetch, heartbeatMs = 30_000 } = {}) {
