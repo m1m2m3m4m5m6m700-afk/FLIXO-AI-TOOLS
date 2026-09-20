@@ -4,7 +4,7 @@ import { buildFilterMaskUrl, createFilterMaskHandoff, parseFilterMaskHandoff } f
 import { resolveFilterMaskSelection } from '../src/lib/intent/resolver.ts';
 import { FILTER_MASK_I18N } from '../src/tools/filter-mask/locales.ts';
 import { LOCALES } from '../src/lib/i18n/config.ts';
-assert.ok(LIVE_FILTER_REGISTRY.length >= 60);
+assert.ok(LIVE_FILTER_REGISTRY.length >= 100);
 assert.equal(new Set(LIVE_FILTER_REGISTRY.map((filter) => filter.canonicalId)).size, LIVE_FILTER_REGISTRY.length);
 assert.ok(LIVE_FILTER_REGISTRY.every((filter) => filter.version === 1 && filter.supportsLive));
 assert.equal(getLiveFilter('effect.original')?.canonicalId, 'effect.original');
