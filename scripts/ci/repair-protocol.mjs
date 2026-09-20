@@ -79,16 +79,20 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
 export function validateActionVaultVerifierProof({ proof, targetSHA, failureFingerprint, verifierAgent = 'actionRepairVerifier' } = {}) {
   if (verifierAgent !== 'actionRepairVerifier') throw new Error('ACTION_VAULT_VERIFIER_AGENT_INVALID');
   if (!proof || typeof proof !== 'object') throw new Error('ACTION_VAULT_VERIFIER_PROOF_REQUIRED');
-  if (proof.status !== 'CHALLENGE_PASSED') throw new Error('ACTION_VAULT_VERIFIER_CHALLENGE_FAILED');
+  if (proof.status !== 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE') throw new Error('ACTION_VAULT_ADVERSARIAL_FALSIFICATION_FAILED');
   if (proof.targetSha !== targetSHA) throw new Error('ACTION_VAULT_VERIFIER_SHA_MISMATCH');
   if (proof.failureFingerprint !== failureFingerprint) throw new Error('ACTION_VAULT_VERIFIER_FINGERPRINT_MISMATCH');
   if (!proof.verifierAgent || proof.verifierAgent !== verifierAgent) throw new Error('ACTION_VAULT_VERIFIER_IDENTITY_INVALID');
   if (!Array.isArray(proof.alternativeHypotheses) || proof.alternativeHypotheses.length < 1) throw new Error('ACTION_VAULT_ALTERNATIVES_MISSING');
   if (!Array.isArray(proof.falsificationChecks) || proof.falsificationChecks.length < 1) throw new Error('ACTION_VAULT_FALSIFICATION_CHECKS_MISSING');
   if (!proof.counterEvidence || typeof proof.counterEvidence !== 'object') throw new Error('ACTION_VAULT_COUNTER_EVIDENCE_MISSING');
-  if (proof.role !== 'EXACT_PROGRAMMER_TWIN_VERIFIER') throw new Error('ACTION_VAULT_PROGRAMMER_TWIN_ROLE_INVALID');
-  if (proof.challengeMode !== 'PROGRAMMER_TWIN') throw new Error('ACTION_VAULT_PROGRAMMER_TWIN_MODE_INVALID');
+  if (proof.role !== 'ADVERSARIAL_PROGRAMMER_FALSIFIER') throw new Error('ACTION_VAULT_ADVERSARIAL_FALSIFIER_ROLE_INVALID');
+  if (proof.challengeMode !== 'FALSIFY_PRIMARY') throw new Error('ACTION_VAULT_FALSIFICATION_MODE_INVALID');
   if (proof.programmerTwinParity?.intelligenceParity !== 'EXACT') throw new Error('ACTION_VAULT_PROGRAMMER_TWIN_PARITY_INVALID');
+  if (proof.primaryCorrectnessProof?.objective !== 'PROVE_PRIMARY_REPAIR_CORRECT') throw new Error('ACTION_VAULT_PRIMARY_CORRECTNESS_PROOF_INVALID');
+  if (proof.falsificationComplete !== true) throw new Error('ACTION_VAULT_FALSIFICATION_INCOMPLETE');
+  if (proof.counterexampleFound !== false) throw new Error('ACTION_VAULT_COUNTEREXAMPLE_FOUND');
+  if (!Array.isArray(proof.falsificationSearches) || proof.falsificationSearches.length < 4) throw new Error('ACTION_VAULT_FALSIFICATION_SEARCH_INCOMPLETE');
   if (proof.programmerTwinParity?.authorityParity !== 'SEPARATED_BY_DESIGN') throw new Error('ACTION_VAULT_PROGRAMMER_TWIN_AUTHORITY_PARITY_INVALID');
   if (proof.mutationRecommendation === 'ALLOW' && proof.remainingRisks == null) throw new Error('ACTION_VAULT_REMAINING_RISKS_REQUIRED');
   return Object.freeze({
@@ -100,6 +104,9 @@ export function validateActionVaultVerifierProof({ proof, targetSHA, failureFing
     alternativeCount: proof.alternativeHypotheses.length,
     falsificationCount: proof.falsificationChecks.length,
     mutationRecommendation: proof.mutationRecommendation ?? 'REVIEW',
+    falsificationComplete: proof.falsificationComplete,
+    counterexampleFound: proof.counterexampleFound,
+    proofObjective: 'ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG',
   });
 }
 
