@@ -50,6 +50,13 @@ NO CLOSED/VERIFIED LABEL IN THIS FILE IS CURRENT GREEN PROOF UNLESS IT IS REPROV
 ```
 
 
+## ACTIVE LATEST-COMMIT-ONLY TEST GOVERNANCE
+
+- TEST-HEAD-ONLY-001 = IMPLEMENTED / VERIFYING
+- Rule: every execution push/synchronize supersedes older test/verification runs; only newest exact branch head may produce current evidence.
+- Controller: `.github/workflows/latest-commit-test-supersession.yml`
+- Enforcement: per-workflow `cancel-in-progress: true` + `assert-current-commit.mjs` stale guard + `scripts/ci/test-latest-commit-only.mjs`.
+
 ## ACTIVE ACTION VAULT TRIAD GOVERNANCE
 
 - VAULT-TRIAD-001 = IMPLEMENTED / VERIFICATION PENDING
