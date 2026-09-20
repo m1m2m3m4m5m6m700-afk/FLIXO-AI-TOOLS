@@ -1,3 +1,46 @@
+name: FLIXO CELL Master Consult
+run-name: FLIXO CELL Master Consult ${{ inputs.request_id || github.run_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: CELL identity requesting Master consultation
+        required: true
+        type: string
+      task:
+        description: Task identifier
+        required: true
+        type: string
+      entry_sha:
+        description: Exact execution SHA observed by the CELL
+        required: true
+        type: string
+      request_id:
+        description: Idempotent Master inbox request identifier
+        required: true
+        type: string
+      risk:
+        description: Risk level
+        required: true
+        default: MEDIUM
+        type: string
+      question:
+        description: Teaching question
+        required: true
+        type: string
+      obstacle:
+        description: Current obstacle
+        required: false
+        default: ''
+        type: string
+      evidence:
+        description: Comma-separated evidence references
+        required: false
+        default: ''
+        type: string
+
+concurrency:
   group: flixo-cell-master-consult-${{ inputs.request_id }}
   cancel-in-progress: false
 
