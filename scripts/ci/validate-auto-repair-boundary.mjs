@@ -54,6 +54,8 @@ export function validateStatic() {
   const handoffGate = read(HANDOFF_GATE);
   const watchdog = read(WATCHDOG);
   const mergeGate = read(MERGE_GATE);
+  const supervisor = read(path.join(ROOT, '.github', 'workflows', 'agent-repair-supervisor.yml'));
+  const heartbeat = read(path.join(ROOT, '.github', 'workflows', 'agent-repair-heartbeat.yml'));
   const errors = [];
   const must = (condition, code) => { if (!condition) errors.push(code); };
 
