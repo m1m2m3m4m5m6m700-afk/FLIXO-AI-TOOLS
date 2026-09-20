@@ -5,8 +5,6 @@ on:
     branches: [main]
   issue_comment:
     types: [created]
-  pull_request_target:
-    types: [ready_for_review, reopened, synchronize]
   workflow_dispatch:
     inputs:
       comment_body:
@@ -64,11 +62,6 @@ This proves the default-branch bootstrap workflow is registered and executable. 
         ) &&
         contains(github.event.comment.body, '<!-- FLIXO_AGENT_COUNCIL_WAKE -->')
       ) ||
-      (
-        github.event_name == 'pull_request_target' &&
-        github.event.pull_request.number == 759 &&
-        contains(github.event.pull_request.body || '', '<!-- FLIXO_AGENT_COUNCIL_WAKE_PR -->')
-      )
     runs-on: ubuntu-latest
     steps:
       - name: Read canonical wake payload
@@ -91,12 +84,6 @@ This proves the default-branch bootstrap workflow is registered and executable. 
 
           CURRENT="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           test "$CURRENT" =~ ^[0-9a-f]{40}$
-
-          if [ "${{ github.event_name }}" = "pull_request_target" ]; then
-            test "$SHA" = "${{ github.event.pull_request.head.sha }}"
-          else
-            test "$SHA" = "$CURRENT"
-          fi
 
           test "$SHA" = "$CURRENT"
 
