@@ -56,16 +56,16 @@ function normalizeMessages(messages: ChatMessage[] | undefined): ChatMessage[] {
 function executableCatalog(): Array<Record<string, unknown>> {
   return getExecutableCapabilityIds().map((id) => {
     const capability = getCapability(id);
-    return capability
-      ? {
-          id,
-          title: capability.title,
-          description: capability.description,
-          intents: capability.intents,
-          parameters: capability.parameterSchema,
-          executionMode: capability.executionMode,
-        }
-      : null;
+    if (!capability) return null;
+    const schema = capability.parameterSchema as { shape?: Record<string, unknown> };
+    return {
+      id,
+      title: capability.title,
+      description: capability.description,
+      intents: capability.intents,
+      parameterNames: schema.shape ? Object.keys(schema.shape) : ['tool-defined parameters'],
+      executionMode: capability.executionMode,
+    };
   }).filter(Boolean) as Array<Record<string, unknown>>;
 }
 
@@ -128,7 +128,8 @@ async function callOpenAI(
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('OPENAI_API_KEY is not configured.');
   const base = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
-  const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+  const model = process.env.OPENAI_MODEL;
+  if (!model) throw new Error('OPENAI_MODEL is not configured.');
   const response = await fetch(`${base}/chat/completions`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
@@ -183,7 +184,8 @@ async function callGemini(
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured.');
   const base = (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const model = process.env.GEMINI_MODEL;
+  if (!model) throw new Error('GEMINI_MODEL is not configured.');
   const system = messages.find((message) => message.role === 'system')?.content ?? '';
   const contents = messages.filter((message) => message.role !== 'system').map((message) => ({
     role: message.role === 'assistant' ? 'model' : 'user',
