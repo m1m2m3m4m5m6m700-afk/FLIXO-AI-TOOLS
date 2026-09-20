@@ -81,23 +81,31 @@ export function planRepair(log, { historical = [], memory } = {}) {
     }
   }
 
-  const repairModelByCandidate = new Map(candidates.map((candidate) => [candidate.id, buildErrorOnlyRepairModel({ log, diagnosis: reasoning, selected: candidate, targetSha })]));
-  const safe = candidates.filter((candidate) => {
-    const model = repairModelByCandidate.get(candidate.id);
-    return candidate.mutate && candidate.confidence >= 90 &&
-      (candidate.id !== 'prepared-source-change' || candidate.deterministicProof === true) &&
-      (candidate.id === 'prepared-source-change' ? true : model?.repair.mutationAllowed === true);
-  }).map((candidate) => ({ ...candidate, errorOnlyModel: repairModelByCandidate.get(candidate.id) }));
+  const repairModelByCandidate = new Map(
+    candidates.map((candidate) => [
+      candidate.id,
+      buildErrorOnlyRepairModel({ log, diagnosis: reasoning, selected: candidate, targetSha }),
+    ]),
+  );
 
   /*
-   * Error-Only Programmer Model is a pre-mutation programming gate. It does
-   * not mutate code; it prevents a repair recipe from being selected unless
-   * it is tied to the current demonstrated source error.
+   * Error-Only Programmer Model is a pre-mutation programming gate. It never
+   * mutates code; it only admits a deterministic repair candidate tied to the
+   * current demonstrated source error.
    */
-  const safeByRule = new Map(safe.map((candidate) => [candidate.id, candidate]));
-    plan.mutate &&
-    plan.confidence >= 90 &&
-    (plan.id !== 'prepared-source-change' || plan.deterministicProof === true),
+  const safeByRule = new Map(
+    candidates
+      .filter((candidate) => {
+        const model = repairModelByCandidate.get(candidate.id);
+        return candidate.mutate &&
+          candidate.confidence >= 90 &&
+          (candidate.id !== 'prepared-source-change' || candidate.deterministicProof === true) &&
+          (candidate.id === 'prepared-source-change' || model?.repair.mutationAllowed === true);
+      })
+      .map((candidate) => [
+        candidate.id,
+        { ...candidate, errorOnlyModel: repairModelByCandidate.get(candidate.id) },
+      ]),
   );
 
   const selectedRule = prepared.ok && reasoning.decision === 'ALLOW_BOUNDED_MUTATION'
