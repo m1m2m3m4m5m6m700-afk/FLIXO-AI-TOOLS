@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const registry=JSON.parse(fs.readFileSync('docs/agents/CELL-BOT-REGISTRY.json','utf8'));
+assert.equal(registry.schemaVersion,1);
+assert.equal(registry.bots.length,50);
+assert.equal(new Set(registry.bots.map((bot)=>bot.id)).size,50);
+assert(registry.bots.every((bot)=>bot.kind==='RAW_BOT'));
+assert(registry.bots.every((bot)=>bot.status==='UNPROVISIONED'));
+assert(registry.bots.every((bot)=>bot.permissions.length===0));
+assert(registry.bots.every((bot)=>bot.supervisor==='assistantController'));
+assert(registry.bots.every((bot)=>bot.taskPolicy==='ONE_TASK_AT_A_TIME'));
+console.log('CELL_RAW_BOT_REGISTRY=PASS');
+console.log('CELL_RAW_BOT_COUNT=50');
