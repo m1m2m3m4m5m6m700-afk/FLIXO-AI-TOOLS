@@ -13,20 +13,20 @@ Communication-first is a P0 execution invariant. The canonical ingress is Master
 ```text
 SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
-CURRENT MAIN SHA = 22e67525a2e406d449fa158d67674281c7a75168
+CURRENT MAIN SHA = b80dbf2edcd323ec5921634b05ee098be407b0fc
 ACTIVE PR = #759 OPEN / execution → main (canonical integration lane)
-CURRENT PR HEAD = authoritative GitHub PR #750 head; do not duplicate a mutable SHA in this map
+CURRENT PR HEAD = authoritative GitHub PR #759 head; do not duplicate a mutable SHA in this map
 NO-NEW-BRANCH = ABSOLUTE; only execution and main are active agent branches; existing historical branches are not valid work paths
 STATE = BLOCKED_EXTERNAL
 CANONICAL TEST SYSTEM = FRESH EVIDENCE REQUIRED ON CURRENT MAIN/EXECUTION HEAD; prior exact-head evidence is stale
-CURRENT EXECUTION PRE-REPAIR EVIDENCE = Test System PASS; Test Impact PASS; Claude Security Review PASS
-REPOSITORY SECURITY = FAIL on exact head: GitHub Advanced Security Code Scanning AI returned CAPI 400 model-not-supported
+CURRENT EXECUTION PRE-REPAIR EVIDENCE = historical only; fresh exact-head evidence is required for the active execution head
+REPOSITORY SECURITY = fresh exact-head verification required; last recorded GHAS CAPI 400 model-not-supported remains classified as BLOCKED_EXTERNAL until fresh provider evidence changes the signature
 WP0 TRUST BASELINE = CURRENT-HEAD VERIFICATION REQUIRED
 VERCEL = BLOCKED_EXTERNAL: provider deployment rate-limit
 EXACT-SHA GREEN = NOT PROVEN; prompt-intelligence verification is pending on the current canonical SHA
 ADMIN STATES = historical labels below are not current exact-SHA proof; revalidation required after the active repair cycle
 PRODUCTION DEPLOYMENT EXACT-SHA = NOT PROVEN IN CURRENT EVIDENCE
-POST-MERGE MAIN SHA VERIFIED = 5115ac0528a7b18ae9ae3d392ccbfd2257900ea3
+POST-MERGE MAIN SHA VERIFIED = historical 5115ac0528a7b18ae9ae3d392ccbfd2257900ea3; not current GREEN proof
 POST-MERGE CI / CERTIFICATION = PENDING FRESH EVIDENCE
 NO CLOSED/VERIFIED LABEL IN THIS FILE IS CURRENT GREEN PROOF UNLESS IT IS REPROVEN ON THE ACTIVE MAIN SHA
 ```
@@ -37,8 +37,8 @@ NO CLOSED/VERIFIED LABEL IN THIS FILE IS CURRENT GREEN PROOF UNLESS IT IS REPROV
 ```text
 TASK LEDGER = المهام.md §15.0 LIVE DISCOVERY OVERLAY
 CURRENT EXECUTION SHA = authoritative GitHub execution branch ref; do not duplicate a mutable SHA in this map
-OPEN PR = #750 → main
-DEPENDENT PR = #752 → execution, stale/conflicting base
+OPEN PR = #759 → main
+DEPENDENT PR = none; prior non-canonical PRs are historical and not active work paths
 LIVE EXTERNAL BLOCKERS = GitHub Advanced Security model rejection + Vercel deployment rate-limit
 LIVE AUTOMATION RCA = continuous-error-watch input artifact missing on main automation cycle
 ADMIN PROVENANCE = production Vercel→Supabase binding not proven
@@ -198,16 +198,16 @@ CLOSURE EVIDENCE = RECORDED
 STATUS = IMPLEMENTED / VERIFICATION PENDING
 PURPOSE = Build one shared Prompt Intelligence Layer over Error Detection → Fingerprint → RCA → Memory → Strategy → Repair → Verification → Learning without creating a second agent registry or repair engine.
 CANONICAL REGISTRY = docs/agents/PROMPT-REGISTRY.json
-VALIDATOR = scripts/ci/validate-prompt-registry.mjs
-COMPARISON ENGINE = scripts/ci/prompt-intelligence.mjs
-MASTER PROMPT = RPR-CORE-MASTER-001 → AI_AGENT_MASTER_PROMPT.md
-SPECIALIST PROMPTS = RPR-ERROR-RCA-001, RPR-PROMPT-INTEL-001, RPR-TASK-REPAIR-001
+VALIDATOR ENTRYPOINT = scripts/ci/validate-prompt-registry.mjs
+REGISTRY ENGINE = scripts/ci/prompt-registry.mjs
+MASTER PROMPT = RPR-MASTER-LIFECYCLE-001 → AI_AGENT_MASTER_PROMPT.md
+SPECIALIST PROMPTS = RPR-ORCHESTRATION-PREFLIGHT-001, RPR-EXTERNAL-TOOLING-001, RPR-REGEX-CONTRACT-001, RPR-ARCHITECTURE-REGISTRY-001; task preparation uses RPR-EXISTING-TASK-PREP-001
 LEARNING PROVENANCE = promptId + promptVersion + masterPromptId + promptDecision + promptRegistrySha
 EXACT-SHA = prompt selection is bound to the active repair target SHA; Prompt text never grants authority.
 DUPLICATION RULE = compare failureClasses + rootCauses + scope + repairStrategy + verificationPlan; hard duplicates cannot be ACTIVE together.
 QUALITY GATE = duplicate + fingerprint + RCA + scope + safety + verification + learning + provenance + exact-SHA + overlap.
-CURRENT BLOCKER = execution branch remains historically divergent from main; canonical verification must run after synchronization.
-NEXT ACTION = fresh exact-SHA canonical static/contract verification on main, then synchronize execution and verify the resulting execution SHA.
+CURRENT BLOCKER = fresh exact-SHA Prompt Registry/contract verification is still pending on the active execution head; main remains on the legacy schema until canonical promotion.
+NEXT ACTION = validate Prompt Registry + targeted prompt tests on the current execution SHA, then run canonical CI and exact-SHA certification evidence.
 
 ## AGENT-PROTOCOL-003
 
@@ -306,6 +306,10 @@ FIX = gate dependent phases on upstream success and fail closed on missing strat
 VERIFICATION = next real Auto Repair failure/repair cycle.
 
 RC-041 = Effective Home heroTitle markup mismatch for ms/uk caused the localization gate to reject raw <span> overrides.
+RC-042 = PROJECTS.md retained a stale main SHA and obsolete canonical PR references after the execution→main topology was consolidated, causing live-state documentation to point at non-current verification targets.
+FIX = reconcile the live state with verified main b80dbf2 and canonical PR #759 while keeping mutable execution/PR heads as live references rather than duplicated values.
+VERIFICATION = re-read current main/execution refs and PR #759; fresh canonical CI remains required for GREEN.
+PREVENTION = keep mutable execution state out of duplicated hardcoded fields and update topology references atomically with governance changes.
 FIX = normalize the effective ms/uk heroTitle overrides to the canonical [[...]] marker contract.
 VERIFICATION = validate:effective-localization + WP0 + canonical browser CI on the exact execution SHA.
 PREVENTION = presentation HTML belongs to AgentFirstHome; localization data stores semantic markers only.
