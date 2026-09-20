@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { authorizeAdminRequestWithDurableSession } from './boundary.ts';
-import { getEvent, getLatestAuditForEvidence, getLatestEvidenceForAssertion, isPersistenceConfigured, probePersistence } from './persistence.ts';
+import { getEvent, getLatestEvidenceForAssertion, isPersistenceConfigured, probePersistence } from './persistence.ts';
 
 const CENTER_CAPABILITY = {
   truth: 'truth.read',
