@@ -211,6 +211,8 @@ try {
   execFileSync(process.execPath, ['scripts/ci/validate-certification-surface.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/validate-agent-protocol.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/validate-agent-coordination.mjs'], { stdio: 'inherit' });
+  execFileSync(process.execPath, ['scripts/ci/action-vault-agent-gate.mjs'], { stdio: 'inherit' });
+  execFileSync(process.execPath, ['scripts/ci/test-action-vault-agent-gate.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/test-repair-protocol.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/test-task-agent-contract.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/test-agent-admission.mjs'], { stdio: 'inherit' });
