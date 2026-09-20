@@ -247,8 +247,8 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
   const mutationScope = {
     changedPaths: plannedChangedPaths,
     selectedFiles: fileSelection?.selectedFiles?.map((item) => item.path).filter(Boolean) ?? [],
-    testMutation: plannedChangedPaths.some((file) => /(^|\\/)(?:tests?|__tests__)\\//u.test(file)),
-    controlPlaneMutation: plannedChangedPaths.some((file) => /^scripts\\/ci\\/|^\\.github\\/workflows\\//u.test(file)),
+    testMutation: plannedChangedPaths.some((file) => /(^|\/)(?:tests?|__tests__)\//u.test(file)),
+    controlPlaneMutation: plannedChangedPaths.some((file) => /^scripts\/ci\/|^\\.github\/workflows\//u.test(file)),
     mainMutation: false,
     gateWeakening: /continue-on-error|test\\.(?:skip|only)|describe\\.(?:skip|only)|eslint-disable|@ts-(?:ignore|nocheck)/iu.test(candidateDiff),
   };
@@ -696,6 +696,7 @@ const before = snapshot(targetDir);
         counterexampleProof: sandbox.regressionCounterexamples,
 
         patchCorrectnessProof: sandbox.patchCorrectnessProof,
+        preMutationProof,
       },
     });
     repairProtocolSession = authorizeMutation(repairProtocolSession);
@@ -704,6 +705,59 @@ const before = snapshot(targetDir);
     repairProtocolSession = authorizeMutation(repairProtocolSession);
     assertAgentAdmission({ actor: repairActor, branch: protocolBranch, mutation: true, session: repairProtocolSession });
   }
+
+
+if (repairActor === 'actionRepairBot') {
+  const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
+  const plannedChangedPaths = evidence.actionVaultSandbox?.changedFiles ?? preMutationProof.sandboxSimulation?.changedFiles ?? [];
+  const candidateDiff = evidence.actionVaultSandbox?.candidateDiff ?? preMutationProof.sandboxSimulation?.candidateDiff ?? '';
+  const mutationScope = {
+    changedPaths: plannedChangedPaths,
+    selectedFiles: fileSelection?.selectedFiles?.map((item) => item.path).filter(Boolean) ?? [],
+    testMutation: plannedChangedPaths.some((file) => /(^|\/)(?:tests?|__tests__)\//u.test(file)),
+    controlPlaneMutation: plannedChangedPaths.some((file) => /^scripts\/ci\/|^\.github\/workflows\//u.test(file)),
+    mainMutation: false,
+    gateWeakening: /continue-on-error|test\.(?:skip|only)|describe\.(?:skip|only)|eslint-disable|@ts-(?:ignore|nocheck)/iu.test(candidateDiff),
+  };
+  const mutationGate = evaluateMutationGate({
+    targetSha,
+    currentSha: gateCurrentSha,
+    failureFingerprint: fingerprint,
+    verifierProof: actionVaultVerifierProof,
+    cognitiveAwareness,
+    rootCauseProof: preMutationProof.rootCauseProof,
+    fileSelection,
+    programmerTwinParity,
+    falsificationReport: programmerTwinReport,
+    simulationProof: evidence.actionVaultSandbox ?? preMutationProof.sandboxSimulation,
+    differentialProof: preMutationProof.differentialProof,
+    patchCorrectness: preMutationProof.patchCorrectness,
+    regressionCounterexamples: preMutationProof.regressionCounterexamples,
+    mutationScope,
+    branch: protocolBranch,
+  });
+  evidence.mutationGate = mutationGate;
+  if (mutationGate.status !== 'PASS') {
+    evidence.outcome = 'proposal-only';
+    evidence.escalation = { required: true, reason: 'hard-mutation-gate-blocked', blockedReasons: mutationGate.failures };
+    writeEvidence(evidencePath, evidence);
+    recordOutcome(memory, {
+      fingerprint,
+      normalizedFailure,
+      features,
+      rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown',
+      rule: selected?.id,
+      outcome: 'proposed',
+      verification: 'hard-mutation-gate-blocked',
+      provenance: { targetSha, mutationGate },
+      preventionRule: 'No source mutation is admissible until every exact-SHA evidence, falsification, simulation, differential, patch and regression obligation passes.',
+    });
+    writeMemory(memory);
+    console.log('AUTO_REPAIR_RESULT=PROPOSAL_ONLY');
+    console.log('AUTO_REPAIR_REASON=hard-mutation-gate-blocked');
+    process.exit(0);
+  }
+}
 
 try {
   const declaredRepairFiles = selected?.id === 'prepared-source-change'
