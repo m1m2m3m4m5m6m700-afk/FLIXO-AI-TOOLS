@@ -31,7 +31,8 @@ export function evaluateMutationGate({
     EXACT_SHA:shaOk(targetSha)&&shaOk(currentSha)&&targetSha===currentSha,
     FAILURE_FINGERPRINT:typeof failureFingerprint==='string'&&failureFingerprint.length>0,
     COGNITIVE_AWARENESS:Boolean(cognitiveAwareness?.protocol==='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1'&&cognitiveAwareness?.targetSha===targetSha&&cognitiveAwareness?.failureFingerprint===failureFingerprint&&cognitiveAwareness?.awarenessCompleteness?.complete===true),
-    ROOT_CAUSE_PROOF:Boolean(rootCauseProof?.status==='PROVEN'||rootCauseProof?.ok===true||rootCauseProof?.causalProof?.ok===true),
+    CAUSAL_EVIDENCE_GRAPH_PROVEN:Boolean(rootCauseProof?.protocol==='CAUSAL-EVIDENCE-GRAPH-v1'&&rootCauseProof?.status==='PROVEN'&&rootCauseProof?.targetSha===targetSha&&rootCauseProof?.failureFingerprint===failureFingerprint&&rootCauseProof?.sourceMutationAllowed===false&&rootCauseProof?.proofClaims?.ROOT_CAUSE_LINKED_TO_FAILURE_SIGNAL===true&&rootCauseProof?.proofClaims?.LOCATION_LINKED_TO_CAUSE===true&&rootCauseProof?.proofClaims?.MECHANISM_EXPLAINED===true&&rootCauseProof?.proofClaims?.ALTERNATIVES_CHALLENGED===true),
+    ROOT_CAUSE_PROOF:Boolean(rootCauseProof?.status==='PROVEN'&&rootCauseProof?.targetSha===targetSha&&rootCauseProof?.failureFingerprint===failureFingerprint),
     FILE_SELECTION:Boolean(fileSelection?.decision==='SELECTED'&&fileSelection?.targetSha===targetSha&&fileSelection?.failureFingerprint===failureFingerprint&&Array.isArray(fileSelection?.selectedFiles)&&fileSelection.selectedFiles.length>0),
     PROGRAMMER_TWIN_PARITY:Boolean(programmerTwinParity?.intelligenceParity==='EXACT'&&programmerTwinParity?.authorityParity==='SEPARATED_BY_DESIGN'&&programmerTwinParity?.targetSha===targetSha&&programmerTwinParity?.failureFingerprint===failureFingerprint),
     ADVERSARIAL_FALSIFICATION_COMPLETE:Boolean(falsificationReport?.falsificationComplete===true&&falsificationReport?.counterexampleFound===false&&falsificationReport?.targetSha===targetSha&&falsificationReport?.failureFingerprint===failureFingerprint),
@@ -60,7 +61,7 @@ export function evaluateMutationGate({
   if(!Array.isArray(verifierProof?.remainingRisks)) failures.push('REMAINING_RISKS_REQUIRED');
   const proofCompleteness=verifierProof?.proofCompleteness??{};
   const requiredCompleteness=[
-    'COGNITIVE_AWARENESS_PROVEN','ROOT_CAUSE_PROVEN','FILE_SELECTION_PROVEN',
+    'COGNITIVE_AWARENESS_PROVEN','CAUSAL_EVIDENCE_GRAPH_PROVEN','ROOT_CAUSE_PROVEN','FILE_SELECTION_PROVEN',
     'PROGRAMMER_TWIN_PARITY_PROVEN','ADVERSARIAL_FALSIFICATION_COMPLETE','NO_VALID_COUNTEREXAMPLE',
     'SANDBOX_SIMULATION_PASSED','DIFFERENTIAL_CHECK_PASSED','PATCH_CORRECTNESS_PROVEN',
     'REGRESSION_COUNTEREXAMPLES_EXHAUSTED','NO_SCOPE_VIOLATION','NO_TEST_MUTATION',
