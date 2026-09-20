@@ -56,11 +56,13 @@ export function simulateRepair({
 
     git(dir, ['diff', '--check'], { stdio: 'pipe' });
 
+    const declaredFiles = Array.isArray(plan.files) && plan.files.length ? plan.files : [plan.file];
     const scopeOk =
       summary.files.length > 0 &&
       summary.files.length <= maxChangedFiles &&
       summary.lines <= maxChangedLines &&
-      summary.files.includes(plan.file);
+      summary.files.every((file) => declaredFiles.includes(file)) &&
+      declaredFiles.includes(plan.file);
 
     return Object.freeze({
       ok: Boolean(repair?.applied) && scopeOk,
@@ -70,6 +72,7 @@ export function simulateRepair({
       diff: summary,
       scopeOk,
       target: plan.file,
+      declaredFiles,
       isolated: true,
       reason: repair?.applied
         ? scopeOk

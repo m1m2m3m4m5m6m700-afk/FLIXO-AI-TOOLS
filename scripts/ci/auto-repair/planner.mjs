@@ -10,6 +10,7 @@ const plans = [
   { id: 'external-tooling', features: ['external-tooling'], confidence: 99, mutate: false, commands: [] },
   { id: 'eslint-unused', features: ['lint'], confidence: 92, mutate: true, targetScope: 'exact-file', commands: [] },
   { id: 'prettier-file', features: ['format'], confidence: 90, mutate: true, targetScope: 'exact-file', commands: [] },
+  { id: 'typescript-missing-import', features: ['typescript'], confidence: 91, mutate: true, targetScope: 'exact-file', commands: [] },
   { id: 'typescript-diagnostic', features: ['typescript'], confidence: 88, mutate: false, commands: [['npm', ['run', 'typecheck']]] },
   { id: 'playwright-diagnostic', features: ['playwright'], confidence: 72, mutate: false, commands: [] },
   { id: 'webkit-proposal', features: ['webkit'], confidence: 68, mutate: false, commands: [] },
@@ -110,7 +111,9 @@ export function planRepair(log, { historical = [], memory } = {}) {
 
   const selectedRule = prepared.ok && reasoning.decision === 'ALLOW_BOUNDED_MUTATION'
     ? 'prepared-source-change'
-    : inferenceEligible && inferenceFallback.hypothesis.strategyId
+    : /TS2304\b|Cannot find name ['\"]/iu.test(log)
+      ? 'typescript-missing-import'
+      : inferenceEligible && inferenceFallback.hypothesis.strategyId
       ? inferenceFallback.hypothesis.strategyId
       : reasoning.rootCause === 'format'
         ? 'prettier-file'
@@ -141,6 +144,10 @@ export function planRepair(log, { historical = [], memory } = {}) {
       file: selectedCandidate.id === 'prepared-source-change'
         ? selectedCandidate.file
         : reasoning.location?.file ?? null,
+      symbol: selectedCandidate.id === 'typescript-missing-import'
+        ? String(log.match(/Cannot find name ['\"]([^'\"]+)['\"]/iu)?.[1] ?? '').trim()
+        : undefined,
+      diagnosticCode: selectedCandidate.id === 'typescript-missing-import' ? 'TS2304' : undefined,
       learning: reusableKnowledge,
     }
     : null;
