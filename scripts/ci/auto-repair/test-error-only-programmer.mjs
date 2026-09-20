@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { buildErrorOnlyRepairModel, classifyRepairTarget } from './error-only-programmer.mjs';
+import { runAstRepair } from './ast-repair.mjs';
 
 const sha = 'a'.repeat(40);
 
@@ -61,3 +66,22 @@ assert.equal(multi.allowed, true);
 assert.deepEqual(multi.targetFiles, ['src/a.ts', 'src/b.ts']);
 
 console.log('ERROR_ONLY_PROGRAMMER_MODEL_CONTRACT=PASS');
+
+const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-ts-driver-test-'));
+try {
+  fs.mkdirSync(path.join(temp, 'src'), { recursive: true });
+  fs.writeFileSync(path.join(temp, 'src', 'provider.ts'), 'export class Widget {}\\n');
+  fs.writeFileSync(path.join(temp, 'src', 'app.ts'), 'export const value: Widget | null = null;\\n');
+  execFileSync('git', ['-C', temp, 'init'], { stdio: 'ignore' });
+  execFileSync('git', ['-C', temp, 'config', 'user.email', 'test@example.invalid']);
+  execFileSync('git', ['-C', temp, 'config', 'user.name', 'FLIXO Test']);
+  execFileSync('git', ['-C', temp, 'add', 'src']);
+  execFileSync('git', ['-C', temp, 'commit', '-m', 'fixture'], { stdio: 'ignore' });
+  const repair = runAstRepair(temp, { id: 'typescript-missing-import', file: 'src/app.ts', symbol: 'Widget' });
+  assert.equal(repair.applied, true);
+  assert.equal(repair.moduleFile, 'src/provider.ts');
+  assert.match(fs.readFileSync(path.join(temp, 'src', 'app.ts'), 'utf8'), /import \\{ Widget \\} from '\\.\\/provider';/u);
+  console.log('TYPESCRIPT_MISSING_IMPORT_EXECUTOR_TEST=PASS');
+} finally {
+  fs.rmSync(temp, { recursive: true, force: true });
+}
