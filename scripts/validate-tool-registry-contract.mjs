@@ -81,4 +81,4 @@ if (!loaderSource.includes('TOOL_DEFINITIONS') || !loaderSource.includes('create
   process.exit(1);
 }
 
-console.log(`Canonical tool registry contract passed: ${entries.length} unique tools (${readyCount} ready, ${unavailableCount} unavailable) with canonical IDs, titles, descriptions, category, and /en/ paths.`);
+console.log(`Canonical tool registry contract passed: ${expectedToolCount} unique tools (${readyCount} ready, ${unavailableCount} unavailable) with canonical IDs, titles, descriptions, category, and /en/ paths.`);
