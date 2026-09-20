@@ -2,6 +2,7 @@ import type { ExecutionPlan } from '@/lib/ai/planner';
 import { assertExecutionResourceBudget, getCapability, validateCapabilityParameters, type CapabilityParameters } from '@/lib/agent/capability-registry';
 import { getToolById } from '@/config/registry';
 import { getToolExecutor, repairToolParameters } from '@/lib/workflows/executor-registry';
+import { assertToolOutputContract, getToolOutputContractForDefinition, type ToolOutputResult } from '@/lib/contracts/tool-output-contracts';
 
 export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; outputBlob?: Blob; retry?: number; }
 export class PipelineVerificationError extends Error {
@@ -9,11 +10,46 @@ export class PipelineVerificationError extends Error {
 }
 type PipelineParams = CapabilityParameters;
 
-async function verifyOutput(toolId: string, inputBlob: Blob, outputBlob: Blob, params: PipelineParams): Promise<boolean> {
+function extensionForMime(mimeType: string): string {
+  const map: Record<string, string> = {
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/webp': 'webp',
+    'image/svg+xml': 'svg',
+    'text/plain': 'txt',
+    'application/json': 'json',
+  };
+  return map[mimeType] ?? 'bin';
+}
+
+async function toOutputContractResult(toolId: string, outputBlob: Blob): Promise<ToolOutputResult> {
+  const bytes = new Uint8Array(await outputBlob.arrayBuffer());
+  return {
+    mimeType: outputBlob.type,
+    byteLength: outputBlob.size,
+    bytes,
+    filename: `flixo-${toolId}-output.${extensionForMime(outputBlob.type)}`,
+  };
+}
+
+export async function verifyPipelineOutput(toolId: string, inputBlob: Blob, outputBlob: Blob, params: PipelineParams): Promise<boolean> {
   const capability = getCapability(toolId);
   if (!capability) return false;
+  const tool = getToolById(toolId);
+  if (!tool) return false;
+  const contract = getToolOutputContractForDefinition(tool);
+  if (!contract) return false;
+
   const timeout = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), capability.safetyLimits.timeoutMs));
-  return Promise.race([capability.verifier(inputBlob, outputBlob, params), timeout]);
+  const capabilityVerified = await Promise.race([capability.verifier(inputBlob, outputBlob, params), timeout]);
+  if (!capabilityVerified) return false;
+
+  try {
+    assertToolOutputContract(contract, await toOutputContractResult(toolId, outputBlob));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan, onProgress: (progress: PipelineProgress) => void): Promise<Blob> {
@@ -40,7 +76,7 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
       try {
         const output = await executor({ tool, inputBlob: stableBlob, parameters: params });
         lastOutput = output;
-        verified = await verifyOutput(step.toolId, stableBlob, output, params);
+        verified = await verifyPipelineOutput(step.toolId, stableBlob, output, params);
         if (verified) {
           currentBlob = output;
           onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, outputBlob: output, retry: attempt });
