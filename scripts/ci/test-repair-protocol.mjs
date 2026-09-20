@@ -7,6 +7,8 @@ assert.equal(definition.protocolId,'REPAIR_PROTOCOL');
 assert.equal(definition.protocolVersion,'1.0.0');
 assert.equal(definition.protocolHash,REPAIR_PROTOCOL_HASH);
 assert.equal(REPAIR_PROTOCOL.commitPolicy,'ONE_COMMIT_PER_COMPLETED_REPAIR_SESSION');
+assert.equal(REPAIR_PROTOCOL.mutationScope,'ERROR_ONLY');
+assert.equal(REPAIR_PROTOCOL.testMutationPolicy,'BLOCK');
 assert.throws(
   () => validateErrorOnlyMutation({failureLocation:'src/failure.ts',selectedFile:'src/other.ts',changedPaths:['src/other.ts']}),
   /REPAIR_PROTOCOL_ERROR_TARGET_MISMATCH/,
