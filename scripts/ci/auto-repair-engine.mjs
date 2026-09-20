@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { repairPolicy, isPathAllowed } from './auto-repair-policy.mjs';
-import { fingerprintFailure, normalizeFailure, extractFeatures, loadMemory, findCase, findSimilarCases, rankLessons, scorePlaybook, deriveReusableKnowledge, writeMemory, recordOutcome, loadRepairAgentContext } from './auto-repair-learning.mjs';
+import { fingerprintFailure, normalizeFailure, extractFeatures, loadMemory, findCase, findSimilarCases, rankLessons, scorePlaybook, deriveReusableKnowledge, writeMemory, recordOutcome } from './auto-repair-learning.mjs';
 import { planRepair } from './auto-repair/planner.mjs';
 import { selectSpecialist } from './auto-repair/specialists.mjs';
 import { confidenceGate } from './auto-repair/confidence.mjs';
@@ -70,7 +70,6 @@ const prepareTargetedVerification = (currentLog, currentFeatures) => {
   };
 };
 const memory = loadMemory();
-const repairAgentTeamContext = loadRepairAgentContext({ teamId: process.env.FLIXO_AGENT_TEAM_ID ?? 'FLIXO-EXECUTION-TEAM', currentSha: targetSha, limit: 120 });
 const known = findCase(memory, fingerprint);
 const similar = findSimilarCases(memory, { fingerprint, normalized: normalizedFailure, features });
 const lessons = rankLessons(memory, { fingerprint });
@@ -132,8 +131,6 @@ const evidence = {
   },
   learning: {
     memoryVersion: memory.version,
-    repairAgentTeamContext,
-    repairAgentRole: 'repairAgent',
     exactCase: Boolean(known),
     similarCases: similar.map(({ case: item, score }) => ({ fingerprint: item.fingerprint, score, rules: item.rules ?? [] })),
     trustedLessons: trustedLessons.map(({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence }) => ({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence })),

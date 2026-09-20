@@ -1,6 +1,6 @@
 # ⛔ AUTONOMOUS MUTATION HALT — ISSUE #761
 
-Issue #761 is closed and its activation loop is terminated. Any agent/session deriving authority from that inbox MUST STOP and MUST NOT create commits, dispatch workflows, or mutate `execution`. Autonomous repair authority remains only with the canonical Daily FLIXO Green Gate → Auto Repair lease path for a fresh exact-SHA RED. This banner is a fail-closed control-plane constraint until a new authorized activation protocol is explicitly established.
+Issue #761 is closed and its activation loop is terminated. Any agent/session deriving authority from that inbox MUST STOP and MUST NOT create commits, dispatch workflows, or mutate `execution`. Autonomous repair authority remains only with the canonical Daily FLIXO Green Gate → Auto Repair lease path for a fresh exact-SHA RED. This is a fail-closed control-plane constraint until a new authorized activation protocol is explicitly established.
 
 # 🚨 AGENT ENTRY GATE — FLIXO-AI-TOOLS
 

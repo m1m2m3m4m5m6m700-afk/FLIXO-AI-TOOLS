@@ -6,7 +6,6 @@ import { createHash } from 'node:crypto';
 import { assertAgentAdmission, assertProtocolDefinition } from './repair-protocol.mjs';
 import { ingest as ingestAgentMessage, markRead as readAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
 import { loadPromptRegistry, validatePromptRegistry, loadErrorMemory } from './prompt-registry.mjs';
-import { recordAgentLearningEvent } from './auto-repair-learning.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -38,7 +37,6 @@ const rca = String(args.get('rca') ?? process.env.FLIXO_AGENT_RCA ?? '').trim() 
 const scope = String(args.get('scope') ?? process.env.FLIXO_AGENT_SCOPE ?? '').split(',').map((v) => v.trim()).filter(Boolean);
 const fromSession = rawFromSession ? safeSessionId(rawFromSession, 'previous_session') : null;
 const taskId = String(args.get('task') ?? process.env.FLIXO_AGENT_TASK ?? '').trim();
-const teamId = String(args.get('team') ?? process.env.FLIXO_AGENT_TEAM_ID ?? 'FLIXO-EXECUTION-TEAM').trim();
 const sessionDir = path.resolve(ROOT, 'diagnostics/agents/sessions');
 const visibilityDir = path.resolve(ROOT, 'docs/agents/ledger');
 const handoffDir = path.resolve(ROOT, 'diagnostics/agents/handoffs');
@@ -77,28 +75,6 @@ const readCanonicalAdmissionSources = () => {
 };
 const sessionPath = (id) => path.join(sessionDir, `${storageKey(id)}.json`);
 const handoffPath = (id) => path.join(handoffDir, `${storageKey(id)}.json`);
-const coordinationStatePath = path.resolve(ROOT, process.env.FLIXO_COORDINATION_DIR ?? 'diagnostics/agents', 'coordination-state.json');
-const assertTeamCompletionBarrier = (record) => {
-  if (!fs.existsSync(coordinationStatePath)) throw new Error('TEAM_COMPLETION_BARRIER_STATE_MISSING');
-  const coordination = JSON.parse(fs.readFileSync(coordinationStatePath, 'utf8'));
-  const current = coordination.activeSessions?.[record.sessionId];
-  const team = String(record.teamId ?? teamId);
-  const peers = Object.values(coordination.activeSessions ?? {}).filter((item) =>
-    String(item.teamId ?? 'FLIXO-EXECUTION-TEAM') === team &&
-    item.sessionId !== record.sessionId &&
-    !['CLOSED', 'STALE'].includes(String(item.collaborationState ?? ''))
-  );
-  const unresolved = Object.values(coordination.tasks ?? {}).filter((task) =>
-    String(task.teamId ?? 'FLIXO-EXECUTION-TEAM') === team &&
-    ['READY', 'QUEUED', 'RUNNING', 'STALE'].includes(String(task.status))
-  );
-  if (unresolved.length > 0) throw new Error('TEAM_COMPLETION_BARRIER_ACTIVE');
-  if (!current) throw new Error('TEAM_COMPLETION_BARRIER_SESSION_MISSING');
-  if (current.teamBarrier !== 'READY_TO_CLOSE') throw new Error('TEAM_COMPLETION_BARRIER_NOT_READY');
-  if (current.collaborationRequired === true) throw new Error('TEAM_COMPLETION_BARRIER_ACTIVE');
-  const notReadyPeers = peers.filter((peer) => peer.readyForTeamClose !== true);
-  if (notReadyPeers.length > 0) throw new Error('TEAM_COMPLETION_BARRIER_ACTIVE');
-};
 const visibilityPath = (id) => path.join(visibilityDir, `${storageKey(id)}.json`);
 const roles = new Set(['analysis','implementation','verification','release','assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','diagnosticAgent']);
 const writeVisibility = (record) => {
@@ -138,18 +114,6 @@ if (command === 'event') {
   const sha = gitSha();
   assertSafeText(type, summary, files, evidence, findings, blockers, next);
   const event = { at: now(), action: 'EVENT', type, summary, sha, files, evidence, findings, blockers, next };
-  const learning = recordAgentLearningEvent({
-    teamId,
-    eventType: type,
-    taskId,
-    actor: agentId,
-    sessionId,
-    entrySha: sha,
-    information: summary,
-    lesson: ['FINDING', 'VERIFICATION', 'TEST', 'CHANGE', 'BLOCKER', 'HANDOFF'].includes(type) ? summary : null,
-    preventionRule: type === 'BLOCKER' ? 'Repair Agent must inspect this blocker before the next mutation decision.' : null,
-    evidence: [...files, ...evidence, ...findings, ...blockers],
-  });
   appendEvent(record, event);
   fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
   const visibilityFile = visibilityPath(sessionId);
@@ -161,7 +125,6 @@ if (command === 'event') {
   visibility.changedFiles = [...new Set([...(visibility.changedFiles ?? []), ...files])];
   visibility.evidence = [...new Set([...(visibility.evidence ?? []), ...evidence])];
   visibility.findings = [...new Set([...(visibility.findings ?? []), ...findings])];
-  visibility.repairAgentLearning = { recorded: true, observationId: learning.id, source: 'diagnostics/auto-repair/memory.json' };
   visibility.blockers = [...new Set([...(visibility.blockers ?? []), ...blockers])];
   visibility.updatedAt = now();
   writeVisibility(visibility);
@@ -226,7 +189,6 @@ if (command === 'event') {
     schemaVersion: 3,
     repairProtocol: { ...assertProtocolDefinition(), compliance: 'VALIDATED_AT_ENTRY', admission: protocolAdmission },
     sessionId,
-    teamId,
     agentId,
     role,
     entrySha: currentSha,
@@ -258,7 +220,6 @@ if (command === 'event') {
   if (record.status !== 'RUNNING') throw new Error(`Session is not active: ${sessionId}`);
 
   const status = String(args.get('status') ?? process.env.FLIXO_AGENT_STATUS ?? 'VERIFIED').toUpperCase();
-  assertTeamCompletionBarrier(record);
   if (!['VERIFIED', 'BLOCKED'].includes(status)) throw new Error(`Logout status must be VERIFIED or BLOCKED; got ${status}`);
   const sha = gitSha();
   const changedFiles = split(args.get('changed') ?? process.env.FLIXO_AGENT_CHANGED_FILES);
@@ -312,7 +273,7 @@ if (command === 'event') {
   record.actions = Array.isArray(record.actions) ? [...record.actions, { at: now(), action: 'LOGOUT', sha, status }] : [{ at: now(), action: 'LOGOUT', sha, status }];
   fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
 
-  writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'CLOSED', taskId, sessionId: record.sessionId, teamId: record.teamId ?? teamId, agentId: record.agentId, role: record.role, entrySha: record.entrySha, exitSha: sha, status, finalStatus: status, finalSummary, scope: record.scope, currentRca: record.currentRca, rcaClosed, openRcas, changedFiles, commands, evidence, findings, activity, lastEvent: activity.at(-1) ?? null, completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() });
+  writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'CLOSED', taskId, sessionId: record.sessionId, agentId: record.agentId, role: record.role, entrySha: record.entrySha, exitSha: sha, status, finalStatus: status, finalSummary, scope: record.scope, currentRca: record.currentRca, rcaClosed, openRcas, changedFiles, commands, evidence, findings, activity, lastEvent: activity.at(-1) ?? null, completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() });
 
   const report = {
     schemaVersion: 1,

@@ -24,7 +24,7 @@ const FAILURE = 'f'.repeat(64);
 const identity = deriveRepairIdentity({ failureFingerprint: FAILURE, failedSha: SHA_A, targetRunId: 'target-1', branch: 'execution' });
 assert.match(identity.repairChainId, /^RC-[a-f0-9]{20}$/);
 assert.equal(identity.cycleKey, `execution:${SHA_A}:${FAILURE}:target-1`);
-assert.match(identity.leaseRef, /^refs\/tags\/flixo-repair-lease-[a-f0-9]{64}$/);
+assert.match(identity.leaseRef, /^refs\\/tags\\/flixo-repair-lease-[a-f0-9]{64}$/);
 assert.equal(identity.claimKey, `claim-${identity.leaseRef.slice('refs/tags/flixo-repair-lease-'.length)}`);
 const identityVariants = [
   { failureFingerprint: FAILURE, failedSha: SHA_B, targetRunId: 'target-1', branch: 'execution' },

@@ -31,6 +31,7 @@ for (const match of inventoryMatch.groups.entries.matchAll(/\{ id: '([^']+)', ti
   entries.push({ id: match[1], title: match[2], path: match[3], description: match[4], category: match[5], isReady: match[6] === 'true' });
 }
 
+const expectedToolCount = entries.length;
 const expectedReadyCount = entries.filter(({ isReady }) => isReady).length;
 const expectedUnavailableCount = entries.length - expectedReadyCount;
 if (!entries.length) {

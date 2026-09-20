@@ -200,7 +200,6 @@ export function createPromptHandoff({
     repairSequence: ['READ', 'IDENTIFY', 'FINGERPRINT', 'RCA', 'FALSIFY', 'REPRODUCE', 'PLAN', 'RISK_GATE', 'REPAIR'],
     verificationSequence: prompt.verificationPlan,
     learningSequence: prompt.learningRequirements,
-    changedFiles: [...changedFiles],
     relatedPrompts: [...new Set([...(prompt.relatedPrompts ?? []), ...relatedPrompts])],
     antiLessons: prompt.antiPatterns,
     conflicts,

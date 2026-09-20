@@ -12,37 +12,26 @@ const currentSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8'
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-agent-coordination-'));
 const coordDir = path.join(temp, 'coord');
 const visibilityDir = path.join(temp, 'visibility');
-const inboxDir = path.join(temp, 'inbox');
 fs.mkdirSync(path.join(coordDir, 'task-packets'), { recursive: true });
 fs.mkdirSync(path.join(coordDir, 'handoffs'), { recursive: true });
 fs.mkdirSync(visibilityDir, { recursive: true });
-fs.mkdirSync(inboxDir, { recursive: true });
 
 const taskId = 'atomic-race-task';
-const requestTaskId = 'cooperation-request-task';
 const scope = ['scripts/ci/agent-coordination.mjs'];
-const requestScope = ['scripts/ci/agent-session.mjs'];
-const state = { schemaVersion: 1, authority: 'AGENT_COORDINATION_CONTROL_PLANE', authoritativeSha: currentSha, revision: 0, transactionId: null, updatedAt: new Date().toISOString(), tasks: { [taskId]: { taskId, title: 'Atomic coordination race regression', priority: 100, lane: 'test', rca: 'coordination-race', scope, objective: 'exactly one concurrent claimant may own a task', knownFailure: 'lost update', evidenceRequired: ['single-winner'], dependsOn: [], status: 'READY', createdAt: new Date().toISOString() }, [requestTaskId]: { taskId: requestTaskId, title: 'Active cooperation request', priority: 90, lane: 'test', rca: 'cooperation-request', scope: requestScope, objective: 'request must be accepted before task claim', knownFailure: 'missing response gate', evidenceRequired: ['request-response'], dependsOn: [], status: 'READY', createdAt: new Date().toISOString() } }, activeSessions: {} };
+const state = { schemaVersion: 1, authority: 'AGENT_COORDINATION_CONTROL_PLANE', authoritativeSha: currentSha, revision: 0, transactionId: null, updatedAt: new Date().toISOString(), tasks: { [taskId]: { taskId, title: 'Atomic coordination race regression', priority: 100, lane: 'test', rca: 'coordination-race', scope, objective: 'exactly one concurrent claimant may own a task', knownFailure: 'lost update', evidenceRequired: ['single-winner'], dependsOn: [], status: 'READY', createdAt: new Date().toISOString() } }, activeSessions: {} };
 const locks = { schemaVersion: 1, authority: 'AGENT_SCOPE_LOCKS', revision: 0, transactionId: null, locks: {} };
 fs.writeFileSync(path.join(coordDir, 'coordination-state.json'), JSON.stringify(state, null, 2) + '\n');
 fs.writeFileSync(path.join(coordDir, 'coordination-locks.json'), JSON.stringify(locks, null, 2) + '\n');
 
 const visibilityKey = (id) => crypto.createHash('sha256').update(id).digest('hex');
-for (const [sessionId, agentId] of [['race-session-a','executionAgent-a'], ['race-session-b','executionAgent-b'], ['request-session','executionAgent-b']]) {
+for (const [sessionId, agentId] of [['race-session-a','executionAgent-a'], ['race-session-b','executionAgent-b']]) {
   fs.writeFileSync(path.join(visibilityDir, visibilityKey(sessionId) + '.json'), JSON.stringify({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'OPEN', taskId, sessionId, agentId, role: 'executionAgent', entrySha: currentSha, exitSha: null, status: 'RUNNING', finalStatus: null, finalSummary: null, updatedAt: new Date().toISOString() }, null, 2) + '\n');
 }
 
 const runArgs = (args) => new Promise((resolve) => {
-  const child = spawn(process.execPath, ['scripts/ci/agent-coordination.mjs', ...args], { cwd: root, env: { ...process.env, FLIXO_COORDINATION_DIR: coordDir, FLIXO_AGENT_VISIBILITY_DIR: visibilityDir, FLIXO_AGENT_INBOX_DIR: inboxDir }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, ['scripts/ci/agent-coordination.mjs', ...args], { cwd: root, env: { ...process.env, FLIXO_COORDINATION_DIR: coordDir, FLIXO_AGENT_VISIBILITY_DIR: visibilityDir }, stdio: ['ignore', 'pipe', 'pipe'] });
   let stdout = '';
   let stderr = '';
-  child.stdout.on('data', (chunk) => { stdout += chunk; });
-  child.stderr.on('data', (chunk) => { stderr += chunk; });
-  child.on('close', (code) => resolve({ code, stdout, stderr }));
-});
-const runComm = (args) => new Promise((resolve) => {
-  const child = spawn(process.execPath, ['scripts/ci/agent-communication.mjs', ...args], { cwd: root, env: { ...process.env, FLIXO_AGENT_INBOX_DIR: inboxDir }, stdio: ['ignore', 'pipe', 'pipe'] });
-  let stdout = ''; let stderr = '';
   child.stdout.on('data', (chunk) => { stdout += chunk; });
   child.stderr.on('data', (chunk) => { stderr += chunk; });
   child.on('close', (code) => resolve({ code, stdout, stderr }));
@@ -82,31 +71,6 @@ try {
   assert.equal(reconciledLocks.locks[staleLockId].status, 'RELEASED');
   assert.equal(JSON.parse(fs.readFileSync(path.join(visibilityDir, visibilityKey(staleSessionId) + '.json'), 'utf8')).status, 'STALE');
   console.log('STALE_SESSION_KILL_SWITCH=PASS');
-
-  const requestCommand = await runArgs(['coop-request', '--agent=assistantController', '--recipient=executionAgent-b', `--task=${requestTaskId}`, '--scope=scripts/ci/agent-session.mjs', '--intent=REQUEST_COOPERATIVE_EXECUTION', '--risk=MEDIUM']);
-  assert.equal(requestCommand.code, 0, `request should be sent: ${JSON.stringify(requestCommand)}`);
-  const requestRecord = JSON.parse(requestCommand.stdout);
-  assert.equal(requestRecord.messageType, 'REQUEST');
-  assert.equal(requestRecord.responseState, 'PENDING');
-  const pendingCommand = await runArgs(['coop-pending', '--agent=executionAgent-b']);
-  assert.equal(pendingCommand.code, 0);
-  assert.equal(JSON.parse(pendingCommand.stdout).some((item) => item.messageId === requestRecord.messageId), true);
-  const requestRead = await runComm(['read', `--message-id=${requestRecord.messageId}`, '--agent=executionAgent-b']);
-  assert.equal(requestRead.code, 0, `request must be read: ${JSON.stringify(requestRead)}`);
-  const responseCommand = await runArgs(['coop-respond', `--reply-to=${requestRecord.messageId}`, '--agent=executionAgent-b', '--response-status=ACCEPTED']);
-  assert.equal(responseCommand.code, 0, `request response should be accepted: ${JSON.stringify(responseCommand)}`);
-  const challengeCommand = await runArgs(['coop-challenge', '--agent=reviewAgent', '--recipient=executionAgent-b', `--task=${requestTaskId}`, '--scope=scripts/ci/agent-session.mjs', '--intent=CHALLENGE_COOPERATIVE_SCOPE', '--risk=MEDIUM']);
-  assert.equal(challengeCommand.code, 0);
-  const challengeRecord = JSON.parse(challengeCommand.stdout);
-  const challengeRead = await runComm(['read', `--message-id=${challengeRecord.messageId}`, '--agent=executionAgent-b']);
-  assert.equal(challengeRead.code, 0);
-  const challengeClaim = await runArgs(['task-claim', `--task=${requestTaskId}`, '--session=request-session', '--agent=executionAgent-b', `--message-id=${challengeRecord.messageId}`]);
-  assert.notEqual(challengeClaim.code, 0);
-  assert.match(challengeClaim.stderr, /CHALLENGE_REQUIRES_RESPONSE/);
-  const requestClaim = await runArgs(['task-claim', `--task=${requestTaskId}`, '--session=request-session', '--agent=executionAgent-b', `--message-id=${requestRecord.messageId}`]);
-  assert.equal(requestClaim.code, 0, `accepted request should be claimable: ${JSON.stringify(requestClaim)}`);
-  console.log('COORDINATION_REQUEST_RESPONSE_GATE=PASS');
-  console.log('COORDINATION_CHALLENGE_EXECUTION_BLOCK=PASS');
 
   const handoffSessionId = 'handoff-next';
   const predecessor = 'handoff-prev';

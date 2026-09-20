@@ -42,7 +42,7 @@ if (logo.length < 4096 || logo.toString('ascii', 0, 4) !== 'RIFF' || logo.toStri
 if (favicon.length < 1024 || favicon[0] !== 0x89 || favicon[1] !== 0x50 || favicon[2] !== 0x4e || favicon[3] !== 0x47) fail('canonical FLIXO favicon artwork is invalid');
 if (!globalLogo.includes('src="/flixo-logo.webp"')) fail('FlixoGlobalLogo must use canonical /flixo-logo.webp');
 if (!indexHtml.includes('href="/flixo-favicon.png"')) fail('index.html must use the canonical FLIXO favicon');
-if (!/rel="preload" as="image" href="\/flixo-logo\.webp(?:\?[^"]*)?"/u.test(indexHtml)) fail('index.html must preload the canonical FLIXO logo');
+if (!indexHtml.includes('rel="preload" as="image" href="/flixo-logo.webp"')) fail('index.html must preload the canonical FLIXO logo');
 if (logo.toString('binary').includes('flixo-logo.svg') || logo.toString('binary').includes('logo.jpg')) fail('canonical FLIXO logo must not depend on legacy logo assets');
 pass('canonical FLIXO brand contract');
 

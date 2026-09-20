@@ -57,7 +57,7 @@ export function normalizeLearningOutcome(outcome, verification) {
   return outcome;
 }
 
-const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [], agentLearning: [] });
+const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [] });
 
 const historicalKnowledgePath = process.env.FLIXO_HISTORICAL_KNOWLEDGE ?? 'docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json';
 
@@ -73,102 +73,6 @@ function loadHistoricalKnowledge() {
   }
 }
 
-export function recordAgentObservation(memory, {
-  teamId = 'FLIXO-EXECUTION-TEAM',
-  eventType,
-  taskId = null,
-  actor = null,
-  sourceAgent = 'repairAgent',
-  entrySha = null,
-  information,
-  lesson = null,
-  preventionRule = null,
-  evidence = [],
-  relatedMessageId = null,
-} = {}) {
-  if (!eventType || !information) throw new Error('AGENT_LEARNING_OBSERVATION_REQUIRED');
-  const id = createHash('sha256').update(JSON.stringify([teamId, eventType, taskId, actor, entrySha, information])).digest('hex').slice(0, 24);
-  const observations = Array.isArray(memory.agentLearning) ? memory.agentLearning : [];
-  const existing = observations.find((item) => item.id === id);
-  const item = existing ?? { id, at: new Date().toISOString(), teamId, eventType, taskId, actor, sourceAgent, entrySha, information, lesson, preventionRule, evidence: [], relatedMessageId };
-  item.evidence = [...new Set([...(item.evidence ?? []), ...evidence])].slice(-12);
-  item.lastSeenAt = new Date().toISOString();
-  if (lesson) item.lesson = lesson;
-  if (preventionRule) item.preventionRule = preventionRule;
-  if (!existing) observations.push(item);
-  memory.agentLearning = observations.slice(-500);
-  return item;
-}
-
-export function loadRepairAgentContext({ teamId = 'FLIXO-EXECUTION-TEAM', currentSha = null, limit = 80 } = {}) {
-  const memory = loadMemory();
-  const observations = (memory.agentLearning ?? []).filter((item) => String(item.teamId ?? 'FLIXO-EXECUTION-TEAM') === String(teamId));
-  return {
-    schemaVersion: 1,
-    authority: 'REPAIR_AGENT_LEARNING_CONTEXT',
-    teamId,
-    currentSha,
-    recentObservations: observations.slice(-limit),
-    lessons: (memory.lessons ?? []).slice(-40),
-    antiLessons: (memory.antiLessons ?? []).slice(-40),
-    playbooks: (memory.playbooks ?? []).slice(-40),
-    cases: (memory.cases ?? []).slice(-40),
-    instruction: 'Use this context as advisory evidence before every repair decision; never treat learning as authority, certification, or permission to bypass gates.',
-  };
-}
-
-function sleepAgentLearning(ms) { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); }
-function acquireAgentLearningLock(file) {
-  const lock = file + '.lock';
-  for (let attempt = 0; attempt < 240; attempt += 1) {
-    try { fs.mkdirSync(lock); fs.writeFileSync(path.join(lock, 'owner.json'), JSON.stringify({ pid: process.pid, at: Date.now() }) + '\n', { flag: 'wx' }); return lock; }
-    catch (error) {
-      if (error?.code !== 'EEXIST') throw error;
-      try { const owner = JSON.parse(fs.readFileSync(path.join(lock, 'owner.json'), 'utf8')); if (Date.now() - Number(owner.at ?? 0) > 30000) fs.rmSync(lock, { recursive: true, force: true }); } catch {}
-      sleepAgentLearning(25);
-    }
-  }
-  throw new Error('AGENT_LEARNING_LOCK_TIMEOUT');
-}
-
-function releaseAgentLearningLock(lock) { try { fs.rmSync(lock, { recursive: true, force: true }); } catch {} }
-
-export function recordAgentLearningEvent({
-  teamId = 'FLIXO-EXECUTION-TEAM', eventType, taskId = null, actor = null, sessionId = null,
-  entrySha = null, information, lesson = null, preventionRule = null, evidence = [], relatedMessageId = null,
-} = {}) {
-  const memory = loadMemory();
-  const item = recordAgentObservation(memory, { teamId, eventType, taskId, actor, sourceAgent: 'repairAgent', entrySha, information, lesson, preventionRule, evidence, relatedMessageId });
-  writeAgentLearning(memory);
-  return item;
-}
-
-export function readAgentLearning({ teamId = 'FLIXO-EXECUTION-TEAM', limit = 120 } = {}) {
-  const memory = loadMemory();
-  return (memory.agentLearning ?? []).filter((item) => String(item.teamId ?? 'FLIXO-EXECUTION-TEAM') === String(teamId)).slice(-limit);
-}
-
-export function buildRepairAgentContext({ teamId = 'FLIXO-EXECUTION-TEAM', currentSha = null, tasks = [], activeSessions = [] } = {}) {
-  const memory = loadMemory();
-  return {
-    schemaVersion: 2, authority: 'REPAIR_AGENT_LIVE_TEAM_CONTEXT', teamId, currentSha,
-    tasks, activeSessions,
-    learning: (memory.agentLearning ?? []).filter((item) => String(item.teamId ?? 'FLIXO-EXECUTION-TEAM') === String(teamId)).slice(-120),
-    formalLessons: (memory.lessons ?? []).slice(-60),
-    antiLessons: (memory.antiLessons ?? []).slice(-60),
-    playbooks: (memory.playbooks ?? []).slice(-60),
-    mandatoryConsumer: 'repairAgent',
-    advisoryOnly: true,
-    authorityRule: 'Learning informs repair decisions but never grants execution, certification, merge, release, or gate-bypass authority.',
-  };
-}
-
-export function writeAgentLearning(memory) {
-  fs.mkdirSync(memoryPath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
-  const normalized = normalizeMemoryCounters({ ...emptyMemory(), ...memory, agentLearning: Array.isArray(memory.agentLearning) ? memory.agentLearning.slice(-500) : [] });
-  normalized.version = Math.max(Number(normalized.version ?? MEMORY_VERSION), MEMORY_VERSION);
-  fs.writeFileSync(memoryPath, `${JSON.stringify(normalized, null, 2)}\n`);
-}
 export function loadMemory() {
   const trustedSourcePath = process.env.FLIXO_TRUSTED_REPAIR_MEMORY || memoryPath;
   if (!fs.existsSync(trustedSourcePath)) return emptyMemory();

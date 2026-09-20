@@ -103,7 +103,7 @@ const executionPromptBundle = (() => {
       verifiedExactSha: true,
     };
   } catch (error) {
-    throw new Error(`PROMPT_BUNDLE_INVALID:${error?.message ?? error}`, { cause: error });
+    throw new Error(`PROMPT_BUNDLE_INVALID:${error?.message ?? error}`);
   }
 })();
 const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_PREPARATION' : 'TASK_PREPARATION';

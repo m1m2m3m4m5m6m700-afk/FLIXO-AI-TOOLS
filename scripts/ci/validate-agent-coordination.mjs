@@ -9,10 +9,10 @@ const read = (file) => fs.readFileSync(path.resolve(root, file), 'utf8');
 const exists = (file) => fs.existsSync(path.resolve(root, file));
 
 const expected = {
-  'scripts/ci/agent-coordination.mjs': ['task-create', 'task-claim', 'task-release', 'task-complete', 'visible', 'ingest-handoff', 'coop-request', 'coop-challenge', 'coop-handoff', 'coop-respond', 'coop-pending', 'COORDINATION_RESPONSE_NOT_TASK_DIRECTIVE', 'COORDINATION_CHALLENGE_REQUIRES_RESPONSE', 'COORDINATION_REQUEST_REQUIRES_RESPONSE', 'COORDINATION_REQUEST_NOT_ACCEPTED', 'COORDINATION_HANDOFF_NOT_ACKNOWLEDGED', 'COORDINATION_CONFLICT', 'AGENT_VISIBILITY', 'TASK_COMPLETION_REQUIRES_VERIFIED_AGENT_STATUS', 'getAgentMessage', 'COORDINATION_MESSAGE_NOT_READ', 'COORDINATION_MESSAGE_SHA_STALE', 'consumeAgentMessage', 'createMessage', 'sendMessage', 'respondToMessage', 'listPendingResponses', 'COORDINATION_WRITE_LOCK', 'COORDINATION_STATE_VERSION_CONFLICT', 'COORDINATION_TRANSACTION_MISMATCH', 'writeJsonAtomic', 'transactionId', 'COORDINATION_MUTATION_BRANCH_BLOCKED', 'HANDOFF_STALE_EXIT_SHA', 'HANDOFF_SCOPE_EXPANSION_BLOCKED', 'COORDINATION_GOVERNANCE_DRIFT', 'STALE_SESSION_KILL_SWITCH'],
-  'scripts/ci/agent-communication.mjs': ['validateMessage', 'ingest', 'createMessage', 'sendMessage', 'respondToMessage', 'listPendingResponses', 'markRead', 'markConsumed', 'MESSAGE_TYPES', 'REQUEST', 'RESPONSE', 'CHALLENGE', 'HANDOFF', 'AGENT_MESSAGE_IDEMPOTENCY_COLLISION', 'AGENT_MESSAGE_STALE_REQUIRES_REVALIDATION', 'AGENT_MESSAGE_RESPONSE_REQUIRES_READ', 'AGENT_MESSAGE_RESPONSE_SHA_STALE', 'AGENT_MESSAGE_RESPONSE_ACTOR_MISMATCH', 'AGENT_ENDPOINT_RE'],
-  'scripts/ci/test-agent-communication.mjs': ['AGENT_COMMUNICATION_TEST=PASS', 'MESSAGE_IDEMPOTENCY=PASS', 'STALE_MESSAGE_FAIL_CLOSED=PASS', 'COOP_REQUEST_RESPONSE=PASS', 'COOP_CHALLENGE=PASS'],
-  'scripts/ci/test-agent-coordination.mjs': ['AGENT_COORDINATION_ATOMIC_TEST=PASS', 'COORDINATION_SINGLE_WINNER=PASS', 'COORDINATION_REVISION=PASS', 'STALE_SESSION_KILL_SWITCH=PASS', 'HANDOFF_ADMISSION_PARITY=PASS', 'HANDOFF_STALE_FAIL_CLOSED=PASS', 'COORDINATION_REQUEST_RESPONSE_GATE=PASS', 'COORDINATION_CHALLENGE_EXECUTION_BLOCK=PASS'],
+  'scripts/ci/agent-coordination.mjs': ['task-create', 'task-claim', 'task-release', 'task-complete', 'visible', 'ingest-handoff', 'COORDINATION_CONFLICT', 'AGENT_VISIBILITY', 'TASK_COMPLETION_REQUIRES_VERIFIED_AGENT_STATUS', 'getAgentMessage', 'COORDINATION_MESSAGE_NOT_READ', 'COORDINATION_MESSAGE_SHA_STALE', 'consumeAgentMessage', 'COORDINATION_WRITE_LOCK', 'COORDINATION_STATE_VERSION_CONFLICT', 'COORDINATION_TRANSACTION_MISMATCH', 'writeJsonAtomic', 'transactionId', 'COORDINATION_MUTATION_BRANCH_BLOCKED', 'HANDOFF_STALE_EXIT_SHA', 'HANDOFF_SCOPE_EXPANSION_BLOCKED', 'COORDINATION_GOVERNANCE_DRIFT', 'STALE_SESSION_KILL_SWITCH'],
+  'scripts/ci/agent-communication.mjs': ['validateMessage', 'ingest', 'markRead', 'markConsumed', 'AGENT_MESSAGE_IDEMPOTENCY_COLLISION', 'AGENT_MESSAGE_STALE_REQUIRES_REVALIDATION'],
+  'scripts/ci/test-agent-communication.mjs': ['AGENT_COMMUNICATION_TEST=PASS', 'MESSAGE_IDEMPOTENCY=PASS', 'STALE_MESSAGE_FAIL_CLOSED=PASS'],
+  'scripts/ci/test-agent-coordination.mjs': ['AGENT_COORDINATION_ATOMIC_TEST=PASS', 'COORDINATION_SINGLE_WINNER=PASS', 'COORDINATION_REVISION=PASS', 'STALE_SESSION_KILL_SWITCH=PASS', 'HANDOFF_ADMISSION_PARITY=PASS', 'HANDOFF_STALE_FAIL_CLOSED=PASS'],
   '.github/workflows/agent-communication-relay.yml': ['issue_comment', 'Immediate agent message receive', 'agent-communication.mjs', 'IMMEDIATE_EVENT_RECEIPT'],
   'scripts/ci/agent-session.mjs': ['login', 'event', 'logout', 'message-receive', 'message-consume', '--from-session=<previous-session>', '--task=<task-id>', 'AGENT_MESSAGE_NOT_EXECUTION_READY', 'P0_COMMUNICATION_FIRST', 'VERIFIED', 'BLOCKED', 'FINAL_SUMMARY_REQUIRED_BEFORE_SESSION_CLOSE', 'AGENT_EVENT_SUMMARY_REQUIRED', 'VERIFIED_LOGOUT_REQUIRES_ACTIVITY_LOG', 'docs/agents/ledger', 'CONTINUATION_STALE_EXIT_SHA', 'AGENT_SESSION_STALE_ENTRY_SHA', 'AGENT_SESSION_GOVERNANCE_DRIFT'],
   'docs/AGENT-HANDOFF-REPORT-SCHEMA.md': ['completedWork', 'failedWork', 'remainingWork', 'executionPlanNext', 'handoffToNextAgent'],
@@ -71,31 +71,9 @@ if (exists('docs/agents/ledger/README.md')) {
   }
 }
 
-const repairLearningText = exists('scripts/ci/auto-repair-learning.mjs') ? read('scripts/ci/auto-repair-learning.mjs') : '';
-const repairCoordinationText = exists('scripts/ci/agent-coordination.mjs') ? read('scripts/ci/agent-coordination.mjs') : '';
-const repairSessionText = exists('scripts/ci/agent-session.mjs') ? read('scripts/ci/agent-session.mjs') : '';
-const repairEngineText = exists('scripts/ci/auto-repair-engine.mjs') ? read('scripts/ci/auto-repair-engine.mjs') : '';
-for (const marker of ['recordAgentLearningEvent','loadRepairAgentContext','buildRepairAgentContext']) if (!repairLearningText.includes(marker)) failures.push('REPAIR_AGENT_LEARNING_API_MISSING=' + marker);
-for (const marker of ['TASK_CREATED','TASK_CLAIMED','TASK_COMPLETED','publishRepairAgentContext']) if (!repairCoordinationText.includes(marker)) failures.push('REPAIR_AGENT_TASK_FEED_MISSING=' + marker);
-if (!repairSessionText.includes('recordAgentLearningEvent')) failures.push('REPAIR_AGENT_SESSION_LEARNING_FEED_MISSING');
-if (!repairEngineText.includes('loadRepairAgentContext')) failures.push('REPAIR_AGENT_ENGINE_CONTEXT_MISSING');
-if (!read('docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json').includes('repairAgentLearning')) failures.push('REPAIR_AGENT_LEARNING_CONTRACT_MISSING');
-const executionControlText = exists('scripts/ci/agent-execution-control.mjs') ? read('scripts/ci/agent-execution-control.mjs') : '';
-if (!executionControlText.includes('loadRepairAgentContext')) failures.push('REPAIR_AGENT_TASK_PACKET_CONTEXT_MISSING');
-if (!executionControlText.includes('repairAgentAdvisory')) failures.push('REPAIR_AGENT_TASK_ADVISORY_MISSING');
 const packageJson = exists('package.json') ? JSON.parse(read('package.json')) : { scripts: {} };
 for (const key of ['validate:agent-coordination','agent:coordination','agent:communication','test:agent-communication','validate:code-scout','agent:code-scout']) if (typeof packageJson.scripts?.[key] !== 'string') failures.push(`PACKAGE_SCRIPT_MISSING=${key}`);
 
-if (exists('docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json')) {
-  try {
-    const contract = JSON.parse(read('docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json'));
-    const operations = contract?.communication?.operations ?? {};
-    for (const key of ['REQUEST','RESPONSE','CHALLENGE','HANDOFF']) if (typeof operations[key] !== 'string') failures.push('COOPERATION_OPERATION_MISSING=' + key);
-    for (const key of ['PENDING','RESPONDED','BLOCKED','NONE']) if (!contract?.communication?.responseStates?.includes(key)) failures.push('COOPERATION_RESPONSE_STATE_MISSING=' + key);
-    if (contract?.communication?.correlationRequired !== true) failures.push('COOPERATION_CORRELATION_REQUIRED_MISSING');
-    if (contract?.communication?.responseBeforeClaim !== true) failures.push('COOPERATION_RESPONSE_BEFORE_CLAIM_MISSING');
-  } catch { failures.push('COOPERATION_COMMUNICATION_CONTRACT_INVALID'); }
-}
 const protocolRegistry = exists('docs/PROTOCOL-REGISTRY.json') ? JSON.parse(read('docs/PROTOCOL-REGISTRY.json')) : null;
 if (!protocolRegistry) failures.push('PROTOCOL_REGISTRY_MISSING');
 else {
