@@ -150,13 +150,16 @@ function strategyStats(memory, context) {
 
 export function selectContextualBandit(memory = {}, context = {}, baselineStrategy = '') {
   const stats = strategyStats(memory, context);
-  const totalObservations = stats.reduce((sum, item) => sum + item.observations, 0);
-  const candidates = stats.map((item) => {
+  const rejected = new Set((context.rejectedStrategies ?? []).map(String));
+  const availableStats = stats.filter((item) => !rejected.has(item.strategyId));
+  if (!availableStats.length) return Object.freeze({ schemaVersion: 1, algorithm: 'BOUNDED_DETERMINISTIC_UCB_BETA', advisoryOnly: true, mayMutateRepository: false, blocked: true, reason: 'NO_UNUSED_REPAIR_STRATEGY', rejectedStrategies: [...rejected], topCandidates: [], recommendation: null });
+  const totalObservations = availableStats.reduce((sum, item) => sum + item.observations, 0);
+  const candidates = availableStats.map((item) => {
     const exploration = 0.35 * Math.sqrt(Math.log(totalObservations + 2) / (item.observations + 1));
     const contextBonus = 0.15 * item.contextRate;
     return { ...item, exploration: Number(exploration.toFixed(6)), contextBonus: Number(contextBonus.toFixed(6)), score: Number((item.posteriorMean + exploration + contextBonus).toFixed(6)) };
   }).sort((a, b) => (b.score - a.score) || (a.order - b.order));
-  const baseline = stats.find((item) => item.strategyId === baselineStrategy) ?? null;
+  const baseline = availableStats.find((item) => item.strategyId === baselineStrategy) ?? null;
   const recommendation = totalObservations > 0 ? candidates[0] : (baseline ?? stats[0]);
   return Object.freeze({
     schemaVersion: 1,
@@ -164,6 +167,7 @@ export function selectContextualBandit(memory = {}, context = {}, baselineStrate
     explorationCoefficient: 0.35,
     contextCoefficient: 0.15,
     totalObservations,
+    rejectedStrategies: [...rejected],
     topCandidates: candidates.slice(0, 3),
     baselineStrategy: baselineStrategy || null,
     recommendation: recommendation ? { strategyId: recommendation.strategyId, score: recommendation.score, posteriorMean: recommendation.posteriorMean } : null,
