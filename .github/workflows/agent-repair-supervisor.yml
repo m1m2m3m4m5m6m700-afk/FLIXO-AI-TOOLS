@@ -20,6 +20,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: Load and validate central Council directive
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: execution
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Enforce Council directive
+        run: node scripts/ci/test-council-directive.mjs
+
       - name: Observe main and execution without dispatch authority
         env:
           GH_TOKEN: ${{ github.token }}
