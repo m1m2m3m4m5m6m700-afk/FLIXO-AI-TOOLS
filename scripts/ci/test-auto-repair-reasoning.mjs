@@ -103,6 +103,40 @@ assert.equal(missingSignal.directFailureSignal, true);
 
 assert.equal(reasoningPolicy().principle, 'EVIDENCE_FIRST_CAUSAL_REASONING');
 
+const workflowEnvPath = path.join(tempDir, 'workflow-failures.json');
+fs.writeFileSync(workflowEnvPath, JSON.stringify([
+  { workflow: 'Test System', runId: 'r-a', fingerprint: 'fp-a' },
+  { workflow: 'WP0', runId: 'r-b', fingerprint: 'fp-b' },
+  { workflow: 'Certification', runId: 'r-c', fingerprint: 'fp-b' },
+]));
+const previousWorkflowFailures = process.env.FLIXO_WORKFLOW_FAILURES;
+process.env.FLIXO_WORKFLOW_FAILURES = workflowEnvPath;
+const correlated = reasonFailure('ERROR eslint: no-unused-vars at a.ts:1:1', { targetDir: tempDir, scoutPath: undefined });
+assert.equal(correlated.crossWorkflowCorrelation.confidence, 'CORRELATED');
+assert.equal(correlated.crossWorkflowCorrelation.firstCommonFailure?.fingerprint, 'fp-b');
+assert.equal(correlated.crossWorkflowCorrelation.mutationAllowed, false);
+assert.equal(correlated.evidenceProfile.channels.crossWorkflowCorrelation, true);
+assert.equal(correlated.evidenceProfile.diversity >= 2, true);
+fs.writeFileSync(workflowEnvPath, JSON.stringify([
+  { workflow: 'Test System', runId: 'r-d', fingerprint: 'fp-c' },
+  { workflow: 'WP0', runId: 'r-e', fingerprint: 'fp-d' },
+]));
+const unprovenCorrelation = reasonFailure('ERROR eslint: no-unused-vars at a.ts:1:1', { targetDir: tempDir, scoutPath: undefined });
+assert.equal(unprovenCorrelation.crossWorkflowCorrelation.confidence, 'MULTI_WORKFLOW_UNPROVEN');
+assert.equal(unprovenCorrelation.crossWorkflowCorrelation.mutationAllowed, false);
+fs.writeFileSync(workflowEnvPath, JSON.stringify([
+  { workflow: 'Test System', runId: 'r-f', fingerprint: 'fp-e' },
+  { workflow: 'Test System', runId: 'r-g', fingerprint: 'fp-e' },
+]));
+const sameWorkflowRepeat = reasonFailure('ERROR eslint: no-unused-vars at a.ts:1:1', { targetDir: tempDir, scoutPath: undefined });
+assert.equal(sameWorkflowRepeat.crossWorkflowCorrelation.confidence, 'INSUFFICIENT_EVIDENCE');
+assert.equal(sameWorkflowRepeat.crossWorkflowCorrelation.mutationAllowed, false);
+const correlatedUnknown = reasonFailure('unclassified failure without a causal signature', { targetDir: tempDir, scoutPath: undefined });
+assert.equal(correlatedUnknown.decision, 'PROPOSE_ONLY');
+assert.equal(correlatedUnknown.sourceMutationAllowed, false);
+if (previousWorkflowFailures === undefined) delete process.env.FLIXO_WORKFLOW_FAILURES; else process.env.FLIXO_WORKFLOW_FAILURES = previousWorkflowFailures;
+
+
 console.log('AUTO_REPAIR_REASONING_SELF_TEST=PASS');
 
 const targetedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-targeted-reproduction-'));
