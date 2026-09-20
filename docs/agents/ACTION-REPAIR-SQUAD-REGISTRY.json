@@ -546,32 +546,43 @@
     "headquarters": "diagnostics/auto-repair/action-vault",
     "transport": "scripts/ci/action-bot-chat.mjs",
     "participants": [
+      "ACTION-MASTER",
       "ACTION-REPAIR",
       "ACTION-REPAIR-2",
-      "ACTION-HISTORIAN-3"
+      "ACTION-HISTORIAN-3",
+      "ACTION-TWIN-1",
+      "ACTION-TWIN-2",
+      "ACTION-INDEX",
+      "ACTION-WISE"
     ],
     "directBotToBot": true,
+    "taskAssignment": true,
+    "explorationExchange": true,
+    "resultExchange": true,
     "sameMissionRequired": true,
     "sameFailureFingerprintRequired": true,
     "sameExactShaRequired": true,
     "messageKinds": [
+      "TASK_ASSIGNMENT",
       "OBSERVATION",
+      "QUESTION",
       "CHALLENGE",
       "SOLUTION_PROPOSAL",
-      "LESSON",
       "HANDOFF",
-      "REQUEST_HELP"
+      "RESULT",
+      "LESSON",
+      "BLOCKED_EXTERNAL"
     ],
     "learningPolicy": {
       "ingestImmediately": true,
-      "markUnverifiedUntilGreen": true,
+      "unverifiedAllowedForCurrentMission": true,
       "promoteSharedKnowledgeOnlyAfterCanonicalGreen": true,
-      "antiLessonCanBeShared": false,
-      "noAuthorityTransferViaChat": true
+      "neverPromoteExternalFailureAsSourceSolution": true
     },
     "authorityPolicy": {
       "chatDoesNotGrantMutationAuthority": true,
-      "taskOwnerRemainsControlPlaneSource": true
+      "taskOwnershipRemainsWithActiveRepairBot": true,
+      "canonicalCiRemainsGreenAuthority": true
     }
   }
 }
