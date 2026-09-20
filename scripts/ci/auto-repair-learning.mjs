@@ -669,6 +669,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   if (!memory.cases.includes(entry)) memory.cases.push(entry);
   const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
   const actionRecord = memory.actionHistory.find((item) => item.fingerprint === fingerprint) ?? {
+    normalizedFailure: normalizedFailure,
     fingerprint,
     rootCause: entry.rootCause,
     attempts: 0,
