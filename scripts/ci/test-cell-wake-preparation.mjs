@@ -8,7 +8,7 @@ execFileSync('node',['scripts/ci/cell-wake-preparation.mjs'],{env:{...process.en
 const x=JSON.parse(fs.readFileSync(out,'utf8'));
 assert.equal(x.readiness,'AWAKE_AND_READY');
 assert.equal(x.wholeCell.botCount,50);
-assert.equal(x.actionRepairSquad.workerIds.length,5);
+assert.equal(Array.isArray(x.actionRepairSquad),false);
 assert.equal(x.directMutation,false);
 assert.equal(x.directRepairDispatch,false);
 assert.equal(x.nextStage,'CANONICAL_DAILY_GREEN_GATE');
