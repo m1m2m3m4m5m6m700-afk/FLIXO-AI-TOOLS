@@ -11,6 +11,7 @@ on:
       - 'db/council-external-accounts.sql'
       - 'scripts/ci/validate-promotion-closure.mjs'
       - 'scripts/ci/test-promotion-closure.mjs'
+      - 'scripts/ci/verify-council-live-runtime.mjs'
       - 'docs/security.md'
       - '.github/CODEOWNERS'
   push:
