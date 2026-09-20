@@ -15,15 +15,18 @@ const runId=arg('run-id','');
 const diagnosisPath=arg('diagnosis','');
 const strategyPath=arg('strategy','');
 const fileSelectionPath=arg('file-selection','');
+const awarenessPath=arg('awareness','');
 
 if(!/^[a-f0-9]{40}$/u.test(targetSha)) throw new Error('ACTION_PRIMARY_PROOF_SHA_REQUIRED');
 if(!fingerprint||!taskId||!runId) throw new Error('ACTION_PRIMARY_PROOF_IDENTITY_REQUIRED');
-if(!diagnosisPath||!strategyPath||!fileSelectionPath) throw new Error('ACTION_PRIMARY_PROOF_INPUT_REQUIRED');
+if(!diagnosisPath||!strategyPath||!fileSelectionPath||!awarenessPath) throw new Error('ACTION_PRIMARY_PROOF_INPUT_REQUIRED');
 
 const diagnosis=read(diagnosisPath);
 const strategy=read(strategyPath);
 const fileSelection=read(fileSelectionPath);
+const awareness=read(awarenessPath);
 
+if(awareness.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1'||awareness.targetSha!==targetSha||awareness.failureFingerprint!==fingerprint||awareness.exactShaBound!==true||awareness.awarenessCompleteness?.complete!==true) throw new Error('ACTION_PRIMARY_PROOF_COGNITIVE_AWARENESS_INVALID');
 if(fileSelection.targetSha!==targetSha||fileSelection.failureFingerprint!==fingerprint||fileSelection.decision!=='SELECTED') {
   throw new Error('ACTION_PRIMARY_PROOF_FILE_SELECTION_MISMATCH');
 }
@@ -52,6 +55,7 @@ const proof={
     'REPAIR_CAN_BE_BOUNDED_TO_THE_DECLARED_STRATEGY',
     'VERIFICATION_OBLIGATIONS_ARE_EXPLICIT'
   ],
+  cognitiveAwareness:{artifact:awarenessPath,protocol:awareness.protocol,domainCount:awareness.awarenessCompleteness.requiredDomains.length,systemWide:true},
   evidenceAnchors:{
     rootCause:diagnosis.rootCause,
     failureLocation:diagnosis.location.file,
