@@ -16,6 +16,7 @@ const WRITE_LOCK_OWNER = path.join(WRITE_LOCK_DIR, 'owner.json');
 const PACKET_DIR = path.join(COORD_DIR, 'task-packets');
 const HANDOFF_DIR = path.join(COORD_DIR, 'handoffs');
 const VISIBILITY_DIR = path.resolve(ROOT, process.env.FLIXO_AGENT_VISIBILITY_DIR ?? 'docs/agents/ledger');
+const TASK_LEDGER_FILE = path.resolve(ROOT, process.env.FLIXO_TASK_LEDGER_FILE ?? 'المهام.md');
 const WRITE_LOCK_WAIT_MS = 50;
 const WRITE_LOCK_MAX_ATTEMPTS = 240;
 const WRITE_LOCK_STALE_MS = 10 * 60 * 1000;
@@ -41,6 +42,95 @@ const now = () => new Date().toISOString();
 const sha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const ensure = () => { fs.mkdirSync(COORD_DIR, { recursive: true }); fs.mkdirSync(PACKET_DIR, { recursive: true }); fs.mkdirSync(HANDOFF_DIR, { recursive: true }); };
 const readJson = (file, fallback) => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : fallback;
+const LEDGER_TASK_ID_RE = /\b([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d{1,4})\b/u;
+const LEDGER_BLOCKED_RE = /\b(BLOCKED|BLOCKED_EXTERNAL|BLOCKED-UNTIL-GREEN|FROZEN|CANCELLED|DEFER|CLOSED|DONE|HISTORICAL)\b/i;
+const LEDGER_READY_RE = /\b(OPEN|READY|EXECUTION-READY|VERIFICATION-PENDING|PLANNED)\b/i;
+const parseTaskLedger = () => {
+  if (!fs.existsSync(TASK_LEDGER_FILE)) throw new Error('TASK_LEDGER_MISSING');
+  const lines = fs.readFileSync(TASK_LEDGER_FILE, 'utf8').split(/\r?\n/u);
+  const tasks = new Map();
+  const record = (id, lineNumber, status, priority, source) => {
+    if (!id || id.includes('..')) return;
+    const normalized = String(status ?? '').trim();
+    const existing = tasks.get(id);
+    if (!existing || lineNumber >= existing.line) {
+      tasks.set(id, {
+        taskId: id,
+        line: lineNumber,
+        status: normalized || existing?.status || null,
+        priority: Number.isInteger(priority) ? priority : (existing?.priority ?? 50),
+        source,
+      });
+    }
+  };
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const heading = line.match(/^#{2,6}\s+.*?\b([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d{1,4})\b.*$/u);
+    const table = line.match(/^\|\s*([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d{1,4})\s*\|\s*([^|]+)\|/u);
+    if (!heading && !table) continue;
+    const id = (heading ?? table)[1];
+    const priorityMatch = line.match(/\bP([0-3])\b/u);
+    const priority = priorityMatch ? Number(priorityMatch[1]) : null;
+    let status = table ? table[2].trim() : null;
+    if (!status) {
+      for (const lookahead of lines.slice(index + 1, index + 8)) {
+        const statusMatch = lookahead.match(/^STATUS\s*=\s*([^\n]+)/i);
+        if (statusMatch) {
+          status = statusMatch[1].trim();
+          break;
+        }
+      }
+    }
+    record(id, index + 1, status, priority, heading ? 'heading' : 'table');
+  }
+  return [...tasks.values()];
+};
+const isLedgerTaskEligible = (task) => {
+  const status = String(task.status ?? '');
+  return Boolean(status) && !LEDGER_BLOCKED_RE.test(status) && LEDGER_READY_RE.test(status);
+};
+const existingTaskStatusForScheduling = new Set(['READY', 'QUEUED', 'RUNNING', 'DONE']);
+const selectNextLedgerTask = (excludedTaskId = null) => {
+  const tasks = parseTaskLedger();
+  const activeOrKnown = new Set(Object.values(state.tasks ?? {}).filter((task) => existingTaskStatusForScheduling.has(task.status)).map((task) => task.taskId));
+  return tasks
+    .filter((task) => task.taskId !== excludedTaskId && isLedgerTaskEligible(task))
+    .filter((task) => !activeOrKnown.has(task.taskId))
+    .sort((left, right) => (left.priority - right.priority) || (left.line - right.line))
+    .at(0) ?? null;
+};
+const materializeLedgerTask = (ledgerTask) => {
+  if (!ledgerTask) return null;
+  const existing = state.tasks[ledgerTask.taskId];
+  if (existing) return existing;
+  const task = {
+    taskId: ledgerTask.taskId,
+    title: `Ledger task: ${ledgerTask.taskId}`,
+    priority: ledgerTask.priority,
+    lane: 'task-ledger',
+    rca: null,
+    scope: [],
+    objective: 'Execute the next eligible task defined by المهام.md.',
+    knownFailure: null,
+    evidenceRequired: ['exact-sha', 'targeted-regression'],
+    dependsOn: [],
+    status: 'READY',
+    sourceOfTruth: 'المهام.md',
+    ledgerLine: ledgerTask.line,
+    ledgerStatus: ledgerTask.status,
+    createdAt: now(),
+  };
+  state.tasks[task.taskId] = task;
+  writeJson(packetPath(task.taskId), {
+    schemaVersion: 1,
+    ...task,
+    entrySha: sha(),
+    createdAt: now(),
+    nextActions: ['READ المهام.md', 'INGEST HANDOFF', 'LOGIN', 'CLAIM', 'LOCK SCOPE', 'EXECUTE', 'VERIFY'],
+    continuation: null,
+  });
+  return task;
+};
 const writeJson = (file, value) => fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 const writeJsonAtomic = (file, value) => {
   const temp = `${file}.tmp-${process.pid}-${Date.now()}`;
@@ -102,7 +192,7 @@ const reconcileStaleSessions = () => {
   }
 };
 const visibleAgents = () => { if (!fs.existsSync(VISIBILITY_DIR)) return []; return fs.readdirSync(VISIBILITY_DIR).filter((entry) => entry.endsWith('.json')).sort().map((entry) => { try { const item = JSON.parse(fs.readFileSync(path.join(VISIBILITY_DIR, entry), 'utf8')); return { taskId: item.taskId ?? null, sessionId: item.sessionId ?? entry.slice(0,-5), agentId: item.agentId ?? null, role: item.role ?? null, status: item.status ?? null, finalStatus: item.finalStatus ?? null, entrySha: item.entrySha ?? null, exitSha: item.exitSha ?? null, finalSummary: item.finalSummary ?? null, remainingWork: item.remainingWork ?? [], openRcas: item.openRcas ?? [], updatedAt: item.updatedAt ?? null }; } catch { return { sessionId: entry.slice(0,-5), status: 'MALFORMED_EVIDENCE' }; } }); };
-const MUTATING_COMMANDS = new Set(['task-create', 'task-claim', 'task-release', 'task-complete', 'ingest-handoff']);
+const MUTATING_COMMANDS = new Set(['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next', 'ingest-handoff']);
 const writeLocked = MUTATING_COMMANDS.has(command);
 assertMutationTopology();
 if (writeLocked) acquireWriteLock();
@@ -149,7 +239,7 @@ function lock(sessionId, agentId, rca, scope) {
 function unlock(sessionId) { for (const item of Object.values(locks.locks)) if (item.sessionId === sessionId && item.status === 'ACTIVE') { item.status = 'RELEASED'; item.releasedAt = now(); } }
 ensure();
 if (writeLocked) reconcileStaleSessions();
-if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'state', 'brief', 'visible', 'ingest-handoff'].includes(command)) throw new Error('Usage: agent-coordination.mjs task-create|task-claim|task-release|task-complete|state|brief|visible|ingest-handoff');
+if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next', 'state', 'brief', 'visible', 'ingest-handoff'].includes(command)) throw new Error('Usage: agent-coordination.mjs task-create|task-claim|task-release|task-complete|task-next|state|brief|visible|ingest-handoff');
 
 if (command === 'task-create') {
   const taskId = requireArg('task');
@@ -211,7 +301,72 @@ if (command === 'task-complete') {
   if (handoff.taskId !== taskId || visibility.taskId !== taskId) throw new Error('TASK_COMPLETION_TASK_MISMATCH');
   if (handoff.exitSha !== sha() || visibility.exitSha !== sha()) throw new Error('TASK_COMPLETION_STALE_EXIT_SHA');
   if (!visibility.finalSummary) throw new Error('TASK_COMPLETION_FINAL_SUMMARY_MISSING');
-  task.status = 'DONE'; task.completedAt = now(); task.exitSha = sha(); task.evidence = list('evidence'); task.findings = list('findings'); task.finalStatus = visibility.finalStatus; task.finalSummary = visibility.finalSummary; task.visibilityPath = path.relative(ROOT, visibilityPath(sessionId)); unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify(task, null, 2));
+  task.status = 'DONE'; task.completedAt = now(); task.exitSha = sha(); task.evidence = list('evidence'); task.findings = list('findings'); task.finalStatus = visibility.finalStatus; task.finalSummary = visibility.finalSummary; task.visibilityPath = path.relative(ROOT, visibilityPath(sessionId));
+  const ledgerNext = selectNextLedgerTask(taskId);
+  if (ledgerNext) {
+    const nextTask = materializeLedgerTask(ledgerNext);
+    task.nextTask = {
+      taskId: nextTask.taskId,
+      status: nextTask.status,
+      sourceOfTruth: 'المهام.md',
+      ledgerLine: ledgerNext.line,
+      ledgerStatus: ledgerNext.status,
+      priority: ledgerNext.priority,
+      assignedAgent: task.claimedBy ?? null,
+      entrySha: sha(),
+      requiresNewSession: true,
+      dispatchReason: 'PREVIOUS_TASK_VERIFIED'
+    };
+    state.nextDispatch = {
+      dispatchId: `TASK-NEXT:${taskId}:${sha()}`,
+      completedTaskId: taskId,
+      nextTaskId: nextTask.taskId,
+      recipient: task.claimedBy ?? 'ALL_AGENTS',
+      sourceOfTruth: 'المهام.md',
+      entrySha: sha(),
+      status: 'READY',
+      createdAt: now()
+    };
+  } else {
+    task.nextTask = null;
+    state.nextDispatch = null;
+  }
+  unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ completedTask: task, nextTask: task.nextTask, councilDispatch: state.nextDispatch }, null, 2));
+}
+
+if (command === 'task-next') {
+  const agentId = requireArg('agent');
+  const completedTaskId = optional('completed-task') || null;
+  const ledgerTask = selectNextLedgerTask(completedTaskId);
+  if (!ledgerTask) {
+    console.log(JSON.stringify({
+      schemaVersion: 1,
+      authority: 'TASK_LEDGER_COUNCIL_BRIDGE',
+      readSha: sha(),
+      sourceOfTruth: 'المهام.md',
+      status: 'NO_ELIGIBLE_TASK',
+      nextTask: null
+    }, null, 2));
+  } else {
+    const task = materializeLedgerTask(ledgerTask);
+    const dispatch = {
+      dispatchId: `TASK-NEXT:${completedTaskId ?? 'IDLE'}:${sha()}:${task.taskId}`,
+      completedTaskId,
+      nextTaskId: task.taskId,
+      recipient: agentId,
+      sourceOfTruth: 'المهام.md',
+      ledgerLine: ledgerTask.line,
+      ledgerStatus: ledgerTask.status,
+      priority: ledgerTask.priority,
+      entrySha: sha(),
+      status: 'READY',
+      requiresNewSession: true,
+      createdAt: now()
+    };
+    state.nextDispatch = dispatch;
+    save();
+    console.log(JSON.stringify({ authority: 'TASK_LEDGER_COUNCIL_BRIDGE', sourceOfTruth: 'المهام.md', readSha: sha(), nextTask: task, dispatch }, null, 2));
+  }
 }
 
 if (command === 'ingest-handoff') {
@@ -291,5 +446,7 @@ if (command === 'brief') {
     runningTasks: summarize('RUNNING'),
     activeAgents: activeSessions.map((session) => ({ sessionId: session.sessionId, agentId: session.agentId, taskId: session.taskId, entrySha: session.entrySha, updatedAt: session.updatedAt })),
     conflicts: activeLocks.map((item) => ({ lockId: item.lockId, sessionId: item.sessionId, agentId: item.agentId, scope: item.scope ?? [], rca: item.rca ?? null })),
+    nextLedgerTask: selectNextLedgerTask(null),
+    taskLedger: { sourceOfTruth: 'المهام.md', path: path.relative(ROOT, TASK_LEDGER_FILE) },
   }, null, 2));
 }

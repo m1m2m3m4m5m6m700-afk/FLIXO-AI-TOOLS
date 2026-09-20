@@ -15,6 +15,8 @@ const visibilityDir = path.join(temp, 'visibility');
 fs.mkdirSync(path.join(coordDir, 'task-packets'), { recursive: true });
 fs.mkdirSync(path.join(coordDir, 'handoffs'), { recursive: true });
 fs.mkdirSync(visibilityDir, { recursive: true });
+const ledgerFile = path.join(temp, 'المهام.md');
+fs.writeFileSync(ledgerFile, ['# TEST TASK LEDGER', '## 1) P0 — DONE-001', 'STATUS = CLOSED / VERIFIED', '## 2) P1 — NEXT-001', 'STATUS = OPEN', '## 3) P1 — BLOCKED-001', 'STATUS = OPEN / BLOCKED', '## 4) P1 — LATE-001', 'STATUS = READY'].join('\n') + '\n');
 
 const taskId = 'atomic-race-task';
 const scope = ['scripts/ci/agent-coordination.mjs'];
@@ -29,7 +31,7 @@ for (const [sessionId, agentId] of [['race-session-a','executionAgent-a'], ['rac
 }
 
 const runArgs = (args) => new Promise((resolve) => {
-  const child = spawn(process.execPath, ['scripts/ci/agent-coordination.mjs', ...args], { cwd: root, env: { ...process.env, FLIXO_COORDINATION_DIR: coordDir, FLIXO_AGENT_VISIBILITY_DIR: visibilityDir }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, ['scripts/ci/agent-coordination.mjs', ...args], { cwd: root, env: { ...process.env, FLIXO_COORDINATION_DIR: coordDir, FLIXO_AGENT_VISIBILITY_DIR: visibilityDir, FLIXO_TASK_LEDGER_FILE: ledgerFile }, stdio: ['ignore', 'pipe', 'pipe'] });
   let stdout = '';
   let stderr = '';
   child.stdout.on('data', (chunk) => { stdout += chunk; });
@@ -111,6 +113,20 @@ try {
   assert.notEqual(rejectedHandoff.code, 0);
   assert.match(rejectedHandoff.stderr, /HANDOFF_STALE_EXIT_SHA/);
   console.log('HANDOFF_STALE_FAIL_CLOSED=PASS');
+
+
+  const nextLedger = await runArgs(['task-next', '--agent=executionAgent-next', '--completed-task=old-task']);
+  assert.equal(nextLedger.code, 0, `ledger task dispatch failed: ${JSON.stringify(nextLedger)}`);
+  const nextPayload = JSON.parse(nextLedger.stdout);
+  assert.equal(nextPayload.sourceOfTruth, 'المهام.md');
+  assert.equal(nextPayload.nextTask.taskId, 'NEXT-001');
+  assert.equal(nextPayload.nextTask.ledgerStatus, 'OPEN');
+  assert.equal(nextPayload.dispatch.recipient, 'executionAgent-next');
+  const nextState = JSON.parse(fs.readFileSync(path.join(coordDir, 'coordination-state.json'), 'utf8'));
+  assert.equal(nextState.nextDispatch.nextTaskId, 'NEXT-001');
+  assert.equal(nextState.tasks['NEXT-001'].sourceOfTruth, 'المهام.md');
+  console.log('TASK_LEDGER_COUNCIL_BINDING=PASS');
+  console.log('COUNCIL_NEXT_TASK_DISPATCH=PASS');
 
   console.log('AGENT_COORDINATION_ATOMIC_TEST=PASS');
   console.log('COORDINATION_SINGLE_WINNER=PASS');
