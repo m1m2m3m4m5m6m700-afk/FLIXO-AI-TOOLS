@@ -7,6 +7,7 @@ import { buildSoftwareEngineerPacket } from './action-software-engineer-core.mjs
 import { buildPrediction } from './action-historical-predictor.mjs';
 import { buildRepairEngineeringPlan, executeRepairEngineering } from './action-repair-engineering.mjs';
 import { buildCausalDiscriminator } from './action-causal-discriminator.mjs';
+import { buildMetaCausalModel } from './meta-causal-model.mjs';
 
 const ROOT=process.cwd();
 const arg=(name,fallback='')=>{const p='--'+name+'=';const v=process.argv.find(x=>x.startsWith(p));return v?v.slice(p.length):fallback};
@@ -79,6 +80,17 @@ const causalDiscriminator=buildCausalDiscriminator({
   fingerprint,
   targetSha,
 });
+const metaCausalModel=buildMetaCausalModel({
+  failureLog:normalizedLog,
+  targetSha,
+  currentHeadSha:process.env.FLIXO_CURRENT_HEAD_SHA ?? targetSha,
+  failedRunId:runId,
+  taskId:task,
+  branch:process.env.FLIXO_MUTATION_BRANCH ?? 'execution',
+  historicalKnowledge:[],
+  exactCases,
+  doNotRepeat,
+});
 const hypothesisBase=causalDiscriminator.hypotheses.slice(0,12);
 
 const toolBudget={
@@ -95,7 +107,9 @@ const toolBudget={
   maxSandboxChecks:12,
   maxCausalHypotheses:12,
   minHypothesisSeparation:0.08,
-  causalDiscriminatorProtocol:'CAUSAL-DISCRIMINATOR-v1'
+  causalDiscriminatorProtocol:'CAUSAL-DISCRIMINATOR-v1',
+  metaCausalProtocol:'META-CAUSAL-MODEL-v1',
+  causalObservabilityInvariant:'The repair system must preserve trustworthy causal observability while evidence, authority, time, boundaries and learning remain coherent.'
 };
 
 const mentorPaths=(process.env.FLIXO_ACTION_CODE_MENTOR_PATHS??'').split(',').map((x)=>x.trim()).filter(Boolean);
@@ -162,7 +176,7 @@ const profileConfig=(profile)=>MODEL_DEFAULTS[profile]??MODEL_DEFAULTS.ACTION_PR
 const runtime={
   schemaVersion:1,
   protocol:'ACTION-AGENT-RUNTIME-v2',
-  status:'READY',
+  status:metaCausalModel.mutationAllowed ? 'READY' : 'FAIL_CLOSED',
   identity:{taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,identityDigest:sha256(task+'|'+fingerprint+'|'+targetSha+'|'+runId)},
   modelProfiles:Object.fromEntries(Object.values(lanes).map((agent)=>[agent.agentId,{...agent,config:profileConfig(agent.profile)}])),
   cognitiveLoop:phases,
@@ -179,6 +193,9 @@ const runtime={
   evidence:{items:evidenceItems,minimumActionableScore:0.8,proofAuthority:'DAILY_FLIXO_GREEN_GATE'},
   hypotheses:hypothesisBase,
   causalDiscriminator,
+  metaCausalModel,
+  governingRoot:metaCausalModel.governingRoot,
+  mutationAllowedByMetaCausalModel:metaCausalModel.mutationAllowed,
   selectedStrategy:causalDiscriminator.ranking.selectedStrategy,
   selectionConfidence:causalDiscriminator.capabilityScore,
   codeMentor:{requiredByActionRepair:true,packet:codeMentor},
@@ -191,7 +208,7 @@ const runtime={
   safety,
   lifecycle:{current:'INTAKE',next:'CONTEXT_RETRIEVAL',closure:'CANONICAL_GREEN_ONLY'},
   outputContract:{
-    required:[ 'currentEvidence','unknowns','historicalMatches','candidateHypotheses','codeMentorPacket','historicalPredictionPacket','softwareEngineerCorePacket','repairEngineeringPacket','causalDiscriminator','selectedStrategy','selectionConfidence','selfCritique','independentReview','targetedRegression','exactSha','canonicalGreen' ],
+    required:[ 'currentEvidence','unknowns','historicalMatches','candidateHypotheses','codeMentorPacket','historicalPredictionPacket','softwareEngineerCorePacket','repairEngineeringPacket','causalDiscriminator','metaCausalModel','governingRoot','selectedStrategy','selectionConfidence','selfCritique','independentReview','targetedRegression','exactSha','canonicalGreen' ],
     selectedStrategyMayBeNull:true,
     mutationMayBeNull:true
   },
