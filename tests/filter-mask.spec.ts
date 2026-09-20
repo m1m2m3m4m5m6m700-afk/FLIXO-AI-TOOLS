@@ -145,6 +145,7 @@ test.describe('Filter Mask live camera surface', () => {
     await expect(recordButton).toBeEnabled();
     await recordButton.click();
     await expect(section.getByRole('button', { name: 'Stop recording' })).toBeVisible();
+    await expect(section.getByRole('button', { name: 'Stop' })).toBeDisabled();
     await page.waitForTimeout(500);
     const cinematic = section.getByRole('button', { name: /Cinema effect\.cinema/ }).first();
     await cinematic.click();
@@ -221,6 +222,43 @@ test.describe('Filter Mask live camera surface', () => {
     await reloaded.getByRole('button', { name: 'Favorites' }).click();
     await expect(reloaded.getByRole('button', { name: /Warm effect\.warm/ }).first()).toHaveAttribute('aria-pressed', 'true');
   });
+
+  test('persists, reapplies and deletes creator presets through the canonical filter state', async ({ page }) => {
+    await page.goto('/en/filter-mask');
+    const section = page.getByRole('region', { name: 'Filter Mask' });
+
+    await section.getByRole('button', { name: /Warm effect\\.warm/ }).first().click();
+    await section.getByRole('slider').last().fill('65');
+    await section.getByRole('slider', { name: 'Zoom' }).fill('1.4');
+    await section.getByRole('button', { name: 'Mirror on' }).click();
+    await section.getByRole('group', { name: 'Capture aspect ratio' }).getByRole('button', { name: '4:5' }).click();
+    await section.getByRole('button', { name: 'Save preset' }).click();
+
+    const preset = section.getByRole('button', { name: /Warm · 65% · 1\.4× · 4:5/ });
+    await expect(preset).toBeVisible();
+
+    await section.getByRole('button', { name: 'Reset filter' }).click();
+    await section.getByRole('slider').last().fill('100');
+    await section.getByRole('slider', { name: 'Zoom' }).fill('1');
+    await section.getByRole('button', { name: 'Mirror on' }).click();
+    await section.getByRole('group', { name: 'Capture aspect ratio' }).getByRole('button', { name: '9:16' }).click();
+
+    await preset.click();
+    await expect(section.getByRole('button', { name: /Warm effect\\.warm/ }).first()).toHaveAttribute('aria-pressed', 'true');
+    await expect(section.getByRole('slider').last()).toHaveValue('65');
+    await expect(section.getByRole('slider', { name: 'Zoom' })).toHaveValue('1.4');
+    await expect(section.getByRole('button', { name: 'Mirror off' })).toHaveAttribute('aria-pressed', 'false');
+    await expect(section.getByRole('group', { name: 'Capture aspect ratio' }).getByRole('button', { name: '4:5' })).toHaveAttribute('aria-pressed', 'true');
+
+    await page.reload();
+    const reloaded = page.getByRole('region', { name: 'Filter Mask' });
+    const persistedPreset = reloaded.getByRole('button', { name: /Warm · 65% · 1\.4× · 4:5/ });
+    await expect(persistedPreset).toBeVisible();
+
+    await reloaded.getByRole('button', { name: /Delete preset Warm · 65% · 1\.4× · 4:5/ }).click();
+    await expect(reloaded.getByRole('button', { name: /Warm · 65% · 1\.4× · 4:5/ })).toHaveCount(0);
+  });
+
 
 
 });
