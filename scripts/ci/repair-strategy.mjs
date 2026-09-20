@@ -173,6 +173,7 @@ function causalIntelligence(log, memory, stableCaseFingerprint, targetDir) {
   return Object.freeze({
     version: 'V13-BEHAVIORAL-TRAINING',
     rootCause,
+    features: reasoning?.features ?? discriminator?.features ?? [],
     confidence: Number(reasoning?.causalConfidence ?? 0),
     ambiguity: reasoning?.ambiguity === true || discriminator?.ranking?.ambiguous === true,
     decision: reasoning?.decision ?? discriminator?.decision ?? 'PROPOSE_ONLY',
