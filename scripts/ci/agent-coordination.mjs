@@ -384,7 +384,7 @@ if (command === 'task-claim') {
     }
   }
   task.status = 'RUNNING'; task.claimedBy = agentId; task.sessionId = sessionId; task.claimedAt = now(); task.entrySha = sha(); task.lockId = lockId;
-  state.activeSessions[sessionId] = { sessionId, agentId, taskId, lockId, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, protocolHash: assertProtocolDefinition().protocolHash, ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}), updatedAt: now() };
+  state.activeSessions[sessionId] = { sessionId, agentId, taskId, teamId, lockId, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, protocolHash: assertProtocolDefinition().protocolHash, collaborationState: 'ACTIVE', collaborationRequired: true, teamBarrier: 'ACTIVE', readyForTeamClose: false, ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}), updatedAt: now() };
   const packetFile = packetPath(taskId); const packet = readJson(packetFile, task); packet.claim = { sessionId, agentId, lockId, claimedAt: now(), entrySha: sha(), ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}) }; writeJson(packetFile, packet); save(); console.log(JSON.stringify(task, null, 2));
 }
 
