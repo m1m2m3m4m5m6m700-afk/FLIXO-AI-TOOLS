@@ -16,8 +16,11 @@ assert.equal(packet.status,'PROVISIONAL');
 assert.equal(packet.identity.targetSha,'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
 assert.equal(packet.proposedRepair.notCertain,true);
 assert.equal(packet.proposedRepair.mode,'OWNER_REVIEW_REQUIRED');
+assert.ok(packet.search.actionIndexSize >= 4000);
 assert.ok(Array.isArray(packet.similarCases));
 assert.ok(Array.isArray(packet.candidateStrategies));
 assert.ok(Array.isArray(packet.proposedRepair.predictedChecks));
+assert.ok(Array.isArray(packet.proposedRepair.historicalActions));
+assert.ok(packet.proposedRepair.historicalActions.length >= 1);
 
 console.log(JSON.stringify({status:'PASS',protocol:'PREDICTIVE_REPAIR_PACKET_V1',assertions:7},null,2));
