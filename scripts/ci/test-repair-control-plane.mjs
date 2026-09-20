@@ -8,6 +8,12 @@ import {
   transitionRepairCycle,
   recordStrategyAttempt,
   assertClosure,
+  LEASE_STATES,
+  REPAIR_OUTCOMES,
+  deriveLeaseEventRef,
+  deriveRecoveryRef,
+  evaluateNoProgress,
+  staleRecoveryDecision,
 } from './repair-control-plane.mjs';
 
 const SHA_A = 'a'.repeat(40);
@@ -17,6 +23,37 @@ const FAILURE = 'f'.repeat(64);
 const identity = deriveRepairIdentity({ failureFingerprint: FAILURE, failedSha: SHA_A });
 assert.match(identity.repairChainId, /^RC-[a-f0-9]{20}$/);
 assert.equal(identity.cycleKey, `${FAILURE}:${SHA_A}`);
+
+
+const progressOutcomes = [
+  { repairKey: identity.claimKey, failedSha: SHA_A, exitSha: SHA_A, verificationProgress: false, noProgress: true, at: '2026-09-19T00:03:00Z' },
+  { repairKey: identity.claimKey, failedSha: SHA_A, exitSha: SHA_A, verificationProgress: false, noProgress: true, at: '2026-09-19T00:02:00Z' },
+  { repairKey: identity.claimKey, failedSha: SHA_A, exitSha: SHA_A, verificationProgress: false, noProgress: true, at: '2026-09-19T00:01:00Z' },
+];
+const noProgress = evaluateNoProgress({ repairKey: identity.claimKey, outcomes: progressOutcomes });
+assert.equal(noProgress.consecutiveNoProgress, 3);
+assert.equal(noProgress.circuitOpen, true);
+const stale = staleRecoveryDecision({
+  repairKey: identity.claimKey,
+  leaseCreatedAt: '2026-09-18T22:00:00Z',
+  now: Date.parse('2026-09-19T00:00:00Z'),
+  currentExecutionSha: SHA_A,
+  failedSha: SHA_A,
+  activeRuns: [],
+  outcomes: [],
+});
+assert.equal(stale.eligible, true);
+const activeStale = staleRecoveryDecision({
+  repairKey: identity.claimKey,
+  leaseCreatedAt: '2026-09-18T22:00:00Z',
+  now: Date.parse('2026-09-19T00:00:00Z'),
+  currentExecutionSha: SHA_A,
+  failedSha: SHA_A,
+  activeRuns: [{ databaseId: '1', status: 'in_progress' }],
+  outcomes: [],
+});
+assert.equal(activeStale.eligible, false);
+assert(activeStale.reasons.includes('ACTIVE_REPAIR_SESSION_PRESENT'));
 
 const detected = createRepairCycle({
   failureFingerprint: FAILURE,
