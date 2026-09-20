@@ -134,7 +134,7 @@ const actionVaultSession = {
   actionVaultMission: {
     role: 'ACTION-REPAIR', triadId: 'triad-test', messageId: 'msg-test', taskId: 'task-test',
     failureFingerprint: 'fp-test', entrySha: targetSHA, targetSha: targetSHA, ownerAgent: 'actionRepairBot',
-    verifierAgent: 'actionRepairVerifier', historianAgent: 'actionHistorian', proofObligations: ['proof'], stopConditions: ['GREEN'], noBlindRetry: true,
+    verifierAgent: 'actionRepairVerifier', historianAgent: 'actionHistorian', programmerTwinParity: { intelligenceParity: 'EXACT', authorityParity: 'SEPARATED_BY_DESIGN', targetSha }, proofObligations: ['proof'], stopConditions: ['GREEN'], noBlindRetry: true,
   },
   actionVaultVerifierProof: verifierProof,
 };
