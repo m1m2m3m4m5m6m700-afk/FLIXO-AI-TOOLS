@@ -81,5 +81,13 @@
     "false-green incident",
     "strategy revocation",
     "repeated no-progress RED"
-  ]
+  ],
+  "monitoring": {
+    "canonicalWakeWorkflow": ".github/workflows/daily-flixo-green-gate.yml",
+    "wakeEveryMinutes": 5,
+    "cron": "*/5 * * * *",
+    "action": "OBSERVE_STATE_DETECT_RED_WAKE_OR_CONTINUE_REPAIR",
+    "exactShaBound": true,
+    "noPassiveSleep": true
+  }
 }
