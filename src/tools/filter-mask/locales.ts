@@ -40,6 +40,9 @@ export type FilterMaskCopy = Readonly<{
   mirrorOff: string;
   intensity: string;
   aspectRatio: string;
+  captureQuality: string;
+  quality720: string;
+  quality1080: string;
   download: string;
   share: string;
   shareSetup: string;
@@ -91,6 +94,9 @@ const EN: FilterMaskCopy = {
   mirrorOff: 'Mirror off',
   intensity: 'Intensity',
   aspectRatio: 'Capture aspect ratio',
+  captureQuality: 'Capture quality',
+  quality720: '720p standard',
+  quality1080: '1080p high',
   download: 'Download result',
   share: 'Share result',
   shareSetup: 'Share filter setup',
