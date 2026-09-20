@@ -11,8 +11,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: flixo-agent-repair-heartbeat
-  cancel-in-progress: false
+  group: flixo-agent-repair-heartbeat-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   resident-watch:
