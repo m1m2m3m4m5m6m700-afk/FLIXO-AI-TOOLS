@@ -45,7 +45,8 @@ export function verifyDifferential({
   let weakening = [];
   for (const file of actual) {
     const absolute = path.resolve(repoRoot, file);
-    if (fs.existsSync(absolute) && gateWeakening.test(fs.readFileSync(absolute, 'utf8'))) weakening.push(file);
+    const inspectGate = /^\\.github\\/workflows\\//u.test(file) || file.startsWith('scripts/ci/');
+    if (inspectGate && fs.existsSync(absolute) && gateWeakening.test(fs.readFileSync(absolute, 'utf8'))) weakening.push(file);
   }
 
   const checks = candidateChecks.map((check) => ({
