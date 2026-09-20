@@ -361,3 +361,23 @@ html[dir="rtl"] .home-final-cta {
   .home-tool-card{min-height:110px !important;padding:9px !important}
   .home-tool-card h3{font-size:.68rem !important}
 }
+
+
+/* 2026-09-20 — header logo visibility after removing global overlay. */
+.home-brand{
+  position:relative !important;
+  z-index:2 !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  flex:0 0 auto !important;
+}
+.home-brand img{
+  visibility:visible !important;
+  opacity:1 !important;
+}
+@media (max-width:640px){
+  .home-brand{
+    width:32px !important;
+    height:32px !important;
+  }
+}
