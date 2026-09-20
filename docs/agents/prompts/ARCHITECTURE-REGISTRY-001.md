@@ -17,6 +17,21 @@ Before editing:
 ## Causal requirement
 The root cause must be architectural registry asymmetry, not simply a downstream job failure.
 
+## Failure-specific playbooks
+
+### Liveness contract drift
+When an agent-liveness test rejects `IDLE`/`SLEEP`/waiting states but the active liveness protocol permits a different state model, compare the test to `scripts/ci/agent-liveness-protocol.mjs` and the canonical liveness documents first. Repair the stale assertion to the authoritative state contract; never weaken the production liveness guard merely to satisfy an old test.
+
+### Heartbeat / Green Gate ownership drift
+When a heartbeat reports `HTTP 422` or an invalid direct wake against `Daily·FLIXO Green Gate`, trace workflow ownership before changing source. The heartbeat is an observer/wake mechanism; it MUST use the canonical supervisor/observer wake path already registered for the control plane. Do not add direct Green Gate dispatch to the heartbeat and do not treat `422` as permission to retry an alternate path.
+
+### Contract-to-source drift
+When a test and implementation disagree, identify the authoritative contract owner, compare exact-SHA source and test behavior, and repair only the stale side. A test is not authoritative merely because it fails first; a production implementation is not authoritative merely because it is older. The violated invariant and ownership relationship must be proven.
+
+### Async TypeScript repair safety
+When a repair introduces `TS1064` or an async-return-type mismatch, use the deterministic async-return repair driver, then propagate `await` through every direct caller exposed by the typecheck. Never paper over the error by changing the test or using an unsafe cast. Targeted typecheck is mandatory before broader verification.
+
+
 ## Allowed
 - align existing control surfaces with canonical registry;
 - add/update the corresponding validator and regression together;
