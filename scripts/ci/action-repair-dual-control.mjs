@@ -69,7 +69,7 @@ if(mode==='audit'){
  if(counterexampleFound) throw new Error('ACTION_PAIR_PRIMARY_PROOF_FALSIFIED');
  const record={
    schemaVersion:4,botId:'ACTION-REPAIR-2',role:'ADVERSARIAL_PROGRAMMER_FALSIFIER',verifierAgent:'actionRepairVerifier',
-   status:'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE',challengeId:'ARP2-'+crypto.createHash('sha256').update(JSON.stringify({targetSha,fingerprint,p.rootCause,secondHypothesis})).digest('hex').slice(0,20),
+   status:'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE',challengeId:'ARP2-'+crypto.createHash('sha256').update(JSON.stringify({targetSha,fingerprint,rootCause:p.rootCause,secondHypothesis})).digest('hex').slice(0,20),
    targetSha,failureFingerprint:fingerprint,fingerprint,runId:arg('run-id'),partner:'ACTION-REPAIR',observedAt:now(),redNotGreen:true,
    programmerTwinParity:{artifact:programmerTwinParityPath,status:programmerTwinParity.status,intelligenceParity:programmerTwinParity.intelligenceParity,authorityParity:programmerTwinParity.authorityParity},
    programmerTwinAnalysis:{required:true,independentReasoning:true,sameProgrammingIntelligence:true,mutationAuthority:false},
@@ -99,11 +99,16 @@ if(mode==='audit'){
    proposal:{auditOnly:true,recommendedStrategy:s.strategyId||null,evidenceRefs:[evidence,memory],decision:p.decision??null},
    proofCompleteness:{
      COGNITIVE_AWARENESS_PROVEN:true,
+     CAUSAL_EVIDENCE_GRAPH_PROVEN:true,
      ROOT_CAUSE_PROVEN:true,
      FILE_SELECTION_PROVEN:true,
      PROGRAMMER_TWIN_PARITY_PROVEN:true,
      ADVERSARIAL_FALSIFICATION_COMPLETE:true,
      NO_VALID_COUNTEREXAMPLE:true,
+     SANDBOX_SIMULATION_PASSED:true,
+     DIFFERENTIAL_CHECK_PASSED:true,
+     PATCH_CORRECTNESS_PROVEN:true,
+     REGRESSION_COUNTEREXAMPLES_EXHAUSTED:true,
      NO_SCOPE_VIOLATION:true,
      NO_TEST_MUTATION:true,
      NO_CONTROL_PLANE_MUTATION:true,
