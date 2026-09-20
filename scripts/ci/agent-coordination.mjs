@@ -144,6 +144,167 @@ function lock(sessionId, agentId, rca, scope) {
   return lockId;
 }
 function unlock(sessionId) { for (const item of Object.values(locks.locks)) if (item.sessionId === sessionId && item.status === 'ACTIVE') { item.status = 'RELEASED'; item.releasedAt = now(); } }
+
+function unresolvedRequiredTasks(excludeTaskId = null) {
+  return Object.values(state.tasks ?? {}).filter((task) =>
+    task.taskId !== excludeTaskId && ['READY', 'QUEUED', 'RUNNING', 'STALE'].includes(task.status)
+  );
+}
+
+function activePeerSessions(excludeSessionId = null) {
+  return Object.values(state.activeSessions ?? {}).filter((session) =>
+    session.sessionId !== excludeSessionId && !['CLOSED', 'STALE'].includes(String(session.collaborationState ?? ''))
+  );
+}
+
+function chooseContinuationTarget(excludeSessionId) {
+  return activePeerSessions(excludeSessionId)
+    .filter((session) => session.entrySha === sha())
+    .sort((a, b) => String(a.updatedAt ?? '').localeCompare(String(b.updatedAt ?? '')))[0] ?? null;
+}
+
+function chooseContinuationTask(sessionId) {
+  const candidates = Object.values(state.tasks ?? {})
+    .filter((task) => ['READY', 'QUEUED'].includes(task.status))
+    .filter((task) => (task.dependsOn ?? []).every((dep) => state.tasks[dep]?.status === 'DONE'))
+    .sort((a, b) => Number(b.priority ?? 0) - Number(a.priority ?? 0));
+  for (const task of candidates) {
+    try {
+      const lockId = lock(sessionId, state.activeSessions[sessionId]?.agentId ?? 'continuation-agent', task.rca, task.scope ?? []);
+      return { task, lockId };
+    } catch (error) {
+      if (!String(error?.message ?? error).startsWith('COORDINATION_CONFLICT=')) throw error;
+    }
+  }
+  return null;
+}
+
+function mandatoryContinuation(sessionId, agentId, completedTaskId) {
+  const peer = chooseContinuationTarget(sessionId);
+  const remaining = unresolvedRequiredTasks(completedTaskId);
+  if (!peer && remaining.length === 0) return { state: 'NONE' };
+
+  const current = state.activeSessions[sessionId];
+  if (!current) return { state: 'JOIN_REQUIRED', targetSessionId: peer?.sessionId ?? null, reason: 'ACTIVE_WORK_REMAINS' };
+
+  const next = chooseContinuationTask(sessionId);
+  if (next) {
+    const task = next.task;
+    task.status = 'RUNNING';
+    task.claimedBy = agentId;
+    task.sessionId = sessionId;
+    task.claimedAt = now();
+    task.entrySha = sha();
+    task.lockId = next.lockId;
+
+    current.taskId = task.taskId;
+    current.completedTaskId = completedTaskId;
+    current.joinedToSessionId = peer?.sessionId ?? null;
+    current.collaborationState = peer ? 'JOINED' : 'CONTINUING';
+    current.collaborationRequired = true;
+    current.entrySha = sha();
+    current.updatedAt = now();
+
+    if (peer) {
+      peer.collaborators = Array.isArray(peer.collaborators) ? peer.collaborators : [];
+      peer.collaborators.push({
+        sessionId,
+        agentId,
+        taskId: task.taskId,
+        joinedAt: now(),
+        entrySha: sha(),
+        status: 'ACTIVE',
+      });
+      peer.updatedAt = now();
+    }
+
+    const packetFile = packetPath(task.taskId);
+    const packet = readJson(packetFile, task);
+    packet.claim = {
+      sessionId,
+      agentId,
+      joinedToSessionId: peer?.sessionId ?? null,
+      claimedAt: now(),
+      entrySha: sha(),
+      mandatoryContinuation: true,
+    };
+    writeJson(packetFile, packet);
+
+    const visibility = readVisibility(sessionId);
+    visibility.taskId = task.taskId;
+    visibility.finalStatus = null;
+    visibility.finalSummary = null;
+    visibility.status = 'RUNNING';
+    visibility.visibilityState = 'OPEN';
+    visibility.continuation = {
+      required: true,
+      joinedToSessionId: peer?.sessionId ?? null,
+      previousTaskId: completedTaskId,
+      assignedTaskId: task.taskId,
+      assignedAt: now(),
+    };
+    visibility.activity = Array.isArray(visibility.activity) ? [...visibility.activity, {
+      at: now(),
+      type: 'MANDATORY_JOIN',
+      summary: peer ? 'Completed agent automatically joined an active agent and claimed the next required task.' : 'Completed agent automatically continued into the next required task.',
+      joinedToSessionId: peer?.sessionId ?? null,
+      taskId: task.taskId,
+      entrySha: sha(),
+    }] : [];
+    visibility.updatedAt = now();
+    fs.writeFileSync(visibilityPath(sessionId), JSON.stringify(visibility, null, 2) + '\n');
+
+    return {
+      state: peer ? 'JOINED' : 'CONTINUING',
+      targetSessionId: peer?.sessionId ?? null,
+      assignedTaskId: task.taskId,
+      assignedTaskTitle: task.title,
+    };
+  }
+
+  current.taskId = null;
+  current.completedTaskId = completedTaskId;
+  current.joinedToSessionId = peer?.sessionId ?? null;
+  current.collaborationState = peer ? 'JOINED_SUPPORT' : 'JOIN_REQUIRED';
+  current.collaborationRequired = true;
+  current.requiredUntil = 'ALL_REQUIRED_WORK_CLOSED';
+  current.updatedAt = now();
+  if (peer) {
+    peer.collaborators = Array.isArray(peer.collaborators) ? peer.collaborators : [];
+    peer.collaborators.push({
+      sessionId,
+      agentId,
+      taskId: peer.taskId ?? null,
+      joinedAt: now(),
+      entrySha: sha(),
+      status: 'SUPPORT_ACTIVE',
+    });
+    peer.updatedAt = now();
+  }
+
+  const visibility = readVisibility(sessionId);
+  visibility.continuation = {
+    required: true,
+    joinedToSessionId: peer?.sessionId ?? null,
+    previousTaskId: completedTaskId,
+    mode: peer ? 'SUPPORT_UNTIL_ACTIVE_TEAM_CLOSES' : 'WAIT_FOR_REQUIRED_WORK',
+  };
+  visibility.activity = Array.isArray(visibility.activity) ? [...visibility.activity, {
+    at: now(),
+    type: 'MANDATORY_JOIN',
+    summary: peer ? 'Completed agent joined the active agent team in mandatory support mode until all required work closes.' : 'Completed agent remains active because required work remains but no claimable task is available.',
+    joinedToSessionId: peer?.sessionId ?? null,
+    entrySha: sha(),
+  }] : [];
+  visibility.updatedAt = now();
+  fs.writeFileSync(visibilityPath(sessionId), JSON.stringify(visibility, null, 2) + '\n');
+
+  return {
+    state: peer ? 'JOINED_SUPPORT' : 'JOIN_REQUIRED',
+    targetSessionId: peer?.sessionId ?? null,
+    assignedTaskId: null,
+  };
+}
 ensure();
 if (writeLocked) reconcileStaleSessions();
 if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'state', 'visible', 'ingest-handoff', 'coop-request', 'coop-challenge', 'coop-handoff', 'coop-respond', 'coop-pending'].includes(command)) throw new Error('Usage: agent-coordination.mjs task-create|task-claim|task-release|task-complete|state|visible|ingest-handoff|coop-request|coop-challenge|coop-handoff|coop-respond|coop-pending');
@@ -239,7 +400,19 @@ if (command === 'task-complete') {
   if (handoff.taskId !== taskId || visibility.taskId !== taskId) throw new Error('TASK_COMPLETION_TASK_MISMATCH');
   if (handoff.exitSha !== sha() || visibility.exitSha !== sha()) throw new Error('TASK_COMPLETION_STALE_EXIT_SHA');
   if (!visibility.finalSummary) throw new Error('TASK_COMPLETION_FINAL_SUMMARY_MISSING');
-  task.status = 'DONE'; task.completedAt = now(); task.exitSha = sha(); task.evidence = list('evidence'); task.findings = list('findings'); task.finalStatus = visibility.finalStatus; task.finalSummary = visibility.finalSummary; task.visibilityPath = path.relative(ROOT, visibilityPath(sessionId)); unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify(task, null, 2));
+  task.status = 'DONE'; task.completedAt = now(); task.exitSha = sha(); task.evidence = list('evidence'); task.findings = list('findings'); task.finalStatus = visibility.finalStatus; task.finalSummary = visibility.finalSummary; task.visibilityPath = path.relative(ROOT, visibilityPath(sessionId));
+  unlock(sessionId);
+
+  const continuation = mandatoryContinuation(sessionId, task.claimedBy, taskId);
+  state.activeSessions[sessionId] = state.activeSessions[sessionId] ?? { sessionId, agentId: task.claimedBy, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, protocolHash: assertProtocolDefinition().protocolHash, updatedAt: now() };
+  if (continuation.state === 'NONE') {
+    state.activeSessions[sessionId].taskId = null;
+    state.activeSessions[sessionId].collaborationState = 'AVAILABLE';
+    state.activeSessions[sessionId].collaborationRequired = false;
+    state.activeSessions[sessionId].updatedAt = now();
+  }
+  save();
+  console.log(JSON.stringify({ ...task, mandatoryContinuation: continuation }, null, 2));
 }
 
 if (command === 'ingest-handoff') {
