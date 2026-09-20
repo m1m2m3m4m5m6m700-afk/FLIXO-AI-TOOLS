@@ -18,6 +18,7 @@ const requiredFiles = [
   'docs/PROTOCOL-HIERARCHY.md',
   'docs/PROTOCOL-REGISTRY.json',
   'scripts/ci/agent-session.mjs',
+  'scripts/ci/agent-execution-control.mjs',
   'scripts/ci/repair-protocol.mjs',
   'scripts/ci/agent-coordination.mjs',
   'scripts/ci/agent-communication.mjs',
@@ -80,6 +81,15 @@ if (exists('docs/AGENT-COLLABORATION-PROTOCOL.md')) {
   const text = read('docs/AGENT-COLLABORATION-PROTOCOL.md');
   for (const marker of requiredProtocolMarkers) if (!text.includes(marker)) fail('PROTOCOL_MISSING', marker);
 }
+
+const taskAgentSource = exists('scripts/ci/task-agent.mjs') ? read('scripts/ci/task-agent.mjs') : '';
+if (taskAgentSource) {
+  for (const marker of ["actor: 'taskAgent'", "preparedOnly: true", "executionMode: 'PREPARATION_ONLY'", "mutationPolicy: 'NO_DIRECT_MUTATION'", "executionAuthority: 'TASK_PREPARATION_ONLY'", "TASK-AGENT-PREPARATION-v3", "applyAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT'"]) if (!taskAgentSource.includes(marker)) fail('TASK_AGENT_PREPARATION_CONTRACT_MISSING', marker);
+  if (taskAgentSource.includes("TASK_AGENT_DIRECT_EXECUTION") || taskAgentSource.includes("TASK_AGENT_ON_EXECUTION_BRANCH_ONLY")) fail('TASK_AGENT_DIRECT_MUTATION_MARKER_PRESENT');
+}
+const repairProtocolSource = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';
+if (repairProtocolSource.includes("mutationAgents: ['repairAgent','implementation','executionAgent','taskAgent']")) fail('TASK_AGENT_MUTATION_AUTHORITY_PRESENT');
+if (repairProtocolSource.includes("mutationAgents: ['repairAgent','implementation','executionAgent']") === false) fail('REPAIR_MUTATION_AUTHORITY_SET_INVALID');
 
 const repairProtocol = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';
 const repairEngine = exists('scripts/ci/auto-repair-engine.mjs') ? read('scripts/ci/auto-repair-engine.mjs') : '';
