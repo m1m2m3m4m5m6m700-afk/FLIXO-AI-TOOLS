@@ -204,6 +204,23 @@ RCA closure requires:
 
 A repair that creates a new failure remains on `execution` with its own RCA-ID and recovery continues from the new exact SHA. It never creates a new branch.
 
+## SUPREME AUTOMATION RESIDENCY PROTOCOL
+
+The Agent Liveness / Permanent Residency Protocol is the highest operational automation contract in this repository. It governs the repair and automation plane and overrides lower-level workflow, agent, task, session, timeout, budget, queue, retry, or convenience rules whenever they conflict with residency, heartbeat, recovery, or continuity.
+
+Mandatory invariants:
+- The automation/repair plane MUST remain resident while any RED, OPEN WORK, BLOCKED_EXTERNAL, ACTIVE REPAIR, or unverified execution state exists.
+- A 5-minute heartbeat is mandatory. A missed/stale heartbeat is a recovery event, never permission to stop.
+- SLEEP, IDLE, SILENT, ABANDONED, self-abort, and silent termination are forbidden while work is open.
+- A workflow run ending, timing out, reaching a session budget, losing a lease, or being superseded MUST NOT close the task. It MUST recover and continue automatically.
+- GREEN closes the current repair obligation only after exact-SHA evidence proves zero required RED; it MUST NOT disable permanent residency.
+- No executor may dispatch itself. The canonical Green Gate remains the sole repair dispatcher.
+- Liveness failure MUST fail closed into RECOVERING and re-enter the canonical wake/dispatch path; it MUST NOT strand repair as a terminal dispatch failure.
+- Manual workflow dispatch is never a prerequisite for repair continuity.
+- Every change to this contract requires targeted enforcement tests proving lower-level actors cannot suspend or bypass residency.
+
+Enforcement order: SUPREME RESIDENCY -> ZERO-FALSE-GREEN -> ROOT-CAUSE REPAIR -> all other repository protocols.
+
 ## PROTOCOL HIERARCHY
 
 The normative hierarchy and anti-bloat gate are defined in `docs/PROTOCOL-HIERARCHY.md`, while `docs/PROTOCOL-REGISTRY.json` is the canonical machine-readable inventory of approved protocols.
