@@ -47,7 +47,8 @@ export const rootRoute = createRootRoute({
         dispose();
       };
     }, []);
-    return <><HeadContent /><RuntimeLocaleAttributes /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} /><FlixoGlobalLogo /><Suspense fallback={null}><CommandPalette /></Suspense><RouteContent /><Scripts /></>;
+    const structuredDataJson = JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c');
+    return <><HeadContent /><RuntimeLocaleAttributes /><script type="application/ld+json">{structuredDataJson}</script><FlixoGlobalLogo /><Suspense fallback={null}><CommandPalette /></Suspense><RouteContent /><Scripts /></>;
   },
   head: () => ({
     meta: [
