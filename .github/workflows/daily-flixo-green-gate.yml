@@ -1,4 +1,5 @@
 name: Daily·FLIXO Green Gate
+# SUPREME AUTOMATION RESIDENCY: unresolved work must always re-enter recovery/dispatch.
 run-name: Daily·FLIXO Green Gate ${{ github.run_id }}
 
 on:
