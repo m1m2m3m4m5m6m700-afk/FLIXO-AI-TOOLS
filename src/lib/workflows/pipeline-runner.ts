@@ -89,6 +89,7 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
         inputBlob: stableBlob,
       });
       params = authorization.parameters;
+      let auditEventsForAttempt: readonly ExecutionAuditEvent[] = [authorization.audit];
       onProgress({
         currentStepIndex: i + 1,
         totalSteps: plan.steps.length,
@@ -118,11 +119,11 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
           message: verified ? undefined : `Output verification failed for '${step.toolId}'.`,
         });
         const receipt = await createPipelineStepReceipt({ toolId: step.toolId, stepIndex: i + 1, attempt, inputBlob: stableBlob, outputBlob: output, catalogFingerprint: TOOL_CATALOG.fingerprint, verified });
-        const auditEvents = Object.freeze([authorization.audit, executionAudit, verificationAudit]);
+        auditEventsForAttempt = Object.freeze([authorization.audit, executionAudit, verificationAudit]);
         if (verified) {
           receiptChain = await appendPipelineStepReceipt(receiptChain, receipt);
           currentBlob = output;
-          onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, outputBlob: output, retry: attempt, receipt, receiptChain, auditEvents });
+          onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, outputBlob: output, retry: attempt, receipt, receiptChain, auditEvents: auditEventsForAttempt });
           break;
         }
         onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, retry: attempt, auditEvents });
@@ -137,13 +138,14 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
           message,
           errorClass: classifyExecutionFailure(error),
         });
+        auditEventsForAttempt = Object.freeze([authorization.audit, failureAudit]);
         onProgress({
           currentStepIndex: i + 1,
           totalSteps: plan.steps.length,
           currentToolId: step.toolId,
           task,
           retry: attempt,
-          auditEvents: [authorization.audit, failureAudit],
+          auditEvents: auditEventsForAttempt,
         });
         if (attempt === maxAttempts - 1) throw new PipelineVerificationError(message, stableBlob, i, step.toolId);
       }
@@ -166,7 +168,7 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
           currentToolId: step.toolId,
           task,
           retry: attempt + 1,
-          auditEvents: [authorization.audit, executionAudit, verificationAudit, recoveryAudit],
+          auditEvents: Object.freeze([...auditEventsForAttempt, recoveryAudit]),
         });
         const repaired = repairToolParameters(tool, params, attempt + 1);
         if (repaired) params = validateCapabilityParameters(step.toolId, repaired);
