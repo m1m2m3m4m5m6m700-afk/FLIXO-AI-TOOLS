@@ -112,16 +112,19 @@
   "transferableKnowledgeOnly": true,
   "permanentIndependentAuthority": false,
   "agentRuntime": {
-    "protocol": "ACTION-AGENT-RUNTIME-v1",
+    "protocol": "ACTION-AGENT-RUNTIME-v2",
     "modelProfile": "ACTION_FAILURE_HISTORIAN_V2",
     "reasoningEffort": "HIGH",
     "cognitiveLoop": [
       "INTAKE",
       "CONTEXT_RETRIEVAL",
       "PLAN",
+      "SYNTHESIZE",
+      "SIMULATE",
       "EXECUTE",
       "SELF_CHECK",
       "INDEPENDENT_REVIEW",
+      "DIFFERENTIAL_VERIFY",
       "VERIFY",
       "LEARN"
     ],
@@ -140,7 +143,9 @@
       "FAILURE_CLASSIFICATION",
       "PATTERN_MEMORY",
       "LESSON_EXTRACTION",
-      "ANTI_LESSON_EXTRACTION"
+      "ANTI_LESSON_EXTRACTION",
+      "SIMULATION_OUTCOME_RECORDING",
+      "DIFFERENTIAL_PROVENANCE"
     ]
   },
   "ledger": {
@@ -162,5 +167,8 @@
       "PREDICTION_REJECTED",
       "GREEN_VERIFIED"
     ]
+  },
+  "outputs": {
+    "repairEngineeringEvidence": "PROVISIONAL_UNTIL_CANONICAL_GREEN"
   }
 }
