@@ -172,6 +172,16 @@ test.describe('Filter Mask live camera surface', () => {
     await expect(recordButton).toBeEnabled();
     await recordButton.click();
     await expect(section.getByRole('button', { name: 'Stop recording' })).toBeVisible();
+    await expect(section.getByRole('button', { name: /Pause recording|Resume recording/ })).toBeVisible();
+    await expect(section.getByText(/Performance: (GPU|Canvas) · \\d+ FPS · \\d+ drops/)).toBeVisible();
+    await section.getByRole('button', { name: 'Pause recording' }).click();
+    await expect(section.getByRole('button', { name: 'Resume recording' })).toBeVisible();
+    await section.getByRole('button', { name: 'Resume recording' }).click();
+    await section.getByRole('button', { name: 'Cancel recording' }).click();
+    await expect(section.getByRole('button', { name: 'Record video' })).toBeVisible();
+    await expect(section.getByText('Download result')).toHaveCount(0);
+    await recordButton.click();
+    await expect(section.getByRole('button', { name: 'Stop recording' })).toBeVisible();
     await expect(section.getByRole('button', { name: 'Stop' })).toBeDisabled();
     await page.waitForTimeout(500);
     const cinematic = section.getByRole('button', { name: /Cinema effect\.cinema/ }).first();
