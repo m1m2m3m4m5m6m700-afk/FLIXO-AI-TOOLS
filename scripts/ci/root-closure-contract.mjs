@@ -188,13 +188,34 @@ export function buildProvenanceClosure(fields = {}) {
   return payload;
 }
 
-export function assertCanonicalSymmetry({ mainSha = '', executionSha = '', branch = 'execution' } = {}) {
+
+export const CANONICAL_ARCHITECTURE_FILES = Object.freeze([
+  'scripts/ci/repair-control-plane.mjs',
+  'scripts/ci/continuous-error-watch.mjs',
+  'scripts/ci/agent-liveness-protocol.mjs',
+  '.github/workflows/auto-repair.yml',
+  '.github/workflows/execution-bot-watchdog.yml',
+  '.github/workflows/daily-flixo-green-gate.yml',
+  'scripts/ci/root-closure-contract.mjs',
+]);
+
+export function canonicalRefDigest(ref = 'main') {
+  const { execFileSync } = await import('node:child_process');
+  const payload = CANONICAL_ARCHITECTURE_FILES.map((file) => {
+    const content = execFileSync('git', ['show', `${ref}:${file}`], { encoding: 'utf8' });
+    return [file, createHash('sha256').update(content, 'utf8').digest('hex')];
+  });
+  return createHash('sha256').update(JSON.stringify(payload), 'utf8').digest('hex');
+}
+
+export function assertCanonicalSymmetry({ mainSha = '', executionSha = '', mainContractDigest = '', executionContractDigest = '', branch = 'execution' } = {}) {
   if (branch === 'main') {
     if (!sha40.test(mainSha) || !sha40.test(executionSha)) fail('SYMMETRY_SHA_INVALID');
-    if (mainSha !== executionSha) fail('SYMMETRY_CONTRACT_SHA_DIVERGENCE');
-    return Object.freeze({ ok: true, mode: 'POST_MERGE_EXACT_SYMMETRY' });
+    if (!sha64.test(mainContractDigest) || !sha64.test(executionContractDigest)) fail('SYMMETRY_CONTRACT_DIGEST_INVALID');
+    if (mainContractDigest !== executionContractDigest) fail('SYMMETRY_CONTRACT_DIGEST_DIVERGENCE');
+    return Object.freeze({ ok: true, mode: 'POST_MERGE_CANONICAL_CONTRACT_SYMMETRY', mainSha, executionSha, mainContractDigest });
   }
-  return Object.freeze({ ok: false, mode: 'PRE_MERGE_PENDING', reason: 'POST_MERGE_SYMMETRY_REQUIRES_MAIN_EXECUTION_ALIGNMENT' });
+  return Object.freeze({ ok: false, mode: 'PRE_MERGE_PENDING', reason: 'POST_MERGE_SYMMETRY_REQUIRES_MAIN_EXECUTION_CONTRACT_ALIGNMENT' });
 }
 
 async function run() {
