@@ -6,6 +6,7 @@ import { getReadyToolConfigs } from '@/config/tools';
 import { findToolIntent } from '@/lib/intent-router';
 import { extractParameters } from '@/lib/agent/intent/parameter-extractor';
 import { detectAgentLocale } from '@/lib/agent/language-detector';
+import { confirmTask, createTaskContext, transitionTask, type TaskContext } from '@/lib/agent/task-state';
 import {
   classifyConversation,
   contextualizeCommand,
@@ -128,8 +129,22 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     setState('running'); setError(null);
     setMemory((current) => setConversationTask(current, { command: current.activeCommand ?? '', planReady: false }));
     pushMessage('agent', `${responseCopy.success} ${nextPlan.steps.length} ${responseCopy.step}.`);
-    try { const output = await runWorkflowPipeline(file, nextPlan, setProgress); setResult(output); setState('success'); pushMessage('agent', responseCopy.success); }
-    catch (cause) { const message = cause instanceof Error ? cause.message : 'Execution failed.'; setError(message); setState('error'); pushMessage('agent', `${responseCopy.stopped} ${message}`); }
+    let task: TaskContext = createTaskContext();
+    try {
+      task = transitionTask(task, 'PLANNED');
+      task = transitionTask(task, 'AWAITING_CONFIRMATION');
+      task = confirmTask(task);
+      const output = await runWorkflowPipeline(file, nextPlan, task, setProgress);
+      task = transitionTask(task, 'VERIFYING');
+      task = transitionTask(task, 'COMPLETED');
+      setResult(output); setState('success'); pushMessage('agent', responseCopy.success);
+    } catch (cause) {
+      if (task.state === 'EXECUTING' || task.state === 'VERIFYING' || task.state === 'RECOVERING') {
+        try { task = transitionTask(task, 'FAILED'); } catch { /* preserve the original execution error */ }
+      }
+      const message = cause instanceof Error ? cause.message : 'Execution failed.';
+      setError(message); setState('error'); pushMessage('agent', `${responseCopy.stopped} ${message}`);
+    }
   };
 
   const sendMessage = async () => {
