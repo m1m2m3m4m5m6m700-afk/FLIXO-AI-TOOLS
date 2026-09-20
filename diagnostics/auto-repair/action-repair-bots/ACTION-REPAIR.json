@@ -135,13 +135,13 @@
   "agentGrade": {
     "lifecycle": "READY",
     "shortName": "ACTR",
-    "upgradeNumber": 2,
+    "upgradeNumber": 3,
     "upgradePriority": 95,
     "nextUpgrade": {
-      "id": "ACTR-U2",
-      "weakness": "HISTORICAL_ACTION_REPRODUCTION_DEPTH_AND_EXACT_CLOSURE",
-      "mission": "زيادة تغطية الحالات التاريخية ثم إعادة إثبات الحل على SHA الحالي",
-      "promotionProof": "EXACT_SHA_PLUS_CANONICAL_CI"
+      "id": "ACTR-U3",
+      "weakness": "PATCH_GENERATION_VERIFICATION_AND_REGRESSION_PROOF_DEPTH",
+      "mission": "توليد إصلاحات مرشحة ضمن حدود الأدلة، محاكاتها في Sandbox، ثم إثبات الفرق قبل أي تغيير فعلي",
+      "promotionProof": "PATCH_SYNTHESIS_PLUS_SANDBOX_PLUS_DIFFERENTIAL_PLUS_EXACT_SHA_PLUS_CANONICAL_CI"
     }
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
@@ -167,23 +167,26 @@
     "sameSha": true
   },
   "agentRuntime": {
-    "protocol": "ACTION-AGENT-RUNTIME-v1",
+    "protocol": "ACTION-AGENT-RUNTIME-v2",
     "modelProfile": "ACTION_PRIMARY_REPAIR_V1",
     "reasoningEffort": "HIGH",
     "cognitiveLoop": [
       "INTAKE",
       "CONTEXT_RETRIEVAL",
       "PLAN",
+      "SYNTHESIZE",
+      "SIMULATE",
       "EXECUTE",
       "SELF_CHECK",
       "INDEPENDENT_REVIEW",
+      "DIFFERENTIAL_VERIFY",
       "VERIFY",
       "LEARN"
     ],
     "historicalActivity": "docs/agents/historical-action-errors/agent-activity",
     "runtime": "scripts/ci/action-agent-runtime.mjs",
     "activityLedger": "scripts/ci/action-agent-history.mjs",
-    "toolBudget": 24,
+    "toolBudget": 40,
     "selfCritique": true,
     "independentReview": true,
     "structuredOutput": true,
@@ -201,7 +204,12 @@
       "SEMANTIC_CODE_GRAPH",
       "IMPACT_ANALYSIS",
       "PATCH_RISK_REVIEW",
-      "REGRESSION_PREDICTION"
+      "REGRESSION_PREDICTION",
+      "PATCH_SYNTHESIS",
+      "SANDBOX_SIMULATION",
+      "DIFFERENTIAL_VERIFICATION",
+      "TRANSACTIONAL_REPAIR",
+      "COUNTERFACTUAL_PATCH_REVIEW"
     ]
   },
   "subAgents": {
@@ -232,6 +240,19 @@
       "promotionOnlyAfterCanonicalGreen": true,
       "output": "diagnostics/auto-repair/action-vault/code-mentor/latest-packet.json",
       "verifiedLessons": "diagnostics/auto-repair/action-vault/code-mentor/lessons.ndjson"
+    },
+    "repairEngineering": {
+      "id": "ACTION-REPAIR-ENGINEERING",
+      "role": "PATCH_SYNTHESIS_SANDBOX_AND_DIFFERENTIAL_SUBAGENT",
+      "planner": "scripts/ci/action-repair-engineering.mjs",
+      "patchSynthesis": "scripts/ci/action-patch-synthesis.mjs",
+      "sandbox": "scripts/ci/action-repair-sandbox.mjs",
+      "differentialVerifier": "scripts/ci/action-differential-verifier.mjs",
+      "readOnlyDuringPlanning": true,
+      "mutationDuringSimulation": false,
+      "exactShaRequired": true,
+      "canonicalGreenRequired": true,
+      "ownerOnly": "ACTION-REPAIR"
     }
   },
   "softwareEngineerCore": {
