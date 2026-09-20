@@ -38,12 +38,20 @@ if(read.failureBehavior?.staleSha!=='PAUSE_REQUALIFY_CONTINUE_SAME_MISSION')erro
 if(read.failureBehavior?.conflictRecovery!=='IN_PLACE_ONLY')errors.push('conflictRecovery');
 if(read.failureBehavior?.conflictRecoveryNever!=='SURRENDER_OWNER_OR_CLOSE_MISSION')errors.push('conflictRecoveryNever');
 if(read.failureBehavior?.externalFailure!=='CLASSIFY_EXTERNAL_NO_SOURCE_MUTATION')errors.push('externalFailure');
+if(read.monitoring?.canonicalWakeWorkflow!=='.github/workflows/daily-flixo-green-gate.yml')errors.push('canonicalWakeWorkflow');
+if(read.monitoring?.wakeEveryMinutes!==5)errors.push('wakeEveryMinutes');
+if(read.monitoring?.cron!=='*/5 * * * *')errors.push('wakeCron');
+if(read.monitoring?.exactShaBound!==true)errors.push('wakeExactSha');
+if(read.monitoring?.noPassiveSleep!==true)errors.push('wakeNoPassiveSleep');
 
 const workflow=fs.readFileSync(path.resolve(ROOT,'.github/workflows/auto-repair.yml'),'utf8');
 if(!workflow.includes('FLIXO_REPAIR_OPERATING_MODE: BOT_FIRST_AUTONOMOUS'))errors.push('workflow_mode_missing');
 if(!workflow.includes('FLIXO_ROUTINE_HUMAN_APPROVAL: \'false\''))errors.push('workflow_routine_approval_missing');
 if(!workflow.includes('FLIXO_CRITICAL_HUMAN_AUTH_REQUIRED: \'true\''))errors.push('workflow_critical_auth_missing');
 if(!workflow.includes('ACTION-VAULT-AUTONOMY-MODE'))errors.push('workflow_policy_reference_missing');
+if(!workflow.includes('FLIXO_REPAIR_OPERATING_MODE: BOT_FIRST_AUTONOMOUS'))errors.push('workflow_autonomy_mode_missing');
+const greenGate=fs.readFileSync(path.resolve(ROOT,'.github/workflows/daily-flixo-green-gate.yml'),'utf8');
+if(!greenGate.includes("- cron: '*/5 * * * *'"))errors.push('canonical_five_minute_wake_missing');
 if(!workflow.includes('branch-conflict-recovery'))errors.push('workflow_conflict_recovery_missing');
 
 if(errors.length){
