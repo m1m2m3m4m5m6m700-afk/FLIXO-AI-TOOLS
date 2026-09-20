@@ -9,6 +9,7 @@ import { getWorkflow } from '@/lib/workflows/registry';
 export type ExecutionPlan = {
   workflowName: string;
   confidence: number;
+  catalogFingerprint: string;
   steps: Array<{ toolId: ToolDefinition['id']; params?: Record<string, string | number | boolean | undefined> }>;
 };
 
