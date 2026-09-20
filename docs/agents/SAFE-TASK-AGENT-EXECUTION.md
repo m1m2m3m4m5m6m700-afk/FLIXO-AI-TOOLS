@@ -33,8 +33,7 @@ Only agents admitted by `scripts/ci/repair-protocol.mjs` may mutate.
 Current mutation roles:
 
 `repairAgent`
-`executionAgent`
-`implementation`
+`executionAgent` (non-canonical role; not mutation-authorized)
 
 The **Task Agent is explicitly not a mutation role**.
 
