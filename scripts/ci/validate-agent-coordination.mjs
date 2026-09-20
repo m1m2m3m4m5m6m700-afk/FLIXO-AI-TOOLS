@@ -71,6 +71,15 @@ if (exists('docs/agents/ledger/README.md')) {
   }
 }
 
+const repairLearningText = exists('scripts/ci/auto-repair-learning.mjs') ? read('scripts/ci/auto-repair-learning.mjs') : '';
+const repairCoordinationText = exists('scripts/ci/agent-coordination.mjs') ? read('scripts/ci/agent-coordination.mjs') : '';
+const repairSessionText = exists('scripts/ci/agent-session.mjs') ? read('scripts/ci/agent-session.mjs') : '';
+const repairEngineText = exists('scripts/ci/auto-repair-engine.mjs') ? read('scripts/ci/auto-repair-engine.mjs') : '';
+for (const marker of ['recordAgentLearningEvent','loadRepairAgentContext','buildRepairAgentContext']) if (!repairLearningText.includes(marker)) failures.push('REPAIR_AGENT_LEARNING_API_MISSING=' + marker);
+for (const marker of ['TASK_CREATED','TASK_CLAIMED','TASK_COMPLETED','publishRepairAgentContext']) if (!repairCoordinationText.includes(marker)) failures.push('REPAIR_AGENT_TASK_FEED_MISSING=' + marker);
+if (!repairSessionText.includes('recordAgentLearningEvent')) failures.push('REPAIR_AGENT_SESSION_LEARNING_FEED_MISSING');
+if (!repairEngineText.includes('loadRepairAgentContext')) failures.push('REPAIR_AGENT_ENGINE_CONTEXT_MISSING');
+if (!read('docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json').includes('repairAgentLearning')) failures.push('REPAIR_AGENT_LEARNING_CONTRACT_MISSING');
 const packageJson = exists('package.json') ? JSON.parse(read('package.json')) : { scripts: {} };
 for (const key of ['validate:agent-coordination','agent:coordination','agent:communication','test:agent-communication','validate:code-scout','agent:code-scout']) if (typeof packageJson.scripts?.[key] !== 'string') failures.push(`PACKAGE_SCRIPT_MISSING=${key}`);
 
