@@ -71,6 +71,73 @@ env:
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
 
 jobs:
+  adversarial_twin:
+    name: Read-only adversarial twin — independent challenge
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+      issues: read
+    steps:
+      - name: Checkout execution for read-only analysis
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: execution
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve exact failed SHA
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RUN_META="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha,headBranch,conclusion,name)"
+          FAILED_SHA="$(printf '%s' "$RUN_META" | jq -r '.headSha')"
+          FAILED_BRANCH="$(printf '%s' "$RUN_META" | jq -r '.headBranch')"
+          CONCLUSION="$(printf '%s' "$RUN_META" | jq -r '.conclusion')"
+          test "$CONCLUSION" = failure || test "$CONCLUSION" = timed_out
+          test "$FAILED_BRANCH" = main || test "$FAILED_BRANCH" = execution
+          test "$FAILED_SHA" != "null" && test -n "$FAILED_SHA"
+          git fetch --no-tags origin "$FAILED_SHA"
+          git checkout --detach "$FAILED_SHA"
+          test "$(git rev-parse HEAD)" = "$FAILED_SHA"
+          echo "failed_sha=$FAILED_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Capture exact failed-run evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-twin
+          gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > /tmp/flixo-twin/failure.log
+          test -s /tmp/flixo-twin/failure.log
+
+      - name: Run FLIXO adversarial twin — read only
+        env:
+          FLIXO_TARGET_DIR: ${{ github.workspace }}
+          FLIXO_FAILURE_LOG: /tmp/flixo-twin/failure.log
+          FLIXO_TWIN_OUTPUT: /tmp/flixo-twin/twin-result.json
+          FLIXO_EXPECTED_TARGET_SHA: ${{ steps.target.outputs.failed_sha }}
+          FLIXO_TWIN_READ_ONLY: 'true'
+          FLIXO_TWIN_DETACHED: 'true'
+        run: |
+          set -euo pipefail
+          node scripts/ci/adversarial-repair-twin.mjs
+          jq -e '.mutationAuthority == false and .repositoryWrite == false and .actionsWrite == false and .targetSha == env.FLIXO_EXPECTED_TARGET_SHA' /tmp/flixo-twin/twin-result.json > /dev/null
+
+      - name: Publish adversarial twin result
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-repair-twin-${{ github.run_id }}
+          path: /tmp/flixo-twin/twin-result.json
+          if-no-files-found: error
+          retention-days: 14
+
   repair:
     name: Single-lane diagnose, execute, verify and learn on execution
     if: >-
