@@ -58,6 +58,12 @@ assert.equal(validateRepairTarget({
   executionSha: SHA_A,
   workflowRuns: [],
   logs: { 54: 'EVIDENCE_CAPTURE=AVAILABLE\nunknown target' },
+}).valid, true);
+assert.equal(validateRepairTarget({
+  run: { ...run('FLIXO Auto Repair Bot', 56, 'failure'), headBranch: 'execution' },
+  executionSha: SHA_A,
+  workflowRuns: [],
+  logs: { 56: 'EVIDENCE_CAPTURE=AVAILABLE\nself repair infrastructure' },
 }).errors.includes('TARGET_WORKFLOW_NOT_ALLOWED'), true);
 assert.equal(validateRepairTarget({
   run: { ...run('FLIXO Test Impact Execution', 55, 'failure'), headBranch: 'execution' },
@@ -262,6 +268,20 @@ assert.equal(internal.repair.repairChainId, internalIdentity.repairChainId);
 assert.equal(internal.repair.leaseRef, internalIdentity.leaseRef);
 assert.equal(internal.repair.failedSha, SHA_A);
 assert.equal(internal.repair.branch, 'execution');
+
+const arbitraryRedWorkflow = evaluateGreen({
+  executionSha: SHA_A, mainSha: SHA_B, openPr,
+  workflowRuns: [
+    ...requiredRuns,
+    { ...run('Brand New Test Suite', 1200, 'failure') },
+  ],
+  checkRuns: securityAndCertification,
+  logs: { 1200: 'EVIDENCE_CAPTURE=AVAILABLE\nassertion failed' },
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(arbitraryRedWorkflow.status, 'RED_INTERNAL');
+assert.equal(arbitraryRedWorkflow.repair.required, true);
+assert.equal(arbitraryRedWorkflow.repair.targetRunId, 1200);
 
 const providerWorkflow = evaluateGreen({
   executionSha: SHA_A,
