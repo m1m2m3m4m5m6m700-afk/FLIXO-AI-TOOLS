@@ -34,9 +34,16 @@ const TRANSITIONS = Object.freeze({
   CANONICAL_CI: ['GREEN', 'RED_AGAIN', 'BLOCKED'],
   RED_AGAIN: ['RCA', 'BLOCKED'],
   GREEN: ['PROMOTION', 'BLOCKED'],
-  PROMOTION: ['CLOSED', 'BLOCKED'],
+  PROMOTION: ['CLOSED', 'BLOCKED', 'CERTIFICATION_INVALID', 'RACE_DETECTED'],
   CLOSED: [],
   BLOCKED: [],
+  BLOCKED_EXTERNAL: ['RCA', 'BLOCKED', 'ABORTED'],
+  STALE: ['RCA', 'CLAIMED', 'BLOCKED', 'ABORTED'],
+  RACE_DETECTED: ['EVIDENCE_LOCKED', 'RCA', 'ABORTED'],
+  BUDGET_EXHAUSTED: ['RCA', 'ABORTED'],
+  ROLLBACK_REQUIRED: ['REPAIR_PLANNED', 'RCA', 'ABORTED'],
+  CERTIFICATION_INVALID: ['EVIDENCE_LOCKED', 'CANONICAL_CI', 'ABORTED'],
+  ABORTED: [],
 });
 
 export const CIRCUIT_BREAKER = Object.freeze({
@@ -72,6 +79,53 @@ const requireText = (name, value) => {
   return text;
 };
 
+export function assertDispatchIdentity(cycle, { failedSha, targetRunId, failureFingerprint } = {}) {
+  const expected = String(failedSha) + ':' + String(targetRunId) + ':' + String(failureFingerprint);
+  if (cycle?.dispatchKey !== expected) throw new Error('CONTROL_PLANE_DISPATCH_IDENTITY_MISMATCH');
+  return true;
+}
+
+export function assertExecutionHeadUnchanged({ expectedSha, currentSha } = {}) {
+  if (!isSha(expectedSha) || !isSha(currentSha)) throw new Error('CONTROL_PLANE_HEAD_SHA_INVALID');
+  if (expectedSha !== currentSha) throw new Error('CONTROL_PLANE_HEAD_CHANGED');
+  return true;
+}
+
+export function buildEvidenceProvenance({
+  assertionId, executionUnit, sourceSha, runId, jobId = null, step = null,
+  environment = null, artifactId = null, artifactDigest = null, result,
+  rca = null, certificateId = null, mergeSha = null,
+  timestamp = new Date().toISOString(), schemaVersion = 1,
+} = {}) {
+  const required = { assertionId, executionUnit, sourceSha, runId, result };
+  for (const [name, value] of Object.entries(required)) {
+    if (!String(value ?? '').trim()) throw new Error('CONTROL_PLANE_EVIDENCE_' + name.toUpperCase() + '_REQUIRED');
+  }
+  if (!isSha(sourceSha)) throw new Error('CONTROL_PLANE_EVIDENCE_SOURCE_SHA_INVALID');
+  if (mergeSha !== null && !isSha(mergeSha)) throw new Error('CONTROL_PLANE_EVIDENCE_MERGE_SHA_INVALID');
+  return Object.freeze({
+    schemaVersion, assertionId: String(assertionId), executionUnit: String(executionUnit),
+    sourceSha: String(sourceSha), runId: String(runId),
+    jobId: jobId == null ? null : String(jobId), step: step == null ? null : String(step),
+    environment: environment == null ? null : String(environment),
+    artifactId: artifactId == null ? null : String(artifactId),
+    artifactDigest: artifactDigest == null ? null : String(artifactDigest),
+    result: String(result), rca: rca == null ? null : String(rca),
+    certificateId: certificateId == null ? null : String(certificateId),
+    mergeSha: mergeSha == null ? null : String(mergeSha), timestamp: String(timestamp),
+  });
+}
+
+export function validateEvidenceProvenance(record, { expectedSha, expectedCertificateId = null, expectedMergeSha = null } = {}) {
+  if (!record || typeof record !== 'object') throw new Error('CONTROL_PLANE_EVIDENCE_RECORD_INVALID');
+  if (!isSha(record.sourceSha)) throw new Error('CONTROL_PLANE_EVIDENCE_SOURCE_SHA_INVALID');
+  if (expectedSha && record.sourceSha !== expectedSha) throw new Error('CONTROL_PLANE_EVIDENCE_SHA_MISMATCH');
+  if (expectedCertificateId !== null && record.certificateId !== expectedCertificateId) throw new Error('CONTROL_PLANE_CERTIFICATE_ID_MISMATCH');
+  if (expectedMergeSha !== null && record.mergeSha !== expectedMergeSha) throw new Error('CONTROL_PLANE_MERGE_SHA_MISMATCH');
+  if (!record.result) throw new Error('CONTROL_PLANE_EVIDENCE_RESULT_REQUIRED');
+  return Object.freeze({ valid: true, exactSha: !expectedSha || record.sourceSha === expectedSha });
+}
+
 export function deriveRepairIdentity({ failureFingerprint, failedSha, targetRunId, branch = 'execution' }) {
   requireText('failureFingerprint', failureFingerprint);
   requireText('targetRunId', targetRunId);
@@ -81,6 +135,7 @@ export function deriveRepairIdentity({ failureFingerprint, failedSha, targetRunI
   const digest = sha256(cycleKey);
   return Object.freeze({
     cycleKey,
+    dispatchKey: `${failedSha}:${targetRunId}:${failureFingerprint}`,
     claimKey: `claim-${digest}`,
     repairChainId: `RC-${digest.slice(0, 20)}`,
     leaseRef: `refs/tags/flixo-repair-lease-${digest}`,
@@ -335,6 +390,10 @@ export function controlPlaneSchema() {
       'REPAIR_IDENTITY_HAS_ONE_CANONICAL_SOURCE',
       'STALE_LEASE_REQUIRES_ACTIVE_SESSION_AND_SHA_GATES',
       'NO_PROGRESS_REQUIRES_SAME_REPAIR_KEY_NO_EXIT_SHA_CHANGE_AND_NO_VERIFICATION_PROGRESS',
+      'EXACT_SHA_EVIDENCE_CHAIN',
+      'CERTIFICATE_IDENTITY_IS_SHA_BOUND',
+      'MERGE_SHA_MUST_MATCH_CERTIFIED_SHA',
+      'HEAD_RACE_INVALIDATES_REPAIR_EVIDENCE',
     ],
   });
 }
