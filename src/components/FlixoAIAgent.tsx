@@ -163,7 +163,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   };
 
   const buildPlan = (command: string, responseCopy = copy): ExecutionPlan | null => {
-    setError(null); replaceDownloadUrl(null); setResult(null); setProgress(null);
+    setError(null); setResult(null); setProgress(null);
     const contextualCommand = contextualizeCommand(command, memory);
     const intentPlan = buildIntentPlan(contextualCommand);
     if (intentPlan.status === 'NEEDS_INPUT') {
