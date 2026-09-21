@@ -333,6 +333,10 @@ jobs:
 
       - name: Self-test trusted repair controller before mutation
         env:
+          # Bind every controller-local state read to the trusted main worktree.
+          # Do not let the active execution workspace's memory masquerade as trusted state.
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-controller/diagnostics/auto-repair/memory.json
+          FLIXO_INTRACTABLE_ERRORS: /tmp/flixo-repair-controller/diagnostics/auto-repair/intractable-errors.json
           FLIXO_TRUSTED_REPAIR_MEMORY: ''
           FLIXO_TRUSTED_MEMORY_SHA: ''
           FLIXO_SKIP_GIT_MEMORY_HISTORY: 'true'
