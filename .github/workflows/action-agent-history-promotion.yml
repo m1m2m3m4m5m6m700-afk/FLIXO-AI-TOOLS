@@ -1,4 +1,4 @@
-name: FLIXO Action Agent — Promote Verified Historical Experience
+name: FLIXO Action Agent — Verify Historical Experience
 
 on:
   workflow_run:
@@ -8,82 +8,81 @@ on:
 
 permissions:
   actions: read
-  contents: write
+  contents: read
 
 concurrency:
-  group: flixo-action-agent-history-promotion-${{ github.event.workflow_run.id }}
+  group: flixo-action-agent-history-verification-${{ github.event.workflow_run.id }}
   cancel-in-progress: false
 
 jobs:
-  promote:
+  verify:
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout trusted promotion controller source
+      - name: Checkout trusted verification controller source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          # This workflow has contents:write and is triggered by workflow_run.
-          # Never execute PR-controlled execution code in this privileged context.
           ref: main
           fetch-depth: 1
-          persist-credentials: true
+          persist-credentials: false
 
-      - name: Download canonical GREEN evidence and provisional Action activity
+      - name: Verify canonical GREEN provenance without consuming untrusted artifacts
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
+          GREEN_RUN_ID: ${{ github.event.workflow_run.id }}
+          GREEN_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          GREEN_RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          GREEN_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         run: |
           set -euo pipefail
-          mkdir -p /tmp/flixo-green /tmp/flixo-provisional
-          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name "flixo-continuous-error-watch-$RUN_ID" --dir /tmp/flixo-green
-          test -s /tmp/flixo-green/report.json
-          jq -e '.status=="GREEN" and (.executionSha|test("^[0-9a-f]{40}$"))' /tmp/flixo-green/report.json >/dev/null
-          TARGET_SHA="$(jq -r '.executionSha' /tmp/flixo-green/report.json)"
-          WATCHDOG_RUN_ID="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "FLIXO Action Vault Watchdog" --commit "$TARGET_SHA" --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
-          if [ -n "$WATCHDOG_RUN_ID" ]; then
-            gh run download "$WATCHDOG_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "flixo-action-vault-wake-$WATCHDOG_RUN_ID" --dir /tmp/flixo-provisional || true
-          fi
-          find /tmp/flixo-provisional -type f -path '*/agent-activity/index.json' -print -quit | grep -q . || true
+          test "$GREEN_RUN_BRANCH" = "execution"
+          test "$GREEN_RUN_CONCLUSION" = "success"
+          test "$GREEN_RUN_SHA" = "${GREEN_RUN_SHA,,}"
+          printf '%s' "$GREEN_RUN_SHA" | grep -Eq '^[0-9a-f]{40}$'
 
-      - name: Promote only verified Action agent activity
-        run: |
-          set -euo pipefail
-          TARGET_SHA="$(jq -r '.executionSha' /tmp/flixo-green/report.json)"
-          test "$TARGET_SHA" = "$(git rev-parse HEAD)"
-          ACTIVITY_ROOT=""
-          PROVISIONAL_INDEX="$(find /tmp/flixo-provisional -type f -path '*/agent-activity/index.json' -print -quit || true)"
-          if [ -n "$PROVISIONAL_INDEX" ]; then
-            ACTIVITY_ROOT="$(dirname "$PROVISIONAL_INDEX")"
-          fi
-          if [ -n "$ACTIVITY_ROOT" ]; then
-            node scripts/ci/promote-action-agent-history.mjs --green-report=/tmp/flixo-green/report.json --sha="$TARGET_SHA" --activity-root="$ACTIVITY_ROOT" > /tmp/action-agent-history-promotion.json
-          else
-            node scripts/ci/promote-action-agent-history.mjs --green-report=/tmp/flixo-green/report.json --sha="$TARGET_SHA" > /tmp/action-agent-history-promotion.json
-          fi
-          jq -e '.status=="PASS" and .promotion=="VERIFIED_HISTORICAL_AGENT_ACTIVITY"' /tmp/action-agent-history-promotion.json >/dev/null
+          CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$CURRENT_EXECUTION_SHA" = "$GREEN_RUN_SHA" || {
+            echo "FAIL CLOSED: execution advanced after the canonical GREEN workflow completed."
+            echo "GREEN_RUN_SHA=$GREEN_RUN_SHA"
+            echo "CURRENT_EXECUTION_SHA=$CURRENT_EXECUTION_SHA"
+            exit 1
+          }
 
-      - name: Persist verified historical experience
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- docs/agents/historical-action-errors/agent-activity; then
-            echo "No provisional Action agent activity to promote."
-            exit 0
-          fi
-          git config user.name "FLIXO Action Agent History"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/agents/historical-action-errors/agent-activity
-          git commit -m "chore: promote verified Action agent historical experience"
-          git push origin HEAD:execution
+          CONTROLLER_SHA="$(git rev-parse HEAD)"
+          MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          test "$CONTROLLER_SHA" = "$MAIN_SHA"
 
-      - name: Publish promotion evidence
+          mkdir -p /tmp/flixo-history-verification
+          jq -n             --arg status "GREEN_PROVENANCE_VERIFIED"             --arg promotion "HISTORICAL_ACTIVITY_REQUIRES_TRUSTED_REPOSITORY_WRITE_PATH"             --arg targetSha "$GREEN_RUN_SHA"             --arg greenRunId "$GREEN_RUN_ID"             --arg controllerSha "$CONTROLLER_SHA"             '{
+              status: $status,
+              promotion: $promotion,
+              targetSha: $targetSha,
+              greenRunId: $greenRunId,
+              controllerSha: $controllerSha,
+              artifactConsumption: "DISABLED",
+              executionCheckout: "DISABLED",
+              contentsWrite: false,
+              exactShaVerified: true
+            }' > /tmp/flixo-history-verification/report.json
+
+          test -s /tmp/flixo-history-verification/report.json
+          jq -e '
+            .status == "GREEN_PROVENANCE_VERIFIED" and
+            .artifactConsumption == "DISABLED" and
+            .executionCheckout == "DISABLED" and
+            .contentsWrite == false and
+            .exactShaVerified == true
+          ' /tmp/flixo-history-verification/report.json >/dev/null
+
+      - name: Validate historical promotion contract
+        run: node scripts/ci/test-promote-action-agent-history.mjs
+
+      - name: Publish verification evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: flixo-action-agent-history-promotion-${{ github.run_id }}
-          path: |
-            /tmp/flixo-green/report.json
-            /tmp/action-agent-history-promotion.json
-            /tmp/flixo-provisional
-          if-no-files-found: warn
+          name: flixo-action-agent-history-verification-${{ github.run_id }}
+          path: /tmp/flixo-history-verification/report.json
+          if-no-files-found: error
           retention-days: 30
