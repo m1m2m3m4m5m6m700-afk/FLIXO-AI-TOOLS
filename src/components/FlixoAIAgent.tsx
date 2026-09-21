@@ -29,6 +29,12 @@ type Message = { id: number; role: 'user' | 'agent'; text: string };
 
 const CONFIRMATIONS = /^(نعم|أيوه|ايوه|نفذ|نفّذ|ابدأ|ابدئي|موافق|تمام|yes|y|ok|okay|go|execute|run|ejecutar|exécuter|ausführen|실행|実行|jalankan|esegui|uitvoeren|wykonaj|executar|kör|ดำเนินการ|çalıştır|виконати|thực hiện)$/i;
 const CANCELLATIONS = /^(لا|لأ|الغاء|إلغاء|cancel|no|n|stop)$/i;
+const getDownloadFilename = (mimeType: string): string => {
+  if (mimeType === 'image/jpeg') return 'flixo-agent-result.jpg';
+  if (mimeType === 'image/png') return 'flixo-agent-result.png';
+  return 'flixo-agent-result.webp';
+};
+
 const GENERIC_CROP_REQUEST = /(?:^|\\s)(?:(?:أريد|اريد|ممكن|هل\\s+تستطيع|please)\\s+)?(?:قص|اقت(?:ص|طع)|crop)(?:\\s+(?:صورة|الصور|الصورة|image|photo))?\\s*$/i;
 const conversationalReply = (
   kind: ReturnType<typeof classifyConversation>,
@@ -415,7 +421,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           {progress && <div className="flixo-ai-agent-progress"><span>{copy.step} {progress.currentStepIndex}/{progress.totalSteps}</span><strong>{progress.currentToolId}</strong>{progress.retry ? <small>{copy.retry} {progress.retry}</small> : null}</div>}
           {error && <div className="flixo-ai-agent-error" role="alert">{error}</div>}
           {state === 'ready' && plan && <div className="flixo-ai-agent-confirm">{copy.planReady} <strong>{file ? copy.execute : copy.uploadThenExecute}</strong></div>}
-          {state === 'success' && result && <div className="flixo-ai-agent-success"><strong>{copy.success}</strong>{downloadUrl ? <a className="primary-button" href={downloadUrl} download={`flixo-agent-result.${result.type.includes('jpeg') ? 'jpg' : result.type.includes('png') ? 'png' : 'webp'}`}>{copy.download}</a> : <span className="primary-button" aria-disabled="true">{copy.download}</span>}</div>}
+          {state === 'success' && result && <div className="flixo-ai-agent-success"><strong>{copy.success}</strong>{downloadUrl ? <a className="primary-button" href={downloadUrl} download={getDownloadFilename(result.type)}>{copy.download}</a> : <span className="primary-button" aria-disabled="true">{copy.download}</span>}</div>}
         </div>
       </div>
       <p className="flixo-ai-agent-note">{copy.safetyNote} <Link to="/admin">{copy.admin}</Link></p>
