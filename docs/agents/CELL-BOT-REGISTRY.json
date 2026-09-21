@@ -9994,7 +9994,7 @@
     "source": "OFFICIAL_ADMIN_RECORD",
     "withdrawal": "OFFICIAL_ADMIN_MESSAGE_ONLY",
     "precedence": "ADVISORY_STATUS_NEVER_OVERRIDES_PROTOCOL_VALIDATOR_EVIDENCE_EXACT_SHA_OR_CERTIFICATION",
-    "displayName": "MASTER-3 — CONSULTANT / المستشار",
+    "displayName": "★ MASTER-3 — CONSULTANT / المستشار",
     "hierarchy": "USER → MASTER-1 → MASTER-3",
     "position": "CONSULTANT_WITHIN_MASTER_SYSTEM"
   },
@@ -10036,5 +10036,10 @@
     "certificationLayer": "CANONICAL_CI",
     "rule": "No Master, agent, bot, controller, protocol, memory, star, rank, proposal, or runtime may grant, infer, or self-promote authority; authority exists only when explicitly granted by USER through an official administrative record.",
     "inheritance": "Authority is never inherited from titles, stars, knowledge, historical success, or recommendations."
+  },
+  "masterDisplayNames": {
+    "MASTER-1": "MASTER-1 — PRESIDENT",
+    "MASTER-2": "🔧 MASTER-2 — الاحترافي",
+    "MASTER-3": "★ MASTER-3 — CONSULTANT / المستشار"
   }
 }
