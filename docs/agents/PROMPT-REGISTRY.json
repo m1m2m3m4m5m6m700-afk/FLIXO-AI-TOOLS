@@ -288,5 +288,11 @@
         ]
       }
     }
-  ]
+  ],
+  "promptMasterLedger": {
+    "path": "المهام.md",
+    "authority": "MASTER_HUMAN_REVIEW_TASK_SOURCE",
+    "rule": "All prompt text must be consolidated into المهام.md first. Runtime projections and historical files are non-authoritative mirrors/archives.",
+    "runtimeProjection": "docs/agents/PROMPT-UNIFIED-EXECUTION.md"
+  }
 }
