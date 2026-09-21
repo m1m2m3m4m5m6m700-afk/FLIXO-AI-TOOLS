@@ -37,7 +37,12 @@ assert.equal(registry.consultativeRank?.hierarchy,'USER → MASTER-1 → MASTER-
 assert.equal(registry.consultativeRank?.position,'CONSULTANT_WITHIN_MASTER_SYSTEM');
 assert.equal(registry.innovationPolicy?.status,'ACTIVE');
 assert.equal(registry.innovationPolicy?.proposalAuthority,'MASTERS_AND_REGISTERED_AGENTS_MAY_PROPOSE');
-assert.equal(registry.innovationPolicy?.activationAuthority,'OFFICIAL_ADMIN_RECORD_ONLY');
+assert.equal(registry.authorityFlow?.sourceOfAuthority,'USER');
+assert.equal(registry.authorityFlow?.authorityGrantor,'USER');
+assert.equal(registry.authorityFlow?.authorityGrantPath,'USER_ONLY');
+assert.equal(registry.authorityFlow?.decisionLayer,'USER');
+assert.equal(registry.innovationPolicy?.activationAuthority,'USER_ONLY_OFFICIAL_ADMIN_RECORD');
+assert.equal(registry.innovationPolicy?.grantingAuthority,'USER_ONLY');
 assert(registry.innovationPolicy?.permittedProposals?.includes('HONORARY_RANK'));
 assert(registry.innovationPolicy?.permittedProposals?.includes('HONORARY_STAR'));
 assert(registry.innovationPolicy?.permittedProposals?.includes('BOT'));

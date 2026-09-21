@@ -10010,7 +10010,7 @@
       "COLLABORATION_PATTERN"
     ],
     "proposalAuthority": "MASTERS_AND_REGISTERED_AGENTS_MAY_PROPOSE",
-    "activationAuthority": "OFFICIAL_ADMIN_RECORD_ONLY",
+    "activationAuthority": "USER_ONLY_OFFICIAL_ADMIN_RECORD",
     "evaluation": "EVIDENCE_BASED",
     "safeguards": [
       "NO_AUTOMATIC_MUTATION_AUTHORITY",
@@ -10020,8 +10020,21 @@
       "NO_SECOND_SOURCE_OF_TRUTH",
       "EXACT_SHA_AND_EVIDENCE_REQUIRED"
     ],
-    "principle": "INNOVATION_IS_ENCOURAGED; AUTHORITY_IS_EARNED_AND_EXPLICIT",
+    "principle": "INNOVATION_IS_ENCOURAGED; AUTHORITY_IS_GRANTED_EXPLICITLY_BY_USER",
     "reuseRule": "Validated ideas may become canonical cell capabilities or roles only through the existing control plane.",
-    "deduplication": "Equivalent proposals must reuse an existing canonical role, star, bot, agent or protocol definition rather than create duplicates."
+    "deduplication": "Equivalent proposals must reuse an existing canonical role, star, bot, agent or protocol definition rather than create duplicates.",
+    "grantingAuthority": "USER_ONLY"
+  },
+  "authorityFlow": {
+    "sourceOfAuthority": "USER",
+    "authorityGrantor": "USER",
+    "authorityGrantPath": "USER_ONLY",
+    "proposalLayer": "MASTERS_AND_REGISTERED_AGENTS",
+    "decisionLayer": "USER",
+    "executionLayer": "CANONICAL_EXECUTION_PATH",
+    "validationLayer": "CANONICAL_VALIDATORS",
+    "certificationLayer": "CANONICAL_CI",
+    "rule": "No Master, agent, bot, controller, protocol, memory, star, rank, proposal, or runtime may grant, infer, or self-promote authority; authority exists only when explicitly granted by USER through an official administrative record.",
+    "inheritance": "Authority is never inherited from titles, stars, knowledge, historical success, or recommendations."
   }
 }
