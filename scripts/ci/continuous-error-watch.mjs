@@ -224,18 +224,11 @@ export function evaluateGreen({
     });
   }
 
-  if (observedBranch === 'execution' && !openPr && latestMergedPr) {
-    const mergeSha = latestMergedPr.mergeCommit?.oid ?? null;
-    if (latestMergedPr.headRefOid !== executionSha || mergeSha !== mainSha) {
-      report.errors.push({
-        type: 'POST_MERGE_MAIN_IDENTITY_MISMATCH',
-        expectedHead: latestMergedPr.headRefOid,
-        currentExecution: executionSha,
-        expectedMain: mergeSha,
-        currentMain: mainSha,
-      });
-    }
-  }
+  // Execution may legitimately advance after a merge. A historical merged PR's
+  // head SHA must not be treated as the required current execution SHA.
+  // On execution, current-vs-main ancestry is already enforced by MAIN_DIVERGENCE.
+  // Post-merge identity validation belongs to main-observation certification, not
+  // to a newer execution head that has no open PR yet.
 
   let waitingRequiredChecks = false;
   let externalApprovalRequired = false;
@@ -252,6 +245,7 @@ export function evaluateGreen({
     };
     if (status === 'MISSING') {
       report.errors.push({ type: 'REQUIRED_WORKFLOW_MISSING', workflow: workflowName });
+      if (observedBranch === 'execution') waitingRequiredChecks = true;
     } else if (status !== 'success') {
       report.errors.push({
         type: 'REQUIRED_WORKFLOW_RED',
