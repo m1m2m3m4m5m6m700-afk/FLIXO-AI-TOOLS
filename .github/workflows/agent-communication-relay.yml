@@ -95,6 +95,13 @@ jobs:
         run: |
           set -euo pipefail
           case "$WORKFLOW" in
+            council-priority-wake.yml)
+              gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref execution \
+                -f "entry_sha=$ENTRY_SHA" \
+                -f "request_id=president-${{ github.event.comment.id }}" \
+                -f "source_comment_id=${{ github.event.comment.id }}" \
+                -f "question=$COMMENT_BODY"
+              ;;
             ultra-investigator.yml)
               gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref execution -f "expected_sha=$ENTRY_SHA"
               ;;
@@ -121,6 +128,43 @@ jobs:
           set -euo pipefail
           BODY="$(printf '%s\n' "### PRESIDENT WAKE RECEIPT" "" "**Role:** $ROLE" "**Mode:** $MODE" "**Work Package:** $WORKPACKAGE" "**Exact SHA:** $ENTRY_SHA" "" "Wake accepted through the canonical communication relay. Workflow dispatch remains subject to exact-SHA and role controls." "" "<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->")"
           gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
+
+      - name: Detect P0 Council question / request
+        id: council_question
+        if: >-
+          github.event_name == 'issue_comment' &&
+          github.event.issue.number == 759 &&
+          (contains(github.event.comment.body || '', '### COUNCIL QUESTION') ||
+           contains(github.event.comment.body || '', '<!-- FLIXO_COUNCIL_PRIORITY -->'))
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ${#COMMENT_BODY} -le 30000
+          echo 'priority=p0' >> "$GITHUB_OUTPUT"
+          {
+            echo 'question<<EOF'
+            printf '%s\n' "$COMMENT_BODY"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch P0 Council question immediately
+        if: steps.council_question.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          QUESTION: ${{ steps.council_question.outputs.question }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
+          gh workflow run council-priority-wake.yml --repo "$GITHUB_REPOSITORY" --ref execution \
+            -f "entry_sha=$SHA" \
+            -f "request_id=council-question-${COMMENT_ID}" \
+            -f "source_comment_id=$COMMENT_ID" \
+            -f "question=$QUESTION"
 
       - name: Extract and validate incoming message
         id: message
