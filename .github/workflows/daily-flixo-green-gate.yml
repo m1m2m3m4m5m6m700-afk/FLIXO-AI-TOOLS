@@ -27,7 +27,7 @@ permissions:
 # The watcher itself never cancels an evidence-bearing observation.
 concurrency:
   group: flixo-continuous-error-watch-${{ github.event.workflow_run.head_branch || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   watch:
