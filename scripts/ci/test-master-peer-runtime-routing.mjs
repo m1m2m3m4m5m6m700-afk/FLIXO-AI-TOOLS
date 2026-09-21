@@ -6,7 +6,7 @@ const runtime = fs.readFileSync('supabase/functions/flixo-council-runtime/index.
 const relay = fs.readFileSync('.github/workflows/agent-communication-relay.yml', 'utf8');
 const router = fs.readFileSync('scripts/ci/master-peer-communication.mjs', 'utf8');
 
-const escapeRegExp = (value) => String(value).replace(/[.*+?^$\{\}()|[\]\\]/g, '\\$&');
+const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\const escapeRegExp = (value) => String(value).replace(/[.*+?^$\{\}()|[\]\\]/g, '\\$&');');
 
 for (const [master, primary, fallback] of [
   ['MASTER-1', 'CHIEF', 'CHIEF'],
