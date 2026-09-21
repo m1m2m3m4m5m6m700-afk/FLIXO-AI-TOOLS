@@ -219,7 +219,7 @@ jobs:
             fs.writeFileSync('/tmp/flixo-agent-message-skip', 'NO_CANONICAL_AGENT_MESSAGE\\n');
             process.exit(0);
           }
-          const message = JSON.parse(match[1]);
+          const message = JSON.parse(match);
           fs.writeFileSync('message.json', JSON.stringify(message, null, 2) + '\\n');
           if (!message.messageId) throw new Error('AGENT_MESSAGE_ID_MISSING');
           process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
