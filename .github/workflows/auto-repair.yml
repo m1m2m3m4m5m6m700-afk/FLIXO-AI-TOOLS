@@ -74,6 +74,7 @@ env:
   # prompt_source_run_id remains a compatibility input; artifact provenance is resolved from the canonical Green Gate by exact SHA.
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
   # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
+  # ACTION-VAULT-AUTONOMY-MODE: diagnostics/auto-repair/action-vault/ACTION-VAULT-AUTONOMY-MODE.json is canonical admission policy.
   # This workflow is executor-only and must never self-dispatch.
   FLIXO_STRICT_RED_REPAIR: 'true'
   FLIXO_REPAIR_OPERATING_MODE: BOT_FIRST_AUTONOMOUS
