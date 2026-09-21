@@ -51,7 +51,7 @@ if (exists('AGENTS.md')) {
 const taskGatewayMarkers = [
   '# FLIXO-AI-TOOLS — سجل التنفيذ الموحد',
   'TASK-LEDGER v3.0 — GREEN-FIRST / EXECUTABLE',
-  '## 0) MASTER EXECUTION PROMPT',
+  '## 0) CANONICAL UNIFIED EXECUTION PROMPT',
   '## 1) P0 — GREEN-RECOVERY-001',
   'STATUS = IN_PROGRESS / BLOCKING',
   'FINGERPRINT → RCA → REPRODUCE → REPAIR → TARGETED REGRESSION → FULL CI',
@@ -157,16 +157,16 @@ if (registry) {
   if (!Array.isArray(registry.precedence) || registry.precedence.length < 2) fail('PROTOCOL_REGISTRY_PRECEDENCE_INVALID');
   if (!Array.isArray(registry.protocols)) fail('PROTOCOL_REGISTRY_PROTOCOLS_INVALID');
   else {
-    if (registry.protocols.length !== 20) fail('PROTOCOL_REGISTRY_COUNT', String(registry.protocols.length));
+    if (registry.protocols.length !== 21) fail('PROTOCOL_REGISTRY_COUNT', String(registry.protocols.length));
     const ids = registry.protocols.map((p) => p?.id);
     const names = registry.protocols.map((p) => p?.name);
     if (new Set(ids).size !== ids.length) fail('PROTOCOL_REGISTRY_DUPLICATE_IDS');
     if (new Set(names).size !== names.length) fail('PROTOCOL_REGISTRY_DUPLICATE_NAMES');
     for (const protocol of registry.protocols) {
       for (const field of ['id', 'name', 'class', 'status', 'enforcement', 'invariant']) if (typeof protocol?.[field] !== 'string' || !protocol[field].trim()) fail('PROTOCOL_REGISTRY_FIELD_MISSING', `${protocol?.id ?? 'unknown'}.${field}`);
-      if (protocol?.status !== 'MANDATORY') fail('PROTOCOL_REGISTRY_NON_MANDATORY', protocol?.id ?? 'unknown');
+      if (protocol?.id === 'P00') { if (protocol?.status !== 'SUPREME_MANDATORY') fail('PROTOCOL_REGISTRY_NON_MANDATORY', protocol?.id ?? 'unknown'); } else if (protocol?.status !== 'MANDATORY') fail('PROTOCOL_REGISTRY_NON_MANDATORY', protocol?.id ?? 'unknown');
     }
-    const expectedIds = Array.from({ length: 20 }, (_, index) => `P${String(index + 1).padStart(2, '0')}`);
+    const expectedIds = ['P00', ...Array.from({ length: 20 }, (_, index) => `P${String(index + 1).padStart(2, '0')}`)];
     if (JSON.stringify(ids) !== JSON.stringify(expectedIds)) fail('PROTOCOL_REGISTRY_IDS_INVALID');
   }
 }
