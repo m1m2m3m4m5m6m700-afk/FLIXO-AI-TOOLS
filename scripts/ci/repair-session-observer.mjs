@@ -36,8 +36,9 @@ function summarizeRun(run) {
   let jobs;
   try {
     jobs = ghJson(['api', 'repos/' + repo + '/actions/runs/' + run.databaseId + '/jobs?per_page=100']).jobs ?? [];
-  } catch {
+  } catch (error) {
     jobs = [];
+    if (process.env.CI) console.warn(`REPAIR_SESSION_OBSERVER_JOB_LOOKUP_FAILED: ${String(error?.message ?? error)}`);
   }
   const steps = jobs.flatMap(job => (job.steps ?? []).map(step => ({ job: job.name, name: step.name, status: step.status, conclusion: step.conclusion, number: step.number })));
   const failed = steps.filter(step => ['failure', 'timed_out'].includes(step.conclusion));
@@ -56,8 +57,9 @@ let executionSha = targetSha;
 if (!executionSha) {
   try {
     executionSha = String(ghJson(['api', 'repos/' + repo + '/git/ref/heads/execution']).object?.sha ?? '').trim();
-  } catch {
+  } catch (error) {
     executionSha = '';
+    if (process.env.CI) console.warn(`REPAIR_SESSION_OBSERVER_EXECUTION_SHA_LOOKUP_FAILED: ${String(error?.message ?? error)}`);
   }
 }
 const matched = allRuns.filter(run => {
