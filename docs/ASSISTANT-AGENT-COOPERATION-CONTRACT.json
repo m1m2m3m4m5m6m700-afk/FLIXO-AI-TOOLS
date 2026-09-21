@@ -528,7 +528,7 @@
       "systemCognitiveAwareness"
     ],
     "independenceRule": "ACTION-REPAIR-2 and ACTION-HISTORIAN-3 must not impersonate ACTION-REPAIR or reuse its mutation authority.",
-    "verificationRule": "Every participant consumes the same exact-SHA system cognitive awareness packet before role-local reasoning. Broader cognition never expands authority. New evidence forces re-evaluation.",
+    "verificationRule": "Every participant independently consumes the same exact-SHA system cognitive awareness packet before role-local reasoning. Broader cognition never expands authority. New evidence forces re-evaluation.",
     "memoryPromotionRule": "A reusable repair rule requires at least two independently verified successful exact-SHA cases plus one explicit prevention rule; one success never promotes authority.",
     "retryPolicy": "NO_BLIND_RETRY",
     "failedAttemptEscalationThreshold": 20,

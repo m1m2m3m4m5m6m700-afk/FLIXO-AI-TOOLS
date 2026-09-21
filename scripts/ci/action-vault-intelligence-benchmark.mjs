@@ -13,6 +13,7 @@ import { evaluateCertification } from './action-vault-certification.mjs';
 
 const benchmarkVersion='ACTION-VAULT-INTELLIGENCE-BENCHMARK-v1';
 const spec=JSON.parse(fs.readFileSync('diagnostics/auto-repair/action-vault/ACTION-VAULT-INTELLIGENCE-BENCHMARK-v1.json','utf8'));
+const GATE_INTEGRITY_ADVERSARIAL='GATE_INTEGRITY_ADVERSARIAL';
 const sha='a'.repeat(40);
 const fp='benchmark-fingerprint';
 const completeness=Object.fromEntries([
@@ -86,15 +87,26 @@ const runners=new Map([
 ]);
 
 // Direct protocol checks ensure the benchmark rejects unsafe states even when sub-gates are bypassed.
-assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifier,mutationRecommendation:'MAYBE'},targetSHA:sha,failureFingerprint:fp}));
-assert.throws(()=>validateActionVaultPreMutationProofs({
-  sandboxProof:{protocol:'REPAIR-SANDBOX-SIMULATION-PROOF-v2',status:'PASS',ok:true,targetSha:sha,failureFingerprint:fp,exactShaBound:true,mutationPerformed:false,patchDigest:'x',regressionCounterexamples:{exhausted:true,counterexampleFound:false}},
-  differentialProof:{protocol:'DIFFERENTIAL-REPAIR-PROOF-v1',status:'BLOCK',targetSha:sha,behavioralVerification:{ok:false},exactShaBound:true,scopeProof:false},
-  patchCorrectnessProof:{protocol:'PATCH-CORRECTNESS-PROOF-v1',status:'BLOCK',targetSha:sha,failureFingerprint:fp,sourceMutationAllowed:false},
-  targetSHA:sha,failureFingerprint:fp
-}));
-assert.throws(()=>validateErrorOnlyMutation({failureLocation:'src/example.ts',selectedFile:'tests/example.spec.ts',changedPaths:['tests/example.spec.ts']}));
-assert.throws(()=>assertAgentAdmission({actor:'diagnosticAgent',branch:'execution',mutation:true}));
+const blockedCaseDefinitions=[
+  ['invalid mutation recommendation',()=>validateActionVaultVerifierProof({proof:{...verifier,mutationRecommendation:'MAYBE'},targetSHA:sha,failureFingerprint:fp})],
+  ['pre-mutation differential block',()=>validateActionVaultPreMutationProofs({
+    sandboxProof:{protocol:'REPAIR-SANDBOX-SIMULATION-PROOF-v2',status:'PASS',ok:true,targetSha:sha,failureFingerprint:fp,exactShaBound:true,mutationPerformed:false,patchDigest:'x',regressionCounterexamples:{exhausted:true,counterexampleFound:false}},
+    differentialProof:{protocol:'DIFFERENTIAL-REPAIR-PROOF-v1',status:'BLOCK',targetSha:sha,behavioralVerification:{ok:false},exactShaBound:true,scopeProof:false},
+    patchCorrectnessProof:{protocol:'PATCH-CORRECTNESS-PROOF-v1',status:'BLOCK',targetSha:sha,failureFingerprint:fp,sourceMutationAllowed:false},
+    targetSHA:sha,failureFingerprint:fp
+  })],
+  ['test-only mutation',()=>validateErrorOnlyMutation({failureLocation:'src/example.ts',selectedFile:'tests/example.spec.ts',changedPaths:['tests/example.spec.ts']})],
+  ['diagnostic mutation admission',()=>assertAgentAdmission({actor:'diagnosticAgent',branch:'execution',mutation:true})],
+  ['control-plane mutation',()=>{
+    if(evaluateMutationGate({...base,mutationScope:{...base.mutationScope,controlPlaneMutation:true}}).status!=='BLOCK') throw new Error('CONTROL_PLANE_MUTATION_NOT_BLOCKED');
+  }]
+];
+const blockedCases=blockedCaseDefinitions.map(([name,test])=>{
+  try{assert.throws(test);return {name,blocked:true};}
+  catch{return {name,blocked:false};}
+});
+assert.equal(blockedCases.length,5);
+assert.equal(blockedCases.every(item=>item.blocked),true);
 
 const results=spec.cases.map(c=>{
   const result=run(c.name,()=>runners.get(c.id)());
@@ -110,10 +122,13 @@ for(const [category,weight] of Object.entries(spec.categoryWeights)){
 const score=Number(Object.values(categoryResults).reduce((n,c)=>n+c.earned,0).toFixed(2));
 const report={
  schemaVersion:1,benchmarkVersion,cases:results,categoryResults,
+ gateIntegrityAdversarial:GATE_INTEGRITY_ADVERSARIAL,
+ blockedCases,
+ gateIntegrityPass:blockedCases.length===5 && blockedCases.every(item=>item.blocked),
  weightTotal:Object.values(spec.categoryWeights).reduce((n,v)=>n+Number(v),0),
  score,allCasesPass:results.every(c=>c.passed),allCategoriesPass:Object.values(categoryResults).every(c=>c.passed),
  noSkippedTests:true,generatedAt:new Date().toISOString()
 };
 fs.writeFileSync('/tmp/action-vault-intelligence-benchmark.json',JSON.stringify(report,null,2)+'\n');
 console.log(JSON.stringify(report,null,2));
-if(!report.allCasesPass||!report.allCategoriesPass||score!==100)process.exit(1);
+if(!report.allCasesPass||!report.allCategoriesPass||score!==100||!report.gateIntegrityPass)process.exit(1);
