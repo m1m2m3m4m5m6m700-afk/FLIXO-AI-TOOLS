@@ -159,15 +159,21 @@ export function validateExecutionBoundaries(profiles) {
     err(errors, 'SECONDARY_PREDICTION_CONTRACT_WEAK');
   }
 
-  if (historian?.mutationAuthority !== 'ADMITTED_SEAT' ||
-      historian?.canMutateSource !== 'WHEN_SELECTED_OWNER' ||
-      historian?.canDispatchRepair !== true ||
-      historian?.executionAuthority !== 'MUTATE_WHEN_ADMITTED' ||
-      historian?.executionBoundary?.sourceMutation !== 'WHEN_SELECTED_OWNER' ||
-      historian?.executionBoundary?.testMutation !== false) {
-    err(errors, 'HISTORIAN_MUTATION_BOUNDARY_WEAK');
+  const historianSelectedOwner = historian?.mutationAuthority === 'ADMITTED_SEAT' &&
+    historian?.canMutateSource === 'WHEN_SELECTED_OWNER' &&
+    historian?.canDispatchRepair === true &&
+    historian?.executionAuthority === 'MUTATE_WHEN_ADMITTED' &&
+    historian?.executionBoundary?.sourceMutation === 'WHEN_SELECTED_OWNER' &&
+    historian?.executionBoundary?.testMutation === false;
+  const historianSupervisor20 = historian?.mutationAuthority === 'SUPERVISOR_20_ONLY' &&
+    historian?.canMutateSource === 'SUPERVISOR_20_ONLY' &&
+    historian?.executionAuthority === 'MUTATE_WHEN_SUPERVISOR_20' &&
+    historian?.executionBoundary?.sourceMutation === 'SUPERVISOR_20_ONLY' &&
+    historian?.executionBoundary?.testMutation === false;
+  if (!historianSelectedOwner && !historianSupervisor20) err(errors, 'HISTORIAN_MUTATION_BOUNDARY_WEAK');
+  if (!['EXECUTION_SOURCE_WHEN_SELECTED_OWNER', 'EXECUTION_SOURCE_AFTER_SUPERVISOR_20'].includes(historian?.repositoryWriteScope)) {
+    err(errors, 'HISTORIAN_WRITE_SCOPE_TOO_BROAD');
   }
-  if (historian?.repositoryWriteScope !== 'EXECUTION_SOURCE_WHEN_SELECTED_OWNER') err(errors, 'HISTORIAN_WRITE_SCOPE_TOO_BROAD');
   return errors;
 }
 
