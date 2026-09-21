@@ -346,7 +346,7 @@ const missing = evaluateGreen({
   workflowRuns: requiredRuns.slice(1), checkRuns: securityAndCertification,
   compare: { ahead_by: 1, behind_by: 0 },
 });
-assert.equal(missing.status, 'FAIL_CLOSED');
+assert.equal(missing.status, 'WAITING_REQUIRED_CHECKS');
 
 const stale = evaluateGreen({
   executionSha: SHA_B, mainSha: SHA_B, openPr,
