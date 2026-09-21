@@ -5,6 +5,8 @@ import { resolveIntent } from '@/lib/intent/resolver';
 import type { IntentMatch } from '@/lib/workflows/types';
 import { extractParameters, type ExtractedOperation, type ExtractionResult } from '@/lib/agent/intent/parameter-extractor';
 import { TOOLS_REGISTRY } from '@/config/tools';
+import { TOOL_CATALOG } from '@/config/registry';
+import type { ExecutionPlan } from '@/lib/ai/planner';
 
 export const INTENT_PLAN_VERSION = 1 as const;
 export const INTENT_PLAN_MAX_STEPS = 4;
@@ -304,4 +306,15 @@ export function buildIntentPlan(
     'Plan validated against the canonical capability registry and is waiting for explicit confirmation.',
     identity,
   );
+}
+
+
+export function toExecutionPlan(plan: IntentPlan): ExecutionPlan | null {
+  if (plan.status !== 'READY' || !plan.confirmationRequired || plan.steps.length === 0) return null;
+  return {
+    workflowName: plan.steps.length > 1 ? 'FLIXO QuickFlow' : 'FLIXO Direct Tool',
+    confidence: plan.steps.length > 1 ? 0.95 : plan.intent.confidence,
+    catalogFingerprint: TOOL_CATALOG.fingerprint,
+    steps: plan.steps.map((step) => ({ toolId: step.toolId, params: step.params })),
+  };
 }

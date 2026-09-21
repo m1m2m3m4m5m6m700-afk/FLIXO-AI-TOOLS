@@ -2,6 +2,8 @@ export const COUNCIL_DIRECTIVE_VERSION = '1.0.0';
 
 export const COUNCIL_DIRECTIVE = Object.freeze({
   version: COUNCIL_DIRECTIVE_VERSION,
+  councilPriority: 'P0',
+  councilPreemption: 'SAFE_BOUNDARY',
   sourceOfWork: 'المهام.md',
   integrationLane: 'execution -> main',
   sourceOfTruth: 'main',
@@ -13,6 +15,7 @@ export const COUNCIL_DIRECTIVE = Object.freeze({
   thirdBranchAllowed: false,
   branchCreationAllowed: false,
   taskRegistryCount: 1,
+  councilOperationsAreP0: true,
   repeatedRedRequiresNewStrategyOrEvidence: true,
   focusWithoutFreeze: 'stay focused on the assigned work package; do not enter FREEZE merely because execution is long or pressured; freeze only on stale/conflicting evidence, missing authority, unsafe scope, or required external blocker',
   requiredRepairCycle: Object.freeze(['fingerprint','RCA','root-fix','targeted-regression','related-regression','protected-regression','required-CI','exact-SHA-verification','handoff','learning']),
@@ -49,6 +52,7 @@ export function assertCouncilDirective(directive = COUNCIL_DIRECTIVE) {
   if (directive.greenAuthority !== 'Daily·FLIXO Green Gate' || directive.exactShaRequired !== true) throw new Error('COUNCIL_DIRECTIVE_GREEN_AUTHORITY_INVALID');
   if (directive.llmDirectExecution !== false || directive.thirdBranchAllowed !== false || directive.branchCreationAllowed !== false) throw new Error('COUNCIL_DIRECTIVE_EXECUTION_BOUNDARY_INVALID');
   if (directive.taskRegistryCount !== 1 || directive.repeatedRedRequiresNewStrategyOrEvidence !== true) throw new Error('COUNCIL_DIRECTIVE_COORDINATION_INVALID');
+  if (directive.councilPriority !== 'P0' || directive.councilPreemption !== 'SAFE_BOUNDARY' || directive.councilOperationsAreP0 !== true) throw new Error('COUNCIL_DIRECTIVE_PRIORITY_INVALID');
   if (directive.liveness?.protocol !== 'AGENT_LIVENESS_PROTOCOL' || directive.liveness?.forbiddenStates?.includes('SLEEP') !== true || directive.liveness?.staleAction !== 'RECOVER_AND_CONTINUE') throw new Error('COUNCIL_DIRECTIVE_LIVENESS_INVALID');
   return true;
 }

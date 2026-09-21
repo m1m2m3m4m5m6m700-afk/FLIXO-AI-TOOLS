@@ -63,7 +63,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout trusted intake gateway
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: main
           fetch-depth: 1
@@ -79,6 +79,23 @@ jobs:
           set -euo pipefail
           RUN_ID="$EVENT_RUN_ID"
           if [ -n "$INPUT_RUN_ID" ]; then RUN_ID="$INPUT_RUN_ID"; fi
+          if [ -z "$RUN_ID" ] && [ "${{ github.event_name }}" = "schedule" ]; then
+            echo 'INTAKE_SCHEDULE_RESCUE_MODE=true'
+            RUN_ID="$(gh run list               --repo "$GITHUB_REPOSITORY"               --limit 100               --json databaseId,name,conclusion,headSha,headBranch,createdAt               | jq -r '
+                [ .[]
+                  | select(.headBranch == "execution" or .headBranch == "main")
+                  | select(.name != "FLIXO Repair Agent — Error Intake Gateway")
+                  | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required")
+                ]
+                | sort_by(.createdAt)
+                | last.databaseId // empty
+              ')"
+            if [ -z "$RUN_ID" ]; then
+              echo 'SCHEDULE_RESCUE_NO_ACTIONABLE_RUN=true'
+              exit 0
+            fi
+            echo "SCHEDULE_RESCUE_RUN_ID=$RUN_ID"
+          fi
           test -n "$RUN_ID"
           META="$(gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,name,conclusion,headSha,headBranch,status,updatedAt)"
           CONCLUSION="$(jq -r '.conclusion // empty' <<<"$META")"
@@ -132,13 +149,13 @@ jobs:
             exit 0
           fi
           jq -r '.issueComment' /tmp/repair-agent-intake/output.json > /tmp/repair-agent-intake/comment.md
-          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body-file /tmp/repair-agent-intake/comment.md
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$(cat /tmp/repair-agent-intake/comment.md)" >/dev/null
           echo 'REPAIR_AGENT_ERROR_DELIVERED_TO_COUNCIL=true'
           echo 'OTHER_AGENTS_LOG_POLLING_REQUIRED=false'
 
       - name: Preserve central intake evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-repair-agent-incident-${{ github.run_id }}
           path: /tmp/repair-agent-intake

@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "id": "ACTION-VAULT-AUTONOMY-MODE",
+  "authority": "ACTION_VAULT_AUTONOMOUS_OPERATING_CONTRACT",
+  "mode": "BOT_FIRST_AUTONOMOUS",
+  "objective": "جعل وكلاء Action Vault هم المشغل الأساسي لدورات RED الروتينية من التشخيص حتى الإصلاح والتحقق والتعلم، دون الحاجة إلى تدخل بشري في الخطوات الروتينية، مع إبقاء حدود الأمان والتصديق خارج صلاحيتهم.",
+  "defaultExecutor": "ACTION-REPAIR",
+  "requiredCollaborators": [
+    "ACTION-REPAIR-2",
+    "ACTION-HISTORIAN-3"
+  ],
+  "dispatchAuthority": "DAILY_FLIXO_GREEN_GATE",
+  "certificationAuthority": "DAILY_FLIXO_GREEN_GATE",
+  "routineHumanApprovalRequired": false,
+  "criticalHumanAuthorizationRequired": true,
+  "autonomyScope": {
+    "allowed": [
+      "RED intake",
+      "RCA",
+      "historical search",
+      "adversarial challenge",
+      "sandbox simulation",
+      "bounded source repair",
+      "targeted regression",
+      "learning capture",
+      "handoff",
+      "recovery",
+      "branch conflict recovery",
+      "execution-head requalification",
+      "same-mission continuation"
+    ],
+    "prohibited": [
+      "main mutation",
+      "test mutation",
+      "gate weakening",
+      "self-certification",
+      "permission grants",
+      "critical irreversible policy changes",
+      "bypassing canonical GREEN"
+    ]
+  },
+  "executionContract": {
+    "branch": "execution",
+    "oneActiveMutationOwner": true,
+    "exactShaRequired": true,
+    "verifierRequiredBeforeMutation": true,
+    "targetedRegressionRequired": true,
+    "canonicalGreenRequiredForClosure": true,
+    "nonGreenCycleRemainsOpen": true,
+    "nonGreenLearningEphemeral": true,
+    "noBlindRetry": true,
+    "conflictRecoveryRequired": true,
+    "conflictRecoveryOnExecutionAdvance": true,
+    "sameMissionContinuation": true,
+    "noConflictWithdrawal": true
+  },
+  "failureBehavior": {
+    "unavailableBot": "ESCALATE_AND_KEEP_MISSION_OPEN",
+    "staleSha": "PAUSE_REQUALIFY_CONTINUE_SAME_MISSION",
+    "conflictingEvidence": "PAUSE_CHALLENGE_REQUALIFY_CONTINUE_SAME_MISSION",
+    "externalFailure": "CLASSIFY_EXTERNAL_NO_SOURCE_MUTATION",
+    "criticalPath": "STOP_AND_REQUIRE_HUMAN_AUTHORIZATION",
+    "branchConflict": "PAUSE_MUTATION_REQUALIFY_CURRENT_HEAD_REAPPLY_OR_REGENERATE_REPAIR_REVERIFY_CONTINUE_SAME_MISSION",
+    "executionHeadMoved": "REQUALIFY_CURRENT_HEAD_AND_CONTINUE_SAME_MISSION",
+    "conflictRecovery": "IN_PLACE_ONLY",
+    "conflictRecoveryNever": "SURRENDER_OWNER_OR_CLOSE_MISSION"
+  },
+  "trustBoundary": {
+    "botMayOperateRoutinelyWithoutHuman": true,
+    "botMayCertify": false,
+    "botMayPromoteWithoutGreen": false,
+    "botMayGrantPermissions": false,
+    "botMayWriteMain": false,
+    "botMayModifyTests": false
+  },
+  "activation": "This mode is active only when the canonical Action Vault contracts and agent gate are valid; it does not bypass trust graduation or canonical CI proof.",
+  "revalidationTriggers": [
+    "governance drift",
+    "mutation boundary change",
+    "certification authority change",
+    "false-green incident",
+    "strategy revocation",
+    "repeated no-progress RED"
+  ],
+  "monitoring": {
+    "canonicalWakeWorkflow": ".github/workflows/daily-flixo-green-gate.yml",
+    "wakeEveryMinutes": 5,
+    "cron": "*/5 * * * *",
+    "action": "OBSERVE_STATE_DETECT_RED_WAKE_OR_CONTINUE_REPAIR",
+    "exactShaBound": true,
+    "noPassiveSleep": true,
+    "heartbeatWorkflow": ".github/workflows/agent-repair-heartbeat.yml",
+    "wakeComplianceScript": "scripts/ci/wake-compliance.mjs",
+    "wakeComplianceTest": "scripts/ci/test-wake-compliance.mjs",
+    "allowedGapMs": 420000
+  }
+}

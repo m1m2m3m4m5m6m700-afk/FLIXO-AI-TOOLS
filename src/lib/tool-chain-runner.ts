@@ -1,5 +1,13 @@
-import type { ChainInput, ChainOutput } from './tool-chain-adapters';
+import { createTaskContext, transitionTask, type TaskContext } from './agent/task-state';
+import { executeToolChain, getToolChainAdapter, type ChainInput, type ChainOutput } from './tool-chain-adapters';
 import { validateToolChain } from './tool-chain-compatibility';
+
+const createConfirmedChainTask = (): TaskContext => {
+  let task = createTaskContext();
+  task = transitionTask(task, 'PLANNED');
+  task = transitionTask(task, 'AWAITING_CONFIRMATION');
+  return transitionTask(task, 'EXECUTING');
+};
 
 export async function runStoredToolChain(
   steps: readonly string[],
@@ -9,19 +17,12 @@ export async function runStoredToolChain(
   const validation = validateToolChain(steps, input);
   if (!validation.valid) throw new Error(validation.reason ?? 'Tool chain is not compatible.');
 
-  const { executeToolChain, getToolChainAdapter } = await import('./tool-chain-adapters');
   for (const toolId of steps) {
     if (!getToolChainAdapter(toolId)) {
-      throw new Error(`Tool "${toolId}" has no local chain adapter.`);
+      throw new Error('Tool "' + toolId + '" has no local chain adapter.');
     }
   }
 
-  let current = input;
-  for (let index = 0; index < steps.length; index += 1) {
-    const toolId = steps[index];
-    onStep?.(index, steps.length, toolId);
-    current = await executeToolChain([toolId], current);
-  }
-  onStep?.(steps.length, steps.length, steps[steps.length - 1]);
-  return current;
+  const task = createConfirmedChainTask();
+  return executeToolChain(steps, input, task, onStep);
 }

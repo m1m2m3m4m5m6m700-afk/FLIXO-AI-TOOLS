@@ -1,0 +1,350 @@
+{
+  "schemaVersion": 4,
+  "authority": "ACTION_REPAIR_BOT_PERSONAL_MEMORY",
+  "botId": "ACTION-REPAIR",
+  "displayName": "بوت إصلاح Actions",
+  "copyable": true,
+  "transferableKnowledgeOnly": true,
+  "permanentIndependentAuthority": false,
+  "independentDevelopment": true,
+  "role": "PROGRAMMER_DEFENSE_SEAT",
+  "protocolActor": "actionRepairBot",
+  "mission": "الوكيل البرمجي الرئيسي: يفكر كمبرمج، يقرأ الكود ويحلل السبب الجذري ويصوغ ويطبق أصغر إصلاح مصدر لازم، ثم يمرر كل شيء إلى Canonical CI.",
+  "state": {
+    "status": "READY",
+    "taskCount": 0,
+    "lastTaskId": null,
+    "lastUpdatedAt": "2026-09-20T00:00:00Z"
+  },
+  "headquarters": {
+    "actionIndex": "docs/agents/historical-action-errors/index.json",
+    "actionRecords": "docs/agents/historical-action-errors/records",
+    "repairMemory": "diagnostics/auto-repair/memory.json",
+    "teachingRouter": "docs/agents/ERROR-TEACHING-ROUTER.json",
+    "repairKnowledge": "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+    "actionHistory": "docs/agents/ACTION-ERROR-HISTORY.md"
+  },
+  "selfSearch": {
+    "enabled": true,
+    "requiredBeforeMutation": true,
+    "engine": "scripts/ci/historical-action-error-index.mjs",
+    "currentLog": true,
+    "historicalCorpus": true
+  },
+  "valuableKnowledge": {
+    "historicalCorpus": {
+      "uniqueRecords": 2,
+      "errorOccurrences": 2,
+      "scannedRuns": 1,
+      "failedRuns": 1
+    },
+    "repairMemoryCases": 19,
+    "historicalRunIdsReferenced": 47,
+    "teachingRules": 5000,
+    "provenRules": [
+      "evidence-first-reasoning",
+      "exact-source-location",
+      "external-provider-isolation",
+      "proof-gated-historical-rollback",
+      "block-reverted-rule-repetition",
+      "cross-fingerprint-generalization",
+      "supervised-cycle-continuation",
+      "reject-stale-failure-targets",
+      "isolate-agent-diagnostics",
+      "deterministic-finding-fingerprint",
+      "self-test-before-mutation",
+      "fresh-exact-sha-scout",
+      "block-preflight-recursion",
+      "gh-cli-json-jq-contract",
+      "regex-contract-escape-discipline",
+      "canonical-registry-symmetry",
+      "primary-red-before-secondary-certification"
+    ],
+    "antiLessons": [
+      "Never mutate source for external provider/model failures.",
+      "Never reuse a reverted rule without new verified evidence.",
+      "Never target a stale failed run SHA.",
+      "Never close an actionable RED because one targeted test passed.",
+      "Never weaken a gate or mutate test files to obtain GREEN."
+    ]
+  },
+  "executionContract": {
+    "mutationBranch": "execution",
+    "mutationScope": "ERROR_ONLY",
+    "canMutateMain": false,
+    "canMutateTests": false,
+    "protectedControlPlane": false,
+    "exactShaRequired": true,
+    "reproduceBeforeMutation": true,
+    "targetedRegressionRequired": true,
+    "canonicalGreenRequired": true,
+    "continuousRedUntilGreen": true,
+    "maxAttemptsPerFingerprint": 2000000
+  },
+  "knowledgeFlow": [
+    "CURRENT_ACTION_RED",
+    "CAPTURE_EXACT_FAILURE_LOG",
+    "SELF_SEARCH_CURRENT_LOG_AND_HISTORICAL_INDEX",
+    "COMPARE_CASES_LESSONS_ANTI_LESSONS_PLAYBOOKS",
+    "USE_TWIN_A_TWIN_B_AS_ADVERSARIAL_EVIDENCE",
+    "BUILD_OR_SELECT_BOUNDED_REPAIR_HYPOTHESIS",
+    "REPRODUCE_EXACT_FAILURE",
+    "MUTATE_ONLY_DIAGNOSED_SOURCE_LOCATION",
+    "RUN_TARGETED_REGRESSION",
+    "RESUME_REQUIRED_CHECKS",
+    "CANONICAL_GREEN",
+    "STORE_VERIFIED_SOLUTION_AND_PREVENTION_RULE"
+  ],
+  "currentHistoricalActionSignals": [
+    {
+      "id": "HAE-7df3741a26b08c90c31b8bae",
+      "class": "generic-failure",
+      "workflow": "FLIXO WP0 Trust Baseline",
+      "signal": "CI/CD TRUST FAILURE: CD manual promotion guard is missing"
+    },
+    {
+      "id": "HAE-54f69395e5e880912b8d8ac7",
+      "class": "provider-deployment",
+      "workflow": "Deploy",
+      "signal": "You defined \"--token\", but it's missing a value"
+    }
+  ],
+  "note": "هذه ذاكرة تشغيلية/تعلمية وليست سلطة إثبات. لا تُعتبر أي قاعدة صحيحة للحالة الحالية إلا بعد exact-SHA reproduction + targeted regression + Canonical CI.",
+  "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
+  "cooperationRole": "PRIMARY_PROGRAMMING_REPAIR_OWNER",
+  "cooperationMode": "MANDATORY_SHARED_MISSION_ON_RED",
+  "sharedCapabilities": "ACTION-THREE-BOT-INTELLIGENCE",
+  "requiredCollaborators": [
+    "ACTION-REPAIR-2",
+    "ACTION-HISTORIAN-3"
+  ],
+  "collaborationContract": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
+  "sharedMissionRequires": [
+    "sameTaskId",
+    "sameFailureFingerprint",
+    "sameTargetSha",
+    "sameFailedRunId"
+  ],
+  "executionBoundary": {
+    "singleActiveRepairOwner": true,
+    "canMutateWhenOwner": true,
+    "canMutateTests": false,
+    "canMutateMain": false,
+    "canonicalGreen": "DAILY_FLIXO_GREEN_GATE",
+    "sourceMutation": "WHEN_SELECTED_OWNER"
+  },
+  "agentGrade": {
+    "lifecycle": "READY",
+    "shortName": "ACTR",
+    "upgradeNumber": 6,
+    "upgradePriority": 95,
+    "nextUpgrade": {
+      "id": "ACTR-U5",
+      "weakness": "SYSTEMIC_CAUSAL_OBSERVABILITY_AND_META_ROOT_DETECTION",
+      "mission": "النزول تحت السبب الجذري إلى جذور النظام: هوية الدليل، الزمن، السلطة، حدود التأثير، ثبات حلقة التعلم، وترتيب السببية؛ وإيقاف الطفرة عندما تنهار قابلية المراقبة السببية",
+      "promotionProof": "META_CAUSAL_OBSERVABILITY_PLUS_SYSTEMIC_ROOT_DETECTION_PLUS_CAUSAL_DISCRIMINATOR_PLUS_EXACT_SHA_PLUS_CANONICAL_CI"
+    }
+  },
+  "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
+  "residencyState": "RESIDENT_ALWAYS",
+  "maxOperationsPerBot": 2000000,
+  "dailyAutomaticVisits": {
+    "visitsPerDay": 3,
+    "totalForCoreSquad": 9,
+    "automatic": true
+  },
+  "closurePolicy": "CANONICAL_GREEN_ONLY",
+  "escalationAfterFailedAttempts": 20,
+  "supervisorEscalationRoute": "scripts/ci/agent-communication.mjs -> .github/workflows/agent-communication-relay.yml -> assistantController",
+  "cooperationOnRed": {
+    "enabled": true,
+    "participants": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ],
+    "sameTask": true,
+    "sameFingerprint": true,
+    "sameSha": true
+  },
+  "agentRuntime": {
+    "protocol": "ACTION-AGENT-RUNTIME-v2",
+    "modelProfile": "ACTION_FRONTIER_REPAIR_V2",
+    "reasoningEffort": "MAXIMUM",
+    "cognitiveLoop": [
+      "INTAKE",
+      "CONTEXT_RETRIEVAL",
+      "PLAN",
+      "SYNTHESIZE",
+      "SIMULATE",
+      "EXECUTE",
+      "SELF_CHECK",
+      "INDEPENDENT_REVIEW",
+      "DIFFERENTIAL_VERIFY",
+      "VERIFY",
+      "LEARN"
+    ],
+    "historicalActivity": "docs/agents/historical-action-errors/agent-activity",
+    "runtime": "scripts/ci/action-agent-runtime.mjs",
+    "activityLedger": "scripts/ci/action-agent-history.mjs",
+    "toolBudget": 60,
+    "selfCritique": true,
+    "independentReview": true,
+    "structuredOutput": true,
+    "failClosed": true,
+    "noSelfApproval": true,
+    "roleMission": "PROGRAMMER_THINKING_AND_SOURCE_REPAIR",
+    "reasoningModes": [
+      "CODE_REASONING",
+      "AST_REVIEW",
+      "ROOT_CAUSE",
+      "MINIMAL_PATCH",
+      "REGRESSION_DESIGN",
+      "SELF_CRITIQUE",
+      "VERIFICATION",
+      "SEMANTIC_CODE_GRAPH",
+      "IMPACT_ANALYSIS",
+      "PATCH_RISK_REVIEW",
+      "REGRESSION_PREDICTION",
+      "PATCH_SYNTHESIS",
+      "SANDBOX_SIMULATION",
+      "DIFFERENTIAL_VERIFICATION",
+      "TRANSACTIONAL_REPAIR",
+      "COUNTERFACTUAL_PATCH_REVIEW",
+      "META_CAUSAL_ANALYSIS",
+      "CAUSAL_OBSERVABILITY",
+      "CAUSAL_DISCRIMINATION",
+      "HYPOTHESIS_SEPARATION",
+      "EVIDENCE_MARGIN_SELECTION"
+    ]
+  },
+  "subAgents": {
+    "codeMentor": {
+      "id": "ACTION-CODE-MENTOR",
+      "role": "PROGRAMMING_TEACHER_SUBAGENT",
+      "profile": "diagnostics/auto-repair/action-vault/ACTION-CODE-MENTOR.json",
+      "runtime": "scripts/ci/action-code-mentor.mjs",
+      "readOnly": true,
+      "independentAuthority": false,
+      "requiredBeforeMutation": true,
+      "requiredDuringSelfCheck": true,
+      "exactShaRequired": true,
+      "teaches": [
+        "CODE_READING",
+        "TYPESCRIPT_REASONING",
+        "NODE_RUNTIME_REASONING",
+        "GITHUB_ACTIONS_YAML_REVIEW",
+        "MINIMAL_CHANGE_TEACHING",
+        "REGRESSION_TEACHING",
+        "ANTI_PATTERN_DETECTION"
+      ],
+      "learners": [
+        "ACTION-REPAIR",
+        "ACTION-REPAIR-2",
+        "ACTION-HISTORIAN-3"
+      ],
+      "promotionOnlyAfterCanonicalGreen": true,
+      "output": "diagnostics/auto-repair/action-vault/code-mentor/latest-packet.json",
+      "verifiedLessons": "diagnostics/auto-repair/action-vault/code-mentor/lessons.ndjson"
+    },
+    "metaCausalModel": {
+      "protocol": "META-CAUSAL-MODEL-v1",
+      "runtime": "scripts/ci/meta-causal-model.mjs",
+      "invariant": "The repair system must preserve trustworthy causal observability while evidence, authority, time, boundaries and learning remain coherent.",
+      "requiredBeforeMutation": true,
+      "strictIdentityAtRuntime": true,
+      "failClosedOnSystemicIncoherence": true,
+      "governingRoots": [
+        "CAUSAL-OBSERVABILITY-LOSS",
+        "TEMPORAL-IDENTITY-COLLAPSE",
+        "AUTHORITY-TOPOLOGY-COLLAPSE",
+        "BOUNDARY-CONTAMINATION",
+        "FEEDBACK-LEARNING-LOOP-FAILURE",
+        "CAUSAL-CONTROL-PLANE-INCOHERENCE"
+      ]
+    },
+    "causalDiscriminator": {
+      "protocol": "CAUSAL-DISCRIMINATOR-v1",
+      "runtime": "scripts/ci/action-causal-discriminator.mjs",
+      "requiredBeforeMutation": true,
+      "historicalRejectionPenalty": true,
+      "probeSuite": true,
+      "minimumSelectionMargin": 0.08,
+      "ambiguousMeansNoMutation": true,
+      "exactShaBound": true
+    },
+    "repairEngineering": {
+      "id": "ACTION-REPAIR-ENGINEERING",
+      "role": "PATCH_SYNTHESIS_SANDBOX_AND_DIFFERENTIAL_SUBAGENT",
+      "planner": "scripts/ci/action-repair-engineering.mjs",
+      "patchSynthesis": "scripts/ci/action-patch-synthesis.mjs",
+      "sandbox": "scripts/ci/action-repair-sandbox.mjs",
+      "differentialVerifier": "scripts/ci/action-differential-verifier.mjs",
+      "readOnlyDuringPlanning": true,
+      "mutationDuringSimulation": false,
+      "exactShaRequired": true,
+      "canonicalGreenRequired": true,
+      "ownerOnly": "ACTION-REPAIR"
+    }
+  },
+  "softwareEngineerCore": {
+    "id": "LOCAL-SOFTWARE-ENGINEER-CORE",
+    "runtime": "scripts/ci/action-software-engineer-core.mjs",
+    "protocol": "LOCAL_SOFTWARE_ENGINEER_CORE_V1",
+    "mode": "DEEP",
+    "readOnly": true,
+    "requiredBeforeMutation": true,
+    "requiredDuringSelfCheck": true,
+    "output": "diagnostics/auto-repair/action-vault/software-engineer-core/latest.json"
+  },
+  "executionAuthority": "MUTATE_WHEN_ADMITTED",
+  "mutationAuthority": "ADMITTED_SEAT",
+  "knowledgeMutation": {
+    "enabled": true,
+    "canAdd": true,
+    "canModify": true,
+    "scope": "ACTION_VAULT_REPAIR_KNOWLEDGE",
+    "exactShaRequired": true,
+    "promotion": "CANONICAL_GREEN_ONLY"
+  },
+  "canAddKnowledge": true,
+  "canModifyKnowledge": true,
+  "repositoryWriteScope": "EXECUTION_SOURCE_WHEN_SELECTED_OWNER",
+  "mutationScope": "ERROR_ONLY",
+  "diagnosisKnowledgeReview": {
+    "enabled": true,
+    "reviewer": "ACTION-HISTORIAN-3",
+    "requiredBeforeMutation": true,
+    "decisions": [
+      "MATCH",
+      "MISMATCH",
+      "INCONCLUSIVE"
+    ],
+    "mismatchBlocksMutation": true,
+    "inconclusiveBlocksMutation": true
+  },
+  "requiredBeforeSourceMutation": [
+    "ACTION-HISTORIAN-3:DIAGNOSIS_KNOWLEDGE_MATCH",
+    "ACTION-REPAIR-2:ADVERSARIAL_FALSIFICATION"
+  ],
+  "canonicalVaultProtocolMirror": {
+    "protocolId": "ACTION-VAULT-CANONICAL-BOT-PROTOCOL-v1",
+    "sourcePath": "docs/AGENT-COLLABORATION-PROTOCOL.md",
+    "copyPolicy": "EXACT_CANONICAL_BLOCK",
+    "requiredRead": true,
+    "content": "<!-- ACTION_VAULT_CANONICAL_PROTOCOL_START -->\n# ACTION VAULT — CANONICAL BOT PROTOCOL v1\n\n**Protocol ID:** ACTION-VAULT-CANONICAL-BOT-PROTOCOL-v1\n**MASTER COPY:** `docs/AGENT-COLLABORATION-PROTOCOL.md`\n**MIRRORS:** Action Vault protocol file + each resident bot work file\n**RULE:** Every mirror must be byte-for-byte identical to this canonical block. A mismatch is a fail-closed protocol violation.\n\n## Mission\nThe Action Vault is the intensive repair environment for `ACTION-REPAIR`, `ACTION-REPAIR-2`, and `ACTION-HISTORIAN-3`.\n\nCanonical knowledge index:\n`diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json`\n\nThe current index is the existing teaching mirror and may grow toward the declared 1,000,000-record capacity. The canonical path and identity are preserved.\n\n## Mandatory reading\nBefore analysis, repair, knowledge write/edit, escalation, handoff, or closure, every Vault bot MUST read this protocol from its own mirror and verify that the mirror is identical to the MASTER COPY.\n\nRequired lifecycle:\n`MASTER COPY` → `BOT MIRROR READ` → `EXACT SHA` → `FAILURE IDENTITY` → `INDEX SEARCH` → `TRIAD REVIEW` → `REPAIR OR ESCALATE`\n\nMissing or mismatched protocol = FAIL CLOSED.\n\n## Bot authority\nAll three resident bots have intensive repair authority within the bounded Vault scope.\n\n`ACTION-REPAIR`: constructive programmer; may add/edit repair knowledge; may become the single active source-repair owner after admission.\n\n`ACTION-REPAIR-2`: adversarial programmer; may add/edit repair knowledge; must challenge the primary diagnosis and search for counterexamples; may become the single active source-repair owner after admission.\n\n`ACTION-HISTORIAN-3`: master knowledge/index custodian and diagnosis-to-knowledge judge; may ADD and EDIT the canonical Action Vault index; records every RED, attempt, repaired outcome and unresolved failure; decides whether programming diagnosis matches textual knowledge; may become the single active source-repair owner after admission.\n\nNo Vault bot may mutate `main`, mutate tests for repair purposes, weaken gates, delete historical knowledge, or declare Canonical GREEN.\n\nOnly one source-mutation owner may exist for an active task.\n\n## Canonical index custody\nOwner: `ACTION-HISTORIAN-3`\nPath: `diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json`\n\nADD = ALLOWED\nEDIT = ALLOWED\nDELETE = FORBIDDEN\n\nEvery index record must preserve:\n`taskId + failureFingerprint + targetSha + failedRunId + sourceBot + evidence/provenance`.\n\nThe index is knowledge storage, not execution authority or GREEN authority.\n\n## Mandatory learning\nEvery actionable RED is recorded.\nEvery repair attempt is recorded.\nEvery verified repair is recorded.\nEvery unresolved failure is recorded and escalated.\nNo failed attempt may disappear from the learning chain.\n\n## Unresolved failure → Council\nWhen the triad cannot prove a correction, `ACTION-HISTORIAN-3` must:\n\n1. record the unresolved failure in the canonical index;\n2. preserve exact SHA, failure fingerprint, run identity and attempted strategy;\n3. create the canonical Council escalation;\n4. deliver it to `assistantController`;\n5. request a specialist supervisor lesson;\n6. receive a structured teaching lesson;\n7. validate lesson provenance against the exact case;\n8. write the lesson back to the same canonical index;\n9. expose the lesson to all three Vault bots for the next repair cycle.\n\nCanonical route:\n`ACTION-HISTORIAN-3` → `assistantController` → active Council ingress → specialist supervisor → structured lesson → `ACTION-HISTORIAN-3` → `ACTION-INDEX-4000` → next exact-SHA attempt.\n\nRequired escalation fields:\n`messageId, taskId, failureFingerprint, entrySha, failedRunId, actor=ACTION-HISTORIAN-3, recipient=assistantController, intent=ACTION_VAULT_KNOWLEDGE_ESCALATION, risk=HIGH, requestedAction=SPECIALIST_TEACHING, knowledgeIndex=diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json, workPackage=ACTION-VAULT-SUPERVISOR-TEACHING-001, role=REVIEW, relayMarker=<!-- FLIXO_AGENT_COUNCIL_WAKE -->`.\n\nStale or malformed messages fail closed.\n\n## Supervisor teaching\nSupervisor lessons must include:\n`supervisorRole + taskId + failureFingerprint + targetSha + rootCause + knowledgePrinciple + repairPattern + verificationCondition + antiLesson + sourceMessageId + evidenceRefs`.\n\nThe returned lesson is written into the same Action Vault index as `SUPERVISOR_TAUGHT`.\n\nThe lesson is provisional until the resulting repair reaches Canonical GREEN; GREEN is the authority for verified reusable learning.\n\n## Diagnosis ↔ textual knowledge gate\nBefore source mutation, `ACTION-HISTORIAN-3` compares the programming diagnosis against retrieved textual knowledge.\n\nDecision:\n`MATCH` | `MISMATCH` | `INCONCLUSIVE`\n\n`MATCH` allows the mutation gate to continue.\n`MISMATCH` blocks source mutation.\n`INCONCLUSIVE` blocks source mutation.\n\nThe decision is bound to task, fingerprint, run identity, exact SHA, diagnosis digest and catalog digest.\n\n## Triad proof\nEvery actionable RED requires all three contributions.\n\n`ACTION-HISTORIAN-3` records the failure, selects minimal file surface and judges diagnosis ↔ knowledge.\n\n`ACTION-REPAIR` constructs the root-cause and repair proof.\n\n`ACTION-REPAIR-2` independently attempts to falsify the primary diagnosis/repair and records counterexamples.\n\nA valid counterexample blocks mutation.\n\nNo counterexample is not GREEN.\n\n## Source mutation gate\nSource repair is permitted only on `execution`, only within declared error scope, and only after:\nprotocol read → exact-SHA validation → failure capture → index search → triad contributions → bot-3 MATCH → root-cause proof → adversarial falsification → sandbox → differential verification → targeted regression → single-owner admission.\n\nA new push invalidates old exact-SHA evidence.\n\n## Resident bot commands\n\nProtocol read:\n```bash\nnode scripts/ci/action-vault-knowledge-custodian.mjs assert-read --bot=<BOT_ID> --sha=\"$(git rev-parse HEAD)\"\n```\n\nRecord verified repair:\n```bash\nnode scripts/ci/action-vault-knowledge-custodian.mjs record-repair --task=<TASK_ID> --fingerprint=<FAILURE_FINGERPRINT> --sha=<EXACT_SHA> --run-id=<RUN_ID> --diagnosis-file=<DIAGNOSIS_JSON> --repair-summary=\"<REPAIR_SUMMARY>\" --evidence=<REF1,REF2>\n```\n\nRecord unresolved failure and escalate:\n```bash\nnode scripts/ci/action-vault-knowledge-custodian.mjs record-blocked --task=<TASK_ID> --fingerprint=<FAILURE_FINGERPRINT> --sha=<EXACT_SHA> --run-id=<RUN_ID> --error=\"<ERROR>\" --diagnosis=\"<DIAGNOSIS_OR_UNKNOWN>\" --strategy=\"<STRATEGY>\"\n```\n\nEdit index:\n```bash\nnode scripts/ci/action-vault-knowledge-custodian.mjs edit-index --task=<TASK_ID> --fingerprint=<FAILURE_FINGERPRINT> --run-id=<RUN_ID> --sha=<EXACT_SHA> --record-id=<TXXXX> --patch-json='{\"teaching\":\"...\",\"verify\":\"...\"}'\n```\n\nApply supervisor teaching:\n```bash\nnode scripts/ci/action-vault-knowledge-custodian.mjs apply-supervisor-lesson --task=<TASK_ID> --fingerprint=<FAILURE_FINGERPRINT> --sha=<EXACT_SHA> --run-id=<RUN_ID> --lesson-file=<LESSON_JSON>\n```\n\n## Hard stops\nStop immediately on protocol mismatch, missing read, stale SHA, missing triad contribution, diagnosis MISMATCH/INCONCLUSIVE, valid counterexample, unproven root cause, unsafe scope, gate weakening, test/main mutation, index deletion, missing provenance, or missing canonical verification.\n\nPreserve evidence and continue through the Council/specialist learning path. Do not silently close the task.\n\n## Master/mirror rule\nThe single source of truth is the canonical block between:\n`ACTION_VAULT_CANONICAL_PROTOCOL_START` and `ACTION_VAULT_CANONICAL_PROTOCOL_END`\ninside `docs/AGENT-COLLABORATION-PROTOCOL.md`.\n\nExact copies are required in:\n- `diagnostics/auto-repair/action-vault/ACTION-VAULT-SUPERVISORY-LEARNING-PROTOCOL.md`\n- `diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR.json`\n- `diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR-2.json`\n- `diagnostics/auto-repair/action-repair-bots/ACTION-HISTORIAN-3.json`\n\nNo resident bot may invent, shorten, fork, or override this protocol.\n\n<!-- ACTION_VAULT_CANONICAL_PROTOCOL_END -->"
+  },
+  "protocolReadRequired": true,
+  "protocolReadEnforcedBy": "scripts/ci/action-vault-knowledge-custodian.mjs",
+  "learningIndex": {
+    "canonicalPath": "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
+    "localMirrorPath": "diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR-INDEX-4000.json",
+    "sourceBlobSha": "d308e7ab3ea6e04d891d9accb35b8d88865cf721",
+    "mirrorMode": "EXACT_CANONICAL_MIRROR",
+    "purpose": "READ_ONLY_LEARNING_COPY",
+    "authority": "CANONICAL_INDEX_ONLY",
+    "requiredBeforeRepairSearch": true,
+    "refreshOnCanonicalIndexChange": true,
+    "mutationAuthority": false
+  }
+}

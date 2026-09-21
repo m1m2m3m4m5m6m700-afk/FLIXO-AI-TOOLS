@@ -7,6 +7,7 @@ import {supervise} from '../src/lib/agent/supervisor.ts';
 import {validateEvaluation} from '../src/lib/agent/evaluation.ts';
 import {staleKnowledge} from '../src/lib/agent/knowledge/evolution.ts';
 import { createHybridScorer, rankKnowledge } from '../src/lib/agent/knowledge/retrieval.ts';
+import { buildIntentPlan, toExecutionPlan } from '../src/lib/agent/intent/intent-plan.ts';
 const r={id:'k',content:'Verified fact',source:'repo',sourceType:'REPOSITORY',timestamp:'2026-09-19T00:00:00Z',version:'1',scope:'test',confidence:.99,provenance:['test'],validity:'CURRENT',status:'VERIFIED',fingerprint:'a'.repeat(64)};
 assert.equal(answerFromEvidence('q',[r]).status,'VERIFIED');
 assert.equal(validatePlan([{id:'a',dependsOn:[],action:'x'},{id:'b',dependsOn:['a'],action:'y'}]).length,2);
@@ -20,4 +21,22 @@ const hybrid = createHybridScorer((_query, record) => record.id === 'k' ? 1 : 0)
 const ranked = rankKnowledge({ text: 'Verified fact', scope: 'test', limit: 5, minConfidence: 0.5 }, [r], hybrid);
 assert.equal(ranked[0].record.id, 'k');
 assert.equal(ranked[0].signals.semantic, 1);
+const readyIntentPlan = buildIntentPlan('compress the image');
+assert.equal(readyIntentPlan.status, 'READY');
+assert.equal(readyIntentPlan.confirmationRequired, true);
+assert.equal(readyIntentPlan.missing.length, 0);
+const readyExecutionPlan = toExecutionPlan(readyIntentPlan);
+assert.ok(readyExecutionPlan);
+assert.equal(readyExecutionPlan.steps[0].toolId, 'image-compressor');
+assert.equal(typeof readyExecutionPlan.catalogFingerprint, 'string');
+
+const missingFormatPlan = buildIntentPlan('convert the image');
+assert.equal(missingFormatPlan.status, 'NEEDS_INPUT');
+assert.equal(missingFormatPlan.confirmationRequired, false);
+assert.equal(missingFormatPlan.missing[0]?.id, 'output-format');
+
+const missingCropPlan = buildIntentPlan('crop the image');
+assert.equal(missingCropPlan.status, 'NEEDS_INPUT');
+assert.equal(missingCropPlan.missing[0]?.id, 'crop-geometry');
+assert.equal(toExecutionPlan(missingCropPlan), null);
 console.log('Agent cognitive session tests passed.');

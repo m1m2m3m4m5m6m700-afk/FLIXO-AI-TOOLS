@@ -8,7 +8,7 @@ on:
 # Keep only the newest verification for the PR/branch.
 # Exact-SHA checks below remain mandatory for the surviving run.
 concurrency:
-  group: flixo-wp0-${{ github.event.pull_request.number || github.ref }}
+  group: flixo-wp0-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -30,15 +30,26 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
+      - name: Fail closed when this commit is superseded
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+        run: node scripts/ci/assert-current-commit.mjs
 
       - name: 02 — Verify exact execution checkout identity and bind agent to execution
         shell: bash
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref || '' }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
+          PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || '' }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            test "${{ github.event.pull_request.head.ref }}" = "execution"
-            test "${{ github.event.pull_request.base.ref }}" = "main"
-            test "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}"
+            test "$PR_HEAD_REF" = "execution"
+            test "$PR_BASE_REF" = "main"
+            test "$PR_HEAD_REPOSITORY" = "$EXPECTED_REPOSITORY"
           else
             test "${{ github.event_name }}" = "push"
             test "${{ github.ref }}" = "refs/heads/execution"

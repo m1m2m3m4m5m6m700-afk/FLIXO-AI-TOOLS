@@ -50,7 +50,7 @@ export class TaskStateTransitionError extends Error {
   }
 }
 
-export function createTaskContext(taskId = crypto.randomUUID(), traceId = crypto.randomUUID()): TaskContext {
+export function createTaskContext(taskId: string = crypto.randomUUID(), traceId: string = crypto.randomUUID()): TaskContext {
   if (!taskId || !traceId) throw new Error('taskId and traceId are required.');
   return Object.freeze({ taskId, traceId, state: 'IDLE', revision: 0, confirmationRequired: false });
 }
@@ -93,7 +93,13 @@ export function cancelTask(context: TaskContext): TaskContext {
 }
 
 export function assertExecutionAllowed(context: TaskContext): void {
-  if (context.state !== 'EXECUTING') {
+  if (!context.taskId.trim() || !context.traceId.trim()) {
+    throw new Error('Execution is blocked because task identity is missing.');
+  }
+  if (!Number.isInteger(context.revision) || context.revision < 0) {
+    throw new Error('Execution is blocked because task revision is invalid.');
+  }
+  if (context.state !== 'EXECUTING' || context.confirmationRequired) {
     throw new Error(`Execution is blocked until explicit confirmation. Current state: ${context.state}.`);
   }
 }

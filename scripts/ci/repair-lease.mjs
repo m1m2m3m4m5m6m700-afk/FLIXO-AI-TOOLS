@@ -1,5 +1,12 @@
 #!/usr/bin/env node
-import { deriveRepairIdentity, deriveLeaseEventRef, deriveRecoveryRef, staleRecoveryDecision, REPAIR_OUTCOMES } from './repair-control-plane.mjs';
+import {
+  deriveRepairIdentity,
+  deriveLeaseEventRef,
+  deriveRecoveryRef,
+  staleRecoveryDecision,
+  REPAIR_OUTCOMES,
+  BROTHER_IDS,
+} from './repair-control-plane.mjs';
 import { assertState, checkHeartbeat, AGENT_LIVENESS_PROTOCOL } from './agent-liveness-protocol.mjs';
 
 const API_VERSION = '2022-11-28';
@@ -342,6 +349,176 @@ async function commandHeartbeat() {
   if (!['ACQUIRED', 'ALREADY_CLAIMED', 'TAG_OBJECT_CREATED'].includes(event.decision)) process.exitCode = 1;
 }
 
+function latestBrotherState(events) {
+  const brotherEvents = events
+    .filter((item) => String(item?.eventType ?? '').startsWith('BROTHER_'))
+    .sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')));
+  const latest = brotherEvents[0] ?? null;
+  if (!latest) {
+    return {
+      activeBrother: 'A',
+      readOnlyBrother: 'B',
+      turn: 1,
+      handoffCount: 0,
+      lastEvent: null,
+    };
+  }
+  if (latest.eventType === 'BROTHER_SURRENDER') {
+    return {
+      activeBrother: String(latest.nextActiveBrother),
+      readOnlyBrother: String(latest.surrenderedBrother),
+      turn: Number(latest.turn ?? 1),
+      handoffCount: Number(latest.handoffCount ?? 0),
+      lastEvent: latest,
+    };
+  }
+  return {
+    activeBrother: String(latest.activeBrother ?? 'A'),
+    readOnlyBrother: String(latest.readOnlyBrother ?? 'B'),
+    turn: Number(latest.turn ?? 1),
+    handoffCount: Number(latest.handoffCount ?? 0),
+    lastEvent: latest,
+  };
+}
+
+function requireBrotherId(value) {
+  const id = String(value ?? '').trim();
+  if (!BROTHER_IDS.includes(id)) throw new Error('REPAIR_LEASE_BROTHER_ID_INVALID');
+  return id;
+}
+
+async function commandBrotherState() {
+  const identity = identityFromArgs();
+  const events = await listEventMetadata(identity);
+  const state = latestBrotherState(events);
+  console.log(JSON.stringify({
+    status: 'BROTHER_STATE',
+    repairChainId: identity.repairChainId,
+    cycleKey: identity.cycleKey,
+    failedSha: getArg('failedSha'),
+    targetRunId: getArg('targetRunId'),
+    ...state,
+  }, null, 2));
+}
+
+async function commandBrotherSurrender() {
+  const identity = identityFromArgs();
+  const failedSha = getArg('failedSha');
+  const brotherId = requireBrotherId(getArg('brotherId', 'A'));
+  const events = await listEventMetadata(identity);
+  const state = latestBrotherState(events);
+  if (state.activeBrother !== brotherId) throw new Error('REPAIR_LEASE_BROTHER_TURN_VIOLATION');
+  const reason = getArg('reason', 'ACTIVE_BROTHER_SURRENDERED');
+  const attempt = Number(getArg('attempt', '1'));
+  if (/BRANCH_CONFLICT|STALE_HEAD|EXECUTION_ADVANCED|CONFLICT_RECOVERY/u.test(reason)) {
+    const repairRunId = getArg('repairRunId', process.env.GITHUB_RUN_ID);
+    const now = new Date().toISOString();
+    const metadata = {
+      repairKey: identity.claimKey,
+      leaseRef: identity.leaseRef,
+      repairChainId: identity.repairChainId,
+      cycleKey: identity.cycleKey,
+      branch: 'execution',
+      failedSha,
+      failureFingerprint: getArg('fingerprint'),
+      targetRunId: getArg('targetRunId'),
+      attempt,
+      repairRunId: repairRunId || null,
+      brotherId,
+      state: 'CONFLICT_RECOVERY_ACTIVE',
+      nextAction: 'REQUALIFY_CURRENT_EXECUTION_SHA_AND_CONTINUE_SAME_MISSION',
+      ownerWithdrawal: false,
+      verificationProgress: false,
+      reason,
+      at: now,
+    };
+    const event = await emitEvent(identity, 'CONFLICT_RECOVERY', `${repairRunId || 'run'}-${brotherId}-conflict-${attempt}`, metadata);
+    console.log(JSON.stringify({
+      status: 'CONFLICT_RECOVERY_ACTIVE',
+      ...metadata,
+      event,
+    }, null, 2));
+    return;
+  }
+  const nextActiveBrother = brotherId === 'A' ? 'B' : 'A';
+  const repairRunId = getArg('repairRunId', process.env.GITHUB_RUN_ID);
+  const now = new Date().toISOString();
+  const metadata = {
+    repairKey: identity.claimKey,
+    leaseRef: identity.leaseRef,
+    repairChainId: identity.repairChainId,
+    cycleKey: identity.cycleKey,
+    branch: 'execution',
+    failedSha,
+    failureFingerprint: getArg('fingerprint'),
+    targetRunId: getArg('targetRunId'),
+    attempt,
+    repairRunId: repairRunId || null,
+    brotherId,
+    surrenderedBrother: brotherId,
+    surrenderedMode: 'WRITE',
+    nextActiveBrother,
+    nextActiveMode: 'WRITE',
+    readOnlyBrother: brotherId,
+    readOnlyMode: 'READ',
+    turn: state.turn + 1,
+    handoffCount: state.handoffCount + 1,
+    reason: getArg('reason', 'ACTIVE_BROTHER_SURRENDERED'),
+    exitSha: getArg('exitSha', failedSha),
+    state: 'TURN_HANDOFF_REQUIRED',
+    nextAction: `ACTIVATE_BROTHER_${nextActiveBrother}_AS_WRITER`,
+    verificationProgress: false,
+    at: now,
+  };
+  const event = await emitEvent(identity, 'BROTHER_SURRENDER', `${repairRunId || 'run'}-${brotherId}-${state.handoffCount + 1}`, metadata);
+  console.log(JSON.stringify({
+    status: event.decision === 'ACQUIRED' || event.decision === 'ALREADY_CLAIMED' || event.decision === 'TAG_OBJECT_CREATED' ? 'BROTHER_SURRENDER_RECORDED' : event.decision,
+    ...metadata,
+    event,
+  }, null, 2));
+  if (!['ACQUIRED', 'ALREADY_CLAIMED', 'TAG_OBJECT_CREATED'].includes(event.decision)) process.exitCode = 1;
+}
+
+async function commandBrotherChallenge() {
+  const identity = identityFromArgs();
+  const failedSha = getArg('failedSha');
+  const brotherId = requireBrotherId(getArg('brotherId', 'B'));
+  const events = await listEventMetadata(identity);
+  const state = latestBrotherState(events);
+  if (state.readOnlyBrother !== brotherId) throw new Error('REPAIR_LEASE_BROTHER_READ_ONLY_ROLE_REQUIRED');
+  const now = new Date().toISOString();
+  const repairRunId = getArg('repairRunId', process.env.GITHUB_RUN_ID);
+  const metadata = {
+    repairKey: identity.claimKey,
+    leaseRef: identity.leaseRef,
+    repairChainId: identity.repairChainId,
+    cycleKey: identity.cycleKey,
+    branch: 'execution',
+    failedSha,
+    failureFingerprint: getArg('fingerprint'),
+    targetRunId: getArg('targetRunId'),
+    attempt: Number(getArg('attempt', '1')),
+    repairRunId: repairRunId || null,
+    brotherId,
+    activeBrother: state.activeBrother,
+    readOnlyBrother: brotherId,
+    mode: 'READ',
+    disposition: getArg('disposition', 'COUNTERCHECK'),
+    challengeSummary: getArg('challengeSummary', 'INDEPENDENT_READ_ONLY_CHALLENGE'),
+    evidenceDigest: getArg('evidenceDigest', ''),
+    nextAction: 'WAIT_FOR_ACTIVE_BROTHER_SURRENDER',
+    state: 'READ_ONLY_CHALLENGE',
+    at: now,
+  };
+  const event = await emitEvent(identity, 'BROTHER_CHALLENGE', `${repairRunId || 'run'}-${brotherId}-${Date.now()}`, metadata);
+  console.log(JSON.stringify({
+    status: event.decision === 'ACQUIRED' || event.decision === 'ALREADY_CLAIMED' || event.decision === 'TAG_OBJECT_CREATED' ? 'BROTHER_CHALLENGE_RECORDED' : event.decision,
+    ...metadata,
+    event,
+  }, null, 2));
+  if (!['ACQUIRED', 'ALREADY_CLAIMED', 'TAG_OBJECT_CREATED'].includes(event.decision)) process.exitCode = 1;
+}
+
 async function commandOutcome() {
   const identity = identityFromArgs();
   const failedSha = getArg('failedSha');
@@ -384,6 +561,7 @@ async function commandRecover() {
   if (!meta.exists) throw new Error('REPAIR_LEASE_NOT_FOUND_FOR_RECOVERY');
   const events = await listEventMetadata(identity);
   const outcomes = events.filter((item) => item?.eventType === 'OUTCOME' && item?.outcome && item?.repairKey === identity.claimKey);
+  let terminalRepairFailure = false;
   const latestActiveState = [...events]
     .filter((item) => item?.eventType === 'STATE' && item?.leaseState === 'LEASE_ACTIVE' && item?.repairKey === identity.claimKey)
     .sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')))[0] ?? null;
@@ -414,6 +592,7 @@ async function commandRecover() {
         return;
       }
       if (crashConclusions.has(conclusion)) {
+        terminalRepairFailure = true;
         const crashMetadata = {
           repairKey: identity.claimKey,
           leaseRef: identity.leaseRef,
@@ -450,6 +629,16 @@ async function commandRecover() {
   const active = await activeRepairRuns(identity, failedSha);
   const currentRef = await readRef('refs/heads/execution');
   const currentExecutionSha = String(currentRef?.data?.object?.sha ?? '');
+  const leaseAgeMs = Math.max(0, Date.now() - Date.parse(String(meta.metadata?.createdAt ?? '')));
+  // The initial claim records the Green Gate run ID, not the Auto Repair run ID.
+  // After a short dispatch-settlement window, absence of an active repair run means
+  // the dispatch was orphaned and must be recoverable without waiting for staleAfterMs.
+  const orphanedDispatch = !terminalRepairFailure &&
+    active.length === 0 &&
+    outcomes.length === 0 &&
+    !latestActiveState?.repairRunId &&
+    String(meta.metadata?.leaseOwner ?? '') === 'DAILY_FLIXO_GREEN_GATE' &&
+    leaseAgeMs >= 2 * 60 * 1000;
   const decision = staleRecoveryDecision({
     leaseCreatedAt: meta.metadata?.createdAt,
     staleAfterMs: Number(getArg('staleAfterMs', String(DEFAULT_STALE_AFTER_MS))),
@@ -458,6 +647,8 @@ async function commandRecover() {
     activeRuns: active,
     outcomes,
     repairKey: identity.claimKey,
+    terminalRepairFailure,
+    orphanedDispatch,
   });
   if (active.some((item) => item.status === 'UNKNOWN')) {
     console.log(JSON.stringify({ status: 'FAIL_CLOSED', reason: 'ACTIVE_SESSION_EVIDENCE_UNAVAILABLE', active, decision }, null, 2));
@@ -465,7 +656,7 @@ async function commandRecover() {
     return;
   }
   if (!decision.eligible) {
-    const status = decision.reasons.includes('NO_PROGRESS_CIRCUIT_OPEN') ? 'CIRCUIT_OPEN'
+    const status = decision.reasons.includes('NO_PROGRESS_REQUIRES_STRATEGY_ROTATION') ? 'CIRCUIT_OPEN'
       : decision.reasons.includes('ACTIVE_REPAIR_SESSION_PRESENT') ? 'ACTIVE'
       : decision.reasons.includes('EXECUTION_SHA_CHANGED') ? 'MUTATION_OR_NEW_SHA'
       : decision.reasons.includes('SUCCESSFUL_REPAIR_ALREADY_VERIFIED') ? 'VERIFIED'
@@ -539,7 +730,7 @@ async function commandRecover() {
 }
 
 function usage() {
-  throw new Error('Usage: repair-lease.mjs claim|verify|heartbeat|outcome|recover');
+  throw new Error('Usage: repair-lease.mjs claim|verify|heartbeat|outcome|recover|brother-state|brother-surrender|brother-challenge');
 }
 
 if (import.meta.url === (await import('node:url')).pathToFileURL(process.argv[1] ?? '').href) {
@@ -549,6 +740,9 @@ if (import.meta.url === (await import('node:url')).pathToFileURL(process.argv[1]
     else if (command === 'heartbeat') await commandHeartbeat();
     else if (command === 'outcome') await commandOutcome();
     else if (command === 'recover') await commandRecover();
+    else if (command === 'brother-state') await commandBrotherState();
+    else if (command === 'brother-surrender') await commandBrotherSurrender();
+    else if (command === 'brother-challenge') await commandBrotherChallenge();
     else usage();
   } catch (error) {
     console.error(String(error?.stack ?? error));

@@ -3,10 +3,14 @@ import { LIVE_FILTER_REGISTRY, findLiveFilters, getLiveFilter, resolveLiveFilter
 import { buildFilterMaskUrl, createFilterMaskHandoff, parseFilterMaskHandoff } from '../src/tools/filter-mask/handoff.ts';
 import { resolveFilterMaskSelection } from '../src/lib/intent/resolver.ts';
 import { FILTER_MASK_I18N } from '../src/tools/filter-mask/locales.ts';
+import { filterParametersForTest } from '../src/tools/filter-mask/gpu-renderer.ts';
 import { LOCALES } from '../src/lib/i18n/config.ts';
 assert.ok(LIVE_FILTER_REGISTRY.length >= 100);
 assert.equal(new Set(LIVE_FILTER_REGISTRY.map((filter) => filter.canonicalId)).size, LIVE_FILTER_REGISTRY.length);
 assert.ok(LIVE_FILTER_REGISTRY.every((filter) => filter.version === 1 && filter.supportsLive));
+assert.ok(LIVE_FILTER_REGISTRY.every((filter) => filterParametersForTest(filter.cssFilter) !== null));
+assert.equal(filterParametersForTest('brightness(1) blur(2px)'), null);
+assert.deepEqual(filterParametersForTest('brightness(110%) contrast(90%)'), { brightness: 1.1, contrast: 0.9, saturate: 1, hueRotateDeg: 0, sepia: 0 });
 assert.equal(getLiveFilter('effect.original')?.canonicalId, 'effect.original');
 assert.equal(getLiveFilter('missing'), undefined);
 assert.equal(resolveLiveFilter('warm live filter')?.canonicalId, 'effect.warm');
@@ -20,7 +24,9 @@ assert.equal(resolveFilterMaskSelection('Warm live filter 1080p')?.parameters.ca
 assert.equal(parseFilterMaskHandoff('?canonicalId=effect.warm&captureQuality=4k')?.parameters.captureQuality, '1080p');
 assert.equal(resolveFilterMaskSelection('compress image'), null);
 assert.equal(findLiveFilters('cinematic')[0]?.family, 'cinematic');
-const handoff = createFilterMaskHandoff(getLiveFilter('effect.warm')!, { intensity: 63, zoom: 1.6, mirror: false });
+const warmFilter = getLiveFilter('effect.warm');
+assert.ok(warmFilter);
+const handoff = createFilterMaskHandoff(warmFilter, { intensity: 63, zoom: 1.6, mirror: false });
 assert.equal(handoff.parameters.intensity, 63);
 assert.equal(handoff.parameters.zoom, 1.6);
 assert.equal(handoff.parameters.mirror, false);
@@ -38,5 +44,8 @@ for (const locale of LOCALES) {
   assert.ok(FILTER_MASK_I18N[locale].quality1080.length > 0);
   assert.ok(FILTER_MASK_I18N[locale].quality720.length > 0);
   assert.ok(FILTER_MASK_I18N[locale].captureQuality.length > 0);
+  assert.ok(FILTER_MASK_I18N[locale].pauseRecording.length > 0);
+  assert.ok(FILTER_MASK_I18N[locale].resumeRecording.length > 0);
+  assert.ok(FILTER_MASK_I18N[locale].cancelRecording.length > 0);
 }
 console.log('Filter Mask registry contract: PASS');

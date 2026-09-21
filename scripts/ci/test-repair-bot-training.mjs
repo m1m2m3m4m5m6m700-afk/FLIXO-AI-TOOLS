@@ -1,0 +1,49 @@
+import assert from 'node:assert/strict';
+import { trainRepairBot, CURRICULUM, STRATEGIES } from './repair-bot-training.mjs';
+
+const sample = {
+  cases: [
+    { fingerprint:'aa', rootCause:'lint', outcomes:[
+      { outcome:'success', provenance:{strategyId:'reproduce-exact'} },
+      { outcome:'failure', provenance:{strategyId:'minimize-failure'} }
+    ] },
+    { fingerprint:'bb', rootCause:'lint', outcomes:[
+      { outcome:'success', provenance:{strategyId:'reproduce-exact'} },
+      { outcome:'failure', provenance:{strategyId:'alternate-hypothesis'} }
+    ] }
+  ],
+  playbooks:[],lessons:[],
+  antiLessons:[{fingerprint:'cc',rootCause:'lint',rule:'minimize-failure'}],
+  actionHistory:[{fingerprint:'dd',rootCause:'lint',rejectedStrategies:['alternate-hypothesis']}]
+};
+const report=trainRepairBot({memory:sample,log:''});
+assert.equal(report.protocol,'FLIXO-REPAIR-BOT-BEHAVIORAL-TRAINING-v1');
+assert.equal(report.authority,'TRAINING_ONLY');
+assert.equal(report.curriculum.length,CURRICULUM.length);
+assert.deepEqual(Object.keys(report.policy.global),STRATEGIES);
+assert.ok(report.dataset.positiveExamples>=2);
+assert.ok(report.dataset.negativeExamples>=2);
+assert.ok(report.decision.rule.includes('NEVER_GRANTS_MUTATION'));
+assert.ok(report.decision.eligibilityChecks);
+assert.equal(typeof report.decision.eligibilityChecks.mastery,'boolean');
+assert.equal(typeof report.decision.eligibleToInfluenceRouting,'boolean');
+assert.ok(report.curriculum.every((item)=>['MASTERED','TRAINING','UNSEEN'].includes(item.status)));
+assert.equal(report.behaviorModel.epochs,5);
+assert.ok(report.behaviorEvaluation);
+assert.equal(report.stateModel.algorithm,'TABULAR_STATE_ACTION_Q');
+assert.equal(report.stateModel.update,'BELLMAN_BOOTSTRAPPED_STATE_TRANSITIONS');
+assert.equal(report.stateModel.prioritizedReplay,true);
+assert.equal(report.adversarialModel.algorithm,'ADVERSARIAL_CONTEXT_REPLAY');
+assert.ok(report.counterfactualModel);
+assert.equal(report.counterfactualEvaluation.sourceIntegrity,true);
+assert.ok(report.calibration);
+assert.ok(report.calibration.abstention);
+assert.ok(report.recurrence);
+assert.ok(report.antiForgetting);
+assert.ok(report.trainingProvenance);
+assert.ok(report.prioritizedReplay);
+assert.ok(report.adversarialEvaluation);
+assert.ok(report.mastery);
+assert.ok(report.mastery.competence.evidence_ranking !== undefined);
+assert.ok(report.mastery.competence.recurrence_prevention !== undefined);
+console.log('REPAIR_BOT_TRAINING_CONTRACT_SELF_TEST=PASS');

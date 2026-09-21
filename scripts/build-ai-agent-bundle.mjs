@@ -26,7 +26,7 @@ const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'u
 const files = execFileSync('git', ['ls-files', '-z'], { cwd: ROOT, encoding: 'utf8' })
   .split('\0').filter(Boolean).filter((file) => !isExcluded(file) && isText(file));
 
-const prompt = fs.readFileSync(path.resolve(ROOT, 'AI_AGENT_MASTER_PROMPT.md'), 'utf8');
+const prompt = fs.readFileSync(path.resolve(ROOT, 'المهام.md'), 'utf8');
 const sections = [];
 sections.push('# FLIXO-AI-TOOLS — FULL AI AGENT PROJECT BUNDLE');
 sections.push(`\n> Generated from exact Git SHA: \`${sha}\``);

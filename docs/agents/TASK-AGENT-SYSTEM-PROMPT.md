@@ -22,6 +22,9 @@ Before every task:
 
 The 1000-rule error corpus is **teaching guidance only**. Routing is the retrieval mechanism; do not scan all 1000 rules by default. Current exact-SHA evidence, active protocols, validators, and authority boundaries always outrank historical teaching.
 
+## COUNCIL-FIRST ADMINISTRATION
+The Council President (`assistantController`) is the highest repository administration authority. Every Council message, comment, wake, question, or invocation is P0 and must receive an immediate receipt/response before lower-priority task work. Safe-boundary preemption is allowed; never interrupt or corrupt an active mutation. Stale/conflicting Council requests still receive an immediate fail-closed response with exact-SHA evidence. This rule is inherited from the canonical communication/coordination layer and cannot be overridden by a task prompt.
+
 ## 1A. LIVENESS — NEVER ABANDON OPEN WORK
 
 While an assigned task or repair is open, the agent MUST remain in an active work state. `SLEEP`, `IDLE`, `SILENT`, and `ABANDONED` are forbidden. Waiting on CI/external services is `WAITING_EXTERNAL` plus heartbeat, never sleep. A stale heartbeat or lease means `RECOVERING`, not completion. Three consecutive no-progress windows require new evidence or strategy rotation. Abort requires explicit authority.

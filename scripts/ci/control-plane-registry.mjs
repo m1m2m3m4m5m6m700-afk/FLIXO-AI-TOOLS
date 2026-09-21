@@ -4,6 +4,7 @@ export const REPAIR_GATE_AUTOMATION = Object.freeze([
   'execution-sync.yml',
   'execution-bot-watchdog.yml',
   'auto-repair-merge-gate.yml',
+  'advanced-repair-contract.yml',
 ]);
 
 export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
@@ -11,12 +12,20 @@ export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
   'daily-flixo-green-gate.yml',
   'execution-sync.yml',
   'repair-lease-live-race.yml',
+  'historical-action-error-index.yml',
+  'action-agent-history-promotion.yml',
 ]);
 
 export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
   'auto-repair.yml',
   'execution-sync.yml',
   'wp0-trust-baseline.yml',
+  'repository-security-baseline.yml',
+  'agent-master-activation.yml',
+  'council-wake-push-relay.yml',
+  'repair-agent-intake.yml',
+  'auto-repair-merge-gate.yml',
+  'council-live-runtime-verification.yml',
 ]);
 
 export const HISTORICAL_REPAIR_WORKFLOWS = Object.freeze([
@@ -54,4 +63,8 @@ export const TRUST_PERIMETER_PATHS = Object.freeze([
   'scripts/ci/validate-certification-surface.mjs',
   'scripts/ci/validate-ci-cd-trust.mjs',
   'scripts/ci/validate-wp0-trust-baseline.mjs',
+  'scripts/ci/validate-council-rpc-contract.mjs',
+  'scripts/ci/validate-promotion-closure.mjs',
+  'scripts/ci/test-promotion-closure.mjs',
+  'scripts/ci/verify-council-live-runtime.mjs',
 ]);

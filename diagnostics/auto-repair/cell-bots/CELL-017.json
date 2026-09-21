@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "authority": "CELL_BOT_PERSONAL_MEMORY",
+  "botId": "CELL-017",
+  "copyable": true,
+  "transferableKnowledgeOnly": true,
+  "permanentIndependentAuthority": false,
+  "identity": {
+    "shortName": null,
+    "fullName": null,
+    "version": 0
+  },
+  "state": {
+    "status": "LEARNING",
+    "taskCount": 0,
+    "lastTaskId": null,
+    "lastUpdatedAt": null
+  },
+  "learnedTasks": [],
+  "knowledge": [],
+  "successfulStrategies": [],
+  "failedStrategies": [],
+  "weaknesses": [],
+  "upgrades": [],
+  "sourceEvidence": [],
+  "importHistory": [],
+  "exportHistory": []
+}

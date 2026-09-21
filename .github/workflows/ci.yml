@@ -7,17 +7,16 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Superseded PR/branch runs are obsolete once a newer commit arrives.
-# The exact-SHA identity gates still validate the newest run before it can pass.
+# One canonical test run survives per exact commit SHA. The repository-level commit
+# supersession controller also cancels stale runs belonging to other workflows.
 concurrency:
-  group: flixo-test-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: flixo-test-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 permissions:
   contents: read
   actions: read
   checks: read
-  security-events: write
 
 env:
   HOME: /tmp
@@ -29,6 +28,7 @@ env:
   VITE_TEST_ORIGIN: http://127.0.0.1:3000
   PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
   EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  GH_TOKEN: ${{ github.token }}
 
 jobs:
   verify:
@@ -44,6 +44,12 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      - name: Fail closed when this commit is superseded
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+        run: node scripts/ci/assert-current-commit.mjs
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Create immutable run identity
         run: node scripts/ci/create-run-identity.mjs
@@ -115,6 +121,12 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
+      - name: Fail closed when this commit is superseded
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+        run: node scripts/ci/assert-current-commit.mjs
       - name: Restore browser dependency cache
         id: browser-deps-cache
         uses: actions/cache@v6
@@ -313,7 +325,9 @@ jobs:
   certify:
     name: Certification
     needs: [verify, browser_fast, browser_deep]
-    if: always()
+    # Certification is meaningful only after every prerequisite gate succeeded.
+    # Upstream RED must remain the sole root failure; missing downstream evidence is not a second failure.
+    if: needs.verify.result == 'success' && needs.browser_fast.result == 'success' && needs.browser_deep.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -324,6 +338,12 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
+      - name: Fail closed when this commit is superseded
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+        run: node scripts/ci/assert-current-commit.mjs
       - uses: actions/download-artifact@v7
         with:
           pattern: flixo-browser-*-*-${{ github.run_id }}

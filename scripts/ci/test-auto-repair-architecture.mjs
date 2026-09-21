@@ -6,16 +6,24 @@ import { isPathAllowed, isProtectedPath, repairPolicy } from './auto-repair-poli
 import { confidenceGate } from './auto-repair/confidence.mjs';
 import { selectSpecialist } from './auto-repair/specialists.mjs';
 import { impactedTests } from './auto-repair/reproduction.mjs';
-import { summarizeDiff } from './auto-repair/evidence.mjs';
+import { summarizeDiff, mutationAttribution } from './auto-repair/evidence.mjs';
 import { runRegression } from './auto-repair/regression.mjs';
 import { snapshot } from './auto-repair/rollback.mjs';
 import { runAstRepair } from './auto-repair/ast-repair.mjs';
 import { buildRegressionSentinel, validateRepairProof, preventionRuleFor, escalationReason } from './auto-repair-proof.mjs';
 
 const workflow = fs.readFileSync('.github/workflows/auto-repair.yml', 'utf8');
+const twinSource = fs.readFileSync('scripts/ci/adversarial-repair-twin.mjs', 'utf8');
 const dispatcher = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
+const continuousWatch = fs.readFileSync('scripts/ci/continuous-error-watch.mjs', 'utf8');
 const handoff = fs.readFileSync('.github/workflows/agent-repair-handoff-gate.yml', 'utf8');
 assert.match(workflow, /workflow_dispatch:/);
+assert.match(workflow, /Run adversarial twins locally inside the canonical repair trust domain/);
+assert.match(workflow, /FLIXO_TWIN_A_PATH/);
+assert.match(workflow, /Enforce divergent twin decision before mutation/);
+assert.match(workflow, /ACTION-WISE select best repair option from history and twin A\/B/);
+assert.match(twinSource, /mutationAuthority: false/);
+assert.doesNotMatch(twinSource, /git\([^\n]*push/);
 assert.match(workflow, /github\.event_name == 'workflow_dispatch'/);
 assert.match(workflow, /FLIXO_EXPECTED_TARGET_SHA/);
 assert.match(workflow, /FLIXO_FAILURE_FINGERPRINT/);
@@ -27,16 +35,16 @@ assert.match(workflow, /FLIXO_SCOUT_REPORT/);
 assert.match(workflow, /SCOUT_SHA/);
 assert.match(workflow, /test "\$SCOUT_SHA" = "\$CURRENT_SHA"/);
 assert.match(workflow, /\/tmp\/flixo-scout-report\.json/);
-assert.match(workflow, /DEEP_\[A-Z_\]+_MISSING/);
+assert(workflow.includes('DEEP_[A-Z_]+_MISSING'));
 assert.match(workflow, /ENGINE_OUTCOME.*proposal-only/);
 assert.match(workflow, /LEARNING_OUTCOME='proposed'/);
 assert.doesNotMatch(workflow, /workflow_run:/);
 assert.match(workflow, /CURRENT_TARGET_SHA=/);
 assert.match(workflow, /EVIDENCE_CAPTURE=FAILED/);
 assert.doesNotMatch(workflow, /github\.event\.workflow_run/);
-assert.match(workflow, /gh workflow run auto-repair\.yml/);
+assert.match(dispatcher, /gh workflow run auto-repair\.yml/);
 assert.match(workflow, /DISPATCH AUTHORITY: Daily·FLIXO Green Gate/);
-assert.match(workflow, /--branch="\$FLIXO_REPAIR_TARGET_BRANCH"/);
+assert.match(workflow, /--branch="execution"/);
 const supervisor = fs.readFileSync('.github/workflows/agent-repair-supervisor.yml', 'utf8');
 assert.match(supervisor, /name: FLIXO Agent Repair Supervisor/);
 assert.match(supervisor, /schedule:/);
@@ -53,24 +61,26 @@ assert.match(dispatcher, /schedule:/);
 assert.match(dispatcher, /group: flixo-continuous-error-watch-\$\{\{ github\.run_id \}\}/);
 assert.match(dispatcher, /cancel-in-progress: false/);
 assert.match(dispatcher, /gh workflow run auto-repair\.yml/);
-assert.match(dispatcher, /FLIXO Continuous Delivery/);
-assert.match(dispatcher, /Repository Security Baseline/);
-assert.match(dispatcher, /Test Impact Execution/);
+assert.match(continuousWatch, /FLIXO Test System/);
+assert.match(continuousWatch, /FLIXO WP0 Trust Baseline/);
+assert.match(continuousWatch, /Test Impact Execution/);
 assert(!dispatcher.includes('gh workflow run execution-bot-watchdog.yml'));
 const heartbeat = fs.readFileSync('.github/workflows/agent-repair-heartbeat.yml', 'utf8');
-assert.match(heartbeat, /daily-flixo-green-gate\.yml/);
-assert.match(heartbeat, /CANONICAL_GREEN_GATE_WAKE_DISPATCHED/);
+assert.match(heartbeat, /agent-repair-supervisor\.yml/);
+assert.match(heartbeat, /gh\s+workflow\s+run\s+daily-flixo-green-gate\.yml/);
+assert.match(heartbeat, /AUTOMATIC_GREEN_GATE_WAKE=true/);
 assert.match(heartbeat, /ACTIVE_GREEN_GATES/);
 assert.doesNotMatch(heartbeat, /gh workflow run auto-repair\.yml/);
-assert.match(handoff, /branches: \[execution, main\]/);
-assert.match(handoff, /CURRENT_TARGET_SHA=/);
+assert.match(handoff, /branches: \[execution\]/);
+assert.match(handoff, /ref: main/);
+assert.match(handoff, /CURRENT_EXECUTION_SHA=/);
 assert.match(handoff, /HANDOFF_TARGET_SHA/);
 const classifierSource = fs.readFileSync('scripts/ci/auto-repair-classifier.mjs', 'utf8');
 assert.match(classifierSource, /ensureFreshScout/);
 assert.match(classifierSource, /code-read-only-scout\.mjs/);
 assert.match(classifierSource, /INVESTIGATION_DIR: investigationDir/);
 
-const sample = 'Run 35012345678 failed: scripts/ci/test-auto-repair-architecture.mjs:10:3 no-unused-vars';
+const sample = 'Run 35012345678 failed: src/lib/agent/execution-observability.ts:42:3 no-unused-vars';
 const normalized = normalizeFailure(sample);
 assert(!normalized.includes('35012345678'));
 assert(!normalized.includes('abcdefabcdefabcdefabcdefabcdefabcdefabcd'));
@@ -78,7 +88,44 @@ assert.equal(fingerprintFailure(sample), fingerprintFailure(sample));
 const plan = planRepair(sample);
 assert.equal(plan.selected?.id, 'eslint-unused');
 assert.equal(confidenceGate({ selected: plan.selected, features: plan.features }).allowed, true);
-assert.equal(plan.selected?.file, 'scripts/ci/test-auto-repair-architecture.mjs');
+assert.equal(plan.selected?.file, 'src/lib/agent/execution-observability.ts');
+
+const asyncPlan = planRepair("src/lib/agent/execution-observability.ts:42:4 error TS1064: The return type of an async function or method must be the global Promise<T> type.");
+assert(asyncPlan.features.includes('typescript-async-contract'));
+assert(asyncPlan.candidates.some((candidate) => candidate.id === 'typescript-async-contract'));
+
+const livenessPlan = planRepair("agent-liveness contract failure: test still treats IDLE/SLEEP as forbidden while the current contract permits waiting states.");
+assert(livenessPlan.features.includes('liveness-contract'));
+assert(livenessPlan.candidates.some((candidate) => candidate.id === 'liveness-contract'));
+
+const canonicalWakePlan = planRepair("heartbeat received HTTP 422 from Daily·FLIXO Green Gate because heartbeat attempted a direct workflow dispatch instead of the canonical wake/supervisor path.");
+assert(canonicalWakePlan.features.includes('noncanonical-automation'));
+assert(canonicalWakePlan.candidates.some((candidate) => candidate.id === 'noncanonical-automation'));
+assert.equal(canonicalWakePlan.reasoning.rootCause, 'noncanonical-automation');
+
+const canonicalCombinedPlan = planRepair("agent-liveness contract test still treats IDLE/SLEEP as forbidden; heartbeat received HTTP 422 because it directly invoked Daily·FLIXO Green Gate instead of the canonical supervisor wake path.");
+assert(canonicalCombinedPlan.features.includes('liveness-contract'));
+assert(canonicalCombinedPlan.features.includes('noncanonical-automation'));
+assert.equal(canonicalCombinedPlan.reasoning.rootCause, 'noncanonical-automation');
+
+const contractDriftPlan = planRepair("contract drift: agent-liveness test is out of sync with the current state-transition contract; expected and received states disagree.");
+assert(contractDriftPlan.features.includes('contract-drift'));
+assert(contractDriftPlan.candidates.some((candidate) => candidate.id === 'contract-drift'));
+
+const asyncFixtureRoot = fs.mkdtempSync('/tmp/flixo-async-repair-');
+fs.mkdirSync(asyncFixtureRoot + '/src', { recursive: true });
+fs.writeFileSync(asyncFixtureRoot + '/src/test.ts', "export async function demo(): string { return 'ok'; }\n");
+const errorOnlySource = fs.readFileSync('scripts/ci/auto-repair/error-only-programmer.mjs', 'utf8');
+assert.match(errorOnlySource, /typescript-async-return-contract/);
+assert.match(errorOnlySource, /TS1064_ASYNC_PROMISE_RETURN/);
+const asyncMutation = runAstRepair(asyncFixtureRoot, {
+  id: 'typescript-async-contract',
+  file: 'src/test.ts',
+  diagnosticLine: 1,
+});
+assert.equal(asyncMutation.applied, true, JSON.stringify(asyncMutation));
+assert.match(fs.readFileSync(asyncFixtureRoot + '/src/test.ts', 'utf8'), /async function demo\(\): Promise<string>/u);
+fs.rmSync(asyncFixtureRoot, { recursive: true, force: true });
 assert.equal(selectSpecialist(plan.features).id, 'eslint-specialist');
 assert.deepEqual(impactedTests(['lint']), [['npm', ['run', 'lint']]]);
 assert.equal(summarizeDiff('diff --git a/src/a.ts b/src/a.ts\n+new\n-old\n').files.length, 1);
@@ -91,6 +138,10 @@ assert.equal(isPathAllowed('src/example.ts'), true);
 assert.equal(repairPolicy.maxChangedFiles, 8);
 assert.equal(repairPolicy.maxChangedLines, 300);
 assert.equal(repairPolicy.maxAttemptsPerFingerprint, 3);
+assert.match(fs.readFileSync('scripts/ci/repair-strategy.mjs', 'utf8'), /twinPreferredStrategy/);
+assert.match(fs.readFileSync('scripts/ci/auto-repair/planner.mjs', 'utf8'), /prepared-source-change/);
+assert.match(fs.readFileSync('scripts/ci/auto-repair/ast-repair.mjs', 'utf8'), /applyPreparedChanges/);
+assert.match(fs.readFileSync('scripts/ci/auto-repair/confidence.mjs', 'utf8'), /deterministicProof/);
 assert.equal(MEMORY_VERSION, 10);
 assert.equal(typeof hydrateActionHistory, 'function');
 assert.match(fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8'), /rejectedStrategies/);
@@ -98,6 +149,8 @@ assert.match(fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8'), /do
 assert.match(fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8'), /hydrateActionHistory/);
 assert.match(fs.readFileSync('scripts/ci/auto-repair/reasoning.mjs', 'utf8'), /ONLY_FRESH_EXACT_SHA_SCOUT_EVIDENCE_IS_ACTIONABLE/);
 assert.equal(INTRACTABLE_THRESHOLD, 3);
+assert.match(fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8'), /retrieveTeachingRecords/);
+assert.match(fs.readFileSync('scripts/ci/error-learning-log.mjs', 'utf8'), /50000|totalRecords/);
 assert.equal(planRepair('webkit waitForGpuRender timeout').selected, null);
 assert.equal(planRepair('typescript TS2322 type error').selected, null);
 assert.equal(planRepair('certification FAST 66 DEEP 60').selected, null);
@@ -151,8 +204,49 @@ assert.equal(ranked[0].anti, undefined);
 assert.equal(ranked[0].rule, 'eslint-unused');
 assert.equal(ranked.at(-1).anti, true);
 
+const attribution = mutationAttribution({
+  agentIdentity: 'repairAgent',
+  taskId: 'AUTO-REPAIR-001',
+  baselineSHA: 'a'.repeat(40),
+  changedFiles: ['src/example.ts', 'src/example.ts'],
+  rcaFingerprint: 'f'.repeat(64),
+  hypothesis: 'lint',
+  strategy: 'eslint-unused',
+  targetedTests: [['npx', ['eslint', 'src/example.ts']]],
+  fullTests: [['npm', ['run', 'test:static']]],
+  resultingSHA: 'b'.repeat(40),
+  outcome: 'mutation-applied',
+});
+assert.equal(attribution.schemaVersion, 2);
+assert.equal(attribution.agentIdentity, 'repairAgent');
+assert.equal(attribution.taskId, 'AUTO-REPAIR-001');
+assert.deepEqual(attribution.changedFiles, ['src/example.ts']);
+assert.equal(attribution.rcaFingerprint, 'f'.repeat(64));
+assert.equal(attribution.hypothesis, 'lint');
+assert.equal(attribution.strategy, 'eslint-unused');
+assert.equal(attribution.targetedTests.length, 1);
+assert.equal(attribution.fullTests.length, 1);
+assert.equal(attribution.resultingSHAKnown, true);
+assert.equal(attribution.exactShaBound, true);
+assert.equal(attribution.outcome, 'mutation-applied');
+
+const pendingAttribution = mutationAttribution({
+  agentIdentity: 'repairAgent',
+  taskId: 'AUTO-REPAIR-002',
+  baselineSHA: 'c'.repeat(40),
+  changedFiles: ['src/example.ts'],
+  outcome: 'mutation-applied',
+});
+assert.equal(pendingAttribution.resultingSHA, null);
+assert.equal(pendingAttribution.resultingSHAKnown, false);
+assert.equal(pendingAttribution.exactShaBound, false);
+assert.equal(pendingAttribution.outcome, 'unknown');
+
 const engineSource = fs.readFileSync('scripts/ci/auto-repair-engine.mjs', 'utf8');
 assert.match(engineSource, /file: selected\?\.file \?\? plan\.reasoning\?\.location\?\.file/);
+assert.match(engineSource, /loadAttemptLedger/);
+assert.match(engineSource, /PREPARED_SOURCE_CHANGE_SET/);
+assert.match(engineSource, /durable-no-repeat-blocked/);
 const fingerprintSource = fs.readFileSync('scripts/ci/auto-repair/fingerprint.mjs', 'utf8');
 assert.match(fingerprintSource, /external-tooling/);
 assert.match(fingerprintSource, /format/);
@@ -171,9 +265,9 @@ assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), 
 assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /MAX_STALLED_REPAIR_CYCLES = 3/);
 assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /NORMAL_MAX_PREPARED_FILES = 12/);
 const strategySource = fs.readFileSync('scripts/ci/repair-strategy.mjs', 'utf8');
-assert.match(strategySource, /% strategies\.length/);
 assert.match(strategySource, /teachingEscalation/);
-assert.match(strategySource, /const isIntractable = teachingEscalation/);
+assert.match(strategySource, /ledgerAvailableIndexes/);
+assert.match(strategySource, /REPAIR_NO_UNUSED_STRATEGY_FOR_ACTIVE_CASE/);
 assert.match(strategySource, /INTRACTABLE_THRESHOLD/);
 assert.match(strategySource, /nextAttempt > threshold/);
 const rollbackSource = fs.readFileSync('scripts/ci/auto-repair/historical-rollback.mjs', 'utf8');
@@ -182,6 +276,7 @@ assert.match(rollbackSource, /FLIXO-REPAIR-MARKER-v1/);
 assert.match(rollbackSource, /git.*revert.*--no-commit/);
 assert.match(rollbackSource, /isAncestor/);
 assert.match(engineSource, /verified-historical-revert/);
+assert.match(engineSource, /mutation-pending-commit/);
 assert.match(engineSource, /reverted-repair/);
 assert.match(workflow, /verified-historical-revert/);
 assert.match(workflow, /reverted-repair/);

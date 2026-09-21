@@ -45,3 +45,36 @@ Council Wake
 ```
 
 A bridge process may use POLL alone; PUSH is an acceleration path. Liveness is proven only by the bridge health endpoint and successful ACK/COMPLETE evidence, not by a dispatch row existing in Supabase.
+
+
+## The cell — 50 raw execution slots
+
+`الخلية` is a logical execution-capacity pool of exactly **50 raw slots**:
+
+- `CELL-001` … `CELL-050`
+- State at creation: `UNPROVISIONED`
+- Mode: `RAW`
+- No specialization
+- No independent mutation authority
+- No certification authority
+- No new credentials, endpoints, or external runtime identities
+
+These slots live inside the existing Control Plane and may only become executable when explicitly bound to an already-authorized runtime account and task scope. The cell therefore increases execution capacity without creating a competing account registry, authority layer, or certification path.
+
+
+## Action Agent Triad
+
+The three external identities now have bounded Action-agent profiles:
+
+| Identity | Profile | Responsibility | Mutation |
+|---|---|---|---|
+| CHIEF | ACTION_COMMANDER_V1 | triage, dispatch, evidence aggregation, handoff | NONE |
+| WORKER_A | ACTION_PRIMARY_REPAIR_V1 | primary Actions RCA and delegated repair | DELEGATED_REPAIR_ONLY |
+| WORKER_B | ACTION_ADVERSARIAL_REPAIR_V1 | independent challenge, alternative RCA and fallback | DELEGATED_REPAIR_ONLY |
+
+Every dispatch is bound to `missionId + workPackageId + taskId + exactSha`.
+
+Worker completion must provide:
+`finding + evidence + evidenceGrade + unknowns + lesson + antiLesson + skillCandidate + directBenefit + nextAction + decisionTrace`.
+
+Worker B must additionally return a `challenge`. Workers cannot self-approve or certify, and the bridge validates the result envelope before completion is accepted.

@@ -1,10 +1,13 @@
 name: Daily·FLIXO Green Gate
+# SUPREME AUTOMATION RESIDENCY: unresolved work must always re-enter recovery/dispatch.
 run-name: Daily·FLIXO Green Gate ${{ github.run_id }}
 
 on:
+  push:
+    branches: [execution]
   workflow_dispatch:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/5 * * * *'
   workflow_run:
     workflows:
       # Canonical triggers: completed Test System or Auto Repair cycles wake the watcher.
@@ -16,16 +19,15 @@ on:
 
 permissions:
   actions: write
-  contents: read
+  contents: write
   checks: read
   pull-requests: read
-  issues: write
 
 # Every observation is evidence-bearing and must complete; duplicate wake suppression is handled by the watchdog.
 # The watcher itself never cancels an evidence-bearing observation.
 concurrency:
-  group: flixo-continuous-error-watch-${{ github.event.workflow_run.head_branch || github.ref }}
-  cancel-in-progress: true
+  group: flixo-continuous-error-watch-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   watch:
@@ -211,71 +213,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Wake Agent 2 with exact-SHA failure packet
-        if: >-
-          steps.evaluate.outcome == 'success' &&
-          steps.capture.outputs.branch == 'execution' &&
-          (
-            steps.evaluate.outputs.status == 'RED_INTERNAL' ||
-            steps.evaluate.outputs.status == 'BLOCKED_EXTERNAL' ||
-            steps.evaluate.outputs.status == 'FAIL_CLOSED'
-          )
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          REPORT=/tmp/flixo-watch/report.json
-          SHA="$(jq -r '.executionSha // empty' "$REPORT")"
-          STATUS="$(jq -r '.status // empty' "$REPORT")"
-          ROOT_CAUSE="$(jq -r '.rootCause // empty' "$REPORT")"
-          TARGET_RUN_ID="$(jq -r '.repair.targetRunId // empty' "$REPORT")"
-          FAILURE_FINGERPRINT="$(jq -r '.repair.failureFingerprint // empty' "$REPORT")"
-          PRIMARY_WORKFLOW="$(jq -r '[.errors[] | select(.workflow != null) | .workflow] | .[0] // "unknown-workflow"' "$REPORT")"
-          PROMPT_DIGEST="NOT_AVAILABLE"
-          PROMPT_COUNT="0"
-          if [ -s /tmp/flixo-watch/execution-prompts.json ]; then
-            PROMPT_DIGEST="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); process.stdout.write(String(x.digest ?? ''))")"
-            PROMPT_COUNT="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); process.stdout.write(String(x.promptCount ?? 0))")"
-          fi
-          test "$SHA" = "$(cat /tmp/flixo-watch/execution-sha)"
-          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
-          test -n "$STATUS"
-
-          SAFE_FINGERPRINT="${FAILURE_FINGERPRINT:-NO_FINGERPRINT}"
-          WAKE_ID="agent-2-${SHA}-${SAFE_FINGERPRINT}"
-          if gh api --paginate "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --jq '.[].body' | grep -Fq "<!-- FLIXO_AGENT_2_WAKE:${WAKE_ID} -->"; then
-            echo "AGENT_2_WAKE_DUPLICATE=true"
-            exit 0
-          fi
-
-          BODY="$(cat <<EOF
-<!-- FLIXO_AGENT_COUNCIL_WAKE -->
-### AGENT 2 WAKE — FAILURE RECOVERY
-ENTRY SHA: $SHA
-ROLE: EXECUTION
-WORK PACKAGE: ROOT-CAUSE-SPINE-001
-TASK ID: AGENT-2-FAILURE-RECOVERY-001
-WAKE ID: $WAKE_ID
-STATUS: $STATUS
-PRIMARY WORKFLOW: $PRIMARY_WORKFLOW
-TARGET RUN ID: ${TARGET_RUN_ID:-NONE}
-FAILURE FINGERPRINT: $SAFE_FINGERPRINT
-ROOT CAUSE HINT: ${ROOT_CAUSE:-UNKNOWN_RCA}
-PROMPT BUNDLE DIGEST: $PROMPT_DIGEST
-PROMPT COUNT: $PROMPT_COUNT
-PROMPT ARTIFACT: flixo-repair-execution-prompts-$GITHUB_RUN_ID
-
-REQUIRED MODE: RCA → REPAIR → TARGETED REGRESSION → AFFECTED-CONTRACT VERIFICATION
-TEST POLICY: Reproduce the demonstrated failure first. Test the smallest affected surface. Do NOT rerun the full suite merely because a new commit exists; expand verification only when the repaired invariant, contract, security boundary, or certification proof requires it.
-LEARNING POLICY: Record symptom, trigger, propagation, violated invariant, causal root, repair rationale, targeted proof, exact SHA, and lesson/anti-lesson for the next small task.
-FAIL-CLOSED: Missing evidence, stale SHA, ambiguous RCA, or scope mismatch must block mutation and request investigation.
-
-<!-- FLIXO_AGENT_2_WAKE:${WAKE_ID} -->
-EOF
-)"
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
-          echo "AGENT_2_WAKE_SENT=true"
       - name: Dispatch internal repair target under Task Agent authority
         if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.evaluate.outputs.repair_required == 'true' && steps.capture.outputs.branch == 'execution'
         env:
@@ -390,6 +327,69 @@ EOF
             echo "REPAIR_ALREADY_CLAIMED=$REPAIR_KEY"
           fi
 
+      - name: Promote Action Vault learning only after Canonical GREEN
+        id: learning_promotion
+        if: steps.evaluate.outputs.status == 'GREEN' && steps.capture.outputs.branch == 'execution'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(cat /tmp/flixo-watch/execution-sha)"
+          ARTIFACT_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name | startswith("flixo-action-vault-provisional-learning-"))) | [.id,.created_at,.name] | @tsv' | sort -k2,2r | head -n 1 | cut -f1)"
+          if [ -z "$ARTIFACT_ID" ]; then
+            echo "provisional_found=false" >> "$GITHUB_OUTPUT"
+            echo "ACTION_VAULT_LEARNING_PROMOTION=SKIPPED_NO_PROVISIONAL"
+            exit 0
+          fi
+          echo "provisional_found=true" >> "$GITHUB_OUTPUT"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > /tmp/action-vault-provisional-learning.zip
+          mkdir -p /tmp/action-vault-learning
+          unzip -o /tmp/action-vault-provisional-learning.zip -d /tmp/action-vault-learning >/dev/null
+          PROVISIONAL="$(find /tmp/action-vault-learning -name provisional-learning.json -print -quit)"
+          test -s "$PROVISIONAL"
+          TARGET_SHA="$(jq -r '.targetSha' "$PROVISIONAL")"
+          LEARNING_EXECUTION_SHA="$(jq -r '.executionSha // empty' "$PROVISIONAL")"
+          LEARNING_RUN_ID="$(jq -r '.runId // empty' "$PROVISIONAL")"
+          FINGERPRINT="$(jq -r '.fingerprint' "$PROVISIONAL")"
+          TASK_ID="$(jq -r '.taskId' "$PROVISIONAL")"
+          test "$(jq -r '.status' "$PROVISIONAL")" = 'PROVISIONAL'
+          test "$LEARNING_EXECUTION_SHA" = "$CURRENT_SHA" || {
+            echo "FAIL CLOSED: provisional learning executionSha=$LEARNING_EXECUTION_SHA does not match current green SHA=$CURRENT_SHA."
+            exit 1
+          }
+          test -n "$LEARNING_RUN_ID" || {
+            echo "FAIL CLOSED: provisional learning runId is missing."
+            exit 1
+          }
+          git merge-base --is-ancestor "$TARGET_SHA" "$CURRENT_SHA"
+          jq -n --arg recordId "DAILY_FLIXO_GREEN_GATE:$CURRENT_SHA:$GITHUB_RUN_ID" --arg source 'DAILY_FLIXO_GREEN_GATE' --arg conclusion 'success' --arg targetSha "$CURRENT_SHA" --arg taskId "$TASK_ID" --arg fingerprint "$FINGERPRINT" '{recordId:$recordId,source:$source,conclusion:$conclusion,zeroRed:true,exactShaVerified:true,targetSha:$targetSha,taskId:$taskId,fingerprint:$fingerprint}' > /tmp/action-vault-green-record.json
+          node scripts/ci/action-vault-learning-promotion.mjs "$PROVISIONAL" /tmp/action-vault-green-record.json "$(jq -r '.proofIds | join(",")' "$PROVISIONAL")" /tmp/verified-learning.json
+          jq -e --arg sha "$CURRENT_SHA" '.status=="VERIFIED" and .executionSha==$sha and .greenRecordId != ""' /tmp/verified-learning.json >/dev/null
+
+      - name: Certify Action Vault from exact-SHA Green evidence
+        id: action_vault_certification
+        if: steps.learning_promotion.outcome == 'success' && steps.learning_promotion.outputs.provisional_found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          test -s /tmp/verified-learning.json
+          npm ci --ignore-scripts --prefer-offline --no-audit --no-fund
+          node scripts/ci/action-vault-certification-collector.mjs /tmp/flixo-watch/report.json /tmp/ACTION-VAULT-100-CERTIFICATION.json
+          jq -e '.certificationStatus=="100/100 VERIFIED" and .score==100 and .exactSha==.executionSha and .canonicalGreenRecord.conclusion=="success"' /tmp/ACTION-VAULT-100-CERTIFICATION.json >/dev/null
+
+      - name: Publish Action Vault 100/100 certification evidence
+        if: always() && steps.action_vault_certification.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ACTION-VAULT-100-CERTIFICATION-${{ github.run_id }}
+          path: |
+            /tmp/ACTION-VAULT-100-CERTIFICATION.json
+            /tmp/verified-learning.json
+            /tmp/action-vault-green-record.json
+          if-no-files-found: error
+          retention-days: 90
       - name: Publish cycle evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

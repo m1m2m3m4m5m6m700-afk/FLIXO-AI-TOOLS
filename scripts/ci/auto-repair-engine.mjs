@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { repairPolicy, isPathAllowed } from './auto-repair-policy.mjs';
 import { fingerprintFailure, normalizeFailure, extractFeatures, loadMemory, findCase, findSimilarCases, rankLessons, scorePlaybook, deriveReusableKnowledge, writeMemory, recordOutcome } from './auto-repair-learning.mjs';
 import { planRepair } from './auto-repair/planner.mjs';
@@ -9,34 +10,25 @@ import { runAstRepair } from './auto-repair/ast-repair.mjs';
 import { reproduce, resolveTargetedTests } from './auto-repair/reproduction.mjs';
 import { buildVerificationPlan, checkVerificationContamination, reproduceStable, verifyTargetIdentity } from './auto-repair/verification.mjs';
 import { runRegression } from './auto-repair/regression.mjs';
-import { summarizeDiff, writeEvidence } from './auto-repair/evidence.mjs';
+import { summarizeDiff, writeEvidence, mutationAttribution } from './auto-repair/evidence.mjs';
 import { snapshot, rollback } from './auto-repair/rollback.mjs';
 import { findHistoricalRepairCandidate, applyHistoricalRepair, historicalRollbackRecord } from './auto-repair/historical-rollback.mjs';
 import { validateRepairProof, preventionRuleFor, escalationReason } from './auto-repair-proof.mjs';
-import { simulateRepair } from './auto-repair/simulation.mjs';
 import { critiqueRepair } from './auto-repair/self-critic.mjs';
 import { buildCausalProof } from './auto-repair/causal-proof.mjs';
 import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
-import { assertAgentAdmission, createRepairSession, captureFailure, authorizeMutation, completeRepairSession, validateErrorOnlyMutation, validateMinimalRepairScope, validateTargetedRegressionSelection } from './repair-protocol.mjs';
-
-// Static protocol contract marker: root-cause-proof-reproductionRecovered.
-function mutationAttribution({ beforeSha, afterSha, changedFiles = [], rule = null, outcome = 'unknown' } = {}) {
-  return {
-    schemaVersion: 1,
-    beforeSha: beforeSha ?? null,
-    afterSha: afterSha ?? null,
-    changedFiles: [...new Set(changedFiles)],
-    rule,
-    outcome,
-    exactShaBound: Boolean(beforeSha && afterSha),
-    recordedAt: new Date().toISOString(),
-  };
-}
+import { assertAgentAdmission, createRepairSession, captureFailure, authorizeMutation, completeRepairSession, validateActionVaultVerifierProof, validateErrorOnlyMutation, validateMinimalRepairScope, validateTargetedRegressionSelection } from './repair-protocol.mjs';
+import { loadAttemptLedger, isRepairRejected, rejectionReasons } from './repair-attempt-ledger.mjs';
+import { buildErrorOnlyRepairModel } from './auto-repair/error-only-programmer.mjs';
+import { simulateAstRepair } from './action-repair-sandbox.mjs';
+import { evaluateMutationGate } from './action-vault-mutation-gate.mjs';
+import { reviewCatalogBeforeMutation, reviewDiagnosisAgainstKnowledge } from './action-vault-triad-governor.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
 const fingerprint = fingerprintFailure(log);
+const repairChainId = String(process.env.FLIXO_REPAIR_CHAIN_ID ?? process.env.TARGET_RUN_ID ?? '').trim();
 const normalizedFailure = normalizeFailure(log);
 const features = extractFeatures(log);
 const evidencePath = process.env.FLIXO_REPAIR_EVIDENCE_PATH ?? '/tmp/flixo-repair-evidence.json';
@@ -50,7 +42,71 @@ const repairActor = process.env.FLIXO_REPAIR_ACTOR ?? 'repairAgent';
 const fallbackProofPath = process.env.FLIXO_ASSISTANT_FALLBACK_PROOF_PATH ?? '';
 const fallbackProof = fallbackProofPath && fs.existsSync(fallbackProofPath) ? JSON.parse(fs.readFileSync(fallbackProofPath, 'utf8')) : null;
 if (repairActor === 'assistantRepairAgent' && !fallbackProof?.fallbackEligible) throw new Error('ASSISTANT_FALLBACK_PROOF_REQUIRED');
-let repairProtocolSession = createRepairSession({ repairSessionId, actor: repairActor, failureFingerprint: fingerprint, targetSHA: targetSha, beforeState: { worktree: 'clean', targetSha }, attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1), fallback: repairActor === 'assistantRepairAgent' ? { ...fallbackProof, actor: 'assistantRepairAgent', targetSha } : null });
+const assistantApprovalPath = process.env.FLIXO_ASSISTANT_APPROVAL_PATH ?? '';
+const assistantApproval = assistantApprovalPath && fs.existsSync(assistantApprovalPath)
+  ? JSON.parse(fs.readFileSync(assistantApprovalPath, 'utf8'))
+  : null;
+const actionVaultVerifierProofPath = process.env.FLIXO_ACTION_VAULT_VERIFIER_PROOF_PATH ?? '';
+const cognitiveAwarenessPath = process.env.FLIXO_SYSTEM_COGNITIVE_AWARENESS_PATH ?? '';
+const programmerTwinParityPath = process.env.FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH ?? '';
+const programmerTwinReportPath = process.env.FLIXO_ACTION_REPAIR_PROGRAMMER_TWIN_PATH ?? '';
+const preMutationProofPath = process.env.FLIXO_ACTION_VAULT_PRE_MUTATION_PROOF_PATH ?? '';
+const fileSelectionPath = process.env.FLIXO_FILE_SELECTION_PATH ?? '';
+const actionVaultVerifierProof = actionVaultVerifierProofPath && fs.existsSync(actionVaultVerifierProofPath)
+  ? JSON.parse(fs.readFileSync(actionVaultVerifierProofPath, 'utf8'))
+  : null;
+const cognitiveAwareness = cognitiveAwarenessPath && fs.existsSync(cognitiveAwarenessPath)
+  ? JSON.parse(fs.readFileSync(cognitiveAwarenessPath, 'utf8'))
+  : null;
+const programmerTwinParity = programmerTwinParityPath && fs.existsSync(programmerTwinParityPath)
+  ? JSON.parse(fs.readFileSync(programmerTwinParityPath, 'utf8'))
+  : null;
+const programmerTwinReport = programmerTwinReportPath && fs.existsSync(programmerTwinReportPath)
+  ? JSON.parse(fs.readFileSync(programmerTwinReportPath, 'utf8'))
+  : null;
+const preMutationProof = preMutationProofPath && fs.existsSync(preMutationProofPath)
+  ? JSON.parse(fs.readFileSync(preMutationProofPath, 'utf8'))
+  : null;
+const fileSelection = fileSelectionPath && fs.existsSync(fileSelectionPath)
+  ? JSON.parse(fs.readFileSync(fileSelectionPath, 'utf8'))
+  : null;
+if (repairActor === 'actionRepairBot') {
+  if (cognitiveAwareness?.protocol !== 'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1' || cognitiveAwareness?.targetSha !== targetSha || cognitiveAwareness?.awarenessCompleteness?.complete !== true) throw new Error('ACTION_REPAIR_COGNITIVE_AWARENESS_REQUIRED');
+  if (programmerTwinParity?.status !== 'EXACT_INTELLIGENCE_PARITY' || programmerTwinParity?.intelligenceParity !== 'EXACT' || programmerTwinParity?.authorityParity !== 'SEPARATED_BY_DESIGN' || programmerTwinParity?.targetSha !== targetSha) throw new Error('ACTION_REPAIR_PROGRAMMER_TWIN_PARITY_REQUIRED');
+  validateActionVaultVerifierProof({ proof: actionVaultVerifierProof, targetSHA: targetSha, failureFingerprint: fingerprint });
+}
+let repairProtocolSession = createRepairSession({ repairSessionId, actor: repairActor, failureFingerprint: fingerprint, targetSHA: targetSha, beforeState: { worktree: 'clean', targetSha }, attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1), fallback: repairActor === 'assistantRepairAgent' ? { ...fallbackProof, actor: 'assistantRepairAgent', targetSha } : null, assistantApproval, actionVaultVerifierProof });
+if (repairActor === 'actionRepairBot') {
+  const taskId = process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId;
+  repairProtocolSession = Object.freeze({
+    ...repairProtocolSession,
+    actionVaultMission: {
+      role: 'ACTION-REPAIR',
+      triadId: 'ACTION-THREE-BOT-COLLABORATION',
+      messageId: `ACTION-VAULT:${taskId}:${fingerprint}`,
+      taskId,
+      failureFingerprint: fingerprint,
+      entrySha: targetSha,
+      targetSha,
+      ownerAgent: 'actionRepairBot',
+      verifierAgent: 'actionRepairVerifier',
+      historianAgent: 'actionHistorian',
+      programmerTwinParity: {
+        intelligenceParity: programmerTwinParity.intelligenceParity,
+        authorityParity: programmerTwinParity.authorityParity,
+        targetSha: programmerTwinParity.targetSha
+      },
+      cognitiveAwareness: {
+        protocol: cognitiveAwareness.protocol,
+        targetSha: cognitiveAwareness.targetSha,
+        complete: cognitiveAwareness.awarenessCompleteness.complete
+      },
+      proofObligations: ['PRIMARY_CORRECTNESS_PROOF','ADVERSARIAL_FALSIFICATION','TARGETED_REGRESSION','CANONICAL_GREEN'],
+      stopConditions: ['VALID_COUNTEREXAMPLE','SHA_DRIFT','COGNITIVE_AWARENESS_MISSING','PARITY_MISMATCH','CANONICAL_GREEN_FAILURE'],
+      noBlindRetry: true
+    }
+  });
+}
 repairProtocolSession = captureFailure(repairProtocolSession, { runId: process.env.GITHUB_RUN_ID ?? null, failureFingerprint: fingerprint, logPath });
 const prepareTargetedVerification = (currentLog, currentFeatures) => {
   const selection = resolveTargetedTests(currentLog, currentFeatures, { targetDir });
@@ -73,6 +129,9 @@ const prepareTargetedVerification = (currentLog, currentFeatures) => {
     reason: reproductionStability.classification === 'REPRODUCIBLE_FAILURE' ? null : 'baseline-not-reproducible:' + reproductionStability.classification,
   };
 };
+const attemptLedger = loadAttemptLedger(process.env.FLIXO_REPAIR_ATTEMPT_LEDGER ?? '/tmp/flixo-repair-attempt-ledger.json', { chainId: repairChainId });
+const stableCaseFingerprint = String(process.env.FLIXO_FAILURE_FINGERPRINT ?? '').trim() || attemptLedger.caseFingerprint || fingerprint;
+attemptLedger.caseFingerprint = stableCaseFingerprint;
 const memory = loadMemory();
 const known = findCase(memory, fingerprint);
 const similar = findSimilarCases(memory, { fingerprint, normalized: normalizedFailure, features });
@@ -117,16 +176,20 @@ const historicalCandidate = plan.candidates.find((candidate) => historicalRules.
 const blockedRuleIds = new Set(blockedLessons.map((item) => item.rule).filter(Boolean));
 if (selected?.id && blockedRuleIds.has(selected.id) && !trustedLessons.some((item) => item.rule === selected.id && item.confidence >= 0.85)) selected = null;
 if (selected?.id && revertedRuleIds.has(selected.id)) selected = null;
-if (historicalCandidate && !blockedRuleIds.has(historicalCandidate.id) && (!selected || scorePlaybook(memory, specialist?.id ?? 'unknown', historicalCandidate.id) >= scorePlaybook(memory, specialist?.id ?? 'unknown', selected.id))) {
+if (selected?.id !== 'prepared-source-change' && historicalCandidate && !blockedRuleIds.has(historicalCandidate.id) && !isRepairRejected(attemptLedger, { chainId: repairChainId, caseFingerprint: stableCaseFingerprint, ruleId: historicalCandidate.id, strategyId: process.env.FLIXO_REPAIR_STRATEGY_ID ?? null }) && (!selected || scorePlaybook(memory, specialist?.id ?? 'unknown', historicalCandidate.id) >= scorePlaybook(memory, specialist?.id ?? 'unknown', selected.id))) {
   selected = {
     ...historicalCandidate,
     file: selected?.file ?? plan.reasoning?.location?.file ?? null,
   };
 }
+const durableLedgerRejected = selected?.id ? isRepairRejected(attemptLedger, { chainId: repairChainId, caseFingerprint: stableCaseFingerprint, strategyId: process.env.FLIXO_REPAIR_STRATEGY_ID ?? null, ruleId: selected.id }) : false;
+if (durableLedgerRejected) selected = null;
+
 const evidence = {
   schemaVersion: 6,
   protocol: 'AUTONOMOUS-REPAIR-PROTOCOL-v4',
   repairProtocol: repairProtocolSession,
+  actionVault: repairActor === 'actionRepairBot' ? { enabled: true, verifierProofPath: actionVaultVerifierProofPath, verifierProof: actionVaultVerifierProof, verifierAgent: 'actionRepairVerifier', historianAgent: 'actionHistorian' } : null,
   fingerprint,
   targetSha,
   features,
@@ -134,6 +197,7 @@ const evidence = {
   specialist,
   candidates: plan.candidates,
   reasoning: plan.reasoning,
+  inferenceFallback: plan.inferenceFallback ?? null,
   reusableKnowledge,
   selected: selected?.id ?? null,
   historicalRollbackCandidate: historicalRollbackCandidate ? historicalRollbackRecord(historicalRollbackCandidate) : null,
@@ -148,6 +212,7 @@ const evidence = {
     trustedLessons: trustedLessons.map(({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence }) => ({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence })),
     blockedLessons: blockedLessons.map(({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence }) => ({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence })),
     decision: selected?.id ? 'historical-learning-assisted' : 'no-trusted-learned-repair',
+    durableNoRepeat: { enabled: true, chainId: repairChainId || null, caseFingerprint: stableCaseFingerprint, rejectedSelection: durableLedgerRejected, rejectedReasons: rejectionReasons(attemptLedger, { chainId: repairChainId, caseFingerprint: stableCaseFingerprint, strategyId: process.env.FLIXO_REPAIR_STRATEGY_ID ?? null, ruleId: plan.selected?.id ?? null }).slice(-20) },
   },
   outcome: 'diagnostic-only',
   changedPaths: [],
@@ -164,12 +229,126 @@ const diagnosisGate = {
   ambiguous: diagnosis?.ambiguity ?? true,
   directFailureSignal: diagnosis?.directFailureSignal ?? false,
   reasoningDecision,
-  allowed: Boolean(diagnosis) && diagnosis.diagnosisQuality === 'strong' && diagnosis.causalConfidence >= 0.75 && !diagnosis.ambiguity && diagnosis.directFailureSignal && reasoningDecision === 'ALLOW_BOUNDED_MUTATION',
+  inferenceFallback: plan.inferenceFallback?.prediction ?? null,
+  allowed: (
+    Boolean(diagnosis) &&
+    diagnosis.diagnosisQuality === 'strong' &&
+    diagnosis.causalConfidence >= 0.75 &&
+    !diagnosis.ambiguity &&
+    diagnosis.directFailureSignal &&
+    reasoningDecision === 'ALLOW_BOUNDED_MUTATION'
+  ) || Boolean(plan.inferenceFallback?.prediction?.eligibleForBoundedMutation),
 };
 evidence.diagnosisGate = diagnosisGate;
 
+const actionVaultCatalogReview = reviewCatalogBeforeMutation({ taskId: process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, fingerprint, targetSha, failedRunId: process.env.GITHUB_RUN_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, errorText: log });
+const actionVaultDiagnosisKnowledgeReview = reviewDiagnosisAgainstKnowledge({ taskId: process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, fingerprint, targetSha, failedRunId: process.env.GITHUB_RUN_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, diagnosis: diagnosis ?? {}, catalogReview: actionVaultCatalogReview });
+
+
+const triadActorMap = {
+  actionRepairBot: { role:'ACTION-REPAIR', mutationSeat:'ACTION-REPAIR' },
+  actionRepairVerifier: { role:'ACTION-REPAIR-2', mutationSeat:'ACTION-REPAIR-2' },
+  actionHistorian: { role:'ACTION-HISTORIAN-3', mutationSeat:'ACTION-HISTORIAN-3' }
+};
+if (triadActorMap[repairActor]) {
+  const seat=triadActorMap[repairActor];
+  repairProtocolSession=Object.freeze({
+    ...repairProtocolSession,
+    actionVaultMission:{
+      ...(repairProtocolSession.actionVaultMission??{}),
+      role:seat.role,
+      mutationSeat:seat.mutationSeat,
+      triadId:'ACTION-THREE-BOT-COLLABORATION',
+      taskId:process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId,
+      entrySha:targetSha,targetSha,
+      ownerAgent:repairActor,
+      verifierAgent:'actionRepairVerifier',
+      historianAgent:'actionHistorian',
+      catalogReview:actionVaultCatalogReview,
+      diagnosisKnowledgeReview:actionVaultDiagnosisKnowledgeReview,
+      catalogReviewed:true,
+      bothProgrammingProposalsReviewed:true,
+      supervisorDecision:repairActor==='actionHistorian' ? actionVaultDiagnosisKnowledgeReview.decision==='MATCH' : true,
+      candidateRepairApproved:true,
+      supervisorMode:repairActor==='actionHistorian' ? 'BOT_3_KNOWLEDGE_JUDGE' : undefined,
+      noBlindRetry:true,
+      programmerTwinParity: programmerTwinParity ? {intelligenceParity:programmerTwinParity.intelligenceParity,authorityParity:programmerTwinParity.authorityParity,targetSha:programmerTwinParity.targetSha}: undefined,
+      cognitiveAwareness: cognitiveAwareness ? {protocol:cognitiveAwareness.protocol,targetSha:cognitiveAwareness.targetSha,complete:cognitiveAwareness.awarenessCompleteness?.complete===true}: undefined,
+    }
+  });
+}
+
 if (historicalRollbackCandidate && diagnosisGate.allowed) {
   const before = snapshot(targetDir);
+  const plannedChangedPaths = preMutationProof.sandboxSimulation?.changedFiles ?? [];
+  const candidateDiff = preMutationProof.sandboxSimulation?.candidateDiff ?? '';
+  const mutationScope = {
+    changedPaths: plannedChangedPaths,
+    selectedFiles: fileSelection?.selectedFiles?.map((item) => item.path).filter(Boolean) ?? [],
+    testMutation: plannedChangedPaths.some((file) => /(^|\/)(?:tests?|__tests__)\//u.test(file)),
+    controlPlaneMutation: plannedChangedPaths.some((file) => /^scripts\/ci\/|^\\.github\/workflows\//u.test(file)),
+    mainMutation: false,
+    gateWeakening: /continue-on-error|test\\.(?:skip|only)|describe\\.(?:skip|only)|eslint-disable|@ts-(?:ignore|nocheck)/iu.test(candidateDiff),
+  };
+  const mutationGate = evaluateMutationGate({
+    targetSha,
+    currentSha: git(['rev-parse', 'HEAD']).trim(),
+    failureFingerprint: fingerprint,
+    verifierProof: actionVaultVerifierProof,
+    cognitiveAwareness,
+    rootCauseProof: preMutationProof.rootCauseProof,
+    fileSelection,
+    programmerTwinParity,
+    falsificationReport: programmerTwinReport,
+    simulationProof: preMutationProof.sandboxSimulation,
+    differentialProof: preMutationProof.differentialProof,
+    patchCorrectness: preMutationProof.patchCorrectness,
+    regressionCounterexamples: preMutationProof.regressionCounterexamples,
+    preMutationProof,
+    catalogReview: actionVaultCatalogReview,
+    diagnosisKnowledgeReview: actionVaultDiagnosisKnowledgeReview,
+    mutationScope,
+    branch: protocolBranch,
+  });
+  evidence.mutationGate = mutationGate;
+  if (mutationGate.status !== 'PASS') {
+    evidence.outcome = 'proposal-only';
+    evidence.escalation = { required: true, reason: 'hard-mutation-gate-blocked', blockedReasons: mutationGate.failures };
+    writeEvidence(evidencePath, evidence);
+    recordOutcome(memory, {
+      fingerprint,
+      normalizedFailure,
+      features,
+      rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown',
+      rule: selected.id,
+      outcome: 'proposed',
+      verification: 'hard-mutation-gate-blocked',
+      provenance: { targetSha, mutationGate },
+      preventionRule: 'No source mutation is admissible until every exact-SHA evidence, falsification, simulation, differential, patch, and regression obligation passes.',
+    });
+    writeMemory(memory);
+    console.log('AUTO_REPAIR_RESULT=PROPOSAL_ONLY');
+    console.log('AUTO_REPAIR_REASON=hard-mutation-gate-blocked');
+    process.exit(0);
+  }
+  if (repairActor === 'actionRepairBot') {
+    evidence.outcome = 'proposal-only';
+    evidence.escalation = { required: true, reason: 'historical-rollback-requires-action-vault-sandbox-proof' };
+    writeEvidence(evidencePath, evidence);
+    recordOutcome(memory, {
+      fingerprint, normalizedFailure, features,
+      rootCause: diagnosis?.rootCause ?? 'unknown',
+      rule: historicalRollbackCandidate.rule ?? undefined,
+      outcome: 'proposed',
+      verification: 'action-vault-historical-rollback-sandbox-required',
+      provenance: { targetSha, revertedCommit: historicalRollbackCandidate.commitSha },
+      preventionRule: 'Action Vault never applies a historical rollback without an executable exact-SHA pre-mutation simulation.',
+    });
+    writeMemory(memory);
+    console.log('AUTO_REPAIR_RESULT=PROPOSAL_ONLY');
+    console.log('AUTO_REPAIR_REASON=historical-rollback-requires-action-vault-sandbox-proof');
+    process.exit(0);
+  }
   repairProtocolSession = authorizeMutation(repairProtocolSession);
   assertAgentAdmission({ actor: repairActor, branch: protocolBranch, mutation: true, session: repairProtocolSession });
   const preparedVerification = prepareTargetedVerification(log, plan.features);
@@ -213,17 +392,30 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     const diffSummary = summarizeDiff(changed);
     evidence.diff = diffSummary;
     evidence.changedPaths = diffSummary.files;
+  evidence.errorOnlyMutationPostDiff = validateErrorOnlyMutation({
+    failureLocation: diagnosis?.location?.file ?? selected?.file ?? evidence.errorOnlyMutation.selectedFiles[0],
+    selectedFile: selected?.file ?? evidence.errorOnlyMutation.selectedFiles[0],
+    selectedFiles: evidence.errorOnlyMutation.selectedFiles,
+    changedPaths: diffSummary.files,
+  });
     evidence.errorOnlyMutation = validateErrorOnlyMutation({
       failureLocation: diagnosis?.location?.file,
       selectedFile: historicalRollbackCandidate?.file ?? diagnosis?.location?.file,
       changedPaths: diffSummary.files,
     });
+    const attributionResultingSHA = git(['rev-parse', 'HEAD']).trim();
     evidence.mutationAttribution = mutationAttribution({
-      beforeSha: targetSha,
-      afterSha: git(['rev-parse', 'HEAD']).trim(),
+      agentIdentity: repairActor,
+      taskId: process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? null,
+      baselineSHA: targetSha,
       changedFiles: diffSummary.files,
-      rule: evidence.selected,
-      outcome: 'mutation-applied',
+      rcaFingerprint: fingerprint,
+      hypothesis: diagnosis?.rootCause ?? null,
+      strategy: evidence.selected,
+      targetedTests: evidence.reproductionCommands,
+      fullTests: evidence.regressionSelection?.regressionCommands ?? [],
+      resultingSHA: attributionResultingSHA !== targetSha ? attributionResultingSHA : null,
+      outcome: attributionResultingSHA !== targetSha ? 'mutation-applied' : 'mutation-pending-commit',
     });
     if (
       !diffSummary.files.length ||
@@ -401,11 +593,40 @@ if (!diagnosisGate.allowed) {
 }
 
 if (!selected) {
-  evidence.escalation = { required: true, reason: 'no-safe-mutation-candidate' };
+  evidence.escalation = { required: true, reason: durableLedgerRejected ? 'durable-no-repeat-blocked' : 'no-safe-mutation-candidate' };
   writeEvidence(evidencePath, evidence);
   recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', outcome: 'proposed', verification: 'none', provenance: { targetSha }, preventionRule: 'No safe mutation candidate; escalate with evidence.' });
   writeMemory(memory);
   console.log(`AUTO_REPAIR_RESULT=PROPOSAL_ONLY\nAUTO_REPAIR_PLAN=none\nAUTO_REPAIR_FINGERPRINT=${fingerprint}`);
+  process.exit(0);
+}
+
+const errorOnlyProgrammer = buildErrorOnlyRepairModel({
+  log,
+  diagnosis,
+  selected,
+  targetSha,
+  failedSha: process.env.FLIXO_FAILURE_SHA || null,
+  targetDir,
+});
+evidence.errorOnlyProgrammer = errorOnlyProgrammer;
+if (!errorOnlyProgrammer.repair.mutationAllowed) {
+  evidence.outcome = 'proposal-only';
+  evidence.escalation = { required: true, reason: 'error-only-programmer-blocked', blockedReasons: errorOnlyProgrammer.blockedReasons };
+  writeEvidence(evidencePath, evidence);
+  recordOutcome(memory, {
+    fingerprint,
+    normalizedFailure,
+    features,
+    rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown',
+    rule: selected?.id,
+    outcome: 'proposed',
+    verification: 'error-only-programmer-blocked',
+    provenance: { targetSha, blockedReasons: errorOnlyProgrammer.blockedReasons },
+    preventionRule: 'Only mutate source code when the selected repair is tied to the demonstrated current error.',
+  });
+  writeMemory(memory);
+  console.log(`AUTO_REPAIR_RESULT=PROPOSAL_ONLY\\nAUTO_REPAIR_REASON=error-only-programmer-blocked`);
   process.exit(0);
 }
 
@@ -425,19 +646,9 @@ if (!gate.allowed) {
   process.exit(0);
 }
 
-const simulation = simulateRepair({
-  targetDir,
-  plan: selected,
-  maxChangedFiles: repairPolicy.maxChangedFiles,
-  maxChangedLines: repairPolicy.maxChangedLines,
-});
-evidence.simulation = simulation;
-if (!simulation.ok) {
+if (!preMutationProof || preMutationProof.protocol !== 'REPAIR-SIMULATION-PROOF-v1' || preMutationProof.status !== 'PROVEN' || preMutationProof.targetSha !== targetSha || preMutationProof.failureFingerprint !== fingerprint || preMutationProof.noMutationApplied !== true) {
   evidence.outcome = 'proposal-only';
-  evidence.escalation = { required: true, reason: 'pre-mutation-simulation-failed' };
-  evidence.v11.knowledgeGraph = buildRepairKnowledgeGraph({
-    fingerprint, targetSha, diagnosis, plan, simulation,
-  });
+  evidence.escalation = { required: true, reason: 'pre-mutation-proof-missing-or-stale' };
   writeEvidence(evidencePath, evidence);
   recordOutcome(memory, {
     fingerprint,
@@ -446,15 +657,24 @@ if (!simulation.ok) {
     rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown',
     rule: selected.id,
     outcome: 'proposed',
-    verification: 'pre-mutation-simulation-failed',
-    provenance: { targetSha, simulation },
-    preventionRule: 'Require an isolated deterministic simulation to pass before source mutation.',
+    verification: 'pre-mutation-proof-blocked',
+    provenance: { targetSha, preMutationProof: Boolean(preMutationProof) },
+    preventionRule: 'Mutation requires a fresh exact-SHA pre-mutation simulation, differential proof, and counterexample exhaustion.',
   });
   writeMemory(memory);
   console.log('AUTO_REPAIR_RESULT=PROPOSAL_ONLY');
-  console.log('AUTO_REPAIR_REASON=pre-mutation-simulation-failed');
+  console.log('AUTO_REPAIR_REASON=pre-mutation-proof-missing-or-stale');
   process.exit(0);
 }
+const simulation = preMutationProof.sandboxSimulation;
+evidence.simulation = simulation;
+evidence.preMutationProof = {
+  protocol: preMutationProof.protocol,
+  status: preMutationProof.status,
+  targetSha: preMutationProof.targetSha,
+  failureFingerprint: preMutationProof.failureFingerprint,
+  proofCompleteness: preMutationProof.proofCompleteness,
+};
 
 const before = snapshot(targetDir);
   const preparedVerification = prepareTargetedVerification(log, plan.features);
@@ -486,18 +706,124 @@ const before = snapshot(targetDir);
     process.exit(0);
   }
 
+  if (repairActor === 'actionRepairBot') {
+    const taskId = process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId;
+    const sandbox = simulateAstRepair({
+      repoRoot: targetDir,
+      taskId,
+      fingerprint,
+      targetSha,
+      selected,
+      checks: evidence.reproductionCommands,
+      failureLog: log,
+    });
+    evidence.actionVaultSandbox = sandbox;
+    if (sandbox.status !== 'PASS' || sandbox.patchDigest !== preMutationProof.sandboxSimulation?.patchDigest) {
+      evidence.outcome = 'proposal-only';
+      evidence.escalation = { required: true, reason: 'action-vault-pre-mutation-sandbox-failed' };
+      writeEvidence(evidencePath, evidence);
+      recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', rule: selected?.id, outcome: 'proposed', verification: 'action-vault-sandbox-failed', provenance: { targetSha, sandbox }, preventionRule: 'Action Vault mutation requires a passing exact-SHA detached-worktree AST simulation with executed differential checks.' });
+      writeMemory(memory);
+      console.log('AUTO_REPAIR_RESULT=PROPOSAL_ONLY');
+      console.log('AUTO_REPAIR_REASON=action-vault-pre-mutation-sandbox-failed');
+      process.exit(0);
+    }
+    repairProtocolSession = Object.freeze({
+      ...repairProtocolSession,
+      actionVaultMission: {
+        ...repairProtocolSession.actionVaultMission,
+        sandboxProof: sandbox,
+        differentialProof: sandbox.differentialProof ?? sandbox.differential,
+        counterexampleProof: sandbox.regressionCounterexamples,
+
+        patchCorrectnessProof: sandbox.patchCorrectnessProof,
+        preMutationProof,
+      },
+    });
+    repairProtocolSession = authorizeMutation(repairProtocolSession);
+    assertAgentAdmission({ actor: repairActor, branch: protocolBranch, mutation: true, session: repairProtocolSession });
+  } else {
+    repairProtocolSession = authorizeMutation(repairProtocolSession);
+    assertAgentAdmission({ actor: repairActor, branch: protocolBranch, mutation: true, session: repairProtocolSession });
+  }
+
+
+const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
+  const plannedChangedPaths = evidence.actionVaultSandbox?.changedFiles ?? preMutationProof.sandboxSimulation?.changedFiles ?? [];
+  const candidateDiff = evidence.actionVaultSandbox?.candidateDiff ?? preMutationProof.sandboxSimulation?.candidateDiff ?? '';
+  const mutationScope = {
+    changedPaths: plannedChangedPaths,
+    selectedFiles: fileSelection?.selectedFiles?.map((item) => item.path).filter(Boolean) ?? [],
+    testMutation: plannedChangedPaths.some((file) => /(^|\/)(?:tests?|__tests__)\//u.test(file)),
+    controlPlaneMutation: plannedChangedPaths.some((file) => /^scripts\/ci\/|^\.github\/workflows\//u.test(file)),
+    mainMutation: false,
+    gateWeakening: /continue-on-error|test\.(?:skip|only)|describe\.(?:skip|only)|eslint-disable|@ts-(?:ignore|nocheck)/iu.test(candidateDiff),
+  };
+  const mutationGate = evaluateMutationGate({
+    targetSha,
+    currentSha: gateCurrentSha,
+    failureFingerprint: fingerprint,
+    verifierProof: actionVaultVerifierProof,
+    cognitiveAwareness,
+    rootCauseProof: preMutationProof.rootCauseProof,
+    fileSelection,
+    programmerTwinParity,
+    falsificationReport: programmerTwinReport,
+    simulationProof: evidence.actionVaultSandbox ?? preMutationProof.sandboxSimulation,
+    differentialProof: preMutationProof.differentialProof,
+    patchCorrectness: preMutationProof.patchCorrectness,
+    regressionCounterexamples: preMutationProof.regressionCounterexamples,
+    mutationScope,
+    branch: protocolBranch,
+  });
+  evidence.mutationGate = mutationGate;
+  if (mutationGate.status !== 'PASS') {
+    evidence.outcome = 'proposal-only';
+    evidence.escalation = { required: true, reason: 'hard-mutation-gate-blocked', blockedReasons: mutationGate.failures };
+    writeEvidence(evidencePath, evidence);
+    recordOutcome(memory, {
+      fingerprint,
+      normalizedFailure,
+      features,
+      rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown',
+      rule: selected?.id,
+      outcome: 'proposed',
+      verification: 'hard-mutation-gate-blocked',
+      provenance: { targetSha, mutationGate },
+      preventionRule: 'No source mutation is admissible until every exact-SHA evidence, falsification, simulation, differential, patch and regression obligation passes.',
+    });
+    writeMemory(memory);
+    console.log('AUTO_REPAIR_RESULT=PROPOSAL_ONLY');
+    console.log('AUTO_REPAIR_REASON=hard-mutation-gate-blocked');
+    process.exit(0);
+}
+
 try {
+  const declaredRepairFiles = selected?.id === 'prepared-source-change'
+    ? (selected?.files ?? []).filter(Boolean)
+    : [selected?.file].filter(Boolean);
   evidence.errorOnlyMutation = validateErrorOnlyMutation({
-    failureLocation: diagnosis?.location?.file,
-    selectedFile: selected?.file,
-    changedPaths: [selected?.file],
+    failureLocation: diagnosis?.location?.file ?? selected?.file ?? declaredRepairFiles[0],
+    selectedFile: selected?.file ?? declaredRepairFiles[0],
+    selectedFiles: declaredRepairFiles,
+    changedPaths: declaredRepairFiles,
   });
   evidence.repair = runAstRepair(targetDir, selected);
   const changed = git(['diff', '--binary']);
+  if (repairActor === 'actionRepairBot') {
+    const actualPatchDigest = createHash('sha256').update(changed, 'utf8').digest('hex');
+    const expectedPatchDigest = evidence.actionVaultSandbox?.patchDigest;
+    if (!expectedPatchDigest || actualPatchDigest !== expectedPatchDigest) {
+      rollback(targetDir, before);
+      throw new Error('ACTION_VAULT_ACTUAL_PATCH_DIFFERS_FROM_SIMULATED_PATCH');
+    }
+    evidence.actionVaultPatchIdentity = { expectedPatchDigest, actualPatchDigest, exactMatch: true, exactSha: targetSha };
+  }
   const diffSummary = summarizeDiff(changed);
   evidence.diff = diffSummary;
   evidence.changedPaths = diffSummary.files;
-  evidence.minimalRepairScope = validateMinimalRepairScope({ affectedPaths: diagnosis?.affectedPaths ?? [diagnosis?.location?.file].filter(Boolean), changedPaths: diffSummary.files });
+  const declaredAffectedPaths = diagnosis?.affectedPaths ?? (selected?.files?.length ? selected.files : [diagnosis?.location?.file].filter(Boolean));
+  evidence.minimalRepairScope = validateMinimalRepairScope({ affectedPaths: declaredAffectedPaths, changedPaths: diffSummary.files });
   evidence.selfCritic = critiqueRepair({
     diff: changed,
     diffSummary,

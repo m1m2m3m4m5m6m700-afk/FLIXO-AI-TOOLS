@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "authority": "CELL_CONTROL_PLANE",
+  "botId": "CELL-070",
+  "identity": {
+    "writerId": "CELL-070",
+    "writerType": "RAW_BOT",
+    "supervisor": "assistantController"
+  },
+  "weaknessProfile": {
+    "upgradePriority": 1,
+    "weakness": "FIRST_TASK_EVIDENCE",
+    "upgradeTarget": "Complete first reviewed task"
+  },
+  "taskHistory": [],
+  "knowledgeItems": []
+}

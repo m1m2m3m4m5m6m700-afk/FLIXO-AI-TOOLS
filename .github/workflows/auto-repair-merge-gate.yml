@@ -13,7 +13,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: flixo-auto-repair-merge-gate-${{ github.event.pull_request.number || github.run_id }}
+  group: flixo-auto-repair-merge-gate-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -25,6 +25,7 @@ jobs:
       - name: Resolve canonical PR and exact execution SHA
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_EVENT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -93,7 +94,7 @@ jobs:
           echo "CANONICAL_PR=$PR_NUMBER" >> "$GITHUB_ENV"
 
       - name: Checkout exact PR head
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ env.EXPECTED_SHA }}
           fetch-depth: 1
@@ -167,7 +168,7 @@ jobs:
             WAITING=false
 
             for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
-              RUN_JSON="$(jq -c --arg name "$workflow" '[.[] | select(.name == $name)] | sort_by(.updatedAt) | last // empty' /tmp/exact-runs.json)"
+              RUN_JSON="$(jq -c --arg name "$workflow" '[.[] | select(.name == $name and .conclusion != "cancelled")] | sort_by(.updatedAt) | last // empty' /tmp/exact-runs.json)"
               if [ -z "$RUN_JSON" ]; then
                 echo "EXACT_SHA_GATE_WAITING poll=$poll workflow=$workflow state=MISSING"
                 WAITING=true
@@ -326,7 +327,7 @@ jobs:
 
       - name: Publish exact-SHA merge-gate evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-auto-repair-merge-gate-${{ github.run_id }}
           path: |

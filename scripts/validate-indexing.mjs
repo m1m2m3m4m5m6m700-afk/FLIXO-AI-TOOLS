@@ -18,8 +18,9 @@ const expectedLocales = i18nSource.match(/export const LOCALES = \[([\s\S]*?)\] 
   ?.map((value) => value.slice(1, -1)) ?? [];
 if (expectedLocales.length !== 20) throw new Error(`Indexing gate locale registry expectation must contain exactly 20 locales, found ${expectedLocales.length}.`);
 
-const toolIds = [...toolRegistrySource.matchAll(/\bid:\s*'([^']+)'/g)].map((match) => match[1]);
-if (toolIds.length !== 22) throw new Error(`Canonical image tool registry must contain exactly 22 tools, found ${toolIds.length}.`);
+const readyToolIds = [...toolRegistrySource.matchAll(/\bid:\s*'([^']+)'[^{}\n]*isReady:\s*true/g)].map((match) => match[1]);
+if (readyToolIds.length !== 22) throw new Error(`Canonical image tool registry must contain exactly 22 ready tools, found ${readyToolIds.length}.`);
+if (new Set(readyToolIds).size !== readyToolIds.length) throw new Error('Canonical ready image tool registry contains duplicate IDs.');
 
 if (!originSource.includes('export function getCanonicalSiteOrigin()')) throw new Error('Canonical origin contract is missing getCanonicalSiteOrigin().');
 if (!originSource.includes("if (origin.protocol !== 'https:')")) throw new Error('Canonical origin contract must enforce HTTPS.');
@@ -71,4 +72,4 @@ if (!rootSource.includes("{ name: 'description', content:")) throw new Error('Ro
 if (!manifestSource.includes('"start_url": "/en"')) throw new Error('Manifest start_url must resolve to a localized public route.');
 if (!manifestSource.includes('"src": "/flixo-logo.webp"')) throw new Error('Manifest must use the canonical FLIXO logo asset.');
 
-console.log(`Indexing validation passed: ${expectedLocales.length} locales, ${toolIds.length} canonical image tools, localized tool canonical/hreflang symmetry, canonical HTTPS origin, and robots/sitemap contracts are aligned.`);
+console.log(`Indexing validation passed: ${expectedLocales.length} locales, ${readyToolIds.length} canonical ready image tools, localized tool canonical/hreflang symmetry, canonical HTTPS origin, and robots/sitemap contracts are aligned.`);

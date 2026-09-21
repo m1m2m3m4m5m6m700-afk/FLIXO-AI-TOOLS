@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { ACTION_AGENT_TRIAD_VERSION, getActionAgentProfile, assertActionAgentDispatch, validateActionAgentResult, buildActionAgentCognitionEnvelope } from './action-agent-triad.mjs';
 
 const ACCOUNTS = Object.freeze({
   CHIEF: Object.freeze({
@@ -8,18 +9,24 @@ const ACCOUNTS = Object.freeze({
     wakePortEnv: 'COUNCIL_CHIEF_BRIDGE_PORT',
     executorEndpointEnv: 'COUNCIL_CHIEF_AGENT_ENDPOINT',
     executorTokenEnv: 'COUNCIL_CHIEF_AGENT_TOKEN',
+    modelProfileEnv: 'COUNCIL_CHIEF_MODEL_PROFILE',
+    reasoningEffortEnv: 'COUNCIL_CHIEF_REASONING_EFFORT',
   }),
   WORKER_A: Object.freeze({
     tokenEnv: 'COUNCIL_WORKER_A_TOKEN',
     wakePortEnv: 'COUNCIL_WORKER_A_BRIDGE_PORT',
     executorEndpointEnv: 'COUNCIL_WORKER_A_AGENT_ENDPOINT',
     executorTokenEnv: 'COUNCIL_WORKER_A_AGENT_TOKEN',
+    modelProfileEnv: 'COUNCIL_WORKER_A_MODEL_PROFILE',
+    reasoningEffortEnv: 'COUNCIL_WORKER_A_REASONING_EFFORT',
   }),
   WORKER_B: Object.freeze({
     tokenEnv: 'COUNCIL_WORKER_B_TOKEN',
     wakePortEnv: 'COUNCIL_WORKER_B_BRIDGE_PORT',
     executorEndpointEnv: 'COUNCIL_WORKER_B_AGENT_ENDPOINT',
     executorTokenEnv: 'COUNCIL_WORKER_B_AGENT_TOKEN',
+    modelProfileEnv: 'COUNCIL_WORKER_B_MODEL_PROFILE',
+    reasoningEffortEnv: 'COUNCIL_WORKER_B_REASONING_EFFORT',
   }),
 });
 
@@ -50,6 +57,8 @@ export const buildConfig = (account, env = process.env) => {
   const token = envValue(env, spec.tokenEnv);
   const executorEndpoint = envValue(env, spec.executorEndpointEnv);
   const executorToken = envValue(env, spec.executorTokenEnv);
+  const modelProfile = envValue(env, spec.modelProfileEnv, false) || 'FRONTIER_REASONING';
+  const reasoningEffort = envValue(env, spec.reasoningEffortEnv, false) || 'HIGH';
   const portRaw = envValue(env, spec.wakePortEnv, false) || '8781';
   const port = Number(portRaw);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('COUNCIL_BRIDGE_PORT_INVALID');
@@ -59,6 +68,8 @@ export const buildConfig = (account, env = process.env) => {
     token,
     executorEndpoint,
     executorToken,
+    modelProfile,
+    reasoningEffort,
     port,
   });
 };
@@ -101,8 +112,10 @@ export const pollDispatch = async (config, fetchImpl = globalThis.fetch) => {
   if (!body?.identityVerified || !identity || !identity.agentId || !identity.machineRole) {
     throw new Error('COUNCIL_BRIDGE_AGENT_IDENTITY_UNVERIFIED');
   }
-  const entrySha = exactSha(dispatch.entry_sha ?? dispatch.entrySha);
-  return Object.freeze({ ...dispatch, entry_sha: entrySha, identity });
+  const entrySha=exactSha(dispatch.entry_sha ?? dispatch.entrySha);
+  assertActionAgentDispatch({accountId:config.accountId,exactSha:entrySha,taskId:dispatch.task_id ?? dispatch.taskId,workPackageId:dispatch.work_package_id ?? dispatch.workPackageId,missionId:dispatch.mission_id ?? dispatch.missionId ?? dispatch.payload?.missionId ?? dispatch.work_package_id ?? dispatch.workPackageId});
+  const profile=getActionAgentProfile(config.accountId);
+  return Object.freeze({...dispatch,entry_sha:entrySha,identity,actionAgentProfileId:profile.profileId,actionAgentTriadVersion:ACTION_AGENT_TRIAD_VERSION});
 };
 
 export const ackDispatch = async (config, dispatch, sessionId, fetchImpl = globalThis.fetch) =>
@@ -158,6 +171,17 @@ export const executeExternalAgent = async (config, dispatch, sessionId, fetchImp
     exactSha: exactSha(dispatch.entry_sha ?? dispatch.entrySha),
     taskId: String(dispatch.task_id ?? dispatch.taskId ?? ''),
     workPackageId: String(dispatch.work_package_id ?? dispatch.workPackageId ?? ''),
+    actionAgentTriadVersion: ACTION_AGENT_TRIAD_VERSION,
+    actionAgentProfileId: getActionAgentProfile(config.accountId).profileId,
+    modelProfile: config.modelProfile,
+    reasoningEffort: config.reasoningEffort,
+    capabilities: { toolCalling: true, structuredOutput: true, selfCritique: true, independentReview: config.accountId !== 'CHIEF' },
+    cognitionEnvelope: buildActionAgentCognitionEnvelope({
+      accountId: config.accountId,
+      dispatch,
+      objective: dispatch.payload?.objective,
+      requiredCapabilities: Array.isArray(dispatch.payload?.requiredCapabilities) ? dispatch.payload.requiredCapabilities : [],
+    }),
     payload: dispatch.payload ?? {},
   };
   const body = await requestJson(fetchImpl, endpoint, {
@@ -172,12 +196,11 @@ export const executeExternalAgent = async (config, dispatch, sessionId, fetchImp
   });
   if (!body || typeof body !== 'object') throw new Error('COUNCIL_BRIDGE_EXECUTOR_RESPONSE_INVALID');
   const status = String(body.status ?? 'DONE');
-  if (!['DONE', 'FAILED'].includes(status)) throw new Error('COUNCIL_BRIDGE_EXECUTOR_STATUS_INVALID');
-  return {
-    status,
-    evidence: body.evidence && typeof body.evidence === 'object' ? body.evidence : {},
-    payload: body.payload && typeof body.payload === 'object' ? body.payload : {},
-  };
+  if (!['DONE','FAILED'].includes(status)) throw new Error('COUNCIL_BRIDGE_EXECUTOR_STATUS_INVALID');
+  const evidence=body.evidence&&typeof body.evidence==='object'?body.evidence:{};
+  const resultPayload=body.payload&&typeof body.payload==='object'?body.payload:{};
+  const validation=validateActionAgentResult({accountId:config.accountId,dispatch,status,payload:resultPayload});
+  return {status,evidence:{...evidence,actionAgentValidation:validation},payload:resultPayload};
 };
 
 export function createBridge({ config, fetchImpl = globalThis.fetch, heartbeatMs = 30_000 } = {}) {
@@ -298,9 +321,13 @@ export const createWakeServer = ({ config, bridge, createServer = http.createSer
       res.statusCode = 202;
       res.end(JSON.stringify({ ok: true, ...result, requestId }));
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      res.statusCode = /UNAUTHORIZED/u.test(message) ? 401 : 400;
-      res.end(JSON.stringify({ ok: false, error: message.startsWith('COUNCIL_BRIDGE_') ? message : 'COUNCIL_BRIDGE_WAKE_FAILED', requestId }));
+      const isUnauthorized = error instanceof Error && /UNAUTHORIZED/u.test(error.message);
+      res.statusCode = isUnauthorized ? 401 : 400;
+      res.end(JSON.stringify({
+        ok: false,
+        error: isUnauthorized ? 'COUNCIL_BRIDGE_UNAUTHORIZED' : 'COUNCIL_BRIDGE_WAKE_FAILED',
+        requestId,
+      }));
     }
   });
 };

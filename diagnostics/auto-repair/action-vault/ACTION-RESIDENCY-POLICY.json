@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 3,
+  "id": "ACTION-RESIDENCY-POLICY",
+  "scope": "ACTION-VAULT",
+  "residents": [
+    "ACTION-REPAIR",
+    "ACTION-REPAIR-2",
+    "ACTION-HISTORIAN-3"
+  ],
+  "residency": {
+    "alwaysResident": true,
+    "leaveVault": false,
+    "idleState": "RESIDENT_ACTIVE_ONLY",
+    "taskMustRemainOpenUntil": "CANONICAL_GREEN",
+    "visitCompletionNeverClosesTask": true,
+    "failedAttemptNeverClosesTask": true,
+    "escalationNeverClosesTask": true,
+    "sleepState": "PERMANENTLY_FORBIDDEN",
+    "noSleepBeforeGreen": true,
+    "noIdleBeforeGreen": true,
+    "greenRecordPath": "diagnostics/auto-repair/action-vault/green-records",
+    "sleepAdmissionProtocol": "scripts/ci/action-vault-sleep-admission.mjs",
+    "noSleepAfterGreen": true,
+    "noIdleAfterGreen": true,
+    "noFreeze": true,
+    "noWithdrawal": true,
+    "postGreenState": "READY_RESIDENT",
+    "sleepAdmissionMode": "DENY_ALL_STATES"
+  },
+  "operations": {
+    "maxOperationsPerBot": 2000000,
+    "budgetScope": "PER_BOT",
+    "exhaustionBehavior": "REMAIN_RESIDENT; KEEP_MISSION_OPEN_OR_READY_RESIDENT; REQUIRE_INTERNAL_HANDOFF_OR_MASTER_ESCALATION; NEVER_SLEEP; NEVER_IDLE; NEVER_WITHDRAW; NEVER_MARK_GREEN",
+    "budgetIsNotClosure": true,
+    "greenAuthority": "DAILY_FLIXO_GREEN_GATE"
+  },
+  "automaticVisits": {
+    "visitsPerBotPerDay": 3,
+    "botCount": 3,
+    "totalAutomaticVisitsPerDay": 9,
+    "scheduleOwner": "DAILY_FLIXO_GREEN_GATE",
+    "interventionRequired": false,
+    "visitIdentity": [
+      "botId",
+      "visitNumber",
+      "day",
+      "exactSha"
+    ],
+    "visitModes": [
+      "DISCOVER",
+      "CHALLENGE",
+      "EXCHANGE",
+      "LEARN"
+    ],
+    "sameMissionOnRed": true,
+    "sameFailureFingerprintOnRed": true,
+    "sameExactShaOnRed": true,
+    "noSleepDuringMission": true,
+    "noFreezeDuringMission": true,
+    "noWithdrawalDuringMission": true
+  },
+  "escalation": {
+    "thresholdAfterFailedAttempts": 20,
+    "triggerOnNextRetryAttempt": 21,
+    "recipient": "assistantController",
+    "route": "CANONICAL_AGENT_COMMUNICATION_RELAY",
+    "relayWorkflow": ".github/workflows/agent-communication-relay.yml",
+    "implementation": "scripts/ci/agent-communication.mjs",
+    "wakeDispatcher": "scripts/ci/council-wake-dispatch.mjs",
+    "risk": "HIGH",
+    "taskRemainsOpen": true,
+    "continueRepairAfterEscalation": true,
+    "repeatedEscalationIdempotent": true
+  },
+  "note": "Permanent residency contract: Action Vault agents never enter sleep, freeze, idle, withdrawal, or vault-exit states. Mission closure after Canonical GREEN changes the mission state only; resident agents remain READY_RESIDENT. Exact-SHA, repair scope, verification and Canonical GREEN remain mandatory."
+}

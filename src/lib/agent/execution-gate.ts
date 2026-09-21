@@ -1,7 +1,7 @@
 import { assertExecutionResourceBudget, validateCapabilityParameters, getCapability } from './capability-registry.ts';
 import { assertExecutionAllowed, type TaskContext } from './task-state.ts';
 import { getToolDefinition } from '@/config/canonical-tool-definition.ts';
-import { createExecutionAuditEvent, deriveRecoveryMetadata, deriveToolSecurityProfile, type ExecutionAuditEvent } from './execution-observability.ts';
+import { assertExecutionPermission, assertExecutionSecurityBoundary, createExecutionAuditEvent, deriveRecoveryMetadata, deriveToolSecurityProfile, type ExecutionAuditEvent } from './execution-observability.ts';
 
 export type ExecutionGateInput = Readonly<{
   task: TaskContext;
@@ -26,7 +26,7 @@ export type ExecutionGateResult = Readonly<{
  * It composes state, registry, parameter-schema, readiness, and resource checks
  * so callers do not need per-tool safety branches.
  */
-export function authorizeExecution(input: ExecutionGateInput): ExecutionGateResult {
+export async function authorizeExecution(input: ExecutionGateInput): Promise<ExecutionGateResult> {
   assertExecutionAllowed(input.task);
 
   const capability = getCapability(input.capabilityId);
@@ -36,9 +36,11 @@ export function authorizeExecution(input: ExecutionGateInput): ExecutionGateResu
   assertExecutionResourceBudget(input.capabilityId, input.inputBlob, input.requestedPixels);
   const tool = getToolDefinition(input.capabilityId);
   if (!tool) throw new Error(`Unknown tool definition: ${input.capabilityId}`);
+  assertExecutionSecurityBoundary(tool);
+  assertExecutionPermission(tool, 'EXECUTE');
   const security = deriveToolSecurityProfile(tool);
   const recovery = deriveRecoveryMetadata(tool);
-  const audit = createExecutionAuditEvent({ task: input.task, capabilityId: input.capabilityId, tool, stage: 'AUTHORIZATION', outcome: 'ALLOW' });
+  const audit = await createExecutionAuditEvent({ task: input.task, capabilityId: input.capabilityId, tool, stage: 'AUTHORIZATION', outcome: 'ALLOW' });
 
   return Object.freeze({
     capabilityId: input.capabilityId,

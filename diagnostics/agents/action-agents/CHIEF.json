@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "agentId": "CHIEF",
+  "profileId": "ACTION_COMMANDER_V1",
+  "role": "ACTION_COMMANDER",
+  "mutationMode": "NONE",
+  "certificationAuthority": false,
+  "state": "READY",
+  "taskCount": 0,
+  "verifiedResults": 0,
+  "knownWeaknesses": []
+}

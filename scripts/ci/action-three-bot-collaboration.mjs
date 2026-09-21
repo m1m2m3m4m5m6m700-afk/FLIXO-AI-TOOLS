@@ -1,0 +1,240 @@
+#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { recordAttempt, recordFailedAttempt, recordHandoff } from './action-failure-ledger.mjs';
+import { buildPrediction } from './action-historical-predictor.mjs';
+import { selectFileScope } from './action-file-selection-intelligence.mjs';
+import { openErrorGate, escalationFor, reviewDiagnosisAgainstKnowledge } from './action-vault-triad-governor.mjs';
+import { assertVaultProtocolRead, recordUnresolvedRepair, recordRepairOutcome } from './action-vault-knowledge-custodian.mjs';
+
+const ROOT=process.cwd();
+const VAULT=path.resolve(ROOT,'diagnostics/auto-repair/action-vault');
+const PROFILE=path.join(VAULT,'ACTION-THREE-BOT-INTELLIGENCE.json');
+const STATE=path.join(VAULT,'current-collaboration.json');
+const CHAT_PROTOCOL='diagnostics/auto-repair/action-vault/CHAT-PROTOCOL.md';
+const BOTS=Object.freeze(['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3']);
+const LANES=Object.freeze({
+  'ACTION-REPAIR':'CONSTRUCTIVE_CORRECTNESS_PROOF_AND_BOUNDED_REPAIR',
+  'ACTION-REPAIR-2':'ADVERSARIAL_FALSIFICATION_AND_COUNTEREXAMPLE_SEARCH',
+  'ACTION-HISTORIAN-3':'FILE_SELECTION_INTELLIGENCE_AND_FAILURE_LEARNING'
+});
+const PHASES=Object.freeze(['PARALLEL_DISCOVERY','FILE_SELECTION','PRIMARY_CORRECTNESS_PROOF','ADVERSARIAL_FALSIFICATION','PROOF_REPAIR','CHALLENGE','SYNTHESIS','PATCH_SYNTHESIS','SANDBOX_SIMULATION','DIFFERENTIAL_VERIFICATION','OWNER_MUTATION','VERIFICATION','GREEN_LEARNING','CLOSED']);
+const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):fallback};
+const task=String(arg('task')).trim();
+const fingerprint=String(arg('fingerprint')).trim();
+const targetSha=String(arg('sha')).trim();
+const runId=String(arg('run-id')).trim();
+const logPath=String(arg('log')).trim();
+const output=String(arg('output','/tmp/action-three-bot-collaboration.json')).trim();
+const op=String(arg('op','start')).trim().toLowerCase();
+const bot=String(arg('bot')).trim();
+const summary=String(arg('summary')).trim();
+const kind=String(arg('kind','OBSERVATION')).trim().toUpperCase();
+const evidence=String(arg('evidence','')).split(',').map(x=>x.trim()).filter(Boolean);
+const greenRecordPath=String(arg('green-record')).trim();
+const fileSelectionPath=String(arg('file-selection')).trim();
+const programmerTwinParityPath=String(arg('programmer-twin-parity')).trim();
+const primaryProofPath=String(arg('primary-proof')).trim();
+const awarenessPath=String(arg('awareness')).trim();
+const diagnosisPath=String(arg('diagnosis',process.env.FLIXO_REPAIR_DIAGNOSIS_PATH??'/tmp/flixo-root-cause.json')).trim();
+const now=()=>new Date().toISOString();
+const read=()=>JSON.parse(fs.readFileSync(STATE,'utf8'));
+const write=(value)=>{fs.mkdirSync(VAULT,{recursive:true});fs.writeFileSync(STATE,JSON.stringify(value,null,2)+'\n')};
+const validIdentity=()=>{if(!task||!fingerprint||!/^[a-f0-9]{40}$/u.test(targetSha)||!runId) throw new Error('ACTION_THREE_BOT_COLLAB_IDENTITY_REQUIRED')};
+const validBot=(value)=>{if(!BOTS.includes(value)) throw new Error('ACTION_THREE_BOT_COLLAB_BOT_INVALID='+value); return value};
+const shaDigest=(value)=>crypto.createHash('sha256').update(String(value),'utf8').digest('hex');
+
+validIdentity();
+if(!fs.existsSync(PROFILE)) throw new Error('ACTION_THREE_BOT_INTELLIGENCE_PROFILE_MISSING');
+if(!fs.existsSync(CHAT_PROTOCOL)) throw new Error('ACTION_THREE_BOT_CHAT_PROTOCOL_MISSING');
+assertVaultProtocolRead({ actor: bot || 'ACTION-HISTORIAN-3', targetSha });
+const profile=JSON.parse(fs.readFileSync(PROFILE,'utf8'));
+if(profile.roleMatrix?.['ACTION-REPAIR']?.mutationAuthority!=='ADMITTED_SEAT') throw new Error('ACTION_THREE_BOT_PRIMARY_SEAT_INVALID');
+if(profile.roleMatrix?.['ACTION-REPAIR-2']?.mutationAuthority!=='ADMITTED_SEAT') throw new Error('ACTION_THREE_BOT_FALSIFIER_SEAT_INVALID');
+if(profile.parity?.programmerTwinIntelligenceEqual!==true) throw new Error('ACTION_THREE_BOT_PROGRAMMER_TWIN_PARITY_NOT_DECLARED');
+if(profile.roleMatrix?.['ACTION-HISTORIAN-3']?.mutationAuthority!=='ADMITTED_SEAT') throw new Error('ACTION_THREE_BOT_SUPERVISOR_SEAT_INVALID');
+if(profile.cooperation?.fileSelectionIntelligence?.runtime!=='scripts/ci/action-file-selection-intelligence.mjs') throw new Error('ACTION_THREE_BOT_FILE_SELECTION_RUNTIME_INVALID');
+if(profile.cooperation?.enabled!==true) throw new Error('ACTION_THREE_BOT_COOPERATION_DISABLED');
+if(JSON.stringify(profile.cooperation.participants)!==JSON.stringify(BOTS)) throw new Error('ACTION_THREE_BOT_PARTICIPANT_SET_INVALID');
+if(profile.cooperation.authority?.noParallelSourceMutation!==true) throw new Error('ACTION_THREE_BOT_PARALLEL_SOURCE_MUTATION_FORBIDDEN');
+if(profile.cooperation?.repairEngineering?.enabled!==true) throw new Error('ACTION_THREE_BOT_REPAIR_ENGINEERING_DISABLED');
+if(profile.cooperation?.repairEngineering?.owner!=='ACTION-REPAIR') throw new Error('ACTION_THREE_BOT_REPAIR_ENGINEERING_OWNER_INVALID');
+if(profile.cooperation?.parallelExecution?.allThreeContributionsRequired!==true) throw new Error('ACTION_THREE_BOT_TRIAD_CONTRIBUTIONS_REQUIRED');
+
+const execFileList=(command)=>execFileSync(command[0],command.slice(1),{encoding:'utf8'}).split('\\0').filter(Boolean);
+const buildAwareness=()=>{
+  if(!awarenessPath||!fs.existsSync(awarenessPath)) throw new Error('ACTION_THREE_BOT_COGNITIVE_AWARENESS_REQUIRED');
+  const awareness=JSON.parse(fs.readFileSync(awarenessPath,'utf8'));
+  if(awareness.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1'||awareness.targetSha!==targetSha||awareness.failureFingerprint!==fingerprint||awareness.exactShaBound!==true||awareness.awarenessCompleteness?.complete!==true) throw new Error('ACTION_THREE_BOT_COGNITIVE_AWARENESS_INVALID');
+  return awareness;
+};
+const buildPrimaryProof=()=>{
+  if(!primaryProofPath||!fs.existsSync(primaryProofPath)) throw new Error('ACTION_THREE_BOT_PRIMARY_CORRECTNESS_PROOF_REQUIRED');
+  const proof=JSON.parse(fs.readFileSync(primaryProofPath,'utf8'));
+  if(proof.role!=='PRIMARY_CORRECTNESS_PROVER'||proof.status!=='PRIMARY_CORRECTNESS_CLAIM'||proof.proofObjective!=='PROVE_PRIMARY_REPAIR_CORRECT'||proof.targetSha!==targetSha||proof.failureFingerprint!==fingerprint||proof.agentId!=='ACTION-REPAIR') throw new Error('ACTION_THREE_BOT_PRIMARY_CORRECTNESS_PROOF_INVALID');
+  return proof;
+};
+const buildProgrammerTwinParity=()=>{
+  if(!programmerTwinParityPath||!fs.existsSync(programmerTwinParityPath)) throw new Error('ACTION_THREE_BOT_PROGRAMMER_TWIN_PARITY_REQUIRED');
+  const parity=JSON.parse(fs.readFileSync(programmerTwinParityPath,'utf8'));
+  if(parity.status!=='EXACT_INTELLIGENCE_PARITY'||parity.intelligenceParity!=='EXACT'||parity.authorityParity!=='SEPARATED_BY_DESIGN'||parity.primaryAgent!=='ACTION-REPAIR'||parity.twinAgent!=='ACTION-REPAIR-2'||parity.targetSha!==targetSha||parity.failureFingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_PROGRAMMER_TWIN_PARITY_INVALID');
+  return parity;
+};
+const buildSelection=()=>{
+  const selection=fileSelectionPath&&fs.existsSync(fileSelectionPath)
+    ? JSON.parse(fs.readFileSync(fileSelectionPath,'utf8'))
+    : selectFileScope({
+        taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,
+        trackedFiles:execFileList(['git','ls-files','-z']),
+        changedFiles:execFileList(['git','diff-tree','--no-commit-id','--name-only','-r',targetSha]),
+        failureLog:logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):''
+      });
+  if(selection.agentId!=='ACTION-HISTORIAN-3'||selection.protocol!=='ACTION-FILE-SELECTION-INTELLIGENCE-v1'||selection.targetSha!==targetSha||selection.failureFingerprint!==fingerprint||selection.pathOnlyAnalysis!==true||selection.codeContentRead!==false||selection.sourceMutationAllowed!==false||selection.decision!=='SELECTED'||!Array.isArray(selection.selectedFiles)||selection.selectedFiles.length<1) throw new Error('ACTION_THREE_BOT_FILE_SELECTION_INVALID');
+  return selection;
+};
+const ensureState=()=>{
+  const triadGate=openErrorGate({taskId:task,fingerprint,targetSha,failedRunId:runId,errorText:logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):''});
+  const fileSelection=buildSelection();
+  const awareness=buildAwareness();
+  const primaryProof=buildPrimaryProof();
+  const programmerTwinParity=buildProgrammerTwinParity();
+  const diagnosis=diagnosisPath&&fs.existsSync(diagnosisPath)?JSON.parse(fs.readFileSync(diagnosisPath,'utf8')):primaryProof;
+  const diagnosisKnowledgeReview=reviewDiagnosisAgainstKnowledge({taskId:task,fingerprint,targetSha,failedRunId:runId,diagnosis,catalogReview:triadGate.catalog.review});
+  if(fs.existsSync(STATE)){
+    const state=read();
+    if(state.taskId!==task||state.failureFingerprint!==fingerprint||state.targetSha!==targetSha||state.failedRunId!==runId) throw new Error('ACTION_THREE_BOT_COLLAB_ACTIVE_IDENTITY_MISMATCH');
+    if(state.fileSelectionDecision?.targetSha!==targetSha||state.fileSelectionDecision?.failureFingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_FILE_SELECTION_STATE_MISMATCH');
+    if(state.programmerTwinParity?.targetSha!==targetSha||state.programmerTwinParity?.failureFingerprint!==fingerprint||state.programmerTwinParity?.intelligenceParity!=='EXACT') throw new Error('ACTION_THREE_BOT_PROGRAMMER_TWIN_PARITY_STATE_MISMATCH');
+    if(state.primaryCorrectnessProof?.targetSha!==targetSha||state.primaryCorrectnessProof?.failureFingerprint!==fingerprint||state.primaryCorrectnessProof?.proofObjective!=='PROVE_PRIMARY_REPAIR_CORRECT') throw new Error('ACTION_THREE_BOT_PRIMARY_PROOF_STATE_MISMATCH');
+    if(state.cognitiveAwareness?.targetSha!==targetSha||state.cognitiveAwareness?.failureFingerprint!==fingerprint||state.cognitiveAwareness?.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1') throw new Error('ACTION_THREE_BOT_COGNITIVE_AWARENESS_STATE_MISMATCH');
+    if(state.diagnosisKnowledgeReview?.reviewer!=='ACTION-HISTORIAN-3'||state.diagnosisKnowledgeReview?.decision!=='MATCH'||state.diagnosisKnowledgeReview?.targetSha!==targetSha||state.diagnosisKnowledgeReview?.fingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_DIAGNOSIS_KNOWLEDGE_REVIEW_STATE_MISMATCH');
+    return state;
+  }
+  const log=logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'';
+  const state={
+    schemaVersion:2,
+    id:'ACTION-THREE-BOT-COLLABORATION',
+    protocol:'ACTION-VAULT-PARALLEL-COLLABORATION-v1',
+    status:'ACTIVE',
+    phase:'PRIMARY_CORRECTNESS_PROOF',
+    taskId:task,
+    failedRunId:runId,
+    failureFingerprint:fingerprint,
+    targetSha,
+    exactShaBound:true,
+    triadGate,
+    escalation:triadGate.escalation,
+    participants:BOTS.map(id=>({id,lane:LANES[id],required:true,status:'ASSIGNED',contributionReceived:false,exchangeReceived:false,challengeIssued:false,learnedFromPeers:false})),
+    sharedEvidence:{failureLog:logPath||null,failureSignalCount:(log.match(/(?:error|failure|failed|fatal|timeout|exception)/giu)||[]).length,actionIndex4000:'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json',historicalIndex:'docs/agents/historical-action-errors/index.json',repairMemory:'diagnostics/auto-repair/memory.json',teachingRouter:'docs/agents/ERROR-TEACHING-ROUTER.json',inferentialIntelligence:'docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md'},
+    parallelProtocol:{phases:[...PHASES],independentWorkRequired:true,crossLearningRequired:true,exchangeBeforeMutation:true,allThreeMustContributeBeforeMutation:true,oneActiveMutationOwner:true,mutationOwner:'SELECTED_TRIAD_SEAT',adversarialFalsifier:'ACTION-REPAIR-2',historian:'ACTION-HISTORIAN-3',mutationWindow:'OWNER_ONLY_AFTER_EXCHANGE',greenClosesMission:true},
+    contributions:{},
+    exchange:{status:'PENDING',digest:null,at:null,receipts:{}},
+    challenge:{status:'PENDING',checks:[]},
+    fileSelectionDecision:fileSelection,
+    primaryCorrectnessProof:primaryProof,
+    cognitiveAwareness:{protocol:awareness.protocol,targetSha:awareness.targetSha,failureFingerprint:awareness.failureFingerprint,domainCount:awareness.awarenessCompleteness.requiredDomains.length,systemWide:true},
+    diagnosisKnowledgeReview,
+    programmerTwinParity,
+    falsificationObjective:'ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG',
+    authorization:{status:'BLOCKED',owner:null,authorizedAt:null,reason:'WAITING_FOR_FILE_SELECTION_AND_ALL_THREE_CONTRIBUTIONS_AND_CROSS_LEARNING'},
+    greenRecord:null,
+    outputs:{hypotheses:[],challenges:[],selectedRepair:null,regression:null,handoff:null,lessons:[],antiLessons:[],fileSelectionDecision:fileSelection},
+    collaborationRules:{sameTask:true,sameFingerprint:true,sameSha:true,evidenceExchangeBeforeMutation:true,fileSelectionBeforeProgramming:true,primaryCorrectnessProofBeforeFalsification:true,programmerOnlyForCodeReasoning:true,proofObjectives:{primary:'PROVE_PRIMARY_REPAIR_CORRECT',twin:'ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG'},counterexampleBlocksMutation:true},
+    createdAt:now(),updatedAt:now()
+  };
+  write(state); return state;
+};
+
+let state=ensureState();
+
+if(op==='start'){
+  state.phase='PRIMARY_CORRECTNESS_PROOF';state.status='ACTIVE';state.updatedAt=now();write(state);
+} else if(op==='contribute'){
+  validBot(bot);
+  if(!summary) throw new Error('ACTION_THREE_BOT_CONTRIBUTION_SUMMARY_REQUIRED');
+  if(!['OBSERVATION','RCA','HYPOTHESIS','CHALLENGE','PLAN','EVIDENCE','LESSON_CANDIDATE','PROGRAMMING_ANALYSIS','PROPOSED_REPAIR','FAILURE_RECORD','HANDOFF_RECORD','FILE_SELECTION','CORRECTNESS_PROOF','FALSIFICATION'].includes(kind)) throw new Error('ACTION_THREE_BOT_CONTRIBUTION_KIND_INVALID');
+  if(bot==='ACTION-REPAIR' && !['PROGRAMMING_ANALYSIS','RCA','HYPOTHESIS','PLAN','CORRECTNESS_PROOF'].includes(kind)) throw new Error('ACTION_THREE_BOT_PROGRAMMER_CONTRIBUTION_INVALID');
+  if(bot==='ACTION-REPAIR-2' && !['RCA','HYPOTHESIS','PLAN','PROPOSED_REPAIR','CHALLENGE','FALSIFICATION'].includes(kind)) throw new Error('ACTION_THREE_BOT_FALSIFIER_CONTRIBUTION_INVALID');
+  if(bot==='ACTION-HISTORIAN-3' && !['FAILURE_RECORD','HANDOFF_RECORD','EVIDENCE','FILE_SELECTION','PROPOSED_REPAIR'].includes(kind)) throw new Error('ACTION_THREE_BOT_HISTORIAN_CONTRIBUTION_INVALID');
+  if(bot==='ACTION-HISTORIAN-3' && kind==='PROPOSED_REPAIR' && escalationFor(fingerprint).mode!=='SUPERVISOR_20') throw new Error('ACTION_THREE_BOT_SUPERVISOR_PROPOSAL_REQUIRES_20');
+  const contributionId=bot+'-'+shaDigest(task+'|'+fingerprint+'|'+targetSha+'|'+bot+'|'+summary).slice(0,20);
+  state.contributions[bot]={contributionId,bot,lane:LANES[bot],kind,summary:summary.slice(0,12000),evidence,targetSha,fingerprint,createdAt:now(),verified:false};
+  recordAttempt({taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,botId:bot,attemptedStrategy:summary.slice(0,1000),result:'CONTRIBUTION_RECORDED',evidence});
+  const member=state.participants.find(x=>x.id===bot);member.contributionReceived=true;member.status='CONTRIBUTED';
+  state.phase='PARALLEL_ANALYSIS';state.updatedAt=now();write(state);
+} else if(op==='exchange'){
+  for(const id of BOTS) if(!state.contributions[id]) throw new Error('ACTION_THREE_BOT_EXCHANGE_WAITING_FOR='+id);
+  const packet=JSON.stringify(BOTS.map(id=>state.contributions[id]));
+  const digest=shaDigest(packet);
+  state.exchange={status:'COMPLETE',digest,at:now(),receipts:Object.fromEntries(BOTS.map(id=>[id,{receivedAll:true,receivedAt:now(),peerCount:2,digest}]))};
+  for(const member of state.participants){member.exchangeReceived=true;member.learnedFromPeers=true;member.challengeIssued=true;}
+  state.phase='CHALLENGE';state.updatedAt=now();write(state);
+} else if(op==='programmer-twin'){
+  if(bot!=='ACTION-REPAIR-2') throw new Error('ACTION_THREE_BOT_PROGRAMMER_TWIN_ONLY');
+  const supportingHistory=buildPrediction({taskId:task,fingerprint,targetSha,failedRunId:runId,failureLog:logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'',workflow:arg('workflow',''),job:arg('job','')});
+  const twin={
+    protocol:'ACTION-PROGRAMMER-TWIN-FALSIFICATION-v1',
+    role:'ADVERSARIAL_PROGRAMMER_FALSIFIER',
+    status:'FALSIFICATION_ATTEMPT_INDEPENDENT_PROGRAMMER',
+    taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,
+    sameProgrammingIntelligenceAs:'ACTION-REPAIR',
+    proofObjective:'ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG',
+    assumption:'PRIMARY_REPAIR_IS_WRONG',
+    sourceMutationAllowed:false,
+    independentReasoningRequired:true,
+    historicalEvidence:supportingHistory,
+    challengeRequirements:['ALTERNATIVE_ROOT_CAUSES','SCOPE_VIOLATION','PATCH_COUNTEREXAMPLE','REGRESSION_COUNTEREXAMPLE'],
+    generatedAt:now()
+  };
+  state.outputs.programmerTwinAnalysis=twin;
+  state.programmerTwin={status:'FALSIFICATION_ATTEMPTED',analysisDigest:shaDigest(JSON.stringify(twin)),role:'ADVERSARIAL_PROGRAMMER_FALSIFIER',mutationAuthority:false,proofObjective:'ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG'};
+  recordAttempt({taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,botId:'ACTION-REPAIR-2',attemptedStrategy:'PROGRAMMER_TWIN_ANALYSIS',result:'PROGRAMMER_TWIN_ANALYSIS_RECORDED',evidence});
+  state.phase='CROSS_LEARNING';state.updatedAt=now();write(state);
+} else if(op==='authorize-mutation'){
+  const owner=validBot(arg('owner'));
+  const escalation=escalationFor(fingerprint);
+  if(state.diagnosisKnowledgeReview?.reviewer!=='ACTION-HISTORIAN-3'||state.diagnosisKnowledgeReview?.decision!=='MATCH'||state.diagnosisKnowledgeReview?.targetSha!==targetSha||state.diagnosisKnowledgeReview?.fingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_DIAGNOSIS_KNOWLEDGE_MISMATCH');
+
+  for(const id of BOTS) if(!state.contributions[id]) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_MISSING_CONTRIBUTION='+id);
+  if(state.exchange.status!=='COMPLETE') throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_EXCHANGE_INCOMPLETE');
+  if(state.fileSelectionDecision?.decision!=='SELECTED'||state.fileSelectionDecision?.targetSha!==targetSha||state.fileSelectionDecision?.failureFingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_FILE_SELECTION');
+  if(state.programmerTwinParity?.intelligenceParity!=='EXACT'||state.programmerTwinParity?.authorityParity!=='SEPARATED_BY_DESIGN'||state.programmerTwinParity?.targetSha!==targetSha||state.programmerTwinParity?.failureFingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_PROGRAMMER_TWIN_PARITY');
+  if(state.primaryCorrectnessProof?.proofObjective!=='PROVE_PRIMARY_REPAIR_CORRECT') throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_PRIMARY_PROOF');
+  if(state.cognitiveAwareness?.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1'||state.cognitiveAwareness?.targetSha!==targetSha) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_COGNITIVE_AWARENESS');
+  if(state.participants.some(x=>!x.learnedFromPeers)) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_CROSS_LEARNING_INCOMPLETE');
+  if(owner==='ACTION-REPAIR-2' && escalation.mode==='SUPERVISOR_20') throw new Error('ACTION_THREE_BOT_AGENT_2_SUSPENDED_AT_20');
+  if(!BOTS.includes(owner)) throw new Error('ACTION_THREE_BOT_MUTATION_OWNER_INVALID');
+  state.authorization={status:'AUTHORIZED',owner,authorizedAt:now(),reason:'BOT_3_DIAGNOSIS_KNOWLEDGE_MATCH_AND_TRIAD_REVIEW',targetSha,supervisorMode:owner==='ACTION-HISTORIAN-3'?'BOT_3_KNOWLEDGE_JUDGE':'TRIAD_SELECTED_OWNER'};
+  state.phase='OWNER_MUTATION';state.updatedAt=now();write(state);
+  if(!state.outputs.programmerTwinAnalysis && !state.contributions['ACTION-REPAIR-2']) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_NO_PROGRAMMER_TWIN_ANALYSIS');
+  state.authorization={status:'AUTHORIZED',owner,authorizedAt:now(),reason:'PROGRAMMER_OWNER_AFTER_HISTORICAL_PREDICTION_AND_HISTORIAN_RECORD',targetSha};
+  state.phase='OWNER_MUTATION';state.updatedAt=now();write(state);
+} else if(op==='record-failure'){
+  if(bot!=='ACTION-HISTORIAN-3') throw new Error('ACTION_THREE_BOT_FAILURE_RECORD_ONLY_HISTORIAN');
+  const failureSummary=summary||'UNSPECIFIED_FAILURE';
+  recordFailedAttempt({taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,botId:'ACTION-HISTORIAN-3',notes:failureSummary,attemptedStrategy:arg('strategy',''),evidence});
+  recordUnresolvedRepair({taskId:task,fingerprint, targetSha, failedRunId:runId, errorSummary:failureSummary, diagnosis:arg('diagnosis',''), attemptedStrategy:arg('strategy',''), evidence});
+  state.outputs.lessons.push({type:'FAILURE',summary:failureSummary,evidence,at:now()});
+  state.updatedAt=now();write(state);
+} else if(op==='handoff'){
+  recordHandoff({taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,botId:'ACTION-HISTORIAN-3',notes:summary,evidence});
+  state.outputs.handoff={summary:summary||null,evidence,at:now()};state.updatedAt=now();write(state);
+} else if(op==='green-close'){
+  if(!greenRecordPath) throw new Error('ACTION_THREE_BOT_GREEN_RECORD_REQUIRED');
+  const file=path.resolve(ROOT,greenRecordPath);
+  if(!fs.existsSync(file)) throw new Error('ACTION_THREE_BOT_GREEN_RECORD_NOT_FOUND');
+  const green=JSON.parse(fs.readFileSync(file,'utf8'));
+  if(green.source!=='DAILY_FLIXO_GREEN_GATE'||green.conclusion!=='success'||green.zeroRed!==true||green.exactShaVerified!==true||green.targetSha!==targetSha||green.taskId!==task||green.fingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_GREEN_RECORD_INVALID');
+  if(!green.recordId) throw new Error('ACTION_THREE_BOT_GREEN_RECORD_ID_REQUIRED');
+  state.greenRecord={recordId:green.recordId,targetSha:green.targetSha,recordedAt:green.recordedAt,source:green.source};
+  recordRepairOutcome({taskId:task,fingerprint,targetSha,failedRunId:runId,diagnosis:state.diagnosisKnowledgeReview?.bestMatch??state.primaryCorrectnessProof??{},repairSummary:state.outputs?.selectedRepair??state.outputs?.handoff?.summary??'TRIAD_REPAIR_VERIFIED',evidence:[green.recordId]});state.phase='GREEN_LEARNING';state.status='CLOSING_GREEN';state.updatedAt=now();write(state);
+} else if(op==='close'){
+  if(!state.greenRecord) throw new Error('ACTION_THREE_BOT_CLOSE_BLOCKED_NO_GREEN_RECORD');
+  state.phase='CLOSED';state.status='CLOSED_GREEN';state.updatedAt=now();write(state);
+} else throw new Error('ACTION_THREE_BOT_COLLAB_OPERATION_INVALID='+op);
+
+const result={status:'PASS',protocol:'ACTION-VAULT-PARALLEL-COLLABORATION-v1',op,taskId:task,fingerprint,targetSha,phase:state.phase,authorization:state.authorization,exchange:state.exchange,fileSelectionDecision:state.fileSelectionDecision,primaryCorrectnessProof:state.primaryCorrectnessProof,cognitiveAwareness:state.cognitiveAwareness,programmerTwinParity:state.programmerTwinParity,collaborationRules:state.collaborationRules,contributionBots:Object.keys(state.contributions),sharedArtifact:STATE};
+fs.writeFileSync(output,JSON.stringify(state,null,2)+'\n');
+console.log(JSON.stringify(result,null,2));

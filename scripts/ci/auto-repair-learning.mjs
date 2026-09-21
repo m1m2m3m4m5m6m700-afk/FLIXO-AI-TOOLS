@@ -2,8 +2,11 @@ import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { normalizeFailure, fingerprintFailure, extractFeatures } from './auto-repair/fingerprint.mjs';
+import { retrieveTeachingRecords } from './error-learning-log.mjs';
+import { buildKnowledgeRecord, persistKnowledge } from './cell-learning.mjs';
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
+const behaviorTracePath = process.env.FLIXO_REPAIR_BEHAVIOR_TRACE_PATH ?? '/tmp/flixo-repair-behavior-trace.json';
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
 export const MEMORY_VERSION = 10;
 export const INTRACTABLE_THRESHOLD = 3;
@@ -28,6 +31,13 @@ export const MEMORY_RELATION_TYPES = Object.freeze([
   'regressed-by',
 ]);
 const SHA_PATTERN = /^[a-f0-9]{40}$/u;
+
+function loadBehaviorObservation() {
+  try {
+    const trace = JSON.parse(fs.readFileSync(behaviorTracePath, 'utf8'));
+    return { traceHash: trace.traceHash ?? null, repeatedStage: trace.directive?.repeatedStage ?? null, repeatedStageCount: Number(trace.directive?.repeatedStageCount ?? 0), engineErrorRuns: Number(trace.directive?.engineErrorRuns ?? 0), noProgress: trace.directive?.noProgress === true, strategyChangeRequired: trace.directive?.strategyChangeRequired === true, nextStrategy: trace.directive?.nextStrategy ?? null };
+  } catch { return null; }
+}
 
 export function normalizeRelations(relations = [], sourceFingerprint = null) {
   if (!Array.isArray(relations)) return [];
@@ -505,6 +515,18 @@ export function deriveReusableKnowledge(memory, { rootCause, features = [], fing
       .filter(Boolean),
   );
 
+  const teachingClass = ({
+    'webkit-render': 'playwright-webkit',
+    lint: 'eslint',
+    typescript: 'typescript',
+    build: 'build-chunk',
+    playwright: 'playwright-webkit',
+    certification: 'control-plane',
+    'external-tooling': 'capi-model',
+  })[rootCause] ?? null;
+  const teachingAdvisories = teachingClass
+    ? retrieveTeachingRecords({ className: teachingClass, limit: 12 })
+    : [];
   const generalizedRules = relevantPlaybooks
     .filter((item) => item.generalized && !blockedRules.has(item.rule))
     .sort((a, b) => (b.successRate - a.successRate) || (b.successfulFingerprintSupport - a.successfulFingerprintSupport));
@@ -534,6 +556,7 @@ export function deriveReusableKnowledge(memory, { rootCause, features = [], fing
     features: [...new Set(features)],
     generalizedRules,
     rejectedRules,
+    teachingAdvisories: teachingAdvisories.map(({id,class:className,stage,trigger,hypothesis,falsify,action,verify,learning,source,authority,exactSha}) => ({ id, class: className, stage, trigger, hypothesis, falsify, action, verify, learning, source, authority, exactSha })),
     historicalAdvisories,
     policy: {
       promotionRequiresDistinctFingerprints: 2,
@@ -562,6 +585,85 @@ function confidenceFor(entry) {
   return Number((entry.successes / attempts).toFixed(4));
 }
 
+export function recurrencePreventionRule({ rootCause, rule, external = false } = {}) {
+  const normalized = String(rootCause ?? 'unknown').trim().replace(/[^a-z0-9-]+/gi, '-').toUpperCase();
+  if (!normalized || normalized === 'UNKNOWN') return null;
+  if (external) {
+    return `EXTERNAL-${normalized}: classify as BLOCKED_EXTERNAL; do not mutate internal source; wait for provider recheck or escalate.`;
+  }
+  const ruleSuffix = rule ? ` strategy=${String(rule)}` : '';
+  return `RECURRENCE-${normalized}: require new exact-SHA evidence, a falsification/reproduction delta, and a non-repeated strategy before mutation.${ruleSuffix}`;
+}
+
+export function buildCycleLessons({ fingerprint, rootCause, rule, outcome, verification, provenance = {}, preventionRule, diagnosis = null, changedPaths = [] } = {}) {
+  const normalizedRootCause = String(rootCause ?? 'unknown').trim() || 'unknown';
+  const normalizedOutcome = String(outcome ?? 'unknown').trim() || 'unknown';
+  const strategy = String(rule ?? provenance?.strategyId ?? '').trim() || 'unspecified';
+  const exactSha = String(provenance?.targetSha ?? provenance?.failedSha ?? '').trim() || null;
+  const lessons = [];
+
+  lessons.push({
+    type: 'lesson',
+    category: 'RCA',
+    text: diagnosis?.causalSource
+      ? 'Root cause ' + normalizedRootCause + ' was tied to causal source ' + diagnosis.causalSource + '; preserve this trigger → propagation → invariant → source chain.'
+      : 'Classify the failure as ' + normalizedRootCause + ' before selecting another repair strategy.',
+  });
+
+  if (normalizedOutcome === 'success') {
+    lessons.push({
+      type: 'lesson',
+      category: 'STRATEGY',
+      text: 'Strategy ' + strategy + ' produced a verified repair outcome; reuse it only when the RCA/fingerprint is still applicable.',
+    });
+  } else {
+    lessons.push({
+      type: 'antiLesson',
+      category: 'STRATEGY',
+      text: 'Strategy ' + strategy + ' is not a verified solution for fingerprint ' + String(fingerprint ?? 'unknown') + '; do not repeat it without new evidence.',
+    });
+  }
+
+  lessons.push({
+    type: 'lesson',
+    category: 'VERIFICATION',
+    text: 'Verification state was ' + String(verification ?? 'unknown') + '; current acceptance still requires fresh exact-SHA evidence.',
+  });
+
+  if (Array.isArray(changedPaths) && changedPaths.length) {
+    lessons.push({
+      type: 'lesson',
+      category: 'SCOPE',
+      text: 'Keep mutation scope bounded to the causally affected paths: ' + changedPaths.map((item) => String(item)).slice(0, 12).join(', ') + '.',
+    });
+  }
+
+  if (preventionRule) {
+    lessons.push({
+      type: 'prevention',
+      category: 'RECURRENCE',
+      text: String(preventionRule),
+    });
+  }
+
+  if (normalizedOutcome === 'blocked-external') {
+    lessons.push({
+      type: 'antiLesson',
+      category: 'BLOCKER',
+      text: 'External/provider blockers are not internal source repairs and must remain fail-closed.',
+    });
+  }
+
+  lessons.push({
+    type: 'provenance',
+    category: 'EXACT_SHA',
+    text: exactSha
+      ? 'Bind this cycle learning to exact SHA ' + exactSha + '; stale evidence must not be reused.'
+      : 'No exact SHA was supplied; learning remains non-certifying until exact-SHA evidence exists.',
+  });
+
+  return lessons.slice(0, 7);
+}
 function upsertLesson(memory, { fingerprint, rootCause, rule, outcome, verification, provenance, preventionRule }) {
   const id = stableLessonId({ fingerprint, rootCause, rule });
   const collection = outcome === 'success' ? memory.lessons : memory.antiLessons;
@@ -612,6 +714,8 @@ function loadDiagnosticFromEnv() {
 
 export function recordOutcome(memory, { fingerprint, normalizedFailure, features = [], rootCause, rule, outcome, verification, provenance, preventionRule, relationships = [], diagnosis = null, affectedPaths = [] } = {}) {
   const entry = findCase(memory, fingerprint) ?? { fingerprint, rootCause: 'unknown', attempts: 0, successes: 0, failures: 0, externalBlocks: 0, reversions: 0, revertFailures: 0, revertedRules: [], revertedCommits: [], rules: [], outcomes: [] };
+  const priorAttempts = Number(entry.attempts ?? 0);
+  const priorOccurrences = Number(entry.occurrences ?? entry.outcomes?.length ?? 0);
   entry.rootCause = rootCause ?? entry.rootCause ?? 'unknown';
   const effectiveDiagnosis = normalizeDiagnosticRecord(diagnosis ?? loadDiagnosticFromEnv(), { affectedPaths });
   if (effectiveDiagnosis) {
@@ -626,14 +730,36 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   const effectiveProviderSignature = provenance?.providerSignature ?? (isExternalBlock ? externalProviderSignature(normalizedFailure) : null);
   const strategyId = String(process.env.FLIXO_REPAIR_STRATEGY_ID ?? provenance?.strategyId ?? '').trim() || null;
   const promptId = String(process.env.FLIXO_PROMPT_ID ?? provenance?.promptId ?? '').trim() || null;
+  const behaviorObservation = loadBehaviorObservation();
   const effectiveProvenance = {
     ...(provenance ?? {}),
+    ...(behaviorObservation ? { behaviorObservation } : {}),
     ...(promptId ? { promptId } : {}),
     ...(strategyId ? { strategyId } : {}),
     ...(effectiveProviderSignature ? { providerSignature: effectiveProviderSignature } : {}),
   };
   const isHistoricalRevertFailure = outcome === 'revert-failure';
   if (isExternalBlock) entry.externalBlocks = (entry.externalBlocks ?? 0) + 1;
+  const recurrenceObserved = priorAttempts > 0 || priorOccurrences > 0;
+  const effectivePreventionRule = preventionRule ?? recurrencePreventionRule({
+    rootCause: entry.rootCause,
+    rule,
+    external: isExternalBlock,
+  });
+  const cycleLessons = buildCycleLessons({
+    fingerprint,
+    rootCause: entry.rootCause,
+    rule,
+    outcome,
+    verification,
+    provenance: effectiveProvenance,
+    preventionRule: effectivePreventionRule,
+    diagnosis: effectiveDiagnosis,
+    changedPaths: effectiveDiagnosis?.affectedPaths ?? affectedPaths,
+  });
+  if (recurrenceObserved || isExternalBlock) {
+    entry.preventionRules = [...new Set([...(entry.preventionRules ?? []), ...(effectivePreventionRule ? [effectivePreventionRule] : [])])].slice(-MEMORY_RETENTION.maxPreventionRules);
+  }
   if (isHistoricalRevert) {
     entry.reversions = (entry.reversions ?? 0) + 1;
     if (rule) entry.revertedRules = [...new Set([...(entry.revertedRules ?? []), rule])];
@@ -649,11 +775,22 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   if (outcome === 'success') entry.successes += 1; else if (countsAsRepairAttempt) entry.failures += 1;
   entry.confidence = confidenceFor(entry);
   if (rule) entry.rules = [...new Set([...entry.rules, rule])];
-  entry.outcomes.push({ outcome, verification, rule, provenance: effectiveProvenance, diagnosis: effectiveDiagnosis, preventionRule, at: new Date().toISOString() });
+  entry.latestCycleLessons = cycleLessons;
+  entry.outcomes.push({
+    outcome,
+    verification,
+    rule,
+    provenance: effectiveProvenance,
+    diagnosis: effectiveDiagnosis,
+    preventionRule,
+    cycleLessons,
+    at: new Date().toISOString(),
+  });
   entry.outcomes = entry.outcomes.slice(-MEMORY_RETENTION.maxCaseOutcomes);
   if (!memory.cases.includes(entry)) memory.cases.push(entry);
   const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
   const actionRecord = memory.actionHistory.find((item) => item.fingerprint === fingerprint) ?? {
+    normalizedFailure: normalizedFailure,
     fingerprint,
     rootCause: entry.rootCause,
     attempts: 0,
@@ -671,6 +808,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   actionRecord.rootCause = entry.rootCause;
   actionRecord.occurrences = Number(actionRecord.occurrences ?? 0) + 1;
   actionRecord.lastSeenAt = new Date().toISOString();
+  actionRecord.latestCycleLessons = cycleLessons;
   if (countsAsPlaybookAttempt) actionRecord.attempts = Number(actionRecord.attempts ?? 0) + 1;
   if (outcome === 'success') actionRecord.successes = Number(actionRecord.successes ?? 0) + 1;
   if (['failure', 'unrepaired', 'blocked', 'reverted-repair', 'revert-failure'].includes(outcome)) actionRecord.failures = Number(actionRecord.failures ?? 0) + 1;
@@ -680,6 +818,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     if (outcome !== 'success') actionRecord.rejectedStrategies = [...new Set([...(actionRecord.rejectedStrategies ?? []), observedStrategy])].slice(-20);
   }
   if (rule) actionRecord.rules = [...new Set([...(actionRecord.rules ?? []), rule])].slice(-20);
+  if (effectivePreventionRule) actionRecord.doNotRepeat = [...new Set([...(actionRecord.doNotRepeat ?? []), effectivePreventionRule])].slice(-50);
   if (outcome !== 'success' && rule) actionRecord.doNotRepeat = [...new Set([...(actionRecord.doNotRepeat ?? []), rule])].slice(-50);
   if (effectiveProvenance?.failedSha || effectiveProvenance?.targetSha || verification) {
     actionRecord.evidence = [...(actionRecord.evidence ?? []), {
@@ -715,8 +854,55 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     if (!memory.playbooks.includes(playbook)) memory.playbooks.push(playbook);
   }
   if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked' || outcome === 'blocked-external') {
-    upsertLesson(memory, { fingerprint, rootCause: entry.rootCause, rule, outcome, verification, provenance: effectiveProvenance, preventionRule });
+    upsertLesson(memory, {
+      fingerprint,
+      rootCause: entry.rootCause,
+      rule,
+      outcome,
+      verification,
+      provenance: effectiveProvenance,
+      preventionRule: effectivePreventionRule,
+    });
   }
+  const cellKnowledge = buildKnowledgeRecord({
+    botId: process.env.FLIXO_CELL_BOT_ID ?? null,
+    taskId: process.env.FLIXO_TASK_ID ?? provenance?.taskId ?? null,
+    taskShortName: process.env.FLIXO_CELL_TASK_SHORT_NAME ?? null,
+    taskName: process.env.FLIXO_CELL_TASK_NAME ?? null,
+    fingerprint,
+    rootCause: entry.rootCause,
+    rule,
+    outcome,
+    verification,
+    targetSha: effectiveProvenance?.targetSha ?? process.env.FLIXO_TARGET_SHA ?? null,
+    failedSha: effectiveProvenance?.failedSha ?? process.env.FLIXO_FAILED_SHA ?? null,
+    runId: effectiveProvenance?.runId ?? process.env.FLIXO_RUN_ID ?? null,
+    source: 'FLIXO Error Memory / Cell Learning',
+    evidenceRef: effectiveProvenance?.evidenceRef ?? process.env.FLIXO_REPAIR_EVIDENCE_PATH ?? null,
+    changedPaths: affectedPaths,
+    knowledgeClaim: effectiveDiagnosis?.rootCause
+      ? 'Validated task knowledge: observed failure maps to ' + effectiveDiagnosis.rootCause + ' under outcome ' + outcome + ' and verification ' + verification + '.'
+      : null,
+    solution: {
+      strategyId: strategyId ?? null,
+      rule: rule ?? null,
+      rootCause: entry.rootCause ?? null,
+      outcome,
+      verification: verification ?? null,
+      changedPaths: affectedPaths,
+    },
+    antiLesson: outcome === 'success' ? null : rule ? 'Do not repeat strategy ' + rule + ' for this fingerprint without new evidence.' : null,
+    learningList: cycleLessons,
+  });
+  const cellKnowledgePersist = persistKnowledge(cellKnowledge);
+  entry.latestKnowledge = cellKnowledge;
+  entry.knowledgeHistory = [...(entry.knowledgeHistory ?? []), {
+    id: cellKnowledge.id,
+    confidence: cellKnowledge.confidence,
+    persisted: cellKnowledgePersist.persisted,
+    at: cellKnowledge.createdAt,
+  }].slice(-MEMORY_RETENTION.maxLessonEvidence);
+
   if (entry.attempts >= INTRACTABLE_THRESHOLD && entry.successes === 0) {
     fs.writeFileSync('/tmp/flixo-intractable-state', 'true\n');
     const data = loadIntractable();
@@ -812,6 +998,9 @@ if (process.argv[1]?.endsWith('auto-repair-learning.mjs') && process.env.FLIXO_L
   const rawOutcome = process.env.FLIXO_LEARNING_OUTCOME;
   const verification = process.env.FLIXO_VERIFICATION ?? 'unknown';
   const normalizedOutcome = normalizeLearningOutcome(rawOutcome, verification);
-  recordOutcome(memory, { fingerprint: fingerprintFailure(log), normalizedFailure: log, features: extractFeatures(log), rootCause: process.env.FLIXO_ROOT_CAUSE ?? 'unknown', rule: process.env.FLIXO_REPAIR_RULE || undefined, outcome: normalizedOutcome, verification, provenance: { source: 'FLIXO Auto Repair', failedSha: process.env.FLIXO_FAILED_SHA ?? null, targetSha: process.env.FLIXO_TARGET_SHA ?? null, revertedCommit: process.env.FLIXO_REVERTED_COMMIT ?? null, runId: process.env.FLIXO_RUN_ID ?? null, rawOutcome } });
+  const fingerprint = fingerprintFailure(log);
+  recordOutcome(memory, { fingerprint, normalizedFailure: log, features: extractFeatures(log), rootCause: process.env.FLIXO_ROOT_CAUSE ?? 'unknown', rule: process.env.FLIXO_REPAIR_RULE || undefined, outcome: normalizedOutcome, verification, provenance: { source: 'FLIXO Auto Repair', failedSha: process.env.FLIXO_FAILED_SHA ?? null, targetSha: process.env.FLIXO_TARGET_SHA ?? null, revertedCommit: process.env.FLIXO_REVERTED_COMMIT ?? null, runId: process.env.FLIXO_RUN_ID ?? null, rawOutcome } });
   writeMemory(memory);
+  const cycleCase = findCase(memory, fingerprint);
+  console.log(JSON.stringify({ cycleLessons: cycleCase?.latestCycleLessons ?? [], fingerprint, outcome: normalizedOutcome, verification, exactSha: process.env.FLIXO_TARGET_SHA ?? process.env.FLIXO_FAILED_SHA ?? null }, null, 2));
 }

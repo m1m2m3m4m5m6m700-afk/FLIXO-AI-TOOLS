@@ -23,6 +23,8 @@ const rawSessionId = String(args.get('session') ?? process.env.FLIXO_AGENT_SESSI
 const rawFromSession = String(args.get('from-session') ?? process.env.FLIXO_AGENT_FROM_SESSION ?? '').trim() || null;
 const rawMessageFile = String(args.get('message-file') ?? process.env.FLIXO_AGENT_MESSAGE_FILE ?? '').trim() || null;
 const rawMessageId = String(args.get('message-id') ?? process.env.FLIXO_AGENT_MESSAGE_ID ?? '').trim() || null;
+const meetingId = String(args.get('meeting-id') ?? process.env.FLIXO_AGENT_MEETING_ID ?? '').trim() || null;
+const meetingRequested = String(args.get('meeting') ?? process.env.FLIXO_AGENT_MEETING ?? 'false').trim() === 'true' || Boolean(meetingId);
 const messageExecutionAdmitted = String(args.get('message-execution-admitted') ?? process.env.FLIXO_AGENT_MESSAGE_EXECUTION_ADMITTED ?? 'false').trim() === 'true';
 const safeSessionId = (value, label) => {
   if (!value || value.length > 128 || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value)) throw new Error(`INVALID_${label.toUpperCase()}_ID`);
@@ -76,7 +78,17 @@ const readCanonicalAdmissionSources = () => {
 const sessionPath = (id) => path.join(sessionDir, `${storageKey(id)}.json`);
 const handoffPath = (id) => path.join(handoffDir, `${storageKey(id)}.json`);
 const visibilityPath = (id) => path.join(visibilityDir, `${storageKey(id)}.json`);
-const roles = new Set(['analysis','implementation','verification','release','assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','diagnosticAgent']);
+const ACTION_VAULT_SESSION_ROLES = Object.freeze(['actionRepairBot','actionRepairVerifier','actionHistorian']);
+const roles = new Set(['analysis','implementation','verification','release','assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','diagnosticAgent', ...ACTION_VAULT_SESSION_ROLES]);
+const isMeetingSession = (record) => Boolean(record?.meetingLock?.locked === true);
+const assertMeetingExitApproval = (record, currentSha) => {
+  if (!isMeetingSession(record)) return;
+  const approval = record.meetingLock?.exitApproval;
+  if (!approval || approval.approvedBy !== 'assistantController') throw new Error('COUNCIL_MEETING_EXIT_REQUIRES_PRESIDENT_APPROVAL');
+  if (approval.meetingId !== record.meetingLock.meetingId) throw new Error('COUNCIL_MEETING_EXIT_APPROVAL_MEETING_MISMATCH');
+  if (approval.sessionId !== record.sessionId) throw new Error('COUNCIL_MEETING_EXIT_APPROVAL_SESSION_MISMATCH');
+  if (approval.approvalSha !== currentSha) throw new Error('COUNCIL_MEETING_EXIT_APPROVAL_STALE_SHA');
+};
 const writeVisibility = (record) => {
   fs.mkdirSync(visibilityDir, { recursive: true });
   fs.writeFileSync(visibilityPath(sessionId), `${JSON.stringify(record, null, 2)}\n`);
@@ -85,15 +97,32 @@ const secretLike = (value) => /(-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY----
 const assertSafeText = (...values) => { for (const value of values.flat()) if (secretLike(value)) throw new Error('AGENT_EVENT_SECRET_LIKE_CONTENT_REJECTED'); };
 const appendEvent = (record, event) => { record.actions = Array.isArray(record.actions) ? [...record.actions, event] : [event]; record.activity = Array.isArray(record.activity) ? [...record.activity, event] : [event]; };
 
-if (!['login', 'event', 'logout', 'message-receive', 'message-consume'].includes(command)) throw new Error('Usage: agent-session.mjs login|event|logout|message-receive|message-consume --session=<id> --agent=<id> --task=<task-id> [--message-file=<path>] [--message-id=<id>]');
+if (!['login', 'event', 'logout', 'meeting-exit-approve', 'message-receive', 'message-consume'].includes(command)) throw new Error('Usage: agent-session.mjs login|event|logout|meeting-exit-approve|message-receive|message-consume --session=<id> --agent=<id> --task=<task-id>');
 if (!sessionId || !agentId || !taskId) throw new Error('Agent session requires --session, --agent and --task.');
+if (meetingRequested && !meetingId) throw new Error('COUNCIL_MEETING_ID_REQUIRED');
 if (!roles.has(role)) throw new Error(`Invalid agent role: ${role}`);
 
 fs.mkdirSync(sessionDir, { recursive: true });
 fs.mkdirSync(handoffDir, { recursive: true });
 const file = sessionPath(sessionId);
 
-if (command === 'event') {
+if (command === 'meeting-exit-approve') {
+  if (role !== 'assistantController' || agentId !== 'assistantController') throw new Error('COUNCIL_MEETING_EXIT_APPROVAL_CONTROLLER_ONLY');
+  if (!meetingId) throw new Error('COUNCIL_MEETING_ID_REQUIRED');
+  if (!fs.existsSync(file)) throw new Error('Session not found: ' + sessionId);
+  const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (record.taskId !== taskId) throw new Error('COUNCIL_MEETING_TASK_MISMATCH');
+  if (record.status !== 'RUNNING') throw new Error('COUNCIL_MEETING_EXIT_APPROVAL_SESSION_NOT_RUNNING');
+  assertLiveSession(record);
+  if (!isMeetingSession(record)) throw new Error('COUNCIL_MEETING_EXIT_APPROVAL_NO_MEETING_LOCK');
+  if (record.meetingLock.meetingId !== meetingId) throw new Error('COUNCIL_MEETING_ID_MISMATCH');
+  const approvalId = String(args.get('approval-id') ?? process.env.FLIXO_AGENT_MEETING_APPROVAL_ID ?? '').trim() || `meeting-exit:${sessionId}:${gitSha()}`;
+  record.meetingLock.exitApproval = { approvalId, approvedBy: 'assistantController', meetingId, sessionId, approvalSha: gitSha(), approvedAt: now() };
+  appendEvent(record, { at: now(), action: 'MEETING_EXIT_APPROVAL', approvedBy: 'assistantController', meetingId, approvalId, sha: gitSha() });
+  fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
+  writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'OPEN', taskId: record.taskId, sessionId: record.sessionId, agentId: record.agentId, role: record.role, entrySha: record.entrySha, exitSha: null, status: record.status, finalStatus: null, finalSummary: null, scope: record.scope, currentRca: record.currentRca, rcaClosed: record.rcaClosed ?? [], openRcas: record.openRcas ?? [], changedFiles: record.changedFiles ?? [], commands: record.commands ?? [], evidence: record.evidence ?? [], findings: record.findings ?? [], activity: record.activity ?? [], lastEvent: record.activity?.at(-1) ?? null, completedWork: record.completedWork ?? [], failedWork: record.failedWork ?? [], remainingWork: record.remainingWork ?? [], executionPlanNext: record.executionPlanNext ?? [], blockers: record.blockers ?? [], handoffToNextAgent: record.handoffToNextAgent ?? null, meetingLock: record.meetingLock, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() });
+  console.log(`COUNCIL_MEETING_EXIT_APPROVED=${approvalId}`);
+} else if (command === 'event') {
   if (!fs.existsSync(file)) throw new Error('Session not found: ' + sessionId);
   const record = JSON.parse(fs.readFileSync(file, 'utf8'));
   if (!record.repairProtocol || record.repairProtocol.protocolHash !== assertProtocolDefinition().protocolHash) throw new Error('REPAIR_PROTOCOL_SESSION_HASH_DRIFT');
@@ -201,6 +230,7 @@ if (command === 'event') {
     admissionSources,
     currentRca: rca,
     taskId,
+    ...(meetingRequested ? { meetingLock: { locked: true, meetingId, enteredBy: agentId, enteredAt: now(), entrySha: sha, exitApproval: null } } : {}),
     ...(inboundMessage ? { messageId: inboundMessage.messageId, messageStatus: inboundMessage.status, messageEntrySha: inboundMessage.entrySha, messageReadBy: agentId, messagePriority: 'P0_COMMUNICATION_FIRST' } : {}),
     status: 'RUNNING',
     bootstrap: !continuation,
@@ -222,6 +252,7 @@ if (command === 'event') {
   const status = String(args.get('status') ?? process.env.FLIXO_AGENT_STATUS ?? 'VERIFIED').toUpperCase();
   if (!['VERIFIED', 'BLOCKED'].includes(status)) throw new Error(`Logout status must be VERIFIED or BLOCKED; got ${status}`);
   const sha = gitSha();
+  assertMeetingExitApproval(record, sha);
   const changedFiles = split(args.get('changed') ?? process.env.FLIXO_AGENT_CHANGED_FILES);
   const commands = split(args.get('commands') ?? process.env.FLIXO_AGENT_COMMANDS, '|');
   const evidence = split(args.get('evidence') ?? process.env.FLIXO_AGENT_EVIDENCE);
@@ -234,6 +265,29 @@ if (command === 'event') {
   const executionPlanNext = split(args.get('next-plan') ?? process.env.FLIXO_AGENT_NEXT_PLAN, '|');
   const blockers = split(args.get('blockers') ?? process.env.FLIXO_AGENT_BLOCKERS, '|');
   const handoffToNextAgent = String(args.get('handoff') ?? process.env.FLIXO_AGENT_HANDOFF ?? '').trim() || null;
+  const cycleLessonsRaw = String(args.get('cycle-lessons-json') ?? process.env.FLIXO_AGENT_CYCLE_LESSONS_JSON ?? '').trim();
+  let cycleLessons = [];
+  if (cycleLessonsRaw) {
+    try {
+      const parsed = JSON.parse(cycleLessonsRaw);
+      if (!Array.isArray(parsed)) throw new Error('cycleLessons must be an array');
+      cycleLessons = parsed.slice(0, 12).map((item) => ({
+        type: String(item?.type ?? 'lesson'),
+        category: String(item?.category ?? 'GENERAL'),
+        text: String(item?.text ?? item ?? '').trim(),
+      })).filter((item) => item.text);
+    } catch (error) {
+      throw new Error(`INVALID_CYCLE_LESSONS_JSON:${error?.message ?? error}`, { cause: error });
+    }
+  }
+  if (!cycleLessons.length) {
+    cycleLessons = [
+      { type: 'lesson', category: 'RCA', text: `Cycle RCA: ${record.currentRca || 'not declared; preserve the unresolved causal state.'}` },
+      { type: 'lesson', category: 'VERIFICATION', text: `Cycle exit status=${status}; exact SHA=${sha}; certification requires fresh exact-SHA evidence.` },
+      { type: 'lesson', category: 'SCOPE', text: changedFiles.length ? `Changed paths remained explicit: ${changedFiles.slice(0, 12).join(', ')}.` : 'No repository paths were recorded as changed in this session.' },
+      ...(status === 'BLOCKED' ? [{ type: 'antiLesson', category: 'BLOCKER', text: 'Blocked work is not completion; preserve evidence and continue through the next authorized cycle.' }] : []),
+    ];
+  }
   const finalSummary = String(args.get('final-summary') ?? process.env.FLIXO_AGENT_FINAL_SUMMARY ?? '').trim();
   if (!finalSummary) throw new Error('FINAL_SUMMARY_REQUIRED_BEFORE_SESSION_CLOSE');
   if (remainingWork.length === 0 && openRcas.length > 0) {
@@ -262,6 +316,7 @@ if (command === 'event') {
   record.rcaClosed = rcaClosed;
   record.openRcas = openRcas;
   record.handoff = handoffToNextAgent;
+  record.cycleLessons = cycleLessons;
   record.finalSummary = finalSummary;
   record.finalStatus = status;
   record.taskId = taskId;
@@ -273,7 +328,7 @@ if (command === 'event') {
   record.actions = Array.isArray(record.actions) ? [...record.actions, { at: now(), action: 'LOGOUT', sha, status }] : [{ at: now(), action: 'LOGOUT', sha, status }];
   fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
 
-  writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'CLOSED', taskId, sessionId: record.sessionId, agentId: record.agentId, role: record.role, entrySha: record.entrySha, exitSha: sha, status, finalStatus: status, finalSummary, scope: record.scope, currentRca: record.currentRca, rcaClosed, openRcas, changedFiles, commands, evidence, findings, activity, lastEvent: activity.at(-1) ?? null, completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() });
+  writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'CLOSED', taskId, sessionId: record.sessionId, agentId: record.agentId, role: record.role, entrySha: record.entrySha, exitSha: sha, status, finalStatus: status, finalSummary, scope: record.scope, currentRca: record.currentRca, rcaClosed, openRcas, changedFiles, commands, evidence, findings, activity, lastEvent: activity.at(-1) ?? null, completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent, cycleLessons, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() });
 
   const report = {
     schemaVersion: 1,
@@ -303,6 +358,7 @@ if (command === 'event') {
     remainingWork,
     executionPlanNext,
     blockers,
+    cycleLessons,
     handoffToNextAgent,
     continuationFrom: record.continuationFrom ?? null,
     inheritedExitSha: record.inheritedExitSha ?? null,

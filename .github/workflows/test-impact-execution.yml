@@ -7,7 +7,7 @@ on:
 
 # Keep only the newest test-impact execution for the same PR/branch.
 concurrency:
-  group: flixo-test-impact-execution-${{ github.event.pull_request.number || github.ref }}
+  group: flixo-test-impact-execution-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -28,6 +28,12 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
+      - name: Fail closed when this commit is superseded
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+        run: node scripts/ci/assert-current-commit.mjs
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc

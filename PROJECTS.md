@@ -1,3 +1,15 @@
+## UNIFIED PROMPT — CANONICAL EXECUTION SURFACE
+
+The repository has exactly one active execution prompt:
+RPR-UNIFIED-EXECUTION-001 → docs/agents/PROMPT-UNIFIED-EXECUTION.md.
+
+It absorbs orchestration, causal repair, task preparation, contract-drift, external classification, product/platform implementation, Action Vault learning, Exact-SHA verification and GREEN-closure intent.
+
+The canonical prompt source is docs/agents/PROMPT-UNIFIED-EXECUTION.md. src/lib/agent/flixo-agent-master-prompt.ts is only the customer-runtime adapter and does not contain a second instruction source.
+
+## Administrative Messages — Communication System
+**«رسائل الإدارة» = Canonical Agent Communication.** This is the existing internal communication system between the Council, Masters, supervisors, and agents. It is a naming alias only; no parallel channel or registry is created. Council administrative messages remain P0.
+
 ## Agent Communication Priority
 
 Communication-fi
@@ -22,9 +34,9 @@ rst is a P0 execution invariant. The canonical ingress is Master Inbox Issue #76
 ```text
 SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
-CURRENT MAIN SHA = `9150a5770bf113baf6d5b58439351bf3c5b42514`
-ACTIVE PR = #771 OPEN / execution → main (current repair/integration lane); #759 is historical/merged
-CURRENT PR HEAD = authoritative GitHub PR #771 head; do not duplicate a mutable SHA in this map
+CURRENT MAIN SHA = authoritative GitHub main ref; never duplicate a mutable SHA in this map
+ACTIVE PR = #774 OPEN / execution → main (current verification/repair lane); #759 is historical/merged
+CURRENT PR HEAD = authoritative GitHub PR #774 head; do not duplicate a mutable SHA in this map
 NO-NEW-BRANCH = ABSOLUTE; only execution and main are active agent branches; existing historical branches are not valid work paths
 STATE = BLOCKED_EXTERNAL
 CANONICAL TEST SYSTEM = FRESH EVIDENCE REQUIRED ON CURRENT MAIN/EXECUTION HEAD; prior exact-head evidence is stale
@@ -41,12 +53,26 @@ NO CLOSED/VERIFIED LABEL IN THIS FILE IS CURRENT GREEN PROOF UNLESS IT IS REPROV
 ```
 
 
+## ACTIVE LATEST-COMMIT-ONLY TEST GOVERNANCE
+
+- TEST-HEAD-ONLY-001 = IMPLEMENTED / VERIFYING
+- Rule: every execution push/synchronize supersedes older test/verification runs; only newest exact branch head may produce current evidence.
+- Controller: `.github/workflows/latest-commit-test-supersession.yml`
+- Enforcement: per-workflow `cancel-in-progress: true` + `assert-current-commit.mjs` stale guard + `scripts/ci/test-latest-commit-only.mjs`.
+
+## ACTIVE ACTION VAULT TRIAD GOVERNANCE
+
+- VAULT-TRIAD-001 = IMPLEMENTED / VERIFICATION PENDING
+- Scope: three-resident shared intelligence; VAULT-1/2 programmer parity with opposed proof objectives; VAULT-3 catalog curator/supervisor after 20 unresolved occurrences.
+- Machine contract: `docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md` + `scripts/ci/action-vault-triad-governor.mjs`.
+- Exact-SHA proof and canonical GREEN remain mandatory.
+
 ## LIVE DISCOVERY SYNC — 2026-09-19
 
 ```text
 TASK LEDGER = المهام.md §15.0 LIVE DISCOVERY OVERLAY
 CURRENT EXECUTION SHA = authoritative GitHub execution branch ref; do not duplicate a mutable SHA in this map
-OPEN PR = #771 → main; #759 is historical/merged
+OPEN PR = #774 → main; #759 is historical/merged
 DEPENDENT PR = none; prior non-canonical PRs are historical and not active work paths
 LIVE EXTERNAL BLOCKERS = GitHub/Copilot model rejection + Vercel deployment rate-limit
 LIVE AUTOMATION RCA = continuous-error-watch input artifact missing on main automation cycle
@@ -69,7 +95,7 @@ ADMIN PROVENANCE = production Vercel→Supabase binding not proven
 | BUILD-002 | CLOSED / VERIFIED | Preserve canonical artifact identity producer/consumer contract |
 | TEST-001 | CLOSED / VERIFIED | Preserve deterministic ownership registry and validator |
 | AGENT-PROTOCOL-003 | CLOSED / VERIFIED | Preserve proof-driven fail-closed repair lifecycle and learning/prevention contracts |
-| AGENT-PROMPT-INTEL-001 | IMPLEMENTED / VERIFICATION PENDING | Shared Prompt Registry + causal deduplication + quality gate + Task Agent prompt provenance | Run current main canonical static/contract verification; reconcile execution exact-SHA before promotion |
+| AGENT-PROMPT-INTEL-001 | CONSOLIDATED / VERIFICATION PENDING | Shared Prompt Registry + causal deduplication + quality gate + Task Agent prompt provenance | Run current main canonical static/contract verification; reconcile execution exact-SHA before promotion |
 | DEBT-001 | BLOCKED_EXTERNAL | Deterministic validator delivered; required exact-head external security/Vercel gates are unresolved |
 | TOOL-EXPANSION | CANDIDATE | Activate only after a fresh deterministic scope is proven |
 
@@ -209,8 +235,7 @@ PURPOSE = Build one shared Prompt Intelligence Layer over Error Detection → Fi
 CANONICAL REGISTRY = docs/agents/PROMPT-REGISTRY.json
 VALIDATOR ENTRYPOINT = scripts/ci/validate-prompt-registry.mjs
 REGISTRY ENGINE = scripts/ci/prompt-registry.mjs
-MASTER PROMPT = RPR-MASTER-LIFECYCLE-001 → AI_AGENT_MASTER_PROMPT.md
-SPECIALIST PROMPTS = RPR-ORCHESTRATION-PREFLIGHT-001, RPR-EXTERNAL-TOOLING-001, RPR-REGEX-CONTRACT-001, RPR-ARCHITECTURE-REGISTRY-001; task preparation uses RPR-EXISTING-TASK-PREP-001
+ACTIVE PROMPTS = RPR-MASTER-EXECUTION-001, RPR-ERROR-REPAIR-001, RPR-FLIXO-PRODUCT-001; canonical text lives in docs/agents/PROMPT-01-MASTER-EXECUTION.md, docs/agents/PROMPT-02-ERROR-REPAIR.md, docs/agents/PROMPT-03-FLIXO-PRODUCT.md
 LEARNING PROVENANCE = promptId + promptVersion + masterPromptId + promptDecision + promptRegistrySha
 EXACT-SHA = prompt selection is bound to the active repair target SHA; Prompt text never grants authority.
 DUPLICATION RULE = compare failureClasses + rootCauses + scope + repairStrategy + verificationPlan; hard duplicates cannot be ACTIVE together.
@@ -350,7 +375,7 @@ NO GATE BYPASS = required
 
 | ID | Status | Owner/Surface | Next deterministic action |
 |---|---|---|---|
-| AUTO-REPAIR-BOT-001 | VERIFYING / EVIDENCE-PENDING | Auto Repair + Task Agent + Error Agent | إثبات repair publication + learning + handoff على current SHA |
+| AUTO-REPAIR-BOT-001 | VERIFYING / EVIDENCE-PENDING | Auto Repair + Task Agent + Error Agent + Action Vault triad | إثبات verifier-proof admission + repair publication + learning + handoff على current SHA |
 | EXECUTION-BOT-WATCHDOG-001 | ACTIVE | execution-bot-watchdog | Verify exact-SHA RED detection and canonical repair dispatch |
 | REPAIR-SUPERVISION-GATES-001 | VERIFYING / EVIDENCE-PENDING | handoff/recovery/merge gates | إثبات fail-closed handoff→merge chain على exact current SHA |
 | ROOT-CAUSE-DIAGNOSTICS-001 | OPEN | diagnostics/scout/investigator | Unify evidence→fingerprint→RCA path |

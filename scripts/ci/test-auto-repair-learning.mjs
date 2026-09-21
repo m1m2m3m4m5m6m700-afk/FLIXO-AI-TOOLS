@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge, hydrateActionHistory, normalizeMemoryCounters, mergeMemoryHistory, MEMORY_RELATION_TYPES, normalizeRelations, normalizeDiagnosticRecord } from './auto-repair-learning.mjs';
+import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge, hydrateActionHistory, normalizeMemoryCounters, mergeMemoryHistory, MEMORY_RELATION_TYPES, normalizeRelations, normalizeDiagnosticRecord, MEMORY_VERSION } from './auto-repair-learning.mjs';
 
 const sample = 'Run 35012345678 failed on webkit at abcdefabcdefabcdefabcdefabcdefabcdefabcd: Seed waitForGpuRender';
 const fingerprint = fingerprintFailure(sample);
@@ -20,7 +20,7 @@ delete process.env.GITHUB_REPOSITORY;
 delete process.env.FLIXO_RUN_ID;
 
 const memory = loadMemory();
-assert.equal(memory.version, 10);
+assert(memory.version >= MEMORY_VERSION);
 const diagnostic = normalizeDiagnosticRecord({
   rootCause: 'lint',
   violatedInvariant: 'UNEXPECTED_UNUSED_SYMBOL',

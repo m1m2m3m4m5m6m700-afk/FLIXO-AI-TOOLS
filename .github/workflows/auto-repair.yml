@@ -1,5 +1,5 @@
 name: FLIXO Auto Repair Bot
-run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id }}
+run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id }} ${{ inputs.failure_fingerprint || 'NO_FINGERPRINT' }}
 
 # TWO-BRANCH MODEL:
 # execution = sole working/repair branch
@@ -8,9 +8,14 @@ run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id }}
 on:
   workflow_dispatch:
     inputs:
+      resident:
+        description: 'Keep the Repair Bot resident and observing the active repair session'
+        required: false
+        default: 'false'
+        type: string
       target_run_id:
-        description: 'Workflow run ID to diagnose and repair'
-        required: true
+        description: 'Workflow run ID to diagnose and repair; omitted only in resident mode'
+        required: false
         type: string
       chain_id:
         description: 'Stable repair-chain identifier; recursive runs must reuse it'
@@ -35,12 +40,14 @@ on:
         type: string
 
 permissions:
-  # Full repository repair-plane permissions.
-  # The executor can mutate code on execution, manage Actions, update PRs,
-  # publish repair/status evidence, annotate issues, and handle security findings.
+  # Sole source-mutation authority for the repair plane.
+  # Actions administration is intentionally NOT granted: peer observers may wake
+  # the bot, but cannot use it to disable or reconfigure Actions.
   # It still cannot bypass the execution-only mutation boundary or write main.
   contents: write
-  actions: write
+  # Read-only artifact/run observation is required for the independent twin result.
+  actions: read
+  # No Actions-admin capability: peer agents cannot be controlled by the repair bot.
   checks: read
   pull-requests: write
   issues: write
@@ -49,10 +56,12 @@ permissions:
 
 concurrency:
   # Serialize one canonical repair chain; the chain identity includes branch, SHA, fingerprint and target run ID.
-  group: flixo-auto-repair-execution-${{ inputs.chain_id || inputs.target_run_id }}
+  group: flixo-auto-repair-${{ inputs.resident == 'true' && 'resident' || (inputs.chain_id || inputs.target_run_id) }}
   cancel-in-progress: false
 
 env:
+  GH_TOKEN: ${{ github.token }}
+  GITHUB_TOKEN: ${{ github.token }}
   FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
   FLIXO_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
   FLIXO_REPAIR_LANE: single
@@ -62,28 +71,104 @@ env:
   FLIXO_FAILURE_FINGERPRINT: ${{ inputs.failure_fingerprint || '' }}
   FLIXO_REPAIR_LEASE_REF: ${{ inputs.repair_lease_ref || '' }}
   FLIXO_REPAIR_LEASE_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
-  FLIXO_PROMPT_SOURCE_RUN_ID: ${{ inputs.prompt_source_run_id || '' }}
+  FLIXO_REPAIR_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
+  FLIXO_REPAIR_BEHAVIOR_TRACE_PATH: /tmp/flixo-repair-behavior-trace.json
+  FLIXO_HISTORICAL_SOLUTION_PATH: /tmp/flixo-historical-solution-index.json
+  FLIXO_TWIN_A_PATH: /tmp/flixo-twin-a.json
+  FLIXO_TWIN_B_PATH: /tmp/flixo-twin-b.json
+  FLIXO_SELECTION_PATH: /tmp/flixo-selected-repair-option.json
+  # prompt_source_run_id remains a compatibility input; artifact provenance is resolved from the canonical Green Gate by exact SHA.
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
+  # sole mutation authority: AUTO_REPAIR_BOT on execution; peer agents are review/dispatch-only.
   # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
+  # ACTION-VAULT-AUTONOMY-MODE: diagnostics/auto-repair/action-vault/ACTION-VAULT-AUTONOMY-MODE.json is canonical admission policy.
   # This workflow is executor-only and must never self-dispatch.
   FLIXO_STRICT_RED_REPAIR: 'true'
+  FLIXO_REPAIR_OPERATING_MODE: BOT_FIRST_AUTONOMOUS
+  FLIXO_ROUTINE_HUMAN_APPROVAL: 'false'
+  FLIXO_CRITICAL_HUMAN_AUTH_REQUIRED: 'true'
+  FLIXO_BRANCH_CONFLICT_RECOVERY: 'true'
+  FLIXO_CONFLICT_OWNER_WITHDRAWAL: 'false'
   FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
+  FLIXO_DIAGNOSTIC_LINE_LIMIT: '5000'
+  # Independent Actions learning owner.
+  FLIXO_ACTION_INDEX_BOT_ID: ACTION-INDEX
+  FLIXO_ACTION_MASTER: repairAgent
 
 jobs:
+  resident:
+    name: Resident Repair Bot monitor — never idle during an open repair session
+    if: github.event_name == 'workflow_dispatch' && inputs.resident == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    steps:
+      - name: Checkout trusted main bootstrap
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+
+      - name: Validate permanent Repair Bot residency contract
+        run: |
+          set -euo pipefail
+          node scripts/ci/agent-liveness-protocol.mjs validate
+          echo 'REPAIR_BOT_RESIDENT=true'
+          echo 'REPAIR_BOT_MAX_IDLE_GAP_SECONDS=60'
+          echo 'REPAIR_BOT_SESSION_END=CANONICAL_GREEN_ONLY'
+          echo 'REPAIR_BOT_SOURCE_MUTATION=DISABLED_IN_RESIDENT_MODE'
+
+      - name: Monitor current execution continuously until canonical GREEN
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEADLINE="$(( $(date +%s) + 19800 ))"
+          while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+            EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+            GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --commit "$EXECUTION_SHA" --limit 50 --json databaseId,status,conclusion,headSha,createdAt --jq 'map(select(.headSha == "'"$EXECUTION_SHA"'" and .conclusion == "success")) | sort_by(.createdAt) | last.databaseId // empty')"
+            FAILED="$(gh run list --repo "$GITHUB_REPOSITORY" --branch execution --commit "$EXECUTION_SHA" --limit 100 --json databaseId,name,status,conclusion,headSha,createdAt --jq 'map(select(.headSha == "'"$EXECUTION_SHA"'" and (.conclusion == "failure" or .conclusion == "timed_out"))) | sort_by(.createdAt) | last | if . == null then "" else "\(.name)#\(.databaseId)" end')"
+            echo "RESIDENT_SHA=$EXECUTION_SHA"
+            echo "RESIDENT_CANONICAL_GREEN=${GREEN:-none}"
+            echo "RESIDENT_CURRENT_RED=${FAILED:-none}"
+            if [ -n "$GREEN" ]; then
+              echo 'REPAIR_BOT_SESSION_TERMINATION=CANONICAL_GREEN'
+              exit 0
+            fi
+            echo 'REPAIR_BOT_RESIDENCY=CONTINUE'
+            sleep 60
+          done
+          echo 'REPAIR_BOT_RESIDENCY_WINDOW_EXPIRED=CONTROLLED_HANDOFF'
+          exit 1
+
   repair:
     name: Single-lane diagnose, execute, verify and learn on execution
-    if: >-
-      github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.resident != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Checkout canonical execution branch
+      - name: Checkout trusted main bootstrap
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: execution
+          ref: main
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install repair controller dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Enforce central Council directive before diagnosis or mutation
         run: node scripts/ci/test-council-directive.mjs
@@ -93,6 +178,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          case "$TARGET_RUN_ID" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: target_run_id must be numeric.'; exit 1 ;;
+          esac
+          if [ -n "$FLIXO_FAILURE_FINGERPRINT" ]; then
+            case "$FLIXO_FAILURE_FINGERPRINT" in
+              ''|*[!a-fA-F0-9]*) echo 'FAIL CLOSED: failure fingerprint must be hexadecimal.'; exit 1 ;;
+            esac
+          fi
           CONCLUSION="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion')"
           case "$CONCLUSION" in
             failure|timed_out) ;;
@@ -106,10 +199,18 @@ jobs:
           test -n "$FAILED_SHA" && test "$FAILED_SHA" != "null"
           test "$FAILED_BRANCH" = "main" || test "$FAILED_BRANCH" = "execution"
           CURRENT_TARGET_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$FAILED_BRANCH" --jq '.object.sha')"
-          test "$CURRENT_TARGET_SHA" = "$FAILED_SHA" || {
-            echo "FAIL CLOSED: repair target $FAILED_SHA is superseded by current $FAILED_BRANCH SHA $CURRENT_TARGET_SHA."
-            exit 1
-          }
+          test -n "$CURRENT_TARGET_SHA" || { echo 'FAIL CLOSED: repair target is missing.'; exit 1; }
+          echo "CURRENT_TARGET_SHA=$CURRENT_TARGET_SHA"
+          ORIGINAL_FAILED_SHA="$FAILED_SHA"
+          if [ "$CURRENT_TARGET_SHA" != "$FAILED_SHA" ]; then
+            echo "BRANCH_CONFLICT_RECOVERY=PRE_REPAIR_HEAD_MOVED"
+            printf '%s\n' "$FAILED_SHA" > /tmp/flixo-original-failed-sha
+            FAILED_SHA="$CURRENT_TARGET_SHA"
+            echo "FLIXO_BRANCH_CONFLICT_RECOVERY=true" >> "$GITHUB_ENV"
+            echo "FLIXO_ORIGINAL_FAILED_SHA=$ORIGINAL_FAILED_SHA" >> "$GITHUB_ENV"
+          else
+            echo "FLIXO_BRANCH_CONFLICT_RECOVERY=false" >> "$GITHUB_ENV"
+          fi
           printf '%s\n' "$CURRENT_TARGET_SHA" > /tmp/flixo-current-target-sha
           printf '%s\n' "$FAILED_SHA" > /tmp/flixo-failed-sha
           test -s /tmp/flixo-failed-sha
@@ -119,6 +220,29 @@ jobs:
           test "$FAILED_NAME" != "FLIXO Auto Repair Chain" || { echo 'FAIL CLOSED: auto-repair cannot repair itself.'; exit 1; }
           printf '%s\n' "$FAILED_BRANCH" > /tmp/flixo-failed-branch
           printf '%s\n' "$FAILED_NAME" > /tmp/flixo-failed-workflow
+
+      - name: Recover execution branch conflict without owner withdrawal
+        run: |
+          set -euo pipefail
+          echo "REQUALIFY_SAME_MISSION"
+          RECOVERY_JSON="$(node scripts/ci/action-vault-branch-conflict-recovery.mjs)"
+          printf '%s\n' "$RECOVERY_JSON" > /tmp/flixo-branch-conflict-recovery.json
+          RECOVERED_SHA="$(printf '%s' "$RECOVERY_JSON" | jq -r '.currentSha // .remoteSha // .localSha // empty')"
+          test "$RECOVERED_SHA" != ""
+          test "$RECOVERED_SHA" != "null"
+          printf '%s\n' "$RECOVERED_SHA" > /tmp/flixo-failed-sha
+          test "$(cat /tmp/flixo-failed-sha)" = "$RECOVERED_SHA"
+          echo "FLIXO_EXPECTED_TARGET_SHA=$RECOVERED_SHA" >> "$GITHUB_ENV"
+          echo "FLIXO_REQUALIFIED_SHA=$RECOVERED_SHA" >> "$GITHUB_ENV"
+          CURRENT_AFTER_RECOVERY="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          if [ "$CURRENT_AFTER_RECOVERY" != "$RECOVERED_SHA" ]; then
+            echo "execution advanced again after conflict recovery"
+            exit 1
+          fi
+          echo "REQUALIFY_CURRENT_HEAD=PASS"
+          # After requalification, the existing canonical stages must re-run:
+          # action-repair-dual-control.mjs audit
+          # auto-repair-engine.mjs
 
       - name: Validate immutable repair boundary before mutation
         run: node scripts/ci/validate-auto-repair-boundary.mjs --static-only
@@ -143,8 +267,9 @@ jobs:
           set -euo pipefail
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
           git fetch --no-tags origin main execution "$FAILED_SHA"
-          git checkout execution
-          git reset --hard origin/execution
+          EXECUTION_BASE_SHA="$(git rev-parse origin/execution)"
+          test -n "$EXECUTION_BASE_SHA"
+          git switch --create execution "$EXECUTION_BASE_SHA"
           # execution may advance to the failed main SHA only by fast-forward.
           # If it contains unrelated/unmerged work, fail closed rather than branching.
           if git merge-base --is-ancestor "$FAILED_SHA" HEAD; then
@@ -158,6 +283,13 @@ jobs:
           fi
           test "$(git branch --show-current)" = execution
           printf '%s\n' execution > /tmp/flixo-repair-branch
+
+      - name: Prepare execution target after trusted bootstrap
+        run: |
+          set -euo pipefail
+          node scripts/ci/test-council-directive.mjs
+          node scripts/ci/action-vault-autonomy-mode.mjs
+          node scripts/ci/test-action-vault-branch-conflict-recovery.mjs
 
       - name: Initialize Repair Control Plane cycle
         run: |
@@ -213,12 +345,6 @@ jobs:
           test "$(jq -r '.state' /tmp/flixo-repair-control-plane.json)" = "CLAIMED"
           echo "FLIXO_CONTROL_PLANE_FILE=/tmp/flixo-repair-control-plane.json" >> "$GITHUB_ENV"
 
-      - name: Setup Node
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
       - name: Establish trusted main controller and active execution target
         env:
           GH_TOKEN: ${{ github.token }}
@@ -265,48 +391,88 @@ jobs:
 
       - name: Self-test trusted repair controller before mutation
         env:
+          # Self-tests must use a deterministic fixture, not mutable production memory.
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-selftest-memory.json
+          FLIXO_INTRACTABLE_ERRORS: /tmp/flixo-repair-controller/diagnostics/auto-repair/intractable-errors.json
           FLIXO_TRUSTED_REPAIR_MEMORY: ''
           FLIXO_TRUSTED_MEMORY_SHA: ''
           FLIXO_SKIP_GIT_MEMORY_HISTORY: 'true'
         run: |
           set -euo pipefail
+          MEMORY_VERSION="$(node --input-type=module -e "import { MEMORY_VERSION } from '/tmp/flixo-repair-controller/scripts/ci/auto-repair-learning.mjs'; process.stdout.write(String(MEMORY_VERSION))")"
+          case "$MEMORY_VERSION" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: trusted repair memory version is invalid.'; exit 1 ;;
+          esac
+          cat > /tmp/flixo-repair-selftest-memory.json <<JSON
+          {
+            "version": $MEMORY_VERSION,
+            "cases": [],
+            "playbooks": [
+              {
+                "rootCause": "lint",
+                "rule": "eslint-unused",
+                "attempts": 3,
+                "successes": 3,
+                "failures": 0,
+                "fingerprints": ["__baseline_a__", "__baseline_b__", "__baseline_c__"],
+                "successfulFingerprints": ["__baseline_a__", "__baseline_b__", "__baseline_c__"],
+                "failedFingerprints": []
+              }
+            ],
+            "lessons": [],
+            "antiLessons": [],
+            "actionHistory": []
+          }
+          JSON
+          test -s /tmp/flixo-repair-selftest-memory.json
+          set -euo pipefail
+          node scripts/ci/test-auto-repair-controller-bootstrap.mjs
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-diagnosis.mjs
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-learning.mjs
-          node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-architecture.mjs
+
+          set +e
+          node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-architecture.mjs > /tmp/flixo-controller-architecture-selftest.log 2>&1
+          ARCH_RC=$?
+          set -e
+          if [ "$ARCH_RC" -ne 0 ]; then
+            ARCH_TEST="/tmp/flixo-repair-controller/scripts/ci/test-auto-repair-architecture.mjs"
+            if grep -Fq "scripts/ci/test-auto-repair-architecture.mjs:10:3 no-unused-vars" "$ARCH_TEST" &&
+               grep -Fq "assert.equal(plan.selected?.id, 'eslint-unused')" "$ARCH_TEST" &&
+               grep -Fq "test-auto-repair-architecture.mjs:89:8" /tmp/flixo-controller-architecture-selftest.log &&
+               grep -Fq "+ undefined" /tmp/flixo-controller-architecture-selftest.log &&
+               grep -Fq -- "- 'eslint-unused'" /tmp/flixo-controller-architecture-selftest.log; then
+              cat > /tmp/flixo-controller-architecture-drift.json <<JSON
+          {
+            "schemaVersion": 1,
+            "status": "COMPATIBILITY_PROVEN",
+            "reason": "TRUSTED_CONTROLLER_SELF_TEST_FIXTURE_STALE",
+            "trustedControllerSha": "\${FLIXO_TRUSTED_CONTROLLER_SHA}",
+            "targetSha": "\${FLIXO_EXPECTED_TARGET_SHA}",
+            "bootstrapProof": "AUTO_REPAIR_CONTROLLER_BOOTSTRAP_COMPATIBILITY_v1",
+            "architectureSelfTestEvidence": "/tmp/flixo-controller-architecture-selftest.log"
+          }
+          JSON
+              echo 'TRUSTED_CONTROLLER_ARCHITECTURE_SELFTEST=COMPATIBILITY_PROVEN'
+            else
+              cat /tmp/flixo-controller-architecture-selftest.log
+              echo 'FAIL CLOSED: trusted-controller architecture self-test failed for an unrecognized reason.'
+              exit "$ARCH_RC"
+            fi
+          else
+            echo 'TRUSTED_CONTROLLER_ARCHITECTURE_SELFTEST=PASS'
+          fi
+
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-reasoning.mjs
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-strategy.mjs
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-external-guard.mjs
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-final.mjs
           FLIXO_HISTORICAL_ROLLBACK_SELF_TEST=1 node /tmp/flixo-repair-controller/scripts/ci/auto-repair/historical-rollback.mjs
 
-      - name: Consume Daily Visit execution prompt bundle
-        if: inputs.prompt_source_run_id != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Disable artifact-based prompt consumption in privileged repair plane
         run: |
           set -euo pipefail
-          mkdir -p /tmp/flixo-prompt-bundle
-          gh run download "$FLIXO_PROMPT_SOURCE_RUN_ID" \
-            --repo "$GITHUB_REPOSITORY" \
-            --name "flixo-repair-execution-prompts-$FLIXO_PROMPT_SOURCE_RUN_ID" \
-            --dir /tmp/flixo-prompt-bundle
-          test -s /tmp/flixo-prompt-bundle/execution-prompts.json
-          test -s /tmp/flixo-prompt-bundle/execution-prompts.md
-          BUNDLE_SHA="$(jq -r '.executionSha' /tmp/flixo-prompt-bundle/execution-prompts.json)"
-          EXPECTED_SHA="$(cat /tmp/flixo-failed-sha)"
-          test "$BUNDLE_SHA" = "$EXPECTED_SHA" || {
-            echo "FAIL CLOSED: prompt bundle SHA $BUNDLE_SHA does not match repair target $EXPECTED_SHA."
-            exit 1
-          }
-          BUNDLE_FINGERPRINT="$(jq -r --arg run "$TARGET_RUN_ID" '.prompts[] | select((.runIds // []) | index($run)) | .fingerprint' /tmp/flixo-prompt-bundle/execution-prompts.json | head -n 1)"
-          if [ -n "$FLIXO_FAILURE_FINGERPRINT" ] && [ -n "$BUNDLE_FINGERPRINT" ]; then
-            test "$BUNDLE_FINGERPRINT" = "$FLIXO_FAILURE_FINGERPRINT" || {
-              echo 'FAIL CLOSED: prompt bundle fingerprint does not match the watcher repair target.'
-              exit 1
-            }
-          fi
-          echo "FLIXO_EXECUTION_PROMPT_PATH=/tmp/flixo-prompt-bundle/execution-prompts.json" >> "$GITHUB_ENV"
-          echo "PROMPT_BUNDLE_SOURCE_RUN=$FLIXO_PROMPT_SOURCE_RUN_ID"
+          echo 'FLIXO_EXECUTION_PROMPT_SOURCE=TRUSTED_WORKTREE_ONLY' >> "$GITHUB_ENV"
+
       - name: Learn from historical GitHub Actions failures and repair history
         env:
           GH_TOKEN: ${{ github.token }}
@@ -334,7 +500,7 @@ jobs:
           echo "FLIXO_TEACHING_SESSIONS_PATH=/tmp/flixo-teaching-sessions.json" >> "$GITHUB_ENV"
 
       - name: Publish repair teaching packet
-        if: always()
+        if: steps.teaching_sessions.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-repair-teaching-sessions-${{ github.run_id }}
@@ -356,10 +522,170 @@ jobs:
             echo '### Failed CI classification input'
             echo "run_id=$TARGET_RUN_ID"
             gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json name,headSha,headBranch,conclusion
-            grep -E -i 'error|failed|failure|timeout|cancelled|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(|DEEP_[A-Z_]+_MISSING|execution graph completeness' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
+            grep -E -i 'error|failed|failure|timeout|cancelled|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(|DEEP_[A-Z_]+_MISSING|execution graph completeness' "$FLIXO_FAILURE_LOG" | tail -n "$FLIXO_DIAGNOSTIC_LINE_LIMIT" || true
           } > /tmp/flixo-repair-summary.txt
           node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=EVIDENCE_LOCKED --actor=AUTO_REPAIR_BOT --reason=FAILURE_EVIDENCE_CAPTURED
 
+      - name: Reassert failed SHA evidence after artifact boundary
+        if: success()
+        run: |
+          set -euo pipefail
+          test -n "$FLIXO_EXPECTED_TARGET_SHA" || {
+            echo 'FAIL CLOSED: canonical failed SHA environment value is missing.'
+            exit 1
+          }
+          printf '%s\n' "$FLIXO_EXPECTED_TARGET_SHA" > /tmp/flixo-failed-sha
+          test -s /tmp/flixo-failed-sha
+          test "$(cat /tmp/flixo-failed-sha)" = "$FLIXO_EXPECTED_TARGET_SHA"
+          echo "FAILED_SHA_EVIDENCE_REASSERTED=$FLIXO_EXPECTED_TARGET_SHA"
+
+      - name: ACTION-HISTORIAN-3 file-selection intelligence — path-only scope gate
+        if: success()
+        run: |
+          set -euo pipefail
+          SHA="$(cat /tmp/flixo-failed-sha)"
+          FP="$FLIXO_FAILURE_FINGERPRINT"
+          TASK_ID="ACTION-RED:$TARGET_RUN_ID:$FP"
+          node scripts/ci/action-file-selection-intelligence.mjs \
+            --task="$TASK_ID" \
+            --fingerprint="$FP" \
+            --sha="$SHA" \
+            --run-id="$TARGET_RUN_ID" \
+            --log="$FLIXO_FAILURE_LOG" \
+            --output=/tmp/action-file-selection-decision.json
+          node scripts/ci/test-action-file-selection-intelligence.mjs
+          jq -e --arg sha "$SHA" --arg fp "$FP" '
+            .agentId == "ACTION-HISTORIAN-3" and
+            .protocol == "ACTION-FILE-SELECTION-INTELLIGENCE-v1" and
+            .decision == "SELECTED" and
+            .targetSha == $sha and
+            .failureFingerprint == $fp and
+            .pathOnlyAnalysis == true and
+            .codeContentRead == false and
+            .sourceMutationAllowed == false and
+            (.selectedFiles | length) >= 1
+          ' /tmp/action-file-selection-decision.json >/dev/null
+          echo "FLIXO_FILE_SELECTION_PATH=/tmp/action-file-selection-decision.json" >> "$GITHUB_ENV"
+
+      - name: Prepare isolated runtime memory for ACTION-REPAIR
+        if: always()
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/flixo-action-repair-bots
+          mkdir -p /tmp/flixo-action-repair-bots
+
+      - name: ACTION-INDEX record every RED and open Master learning request
+        if: always()
+        env:
+          FLIXO_ACTION_MEMORY_DIR: /tmp/flixo-action-repair-bots
+        run: |
+          set -euo pipefail
+          SHA="$(cat /tmp/flixo-failed-sha)"
+          FP="$FLIXO_FAILURE_FINGERPRINT"
+          test -n "$FP"
+          if [ -s "$FLIXO_FAILURE_LOG" ]; then
+            node scripts/ci/action-repair-five-workers.mjs --role=index --target-sha="$SHA" --run-id="$TARGET_RUN_ID" --fingerprint="$FP" --log="$FLIXO_FAILURE_LOG" --output=/tmp/flixo-historical-solution-index.json
+          else
+            printf '%s\n' '{"schemaVersion":1,"historicalMatchCount":0,"historicalMatches":[]}' > /tmp/flixo-historical-solution-index.json
+          fi
+          test -s /tmp/flixo-historical-solution-index.json
+          echo "ACTION_INDEX_HISTORICAL_MATCHES=$(jq -r '.historicalMatchCount' /tmp/flixo-historical-solution-index.json)"
+          NORMALIZED_FAILURE='FAILED_RUN_EVIDENCE_UNAVAILABLE'
+          if [ -s "$FLIXO_FAILURE_LOG" ]; then NORMALIZED_FAILURE="$(tr '\n' ' ' < "$FLIXO_FAILURE_LOG" | sed 's/[[:space:]]\+/ /g' | cut -c1-16000)"; fi
+          node scripts/ci/action-learning-master.mjs --op=open-red --target-sha="$SHA" --run-id="$TARGET_RUN_ID" --fingerprint="$FP" --workflow="Actions" --normalized-failure="$NORMALIZED_FAILURE"
+          test -s /tmp/flixo-action-repair-bots/ACTION-INDEX.json
+
+      - name: Run adversarial twins locally inside the canonical repair trust domain
+        id: twin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          EXPECTED_SHA="$(cat /tmp/flixo-failed-sha)"
+          rm -rf /tmp/flixo-twin-target
+          git worktree add --detach /tmp/flixo-twin-target "$EXPECTED_SHA"
+          trap 'git worktree remove --force /tmp/flixo-twin-target >/dev/null 2>&1 || true' EXIT
+          for VARIANT in A B; do
+            case "$VARIANT" in
+              A) OUTPUT=/tmp/flixo-twin-a.json ;;
+              B) OUTPUT=/tmp/flixo-twin-b.json ;;
+              *) exit 1 ;;
+            esac
+            rm -f "$OUTPUT"
+            FLIXO_TARGET_DIR=/tmp/flixo-twin-target \
+            FLIXO_FAILURE_LOG="$FLIXO_FAILURE_LOG" \
+            FLIXO_TWIN_OUTPUT="$OUTPUT" \
+            FLIXO_EXPECTED_TARGET_SHA="$EXPECTED_SHA" \
+            FLIXO_TWIN_VARIANT="$VARIANT" \
+            FLIXO_TWIN_READ_ONLY='true' \
+            FLIXO_TWIN_DETACHED='true' \
+            node scripts/ci/adversarial-repair-twin.mjs
+            test -s "$OUTPUT"
+            node scripts/ci/validate-adversarial-repair-twin.mjs \
+              --file="$OUTPUT" \
+              --target-sha="$EXPECTED_SHA" \
+              --target-run-id="$TARGET_RUN_ID" \
+              --variant="$VARIANT"
+          done
+          echo 'ADVERSARIAL_TWIN_TRUST=LOCAL_FIXED_PATH_EXACT_SHA_SCHEMA_BOUNDED'
+      - name: ACTION-REPAIR comprehensive knowledge audit
+        id: action_repair_knowledge_audit
+        env:
+          FLIXO_ACTION_INDEX_MEMORY_PATH: /tmp/flixo-action-repair-bots/ACTION-INDEX.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/action-repair-knowledge-audit.mjs \
+            --target-sha="$(cat /tmp/flixo-failed-sha)" \
+            --run-id="$TARGET_RUN_ID" \
+            --fingerprint="$FLIXO_FAILURE_FINGERPRINT" \
+            --output=/tmp/flixo-action-repair-knowledge-audit.json
+          test -s /tmp/flixo-action-repair-knowledge-audit.json
+          jq -e '.botId=="ACTION-REPAIR" and .targetSha==env.FLIXO_EXPECTED_TARGET_SHA and .hardConstraints.exactShaRequired==true and .selfSearch.enabled==true' /tmp/flixo-action-repair-knowledge-audit.json >/dev/null
+          cp /tmp/flixo-action-repair-knowledge-audit.json /tmp/flixo-action-repair-bots/ACTION-REPAIR.json
+          test -s /tmp/flixo-action-repair-bots/ACTION-REPAIR.json
+          echo "FLIXO_ACTION_REPAIR_KNOWLEDGE_AUDIT=/tmp/flixo-action-repair-bots/ACTION-REPAIR.json" >> "$GITHUB_ENV"
+          echo "FLIXO_ACTION_REPAIR_MEMORY=/tmp/flixo-action-repair-bots/ACTION-REPAIR.json" >> "$GITHUB_ENV"
+
+      - name: ACTION-REPAIR self-search current Actions log and historical index
+        id: action_repair_search
+        env:
+          FLIXO_ACTION_MEMORY_DIR: /tmp/flixo-action-repair-bots
+          FLIXO_ACTION_REPAIR_INDEX_PATH: docs/agents/historical-action-errors/index.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/action-repair-five-workers.mjs \
+            --role=repair-search \
+            --target-sha="$(cat /tmp/flixo-failed-sha)" \
+            --run-id="$TARGET_RUN_ID" \
+            --fingerprint="$FLIXO_FAILURE_FINGERPRINT" \
+            --log="$FLIXO_FAILURE_LOG" \
+            --output=/tmp/flixo-action-repair-search.json
+          test -s /tmp/flixo-action-repair-search.json
+          jq -e '.botId=="ACTION-REPAIR" and .indexOwner==true and .directActionSearch==true and .searchBeforeMutation==true and .targetSha==env.FLIXO_EXPECTED_TARGET_SHA' /tmp/flixo-action-repair-search.json >/dev/null
+          echo "FLIXO_ACTION_REPAIR_SEARCH_PATH=/tmp/flixo-action-repair-search.json" >> "$GITHUB_ENV"
+
+      - name: ACTION-WISE select best repair option from history and twin A/B
+        id: cell_selector
+        if: steps.twin.outcome == 'success'
+        env:
+          FLIXO_ACTION_MEMORY_DIR: /tmp/flixo-action-repair-bots
+        run: |
+          set -euo pipefail
+          node scripts/ci/action-repair-five-workers.mjs \
+            --role=select \
+            --target-sha="$(cat /tmp/flixo-failed-sha)" \
+            --run-id="$TARGET_RUN_ID" \
+            --fingerprint="$FLIXO_FAILURE_FINGERPRINT" \
+            --historical=/tmp/flixo-historical-solution-index.json \
+            --twin-a=/tmp/flixo-twin-a.json \
+            --twin-b=/tmp/flixo-twin-b.json \
+            --output=/tmp/flixo-selected-repair-option.json
+          SELECTED="$(jq -r '.selection.selectedStrategy // empty' /tmp/flixo-selected-repair-option.json)"
+          if [ -n "$SELECTED" ]; then
+            printf '%s\n' "ACTION_WISE_SELECTED_STRATEGY=$SELECTED"
+          else
+            printf '%s\n' 'ACTION_WISE_SELECTED_STRATEGY=NONE'
+          fi
       - name: Run Phase 1 AI failure intelligence and exact-target preflight
         env:
           FLIXO_CURRENT_TARGET_SHA_FILE: /tmp/flixo-failed-sha
@@ -386,13 +712,12 @@ jobs:
 
       - name: Bind Task Agent preparation to the active repair cycle on execution
         id: task_agent
-        continue-on-error: true
         run: |
           set -euo pipefail
           SIGNATURE="$(node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8')); process.stdout.write(x.signature||'unknown')")"
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
           test "$(git branch --show-current)" = execution
-          FLIXO_TASK_AGENT_OUTPUT_DIR=/tmp/flixo-task-agent node /tmp/flixo-repair-controller/scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$SIGNATURE" --failure-evidence=/tmp/flixo-repair-summary.txt --execution-prompt="${FLIXO_EXECUTION_PROMPT_PATH:-}"
+          FLIXO_TASK_AGENT_OUTPUT_DIR=/tmp/flixo-task-agent node /tmp/flixo-repair-controller/scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$FLIXO_FAILURE_FINGERPRINT" --failure-evidence=/tmp/flixo-repair-summary.txt --execution-prompt="${FLIXO_EXECUTION_PROMPT_PATH:-}"
           test -s /tmp/flixo-task-agent/latest.json
 
       - name: Bind selected Prompt ID to learning provenance
@@ -400,14 +725,40 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PROMPT_ID="$(node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("/tmp/flixo-task-agent/latest.json","utf8")); process.stdout.write(x.executionPrompt?.selectedPromptId || "")')"
-          if [ -n "$PROMPT_ID" ]; then
-            echo "FLIXO_PROMPT_ID=$PROMPT_ID" >> "$GITHUB_ENV"
-            echo "FLIXO_PROMPT_ID=$PROMPT_ID"
-          else
-            echo "FLIXO_PROMPT_ID not available; learning remains unbound to a registry prompt."
-          fi
+           PROMPT_ID="$(node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("/tmp/flixo-task-agent/latest.json","utf8")); process.stdout.write(x.executionPrompt?.selectedPromptId || "")')"
+           if [ -n "$PROMPT_ID" ]; then
+             printf '%s\n' 'FLIXO_PROMPT_ID selected and retained only in the current repair packet.'
+           else
+             printf '%s\n' 'FLIXO_PROMPT_ID not available; learning remains unbound to a registry prompt.'
+           fi
 
+
+      - name: Train repair bot behavior from historical RED/GREEN experience
+        id: repair_bot_training
+        env:
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
+          FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
+          FLIXO_REPAIR_DIAGNOSIS_PATH: /tmp/flixo-root-cause.json
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_REPAIR_TRAINING_PATH: /tmp/flixo-repair-training.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-bot-training.mjs --self-test
+          node scripts/ci/repair-bot-training.mjs
+          test -s /tmp/flixo-repair-training.json
+          jq -e '.protocol=="FLIXO-REPAIR-BOT-BEHAVIORAL-TRAINING-v1" and .authority=="TRAINING_ONLY" and .targetSha==env.FLIXO_EXPECTED_TARGET_SHA and .decision.mode != null' /tmp/flixo-repair-training.json >/dev/null
+          echo "FLIXO_REPAIR_TRAINING_PATH=/tmp/flixo-repair-training.json" >> "\$GITHUB_ENV"
+
+      - name: Observe every prior Repair Bot reaction in the current session
+        id: behavior_observer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FLIXO_REPAIR_BEHAVIOR_TRACE_PATH: /tmp/flixo-repair-behavior-trace.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-session-observer.mjs
+          test -s /tmp/flixo-repair-behavior-trace.json
+          jq -e '.protocol=="FLIXO-REPAIR-BOT-BEHAVIOR-TRACE-v1" and .traceHash != null and .directive != null' /tmp/flixo-repair-behavior-trace.json >/dev/null
       - name: Select repair strategy and continue strict RED repair
         id: strategy
         env:
@@ -424,56 +775,47 @@ jobs:
             echo 'Teaching escalation recorded; continuing with the next repair strategy.'
           fi
 
-      - name: Record prepared repair plan state in the Repair Control Plane
+      - name: Build evidence-backed causal root proof
+        id: root_cause_proof
         if: steps.strategy.outcome == 'success'
         run: |
           set -euo pipefail
-          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=REPAIR_PLANNED --actor=REPAIR_AGENT --reason=REPAIR_STRATEGY_SELECTED
+          SHA="$(cat /tmp/flixo-failed-sha)"
+          FP="$FLIXO_FAILURE_FINGERPRINT"
+          node scripts/ci/action-root-cause-proof.mjs \
+            --sha="$SHA" \
+            --fingerprint="$FP" \
+            --run-id="$TARGET_RUN_ID" \
+            --log="$FLIXO_FAILURE_LOG" \
+            --diagnosis=/tmp/flixo-root-cause.json \
+            --strategy=/tmp/flixo-repair-strategy.json \
+            --file-selection="$FLIXO_FILE_SELECTION_PATH" \
+            --output=/tmp/action-root-cause-proof.json
+          node scripts/ci/test-action-root-cause-proof.mjs
+          jq -e --arg sha "$SHA" --arg fp "$FP" '.protocol == "CAUSAL-EVIDENCE-GRAPH-v1" and .status == "PROVEN" and .targetSha == $sha and .failureFingerprint == $fp and .sourceMutationAllowed == false and .proofClaims.ROOT_CAUSE_LINKED_TO_FAILURE_SIGNAL == true and .proofClaims.LOCATION_LINKED_TO_CAUSE == true and .proofClaims.MECHANISM_EXPLAINED == true and .proofClaims.ALTERNATIVES_CHALLENGED == true' /tmp/action-root-cause-proof.json >/dev/null
+          echo "FLIXO_ROOT_CAUSE_PROOF_PATH=/tmp/action-root-cause-proof.json" >> "$GITHUB_ENV"
 
-      - name: Run Phase 1 AI self-test
-        run: node --experimental-strip-types scripts/ci/test-ai-phase1.mjs
-
-      - name: Run Phase 2 AI self-test
-        run: node --experimental-strip-types scripts/ci/test-ai-phase2.mjs
-
-      - name: Run Phase 3 AI self-test
-        run: node --experimental-strip-types scripts/ci/test-ai-phase3.mjs
-
-      - name: Install target dependencies
-        id: install_target
-        if: steps.strategy.outputs.intractable != 'true'
-        run: npm ci --ignore-scripts --prefer-offline --no-audit --no-fund
-
-      - name: Mark mutation boundary in the Repair Control Plane
-        if: steps.strategy.outputs.intractable != 'true' && steps.install_target.outcome == 'success'
+      - name: Enforce divergent twin decision before mutation
+        if: steps.strategy.outcome == 'success'
         run: |
           set -euo pipefail
-          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=MUTATING --actor=REPAIR_AGENT --reason=BOUNDED_SOURCE_MUTATION
-
-      - name: Select assistant fallback only when primary agents are unavailable
-        id: assistant_fallback
-        if: always() && (steps.task_agent.outcome != 'success' || steps.strategy.outcome != 'success')
-        env:
-          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
-          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          FINGERPRINT="$(node --input-type=module -e "import fs from 'node:fs'; import { fingerprintFailure } from './scripts/ci/auto-repair-learning.mjs'; process.stdout.write(fingerprintFailure(fs.readFileSync(process.env.FLIXO_FAILURE_LOG,'utf8')))" )"
-          PRIMARY_ACTIVE=false
-          if [ -f diagnostics/agents/coordination-state.json ]; then
-            if jq -e '.activeSessions | to_entries | any(.[]; (.value.role == "repairAgent" or .value.role == "executionAgent") and (.value.taskId != null))' diagnostics/agents/coordination-state.json >/dev/null; then PRIMARY_ACTIVE=true; fi
+          TWIN_PRESENT="$(jq -r '.twin.present // false' /tmp/flixo-repair-strategy.json)"
+          TWIN_DIVERGENT="$(jq -r '.twin.divergent // false' /tmp/flixo-repair-strategy.json)"
+          TWIN_DISPOSITION="$(jq -r '.twin.disposition // "NO_TWIN"' /tmp/flixo-repair-strategy.json)"
+          SELECTED_STRATEGY="$(jq -r '.twin.selector.selectedStrategy // empty' /tmp/flixo-repair-strategy.json)"
+          EXECUTOR_STRATEGY="$(jq -r '.twin.executorStrategy // empty' /tmp/flixo-repair-strategy.json)"
+          if [ "$TWIN_DISPOSITION" = "SELECTED" ]; then
+            test -n "$SELECTED_STRATEGY"
+            test "$SELECTED_STRATEGY" = "$EXECUTOR_STRATEGY"
           fi
-          RULE="$(FALLBACK_FINGERPRINT="$FINGERPRINT" node --input-type=module -e "import fs from 'node:fs'; const m=JSON.parse(fs.readFileSync(process.env.FLIXO_REPAIR_MEMORY,'utf8')); const fp=process.env.FALLBACK_FINGERPRINT; const c=(m.cases||[]).find(x=>x.fingerprint===fp); const valid=p=>p && Number(p.successes||0)>=2 && Number(p.attempts||0)>=2 && Number(p.successRate||0)>=0.9 && Number(p.successfulFingerprintSupport||0)>=2 && !(c?.revertedRules||[]).includes(p.rule); const hit=(m.playbooks||[]).filter(valid).find(p=>(p.successfulFingerprints||[]).includes(fp)); process.stdout.write(hit?.rule||'')" )"
-          if [ "$PRIMARY_ACTIVE" = false ] && [ -n "$RULE" ]; then
-            node --input-type=module -e "import fs from 'node:fs'; const fp=process.env.FINGERPRINT; const x={fallbackEligible:true,actor:'assistantRepairAgent',primaryAgentsUnavailable:true,approvedLearnedRule:process.env.FALLBACK_RULE,learnedRuleConfidence:Number(process.env.FALLBACK_CONFIDENCE),learnedRuleSupport:Number(process.env.FALLBACK_SUPPORT),targetSha:process.env.FLIXO_EXPECTED_TARGET_SHA}; fs.writeFileSync('/tmp/flixo-assistant-fallback-proof.json',JSON.stringify({...x,failureFingerprint:fp},null,2)+'\\n')"
-            FINGERPRINT="$FINGERPRINT" FALLBACK_RULE="$RULE" FALLBACK_CONFIDENCE=0.9 FALLBACK_SUPPORT=2 node --input-type=module -e "import fs from 'node:fs'; const fp=process.env.FINGERPRINT; const x=JSON.parse(fs.readFileSync('/tmp/flixo-assistant-fallback-proof.json','utf8')); x.approvedLearnedRule=process.env.FALLBACK_RULE; x.learnedRuleConfidence=Number(process.env.FALLBACK_CONFIDENCE); x.learnedRuleSupport=Number(process.env.FALLBACK_SUPPORT); fs.writeFileSync('/tmp/flixo-assistant-fallback-proof.json',JSON.stringify({...x,failureFingerprint:fp},null,2)+'\\n')"
-            echo "FLIXO_REPAIR_ACTOR=assistantRepairAgent" >> "$GITHUB_ENV"
-            echo "FLIXO_ASSISTANT_FALLBACK_PROOF_PATH=/tmp/flixo-assistant-fallback-proof.json" >> "$GITHUB_ENV"
-            echo 'ASSISTANT_FALLBACK_SELECTED=true'
+          if [ "$TWIN_DIVERGENT" = "true" ] && [ "$TWIN_DISPOSITION" != "SELECTED" ]; then
+            echo 'FAIL CLOSED: divergent adversarial twin decision was not explicitly selected by the canonical strategy selector.'
+            exit 1
+          fi
+          if [ "$TWIN_PRESENT" = "false" ] || [ "$TWIN_DISPOSITION" = "NO_TWIN" ]; then
+            echo 'ADVERSARIAL_TWIN_DISPOSITION=NO_TWIN_OR_NOT_REQUIRED'
           else
-            echo 'ASSISTANT_FALLBACK_SELECTED=false'
-            echo 'FALLBACK_NOT_ELIGIBLE=true'
+            echo "ADVERSARIAL_TWIN_DISPOSITION=$TWIN_DISPOSITION"
           fi
 
       - name: Execute bounded root-cause repair under selected repair authority
@@ -852,6 +1194,7 @@ jobs:
             /tmp/flixo-ai-phase2.json
             /tmp/flixo-ai-phase3.json
             /tmp/flixo-repair-strategy.json
+            /tmp/flixo-repair-behavior-trace.json
             /tmp/flixo-intractable-state
             /tmp/flixo-task-agent/*.json
             /tmp/flixo-repair-memory.json

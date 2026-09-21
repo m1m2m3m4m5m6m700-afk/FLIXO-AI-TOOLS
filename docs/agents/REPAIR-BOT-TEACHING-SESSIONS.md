@@ -1,19 +1,25 @@
-# FLIXO Repair Bot — Teaching Sessions
+# FLIXO Repair Bot — Teaching Sessions Index
 
-These sessions form the persistent teaching curriculum for the autonomous repair bot.
+The teaching curriculum is sharded so the repository never depends on a single multi-megabyte memory file.
 
-Core loop: RED → fingerprint → history → teaching session → strategy → repair → exact-SHA verification → canonical GREEN → lesson.
+Canonical lesson range: **1–20,000**
+Validator: `scripts/ci/validate-repair-bot-teaching-sessions.mjs`
 
-1. Exact-SHA Truth — stale evidence never proves current GREEN.
-2. RED to Root Cause — distinguish symptom from cause.
-3. Strategy Memory — do not repeat rejected strategies without a changed hypothesis.
-4. Unified Gate — one canonical GREEN authority; specialized checks are diagnostics.
-5. Repair Authority — mutate execution only; preserve main.
-6. False-Green Defense — stale/skipped/cancelled/incomplete evidence is NOT PROVEN.
-7. Successful Repair Memory — retain strategy, change, SHA, and verification.
-8. Repeated RED Escalation — persistent RED requires new evidence or hypothesis.
-9. Historical Learning — reuse history only when applicability is demonstrated.
-10. Proof Closure — exact-target verification plus fresh canonical GREEN.
+## Shards
 
-Teaching invariant: the bot is taught to repair RED, not manufacture GREEN.
-Closure state: OPEN_UNTIL_PROVEN.
+- `REPAIR-BOT-TEACHING-01-02500.md` — 1–2,500
+- `REPAIR-BOT-TEACHING-02501-05000.md` — 2,501–5,000
+- `REPAIR-BOT-TEACHING-05001-07500.md` — 5,001–7,500
+- `REPAIR-BOT-TEACHING-07501-10000.md` — 7,501–10,000
+- `REPAIR-BOT-TEACHING-10001-12500.md` — 10,001–12,500
+- `REPAIR-BOT-TEACHING-12501-15000.md` — 12,501–15,000
+- `REPAIR-BOT-TEACHING-15001-17500.md` — 15,001–17,500
+- `REPAIR-BOT-TEACHING-17501-20000.md` — 17,501–20,000
+
+## Teaching invariant
+
+The agent is taught to repair RED, preserve evidence provenance, respect exact SHA, challenge its own diagnosis, simulate before mutation, re-verify after mutation, and promote learning only after canonical GREEN.
+
+## Memory integrity
+
+All shards must together contain exactly 20,000 contiguous, unique lesson IDs with no gaps.

@@ -15,6 +15,12 @@ const COUNCIL_DIRECTIVE_VERSION = "1.0.0";
 const COUNCIL_GREEN_AUTHORITY = "Daily·FLIXO Green Gate";
 const COUNCIL_INTEGRATION_LANE = "execution -> main";
 
+const MASTER_ACCOUNT_ROUTES: Record<string, { primary: Account; fallback: Account }> = {
+  "MASTER-1": { primary: "CHIEF", fallback: "CHIEF" },
+  "MASTER-2": { primary: "WORKER_A", fallback: "WORKER_B" },
+  "MASTER-3": { primary: "WORKER_B", fallback: "WORKER_A" },
+};
+
 const accounts: Record<Account, { tokenEnv: string; endpointEnv?: string; fallback: Account; }> = {
   CHIEF: { tokenEnv: "COUNCIL_CHIEF_TOKEN", fallback: "CHIEF" },
   WORKER_A: { tokenEnv: "COUNCIL_WORKER_A_TOKEN", endpointEnv: "COUNCIL_WORKER_A_WAKE_ENDPOINT", fallback: "WORKER_B" },
@@ -69,8 +75,11 @@ const authGitHubWorkflow = async (req: Request, allowedWorkflows: string[]) => {
   const event = String(claims.event_name ?? "");
   const ref = String(claims.ref ?? "");
   const allowed = allowedWorkflows.some((workflow) => {
-    if (workflow === "FLIXO Master Agent Activation Relay") return event === "workflow_run" && ref === "refs/heads/execution";
-    if (workflow === "FLIXO External Council Lease Watcher") return (event === "schedule" && ref === "refs/heads/main") || (event === "workflow_dispatch" && (ref === "refs/heads/main" || ref === "refs/heads/execution"));
+    if (workflow === "FLIXO Master Agent Activation Relay") return event === "workflow_run" && ref === "refs/heads/execution" && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/agent-master-activation.yml@");
+    if (workflow === "FLIXO External Council Lease Watcher") return ((event === "schedule" && ref === "refs/heads/main") || (event === "workflow_dispatch" && (ref === "refs/heads/main" || ref === "refs/heads/execution"))) && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/council-external-lease-watch.yml@");
+    if (workflow === "FLIXO Council Wake Push Relay") return event === "push" && ref === "refs/heads/execution" && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/council-wake-push-relay.yml@");
+    if (workflow === "FLIXO Agent Communication Relay") return event === "issue_comment" && ref === "refs/heads/main" && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/agent-communication-relay.yml@");
+    if (workflow === "FLIXO Cell Master Consult Relay") return event === "workflow_dispatch" && (ref === "refs/heads/execution" || ref === "refs/heads/main") && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/cell-master-consult.yml@");
     return false;
   });
   if (!allowed) throw new Error("COUNCIL_GITHUB_OIDC_CONTEXT_REJECTED");
@@ -91,17 +100,6 @@ const db = async (path: string, init: RequestInit = {}) => {
   let body: unknown = null;
   if (raw) { try { body = JSON.parse(raw); } catch { body = raw; } }
   if (!r.ok) throw new Error("COUNCIL_DB_FAILED=" + r.status);
-  return body;
-};
-
-const queryBody = (url: URL): Body => {
-  const body: Body = Object.fromEntries(url.searchParams.entries());
-  for (const key of ["evidence", "payload"]) {
-    const value = body[key];
-    if (typeof value === "string" && value.trim()) {
-      try { body[key] = JSON.parse(value); } catch { /* keep scalar input; canonical RPC will reject malformed JSON */ }
-    }
-  }
   return body;
 };
 
@@ -165,8 +163,7 @@ const verifySessionToken = (token: string) => {
 };
 
 const sessionAuth = (req: Request, account: Account, dispatchId?: string) => {
-  const url = new URL(req.url);
-  const token = (req.headers.get("x-council-session") ?? url.searchParams.get("session"))?.trim() ?? "";
+  const token = (req.headers.get("x-council-session") ?? "").trim();
   if (!token) return false;
   const claims = verifySessionToken(token);
   if (claims.accountId !== account) throw new Error("COUNCIL_SESSION_ACCOUNT_MISMATCH");
@@ -219,64 +216,44 @@ const sha = (value: unknown) => {
   return s;
 };
 
-const dispatch = async (body: Body) => {
-  const primary = accountFrom(body.primaryAccountId);
-  const fallback = accountFrom(body.fallbackAccountId);
-  const requestedBy = String(body.requestedByAccountId ?? "SYSTEM");
-  if (requestedBy === "SYSTEM") {
-    if (primary !== "CHIEF" || fallback !== "CHIEF") throw new Error("COUNCIL_SYSTEM_DISPATCH_ONLY_CHIEF");
-  } else {
-    if (requestedBy !== "CHIEF") throw new Error("COUNCIL_WORKER_DISPATCH_FORBIDDEN");
-    if (!["WORKER_A", "WORKER_B"].includes(primary)) throw new Error("COUNCIL_TARGET_ACCOUNT_FORBIDDEN");
-    if (fallback !== accounts[primary].fallback) throw new Error("COUNCIL_FALLBACK_ACCOUNT_INVALID");
-  }
-  const messageId = String(body.messageId ?? "").trim();
-  const idempotencyKey = String(body.idempotencyKey ?? messageId).trim();
-  const taskId = String(body.taskId ?? "").trim();
-  const workPackageId = String(body.workPackageId ?? "").trim();
+const dispatchSingle = async ({
+  body, primary, fallback, messageId, idempotencyKey, taskId, workPackageId, payload,
+}: {
+  body: Body; primary: Account; fallback: Account; messageId: string; idempotencyKey: string;
+  taskId: string; workPackageId: string; payload: Record<string, unknown>;
+}) => {
   const entrySha = sha(body.entrySha);
   const directiveVersion = String(body.directiveVersion ?? COUNCIL_DIRECTIVE_VERSION).trim();
   if (directiveVersion !== COUNCIL_DIRECTIVE_VERSION) throw new Error("COUNCIL_DIRECTIVE_VERSION_REJECTED");
   if (!messageId || !idempotencyKey || !taskId || !workPackageId) throw new Error("COUNCIL_DISPATCH_IDENTITY_REQUIRED");
-
   const leaseSeconds = Number(body.leaseSeconds ?? (primary === "CHIEF" ? 180 : 120));
   if (!Number.isInteger(leaseSeconds) || leaseSeconds < 15 || leaseSeconds > 3600) throw new Error("COUNCIL_LEASE_SECONDS_INVALID");
-
   const rows = await db("/rest/v1/flix_council_dispatches", {
     method: "POST",
     headers: { "content-type": "application/json", prefer: "resolution=ignore-duplicates,return=representation" },
     body: JSON.stringify({
-      message_id: messageId,
-      idempotency_key: idempotencyKey,
-      task_id: taskId,
-      work_package_id: workPackageId,
-      entry_sha: entrySha,
-      primary_account_id: primary,
-      fallback_account_id: fallback,
-      recipient_account_id: primary,
-      handoff_account_id: "CHIEF",
-      status: "LEASED",
-      payload: { ...body, directiveVersion, greenAuthority: COUNCIL_GREEN_AUTHORITY, integrationLane: COUNCIL_INTEGRATION_LANE },
-      evidence: {},
-      lease_expires_at: new Date(Date.now() + leaseSeconds * 1000).toISOString(),
-      attempts: 1,
+      message_id: messageId, idempotency_key: idempotencyKey, task_id: taskId, work_package_id: workPackageId,
+      entry_sha: entrySha, primary_account_id: primary, fallback_account_id: fallback, recipient_account_id: primary,
+      handoff_account_id: "CHIEF", status: "LEASED",
+      payload: { ...body, payload, directiveVersion, greenAuthority: COUNCIL_GREEN_AUTHORITY, integrationLane: COUNCIL_INTEGRATION_LANE },
+      evidence: {}, lease_expires_at: new Date(Date.now() + leaseSeconds * 1000).toISOString(), attempts: 1,
     }),
   }) as Array<Record<string, unknown>>;
-
   let row = rows?.[0];
   if (!row) {
     const existing = await db("/rest/v1/flix_council_dispatches?idempotency_key=eq." + encodeURIComponent(idempotencyKey) + "&select=*&limit=1") as Array<Record<string, unknown>>;
     row = existing?.[0];
   }
   if (!row) throw new Error("COUNCIL_DISPATCH_NOT_PERSISTED");
-
   const dispatchId = String(row.dispatch_id);
   await db("/rest/v1/flix_council_events", {
     method: "POST",
     headers: { "content-type": "application/json", prefer: "return=minimal" },
-    body: JSON.stringify({ dispatch_id: dispatchId, account_id: primary, event_type: "DISPATCHED", exact_sha: entrySha, payload: { requestedBy, attempt: row.attempts } }),
+    body: JSON.stringify({
+      dispatch_id: dispatchId, account_id: primary, event_type: "DISPATCHED", exact_sha: entrySha,
+      payload: { requestedBy: String(body.requestedByAccountId ?? "SYSTEM"), attempt: row.attempts, deliveryMode: payload.deliveryMode ?? "DIRECT" },
+    }),
   });
-
   let push = { attempted: false, ok: false, reason: "POLL_ONLY" };
   const endpoint = accounts[primary].endpointEnv ? Deno.env.get(accounts[primary].endpointEnv!)?.trim() ?? "" : "";
   const token = Deno.env.get(accounts[primary].tokenEnv)?.trim() ?? "";
@@ -284,18 +261,79 @@ const dispatch = async (body: Body) => {
     push = { attempted: true, ok: false, reason: "UNSET" };
     try {
       const r = await fetch(endpoint, {
-        method: "POST",
-        headers: { "content-type": "application/json", authorization: "Bearer " + token },
+        method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + token },
         body: JSON.stringify({ wakeType: "FLIXO_COUNCIL_WAKE", dispatchId, accountId: primary, exactSha: entrySha, taskId, workPackageId, payload: body }),
         signal: AbortSignal.timeout(8000),
       });
-      push.ok = r.ok;
-      push.reason = r.ok ? "DELIVERED" : "HTTP_" + r.status;
-    } catch (e) {
-      push.reason = String(e instanceof Error ? e.message : e);
-    }
+      push.ok = r.ok; push.reason = r.ok ? "DELIVERED" : "HTTP_" + r.status;
+    } catch (e) { push.reason = String(e instanceof Error ? e.message : e); }
   }
-  return { dispatchId, status: row.status, entrySha: row.entry_sha, primaryAccountId: primary, fallbackAccountId: fallback, leaseExpiresAt: row.lease_expires_at, directiveVersion: COUNCIL_DIRECTIVE_VERSION, greenAuthority: COUNCIL_GREEN_AUTHORITY, integrationLane: COUNCIL_INTEGRATION_LANE, push, pollUrl: "/functions/v1/flixo-council-runtime?action=poll&accountId=" + primary };
+  return { dispatchId, status: row.status, entrySha: row.entry_sha, primaryAccountId: primary, fallbackAccountId: fallback,
+    leaseExpiresAt: row.lease_expires_at, directiveVersion: COUNCIL_DIRECTIVE_VERSION, greenAuthority: COUNCIL_GREEN_AUTHORITY,
+    integrationLane: COUNCIL_INTEGRATION_LANE, push, pollUrl: "/functions/v1/flixo-council-runtime?action=poll&accountId=" + primary };
+};
+
+const resolveAdministrativeBroadcastTargets = (body: Body, payload: Record<string, unknown>) => {
+  const explicit = Array.isArray(payload.broadcastMasterIds) ? payload.broadcastMasterIds.map((value) => String(value).trim()) : [];
+  const recipientMaster = String(payload.recipientMaster ?? "").trim();
+  const configured = Array.isArray(payload.requiredRecipients) ? payload.requiredRecipients.map((value) => String(value).trim()) : [];
+  const targets = explicit.length ? explicit : recipientMaster === "MASTERS" || body.recipient === "MASTERS" ? Object.keys(MASTER_ACCOUNT_ROUTES) : recipientMaster ? [recipientMaster] : configured.filter((value) => value in MASTER_ACCOUNT_ROUTES);
+  const unique = [...new Set(targets)];
+  if (!unique.length) throw new Error("COUNCIL_MASTER_BROADCAST_TARGETS_REQUIRED");
+  if (unique.some((target) => !(target in MASTER_ACCOUNT_ROUTES))) throw new Error("COUNCIL_MASTER_BROADCAST_TARGET_INVALID");
+  return unique;
+};
+
+const dispatch = async (body: Body) => {
+  const requestedBy = String(body.requestedByAccountId ?? "SYSTEM");
+  const payload = body.payload && typeof body.payload === "object" && !Array.isArray(body.payload) ? body.payload as Record<string, unknown> : {};
+  const peerMessage = payload.masterPeerMessage === true;
+  const administrativeInstruction = payload.administrativeInstruction === true || body.administrativeInstruction === true || body.councilOperation === true;
+  const explicitMasterTarget = String(payload.recipientMaster ?? "").trim();
+  const requestedMasterBroadcast = payload.administrativeBroadcast === true || explicitMasterTarget === "MASTERS" || body.recipient === "MASTERS" || (Array.isArray(payload.broadcastMasterIds) && payload.broadcastMasterIds.length > 0);
+  const messageId = String(body.messageId ?? "").trim();
+  const idempotencyKey = String(body.idempotencyKey ?? messageId).trim();
+  const taskId = String(body.taskId ?? "").trim();
+  const workPackageId = String(body.workPackageId ?? "").trim();
+  if (requestedMasterBroadcast) {
+    if (requestedBy !== "SYSTEM") throw new Error("COUNCIL_MASTER_BROADCAST_SYSTEM_ONLY");
+    if (!administrativeInstruction || peerMessage) throw new Error("COUNCIL_MASTER_BROADCAST_ADMIN_ONLY");
+    const targets = resolveAdministrativeBroadcastTargets(body, payload);
+    const dispatches = [];
+    for (const masterId of targets) {
+      const route = MASTER_ACCOUNT_ROUTES[masterId];
+      const suffix = ":" + masterId;
+      dispatches.push(await dispatchSingle({
+        body, primary: route.primary, fallback: route.fallback,
+        messageId: messageId.endsWith(suffix) ? messageId : messageId + suffix,
+        idempotencyKey: idempotencyKey.endsWith(suffix) ? idempotencyKey : idempotencyKey + suffix,
+        taskId, workPackageId: workPackageId.endsWith(suffix) ? workPackageId : workPackageId + suffix,
+        payload: { ...payload, administrativeBroadcast: true, canonicalMessageId: String(payload.canonicalMessageId ?? messageId),
+          transportMessageId: messageId, recipientMaster: masterId, broadcastMasterIds: targets, deliveryMode: "ADMIN_MASTER_BROADCAST" },
+      }));
+    }
+    return { dispatchId: dispatches[0]?.dispatchId ?? null, dispatches, broadcast: true, broadcastRecipients: targets,
+      status: dispatches.every((item) => item.status === "LEASED") ? "LEASED" : "PARTIAL", entrySha: sha(body.entrySha) };
+  }
+  const primary = accountFrom(body.primaryAccountId);
+  const fallback = accountFrom(body.fallbackAccountId);
+  if (requestedBy === "SYSTEM") {
+    if (peerMessage) {
+      const senderMaster = String(payload.senderMaster ?? "").trim();
+      const recipientMaster = String(payload.recipientMaster ?? "").trim();
+      const senderRoute = MASTER_ACCOUNT_ROUTES[senderMaster]; const recipientRoute = MASTER_ACCOUNT_ROUTES[recipientMaster];
+      if (!senderRoute || !recipientRoute) throw new Error("COUNCIL_MASTER_PEER_IDENTITY_INVALID");
+      if (senderMaster === recipientMaster) throw new Error("COUNCIL_MASTER_PEER_SELF_ROUTE");
+      if (primary !== recipientRoute.primary || fallback !== recipientRoute.fallback) throw new Error("COUNCIL_MASTER_PEER_ROUTE_MISMATCH");
+    } else if (primary !== "CHIEF" || fallback !== "CHIEF") {
+      throw new Error("COUNCIL_SYSTEM_DISPATCH_ONLY_CHIEF");
+    }
+  } else {
+    if (requestedBy !== "CHIEF") throw new Error("COUNCIL_WORKER_DISPATCH_FORBIDDEN");
+    if (!["WORKER_A", "WORKER_B"].includes(primary)) throw new Error("COUNCIL_TARGET_ACCOUNT_FORBIDDEN");
+    if (fallback !== accounts[primary].fallback) throw new Error("COUNCIL_FALLBACK_ACCOUNT_INVALID");
+  }
+  return dispatchSingle({ body, primary, fallback, messageId, idempotencyKey, taskId, workPackageId, payload });
 };
 
 Deno.serve(async (req) => {
@@ -353,8 +391,8 @@ Deno.serve(async (req) => {
     }
 
 
-    if (action === "activate" && (req.method === "POST" || req.method === "GET")) {
-      const body = req.method === "GET" ? queryBody(url) : await jsonBody(req);
+    if (action === "activate" && req.method === "POST") {
+      const body = await jsonBody(req);
       const dispatchId = String(body.dispatchId ?? "").trim();
       const activationToken = String(body.activationToken ?? req.headers.get("x-council-activation") ?? "").trim();
       const declaredAgentId = String(body.agentId ?? "").trim();
@@ -459,7 +497,7 @@ Deno.serve(async (req) => {
 
     if (action === "dispatch" && req.method === "POST") {
       const requester = String(body.requestedByAccountId ?? "SYSTEM");
-      if (requester === "SYSTEM") await authGitHubWorkflow(req, ["FLIXO Master Agent Activation Relay"]);
+      if (requester === "SYSTEM") await authGitHubWorkflow(req, ["FLIXO Master Agent Activation Relay", "FLIXO Council Wake Push Relay"]);
       else authAccount(req, "CHIEF");
       return response({ ok: true, ...(await dispatch(body) as Record<string, unknown>) }, 202, requestId);
     }
@@ -484,8 +522,8 @@ Deno.serve(async (req) => {
       return response({ ok: true, dispatch: Array.isArray(result) ? result[0] ?? null : result }, 200, requestId);
     }
 
-    if (action === "heartbeat" && (req.method === "POST" || req.method === "GET")) {
-      const hb = req.method === "GET" ? queryBody(url) : body;
+    if (action === "heartbeat" && req.method === "POST") {
+      const hb = body;
       const account = accountFrom(hb.accountId);
       const dispatchId = String(hb.dispatchId ?? "").trim();
       const sessionId = String(hb.sessionId ?? "").trim();
@@ -500,8 +538,8 @@ Deno.serve(async (req) => {
       return response({ ok: true, dispatch: Array.isArray(result) ? result[0] ?? null : result }, 200, requestId);
     }
 
-    if (action === "complete" && (req.method === "POST" || req.method === "GET")) {
-      const cmp = req.method === "GET" ? queryBody(url) : body;
+    if (action === "complete" && req.method === "POST") {
+      const cmp = body;
       const account = accountFrom(cmp.accountId);
       const dispatchId = String(cmp.dispatchId ?? "").trim();
       const sessionId = String(cmp.sessionId ?? "").trim();

@@ -1,0 +1,749 @@
+{
+  "schemaVersion": 1,
+  "authority": "ACTION_REPAIR_HISTORY_CONTROL_PLANE",
+  "name": "FLIXO-ACTIONS-VAULT",
+  "purpose": "Five independent Actions specialists, outside the 200-bot CELL pool, intentionally separated so each can be developed independently according to project needs.",
+  "headquarters": {
+    "primary": "docs/agents/historical-action-errors",
+    "index": "docs/agents/historical-action-errors/index.json",
+    "records": "docs/agents/historical-action-errors/records",
+    "additionalReferences": [
+      "docs/AUTO_REPAIR_HISTORY.jsonl",
+      "diagnostics/auto-repair/memory.json",
+      "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+      "docs/agents/ERROR-TEACHING-ROUTER.json",
+      "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md"
+    ]
+  },
+  "separation": {
+    "separateFromCell": true,
+    "cellBotCount": 200,
+    "includedInCellCount": false,
+    "identityNamespace": "ACTION-*",
+    "developmentModel": "INDEPENDENT",
+    "purpose": "Two hundred CELL raw workers remain separate from the specialized Actions repair cohort."
+  },
+  "sharedPolicy": {
+    "sameReferencesForAll": true,
+    "anyActionFailureAdmitted": true,
+    "oneTaskAtATime": true,
+    "assignedScopeOnly": true,
+    "mutationAuthority": false,
+    "canonicalMutationOwner": "repairAgent",
+    "proofAuthority": "CURRENT_EXACT_SHA_CI_ONLY",
+    "knowledgeMayTransfer": true,
+    "permissionsMayTransfer": false,
+    "independentAuthorityMayTransfer": false,
+    "actionRepairExecutor": "ACTION-REPAIR",
+    "actionIndexOwner": "ACTION-REPAIR",
+    "actionIndexSearchRequired": true,
+    "sameIntelligenceForCoreThree": true,
+    "coreThree": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ],
+    "noClosureBeforeCanonicalGreen": true,
+    "coreThreeNeverLeaveActionVault": true,
+    "coreThreeMaxOperationsPerBot": 2000000,
+    "coreThreeAutomaticVisitsPerDay": 3,
+    "coreThreeTotalAutomaticVisits": 9,
+    "supervisorEscalationAfterFailedAttempts": 20,
+    "cognitiveScopeMayExceedRoleScope": true,
+    "authorityScopeMustNotExpand": true,
+    "wholeSystemAwarenessRequired": true
+  },
+  "workers": [
+    {
+      "id": "ACTION-TWIN-1",
+      "displayName": "التوأم 1",
+      "kind": "ACTION_REPAIR_BOT",
+      "status": "READY",
+      "workerIndex": 1,
+      "role": "ACTION_REPAIR_TWIN_A",
+      "mission": "Independent direct-evidence repair hypothesis; read-only.",
+      "weakness": "DIRECT_CAUSAL_REPAIR_HYPOTHESIS",
+      "headquarters": "docs/agents/historical-action-errors",
+      "sharedReferences": [
+        "docs/AUTO_REPAIR_HISTORY.jsonl",
+        "diagnostics/auto-repair/memory.json",
+        "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+        "docs/agents/ERROR-TEACHING-ROUTER.json",
+        "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md",
+        "docs/agents/historical-action-errors/index.json",
+        "docs/agents/historical-action-errors/records"
+      ],
+      "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-TWIN-1.json",
+      "mutationAuthority": false,
+      "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+      "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
+      "currentAssignment": null,
+      "independentDevelopment": true
+    },
+    {
+      "id": "ACTION-TWIN-2",
+      "displayName": "التوأم 2",
+      "kind": "ACTION_REPAIR_BOT",
+      "status": "READY",
+      "workerIndex": 2,
+      "role": "ACTION_REPAIR_TWIN_B",
+      "mission": "Independent inferential/historical repair hypothesis; read-only.",
+      "weakness": "INFERENTIAL_REPAIR_HYPOTHESIS",
+      "headquarters": "docs/agents/historical-action-errors",
+      "sharedReferences": [
+        "docs/AUTO_REPAIR_HISTORY.jsonl",
+        "diagnostics/auto-repair/memory.json",
+        "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+        "docs/agents/ERROR-TEACHING-ROUTER.json",
+        "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md",
+        "docs/agents/historical-action-errors/index.json",
+        "docs/agents/historical-action-errors/records"
+      ],
+      "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-TWIN-2.json",
+      "mutationAuthority": false,
+      "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+      "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
+      "currentAssignment": null,
+      "independentDevelopment": true
+    },
+    {
+      "id": "ACTION-INDEX",
+      "displayName": "الفهرس",
+      "kind": "ACTION_REPAIR_BOT",
+      "status": "READY",
+      "workerIndex": 3,
+      "role": "ACTION_SOLUTION_INDEXER_SUPPORT",
+      "mission": "Maintains and refreshes the historical GitHub Actions error index for ACTION-REPAIR and the other knowledge workers.",
+      "weakness": "HISTORICAL_ACTION_INDEX_RETRIEVAL",
+      "headquarters": "docs/agents/historical-action-errors",
+      "sharedReferences": [
+        "docs/AUTO_REPAIR_HISTORY.jsonl",
+        "diagnostics/auto-repair/memory.json",
+        "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+        "docs/agents/ERROR-TEACHING-ROUTER.json",
+        "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md",
+        "docs/agents/historical-action-errors/index.json",
+        "docs/agents/historical-action-errors/records"
+      ],
+      "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-INDEX.json",
+      "mutationAuthority": false,
+      "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+      "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
+      "currentAssignment": null,
+      "independentDevelopment": true
+    },
+    {
+      "id": "ACTION-WISE",
+      "displayName": "الحكيم",
+      "kind": "ACTION_REPAIR_BOT",
+      "status": "READY",
+      "workerIndex": 4,
+      "role": "ACTION_BEST_OPTION_SELECTOR",
+      "mission": "Compares historical evidence and both twin proposals and returns the strongest actionable option.",
+      "weakness": "EVIDENCE_BASED_OPTION_SELECTION",
+      "headquarters": "docs/agents/historical-action-errors",
+      "sharedReferences": [
+        "docs/AUTO_REPAIR_HISTORY.jsonl",
+        "diagnostics/auto-repair/memory.json",
+        "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+        "docs/agents/ERROR-TEACHING-ROUTER.json",
+        "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md",
+        "docs/agents/historical-action-errors/index.json",
+        "docs/agents/historical-action-errors/records"
+      ],
+      "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-WISE.json",
+      "mutationAuthority": false,
+      "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+      "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
+      "currentAssignment": null,
+      "independentDevelopment": true
+    },
+    {
+      "id": "ACTION-WAKE",
+      "displayName": "المنبه",
+      "kind": "ACTION_REPAIR_BOT",
+      "status": "RETIRED",
+      "workerIndex": 5,
+      "role": "ACTION_SYSTEM_WAKE_COORDINATOR",
+      "mission": "Retired. Wake/dispatch is handled by canonical workflows and leases, not by a monitoring bot.",
+      "weakness": "ACTION_SYSTEM_WAKE_AND_HANDOFF",
+      "headquarters": "docs/agents/historical-action-errors",
+      "sharedReferences": [
+        "docs/AUTO_REPAIR_HISTORY.jsonl",
+        "diagnostics/auto-repair/memory.json",
+        "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+        "docs/agents/ERROR-TEACHING-ROUTER.json",
+        "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md",
+        "docs/agents/historical-action-errors/index.json",
+        "docs/agents/historical-action-errors/records"
+      ],
+      "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-WAKE.json",
+      "mutationAuthority": false,
+      "executionAuthority": "DISABLED_NOT_A_BOT_MONITOR",
+      "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
+      "currentAssignment": null,
+      "independentDevelopment": true
+    },
+    {
+      "id": "ACTION-HISTORIAN-3",
+      "displayName": "بوت سجل Actions 3",
+      "kind": "ACTION_HISTORIAN_INDEXER",
+      "status": "READY",
+      "workerIndex": 6,
+      "role": "ACTION_TASK_HISTORIAN_AND_SOLUTION_INDEXER",
+      "mission": "Record RED→attempts→GREEN and maintain solution index.",
+      "headquarters": "diagnostics/auto-repair/action-vault",
+      "mutationAuthority": false,
+      "executionAuthority": "RECORD_AND_INDEX_ONLY",
+      "canWriteRepository": true,
+      "canWriteTestLogs": false,
+      "canModifyWorkflowLogs": false,
+      "masterEscalationOnFirstRepositoryOccurrence": true,
+      "currentAssignment": "ACTION_VAULT_CONTINUOUS_RECORD_AND_INDEX",
+      "independentDevelopment": true
+    }
+  ],
+  "sourceIndexSnapshot": {
+    "sourceUpdatedAt": "2026-09-20T11:55:51.945Z",
+    "recordCount": 2
+  },
+  "repairExecutor": {
+    "id": "ACTION-REPAIR",
+    "displayName": "بوت إصلاح Actions",
+    "kind": "ACTION_REPAIR_EXECUTOR",
+    "status": "READY",
+    "role": "ACTION_REPAIR_EXECUTOR",
+    "mission": "Executes the bounded source repair selected from the five Actions knowledge workers, then runs targeted regression and returns the result to canonical CI.",
+    "protocolActor": "actionRepairBot",
+    "workflow": ".github/workflows/auto-repair.yml",
+    "engine": "scripts/ci/auto-repair-engine.mjs",
+    "mutationAuthority": true,
+    "executionAuthority": "SOURCE_MUTATION_VIA_REPAIR_PROTOCOL",
+    "mutationScope": "ERROR_ONLY",
+    "branch": "execution",
+    "maxAttemptsPerFingerprint": 1000000,
+    "knowledgeSource": "ACTION-WISE+ACTION-INDEX",
+    "historicalSource": "ACTION-INDEX",
+    "proofAuthority": "CURRENT_EXACT_SHA_CI_ONLY",
+    "canonicalGreenAuthority": "DAILY_FLIXO_GREEN_GATE",
+    "canMutateMain": false,
+    "canMutateTests": false,
+    "canMutateProtectedControlPlane": false,
+    "independentAuthorityMayTransfer": false,
+    "indexOwner": true,
+    "ownsActionIndex": true,
+    "indexPath": "docs/agents/historical-action-errors/index.json",
+    "indexRecordsPath": "docs/agents/historical-action-errors/records",
+    "directActionSearch": true,
+    "searchEngine": "scripts/ci/historical-action-error-index.mjs",
+    "searchScope": [
+      "CURRENT_TARGET_ACTION_LOG",
+      "HISTORICAL_ACTION_ERROR_CORPUS"
+    ],
+    "searchBeforeMutation": true,
+    "canonicalSearchOwner": "ACTION-REPAIR"
+  },
+  "parallelCouncil": {
+    "id": "ACTION-COUNCIL-20",
+    "displayName": "مجلس إصلاح Actions — 20 وكيل",
+    "purpose": "Receives a read-only snapshot of ACTION-REPAIR knowledge, analyzes the same incident in parallel, and submits independent repair candidates to ACTION-ARBITER.",
+    "activation": "ON_DEMAND_OR_ESCALATED",
+    "sourceBot": "ACTION-REPAIR",
+    "knowledgeTransferMode": "SNAPSHOT_ONLY",
+    "workerCount": 20,
+    "parallel": true,
+    "mutationAuthority": false,
+    "executionAuthority": "ANALYSIS_ONLY",
+    "workers": [
+      {
+        "id": "ACTION-COUNCIL-01",
+        "index": 1,
+        "specialization": "DIRECT_LOG_CAUSAL",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-02",
+        "index": 2,
+        "specialization": "HISTORICAL_MATCH",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-03",
+        "index": 3,
+        "specialization": "RCA_PATTERN",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-04",
+        "index": 4,
+        "specialization": "REGEX_WORKFLOW",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-05",
+        "index": 5,
+        "specialization": "RUNNER_CONTROL",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-06",
+        "index": 6,
+        "specialization": "DEPENDENCY_BUILD",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-07",
+        "index": 7,
+        "specialization": "BROWSER_RUNTIME",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-08",
+        "index": 8,
+        "specialization": "ARTIFACT_INTEGRITY",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-09",
+        "index": 9,
+        "specialization": "PERMISSIONS",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-10",
+        "index": 10,
+        "specialization": "EXTERNAL_PROVIDER",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-11",
+        "index": 11,
+        "specialization": "SHA_PROVENANCE",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-12",
+        "index": 12,
+        "specialization": "REPAIR_SCOPE",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-13",
+        "index": 13,
+        "specialization": "ANTI_LESSON",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-14",
+        "index": 14,
+        "specialization": "PLAYBOOK_TRANSFER",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-15",
+        "index": 15,
+        "specialization": "INFERENCE_SYNTHESIS",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-16",
+        "index": 16,
+        "specialization": "REGRESSION_PLAN",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-17",
+        "index": 17,
+        "specialization": "RECURRENCE_RISK",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-18",
+        "index": 18,
+        "specialization": "SECURITY_BOUNDARY",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-19",
+        "index": 19,
+        "specialization": "CHANGE_MINIMALITY",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-20",
+        "index": 20,
+        "specialization": "FULL_CASE_REVIEW",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      }
+    ],
+    "arbiter": {
+      "id": "ACTION-ARBITER",
+      "role": "FINAL_REPAIR_PROPOSAL_ARBITER",
+      "mutationAuthority": false,
+      "executionAuthority": "ACCEPT_OR_REJECT_PROPOSAL_ONLY",
+      "acceptanceDoesNotMeanCanonicalGreen": true,
+      "canonicalGreenAuthority": "DAILY_FLIXO_GREEN_GATE",
+      "downstreamExecutor": "ACTION-REPAIR"
+    }
+  },
+  "pairedRepairControl": {
+    "id": "ACTION-REPAIR-PAIR",
+    "headquarters": "docs/agents/historical-action-errors",
+    "primary": {
+      "id": "ACTION-REPAIR",
+      "displayName": "بوت إصلاح Actions 1",
+      "mutationAuthority": true,
+      "approvalAuthority": true
+    },
+    "assistant": {
+      "id": "ACTION-REPAIR-2",
+      "displayName": "بوت إصلاح Actions 2 — Programmer Twin",
+      "mutationAuthority": false,
+      "executionAuthority": "INDEPENDENT_PROGRAMMER_TWIN_VERIFIER",
+      "approvalRequiredFrom": "ACTION-REPAIR",
+      "canPrepare": true,
+      "canAudit": true,
+      "canLearn": true,
+      "canWriteRepository": false,
+      "canBypassPrimary": false
+    },
+    "binding": {
+      "sameHeadquarters": true,
+      "sameFailureFingerprint": true,
+      "sameExactSha": true,
+      "sharedMissionIdRequired": true,
+      "mutualHeartbeatRequired": true,
+      "freezeDetection": true,
+      "failClosedOnMissingHeartbeat": true,
+      "failClosedOnApprovalMismatch": true,
+      "noIndependentPromotion": true,
+      "verifierChallengeRequired": true,
+      "verifierProofArtifact": "action-repair-2-proposal.json",
+      "verifierProofBinding": [
+        "sameHeadquarters",
+        "sameFailureFingerprint",
+        "sameExactSha"
+      ],
+      "fallbackMutationRequires": [
+        "ACTION-REPAIR approval",
+        "READY_FOR_MUTATION heartbeat",
+        "current exact SHA",
+        "verifier challenge passed",
+        "normal Repair Protocol admission"
+      ],
+      "programmerTwinParityRequired": true,
+      "programmerTwinParityArtifact": "/tmp/action-repair-twin-parity.json",
+      "programmerTwinParity": [
+        "sameExactSha",
+        "sameFailureFingerprint",
+        "sameProgrammingIntelligence"
+      ],
+      "verifierRole": "EXACT_PROGRAMMER_TWIN"
+    },
+    "nonGreenLearning": {
+      "recordEveryRedNotGreen": true,
+      "source": "CURRENT_ACTION_RUN + independent-programmer-twin-analysis + file-selection + repair-memory",
+      "durablePath": "diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR-2.json",
+      "promotion": "ONLY_AFTER_CANONICAL_GREEN",
+      "nonGreenPersistence": "ARTIFACT_AND_NEXT_MISSION_CONTEXT"
+    }
+  },
+  "assistant": {
+    "id": "ACTION-REPAIR-2",
+    "displayName": "بوت مساعد إصلاح Actions",
+    "kind": "ACTION_REPAIR_ASSISTANT",
+    "status": "READY",
+    "role": "ACTION_REPAIR_ASSISTANT",
+    "mission": "Audit every RED case, retain every non-green case for learning, challenge ACTION-REPAIR, prepare repair proposals, and execute only after explicit machine approval from ACTION-REPAIR.",
+    "protocolActor": "actionRepairAssistant",
+    "workflow": ".github/workflows/auto-repair.yml",
+    "engine": "scripts/ci/auto-repair-engine.mjs",
+    "headquarters": "docs/agents/historical-action-errors",
+    "mutationAuthority": true,
+    "executionAuthority": "MUTATION_GATED_BY_ACTION_REPAIR",
+    "requiredApprover": "ACTION-REPAIR",
+    "mutationScope": "ERROR_ONLY",
+    "branch": "execution",
+    "canMutateMain": false,
+    "canMutateTests": false,
+    "canMutateProtectedControlPlane": false,
+    "directActionSearch": true,
+    "selfLearning": true,
+    "auditAuthority": true,
+    "nonGreenRecorder": true,
+    "permanentMemory": "diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR-2.json",
+    "approvalProtocol": "scripts/ci/action-repair-dual-control.mjs",
+    "canFreezeRepair": false,
+    "partnerRequired": "ACTION-REPAIR",
+    "verifierMode": {
+      "enabled": true,
+      "mutationInVerifierMode": false,
+      "fallbackExecutor": "assistantRepairAgent",
+      "fallbackRequiresPrimaryApproval": true,
+      "verifierProofRequired": true
+    }
+  },
+  "officialWorkplace": {
+    "id": "ACTION-VAULT",
+    "name": "قبو Actions",
+    "path": "diagnostics/auto-repair/action-vault",
+    "purpose": "Official isolated workplace for Actions repair exploration, learning, task handoff and provenance; completely separate from CELL.",
+    "separateFromCell": true,
+    "mayWriteTestLogs": false,
+    "mayModifyWorkflowLogs": false,
+    "canonicalTaskStore": "diagnostics/auto-repair/action-vault/tasks.jsonl",
+    "canonicalSolutionIndex": "diagnostics/auto-repair/action-vault/solution-index.json",
+    "canonicalFirstSeenIndex": "diagnostics/auto-repair/action-vault/first-seen.json",
+    "testSystemsDirectory": "diagnostics/auto-repair/action-vault/test-systems"
+  },
+  "monitoringBots": [],
+  "activeRepairLane": {
+    "policy": "TURN_TAKES_OWNERSHIP",
+    "firstBot": "ACTION-REPAIR",
+    "secondBot": "ACTION-REPAIR-2",
+    "turnSelection": "ODD_ATTEMPT_PRIMARY_EVEN_ATTEMPT_ASSISTANT",
+    "firstAttemptIsAlwaysPrimary": true,
+    "failoverAfter": "FAILED_REPAIR_OR_UNREPAIRED",
+    "resumeFromSleep": "PRIMARY_RETAKES_NEXT_ODD_TURN",
+    "terminalCondition": "ZERO_ACTIONABLE_RED_OR_BLOCKED_EXTERNAL",
+    "noIdleWithoutTask": true,
+    "noMonitoringBot": true
+  },
+  "assistantBot3": {
+    "id": "ACTION-HISTORIAN-3",
+    "displayName": "بوت سجل Actions 3",
+    "kind": "ACTION_HISTORIAN_INDEXER",
+    "status": "READY",
+    "role": "ACTION_TASK_HISTORIAN_AND_SOLUTION_INDEXER",
+    "mission": "سجل كل RED، كل محاولة، كل تغيير حتى GREEN، ويعيد ترتيب فهرس الحلول؛ ويصعد أول ظهور للمشكلة على مستوى المستودع إلى Master.",
+    "headquarters": "diagnostics/auto-repair/action-vault",
+    "mutationAuthority": false,
+    "executionAuthority": "RECORD_AND_INDEX_ONLY",
+    "canWriteTestLogs": false,
+    "canModifyWorkflowLogs": false,
+    "canMutateSource": false,
+    "canDispatchRepair": false,
+    "masterEscalationOnFirstRepositoryOccurrence": true,
+    "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-HISTORIAN-3.json"
+  },
+  "learningChatMesh": {
+    "id": "ACTION-BOT-CHAT-MESH",
+    "headquarters": "diagnostics/auto-repair/action-vault",
+    "transport": "scripts/ci/action-bot-chat.mjs",
+    "participants": [
+      "ACTION-MASTER",
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3",
+      "ACTION-TWIN-1",
+      "ACTION-TWIN-2",
+      "ACTION-INDEX",
+      "ACTION-WISE"
+    ],
+    "directBotToBot": true,
+    "taskAssignment": true,
+    "explorationExchange": true,
+    "resultExchange": true,
+    "sameMissionRequired": true,
+    "sameFailureFingerprintRequired": true,
+    "sameExactShaRequired": true,
+    "messageKinds": [
+      "TASK_ASSIGNMENT",
+      "OBSERVATION",
+      "QUESTION",
+      "CHALLENGE",
+      "SOLUTION_PROPOSAL",
+      "HANDOFF",
+      "RESULT",
+      "LESSON",
+      "BLOCKED_EXTERNAL"
+    ],
+    "learningPolicy": {
+      "ingestImmediately": true,
+      "unverifiedAllowedForCurrentMission": true,
+      "promoteSharedKnowledgeOnlyAfterCanonicalGreen": true,
+      "neverPromoteExternalFailureAsSourceSolution": true
+    },
+    "authorityPolicy": {
+      "chatDoesNotGrantMutationAuthority": true,
+      "taskOwnershipRemainsWithActiveRepairBot": true,
+      "canonicalCiRemainsGreenAuthority": true
+    }
+  },
+  "threeBotCollaboration": {
+    "id": "ACTION-THREE-BOT-COLLABORATION",
+    "contract": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
+    "runtime": "scripts/ci/action-three-bot-collaboration.mjs",
+    "activeOn": "ANY_ACTIONABLE_RED",
+    "participants": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ],
+    "sameMission": true,
+    "sameFailureFingerprint": true,
+    "sameExactSha": true,
+    "sameFailedRun": true,
+    "mandatoryEvidenceExchange": true,
+    "mandatoryChallenge": true,
+    "mandatoryHistorianRecord": true,
+    "repairObjective": "ONE_SHARED_REPAIR_OBJECTIVE",
+    "authority": "ONE_ACTIVE_REPAIR_OWNER",
+    "handoff": "ONLY_AFTER_DOCUMENTED_FAILURE_OR_UNREPAIRED",
+    "greenAuthority": "DAILY_FLIXO_GREEN_GATE",
+    "noMonitoringBot": true,
+    "separateFromCell": true,
+    "proofGate": {
+      "enabled": true,
+      "verifier": "ACTION-REPAIR-2",
+      "artifact": "action-repair-2-proposal.json",
+      "exactSha": true,
+      "failureFingerprint": true,
+      "alternativesRequired": true,
+      "falsificationChecksRequired": true,
+      "counterEvidenceRequired": true,
+      "mutationBlockedWithoutProof": true,
+      "verifierRole": "EXACT_PROGRAMMER_TWIN",
+      "programmerTwinParityRequired": true,
+      "programmerTwinParityArtifact": "/tmp/action-repair-twin-parity.json"
+    },
+    "fileSelectionGate": {
+      "enabled": true,
+      "agent": "ACTION-HISTORIAN-3",
+      "protocol": "ACTION-FILE-SELECTION-INTELLIGENCE-v1",
+      "artifact": "/tmp/action-file-selection-decision.json",
+      "exactSha": true,
+      "failureFingerprint": true,
+      "pathOnly": true,
+      "codeContentRead": false,
+      "minimumSelectedFiles": 1,
+      "mutationBlockedWithoutFileSelection": true,
+      "excludedFilesNeedNewEvidence": true
+    },
+    "cognitiveAwarenessGate": {
+      "enabled": true,
+      "protocol": "ACTION-SYSTEM-COGNITIVE-AWARENESS-v1",
+      "artifact": "/tmp/action-system-cognitive-awareness.json",
+      "exactSha": true,
+      "allParticipantsConsumeSamePacket": true,
+      "contextBeforeRoleReasoning": true,
+      "mutationAuthorityUnchanged": true,
+      "reEvaluateOnNewEvidence": true
+    }
+  },
+  "coreThreeBotContract": {
+    "ACTION-REPAIR": {
+      "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
+      "role": "PRIMARY_REPAIR_OWNER",
+      "executionAuthority": "MUTATE_WHEN_TASK_OWNER",
+      "cooperation": "MANDATORY_ON_RED"
+    },
+    "ACTION-REPAIR-2": {
+      "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
+      "role": "EXACT_PROGRAMMER_TWIN_VERIFIER",
+      "executionAuthority": "READ_ANALYZE_CHALLENGE_PROPOSE_ONLY",
+      "cooperation": "MANDATORY_ON_RED",
+      "intelligenceParity": "EXACT_WITH_ACTION-REPAIR",
+      "sourceMutation": false
+    },
+    "ACTION-HISTORIAN-3": {
+      "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
+      "role": "FILE_SELECTION_INTELLIGENCE_AND_FAILURE_HISTORIAN",
+      "executionAuthority": "READ_ONLY_SELECTION_RECORD_INDEX_ESCALATE_ONLY",
+      "cooperation": "MANDATORY_ON_RED_BEFORE_PROGRAMMER_REASONING",
+      "fileSelectionProtocol": "ACTION-FILE-SELECTION-INTELLIGENCE-v1",
+      "sourceMutation": false
+    }
+  },
+  "residencyPolicy": {
+    "id": "ACTION-RESIDENCY-POLICY",
+    "path": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
+    "residents": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ],
+    "alwaysResident": true,
+    "leaveVault": false,
+    "maxOperationsPerBot": 2000000,
+    "visitsPerBotPerDay": 3,
+    "totalAutomaticVisitsPerDay": 9,
+    "closure": "CANONICAL_GREEN_ONLY",
+    "escalationAfterFailedAttempts": 20,
+    "supervisorRecipient": "assistantController",
+    "supervisorRoute": "scripts/ci/agent-communication.mjs -> .github/workflows/agent-communication-relay.yml"
+  },
+  "programmerTwin": {
+    "enabled": true,
+    "protocol": "ACTION-PROGRAMMER-TWIN-PARITY-v1",
+    "runtime": "scripts/ci/action-repair-twin-parity.mjs",
+    "artifact": "/tmp/action-repair-twin-parity.json",
+    "primary": "ACTION-REPAIR",
+    "twin": "ACTION-REPAIR-2",
+    "intelligenceParity": "EXACT",
+    "authorityParity": "SEPARATED_BY_DESIGN",
+    "mutationOwner": "ACTION-REPAIR",
+    "cognitiveAwarenessProtocol": "ACTION-SYSTEM-COGNITIVE-AWARENESS-v1",
+    "sharedSystemContextArtifact": "/tmp/action-system-cognitive-awareness.json"
+  }
+}

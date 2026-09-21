@@ -6,6 +6,12 @@ on:
     paths:
       - '.github/workflows/**'
       - 'scripts/ci/repository-security-baseline.mjs'
+      - 'scripts/ci/validate-council-rpc-contract.mjs'
+      - 'scripts/ci/control-plane-registry.mjs'
+      - 'db/council-external-accounts.sql'
+      - 'scripts/ci/validate-promotion-closure.mjs'
+      - 'scripts/ci/test-promotion-closure.mjs'
+      - 'scripts/ci/verify-council-live-runtime.mjs'
       - 'docs/security.md'
       - '.github/CODEOWNERS'
   push:
@@ -23,7 +29,7 @@ permissions:
 # A newer commit supersedes stale security-baseline evidence for the same PR/branch.
 # The active run still validates its exact SHA.
 concurrency:
-  group: repository-security-baseline-${{ github.event.pull_request.number || github.ref }}
+  group: repository-security-baseline-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -33,14 +39,23 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout exact PR head
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
           persist-credentials: false
+      - name: Fail closed when this commit is superseded
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+        run: node scripts/ci/assert-current-commit.mjs
+
       - name: Verify exact SHA
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Validate source-controlled Council RPC contract
+        run: node scripts/ci/validate-council-rpc-contract.mjs
       - name: Run repository security baseline
         run: node scripts/ci/repository-security-baseline.mjs

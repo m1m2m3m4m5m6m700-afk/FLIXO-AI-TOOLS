@@ -1,9 +1,15 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "corpus": {
     "base": "docs/agents/ERROR-TEACHING-500.md",
     "additional": "docs/agents/ERROR-TEACHING-ADDITIONAL-500.md",
-    "rules": 1000
+    "rules": 5000,
+    "expanded": [
+      "docs/agents/ERROR-TEACHING-EXPANDED-A-1000.md",
+      "docs/agents/ERROR-TEACHING-EXPANDED-B-1000.md",
+      "docs/agents/ERROR-TEACHING-EXPANDED-C-1000.md",
+      "docs/agents/ERROR-TEACHING-EXPANDED-D-1000.md"
+    ]
   },
   "retrievalOrder": [
     "exact_class",
@@ -290,7 +296,15 @@
         "dependency",
         "control",
         "repair",
-        "memory"
+        "memory",
+        "contract",
+        "drift",
+        "liveness",
+        "heartbeat",
+        "422",
+        "wake",
+        "async",
+        "TS1064"
       ],
       "classes": [
         "tool-registry",
@@ -303,7 +317,11 @@
         "dependency-debt",
         "control-plane",
         "repair-recursion",
-        "memory-learning"
+        "memory-learning",
+        "contract-drift",
+        "liveness-contract",
+        "heartbeat-canonical-wake",
+        "async-typescript-contract"
       ]
     }
   ],

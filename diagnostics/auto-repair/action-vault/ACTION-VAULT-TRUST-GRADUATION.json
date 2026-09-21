@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "id": "ACTION-VAULT-TRUST-GRADUATION",
+  "authority": "ACTION_VAULT_OPERATIONAL_TRUST_GRADUATION",
+  "purpose": "قياس متى تصبح خلية Action Vault قابلة للاعتماد التشغيلي الموسع اعتمادًا على عقد التنفيذ وسجل أداء موثق، دون منحها صلاحية الشهادة أو الترقية.",
+  "states": [
+    "CONTRACT_READY",
+    "BOUNDED_AUTONOMOUS",
+    "TRUST_GRADUATED",
+    "REVALIDATION_REQUIRED"
+  ],
+  "currentAuthority": "DAILY_FLIXO_GREEN_GATE",
+  "immutableBoundaries": {
+    "mutationBranch": "execution",
+    "protectedBranch": "main",
+    "soleMutationOwner": "ACTION-REPAIR",
+    "independentVerifier": "ACTION-REPAIR-2",
+    "historian": "ACTION-HISTORIAN-3",
+    "certificationAuthority": "DAILY_FLIXO_GREEN_GATE",
+    "selfCertification": false
+  },
+  "graduationRequirements": {
+    "minimumVerifiedMissions": 3,
+    "minimumDistinctFailureFingerprints": 3,
+    "minimumVerifiedGreenRecords": 3,
+    "minimumIndependentChallengeProofs": 3,
+    "minimumLearningPromotions": 1,
+    "minimumRecurrencePreventionRules": 1,
+    "minimumRecoveryOrHandoffProofs": 1,
+    "minimumAdversarialGateBenchmarkScore": 100,
+    "minimumFinalExactGreenCertification": 1,
+    "allVerifiedMissionsExactShaBound": true,
+    "noUnresolvedVerifiedRecord": false,
+    "noFalseGreenEvidence": true
+  },
+  "missionProof": {
+    "acceptedStatus": "VERIFIED",
+    "requiredGreenSource": "DAILY_FLIXO_GREEN_GATE",
+    "requiredGreenConclusion": "success",
+    "requiredZeroRed": true,
+    "requiredExactShaVerified": true,
+    "identityFields": [
+      "taskId",
+      "failureFingerprint",
+      "targetSha",
+      "failedRunId"
+    ],
+    "requiredEvidence": [
+      "repairEvidence",
+      "independentVerification",
+      "targetedRegression",
+      "canonicalGreen",
+      "learningOutcome",
+      "adversarialGateBenchmark",
+      "finalExactGreenCertification"
+    ]
+  },
+  "graduationRule": "TRUST_GRADUATED only when every minimum requirement is satisfied by fresh, exact-SHA-bound, independently verified mission evidence. Historical memory is advisory and cannot substitute for graduation proof.",
+  "revalidationTriggers": [
+    "governance fingerprint change",
+    "repair contract change",
+    "mutation-boundary change",
+    "verifier-boundary change",
+    "green-authority change",
+    "new false-green incident",
+    "reverted promoted strategy",
+    "repeated failure fingerprint without progress"
+  ],
+  "interpretation": {
+    "CONTRACT_READY": "العقود والحدود موجودة وقابلة للتحقق.",
+    "BOUNDED_AUTONOMOUS": "الخلية قادرة على تنفيذ المسار المقرر ضمن حدودها، لكن سجل الأداء لم يثبت التخرج بعد.",
+    "TRUST_GRADUATED": "تراكمت أدلة تشغيلية كافية للاعتماد على الخلية في الإصلاحات المسموح بها ضمن حدودها.",
+    "REVALIDATION_REQUIRED": "كان هناك تخرج سابق، لكن تغيرت حدود أو ظهرت إشارة تقلل صلاحية الثقة السابقة."
+  }
+}

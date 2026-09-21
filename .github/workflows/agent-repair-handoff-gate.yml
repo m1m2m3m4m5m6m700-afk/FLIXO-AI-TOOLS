@@ -28,14 +28,14 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout trusted validators from main
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: main
           fetch-depth: 1
 
       - name: Download repair handoff artifact
         if: env.REPAIR_RUN_CONCLUSION == 'success' || env.REPAIR_RUN_CONCLUSION == 'failure' || env.REPAIR_RUN_CONCLUSION == 'timed_out'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
@@ -51,10 +51,14 @@ jobs:
           set -euo pipefail
           test "$REPAIR_TARGET_BRANCH" = "execution"
           CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          HANDOFF_TARGET_SHA="$CURRENT_EXECUTION_SHA"
+          export HANDOFF_TARGET_SHA
           test -s /tmp/repair-handoff/flixo-prepared-repair-handoff.json
           HANDOFF_EXECUTION_SHA="$(node -e "const h=require('/tmp/repair-handoff/flixo-prepared-repair-handoff.json');process.stdout.write(h.executionSha||'')")"
           HANDOFF_BRANCH="$(node -e "const h=require('/tmp/repair-handoff/flixo-prepared-repair-handoff.json');process.stdout.write(h.headBranch||'')")"
+          test -n "$HANDOFF_TARGET_SHA"
           test -n "$HANDOFF_EXECUTION_SHA"
+          test "$HANDOFF_EXECUTION_SHA" = "$HANDOFF_TARGET_SHA"
           test "$HANDOFF_BRANCH" = "$REPAIR_TARGET_BRANCH"
           test "$HANDOFF_EXECUTION_SHA" = "$CURRENT_EXECUTION_SHA" || {
             echo "FAIL CLOSED: handoff SHA $HANDOFF_EXECUTION_SHA is superseded by execution $CURRENT_EXECUTION_SHA."
@@ -85,10 +89,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/repair-handoff
-          if [ "$REPAIR_RUN_CONCLUSION" = "skipped" ] || [ "$REPAIR_RUN_CONCLUSION" = "cancelled" ]; then
+          if [ "$REPAIR_RUN_CONCLUSION" = "cancelled" ]; then
+            STATE="RECOVERY_REQUIRED"
+            DECISION="RECOVERY_REQUIRED"
+            REPAIR_RUN_ID="$REPAIR_RUN_ID" REPAIR_SHA="$REPAIR_SHA" STATE="$STATE" node -e 'const fs=require("fs"); const result={schemaVersion:1,protocol:"AGENT-REPAIR-HANDOFF-GATE-v3",repairRunId:process.env.REPAIR_RUN_ID,failedSha:process.env.REPAIR_SHA,gateState:process.env.STATE,decision:"RECOVERY_REQUIRED",reason:"SOURCE_REPAIR_RUN_CANCELLED_REQUIRES_RECLAIM",continuation:"WATCHDOG_OR_HEARTBEAT_RECLAIM",generatedAt:new Date().toISOString()}; fs.writeFileSync("/tmp/repair-handoff/repair-handoff-gate.json",JSON.stringify(result,null,2)+"\n");'
+            exit 0
+          fi
+          if [ "$REPAIR_RUN_CONCLUSION" = "skipped" ]; then
             STATE="SKIPPED_SOURCE_RUN"
             DECISION="NO_HANDOFF_TO_APPLY"
-            [ "$REPAIR_RUN_CONCLUSION" = "cancelled" ] && STATE="CANCELLED_SOURCE_RUN"
             REPAIR_RUN_ID="$REPAIR_RUN_ID" REPAIR_SHA="$REPAIR_SHA" STATE="$STATE" node -e 'const fs=require("fs"); const result={schemaVersion:1,protocol:"AGENT-REPAIR-HANDOFF-GATE-v3",repairRunId:process.env.REPAIR_RUN_ID,failedSha:process.env.REPAIR_SHA,gateState:process.env.STATE,decision:"NO_HANDOFF_TO_APPLY",generatedAt:new Date().toISOString()}; fs.writeFileSync("/tmp/repair-handoff/repair-handoff-gate.json",JSON.stringify(result,null,2)+"\n");'
             exit 0
           fi
@@ -103,7 +112,7 @@ jobs:
 
       - name: Upload handoff gate evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: flixo-repair-handoff-gate-${{ github.event.workflow_run.id }}
           path: /tmp/repair-handoff/repair-handoff-gate.json

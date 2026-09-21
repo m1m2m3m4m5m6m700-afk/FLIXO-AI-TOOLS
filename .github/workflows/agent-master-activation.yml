@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: flixo-master-agent-activation-${{ github.event.workflow_run.id }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   activate:
@@ -42,7 +42,7 @@ jobs:
           {
             echo "## FLIXO Test System — RED"
             echo
-            echo "**Activation:** `MASTER_AGENT_ACTIVATION`"
+            echo "**Activation:** MASTER_AGENT_ACTIVATION"
             echo "**Run:** ${RUN_ID}"
             echo "**Branch:** ${BRANCH}"
             echo "**Exact SHA:** ${SHA}"
@@ -51,7 +51,7 @@ jobs:
             echo
             echo "$MARKER"
           } > /tmp/activation-comment.md
-          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body-file /tmp/activation-comment.md
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$(cat /tmp/activation-comment.md)" >/dev/null
 
       - name: Dispatch canonical RED wake to Chief GPT runtime
         env:

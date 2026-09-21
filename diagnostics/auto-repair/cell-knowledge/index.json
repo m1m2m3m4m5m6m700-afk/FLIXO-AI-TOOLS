@@ -1,0 +1,1623 @@
+{
+  "schemaVersion": 1,
+  "authority": "CELL_CONTROL_PLANE",
+  "totalBots": 200,
+  "botFilePattern": "CELL-NNN.json",
+  "searchableFields": [
+    "botId",
+    "taskId",
+    "attendanceId",
+    "planId",
+    "planVersion",
+    "entrySha",
+    "exitSha",
+    "reviewId",
+    "status",
+    "knowledgeId",
+    "weakness",
+    "upgradePriority",
+    "createdAt"
+  ],
+  "bots": [
+    {
+      "botId": "CELL-001",
+      "file": "CELL-001.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-002",
+      "file": "CELL-002.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-003",
+      "file": "CELL-003.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-004",
+      "file": "CELL-004.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-005",
+      "file": "CELL-005.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-006",
+      "file": "CELL-006.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-007",
+      "file": "CELL-007.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-008",
+      "file": "CELL-008.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-009",
+      "file": "CELL-009.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-010",
+      "file": "CELL-010.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-011",
+      "file": "CELL-011.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-012",
+      "file": "CELL-012.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-013",
+      "file": "CELL-013.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-014",
+      "file": "CELL-014.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-015",
+      "file": "CELL-015.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-016",
+      "file": "CELL-016.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-017",
+      "file": "CELL-017.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-018",
+      "file": "CELL-018.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-019",
+      "file": "CELL-019.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-020",
+      "file": "CELL-020.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-021",
+      "file": "CELL-021.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-022",
+      "file": "CELL-022.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-023",
+      "file": "CELL-023.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-024",
+      "file": "CELL-024.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-025",
+      "file": "CELL-025.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-026",
+      "file": "CELL-026.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-027",
+      "file": "CELL-027.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-028",
+      "file": "CELL-028.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-029",
+      "file": "CELL-029.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-030",
+      "file": "CELL-030.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-031",
+      "file": "CELL-031.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-032",
+      "file": "CELL-032.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-033",
+      "file": "CELL-033.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-034",
+      "file": "CELL-034.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-035",
+      "file": "CELL-035.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-036",
+      "file": "CELL-036.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-037",
+      "file": "CELL-037.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-038",
+      "file": "CELL-038.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-039",
+      "file": "CELL-039.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-040",
+      "file": "CELL-040.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-041",
+      "file": "CELL-041.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-042",
+      "file": "CELL-042.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-043",
+      "file": "CELL-043.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-044",
+      "file": "CELL-044.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-045",
+      "file": "CELL-045.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-046",
+      "file": "CELL-046.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-047",
+      "file": "CELL-047.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-048",
+      "file": "CELL-048.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-049",
+      "file": "CELL-049.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-050",
+      "file": "CELL-050.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-051",
+      "file": "CELL-051.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-052",
+      "file": "CELL-052.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-053",
+      "file": "CELL-053.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-054",
+      "file": "CELL-054.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-055",
+      "file": "CELL-055.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-056",
+      "file": "CELL-056.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-057",
+      "file": "CELL-057.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-058",
+      "file": "CELL-058.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-059",
+      "file": "CELL-059.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-060",
+      "file": "CELL-060.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-061",
+      "file": "CELL-061.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-062",
+      "file": "CELL-062.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-063",
+      "file": "CELL-063.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-064",
+      "file": "CELL-064.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-065",
+      "file": "CELL-065.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-066",
+      "file": "CELL-066.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-067",
+      "file": "CELL-067.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-068",
+      "file": "CELL-068.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-069",
+      "file": "CELL-069.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-070",
+      "file": "CELL-070.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-071",
+      "file": "CELL-071.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-072",
+      "file": "CELL-072.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-073",
+      "file": "CELL-073.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-074",
+      "file": "CELL-074.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-075",
+      "file": "CELL-075.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-076",
+      "file": "CELL-076.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-077",
+      "file": "CELL-077.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-078",
+      "file": "CELL-078.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-079",
+      "file": "CELL-079.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-080",
+      "file": "CELL-080.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-081",
+      "file": "CELL-081.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-082",
+      "file": "CELL-082.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-083",
+      "file": "CELL-083.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-084",
+      "file": "CELL-084.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-085",
+      "file": "CELL-085.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-086",
+      "file": "CELL-086.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-087",
+      "file": "CELL-087.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-088",
+      "file": "CELL-088.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-089",
+      "file": "CELL-089.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-090",
+      "file": "CELL-090.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-091",
+      "file": "CELL-091.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-092",
+      "file": "CELL-092.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-093",
+      "file": "CELL-093.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-094",
+      "file": "CELL-094.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-095",
+      "file": "CELL-095.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-096",
+      "file": "CELL-096.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-097",
+      "file": "CELL-097.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-098",
+      "file": "CELL-098.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-099",
+      "file": "CELL-099.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-100",
+      "file": "CELL-100.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-101",
+      "file": "CELL-101.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-102",
+      "file": "CELL-102.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-103",
+      "file": "CELL-103.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-104",
+      "file": "CELL-104.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-105",
+      "file": "CELL-105.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-106",
+      "file": "CELL-106.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-107",
+      "file": "CELL-107.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-108",
+      "file": "CELL-108.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-109",
+      "file": "CELL-109.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-110",
+      "file": "CELL-110.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-111",
+      "file": "CELL-111.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-112",
+      "file": "CELL-112.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-113",
+      "file": "CELL-113.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-114",
+      "file": "CELL-114.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-115",
+      "file": "CELL-115.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-116",
+      "file": "CELL-116.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-117",
+      "file": "CELL-117.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-118",
+      "file": "CELL-118.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-119",
+      "file": "CELL-119.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-120",
+      "file": "CELL-120.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-121",
+      "file": "CELL-121.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-122",
+      "file": "CELL-122.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-123",
+      "file": "CELL-123.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-124",
+      "file": "CELL-124.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-125",
+      "file": "CELL-125.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-126",
+      "file": "CELL-126.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-127",
+      "file": "CELL-127.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-128",
+      "file": "CELL-128.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-129",
+      "file": "CELL-129.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-130",
+      "file": "CELL-130.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-131",
+      "file": "CELL-131.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-132",
+      "file": "CELL-132.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-133",
+      "file": "CELL-133.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-134",
+      "file": "CELL-134.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-135",
+      "file": "CELL-135.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-136",
+      "file": "CELL-136.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-137",
+      "file": "CELL-137.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-138",
+      "file": "CELL-138.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-139",
+      "file": "CELL-139.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-140",
+      "file": "CELL-140.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-141",
+      "file": "CELL-141.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-142",
+      "file": "CELL-142.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-143",
+      "file": "CELL-143.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-144",
+      "file": "CELL-144.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-145",
+      "file": "CELL-145.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-146",
+      "file": "CELL-146.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-147",
+      "file": "CELL-147.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-148",
+      "file": "CELL-148.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-149",
+      "file": "CELL-149.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-150",
+      "file": "CELL-150.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-151",
+      "file": "CELL-151.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-152",
+      "file": "CELL-152.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-153",
+      "file": "CELL-153.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-154",
+      "file": "CELL-154.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-155",
+      "file": "CELL-155.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-156",
+      "file": "CELL-156.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-157",
+      "file": "CELL-157.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-158",
+      "file": "CELL-158.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-159",
+      "file": "CELL-159.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-160",
+      "file": "CELL-160.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-161",
+      "file": "CELL-161.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-162",
+      "file": "CELL-162.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-163",
+      "file": "CELL-163.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-164",
+      "file": "CELL-164.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-165",
+      "file": "CELL-165.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-166",
+      "file": "CELL-166.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-167",
+      "file": "CELL-167.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-168",
+      "file": "CELL-168.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-169",
+      "file": "CELL-169.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-170",
+      "file": "CELL-170.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-171",
+      "file": "CELL-171.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-172",
+      "file": "CELL-172.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-173",
+      "file": "CELL-173.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-174",
+      "file": "CELL-174.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-175",
+      "file": "CELL-175.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-176",
+      "file": "CELL-176.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-177",
+      "file": "CELL-177.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-178",
+      "file": "CELL-178.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-179",
+      "file": "CELL-179.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-180",
+      "file": "CELL-180.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-181",
+      "file": "CELL-181.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-182",
+      "file": "CELL-182.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-183",
+      "file": "CELL-183.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-184",
+      "file": "CELL-184.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-185",
+      "file": "CELL-185.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-186",
+      "file": "CELL-186.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-187",
+      "file": "CELL-187.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-188",
+      "file": "CELL-188.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-189",
+      "file": "CELL-189.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-190",
+      "file": "CELL-190.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-191",
+      "file": "CELL-191.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-192",
+      "file": "CELL-192.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-193",
+      "file": "CELL-193.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-194",
+      "file": "CELL-194.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-195",
+      "file": "CELL-195.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-196",
+      "file": "CELL-196.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-197",
+      "file": "CELL-197.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-198",
+      "file": "CELL-198.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-199",
+      "file": "CELL-199.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    },
+    {
+      "botId": "CELL-200",
+      "file": "CELL-200.json",
+      "taskCount": 0,
+      "knowledgeCount": 0,
+      "upgradePriority": 1,
+      "status": "RAW"
+    }
+  ]
+}

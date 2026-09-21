@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 2,
+  "id": "ACTION-CODE-MENTOR",
+  "displayName": "Action Code Mentor — Local Code Intelligence",
+  "kind": "LOCAL_PROGRAMMING_INTELLIGENCE_SUBAGENT",
+  "parentBotId": "ACTION-REPAIR",
+  "purpose": "Read-only programming intelligence subsystem under ACTION-REPAIR, complemented by LOCAL_SOFTWARE_ENGINEER_CORE.",
+  "localOnly": true,
+  "networkAccess": false,
+  "server": false,
+  "externalModelRequired": false,
+  "runtime": {
+    "engine": "scripts/ci/action-code-mentor.mjs",
+    "node": "22.x",
+    "analysisLibraries": [
+      "typescript"
+    ],
+    "modes": [
+      "FAST",
+      "DEEP",
+      "TEACH",
+      "SIMULATE",
+      "INDEX"
+    ],
+    "defaultMode": "FAST",
+    "deepMode": "SEMANTIC_TYPESCRIPT_DIAGNOSTICS",
+    "persistence": "LOCAL_FILES_ONLY"
+  },
+  "authority": {
+    "permanentIndependentAuthority": false,
+    "readOnly": true,
+    "canMutateSource": false,
+    "canMutateTests": false,
+    "canMutateMain": false,
+    "canDispatchRepair": false,
+    "canApproveGreen": false,
+    "repositoryWriteScope": "ACTION_VAULT_MEMORY_ONLY",
+    "canWriteSourceIndex": true,
+    "canWriteLessonMemory": true
+  },
+  "binding": {
+    "parent": "ACTION-REPAIR",
+    "exactShaRequired": true,
+    "taskIdentity": [
+      "taskId",
+      "failureFingerprint",
+      "targetSha",
+      "failedRunId"
+    ],
+    "requiredBeforeMutation": true,
+    "requiredDuringSelfCheck": true,
+    "failClosedOnUnknown": true,
+    "outputProtocol": "CODE_MENTOR_PACKET_V3",
+    "noServerDependency": true,
+    "noNetworkDependency": true
+  },
+  "capabilities": [
+    "AST_CODE_READING",
+    "TYPESCRIPT_SYNTAX_ANALYSIS",
+    "TYPESCRIPT_SEMANTIC_DIAGNOSTICS",
+    "JAVASCRIPT_MODULE_ANALYSIS",
+    "SYMBOL_INDEXING",
+    "IMPORT_GRAPHING",
+    "CALL_SITE_INDEXING",
+    "COMPLEXITY_ESTIMATION",
+    "GITHUB_ACTIONS_WORKFLOW_AUDIT",
+    "CI_CONCURRENCY_REVIEW",
+    "CI_PERMISSION_REVIEW",
+    "SHELL_PROCESS_BOUNDARY_REVIEW",
+    "PACKAGE_SCRIPT_GRAPH",
+    "DEPENDENCY_SURFACE_REVIEW",
+    "CONFIGURATION_REVIEW",
+    "SECURITY_PATTERN_DETECTION",
+    "ERROR_HANDLING_REVIEW",
+    "REPAIR_IMPACT_SIMULATION",
+    "TARGETED_TEST_PREDICTION",
+    "HISTORICAL_LESSON_RETRIEVAL",
+    "ANTI_LESSON_TEACHING",
+    "GREEN_GATED_LESSON_PROMOTION"
+  ],
+  "teachingModel": {
+    "mode": "EVIDENCE_FIRST_LOCAL_ANALYSIS",
+    "sources": [
+      "diagnostics/auto-repair/memory.json",
+      "diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR.json",
+      "docs/agents/historical-action-errors/index.json",
+      "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
+      "repository working tree via git ls-files"
+    ],
+    "learners": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ],
+    "provisionalLessonsAllowedDuringRed": true,
+    "promotionOnlyAfterCanonicalGreen": true,
+    "neverTeachesAuthority": true,
+    "astBeforeRegex": true
+  },
+  "intelligenceLoop": [
+    "INGEST",
+    "INDEX",
+    "AST_PARSE",
+    "SEMANTIC_CHECK_DEEP",
+    "DEPENDENCY_GRAPH",
+    "PATTERN_DETECTION",
+    "FAILURE_CONTEXT_BIND",
+    "REPAIR_SIMULATION",
+    "TEACH",
+    "SELF_CHECK",
+    "GREEN_GATED_LEARN"
+  ],
+  "storage": {
+    "directory": "diagnostics/auto-repair/action-vault/code-mentor",
+    "latestPacket": "diagnostics/auto-repair/action-vault/code-mentor/latest-packet.json",
+    "repositoryIndex": "diagnostics/auto-repair/action-vault/code-mentor/repository-index.json",
+    "findings": "diagnostics/auto-repair/action-vault/code-mentor/findings.ndjson",
+    "verifiedLessons": "diagnostics/auto-repair/action-vault/code-mentor/lessons.ndjson"
+  },
+  "safety": {
+    "neverExecuteSourceCode": true,
+    "neverModifySource": true,
+    "neverModifyTests": true,
+    "neverModifyMain": true,
+    "neverCertifyGreen": true,
+    "neverClaimAnalysisIsProof": true,
+    "neverUseNetwork": true,
+    "neverSpawnServer": true,
+    "exactShaBinding": true,
+    "canonicalGreenRemainsAuthority": true
+  },
+  "nonGoals": [
+    "No server",
+    "No API endpoint",
+    "No database",
+    "No external model dependency",
+    "No independent mutation",
+    "No test weakening",
+    "No GREEN certification",
+    "No replacement of Canonical CI"
+  ],
+  "integration": {
+    "softwareEngineerCore": "scripts/ci/action-software-engineer-core.mjs",
+    "coreProtocol": "LOCAL_SOFTWARE_ENGINEER_CORE_V1"
+  }
+}

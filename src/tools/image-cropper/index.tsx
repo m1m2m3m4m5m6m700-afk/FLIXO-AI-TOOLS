@@ -6,6 +6,7 @@ import { validateUploadBoundary } from '../../lib/contracts/upload-boundary';
 import { validateOutputIntegrity } from '../../lib/contracts/output-integrity';
 import { cropResizeImage } from '../image-toolkit/engine';
 import { imageCropperIntegritySpec } from './output-integrity';
+import { localizeToolUiValue } from '../../lib/i18n/tool-ui-runtime-completeness';
 
 type Parameters = {
   x: number;
@@ -55,12 +56,13 @@ const copy = {
 function ImageCropperTool({ locale }: { locale?: string }) {
   const resolvedLocale = locale ?? (typeof document !== 'undefined' ? document.documentElement.lang : 'en');
   const lang = resolvedLocale.toLowerCase().startsWith('ar') ? 'ar' : 'en';
+  const t = (value: string) => localizeToolUiValue(resolvedLocale, value, 'image-cropper');
   const [parameters, setParameters] = useState<Parameters>({ x: 0, y: 0, cropWidth: 500, cropHeight: 500, width: 500, height: 500 });
 
   return (
     <ToolWorkbench
       toolId="image-cropper"
-      title={copy[lang].title}
+      title={t(copy[lang].title)}
       description={copy[lang].description}
       locale={resolvedLocale}
       inputId="image-tool-file"
@@ -95,12 +97,15 @@ function ImageCropperTool({ locale }: { locale?: string }) {
       }}
       renderControls={({ parameters: current, setParameters: update }) => {
         const next = current as Parameters;
-        const fields: Array<[keyof Parameters, string]> = [['x', copy[lang].x], ['y', copy[lang].y], ['cropWidth', copy[lang].cropWidth], ['cropHeight', copy[lang].cropHeight], ['width', copy[lang].outputWidth], ['height', copy[lang].outputHeight]];
+        const fields: Array<[keyof Parameters, string]> = [['x', t(copy[lang].x)], ['y', t(copy[lang].y)], ['cropWidth', t(copy[lang].cropWidth)], ['cropHeight', t(copy[lang].cropHeight)], ['width', t(copy[lang].outputWidth)], ['height', t(copy[lang].outputHeight)]];
         return <div className="image-workbench-control-grid">{fields.map(([key, label]) => <label key={key}><span>{label}</span><input aria-label={label} inputMode="numeric" value={next[key]} onChange={(event) => update((value) => ({ ...value, [key]: Number(event.target.value) }))} /></label>)}</div>;
       }}
       onReset={() => setParameters({ x: 0, y: 0, cropWidth: 500, cropHeight: 500, width: 500, height: 500 })}
-      runLabel="Run tool"
-      downloadLabel="Download now"
+      resetLabel={t("Reset")}
+      beforeLabel={t("Before")}
+      afterLabel={t("After")}
+      runLabel={t("Run tool")}
+      downloadLabel={t("Download now")}
       downloadRole="button"
     />
   );

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 2,
+  "name": "FLIXO-HISTORICAL-ACTION-ERROR-CORPUS",
+  "source": "github-actions-logs",
+  "authority": "historical-observation",
+  "externalDiagnosis": false,
+  "exactShaRequired": true,
+  "repositoryCreatedAt": "2026-08-10T14:20:17Z",
+  "coverageStart": null,
+  "coverageEnd": null,
+  "totalRunsScanned": 1,
+  "failedRunsScanned": 1,
+  "jobsScanned": 1,
+  "logJobsScanned": 1,
+  "errorOccurrences": 2,
+  "uniqueRecords": 2,
+  "shards": [],
+  "updatedAt": "2026-09-20T11:55:58.144Z",
+  "nextCursor": "2026-08-10T00:00:00Z",
+  "observedFirstRecordAt": "2026-08-13T13:20:05Z",
+  "observedLastRecordAt": "2026-09-20T11:48:34Z"
+}

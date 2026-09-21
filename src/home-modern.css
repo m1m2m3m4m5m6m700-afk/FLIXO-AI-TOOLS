@@ -120,3 +120,264 @@ html[dir="rtl"] .home-final-cta {
   border-color: rgba(103,232,249,.62) !important;
   box-shadow: 0 10px 28px rgba(0,0,0,.34), 0 0 22px rgba(103,232,249,.22) !important;
 }
+
+
+/* 2026-09-20 — compact typography pass for a tighter product surface. */
+.home-nav-inner{min-height:54px !important}
+.home-nav-links a,.home-nav-language{min-height:34px !important;font-size:.76rem !important}
+.home-brand{width:38px !important;height:38px !important;border-radius:10px !important}
+.home-content{padding-bottom:54px !important}
+.home-hero{padding:54px 0 24px !important;max-width:760px !important}
+.home-hero > div:first-child{gap:9px !important}
+.home-badge{min-height:26px !important;padding:4px 8px !important;font-size:.62rem !important}
+.home-hero h1{
+  max-width:720px !important;
+  font-size:clamp(2.1rem,5.4vw,4.3rem) !important;
+  line-height:.98 !important;
+  letter-spacing:-.05em !important;
+}
+.home-lead{max-width:590px !important;font-size:.82rem !important;line-height:1.55 !important}
+.home-hero-command{min-height:38px !important;padding:0 10px !important;gap:8px !important;font-size:.72rem !important}
+.home-hero-command kbd{font-size:.62rem !important}
+.home-search-panel{padding:6px !important;border-radius:13px !important}
+.home-search-wrap{min-height:46px !important}
+.home-search-wrap input{font-size:.82rem !important}
+.home-search-icon{font-size:1rem !important}
+.quick-tags{margin-top:5px !important}
+.quick-tags button,.category-pills button{min-height:31px !important;padding:0 9px !important;font-size:.68rem !important}
+.home-trust-grid{margin:12px 0 18px !important}
+.home-trust-grid div{min-height:66px !important;padding:11px !important}
+.home-trust-grid strong{font-size:.72rem !important}
+.home-trust-grid span{font-size:.66rem !important}
+.home-quick-drop{gap:12px !important;padding:14px !important;border-radius:14px !important}
+.home-quick-drop h2,.home-tools-section h2,.home-final-cta h2{
+  font-size:clamp(1.05rem,2.2vw,1.45rem) !important;
+  margin:4px 0 6px !important;
+}
+.home-quick-drop p,.home-final-cta p{font-size:.72rem !important}
+.home-drop-zone{min-height:118px !important;border-radius:11px !important;font-size:.72rem !important}
+.home-tools-section{margin-top:24px !important}
+.section-heading{gap:8px !important}
+.home-tool-card{min-height:132px !important;padding:12px !important;border-radius:12px !important}
+.tool-card-category{font-size:.58rem !important}
+.home-tool-card h3{margin:10px 0 5px !important;font-size:.78rem !important}
+.home-tool-card p{font-size:.68rem !important;line-height:1.42 !important}
+.tool-card-meta{padding-top:8px !important;font-size:.58rem !important}
+.tool-count{font-size:.64rem !important}
+.home-final-cta{margin-top:24px !important;padding:14px !important;border-radius:14px !important}
+
+@media (max-width:520px){
+  .home-hero{padding-top:42px !important}
+  .home-hero h1{font-size:clamp(1.9rem,12vw,3rem) !important}
+}
+
+
+/* 2026-09-20 — dedicated phone layout
+   Same FLIXO language, rebuilt for narrow touch screens. */
+@media (max-width: 640px){
+  .home-shell{
+    min-height:100dvh !important;
+    overflow-x:hidden !important;
+    -webkit-text-size-adjust:100%;
+  }
+  .home-shell::before{
+    background:radial-gradient(circle at 50% -8%,rgba(103,232,249,.07),transparent 30%) !important;
+  }
+  .home-nav{
+    position:sticky !important;
+    top:0 !important;
+    backdrop-filter:blur(14px) !important;
+  }
+  .home-nav-inner{
+    width:calc(100% - 20px) !important;
+    min-height:48px !important;
+    padding:5px 0 !important;
+  }
+  .home-brand{
+    width:32px !important;
+    height:32px !important;
+    padding:2px !important;
+    border-radius:9px !important;
+  }
+  .home-nav-links{display:none !important}
+  .home-nav-language{
+    min-height:32px !important;
+    padding:0 8px !important;
+    border-radius:9px !important;
+    font-size:.68rem !important;
+  }
+  .home-content{
+    width:calc(100% - 20px) !important;
+    padding:0 0 calc(36px + env(safe-area-inset-bottom)) !important;
+  }
+  .home-hero{
+    max-width:none !important;
+    padding:34px 0 18px !important;
+  }
+  .home-hero > div:first-child{gap:7px !important}
+  .home-badge{
+    min-height:23px !important;
+    padding:3px 7px !important;
+    font-size:.55rem !important;
+    border-radius:7px !important;
+  }
+  .home-hero h1{
+    max-width:none !important;
+    font-size:clamp(2rem,11.8vw,3.25rem) !important;
+    line-height:1.01 !important;
+    letter-spacing:-.045em !important;
+    text-wrap:balance;
+  }
+  .home-lead{
+    max-width:none !important;
+    font-size:.72rem !important;
+    line-height:1.55 !important;
+  }
+  .home-hero-command{
+    width:100% !important;
+    justify-content:space-between !important;
+    min-height:40px !important;
+    margin-top:5px !important;
+    padding:0 10px !important;
+    border-radius:10px !important;
+    font-size:.7rem !important;
+  }
+  .home-search-panel{
+    position:sticky !important;
+    top:49px !important;
+    z-index:25 !important;
+    padding:5px !important;
+    border-radius:12px !important;
+  }
+  .home-search-wrap{
+    min-height:42px !important;
+    border-radius:9px !important;
+  }
+  .home-search-wrap input{
+    min-width:0 !important;
+    font-size:.76rem !important;
+  }
+  .quick-tags{
+    display:flex !important;
+    gap:5px !important;
+    overflow-x:auto !important;
+    scrollbar-width:none;
+    padding-bottom:1px !important;
+  }
+  .quick-tags::-webkit-scrollbar{display:none}
+  .quick-tags button{
+    flex:0 0 auto !important;
+    min-height:28px !important;
+    font-size:.61rem !important;
+    white-space:nowrap;
+  }
+  .home-trust-grid{
+    grid-template-columns:1fr !important;
+    gap:6px !important;
+    margin:10px 0 14px !important;
+  }
+  .home-trust-grid div{
+    min-height:auto !important;
+    padding:9px 10px !important;
+    border-radius:10px !important;
+  }
+  .home-trust-grid strong{font-size:.68rem !important}
+  .home-trust-grid span{font-size:.61rem !important;line-height:1.4}
+  .home-quick-drop{
+    grid-template-columns:1fr !important;
+    gap:9px !important;
+    padding:11px !important;
+    border-radius:12px !important;
+  }
+  .home-quick-drop h2,.home-tools-section h2,.home-final-cta h2{
+    font-size:1rem !important;
+    line-height:1.25 !important;
+  }
+  .home-quick-drop p,.home-final-cta p{
+    font-size:.65rem !important;
+    line-height:1.45 !important;
+  }
+  .home-drop-zone{
+    min-height:104px !important;
+    border-radius:10px !important;
+    padding:10px !important;
+  }
+  .home-tools-section{margin-top:20px !important}
+  .section-heading{
+    align-items:flex-end !important;
+    gap:6px !important;
+  }
+  .category-pills{
+    display:flex !important;
+    overflow-x:auto !important;
+    gap:5px !important;
+    scrollbar-width:none;
+    margin:9px 0 !important;
+  }
+  .category-pills::-webkit-scrollbar{display:none}
+  .category-pills button{
+    flex:0 0 auto !important;
+    min-height:29px !important;
+    font-size:.62rem !important;
+  }
+  .home-tools-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    gap:7px !important;
+  }
+  .home-tool-card{
+    min-height:118px !important;
+    padding:10px !important;
+    border-radius:10px !important;
+  }
+  .home-tool-card h3{
+    margin:8px 0 4px !important;
+    font-size:.72rem !important;
+    line-height:1.25 !important;
+  }
+  .home-tool-card p{
+    display:-webkit-box !important;
+    -webkit-line-clamp:2 !important;
+    -webkit-box-orient:vertical !important;
+    overflow:hidden !important;
+    font-size:.59rem !important;
+    line-height:1.4 !important;
+  }
+  .tool-card-meta{font-size:.54rem !important}
+  .home-final-cta{
+    gap:10px !important;
+    margin-top:18px !important;
+    padding:11px !important;
+    border-radius:12px !important;
+  }
+}
+
+/* Narrow phones: tighten one more step without changing the component hierarchy. */
+@media (max-width:390px){
+  .home-content{width:calc(100% - 16px) !important}
+  .home-hero{padding-top:28px !important}
+  .home-hero h1{font-size:clamp(1.8rem,11.2vw,2.6rem) !important}
+  .home-lead{font-size:.67rem !important}
+  .home-search-panel{top:47px !important}
+  .home-tool-card{min-height:110px !important;padding:9px !important}
+  .home-tool-card h3{font-size:.68rem !important}
+}
+
+
+/* 2026-09-20 — header logo visibility after removing global overlay. */
+.home-brand{
+  position:relative !important;
+  z-index:2 !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  flex:0 0 auto !important;
+}
+.home-brand img{
+  visibility:visible !important;
+  opacity:1 !important;
+}
+@media (max-width:640px){
+  .home-brand{
+    width:32px !important;
+    height:32px !important;
+  }
+}

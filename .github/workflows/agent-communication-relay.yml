@@ -14,6 +14,7 @@ permissions:
   contents: read
   issues: write
   actions: write
+  id-token: write
 
 concurrency:
   group: flixo-agent-communication-${{ github.run_id }}
@@ -28,9 +29,23 @@ jobs:
       - name: Checkout canonical communication implementation
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: main
-          fetch-depth: 0
+          ref: execution
+          fetch-depth: 1
           persist-credentials: false
+
+      - name: Bind relay to current exact execution SHA
+        id: relay_head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin "refs/heads/execution:$SHA"
+          git checkout --detach "$SHA"
+          test "$(git rev-parse HEAD)" = "$SHA"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
       - name: Extract President Wake when present
         id: president_wake
@@ -63,9 +78,11 @@ jobs:
         if: steps.president_wake.outputs.wake == 'true'
         env:
           CURRENT_SHA: ${{ steps.president_head.outputs.sha }}
+          RELAY_SHA: ${{ steps.relay_head.outputs.sha }}
         shell: bash
         run: |
           set -euo pipefail
+          test "$RELAY_SHA" = "$CURRENT_SHA"
           node scripts/ci/council-wake-dispatch.mjs             --comment-file=/tmp/council-wake-comment.md             --current-execution-sha="$CURRENT_SHA"             --repository="$GITHUB_REPOSITORY" > /tmp/council-wake-plan.json
           jq -r '"mode=" + .mode + "\nrole=" + .role + "\nworkflow=" + (.workflow // "") + "\nworkPackage=" + .workPackageId + "\nentrySha=" + .entrySha' /tmp/council-wake-plan.json >> "$GITHUB_OUTPUT"
 
@@ -95,6 +112,13 @@ jobs:
         run: |
           set -euo pipefail
           case "$WORKFLOW" in
+            council-priority-wake.yml)
+              gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref execution \
+                -f "entry_sha=$ENTRY_SHA" \
+                -f "request_id=president-${{ github.event.comment.id }}" \
+                -f "source_comment_id=${{ github.event.comment.id }}" \
+                -f "question=$COMMENT_BODY"
+              ;;
             ultra-investigator.yml)
               gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref execution -f "expected_sha=$ENTRY_SHA"
               ;;
@@ -122,6 +146,43 @@ jobs:
           BODY="$(printf '%s\n' "### PRESIDENT WAKE RECEIPT" "" "**Role:** $ROLE" "**Mode:** $MODE" "**Work Package:** $WORKPACKAGE" "**Exact SHA:** $ENTRY_SHA" "" "Wake accepted through the canonical communication relay. Workflow dispatch remains subject to exact-SHA and role controls." "" "<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->")"
           gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
 
+      - name: Detect P0 Council question / request
+        id: council_question
+        if: >-
+          github.event_name == 'issue_comment' &&
+          github.event.issue.number == 759 &&
+          (contains(github.event.comment.body || '', '### COUNCIL QUESTION') ||
+           contains(github.event.comment.body || '', '<!-- FLIXO_COUNCIL_PRIORITY -->'))
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ${#COMMENT_BODY} -le 30000
+          echo 'priority=p0' >> "$GITHUB_OUTPUT"
+          {
+            echo 'question<<EOF'
+            printf '%s\n' "$COMMENT_BODY"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch P0 Council question immediately
+        if: steps.council_question.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          QUESTION: ${{ steps.council_question.outputs.question }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
+          gh workflow run council-priority-wake.yml --repo "$GITHUB_REPOSITORY" --ref execution \
+            -f "entry_sha=$SHA" \
+            -f "request_id=council-question-${COMMENT_ID}" \
+            -f "source_comment_id=$COMMENT_ID" \
+            -f "question=$QUESTION"
+
       - name: Extract and validate incoming message
         id: message
         env:
@@ -136,7 +197,15 @@ jobs:
           import fs from 'node:fs';
           const body = process.env.COMMENT_BODY || '';
           const manual = process.env.MANUAL_MESSAGE_JSON || '';
-          const match = body.match(/<!-- FLIXO_AGENT_MESSAGE -->[\\s\\S]*?\`\`\`json\\s*([\\s\\S]*?)\\s*\`\`\`/u);
+          const marker = '<!-- FLIXO_AGENT_MESSAGE -->';
+          const fence = '\`\`\`json';
+          const start = body.indexOf(marker);
+          const fenceStart = start >= 0 ? body.indexOf(fence, start) : -1;
+          const payloadStart = fenceStart >= 0 ? fenceStart + fence.length : -1;
+          const fenceEnd = payloadStart >= 0 ? body.indexOf('\`\`\`', payloadStart) : -1;
+          const match = payloadStart >= 0 && fenceEnd >= 0
+            ? body.slice(payloadStart, fenceEnd).trim()
+            : null;
           if (!match && process.env.EVENT_NAME === 'workflow_dispatch') {
             if (!manual) throw new Error('MANUAL_MESSAGE_PAYLOAD_REQUIRED');
             const message = JSON.parse(manual);
@@ -150,7 +219,7 @@ jobs:
             fs.writeFileSync('/tmp/flixo-agent-message-skip', 'NO_CANONICAL_AGENT_MESSAGE\\n');
             process.exit(0);
           }
-          const message = JSON.parse(match[1]);
+          const message = JSON.parse(match);
           fs.writeFileSync('message.json', JSON.stringify(message, null, 2) + '\\n');
           if (!message.messageId) throw new Error('AGENT_MESSAGE_ID_MISSING');
           process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
@@ -207,6 +276,88 @@ jobs:
           node scripts/ci/agent-communication.mjs ingest --message-file=message.json | tee /tmp/flixo-agent-message-receipt.json
           jq -r '"MESSAGE_STATUS=" + .status + "\\nMESSAGE_ID=" + .messageId + "\\nMESSAGE_ENTRY_SHA=" + .entrySha + "\\nMESSAGE_IDEMPOTENCY_KEY=" + .idempotencyKey' /tmp/flixo-agent-message-receipt.json >> "$GITHUB_OUTPUT"
 
+      - name: Build canonical invocation envelope
+        id: invocation
+        if: steps.ingest.outcome == 'success' && hashFiles('message.json') != ''
+        env:
+          ENTRY_SHA: ${{ steps.ingest.outputs.MESSAGE_ENTRY_SHA }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/ci/invocation-contract.mjs build --message-file=message.json --current-sha="$ENTRY_SHA" --output=/tmp/flixo-invocation.json | tee /tmp/flixo-invocation-console.json
+          jq -r '"INVOCATION_ID=" + .invocationId + "\nINVOCATION_STATE=" + .state + "\nINVOCATION_FAILURE_FINGERPRINT=" + .failureFingerprint + "\nINVOCATION_ATTEMPT=" + (.attempt|tostring) + "\nINVOCATION_LEASE_EPOCH=" + (.leaseEpoch|tostring)' /tmp/flixo-invocation.json >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch administrative message to canonical Council runtime
+        id: runtime_dispatch
+        if: steps.ingest.outcome == 'success' && hashFiles('message.json') != '' && contains(github.event.comment.body || '', '"administrativeInstruction"')
+        env:
+          ENTRY_SHA: ${{ steps.ingest.outputs.MESSAGE_ENTRY_SHA }}
+          MESSAGE_ID: ${{ steps.ingest.outputs.MESSAGE_ID }}
+          MESSAGE_KEY: ${{ steps.ingest.outputs.MESSAGE_IDEMPOTENCY_KEY }}
+          TASK_ID: ${{ steps.ingest.outputs.MESSAGE_ID }}
+          INVOCATION_ID: ${{ steps.invocation.outputs.INVOCATION_ID }}
+          FAILURE_FINGERPRINT: ${{ steps.invocation.outputs.INVOCATION_FAILURE_FINGERPRINT }}
+          ATTEMPT: ${{ steps.invocation.outputs.INVOCATION_ATTEMPT }}
+          LEASE_EPOCH: ${{ steps.invocation.outputs.INVOCATION_LEASE_EPOCH }}
+          RUNTIME_URL: https://zrpsmgdrtwzrhkjwwujo.supabase.co/functions/v1/flixo-council-runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          RECIPIENT_MASTER="$(jq -r '.payload.recipientMaster // empty' message.json)"
+          TOP_RECIPIENT="$(jq -r '.recipient // empty' message.json)"
+          IS_PEER="$(jq -r '(.payload.masterPeerMessage // .payload.peerMessage // false)' message.json)"
+          SENDER_MASTER="$(jq -r '.payload.senderMaster // empty' message.json)"
+
+          if [ -z "$RECIPIENT_MASTER" ] && [ "$TOP_RECIPIENT" != "MASTERS" ] && [ "$IS_PEER" != "true" ]; then
+            echo 'RUNTIME_DISPATCH=NOT_APPLICABLE_FOR_NON_MASTER_AGENT_BROADCAST'
+            exit 0
+          fi
+
+          OIDC_RESPONSE="$(curl -fsSL -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$RUNTIME_URL")"
+          OIDC_TOKEN="$(printf '%s' "$OIDC_RESPONSE" | jq -r '.value')"
+          test -n "$OIDC_TOKEN" && test "$OIDC_TOKEN" != "null"
+          if [ "$IS_PEER" = "true" ]; then
+            test -n "$SENDER_MASTER"
+            case "$SENDER_MASTER" in MASTER-1|MASTER-2|MASTER-3) ;; *) echo "FAIL CLOSED: unknown senderMaster=$SENDER_MASTER"; exit 1 ;; esac
+          fi
+
+          if [ "$RECIPIENT_MASTER" = "MASTERS" ] || [ "$TOP_RECIPIENT" = "MASTERS" ]; then
+            mapfile -t DELIVERY_MASTERS < <(jq -r --arg sender "$SENDER_MASTER" 'if ((.payload.requiredRecipients // []) | length) > 0 then .payload.requiredRecipients[]? | select(. != $sender) else "MASTER-1","MASTER-2","MASTER-3" end' message.json)
+          else
+            DELIVERY_MASTERS=("$RECIPIENT_MASTER")
+          fi
+          test "${#DELIVERY_MASTERS[@]}" -gt 0
+
+          : > /tmp/council-runtime-dispatch-ids.txt
+          : > /tmp/council-runtime-dispatches.jsonl
+
+          for DELIVERY_MASTER in "${DELIVERY_MASTERS[@]}"; do
+            case "$DELIVERY_MASTER" in
+              MASTER-1) PRIMARY_ACCOUNT=CHIEF; FALLBACK_ACCOUNT=CHIEF ;;
+              MASTER-2) PRIMARY_ACCOUNT=WORKER_A; FALLBACK_ACCOUNT=WORKER_B ;;
+              MASTER-3) PRIMARY_ACCOUNT=WORKER_B; FALLBACK_ACCOUNT=WORKER_A ;;
+              *) echo "FAIL CLOSED: unknown delivery master=$DELIVERY_MASTER"; exit 1 ;;
+            esac
+
+            DELIVERY_ID="${MESSAGE_ID}:${DELIVERY_MASTER}"
+            DELIVERY_KEY="${MESSAGE_KEY}:${DELIVERY_MASTER}"
+            DELIVERY_TASK_ID="${TASK_ID}:${DELIVERY_MASTER}"
+            WORK_PACKAGE="ADMIN-COMMUNICATION-${MESSAGE_ID}-${DELIVERY_MASTER}"
+
+            jq -n               --arg messageId "$DELIVERY_ID"               --arg idempotencyKey "$DELIVERY_KEY"               --arg taskId "$DELIVERY_TASK_ID"               --arg workPackageId "$WORK_PACKAGE"               --arg entrySha "$ENTRY_SHA"               --arg invocationId "$INVOCATION_ID"               --arg failureFingerprint "$FAILURE_FINGERPRINT"               --arg attempt "$ATTEMPT"               --arg leaseEpoch "$LEASE_EPOCH"               --arg primary "$PRIMARY_ACCOUNT"               --arg fallback "$FALLBACK_ACCOUNT"               --arg deliveryMaster "$DELIVERY_MASTER"               --arg canonicalRecipientMaster "$RECIPIENT_MASTER"               --slurpfile message message.json               '{messageId:$messageId,idempotencyKey:$idempotencyKey,taskId:$taskId,workPackageId:$workPackageId,entrySha:$entrySha,requestedByAccountId:"SYSTEM",primaryAccountId:$primary,fallbackAccountId:$fallback,source:"agent-communication-relay",payload:{administrativeInstruction:true,administrativeBroadcast:(($message[0].payload.masterPeerMessage // $message[0].payload.peerMessage // false)|not),canonicalMessageId:($message[0].messageId // $messageId),canonicalRecipientMaster:$canonicalRecipientMaster,exactSha:$entrySha,actor:($message[0].actor // null),recipient:($message[0].recipient // null),intent:($message[0].intent // null),priority:($message[0].priority // null),councilOperation:($message[0].councilOperation // false),masterPeerMessage:($message[0].payload.peerMessage // false),automaticDelivery:($message[0].payload.automaticDelivery // false),conversationId:($message[0].payload.conversationId // null),replyToMessageId:($message[0].payload.replyToMessageId // null),senderMaster:($message[0].payload.senderMaster // null),recipientMaster:$deliveryMaster,messageText:($message[0].payload.messageText // null),invocation:{invocationId:$invocationId,failureFingerprint:$failureFingerprint,attempt:($attempt|tonumber),leaseEpoch:($leaseEpoch|tonumber),targetSha:$entrySha,state:"DISPATCHED"}}' > /tmp/council-runtime-dispatch.json
+
+            curl -fsSL               -H "Authorization: Bearer $OIDC_TOKEN"               -H "Content-Type: application/json"               -X POST "$RUNTIME_URL?action=dispatch"               --data-binary @/tmp/council-runtime-dispatch.json               | tee /tmp/council-runtime-dispatch-response.json
+
+            jq -e '.ok == true and .entrySha == $sha' --arg sha "$ENTRY_SHA" /tmp/council-runtime-dispatch-response.json >/dev/null
+            jq -r '.dispatchId' /tmp/council-runtime-dispatch-response.json >> /tmp/council-runtime-dispatch-ids.txt
+            jq -c '{dispatchId,status,entrySha,primaryAccountId,fallbackAccountId,push}' /tmp/council-runtime-dispatch-response.json >> /tmp/council-runtime-dispatches.jsonl
+          done
+
+          test -s /tmp/council-runtime-dispatch-ids.txt
+          RUNTIME_DISPATCH_IDS="$(jq -R -s -c 'split("\n") | map(select(length > 0))' /tmp/council-runtime-dispatch-ids.txt)"
+          echo "RUNTIME_DISPATCH_IDS=$RUNTIME_DISPATCH_IDS" >> "$GITHUB_OUTPUT"
+          cat /tmp/council-runtime-dispatches.jsonl >> /tmp/council-runtime-dispatch-response.json
+
       - name: Publish immediate receipt to master inbox
         if: steps.ingest.outcome == 'success'
         env:
@@ -215,9 +366,10 @@ jobs:
           MESSAGE_STATUS: ${{ steps.ingest.outputs.MESSAGE_STATUS }}
           MESSAGE_SHA: ${{ steps.ingest.outputs.MESSAGE_ENTRY_SHA }}
           MESSAGE_KEY: ${{ steps.ingest.outputs.MESSAGE_IDEMPOTENCY_KEY }}
+          INVOCATION_ID: ${{ steps.invocation.outputs.INVOCATION_ID }}
         run: |
           set -euo pipefail
-          BODY="$(printf '%s\n' "### AGENT MESSAGE RECEIVED" "" "**Message:** $MESSAGE_ID" "**Status:** $MESSAGE_STATUS" "**Entry SHA:** $MESSAGE_SHA" "**Idempotency Key:** $MESSAGE_KEY" "**Receipt:** IMMEDIATE_EVENT_RECEIPT" "**Target ref:** ${{ steps.target.outputs.target_ref }}" "" "The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute." "" "<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->")"
+          BODY="$(printf '%s\n' "### AGENT MESSAGE RECEIVED" "" "**Message:** $MESSAGE_ID" "**Status:** $MESSAGE_STATUS" "**Entry SHA:** $MESSAGE_SHA" "**Idempotency Key:** $MESSAGE_KEY" "**Invocation:** $INVOCATION_ID" "" "**Receipt:** IMMEDIATE_EVENT_RECEIPT" "**Target ref:** ${{ steps.target.outputs.target_ref }}" "" "The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute." "" "<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->")"
           gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
 
       - name: Wake repair supervision for repair-class messages

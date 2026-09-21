@@ -1,9 +1,6 @@
 name: FLIXO Continuous Delivery
 
 on:
-  workflow_run:
-    workflows: ["FLIXO Test System"]
-    types: [completed]
   workflow_dispatch:
     inputs:
       sha:
@@ -12,7 +9,7 @@ on:
         type: string
 
 concurrency:
-  group: flixo-cd-${{ github.event.workflow_run.head_sha || inputs.sha || github.run_id }}
+  group: flixo-cd-${{ inputs.sha || github.run_id }}
   cancel-in-progress: false
 
 permissions:
@@ -26,11 +23,7 @@ env:
 jobs:
   promote:
     name: Promote exact certified SHA
-    if: >-
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main' &&
-       github.event.workflow_run.event == 'push')
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
@@ -41,11 +34,10 @@ jobs:
         id: sha
         shell: bash
         env:
-          EVENT_SHA: ${{ github.event.workflow_run.head_sha }}
           MANUAL_SHA: ${{ inputs.sha }}
         run: |
           set -euo pipefail
-          sha="${MANUAL_SHA:-$EVENT_SHA}"
+          sha="$MANUAL_SHA"
           test -n "$sha"
           printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
 
@@ -89,15 +81,9 @@ jobs:
             '{status:$status,sha:$sha,currentMain:$currentMain,checkedOut:$checkedOut,reason:$reason,origin:$origin,stage:"CURRENT_MAIN_GUARD"}' \
             > production-deployment-evidence.json
 
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            echo "Manual promotion rejected: $reason"
-            printf 'skip_deploy=false\n' >> "$GITHUB_OUTPUT"
-            exit 1
-          fi
-
-          echo "Automatic promotion skipped safely: $reason"
-          printf 'skip_deploy=true\n' >> "$GITHUB_OUTPUT"
-          exit 0
+          echo "Manual promotion rejected: $reason"
+          printf 'skip_deploy=false\n' >> "$GITHUB_OUTPUT"
+          exit 1
 
       - name: Resolve certified CI run by exact SHA
         id: ci
@@ -106,11 +92,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
           EVENT_NAME: ${{ github.event_name }}
-          EVENT_RUN_ID: ${{ github.event.workflow_run.id }}
-          EVENT_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
-          EVENT_RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          EVENT_RUN_EVENT: ${{ github.event.workflow_run.event }}
-          EVENT_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         shell: bash
         run: |
           set -u
@@ -118,23 +99,7 @@ jobs:
           run_id=''
           resolution=''
 
-          if [ "$EVENT_NAME" = "workflow_run" ]; then
-            if [ "$EVENT_RUN_SHA" != "$PROMOTION_SHA" ]; then
-              resolution=TRIGGER_SHA_MISMATCH
-            elif [ "$EVENT_RUN_BRANCH" != "main" ]; then
-              resolution=TRIGGER_BRANCH_NOT_MAIN
-            elif [ "$EVENT_RUN_EVENT" != "push" ]; then
-              resolution=TRIGGER_EVENT_NOT_PUSH
-            elif [ "$EVENT_RUN_CONCLUSION" != "success" ]; then
-              resolution=TRIGGER_CI_NOT_SUCCESS
-            elif [ -z "$EVENT_RUN_ID" ]; then
-              resolution=TRIGGER_RUN_ID_MISSING
-            else
-              run_id="$EVENT_RUN_ID"
-              resolution=TRIGGER_WORKFLOW_RUN
-            fi
-          else
-            runs="$(gh api \
+          runs="$(gh api \
               -H 'Accept: application/vnd.github+json' \
               "/repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${PROMOTION_SHA}&event=push&per_page=20")" || runs='{}'
             run_id="$(jq -r '[.workflow_runs[] | select(.head_sha == env.PROMOTION_SHA and .head_branch == "main" and .event == "push" and .conclusion == "success")] | sort_by(.id) | last.id // empty' <<<"$runs")"

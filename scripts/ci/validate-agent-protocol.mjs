@@ -39,6 +39,7 @@ const requiredAgentsMarkers = [
   'mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure',
   'docs/PROTOCOL-REGISTRY.json',
   '`PROJECTS.md` → `المهام.md` → `AGENTS.md`',
+  'cycleLessons', 'Mandatory cycle lesson list',
   'TASK GATE', 'Task Agent = preparation only',
 ];
 if (exists('AGENTS.md')) {
@@ -50,7 +51,7 @@ if (exists('AGENTS.md')) {
 const taskGatewayMarkers = [
   '# FLIXO-AI-TOOLS — سجل التنفيذ الموحد',
   'TASK-LEDGER v3.0 — GREEN-FIRST / EXECUTABLE',
-  '## 0) MASTER EXECUTION PROMPT',
+  '## 0) CANONICAL UNIFIED EXECUTION PROMPT',
   '## 1) P0 — GREEN-RECOVERY-001',
   'STATUS = IN_PROGRESS / BLOCKING',
   'FINGERPRINT → RCA → REPRODUCE → REPAIR → TARGETED REGRESSION → FULL CI',
@@ -76,7 +77,7 @@ const requiredProtocolMarkers = [
   'causal defect', 'trigger → propagation path → violated invariant → responsible source → observable symptom',
   'targeted regression', 'affected dependency/contract graph', 'Communication-first execution invariant',
   'mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure',
-  'symptom-only workaround', 'new deterministic failure',
+  'symptom-only workaround', 'new deterministic failure', 'cycleLessons', 'Verified fixes become lessons/playbooks',
 ];
 if (exists('docs/AGENT-COLLABORATION-PROTOCOL.md')) {
   const text = read('docs/AGENT-COLLABORATION-PROTOCOL.md');
@@ -95,6 +96,7 @@ for (const marker of ["'repairAgent'", "'executionAgent'", "'assistantRepairAgen
 
 const repairProtocol = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';
 const repairEngine = exists('scripts/ci/auto-repair-engine.mjs') ? read('scripts/ci/auto-repair-engine.mjs') : '';
+const errorOnlyProgrammer = exists('scripts/ci/auto-repair/error-only-programmer.mjs') ? read('scripts/ci/auto-repair/error-only-programmer.mjs') : '';
 const proofContract = exists('scripts/ci/auto-repair-proof.mjs') ? read('scripts/ci/auto-repair-proof.mjs') : '';
 const repairMarkers = [
   'schemaVersion: 6',
@@ -109,7 +111,6 @@ const repairMarkers = [
   'firstPass',
   'secondPass',
   'evidence.repairProof = proof',
-  'root-cause-proof-reproductionRecovered',
   'diagnosis-proof+root-cause-proof+recurrence-proof+typecheck+static+build',
   'evidence.preventionRule',
   'evidence.escalation',
@@ -123,6 +124,8 @@ for (const requiredImport of [
   ['scripts/ci/auto-repair-engine.mjs', "from './repair-protocol.mjs'"],
 ]) { const source = exists(requiredImport[0]) ? read(requiredImport[0]) : ''; if (!source.includes(requiredImport[1])) fail('REPAIR_PROTOCOL_NOT_CONSUMED', requiredImport[0]); }
 for (const marker of repairMarkers) if (repairEngine && !repairEngine.includes(marker)) fail('REPAIR_PROTOCOL_MISSING', marker);
+for (const marker of ["./auto-repair/error-only-programmer.mjs", 'buildErrorOnlyRepairModel', 'error-only-programmer-blocked']) if (repairEngine && !repairEngine.includes(marker)) fail('ERROR_ONLY_PROGRAMMER_NOT_WIRED', marker);
+for (const marker of ['ERROR_ONLY_PROGRAMMER_MODEL', 'SOURCE_ERROR_REPAIR_ONLY', 'NEVER_MUTATE_TESTS', 'NEVER_MUTATE_CONTROL_PLANE', 'EXACT_SHA_REQUIRED']) if (errorOnlyProgrammer && !errorOnlyProgrammer.includes(marker)) fail('ERROR_ONLY_PROGRAMMER_CONTRACT_MISSING', marker);
 for (const marker of ['validateRepairProof', 'preventionRuleFor', 'escalationReason', 'target-sha-missing', 'recurrence-proof-second-pass']) if (proofContract && !proofContract.includes(marker)) fail('REPAIR_PROOF_CONTRACT_MISSING', marker);
 if (repairEngine && !repairEngine.includes('if (!verified)')) fail('REPAIR_PROTOCOL_MISSING', 'fail-closed-verification');
 if (repairEngine && !repairEngine.includes('validateErrorOnlyMutation')) fail('REPAIR_PROTOCOL_MISSING', 'error-only-mutation-binding');
@@ -154,16 +157,16 @@ if (registry) {
   if (!Array.isArray(registry.precedence) || registry.precedence.length < 2) fail('PROTOCOL_REGISTRY_PRECEDENCE_INVALID');
   if (!Array.isArray(registry.protocols)) fail('PROTOCOL_REGISTRY_PROTOCOLS_INVALID');
   else {
-    if (registry.protocols.length !== 20) fail('PROTOCOL_REGISTRY_COUNT', String(registry.protocols.length));
+    if (registry.protocols.length !== 21) fail('PROTOCOL_REGISTRY_COUNT', String(registry.protocols.length));
     const ids = registry.protocols.map((p) => p?.id);
     const names = registry.protocols.map((p) => p?.name);
     if (new Set(ids).size !== ids.length) fail('PROTOCOL_REGISTRY_DUPLICATE_IDS');
     if (new Set(names).size !== names.length) fail('PROTOCOL_REGISTRY_DUPLICATE_NAMES');
     for (const protocol of registry.protocols) {
       for (const field of ['id', 'name', 'class', 'status', 'enforcement', 'invariant']) if (typeof protocol?.[field] !== 'string' || !protocol[field].trim()) fail('PROTOCOL_REGISTRY_FIELD_MISSING', `${protocol?.id ?? 'unknown'}.${field}`);
-      if (protocol?.status !== 'MANDATORY') fail('PROTOCOL_REGISTRY_NON_MANDATORY', protocol?.id ?? 'unknown');
+      if (protocol?.id === 'P00') { if (protocol?.status !== 'SUPREME_MANDATORY') fail('PROTOCOL_REGISTRY_NON_MANDATORY', protocol?.id ?? 'unknown'); } else if (protocol?.status !== 'MANDATORY') fail('PROTOCOL_REGISTRY_NON_MANDATORY', protocol?.id ?? 'unknown');
     }
-    const expectedIds = Array.from({ length: 20 }, (_, index) => `P${String(index + 1).padStart(2, '0')}`);
+    const expectedIds = ['P00', ...Array.from({ length: 20 }, (_, index) => `P${String(index + 1).padStart(2, '0')}`)];
     if (JSON.stringify(ids) !== JSON.stringify(expectedIds)) fail('PROTOCOL_REGISTRY_IDS_INVALID');
   }
 }

@@ -12,7 +12,7 @@ The report is created automatically by `scripts/ci/agent-session.mjs logout` and
 
 The report MUST contain:
 
-`schemaVersion, reportId, sessionId, agentId, role, entrySha, exitSha, startedAt, finishedAt, status, scope, currentRca, rcaClosed, openRcas, changedFiles, commands, evidence, findings, completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent, sourceSession`.
+`schemaVersion, reportId, sessionId, agentId, role, entrySha, exitSha, startedAt, finishedAt, status, scope, currentRca, rcaClosed, openRcas, changedFiles, commands, evidence, findings, cycleLessons, completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent, sourceSession`.
 
 ## Continuation rule
 
@@ -49,3 +49,6 @@ No field may be used to convert an unverified action into PASS. Handoff reports 
 A handoff does NOT transfer ownership silently. The receiving agent must compare the inherited `exitSha` against the current exact `main` SHA and compare mutable scope/RCA ownership before continuing.
 
 If `main` moved or another active session owns the same mutable scope, the receiving agent MUST freeze the overlap and resolve ownership before editing.
+
+## Cycle lessons
+Every completed repair/verification session MUST carry `cycleLessons`: an ordered list containing the causal RCA lesson, strategy lesson or anti-lesson, verification state, affected-scope lesson when applicable, recurrence/prevention rule, and external-blocker anti-lesson when applicable. The list is learning/continuity evidence only and never grants mutation or certification authority.

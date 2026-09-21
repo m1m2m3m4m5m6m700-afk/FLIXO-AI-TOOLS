@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/universal-runtime-evidence';
 
 test.describe('Filter Mask live camera surface', () => {
   test('exposes the canonical live-filter catalog and selection controls', async ({ page }) => {
@@ -172,6 +172,16 @@ test.describe('Filter Mask live camera surface', () => {
     await expect(recordButton).toBeEnabled();
     await recordButton.click();
     await expect(section.getByRole('button', { name: 'Stop recording' })).toBeVisible();
+    await expect(section.getByRole('button', { name: /Pause recording|Resume recording/ })).toBeVisible();
+    await expect(section.getByText(/Performance: (GPU|Canvas) · \\d+ FPS · \\d+ drops/)).toBeVisible();
+    await section.getByRole('button', { name: 'Pause recording' }).click();
+    await expect(section.getByRole('button', { name: 'Resume recording' })).toBeVisible();
+    await section.getByRole('button', { name: 'Resume recording' }).click();
+    await section.getByRole('button', { name: 'Cancel recording' }).click();
+    await expect(section.getByRole('button', { name: 'Record video' })).toBeVisible();
+    await expect(section.getByText('Download result')).toHaveCount(0);
+    await recordButton.click();
+    await expect(section.getByRole('button', { name: 'Stop recording' })).toBeVisible();
     await expect(section.getByRole('button', { name: 'Stop' })).toBeDisabled();
     await page.waitForTimeout(500);
     const cinematic = section.getByRole('button', { name: /Cinema effect\.cinema/ }).first();
@@ -181,11 +191,13 @@ test.describe('Filter Mask live camera surface', () => {
     await page.waitForTimeout(1200);
     await section.getByRole('button', { name: 'Stop recording' }).click();
     const videoLink = section.getByRole('link', { name: 'Download result' });
-    await expect(videoLink).toHaveAttribute('download', 'flixo-filter-mask.webm');
+    await expect.poll(async () => videoLink.getAttribute('download')).toMatch(/\.mp4$|\.webm$/);
     await expect(section.getByRole('button', { name: 'Share result' })).toBeVisible();
     await expect.poll(async () => videoLink.evaluate(async (element) => {
       const href = (element as HTMLAnchorElement).href;
-      return (await (await fetch(href)).blob()).size;
+      const blob = await (await fetch(href)).blob();
+      if (!blob.type.startsWith('video/')) return 0;
+      return blob.size;
     })).toBeGreaterThan(0);
 
     await section.getByRole('button', { name: 'Stop' }).click();
@@ -208,6 +220,17 @@ test.describe('Filter Mask live camera surface', () => {
     await expect(page).toHaveURL(/zoom=1\.6/);
     await expect(page).toHaveURL(/mirror=false/);
     await expect(page).toHaveURL(/captureQuality=720p/);
+  });
+
+  test('Arabic agent conversation uses the refined heading and Enter submits the single-line command', async ({ page }) => {
+    await page.goto('/ar');
+    const heading = page.getByRole('heading', { name: 'استخدم ذكاء FLIXO في العمل.' });
+    await expect(heading).toBeVisible();
+    const command = page.locator('#flixo-agent-command');
+    await expect(command).toHaveAttribute('type', 'text');
+    await command.fill('Warm live filter 65%');
+    await command.press('Enter');
+    await expect(page.getByTestId('filter-mask-handoff')).toBeVisible();
   });
 
   test('agent resolves a live-filter request into a canonical handoff', async ({ page }) => {
@@ -255,11 +278,12 @@ test.describe('Filter Mask live camera surface', () => {
     await page.goto('/en/filter-mask');
     const section = page.getByRole('region', { name: 'Filter Mask' });
 
-    await section.getByRole('button', { name: /Warm effect\\.warm/ }).first().click();
+    await section.getByRole('button', { name: /Warm effect\.warm/ }).first().click();
     await section.getByRole('slider').last().fill('65');
     await section.getByRole('slider', { name: 'Zoom' }).fill('1.4');
     await section.getByRole('button', { name: 'Mirror on' }).click();
     await section.getByRole('group', { name: 'Capture aspect ratio' }).getByRole('button', { name: '4:5' }).click();
+    await section.getByRole('group', { name: 'Capture quality' }).getByRole('button', { name: '720p standard' }).click();
     await section.getByRole('textbox', { name: 'Preset name' }).fill('Creator Warm');
     await section.getByRole('button', { name: 'Save preset' }).click();
 
@@ -271,13 +295,15 @@ test.describe('Filter Mask live camera surface', () => {
     await section.getByRole('slider', { name: 'Zoom' }).fill('1');
     await section.getByRole('button', { name: 'Mirror on' }).click();
     await section.getByRole('group', { name: 'Capture aspect ratio' }).getByRole('button', { name: '9:16' }).click();
+    await section.getByRole('group', { name: 'Capture quality' }).getByRole('button', { name: '1080p high' }).click();
 
     await preset.click();
-    await expect(section.getByRole('button', { name: /Warm effect\\.warm/ }).first()).toHaveAttribute('aria-pressed', 'true');
+    await expect(section.getByRole('button', { name: /Warm effect\.warm/ }).first()).toHaveAttribute('aria-pressed', 'true');
     await expect(section.getByRole('slider').last()).toHaveValue('65');
     await expect(section.getByRole('slider', { name: 'Zoom' })).toHaveValue('1.4');
     await expect(section.getByRole('button', { name: 'Mirror off' })).toHaveAttribute('aria-pressed', 'false');
     await expect(section.getByRole('group', { name: 'Capture aspect ratio' }).getByRole('button', { name: '4:5' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(section.getByRole('group', { name: 'Capture quality' }).getByRole('button', { name: '720p standard' })).toHaveAttribute('aria-pressed', 'true');
 
     await page.reload();
     const reloaded = page.getByRole('region', { name: 'Filter Mask' });

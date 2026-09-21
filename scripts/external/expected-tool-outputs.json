@@ -1,0 +1,48 @@
+{
+  "fixture": {
+    "name": "external-output-fixture.png",
+    "mimeType": "image/png",
+    "base64": "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAPUlEQVR42mP4z8DwHwwZ/oMBAwOYxQBD/xkaHBT+Kzg0/HdoUPh/IsXoP4OIhs1/Gw2R/ynTTvz/sCXgPwDaSiSJ4dCj1wAAAABJRU5ErkJggg=="
+  },
+  "cases": [
+    {
+      "id": "image-converter-webp-4x4",
+      "path": "/en/image-converter",
+      "inputSelector": "#image-tool-file",
+      "setup": [{"action": "select", "label": "Output format", "value": "image/webp"}],
+      "runLabel": "Run tool",
+      "expected": {"mimeType": "image/webp", "width": 4, "height": 4, "downloadExtension": ".webp", "signature": "52494646"}
+    },
+    {
+      "id": "image-upscaler-2x-8x8",
+      "path": "/en/image-upscaler",
+      "inputSelector": "input[type=\"file\"]",
+      "setup": [{"action": "fill", "label": "Scale", "value": "2"}],
+      "runLabel": "Run tool",
+      "expected": {"mimeType": "image/png", "width": 8, "height": 8, "downloadExtension": ".png", "signature": "89504e470d0a1a0a"}
+    },
+    {
+      "id": "image-cropper-explicit-8x8",
+      "path": "/en/image-cropper",
+      "inputSelector": "#image-tool-file",
+      "setup": [
+        {"action": "fill", "label": "X", "value": "0"},
+        {"action": "fill", "label": "Y", "value": "0"},
+        {"action": "fill", "label": "Crop width", "value": "4"},
+        {"action": "fill", "label": "Crop height", "value": "4"},
+        {"action": "fill", "label": "Output width", "value": "8"},
+        {"action": "fill", "label": "Output height", "value": "8"}
+      ],
+      "runLabel": "Run tool",
+      "expected": {"mimeType": "image/png", "width": 8, "height": 8, "downloadExtension": ".png", "signature": "89504e470d0a1a0a"}
+    },
+    {
+      "id": "image-compressor-webp-4x4",
+      "path": "/en/image-compressor",
+      "inputSelector": "#image-file",
+      "setup": [{"action": "select", "label": "Output format", "value": "image/webp"}],
+      "runLabel": "Compress image",
+      "expected": {"mimeType": "image/webp", "width": 4, "height": 4, "downloadExtension": ".webp", "signature": "52494646"}
+    }
+  ]
+}

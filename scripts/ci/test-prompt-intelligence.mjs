@@ -1,36 +1,60 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import { comparePrompts, detectPromptRelations, functionalKey, loadPromptRegistry, selectPromptCandidates, validatePromptRegistry } from './prompt-intelligence.mjs';
+import {
+  comparePrompts,
+  detectPromptRelations,
+  functionalKey,
+  loadPromptRegistry,
+  selectPromptCandidates,
+  validatePromptRegistry,
+} from './prompt-intelligence.mjs';
 import fs from 'node:fs';
 
 const registry = loadPromptRegistry();
 const taskAgent = fs.readFileSync('scripts/ci/task-agent.mjs', 'utf8');
+const unifiedPrompt = fs.readFileSync('docs/agents/PROMPT-UNIFIED-EXECUTION.md', 'utf8');
+const runtimeAdapter = fs.readFileSync('src/lib/agent/flixo-agent-master-prompt.ts', 'utf8');
 assert.match(taskAgent, /selectedPromptId/);
 assert.match(taskAgent, /exactSha/);
 assert.match(taskAgent, /failureFingerprint/);
 assert.match(taskAgent, /handoffSchema: 'PROMPT-HANDOFF-v1'/);
+assert.match(unifiedPrompt, /Customer-facing image-agent contract/u);
+assert.match(unifiedPrompt, /OPERATING_MODE=CUSTOMER_IMAGE_RUNTIME/u);
+assert.match(unifiedPrompt, /Runtime response contract/u);
+assert.match(runtimeAdapter, /PROMPT-UNIFIED-EXECUTION\\.md\\?raw/u);
+assert.match(runtimeAdapter, /OPERATING_MODE=CUSTOMER_IMAGE_RUNTIME/u);
+assert.doesNotMatch(runtimeAdapter, /## CORE MISSION/u);
+assert.doesNotMatch(runtimeAdapter, /## TOOL \/ CAPABILITY SELECTION/u);
+
 const result = validatePromptRegistry(registry);
 assert.equal(result.valid, true);
-assert.equal(new Set(registry.prompts.map((p) => p.promptId)).size, registry.prompts.length);
-assert.equal(result.relations.some((r) => r.type === 'DUPLICATE'), false);
+assert.equal(registry.prompts.length, 1);
+assert.equal(registry.prompts[0].promptId, 'RPR-UNIFIED-EXECUTION-001');
 assert.ok(registry.prompts.every((prompt) => functionalKey(prompt).length === 24));
+assert.equal(result.relations.some((r) => r.type === 'DUPLICATE'), false);
 
-const master = registry.prompts.find((p) => p.promptId === 'RPR-CORE-MASTER-001');
-const promptIntel = registry.prompts.find((p) => p.promptId === 'RPR-PROMPT-INTEL-001');
-assert.ok(master);
-assert.ok(promptIntel);
-assert.notEqual(comparePrompts(master, promptIntel).sameFunctionalKey, true);
+const unified = registry.prompts[0];
+assert.equal(unified.agentRole, 'executive-repair-development-controller');
+assert.ok(unified.failureClasses.includes('ALL_REPAIRABLE'));
+assert.ok(unified.rootCauses.includes('ANY_CONFIRMED_RCA'));
 
 const candidates = selectPromptCandidates(registry, {
-  failureClasses: ['PROMPT_DUPLICATE'],
-  rootCauses: ['PROMPT_DUPLICATION'],
-  domain: 'prompt-intelligence',
-  agentRole: 'prompt-intelligence',
+  failureClasses: ['SOURCE', 'CI_ORCHESTRATION'],
+  rootCauses: ['stale-contract', 'race-condition'],
+  domain: 'unified-execution-and-runtime',
+  agentRole: 'executive-repair-development-controller',
 });
-assert.equal(candidates[0]?.prompt.promptId, 'RPR-PROMPT-INTEL-001');
+assert.equal(candidates[0]?.prompt.promptId, 'RPR-UNIFIED-EXECUTION-001');
 
-const duplicate = { ...promptIntel, promptId: 'RPR-TEST-DUP-001' };
+const duplicate = { ...unified, promptId: 'RPR-TEST-DUP-001' };
 const relations = detectPromptRelations([...registry.prompts, duplicate]);
 assert.ok(relations.some((r) => r.type === 'DUPLICATE' && [r.promptA, r.promptB].includes('RPR-TEST-DUP-001')));
+assert.equal(comparePrompts(unified, duplicate).sameFunctionalKey, true);
 
-console.log(JSON.stringify({ status: 'PASS', prompts: registry.prompts.length, duplicateGuard: true, candidateSelection: true }, null, 2));
+console.log(JSON.stringify({
+  status: 'PASS',
+  prompts: registry.prompts.length,
+  unifiedPrompt: true,
+  duplicateGuard: true,
+  candidateSelection: true,
+}, null, 2));

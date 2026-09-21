@@ -1,0 +1,24 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+const testDir=path.join('/tmp','flixo-cell-memory-test-'+process.pid);
+fs.rmSync(testDir,{recursive:true,force:true});
+process.env.FLIXO_CELL_BOT_MEMORY_DIR=testDir;
+const {learnIntoBotMemory,exportBotMemory,importBotKnowledge}=await import('./cell-memory.mjs');
+const learned=learnIntoBotMemory({botId:'CELL-001',taskId:'CELL-TASK-ACTION-ERRORS',taskShortName:'ACTION_SOLUTION_INDEXER',taskName:'ACTION_SOLUTION_INDEXER',outcome:'success',rootCause:'historical-actions',rule:'read-actions',solution:{strategyId:'read-actions',result:'verified'},verification:'canonical-task-verified',evidenceRef:'run:35510427203',weakness:'ACTION_ERROR_COVERAGE',upgrade:{upgradeNumber:1,upgradePriority:95,state:'READY'},fingerprint:'fp-001',runId:'35510427203',targetSha:'0123456789abcdef0123456789abcdef01234567',failedSha:'0123456789abcdef0123456789abcdef01234567',normalizedFailure:'ERROR new failure',knowledge:{id:'CK-ACTERR',taskIdentity:{version:1},claim:'Actions error reader'}});
+assert.equal(learned.identity.shortName,'ACTION_SOLUTION_INDEXER');
+assert.equal(learned.state.taskCount,1);
+assert.equal(learned.solutions.length,1);
+assert.equal(learned.learnedTasks[0].fingerprint,'fp-001');
+assert.equal(learned.learnedTasks[0].runId,'35510427203');
+assert.equal(fs.existsSync(path.join(testDir,'CELL-001.json')),true);
+const copy=exportBotMemory('CELL-001');
+assert.equal(copy.exportBundle.knowledgeOnly,true);
+assert.equal(copy.exportBundle.noPermissions,true);
+const target=importBotKnowledge('CELL-002',copy);
+assert.equal(target.knowledge.length,1);
+assert.equal(target.solutions.length,1);
+assert.equal(target.importHistory.length,1);
+fs.rmSync(testDir,{recursive:true,force:true});
+console.log('CELL_BOT_PERSONAL_MEMORY=PASS');

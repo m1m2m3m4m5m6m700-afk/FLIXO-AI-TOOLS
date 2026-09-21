@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "messageId": "PRESIDENT-WAKE-3F97EDD3-20260921-01",
+  "idempotencyKey": "PRESIDENT-WAKE-3F97EDD3-20260921-01:3f97edd3295f1683de56032246fb30bc676c02f4",
+  "actor": "assistantController",
+  "recipient": "executionAgent",
+  "intent": "PRESIDENT_WAKE_REVALIDATE_CURRENT_SHA",
+  "taskId": "COUNCIL-OPERATIONS-001",
+  "workPackageId": "WP-774-779-REVALIDATE-20260921-01",
+  "scope": [
+    "PR #774 exact-SHA revalidation",
+    "Required CI completion on current execution head",
+    "fresh RCA and minimal repair only if a new RED is terminal",
+    "targeted regression and affected-contract verification",
+    "Exact-SHA certification readiness"
+  ],
+  "entrySha": "3f97edd3295f1683de56032246fb30bc676c02f4",
+  "risk": "HIGH",
+  "dependencies": [
+    "canonical Council directive",
+    "ASSISTANT-AGENT-COOPERATION-CONTRACT",
+    "exact-SHA Required CI",
+    "existing Error Memory and repair protocol"
+  ],
+  "expectedEvidence": [
+    "Fresh Required CI results bound to the wake entry SHA",
+    "Terminal RED RCA only if a new RED appears",
+    "Minimal bounded repair diff if required",
+    "Targeted regression and affected-contract evidence",
+    "Exact-SHA certification evidence"
+  ],
+  "stopConditions": [
+    "HEAD changes during the cycle",
+    "stale or conflicting evidence",
+    "scope or authority mismatch",
+    "unsupported execution path",
+    "GREEN without canonical certification"
+  ],
+  "proofObligations": [
+    "Exact current execution SHA",
+    "No third branch",
+    "No assertion weakening or test deletion",
+    "No main mutation before certification",
+    "Fresh evidence only"
+  ],
+  "source": "assistantController",
+  "payload": {
+    "priority": "P0",
+    "councilRole": "PRESIDENT",
+    "requestedAction": "IMMEDIATE_COUNCIL_RESPONSE",
+    "exactSha": "3f97edd3295f1683de56032246fb30bc676c02f4",
+    "workPackageId": "WP-774-779-REVALIDATE-20260921-01",
+    "preemption": "SAFE_BOUNDARY"
+  },
+  "createdAt": "2026-09-21",
+  "status": "READY"
+}

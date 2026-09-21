@@ -10,7 +10,7 @@ The report is created by `scripts/ci/agent-session.mjs logout` and is part of th
 
 Required fields:
 
-`schemaVersion, reportId, sessionId, agentId, role, entrySha, exitSha, startedAt, finishedAt, status, scope, currentRca, rcaClosed, openRcas, changedFiles, commands, evidence, findings, completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent`.
+`schemaVersion, reportId, sessionId, agentId, role, entrySha, exitSha, startedAt, finishedAt, status, scope, currentRca, rcaClosed, openRcas, changedFiles, commands, evidence, findings, cycleLessons, completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent`.
 
 `completedWork` contains only work actually performed and verified.
 
@@ -35,3 +35,7 @@ The new session MUST record `continuationFrom, inheritedExitSha, inheritedRemain
 Before editing, the successor MUST compare the inherited `exitSha` with the current exact `execution` SHA and re-check ownership of RCA and mutable scope. Handoff admission MUST fail closed when the predecessor `exitSha` is stale, the requested scope expands, or the repository topology is not `execution`. A handoff never silently transfers ownership and never overrides newer repository state.
 
 Handoff reports are continuity evidence, not final certification evidence. They MUST NOT convert FAIL, CANCELLED, NOT_EXECUTED, MISSING_EVIDENCE, or MALFORMED_EVIDENCE into PASS.
+
+
+## Cycle lessons
+Every completed repair/verification cycle MUST include `cycleLessons`: an ordered list of the cycle's RCA lesson, strategy lesson or anti-lesson, verification lesson, affected-scope lesson when applicable, recurrence/prevention rule, and external-blocker anti-lesson when applicable. `cycleLessons` is continuity/learning evidence only and never authorizes mutation or certification.

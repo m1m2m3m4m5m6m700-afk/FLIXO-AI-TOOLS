@@ -85,6 +85,33 @@ const staleBlockedByProgress = staleRecoveryDecision({
 });
 assert.equal(staleBlockedByProgress.eligible, false);
 assert(staleBlockedByProgress.reasons.includes('SUCCESSFUL_REPAIR_ALREADY_VERIFIED'));
+const crashedSessionRecoversImmediately = staleRecoveryDecision({
+  repairKey: base.claimKey,
+  leaseCreatedAt: '2026-09-18T23:55:00.000Z',
+  now: Date.parse('2026-09-19T00:00:00.000Z'),
+  staleAfterMs: 60 * 60 * 1000,
+  currentExecutionSha: SHA_A,
+  failedSha: SHA_A,
+  activeRuns: [],
+  outcomes: [{ repairKey: base.claimKey, outcome: 'CRASHED', failedSha: SHA_A, exitSha: SHA_A, verificationProgress: false, noProgress: true, at: '2026-09-19T00:00:00.000Z' }],
+  terminalRepairFailure: true,
+});
+assert.equal(crashedSessionRecoversImmediately.eligible, true);
+assert.equal(crashedSessionRecoversImmediately.immediateRecovery, true);
+
+const orphanedDispatchRecoversImmediately = staleRecoveryDecision({
+  repairKey: base.claimKey,
+  leaseCreatedAt: '2026-09-18T23:59:30.000Z',
+  now: Date.parse('2026-09-19T00:00:00.000Z'),
+  staleAfterMs: 60 * 60 * 1000,
+  currentExecutionSha: SHA_A,
+  failedSha: SHA_A,
+  activeRuns: [],
+  outcomes: [],
+  orphanedDispatch: true,
+});
+assert.equal(orphanedDispatchRecoversImmediately.eligible, true);
+assert.equal(orphanedDispatchRecoversImmediately.immediateRecovery, true);
 
 for (const [status, expected] of [[201, 'ACQUIRED'], [422, 'ALREADY_CLAIMED'], [401, 'AUTH_FAILURE'], [403, 'AUTH_FAILURE'], [500, 'PROVIDER_FAILURE'], [429, 'FAIL_CLOSED']]) {
   assert.equal(statusDecision(status), expected);

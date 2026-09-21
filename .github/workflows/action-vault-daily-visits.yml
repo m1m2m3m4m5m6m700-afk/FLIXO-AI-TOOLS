@@ -1,0 +1,108 @@
+name: FLIXO Action Vault — 9 Daily Bot Visits
+run-name: Action Vault Daily Visits ${{ github.run_id }}
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+    - cron: '0 8 * * *'
+    - cron: '0 16 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: flixo-action-vault-daily-visits-${{ github.event.schedule || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  visit:
+    name: ${{ matrix.bot }} — automatic visit ${{ github.event.schedule || 'manual' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        bot:
+          - ACTION-REPAIR
+          - ACTION-REPAIR-2
+          - ACTION-HISTORIAN-3
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout execution
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: execution
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+
+      - name: Create automatic Action Vault visit
+        env:
+          ACTION_VISIT_BOT: ${{ matrix.bot }}
+          ACTION_VISIT_SCHEDULE: ${{ github.event.schedule || 'manual' }}
+          ACTION_VISIT_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(git rev-parse HEAD)"
+          VISIT_DAY="$(date -u +%Y-%m-%d)"
+          case "$ACTION_VISIT_SCHEDULE" in
+            '0 0 * * *') VISIT_SLOT=1 ;;
+            '0 8 * * *') VISIT_SLOT=2 ;;
+            '0 16 * * *') VISIT_SLOT=3 ;;
+            *) echo 'FAIL CLOSED: manual execution does not count as a scheduled daily visit.'; exit 1 ;;
+          esac
+          TASK_ID="ACTION-DAILY-VISIT:$VISIT_DAY:$VISIT_SLOT:$ACTION_VISIT_BOT"
+          FINGERPRINT="$(node --input-type=module -e "import crypto from 'node:crypto'; console.log(crypto.createHash('sha256').update(process.argv[1],'utf8').digest('hex'))" "$TASK_ID")"
+
+          node scripts/ci/action-bot-chat.mjs open \
+            --from="$ACTION_VISIT_BOT" \
+            --task="$TASK_ID" \
+            --fingerprint="$FINGERPRINT" \
+            --sha="$EXECUTION_SHA" > /tmp/action-visit-session.json
+
+          node scripts/ci/action-bot-chat.mjs assign \
+            --from=ACTION-MASTER \
+            --to="$ACTION_VISIT_BOT" \
+            --task="$TASK_ID" \
+            --fingerprint="$FINGERPRINT" \
+            --sha="$EXECUTION_SHA" \
+            --objective="Automatic Vault Visit $VISIT_SLOT/3: remain resident in ACTION-VAULT; inspect current RED state when present, otherwise explore the repair knowledge, ACTION-INDEX-4000, teaching corpus and repair memory. Produce evidence, challenges, lessons and next actions. Never close the mission; only Canonical GREEN closes an active repair task." \
+            --evidence="exact-sha,action-index-4000,error-teaching-5000,repair-memory" > /tmp/action-visit-assignment.json
+
+          jq -e --arg bot "$ACTION_VISIT_BOT" --arg sha "$EXECUTION_SHA" '.status=="ASSIGNED" and .assignedTo==$bot' /tmp/action-visit-assignment.json >/dev/null
+          cat > /tmp/action-visit.json <<EOF
+          {
+            "schemaVersion": 1,
+            "visitId": "ACTION-VISIT-$VISIT_DAY-$VISIT_SLOT-$ACTION_VISIT_BOT",
+            "botId": "$ACTION_VISIT_BOT",
+            "visitNumber": $VISIT_SLOT,
+            "day": "$VISIT_DAY",
+            "exactSha": "$EXECUTION_SHA",
+            "taskId": "$TASK_ID",
+            "fingerprint": "$FINGERPRINT",
+            "automatic": true,
+            "resident": true,
+            "vault": "diagnostics/auto-repair/action-vault",
+            "closure": "CANONICAL_GREEN_ONLY",
+            "maxOperationsPerBot": 2000000,
+            "generatedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          jq -e --arg sha "$EXECUTION_SHA" --arg bot "$ACTION_VISIT_BOT" --arg task "$TASK_ID" '.automatic==true and .resident==true and .exactSha==$sha and .botId==$bot and .taskId==$task and .maxOperationsPerBot==2000000 and .closure=="CANONICAL_GREEN_ONLY"' /tmp/action-visit.json >/dev/null
+          echo "ACTION_VAULT_VISIT=PASS bot=$ACTION_VISIT_BOT visit=$VISIT_SLOT sha=$EXECUTION_SHA"
+
+      - name: Publish automatic visit evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-action-vault-visit-${{ matrix.bot }}-${{ github.run_id }}
+          path: |
+            /tmp/action-visit.json
+            /tmp/action-visit-session.json
+            /tmp/action-visit-assignment.json
+          if-no-files-found: error
+          retention-days: 30

@@ -54,6 +54,12 @@ export function validateStatic() {
   const handoffGate = read(HANDOFF_GATE);
   const watchdog = read(WATCHDOG);
   const mergeGate = read(MERGE_GATE);
+  const canonicalTest = read(path.join(ROOT, '.github', 'workflows', 'ci.yml'));
+  const wp0 = read(path.join(ROOT, '.github', 'workflows', 'wp0-trust-baseline.yml'));
+  const testImpact = read(path.join(ROOT, '.github', 'workflows', 'test-impact.yml'));
+  const testImpactExecution = read(path.join(ROOT, '.github', 'workflows', 'test-impact-execution.yml'));
+  const securityBaseline = read(path.join(ROOT, '.github', 'workflows', 'repository-security-baseline.yml'));
+  const claudeSecurity = read(path.join(ROOT, '.github', 'workflows', 'claude-security-review.yml'));
   const supervisor = read(path.join(ROOT, '.github', 'workflows', 'agent-repair-supervisor.yml'));
   const heartbeat = read(path.join(ROOT, '.github', 'workflows', 'agent-repair-heartbeat.yml'));
   const errors = [];
@@ -63,13 +69,16 @@ export function validateStatic() {
   must(!/workflow_run:/.test(auto), 'auto-repair-executor-only-trigger');
   must(/workflow_dispatch:/.test(auto), 'auto-repair-dispatch-trigger');
   must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(auto), 'auto-repair-no-self-dispatch');
-  must(/target_run_id:[\s\S]*required:\s*true/.test(auto), 'auto-repair-target-run-required');
+  must(/target_run_id:[\s\S]*required:\s*false/.test(auto), 'auto-repair-target-run-input-optional-for-resident');
+  must(/case "\$TARGET_RUN_ID"/.test(auto) && /target_run_id must be numeric/.test(auto), 'auto-repair-repair-mode-requires-target-run');
+  must(/inputs\.resident == 'true'/.test(auto), 'auto-repair-resident-mode-declared');
   must(/ref:\s*execution/.test(auto), 'auto-repair-checkout-execution');
   must(/persist-credentials:\s*false/.test(auto), 'auto-repair-checkout-credential-isolation');
   must(/CONTROLLER_SHA="\$MAIN_SHA"/.test(auto), 'auto-repair-main-controller-trust');
   must(/TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET/.test(auto), 'auto-repair-trust-model');
   must(/FLIXO_TRUSTED_CONTROLLER_SHA=\$CONTROLLER_SHA/.test(auto), 'auto-repair-controller-provenance');
-  must(/contents:\s*write/.test(auto) && /actions:\s*write/.test(auto) && /pull-requests:\s*write/.test(auto), 'auto-repair-required-permissions');
+  must(/contents:\s*write/.test(auto) && /pull-requests:\s*write/.test(auto), 'auto-repair-required-permissions');
+  must(!/actions:\s*write/.test(auto), 'auto-repair-no-actions-admin');
   must(/checks:\s*read/.test(auto), 'auto-repair-check-permission');
   must(/cancel-in-progress:\s*false/.test(auto), 'auto-repair-single-lane');
   must(/FLIXO_STRICT_RED_REPAIR:\s*['"]true['"]/.test(auto), 'auto-repair-strict-red');
@@ -83,10 +92,14 @@ export function validateStatic() {
   must(/permissions:\s*[\s\S]*contents:\s+read[\s\S]*checks:\s+read/.test(supervisor) && !/actions:\s*write/.test(supervisor), 'supervisor-read-only');
   must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(supervisor), 'supervisor-no-direct-repair-dispatch');
   must(!/push:\s*\n\s+branches:/m.test(supervisor) && !/pull_request:/m.test(supervisor), 'supervisor-observer-only-trigger');
-  must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(heartbeat), 'heartbeat-no-direct-repair-dispatch');
+  must(!/gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*-f\s+"?(?:target_run_id|failure_fingerprint|repair_lease_ref)=/i.test(heartbeat), 'heartbeat-no-mutation-repair-dispatch');
+  must(/gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*--ref\s+execution\s+-f\s+resident=true/.test(heartbeat) || !/gh\s+workflow\s+run\s+auto-repair\.yml/.test(heartbeat), 'heartbeat-resident-dispatch-must-be-explicit');
+  must(/RESIDENT_MODE_IS_OBSERVER_ONLY|resident.*observer/i.test(heartbeat) || !/gh\s+workflow\s+run\s+auto-repair\.yml/.test(heartbeat), 'heartbeat-resident-mode-observer-only');
   must(/gh\s+workflow\s+run\s+agent-repair-supervisor\.yml/.test(heartbeat), 'heartbeat-observer-only-wakeup');
   must(handoffGate.includes('CURRENT_EXECUTION_SHA=') && handoffGate.includes('HANDOFF_EXECUTION_SHA'), 'handoff-gate-current-head-check');
   must(/cannot repair itself/.test(auto), 'auto-repair-self-protection');
+  must(!/assistant[_ -]?fallback/i.test(auto), 'auto-repair-no-peer-fallback');
+  must(/sole mutation authority/i.test(auto), 'auto-repair-sole-mutation-authority');
   must(!/continue-on-error:\s*true/i.test(auto), 'auto-repair-no-continue-on-error');
   must(!/git\s+(checkout|switch)\s+-[bc]/.test(auto), 'auto-repair-no-third-branch');
   must(!/git\s+push[^\n]*\bmain\b/.test(auto), 'auto-repair-no-main-push');
@@ -102,14 +115,28 @@ export function validateStatic() {
   must(/HEAD_BRANCH.*execution|HEAD_BRANCH.*=\s*"execution"/.test(mergeGate), 'merge-gate-execution-head');
   must(/CURRENT_EXECUTION_SHA/.test(mergeGate), 'merge-gate-exact-sha');
   must(/Certification/.test(mergeGate), 'merge-gate-certification-required');
+  for (const [id, workflow] of [
+    ['canonical-test', canonicalTest],
+    ['wp0', wp0],
+    ['test-impact', testImpact],
+    ['test-impact-execution', testImpactExecution],
+    ['security-baseline', securityBaseline],
+    ['claude-security', claudeSecurity],
+    ['merge-gate', mergeGate],
+  ]) {
+    must(/cancel-in-progress:\s*true/.test(workflow), 'required-evidence-workflow-must-cancel-stale:' + id);
+    must(/github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha/.test(workflow), 'required-evidence-workflow-must-bind-exact-sha:' + id);
+  }
   must(/Repository Security Baseline/.test(mergeGate), 'merge-gate-security-required');
   must(!/continue-on-error:\s*true/i.test(mergeGate), 'merge-gate-no-continue-on-error');
   must(!/gh\s+pr\s+merge/i.test(mergeGate), 'merge-gate-no-self-merge');
 
 
 
-  const timeout = Number(auto.match(/jobs:\s*\n\s+repair:[\s\S]*?timeout-minutes:\s*(\d+)/)?.[1] ?? NaN);
-  must(Number.isFinite(timeout) && timeout <= 45, 'auto-repair-timeout-bound');
+  const residentTimeout = Number(auto.match(/jobs:\s*\n\s+resident:[\s\S]*?timeout-minutes:\s*(\d+)/)?.[1] ?? NaN);
+  const repairTimeout = Number(auto.match(/jobs:\s*\n\s+resident:[\s\S]*?\n\s+repair:[\s\S]*?timeout-minutes:\s*(\d+)/)?.[1] ?? NaN);
+  must(Number.isFinite(residentTimeout) && residentTimeout <= 345, 'auto-repair-resident-timeout-bound');
+  must(Number.isFinite(repairTimeout) && repairTimeout <= 45, 'auto-repair-repair-timeout-bound');
 
   if (errors.length) fail(errors.join(','));
   return { status: 'PASS', maxChangedFiles: MAX_CHANGED_FILES, maxChangedLines: MAX_CHANGED_LINES, controlPlaneFiles: [...CONTROL_PLANE_FILES] };

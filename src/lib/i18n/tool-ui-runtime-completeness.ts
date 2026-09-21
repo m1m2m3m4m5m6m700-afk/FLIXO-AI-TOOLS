@@ -1,5 +1,6 @@
 import { LOCALES, normalizeLocale, type CanonicalLocale } from './config';
 import { getLocalizedToolTitle } from '../seo/tool-seo';
+import { installScopedRuntimeObserver } from './scoped-runtime-observer';
 
 type LocaleMap = Partial<Record<CanonicalLocale, string>>;
 
@@ -31,6 +32,14 @@ const UI: Readonly<Record<string, LocaleMap>> = {
   Reset: { ar: 'إعادة ضبط', es: 'Restablecer', fr: 'Réinitialiser', de: 'Zurücksetzen', hi: 'रीसेट', id: 'Atur ulang', it: 'Reimposta', ja: 'リセット', ko: '초기화', ms: 'Tetapkan semula', nl: 'Resetten', pl: 'Resetuj', pt: 'Repor', ru: 'Сбросить', sv: 'Återställ', th: 'รีเซ็ต', tr: 'Sıfırla', uk: 'Скинути', vi: 'Đặt lại' },
   Before: { ar: 'قبل', es: 'Antes', fr: 'Avant', de: 'Vorher', hi: 'पहले', id: 'Sebelum', it: 'Prima', ja: '変更前', ko: '이전', ms: 'Sebelum', nl: 'Voor', pl: 'Przed', pt: 'Antes', ru: 'До', sv: 'Före', th: 'ก่อน', tr: 'Önce', uk: 'До', vi: 'Trước' },
   After: { ar: 'بعد', es: 'Después', fr: 'Après', de: 'Nachher', hi: 'बाद', id: 'Sesudah', it: 'Dopo', ja: '変更後', ko: '이후', ms: 'Selepas', nl: 'Na', pl: 'Po', pt: 'Depois', ru: 'После', sv: 'Efter', th: 'หลัง', tr: 'Sonra', uk: 'Після', vi: 'Sau' },
+  'Target size (KB)': { ar: 'الحجم المستهدف (KB)', es: 'Tamaño objetivo (KB)', fr: 'Taille cible (Ko)', de: 'Zielgröße (KB)', hi: 'लक्षित आकार (KB)', id: 'Ukuran target (KB)', it: 'Dimensione obiettivo (KB)', ja: '目標サイズ (KB)', ko: '목표 크기 (KB)', ms: 'Saiz sasaran (KB)', nl: 'Doelgrootte (KB)', pl: 'Rozmiar docelowy (KB)', pt: 'Tamanho alvo (KB)', ru: 'Целевой размер (КБ)', sv: 'Målstorlek (KB)', th: 'ขนาดเป้าหมาย (KB)', tr: 'Hedef boyut (KB)', uk: 'Цільовий розмір (КБ)', vi: 'Kích thước mục tiêu (KB)' },
+  'Max width': { ar: 'أقصى عرض', es: 'Ancho máximo', fr: 'Largeur max.', de: 'Max. Breite', hi: 'अधिकतम चौड़ाई', id: 'Lebar maksimum', it: 'Larghezza massima', ja: '最大幅', ko: '최대 너비', ms: 'Lebar maksimum', nl: 'Max. breedte', pl: 'Maks. szerokość', pt: 'Largura máx.', ru: 'Макс. ширина', sv: 'Maxbredd', th: 'ความกว้างสูงสุด', tr: 'Maks. genişlik', uk: 'Макс. ширина', vi: 'Chiều rộng tối đa' },
+  'Max height': { ar: 'أقصى ارتفاع', es: 'Altura máxima', fr: 'Hauteur max.', de: 'Max. Höhe', hi: 'अधिकतम ऊँचाई', id: 'Tinggi maksimum', it: 'Altezza massima', ja: '最大高さ', ko: '최대 높이', ms: 'Ketinggian maksimum', nl: 'Max. hoogte', pl: 'Maks. wysokość', pt: 'Altura máx.', ru: 'Макс. высота', sv: 'Maxhöjd', th: 'ความสูงสูงสุด', tr: 'Maks. yükseklik', uk: 'Макс. висота', vi: 'Chiều cao tối đa' },
+  'Download now': { ar: 'تنزيل الآن', es: 'Descargar ahora', fr: 'Télécharger maintenant', de: 'Jetzt herunterladen', hi: 'अभी डाउनलोड करें', id: 'Unduh sekarang', it: 'Scarica ora', ja: '今すぐダウンロード', ko: '지금 다운로드', ms: 'Muat turun sekarang', nl: 'Nu downloaden', pl: 'Pobierz teraz', pt: 'Baixar agora', ru: 'Скачать сейчас', sv: 'Ladda ner nu', th: 'ดาวน์โหลดตอนนี้', tr: 'Şimdi indir', uk: 'Завантажити зараз', vi: 'Tải xuống ngay' },
+  'Download image': { ar: 'تنزيل الصورة', es: 'Descargar imagen', fr: 'Télécharger l’image', de: 'Bild herunterladen', hi: 'इमेज डाउनलोड करें', id: 'Unduh gambar', it: 'Scarica immagine', ja: '画像をダウンロード', ko: '이미지 다운로드', ms: 'Muat turun imej', nl: 'Afbeelding downloaden', pl: 'Pobierz obraz', pt: 'Baixar imagem', ru: 'Скачать изображение', sv: 'Ladda ner bild', th: 'ดาวน์โหลดรูปภาพ', tr: 'Görseli indir', uk: 'Завантажити зображення', vi: 'Tải hình ảnh xuống' },
+  'Choose images': { ar: 'اختر الصور', es: 'Elige imágenes', fr: 'Choisissez des images', de: 'Bilder auswählen', hi: 'छवियाँ चुनें', id: 'Pilih gambar', it: 'Scegli immagini', ja: '画像を選択', ko: '이미지 선택', ms: 'Pilih imej', nl: 'Kies afbeeldingen', pl: 'Wybierz obrazy', pt: 'Escolha imagens', ru: 'Выберите изображения', sv: 'Välj bilder', th: 'เลือกภาพ', tr: 'Görselleri seçin', uk: 'Виберіть зображення', vi: 'Chọn hình ảnh' },
+  'No result yet.': { ar: 'لا توجد نتيجة بعد.', es: 'Aún no hay resultado.', fr: 'Aucun résultat pour le moment.', de: 'Noch kein Ergebnis.', hi: 'अभी कोई परिणाम नहीं।', id: 'Belum ada hasil.', it: 'Nessun risultato ancora.', ja: 'まだ結果がありません。', ko: '아직 결과가 없습니다.', ms: 'Tiada hasil lagi.', nl: 'Nog geen resultaat.', pl: 'Brak wyniku.', pt: 'Ainda não há resultado.', ru: 'Результата пока нет.', sv: 'Inget resultat ännu.', th: 'ยังไม่มีผลลัพธ์', tr: 'Henüz sonuç yok.', uk: 'Результату ще немає.', vi: 'Chưa có kết quả.' },
+  'Processing…': { ar: 'جارٍ المعالجة…', es: 'Procesando…', fr: 'Traitement…', de: 'Wird verarbeitet…', hi: 'प्रोसेसिंग…', id: 'Memproses…', it: 'Elaborazione…', ja: '処理中…', ko: '처리 중…', ms: 'Memproses…', nl: 'Verwerken…', pl: 'Przetwarzanie…', pt: 'Processando…', ru: 'Обработка…', sv: 'Bearbetar…', th: 'กำลังประมวลผล…', tr: 'İşleniyor…', uk: 'Обробка…', vi: 'Đang xử lý…' },
   'Output format': { ar: 'تنسيق الإخراج', es: 'Formato de salida', fr: 'Format de sortie', de: 'Ausgabeformat', hi: 'आउटपुट फ़ॉर्मेट', id: 'Format keluaran', it: 'Formato di output', ja: '出力形式', ko: '출력 형식', ms: 'Format output', nl: 'Uitvoerindeling', pl: 'Format wyjściowy', pt: 'Formato de saída', ru: 'Формат вывода', sv: 'Utdataformat', th: 'รูปแบบเอาต์พุต', tr: 'Çıktı biçimi', uk: 'Формат виводу', vi: 'Định dạng đầu ra' },
   'Crop width': { ar: 'عرض القص', es: 'Ancho de recorte', fr: 'Largeur du recadrage', de: 'Zuschnittbreite', hi: 'क्रॉप चौड़ाई', id: 'Lebar crop', it: 'Larghezza ritaglio', ja: 'クロップ幅', ko: '자르기 너비', ms: 'Lebar pangkasan', nl: 'Snijbreedte', pl: 'Szerokość kadrowania', pt: 'Largura do recorte', ru: 'Ширина кадрирования', sv: 'Beskärningsbredd', th: 'ความกว้างการครอบตัด', tr: 'Kırpma genişliği', uk: 'Ширина обрізання', vi: 'Chiều rộng cắt' },
   'Crop height': { ar: 'ارتفاع القص', es: 'Alto de recorte', fr: 'Hauteur du recadrage', de: 'Zuschnitthöhe', hi: 'क्रॉप ऊँचाई', id: 'Tinggi crop', it: 'Altezza ritaglio', ja: 'クロップ高さ', ko: '자르기 높이', ms: 'Tinggi pangkasan', nl: 'Snijhoogte', pl: 'Wysokość kadrowania', pt: 'Altura do recorte', ru: 'Высота кадрирования', sv: 'Beskärningshöjd', th: 'ความสูงการครอบตัด', tr: 'Kırpma yüksekliği', uk: 'Висота обрізання', vi: 'Chiều cao cắt' },
@@ -49,8 +58,55 @@ const PREFIXES: ReadonlyArray<readonly [string, LocaleMap]> = [
 
 const TOOL_TITLE_KEYS = new Set(['AI Image Generator', 'Background Remover', 'Image Upscaler', 'Image Converter', 'Image to Text OCR', 'Object Remover', 'Crop & Resize', 'Watermark Remover', 'Image Compressor', 'Meme Generator', 'Image Effects', 'Watermark Adder', 'Image Cropper']);
 
-function translateValue(locale: CanonicalLocale, value: string, toolId: string): string {
+const FILTER_MASK_FILTER_PREFIXES: Partial<Record<CanonicalLocale, string>> = {
+  ar: 'فلتر', es: 'Filtro', fr: 'Filtre', de: 'Filter', hi: 'फ़िल्टर', id: 'Filter', it: 'Filtro', ja: 'フィルター', ko: '필터', ms: 'Penapis', nl: 'Filter', pl: 'Filtr', pt: 'Filtro', ru: 'Фильтр', sv: 'Filter', th: 'ฟิลเตอร์', tr: 'Filtre', uk: 'Фільтр', vi: 'Bộ lọc',
+};
+
+const FILTER_MASK_RUNTIME_COPY: Readonly<Record<string, Partial<Record<CanonicalLocale, string>>>> = {
+  'Filter Mask live camera': { es: 'Cámara en directo de Filter Mask', it: 'Filter Mask · fotocamera live', ja: 'Filter Mask · ライブカメラ', pl: 'Kamera na żywo Filter Mask', th: 'กล้องสด Filter Mask', uk: 'Filter Mask · жива камера' },
+  'Torch on': { it: 'Torcia attiva', uk: 'Ліхтарик увімкнено' },
+  'Torch off': { es: 'Linterna desactivada', it: 'Torcia disattivata', ja: 'ライトオフ', pl: 'Latarka wyłączona', th: 'ปิดไฟฉาย', uk: 'Ліхтарик вимкнено' },
+  'Torch is not available on this camera.': { it: 'La torcia non è disponibile su questa fotocamera.', uk: 'Ліхтарик недоступний на цій камері.' },
+  'Torch could not be changed.': { it: 'Impossibile modificare la torcia.', uk: 'Не вдалося змінити ліхтарик.' },
+  'Name this creator preset': { es: 'Nombra este preajuste de creador', it: 'Dai un nome a questo preset', ja: 'このクリエータープリセットに名前を付ける', pl: 'Nadaj nazwę temu presetowi twórcy', th: 'ตั้งชื่อพรีเซ็ตครีเอเตอร์นี้', uk: 'Назвіть цей пресет' },
+  'Capture quality': { es: 'Calidad de captura', it: 'Qualità di acquisizione', ja: 'キャプチャ品質', pl: 'Jakość nagrywania', th: 'คุณภาพการจับภาพ', uk: 'Якість захоплення' },
+  '720p standard': { es: '720p estándar', it: '720p standard', ja: '720p 標準', pl: '720p standardowa', th: '720p มาตรฐาน', uk: '720p стандарт' },
+  '1080p high': { es: '1080p alta', it: '1080p alta', ja: '1080p 高画質', pl: '1080p wysoka', th: '1080p สูง', uk: '1080p висока' },
+  'Zoom': { es: 'Ampliación', it: 'Ingrandimento', ja: '拡大', pl: 'Powiększenie', th: 'การขยาย', uk: 'Масштаб' },
+  'Mono': { es: 'Monocromo', it: 'Monocromatico', ja: 'モノクロ', pl: 'Monochromatyczny', th: 'ขาวดำ', uk: 'Монохромний' },
+  'Color': { es: 'A color', ja: 'カラー', th: 'สี' },
+  'Retro': { es: 'Estilo retro', ja: 'レトロ', pl: 'Styl retro', th: 'สไตล์เรโทร' },
+  'Performance': { it: 'Prestazioni', uk: 'Продуктивність' },
+  'Screen wake lock is not available; recording will continue normally.': { it: 'Il blocco di riattivazione dello schermo non è disponibile; la registrazione continuerà normalmente.', uk: 'Блокування пробудження екрана недоступне; запис продовжиться нормально.' },
+  'Recording': { it: 'Registrazione', uk: 'Запис' },
+  'Pause recording': { it: 'Metti in pausa la registrazione', uk: 'Призупинити запис' },
+  'Resume recording': { it: 'Riprendi registrazione', uk: 'Відновити запис' },
+  'Cancel recording': { it: 'Annulla registrazione', uk: 'Скасувати запис' },
+  'Video recording with live effects is not supported in this browser.': { it: 'La registrazione video con effetti in diretta non è supportata in questo browser.', uk: 'Запис відео з ефектами в реальному часі не підтримується цим браузером.' },
+  'Video recording is unavailable.': { it: 'La registrazione video non è disponibile.', uk: 'Запис відео недоступний.' },
+  'Video recording failed.': { it: 'La registrazione video non è riuscita.', uk: 'Не вдалося записати відео.' },
+  'Video recording could not be started.': { it: 'Non è stato possibile avviare la registrazione video.', uk: 'Не вдалося розпочати запис відео.' },
+  'Preset name': { it: 'Nome del preset', uk: 'Назва пресету' },
+  'Capture quality could not be changed for the active camera.': { it: 'Non è stato possibile modificare la qualità di acquisizione per la fotocamera attiva.', uk: 'Не вдалося змінити якість захоплення для активної камери.' },
+};
+
+function translateFilterMaskRuntimeValue(locale: CanonicalLocale, value: string, toolId: string): string {
+  if (toolId !== 'filter-mask' || locale === 'en') return value;
+  const trimmed = value.trim();
+  const exact = FILTER_MASK_RUNTIME_COPY[trimmed]?.[locale];
+  if (exact) return value.replace(trimmed, exact);
+  const filterLabelMatch = trimmed.match(/^(.+) (effect\.[a-z0-9_]+)$/u);
+  const prefix = FILTER_MASK_FILTER_PREFIXES[locale];
+  if (filterLabelMatch && prefix) return prefix + ' ' + filterLabelMatch[1] + ' ' + filterLabelMatch[2];
+  return value;
+};
+
+
+export function localizeToolUiValue(localeInput: string, value: string, toolId: string): string {
+  const locale = normalizeLocale(localeInput);
   if (locale === 'en') return value;
+  const filterMaskValue = translateFilterMaskRuntimeValue(locale, value, toolId);
+  if (filterMaskValue !== value) return filterMaskValue;
   const trimmed = value.trim();
   const exact = UI[trimmed]?.[locale];
   if (exact) return value.replace(trimmed, exact);
@@ -66,6 +122,8 @@ function translateValue(locale: CanonicalLocale, value: string, toolId: string):
 
 export function isAuthoritativeLocalizedUiValue(locale: CanonicalLocale, value: string, toolId = ''): boolean {
   if (locale === 'en') return true;
+  const localizedFilterMaskValue = translateFilterMaskRuntimeValue(locale, value, toolId);
+  if (localizedFilterMaskValue !== value) return true;
   const trimmed = value.trim();
   const exactMap = UI[trimmed];
   if (exactMap && Object.prototype.hasOwnProperty.call(exactMap, locale)) return exactMap[locale] === trimmed;
@@ -88,7 +146,9 @@ function shouldSkip(node: Text): boolean {
 }
 
 function getToolId(root: HTMLElement): string {
-  const fromRoot = root.getAttribute('data-tool-id') ?? document.body.getAttribute('data-tool-id');
+  const declaredToolId = root.querySelector<HTMLElement>('[data-tool-id]')?.getAttribute('data-tool-id');
+  if (declaredToolId) return declaredToolId;
+  const fromRoot = root.getAttribute('data-tool-id');
   if (fromRoot) return fromRoot;
   const segments = window.location.pathname.split('/').filter(Boolean);
   return segments.length >= 2 && LOCALES.includes(normalizeLocale(segments[0])) ? segments[1] : '';
@@ -103,7 +163,7 @@ function localizeRoot(root: HTMLElement, locale: CanonicalLocale, toolId: string
   }
   for (const node of texts) {
     const current = node.nodeValue ?? '';
-    const next = translateValue(locale, current, toolId);
+    const next = localizeToolUiValue(locale, current, toolId);
     if (next !== current) node.nodeValue = next;
   }
   root.querySelectorAll<HTMLElement>('[aria-label],[title],[placeholder]').forEach((element) => {
@@ -111,7 +171,7 @@ function localizeRoot(root: HTMLElement, locale: CanonicalLocale, toolId: string
     for (const attribute of ['aria-label', 'title', 'placeholder'] as const) {
       const current = element.getAttribute(attribute);
       if (!current) continue;
-      const next = translateValue(locale, current, toolId);
+      const next = localizeToolUiValue(locale, current, toolId);
       if (next !== current) element.setAttribute(attribute, next);
     }
   });
@@ -124,30 +184,13 @@ function localizeRoot(root: HTMLElement, locale: CanonicalLocale, toolId: string
 }
 
 export function installToolUiRuntimeCompleteness(): () => void {
-  const apply = () => {
-    const rawLocale = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
-    const locale = normalizeLocale(rawLocale);
+  const apply = (declaredRoot: Element, locale: CanonicalLocale): void => {
+    if (!(declaredRoot instanceof HTMLElement)) return;
     if (!LOCALES.includes(locale) || locale === 'en') return;
-    const root = document.querySelector<HTMLElement>('.tool-page-modern, .tool-shell, main');
-    if (!root) return;
-    const toolId = getToolId(root);
-    if (root.lang !== locale) root.lang = locale;
-    localizeRoot(root, locale, toolId);
+    const toolId = getToolId(declaredRoot);
+    if (declaredRoot.lang !== locale) declaredRoot.lang = locale;
+    localizeRoot(declaredRoot, locale, toolId);
   };
 
-  let scheduled = false;
-  const schedule = () => {
-    if (scheduled) return;
-    scheduled = true;
-    queueMicrotask(() => {
-      scheduled = false;
-      apply();
-    });
-  };
-
-  apply();
-  const observer = typeof MutationObserver === 'undefined' ? null : new MutationObserver(schedule);
-  const root = typeof document !== 'undefined' ? document.body : null;
-  if (observer && root) observer.observe(root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['aria-label', 'title', 'placeholder'] });
-  return () => observer?.disconnect();
+  return installScopedRuntimeObserver(apply);
 }

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 2,
+  "agentId": "WORKER_A",
+  "profileId": "ACTION_FRONTIER_REPAIR_V2",
+  "role": "PRIMARY_ACTION_REPAIR",
+  "cognitionTier": "FRONTIER_SPECIALIST",
+  "modelProfile": "FRONTIER_CODING_REASONING",
+  "reasoningEffort": "MAXIMUM",
+  "mutationMode": "DELEGATED_REPAIR_ONLY",
+  "certificationAuthority": false,
+  "state": "READY",
+  "toolBudget": 32,
+  "maxReasoningLoops": 7,
+  "maxHypotheses": 5,
+  "evidenceGradeMinimum": "E4",
+  "capabilities": [
+    "RCA",
+    "CODE_INTELLIGENCE",
+    "ACTION_DIAGNOSTICS",
+    "TOOL_CALLING",
+    "MEMORY_RETRIEVAL",
+    "SIMULATION",
+    "SELF_CRITIQUE",
+    "VERIFICATION"
+  ],
+  "verifiedResults": 0,
+  "knownWeaknesses": []
+}

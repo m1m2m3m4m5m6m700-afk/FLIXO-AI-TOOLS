@@ -3,7 +3,6 @@ name: FLIXO Agent Repair Heartbeat
 run-name: FLIXO Agent Repair Heartbeat ${{ github.run_id }}
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: '*/5 * * * *'
 
@@ -16,8 +15,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  wake-supervisor:
-    name: Restore continuous supervisor when RED or unfinished
+  resident-watch:
+    name: Keep the repair plane resident and wake canonical Green Gate
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -28,55 +27,122 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Validate no-sleep liveness contract
+      - name: Validate permanent-residency liveness contract
         run: |
           set -euo pipefail
           node scripts/ci/agent-liveness-protocol.mjs validate
+          echo 'RESIDENT_AGENT=true'
+          echo 'HEARTBEAT_INTERVAL_MINUTES=5'
           echo 'OPEN_WORK_SLEEP=FORBIDDEN'
           echo 'STALE_HEARTBEAT_ACTION=RECOVER_AND_CONTINUE'
+          echo 'GREEN_DOES_NOT_SUSPEND_RESIDENCY=true'
+          echo 'MANUAL_WAKE_REQUIRED=false'
+          echo 'SELF_DISABLE_ALLOWED=false'
+          echo 'SELF_ABORT_ALLOWED=false'
+          echo 'RUN_END_DOES_NOT_END_TASK=true'
 
-      - name: Check supervisor liveness and current GREEN state
+      - name: Verify five-minute heartbeat compliance
+        id: heartbeat_compliance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-heartbeat
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch main --limit 50 --json databaseId,status,conclusion,createdAt,updatedAt,startedAt,headSha,event > /tmp/flixo-heartbeat/scheduled-wakes.json
+          gh run view "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,status,conclusion,createdAt,updatedAt,startedAt,headSha,event > /tmp/flixo-heartbeat/current-wake.json
+          jq -s 'add' /tmp/flixo-heartbeat/scheduled-wakes.json /tmp/flixo-heartbeat/current-wake.json > /tmp/flixo-heartbeat/wake-runs.json
+          node scripts/ci/wake-compliance.mjs /tmp/flixo-heartbeat/wake-runs.json /tmp/flixo-heartbeat/wake-compliance.json
+          jq -e '.status == "PASS" or .status == "BASELINE_REQUIRED"' /tmp/flixo-heartbeat/wake-compliance.json >/dev/null
+
+      - name: Publish heartbeat compliance evidence
+        if: always() && steps.heartbeat_compliance.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-heartbeat-compliance-${{ github.run_id }}
+          path: /tmp/flixo-heartbeat/wake-compliance.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Observe every Repair Bot reaction from the active repair session
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FLIXO_REPAIR_BEHAVIOR_TRACE_PATH: /tmp/flixo-repair-behavior-trace.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-session-observer.mjs
+          test -s /tmp/flixo-repair-behavior-trace.json
+          jq -e '.protocol=="FLIXO-REPAIR-BOT-BEHAVIOR-TRACE-v1" and .traceHash != null' /tmp/flixo-repair-behavior-trace.json >/dev/null
+      - name: Publish Repair Bot behavior trace
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-repair-behavior-trace-${{ github.run_id }}
+          path: /tmp/flixo-repair-behavior-trace.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Determine whether canonical repair work is already resident
         id: state
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          ACTIVE_SUPERVISORS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-supervisor.yml --limit 20 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
-          ACTIVE_GREEN_GATES="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
-          ACTIVE_REPAIRS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
-          if [ "$ACTIVE_SUPERVISORS" -gt 0 ] || [ "$ACTIVE_GREEN_GATES" -gt 0 ] || [ "$ACTIVE_REPAIRS" -gt 0 ]; then
-            echo "SUPERVISOR_ALREADY_ACTIVE=$ACTIVE_SUPERVISORS"
-            echo "GREEN_GATE_ALREADY_ACTIVE=$ACTIVE_GREEN_GATES"
-            echo "AUTO_REPAIR_ALREADY_ACTIVE=$ACTIVE_REPAIRS"
-            echo "wake=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          ACTIVE_GREEN_GATES="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'")) | length')"
+          ACTIVE_REPAIRS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'")) | length')"
+          ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status,headSha,displayTitle --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'" and .displayTitle == "FLIXO Auto Repair Chain  NO_FINGERPRINT")) | length')"
+          GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --commit "$EXECUTION_SHA" --limit 50 --json databaseId,status,conclusion,headSha,createdAt --jq 'map(select(.headSha == "'"$EXECUTION_SHA"'" and .conclusion == "success")) | sort_by(.createdAt) | last.databaseId // empty')"
+
+          echo "EXECUTION_SHA=$EXECUTION_SHA"
+          echo "ACTIVE_GREEN_GATES=$ACTIVE_GREEN_GATES"
+          echo "ACTIVE_REPAIRS=$ACTIVE_REPAIRS"
+          echo "ACTIVE_RESIDENT=$ACTIVE_RESIDENT"
+          echo "LAST_GREEN_GATE=${GREEN:-none}"
+
+          if [ -n "$GREEN" ]; then
+            echo 'CANONICAL_GREEN_ALREADY_PROVEN=true'
+            echo 'wake=false' >> "$GITHUB_OUTPUT"
+            echo 'resident_wake=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'CANONICAL_GREEN_NOT_PROVEN=true'
+            echo 'wake=true' >> "$GITHUB_OUTPUT"
+            if [ "$ACTIVE_RESIDENT" -eq 0 ]; then
+              echo 'resident_wake=true' >> "$GITHUB_OUTPUT"
+            else
+              echo 'resident_wake=false' >> "$GITHUB_OUTPUT"
+            fi
           fi
 
-          NEED_WAKE=false
-          REQUIRED='FLIXO Test System|FLIXO WP0 Trust Baseline|FLIXO Test Impact|FLIXO Test Impact Execution|FLIXO Continuous Delivery|Repository Security Baseline|Claude Security Review|Daily·FLIXO Green Gate|FLIXO Auto Repair Bot'
-          for BRANCH in main execution; do
-            SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
-            RUNS="$(gh run list --repo "$GITHUB_REPOSITORY" --branch "$BRANCH" --commit "$SHA" --limit 100 --json databaseId,name,status,conclusion,headSha,createdAt)"
-            GREEN="$(printf '%s' "$RUNS" | jq -r --arg sha "$SHA" 'map(select(.headSha == $sha and .name == "Daily·FLIXO Green Gate" and .conclusion == "success")) | last.databaseId // empty')"
-            FAILED="$(printf '%s' "$RUNS" | jq -r --arg sha "$SHA" --arg names "$REQUIRED" 'map(select(.headSha == $sha and (.name as $n | ($names | split("|") | index($n) != null)))) | map(select(.conclusion == "failure" or .conclusion == "timed_out")) | last.databaseId // empty')"
-            if [ -z "$GREEN" ] || [ -n "$FAILED" ]; then
-              NEED_WAKE=true
-              echo "SUPERVISOR_NEEDED branch=$BRANCH sha=$SHA green=${GREEN:-none} failed=${FAILED:-none}"
-            else
-              echo "BRANCH_GREEN branch=$BRANCH sha=$SHA run=$GREEN"
-            fi
-          done
-          echo "wake=$NEED_WAKE" >> "$GITHUB_OUTPUT"
-
-      - name: Wake supervisor only when GREEN is not proven
+      - name: Start resident Repair Bot automatically when the repair session is open
+        if: steps.state.outputs.resident_wake == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution -f resident=true
+          echo 'AUTOMATIC_REPAIR_BOT_RESIDENCY_WAKE=true'
+          echo 'RESIDENT_MODE_IS_OBSERVATION_ONLY=true'
+          echo 'REPAIR_MUTATION_AUTHORITY_REMAINS_AUTO_REPAIR_CANONICAL_RUN=true'
+          echo 'MANUAL_WAKE_REQUIRED=false'
+      - name: Wake canonical Green Gate automatically
         if: steps.state.outputs.wake == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          gh workflow run agent-repair-supervisor.yml --repo "$GITHUB_REPOSITORY" --ref main
-          gh workflow run daily-flixo-green-gate.yml --repo "$GITHUB_REPOSITORY" --ref execution
-          echo 'SUPERVISOR_WAKE_DISPATCHED=true'
-          echo 'CANONICAL_GREEN_GATE_WAKE_DISPATCHED=true'
+          gh workflow run daily-flixo-green-gate.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo 'AUTOMATIC_GREEN_GATE_WAKE=true'
+          echo 'HUMAN_MANUAL_REPAIR_LAUNCH=false'
+          echo 'REPAIR_DISPATCH_REMAINS_CANONICAL_GREEN_GATE_AUTHORITY=true'
+      - name: Wake observer supervisor automatically
+        if: steps.state.outputs.wake == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run agent-repair-supervisor.yml --repo "$GITHUB_REPOSITORY" --ref execution
+          echo 'AUTOMATIC_REPAIR_SUPERVISOR_WAKE=true'
+          echo 'SUPERVISOR_REMAINS_OBSERVER_ONLY=true'

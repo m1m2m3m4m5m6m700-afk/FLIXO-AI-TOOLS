@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "authority": "VERIFIED_HISTORICAL_AGENT_ACTIVITY_ONLY",
+  "purpose": "Durable Action Vault agent experience promoted only after Canonical GREEN.",
+  "sourceRoot": "docs/agents/historical-action-errors",
+  "activityRoot": "docs/agents/historical-action-errors/agent-activity",
+  "proofAuthority": "DAILY_FLIXO_GREEN_GATE",
+  "promotion": {
+    "requiresCanonicalGreen": true,
+    "requiresExactSha": true,
+    "requiresTargetedRegression": true,
+    "provisionalRedActivityAllowed": true,
+    "unverifiedActivityIsNotKnowledge": true
+  },
+  "records": [],
+  "byFingerprint": {},
+  "byAgent": {},
+  "byClass": {},
+  "updatedAt": null
+}

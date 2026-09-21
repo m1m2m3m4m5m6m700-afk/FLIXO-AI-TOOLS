@@ -2,9 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { LIVE_FILTER_FAMILIES, LIVE_FILTER_REGISTRY, getLiveFilter } from './registry';
 import { FILTER_MASK_ASPECT_RATIOS, FILTER_MASK_CAPTURE_QUALITIES, parseFilterMaskHandoff, type FilterMaskParameters } from './handoff';
 import { FILTER_MASK_I18N } from './locales';
+import { canvasDimensions, drawFilteredFrame, frameCrop } from './frame-renderer';
+import { createWebGL2FilterRenderer } from './gpu-renderer';
+import { benchmarkLiveRenderBackend, scheduleVideoFrames } from './performance';
 import type { Locale } from '@/lib/i18n';
 
 const clampIntensity = (value: number): number => Math.min(100, Math.max(25, Math.round(value)));
+const videoExtensionForMime = (mimeType: string): string => mimeType.includes('mp4') ? 'mp4' : 'webm';
 const FAVORITES_KEY = 'flixo.filter-mask.favorites.v1';
 const RECENT_KEY = 'flixo.filter-mask.recent.v1';
 const PRESETS_KEY = 'flixo.filter-mask.presets.v1';
@@ -17,6 +21,7 @@ type FilterMaskPreset = Readonly<{
   zoom: number;
   mirror: boolean;
   aspectRatio: FilterMaskParameters['aspectRatio'];
+  captureQuality?: FilterMaskParameters['captureQuality'];
 }>;
 
 function readStoredIds(key: string): string[] {
@@ -56,6 +61,7 @@ function readStoredPresets(): FilterMaskPreset[] {
       && value.zoom >= 1 && value.zoom <= 2
       && typeof value.aspectRatio === 'string'
       && FILTER_MASK_ASPECT_RATIOS.includes(value.aspectRatio as FilterMaskParameters['aspectRatio'])
+      && (value.captureQuality === undefined || FILTER_MASK_CAPTURE_QUALITIES.includes(value.captureQuality as FilterMaskParameters['captureQuality']))
       && getLiveFilter(value.canonicalId) !== undefined,
     ).slice(0, 20);
   } catch {
@@ -71,88 +77,27 @@ function writeStoredPresets(presets: readonly FilterMaskPreset[]) {
   }
 }
 
-const canvasDimensions = (
-  video: HTMLVideoElement,
-  aspectRatio: FilterMaskParameters['aspectRatio'],
-  captureQuality: FilterMaskParameters['captureQuality'],
-): { width: number; height: number } => {
-  const [rawWidth, rawHeight] = aspectRatio.split(':').map(Number);
-  const ratio = rawWidth / rawHeight;
-  const sourceWidth = video.videoWidth || 1280;
-  const sourceHeight = video.videoHeight || 720;
-  const maxLongSide = captureQuality === '1080p' ? 1920 : 1280;
-  const longSide = Math.min(maxLongSide, Math.max(sourceWidth, sourceHeight));
-
-  if (ratio >= 1) {
-    return { width: Math.round(longSide), height: Math.round(longSide / ratio) };
-  }
-  return { width: Math.round(longSide * ratio), height: Math.round(longSide) };
-};
-
-function drawFilteredFrame(
-  ctx: CanvasRenderingContext2D,
-  video: HTMLVideoElement,
-  width: number,
-  height: number,
-  cssFilter: string,
-  intensity: number,
-  zoom: number,
-  mirror: boolean,
-) {
-  const sourceWidth = video.videoWidth || width;
-  const sourceHeight = video.videoHeight || height;
-  const targetAspect = width / height;
-  const sourceAspect = sourceWidth / sourceHeight;
-  const baseCropWidth = sourceAspect > targetAspect ? sourceHeight * targetAspect : sourceWidth;
-  const baseCropHeight = sourceAspect > targetAspect ? sourceHeight : sourceWidth / targetAspect;
-  const cropWidth = Math.min(sourceWidth, baseCropWidth / zoom);
-  const cropHeight = Math.min(sourceHeight, baseCropHeight / zoom);
-  const cropX = (sourceWidth - cropWidth) / 2;
-  const cropY = (sourceHeight - cropHeight) / 2;
-
-  const drawLayer = (filter: string, alpha: number) => {
-    ctx.save();
-    ctx.filter = filter;
-    ctx.globalAlpha = alpha;
-    ctx.drawImage(
-      video,
-      cropX,
-      cropY,
-      cropWidth,
-      cropHeight,
-      0,
-      0,
-      width,
-      height,
-    );
-    ctx.restore();
-  };
-
-  ctx.save();
-  ctx.clearRect(0, 0, width, height);
-  if (mirror) {
-    ctx.translate(width, 0);
-    ctx.scale(-1, 1);
-  }
-
-  if (cssFilter === 'none' || intensity >= 100) {
-    drawLayer(cssFilter === 'none' ? 'none' : cssFilter, 1);
-  } else {
-    drawLayer('none', 1);
-    drawLayer(cssFilter, intensity / 100);
-  }
-  ctx.restore();
-}
-
 export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale }) {
   const copy = FILTER_MASK_I18N[locale] ?? FILTER_MASK_I18N.en;
   const videoRef = useRef<HTMLVideoElement>(null);
   const baseVideoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
-  const recordCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const recordFrameRef = useRef<number | null>(null);
+  const recordSchedulerRef = useRef<{ cancel: () => void } | null>(null);
   const recordTimerRef = useRef<number | null>(null);
+  const gpuRendererRef = useRef<ReturnType<typeof createWebGL2FilterRenderer> | null>(null);
+  const wakeLockRef = useRef<{ release: () => Promise<void>; released: boolean } | null>(null);
+  const recordingPausedRef = useRef(false);
+  const discardRecordingRef = useRef(false);
+  const recordingMetricsRef = useRef({
+    frames: 0,
+    droppedFrames: 0,
+    lastPresentedFrames: null as number | null,
+    lastFrameNow: null as number | null,
+    metricStartedAt: 0,
+    metricFrames: 0,
+    metricDrops: 0,
+  });
   const chunksRef = useRef<Blob[]>([]);
 
   const handoff = useMemo(
@@ -179,7 +124,11 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
   const [aspectRatio, setAspectRatio] = useState<FilterMaskParameters['aspectRatio']>(handoff?.parameters.aspectRatio ?? '9:16');
   const [captureQuality, setCaptureQuality] = useState<FilterMaskParameters['captureQuality']>(handoff?.parameters.captureQuality ?? '1080p');
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
-  const [capturedKind, setCapturedKind] = useState<'photo' | 'video' | null>(null);
+  const [capturedFilename, setCapturedFilename] = useState<string>('flixo-filter-mask.jpg');
+  const [recordPaused, setRecordPaused] = useState(false);
+  const [recordFps, setRecordFps] = useState(0);
+  const [recordDroppedFrames, setRecordDroppedFrames] = useState(0);
+  const [recordRenderBackend, setRecordRenderBackend] = useState<'canvas2d' | 'webgl2'>('canvas2d');
 
   const selected = getLiveFilter(selectedId) ?? LIVE_FILTER_REGISTRY[0];
   const selectedRef = useRef(selected);
@@ -217,18 +166,53 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params.toString()}`);
   }, [selected.canonicalId, aspectRatio, captureQuality, intensity, mirror, zoom]);
 
+  async function releaseWakeLock() {
+    const sentinel = wakeLockRef.current;
+    wakeLockRef.current = null;
+    if (sentinel && !sentinel.released) {
+      try { await sentinel.release(); } catch { /* Wake lock release is best-effort. */ }
+    }
+  }
+
+  async function acquireWakeLock() {
+    const candidate = navigator as Navigator & { wakeLock?: { request: (type: 'screen') => Promise<{ release: () => Promise<void>; released: boolean }> } };
+    if (!candidate.wakeLock?.request) return;
+    try {
+      wakeLockRef.current = await candidate.wakeLock.request('screen');
+    } catch {
+      // Screen wake lock is optional and must never block recording.
+    }
+  }
+
   useEffect(() => () => {
-    if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
-    if (recordFrameRef.current !== null) cancelAnimationFrame(recordFrameRef.current);
+    if (recorderRef.current?.state === 'recording' || recorderRef.current?.state === 'paused') recorderRef.current.stop();
+    recordSchedulerRef.current?.cancel();
+    recordSchedulerRef.current = null;
     if (recordTimerRef.current !== null) window.clearInterval(recordTimerRef.current);
+    gpuRendererRef.current?.dispose();
+    gpuRendererRef.current = null;
+    void releaseWakeLock();
     streamRef.current?.getTracks().forEach((track) => track.stop());
-    baseVideoRef.current?.srcObject && (baseVideoRef.current.srcObject = null);
-    videoRef.current?.srcObject && (videoRef.current.srcObject = null);
+    if (baseVideoRef.current?.srcObject) baseVideoRef.current.srcObject = null;
+    if (videoRef.current?.srcObject) videoRef.current.srcObject = null;
   }, []);
 
   useEffect(() => () => {
     if (capturedUrl) URL.revokeObjectURL(capturedUrl);
   }, [capturedUrl]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && recording && (!wakeLockRef.current || wakeLockRef.current.released)) {
+        void acquireWakeLock();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [recording]);
+
+
 
   async function start(facingMode: 'user' | 'environment' = 'user') {
     setError('');
@@ -312,6 +296,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       zoom,
       mirror,
       aspectRatio,
+      captureQuality,
     };
 
     setPresets((current) => {
@@ -320,7 +305,8 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         && item.intensity === preset.intensity
         && item.zoom === preset.zoom
         && item.mirror === preset.mirror
-        && item.aspectRatio === preset.aspectRatio,
+        && item.aspectRatio === preset.aspectRatio
+        && (item.captureQuality ?? '1080p') === (preset.captureQuality ?? '1080p'),
       );
       if (duplicate) return current;
       const next = [preset, ...current].slice(0, 20);
@@ -336,6 +322,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     setZoom(Math.min(2, Math.max(1, preset.zoom)));
     setMirror(preset.mirror);
     setAspectRatio(preset.aspectRatio);
+    setCaptureQuality(preset.captureQuality ?? '1080p');
     selectFilter(preset.canonicalId);
   }
 
@@ -388,9 +375,13 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
   }
 
   function stop() {
-    if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
-    if (recordFrameRef.current !== null) cancelAnimationFrame(recordFrameRef.current);
+    if (recorderRef.current?.state === 'recording' || recorderRef.current?.state === 'paused') recorderRef.current.stop();
+    recordSchedulerRef.current?.cancel();
+    recordSchedulerRef.current = null;
     if (recordTimerRef.current !== null) window.clearInterval(recordTimerRef.current);
+    gpuRendererRef.current?.dispose();
+    gpuRendererRef.current = null;
+    void releaseWakeLock();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     [baseVideoRef.current, videoRef.current].forEach((video) => {
@@ -398,6 +389,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     });
     setRunning(false);
     setRecording(false);
+    setRecordPaused(false);
     setTorch(false);
   }
 
@@ -409,7 +401,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     );
   }
 
-  function startRecording() {
+  async function startRecording() {
     const stream = streamRef.current;
     const video = videoRef.current;
 
@@ -424,22 +416,50 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     }
 
     const dimensions = canvasDimensions(video, aspectRatio, captureQuality);
+    const benchmark = benchmarkLiveRenderBackend(
+      video,
+      selected.cssFilter,
+      intensity,
+      zoom,
+      mirror,
+      dimensions.width,
+      dimensions.height,
+    );
+    const preferredBackend = benchmark.backend;
     const canvas = document.createElement('canvas');
     canvas.width = dimensions.width;
     canvas.height = dimensions.height;
-    recordCanvasRef.current = canvas;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
+    let ctx: CanvasRenderingContext2D | null = null;
+    const gpuRenderer = preferredBackend === 'webgl2' ? createWebGL2FilterRenderer(canvas) : null;
+    if (preferredBackend === 'webgl2' && !gpuRenderer) {
+      ctx = canvas.getContext('2d', { alpha: false });
+    } else if (!gpuRenderer) {
+      ctx = canvas.getContext('2d', { alpha: false });
+    }
+
+    if (!ctx && !gpuRenderer) {
       setError(copy.recordingUnavailable);
       return;
     }
 
-    const outputStream = canvas.captureStream(30);
+    gpuRendererRef.current = gpuRenderer;
+    setRecordRenderBackend(gpuRenderer ? 'webgl2' : 'canvas2d');
+
+    const measuredMs = gpuRenderer ? benchmark.gpuMs : benchmark.baselineMs;
+    const sourceFrameRate = stream.getVideoTracks()[0]?.getSettings().frameRate ?? 30;
+    const frameRate = Number.isFinite(measuredMs ?? Number.POSITIVE_INFINITY) && (measuredMs ?? 0) <= 14 && sourceFrameRate >= 50
+      ? 60
+      : Number.isFinite(measuredMs ?? Number.POSITIVE_INFINITY) && (measuredMs ?? 0) > 20
+        ? 24
+        : 30;
+    const outputStream = canvas.captureStream(frameRate);
     const audioTrack = stream.getAudioTracks()[0];
     if (audioTrack) outputStream.addTrack(audioTrack);
 
     const mimeType = [
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+      'video/mp4',
       'video/webm;codecs=vp9,opus',
       'video/webm;codecs=vp8,opus',
       'video/webm',
@@ -447,22 +467,59 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
 
     try {
       chunksRef.current = [];
-      const recorder = new MediaRecorder(outputStream, mimeType ? { mimeType } : undefined);
+      discardRecordingRef.current = false;
+      recordingPausedRef.current = false;
+      recordingMetricsRef.current = {
+        frames: 0,
+        droppedFrames: 0,
+        lastPresentedFrames: null,
+        lastFrameNow: null,
+        metricStartedAt: performance.now(),
+        metricFrames: 0,
+        metricDrops: 0,
+      };
 
-      const drawFrame = () => {
+      const recorder = new MediaRecorder(outputStream, mimeType ? { mimeType } : undefined);
+      recorderRef.current = recorder;
+
+      const drawFrame = (now: number, metadata: { presentedFrames?: number } | null) => {
         if (recorder.state !== 'recording') return;
 
-        drawFilteredFrame(
-          ctx,
-          video,
-          canvas.width,
-          canvas.height,
-          selectedRef.current.cssFilter,
-          intensityRef.current,
-          zoomRef.current,
-          mirrorRef.current,
-        );
-        recordFrameRef.current = requestAnimationFrame(drawFrame);
+        const metrics = recordingMetricsRef.current;
+        if (metadata?.presentedFrames !== undefined && metrics.lastPresentedFrames !== null) {
+          metrics.droppedFrames += Math.max(0, metadata.presentedFrames - metrics.lastPresentedFrames - 1);
+        } else if (metrics.lastFrameNow !== null) {
+          const interval = now - metrics.lastFrameNow;
+          const expected = 1000 / frameRate;
+          metrics.droppedFrames += Math.max(0, Math.round(interval / expected) - 1);
+        }
+        metrics.lastPresentedFrames = metadata?.presentedFrames ?? metrics.lastPresentedFrames;
+        metrics.lastFrameNow = now;
+        metrics.frames += 1;
+
+        if (gpuRendererRef.current) {
+          gpuRendererRef.current.render(
+            video,
+            selectedRef.current.cssFilter,
+            intensityRef.current,
+            frameCrop(video, canvas.width, canvas.height, zoomRef.current),
+            mirrorRef.current,
+          );
+        } else if (ctx) {
+          drawFilteredFrame(
+            ctx,
+            video,
+            canvas.width,
+            canvas.height,
+            selectedRef.current.cssFilter,
+            intensityRef.current,
+            zoomRef.current,
+            mirrorRef.current,
+          );
+        }
+
+        metrics.metricFrames += 1;
+        metrics.metricDrops = metrics.droppedFrames;
       };
 
       recorder.ondataavailable = (event) => {
@@ -470,42 +527,80 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       };
 
       recorder.onstop = () => {
-        if (recordFrameRef.current !== null) cancelAnimationFrame(recordFrameRef.current);
-        recordFrameRef.current = null;
+        recordSchedulerRef.current?.cancel();
+        recordSchedulerRef.current = null;
         if (recordTimerRef.current !== null) window.clearInterval(recordTimerRef.current);
         recordTimerRef.current = null;
-        outputStream.getTracks().forEach((track) => track.stop());
+        gpuRendererRef.current?.dispose();
+        gpuRendererRef.current = null;
+        outputStream.getVideoTracks().forEach((track) => track.stop());
+
+        const shouldDiscard = discardRecordingRef.current;
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        setCapturedUrl((previous) => {
-          if (previous) URL.revokeObjectURL(previous);
-          return url;
-        });
-        setCapturedKind('video');
+        chunksRef.current = [];
+
+        if (!shouldDiscard && blob.size > 0) {
+          const url = URL.createObjectURL(blob);
+          setCapturedUrl((previous) => {
+            if (previous) URL.revokeObjectURL(previous);
+            return url;
+          });
+          setCapturedFilename(`flixo-filter-mask.${videoExtensionForMime(recorder.mimeType || mimeType || 'video/webm')}`);
+        }
+
+        discardRecordingRef.current = false;
+        recordingPausedRef.current = false;
         setRecording(false);
+        setRecordPaused(false);
         setRecordSeconds(0);
+        void releaseWakeLock();
         recorderRef.current = null;
       };
 
       recorder.onerror = () => {
+        recordSchedulerRef.current?.cancel();
+        recordSchedulerRef.current = null;
         if (recordTimerRef.current !== null) window.clearInterval(recordTimerRef.current);
         recordTimerRef.current = null;
+        gpuRendererRef.current?.dispose();
+        gpuRendererRef.current = null;
+        outputStream.getVideoTracks().forEach((track) => track.stop());
+        chunksRef.current = [];
+        recordingPausedRef.current = false;
         setRecording(false);
+        setRecordPaused(false);
         setRecordSeconds(0);
+        void releaseWakeLock();
         setError(copy.recordingFailed);
         recorderRef.current = null;
       };
 
       recorder.start(1000);
-      recorderRef.current = recorder;
-      recordFrameRef.current = requestAnimationFrame(drawFrame);
+      recordSchedulerRef.current = scheduleVideoFrames(video, drawFrame);
       setRecordSeconds(0);
-      recordTimerRef.current = window.setInterval(() => setRecordSeconds((seconds) => seconds + 1), 1000);
+      setRecordFps(0);
+      setRecordDroppedFrames(0);
+      recordTimerRef.current = window.setInterval(() => {
+        const metrics = recordingMetricsRef.current;
+        if (recorder.state === 'recording') {
+          setRecordSeconds((seconds) => seconds + 1);
+          const elapsed = Math.max(0.001, (performance.now() - metrics.metricStartedAt) / 1000);
+          setRecordFps(Math.round(metrics.frames / elapsed));
+          setRecordDroppedFrames(metrics.droppedFrames);
+        }
+      }, 1000);
       setRecording(true);
+      setRecordPaused(false);
+      await acquireWakeLock();
     } catch {
+      gpuRendererRef.current?.dispose();
+      gpuRendererRef.current = null;
+      outputStream.getVideoTracks().forEach((track) => track.stop());
       setError(copy.recordingStartFailed);
+      recorderRef.current = null;
     }
   }
+
 
   const formatRecordTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -513,8 +608,32 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     return `${minutes}:${remainder}`;
   };
 
+  function toggleRecordingPause() {
+    const recorder = recorderRef.current;
+    if (!recorder) return;
+    if (recorder.state === 'recording') {
+      recorder.pause();
+      recordingPausedRef.current = true;
+      setRecordPaused(true);
+      return;
+    }
+    if (recorder.state === 'paused') {
+      recorder.resume();
+      recordingPausedRef.current = false;
+      setRecordPaused(false);
+    }
+  }
+
+  function cancelRecording() {
+    const recorder = recorderRef.current;
+    if (!recorder) return;
+    discardRecordingRef.current = true;
+    if (recorder.state === 'paused') recorder.resume();
+    if (recorder.state === 'recording') recorder.stop();
+  }
+
   function stopRecording() {
-    if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
+    if (recorderRef.current?.state === 'recording' || recorderRef.current?.state === 'paused') recorderRef.current.stop();
   }
 
   async function shareSetup() {
@@ -546,7 +665,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
 
   async function shareResult() {
     if (!capturedUrl) return;
-    const filename = capturedKind === 'video' ? 'flixo-filter-mask.webm' : 'flixo-filter-mask.jpg';
+    const filename = capturedFilename;
 
     if (!navigator.share) {
       setError(copy.shareUnsupported);
@@ -572,7 +691,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     const video = videoRef.current;
     if (!video || video.readyState < 2 || !video.videoWidth) return;
 
-    const dimensions = canvasDimensions(video, aspectRatio);
+    const dimensions = canvasDimensions(video, aspectRatio, captureQuality);
     const canvas = document.createElement('canvas');
     canvas.width = dimensions.width;
     canvas.height = dimensions.height;
@@ -601,7 +720,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       if (previous) URL.revokeObjectURL(previous);
       return url;
     });
-    setCapturedKind('photo');
+    setCapturedFilename('flixo-filter-mask.jpg');
   }
 
   return (
@@ -618,8 +737,12 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
           <button type="button" aria-pressed={torch} onClick={() => void toggleTorch()} disabled={!running || recording}>{torch ? copy.torchOn : copy.torchOff}</button>
           <button type="button" onClick={() => void capture()} disabled={!running || recording}>{copy.photo}</button>
           {!recording
-            ? <button type="button" onClick={startRecording} disabled={!running}>{copy.recordVideo}</button>
-             : <button type="button" onClick={stopRecording}>{copy.stopRecording}</button>}
+            ? <button type="button" onClick={() => void startRecording()} disabled={!running}>{copy.recordVideo}</button>
+             : <>
+                 <button type="button" onClick={toggleRecordingPause}>{recordPaused ? copy.resumeRecording : copy.pauseRecording}</button>
+                 <button type="button" onClick={stopRecording}>{copy.stopRecording}</button>
+                 <button type="button" onClick={cancelRecording}>{copy.cancelRecording}</button>
+               </>}
         </div>
       </div>
 
@@ -640,7 +763,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
           ref={videoRef}
           playsInline
           muted
-          aria-label={`${copy.title} live camera`}
+          aria-label={`${copy.title} ${copy.liveCamera}`}
           style={{
             position: 'absolute',
             inset: 0,
@@ -662,6 +785,12 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
           </button>
         )}
       </div>
+
+      {recording && (
+        <small aria-live="polite">
+          {copy.recordingPerformance}: {recordRenderBackend === 'webgl2' ? copy.recordingBackendGpu : copy.recordingBackendCanvas} · {recordFps} FPS · {recordDroppedFrames} drops · {formatRecordTime(recordSeconds)}
+        </small>
+      )}
 
       {error && <p role="alert">{error}</p>}
 
@@ -818,7 +947,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <a
             href={capturedUrl}
-            download={capturedKind === 'video' ? 'flixo-filter-mask.webm' : 'flixo-filter-mask.jpg'}
+            download={capturedFilename}
           >
             {copy.download}
           </a>

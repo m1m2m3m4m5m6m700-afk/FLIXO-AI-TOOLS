@@ -6,10 +6,7 @@
   "devCommand": "npm run dev",
   "cleanUrls": true,
   "git": {
-    "deploymentEnabled": {
-      "main": false,
-      "deps/cleanup-367-v2": false
-    }
+    "deploymentEnabled": false
   },
   "headers": [
     {

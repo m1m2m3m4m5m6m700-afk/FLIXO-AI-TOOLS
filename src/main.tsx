@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { RouterProvider } from '@tanstack/react-router';
 import { router } from './router';
 import { applyDocumentLocale, localeFromPathname } from './lib/i18n/runtime-document-locale';
+import { installToolUiRuntimeCompleteness } from './lib/i18n/tool-ui-runtime-completeness';
 import { FlixoUxShell } from './components/flixo-ux-shell';
 import { installStartupRuntimeDiagnostics } from './lib/diagnostics/runtime-startup-capture';
 import './styles.css';
@@ -16,7 +17,7 @@ if (typeof window !== 'undefined') {
 }
 
 installStartupRuntimeDiagnostics();
-void import('./lib/i18n/tool-ui-runtime-completeness').then(({ installToolUiRuntimeCompleteness }) => installToolUiRuntimeCompleteness());
+installToolUiRuntimeCompleteness();
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {

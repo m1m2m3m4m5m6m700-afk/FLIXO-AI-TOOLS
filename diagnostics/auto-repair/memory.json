@@ -1,5 +1,5 @@
 {
-  "version": 10,
+  "version": 11,
   "cases": [
     {
       "fingerprint": "cefe8e431b2be0d946960754d598c026fdb7e760c2b8803922a69344eb2921c0",
@@ -907,6 +907,54 @@
       ],
       "confidence": 0,
       "features": []
+    },
+    {
+      "fingerprint": "repair-training-self-lint-duplicate-helper-unused-parameter",
+      "rootCause": "repair-training-self-lint",
+      "attempts": 1,
+      "successes": 0,
+      "failures": 1,
+      "externalBlocks": 0,
+      "reversions": 0,
+      "revertFailures": 0,
+      "revertedRules": [],
+      "revertedCommits": [],
+      "rules": [
+        "Maintain exactly one canonical buildGoldenReplaySet definition; exported helper is reused by internal training code.",
+        "Do not retain function parameters that are not consumed; remove stale call-site arguments when the parameter is removed.",
+        "Treat WP0 lint failures in repair-training/strategy infrastructure as internal repair-gate defects and repair the causal source before changing product code."
+      ],
+      "outcomes": [
+        {
+          "outcome": "repair-applied",
+          "verification": "targeted-regression-pending",
+          "provenance": {
+            "source": "FLIXO Auto Repair learning",
+            "failedSha": "02385f629782f71eee33b7e567493923d72be3d6",
+            "targetSha": "fa2b63b1600f1a53328005a0905c3feb94570cdb",
+            "revertedCommit": "",
+            "runId": "35534550820",
+            "workflow": "FLIXO WP0 Trust Baseline",
+            "changedPaths": [
+              "scripts/ci/repair-bot-training.mjs",
+              "scripts/ci/repair-strategy.mjs"
+            ],
+            "rca": "WP0 static lint rejected a duplicate buildGoldenReplaySet definition and an unused rejectedStrategies parameter.",
+            "causalSource": "repair-bot-training.mjs + repair-strategy.mjs",
+            "violatedInvariant": "canonical repair infrastructure must pass its own static lint and contain no duplicate declarations or dead parameters."
+          },
+          "at": "2026-09-20T20:20:00Z"
+        }
+      ],
+      "confidence": 0.5,
+      "features": [
+        "lint",
+        "duplicate-definition",
+        "unused-parameter",
+        "repair-infrastructure",
+        "wp0-static"
+      ],
+      "normalizedFailure": "WP0 canonical static verification reported no-redeclare for buildGoldenReplaySet and no-unused-vars for rejectedStrategies."
     }
   ],
   "playbooks": [],
@@ -974,14 +1022,25 @@
             "revertedCommit": "",
             "runId": "35474433320"
           }
+        },
+        {
+          "verification": "current-head-red-before-repair",
+          "provenance": {
+            "source": "FLIXO Test System",
+            "failedSha": "fe79c28d20fab392e0ca56d2075ed7996423722a",
+            "targetSha": "fe79c28d20fab392e0ca56d2075ed7996423722a",
+            "runId": "35532484163",
+            "workflow": "FLIXO Test System"
+          }
         }
       ],
       "preventionRules": [
         "When repairing regex-based source assertions, preserve only syntactically necessary escapes.",
         "Do not repair a lint error by adding extra backslash escaping inside a JavaScript RegExp literal.",
-        "Re-run the exact linter on the edited file before moving to broader CI."
+        "Re-run the exact linter on the edited file before moving to broader CI.",
+        "Promote dependent repair commits only after the exact-head syntax/lint gate passes; advisory escape rules alone do not prevent recurrence."
       ],
-      "lastSeenAt": "2026-09-19T22:50:01Z"
+      "lastSeenAt": "2026-09-20T19:35:00Z"
     },
     {
       "id": "b7676df7aa32ad7e718f",
@@ -1072,6 +1131,33 @@
         "Use dependency order to build the root-cause tree before choosing a mutation."
       ],
       "lastSeenAt": "2026-09-19T22:48:35Z"
+    },
+    {
+      "id": "f4423c648ec49d08d49e",
+      "fingerprint": "f4423c648ec49d08d49e881e9f2b6c05f5463d1816ce476231a8c9a5c1964d25",
+      "rootCause": "orchestration",
+      "rule": "composed-training-stage-wiring",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 1,
+      "confidence": 0.85,
+      "evidence": [
+        {
+          "verification": "current-head-red-before-repair",
+          "provenance": {
+            "source": "FLIXO Test System",
+            "failedSha": "fe79c28d20fab392e0ca56d2075ed7996423722a",
+            "targetSha": "fe79c28d20fab392e0ca56d2075ed7996423722a",
+            "runId": "35532484163",
+            "workflow": "FLIXO Test System"
+          }
+        }
+      ],
+      "preventionRules": [
+        "When a training feature adds model/evaluation stages, wire every produced value before it is consumed in the same atomic change.",
+        "Run the exact training self-test and lint after adding each dependent training stage; never stack undefined-stage consumers on a green-looking contract."
+      ],
+      "lastSeenAt": "2026-09-20T19:35:00Z"
     }
   ],
   "antiLessons": [
@@ -1174,7 +1260,9 @@
           }
         }
       ],
-      "preventionRules": [],
+      "preventionRules": [
+        "EXTERNAL-EXTERNAL-TOOLING: classify as BLOCKED_EXTERNAL; do not mutate internal source; wait for provider recheck or escalate."
+      ],
       "lastSeenAt": "2026-09-19T06:48:35.261Z"
     },
     {

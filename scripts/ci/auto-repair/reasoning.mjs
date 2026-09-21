@@ -4,6 +4,10 @@ import { extractFeatures, normalizeFailure } from './fingerprint.mjs';
 
 const PROFILES = Object.freeze([
   { id: 'external-tooling', feature: 'external-tooling', specificity: 1, hardBlock: true, patterns: [/SessionModelError/i, /CAPIError/i, /requested model is not supported/i, /code scanning AI findings/i] },
+  { id: 'noncanonical-automation', feature: 'noncanonical-automation', specificity: 0.99, dominates: ['liveness-contract', 'contract-drift'], patterns: [/HTTP\s*422.*(?:Daily.?FLIXO.?Green.?Gate|green gate)/i, /(?:Daily.?FLIXO.?Green.?Gate|green gate).*HTTP\s*422/i, /heartbeat.*(?:gh\s+workflow\s+run|workflow\s+dispatch)/i, /noncanonical automation/i] },
+  { id: 'liveness-contract', feature: 'liveness-contract', specificity: 0.97, dominates: ['contract-drift'], patterns: [/agent-liveness/i, /workAssignedStates/i, /forbiddenStates/i, /WAITING_EXTERNAL/i, /IDLE.*SLEEP/i, /SLEEP.*IDLE/i, /heartbeat.*lease/i, /stale heartbeat/i] },
+  { id: 'contract-drift', feature: 'contract-drift', specificity: 0.95, patterns: [/contract drift/i, /contract mismatch/i, /current contract/i, /out of sync with contract/i, /test.*contract.*drift/i, /assert.*contract/i] },
+  { id: 'typescript-async-contract', feature: 'typescript-async-contract', specificity: 0.99, dominates: ['typescript'], patterns: [/TS1064/i, /return type of an async function/i, /Did you mean to write ['"]?Promise</i, /async function.*return type/i] },
   { id: 'webkit-render', feature: 'webkit', specificity: 0.96, dominates: ['playwright'], patterns: [/webkit/i, /data-render-revision/i, /GPU rendering/i, /waitForGpuRender/i] },
   { id: 'lint', feature: 'lint', specificity: 0.94, patterns: [/eslint/i, /no-unused-vars/i, /defined but never used/i, /no-empty/i] },
   { id: 'format', feature: 'format', specificity: 0.9, patterns: [/prettier/i, /formatting/i, /code style/i] },
@@ -166,7 +170,7 @@ export function buildRepairHypothesis({
   causalConfidence = 0,
   evidenceProfile: evidence = null,
 } = {}) {
-  const id = top?.id ?? 'unknown';
+  const id = top?.id ?? 'UNKNOWN_RCA';
   const expectedEffectByCause = {
     lint: 'STATIC_CONTRACT_RECOVERS_WITHOUT_UNRELATED_MUTATION',
     format: 'FORMAT_CONTRACT_RECOVERS_WITHOUT_UNRELATED_MUTATION',
@@ -176,7 +180,11 @@ export function buildRepairHypothesis({
     'webkit-render': 'WEBKIT_RENDER_CONTRACT_RECOVERS',
     certification: 'CERTIFICATION_EVIDENCE_CONTRACT_RECOVERS',
     'external-tooling': 'PROVIDER_RECOVERY_WITHOUT_SOURCE_MUTATION',
-    unknown: 'ORIGINAL_FAILURE_SIGNAL_DISAPPEARS_AND_RELATED_INVARIANT_HOLDS',
+    'noncanonical-automation': 'CANONICAL_WAKE_OR_AUTOMATION_OWNERSHIP_RECOVERS_WITHOUT_DUPLICATE_DISPATCH',
+    'liveness-contract': 'LIVENESS_CONTRACT_AND_STATE_TRANSITIONS_RECOVER_WITHOUT_FALSE_TERMINATION',
+    'contract-drift': 'TEST_AND_IMPLEMENTATION_CONTRACTS_AGREE_ON_THE_CANONICAL_SOURCE_OF_TRUTH',
+    'typescript-async-contract': 'TYPECHECK_CONTRACT_RECOVERS_WITH_PROMISE_RETURN_AND_AWAIT_PROPAGATION',
+    UNKNOWN_RCA: 'ORIGINAL_FAILURE_SIGNAL_DISAPPEARS_AND_RELATED_INVARIANT_HOLDS',
   };
   const affectedFiles = [...new Set([location?.file, ...(top?.file ? [top.file] : [])].filter(Boolean))];
   const falsification = falsificationChecks.find((item) => item?.required !== false) ?? {
@@ -188,7 +196,7 @@ export function buildRepairHypothesis({
   return Object.freeze({
     schemaVersion: 1,
     hypothesis: id,
-    expectedEffect: expectedEffectByCause[id] ?? expectedEffectByCause.unknown,
+    expectedEffect: expectedEffectByCause[id] ?? expectedEffectByCause.UNKNOWN_RCA,
     violatedInvariant: process.env.FLIXO_VIOLATED_INVARIANT ?? 'UNKNOWN_INVARIANT_UNPROVEN',
     affectedFiles,
     falsificationCheck: falsification,
@@ -200,7 +208,7 @@ export function buildRepairHypothesis({
       channels: evidence?.channels ?? {},
       quality: evidence?.quality ?? 'INSUFFICIENT',
     },
-    failClosed: id === 'unknown' || id === 'external-tooling' || Number(causalConfidence ?? 0) < 0.75,
+    failClosed: id === 'UNKNOWN_RCA' || id === 'external-tooling' || Number(causalConfidence ?? 0) < 0.75,
   });
 }
 
@@ -217,14 +225,43 @@ function causalGraph({ trigger = null, rootCause = null, violatedInvariant = nul
 }
 
 function crossWorkflowCorrelation({ workflow = null, failures = [] } = {}) {
-  const normalized = failures.filter((item) => item && (item.workflow || item.runId || item.fingerprint));
-  const sameFingerprint = normalized.filter((item) => item.fingerprint && item.fingerprint === normalized[0]?.fingerprint);
+  const normalized = failures
+    .filter((item) => item && (item.workflow || item.runId || item.fingerprint))
+    .slice(-20);
+  const workflowCount = new Set(normalized.map((item) => item.workflow).filter(Boolean)).size;
+  const shaFor = (item) => String(item?.targetSha ?? item?.failedSha ?? item?.headSha ?? item?.executionSha ?? '').trim().toLowerCase();
+  const grouped = new Map();
+  for (const item of normalized) {
+    const fingerprint = String(item.fingerprint ?? '');
+    if (!fingerprint) continue;
+    const entry = grouped.get(fingerprint) ?? { fingerprint, records: [], workflows: new Set(), shas: new Set() };
+    entry.records.push(item);
+    if (item.workflow) entry.workflows.add(String(item.workflow));
+    const sha = shaFor(item);
+    if (/^[0-9a-f]{40}$/.test(sha)) entry.shas.add(sha);
+    grouped.set(fingerprint, entry);
+  }
+  const common = [...grouped.values()]
+    .filter((entry) => entry.records.length > 1 && entry.workflows.size > 1)
+    .map((entry) => ({
+      ...entry,
+      shaQualified: entry.shas.size === 1,
+      shaEvidence: [...entry.shas][0] ?? null,
+    }))
+    .filter((entry) => entry.shaQualified)
+    .sort((a, b) => b.records.length - a.records.length || a.fingerprint.localeCompare(b.fingerprint))[0];
+  const firstCommonFailure = common?.records[0] ?? normalized[0] ?? null;
   return {
     schemaVersion: 1,
     workflow,
-    observedFailures: normalized.slice(-20),
-    firstCommonFailure: sameFingerprint[0] ?? normalized[0] ?? null,
-    confidence: sameFingerprint.length > 1 ? 'CORRELATED' : normalized.length > 1 ? 'MULTI_WORKFLOW_UNPROVEN' : 'INSUFFICIENT_EVIDENCE',
+    observedFailures: normalized,
+    firstCommonFailure,
+    commonSHA: common?.shaEvidence ?? null,
+    confidence: common
+      ? 'CORRELATED'
+      : normalized.length > 1 && workflowCount > 1
+        ? 'MULTI_WORKFLOW_UNPROVEN'
+        : 'INSUFFICIENT_EVIDENCE',
     mutationAllowed: false,
   };
 }
@@ -248,7 +285,7 @@ function adaptiveBudget({ attempts = 0, ambiguity = false, alternatives = 0, fea
 function selectTop(hypotheses) {
   const viable = hypotheses.filter((item) => !item.suppressedBy);
   return viable[0] ?? hypotheses[0] ?? {
-    id: 'unknown', score: 0, directMatches: 0, evidenceLines: [], scoutFindings: 0, learnedSupport: 0, specificity: 0, dominates: [],
+    id: 'UNKNOWN_RCA', score: 0, directMatches: 0, evidenceLines: [], scoutFindings: 0, learnedSupport: 0, specificity: 0, dominates: [],
   };
 }
 
@@ -360,7 +397,7 @@ export function verificationStrategy(features = []) {
   if (features.includes('typescript')) commands.push(['npm', ['run', 'typecheck']]);
   if (features.includes('playwright') || features.includes('webkit')) commands.push(['npm', ['run', 'test:browser']]);
   if (features.includes('build')) commands.push(['npm', ['run', 'test:build']]);
-  if (features.includes('certification')) commands.push(['npm', ['run', 'test:static']]);
+  if (features.includes('certification') || features.includes('noncanonical-automation') || features.includes('liveness-contract') || features.includes('contract-drift') || features.includes('typescript-async-contract')) commands.push(['npm', ['run', 'test:static']]);
   if (!commands.some(([, args]) => args?.[1] === 'test:static')) commands.push(['npm', ['run', 'test:static']]);
   return commands;
 }

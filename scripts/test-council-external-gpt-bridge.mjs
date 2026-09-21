@@ -30,6 +30,7 @@ const mockFetch = async (url, init = {}) => {
         identity: { agentId: 'flixo-worker-a-001', machineRole: 'executionAgent' },
         dispatch: {
           dispatch_id: 'dispatch-001',
+          mission_id: 'MISSION-001',
           task_id: 'GREEN-RECOVERY-001',
           work_package_id: 'ROOT-CAUSE-SPINE-001',
           entry_sha: SHA,
@@ -49,7 +50,16 @@ const mockFetch = async (url, init = {}) => {
     return new Response(JSON.stringify({
       status: 'DONE',
       evidence: { executor: 'mock', verified: true },
-      payload: { result: 'wake-cycle-complete' },
+      payload: { agentResult: {
+        profileId:'ACTION_FRONTIER_REPAIR_V2', exactSha:SHA, objective:'test wake', requiredCapabilities:['RCA'],
+        planSummary:'bounded plan', decision:'REVIEW', verification:'test verification', selfCritique:'test self-check',
+        alternativesConsidered:['alternative'], verificationPassed:true, finding:['test finding'], evidence:['test evidence'],
+        evidenceGrade:'E4', unknowns:[], lesson:'test lesson', antiLesson:'test antiLesson', skillCandidate:'test-skill',
+        directBenefit:'test benefit', nextAction:'handoff', decisionTrace:'test trace', reviewRequired:true, selfApproved:false,
+        uncertaintyAcknowledged:true, hypotheses:['h1','h2'], selectedHypothesis:'h1', counterexamples:['c1'],
+        toolTrace:['diagnostics'], memoryReferences:['error-memory:F001'], simulationSummary:'simulation pass', simulationPassed:true,
+        uncertaintySummary:'bounded uncertainty'
+      } },
     }), { status: 200 });
   }
 
@@ -69,6 +79,8 @@ assert.equal(dispatch.entry_sha, SHA);
 await ackDispatch(config, dispatch, 'session-001', mockFetch);
 const result = await executeExternalAgent(config, dispatch, 'session-001', mockFetch);
 assert.equal(result.status, 'DONE');
+assert.equal(result.payload.agentResult.profileId,'ACTION_PRIMARY_REPAIR_V1');
+assert.equal(result.evidence.actionAgentValidation.valid,true);
 assert.equal(result.evidence.verified, true);
 await completeDispatch(config, dispatch, 'session-001', 'DONE', result.evidence, result.payload, mockFetch);
 

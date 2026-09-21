@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import { createToolCatalog } from '../src/config/tool-platform/catalog.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
@@ -28,6 +29,9 @@ assert.equal(catalog.byId.get('b')?.executionMode, 'CLOUD');
 assert.deepEqual(catalog.byId.get('a')?.operational.contracts, ['structural', 'runtime', 'artifact']);
 assert.match(catalog.fingerprint, /^[a-f0-9]{64}$/);
 assert.equal(catalog.fingerprint, createToolCatalog(source).fingerprint);
+const catalogSource = fs.readFileSync('src/config/tool-platform/catalog.ts', 'utf8');
+assert.doesNotMatch(catalogSource, /from ['"]node:crypto['"]/u);
+assert.match(catalogSource, /function sha256Hex/iu);
 const reordered = createToolCatalog([source[1], source[0]]);
 assert.equal(reordered.fingerprint, catalog.fingerprint);
 

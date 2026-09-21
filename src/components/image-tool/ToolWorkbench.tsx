@@ -253,7 +253,7 @@ export function ToolWorkbench<P>({
   const commonContext = { files, input: inputAsset, parameters, setParameters, busy } as const;
 
   return (
-    <div lang={locale} dir={locale.toLowerCase().startsWith('ar') ? 'rtl' : 'ltr'} className="image-tool-shell" data-tool-id={toolId}>
+    <div lang={locale} dir={locale.toLowerCase().startsWith('ar') ? 'rtl' : 'ltr'} className="image-tool-shell" data-tool-id={toolId} data-flixo-i18n-root>
       <div className="image-tool-container">
         <header className="image-tool-header">
           <div>

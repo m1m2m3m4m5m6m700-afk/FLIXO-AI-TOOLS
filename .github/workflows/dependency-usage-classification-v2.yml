@@ -6,6 +6,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# A newer main commit supersedes older dependency-classification runs.
+# Keep only the newest run for the branch to reduce runner usage and queue time.
+concurrency:
+  group: dependency-usage-classification-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

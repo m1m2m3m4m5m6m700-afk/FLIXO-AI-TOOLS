@@ -1,0 +1,71 @@
+name: FLIXO Council Live Runtime Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact execution SHA whose deployed Council runtime must be verified
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    name: Read-only live Council runtime proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: flixo-live-runtime-verification
+    steps:
+      - name: Validate requested exact SHA
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'FAIL CLOSED: expected_sha must be 40 lowercase hex characters.'; exit 1; }
+      - name: Resolve and lock current execution SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          [[ "$CURRENT_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'FAIL CLOSED: current execution SHA is invalid.'; exit 1; }
+          test "$EXPECTED_SHA" = "$CURRENT_SHA"
+
+      - name: Checkout locked execution SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: execution
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Reconfirm exact checkout SHA
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Run read-only live runtime verification
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          EVIDENCE_OUTPUT_PATH: /tmp/council-live-runtime-evidence.json
+        run: node scripts/ci/verify-council-live-runtime.mjs
+      - name: Validate evidence binding
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          test -s /tmp/council-live-runtime-evidence.json
+          jq -e --arg sha "$EXPECTED_SHA" '.state == "LIVE_VERIFIED" and .verifiedSha == $sha and .provider == "supabase" and (.evidenceRef | strings | length > 0) and (.verifier | strings | length > 0)' /tmp/council-live-runtime-evidence.json
+      - name: Publish live runtime evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-council-live-runtime-evidence-${{ inputs.expected_sha }}
+          path: /tmp/council-live-runtime-evidence.json
+          if-no-files-found: error
+          retention-days: 30

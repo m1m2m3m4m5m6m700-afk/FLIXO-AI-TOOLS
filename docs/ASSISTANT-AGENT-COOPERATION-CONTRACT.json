@@ -30,12 +30,32 @@
     "event_driven_delivery": "The canonical communication relay consumes notification events immediately when emitted; periodic polling is recovery only, never the primary delivery path.",
     "message_idempotency": "messageId/idempotencyKey identifies one logical notification; duplicate delivery is a NO-OP and conflicting reuse of an id is fail-closed.",
     "message_freshness": "A message may be received on any SHA, but it is executable only when its entrySha matches the current authoritative workspace SHA or has been explicitly revalidated by the controller.",
-    "council_hierarchy": "assistantController is the Council President; verification is the Council Deputy; analysis is the Council Investigator. These titles add coordination responsibility but no new mutation or certification authority.",
+    "council_hierarchy": "assistantController is the Council President and the highest repository administration authority for coordination/orchestration; verification is the Council Deputy; analysis is the Council Investigator. Any Council message/comment/wake/question/invocation is P0 and requires immediate receipt/response before lower-priority work. Safe-boundary preemption is permitted without corrupting in-flight mutation. These titles govern coordination and administration but do not create direct source-mutation or certification authority.",
     "large_work_packages": "Executable work is grouped into causally coherent Work Packages carrying missionId, workPackageId, ownerRole, ownerAgent, workItems, acceptanceCriteria and proofObligations. Independent causes remain separate.",
     "wake_dispatch": "President Wake is a fail-closed exact-SHA activation request processed by the canonical communication relay with scripts/ci/council-wake-dispatch.mjs. It dispatches only reusable workflows or records an external-agent wake requirement.",
     "external_account_runtime": "P20 extension: CHIEF, WORKER_A and WORKER_B are external runtime identities persisted in Supabase. Only CHIEF may dispatch worker Work Packages; workers may ACK, heartbeat and complete their assigned work.",
     "external_wake": "GitHub RED wakes CHIEF through the canonical external-runtime route. CHIEF dispatches Worker A/B. A worker is active only after ACK on the current exact SHA. Lease expiry triggers one deterministic fallback.",
-    "external_github_oidc": "GitHub RED and lease recovery authenticate to the external council runtime with GitHub Actions OIDC. The runtime validates issuer, audience, repository, workflow and execution context before allowing SYSTEM dispatch or recovery. No static GitHub dispatch secret is required."
+    "external_github_oidc": "GitHub RED and lease recovery authenticate to the external council runtime with GitHub Actions OIDC. The runtime validates issuer, audience, repository, workflow and execution context before allowing SYSTEM dispatch or recovery. No static GitHub dispatch secret is required.",
+    "council_cell_triseat": "The cell uses three ChatGPT governance seats for assignment, challenge, analysis and verification. They supervise one reusable raw-bot pool through assistantController; raw bots never become a second council.",
+    "directCellMasterCommunication": {
+      "enabled": true,
+      "channel": "CELL_DIRECT_MASTER",
+      "recipient": "assistantController",
+      "sourceIdentityPattern": "CELL-\\d{3}",
+      "registeredAgentsAutoEligible": true,
+      "exactShaRequired": true,
+      "idempotencyRequired": true,
+      "receiptRequired": true,
+      "authorityGranted": "COMMUNICATION_ONLY",
+      "mutationAuthorityGranted": false,
+      "certificationAuthorityGranted": false,
+      "permissionGrantAuthorityGranted": false,
+      "staleMessage": "FAIL_CLOSED",
+      "conflict": "MASTER_ARBITRATION_REQUIRED"
+    },
+    "action_vault_reasoning": "The Action Vault is a bounded extension of P20 for the resident repair triad: ACTION-REPAIR performs only admitted repair mutation, ACTION-REPAIR-2 independently challenges the causal explanation and verification evidence without mutation, and ACTION-HISTORIAN-3 records lessons/anti-lessons and recurrence prevention without mutation. A triad mission must preserve exact SHA, failure fingerprint, ownership, independent roles, targeted regression and final evidence; memory never grants authority and blind retries are forbidden. Mutation admission additionally requires an independent verifier proof bound to the same exact SHA and failure fingerprint.",
+    "system_cognitive_awareness": "Action Vault agents must reason over task, repository, causal, historical, governance, adversarial, operational, temporal and systemic-impact context before applying their role. Cognitive breadth may exceed assigned role; mutation/certification authority may not.",
+    "re_evaluation": "New authoritative evidence, SHA movement, counterexample, contradiction, or failed verification invalidates dependent reasoning and requires re-evaluation."
   },
   "messageEnvelope": {
     "required": [
@@ -89,7 +109,10 @@
     "councilPresident": "assistantController: presidential control, assignment and integration decisions; no mutation or certification",
     "councilDeputy": "verification: queue sequencing, dependency ordering, ownership and handoff management; no mutation or certification",
     "councilInvestigator": "analysis: fingerprint, RCA, falsification and proof-obligation ownership; no mutation or reassignment",
-    "externalRuntime": "External account adapter: transports Wake/ACK/heartbeat/completion between GitHub/Supabase and external GPT runtimes. It grants no mutation or certification authority."
+    "externalRuntime": "External account adapter: transports Wake/ACK/heartbeat/completion between GitHub/Supabase and external GPT runtimes. It grants no mutation or certification authority.",
+    "actionRepairBot": "ACTION-REPAIR / actionRepairBot: primary correctness prover and bounded repair owner. It must construct an explicit proof that its diagnosis and proposed repair are correct before mutation.",
+    "actionRepairVerifier": "ACTION-REPAIR-2 / actionRepairVerifier: adversarial programmer falsifier. It must assume ACTION-REPAIR may be wrong and actively attempt to prove it wrong with independent counterexamples. It never mutates source.",
+    "actionHistorian": "ACTION-HISTORIAN-3 / actionHistorian: file-selection intelligence and learning specialist. It reasons about repository files, file relationships, change surfaces and exclusions without reading source-code content as a programmer; it has no source mutation, commit, push, merge or certification authority."
   },
   "decisionGates": {
     "LOW": "Auto-execute only inside declared scope with deterministic verification and no protected-path impact.",
@@ -305,5 +328,413 @@
       ],
       "registrationState": "IDENTITY_ONLY_WITH_DECLARED_MUTATION_CAPABILITY"
     }
+  },
+  "cellCouncil": {
+    "schemaVersion": 1,
+    "authority": "CELL_TRISEAT_CONTROLLER",
+    "seats": [
+      {
+        "id": "CELL-SEAT-01",
+        "agent": "CURRENT_CHATGPT_AGENT",
+        "role": "CONTROLLER",
+        "authority": "ASSIGNMENT_AND_INTEGRATION",
+        "mutation": "VIA_ASSISTANT_CONTROLLER_ONLY"
+      },
+      {
+        "id": "CELL-SEAT-02",
+        "agent": "CHATGPT_PEER_A",
+        "role": "RCA_AND_CHALLENGE",
+        "authority": "ANALYSIS_AND_CHALLENGE_ONLY",
+        "mutation": "NONE"
+      },
+      {
+        "id": "CELL-SEAT-03",
+        "agent": "CHATGPT_PEER_B",
+        "role": "VERIFICATION_AND_ALTERNATIVE",
+        "authority": "REVIEW_AND_VERIFICATION_ONLY",
+        "mutation": "NONE"
+      }
+    ],
+    "quorum": {
+      "minimumSeats": 2,
+      "criticalDecisions": 3,
+      "rule": "No single seat may authorize a cell mutation, capability promotion, knowledge promotion, or irreversible action alone."
+    },
+    "controller": "assistantController",
+    "communication": "Canonical communication inbox only; no direct raw-bot mesh.",
+    "taskAssignment": "assistantController assigns one task and one exact scope to each available raw bot.",
+    "knowledgeRule": "Seats may propose or challenge knowledge, but only evidence-backed validation may promote it into reusable bot memory.",
+    "conflictRule": "Preserve conflicting findings and resolve against current exact-SHA evidence; never last-writer-wins.",
+    "fallback": "If peer seats are unavailable, controller may continue routine bounded work only when the canonical contract allows unilateral continuation; critical mutations remain blocked until required quorum.",
+    "independence": "Peer seats are logical governance seats, not independent repository mutation identities."
+  },
+  "actionVaultContinuity": {
+    "enabled": true,
+    "missionContractVersion": 2,
+    "vault": "diagnostics/auto-repair/action-vault",
+    "residents": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ],
+    "alwaysResident": true,
+    "leaveVault": false,
+    "activeOnlyAfterCanonicalAssignment": true,
+    "maxOperationsPerBot": 2000000,
+    "automaticVisitsPerBotPerDay": 3,
+    "automaticVisitsPerDay": 9,
+    "redCollaboration": "MANDATORY_THREE_BOT_SHARED_MISSION",
+    "roles": {
+      "ACTION-REPAIR": {
+        "agent": "actionRepairBot",
+        "purpose": "constructive correctness proof and bounded source repair",
+        "mutationAuthority": true,
+        "certificationAuthority": false,
+        "requiredInputs": [
+          "exactSha",
+          "failureFingerprint",
+          "diagnosis",
+          "ownershipLock",
+          "repairProtocolAdmission",
+          "proofObligations",
+          "actionVaultVerifierProof"
+        ],
+        "requiredOutputs": [
+          "primaryCorrectnessProof",
+          "changedFiles",
+          "repairRationale",
+          "targetedRegression",
+          "exitSha",
+          "handoffEvidence"
+        ],
+        "forbidden": [
+          "gate weakening",
+          "silent skip",
+          "unrelated cleanup",
+          "test-only symptom masking",
+          "self-certification",
+          "main mutation",
+          "third branch"
+        ],
+        "proofObjective": "PROVE_PRIMARY_REPAIR_CORRECT"
+      },
+      "ACTION-REPAIR-2": {
+        "agent": "actionRepairVerifier",
+        "purpose": "adversarial falsification of ACTION-REPAIR's correctness proof",
+        "mutationAuthority": false,
+        "certificationAuthority": false,
+        "requiredInputs": [
+          "exactSha",
+          "failureFingerprint",
+          "fileSelectionDecision",
+          "primaryCorrectnessProof",
+          "exactFailureEvidence"
+        ],
+        "requiredOutputs": [
+          "falsificationReport",
+          "counterexampleSearch",
+          "counterexamples",
+          "unfalsifiedObligations",
+          "blockOrReleaseRecommendation"
+        ],
+        "forbidden": [
+          "source mutation",
+          "commit",
+          "push",
+          "merge",
+          "certification",
+          "bypassPrimary",
+          "authorityGrant"
+        ],
+        "fallbackMutation": {
+          "actor": "assistantRepairAgent",
+          "authority": "EXPLICIT_PRIMARY_HANDOFF_ONLY",
+          "approvalFrom": "ACTION-REPAIR",
+          "heartbeatRequired": true,
+          "exactShaRequired": true,
+          "normalRepairProtocolRequired": true
+        },
+        "intelligenceParity": {
+          "protocol": "ACTION-PROGRAMMER-TWIN-PARITY-v1",
+          "target": "ACTION-REPAIR",
+          "parity": "EXACT",
+          "authority": "SEPARATED_BY_DESIGN"
+        },
+        "proofObjective": "ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG",
+        "failClosedOnCounterexample": true
+      },
+      "ACTION-HISTORIAN-3": {
+        "agent": "actionHistorian",
+        "purpose": "file selection intelligence, recurrence prevention and learning",
+        "mutationAuthority": false,
+        "certificationAuthority": false,
+        "requiredInputs": [
+          "exactSha",
+          "failureFingerprint",
+          "failureLog",
+          "trackedFilePaths",
+          "currentShaChangeSurface"
+        ],
+        "requiredOutputs": [
+          "fileSelectionDecision",
+          "selectedFiles",
+          "excludedFiles",
+          "selectionConfidence",
+          "uncertainty",
+          "lesson",
+          "antiLesson",
+          "recurrenceRule",
+          "preventionRule",
+          "memoryProvenance"
+        ],
+        "forbidden": [
+          "source mutation",
+          "code patching",
+          "programmer-level root-cause claims",
+          "authority grant",
+          "confidence-only promotion",
+          "deleting failed history"
+        ],
+        "memoryWriteAuthority": "ACTION_VAULT_MEMORY_ONLY",
+        "pathOnlyReasoning": true
+      }
+    },
+    "missionSequence": [
+      "CAPTURE",
+      "FINGERPRINT",
+      "FILE_SELECTION",
+      "PRIMARY_CORRECTNESS_PROOF",
+      "ADVERSARIAL_FALSIFICATION",
+      "PROOF_REPAIR_OR_DEFENSE",
+      "REPAIR",
+      "TARGETED_REGRESSION",
+      "POST_REPAIR_FALSIFICATION",
+      "LEARN",
+      "EXACT_SHA_RECHECK",
+      "HANDOFF"
+    ],
+    "sharedMissionEnvelopeRequired": [
+      "triadId",
+      "messageId",
+      "taskId",
+      "failureFingerprint",
+      "entrySha",
+      "targetSha",
+      "ownerAgent",
+      "proofObligations",
+      "stopConditions",
+      "fileSelectionDecision",
+      "programmerTwinParity",
+      "systemCognitiveAwareness"
+    ],
+    "independenceRule": "ACTION-REPAIR-2 and ACTION-HISTORIAN-3 must not impersonate ACTION-REPAIR or reuse its mutation authority.",
+    "verificationRule": "Every participant independently consumes the same exact-SHA system cognitive awareness packet before role-local reasoning. Broader cognition never expands authority. New evidence forces re-evaluation.",
+    "memoryPromotionRule": "A reusable repair rule requires at least two independently verified successful exact-SHA cases plus one explicit prevention rule; one success never promotes authority.",
+    "retryPolicy": "NO_BLIND_RETRY",
+    "failedAttemptEscalationThreshold": 20,
+    "stalledCycleRule": {
+      "maxIdenticalCycles": 3,
+      "condition": "same failure fingerprint without verifiable progress",
+      "action": "PERSIST_ANTI_LESSON_AND_ESCALATE_TO_ASSISTANT_CONTROLLER",
+      "failClosed": true
+    },
+    "supervisorRecipient": "assistantController",
+    "supervisorRoute": "scripts/ci/agent-communication.mjs -> .github/workflows/agent-communication-relay.yml -> scripts/ci/council-wake-dispatch.mjs",
+    "escalationIsNotClosure": true,
+    "closureOnly": "CANONICAL_GREEN",
+    "continueRepairAfterEscalation": true,
+    "preMutationChallenge": {
+      "required": true,
+      "artifact": "actionVaultVerifierProof",
+      "verifier": "actionRepairVerifier",
+      "admission": "require exact SHA + primary correctness proof + adversarial falsification attempt + no valid counterexample + file selection + remaining risks",
+      "failClosed": true,
+      "fileSelectionRequired": true,
+      "programmerTwinParityRequired": true,
+      "primaryCorrectnessProofRequired": true,
+      "adversarialFalsificationRequired": true,
+      "systemCognitiveAwarenessRequired": true,
+      "sandboxProofRequired": true,
+      "differentialProofRequired": true,
+      "patchCorrectnessProofRequired": true,
+      "patchIdentityMustMatchSimulation": true,
+      "adversarialBenchmarkRequired": true,
+      "benchmarkRuntime": "scripts/ci/action-vault-intelligence-benchmark.mjs"
+    },
+    "fileSelectionIntelligence": {
+      "enabled": true,
+      "protocol": "ACTION-FILE-SELECTION-INTELLIGENCE-v1",
+      "runtime": "scripts/ci/action-file-selection-intelligence.mjs",
+      "owner": "ACTION-HISTORIAN-3",
+      "readOnly": true,
+      "pathOnlyAnalysis": true,
+      "codeContentRead": false,
+      "sourceMutationAllowed": false,
+      "exactShaRequired": true,
+      "failureFingerprintRequired": true,
+      "minimumSelectedFiles": 1,
+      "maximumSelectedFiles": 12,
+      "requiredDecisionFields": [
+        "targetSha",
+        "failureFingerprint",
+        "selectedFiles",
+        "excludedFiles",
+        "uncertainty",
+        "decision"
+      ],
+      "boundary": "SELECT_SCOPE_ONLY; NEVER_DECLARE_CODE_ROOT_CAUSE"
+    },
+    "programmerTwin": {
+      "enabled": true,
+      "protocol": "ACTION-PROGRAMMER-TWIN-FALSIFICATION-v1",
+      "primary": "ACTION-REPAIR",
+      "adversary": "ACTION-REPAIR-2",
+      "primaryProofRuntime": "scripts/ci/action-primary-correctness-proof.mjs",
+      "primaryProofArtifact": "/tmp/action-primary-correctness-proof.json",
+      "falsificationRuntime": "scripts/ci/action-repair-dual-control.mjs",
+      "falsificationArtifact": "/tmp/action-repair-2-proposal.json",
+      "proofObjectives": {
+        "primary": "PROVE_PRIMARY_REPAIR_CORRECT",
+        "adversary": "ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG"
+      },
+      "counterexampleBlocksMutation": true,
+      "noCounterexampleIsNotGreen": true,
+      "intelligenceParity": "EXACT"
+    }
+  },
+  "cognitiveExpansion": {
+    "enabled": true,
+    "protocol": "ACTION-SYSTEM-COGNITIVE-AWARENESS-v1",
+    "runtime": "scripts/ci/action-system-cognitive-awareness.mjs",
+    "artifact": "/tmp/action-system-cognitive-awareness.json",
+    "rule": "Every Action Vault agent must understand the wider system context before applying its role-local reasoning.",
+    "authorityInvariant": "Cognitive breadth may exceed role scope; mutation and certification authority may never expand.",
+    "domains": [
+      "TASK_SEMANTICS",
+      "REPOSITORY_CONTEXT",
+      "CAUSAL_CONTEXT",
+      "HISTORICAL_CONTEXT",
+      "SAFETY_GOVERNANCE",
+      "ADVERSARIAL_CONTEXT",
+      "OPERATIONAL_CONTEXT",
+      "TEMPORAL_CONTEXT",
+      "SYSTEMIC_IMPACT"
+    ],
+    "mandatory": true,
+    "exactShaRequired": true,
+    "reEvaluateOnNewEvidence": true
+  },
+  "invocationContract": {
+    "schemaVersion": 1,
+    "authority": "CANONICAL_INVOCATION_CONTRACT",
+    "runtime": "scripts/ci/invocation-contract.mjs",
+    "requiredIdentity": [
+      "invocationId",
+      "messageId",
+      "taskId",
+      "targetSha",
+      "failureFingerprint",
+      "attempt",
+      "leaseEpoch"
+    ],
+    "identityRule": "invocationId = deterministic SHA-256 identity over messageId + taskId + targetSha + failureFingerprint + attempt + leaseEpoch",
+    "lifecycle": [
+      "DISPATCHED",
+      "RECEIVED",
+      "ACCEPTED",
+      "STARTED",
+      "HEARTBEAT",
+      "COMPLETED",
+      "VERIFIED"
+    ],
+    "failClosedStates": [
+      "FAILED",
+      "STALE",
+      "SUPERSEDED",
+      "BLOCKED_CONFLICT"
+    ],
+    "supersessionRule": "A newer exact execution SHA supersedes older invocations; older invocations cannot become VERIFIED after supersession.",
+    "recoveryRule": "Recovery requires lease expiry, no valid heartbeat, no newer invocation, current exact SHA, and no competing owner.",
+    "sourceOfTruth": "This contract is the canonical invocation identity/state contract; component-specific state must not redefine invocation identity or supersession semantics.",
+    "relayBinding": ".github/workflows/agent-communication-relay.yml",
+    "evidenceBinding": "Every transition may carry evidenceRefs; VERIFIED requires the current exact SHA.",
+    "authorityBoundary": "Invocation validity never grants mutation or certification authority."
+  },
+  "masterCollaboration": {
+    "status": "ACTIVE",
+    "objective": "MAXIMIZE_COOPERATIVE_REASONING_AND_DELIVERY_WITHOUT_PARALLEL_AUTHORITY",
+    "authoritySource": "USER",
+    "roles": {
+      "MASTER-1": "PRESIDENT / orchestration, prioritization, integration and decision coordination",
+      "MASTER-2": "DEPUTY / dependency sequencing, contract alignment, verification coordination and challenge",
+      "MASTER-3": "CONSULTANT / causal analysis, design proposals, challenge, architecture review and knowledge synthesis"
+    },
+    "cooperationCycle": [
+      "ASSIGN",
+      "RECEIVE_ACK",
+      "SHARED_CONTEXT",
+      "INDEPENDENT_ANALYSIS",
+      "PEER_CHALLENGE",
+      "EVIDENCE_EXCHANGE",
+      "CONFLICT_ARBITRATION",
+      "UNIFIED_PLAN",
+      "BOUNDED_EXECUTION",
+      "INDEPENDENT_VERIFICATION",
+      "RESULT_HANDOFF",
+      "LEARN",
+      "NEXT_DISPATCH"
+    ],
+    "mandatoryForMaterialWork": [
+      "ONE_CURRENT_EXACT_SHA",
+      "ONE_SHARED_TASK_ID",
+      "ONE_SHARED_WORK_PACKAGE_ID",
+      "ONE_OWNER_PER_MUTABLE_SCOPE",
+      "ONE_CANONICAL_EVIDENCE_CHAIN",
+      "DISTINCT_ANALYSIS_AND_REVIEW_WHEN_RISK_REQUIRES",
+      "EXPLICIT_REJECTION_OF_CONTRADICTED_FINDINGS",
+      "NO_SILENT_SCOPE_EXPANSION"
+    ],
+    "peerRules": {
+      "masterToMaster": "Any Master may request analysis, challenge, clarification, evidence or handoff from another Master through the canonical communication channel.",
+      "noSilentOverrides": "A Master response cannot silently overwrite another Master's finding; conflicting findings remain attributable until explicitly reconciled.",
+      "evidenceFirst": "Disagreement is resolved using current exact-SHA evidence, contracts and validators.",
+      "challengeRequired": "HIGH/CRITICAL proposals require an independent challenge or falsification attempt before mutation admission.",
+      "resultExchange": "Every material handoff returns result, evidenceRefs, unresolvedItems and nextAction to the requesting Master.",
+      "negativeKnowledge": "Rejected strategies and failed hypotheses are shared as anti-lessons and are not retried without materially new evidence."
+    },
+    "agentCooperation": {
+      "openConsultation": "Masters may dispatch bounded consultation requests to registered agents and receive findings through the same canonical inbox.",
+      "specialistRouting": "Route by capability, failure fingerprint and ownership rather than personal preference.",
+      "crossReview": "High-risk work receives independent review from a distinct role.",
+      "escalation": "Unresolved conflict uses the existing review/escalation path; it does not create a parallel agent or branch.",
+      "continuity": "New evidence, SHA movement, lease expiry or counterexample invalidates dependent reasoning and triggers requalification."
+    },
+    "sharedEvidenceModel": {
+      "requiredKeys": [
+        "exactSha",
+        "taskId",
+        "workPackageId",
+        "failureFingerprint",
+        "owner",
+        "state",
+        "evidenceRefs",
+        "decisionTrace"
+      ],
+      "freshness": "Evidence is reusable only while its baseline/target exact SHA and scope remain valid.",
+      "supersession": "A newer SHA or stronger contradictory evidence marks dependent reasoning stale/superseded.",
+      "provenance": "Every reused finding retains originating agent/master identity and source evidence."
+    },
+    "antiPatterns": [
+      "DUPLICATE_WORK_WITHOUT_CAUSAL_REASON",
+      "HIDDEN_SIDE_CHANNEL",
+      "LAST_WRITER_WINS",
+      "UNSHARED_LOCAL_STATE",
+      "REPEATED_FAILED_STRATEGY_WITHOUT_NEW_EVIDENCE",
+      "SELF_APPROVAL",
+      "AUTHORITY_BY_TITLE",
+      "AUTHORITY_BY_STAR",
+      "AUTHORITY_BY_MEMORY"
+    ],
+    "successDefinition": "COOPERATION_SUCCESS requires shared current context, non-duplicated ownership, explicit challenge, evidence exchange, verified handoff and learning; it never equals GREEN without canonical certification."
   }
 }

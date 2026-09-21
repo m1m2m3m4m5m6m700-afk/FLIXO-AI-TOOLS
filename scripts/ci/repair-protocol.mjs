@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
+export const ACTION_PRIMARY_CORRECTNESS_PROOF='ACTION_PRIMARY_CORRECTNESS_PROOF';
 export const REPAIR_PROTOCOL = Object.freeze({
   schemaVersion: 1,
   protocolId: 'REPAIR_PROTOCOL',
@@ -17,12 +18,19 @@ export const REPAIR_PROTOCOL = Object.freeze({
   commitPolicy: 'ONE_COMMIT_PER_COMPLETED_REPAIR_SESSION',
   additionalCommitPolicy: 'ONLY_FOR_PROVEN_INDEPENDENT_BOUNDARY',
   bypassPolicy: 'BLOCK',
+  retryPolicy: 'NO_BLIND_RETRY',
   fallbackMutationPolicy: Object.freeze({ actor: 'assistantRepairAgent', minConfidence: 0.90, minSupport: 2 }),
   mutationRequires: ['protocolVersion','protocolHash','repairSessionId','failureFingerprint','targetSHA','beforeState'],
   completionRequires: ['repairAttempts','retestResult','resumePoint','finalVerification','finalSHA'],
-  protectedPaths: ['scripts/ci/repair-protocol.mjs','scripts/ci/control-plane-registry.mjs','scripts/ci/auto-repair-engine.mjs','scripts/ci/auto-repair-policy.mjs','scripts/ci/agent-execution-control.mjs','.github/workflows/auto-repair.yml','scripts/ci/validate-agent-protocol.mjs'],
-  mutationAgents: ['repairAgent','executionAgent','assistantRepairAgent'],
-  allAgents: ['assistantController','analysis','implementation','verification','release','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','diagnosticAgent'],
+  protectedPaths: ['scripts/ci/repair-protocol.mjs','scripts/ci/control-plane-registry.mjs','scripts/ci/auto-repair-engine.mjs','scripts/ci/auto-repair-policy.mjs','scripts/ci/agent-execution-control.mjs','.github/workflows/auto-repair.yml','scripts/ci/validate-agent-protocol.mjs','scripts/ci/validate-agent-coordination.mjs'],
+  mutationAgents: ['repairAgent','executionAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier','actionHistorian'],
+  allAgents: ['assistantController','analysis','implementation','verification','release','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','diagnosticAgent','actionRepairBot','actionRepairVerifier','actionHistorian'],
+  actionVaultRoles: Object.freeze({
+    'ACTION-REPAIR': Object.freeze({ actor: 'actionRepairBot', mutation: true }),
+    'ACTION-REPAIR-2': Object.freeze({ actor: 'actionRepairVerifier', mutation: true }),
+    'ACTION-HISTORIAN-3': Object.freeze({ actor: 'actionHistorian', mutation: true }),
+  }),
+  actionVaultMissionRequires: ['triadId','messageId','taskId','failureFingerprint','entrySha','targetSha','ownerAgent','proofObligations','stopConditions'],
 });
 export const REPAIR_PROTOCOL_HASH=createHash('sha256').update(JSON.stringify(REPAIR_PROTOCOL),'utf8').digest('hex');
 const shaOk=v=>typeof v==='string'&&/^[a-f0-9]{40}$/u.test(v);
@@ -35,6 +43,12 @@ export function assertProtocolDefinition(){
   if(REPAIR_PROTOCOL.commitPolicy!=='ONE_COMMIT_PER_COMPLETED_REPAIR_SESSION') throw new Error('REPAIR_PROTOCOL_COMMIT_POLICY_DRIFT');
   if(REPAIR_PROTOCOL.mutationScope!=='ERROR_ONLY') throw new Error('REPAIR_PROTOCOL_MUTATION_SCOPE_DRIFT');
   if(REPAIR_PROTOCOL.testMutationPolicy!=='BLOCK') throw new Error('REPAIR_PROTOCOL_TEST_MUTATION_POLICY_DRIFT');
+  if(REPAIR_PROTOCOL.retryPolicy!=='NO_BLIND_RETRY') throw new Error('REPAIR_PROTOCOL_RETRY_POLICY_DRIFT');
+  if(ACTION_PRIMARY_CORRECTNESS_PROOF!=='ACTION_PRIMARY_CORRECTNESS_PROOF') throw new Error('REPAIR_PROTOCOL_PRIMARY_PROOF_MARKER_DRIFT');
+  if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-REPAIR']?.actor!=='actionRepairBot') throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_ROLE_DRIFT');
+  if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-REPAIR-2']?.mutation!==true) throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_2_MUTATION_DRIFT');
+  if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-HISTORIAN-3']?.mutation!==true) throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_MUTATION_DRIFT');
+  if(JSON.stringify(REPAIR_PROTOCOL.actionVaultMissionRequires)!==JSON.stringify(['triadId','messageId','taskId','failureFingerprint','entrySha','targetSha','ownerAgent','proofObligations','stopConditions'])) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_MISSION_SCHEMA_DRIFT');
   return Object.freeze({protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH});
 }
 export function assertAgentAdmission({actor,branch='execution',mutation=false,session=null}={}){
@@ -44,6 +58,43 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
   if(mutation&&branch!=='execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
   if(mutation&&!protocolOk(session)) throw new Error('REPAIR_PROTOCOL_SESSION_REQUIRED');
   if(mutation&&!['FAILURE_CAPTURED','MUTATION_AUTHORIZED'].includes(session.state)) throw new Error('REPAIR_PROTOCOL_MUTATION_STATE_BLOCKED');
+  if(mutation&&actor==='actionRepairBot') {
+    const mission=session?.actionVaultMission;
+    for(const key of REPAIR_PROTOCOL.actionVaultMissionRequires) if(!String(mission?.[key]??'').trim() && !(key==='proofObligations'||key==='stopConditions')) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_MISSION_REQUIRED='+key);
+    if(!Array.isArray(mission?.proofObligations)||mission.proofObligations.length===0) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_PROOF_REQUIRED');
+    if(!Array.isArray(mission?.stopConditions)||mission.stopConditions.length===0) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_STOP_CONDITIONS_REQUIRED');
+    if(mission.entrySha!==session.targetSHA||!shaOk(mission.targetSha)||mission.targetSha!==session.targetSHA) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_SHA_MISMATCH');
+    if(mission.role!=='ACTION-REPAIR') throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_ROLE_INVALID');
+    if(mission.verifierAgent!=='actionRepairVerifier'||mission.historianAgent!=='actionHistorian') throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_TRIAD_INCOMPLETE');
+    if(mission.noBlindRetry!==true) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_BLIND_RETRY_BLOCKED');
+    if(mission.programmerTwinParity?.intelligenceParity!=='EXACT'||mission.programmerTwinParity?.authorityParity!=='SEPARATED_BY_DESIGN'||mission.programmerTwinParity?.targetSha!==session.targetSHA) throw new Error('REPAIR_PROTOCOL_PROGRAMMER_TWIN_PARITY_REQUIRED');
+    if(mission.cognitiveAwareness?.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1'||mission.cognitiveAwareness?.targetSha!==session.targetSHA||mission.cognitiveAwareness?.complete!==true) throw new Error('REPAIR_PROTOCOL_COGNITIVE_AWARENESS_REQUIRED');
+    const catalogReview=mission?.catalogReview;
+    const diagnosisKnowledgeReview=mission?.diagnosisKnowledgeReview;
+    if(diagnosisKnowledgeReview?.protocol!=='ACTION-VAULT-DIAGNOSIS-KNOWLEDGE-REVIEW-v1'||diagnosisKnowledgeReview?.reviewer!=='ACTION-HISTORIAN-3'||diagnosisKnowledgeReview?.decision!=='MATCH'||diagnosisKnowledgeReview?.allowSourceMutation!==true||diagnosisKnowledgeReview?.targetSha!==session.targetSHA||diagnosisKnowledgeReview?.fingerprint!==session.failureFingerprint||String(diagnosisKnowledgeReview?.diagnosisDigest??'').length!==64) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_DIAGNOSIS_KNOWLEDGE_REVIEW_REQUIRED');
+    if(catalogReview?.status!=='REVIEWED'||catalogReview?.reviewer!=='ACTION-HISTORIAN-3'||catalogReview?.beforeMutation!==true||catalogReview?.mutationAuthority!==false||catalogReview?.targetSha!==session.targetSHA||catalogReview?.fingerprint!==session.failureFingerprint||catalogReview?.source?.indexId!=='ACTION-INDEX-4000'||Number(catalogReview?.source?.declaredCapacity)<1000000||Number(catalogReview?.source?.actualRecordCount)<=0||String(catalogReview?.digest??'').length!==64) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_CATALOG_REVIEW_REQUIRED');
+    try {
+      validateActionVaultVerifierProof({ proof: session.actionVaultVerifierProof, targetSHA: session.targetSHA, failureFingerprint: session.failureFingerprint, verifierAgent: mission.verifierAgent });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error('REPAIR_PROTOCOL_CHALLENGE_FAILED: ' + message, { cause: error });
+    }
+    validateActionVaultPreMutationProofs({ sandboxProof: mission.sandboxProof, differentialProof: mission.differentialProof, patchCorrectnessProof: mission.patchCorrectnessProof, targetSHA: session.targetSHA, failureFingerprint: session.failureFingerprint });
+  }
+  if(mutation&&actor==='actionRepairVerifier') {
+    const mission=session?.actionVaultMission;
+    if(mission?.role!=='ACTION-REPAIR-2' || mission?.mutationSeat!=='ACTION-REPAIR-2') throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_2_MUTATION_SEAT_INVALID');
+    if(mission?.supervisorMode==='SUPERVISOR_20') throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_2_SUSPENDED_AT_20');
+    if(mission?.targetSha!==session.targetSHA || mission?.entrySha!==session.targetSHA) throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_2_SHA_MISMATCH');
+    if(mission?.candidateRepairApproved!==true) throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_2_CANDIDATE_NOT_APPROVED');
+  }
+  if(mutation&&actor==='actionHistorian') {
+    const mission=session?.actionVaultMission;
+    if(mission?.supervisorMode!=='SUPERVISOR_20') throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_SUPERVISOR_MODE_REQUIRED');
+    if(mission?.role!=='ACTION-HISTORIAN-3' || mission?.mutationSeat!=='ACTION-HISTORIAN-3') throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_MUTATION_SEAT_INVALID');
+    if(mission?.targetSha!==session.targetSHA || mission?.entrySha!==session.targetSHA) throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_SHA_MISMATCH');
+    if(mission?.catalogReviewed!==true || mission?.bothProgrammingProposalsReviewed!==true || mission?.supervisorDecision!==true) throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_SUPERVISOR_DECISION_REQUIRED');
+  }
   if(mutation&&actor==='assistantRepairAgent') {
     const fallback=session?.fallback;
     if(!fallback?.primaryAgentsUnavailable) throw new Error('REPAIR_PROTOCOL_FALLBACK_PRIMARY_AGENT_AVAILABLE');
@@ -53,23 +104,141 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
   }
   return Object.freeze({actor,branch,mutation,protocol,admitted:true});
 }
-export function validateErrorOnlyMutation({failureLocation,selectedFile,changedPaths=[]}={}) {
-  const location = typeof failureLocation === 'string' ? failureLocation.trim().replace(/\\/g, '/') : '';
-  const selected = typeof selectedFile === 'string' ? selectedFile.trim().replace(/\\/g, '/') : '';
-  const changed = [...new Set(changedPaths.map((value) => String(value).trim().replace(/\\/g, '/')).filter(Boolean))];
-  if (!location) throw new Error('REPAIR_PROTOCOL_ERROR_LOCATION_REQUIRED');
-  if (!selected) throw new Error('REPAIR_PROTOCOL_ERROR_TARGET_REQUIRED');
-  if (selected !== location) throw new Error('REPAIR_PROTOCOL_ERROR_TARGET_MISMATCH');
-  if (changed.length !== 1 || changed[0] !== location) throw new Error('REPAIR_PROTOCOL_ERROR_SCOPE_EXCEEDED');
-  if (/(^|[\\\\/])(?:tests?|__tests__)(?:[\\\\/]|$)/iu.test(location) || /(?:\\.(?:spec|test)\\.(?:mjs|cjs|js|ts|tsx|jsx))$/iu.test(location) || /(^|[\\\\/])test-[^/]+\\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu.test(location)) {
-    throw new Error('REPAIR_PROTOCOL_TEST_MUTATION_BLOCKED');
+export const ACTION_VAULT_APPROVED_MUTATION_RECOMMENDATIONS = Object.freeze([
+  'ALLOW',
+  'ALLOW_AFTER_FALSIFICATION_NO_COUNTEREXAMPLE',
+]);
+
+export function validateActionVaultVerifierProof({ proof, targetSHA, failureFingerprint, verifierAgent = 'actionRepairVerifier' } = {}) {
+  if (verifierAgent !== 'actionRepairVerifier') throw new Error('ACTION_VAULT_VERIFIER_AGENT_INVALID');
+  if (!proof || typeof proof !== 'object') throw new Error('ACTION_VAULT_VERIFIER_PROOF_REQUIRED');
+  if (proof.status !== 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE') throw new Error('ACTION_VAULT_ADVERSARIAL_FALSIFICATION_FAILED');
+  if (proof.targetSha !== targetSHA) throw new Error('ACTION_VAULT_VERIFIER_SHA_MISMATCH');
+  if (proof.failureFingerprint !== failureFingerprint) throw new Error('ACTION_VAULT_VERIFIER_FINGERPRINT_MISMATCH');
+  if (!proof.verifierAgent || proof.verifierAgent !== verifierAgent) throw new Error('ACTION_VAULT_VERIFIER_IDENTITY_INVALID');
+  if (!Array.isArray(proof.alternativeHypotheses) || proof.alternativeHypotheses.length < 1) throw new Error('ACTION_VAULT_ALTERNATIVES_MISSING');
+  if (!Array.isArray(proof.falsificationChecks) || proof.falsificationChecks.length < 1) throw new Error('ACTION_VAULT_FALSIFICATION_CHECKS_MISSING');
+  if (!Array.isArray(proof.falsificationSearches) || proof.falsificationSearches.length < 10) throw new Error('ACTION_VAULT_FALSIFICATION_SEARCH_INCOMPLETE');
+  if (!proof.counterEvidence || typeof proof.counterEvidence !== 'object') throw new Error('ACTION_VAULT_COUNTER_EVIDENCE_MISSING');
+  if (proof.role !== 'ADVERSARIAL_PROGRAMMER_FALSIFIER') throw new Error('ACTION_VAULT_ADVERSARIAL_FALSIFIER_ROLE_INVALID');
+  if (proof.challengeMode !== 'FALSIFY_PRIMARY') throw new Error('ACTION_VAULT_FALSIFICATION_MODE_INVALID');
+  if (proof.programmerTwinParity?.intelligenceParity !== 'EXACT') throw new Error('ACTION_VAULT_PROGRAMMER_TWIN_PARITY_INVALID');
+  if (proof.programmerTwinParity?.authorityParity !== 'SEPARATED_BY_DESIGN') throw new Error('ACTION_VAULT_PROGRAMMER_TWIN_AUTHORITY_PARITY_INVALID');
+  if (proof.programmerTwinParity?.targetSha !== targetSHA || proof.programmerTwinParity?.failureFingerprint !== failureFingerprint) throw new Error('ACTION_VAULT_PROGRAMMER_TWIN_IDENTITY_INVALID');
+  if (proof.cognitiveAwareness?.protocol !== 'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1' || proof.cognitiveAwareness?.systemWide !== true) throw new Error('ACTION_VAULT_COGNITIVE_AWARENESS_INVALID');
+  if (proof.cognitiveAwareness?.targetSha !== targetSHA || proof.cognitiveAwareness?.failureFingerprint !== failureFingerprint) throw new Error('ACTION_VAULT_COGNITIVE_AWARENESS_IDENTITY_INVALID');
+  if (proof.primaryCorrectnessProof?.objective !== 'PROVE_PRIMARY_REPAIR_CORRECT') throw new Error('ACTION_VAULT_PRIMARY_CORRECTNESS_PROOF_INVALID');
+  if (proof.primaryCorrectnessProof?.status !== 'PRIMARY_CORRECTNESS_PROVEN') throw new Error('ACTION_VAULT_PRIMARY_CORRECTNESS_NOT_PROVEN');
+  if (proof.falsificationComplete !== true) throw new Error('ACTION_VAULT_FALSIFICATION_INCOMPLETE');
+  if (proof.counterexampleFound !== false) throw new Error('ACTION_VAULT_COUNTEREXAMPLE_FOUND');
+  if (proof.mutationRecommendation && !ACTION_VAULT_APPROVED_MUTATION_RECOMMENDATIONS.includes(proof.mutationRecommendation)) throw new Error('ACTION_VAULT_MUTATION_RECOMMENDATION_NOT_APPROVED');
+  if (!ACTION_VAULT_APPROVED_MUTATION_RECOMMENDATIONS.includes(proof.mutationRecommendation)) throw new Error('ACTION_VAULT_MUTATION_RECOMMENDATION_REQUIRED');
+  if (!Array.isArray(proof.remainingRisks)) throw new Error('ACTION_VAULT_REMAINING_RISKS_REQUIRED');
+  if (proof.remainingRisks.length !== 0) throw new Error('ACTION_VAULT_UNRESOLVED_REMAINING_RISKS');
+  const completeness = proof.proofCompleteness;
+  if (!completeness || typeof completeness !== 'object') throw new Error('ACTION_VAULT_PROOF_COMPLETENESS_REQUIRED');
+  const required = [
+    'COGNITIVE_AWARENESS_PROVEN',
+    'CAUSAL_EVIDENCE_GRAPH_PROVEN',
+    'ROOT_CAUSE_PROVEN',
+    'FILE_SELECTION_PROVEN',
+    'PROGRAMMER_TWIN_PARITY_PROVEN',
+    'ADVERSARIAL_FALSIFICATION_COMPLETE',
+    'NO_VALID_COUNTEREXAMPLE',
+    'SANDBOX_SIMULATION_PASSED',
+    'DIFFERENTIAL_CHECK_PASSED',
+    'PATCH_CORRECTNESS_PROVEN',
+    'REGRESSION_COUNTEREXAMPLES_EXHAUSTED',
+    'NO_SCOPE_VIOLATION',
+    'NO_TEST_MUTATION',
+    'NO_CONTROL_PLANE_MUTATION',
+    'NO_MAIN_MUTATION',
+    'NO_GATE_WEAKENING',
+  ];
+  for (const key of required) if (completeness[key] !== true) throw new Error('ACTION_VAULT_PROOF_COMPLETENESS_FAILED=' + key);
+  if (proof.counterEvidence?.noCounterexampleIsNotPatchCorrect !== true && proof.noCounterexampleIsNotPatchCorrect !== true) throw new Error('ACTION_VAULT_NO_COUNTEREXAMPLE_RULE_MISSING');
+  return Object.freeze({
+    verified: true,
+    verifierAgent,
+    targetSHA,
+    failureFingerprint,
+    challengeId: String(proof.challengeId ?? '').trim() || null,
+    alternativeCount: proof.alternativeHypotheses.length,
+    falsificationCount: proof.falsificationChecks.length,
+    mutationRecommendation: proof.mutationRecommendation,
+    remainingRiskCount: proof.remainingRisks.length,
+    proofCompleteness: completeness,
+    falsificationComplete: proof.falsificationComplete,
+    counterexampleFound: proof.counterexampleFound,
+    proofObjective: 'ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG',
+  });
+}
+
+export function validateActionVaultPreMutationProofs({ sandboxProof, differentialProof, patchCorrectnessProof, regressionCounterexamples = null, targetSHA, failureFingerprint } = {}) {
+  if (!sandboxProof || typeof sandboxProof !== 'object') throw new Error('ACTION_VAULT_SANDBOX_PROOF_REQUIRED');
+  if (!differentialProof || typeof differentialProof !== 'object') throw new Error('ACTION_VAULT_DIFFERENTIAL_PROOF_REQUIRED');
+  if (!patchCorrectnessProof || typeof patchCorrectnessProof !== 'object') throw new Error('ACTION_VAULT_PATCH_CORRECTNESS_PROOF_REQUIRED');
+  if (!['REPAIR_SANDBOX_SIMULATION_V1', 'REPAIR-SANDBOX-SIMULATION-PROOF-v2'].includes(sandboxProof.protocol)) throw new Error('ACTION_VAULT_SANDBOX_PROTOCOL_INVALID');
+  if (sandboxProof.targetSha !== targetSHA || sandboxProof.failureFingerprint !== failureFingerprint || sandboxProof.exactShaBound !== true || sandboxProof.mutationPerformed !== false || sandboxProof.status !== 'PASS' || sandboxProof.ok === false) throw new Error('ACTION_VAULT_SANDBOX_PROOF_INVALID');
+  const differentialV1 = differentialProof.protocol === 'DIFFERENTIAL_REPAIR_VERIFICATION_V1';
+  const differentialV2 = differentialProof.protocol === 'DIFFERENTIAL-REPAIR-PROOF-v1';
+  if (!differentialV1 && !differentialV2) throw new Error('ACTION_VAULT_DIFFERENTIAL_PROTOCOL_INVALID');
+  if (differentialProof.targetSha !== targetSHA || differentialProof.status !== 'PASS') throw new Error('ACTION_VAULT_DIFFERENTIAL_PROOF_INVALID');
+  if (differentialV1 && (differentialProof.executionEvidence?.required !== true || Number(differentialProof.executionEvidence?.receiptCount ?? 0) < 1)) throw new Error('ACTION_VAULT_DIFFERENTIAL_PROOF_EXECUTION_MISSING');
+  if (differentialV2 && (differentialProof.behavioralVerification?.ok !== true || differentialProof.exactShaBound !== true || differentialProof.scopeProof !== true)) throw new Error('ACTION_VAULT_DIFFERENTIAL_PROOF_EXECUTION_MISSING');
+  if (patchCorrectnessProof.protocol === 'PATCH-CORRECTNESS-PROOF-v1') {
+    if (patchCorrectnessProof.status !== 'PROVEN' || patchCorrectnessProof.targetSha !== targetSHA || patchCorrectnessProof.failureFingerprint !== failureFingerprint || patchCorrectnessProof.sourceMutationAllowed !== false) throw new Error('ACTION_VAULT_PATCH_CORRECTNESS_PROOF_INVALID');
+    if (patchCorrectnessProof.proofCompleteness?.NO_VALID_COUNTEREXAMPLE !== true || patchCorrectnessProof.proofCompleteness?.SIMULATION_PASSED !== true && patchCorrectnessProof.proofCompleteness?.SANDBOX_SIMULATION_PASSED !== true || patchCorrectnessProof.proofCompleteness?.DIFFERENTIAL_CHECK_PASSED !== true || patchCorrectnessProof.proofCompleteness?.PATCH_TARGET_PROVEN !== true || patchCorrectnessProof.proofCompleteness?.PATCH_MECHANISM_PROVEN !== true) throw new Error('ACTION_VAULT_PATCH_CORRECTNESS_COMPLETENESS_INVALID');
+  } else if (patchCorrectnessProof.status !== 'PROVEN' || patchCorrectnessProof.targetSha !== targetSHA || patchCorrectnessProof.patchDigest !== sandboxProof.patchDigest || patchCorrectnessProof.mutationPerformed !== false || patchCorrectnessProof.differentialStatus !== 'PASS') {
+    throw new Error('ACTION_VAULT_PATCH_CORRECTNESS_PROOF_INVALID');
   }
+  if (regressionCounterexamples) {
+    if (regressionCounterexamples.targetSha !== targetSHA || regressionCounterexamples.failureFingerprint !== failureFingerprint || regressionCounterexamples.exhausted !== true || regressionCounterexamples.counterexampleFound !== false) throw new Error('ACTION_VAULT_REGRESSION_COUNTEREXAMPLES_INVALID');
+  } else if (sandboxProof.regressionCounterexamples?.exhausted !== true || sandboxProof.regressionCounterexamples?.counterexampleFound !== false) {
+    throw new Error('ACTION_VAULT_REGRESSION_COUNTEREXAMPLES_MISSING');
+  }
+  return Object.freeze({
+    verified: true,
+    targetSHA,
+    failureFingerprint,
+    sandbox: 'PROVEN',
+    differential: 'PROVEN',
+    patchCorrectness: 'PROVEN',
+    counterexamples: 'EXHAUSTED_NO_COUNTEREXAMPLE',
+    patchDigest: sandboxProof.patchDigest,
+  });
+}
+
+export function validateErrorOnlyMutation({failureLocation,selectedFile,selectedFiles=[],changedPaths=[]}={}) {
+  const normalize = (value) => String(value ?? '').trim().replace(/\\/g, '/');
+  const location = normalize(failureLocation);
+  const explicitFiles = (Array.isArray(selectedFiles) ? selectedFiles : [selectedFiles]).map(normalize).filter(Boolean);
+  const selected = normalize(selectedFile);
+  const targets = [...new Set((explicitFiles.length ? explicitFiles : [selected]).filter(Boolean))];
+  const changed = [...new Set(changedPaths.map(normalize).filter(Boolean))];
+  if (!location) throw new Error('REPAIR_PROTOCOL_ERROR_LOCATION_REQUIRED');
+  if (!targets.length) throw new Error('REPAIR_PROTOCOL_ERROR_TARGET_REQUIRED');
+  if (targets.length === 1 && targets[0] !== location) throw new Error('REPAIR_PROTOCOL_ERROR_TARGET_MISMATCH');
+  if (targets.length > 1 && !targets.includes(location)) throw new Error('REPAIR_PROTOCOL_ERROR_CAUSAL_SOURCE_NOT_IN_TARGET_SET');
+  if (!changed.length) throw new Error('REPAIR_PROTOCOL_ERROR_SCOPE_EXCEEDED');
+  const sourcePattern = /\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu;
+  const testPattern = /(^|[/])(?:tests?|__tests__)(?:[/]|$)|(?:^|[/])test-[^/]+\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu;
+  const controlPattern = /^(?:scripts\/ci\/(?:repair-|auto-repair)|scripts\/ci\/agent-|scripts\/ci\/control-plane)|^\.github\/workflows\//u;
+  for (const file of [...targets, ...changed]) {
+    if (!sourcePattern.test(file)) throw new Error('REPAIR_PROTOCOL_SOURCE_FILE_TYPE_BLOCKED=' + file);
+    if (testPattern.test(file)) throw new Error('REPAIR_PROTOCOL_TEST_MUTATION_BLOCKED');
+    if (controlPattern.test(file)) throw new Error('REPAIR_PROTOCOL_CONTROL_PLANE_MUTATION_BLOCKED=' + file);
+  }
+  if (changed.some((file) => !targets.includes(file))) throw new Error('REPAIR_PROTOCOL_ERROR_SCOPE_EXCEEDED');
   return Object.freeze({
     mode: 'ERROR_ONLY',
     failureLocation: location,
-    selectedFile: selected,
+    selectedFile: targets[0],
+    selectedFiles: targets,
     changedPaths: changed,
     testMutation: false,
+    controlPlaneMutation: false,
+    exactTargetSet: true,
   });
 }
 
@@ -107,12 +276,12 @@ export function validateTargetedRegressionSelection(selection = {}) {
   });
 }
 
-export function createRepairSession({repairSessionId,actor='repairAgent',failureFingerprint,targetSHA,beforeState={worktree:'clean'},attempt=1,fallback=null}={}){
+export function createRepairSession({repairSessionId,actor='repairAgent',failureFingerprint,targetSHA,beforeState={worktree:'clean'},attempt=1,fallback=null,assistantApproval=null,actionVaultVerifierProof=null}={}){
   assertAgentAdmission({actor,branch:'execution',mutation:false});
   if(!String(repairSessionId??'').trim()) throw new Error('REPAIR_PROTOCOL_SESSION_ID_REQUIRED');
   if(!failureFingerprint) throw new Error('REPAIR_PROTOCOL_FAILURE_FINGERPRINT_REQUIRED');
   if(!shaOk(targetSHA)) throw new Error('REPAIR_PROTOCOL_TARGET_SHA_INVALID');
-  return Object.freeze({schemaVersion:1,protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,repairSessionId:String(repairSessionId),actor,state:'PROTOCOL_VALIDATED',failureFingerprint:String(failureFingerprint),targetSHA,beforeState:{...beforeState},repairAttempts:Math.max(1,Number(attempt)||1),retestResult:null,resumePoint:null,finalVerification:null,finalSHA:null,commitCount:0,fallback});
+  return Object.freeze({schemaVersion:1,protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,repairSessionId:String(repairSessionId),actor,state:'PROTOCOL_VALIDATED',failureFingerprint:String(failureFingerprint),targetSHA,beforeState:{...beforeState},repairAttempts:Math.max(1,Number(attempt)||1),retestResult:null,resumePoint:null,finalVerification:null,finalSHA:null,commitCount:0,fallback,assistantApproval,actionVaultVerifierProof});
 }
 export function captureFailure(session,evidence={}){
   if(!protocolOk(session)) throw new Error('REPAIR_PROTOCOL_SESSION_INVALID');

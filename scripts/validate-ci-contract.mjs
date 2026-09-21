@@ -15,10 +15,14 @@ const impactExecutionWorkflow = readFileSync('.github/workflows/test-impact-exec
 const securityBaselineWorkflow = readFileSync('.github/workflows/repository-security-baseline.yml', 'utf8');
 const claudeSecurityWorkflow = readFileSync('.github/workflows/claude-security-review.yml', 'utf8');
 const greenGateWorkflow = readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
+const currentCommitGuard = readFileSync('scripts/ci/assert-current-commit.mjs', 'utf8');
 const workflow = workflowSource.replace(/\\"/g, '"');
 const testEngine = readFileSync('scripts/test.mjs', 'utf8');
 const certifyEngine = readFileSync('scripts/ci/certify.mjs', 'utf8');
 const certifyCore = readFileSync('scripts/ci/certify-core.mjs', 'utf8');
+const autoRepairWorkflow = readFileSync('.github/workflows/auto-repair.yml', 'utf8');
+const cellMasterConsultWorkflow = readFileSync('.github/workflows/cell-master-consult.yml', 'utf8');
+const executionWatchdogWorkflow = readFileSync('.github/workflows/execution-bot-watchdog.yml', 'utf8');
 const resultState = readFileSync('scripts/ci/result-state.mjs', 'utf8');
 
 const required = [
@@ -28,8 +32,8 @@ const required = [
   ['Browser FAST engine', /\n\s{2}browser_fast:\s*\n/],
   ['Browser DEEP engine', /\n\s{2}browser_deep:\s*\n/],
   ['single certification gate', /\n\s{2}certify:\s*\n/],
-  ['superseding verification CI', /cancel-in-progress:\s*true/],
-  ['superseding PR/branch concurrency isolation', /group:\s*flixo-test-\$\{\{\s*github\.workflow\s*\}\}-\$\{\{\s*github\.event\.pull_request\.number\s*\|\|\s*github\.ref\s*\}\}/],
+  ['superseding exact-SHA verification CI', /cancel-in-progress:\s*true/],
+  ['exact-SHA concurrency isolation', /group:\s*flixo-test-[^\n]*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha[^\n]*/],
   ['exact SHA', /EXPECTED_SHA/],
   ['immutable artifact identity', /flixo-head-sha\.txt[\s\S]*flixo-package-lock\.sha256/],
   ['minimal checkout', /fetch-depth:\s*1/],
@@ -63,12 +67,24 @@ const exactShaVerificationWorkflows = [
   ['repository-security-baseline.yml', securityBaselineWorkflow],
 ];
 
+if (!/EXPECTED_SHA/.test(currentCommitGuard) ||
+    !/EXPECTED_BRANCH/.test(currentCommitGuard) ||
+    !/FAIL CLOSED/.test(currentCommitGuard) ||
+    !/actualSha !== expectedSha/.test(currentCommitGuard)) {
+  console.error('CI contract failed: exact current-commit freshness guard is missing or not fail-closed.');
+  process.exit(1);
+}
+if ((workflow.match(/assert-current-commit\.mjs/g) ?? []).length !== 3) {
+  console.error('CI contract failed: canonical CI must guard verify, browser dependencies, and certification against a superseding commit.');
+  process.exit(1);
+}
+
 for (const [file, source] of exactShaVerificationWorkflows) {
   if (!/cancel-in-progress:\s*true/.test(source)) {
     console.error('CI contract failed: ' + file + ' must cancel superseded verification runs.');
     process.exit(1);
   }
-  if (!/github\.event\.pull_request\.number\s*\|\|\s*github\.ref/.test(source)) {
+  if (!/github\.event\.pull_request\.number\s*\|\|\s*github\.ref/.test(source) && !/github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name/.test(source)) {
     console.error('CI contract failed: ' + file + ' must isolate runs by PR or branch.');
     process.exit(1);
   }
@@ -82,13 +98,16 @@ if (!/cancel-in-progress:\s*true/.test(claudeSecurityWorkflow)) {
   console.error('CI contract failed: claude-security-review.yml must cancel superseded advisory reviews.');
   process.exit(1);
 }
-if (!/group:\s*claude-security-\$\{\{\s*github\.event\.pull_request\.number\s*\|\|\s*github\.ref\s*\}\}/.test(claudeSecurityWorkflow)) {
+const claudeConcurrencyBlock = claudeSecurityWorkflow.match(/concurrency:[\s\S]*?(?=\n#|\npermissions:)/)?.[0] ?? '';
+const claudeGroupLine = claudeConcurrencyBlock.split(/\r?\n/).find((line) => line.trim().startsWith('group:'))?.trim() ?? '';
+const claudeGroupUsesBranch = claudeGroupLine.includes('github.event.pull_request.head.ref || github.ref_name');
+const claudeGroupUsesRepository = claudeGroupLine.includes('github.event.pull_request.head.repo.full_name || github.repository');
+const claudeGroupUsesPullRequest = claudeGroupLine.includes('github.event.pull_request.number || github.ref');
+if (!claudeGroupLine.startsWith('group: claude-security-') || !claudeGroupUsesBranch || (!claudeGroupUsesRepository && !claudeGroupUsesPullRequest)) {
   console.error('CI contract failed: claude-security-review.yml must group by PR/branch, not commit SHA.');
   process.exit(1);
 }
-if (/github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha/.test(
-  claudeSecurityWorkflow.match(/concurrency:[\s\S]*?(?=\n#|\npermissions:)/)?.[0] ?? '',
-)) {
+if (/github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha/.test(claudeConcurrencyBlock)) {
   console.error('CI contract failed: claude-security-review.yml must not use head SHA as its concurrency-group identity.');
   process.exit(1);
 }
@@ -101,6 +120,82 @@ for (const [file, source] of [
     console.error('CI contract failed: ' + file + ' must remain non-canceling because it carries repair state.');
     process.exit(1);
   }
+}
+
+if (/flixo-repair-twins-/.test(autoRepairWorkflow) ||
+    /gh run download.*flixo-repair-twins-/.test(autoRepairWorkflow) ||
+    /actions\/download-artifact/.test(autoRepairWorkflow)) {
+  console.error('CI contract failed: auto-repair twin results must not cross the repair trust boundary through downloadable artifacts.');
+  process.exit(1);
+}
+const localTwinBoundary =
+  /name: Run adversarial twins locally inside the canonical repair trust domain[\s\S]*?id: twin/.test(autoRepairWorkflow) &&
+  /git worktree add --detach \/tmp\/flixo-twin-target "\$EXPECTED_SHA"/.test(autoRepairWorkflow) &&
+  /A\) OUTPUT=\/tmp\/flixo-twin-a\.json/.test(autoRepairWorkflow) &&
+  /B\) OUTPUT=\/tmp\/flixo-twin-b\.json/.test(autoRepairWorkflow) &&
+  /FLIXO_TWIN_DETACHED='true'/.test(autoRepairWorkflow) &&
+  /validate-adversarial-repair-twin\.mjs/.test(autoRepairWorkflow) &&
+  /ACTION-WISE select best repair option from history and twin A\/B[\s\S]*?if: steps\.twin\.outcome == 'success'/.test(autoRepairWorkflow) &&
+  /--twin-a=\/tmp\/flixo-twin-a\.json/.test(autoRepairWorkflow) &&
+  /--twin-b=\/tmp\/flixo-twin-b\.json/.test(autoRepairWorkflow) &&
+  !/repair:[\s\S]*?needs:\s*adversarial_twin/.test(autoRepairWorkflow);
+if (!localTwinBoundary) {
+  console.error('CI contract failed: adversarial twin execution must remain inside the canonical repair job, on a fixed detached exact-SHA worktree, with bounded fixed-path validated handoff.');
+  process.exit(1);
+}
+if (/FLIXO_SELECTED_REPAIR_STRATEGY=\$SELECTED/.test(autoRepairWorkflow) ||
+    /ACTION_WISE_NO_SOLUTION=true.*GITHUB_ENV/.test(autoRepairWorkflow)) {
+  console.error('CI contract failed: selected repair strategy must not be written into GITHUB_ENV from untrusted JSON.');
+  process.exit(1);
+}
+if (!/permissions:\s*\n\s*contents:\s*read\s*\n\s*actions:\s*read/.test(cellMasterConsultWorkflow)) {
+  console.error('CI contract failed: cell-master-consult.yml must declare explicit read-only token permissions.');
+  process.exit(1);
+}
+const watchdogExactCheckout =
+  /name: Checkout trusted watchdog source[\s\S]*actions\/checkout@[^\n]+[\s\S]*ref: main/.test(executionWatchdogWorkflow);
+const watchdogExactVerify =
+  /name: Verify trusted watchdog checkout[\s\S]*git rev-parse HEAD[\s\S]*test "\$ACTUAL_WATCHDOG_SHA" = "\$TRUSTED_MAIN_SHA"[\s\S]*WATCHDOG_CHECKOUT_MODE=TRUSTED_MAIN/.test(executionWatchdogWorkflow);
+const watchdogSourceFreshness =
+  /name: Capture exact execution state[\s\S]*SOURCE_RUN_SHA: \$\{\{ github\.event\.workflow_run\.head_sha \|\| '' \}\}[\s\S]*EXECUTION_SHA="[\s\S]*git\/ref\/heads\/execution[\s\S]*if \[ "\$EXECUTION_SHA" != "\$SOURCE_RUN_SHA" \][\s\S]*STALE_WATCHDOG_EVENT=true/.test(executionWatchdogWorkflow);
+if (!watchdogExactCheckout || !watchdogExactVerify || !watchdogSourceFreshness) {
+  console.error('CI contract failed: execution-bot-watchdog.yml must execute only trusted controller code from main, observe the exact execution SHA through GitHub APIs, and reject stale workflow_run events.');
+  process.exit(1);
+}
+const watchdogStepBlock = (workflowText, stepName) => {
+  const marker = `      - name: ${stepName}`;
+  const startIndex = workflowText.indexOf(marker);
+  if (startIndex < 0) return '';
+  const remainder = workflowText.slice(startIndex);
+  const nextStep = remainder.search(/\n\s{6}-\sname:/u);
+  return nextStep >= 0 ? remainder.slice(0, nextStep) : remainder;
+};
+
+const pushWakeBlock = watchdogStepBlock(executionWatchdogWorkflow, 'Record exact execution push wake');
+const pushWakeMarkers = [
+  'name: Record exact execution push wake',
+  'EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"',
+  'EXPECTED_PUSH_SHA="$GITHUB_SHA"',
+  'test "$EXECUTION_SHA" = "$EXPECTED_PUSH_SHA"',
+];
+if (!pushWakeMarkers.every((marker) => pushWakeBlock.includes(marker)) ||
+    pushWakeBlock.includes('git rev-parse HEAD')) {
+  console.error('CI contract failed: push watchdog wake must bind the observed execution state to the exact push SHA without using the trusted-main HEAD.');
+  process.exit(1);
+}
+
+const canonicalTestBlock = watchdogStepBlock(executionWatchdogWorkflow, 'Ensure canonical Test System exists for exact SHA without duplicate dispatch');
+const canonicalTestMarkers = [
+  'name: Ensure canonical Test System exists for exact SHA without duplicate dispatch',
+  'EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"',
+  'gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution',
+  'gh run list --repo "$GITHUB_REPOSITORY" --workflow "FLIXO Test System"',
+  '--commit "$EXECUTION_SHA"',
+  'FAIL CLOSED: canonical FLIXO Test System did not start for exact SHA',
+];
+if (!canonicalTestMarkers.every((marker) => canonicalTestBlock.includes(marker))) {
+  console.error('CI contract failed: watchdog must dispatch the canonical Test System and admit only an active exact execution-SHA run.');
+  process.exit(1);
 }
 if (!/cancel-in-progress:\s*false/.test(greenGateWorkflow) ||
     !/group:\s*flixo-continuous-error-watch-\$\{\{\s*github\.run_id\s*\}\}/.test(greenGateWorkflow)) {
@@ -154,11 +249,23 @@ if (
   process.exit(1);
 }
 
+const protectedLiveRuntime = workflowTexts.find(({ file }) => file === 'council-live-runtime-verification.yml');
+if (!protectedLiveRuntime ||
+    !/^\s{2}verify:\s*$/m.test(protectedLiveRuntime.text) ||
+    !/environment:\s*flixo-live-runtime-verification/.test(protectedLiveRuntime.text) ||
+    !/Run read-only live runtime verification/.test(protectedLiveRuntime.text)) {
+  console.error('CI contract failed: protected live-runtime verification owner is missing or not explicitly isolated.');
+  process.exit(1);
+}
+
 for (const job of ['verify', 'browser_fast', 'browser_deep', 'certify']) {
-  const owners = workflowTexts.filter(({ text }) => new RegExp(`^  ${job}:\\s*$`, 'm').test(text));
+  const owners = workflowTexts.filter(({ file, text }) =>
+    file !== 'council-live-runtime-verification.yml' &&
+    new RegExp('^\\s{2}' + job + ':\\s*$', 'm').test(text),
+  );
   if (owners.length !== 1 || owners[0].file !== 'ci.yml') {
     console.error(
-      `CI contract failed: canonical job ${job} must have exactly one workflow owner (ci.yml); owners=${owners.map(({ file }) => file).join(',') || 'none'}`,
+      `CI contract failed: canonical job ${job} must have exactly one workflow owner (ci.yml), excluding the separately protected live-runtime verifier; owners=${owners.map(({ file }) => file).join(',') || 'none'}`,
     );
     process.exit(1);
   }
@@ -204,17 +311,40 @@ if (/github\.event_name\s*!=\s*'pull_request'/.test(deep)) {
   process.exit(1);
 }
 
+const semanticValidationCommands = [
+  'scripts/ci/test-execution-graph-semantic-identity.mjs',
+  'scripts/ci/test-image-core-foundation.mjs',
+  'scripts/ci/validate-playwright-surface.mjs',
+  'scripts/ci/validate-certification-surface.mjs',
+  'scripts/ci/validate-agent-protocol.mjs',
+  'scripts/ci/validate-agent-coordination.mjs',
+  'scripts/ci/action-vault-agent-gate.mjs',
+  'scripts/ci/test-action-vault-agent-gate.mjs',
+  'scripts/ci/test-action-vault-targeted-test.mjs',
+  'scripts/ci/test-action-agent-runtime.mjs',
+  'scripts/ci/test-action-agent-history.mjs',
+  'scripts/ci/test-swarm-controller.mjs',
+  'scripts/ci/test-repair-protocol.mjs',
+  'scripts/ci/test-task-agent-contract.mjs',
+  'scripts/ci/test-agent-admission.mjs',
+];
 try {
-  execFileSync(process.execPath, ['scripts/ci/test-execution-graph-semantic-identity.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/test-image-core-foundation.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/validate-playwright-surface.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/validate-certification-surface.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/validate-agent-protocol.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/validate-agent-coordination.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/test-repair-protocol.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/test-task-agent-contract.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/test-agent-admission.mjs'], { stdio: 'inherit' });
-} catch {
+  for (const command of semanticValidationCommands) {
+    console.log('CI_CONTRACT_CHILD_TEST_START=' + command);
+    execFileSync(process.execPath, [command], { stdio: 'inherit' });
+    console.log('CI_CONTRACT_CHILD_TEST_PASS=' + command);
+  }
+} catch (error) {
+  const command = semanticValidationCommands.find((candidate) => {
+    try {
+      execFileSync(process.execPath, [candidate], { stdio: 'ignore' });
+      return false;
+    } catch {
+      return true;
+    }
+  });
+  console.error('CI_CONTRACT_CHILD_TEST_FAILURE=' + (command ?? 'UNKNOWN'));
+  console.error(error instanceof Error ? error.message : String(error));
   console.error('CI contract failed: execution-graph semantic identity/image-core/browser/certification/agent-protocol/coordination/Task-Agent authority/admission surface validation failed.');
   process.exit(1);
 }

@@ -44,15 +44,10 @@ const forbidden = fs.readdirSync(workflowDir).filter((entry) => /^unified-orches
 if (forbidden.length) fail(`parallel orchestrator workflow exists: ${forbidden.join(', ')}`);
 
 for (const token of [
-  'workflows: ["FLIXO Test System"]',
-  "github.event.workflow_run.conclusion == 'success'",
-  "github.event.workflow_run.head_branch == 'main'",
-  "github.event.workflow_run.event == 'push'",
+  'workflow_dispatch:',
   'git fetch --no-tags --depth=1 origin main',
   'skip_deploy=false',
-  'skip_deploy=true',
   'SKIPPED_STALE_SHA',
-  'Automatic promotion skipped safely',
   'Manual promotion rejected',
   'gh run download',
   'test "$(cat /tmp/artifact/flixo-head-sha.txt)" = "$PROMOTION_SHA"',
@@ -61,15 +56,15 @@ for (const token of [
 ]) {
   if (!cd.includes(token)) fail(`missing canonical CD invariant: ${token}`);
 }
+if (/workflow_run:/m.test(cd)) fail('CD must be manual-only and must not auto-promote from workflow_run');
+if (cd.includes('Automatic promotion skipped safely')) fail('CD contains obsolete automatic-promotion handling after manual-only migration');
 
 if (!cd.includes('if [ "$head_sha" = "$PROMOTION_SHA" ] && [ "$main_sha" = "$PROMOTION_SHA" ]; then')) {
   fail('CD does not require exact checkout SHA and current main SHA for promotion');
 }
-if (!cd.includes('if [ "$EVENT_NAME" = "workflow_dispatch" ]; then')) {
-  fail('CD manual promotion guard is missing');
-}
+if (!/on:\s*\n\s*workflow_dispatch:/m.test(cd)) fail('CD must be manual-dispatch only');
+if (!cd.includes("if: github.event_name == 'workflow_dispatch'")) fail('CD job must be guarded to manual workflow_dispatch execution');
 if (!cd.includes('exit 1')) fail('CD must fail closed for rejected manual promotion/certification');
-if (!cd.includes('exit 0')) fail('CD must safely skip stale automatic promotion');
 if (!/if:\s*always\(\)/.test(cd)) fail('CD evidence upload must execute with if: always()');
 if (!cd.includes('if-no-files-found: error')) fail('CD evidence upload must fail if evidence is unexpectedly missing');
 if (/continue-on-error\s*:\s*true/i.test(cd)) fail('CD contains continue-on-error=true');
@@ -105,7 +100,8 @@ const result = {
     coverageMutationDetection: true,
     evidenceTamperDetection: true,
     exactShaBinding: true,
-    staleAutomaticPromotionSafeSkip: true,
+    staleAutomaticPromotionSafeSkip: false,
+    manualDispatchOnly: true,
     manualPromotionFailClosed: true,
     canonicalAuthoritySingle: true,
     productionIdentityExpected: true,

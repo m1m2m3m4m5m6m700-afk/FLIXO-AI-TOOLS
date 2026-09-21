@@ -1,0 +1,29 @@
+name: FLIXO Advanced Repair Contract
+
+on:
+  pull_request:
+concurrency:
+  group: flixo-latest-test-advanced-repair-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  packet-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail closed when this commit is superseded
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+        run: node scripts/ci/assert-current-commit.mjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+      - name: Validate packet validator syntax
+        run: node --check scripts/ci/validate-advanced-repair-packet.mjs
+      - name: Run positive and negative contract tests
+        run: node scripts/ci/test-advanced-repair-packet-validator.mjs

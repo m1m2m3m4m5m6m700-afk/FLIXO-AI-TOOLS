@@ -1,0 +1,147 @@
+name: FLIXO CELL Master Consult
+run-name: FLIXO CELL Master Consult ${{ inputs.request_id || github.run_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: CELL identity requesting Master consultation
+        required: true
+        type: string
+      task:
+        description: Task identifier
+        required: true
+        type: string
+      entry_sha:
+        description: Exact execution SHA observed by the CELL
+        required: true
+        type: string
+      request_id:
+        description: Idempotent Master inbox request identifier
+        required: true
+        type: string
+      risk:
+        description: Risk level
+        required: true
+        default: MEDIUM
+        type: choice
+        options: [LOW, MEDIUM, HIGH, CRITICAL]
+      question:
+        description: Teaching question
+        required: true
+        type: string
+      obstacle:
+        description: Current obstacle
+        required: false
+        default: ''
+        type: string
+      evidence:
+        description: Comma-separated evidence references
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: flixo-cell-master-consult-${{ inputs.request_id }}
+  cancel-in-progress: false
+
+jobs:
+  consult:
+    name: CELL to Master inbox consult
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact execution SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: execution
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate CELL identity and exact SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AGENT: ${{ inputs.agent }}
+          ENTRY_SHA: ${{ inputs.entry_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$AGENT" =~ ^CELL-[0-9]{3}$ ]]
+          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$ENTRY_SHA" = "$CURRENT_SHA"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const x=JSON.parse(fs.readFileSync('docs/agents/CELL-BOT-REGISTRY.json','utf8'));
+          const id=process.env.AGENT;
+          if(!Array.isArray(x.bots)||!x.bots.some(b=>String(b.id)===id)) throw new Error('CELL_MASTER_UNKNOWN_CELL_AGENT='+id);
+          NODE
+
+      - name: Build canonical Master inbox message
+        env:
+          AGENT: ${{ inputs.agent }}
+          TASK: ${{ inputs.task }}
+          ENTRY_SHA: ${{ inputs.entry_sha }}
+          REQUEST_ID: ${{ inputs.request_id }}
+          RISK: ${{ inputs.risk }}
+          QUESTION: ${{ inputs.question }}
+          OBSTACLE: ${{ inputs.obstacle }}
+          EVIDENCE: ${{ inputs.evidence }}
+        run: |
+          set -euo pipefail
+          jq -n             --arg agent "$AGENT"             --arg task "$TASK"             --arg sha "$ENTRY_SHA"             --arg request "$REQUEST_ID"             --arg risk "$RISK"             --arg question "$QUESTION"             --arg obstacle "$OBSTACLE"             --arg evidence "$EVIDENCE"             '{
+              schemaVersion:1,
+              messageId:$request,
+              idempotencyKey:($request+":"+$sha),
+              actor:$agent,
+              recipient:"assistantController",
+              intent:"CELL_MASTER_TEACHING_CONSULT",
+              taskId:$task,
+              scope:["MASTER_INBOX_TEACHING_CONSULT"],
+              entrySha:$sha,
+              risk:$risk,
+              dependencies:["MASTER_INBOX","CURRENT_EXACT_SHA"],
+              expectedEvidence:["MASTER_RECEIPT","TEACHING_RESPONSE","EXACT_SHA_REVALIDATION"],
+              stopConditions:["STALE_SHA","CONFLICT","MASTER_UNAVAILABLE"],
+              proofObligations:["MESSAGE_IDEMPOTENCY","EXACT_SHA_REVALIDATION"],
+              createdAt:(now|todateiso8601),
+              source:"CELL_MASTER_CONSULT",
+              payload:{
+                requestKind:"MASTER_TEACHING_CONSULT",
+                requestedByAgent:$agent,
+                risk:$risk,
+                question:$question,
+                obstacle:(if $obstacle=="" then null else $obstacle end),
+                evidence:(if $evidence=="" then [] else ($evidence|split(",")|map(select(length>0))) end),
+                requireTeaching:true,
+                returnToAgent:$agent,
+                preserveInMissionMemory:true,
+                promoteAfterVerification:true,
+                masterExecution:{
+                  target:"MASTER_INBOX",
+                  selection:"ANY_CONNECTED_MASTER_MODEL",
+                  modelPinned:false
+                }
+              }
+            }' > /tmp/cell-master-message.json
+          jq -e --arg sha "$ENTRY_SHA" --arg agent "$AGENT" '.entrySha==$sha and .actor==$agent and .recipient=="assistantController" and .payload.masterExecution.selection=="ANY_CONNECTED_MASTER_MODEL" and .payload.masterExecution.modelPinned==false' /tmp/cell-master-message.json >/dev/null
+
+      - name: Ingest CELL request into canonical Master inbox
+        run: |
+          set -euo pipefail
+          node scripts/ci/agent-communication.mjs validate --message-file=/tmp/cell-master-message.json
+          node scripts/ci/agent-communication.mjs ingest --message-file=/tmp/cell-master-message.json | tee /tmp/master-consult-response.json
+          jq -e '.status=="RECEIVED" or .status=="STALE"' /tmp/master-consult-response.json >/dev/null
+
+      - name: Publish consult evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-cell-master-consult-${{ github.run_id }}
+          path: /tmp/master-consult-response.json
+          if-no-files-found: ignore
+          retention-days: 14

@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { planFromIntent, type ExecutionPlan } from '@/lib/ai/planner';
+import type { ExecutionPlan } from '@/lib/ai/planner';
+import { buildIntentPlan, toExecutionPlan } from '@/lib/agent/intent/intent-plan';
 import { runWorkflowPipeline, type PipelineProgress } from '@/lib/workflows/pipeline-runner';
 import { getReadyToolConfigs } from '@/config/tools';
 import { findToolIntent } from '@/lib/intent-router';
-import { extractParameters } from '@/lib/agent/intent/parameter-extractor';
 import { detectAgentLocale } from '@/lib/agent/language-detector';
 import { confirmTask, createTaskContext, transitionTask, type TaskContext } from '@/lib/agent/task-state';
 import {
@@ -18,16 +18,69 @@ import {
 } from '@/lib/agent/conversation';
 import { AGENT_I18N } from '@/data/agent-locales';
 import type { Locale } from '@/lib/i18n';
-import { buildFilterMaskUrl, type FilterMaskHandoff } from '@/tools/filter-mask/handoff';
+import { type FilterMaskHandoff } from '@/tools/filter-mask/handoff';
+import { askConversationalAgent } from '@/lib/agent/conversational-agent';
 import { getLiveFilter } from '@/tools/filter-mask/registry';
 import { resolveFilterMaskSelection } from '@/lib/intent/resolver';
 import './FlixoAIAgent.css';
 
 type AgentState = 'idle' | 'ready' | 'running' | 'success' | 'error';
 type Message = { id: number; role: 'user' | 'agent'; text: string };
+type SaveFilePicker = (options: {
+  suggestedName: string;
+  types: Array<{ description: string; accept: Record<string, string[]> }>;
+}) => Promise<{
+  createWritable: () => Promise<{
+    write: (data: Blob) => Promise<void>;
+    close: () => Promise<void>;
+  }>;
+}>;
 
 const CONFIRMATIONS = /^(نعم|أيوه|ايوه|نفذ|نفّذ|ابدأ|ابدئي|موافق|تمام|yes|y|ok|okay|go|execute|run|ejecutar|exécuter|ausführen|실행|実行|jalankan|esegui|uitvoeren|wykonaj|executar|kör|ดำเนินการ|çalıştır|виконати|thực hiện)$/i;
 const CANCELLATIONS = /^(لا|لأ|الغاء|إلغاء|cancel|no|n|stop)$/i;
+const getDownloadFilename = (mimeType: string): string => {
+  if (mimeType === 'image/jpeg') return 'flixo-agent-result.jpg';
+  if (mimeType === 'image/png') return 'flixo-agent-result.png';
+  if (mimeType === 'image/webp') return 'flixo-agent-result.webp';
+  if (mimeType === 'image/svg+xml') return 'flixo-agent-result.svg';
+  if (mimeType === 'text/plain') return 'flixo-agent-result.txt';
+  if (mimeType === 'application/json') return 'flixo-agent-result.json';
+  return 'flixo-agent-result.bin';
+};
+
+const getSaveFilePicker = (): SaveFilePicker | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  return (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker;
+};
+
+const saveResultToFile = async (blob: Blob): Promise<void> => {
+  const showSaveFilePicker = getSaveFilePicker();
+  if (!showSaveFilePicker) {
+    throw new Error('Direct file saving is unavailable in this browser.');
+  }
+
+  const handle = await showSaveFilePicker({
+    suggestedName: getDownloadFilename(blob.type),
+    types: [
+      {
+        description: 'FLIXO result',
+        accept: {
+          'image/png': ['.png'],
+          'image/jpeg': ['.jpg', '.jpeg'],
+          'image/webp': ['.webp'],
+          'image/svg+xml': ['.svg'],
+          'text/plain': ['.txt'],
+          'application/json': ['.json'],
+        },
+      },
+    ],
+  });
+
+  const writable = await handle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+};
+
 const GENERIC_CROP_REQUEST = /(?:^|\\s)(?:(?:أريد|اريد|ممكن|هل\\s+تستطيع|please)\\s+)?(?:قص|اقت(?:ص|طع)|crop)(?:\\s+(?:صورة|الصور|الصورة|image|photo))?\\s*$/i;
 const conversationalReply = (
   kind: ReturnType<typeof classifyConversation>,
@@ -72,7 +125,11 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
 
   const contextualQuery = useMemo(() => contextualizeCommand(query, memory), [query, memory]);
   const intent = useMemo(() => contextualQuery.trim() ? findToolIntent(contextualQuery, getReadyToolConfigs())[0] : null, [contextualQuery]);
-  const planned = useMemo(() => contextualQuery.trim() ? planFromIntent(contextualQuery) : null, [contextualQuery]);
+  const planned = useMemo(() => {
+    if (!contextualQuery.trim()) return null;
+    const intentPlan = buildIntentPlan(contextualQuery);
+    return intentPlan.status === 'READY' ? toExecutionPlan(intentPlan) : null;
+  }, [contextualQuery]);
   const filterMaskMatch = intent?.tool.id === 'filter-mask';
 
   const resolveFilterMaskHandoff = (command: string) => resolveFilterMaskSelection(command);
@@ -85,6 +142,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const applyFilterMaskHandoff = (command: string, detectedLocale: Locale) => {
     const nextHandoff = resolveFilterMaskHandoff(command);
     if (!nextHandoff) return false;
+    const selected = getLiveFilter(nextHandoff.canonicalId);
     setFilterHandoff(nextHandoff);
     setPlan(null);
     setState('ready');
@@ -94,7 +152,6 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       toolId: 'filter-mask',
       planReady: false,
     }));
-    const selected = getLiveFilter(nextHandoff.canonicalId);
     const label = selected?.label ?? nextHandoff.canonicalId;
     pushMessage(
       'agent',
@@ -108,20 +165,123 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const buildPlan = (command: string, responseCopy = copy): ExecutionPlan | null => {
     setError(null); setResult(null); setProgress(null);
     const contextualCommand = contextualizeCommand(command, memory);
-    const extracted = extractParameters(contextualCommand);
-    if (!extracted.success) {
-      setPlan(null); setState('error'); setError(extracted.errors.join(' '));
+    const intentPlan = buildIntentPlan(contextualCommand);
+    if (intentPlan.status === 'NEEDS_INPUT') {
+      const missing = intentPlan.missing[0];
+      setPlan(null);
+      setState('idle');
+      setError(null);
+      setMemory((current) => setConversationTask(current, {
+        command: contextualCommand,
+        toolId: missing?.capability ?? current.activeToolId,
+        pendingToolId: missing?.capability ?? null,
+        pendingQuestion: missing?.question ?? null,
+        planReady: false,
+      }));
       return null;
     }
-    const nextPlan = planFromIntent(contextualCommand);
-    if (!nextPlan) { setPlan(null); setState('error'); setError(responseCopy.noSafePlan); return null; }
+    if (intentPlan.status !== 'READY') {
+      setPlan(null);
+      setState('error');
+      setError(intentPlan.explanation || responseCopy.noSafePlan);
+      return null;
+    }
+    const nextPlan = toExecutionPlan(intentPlan);
+    if (!nextPlan) {
+      setPlan(null);
+      setState('error');
+      setError(responseCopy.noSafePlan);
+      return null;
+    }
     const firstStep = nextPlan.steps[0];
     setMemory((current) => setConversationTask(current, {
       command: contextualCommand,
       toolId: firstStep?.toolId ?? null,
+      pendingToolId: null,
+      pendingQuestion: null,
       planReady: true,
     }));
     setPlan(nextPlan); setState('ready'); return nextPlan;
+  };
+
+  const runConversationalTurn = async (command: string, responseCopy = copy): Promise<boolean> => {
+    try {
+      const decision = await askConversationalAgent({
+        locale,
+        messages: [
+          ...messages.slice(-23).map((message) => ({
+            role: message.role === 'agent' ? 'assistant' as const : 'user' as const,
+            content: message.text,
+          })),
+          { role: 'user' as const, content: command },
+        ],
+        activePlan: plan,
+        activeCommand: memory.activeCommand,
+      });
+
+      // A provider fallback means the gateway did not have a usable model response.
+      // Keep the existing deterministic FLIXO planner authoritative in that case.
+      if (decision.fallback) return false;
+
+      if (decision.mode === 'plan' && decision.plan) {
+        // The model may propose intent, but it is never the execution authority.
+        // Rebuild the executable plan through the deterministic canonical planner so
+        // registry state, parameter schemas and capability status remain authoritative.
+        const contextualCommand = contextualizeCommand(command, memory);
+        const canonicalIntentPlan = buildIntentPlan(contextualCommand);
+        const canonicalPlan = canonicalIntentPlan.status === 'READY'
+          ? toExecutionPlan(canonicalIntentPlan)
+          : null;
+
+        if (!canonicalPlan) return false;
+
+        setPlan(canonicalPlan);
+        setState('ready');
+        setError(null);
+        setFilterHandoff(null);
+        setMemory((current) => setConversationTask(current, {
+          command: contextualCommand,
+          toolId: canonicalPlan.steps[0]?.toolId ?? null,
+          planReady: true,
+        }));
+        pushMessage(
+          'agent',
+          file
+            ? `${decision.reply} ${responseCopy.execute}`
+            : `${decision.reply} ${responseCopy.uploadThenExecute}`,
+        );
+        return true;
+      }
+
+      setPlan(null);
+      setError(null);
+      setState('idle');
+      setFilterHandoff(null);
+
+      if (decision.mode === 'clarify') {
+        setMemory((current) => setConversationTask(current, {
+          command,
+          toolId: current.activeToolId,
+          pendingQuestion: decision.question,
+          planReady: false,
+        }));
+        pushMessage('agent', decision.reply);
+        if (decision.question && decision.question.trim() !== decision.reply.trim()) {
+          pushMessage('agent', decision.question);
+        }
+        return true;
+      }
+
+      setMemory((current) => setConversationTask(current, {
+        command: current.activeCommand ?? command,
+        toolId: current.activeToolId,
+        planReady: false,
+      }));
+      pushMessage('agent', decision.reply);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const execute = async (nextPlan = plan, responseCopy = copy) => {
@@ -179,6 +339,8 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
 
     if (filterMaskMatch && applyFilterMaskHandoff(command, detectedLocale)) return;
 
+    if (await runConversationalTurn(command, responseCopy)) return;
+
     const conversationKind = classifyConversation(command);
     const naturalReply = conversationalReply(conversationKind, responseCopy);
     if (naturalReply) {
@@ -210,10 +372,9 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
 
     const nextPlan = buildPlan(command, responseCopy);
     if (!nextPlan) {
-      const hasPending = Boolean(memory.pendingQuestion);
-      pushMessage('agent', hasPending
-        ? memory.pendingQuestion ?? responseCopy.clarification
-        : responseCopy.clarification);
+      const latestMemory = loadConversationMemory();
+      const pendingQuestion = latestMemory.pendingQuestion;
+      pushMessage('agent', pendingQuestion ?? responseCopy.clarification);
       return;
     }
 
@@ -225,12 +386,13 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     pushMessage('agent', responseCopy.understood);
   };
 
-  const prepare = () => {
+  const prepare = async () => {
     const command = query.trim(); if (!command) return;
     const detectedLocale = detectAgentLocale(command, locale);
     const responseCopy = AGENT_I18N[detectedLocale] ?? copy;
     pushMessage('user', command); setQuery('');
     if (filterMaskMatch && applyFilterMaskHandoff(command, detectedLocale)) return;
+    if (await runConversationalTurn(command, responseCopy)) return;
     const naturalReply = conversationalReply(classifyConversation(command), responseCopy);
     if (naturalReply) { pushMessage('agent', naturalReply); return; }
     if (GENERIC_CROP_REQUEST.test(command)) {
@@ -240,12 +402,6 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     }
     const nextPlan = buildPlan(command, responseCopy);
     if (nextPlan) pushMessage('agent', file ? `${responseCopy.planReady} ${responseCopy.execute}` : `${responseCopy.planReady} ${responseCopy.uploadThenExecute}`);
-  };
-
-  const download = () => {
-    if (!result) return;
-    const url = URL.createObjectURL(result); const anchor = document.createElement('a'); anchor.href = url;
-    anchor.download = `flixo-agent-${Date.now()}.${result.type.includes('jpeg') ? 'jpg' : result.type.includes('png') ? 'png' : 'webp'}`; anchor.click(); URL.revokeObjectURL(url);
   };
 
   return (
@@ -267,18 +423,47 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           {intent && <div className="flixo-ai-agent-intent">{copy.nearestTool} <strong>{intent.tool.title}</strong> · {intent.score}%</div>}
           {filterHandoff && (
             <div className="flixo-ai-agent-confirm" data-testid="filter-mask-handoff">
-              <strong>{filterHandoff.canonicalId}</strong>
-              <span> · intensity {filterHandoff.parameters.intensity}% · zoom {filterHandoff.parameters.zoom.toFixed(1)}× · {filterHandoff.parameters.aspectRatio} · {filterHandoff.parameters.mirror ? 'mirror' : 'direct'}</span>
-              <a className="primary-button" href={buildFilterMaskUrl(locale, filterHandoff)}>
+              <strong>Filter Mask ready</strong>
+              <span> · ready for live preview</span>
+              <Link
+                className="primary-button"
+                to="/$locale/$tool"
+                params={{ locale, tool: 'filter-mask' }}
+                search={{
+                  canonicalId: filterHandoff.canonicalId,
+                  intensity: filterHandoff.parameters.intensity,
+                  zoom: filterHandoff.parameters.zoom,
+                  mirror: filterHandoff.parameters.mirror,
+                  aspectRatio: filterHandoff.parameters.aspectRatio,
+                  captureQuality: filterHandoff.parameters.captureQuality,
+                }}
+              >
                 {locale === 'ar' ? 'فتح المعاينة المباشرة' : 'Open live preview'}
-              </a>
+              </Link>
             </div>
           )}
           {planned?.steps?.length ? <ol>{planned.steps.map((step, index) => <li key={`${step.toolId}-${index}`}><span>{index + 1}</span><div><strong>{step.toolId}</strong><small>{JSON.stringify(step.params ?? {})}</small></div></li>)}</ol> : <p className="flixo-ai-agent-empty">{copy.empty}</p>}
           {progress && <div className="flixo-ai-agent-progress"><span>{copy.step} {progress.currentStepIndex}/{progress.totalSteps}</span><strong>{progress.currentToolId}</strong>{progress.retry ? <small>{copy.retry} {progress.retry}</small> : null}</div>}
           {error && <div className="flixo-ai-agent-error" role="alert">{error}</div>}
           {state === 'ready' && plan && <div className="flixo-ai-agent-confirm">{copy.planReady} <strong>{file ? copy.execute : copy.uploadThenExecute}</strong></div>}
-          {state === 'success' && result && <div className="flixo-ai-agent-success"><strong>{copy.success}</strong><button type="button" className="primary-button" onClick={download}>{copy.download}</button></div>}
+          {state === 'success' && result && (
+            <div className="flixo-ai-agent-success">
+              <strong>{copy.success}</strong>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => {
+                  void saveResultToFile(result).catch((cause) => {
+                    const message = cause instanceof Error ? cause.message : 'Unable to save the result file.';
+                    setError(message);
+                    setState('error');
+                  });
+                }}
+              >
+                {copy.download}
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <p className="flixo-ai-agent-note">{copy.safetyNote} <Link to="/admin">{copy.admin}</Link></p>

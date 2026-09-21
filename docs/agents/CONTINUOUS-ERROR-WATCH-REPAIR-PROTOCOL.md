@@ -44,3 +44,20 @@ For a repeated failure fingerprint the repair plane MUST:
 6. record the new strategy, result, exact SHA evidence, and verification outcome for the next cycle.
 
 The teaching state is advisory to mutation authority but mandatory for repair planning. It never grants certification authority. A repeated failure must not be converted into a new test merely to make the system appear green; source repair, infrastructure diagnosis, or an explicit external block remains the required disposition.
+
+## Durable failed-repair no-repeat contract
+
+Every mutation attempt is keyed by:
+
+`repairChainId + failureFingerprint + strategyId/ruleId`.
+
+When a source repair is actually attempted and does not reach verified repair, the outcome is written to the durable repair-attempt ledger. For the remainder of that repair chain and failure fingerprint:
+
+- the same `strategyId` is not selectable again;
+- the same `ruleId` is not selectable again, even under a different strategy;
+- successful verification does not create a rejection;
+- proposal-only and external-provider blocks do not become rejected source repairs;
+- exhausting all unused strategies is fail-closed and requires materially new evidence/hypothesis rather than repeating a rejected repair;
+- the ledger is persisted as an Actions artifact and restored at the start of the next recursive repair run.
+
+The canonical source of truth remains the exact failed SHA and fresh verification. Memory, teaching records, and the no-repeat ledger are decision constraints and history; none of them can declare GREEN.

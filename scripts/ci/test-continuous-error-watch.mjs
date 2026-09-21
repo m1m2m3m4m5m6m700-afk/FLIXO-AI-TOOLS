@@ -29,6 +29,34 @@ const cancelledRun = { ...run('FLIXO Test Impact Execution', 40, 'cancelled'), u
 const successorRun = { ...run('FLIXO Test Impact Execution', 41, 'success'), updatedAt: '2026-09-19T00:01:00Z' };
 assert.equal(classifyCancelledRun(cancelledRun, [cancelledRun, successorRun]).state, 'CANCELLED_SUPERSEDED');
 assert.equal(classifyCancelledRun(cancelledRun, [cancelledRun]).state, 'CANCELLED_UNSUPERSEDED');
+
+assert.equal(validateRepairTarget({
+  run: {
+    databaseId: 10000,
+    status: 'completed',
+    conclusion: 'failure',
+    headSha: 'b'.repeat(40),
+    headBranch: 'execution',
+    workflowName: '.github/workflows/daily-flixo-green-gate.yml',
+  },
+  executionSha: 'b'.repeat(40),
+  logs: { '10000': 'EVIDENCE_CAPTURE=AVAILABLE\nfailure evidence' },
+  branch: 'execution',
+}).valid, false);
+
+assert.equal(validateRepairTarget({
+  run: {
+    databaseId: 9999,
+    status: 'completed',
+    conclusion: 'failure',
+    headSha: 'a'.repeat(40),
+    headBranch: 'execution',
+    name: 'Daily·FLIXO Green Gate 9999',
+  },
+  executionSha: 'a'.repeat(40),
+  logs: { '9999': 'EVIDENCE_CAPTURE=AVAILABLE\nfailure evidence' },
+  branch: 'execution',
+}).valid, false);
 assert.equal(validateRepairTarget({
   run: { ...run('FLIXO Test Impact Execution', 50, 'failure'), headBranch: 'execution' },
   executionSha: SHA_A,
@@ -350,6 +378,36 @@ const waiting = evaluateGreen({
   compare: { ahead_by: 1, behind_by: 0 },
 });
 assert.equal(waiting.status, 'WAITING_REQUIRED_CHECKS');
+
+const postMergeWrongMain = evaluateGreen({
+  executionSha: SHA_A, mainSha: SHA_B, openPr: null,
+  latestMergedPr: { headRefOid: SHA_A, mergeCommit: { oid: SHA_A } },
+  workflowRuns: requiredRuns, checkRuns: securityAndCertification,
+  compare: { ahead_by: 0, behind_by: 0 },
+});
+assert.equal(postMergeWrongMain.status, 'RED_INTERNAL');
+assert.equal(postMergeWrongMain.repair.required, false);
+assert(postMergeWrongMain.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'));
+
+const postMergeWrongHead = evaluateGreen({
+  executionSha: SHA_A, mainSha: SHA_B, openPr: null,
+  latestMergedPr: { headRefOid: SHA_B, mergeCommit: { oid: SHA_B } },
+  workflowRuns: requiredRuns, checkRuns: securityAndCertification,
+  compare: { ahead_by: 0, behind_by: 0 },
+});
+assert.equal(postMergeWrongHead.status, 'RED_INTERNAL');
+assert.equal(postMergeWrongHead.repair.required, false);
+assert(postMergeWrongHead.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'));
+
+const postMergeMissingCommit = evaluateGreen({
+  executionSha: SHA_A, mainSha: SHA_B, openPr: null,
+  latestMergedPr: { headRefOid: SHA_A, mergeCommit: null },
+  workflowRuns: requiredRuns, checkRuns: securityAndCertification,
+  compare: { ahead_by: 0, behind_by: 0 },
+});
+assert.equal(postMergeMissingCommit.status, 'RED_INTERNAL');
+assert.equal(postMergeMissingCommit.repair.required, false);
+assert(postMergeMissingCommit.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'));
 
 const postMerge = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr: null,

@@ -84,6 +84,16 @@ The agent MUST:
 
 Any workflow, script, task packet, or agent that attempts to create, push, or merge a third branch is non-compliant and must fail closed.
 
+## LATEST-COMMIT-ONLY TEST EXECUTION
+
+For push/synchronize-driven test verification, the repository tests only the newest branch head:
+- A newer commit supersedes older test/verification runs for the same branch.
+- Core test workflows use `cancel-in-progress: true` and exact head branch/repository concurrency identity.
+- `.github/workflows/latest-commit-test-supersession.yml` cancels stale test/verification runs across workflows by comparing each run's `headSha` with the newest branch SHA.
+- Current-SHA runs are never canceled by the supersession controller merely because another current-SHA workflow exists.
+- A cancellation race is fail-closed: the stale-SHA guard aborts the old run before it can publish valid evidence.
+- Repair/heartbeat/residency automation is intentionally outside the test supersession allowlist so a push cannot strand an active repair cycle.
+
 ## TESTING ECONOMY
 
 Routine changes use targeted regression first. Full canonical CI is required whenever the governing contract, affected graph, release boundary, or task closure requires it.
@@ -138,6 +148,20 @@ Repository mutation is limited to the canonical mutation roles admitted by `scri
 
 A prompt, memory record, scout report, or handoff cannot grant mutation authority.
 
+## COUNCIL-FIRST ADMINISTRATION — SUPREME COORDINATION PRIORITY
+The Council President (`assistantController`) is the highest repository administration authority for coordination. Any Council message, comment, wake, question, or invocation is P0 and requires an immediate response/receipt before lower-priority work continues. Safe-boundary preemption may interrupt scheduling at a boundary; it must never corrupt an in-flight mutation.
+
+Every agent, bot, Action Vault resident, Task Agent, Repair Agent, Execution Agent, Master/Chief runtime adapter, and certification/review role MUST consume this invariant through the canonical communication and coordination paths. No role may downgrade, defer, silently ignore, or supersede a Council request. Stale/conflicting requests are answered immediately with the corresponding fail-closed state and exact-SHA evidence; they are not silently dropped.
+
+## ADMINISTRATIVE MESSAGES — CANONICAL TERM
+
+Within FLIXO, **«رسائل الإدارة»** (also «الرسالة الإدارية») is the human-facing Arabic name for the existing **Canonical Agent Communication** system. It is not a second channel, protocol, registry, inbox, or authority layer.
+
+Whenever an agent, Master, supervisor, Council member, or operator says **«رسائل الإدارة»**, it means the same internal communication path:
+`Master Inbox → agent-communication-relay.yml → agent-communication.mjs → agent-session.mjs → agent-coordination.mjs`.
+
+Administrative Council messages remain **P0 / IMMEDIATE** and are subject to the same exact-SHA, idempotency, recipient, scope, ownership, and fail-closed controls.
+
 ## COMMUNICATION-FIRST GATE
 
 The shared agent communication channel is the first operational dependency for every agent.
@@ -153,6 +177,14 @@ Message receipt is not execution authority. `RECEIVED` means the message has ent
 An agent session created from an inbound message MUST preserve `messageId` and message SHA in its session and visibility record. The following task claim MUST bind to that message and recheck message recipient, task, scope and exact SHA.
 
 Periodic polling is recovery only. Event-driven delivery is the primary notification path.
+## ADMINISTRATIVE ATTENDANCE ENFORCEMENT
+
+**رسائل الإدارة = Canonical Agent Communication.** استدعاء أي Master/Agent/Bot عبر رسالة إدارية هو `P0 / IMMEDIATE`. المطلوب لكل مستلم: `RECEIVED → READ → UNDERSTOOD → ACCEPTED`. عدم الحضور أو عدم الإقرار خلال نافذة الحضور لا يُعتبر موافقة ضمنية؛ عند انتهاء النافذة يُسجَّل `MISSED_P0_ATTENDANCE` ويُرسل `ADMIN_ATTENDANCE_INQUIRY` إلى المتخلف عبر نفس القناة، ويظل الاستدعاء غير مكتمل حتى الرد.
+
+## COUNCIL MEETING EXIT LOCK
+
+جلسة اجتماع المجلس التي تحمل `meetingId` تبقى مقفلة. لا يستطيع العضو إنهاءها ذاتيًا. الخروج يتطلب موافقة `assistantController` مرتبطة بنفس `sessionId + meetingId + exactSha`، وأي تغير في SHA يبطل الموافقة.
+
 ## AGENT LOGIN
 
 Before changing repository state, the agent MUST create:
@@ -204,6 +236,23 @@ RCA closure requires:
 
 A repair that creates a new failure remains on `execution` with its own RCA-ID and recovery continues from the new exact SHA. It never creates a new branch.
 
+## SUPREME AUTOMATION RESIDENCY PROTOCOL
+
+The Agent Liveness / Permanent Residency Protocol is the highest operational automation contract in this repository. It governs the repair and automation plane and overrides lower-level workflow, agent, task, session, timeout, budget, queue, retry, or convenience rules whenever they conflict with residency, heartbeat, recovery, or continuity.
+
+Mandatory invariants:
+- The automation/repair plane MUST remain resident while any RED, OPEN WORK, BLOCKED_EXTERNAL, ACTIVE REPAIR, or unverified execution state exists.
+- A 5-minute heartbeat is mandatory. A missed/stale heartbeat is a recovery event, never permission to stop.
+- SLEEP, IDLE, SILENT, ABANDONED, self-abort, and silent termination are forbidden while work is open.
+- A workflow run ending, timing out, reaching a session budget, losing a lease, or being superseded MUST NOT close the task. It MUST recover and continue automatically.
+- GREEN closes the current repair obligation only after exact-SHA evidence proves zero required RED; it MUST NOT disable permanent residency.
+- No executor may dispatch itself. The canonical Green Gate remains the sole repair dispatcher.
+- Liveness failure MUST fail closed into RECOVERING and re-enter the canonical wake/dispatch path; it MUST NOT strand repair as a terminal dispatch failure.
+- Manual workflow dispatch is never a prerequisite for repair continuity.
+- Every change to this contract requires targeted enforcement tests proving lower-level actors cannot suspend or bypass residency.
+
+Enforcement order: SUPREME RESIDENCY -> ZERO-FALSE-GREEN -> ROOT-CAUSE REPAIR -> all other repository protocols.
+
 ## PROTOCOL HIERARCHY
 
 The normative hierarchy and anti-bloat gate are defined in `docs/PROTOCOL-HIERARCHY.md`, while `docs/PROTOCOL-REGISTRY.json` is the canonical machine-readable inventory of approved protocols.
@@ -231,6 +280,10 @@ The session record MUST preserve actual commands, scope, SHA lineage, evidence, 
 Agents MUST NOT weaken assertions, disable tests, add silent skips, relabel failures without evidence, reuse stale evidence, or declare GREEN from partial execution.
 
 `FAIL`, `CANCELLED`, `BLOCKED`, `NOT_EXECUTED`, `MISSING_EVIDENCE`, and `MALFORMED_EVIDENCE` are recovery states.
+
+### Mandatory cycle lesson list
+
+Every completed repair/verification cycle MUST emit `cycleLessons` containing the RCA lesson, strategy lesson or anti-lesson, verification state, affected scope when applicable, recurrence/prevention rule, and external-blocker anti-lesson when applicable. `cycleLessons` is learning/continuity evidence only; it never authorizes mutation or certification.
 
 ## HANDOFF / LOGOUT
 
@@ -281,3 +334,23 @@ The repository uses one automatic test workflow: `.github/workflows/ci.yml`.
 `PRESIDENT → DEPUTY → INVESTIGATOR → SPECIALIST → VERIFY → HANDOFF → PRESIDENT`
 
 Tasks are large causally coherent Work Packages. Every claim requires ownerRole, Work Package identity, acceptance criteria, proof obligations and exact SHA. Unassigned ledger work returns to the President as PENDING_ASSIGNMENT. An agent stops after handoff and does not self-assign another package.
+
+
+## ACTION VAULT TRIAD — MANDATORY ROLE CONTRACT
+
+The existing Action Vault three-resident system is governed by `docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md`. This is an extension of the existing Agent Ownership/Continuity protocol, not a parallel authority.
+
+For every actionable RED, the three seats operate as one shared repair intelligence:
+- VAULT-1 / ACTION-REPAIR: programmer; construct and defend a causal repair.
+- VAULT-2 / ACTION-REPAIR-2: programmer twin; independently attempt to prove VAULT-1 wrong.
+- VAULT-3 / ACTION-HISTORIAN-3: cognitive/catalog supervisor; retrieve, curate, compare, select and learn.
+
+VAULT-1 and VAULT-2 MUST have programming-intelligence parity. Their proof objectives are intentionally opposed. VAULT-3 has the same base reasoning capability with knowledge/curation specialization.
+
+All three may create and revise candidate repair artifacts. Repository source mutation remains serialized through the existing control plane and `execution` branch. No candidate, catalog rule, or agent vote is proof.
+
+Every RED MUST pass the triad error gate and be recorded. A catalog miss MUST be recorded and may generate new advice only as CANDIDATE learning until exact-SHA repair and canonical GREEN promotion.
+
+The same stable failure fingerprint reaching 20 unresolved occurrences activates `SUPERVISOR_20`: VAULT-1 and VAULT-2 are suspended from autonomous source mutation for that fingerprint; VAULT-3 becomes supervisor and may execute the bounded repair after all normal Repair Protocol, exact-SHA, targeted regression and canonical verification gates. Each seat must contribute a lesson/advice record.
+
+Forbidden: unrecorded RED, unrecorded catalog miss, repeated identical strategy without new evidence, self-approved GREEN, or silent removal of any triad resident.

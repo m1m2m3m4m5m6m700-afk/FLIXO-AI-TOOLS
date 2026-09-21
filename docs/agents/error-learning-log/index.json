@@ -1,0 +1,254 @@
+{
+  "schemaVersion": 1,
+  "purpose": "fast advisory retrieval into the 50000-line learning log",
+  "authority": "guidance-only",
+  "defaultShardFanout": 3,
+  "classes": {
+    "stale-sha": [
+      "docs/agents/error-learning-log/part-01.ndjson"
+    ],
+    "concurrency": [
+      "docs/agents/error-learning-log/part-02.ndjson",
+      "docs/agents/error-learning-log/part-08.ndjson",
+      "docs/agents/error-learning-log/part-14.ndjson"
+    ],
+    "queued-run": [
+      "docs/agents/error-learning-log/part-03.ndjson",
+      "docs/agents/error-learning-log/part-15.ndjson",
+      "docs/agents/error-learning-log/part-02.ndjson"
+    ],
+    "cancelled-run": [
+      "docs/agents/error-learning-log/part-04.ndjson",
+      "docs/agents/error-learning-log/part-22.ndjson",
+      "docs/agents/error-learning-log/part-15.ndjson"
+    ],
+    "sha-mismatch": [
+      "docs/agents/error-learning-log/part-05.ndjson",
+      "docs/agents/error-learning-log/part-04.ndjson",
+      "docs/agents/error-learning-log/part-03.ndjson"
+    ],
+    "workflow-schedule": [
+      "docs/agents/error-learning-log/part-06.ndjson",
+      "docs/agents/error-learning-log/part-11.ndjson",
+      "docs/agents/error-learning-log/part-16.ndjson"
+    ],
+    "workflow-concurrency-key": [
+      "docs/agents/error-learning-log/part-07.ndjson",
+      "docs/agents/error-learning-log/part-18.ndjson",
+      "docs/agents/error-learning-log/part-04.ndjson"
+    ],
+    "workflow-needs-edge": [
+      "docs/agents/error-learning-log/part-08.ndjson",
+      "docs/agents/error-learning-log/part-25.ndjson",
+      "docs/agents/error-learning-log/part-17.ndjson"
+    ],
+    "workflow-output-contract": [
+      "docs/agents/error-learning-log/part-09.ndjson",
+      "docs/agents/error-learning-log/part-07.ndjson",
+      "docs/agents/error-learning-log/part-05.ndjson"
+    ],
+    "workflow-dispatch-auth": [
+      "docs/agents/error-learning-log/part-10.ndjson",
+      "docs/agents/error-learning-log/part-14.ndjson",
+      "docs/agents/error-learning-log/part-18.ndjson"
+    ],
+    "matrix-json-input": [
+      "docs/agents/error-learning-log/part-11.ndjson",
+      "docs/agents/error-learning-log/part-21.ndjson",
+      "docs/agents/error-learning-log/part-06.ndjson"
+    ],
+    "matrix-version-drift": [
+      "docs/agents/error-learning-log/part-12.ndjson",
+      "docs/agents/error-learning-log/part-03.ndjson",
+      "docs/agents/error-learning-log/part-19.ndjson"
+    ],
+    "runner-image": [
+      "docs/agents/error-learning-log/part-13.ndjson",
+      "docs/agents/error-learning-log/part-10.ndjson",
+      "docs/agents/error-learning-log/part-07.ndjson"
+    ],
+    "runner-cache": [
+      "docs/agents/error-learning-log/part-14.ndjson",
+      "docs/agents/error-learning-log/part-17.ndjson",
+      "docs/agents/error-learning-log/part-20.ndjson"
+    ],
+    "runner-permissions": [
+      "docs/agents/error-learning-log/part-15.ndjson",
+      "docs/agents/error-learning-log/part-24.ndjson",
+      "docs/agents/error-learning-log/part-08.ndjson"
+    ],
+    "node-version": [
+      "docs/agents/error-learning-log/part-16.ndjson",
+      "docs/agents/error-learning-log/part-06.ndjson",
+      "docs/agents/error-learning-log/part-21.ndjson"
+    ],
+    "node-fetch": [
+      "docs/agents/error-learning-log/part-17.ndjson",
+      "docs/agents/error-learning-log/part-13.ndjson",
+      "docs/agents/error-learning-log/part-09.ndjson"
+    ],
+    "node-worker": [
+      "docs/agents/error-learning-log/part-18.ndjson",
+      "docs/agents/error-learning-log/part-20.ndjson",
+      "docs/agents/error-learning-log/part-22.ndjson"
+    ],
+    "typescript": [
+      "docs/agents/error-learning-log/part-19.ndjson",
+      "docs/agents/error-learning-log/part-02.ndjson",
+      "docs/agents/error-learning-log/part-10.ndjson"
+    ],
+    "eslint": [
+      "docs/agents/error-learning-log/part-20.ndjson",
+      "docs/agents/error-learning-log/part-09.ndjson",
+      "docs/agents/error-learning-log/part-23.ndjson"
+    ],
+    "build-chunk": [
+      "docs/agents/error-learning-log/part-21.ndjson",
+      "docs/agents/error-learning-log/part-16.ndjson",
+      "docs/agents/error-learning-log/part-11.ndjson"
+    ],
+    "npm-install": [
+      "docs/agents/error-learning-log/part-22.ndjson",
+      "docs/agents/error-learning-log/part-23.ndjson",
+      "docs/agents/error-learning-log/part-24.ndjson"
+    ],
+    "cache-stale": [
+      "docs/agents/error-learning-log/part-23.ndjson",
+      "docs/agents/error-learning-log/part-05.ndjson",
+      "docs/agents/error-learning-log/part-12.ndjson"
+    ],
+    "vite-dynamic-import": [
+      "docs/agents/error-learning-log/part-24.ndjson",
+      "docs/agents/error-learning-log/part-12.ndjson",
+      "docs/agents/error-learning-log/part-25.ndjson"
+    ],
+    "route-tree": [
+      "docs/agents/error-learning-log/part-25.ndjson",
+      "docs/agents/error-learning-log/part-19.ndjson",
+      "docs/agents/error-learning-log/part-13.ndjson"
+    ],
+    "route-mismatch": [
+      "docs/agents/error-learning-log/part-01.ndjson"
+    ],
+    "router-locale": [
+      "docs/agents/error-learning-log/part-02.ndjson",
+      "docs/agents/error-learning-log/part-08.ndjson",
+      "docs/agents/error-learning-log/part-14.ndjson"
+    ],
+    "playwright-webkit": [
+      "docs/agents/error-learning-log/part-03.ndjson",
+      "docs/agents/error-learning-log/part-15.ndjson",
+      "docs/agents/error-learning-log/part-02.ndjson"
+    ],
+    "playwright-firefox": [
+      "docs/agents/error-learning-log/part-04.ndjson",
+      "docs/agents/error-learning-log/part-22.ndjson",
+      "docs/agents/error-learning-log/part-15.ndjson"
+    ],
+    "browser-shard": [
+      "docs/agents/error-learning-log/part-05.ndjson",
+      "docs/agents/error-learning-log/part-04.ndjson",
+      "docs/agents/error-learning-log/part-03.ndjson"
+    ],
+    "browser-timeout": [
+      "docs/agents/error-learning-log/part-06.ndjson",
+      "docs/agents/error-learning-log/part-11.ndjson",
+      "docs/agents/error-learning-log/part-16.ndjson"
+    ],
+    "hydration": [
+      "docs/agents/error-learning-log/part-07.ndjson",
+      "docs/agents/error-learning-log/part-18.ndjson",
+      "docs/agents/error-learning-log/part-04.ndjson"
+    ],
+    "ssr-client": [
+      "docs/agents/error-learning-log/part-08.ndjson",
+      "docs/agents/error-learning-log/part-25.ndjson",
+      "docs/agents/error-learning-log/part-17.ndjson"
+    ],
+    "i18n": [
+      "docs/agents/error-learning-log/part-09.ndjson",
+      "docs/agents/error-learning-log/part-07.ndjson",
+      "docs/agents/error-learning-log/part-05.ndjson"
+    ],
+    "i18n-direction": [
+      "docs/agents/error-learning-log/part-10.ndjson",
+      "docs/agents/error-learning-log/part-14.ndjson",
+      "docs/agents/error-learning-log/part-18.ndjson"
+    ],
+    "i18n-interpolation": [
+      "docs/agents/error-learning-log/part-11.ndjson",
+      "docs/agents/error-learning-log/part-21.ndjson",
+      "docs/agents/error-learning-log/part-06.ndjson"
+    ],
+    "seo-canonical": [
+      "docs/agents/error-learning-log/part-12.ndjson",
+      "docs/agents/error-learning-log/part-03.ndjson",
+      "docs/agents/error-learning-log/part-19.ndjson"
+    ],
+    "soft-404": [
+      "docs/agents/error-learning-log/part-13.ndjson",
+      "docs/agents/error-learning-log/part-10.ndjson",
+      "docs/agents/error-learning-log/part-07.ndjson"
+    ],
+    "sitemap": [
+      "docs/agents/error-learning-log/part-14.ndjson",
+      "docs/agents/error-learning-log/part-17.ndjson",
+      "docs/agents/error-learning-log/part-20.ndjson"
+    ],
+    "artifact-mismatch": [
+      "docs/agents/error-learning-log/part-15.ndjson",
+      "docs/agents/error-learning-log/part-24.ndjson",
+      "docs/agents/error-learning-log/part-08.ndjson"
+    ],
+    "artifact-integrity": [
+      "docs/agents/error-learning-log/part-16.ndjson",
+      "docs/agents/error-learning-log/part-06.ndjson",
+      "docs/agents/error-learning-log/part-21.ndjson"
+    ],
+    "artifact-permission": [
+      "docs/agents/error-learning-log/part-17.ndjson",
+      "docs/agents/error-learning-log/part-13.ndjson",
+      "docs/agents/error-learning-log/part-09.ndjson"
+    ],
+    "artifact-manifest": [
+      "docs/agents/error-learning-log/part-18.ndjson",
+      "docs/agents/error-learning-log/part-20.ndjson",
+      "docs/agents/error-learning-log/part-22.ndjson"
+    ],
+    "vercel-rate-limit": [
+      "docs/agents/error-learning-log/part-19.ndjson",
+      "docs/agents/error-learning-log/part-02.ndjson",
+      "docs/agents/error-learning-log/part-10.ndjson"
+    ],
+    "capi-model": [
+      "docs/agents/error-learning-log/part-20.ndjson",
+      "docs/agents/error-learning-log/part-09.ndjson",
+      "docs/agents/error-learning-log/part-23.ndjson"
+    ],
+    "supabase-query": [
+      "docs/agents/error-learning-log/part-21.ndjson",
+      "docs/agents/error-learning-log/part-16.ndjson",
+      "docs/agents/error-learning-log/part-11.ndjson"
+    ],
+    "tool-registry": [
+      "docs/agents/error-learning-log/part-22.ndjson",
+      "docs/agents/error-learning-log/part-23.ndjson",
+      "docs/agents/error-learning-log/part-24.ndjson"
+    ],
+    "control-plane": [
+      "docs/agents/error-learning-log/part-23.ndjson",
+      "docs/agents/error-learning-log/part-05.ndjson",
+      "docs/agents/error-learning-log/part-12.ndjson"
+    ],
+    "repair-recursion": [
+      "docs/agents/error-learning-log/part-24.ndjson",
+      "docs/agents/error-learning-log/part-12.ndjson",
+      "docs/agents/error-learning-log/part-25.ndjson"
+    ],
+    "memory-learning": [
+      "docs/agents/error-learning-log/part-25.ndjson",
+      "docs/agents/error-learning-log/part-19.ndjson",
+      "docs/agents/error-learning-log/part-13.ndjson"
+    ]
+  }
+}

@@ -27,6 +27,7 @@ diagnostics/
 evidence/
 release/finalization/
 test-results/
+external-test-results/
 __tmp_placeholder__/
 
 # flixo-agent.mjs generated output

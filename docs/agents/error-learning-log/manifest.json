@@ -1,0 +1,195 @@
+{
+  "schemaVersion": 1,
+  "name": "FLIXO-ERROR-LEARNING-LOG-50000",
+  "totalRecords": 50000,
+  "totalLines": 50000,
+  "shardCount": 25,
+  "recordsPerShard": 2000,
+  "idRange": [
+    "EL00001",
+    "EL50000"
+  ],
+  "format": "NDJSON",
+  "source": "synthetic-teaching-record",
+  "authority": "guidance-only",
+  "exactShaRequired": true,
+  "reusePolicy": "historical-prior-not-proof",
+  "purpose": "diagnostic pattern coverage and learning rehearsal; never treated as proof of a current failure",
+  "shards": [
+    {
+      "part": 1,
+      "path": "docs/agents/error-learning-log/part-01.ndjson",
+      "records": 2000,
+      "start": "EL00001",
+      "end": "EL02000"
+    },
+    {
+      "part": 2,
+      "path": "docs/agents/error-learning-log/part-02.ndjson",
+      "records": 2000,
+      "start": "EL02001",
+      "end": "EL04000"
+    },
+    {
+      "part": 3,
+      "path": "docs/agents/error-learning-log/part-03.ndjson",
+      "records": 2000,
+      "start": "EL04001",
+      "end": "EL06000"
+    },
+    {
+      "part": 4,
+      "path": "docs/agents/error-learning-log/part-04.ndjson",
+      "records": 2000,
+      "start": "EL06001",
+      "end": "EL08000"
+    },
+    {
+      "part": 5,
+      "path": "docs/agents/error-learning-log/part-05.ndjson",
+      "records": 2000,
+      "start": "EL08001",
+      "end": "EL10000"
+    },
+    {
+      "part": 6,
+      "path": "docs/agents/error-learning-log/part-06.ndjson",
+      "records": 2000,
+      "start": "EL10001",
+      "end": "EL12000"
+    },
+    {
+      "part": 7,
+      "path": "docs/agents/error-learning-log/part-07.ndjson",
+      "records": 2000,
+      "start": "EL12001",
+      "end": "EL14000"
+    },
+    {
+      "part": 8,
+      "path": "docs/agents/error-learning-log/part-08.ndjson",
+      "records": 2000,
+      "start": "EL14001",
+      "end": "EL16000"
+    },
+    {
+      "part": 9,
+      "path": "docs/agents/error-learning-log/part-09.ndjson",
+      "records": 2000,
+      "start": "EL16001",
+      "end": "EL18000"
+    },
+    {
+      "part": 10,
+      "path": "docs/agents/error-learning-log/part-10.ndjson",
+      "records": 2000,
+      "start": "EL18001",
+      "end": "EL20000"
+    },
+    {
+      "part": 11,
+      "path": "docs/agents/error-learning-log/part-11.ndjson",
+      "records": 2000,
+      "start": "EL20001",
+      "end": "EL22000"
+    },
+    {
+      "part": 12,
+      "path": "docs/agents/error-learning-log/part-12.ndjson",
+      "records": 2000,
+      "start": "EL22001",
+      "end": "EL24000"
+    },
+    {
+      "part": 13,
+      "path": "docs/agents/error-learning-log/part-13.ndjson",
+      "records": 2000,
+      "start": "EL24001",
+      "end": "EL26000"
+    },
+    {
+      "part": 14,
+      "path": "docs/agents/error-learning-log/part-14.ndjson",
+      "records": 2000,
+      "start": "EL26001",
+      "end": "EL28000"
+    },
+    {
+      "part": 15,
+      "path": "docs/agents/error-learning-log/part-15.ndjson",
+      "records": 2000,
+      "start": "EL28001",
+      "end": "EL30000"
+    },
+    {
+      "part": 16,
+      "path": "docs/agents/error-learning-log/part-16.ndjson",
+      "records": 2000,
+      "start": "EL30001",
+      "end": "EL32000"
+    },
+    {
+      "part": 17,
+      "path": "docs/agents/error-learning-log/part-17.ndjson",
+      "records": 2000,
+      "start": "EL32001",
+      "end": "EL34000"
+    },
+    {
+      "part": 18,
+      "path": "docs/agents/error-learning-log/part-18.ndjson",
+      "records": 2000,
+      "start": "EL34001",
+      "end": "EL36000"
+    },
+    {
+      "part": 19,
+      "path": "docs/agents/error-learning-log/part-19.ndjson",
+      "records": 2000,
+      "start": "EL36001",
+      "end": "EL38000"
+    },
+    {
+      "part": 20,
+      "path": "docs/agents/error-learning-log/part-20.ndjson",
+      "records": 2000,
+      "start": "EL38001",
+      "end": "EL40000"
+    },
+    {
+      "part": 21,
+      "path": "docs/agents/error-learning-log/part-21.ndjson",
+      "records": 2000,
+      "start": "EL40001",
+      "end": "EL42000"
+    },
+    {
+      "part": 22,
+      "path": "docs/agents/error-learning-log/part-22.ndjson",
+      "records": 2000,
+      "start": "EL42001",
+      "end": "EL44000"
+    },
+    {
+      "part": 23,
+      "path": "docs/agents/error-learning-log/part-23.ndjson",
+      "records": 2000,
+      "start": "EL44001",
+      "end": "EL46000"
+    },
+    {
+      "part": 24,
+      "path": "docs/agents/error-learning-log/part-24.ndjson",
+      "records": 2000,
+      "start": "EL46001",
+      "end": "EL48000"
+    },
+    {
+      "part": 25,
+      "path": "docs/agents/error-learning-log/part-25.ndjson",
+      "records": 2000,
+      "start": "EL48001",
+      "end": "EL50000"
+    }
+  ]
+}

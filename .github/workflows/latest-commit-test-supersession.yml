@@ -1,0 +1,154 @@
+name: FLIXO Latest Commit Test Supersession
+
+on:
+  push:
+    branches:
+      - execution
+      - main
+  pull_request:
+    branches:
+      - main
+    types: [synchronize]
+
+# Central stale-run controller. It cancels only older test/verification runs.
+concurrency:
+  group: flixo-latest-commit-supersession-${{ github.event_name }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  supersede:
+    name: Cancel stale test runs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout trusted supersession controller source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          # This job has actions:write and therefore must never execute PR-controlled code.
+          # Supersession decisions are made from immutable GitHub API state; controller code comes only from main.
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve live branch head and event head
+        id: head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BRANCH='execution'
+          EVENT_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$BRANCH" != ""
+          [[ "$EVENT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$LIVE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "event_sha=$EVENT_SHA" >> "$GITHUB_OUTPUT"
+          echo "sha=$LIVE_SHA" >> "$GITHUB_OUTPUT"
+          test "$BRANCH" = "execution"
+          if [ "$EVENT_SHA" = "$LIVE_SHA" ]; then
+            echo "stale_event=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "stale_event=true" >> "$GITHUB_OUTPUT"
+            echo "SUPERSESSION_EVENT_OBSOLETE=true"
+          fi
+          echo "LATEST_TEST_EVENT_HEAD=$EVENT_SHA"
+          echo "LATEST_TEST_LIVE_HEAD=$LIVE_SHA"
+          echo 'EVENT_SHA_SOURCE=IMMUTABLE_GITHUB_EVENT_SHA'
+
+      - name: Assert API-only supersession regression
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          LIVE_AFTER_CHECK="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$LIVE_AFTER_CHECK" = "$EVENT_SHA"
+          echo "SUPERSESSION_API_REGRESSION=PASS"
+          echo "SUPERSESSION_CONTROLLER_SOURCE=TRUSTED_MAIN"
+
+      - name: Cancel stale test and verification runs
+        id: cancel
+        if: steps.head.outputs.stale_event != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.head.outputs.branch }}
+          CURRENT_SHA: ${{ steps.head.outputs.sha }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          is_test_workflow() {
+            case "$1" in
+              "FLIXO Latest Commit Test Supersession") return 1 ;;
+              *Test*|*test*|*Verification*|*verification*|*Contract*|*contract*|*Security*|*security*|*Baseline*|*baseline*|*Certification*|*certification*|*Impact*|*impact*|*Code*Scanning*|*CodeQL*|*Diagnostic*|*diagnostic*|*Proof*|*proof*|*Scan*|*scan*) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          cancel_stale_run() {
+            local run_id="$1"
+            local head_sha="$2"
+            local status="$3"
+            local name="$4"
+            local event="$5"
+            echo "CANCEL stale run=$run_id sha=$head_sha name=$name event=$event status=$status"
+
+            if ! gh run cancel "$run_id" --repo "$REPOSITORY"; then
+              local now_status=""
+              if ! now_status="$(gh run view "$run_id" --repo "$REPOSITORY" --json status --jq '.status')"; then
+                echo "ERROR: cancellation failed and status lookup failed for run=$run_id" >&2
+                return 1
+              fi
+              if [ "$now_status" = "completed" ]; then
+                echo "STALE_RUN_ALREADY_COMPLETED run=$run_id"
+                return 0
+              fi
+              echo "ERROR: cancellation failed for active run=$run_id status=$now_status" >&2
+              return 1
+            fi
+            echo "STALE_RUN_CANCEL_REQUESTED run=$run_id"
+          }
+
+          gh run list --repo "$REPOSITORY" --branch "$BRANCH" --limit 100 --json databaseId,headSha,status,name,event --jq '.[] | select(.status != "completed") | [.databaseId,.headSha,.status,.name,.event] | @tsv' |
+          while IFS=$'\t' read -r RUN_ID HEAD_SHA STATUS NAME EVENT; do
+            [ -n "$RUN_ID" ] || continue
+            LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+            if [ "$LIVE_SHA" != "$CURRENT_SHA" ]; then
+              echo "obsolete=true" >> "$GITHUB_OUTPUT"
+              echo "SUPERSESSION_OBSOLETE=true"
+              echo "SUPERSESSION_ABORTED_HEAD_MOVEMENT old=$CURRENT_SHA new=$LIVE_SHA"
+              exit 0
+            fi
+            if [ "$HEAD_SHA" = "$LIVE_SHA" ]; then
+              echo "KEEP current SHA run=$RUN_ID name=$NAME status=$STATUS"
+              continue
+            fi
+            if is_test_workflow "$NAME"; then
+              cancel_stale_run "$RUN_ID" "$HEAD_SHA" "$STATUS" "$NAME" "$EVENT"
+            fi
+          done
+
+      - name: Assert repository head has not moved during supersession
+        if: steps.head.outputs.stale_event != 'true' && steps.cancel.outputs.obsolete != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ steps.head.outputs.sha }}
+          EXPECTED_BRANCH: ${{ steps.head.outputs.branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$EXPECTED_BRANCH" --jq '.object.sha')"
+          if [ "$CURRENT_SHA" != "$EXPECTED_SHA" ]; then
+            echo "SUPERSESSION_EVENT_OBSOLETE=true"
+            echo "SUPERSESSION_HEAD_MOVED old=$EXPECTED_SHA new=$CURRENT_SHA"
+            exit 0
+          fi
+          echo "LATEST_COMMIT_SUPERSESSION=PASS"
+          echo "LATEST_COMMIT_SHA=$EXPECTED_SHA"
