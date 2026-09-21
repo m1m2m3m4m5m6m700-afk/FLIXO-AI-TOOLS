@@ -39,19 +39,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          BRANCH='${{ github.event.pull_request.head.ref || github.ref_name }}'
-          if [ '${{ github.event_name }}' = 'pull_request' ]; then
-            EVENT_SHA='${{ github.event.pull_request.head.sha }}'
-          else
-            EVENT_SHA='${{ github.sha }}'
-          fi
-          LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
+          BRANCH='execution'
+          EVENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           test "$BRANCH" != ""
           [[ "$EVENT_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$LIVE_SHA" =~ ^[0-9a-f]{40}$ ]]
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
           echo "event_sha=$EVENT_SHA" >> "$GITHUB_OUTPUT"
           echo "sha=$LIVE_SHA" >> "$GITHUB_OUTPUT"
+          test "$BRANCH" = "execution"
           if [ "$EVENT_SHA" = "$LIVE_SHA" ]; then
             echo "stale_event=false" >> "$GITHUB_OUTPUT"
           else
@@ -111,7 +108,7 @@ jobs:
           gh run list --repo "$REPOSITORY" --branch "$BRANCH" --limit 100 --json databaseId,headSha,status,name,event --jq '.[] | select(.status != "completed") | [.databaseId,.headSha,.status,.name,.event] | @tsv' |
           while IFS=$'\t' read -r RUN_ID HEAD_SHA STATUS NAME EVENT; do
             [ -n "$RUN_ID" ] || continue
-            LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
+            LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
             if [ "$LIVE_SHA" != "$CURRENT_SHA" ]; then
               echo "obsolete=true" >> "$GITHUB_OUTPUT"
               echo "SUPERSESSION_OBSOLETE=true"
