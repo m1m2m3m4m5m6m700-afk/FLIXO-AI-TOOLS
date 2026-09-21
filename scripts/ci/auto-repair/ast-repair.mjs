@@ -38,7 +38,7 @@ function applyTypescriptMissingImport(targetDir, plan) {
   const lines = original.split(/\r?\n/u);
   const importLine = "import { " + symbol + " } from '" + specifier + "';";
   let insertAt = lines[0]?.startsWith('#!') ? 1 : 0;
-  while (insertAt < lines.length && /^(?:[\"']use (?:strict|client|server)[\"'];?)$/u.test(lines[insertAt].trim())) insertAt += 1;
+  while (insertAt < lines.length && /^(?:["']use (?:strict|client|server)["'];?)$/u.test(lines[insertAt].trim())) insertAt += 1;
   lines.splice(insertAt, 0, importLine);
   fs.writeFileSync(absolute, lines.join('\n'));
   return { applied: true, engine: 'typescript-missing-import', target: file, symbol, moduleFile: found.moduleFile, moduleSpecifier: specifier };
