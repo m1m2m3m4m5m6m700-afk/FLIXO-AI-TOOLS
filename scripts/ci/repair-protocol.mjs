@@ -83,8 +83,8 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
   }
   if(mutation&&actor==='actionHistorian') {
     const mission=session?.actionVaultMission;
+    if(mission?.supervisorMode!=='SUPERVISOR_20') throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_SUPERVISOR_MODE_REQUIRED');
     if(mission?.role!=='ACTION-HISTORIAN-3' || mission?.mutationSeat!=='ACTION-HISTORIAN-3') throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_MUTATION_SEAT_INVALID');
-    if(mission?.supervisorMode!=='BOT_3_KNOWLEDGE_JUDGE') throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_KNOWLEDGE_JUDGE_MODE_REQUIRED');
     if(mission?.targetSha!==session.targetSHA || mission?.entrySha!==session.targetSHA) throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_SHA_MISMATCH');
     if(mission?.catalogReviewed!==true || mission?.bothProgrammingProposalsReviewed!==true || mission?.supervisorDecision!==true) throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_SUPERVISOR_DECISION_REQUIRED');
   }
