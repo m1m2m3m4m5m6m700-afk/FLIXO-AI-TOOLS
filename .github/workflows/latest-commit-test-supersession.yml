@@ -98,39 +98,18 @@ jobs:
                 echo "ERROR: cancellation failed and status lookup failed for run=$run_id" >&2
                 return 1
               fi
-
               if [ "$now_status" = "completed" ]; then
                 echo "STALE_RUN_ALREADY_COMPLETED run=$run_id"
                 return 0
               fi
-
               echo "ERROR: cancellation failed for active run=$run_id status=$now_status" >&2
               return 1
             fi
-
             echo "STALE_RUN_CANCEL_REQUESTED run=$run_id"
           }
 
           gh run list --repo "$REPOSITORY" --branch "$BRANCH" --limit 100 --json databaseId,headSha,status,name,event --jq '.[] | select(.status != "completed") | [.databaseId,.headSha,.status,.name,.event] | @tsv' |
-          while IFS=
-      - name: Assert repository head has not moved during supersession
-        if: steps.head.outputs.stale_event != 'true' && steps.cancel.outputs.obsolete != 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_SHA: ${{ steps.head.outputs.sha }}
-          EXPECTED_BRANCH: ${{ steps.head.outputs.branch }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$EXPECTED_BRANCH" --jq '.object.sha')"
-          if [ "$CURRENT_SHA" != "$EXPECTED_SHA" ]; then
-            echo "SUPERSESSION_EVENT_OBSOLETE=true"
-            echo "SUPERSESSION_HEAD_MOVED old=$EXPECTED_SHA new=$CURRENT_SHA"
-            exit 0
-          fi
-          echo "LATEST_COMMIT_SUPERSESSION=PASS"
-          echo "LATEST_COMMIT_SHA=$EXPECTED_SHA"
-\t' read -r RUN_ID HEAD_SHA STATUS NAME EVENT; do
+          while IFS=$'\t' read -r RUN_ID HEAD_SHA STATUS NAME EVENT; do
             [ -n "$RUN_ID" ] || continue
             LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
             if [ "$LIVE_SHA" != "$CURRENT_SHA" ]; then
@@ -149,6 +128,7 @@ jobs:
           done
 
       - name: Assert repository head has not moved during supersession
+        if: steps.head.outputs.stale_event != 'true' && steps.cancel.outputs.obsolete != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_SHA: ${{ steps.head.outputs.sha }}
@@ -157,6 +137,10 @@ jobs:
         run: |
           set -euo pipefail
           CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$EXPECTED_BRANCH" --jq '.object.sha')"
-          test "$CURRENT_SHA" = "$EXPECTED_SHA"
+          if [ "$CURRENT_SHA" != "$EXPECTED_SHA" ]; then
+            echo "SUPERSESSION_EVENT_OBSOLETE=true"
+            echo "SUPERSESSION_HEAD_MOVED old=$EXPECTED_SHA new=$CURRENT_SHA"
+            exit 0
+          fi
           echo "LATEST_COMMIT_SUPERSESSION=PASS"
           echo "LATEST_COMMIT_SHA=$EXPECTED_SHA"
