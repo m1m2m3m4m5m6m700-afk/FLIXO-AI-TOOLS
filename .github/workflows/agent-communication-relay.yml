@@ -197,7 +197,15 @@ jobs:
           import fs from 'node:fs';
           const body = process.env.COMMENT_BODY || '';
           const manual = process.env.MANUAL_MESSAGE_JSON || '';
-          const match = body.match(/<!-- FLIXO_AGENT_MESSAGE -->[\\s\\S]*?\`\`\`json\\s*([\\s\\S]*?)\\s*\`\`\`/u);
+          const marker = '<!-- FLIXO_AGENT_MESSAGE -->';
+          const fence = '\`\`\`json';
+          const start = body.indexOf(marker);
+          const fenceStart = start >= 0 ? body.indexOf(fence, start) : -1;
+          const payloadStart = fenceStart >= 0 ? fenceStart + fence.length : -1;
+          const fenceEnd = payloadStart >= 0 ? body.indexOf('\`\`\`', payloadStart) : -1;
+          const match = payloadStart >= 0 && fenceEnd >= 0
+            ? body.slice(payloadStart, fenceEnd).trim()
+            : null;
           if (!match && process.env.EVENT_NAME === 'workflow_dispatch') {
             if (!manual) throw new Error('MANUAL_MESSAGE_PAYLOAD_REQUIRED');
             const message = JSON.parse(manual);
