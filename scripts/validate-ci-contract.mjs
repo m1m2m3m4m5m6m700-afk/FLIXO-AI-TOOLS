@@ -98,7 +98,7 @@ if (!/cancel-in-progress:\s*true/.test(claudeSecurityWorkflow)) {
   console.error('CI contract failed: claude-security-review.yml must cancel superseded advisory reviews.');
   process.exit(1);
 }
-if (!/group:\s*claude-security-\$\{\{\s*(?:github\.event\.pull_request\.number\s*\|\|\s*github\.ref|github\.event\.pull_request\.head\.repo\.full_name\s*\|\|\s*github\.repository)-\$\{\{\s*github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name\s*\}\}\s*\}/.test(claudeSecurityWorkflow)) {
+if (!/group:\s*claude-security-\$\{\{\s*(?:github\.event\.pull_request\.number\s*\|\|\s*github\.ref|github\.event\.pull_request\.head\.repo\.full_name\s*\|\|\s*github\.repository)\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name\s*\}\}/.test(claudeSecurityWorkflow)) {
   console.error('CI contract failed: claude-security-review.yml must group by PR/branch, not commit SHA.');
   process.exit(1);
 }
