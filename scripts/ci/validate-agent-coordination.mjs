@@ -59,6 +59,7 @@ if (contract?.actionVaultContinuity?.preMutationChallenge?.programmerTwinParityR
 if (contract?.actionVaultContinuity?.programmerTwin?.intelligenceParity !== 'EXACT') failures.push('ACTION_VAULT_PROGRAMMER_TWIN_PARITY_INVALID');
 if (contract?.cognitiveExpansion?.enabled !== true) failures.push('ACTION_COGNITIVE_EXPANSION_MISSING');
 if (contract?.actionVaultContinuity?.preMutationChallenge?.systemCognitiveAwarenessRequired !== true) failures.push('ACTION_COGNITIVE_AWARENESS_GATE_MISSING');
+if (contract?.actionVaultContinuity?.independenceRule !== 'ACTION-REPAIR-2 and ACTION-HISTORIAN-3 must not impersonate ACTION-REPAIR or reuse its mutation authority.') failures.push('ACTION_VAULT_INDEPENDENCE_RULE_INVALID');
 if (contract?.actionVaultContinuity?.verificationRule && !contract.actionVaultContinuity.verificationRule.includes('independently')) failures.push('ACTION_VAULT_INDEPENDENT_VERIFICATION_INVALID');
     if (!/no.*mutation|read.*repository state/i.test(contract?.roles?.codeScout ?? '')) failures.push('CODE_SCOUT_MUTATION_BOUNDARY_MISSING');
     for (const tier of ['LOW','MEDIUM','HIGH','CRITICAL']) if (typeof contract?.decisionGates?.[tier] !== 'string') failures.push(`COOPERATION_RISK_GATE_MISSING=${tier}`);
