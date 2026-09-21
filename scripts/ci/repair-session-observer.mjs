@@ -21,7 +21,7 @@ function ghJson(args) {
 function stageForStep(name) {
   const value = String(name ?? '').toLowerCase();
   if (/evidence|failed ci logs/.test(value)) return 'evidence_capture';
-  if (/self-test|control plane|boundary/.test(value)) return 'controller_preflight';
+  if (/self-test|control plane|immutable repair boundary before mutation|trusted repair controller/.test(value)) return 'controller_preflight';
   if (/task agent|file-selection|knowledge audit|historical|twin/.test(value)) return 'preparation';
   if (/classify root cause|causal root proof/.test(value)) return 'root_cause';
   if (/select repair strategy|strategy/.test(value)) return 'strategy_selection';
@@ -51,7 +51,19 @@ function summarizeRun(run) {
 
 const payload = ghJson(['run', 'list', '--repo', repo, '--workflow', 'auto-repair.yml', '--limit', String(limit), '--json', 'databaseId,displayTitle,status,conclusion,headSha,event,createdAt,updatedAt']);
 const allRuns = Array.isArray(payload) ? payload : [];
-const matched = allRuns.filter(run => { const title = String(run.displayTitle ?? ''); return (chainId && title.includes(chainId)) || (fingerprint && title.includes(fingerprint)); });
+const inferredChainId = chainId || (String(allRuns[0]?.displayTitle ?? '').match(/^FLIXO Auto Repair Chain ([^ ]+)/)?.[1] ?? '');
+let executionSha = targetSha;
+if (!executionSha) {
+  try {
+    executionSha = String(ghJson(['api', 'repos/' + repo + '/git/ref/heads/execution']).object?.sha ?? '').trim();
+  } catch {}
+}
+const matched = allRuns.filter(run => {
+  const title = String(run.displayTitle ?? '');
+  if (inferredChainId && title.includes(inferredChainId)) return true;
+  if (fingerprint && title.includes(fingerprint)) return true;
+  return !inferredChainId && !fingerprint && (!executionSha || run.headSha === executionSha);
+});
 const runs = matched.slice(0, limit).map(summarizeRun);
 const completed = runs.filter(run => ['failure', 'timed_out', 'cancelled', 'success'].includes(run.conclusion));
 const failures = completed.filter(run => ['failure', 'timed_out'].includes(run.conclusion));
@@ -62,9 +74,9 @@ const repeatedStage = repeatedStages[0]?.[0] ?? null;
 const sameShaFailures = failures.filter(run => !targetSha || run.headSha === targetSha);
 const noProgress = sameShaFailures.length >= 2 && repeatedStage !== null;
 const engineErrorRuns = failures.filter(run => run.engineError);
-const nextStrategy = repeatedStage === 'controller_preflight' || repeatedStage === 'preparation' || repeatedStage === 'evidence_capture' ? 'workflow-forensics' : repeatedStage === 'strategy_selection' ? 'alternate-hypothesis' : repeatedStage === 'repair_execution' ? 'observability-trace' : repeatedStage === 'verification' ? 'alternate-hypothesis' : null;
+const nextStrategy = repeatedStage === 'controller_preflight' || repeatedStage === 'preparation' || repeatedStage === 'evidence_capture' ? 'workflow-forensics' : repeatedStage === 'strategy_selection' ? 'alternate-hypothesis' : repeatedStage === 'repair_execution' ? 'observability-trace' : repeatedStage === 'verification' ? 'alternate-hypothesis' : repeatedStage === 'workflow_orchestration' ? 'workflow-forensics' : (noProgress || engineErrorRuns.length >= 2 ? 'alternate-hypothesis' : null);
 const directive = { strategyChangeRequired: noProgress || engineErrorRuns.length >= 2, controllerFaultDetected: engineErrorRuns.length > 0, repeatedStage, repeatedStageCount: repeatedStages[0]?.[1] ?? 0, repeatedSameShaFailureCount: sameShaFailures.length, engineErrorRuns: engineErrorRuns.length, noProgress, nextStrategy, doNotRepeatCurrentBehavior: noProgress || engineErrorRuns.length >= 2, reason: noProgress ? 'SAME_SESSION_BEHAVIOR_REPEATED_WITHOUT_VERIFIABLE_PROGRESS' : engineErrorRuns.length >= 2 ? 'PRE_EXECUTION_CONTROLLER_FAILURE_REPEATED' : 'NO_REPEATED_BEHAVIOR_SIGNAL' };
-const result = { schemaVersion: 1, protocol: 'FLIXO-REPAIR-BOT-BEHAVIOR-TRACE-v1', observedAt: new Date().toISOString(), repository: repo, chainId: chainId || null, failureFingerprint: fingerprint || null, targetSha: targetSha || null, observedRuns: runs, aggregate: { runCount: runs.length, completedCount: completed.length, failureCount: failures.length, activeCount: runs.filter(run => run.status === 'in_progress' || run.status === 'queued').length, successCount: completed.filter(run => run.conclusion === 'success').length, cancelledCount: completed.filter(run => run.conclusion === 'cancelled').length }, directive };
+const result = { schemaVersion: 1, protocol: 'FLIXO-REPAIR-BOT-BEHAVIOR-TRACE-v1', observedAt: new Date().toISOString(), repository: repo, chainId: inferredChainId || null, failureFingerprint: fingerprint || null, targetSha: executionSha || null, observedRuns: runs, aggregate: { runCount: runs.length, completedCount: completed.length, failureCount: failures.length, activeCount: runs.filter(run => run.status === 'in_progress' || run.status === 'queued').length, successCount: completed.filter(run => run.conclusion === 'success').length, cancelledCount: completed.filter(run => run.conclusion === 'cancelled').length }, directive };
 result.traceHash = createHash('sha256').update(JSON.stringify(result), 'utf8').digest('hex');
 fs.mkdirSync(outputPath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
 fs.writeFileSync(outputPath, JSON.stringify(result, null, 2) + '\n');

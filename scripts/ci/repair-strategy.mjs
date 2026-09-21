@@ -411,7 +411,7 @@ if (selectedRepairStrategy && !VALID_STRATEGY_IDS.has(selectedRepairStrategy)) {
 }
 const behaviorTrace = readJson(behaviorTracePath, null);
 const behaviorDirective = behaviorTrace?.directive ?? {};
-const forcedBehaviorStrategy = VALID_STRATEGY_IDS.has(String(behaviorDirective.nextStrategy ?? '')) ? String(behaviorDirective.nextStrategy) : null;
+const forcedBehaviorStrategy = behaviorDirective.strategyChangeRequired === true && VALID_STRATEGY_IDS.has(String(behaviorDirective.nextStrategy ?? '')) ? String(behaviorDirective.nextStrategy) : null;
 const twinPreferredStrategy = selectedRepairStrategy
   || String(twinProposal?.challenge?.preferredAlternativeStrategy ?? twinA?.challenge?.preferredAlternativeStrategy ?? twinB?.challenge?.preferredAlternativeStrategy ?? '').trim();
 const memory = readJson(memoryPath, { cases: [] });
