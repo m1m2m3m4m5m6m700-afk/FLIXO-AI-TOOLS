@@ -24,7 +24,9 @@ assert.equal(resolveFilterMaskSelection('Warm live filter 1080p')?.parameters.ca
 assert.equal(parseFilterMaskHandoff('?canonicalId=effect.warm&captureQuality=4k')?.parameters.captureQuality, '1080p');
 assert.equal(resolveFilterMaskSelection('compress image'), null);
 assert.equal(findLiveFilters('cinematic')[0]?.family, 'cinematic');
-const handoff = createFilterMaskHandoff(getLiveFilter('effect.warm')!, { intensity: 63, zoom: 1.6, mirror: false });
+const warmFilter = getLiveFilter('effect.warm');
+assert.ok(warmFilter);
+const handoff = createFilterMaskHandoff(warmFilter, { intensity: 63, zoom: 1.6, mirror: false });
 assert.equal(handoff.parameters.intensity, 63);
 assert.equal(handoff.parameters.zoom, 1.6);
 assert.equal(handoff.parameters.mirror, false);
