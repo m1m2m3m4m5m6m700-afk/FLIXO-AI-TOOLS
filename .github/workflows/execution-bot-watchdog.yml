@@ -46,18 +46,18 @@ jobs:
       - name: Checkout exact watchdog source SHA
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          # Checkout the exact triggering SHA for workflow_run, then validate it is still the canonical execution head before any repository script runs.
-          ref: ${{ github.event.workflow_run.head_sha || github.event_name == 'schedule' && 'execution' || github.sha }}
+          # Never checkout workflow_run.head_sha in the privileged watcher. Bootstrap from the trusted canonical execution branch and verify freshness below.
+          ref: ${{ github.event_name == 'workflow_run' && 'execution' || github.event_name == 'schedule' && 'execution' || github.sha }}
           persist-credentials: false
       - name: Verify exact watchdog checkout
         env:
-          EXPECTED_WATCHDOG_SHA: ${{ github.event.workflow_run.head_sha || github.event_name == 'schedule' && '' || github.sha }}
+          EXPECTED_WATCHDOG_SHA: ${{ github.event_name == 'workflow_run' && '' || github.event_name == 'schedule' && '' || github.sha }}
         run: |
           set -euo pipefail
           ACTUAL_WATCHDOG_SHA="$(git rev-parse HEAD)"
           if [ -n "$EXPECTED_WATCHDOG_SHA" ]; then
             test "$EXPECTED_WATCHDOG_SHA" = "$ACTUAL_WATCHDOG_SHA"
-            echo "WATCHDOG_CHECKOUT_MODE=EXACT_EVENT_SHA"
+            echo "WATCHDOG_CHECKOUT_MODE=EVENT_SHA_FOR_DIRECT_PUSH"
           else
             test -n "$ACTUAL_WATCHDOG_SHA"
             echo "WATCHDOG_CHECKOUT_MODE=CANONICAL_EXECUTION_REF"
