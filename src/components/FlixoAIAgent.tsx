@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import { buildIntentPlan, toExecutionPlan } from '@/lib/agent/intent/intent-plan';
@@ -26,13 +26,59 @@ import './FlixoAIAgent.css';
 
 type AgentState = 'idle' | 'ready' | 'running' | 'success' | 'error';
 type Message = { id: number; role: 'user' | 'agent'; text: string };
+type SaveFilePicker = (options: {
+  suggestedName: string;
+  types: Array<{ description: string; accept: Record<string, string[]> }>;
+}) => Promise<{
+  createWritable: () => Promise<{
+    write: (data: Blob) => Promise<void>;
+    close: () => Promise<void>;
+  }>;
+}>;
 
 const CONFIRMATIONS = /^(نعم|أيوه|ايوه|نفذ|نفّذ|ابدأ|ابدئي|موافق|تمام|yes|y|ok|okay|go|execute|run|ejecutar|exécuter|ausführen|실행|実行|jalankan|esegui|uitvoeren|wykonaj|executar|kör|ดำเนินการ|çalıştır|виконати|thực hiện)$/i;
 const CANCELLATIONS = /^(لا|لأ|الغاء|إلغاء|cancel|no|n|stop)$/i;
 const getDownloadFilename = (mimeType: string): string => {
   if (mimeType === 'image/jpeg') return 'flixo-agent-result.jpg';
   if (mimeType === 'image/png') return 'flixo-agent-result.png';
-  return 'flixo-agent-result.webp';
+  if (mimeType === 'image/webp') return 'flixo-agent-result.webp';
+  if (mimeType === 'image/svg+xml') return 'flixo-agent-result.svg';
+  if (mimeType === 'text/plain') return 'flixo-agent-result.txt';
+  if (mimeType === 'application/json') return 'flixo-agent-result.json';
+  return 'flixo-agent-result.bin';
+};
+
+const getSaveFilePicker = (): SaveFilePicker | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  return (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker;
+};
+
+const saveResultToFile = async (blob: Blob): Promise<void> => {
+  const showSaveFilePicker = getSaveFilePicker();
+  if (!showSaveFilePicker) {
+    throw new Error('Direct file saving is unavailable in this browser.');
+  }
+
+  const handle = await showSaveFilePicker({
+    suggestedName: getDownloadFilename(blob.type),
+    types: [
+      {
+        description: 'FLIXO result',
+        accept: {
+          'image/png': ['.png'],
+          'image/jpeg': ['.jpg', '.jpeg'],
+          'image/webp': ['.webp'],
+          'image/svg+xml': ['.svg'],
+          'text/plain': ['.txt'],
+          'application/json': ['.json'],
+        },
+      },
+    ],
+  });
+
+  const writable = await handle.createWritable();
+  await writable.write(blob);
+  await writable.close();
 };
 
 const GENERIC_CROP_REQUEST = /(?:^|\\s)(?:(?:أريد|اريد|ممكن|هل\\s+تستطيع|please)\\s+)?(?:قص|اقت(?:ص|طع)|crop)(?:\\s+(?:صورة|الصور|الصورة|image|photo))?\\s*$/i;
@@ -67,7 +113,6 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const [plan, setPlan] = useState<ExecutionPlan | null>(null);
   const [progress, setProgress] = useState<PipelineProgress | null>(null);
   const [result, setResult] = useState<Blob | null>(null);
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [memory, setMemory] = useState<ConversationMemory>(() => loadConversationMemory());
   const [messages, setMessages] = useState<Message[]>(() => {
@@ -77,26 +122,6 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   });
   const [messageId, setMessageId] = useState(() => loadConversationMemory().turns.length + 1);
   const [filterHandoff, setFilterHandoff] = useState<FilterMaskHandoff | null>(null);
-  const downloadUrlRef = useRef<string | null>(null);
-
-  const replaceDownloadUrl = (blob: Blob | null) => {
-    if (downloadUrlRef.current) URL.revokeObjectURL(downloadUrlRef.current);
-    if (!blob) {
-      downloadUrlRef.current = null;
-      setDownloadUrl(null);
-      return;
-    }
-    const nextUrl = URL.createObjectURL(blob);
-    downloadUrlRef.current = nextUrl;
-    setDownloadUrl(nextUrl);
-  };
-
-  useEffect(() => () => {
-    if (downloadUrlRef.current) {
-      URL.revokeObjectURL(downloadUrlRef.current);
-      downloadUrlRef.current = null;
-    }
-  }, []);
 
   const contextualQuery = useMemo(() => contextualizeCommand(query, memory), [query, memory]);
   const intent = useMemo(() => contextualQuery.trim() ? findToolIntent(contextualQuery, getReadyToolConfigs())[0] : null, [contextualQuery]);
@@ -272,7 +297,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       const output = await runWorkflowPipeline(file, nextPlan, task, setProgress);
       task = transitionTask(task, 'VERIFYING');
       task = transitionTask(task, 'COMPLETED');
-      replaceDownloadUrl(output); setResult(output); setState('success'); pushMessage('agent', responseCopy.success);
+      setResult(output); setState('success'); pushMessage('agent', responseCopy.success);
     } catch (cause) {
       if (task.state === 'EXECUTING' || task.state === 'VERIFYING' || task.state === 'RECOVERING') {
         try { task = transitionTask(task, 'FAILED'); } catch { /* preserve the original execution error */ }
@@ -390,7 +415,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           <input id="flixo-agent-command" type="text" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void sendMessage(); } }} placeholder={copy.placeholder} autoComplete="off" />
           <div className="flixo-ai-agent-examples" aria-label={copy.examplesLabel}>{copy.examples.map((example) => <button key={example} type="button" onClick={() => setQuery(example)}>{example}</button>)}</div>
           <label htmlFor="flixo-agent-file">{copy.fileLabel}</label>
-          <input id="flixo-agent-file" type="file" accept="image/*" onChange={(event) => { setFile(event.target.files?.[0] ?? null); replaceDownloadUrl(null); setResult(null); setState('idle'); setError(null); }} />
+          <input id="flixo-agent-file" type="file" accept="image/*" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setResult(null); setState('idle'); setError(null); }} />
           <div className="flixo-ai-agent-actions"><button type="button" className="primary-button" onClick={() => void sendMessage()} disabled={!query.trim() || state === 'running'}>{copy.send}</button><button type="button" className="primary-button" onClick={prepare} disabled={!query.trim() || state === 'running'}>{copy.analyze}</button></div>
         </div>
         <div className="flixo-ai-agent-plan">
@@ -421,7 +446,24 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           {progress && <div className="flixo-ai-agent-progress"><span>{copy.step} {progress.currentStepIndex}/{progress.totalSteps}</span><strong>{progress.currentToolId}</strong>{progress.retry ? <small>{copy.retry} {progress.retry}</small> : null}</div>}
           {error && <div className="flixo-ai-agent-error" role="alert">{error}</div>}
           {state === 'ready' && plan && <div className="flixo-ai-agent-confirm">{copy.planReady} <strong>{file ? copy.execute : copy.uploadThenExecute}</strong></div>}
-          {state === 'success' && result && <div className="flixo-ai-agent-success"><strong>{copy.success}</strong>{downloadUrl ? <a className="primary-button" href={downloadUrl} download={getDownloadFilename(result.type)}>{copy.download}</a> : <span className="primary-button" aria-disabled="true">{copy.download}</span>}</div>}
+          {state === 'success' && result && (
+            <div className="flixo-ai-agent-success">
+              <strong>{copy.success}</strong>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => {
+                  void saveResultToFile(result).catch((cause) => {
+                    const message = cause instanceof Error ? cause.message : 'Unable to save the result file.';
+                    setError(message);
+                    setState('error');
+                  });
+                }}
+              >
+                {copy.download}
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <p className="flixo-ai-agent-note">{copy.safetyNote} <Link to="/admin">{copy.admin}</Link></p>
