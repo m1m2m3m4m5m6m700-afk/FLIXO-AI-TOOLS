@@ -182,6 +182,22 @@ jobs:
           echo "WATCHDOG_CANONICAL_TEST_SYSTEM_STARTED=true"
           echo "WATCHDOG_CANONICAL_SHA=$EXECUTION_SHA"
 
+      - name: Ensure canonical Green Gate observer exists
+        if: github.event_name == 'push' || (github.event_name == 'schedule' && steps.scheduled_wake.outputs.wake == 'true')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(git rev-parse HEAD)"
+          ACTIVE="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --commit "$EXECUTION_SHA" --limit 20 --json status --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
+          GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --commit "$EXECUTION_SHA" --limit 20 --json status,conclusion --jq '[.[] | select(.status == "completed" and .conclusion == "success")] | length')"
+          if [ "$ACTIVE" -gt 0 ] || [ "$GREEN" -gt 0 ]; then
+            echo 'WATCHDOG_GREEN_GATE_DISPATCH=NOOP'
+            exit 0
+          fi
+          gh workflow run daily-flixo-green-gate.yml --repo "$GITHUB_REPOSITORY" --ref execution
+          echo 'WATCHDOG_CANONICAL_GREEN_GATE_DISPATCH=true'
       - name: Publish whole-cell wake evidence
         if: github.event_name == 'push' && always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
