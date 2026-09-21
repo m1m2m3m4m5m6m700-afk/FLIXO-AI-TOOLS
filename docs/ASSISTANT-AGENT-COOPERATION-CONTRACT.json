@@ -659,5 +659,82 @@
     "relayBinding": ".github/workflows/agent-communication-relay.yml",
     "evidenceBinding": "Every transition may carry evidenceRefs; VERIFIED requires the current exact SHA.",
     "authorityBoundary": "Invocation validity never grants mutation or certification authority."
+  },
+  "masterCollaboration": {
+    "status": "ACTIVE",
+    "objective": "MAXIMIZE_COOPERATIVE_REASONING_AND_DELIVERY_WITHOUT_PARALLEL_AUTHORITY",
+    "authoritySource": "USER",
+    "roles": {
+      "MASTER-1": "PRESIDENT / orchestration, prioritization, integration and decision coordination",
+      "MASTER-2": "DEPUTY / dependency sequencing, contract alignment, verification coordination and challenge",
+      "MASTER-3": "CONSULTANT / causal analysis, design proposals, challenge, architecture review and knowledge synthesis"
+    },
+    "cooperationCycle": [
+      "ASSIGN",
+      "RECEIVE_ACK",
+      "SHARED_CONTEXT",
+      "INDEPENDENT_ANALYSIS",
+      "PEER_CHALLENGE",
+      "EVIDENCE_EXCHANGE",
+      "CONFLICT_ARBITRATION",
+      "UNIFIED_PLAN",
+      "BOUNDED_EXECUTION",
+      "INDEPENDENT_VERIFICATION",
+      "RESULT_HANDOFF",
+      "LEARN",
+      "NEXT_DISPATCH"
+    ],
+    "mandatoryForMaterialWork": [
+      "ONE_CURRENT_EXACT_SHA",
+      "ONE_SHARED_TASK_ID",
+      "ONE_SHARED_WORK_PACKAGE_ID",
+      "ONE_OWNER_PER_MUTABLE_SCOPE",
+      "ONE_CANONICAL_EVIDENCE_CHAIN",
+      "DISTINCT_ANALYSIS_AND_REVIEW_WHEN_RISK_REQUIRES",
+      "EXPLICIT_REJECTION_OF_CONTRADICTED_FINDINGS",
+      "NO_SILENT_SCOPE_EXPANSION"
+    ],
+    "peerRules": {
+      "masterToMaster": "Any Master may request analysis, challenge, clarification, evidence or handoff from another Master through the canonical communication channel.",
+      "noSilentOverrides": "A Master response cannot silently overwrite another Master's finding; conflicting findings remain attributable until explicitly reconciled.",
+      "evidenceFirst": "Disagreement is resolved using current exact-SHA evidence, contracts and validators.",
+      "challengeRequired": "HIGH/CRITICAL proposals require an independent challenge or falsification attempt before mutation admission.",
+      "resultExchange": "Every material handoff returns result, evidenceRefs, unresolvedItems and nextAction to the requesting Master.",
+      "negativeKnowledge": "Rejected strategies and failed hypotheses are shared as anti-lessons and are not retried without materially new evidence."
+    },
+    "agentCooperation": {
+      "openConsultation": "Masters may dispatch bounded consultation requests to registered agents and receive findings through the same canonical inbox.",
+      "specialistRouting": "Route by capability, failure fingerprint and ownership rather than personal preference.",
+      "crossReview": "High-risk work receives independent review from a distinct role.",
+      "escalation": "Unresolved conflict uses the existing review/escalation path; it does not create a parallel agent or branch.",
+      "continuity": "New evidence, SHA movement, lease expiry or counterexample invalidates dependent reasoning and triggers requalification."
+    },
+    "sharedEvidenceModel": {
+      "requiredKeys": [
+        "exactSha",
+        "taskId",
+        "workPackageId",
+        "failureFingerprint",
+        "owner",
+        "state",
+        "evidenceRefs",
+        "decisionTrace"
+      ],
+      "freshness": "Evidence is reusable only while its baseline/target exact SHA and scope remain valid.",
+      "supersession": "A newer SHA or stronger contradictory evidence marks dependent reasoning stale/superseded.",
+      "provenance": "Every reused finding retains originating agent/master identity and source evidence."
+    },
+    "antiPatterns": [
+      "DUPLICATE_WORK_WITHOUT_CAUSAL_REASON",
+      "HIDDEN_SIDE_CHANNEL",
+      "LAST_WRITER_WINS",
+      "UNSHARED_LOCAL_STATE",
+      "REPEATED_FAILED_STRATEGY_WITHOUT_NEW_EVIDENCE",
+      "SELF_APPROVAL",
+      "AUTHORITY_BY_TITLE",
+      "AUTHORITY_BY_STAR",
+      "AUTHORITY_BY_MEMORY"
+    ],
+    "successDefinition": "COOPERATION_SUCCESS requires shared current context, non-duplicated ownership, explicit challenge, evidence exchange, verified handoff and learning; it never equals GREEN without canonical certification."
   }
 }
