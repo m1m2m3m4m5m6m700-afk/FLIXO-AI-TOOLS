@@ -217,7 +217,7 @@ export function evaluateGreen({
     report.errors.push({ type: 'STALE_HEAD', message: 'open PR head does not match execution SHA' });
   }
 
-  if (observedBranch === 'execution' && openPr && Number(compare.behind_by ?? 0) > 0) {
+  if (observedBranch === 'execution' && Number(compare.behind_by ?? 0) > 0) {
     report.errors.push({
       type: 'MAIN_DIVERGENCE',
       message: `execution is behind canonical main by ${compare.behind_by}`,
