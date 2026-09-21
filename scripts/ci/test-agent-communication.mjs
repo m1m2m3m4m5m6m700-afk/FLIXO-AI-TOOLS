@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
-import { ingest, validateMessage, markRead, markConsumed, COUNCIL_PRIORITY, COUNCIL_RESPONSE_MODE } from './agent-communication.mjs';
+import { ingest, validateMessage, markRead, markConsumed, acknowledgeAdministrativeInstruction, auditAdministrativeAttendance, COUNCIL_PRIORITY, COUNCIL_RESPONSE_MODE } from './agent-communication.mjs';
 
 const root = process.cwd();
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();

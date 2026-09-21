@@ -28,11 +28,17 @@ A task cannot become `DONE` while `remainingWork` or `openRcas` exist. A session
 
 Task completion records exact exit SHA, evidence and findings. Primary certification remains owned by the canonical certification authority. Coordination state never substitutes for product evidence.
 
-## Administrative Messages — Canonical Naming
+## Administrative Messages — attendance, comprehension and acceptance
 
 **رسائل الإدارة** is the canonical human-facing name for the existing **Agent Communication** subsystem. It means the internal communication system shared by the Council, Masters, supervisors, and agents; it does not introduce another subsystem.
 
 Administrative messages use the existing Master Inbox, relay, communication runtime, session, and coordination controls. Council administrative messages are P0 and require immediate handling before lower-priority scheduling.
+
+تُعامل رسالة الإدارة كحالة حضور قابلة للإثبات: `PENDING_ACK → PARTIALLY_ACKNOWLEDGED → FULLY_ACKNOWLEDGED`; وبعد انقضاء `attendanceDeadlineAt` تُحوّل الحالات غير الحاضرة إلى `INQUIRY_REQUIRED` وتُرسل رسالة `ADMIN_ATTENDANCE_INQUIRY` إلى كل مستلم متخلف. لا توجد موافقة ضمنية بالصمت.
+
+## Council meeting session lock
+
+اجتماع المجلس المقفول بـ`meetingId` لا يُغلق من العضو؛ يلزم `assistantController` لإصدار موافقة خروج مرتبطة بـ`sessionId + meetingId + exactSha`.
 
 ## Communication ingress and delivery
 

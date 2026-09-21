@@ -177,6 +177,14 @@ Message receipt is not execution authority. `RECEIVED` means the message has ent
 An agent session created from an inbound message MUST preserve `messageId` and message SHA in its session and visibility record. The following task claim MUST bind to that message and recheck message recipient, task, scope and exact SHA.
 
 Periodic polling is recovery only. Event-driven delivery is the primary notification path.
+## ADMINISTRATIVE ATTENDANCE ENFORCEMENT
+
+**رسائل الإدارة = Canonical Agent Communication.** استدعاء أي Master/Agent/Bot عبر رسالة إدارية هو `P0 / IMMEDIATE`. المطلوب لكل مستلم: `RECEIVED → READ → UNDERSTOOD → ACCEPTED`. عدم الحضور أو عدم الإقرار خلال نافذة الحضور لا يُعتبر موافقة ضمنية؛ عند انتهاء النافذة يُسجَّل `MISSED_P0_ATTENDANCE` ويُرسل `ADMIN_ATTENDANCE_INQUIRY` إلى المتخلف عبر نفس القناة، ويظل الاستدعاء غير مكتمل حتى الرد.
+
+## COUNCIL MEETING EXIT LOCK
+
+جلسة اجتماع المجلس التي تحمل `meetingId` تبقى مقفلة. لا يستطيع العضو إنهاءها ذاتيًا. الخروج يتطلب موافقة `assistantController` مرتبطة بنفس `sessionId + meetingId + exactSha`، وأي تغير في SHA يبطل الموافقة.
+
 ## AGENT LOGIN
 
 Before changing repository state, the agent MUST create:

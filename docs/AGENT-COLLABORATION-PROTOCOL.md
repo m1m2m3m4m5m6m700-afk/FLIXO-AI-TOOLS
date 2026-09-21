@@ -124,6 +124,16 @@ RED
 
 Patch-to-green وحده لا يثبت الإصلاح.
 
+### Administrative attendance and missed-attendance inquiry
+
+**رسائل الإدارة = Canonical Agent Communication.** الاستدعاء الإداري لأي Master أو Agent أو Bot هو `P0 / IMMEDIATE` ويحتاج حضورًا وإقرارًا صريحًا: `RECEIVED → READ → UNDERSTOOD → ACCEPTED`. عند انتهاء نافذة الحضور دون الإقرار يُسجّل `MISSED_P0_ATTENDANCE` وتُنشأ رسالة `ADMIN_ATTENDANCE_INQUIRY` لنفس المستلم، ولا يُغلق الاستدعاء قبل معالجة الاستفسار.
+
+`node scripts/ci/agent-communication.mjs audit-attendance --message-id=<id>`
+
+### Council meeting exit lock
+
+الجلسة المنشأة بـ`meetingId` لا تسمح بـ`logout` الذاتي. المسار الوحيد لفتح الخروج هو موافقة `assistantController` عبر `meeting-exit-approve` على نفس الجلسة والاجتماع وExact-SHA.
+
 ### Session and visibility commands
 
 بدء الجلسة:

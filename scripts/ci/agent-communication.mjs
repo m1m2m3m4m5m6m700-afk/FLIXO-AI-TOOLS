@@ -34,7 +34,8 @@ const writeJson = (file, value) => {
   fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\\n`);
 };
 const ensure = () => { fs.mkdirSync(INBOX_DIR, { recursive: true }); };
-const roles = new Set(['assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','diagnosticAgent','ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','ALL_AGENTS']);
+const roles = new Set(['assistantController','verification','analysis','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','diagnosticAgent','ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','ALL_AGENTS']);
+const recipientKnown = (recipient) => roles.has(recipient) || loadCellBotIds().has(recipient);
 const loadCellBotIds = () => {
   if (!fs.existsSync(CELL_REGISTRY_FILE)) return new Set();
   const registry = readJson(CELL_REGISTRY_FILE, { bots: [] });
@@ -48,6 +49,24 @@ const COUNCIL_RECIPIENTS = new Set(['assistantController','verification','analys
 const PRIORITIES = new Set(['P0','P1','P2','P3']);
 export const COUNCIL_PRIORITY = 'P0';
 export const COUNCIL_RESPONSE_MODE = 'IMMEDIATE';
+const isAdministrativeInstruction = (message) => Boolean(
+  message?.administrativeInstruction === true ||
+  message?.councilOperation === true ||
+  String(message?.intent ?? '').startsWith('ADMIN_') ||
+  String(message?.intent ?? '').startsWith('COUNCIL_') ||
+  Boolean(message?.payload && typeof message.payload === 'object' && message.payload.administrativeInstruction === true)
+);
+const defaultAdministrativeRecipients = () => [
+  'assistantController','verification','analysis','codeScout','executionAgent','reviewAgent',
+  'testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent',
+  'errorAgent','repairAgent','diagnosticAgent','ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3',
+  ...loadCellBotIds(),
+];
+const requiredAdministrativeRecipients = (message) => {
+  const configured = message?.payload?.requiredRecipients;
+  if (Array.isArray(configured) && configured.length) return [...new Set(configured.map((item) => String(item).trim()).filter((item) => recipientKnown(item)))];
+  return String(message?.recipient ?? '') === 'ALL_AGENTS' ? defaultAdministrativeRecipients() : [String(message.recipient)];
+};
 const isCouncilOperation = (message) => {
   const payload = message?.payload;
   return message?.councilOperation === true || COUNCIL_RECIPIENTS.has(String(message?.recipient ?? '')) || String(message?.intent ?? '').startsWith('COUNCIL_') || Boolean(payload && typeof payload === 'object' && payload.councilOperation === true);
@@ -69,7 +88,7 @@ export function validateMessage(message, observedSha = currentSha()) {
   safeId(String(message.taskId), 'task_id');
   if (typeof message.actor !== 'string' || !message.actor.trim()) throw new Error('AGENT_MESSAGE_ACTOR_INVALID');
   assertActorKnown(String(message.actor));
-  if (!roles.has(String(message.recipient))) throw new Error('AGENT_MESSAGE_RECIPIENT_INVALID');
+  if (!recipientKnown(String(message.recipient))) throw new Error('AGENT_MESSAGE_RECIPIENT_INVALID');
   if (typeof message.entrySha !== 'string' || !/^[0-9a-f]{40}$/u.test(message.entrySha)) throw new Error('AGENT_MESSAGE_ENTRY_SHA_INVALID');
   for (const field of ['scope','dependencies','expectedEvidence','stopConditions','proofObligations']) asArray(message[field], field);
   if (!['LOW','MEDIUM','HIGH','CRITICAL'].includes(String(message.risk))) throw new Error('AGENT_MESSAGE_RISK_INVALID');
@@ -89,6 +108,8 @@ export function validateMessage(message, observedSha = currentSha()) {
     councilOperation,
     councilResponseMode: councilOperation ? COUNCIL_RESPONSE_MODE : 'NORMAL',
     immediateResponseRequired: councilOperation,
+    administrativeInstruction: isAdministrativeInstruction(message),
+    requiredAdministrativeRecipients: isAdministrativeInstruction(message) ? requiredAdministrativeRecipients(message) : [],
     taskId: String(message.taskId),
     scope: [...message.scope],
     entrySha: String(message.entrySha),
@@ -141,6 +162,18 @@ export function ingest(message, observedSha = currentSha()) {
     consumedAt: null,
     consumedBy: null,
     duplicate: false,
+    ...(normalized.administrativeInstruction ? {
+      administrativeAcknowledgement: {
+        state: 'PENDING_ACK',
+        requiredRecipients: [...normalized.requiredAdministrativeRecipients],
+        acknowledgements: {},
+        attendanceDeadlineAt: String(
+          normalized.payload?.attendanceDeadlineAt ??
+          new Date(Date.parse(normalized.createdAt) + (Number(normalized.payload?.attendanceWindowSeconds ?? 60) * 1000)).toISOString()
+        ),
+        attendanceInquiries: {},
+      },
+    } : {}),
   };
   writeJson(messagePath(normalized.messageId), record);
   index.messages[normalized.messageId] = {
@@ -172,6 +205,135 @@ export function markRead(messageId, agentId, observedSha = currentSha()) {
   saveIndex(index);
   return record;
 }
+export function acknowledgeAdministrativeInstruction(messageId, agentId, observedSha = currentSha(), understood = false, accepted = false, understandingSummary = '', commitment = '') {
+  ensure();
+  const record = loadMessage(messageId);
+  if (!record.administrativeInstruction) throw new Error('AGENT_ADMIN_ACK_NOT_REQUIRED');
+  if (record.entrySha !== observedSha) throw new Error('AGENT_ADMIN_ACK_SHA_MISMATCH');
+  if (!(record.recipient === 'ALL_AGENTS' || record.recipient === agentId)) throw new Error('AGENT_MESSAGE_RECIPIENT_MISMATCH');
+  if (!['READ','CONSUMED'].includes(record.status)) throw new Error(`AGENT_ADMIN_ACK_REQUIRES_READ=${record.status}`);
+  if (!recipientKnown(agentId)) throw new Error('AGENT_ADMIN_ACK_AGENT_INVALID');
+  if (understood !== true) throw new Error('AGENT_ADMIN_ACK_UNDERSTANDING_REQUIRED');
+  if (accepted !== true) throw new Error('AGENT_ADMIN_ACK_ACCEPTANCE_REQUIRED');
+  if (!String(understandingSummary).trim()) throw new Error('AGENT_ADMIN_ACK_SUMMARY_REQUIRED');
+  const adminState = record.administrativeAcknowledgement ?? {
+    state: 'PENDING_ACK',
+    requiredRecipients: requiredAdministrativeRecipients(record),
+    acknowledgements: {},
+    attendanceDeadlineAt: new Date(Date.now() + 60000).toISOString(),
+    attendanceInquiries: {},
+  };
+  const msgFingerprint = hash(JSON.stringify({
+    messageId: record.messageId,
+    intent: record.intent,
+    taskId: record.taskId,
+    scope: record.scope,
+    entrySha: record.entrySha,
+    payload: record.payload,
+  }));
+  adminState.acknowledgements = adminState.acknowledgements ?? {};
+  adminState.acknowledgements[agentId] = {
+    received: true,
+    read: true,
+    understood: true,
+    accepted: true,
+    understandingSummary: String(understandingSummary).trim(),
+    commitment: String(commitment).trim(),
+    acknowledgedBy: agentId,
+    acknowledgedAt: now(),
+    acknowledgementSha: observedSha,
+    messageFingerprint: msgFingerprint,
+  };
+  const complete = adminState.requiredRecipients.length > 0 && adminState.requiredRecipients.every((recipient) => {
+    const ack = adminState.acknowledgements[recipient];
+    return ack?.received === true && ack?.read === true && ack?.understood === true && ack?.accepted === true && ack?.acknowledgementSha === observedSha;
+  });
+  adminState.state = complete ? 'FULLY_ACKNOWLEDGED' : 'PARTIALLY_ACKNOWLEDGED';
+  record.administrativeAcknowledgement = adminState;
+  writeJson(messagePath(messageId), record);
+  const index = loadIndex();
+  index.messages[messageId] = {
+    ...(index.messages[messageId] ?? {}),
+    administrativeStatus: adminState.state,
+    acknowledgedRecipients: Object.keys(adminState.acknowledgements).length,
+    requiredRecipients: adminState.requiredRecipients.length,
+    updatedAt: now(),
+  };
+  saveIndex(index);
+  return record;
+}
+export function auditAdministrativeAttendance(messageId, observedSha = currentSha(), nowMs = Date.now()) {
+  ensure();
+  const record = loadMessage(messageId);
+  if (!record.administrativeInstruction) throw new Error('AGENT_ADMIN_ATTENDANCE_NOT_REQUIRED');
+  if (record.entrySha !== observedSha) throw new Error('AGENT_ADMIN_ATTENDANCE_SHA_MISMATCH');
+  const state = record.administrativeAcknowledgement ?? {
+    state: 'PENDING_ACK',
+    requiredRecipients: requiredAdministrativeRecipients(record),
+    acknowledgements: {},
+    attendanceDeadlineAt: new Date(nowMs + 60000).toISOString(),
+    attendanceInquiries: {},
+  };
+  const deadlineMs = Date.parse(state.attendanceDeadlineAt);
+  if (!Number.isFinite(deadlineMs)) throw new Error('AGENT_ADMIN_ATTENDANCE_DEADLINE_INVALID');
+  if (nowMs < deadlineMs) return { status: 'ATTENDANCE_WINDOW_OPEN', messageId, deadlineAt: state.attendanceDeadlineAt };
+  state.attendanceInquiries = state.attendanceInquiries ?? {};
+  const missing = state.requiredRecipients.filter((recipient) => !state.acknowledgements?.[recipient]?.accepted);
+  for (const recipient of missing) {
+    if (state.attendanceInquiries[recipient]) continue;
+    const inquiryId = `admin-attendance-inquiry:${messageId}:${recipient}:${observedSha}`;
+    const inquiry = {
+      schemaVersion: 1,
+      messageId: inquiryId,
+      idempotencyKey: inquiryId,
+      actor: 'assistantController',
+      recipient,
+      intent: 'ADMIN_ATTENDANCE_INQUIRY',
+      priority: 'P0',
+      councilOperation: true,
+      administrativeInstruction: true,
+      taskId: record.taskId,
+      scope: ['ADMIN_ATTENDANCE'],
+      entrySha: observedSha,
+      risk: 'HIGH',
+      dependencies: ['MASTER_INBOX','P0_ADMIN_SUMMON'],
+      expectedEvidence: ['ATTENDANCE_REASON','UNDERSTOOD','ACCEPTED'],
+      stopConditions: ['RESPONSE_RECEIVED','STALE_SHA'],
+      proofObligations: ['EXACT_SHA_REVALIDATION'],
+      createdAt: now(),
+      source: 'MASTER_1_ATTENDANCE_AUDITOR',
+      payload: {
+        administrativeInstruction: true,
+        parentMessageId: messageId,
+        attendanceState: 'MISSED_P0_ATTENDANCE',
+        question: 'لماذا لم يتم الحضور/الإقرار برسالة الإدارة P0 ضمن نافذة الحضور؟',
+        requiredResponse: 'اذكر سبب التخلف، أكد استلام التعليمات، وفهمها واعتمادها على Exact-SHA الحالي.',
+        requiredRecipients: [recipient],
+        attendanceWindowSeconds: 0,
+      },
+    };
+    const receipt = ingest(inquiry, observedSha);
+    state.attendanceInquiries[recipient] = {
+      inquiryId,
+      state: 'INQUIRY_SENT',
+      sentAt: now(),
+      messageStatus: receipt.status,
+      missedAtSha: observedSha,
+    };
+  }
+  state.state = missing.length ? 'INQUIRY_REQUIRED' : 'FULLY_ACKNOWLEDGED';
+  record.administrativeAcknowledgement = state;
+  writeJson(messagePath(messageId), record);
+  const index = loadIndex();
+  index.messages[messageId] = {
+    ...(index.messages[messageId] ?? {}),
+    administrativeStatus: state.state,
+    attendanceMissing: missing.length,
+    updatedAt: now(),
+  };
+  saveIndex(index);
+  return { status: state.state, messageId, missingRecipients: missing, inquiries: state.attendanceInquiries };
+}
 export function markConsumed(messageId, agentId, observedSha = currentSha(), executionAdmitted = false) {
   ensure();
   const record = loadMessage(messageId);
@@ -179,6 +341,11 @@ export function markConsumed(messageId, agentId, observedSha = currentSha(), exe
   if (!(record.recipient === 'ALL_AGENTS' || record.recipient === agentId)) throw new Error('AGENT_MESSAGE_RECIPIENT_MISMATCH');
   if (record.status === 'CONSUMED') return { ...record, duplicate: true };
   if (record.status !== 'READ') throw new Error(`AGENT_MESSAGE_CONSUME_REQUIRES_READ=${record.status}`);
+  if (record.administrativeInstruction) {
+    const state = record.administrativeAcknowledgement;
+    if (state?.state !== 'FULLY_ACKNOWLEDGED') throw new Error('AGENT_ADMIN_ACK_ALL_REQUIRED');
+    if (!state?.acknowledgements?.[agentId]?.accepted) throw new Error('AGENT_ADMIN_ACK_REQUIRED');
+  }
   if (executionAdmitted !== true) throw new Error('AGENT_MESSAGE_EXECUTION_ADMISSION_REQUIRED');
   record.status = 'CONSUMED';
   record.consumedAt = now();
@@ -189,7 +356,7 @@ export function markConsumed(messageId, agentId, observedSha = currentSha(), exe
   saveIndex(index);
   return record;
 }
-if (!['validate','ingest','read','ack','presence','send-master','send-supervisor'].includes(command)) throw new Error('Usage: agent-communication.mjs validate|ingest|read|ack|presence|send-master|send-supervisor');
+if (!['validate','ingest','read','ack','audit-attendance','presence','send-master','send-supervisor'].includes(command)) throw new Error('Usage: agent-communication.mjs validate|ingest|read|ack|audit-attendance|presence|send-master|send-supervisor');
 try {
   if (command === 'send-supervisor') {
     const actor = arg('agent');
@@ -340,6 +507,17 @@ try {
     if (!file) throw new Error('AGENT_MESSAGE_FILE_REQUIRED');
     const message = JSON.parse(fs.readFileSync(path.resolve(ROOT, file), 'utf8'));
     console.log(JSON.stringify(ingest(message, currentSha()), null, 2));
+  } else if (command === 'ack') {
+    const id = arg('message-id');
+    const agentId = arg('agent');
+    const understood = arg('understood') === 'true';
+    const accepted = arg('accepted') === 'true';
+    const summary = arg('understanding-summary');
+    const commitment = arg('commitment');
+    console.log(JSON.stringify(acknowledgeAdministrativeInstruction(id, agentId, currentSha(), understood, accepted, summary, commitment), null, 2));
+  } else if (command === 'audit-attendance') {
+    const id = arg('message-id');
+    console.log(JSON.stringify(auditAdministrativeAttendance(id, currentSha()), null, 2));
   } else if (command === 'read') {
     const id = arg('message-id');
     const agentId = arg('agent');
