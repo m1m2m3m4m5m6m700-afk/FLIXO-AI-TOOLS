@@ -194,7 +194,7 @@ export function planRepair(log, { historical = [], memory } = {}) {
       ? 'prepared-source-change'
       : useCausalSelection
         ? causalSelectedRule
-        : /TS1064\b|return type of an async function|Did you mean to write ['"]?Promise/iu.test(log)
+        : /TS1064\b|return type of an async function|Did you mean to write ["']?Promise/iu.test(log)
           ? 'typescript-async-contract'
           : /TS2304\b|Cannot find name ["']/iu.test(log)
           ? 'typescript-missing-import'
