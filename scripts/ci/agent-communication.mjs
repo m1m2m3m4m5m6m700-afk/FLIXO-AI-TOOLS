@@ -28,6 +28,24 @@ const safeId = (value, label) => {
 const hash = (value) => createHash('sha256').update(value, 'utf8').digest('hex');
 const messageKey = (messageId) => hash(messageId);
 const messagePath = (messageId) => path.join(INBOX_DIR, `${messageKey(messageId)}.json`);
+
+const isFreshMessageBinding = (message, observedSha = currentSha()) => {
+  if (String(message?.entrySha ?? '') === observedSha) return true;
+  const entrySha = String(message?.entrySha ?? '');
+  if (!/^[0-9a-f]{40}$/u.test(entrySha) || !/^[0-9a-f]{40}$/u.test(observedSha)) return false;
+  try {
+    const mergeBase = execFileSync('git', ['merge-base', entrySha, observedSha], { cwd: ROOT, encoding: 'utf8' }).trim();
+    if (mergeBase !== entrySha) return false;
+    const changed = execFileSync('git', ['diff', '--name-only', entrySha + '..' + observedSha], { cwd: ROOT, encoding: 'utf8' })
+      .split(/\\r?\\n/u)
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const messageRelativePath = path.relative(ROOT, messagePath(String(message.messageId)));
+    return changed.length > 0 && changed.every((file) => file === messageRelativePath || file === path.relative(ROOT, INDEX_FILE));
+  } catch {
+    return false;
+  }
+};
 const readJson = (file, fallback) => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : fallback;
 const writeJson = (file, value) => {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -175,7 +193,7 @@ export function ingest(message, observedSha = currentSha()) {
     }
     return { ...existing, duplicate: true };
   }
-  const status = normalized.entrySha === observedSha ? 'RECEIVED' : 'STALE';
+  const status = isFreshMessageBinding(normalized, observedSha) ? 'RECEIVED' : 'STALE';
   const record = {
     ...normalized,
     idempotencyKey: normalized.idempotencyKey,
@@ -221,7 +239,12 @@ const recipientMatchesAgent = (record, agentId) => Boolean(
 export function markRead(messageId, agentId, observedSha = currentSha()) {
   ensure();
   const record = loadMessage(messageId);
-  if (record.status === 'STALE' || record.entrySha !== observedSha) throw new Error('AGENT_MESSAGE_STALE_REQUIRES_REVALIDATION');
+  if (!isFreshMessageBinding(record, observedSha)) throw new Error('AGENT_MESSAGE_STALE_REQUIRES_REVALIDATION');
+  if (record.status === 'STALE') {
+    record.status = 'RECEIVED';
+    record.revalidatedAt = now();
+    record.revalidatedSha = observedSha;
+  }
   if (!recipientMatchesAgent(record, agentId)) throw new Error('AGENT_MESSAGE_RECIPIENT_MISMATCH');
   if (!['RECEIVED','READ'].includes(record.status)) throw new Error(`AGENT_MESSAGE_NOT_READABLE=${record.status}`);
   record.status = 'READ';
@@ -237,7 +260,7 @@ export function acknowledgeAdministrativeInstruction(messageId, agentId, observe
   ensure();
   const record = loadMessage(messageId);
   if (!record.administrativeInstruction) throw new Error('AGENT_ADMIN_ACK_NOT_REQUIRED');
-  if (record.entrySha !== observedSha) throw new Error('AGENT_ADMIN_ACK_SHA_MISMATCH');
+  if (!isFreshMessageBinding(record, observedSha)) throw new Error('AGENT_ADMIN_ACK_SHA_MISMATCH');
   if (!recipientMatchesAgent(record, agentId)) throw new Error('AGENT_MESSAGE_RECIPIENT_MISMATCH');
   if (!['READ','CONSUMED'].includes(record.status)) throw new Error(`AGENT_ADMIN_ACK_REQUIRES_READ=${record.status}`);
   if (!recipientKnown(agentId)) throw new Error('AGENT_ADMIN_ACK_AGENT_INVALID');
@@ -295,7 +318,7 @@ export function auditAdministrativeAttendance(messageId, observedSha = currentSh
   const record = loadMessage(messageId);
   if (!record.administrativeInstruction) throw new Error('AGENT_ADMIN_ATTENDANCE_NOT_REQUIRED');
   if (record.intent === 'ADMIN_ATTENDANCE_INQUIRY') return { status: 'INQUIRY_WAITING_RESPONSE', messageId, recipient: record.recipient, entrySha: record.entrySha };
-  if (record.entrySha !== observedSha) throw new Error('AGENT_ADMIN_ATTENDANCE_SHA_MISMATCH');
+  if (!isFreshMessageBinding(record, observedSha)) throw new Error('AGENT_ADMIN_ATTENDANCE_SHA_MISMATCH');
   const state = record.administrativeAcknowledgement ?? {
     state: 'PENDING_ACK',
     requiredRecipients: requiredAdministrativeRecipients(record),
@@ -366,7 +389,7 @@ export function auditAdministrativeAttendance(messageId, observedSha = currentSh
 export function markConsumed(messageId, agentId, observedSha = currentSha(), executionAdmitted = false) {
   ensure();
   const record = loadMessage(messageId);
-  if (record.entrySha !== observedSha) throw new Error('AGENT_MESSAGE_CONSUME_SHA_MISMATCH');
+  if (!isFreshMessageBinding(record, observedSha)) throw new Error('AGENT_MESSAGE_CONSUME_SHA_MISMATCH');
   if (!recipientMatchesAgent(record, agentId)) throw new Error('AGENT_MESSAGE_RECIPIENT_MISMATCH');
   if (record.status === 'CONSUMED') return { ...record, duplicate: true };
   if (record.status !== 'READ') throw new Error(`AGENT_MESSAGE_CONSUME_REQUIRES_READ=${record.status}`);
