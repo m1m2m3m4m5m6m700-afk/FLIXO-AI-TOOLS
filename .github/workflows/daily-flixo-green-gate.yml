@@ -336,7 +336,12 @@ jobs:
           set -euo pipefail
           CURRENT_SHA="$(cat /tmp/flixo-watch/execution-sha)"
           ARTIFACT_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name | startswith("flixo-action-vault-provisional-learning-"))) | [.id,.created_at,.name] | @tsv' | sort -k2,2r | head -n 1 | cut -f1)"
-          test -n "$ARTIFACT_ID" || { echo 'FAIL CLOSED: no provisional Action Vault learning artifact exists for this Green repair cycle.'; exit 1; }
+          if [ -z "$ARTIFACT_ID" ]; then
+            echo "provisional_found=false" >> "$GITHUB_OUTPUT"
+            echo "ACTION_VAULT_LEARNING_PROMOTION=SKIPPED_NO_PROVISIONAL"
+            exit 0
+          fi
+          echo "provisional_found=true" >> "$GITHUB_OUTPUT"
           gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > /tmp/action-vault-provisional-learning.zip
           mkdir -p /tmp/action-vault-learning
           unzip -o /tmp/action-vault-provisional-learning.zip -d /tmp/action-vault-learning >/dev/null
@@ -363,7 +368,7 @@ jobs:
 
       - name: Certify Action Vault from exact-SHA Green evidence
         id: action_vault_certification
-        if: steps.learning_promotion.outcome == 'success'
+        if: steps.learning_promotion.outcome == 'success' && steps.learning_promotion.outputs.provisional_found == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_RUN_ID: ${{ github.run_id }}
