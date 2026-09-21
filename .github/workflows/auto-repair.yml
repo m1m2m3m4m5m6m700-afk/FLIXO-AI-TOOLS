@@ -1187,6 +1187,7 @@ jobs:
             /tmp/flixo-ai-phase2.json
             /tmp/flixo-ai-phase3.json
             /tmp/flixo-repair-strategy.json
+            /tmp/flixo-repair-behavior-trace.json
             /tmp/flixo-intractable-state
             /tmp/flixo-task-agent/*.json
             /tmp/flixo-repair-memory.json
