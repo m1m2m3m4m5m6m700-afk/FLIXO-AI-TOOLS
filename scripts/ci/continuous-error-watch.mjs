@@ -96,7 +96,9 @@ export function validateRepairTarget({ run, executionSha, workflowRuns = [], log
   if (run?.conclusion === 'cancelled') errors.push('TARGET_CANCELLED_NOT_SOURCE_FAILURE');
   if (run?.headSha !== executionSha) errors.push('TARGET_SHA_MISMATCH');
   if ((run?.headBranch ?? null) !== branch) errors.push('TARGET_BRANCH_MISMATCH');
-  const workflowName = String(run?.workflowName ?? '');
+  const workflowName = [run?.workflowName, run?.name, run?.displayTitle]
+    .map((value) => String(value ?? '').trim())
+    .find(Boolean) ?? '';
   if (NON_REPAIRABLE_WORKFLOW_PATTERNS.some((pattern) => pattern.test(workflowName))) {
     errors.push('TARGET_WORKFLOW_NOT_ALLOWED');
   }
