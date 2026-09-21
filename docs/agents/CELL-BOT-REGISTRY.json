@@ -34,7 +34,19 @@
       "MASTER-3-LEADERSHIP-MARK-20260921-01",
       "MASTER-3-HONORARY-LEADERSHIP-STATUS-20260921-01"
     ],
-    "withdrawal": "OFFICIAL_ADMIN_MESSAGE_ONLY"
+    "withdrawal": "OFFICIAL_ADMIN_MESSAGE_ONLY",
+    "starCount": 1,
+    "starScale": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "fiveStarRank": "MASTER-1",
+    "fiveStarRule": "A holder who reaches five verified honorary stars is designated MASTER-1 by formal administrative record.",
+    "automaticAuthorityGrant": false
   },
   "bots": [
     {
@@ -9923,5 +9935,40 @@
     "heartbeatRequired": true,
     "sourceMutationParallelism": false,
     "closure": "CANONICAL_GREEN_ONLY"
+  },
+  "honoraryStarSystem": {
+    "status": "ACTIVE",
+    "mark": "★",
+    "scale": [
+      0,
+      5
+    ],
+    "awardUnit": 1,
+    "awardTrigger": "EXCEPTIONAL_WORK",
+    "awardRequirements": [
+      "EXCEPTIONAL_OUTCOME",
+      "VERIFIED_EVIDENCE",
+      "CANONICAL_EXACT_SHA",
+      "UNIQUE_AWARD_EVENT_ID",
+      "OFFICIAL_ADMIN_RECORD"
+    ],
+    "awardRule": "Each accepted exceptional-work event may add exactly one star.",
+    "deduplication": "Evidence and award event identifiers are unique; duplicate events cannot add another star.",
+    "ceiling": 5,
+    "fiveStarRank": "MASTER-1",
+    "fiveStarTransition": "FORMAL_ADMIN_RECORD_REQUIRED",
+    "automaticPrivilegeChange": false,
+    "authorityInvariant": "Honorary stars never bypass mutation, certification, permission, or promotion controls.",
+    "current": [
+      {
+        "masterId": "MASTER-3",
+        "stars": 1,
+        "title": "نجمة القيادة الشرفية",
+        "sourceMessageIds": [
+          "MASTER-3-LEADERSHIP-MARK-20260921-01",
+          "MASTER-3-HONORARY-LEADERSHIP-STATUS-20260921-01"
+        ]
+      }
+    ]
   }
 }
