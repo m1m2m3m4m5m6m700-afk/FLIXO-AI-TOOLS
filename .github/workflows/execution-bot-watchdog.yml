@@ -46,21 +46,21 @@ jobs:
       - name: Checkout exact watchdog source SHA
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event_name == 'schedule' && 'execution' || github.sha }}
-          fetch-depth: 1
+          # Never checkout workflow_run.head_sha in a privileged watcher. The trusted source is the canonical execution branch.
+          ref: ${{ github.event_name == 'workflow_run' && 'execution' || github.event_name == 'schedule' && 'execution' || github.sha }}
           persist-credentials: false
       - name: Verify exact watchdog checkout
         env:
           EXPECTED_WATCHDOG_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event_name == 'schedule' && '' || github.sha }}
-        run: |
+          EXPECTED_WATCHDOG_SHA: ${{ github.event_name == 'workflow_run' && '' || github.event_name == 'schedule' && '' || github.sha }}
           set -euo pipefail
           ACTUAL_WATCHDOG_SHA="$(git rev-parse HEAD)"
           if [ -n "$EXPECTED_WATCHDOG_SHA" ]; then
             test "$EXPECTED_WATCHDOG_SHA" = "$ACTUAL_WATCHDOG_SHA"
-            echo "WATCHDOG_CHECKOUT_MODE=EXACT_WORKFLOW_RUN_SHA"
+            echo "WATCHDOG_CHECKOUT_MODE=EVENT_SHA_FOR_DIRECT_PUSH"
           else
             test -n "$ACTUAL_WATCHDOG_SHA"
-            echo "WATCHDOG_CHECKOUT_MODE=CURRENT_EXECUTION_REF"
+            echo "WATCHDOG_CHECKOUT_MODE=CANONICAL_EXECUTION_REF"
           fi
       - name: Check source SHA freshness
         if: github.event_name == 'workflow_run'
@@ -70,9 +70,11 @@ jobs:
         run: |
           set -euo pipefail
           CURRENT_EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
+          ACTUAL_WATCHDOG_SHA="$(git rev-parse HEAD)"
+          test -n "$CURRENT_EXECUTION_SHA"
           test -n "$SOURCE_RUN_SHA"
-          printf 'CURRENT_EXECUTION_SHA=%s\nSOURCE_RUN_SHA=%s\n' "$CURRENT_EXECUTION_SHA" "$SOURCE_RUN_SHA"
-          if [ "$CURRENT_EXECUTION_SHA" != "$SOURCE_RUN_SHA" ]; then
+          test "$ACTUAL_WATCHDOG_SHA" = "$CURRENT_EXECUTION_SHA"
+          printf 'CURRENT_EXECUTION_SHA=%s\nSOURCE_RUN_SHA=%s\nACTUAL_WATCHDOG_SHA=%s\n' "$CURRENT_EXECUTION_SHA" "$SOURCE_RUN_SHA" "$ACTUAL_WATCHDOG_SHA"
             echo "STALE_WATCHDOG_EVENT=true: source run is no longer the current execution head."
             exit 0
           fi
