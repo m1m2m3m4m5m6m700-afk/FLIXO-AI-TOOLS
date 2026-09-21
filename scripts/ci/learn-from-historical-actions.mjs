@@ -16,16 +16,17 @@ function runGh(args) {
 
 function classify(log) {
   const patterns = [
-    ['lint', /eslint|no-unused-vars|defined but never used/i],
+    ['external-tooling', /SessionModelError|CAPIError|requested model is not supported|rate limit|quota|deployment provider/i],
+    ['lint', /eslint|no-unused-vars|defined but never used|no-empty/i],
     ['format', /prettier|formatting|code style/i],
     ['typescript', /TS\d+|Type error|typescript/i],
-    ['playwright', /playwright|expect\(|page\.|locator\(|timeout.*expect/i],
-    ['webkit-render', /webkit|data-render-revision|GPU rendering|waitForGpuRender/i],
+    ['webkit-render', /(?:\\bwebkit\\b|data-render-revision|waitForGpuRender)[^\\r\\n]{0,220}(?:failed|failure|error|timeout|mismatch|missing|did not advance)/i,],
     ['certification', /certification|execution graph|certification-engine/i],
+    ['playwright', /playwright|expect\\(|page\\.|locator\\(|timeout.*expect/i],
     ['build', /production build|vite build|build failed/i],
   ];
   const matches = patterns.filter(([, p]) => p.test(log)).map(([id]) => id);
-  const priority = ['webkit-render', 'certification', 'typescript', 'playwright', 'lint', 'format', 'build'];
+  const priority = ['external-tooling', 'lint', 'format', 'typescript', 'webkit-render', 'certification', 'playwright', 'build'];
   return priority.find((id) => matches.includes(id)) ?? 'unknown';
 }
 
