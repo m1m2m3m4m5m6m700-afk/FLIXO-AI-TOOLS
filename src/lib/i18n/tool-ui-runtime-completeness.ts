@@ -163,7 +163,7 @@ function localizeRoot(root: HTMLElement, locale: CanonicalLocale, toolId: string
   }
   for (const node of texts) {
     const current = node.nodeValue ?? '';
-    const next = translateValue(locale, current, toolId);
+    const next = localizeToolUiValue(locale, current, toolId);
     if (next !== current) node.nodeValue = next;
   }
   root.querySelectorAll<HTMLElement>('[aria-label],[title],[placeholder]').forEach((element) => {
@@ -171,7 +171,7 @@ function localizeRoot(root: HTMLElement, locale: CanonicalLocale, toolId: string
     for (const attribute of ['aria-label', 'title', 'placeholder'] as const) {
       const current = element.getAttribute(attribute);
       if (!current) continue;
-      const next = translateValue(locale, current, toolId);
+      const next = localizeToolUiValue(locale, current, toolId);
       if (next !== current) element.setAttribute(attribute, next);
     }
   });
