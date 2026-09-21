@@ -18,8 +18,15 @@ assert.match(runtime, /const peerMessage = payload\.masterPeerMessage === true/)
 assert.match(runtime, /COUNCIL_MASTER_PEER_IDENTITY_INVALID/);
 assert.match(runtime, /COUNCIL_MASTER_PEER_ROUTE_MISMATCH/);
 assert.match(runtime, /COUNCIL_MASTER_PEER_SELF_ROUTE/);
+assert.match(runtime, /COUNCIL_MASTER_BROADCAST_TARGETS_REQUIRED/);
+assert.match(runtime, /COUNCIL_MASTER_BROADCAST_TARGET_INVALID/);
+assert.match(runtime, /COUNCIL_MASTER_BROADCAST_SYSTEM_ONLY/);
+assert.match(runtime, /ADMIN_MASTER_BROADCAST/);
 
 assert.match(relay, /RECIPIENT_MASTER=/);
+assert.match(relay, /TOP_RECIPIENT=/);
+assert.match(relay, /administrativeBroadcast/);
+assert.match(relay, /MASTER-1","MASTER-2","MASTER-3/);
 assert.match(relay, /FAIL CLOSED: unknown recipientMaster/);
 assert.match(relay, /FAIL CLOSED: unknown senderMaster/);
 assert.match(relay, /requestedByAccountId:"SYSTEM"/);

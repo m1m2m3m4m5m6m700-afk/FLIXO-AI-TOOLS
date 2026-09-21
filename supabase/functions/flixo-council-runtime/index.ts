@@ -216,25 +216,115 @@ const sha = (value: unknown) => {
   return s;
 };
 
+const dispatchSingle = async ({
+  body, primary, fallback, messageId, idempotencyKey, taskId, workPackageId, payload,
+}: {
+  body: Body; primary: Account; fallback: Account; messageId: string; idempotencyKey: string;
+  taskId: string; workPackageId: string; payload: Record<string, unknown>;
+}) => {
+  const entrySha = sha(body.entrySha);
+  const directiveVersion = String(body.directiveVersion ?? COUNCIL_DIRECTIVE_VERSION).trim();
+  if (directiveVersion !== COUNCIL_DIRECTIVE_VERSION) throw new Error("COUNCIL_DIRECTIVE_VERSION_REJECTED");
+  if (!messageId || !idempotencyKey || !taskId || !workPackageId) throw new Error("COUNCIL_DISPATCH_IDENTITY_REQUIRED");
+  const leaseSeconds = Number(body.leaseSeconds ?? (primary === "CHIEF" ? 180 : 120));
+  if (!Number.isInteger(leaseSeconds) || leaseSeconds < 15 || leaseSeconds > 3600) throw new Error("COUNCIL_LEASE_SECONDS_INVALID");
+  const rows = await db("/rest/v1/flix_council_dispatches", {
+    method: "POST",
+    headers: { "content-type": "application/json", prefer: "resolution=ignore-duplicates,return=representation" },
+    body: JSON.stringify({
+      message_id: messageId, idempotency_key: idempotencyKey, task_id: taskId, work_package_id: workPackageId,
+      entry_sha: entrySha, primary_account_id: primary, fallback_account_id: fallback, recipient_account_id: primary,
+      handoff_account_id: "CHIEF", status: "LEASED",
+      payload: { ...body, payload, directiveVersion, greenAuthority: COUNCIL_GREEN_AUTHORITY, integrationLane: COUNCIL_INTEGRATION_LANE },
+      evidence: {}, lease_expires_at: new Date(Date.now() + leaseSeconds * 1000).toISOString(), attempts: 1,
+    }),
+  }) as Array<Record<string, unknown>>;
+  let row = rows?.[0];
+  if (!row) {
+    const existing = await db("/rest/v1/flix_council_dispatches?idempotency_key=eq." + encodeURIComponent(idempotencyKey) + "&select=*&limit=1") as Array<Record<string, unknown>>;
+    row = existing?.[0];
+  }
+  if (!row) throw new Error("COUNCIL_DISPATCH_NOT_PERSISTED");
+  const dispatchId = String(row.dispatch_id);
+  await db("/rest/v1/flix_council_events", {
+    method: "POST",
+    headers: { "content-type": "application/json", prefer: "return=minimal" },
+    body: JSON.stringify({
+      dispatch_id: dispatchId, account_id: primary, event_type: "DISPATCHED", exact_sha: entrySha,
+      payload: { requestedBy: String(body.requestedByAccountId ?? "SYSTEM"), attempt: row.attempts, deliveryMode: payload.deliveryMode ?? "DIRECT" },
+    }),
+  });
+  let push = { attempted: false, ok: false, reason: "POLL_ONLY" };
+  const endpoint = accounts[primary].endpointEnv ? Deno.env.get(accounts[primary].endpointEnv!)?.trim() ?? "" : "";
+  const token = Deno.env.get(accounts[primary].tokenEnv)?.trim() ?? "";
+  if (endpoint && token) {
+    push = { attempted: true, ok: false, reason: "UNSET" };
+    try {
+      const r = await fetch(endpoint, {
+        method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + token },
+        body: JSON.stringify({ wakeType: "FLIXO_COUNCIL_WAKE", dispatchId, accountId: primary, exactSha: entrySha, taskId, workPackageId, payload: body }),
+        signal: AbortSignal.timeout(8000),
+      });
+      push.ok = r.ok; push.reason = r.ok ? "DELIVERED" : "HTTP_" + r.status;
+    } catch (e) { push.reason = String(e instanceof Error ? e.message : e); }
+  }
+  return { dispatchId, status: row.status, entrySha: row.entry_sha, primaryAccountId: primary, fallbackAccountId: fallback,
+    leaseExpiresAt: row.lease_expires_at, directiveVersion: COUNCIL_DIRECTIVE_VERSION, greenAuthority: COUNCIL_GREEN_AUTHORITY,
+    integrationLane: COUNCIL_INTEGRATION_LANE, push, pollUrl: "/functions/v1/flixo-council-runtime?action=poll&accountId=" + primary };
+};
+
+const resolveAdministrativeBroadcastTargets = (body: Body, payload: Record<string, unknown>) => {
+  const explicit = Array.isArray(payload.broadcastMasterIds) ? payload.broadcastMasterIds.map((value) => String(value).trim()) : [];
+  const recipientMaster = String(payload.recipientMaster ?? "").trim();
+  const configured = Array.isArray(payload.requiredRecipients) ? payload.requiredRecipients.map((value) => String(value).trim()) : [];
+  const targets = explicit.length ? explicit : recipientMaster === "MASTERS" || body.recipient === "MASTERS" ? Object.keys(MASTER_ACCOUNT_ROUTES) : recipientMaster ? [recipientMaster] : configured.filter((value) => value in MASTER_ACCOUNT_ROUTES);
+  const unique = [...new Set(targets)];
+  if (!unique.length) throw new Error("COUNCIL_MASTER_BROADCAST_TARGETS_REQUIRED");
+  if (unique.some((target) => !(target in MASTER_ACCOUNT_ROUTES))) throw new Error("COUNCIL_MASTER_BROADCAST_TARGET_INVALID");
+  return unique;
+};
+
 const dispatch = async (body: Body) => {
+  const requestedBy = String(body.requestedByAccountId ?? "SYSTEM");
+  const payload = body.payload && typeof body.payload === "object" && !Array.isArray(body.payload) ? body.payload as Record<string, unknown> : {};
+  const peerMessage = payload.masterPeerMessage === true;
+  const administrativeInstruction = payload.administrativeInstruction === true || body.administrativeInstruction === true || body.councilOperation === true;
+  const explicitMasterTarget = String(payload.recipientMaster ?? "").trim();
+  const requestedMasterBroadcast = payload.administrativeBroadcast === true || explicitMasterTarget === "MASTERS" || body.recipient === "MASTERS" || (Array.isArray(payload.broadcastMasterIds) && payload.broadcastMasterIds.length > 0);
+  const messageId = String(body.messageId ?? "").trim();
+  const idempotencyKey = String(body.idempotencyKey ?? messageId).trim();
+  const taskId = String(body.taskId ?? "").trim();
+  const workPackageId = String(body.workPackageId ?? "").trim();
+  if (requestedMasterBroadcast) {
+    if (requestedBy !== "SYSTEM") throw new Error("COUNCIL_MASTER_BROADCAST_SYSTEM_ONLY");
+    if (!administrativeInstruction || peerMessage) throw new Error("COUNCIL_MASTER_BROADCAST_ADMIN_ONLY");
+    const targets = resolveAdministrativeBroadcastTargets(body, payload);
+    const dispatches = [];
+    for (const masterId of targets) {
+      const route = MASTER_ACCOUNT_ROUTES[masterId];
+      const suffix = ":" + masterId;
+      dispatches.push(await dispatchSingle({
+        body, primary: route.primary, fallback: route.fallback,
+        messageId: messageId.endsWith(suffix) ? messageId : messageId + suffix,
+        idempotencyKey: idempotencyKey.endsWith(suffix) ? idempotencyKey : idempotencyKey + suffix,
+        taskId, workPackageId: workPackageId.endsWith(suffix) ? workPackageId : workPackageId + suffix,
+        payload: { ...payload, administrativeBroadcast: true, canonicalMessageId: String(payload.canonicalMessageId ?? messageId),
+          transportMessageId: messageId, recipientMaster: masterId, broadcastMasterIds: targets, deliveryMode: "ADMIN_MASTER_BROADCAST" },
+      }));
+    }
+    return { dispatchId: dispatches[0]?.dispatchId ?? null, dispatches, broadcast: true, broadcastRecipients: targets,
+      status: dispatches.every((item) => item.status === "LEASED") ? "LEASED" : "PARTIAL", entrySha: sha(body.entrySha) };
+  }
   const primary = accountFrom(body.primaryAccountId);
   const fallback = accountFrom(body.fallbackAccountId);
-  const requestedBy = String(body.requestedByAccountId ?? "SYSTEM");
-  const payload = body.payload && typeof body.payload === "object" && !Array.isArray(body.payload)
-    ? body.payload as Record<string, unknown>
-    : {};
-  const peerMessage = payload.masterPeerMessage === true;
   if (requestedBy === "SYSTEM") {
     if (peerMessage) {
       const senderMaster = String(payload.senderMaster ?? "").trim();
       const recipientMaster = String(payload.recipientMaster ?? "").trim();
-      const senderRoute = MASTER_ACCOUNT_ROUTES[senderMaster];
-      const recipientRoute = MASTER_ACCOUNT_ROUTES[recipientMaster];
+      const senderRoute = MASTER_ACCOUNT_ROUTES[senderMaster]; const recipientRoute = MASTER_ACCOUNT_ROUTES[recipientMaster];
       if (!senderRoute || !recipientRoute) throw new Error("COUNCIL_MASTER_PEER_IDENTITY_INVALID");
       if (senderMaster === recipientMaster) throw new Error("COUNCIL_MASTER_PEER_SELF_ROUTE");
-      if (primary !== recipientRoute.primary || fallback !== recipientRoute.fallback) {
-        throw new Error("COUNCIL_MASTER_PEER_ROUTE_MISMATCH");
-      }
+      if (primary !== recipientRoute.primary || fallback !== recipientRoute.fallback) throw new Error("COUNCIL_MASTER_PEER_ROUTE_MISMATCH");
     } else if (primary !== "CHIEF" || fallback !== "CHIEF") {
       throw new Error("COUNCIL_SYSTEM_DISPATCH_ONLY_CHIEF");
     }
@@ -243,72 +333,7 @@ const dispatch = async (body: Body) => {
     if (!["WORKER_A", "WORKER_B"].includes(primary)) throw new Error("COUNCIL_TARGET_ACCOUNT_FORBIDDEN");
     if (fallback !== accounts[primary].fallback) throw new Error("COUNCIL_FALLBACK_ACCOUNT_INVALID");
   }
-  const messageId = String(body.messageId ?? "").trim();
-  const idempotencyKey = String(body.idempotencyKey ?? messageId).trim();
-  const taskId = String(body.taskId ?? "").trim();
-  const workPackageId = String(body.workPackageId ?? "").trim();
-  const entrySha = sha(body.entrySha);
-  const directiveVersion = String(body.directiveVersion ?? COUNCIL_DIRECTIVE_VERSION).trim();
-  if (directiveVersion !== COUNCIL_DIRECTIVE_VERSION) throw new Error("COUNCIL_DIRECTIVE_VERSION_REJECTED");
-  if (!messageId || !idempotencyKey || !taskId || !workPackageId) throw new Error("COUNCIL_DISPATCH_IDENTITY_REQUIRED");
-
-  const leaseSeconds = Number(body.leaseSeconds ?? (primary === "CHIEF" ? 180 : 120));
-  if (!Number.isInteger(leaseSeconds) || leaseSeconds < 15 || leaseSeconds > 3600) throw new Error("COUNCIL_LEASE_SECONDS_INVALID");
-
-  const rows = await db("/rest/v1/flix_council_dispatches", {
-    method: "POST",
-    headers: { "content-type": "application/json", prefer: "resolution=ignore-duplicates,return=representation" },
-    body: JSON.stringify({
-      message_id: messageId,
-      idempotency_key: idempotencyKey,
-      task_id: taskId,
-      work_package_id: workPackageId,
-      entry_sha: entrySha,
-      primary_account_id: primary,
-      fallback_account_id: fallback,
-      recipient_account_id: primary,
-      handoff_account_id: "CHIEF",
-      status: "LEASED",
-      payload: { ...body, directiveVersion, greenAuthority: COUNCIL_GREEN_AUTHORITY, integrationLane: COUNCIL_INTEGRATION_LANE },
-      evidence: {},
-      lease_expires_at: new Date(Date.now() + leaseSeconds * 1000).toISOString(),
-      attempts: 1,
-    }),
-  }) as Array<Record<string, unknown>>;
-
-  let row = rows?.[0];
-  if (!row) {
-    const existing = await db("/rest/v1/flix_council_dispatches?idempotency_key=eq." + encodeURIComponent(idempotencyKey) + "&select=*&limit=1") as Array<Record<string, unknown>>;
-    row = existing?.[0];
-  }
-  if (!row) throw new Error("COUNCIL_DISPATCH_NOT_PERSISTED");
-
-  const dispatchId = String(row.dispatch_id);
-  await db("/rest/v1/flix_council_events", {
-    method: "POST",
-    headers: { "content-type": "application/json", prefer: "return=minimal" },
-    body: JSON.stringify({ dispatch_id: dispatchId, account_id: primary, event_type: "DISPATCHED", exact_sha: entrySha, payload: { requestedBy, attempt: row.attempts } }),
-  });
-
-  let push = { attempted: false, ok: false, reason: "POLL_ONLY" };
-  const endpoint = accounts[primary].endpointEnv ? Deno.env.get(accounts[primary].endpointEnv!)?.trim() ?? "" : "";
-  const token = Deno.env.get(accounts[primary].tokenEnv)?.trim() ?? "";
-  if (endpoint && token) {
-    push = { attempted: true, ok: false, reason: "UNSET" };
-    try {
-      const r = await fetch(endpoint, {
-        method: "POST",
-        headers: { "content-type": "application/json", authorization: "Bearer " + token },
-        body: JSON.stringify({ wakeType: "FLIXO_COUNCIL_WAKE", dispatchId, accountId: primary, exactSha: entrySha, taskId, workPackageId, payload: body }),
-        signal: AbortSignal.timeout(8000),
-      });
-      push.ok = r.ok;
-      push.reason = r.ok ? "DELIVERED" : "HTTP_" + r.status;
-    } catch (e) {
-      push.reason = String(e instanceof Error ? e.message : e);
-    }
-  }
-  return { dispatchId, status: row.status, entrySha: row.entry_sha, primaryAccountId: primary, fallbackAccountId: fallback, leaseExpiresAt: row.lease_expires_at, directiveVersion: COUNCIL_DIRECTIVE_VERSION, greenAuthority: COUNCIL_GREEN_AUTHORITY, integrationLane: COUNCIL_INTEGRATION_LANE, push, pollUrl: "/functions/v1/flixo-council-runtime?action=poll&accountId=" + primary };
+  return dispatchSingle({ body, primary, fallback, messageId, idempotencyKey, taskId, workPackageId, payload });
 };
 
 Deno.serve(async (req) => {
