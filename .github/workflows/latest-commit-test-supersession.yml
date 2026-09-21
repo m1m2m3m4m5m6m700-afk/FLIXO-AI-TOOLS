@@ -64,11 +64,11 @@ jobs:
       - name: Assert API-only supersession regression
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          test "$BRANCH" = "execution"
           LIVE_AFTER_CHECK="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-          test "$LIVE_AFTER_CHECK" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$LIVE_AFTER_CHECK" = "$EVENT_SHA"
           echo "SUPERSESSION_API_REGRESSION=PASS"
           echo "SUPERSESSION_CONTROLLER_SOURCE=TRUSTED_MAIN"
 
