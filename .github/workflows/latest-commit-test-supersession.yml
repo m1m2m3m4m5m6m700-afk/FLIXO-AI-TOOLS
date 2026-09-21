@@ -44,6 +44,9 @@ jobs:
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "LATEST_TEST_HEAD=$SHA"
 
+      - name: Targeted cancellation race regression
+        run: node scripts/ci/test-latest-commit-test-supersession.mjs
+
       - name: Cancel stale test and verification runs
         env:
           GH_TOKEN: ${{ github.token }}
