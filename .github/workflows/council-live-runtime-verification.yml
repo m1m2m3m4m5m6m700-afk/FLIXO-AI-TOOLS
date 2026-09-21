@@ -25,10 +25,20 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'FAIL CLOSED: expected_sha must be 40 lowercase hex characters.'; exit 1; }
-      - name: Checkout exact execution SHA
+      - name: Resolve and lock current execution SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          [[ "$CURRENT_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'FAIL CLOSED: current execution SHA is invalid.'; exit 1; }
+          test "$EXPECTED_SHA" = "$CURRENT_SHA"
+
+      - name: Checkout locked execution SHA
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: ${{ inputs.expected_sha }}
+          ref: execution
           fetch-depth: 1
           persist-credentials: false
       - name: Reconfirm exact checkout SHA
