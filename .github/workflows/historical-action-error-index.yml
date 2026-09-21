@@ -44,14 +44,18 @@ jobs:
       - name: Resolve historical window
         id: window
         shell: bash
+        env:
+          FLIXO_INPUT_START: ${{ inputs.start || '' }}
+          FLIXO_INPUT_END: ${{ inputs.end || '' }}
+          FLIXO_INPUT_BATCH_DAYS: ${{ inputs.batch_days || '7' }}
         run: |
           set -euo pipefail
-          START='${{ inputs.start || '' }}'
-          END='${{ inputs.end || '' }}'
+          START="$FLIXO_INPUT_START"
+          END="$FLIXO_INPUT_END"
           if [ -z "$START" ]; then
             START="$(node --input-type=module -e "import fs from 'node:fs'; const p='docs/agents/historical-action-errors/manifest.json'; const m=JSON.parse(fs.readFileSync(p,'utf8')); process.stdout.write(m.nextCursor || m.repositoryCreatedAt || '2026-08-10T00:00:00Z')")"
           fi
-          BATCH_DAYS='${{ inputs.batch_days || '7' }}'
+          BATCH_DAYS="$FLIXO_INPUT_BATCH_DAYS"
           if [ -z "$END" ]; then
             END="$(START="$START" BATCH_DAYS="$BATCH_DAYS" node --input-type=module -e "const s=new Date(process.env.START); const n=new Date(); const days=Math.max(1,Math.min(31,Number(process.env.BATCH_DAYS||7))); const e=new Date(Math.min(s.getTime()+days*86400000,n.getTime())); process.stdout.write(e.toISOString())")"
           fi
