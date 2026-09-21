@@ -267,8 +267,9 @@ jobs:
           set -euo pipefail
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
           git fetch --no-tags origin main execution "$FAILED_SHA"
-          git checkout execution
-          git reset --hard origin/execution
+          EXECUTION_BASE_SHA="$(git rev-parse origin/execution)"
+          test -n "$EXECUTION_BASE_SHA"
+          git switch --create execution "$EXECUTION_BASE_SHA"
           # execution may advance to the failed main SHA only by fast-forward.
           # If it contains unrelated/unmerged work, fail closed rather than branching.
           if git merge-base --is-ancestor "$FAILED_SHA" HEAD; then
