@@ -124,6 +124,16 @@ jobs:
           EXECUTION_SHA="$(git rev-parse HEAD)"
           echo "WATCHDOG_EXPECTED_TEST_SHA=$EXECUTION_SHA"
 
+          if [ "${{ github.event_name }}" = "push" ]; then
+            OPEN_PR_COUNT="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json number --jq 'length')"
+            if [ "$OPEN_PR_COUNT" -gt 0 ]; then
+              echo "WATCHDOG_PR_CANONICAL_PATH=true"
+              echo "WATCHDOG_TEST_SYSTEM_DISPATCH=NOOP_PR_CANONICAL"
+              echo "WATCHDOG_CANONICAL_TEST_SYSTEM_STARTED=false"
+              exit 0
+            fi
+          fi
+
           RUN_STATE="$(gh run list \
             --repo "$GITHUB_REPOSITORY" \
             --workflow "FLIXO Test System" \
