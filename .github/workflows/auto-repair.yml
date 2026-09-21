@@ -103,11 +103,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 345
     steps:
-      - name: Checkout canonical execution branch
+      - name: Checkout trusted main bootstrap
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: main
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Setup Node
@@ -154,10 +154,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Checkout canonical execution branch
+      - name: Checkout trusted main bootstrap
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: execution
+          ref: main
           fetch-depth: 0
           persist-credentials: false
 
