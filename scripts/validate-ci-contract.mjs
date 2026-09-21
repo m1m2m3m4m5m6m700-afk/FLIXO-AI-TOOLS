@@ -153,22 +153,21 @@ if (!/permissions:\s*\n\s*contents:\s*read\s*\n\s*actions:\s*read/.test(cellMast
   process.exit(1);
 }
 const watchdogExactCheckout =
-  /name: Checkout exact watchdog source SHA[\s\S]*actions\/checkout@[^\n]+[\s\S]*ref: \$\{\{ github\.event_name == 'workflow_run' && 'execution' \|\| github\.event_name == 'schedule' && 'execution' \|\| github\.sha \}\}/.test(executionWatchdogWorkflow);
+  /name: Checkout trusted watchdog source[\s\S]*actions\/checkout@[^\n]+[\s\S]*ref: main/.test(executionWatchdogWorkflow);
 const watchdogExactVerify =
-  /name: Verify exact watchdog checkout[\s\S]*git rev-parse HEAD[\s\S]*test "\$EXPECTED_WATCHDOG_SHA" = "\$ACTUAL_WATCHDOG_SHA"/.test(executionWatchdogWorkflow) &&
-  /name: Verify exact watchdog checkout[\s\S]*WATCHDOG_CHECKOUT_MODE=(EVENT_SHA_FOR_DIRECT_PUSH|CANONICAL_EXECUTION_REF)/.test(executionWatchdogWorkflow);
+  /name: Verify trusted watchdog checkout[\s\S]*git rev-parse HEAD[\s\S]*test "\$ACTUAL_WATCHDOG_SHA" = "\$TRUSTED_MAIN_SHA"[\s\S]*WATCHDOG_CHECKOUT_MODE=TRUSTED_MAIN/.test(executionWatchdogWorkflow);
 const watchdogSourceFreshness =
-  /name: Check source SHA freshness[\s\S]*SOURCE_RUN_SHA: \$\{\{ github\.event\.workflow_run\.head_sha \}\}[\s\S]*CURRENT_EXECUTION_SHA="[\s\S]*git ls-remote[\s\S]*refs\/heads\/execution[\s\S]*test "\$ACTUAL_WATCHDOG_SHA" = "\$CURRENT_EXECUTION_SHA"[\s\S]*if \[ "\$CURRENT_EXECUTION_SHA" != "\$SOURCE_RUN_SHA" \][\s\S]*STALE_WATCHDOG_EVENT=true/.test(executionWatchdogWorkflow);
+  /name: Capture exact execution state[\s\S]*SOURCE_RUN_SHA: \$\{\{ github\.event\.workflow_run\.head_sha \|\| '' \}\}[\s\S]*EXECUTION_SHA="[\s\S]*git\/ref\/heads\/execution[\s\S]*if \[ "\$EXECUTION_SHA" != "\$SOURCE_RUN_SHA" \][\s\S]*STALE_WATCHDOG_EVENT=true/.test(executionWatchdogWorkflow);
 if (!watchdogExactCheckout || !watchdogExactVerify || !watchdogSourceFreshness) {
-  console.error('CI contract failed: execution-bot-watchdog.yml must bootstrap from trusted execution, verify the checkout, and reject stale workflow_run source SHAs before running repository scripts.');
+  console.error('CI contract failed: execution-bot-watchdog.yml must execute only trusted controller code from main, observe the exact execution SHA through GitHub APIs, and reject stale workflow_run events.');
   process.exit(1);
 }
-if (!/EXECUTION_SHA="\$\(git rev-parse HEAD\)"[\s\S]*EXPECTED_PUSH_SHA="\$GITHUB_SHA"[\s\S]*test "\$EXECUTION_SHA" = "\$EXPECTED_PUSH_SHA"/.test(executionWatchdogWorkflow)) {
-  console.error('CI contract failed: push watchdog wake must remain bound to the exact checked-out event SHA.');
+if (!/name: Record exact execution push wake[\s\S]*EXECUTION_SHA="\$\{\{ steps\.source\.outputs\.execution_sha \}\}"[\s\S]*EXPECTED_PUSH_SHA="\$GITHUB_SHA"[\s\S]*test "\$EXECUTION_SHA" = "\$EXPECTED_PUSH_SHA"/.test(executionWatchdogWorkflow)) {
+  console.error('CI contract failed: push watchdog wake must bind the observed execution state to the exact push SHA without using the trusted-main HEAD.');
   process.exit(1);
 }
-if (!/name: Ensure canonical Test System exists for exact SHA without duplicate dispatch[\s\S]*gh workflow run ci\.yml --repo "\$GITHUB_REPOSITORY" --ref execution[\s\S]*gh run list --repo "\$GITHUB_REPOSITORY" --workflow "FLIXO Test System"[\s\S]*--commit "\$EXECUTION_SHA"[\s\S]*status == "queued"[\s\S]*status == "in_progress"[\s\S]*FAIL CLOSED: canonical FLIXO Test System did not start for exact SHA/.test(executionWatchdogWorkflow)) {
-  console.error('CI contract failed: watchdog must dispatch the canonical Test System and admit only an active exact-SHA run.');
+if (!/name: Ensure canonical Test System exists for exact SHA without duplicate dispatch[\s\S]*EXECUTION_SHA="\$\{\{ steps\.source\.outputs\.execution_sha \}\}"[\s\S]*gh workflow run ci\.yml --repo "\$GITHUB_REPOSITORY" --ref execution[\s\S]*gh run list --repo "\$GITHUB_REPOSITORY" --workflow "FLIXO Test System"[\s\S]*--commit "\$EXECUTION_SHA"[\s\S]*FAIL CLOSED: canonical FLIXO Test System did not start for exact SHA/.test(executionWatchdogWorkflow)) {
+  console.error('CI contract failed: watchdog must dispatch the canonical Test System and admit only an active exact execution-SHA run.');
   process.exit(1);
 }
 if (!/cancel-in-progress:\s*false/.test(greenGateWorkflow) ||
