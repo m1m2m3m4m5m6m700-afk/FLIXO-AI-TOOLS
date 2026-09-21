@@ -43,41 +43,53 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Checkout exact watchdog source SHA
+      - name: Checkout trusted watchdog source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          # Never checkout workflow_run.head_sha in the privileged watcher. Bootstrap from the trusted canonical execution branch and verify freshness below.
-          ref: ${{ github.event_name == 'workflow_run' && 'execution' || github.event_name == 'schedule' && 'execution' || github.sha }}
+          # Privileged workflow_run must never execute code from an event-controlled SHA.
+          # Observe execution through GitHub APIs; execute controller code only from protected main.
+          ref: main
+          fetch-depth: 1
           persist-credentials: false
-      - name: Verify exact watchdog checkout
-        env:
-          EXPECTED_WATCHDOG_SHA: ${{ github.event_name == 'workflow_run' && '' || github.event_name == 'schedule' && '' || github.sha }}
-        run: |
-          set -euo pipefail
-          ACTUAL_WATCHDOG_SHA="$(git rev-parse HEAD)"
-          if [ -n "$EXPECTED_WATCHDOG_SHA" ]; then
-            test "$EXPECTED_WATCHDOG_SHA" = "$ACTUAL_WATCHDOG_SHA"
-            echo "WATCHDOG_CHECKOUT_MODE=EVENT_SHA_FOR_DIRECT_PUSH"
-          else
-            test -n "$ACTUAL_WATCHDOG_SHA"
-            echo "WATCHDOG_CHECKOUT_MODE=CANONICAL_EXECUTION_REF"
-          fi
-      - name: Check source SHA freshness
-        if: github.event_name == 'workflow_run'
+      - name: Verify trusted watchdog checkout
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          CURRENT_EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
           ACTUAL_WATCHDOG_SHA="$(git rev-parse HEAD)"
-          test -n "$CURRENT_EXECUTION_SHA"
-          test -n "$SOURCE_RUN_SHA"
-          test "$ACTUAL_WATCHDOG_SHA" = "$CURRENT_EXECUTION_SHA"
-          printf 'CURRENT_EXECUTION_SHA=%s\nSOURCE_RUN_SHA=%s\nACTUAL_WATCHDOG_SHA=%s\n' "$CURRENT_EXECUTION_SHA" "$SOURCE_RUN_SHA" "$ACTUAL_WATCHDOG_SHA"
-          if [ "$CURRENT_EXECUTION_SHA" != "$SOURCE_RUN_SHA" ]; then
-            echo "STALE_WATCHDOG_EVENT=true: source run is no longer the current execution head."
-            exit 0
+          TRUSTED_MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          test -n "$ACTUAL_WATCHDOG_SHA"
+          test "$ACTUAL_WATCHDOG_SHA" = "$TRUSTED_MAIN_SHA"
+          echo "WATCHDOG_CHECKOUT_MODE=TRUSTED_MAIN"
+          echo "WATCHDOG_TRUSTED_SOURCE_SHA=$TRUSTED_MAIN_SHA"
+      - name: Capture exact execution state
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_SHA: ${{ github.event.workflow_run.head_sha || '' }}
+          EVENT_SHA: ${{ github.sha }}
+          EVENT_BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test -n "$EXECUTION_SHA"
+          echo "execution_sha=$EXECUTION_SHA" >> "$GITHUB_OUTPUT"
+          echo "event_sha=$EVENT_SHA" >> "$GITHUB_OUTPUT"
+          echo "event_branch=$EVENT_BRANCH" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            test -n "$SOURCE_RUN_SHA"
+            printf 'CURRENT_EXECUTION_SHA=%s\nSOURCE_RUN_SHA=%s\n' "$EXECUTION_SHA" "$SOURCE_RUN_SHA"
+            if [ "$EXECUTION_SHA" != "$SOURCE_RUN_SHA" ]; then
+              echo "STALE_WATCHDOG_EVENT=true: source run is no longer the current execution head."
+              echo "stale=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "stale=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+            if [ "$EVENT_BRANCH" = "execution" ]; then
+              test "$EVENT_SHA" = "$EXECUTION_SHA"
+            fi
           fi
       - name: Decide scheduled wake from durable GREEN evidence
         id: scheduled_wake
@@ -107,9 +119,10 @@ jobs:
           FLIXO_CELL_WAKE_OUTPUT: /tmp/flixo-cell-wake.json
         run: |
           set -euo pipefail
-          EXECUTION_SHA="$(git rev-parse HEAD)"
+          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           EXPECTED_PUSH_SHA="$GITHUB_SHA"
           test "$EXECUTION_SHA" = "$EXPECTED_PUSH_SHA"
+          # Execute only controller code from trusted main; never from the observed execution SHA.
           FLIXO_WAKE_SHA="$EXECUTION_SHA" node scripts/ci/cell-wake-preparation.mjs
           test -s /tmp/flixo-cell-wake.json
           node scripts/ci/test-cell-wake-preparation.mjs
@@ -189,7 +202,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          EXECUTION_SHA="$(git rev-parse HEAD)"
+          EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"
+          test -n "$EXECUTION_SHA"
           ACTIVE="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --commit "$EXECUTION_SHA" --limit 20 --json status --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
           GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --commit "$EXECUTION_SHA" --limit 20 --json status,conclusion --jq '[.[] | select(.status == "completed" and .conclusion == "success")] | length')"
           if [ "$ACTIVE" -gt 0 ] || [ "$GREEN" -gt 0 ]; then
@@ -216,7 +230,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p diagnostics/watchdog
-          CURRENT_EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
+          CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')""
           printf '%s\n' "$(cat <<JSON
           {"schemaVersion":1,"protocol":"FLIXO-EXECUTION-BOT-WATCHDOG-v1","executionSha":"$CURRENT_EXECUTION_SHA","sourceRunId":"${{ github.event.workflow_run.id || '' }}","sourceRunSha":"${{ github.event.workflow_run.head_sha || '' }}","action":"WAKE_CANONICAL_OBSERVER","repairDispatcher":"daily-flixo-green-gate.yml","directRepairDispatch":false}
           JSON
