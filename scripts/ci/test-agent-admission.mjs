@@ -87,11 +87,13 @@ assert.ok(taskContract.includes('mutate repository source'));
 
 assert.ok(safeExecution.includes('Task Agent is explicitly not a mutation role'));
 
-const retiredLegacy = prompts.prompts.find((item) => item.promptId === 'RPR-EXISTING-SAFE-TASK-001');
-const taskPreparation = prompts.prompts.find((item) => item.promptId === 'RPR-EXISTING-TASK-PREP-001');
-assert.equal(retiredLegacy, undefined);
-assert.ok(taskPreparation);
-assert.equal(taskPreparation.status, 'ACTIVE');
+const unifiedPrompt = prompts.prompts.find((item) => item.promptId === 'RPR-UNIFIED-EXECUTION-001');
+assert.ok(unifiedPrompt);
+assert.equal(unifiedPrompt.status, 'ACTIVE');
+assert.equal(unifiedPrompt.version, '3.0.0');
+assert.ok(unifiedPrompt.provenance?.replacedFamilies?.includes('Task Agent preparation'));
+assert.ok(unifiedPrompt.provenance?.replacedFamilies?.includes('Safe Task Agent execution'));
+assert.equal(prompts.prompts.filter((item) => item.status === 'ACTIVE').length, 1);
 
 assert.equal(cooperation.schemaVersion, 5);
 assert.ok(cooperation.protocols.action_vault_reasoning.includes('ACTION-REPAIR'));
