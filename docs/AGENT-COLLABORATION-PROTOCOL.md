@@ -148,6 +148,12 @@ node scripts/ci/agent-session.mjs logout --session=<id> --agent=<id> --status=VE
 
 VERIFIED محظور مع failedWork أو remainingWork أو openRcas. ينتج handoff في diagnostics/agents/handoffs/<sessionId>.json وسجل visibility في docs/agents/ledger/<sessionId>.json.
 
+### Administrative Messages — Canonical Alias
+
+**رسائل الإدارة = Canonical Agent Communication.** This is the single internal communication system between the Council, Masters, supervisors, agents, and supporting roles. The Arabic term is an alias only; it MUST NOT create or imply a second transport, protocol, registry, inbox, or authority surface.
+
+When a message is described as **رسالة إدارية / رسائل الإدارة**, process it through the existing canonical communication commands and lifecycle. Council administrative messages retain **P0 / IMMEDIATE** priority.
+
 ### Canonical agent communication
 
 الأوامر:

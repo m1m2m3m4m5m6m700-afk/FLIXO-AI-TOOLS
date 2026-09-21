@@ -28,6 +28,12 @@ A task cannot become `DONE` while `remainingWork` or `openRcas` exist. A session
 
 Task completion records exact exit SHA, evidence and findings. Primary certification remains owned by the canonical certification authority. Coordination state never substitutes for product evidence.
 
+## Administrative Messages — Canonical Naming
+
+**رسائل الإدارة** is the canonical human-facing name for the existing **Agent Communication** subsystem. It means the internal communication system shared by the Council, Masters, supervisors, and agents; it does not introduce another subsystem.
+
+Administrative messages use the existing Master Inbox, relay, communication runtime, session, and coordination controls. Council administrative messages are P0 and require immediate handling before lower-priority scheduling.
+
 ## Communication ingress and delivery
 
 Agent communication is part of this same control plane; it is not a second registry or protocol.

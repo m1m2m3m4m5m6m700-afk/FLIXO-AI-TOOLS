@@ -153,6 +153,15 @@ The Council President (`assistantController`) is the highest repository administ
 
 Every agent, bot, Action Vault resident, Task Agent, Repair Agent, Execution Agent, Master/Chief runtime adapter, and certification/review role MUST consume this invariant through the canonical communication and coordination paths. No role may downgrade, defer, silently ignore, or supersede a Council request. Stale/conflicting requests are answered immediately with the corresponding fail-closed state and exact-SHA evidence; they are not silently dropped.
 
+## ADMINISTRATIVE MESSAGES — CANONICAL TERM
+
+Within FLIXO, **«رسائل الإدارة»** (also «الرسالة الإدارية») is the human-facing Arabic name for the existing **Canonical Agent Communication** system. It is not a second channel, protocol, registry, inbox, or authority layer.
+
+Whenever an agent, Master, supervisor, Council member, or operator says **«رسائل الإدارة»**, it means the same internal communication path:
+`Master Inbox → agent-communication-relay.yml → agent-communication.mjs → agent-session.mjs → agent-coordination.mjs`.
+
+Administrative Council messages remain **P0 / IMMEDIATE** and are subject to the same exact-SHA, idempotency, recipient, scope, ownership, and fail-closed controls.
+
 ## COMMUNICATION-FIRST GATE
 
 The shared agent communication channel is the first operational dependency for every agent.

@@ -7,6 +7,9 @@ It absorbs orchestration, causal repair, task preparation, contract-drift, exter
 
 The canonical prompt source is docs/agents/PROMPT-UNIFIED-EXECUTION.md. src/lib/agent/flixo-agent-master-prompt.ts is only the customer-runtime adapter and does not contain a second instruction source.
 
+## Administrative Messages — Communication System
+**«رسائل الإدارة» = Canonical Agent Communication.** This is the existing internal communication system between the Council, Masters, supervisors, and agents. It is a naming alias only; no parallel channel or registry is created. Council administrative messages remain P0.
+
 ## Agent Communication Priority
 
 Communication-fi
