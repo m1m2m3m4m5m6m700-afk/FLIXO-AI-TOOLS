@@ -74,6 +74,9 @@ export function ImageConverterTool({ locale }: { locale?: string }) {
         </div>
       )}
       onReset={() => setParameters({ format: 'image/webp' })}
+      resetLabel={t("Reset")}
+      beforeLabel={t("Before")}
+      afterLabel={t("After")}
       runLabel={t("Run tool")}
       downloadLabel={t("Download now")}
       downloadRole="button"
