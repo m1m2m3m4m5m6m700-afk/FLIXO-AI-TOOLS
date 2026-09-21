@@ -162,28 +162,29 @@ if (!watchdogExactCheckout || !watchdogExactVerify || !watchdogSourceFreshness) 
   console.error('CI contract failed: execution-bot-watchdog.yml must execute only trusted controller code from main, observe the exact execution SHA through GitHub APIs, and reject stale workflow_run events.');
   process.exit(1);
 }
-const pushWakeBlock = executionWatchdogWorkflow.match(
-  /name: Record exact execution push wake[\s\S]*?(?=\n\s{6}- name:|$)/u,
-)?.[0] ?? '';
+const watchdogStepBlock = (workflowText, stepName) => {
+  const marker = `      - name: ${stepName}`;
+  const startIndex = workflowText.indexOf(marker);
+  if (startIndex < 0) return '';
+  const remainder = workflowText.slice(startIndex);
+  const nextStep = remainder.search(/\n      - name:/u);
+  return nextStep >= 0 ? remainder.slice(0, nextStep) : remainder;
+};
+
+const pushWakeBlock = watchdogStepBlock(executionWatchdogWorkflow, 'Record exact execution push wake');
 const pushWakeMarkers = [
   'name: Record exact execution push wake',
   'EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"',
+  'EXPECTED_PUSH_SHA="$GITHUB_SHA"',
+  'test "$EXECUTION_SHA" = "$EXPECTED_PUSH_SHA"',
 ];
-const pushWakeExactBinding =
-  pushWakeBlock.includes('test "$EXECUTION_SHA" = "$GITHUB_SHA"') ||
-  (pushWakeBlock.includes('EXPECTED_PUSH_SHA="$GITHUB_SHA"') &&
-   pushWakeBlock.includes('test "$EXECUTION_SHA" = "$EXPECTED_PUSH_SHA"'));
 if (!pushWakeMarkers.every((marker) => pushWakeBlock.includes(marker)) ||
-    !pushWakeExactBinding ||
     pushWakeBlock.includes('git rev-parse HEAD')) {
   console.error('CI contract failed: push watchdog wake must bind the observed execution state to the exact push SHA without using the trusted-main HEAD.');
   process.exit(1);
 }
-}
 
-const canonicalTestBlock = executionWatchdogWorkflow.match(
-  /name: Ensure canonical Test System exists for exact SHA without duplicate dispatch[\\s\\S]*?(?=\\n\\s{6}- name:|$)/u,
-)?.[0] ?? '';
+const canonicalTestBlock = watchdogStepBlock(executionWatchdogWorkflow, 'Ensure canonical Test System exists for exact SHA without duplicate dispatch');
 const canonicalTestMarkers = [
   'name: Ensure canonical Test System exists for exact SHA without duplicate dispatch',
   'EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"',
