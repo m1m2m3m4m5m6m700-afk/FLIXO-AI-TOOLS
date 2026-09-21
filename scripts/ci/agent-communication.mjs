@@ -385,7 +385,9 @@ export function markConsumed(messageId, agentId, observedSha = currentSha(), exe
   saveIndex(index);
   return record;
 }
-if (!['validate','ingest','read','ack','audit-attendance','presence','send-master','send-supervisor'].includes(command)) throw new Error('Usage: agent-communication.mjs validate|ingest|read|ack|audit-attendance|presence|send-master|send-supervisor');
+const IS_MAIN = Boolean(process.argv[1]) && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
+if (IS_MAIN && !['validate','ingest','read','ack','audit-attendance','presence','send-master','send-supervisor'].includes(command)) throw new Error('Usage: agent-communication.mjs validate|ingest|read|ack|audit-attendance|presence|send-master|send-supervisor');
+if (IS_MAIN) {
 try {
   if (command === 'send-supervisor') {
     const actor = arg('agent');
@@ -560,4 +562,5 @@ try {
 } catch (error) {
   console.error('AGENT_MESSAGE_GATE_BLOCK=' + String(error?.message ?? error));
   process.exit(1);
+}
 }
