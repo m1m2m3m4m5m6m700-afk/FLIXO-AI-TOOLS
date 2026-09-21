@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: flixo-agent-repair-supervisor-observer
-  cancel-in-progress: false
+  group: flixo-agent-repair-supervisor-observer-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   actions: read
