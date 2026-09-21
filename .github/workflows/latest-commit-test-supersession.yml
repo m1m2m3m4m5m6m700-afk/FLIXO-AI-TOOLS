@@ -40,7 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           BRANCH='execution'
-          EVENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          EVENT_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
           LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           test "$BRANCH" != ""
           [[ "$EVENT_SHA" =~ ^[0-9a-f]{40}$ ]]
@@ -57,6 +57,7 @@ jobs:
           fi
           echo "LATEST_TEST_EVENT_HEAD=$EVENT_SHA"
           echo "LATEST_TEST_LIVE_HEAD=$LIVE_SHA"
+          echo 'EVENT_SHA_SOURCE=IMMUTABLE_GITHUB_EVENT_SHA'
 
       - name: Targeted cancellation race regression
         run: node scripts/ci/test-latest-commit-test-supersession.mjs
