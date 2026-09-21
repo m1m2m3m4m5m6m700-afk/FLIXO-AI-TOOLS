@@ -128,7 +128,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          EXECUTION_SHA="$(git rev-parse HEAD)"
+          EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"
+          test -n "$EXECUTION_SHA"
           echo "WATCHDOG_EXPECTED_TEST_SHA=$EXECUTION_SHA"
 
           if [ "${{ github.event_name }}" = "push" ]; then
