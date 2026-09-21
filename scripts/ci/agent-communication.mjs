@@ -44,6 +44,12 @@ const assertActorKnown = (actor) => {
   if (/^CELL-\\d{3}$/u.test(actor) && !loadCellBotIds().has(actor)) throw new Error('AGENT_MESSAGE_UNKNOWN_CELL_BOT=' + actor);
 };
 const required = ['messageId','actor','recipient','intent','taskId','scope','entrySha','risk','dependencies','expectedEvidence','stopConditions','proofObligations','createdAt'];
+const COUNCIL_RECIPIENTS = new Set(['assistantController','verification','analysis']);
+const PRIORITIES = new Set(['P0','P1','P2','P3']);
+const isCouncilOperation = (message) => {
+  const payload = message?.payload;
+  return message?.councilOperation === true || COUNCIL_RECIPIENTS.has(String(message?.recipient ?? '')) || String(message?.intent ?? '').startsWith('COUNCIL_') || Boolean(payload && typeof payload === 'object' && payload.councilOperation === true);
+};
 const asArray = (value, name) => {
   if (!Array.isArray(value) || value.length === 0 || value.some((item) => typeof item !== 'string' || !item.trim())) {
     throw new Error(`AGENT_MESSAGE_${name.toUpperCase()}_INVALID`);
@@ -66,6 +72,10 @@ export function validateMessage(message, observedSha = currentSha()) {
   for (const field of ['scope','dependencies','expectedEvidence','stopConditions','proofObligations']) asArray(message[field], field);
   if (!['LOW','MEDIUM','HIGH','CRITICAL'].includes(String(message.risk))) throw new Error('AGENT_MESSAGE_RISK_INVALID');
   if (typeof message.intent !== 'string' || !message.intent.trim()) throw new Error('AGENT_MESSAGE_INTENT_INVALID');
+  const councilOperation = isCouncilOperation(message);
+  const priority = String(message.priority ?? (councilOperation ? 'P0' : 'P1')).toUpperCase();
+  if (!PRIORITIES.has(priority)) throw new Error('AGENT_MESSAGE_PRIORITY_INVALID');
+  if (councilOperation && priority !== 'P0') throw new Error('AGENT_MESSAGE_COUNCIL_PRIORITY_REQUIRED');
   return Object.freeze({
     schemaVersion: Number(message.schemaVersion ?? 1),
     messageId: String(message.messageId),
@@ -73,6 +83,8 @@ export function validateMessage(message, observedSha = currentSha()) {
     actor: String(message.actor),
     recipient: String(message.recipient),
     intent: String(message.intent),
+    priority,
+    councilOperation,
     taskId: String(message.taskId),
     scope: [...message.scope],
     entrySha: String(message.entrySha),
