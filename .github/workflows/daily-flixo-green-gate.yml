@@ -96,6 +96,59 @@ jobs:
           printf '%s\n' "$WATCH_BRANCH" > /tmp/flixo-watch/observed-branch
           printf 'branch=%s\n' "$WATCH_BRANCH" >> "$GITHUB_OUTPUT"
 
+      - name: Await required internal CI settlement on exact SHA
+        id: settle_required_ci
+        if: steps.capture.outcome == 'success' && steps.capture.outputs.branch == 'execution'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(cat /tmp/flixo-watch/execution-sha)"
+          REQUIRED_WORKFLOWS=(
+            "FLIXO Test System"
+            "FLIXO WP0 Trust Baseline"
+            "FLIXO Test Impact"
+            "FLIXO Test Impact Execution"
+            "Repository Security Baseline"
+            "Claude Security Review"
+          )
+          MAX_POLLS=24
+          POLL_SECONDS=15
+          for ((poll=1; poll<=MAX_POLLS; poll++)); do
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100" > /tmp/flixo-watch/workflow-runs.json
+            WAITING=false
+            FAILED=false
+            for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
+              RUN_JSON="$(jq -c --arg name "$workflow" '[.workflow_runs[] | select(.name == $name and .head_sha == $ENV.EXECUTION_SHA and .conclusion != "cancelled")] | sort_by(.updated_at) | last // empty' /tmp/flixo-watch/workflow-runs.json)"
+              if [ -z "$RUN_JSON" ]; then
+                echo "SETTLEMENT_WAITING poll=$poll workflow=$workflow state=MISSING"
+                WAITING=true
+                continue
+              fi
+              RUN_STATUS="$(printf '%s' "$RUN_JSON" | jq -r '.status')"
+              RUN_CONCLUSION="$(printf '%s' "$RUN_JSON" | jq -r '.conclusion // ""')"
+              if [ "$RUN_STATUS" = "completed" ]; then
+                if [ "$RUN_CONCLUSION" != "success" ]; then
+                  echo "SETTLEMENT_FOUND_RED poll=$poll workflow=$workflow conclusion=$RUN_CONCLUSION"
+                  FAILED=true
+                fi
+              else
+                echo "SETTLEMENT_WAITING poll=$poll workflow=$workflow status=$RUN_STATUS"
+                WAITING=true
+              fi
+            done
+            if [ "$FAILED" = true ] || [ "$WAITING" = false ]; then
+              break
+            fi
+            if [ "$poll" -lt "$MAX_POLLS" ]; then
+              sleep "$POLL_SECONDS"
+            fi
+          done
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$EXECUTION_SHA/check-runs?per_page=100" > /tmp/flixo-watch/check-runs.json
+          gh api "repos/$GITHUB_REPOSITORY/commits/$EXECUTION_SHA/status" > /tmp/flixo-watch/statuses.json
+          echo "REQUIRED_CI_SETTLEMENT_COMPLETE=true"
+
       - name: Capture failed CI evidence for classification
         env:
           GH_TOKEN: ${{ github.token }}
