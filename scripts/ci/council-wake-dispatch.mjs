@@ -2,7 +2,9 @@
 import fs from 'node:fs';
 
 export const PRESIDENT_WAKE_MARKER = '<!-- FLIXO_AGENT_COUNCIL_WAKE -->';
+export const COUNCIL_PRIORITY = 'P0';
 export const ROLE_ROUTES = Object.freeze({
+  PRESIDENT: Object.freeze({ machineRole: 'assistantController', mode: 'WORKFLOW_DISPATCH', workflow: 'council-priority-wake.yml' }),
   DEPUTY: Object.freeze({ machineRole: 'verification', mode: 'EXTERNAL_AGENT_WAKE_REQUIRED', workflow: null }),
   INVESTIGATOR: Object.freeze({ machineRole: 'analysis', mode: 'WORKFLOW_DISPATCH', workflow: 'ultra-investigator.yml', input: 'expected_sha' }),
   SCOUT: Object.freeze({ machineRole: 'codeScout', mode: 'WORKFLOW_DISPATCH', workflow: 'code-read-only-scout.yml' }),
@@ -43,9 +45,12 @@ export function buildWakePlan({ comment, currentExecutionSha, repository = '' } 
     workPackageId,
     mode: route.mode,
     workflow: route.workflow,
+    priority: COUNCIL_PRIORITY,
+    preemption: 'SAFE_BOUNDARY',
     workflowInput: route.input === 'expected_sha' ? { expected_sha: entrySha } : {},
     exactSha: true,
     requiresPresidentControl: true,
+    councilOperation: true,
     externalAgentRequired: route.mode === 'EXTERNAL_AGENT_WAKE_REQUIRED',
   });
 }
