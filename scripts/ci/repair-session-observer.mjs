@@ -56,7 +56,9 @@ let executionSha = targetSha;
 if (!executionSha) {
   try {
     executionSha = String(ghJson(['api', 'repos/' + repo + '/git/ref/heads/execution']).object?.sha ?? '').trim();
-  } catch {}
+  } catch {
+    executionSha = '';
+  }
 }
 const matched = allRuns.filter(run => {
   const title = String(run.displayTitle ?? '');
