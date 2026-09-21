@@ -137,7 +137,7 @@ assert.equal(isProtectedPath('tests/seed.spec.ts'), true);
 assert.equal(isPathAllowed('src/example.ts'), true);
 assert.equal(repairPolicy.maxChangedFiles, 8);
 assert.equal(repairPolicy.maxChangedLines, 300);
-assert.equal(repairPolicy.maxAttemptsPerFingerprint, 1_000_000);
+assert.equal(repairPolicy.maxAttemptsPerFingerprint, 3);
 assert.match(fs.readFileSync('scripts/ci/repair-strategy.mjs', 'utf8'), /twinPreferredStrategy/);
 assert.match(fs.readFileSync('scripts/ci/auto-repair/planner.mjs', 'utf8'), /prepared-source-change/);
 assert.match(fs.readFileSync('scripts/ci/auto-repair/ast-repair.mjs', 'utf8'), /applyPreparedChanges/);
