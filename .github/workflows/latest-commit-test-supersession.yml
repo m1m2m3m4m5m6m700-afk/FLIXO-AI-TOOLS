@@ -32,7 +32,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Resolve current branch and exact head
+      - name: Resolve live branch head and event head
         id: head
         env:
           GH_TOKEN: ${{ github.token }}
@@ -41,20 +41,32 @@ jobs:
           set -euo pipefail
           BRANCH='${{ github.event.pull_request.head.ref || github.ref_name }}'
           if [ '${{ github.event_name }}' = 'pull_request' ]; then
-            SHA='${{ github.event.pull_request.head.sha }}'
+            EVENT_SHA='${{ github.event.pull_request.head.sha }}'
           else
-            SHA='${{ github.sha }}'
+            EVENT_SHA='${{ github.sha }}'
           fi
+          LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
           test "$BRANCH" != ""
-          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EVENT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$LIVE_SHA" =~ ^[0-9a-f]{40}$ ]]
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
-          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-          echo "LATEST_TEST_HEAD=$SHA"
+          echo "event_sha=$EVENT_SHA" >> "$GITHUB_OUTPUT"
+          echo "sha=$LIVE_SHA" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT_SHA" = "$LIVE_SHA" ]; then
+            echo "stale_event=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "stale_event=true" >> "$GITHUB_OUTPUT"
+            echo "SUPERSESSION_EVENT_OBSOLETE=true"
+          fi
+          echo "LATEST_TEST_EVENT_HEAD=$EVENT_SHA"
+          echo "LATEST_TEST_LIVE_HEAD=$LIVE_SHA"
 
       - name: Targeted cancellation race regression
         run: node scripts/ci/test-latest-commit-test-supersession.mjs
 
       - name: Cancel stale test and verification runs
+        id: cancel
+        if: steps.head.outputs.stale_event != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ steps.head.outputs.branch }}
@@ -99,10 +111,35 @@ jobs:
             echo "STALE_RUN_CANCEL_REQUESTED run=$run_id"
           }
 
-          gh run list --repo "$REPOSITORY" --branch "$BRANCH" --limit 100             --json databaseId,headSha,status,name,event             --jq '.[] | select(.status != "completed") | [.databaseId,.headSha,.status,.name,.event] | @tsv' |
-          while IFS=$'	' read -r RUN_ID HEAD_SHA STATUS NAME EVENT; do
+          gh run list --repo "$REPOSITORY" --branch "$BRANCH" --limit 100 --json databaseId,headSha,status,name,event --jq '.[] | select(.status != "completed") | [.databaseId,.headSha,.status,.name,.event] | @tsv' |
+          while IFS=
+      - name: Assert repository head has not moved during supersession
+        if: steps.head.outputs.stale_event != 'true' && steps.cancel.outputs.obsolete != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ steps.head.outputs.sha }}
+          EXPECTED_BRANCH: ${{ steps.head.outputs.branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$EXPECTED_BRANCH" --jq '.object.sha')"
+          if [ "$CURRENT_SHA" != "$EXPECTED_SHA" ]; then
+            echo "SUPERSESSION_EVENT_OBSOLETE=true"
+            echo "SUPERSESSION_HEAD_MOVED old=$EXPECTED_SHA new=$CURRENT_SHA"
+            exit 0
+          fi
+          echo "LATEST_COMMIT_SUPERSESSION=PASS"
+          echo "LATEST_COMMIT_SHA=$EXPECTED_SHA"
+\t' read -r RUN_ID HEAD_SHA STATUS NAME EVENT; do
             [ -n "$RUN_ID" ] || continue
-            if [ "$HEAD_SHA" = "$CURRENT_SHA" ]; then
+            LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
+            if [ "$LIVE_SHA" != "$CURRENT_SHA" ]; then
+              echo "obsolete=true" >> "$GITHUB_OUTPUT"
+              echo "SUPERSESSION_OBSOLETE=true"
+              echo "SUPERSESSION_ABORTED_HEAD_MOVEMENT old=$CURRENT_SHA new=$LIVE_SHA"
+              exit 0
+            fi
+            if [ "$HEAD_SHA" = "$LIVE_SHA" ]; then
               echo "KEEP current SHA run=$RUN_ID name=$NAME status=$STATUS"
               continue
             fi
