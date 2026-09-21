@@ -33,10 +33,12 @@ function stageForStep(name) {
 }
 
 function summarizeRun(run) {
-  let jobs = [];
+  let jobs;
   try {
     jobs = ghJson(['api', 'repos/' + repo + '/actions/runs/' + run.databaseId + '/jobs?per_page=100']).jobs ?? [];
-  } catch { jobs = []; }
+  } catch {
+    jobs = [];
+  }
   const steps = jobs.flatMap(job => (job.steps ?? []).map(step => ({ job: job.name, name: step.name, status: step.status, conclusion: step.conclusion, number: step.number })));
   const failed = steps.filter(step => ['failure', 'timed_out'].includes(step.conclusion));
   const active = steps.filter(step => ['in_progress', 'queued'].includes(step.status));
