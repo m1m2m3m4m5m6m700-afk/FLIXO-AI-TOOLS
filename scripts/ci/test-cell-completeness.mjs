@@ -30,6 +30,11 @@ assert.equal(registry.honoraryLeadership?.withdrawal,'OFFICIAL_ADMIN_MESSAGE_ONL
 assert.equal(registry.consultativeRank?.masterId,'MASTER-3');
 assert.equal(registry.consultativeRank?.rank,'CONSULTATIVE_ADVISOR');
 assert.equal(registry.consultativeRank?.title,'الرتبة الاستشارية');
+assert.equal(registry.consultativeRank?.rank,'CONSULTANT');
+assert.equal(registry.consultativeRank?.title,'المستشار');
+assert.equal(registry.consultativeRank?.displayName,'MASTER-3 — CONSULTANT / المستشار');
+assert.equal(registry.consultativeRank?.hierarchy,'USER → MASTER-1 → MASTER-3');
+assert.equal(registry.consultativeRank?.position,'CONSULTANT_WITHIN_MASTER_SYSTEM');
 assert.equal(registry.consultativeRank?.status,'ACTIVE_UNTIL_FORMAL_WITHDRAWAL');
 assert.deepEqual(registry.consultativeRank?.scope,['CELL_HQ','MASTER_COUNCIL','MASTER_PEER_CHANNEL']);
 assert.equal(registry.consultativeRank?.authority,'ADVISORY_ONLY');

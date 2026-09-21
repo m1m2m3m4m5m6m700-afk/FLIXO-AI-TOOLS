@@ -9973,8 +9973,8 @@
   },
   "consultativeRank": {
     "status": "ACTIVE_UNTIL_FORMAL_WITHDRAWAL",
-    "rank": "CONSULTATIVE_ADVISOR",
-    "title": "الرتبة الاستشارية",
+    "rank": "CONSULTANT",
+    "title": "المستشار",
     "masterId": "MASTER-3",
     "scope": [
       "CELL_HQ",
@@ -9993,6 +9993,9 @@
     "grantedBy": "USER_ADMIN_DIRECTIVE",
     "source": "OFFICIAL_ADMIN_RECORD",
     "withdrawal": "OFFICIAL_ADMIN_MESSAGE_ONLY",
-    "precedence": "ADVISORY_STATUS_NEVER_OVERRIDES_PROTOCOL_VALIDATOR_EVIDENCE_EXACT_SHA_OR_CERTIFICATION"
+    "precedence": "ADVISORY_STATUS_NEVER_OVERRIDES_PROTOCOL_VALIDATOR_EVIDENCE_EXACT_SHA_OR_CERTIFICATION",
+    "displayName": "MASTER-3 — CONSULTANT / المستشار",
+    "hierarchy": "USER → MASTER-1 → MASTER-3",
+    "position": "CONSULTANT_WITHIN_MASTER_SYSTEM"
   }
 }
