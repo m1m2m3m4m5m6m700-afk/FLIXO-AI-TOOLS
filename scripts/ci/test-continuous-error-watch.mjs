@@ -379,35 +379,43 @@ const waiting = evaluateGreen({
 });
 assert.equal(waiting.status, 'WAITING_REQUIRED_CHECKS');
 
-const postMergeWrongMain = evaluateGreen({
+const missingRequiredOnExecution = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr: null,
-  latestMergedPr: { headRefOid: SHA_A, mergeCommit: { oid: SHA_A } },
-  workflowRuns: requiredRuns, checkRuns: securityAndCertification,
-  compare: { ahead_by: 0, behind_by: 0 },
+  latestMergedPr: { headRefOid: SHA_B, mergeCommit: { oid: SHA_B } },
+  workflowRuns: requiredRuns.filter((item) => item.workflowName !== 'FLIXO Test System'),
+  checkRuns: securityAndCertification,
+  compare: { ahead_by: 1, behind_by: 0 },
 });
-assert.equal(postMergeWrongMain.status, 'RED_INTERNAL');
-assert.equal(postMergeWrongMain.repair.required, false);
-assert(postMergeWrongMain.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'));
+assert.equal(missingRequiredOnExecution.status, 'WAITING_REQUIRED_CHECKS');
+assert.equal(missingRequiredOnExecution.repair.required, false);
+assert(missingRequiredOnExecution.errors.some((item) => item.type === 'REQUIRED_WORKFLOW_MISSING'));
 
-const postMergeWrongHead = evaluateGreen({
+const postMergeExecutionAdvance = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr: null,
   latestMergedPr: { headRefOid: SHA_B, mergeCommit: { oid: SHA_B } },
   workflowRuns: requiredRuns, checkRuns: securityAndCertification,
-  compare: { ahead_by: 0, behind_by: 0 },
+  compare: { ahead_by: 1, behind_by: 0 },
 });
-assert.equal(postMergeWrongHead.status, 'RED_INTERNAL');
-assert.equal(postMergeWrongHead.repair.required, false);
-assert(postMergeWrongHead.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'));
+assert.equal(postMergeExecutionAdvance.status, 'GREEN');
+assert.equal(postMergeExecutionAdvance.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'), false);
+
+const postMergeHistoricalHead = evaluateGreen({
+  executionSha: SHA_A, mainSha: SHA_B, openPr: null,
+  latestMergedPr: { headRefOid: 'c'.repeat(40), mergeCommit: { oid: SHA_B } },
+  workflowRuns: requiredRuns, checkRuns: securityAndCertification,
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(postMergeHistoricalHead.status, 'GREEN');
+assert.equal(postMergeHistoricalHead.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'), false);
 
 const postMergeMissingCommit = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr: null,
-  latestMergedPr: { headRefOid: SHA_A, mergeCommit: null },
+  latestMergedPr: { headRefOid: 'c'.repeat(40), mergeCommit: null },
   workflowRuns: requiredRuns, checkRuns: securityAndCertification,
-  compare: { ahead_by: 0, behind_by: 0 },
+  compare: { ahead_by: 1, behind_by: 0 },
 });
-assert.equal(postMergeMissingCommit.status, 'RED_INTERNAL');
-assert.equal(postMergeMissingCommit.repair.required, false);
-assert(postMergeMissingCommit.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'));
+assert.equal(postMergeMissingCommit.status, 'GREEN');
+assert.equal(postMergeMissingCommit.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'), false);
 
 const postMerge = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr: null,
@@ -415,7 +423,8 @@ const postMerge = evaluateGreen({
   workflowRuns: requiredRuns, checkRuns: securityAndCertification,
   compare: { ahead_by: 0, behind_by: 1 },
 });
-assert.equal(postMerge.status, 'GREEN');
+assert.equal(postMerge.status, 'RED_INTERNAL');
+assert(postMerge.errors.some((item) => item.type === 'MAIN_DIVERGENCE'));
 
 const mainObservedFailure = evaluateGreen({
   executionSha: SHA_A,
