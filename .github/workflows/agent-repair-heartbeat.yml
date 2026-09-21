@@ -50,7 +50,7 @@ jobs:
           mkdir -p /tmp/flixo-heartbeat
           gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch main --limit 50 --json databaseId,status,conclusion,createdAt,updatedAt,startedAt,headSha,event > /tmp/flixo-heartbeat/scheduled-wakes.json
           gh run view "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,status,conclusion,createdAt,updatedAt,startedAt,headSha,event > /tmp/flixo-heartbeat/current-wake.json
-          jq -s 'add' /tmp/flixo-heartbeat/scheduled-wakes.json /tmp/flixo-heartbeat/current-wake.json > /tmp/flixo-heartbeat/wake-runs.json
+          jq -s 'map(if type == "array" then . else [.] end) | add' /tmp/flixo-heartbeat/scheduled-wakes.json /tmp/flixo-heartbeat/current-wake.json > /tmp/flixo-heartbeat/wake-runs.json
           node scripts/ci/wake-compliance.mjs /tmp/flixo-heartbeat/wake-runs.json /tmp/flixo-heartbeat/wake-compliance.json
           jq -e '.status == "PASS" or .status == "BASELINE_REQUIRED"' /tmp/flixo-heartbeat/wake-compliance.json >/dev/null
 
