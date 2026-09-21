@@ -204,15 +204,6 @@ jobs:
           fi
           gh workflow run daily-flixo-green-gate.yml --repo "$GITHUB_REPOSITORY" --ref execution
           echo 'WATCHDOG_CANONICAL_GREEN_GATE_DISPATCH=true'
-      - name: Publish watchdog wake evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: flixo-watchdog-evidence-${{ github.run_id }}
-          path: diagnostics/watchdog/evidence.json
-          if-no-files-found: ignore
-          retention-days: 30
-
       - name: Record watchdog evidence
         if: always()
         env:
@@ -221,7 +212,30 @@ jobs:
           set -euo pipefail
           mkdir -p diagnostics/watchdog
           CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-          printf '%s\n' "$(cat <<JSON
-          {"schemaVersion":1,"protocol":"FLIXO-EXECUTION-BOT-WATCHDOG-v1","executionSha":"$CURRENT_EXECUTION_SHA","sourceRunId":"${{ github.event.workflow_run.id || '' }}","sourceRunSha":"${{ github.event.workflow_run.head_sha || '' }}","action":"WAKE_CANONICAL_OBSERVER","repairDispatcher":"daily-flixo-green-gate.yml","directRepairDispatch":false}
-          JSON
-          )" > diagnostics/watchdog/evidence.json
+          SOURCE_RUN_ID="${{ github.event.workflow_run.id || '' }}"
+          SOURCE_RUN_SHA="${{ github.event.workflow_run.head_sha || '' }}"
+          jq -n \
+            --arg executionSha "$CURRENT_EXECUTION_SHA" \
+            --arg sourceRunId "$SOURCE_RUN_ID" \
+            --arg sourceRunSha "$SOURCE_RUN_SHA" \
+            '{
+              schemaVersion: 1,
+              protocol: "FLIXO-EXECUTION-BOT-WATCHDOG-v1",
+              executionSha: $executionSha,
+              sourceRunId: $sourceRunId,
+              sourceRunSha: $sourceRunSha,
+              action: "WAKE_CANONICAL_OBSERVER",
+              repairDispatcher: "daily-flixo-green-gate.yml",
+              directRepairDispatch: false
+            }' > diagnostics/watchdog/evidence.json
+          test -s diagnostics/watchdog/evidence.json
+          jq -e '.schemaVersion == 1 and .protocol == "FLIXO-EXECUTION-BOT-WATCHDOG-v1" and (.executionSha | test("^[0-9a-f]{40}$"))' diagnostics/watchdog/evidence.json >/dev/null
+
+      - name: Publish watchdog wake evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-watchdog-evidence-${{ github.run_id }}
+          path: diagnostics/watchdog/evidence.json
+          if-no-files-found: error
+          retention-days: 30
