@@ -7,6 +7,7 @@ import { ingest } from './agent-communication.mjs';
 
 export const ACTION_VAULT_SUPERVISORY_LEARNING_PROTOCOL = 'ACTION-VAULT-SUPERVISORY-LEARNING-v1';
 export const ACTION_VAULT_PROTOCOL_PATH = 'diagnostics/auto-repair/action-vault/ACTION-VAULT-SUPERVISORY-LEARNING-PROTOCOL.md';
+export const ACTION_VAULT_MASTER_PROTOCOL_PATH = 'docs/AGENT-COLLABORATION-PROTOCOL.md';
 export const ACTION_INDEX_PATH = 'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json';
 export const ACTION_INDEX_CAPACITY = 1_000_000;
 const ROOT = process.cwd();
@@ -22,6 +23,10 @@ const writeAtomic = (file,value) => {
   fs.writeFileSync(temp, JSON.stringify(value,null,2)+'\n');
   fs.renameSync(temp,file);
 };
+const masterFile = () => path.resolve(ROOT, ACTION_VAULT_MASTER_PROTOCOL_PATH);
+const extractCanonicalProtocol = (content) => String(content).match(/<!-- ACTION_VAULT_CANONICAL_PROTOCOL_START -->[\\s\\S]*?<!-- ACTION_VAULT_CANONICAL_PROTOCOL_END -->/u)?.[0] ?? null;
+const readCanonicalMaster = () => { const file=masterFile(); if(!fs.existsSync(file)) throw new Error('ACTION_VAULT_MASTER_PROTOCOL_MISSING'); const canonical=extractCanonicalProtocol(readText(file)); if(!canonical) throw new Error('ACTION_VAULT_MASTER_PROTOCOL_BLOCK_MISSING'); return canonical; };
+
 const requiredMarkers = Object.freeze([
   'Protocol ID: ACTION-VAULT-SUPERVISORY-LEARNING-v1',
   'ACTION-INDEX-4000.json',
@@ -37,11 +42,18 @@ export function assertVaultProtocolRead({ actor='ACTION-HISTORIAN-3', targetSha=
   if(!['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3'].includes(actor)) throw new Error('ACTION_VAULT_PROTOCOL_ACTOR_INVALID');
   if(!validSha(targetSha)) throw new Error('ACTION_VAULT_PROTOCOL_SHA_INVALID');
   if(git(['rev-parse','HEAD'])!==targetSha) throw new Error('ACTION_VAULT_PROTOCOL_SHA_STALE');
-  const file=protocolFile();
-  if(!fs.existsSync(file)) throw new Error('ACTION_VAULT_SUPERVISORY_PROTOCOL_MISSING');
-  const content=readText(file);
-  for(const marker of requiredMarkers) if(!content.includes(marker)) throw new Error('ACTION_VAULT_SUPERVISORY_PROTOCOL_INCOMPLETE='+marker);
-  return {status:'READ',protocol:ACTION_VAULT_SUPERVISORY_LEARNING_PROTOCOL,actor,targetSha,digest:sha256(content)};
+  const master=readCanonicalMaster();
+  const mirrorFile=protocolFile();
+  if(!fs.existsSync(mirrorFile)) throw new Error('ACTION_VAULT_SUPERVISORY_PROTOCOL_MISSING');
+  const mirror=extractCanonicalProtocol(readText(mirrorFile));
+  if(!mirror) throw new Error('ACTION_VAULT_SUPERVISORY_PROTOCOL_BLOCK_MISSING');
+  if(mirror!==master) throw new Error('ACTION_VAULT_PROTOCOL_MIRROR_CONTENT_MISMATCH');
+  const botFile=path.resolve(ROOT,'diagnostics/auto-repair/action-repair-bots',actor+'.json');
+  if(!fs.existsSync(botFile)) throw new Error('ACTION_VAULT_BOT_PROFILE_MISSING='+actor);
+  const bot=JSON.parse(readText(botFile));
+  if(bot?.canonicalVaultProtocolMirror?.protocolId!=='ACTION-VAULT-CANONICAL-BOT-PROTOCOL-v1') throw new Error('ACTION_VAULT_BOT_PROTOCOL_MIRROR_MISSING='+actor);
+  if(bot.canonicalVaultProtocolMirror.sourcePath!==ACTION_VAULT_MASTER_PROTOCOL_PATH||bot.canonicalVaultProtocolMirror.content!==master) throw new Error('ACTION_VAULT_BOT_PROTOCOL_MIRROR_MISMATCH='+actor);
+  return {status:'READ',protocol:'ACTION-VAULT-CANONICAL-BOT-PROTOCOL-v1',actor,targetSha};
 }
 
 const assertWriteContext = ({ actor='ACTION-HISTORIAN-3', targetSha, taskId, fingerprint, runId }={}) => {

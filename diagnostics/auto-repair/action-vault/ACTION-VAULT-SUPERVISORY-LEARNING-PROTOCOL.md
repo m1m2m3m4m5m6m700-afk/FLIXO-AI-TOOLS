@@ -1,273 +1,163 @@
-# ACTION VAULT — SUPERVISORY LEARNING PROTOCOL v1
+<!-- ACTION_VAULT_CANONICAL_PROTOCOL_START -->
+# ACTION VAULT — CANONICAL BOT PROTOCOL v1
 
-Status: MANDATORY / CANONICAL WITHIN ACTION VAULT  
-Protocol ID: ACTION-VAULT-SUPERVISORY-LEARNING-v1  
-Residence: diagnostics/auto-repair/action-vault/  
-Authority boundary: This protocol governs Action Vault knowledge handling and supervision. It does not replace Canonical CI and it cannot grant GREEN.
+**Protocol ID:** ACTION-VAULT-CANONICAL-BOT-PROTOCOL-v1
+**MASTER COPY:** `docs/AGENT-COLLABORATION-PROTOCOL.md`
+**MIRRORS:** Action Vault protocol file + each resident bot work file
+**RULE:** Every mirror must be byte-for-byte identical to this canonical block. A mismatch is a fail-closed protocol violation.
 
-## 1. Purpose
+## Mission
+The Action Vault is the intensive repair environment for `ACTION-REPAIR`, `ACTION-REPAIR-2`, and `ACTION-HISTORIAN-3`.
 
-The Action Vault is a resident repair environment for three collaborating bots:
-
-- ACTION-REPAIR
-- ACTION-REPAIR-2
-- ACTION-HISTORIAN-3
-
-The Action Vault index is:
-
+Canonical knowledge index:
 `diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json`
 
-The current file is a 4,000-record teaching mirror and is allowed to grow toward the declared one-million-record knowledge capacity. The filename is retained as the canonical Action Vault path; the numeric baseline is not a hard record-count ceiling.
+The current index is the existing teaching mirror and may grow toward the declared 1,000,000-record capacity. The canonical path and identity are preserved.
 
-ACTION-HISTORIAN-3 is the custodian of this index. It has explicit permission to ADD and EDIT index records. Deletion is forbidden. Every write is bound to the current exact SHA, task identity, failure fingerprint, failed run ID, and provenance.
+## Mandatory reading
+Before analysis, repair, knowledge write/edit, escalation, handoff, or closure, every Vault bot MUST read this protocol from its own mirror and verify that the mirror is identical to the MASTER COPY.
 
-## 2. Mandatory read rule
+Required lifecycle:
+`MASTER COPY` → `BOT MIRROR READ` → `EXACT SHA` → `FAILURE IDENTITY` → `INDEX SEARCH` → `TRIAD REVIEW` → `REPAIR OR ESCALATE`
 
-Reading this file is the first Action Vault operation.
+Missing or mismatched protocol = FAIL CLOSED.
 
-No bot may:
+## Bot authority
+All three resident bots have intensive repair authority within the bounded Vault scope.
 
-- inspect a RED and begin repair,
-- propose or edit source,
-- add or edit knowledge,
-- mark a failure,
-- escalate to the Council,
-- receive a supervisor lesson,
-- close a mission,
+`ACTION-REPAIR`: constructive programmer; may add/edit repair knowledge; may become the single active source-repair owner after admission.
 
-until this protocol has been read and its mandatory-read check passes against the current exact SHA.
+`ACTION-REPAIR-2`: adversarial programmer; may add/edit repair knowledge; must challenge the primary diagnosis and search for counterexamples; may become the single active source-repair owner after admission.
 
-The read is enforced by:
+`ACTION-HISTORIAN-3`: master knowledge/index custodian and diagnosis-to-knowledge judge; may ADD and EDIT the canonical Action Vault index; records every RED, attempt, repaired outcome and unresolved failure; decides whether programming diagnosis matches textual knowledge; may become the single active source-repair owner after admission.
 
-`scripts/ci/action-vault-knowledge-custodian.mjs assert-read`
+No Vault bot may mutate `main`, mutate tests for repair purposes, weaken gates, delete historical knowledge, or declare Canonical GREEN.
 
-and by the Action Vault agent gate.
+Only one source-mutation owner may exist for an active task.
 
-## 3. Role of ACTION-HISTORIAN-3
+## Canonical index custody
+Owner: `ACTION-HISTORIAN-3`
+Path: `diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json`
 
-ACTION-HISTORIAN-3 has two supervisory responsibilities.
-
-First: knowledge custody. It may add and edit the Action Vault index, record verified repairs, record unresolved failures, preserve rejected approaches, and attach exact provenance.
-
-Second: diagnosis-to-knowledge adjudication. It determines whether the programming diagnosis is compatible with the textual knowledge retrieved from the index. `MATCH` permits the repair gate to continue; `MISMATCH` and `INCONCLUSIVE` block source mutation.
-
-ACTION-HISTORIAN-3 is not allowed to silently convert an unsupported diagnosis into truth. The evidence and the decision remain visible.
-
-## 4. Every repair outcome becomes history
-
-When a repair is verified by the canonical Green chain, ACTION-HISTORIAN-3 records:
-
-- failure fingerprint and exact failure signal;
-- diagnosed root cause;
-- repaired file/scope;
-- repair mechanism;
-- targeted regression evidence;
-- exact target SHA;
-- Canonical GREEN record;
-- lesson;
-- prevention rule;
-- source bots.
-
-The outcome is appended to the same Action Vault index. An existing record may be EDITED only to correct or enrich its provenance; existing IDs are never deleted.
-
-## 5. Every unresolved failure becomes a Council lesson request
-
-A repair failure is never discarded.
-
-When ACTION-HISTORIAN-3 determines that the active repair attempt remains unresolved, it MUST:
-
-1. write an unresolved-failure record to the Action Vault index;
-2. preserve the exact failure fingerprint and target SHA;
-3. create a canonical Council escalation message;
-4. deliver the message to `assistantController`;
-5. activate the Council learning route;
-6. request a specialist supervisor with relevant programming knowledge;
-7. receive a structured teaching lesson;
-8. validate the lesson against the exact SHA and the unresolved case;
-9. append the new advice to the same Action Vault index;
-10. expose the lesson to all three resident bots for the next attempt.
-
-Failure escalation does not close the repair task. The mission remains OPEN until Canonical GREEN or an explicit external block.
-
-## 6. Council message contract
-
-Every unresolved failure message MUST contain:
-
-`messageId`  
-`taskId`  
-`failureFingerprint`  
-`entrySha`  
-`failedRunId`  
-`actor=ACTION-HISTORIAN-3`  
-`recipient=assistantController`  
-`intent=ACTION_VAULT_KNOWLEDGE_ESCALATION`  
-`risk=HIGH`  
-`requestedAction=SPECIALIST_TEACHING`  
-`knowledgeIndex=diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json`  
-`relayMarker=<!-- FLIXO_AGENT_COUNCIL_WAKE -->`  
-`workPackage=ACTION-VAULT-SUPERVISOR-TEACHING-001`  
-`role=REVIEW`
-
-The Council route is:
-
-ACTION-HISTORIAN-3  
-→ assistantController  
-→ active Council ingress  
-→ specialist supervisor  
-→ structured lesson  
-→ ACTION-HISTORIAN-3  
-→ Action Vault index  
-→ next repair cycle
-
-The exact SHA is revalidated at every handoff. A stale message cannot authorize action.
-
-## 7. Supervisor lesson contract
-
-A supervisor lesson must identify:
-
-- supervisor identity or role;
-- the failure fingerprint;
-- the exact SHA it was derived for;
-- the root cause or corrected hypothesis;
-- the relevant knowledge principle;
-- the repair pattern;
-- the verification condition;
-- anti-lesson / strategy to avoid;
-- source references;
-- teaching timestamp.
-
-The lesson is written into the Action Vault index as `SUPERVISOR_TAUGHT` with full provenance. It becomes canonical verified learning only after the Canonical Green chain confirms the resulting repair.
-
-## 8. Knowledge write permissions
-
-ACTION-HISTORIAN-3:
-
-ADD = ALLOWED  
-EDIT = ALLOWED  
+ADD = ALLOWED
+EDIT = ALLOWED
 DELETE = FORBIDDEN
 
-Allowed path:
+Every index record must preserve:
+`taskId + failureFingerprint + targetSha + failedRunId + sourceBot + evidence/provenance`.
 
-`diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json`
+The index is knowledge storage, not execution authority or GREEN authority.
 
-All writes:
+## Mandatory learning
+Every actionable RED is recorded.
+Every repair attempt is recorded.
+Every verified repair is recorded.
+Every unresolved failure is recorded and escalated.
+No failed attempt may disappear from the learning chain.
 
-- branch = `execution`;
-- current HEAD must equal the provided target SHA;
-- task/fingerprint/run identity must be present;
-- old records remain intact;
-- index capacity must not exceed 1,000,000 records;
-- no test, main, control-plane, or gate weakening is permitted;
-- every new or edited record carries provenance.
+## Unresolved failure → Council
+When the triad cannot prove a correction, `ACTION-HISTORIAN-3` must:
 
-The index is mutable knowledge, not execution authority.
+1. record the unresolved failure in the canonical index;
+2. preserve exact SHA, failure fingerprint, run identity and attempted strategy;
+3. create the canonical Council escalation;
+4. deliver it to `assistantController`;
+5. request a specialist supervisor lesson;
+6. receive a structured teaching lesson;
+7. validate lesson provenance against the exact case;
+8. write the lesson back to the same canonical index;
+9. expose the lesson to all three Vault bots for the next repair cycle.
 
-## 9. Commands — canonical bot commitment copy
+Canonical route:
+`ACTION-HISTORIAN-3` → `assistantController` → active Council ingress → specialist supervisor → structured lesson → `ACTION-HISTORIAN-3` → `ACTION-INDEX-4000` → next exact-SHA attempt.
 
-Every resident bot uses the following commands from the repository root.
+Required escalation fields:
+`messageId, taskId, failureFingerprint, entrySha, failedRunId, actor=ACTION-HISTORIAN-3, recipient=assistantController, intent=ACTION_VAULT_KNOWLEDGE_ESCALATION, risk=HIGH, requestedAction=SPECIALIST_TEACHING, knowledgeIndex=diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json, workPackage=ACTION-VAULT-SUPERVISOR-TEACHING-001, role=REVIEW, relayMarker=<!-- FLIXO_AGENT_COUNCIL_WAKE -->`.
 
-### A. Mandatory protocol read
+Stale or malformed messages fail closed.
 
+## Supervisor teaching
+Supervisor lessons must include:
+`supervisorRole + taskId + failureFingerprint + targetSha + rootCause + knowledgePrinciple + repairPattern + verificationCondition + antiLesson + sourceMessageId + evidenceRefs`.
+
+The returned lesson is written into the same Action Vault index as `SUPERVISOR_TAUGHT`.
+
+The lesson is provisional until the resulting repair reaches Canonical GREEN; GREEN is the authority for verified reusable learning.
+
+## Diagnosis ↔ textual knowledge gate
+Before source mutation, `ACTION-HISTORIAN-3` compares the programming diagnosis against retrieved textual knowledge.
+
+Decision:
+`MATCH` | `MISMATCH` | `INCONCLUSIVE`
+
+`MATCH` allows the mutation gate to continue.
+`MISMATCH` blocks source mutation.
+`INCONCLUSIVE` blocks source mutation.
+
+The decision is bound to task, fingerprint, run identity, exact SHA, diagnosis digest and catalog digest.
+
+## Triad proof
+Every actionable RED requires all three contributions.
+
+`ACTION-HISTORIAN-3` records the failure, selects minimal file surface and judges diagnosis ↔ knowledge.
+
+`ACTION-REPAIR` constructs the root-cause and repair proof.
+
+`ACTION-REPAIR-2` independently attempts to falsify the primary diagnosis/repair and records counterexamples.
+
+A valid counterexample blocks mutation.
+
+No counterexample is not GREEN.
+
+## Source mutation gate
+Source repair is permitted only on `execution`, only within declared error scope, and only after:
+protocol read → exact-SHA validation → failure capture → index search → triad contributions → bot-3 MATCH → root-cause proof → adversarial falsification → sandbox → differential verification → targeted regression → single-owner admission.
+
+A new push invalidates old exact-SHA evidence.
+
+## Resident bot commands
+
+Protocol read:
 ```bash
-node scripts/ci/action-vault-knowledge-custodian.mjs assert-read \
-  --bot=ACTION-HISTORIAN-3 \
-  --sha="$(git rev-parse HEAD)"
+node scripts/ci/action-vault-knowledge-custodian.mjs assert-read --bot=<BOT_ID> --sha="$(git rev-parse HEAD)"
 ```
 
-### B. Record a verified repair
-
+Record verified repair:
 ```bash
-node scripts/ci/action-vault-knowledge-custodian.mjs record-repair \
-  --task=<TASK_ID> \
-  --fingerprint=<FAILURE_FINGERPRINT> \
-  --sha=<EXACT_SHA> \
-  --run-id=<FAILED_RUN_ID> \
-  --diagnosis-file=<PATH_TO_DIAGNOSIS_JSON> \
-  --repair-summary="<REPAIR_SUMMARY>" \
-  --evidence=<EVIDENCE_REF_1,EVIDENCE_REF_2>
+node scripts/ci/action-vault-knowledge-custodian.mjs record-repair --task=<TASK_ID> --fingerprint=<FAILURE_FINGERPRINT> --sha=<EXACT_SHA> --run-id=<RUN_ID> --diagnosis-file=<DIAGNOSIS_JSON> --repair-summary="<REPAIR_SUMMARY>" --evidence=<REF1,REF2>
 ```
 
-### C. Record an unresolved failure and escalate
-
+Record unresolved failure and escalate:
 ```bash
-node scripts/ci/action-vault-knowledge-custodian.mjs record-blocked \
-  --task=<TASK_ID> \
-  --fingerprint=<FAILURE_FINGERPRINT> \
-  --sha=<EXACT_SHA> \
-  --run-id=<FAILED_RUN_ID> \
-  --error="<ERROR_SUMMARY>" \
-  --diagnosis="<DIAGNOSIS_OR_UNKNOWN>" \
-  --strategy="<ATTEMPTED_STRATEGY>"
+node scripts/ci/action-vault-knowledge-custodian.mjs record-blocked --task=<TASK_ID> --fingerprint=<FAILURE_FINGERPRINT> --sha=<EXACT_SHA> --run-id=<RUN_ID> --error="<ERROR>" --diagnosis="<DIAGNOSIS_OR_UNKNOWN>" --strategy="<STRATEGY>"
 ```
 
-### D. Edit an existing knowledge record
-
+Edit index:
 ```bash
-node scripts/ci/action-vault-knowledge-custodian.mjs edit-index \
-  --sha=<EXACT_SHA> \
-  --record-id=<TXXXX> \
-  --patch-json='{"teaching":"...","verify":"...","provenanceRef":"..."}'
+node scripts/ci/action-vault-knowledge-custodian.mjs edit-index --task=<TASK_ID> --fingerprint=<FAILURE_FINGERPRINT> --run-id=<RUN_ID> --sha=<EXACT_SHA> --record-id=<TXXXX> --patch-json='{"teaching":"...","verify":"..."}'
 ```
 
-### E. Apply a supervisor teaching lesson returned by the Council
-
+Apply supervisor teaching:
 ```bash
-node scripts/ci/action-vault-knowledge-custodian.mjs apply-supervisor-lesson \
-  --task=<TASK_ID> \
-  --fingerprint=<FAILURE_FINGERPRINT> \
-  --sha=<EXACT_SHA> \
-  --run-id=<FAILED_RUN_ID> \
-  --lesson-file=<SUPERVISOR_LESSON_JSON>
+node scripts/ci/action-vault-knowledge-custodian.mjs apply-supervisor-lesson --task=<TASK_ID> --fingerprint=<FAILURE_FINGERPRINT> --sha=<EXACT_SHA> --run-id=<RUN_ID> --lesson-file=<LESSON_JSON>
 ```
 
-### F. Required triad runtime admission
+## Hard stops
+Stop immediately on protocol mismatch, missing read, stale SHA, missing triad contribution, diagnosis MISMATCH/INCONCLUSIVE, valid counterexample, unproven root cause, unsafe scope, gate weakening, test/main mutation, index deletion, missing provenance, or missing canonical verification.
 
-```bash
-node scripts/ci/action-three-bot-collaboration.mjs start \
-  --task=<TASK_ID> \
-  --fingerprint=<FAILURE_FINGERPRINT> \
-  --sha=<EXACT_SHA> \
-  --run-id=<FAILED_RUN_ID> \
-  --diagnosis=<PATH_TO_DIAGNOSIS_JSON> \
-  --awareness=<PATH_TO_COGNITIVE_AWARENESS_JSON> \
-  --primary-proof=<PATH_TO_PRIMARY_PROOF_JSON> \
-  --programmer-twin-parity=<PATH_TO_TWIN_PARITY_JSON>
-```
+Preserve evidence and continue through the Council/specialist learning path. Do not silently close the task.
 
-## 10. Hard stop rules
+## Master/mirror rule
+The single source of truth is the canonical block between:
+`ACTION_VAULT_CANONICAL_PROTOCOL_START` and `ACTION_VAULT_CANONICAL_PROTOCOL_END`
+inside `docs/AGENT-COLLABORATION-PROTOCOL.md`.
 
-STOP immediately when:
+Exact copies are required in:
+- `diagnostics/auto-repair/action-vault/ACTION-VAULT-SUPERVISORY-LEARNING-PROTOCOL.md`
+- `diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR.json`
+- `diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR-2.json`
+- `diagnostics/auto-repair/action-repair-bots/ACTION-HISTORIAN-3.json`
 
-- protocol read is missing;
-- exact SHA is stale;
-- supervisor lesson lacks provenance;
-- the index would exceed capacity;
-- a caller attempts deletion;
-- a mutation targets tests/main/control-plane/gates;
-- diagnosis-to-knowledge decision is `MISMATCH` or `INCONCLUSIVE`;
-- canonical proof is missing;
-- a valid counterexample exists.
+No resident bot may invent, shorten, fork, or override this protocol.
 
-A STOP is not a failure of the learning system. It is a request for stronger evidence or a Council lesson.
-
-## 11. Learning lifecycle
-
-RED detected  
-→ exact evidence captured  
-→ index searched  
-→ ACTION-HISTORIAN-3 judges diagnosis vs knowledge  
-→ triad attempts repair  
-→ VERIFIED → record repair outcome  
-or  
-→ UNRESOLVED → record failure → Council escalation  
-→ specialist teaches  
-→ ACTION-HISTORIAN-3 adds advice to ACTION-INDEX-4000  
-→ next exact-SHA attempt  
-→ Canonical GREEN  
-→ lesson becomes verified reusable knowledge
-
-## 12. Non-negotiable boundary
-
-The Action Vault index stores knowledge. It does not decide GREEN. The Council can request or provide teaching, but it does not bypass exact-SHA, causal proof, falsification, targeted regression, or Canonical CI.
-
-End of protocol.
+<!-- ACTION_VAULT_CANONICAL_PROTOCOL_END -->

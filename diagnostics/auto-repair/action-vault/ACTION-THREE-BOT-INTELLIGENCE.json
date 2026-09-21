@@ -794,5 +794,18 @@
       "capacity": 1000000,
       "promotionRule": "SUPERVISOR_TAUGHT_OR_REPAIR_OUTCOME_IS_VISIBLE_IMMEDIATELY_BUT_CANONICAL_VERIFIED_STATUS_REQUIRES_DAILY_FLIXO_GREEN_GATE"
     }
+  },
+  "canonicalVaultProtocol": {
+    "protocolId": "ACTION-VAULT-CANONICAL-BOT-PROTOCOL-v1",
+    "masterPath": "docs/AGENT-COLLABORATION-PROTOCOL.md",
+    "vaultMirrorPath": "diagnostics/auto-repair/action-vault/ACTION-VAULT-SUPERVISORY-LEARNING-PROTOCOL.md",
+    "botMirrorPaths": [
+      "diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR.json",
+      "diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR-2.json",
+      "diagnostics/auto-repair/action-repair-bots/ACTION-HISTORIAN-3.json"
+    ],
+    "requiredRead": true,
+    "failClosedOnMismatch": true,
+    "sourceOfTruth": "MASTER_BLOCK"
   }
 }
