@@ -167,7 +167,7 @@ const watchdogStepBlock = (workflowText, stepName) => {
   const startIndex = workflowText.indexOf(marker);
   if (startIndex < 0) return '';
   const remainder = workflowText.slice(startIndex);
-  const nextStep = remainder.search(/\n\s{6}- name:/u);
+  const nextStep = remainder.search(/\n\s{6}-\sname:/u);
   return nextStep >= 0 ? remainder.slice(0, nextStep) : remainder;
 };
 
