@@ -118,7 +118,7 @@ const verifierProof = {
   failureFingerprint: 'fp-test',
   alternativeHypotheses: [{ id: 'alt-a', basis: 'independent-cause' }],
   falsificationChecks: [{ id: 'check-a', command: 'echo prove-or-disprove' }],
-  counterEvidence: { rejectedHypothesis: 'alt-a', evidenceRef: 'test-evidence' },
+  counterEvidence: { rejectedHypothesis: 'alt-a', evidenceRef: 'test-evidence', noCounterexampleIsNotPatchCorrect: true },
   programmerTwinParity: { intelligenceParity: 'EXACT', authorityParity: 'SEPARATED_BY_DESIGN', targetSha: targetSHA, failureFingerprint: 'fp-test' },
   primaryCorrectnessProof: { objective: 'PROVE_PRIMARY_REPAIR_CORRECT', status: 'PRIMARY_CORRECTNESS_PROVEN' },
   cognitiveAwareness: { protocol: 'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1', systemWide: true, targetSha: targetSHA, failureFingerprint: 'fp-test' },
