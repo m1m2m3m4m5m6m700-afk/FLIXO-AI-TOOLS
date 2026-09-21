@@ -8,6 +8,7 @@ assert.equal(definition.protocolVersion,'1.0.0');
 assert.equal(definition.protocolHash,REPAIR_PROTOCOL_HASH);
 assert.equal(REPAIR_PROTOCOL.commitPolicy,'ONE_COMMIT_PER_COMPLETED_REPAIR_SESSION');
 assert.equal(REPAIR_PROTOCOL.mutationScope,'ERROR_ONLY');
+const targetSHA='a'.repeat(40);
 assert.equal(REPAIR_PROTOCOL.testMutationPolicy,'BLOCK');
 assert.throws(
   () => validateErrorOnlyMutation({failureLocation:'src/failure.ts',selectedFile:'src/other.ts',changedPaths:['src/other.ts']}),
@@ -72,7 +73,6 @@ assert.equal(assertAgentAdmission({
   session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,
     actionVaultMission:{role:'ACTION-HISTORIAN-3',mutationSeat:'ACTION-HISTORIAN-3',supervisorMode:'SUPERVISOR_20',entrySha:targetSHA,targetSha:targetSHA,catalogReviewed:true,bothProgrammingProposalsReviewed:true,supervisorDecision:true}}
 }).admitted,true);
-const targetSHA='a'.repeat(40);
 const actionRepairSession=createRepairSession({repairSessionId:'action-repair-session',actor:'actionRepairBot',failureFingerprint:'action-repair-test',targetSHA,beforeState:{worktree:'clean'}});
 assert.equal(actionRepairSession.actor,'actionRepairBot');
 const completeProof={
