@@ -110,28 +110,20 @@ jobs:
             echo 'wake=true' >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Wake whole FLIXO cell on first push and prepare all workers
-        if: github.event_name == 'push'
+      - name: Record exact execution push wake
+        if: github.event_name == 'push' && github.ref_name == 'execution'
         env:
           GH_TOKEN: ${{ github.token }}
-          FLIXO_WAKE_EVENT: push
-          FLIXO_WAKE_BRANCH: execution
-          FLIXO_CELL_WAKE_OUTPUT: /tmp/flixo-cell-wake.json
         run: |
           set -euo pipefail
-          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-          EXPECTED_PUSH_SHA="$GITHUB_SHA"
-          test "$EXECUTION_SHA" = "$EXPECTED_PUSH_SHA"
-          # Execute only controller code from trusted main; never from the observed execution SHA.
-          FLIXO_WAKE_SHA="$EXECUTION_SHA" node scripts/ci/cell-wake-preparation.mjs
-          test -s /tmp/flixo-cell-wake.json
-          node scripts/ci/test-cell-wake-preparation.mjs
-          node scripts/ci/action-repair-five-workers.mjs --role=wake --status=PUSH_READY --target-sha="$EXECUTION_SHA" --run-id="$GITHUB_RUN_ID" --fingerprint="PUSH:$EXECUTION_SHA" --output=/tmp/flixo-cell-wake-coordinator.json
-          test -s /tmp/flixo-cell-wake-coordinator.json
+          EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"
+          test "$EXECUTION_SHA" = "$GITHUB_SHA"
           echo "CELL_WAKE_READY=true"
+          echo "CELL_WAKE_MODE=API_ONLY"
+          echo "CELL_WAKE_TARGET_SHA=$EXECUTION_SHA"
 
       - name: Ensure canonical Test System exists for exact SHA without duplicate dispatch
-        if: github.event_name != 'schedule' || steps.scheduled_wake.outputs.wake == 'true'
+        if: (github.event_name != 'schedule' || steps.scheduled_wake.outputs.wake == 'true') && steps.source.outputs.stale != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -196,7 +188,7 @@ jobs:
           echo "WATCHDOG_CANONICAL_SHA=$EXECUTION_SHA"
 
       - name: Ensure canonical Green Gate observer exists
-        if: github.event_name == 'push' || (github.event_name == 'schedule' && steps.scheduled_wake.outputs.wake == 'true')
+        if: (github.event_name == 'push' || (github.event_name == 'schedule' && steps.scheduled_wake.outputs.wake == 'true')) && steps.source.outputs.stale != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -212,14 +204,12 @@ jobs:
           fi
           gh workflow run daily-flixo-green-gate.yml --repo "$GITHUB_REPOSITORY" --ref execution
           echo 'WATCHDOG_CANONICAL_GREEN_GATE_DISPATCH=true'
-      - name: Publish whole-cell wake evidence
-        if: github.event_name == 'push' && always()
+      - name: Publish watchdog wake evidence
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: flixo-cell-wake-${{ github.run_id }}
-          path: |
-            /tmp/flixo-cell-wake.json
-            /tmp/flixo-cell-wake-coordinator.json
+          name: flixo-watchdog-evidence-${{ github.run_id }}
+          path: diagnostics/watchdog/evidence.json
           if-no-files-found: ignore
           retention-days: 30
 
@@ -230,7 +220,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p diagnostics/watchdog
-          CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')""
+          CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           printf '%s\n' "$(cat <<JSON
           {"schemaVersion":1,"protocol":"FLIXO-EXECUTION-BOT-WATCHDOG-v1","executionSha":"$CURRENT_EXECUTION_SHA","sourceRunId":"${{ github.event.workflow_run.id || '' }}","sourceRunSha":"${{ github.event.workflow_run.head_sha || '' }}","action":"WAKE_CANONICAL_OBSERVER","repairDispatcher":"daily-flixo-green-gate.yml","directRepairDispatch":false}
           JSON
