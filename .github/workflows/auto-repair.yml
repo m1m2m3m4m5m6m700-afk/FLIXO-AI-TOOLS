@@ -92,7 +92,6 @@ env:
   FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
   FLIXO_DIAGNOSTIC_LINE_LIMIT: '5000'
-  FLIXO_REPAIR_ATTEMPT_LEDGER: /tmp/flixo-repair-attempt-ledger.json
   # Independent Actions learning owner.
   FLIXO_ACTION_INDEX_BOT_ID: ACTION-INDEX
   FLIXO_ACTION_MASTER: repairAgent
@@ -732,23 +731,6 @@ jobs:
            fi
 
 
-      - name: Restore durable no-repeat repair ledger
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          rm -f "$FLIXO_REPAIR_ATTEMPT_LEDGER"
-          mkdir -p "$(dirname "$FLIXO_REPAIR_ATTEMPT_LEDGER")"
-          PREFIX="flixo-repair-attempt-ledger-$FLIXO_REPAIR_CHAIN_ID-"
-          LATEST_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --paginate --jq '.artifacts[] | select(.expired == false) | [.id,.created_at,.name] | @tsv' | grep -F "$PREFIX" | sort -k2,2r | head -n 1 | cut -f1 || true)"
-          if [ -n "$LATEST_ID" ]; then
-            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$LATEST_ID/zip" > /tmp/flixo-attempt-ledger.zip
-            unzip -p /tmp/flixo-attempt-ledger.zip repair-attempt-ledger.json > "$FLIXO_REPAIR_ATTEMPT_LEDGER"
-          else
-            node /tmp/flixo-repair-controller/scripts/ci/repair-attempt-ledger.mjs init
-          fi
-          test -s "$FLIXO_REPAIR_ATTEMPT_LEDGER"
-          node --input-type=module -e "const fs=require('fs');const l=JSON.parse(fs.readFileSync(process.env.FLIXO_REPAIR_ATTEMPT_LEDGER,'utf8'));if(l.chainId!==process.env.FLIXO_REPAIR_CHAIN_ID)throw new Error('REPAIR_ATTEMPT_LEDGER_CHAIN_MISMATCH');console.log(JSON.stringify({chainId:l.chainId,rejected:l.rejected?.length||0,attempts:l.attempts?.length||0}));"
       - name: Train repair bot behavior from historical RED/GREEN experience
         id: repair_bot_training
         env:
