@@ -62,6 +62,33 @@ jobs:
             esac
           }
 
+          cancel_stale_run() {
+            local run_id="$1"
+            local head_sha="$2"
+            local status="$3"
+            local name="$4"
+            local event="$5"
+            echo "CANCEL stale run=$run_id sha=$head_sha name=$name event=$event status=$status"
+
+            if ! gh run cancel "$run_id" --repo "$REPOSITORY"; then
+              local now_status=""
+              if ! now_status="$(gh run view "$run_id" --repo "$REPOSITORY" --json status --jq '.status')"; then
+                echo "ERROR: cancellation failed and status lookup failed for run=$run_id" >&2
+                return 1
+              fi
+
+              if [ "$now_status" = "completed" ]; then
+                echo "STALE_RUN_ALREADY_COMPLETED run=$run_id"
+                return 0
+              fi
+
+              echo "ERROR: cancellation failed for active run=$run_id status=$now_status" >&2
+              return 1
+            fi
+
+            echo "STALE_RUN_CANCEL_REQUESTED run=$run_id"
+          }
+
           gh run list --repo "$REPOSITORY" --branch "$BRANCH" --limit 100             --json databaseId,headSha,status,name,event             --jq '.[] | select(.status != "completed") | [.databaseId,.headSha,.status,.name,.event] | @tsv' |
           while IFS=$'	' read -r RUN_ID HEAD_SHA STATUS NAME EVENT; do
             [ -n "$RUN_ID" ] || continue
@@ -70,8 +97,7 @@ jobs:
               continue
             fi
             if is_test_workflow "$NAME"; then
-              echo "CANCEL stale run=$RUN_ID sha=$HEAD_SHA name=$NAME event=$EVENT"
-              gh run cancel "$RUN_ID" --repo "$REPOSITORY"
+              cancel_stale_run "$RUN_ID" "$HEAD_SHA" "$STATUS" "$NAME" "$EVENT"
             fi
           done
 
