@@ -100,9 +100,7 @@ env:
 jobs:
   resident:
     name: Resident Repair Bot monitor — never idle during an open repair session
-    if: >-
-      (github.event_name == 'push' && github.ref == 'refs/heads/execution') ||
-      (github.event_name == 'workflow_dispatch' && inputs.resident == 'true')
+    if: github.event_name == 'workflow_dispatch' && inputs.resident == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 345
     steps:
