@@ -15,6 +15,7 @@ const STATE = path.join(VAULT, 'triad-governor-state.json');
 const MISS_LEDGER = path.join(VAULT, 'catalog-misses.ndjson');
 const LEARNED = path.join(VAULT, 'learned-advice.ndjson');
 const ADVICE_CATALOG = path.join(VAULT, 'advice-catalog.ndjson');
+const PRIMARY_ADVICE_INDEX = path.resolve(ROOT, 'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json');
 
 const sha = (v) => crypto.createHash('sha256').update(String(v), 'utf8').digest('hex');
 const validSha = (v) => /^[a-f0-9]{40}$/u.test(String(v));
@@ -42,6 +43,67 @@ function corpusFiles() {
   } catch {
     return [];
   }
+}
+
+
+function loadPrimaryAdviceIndex() {
+  if (!fs.existsSync(PRIMARY_ADVICE_INDEX)) return { indexId: 'ACTION-INDEX-4000', recordCount: 0, records: [] };
+  try {
+    const value = JSON.parse(readText(PRIMARY_ADVICE_INDEX));
+    return {
+      indexId: String(value.indexId ?? 'ACTION-INDEX-4000'),
+      capacity: Number(value.catalogCapacity ?? value.capacity ?? CATALOG_CAPACITY),
+      recordCount: Number(value.recordCount ?? value.records?.length ?? 0),
+      records: Array.isArray(value.records) ? value.records : [],
+    };
+  } catch {
+    return { indexId: 'ACTION-INDEX-4000', capacity: 0, recordCount: 0, records: [] };
+  }
+}
+
+export function reviewCatalogBeforeMutation({ taskId, fingerprint, targetSha, failedRunId, errorText = '' } = {}) {
+  if (!taskId || !fingerprint || !validSha(targetSha) || !failedRunId) throw new Error('ACTION_VAULT_CATALOG_REVIEW_IDENTITY_REQUIRED');
+  const primary = loadPrimaryAdviceIndex();
+  const adviceText = String(errorText).toLowerCase();
+  const indexedMatches = primary.records
+    .filter((item) => {
+      const haystack = [item.id, item.class, item.stage, item.trigger, item.invariant, item.action, item.teaching, item.verify].join(' ').toLowerCase();
+      const terms = [...new Set(adviceText.match(/[a-z][a-z0-9_-]{3,}/gu) ?? [])].slice(0, 32);
+      return terms.some((term) => haystack.includes(term));
+    })
+    .slice(0, 20)
+    .map((item) => ({ id: item.id ?? null, class: item.class ?? null, stage: item.stage ?? null, action: item.action ?? null, teaching: item.teaching ?? null, verify: item.verify ?? null }));
+  const routerFiles = corpusFiles();
+  const digest = sha(JSON.stringify({
+    taskId, fingerprint, targetSha, failedRunId,
+    indexId: primary.indexId,
+    recordCount: primary.recordCount,
+    matchedIds: indexedMatches.map((item) => item.id),
+    routerFiles: routerFiles.map((file) => path.relative(ROOT, file)),
+  }));
+  return {
+    schemaVersion: 1,
+    protocol: 'ACTION-Vault-CATALOG-REVIEW-v1',
+    status: 'REVIEWED',
+    reviewer: 'ACTION-HISTORIAN-3',
+    reviewerRole: 'COGNITIVE_CATALOG_SUPERVISOR_SEAT',
+    taskId, fingerprint, targetSha, failedRunId: String(failedRunId),
+    source: {
+      indexId: primary.indexId,
+      indexPath: 'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json',
+      declaredCapacity: CATALOG_CAPACITY,
+      actualRecordCount: primary.recordCount,
+      routerPath: 'docs/agents/ERROR-TEACHING-ROUTER.json',
+      routerSourceCount: routerFiles.length,
+    },
+    matched: indexedMatches,
+    miss: indexedMatches.length === 0,
+    searched: true,
+    beforeMutation: true,
+    mutationAuthority: false,
+    digest,
+    reviewedAt: new Date().toISOString(),
+  };
 }
 
 function findCatalogAdvice(query = '') {
@@ -85,7 +147,8 @@ export function escalationFor(fingerprint, ledger = loadLedger()) {
 
 export function openErrorGate({ taskId, fingerprint, targetSha, failedRunId, errorText = '' }) {
   if (!taskId || !fingerprint || !validSha(targetSha) || !failedRunId) throw new Error('ACTION_VAULT_TRIAD_IDENTITY_REQUIRED');
-  const advice = findCatalogAdvice(errorText + ' ' + fingerprint);
+  const catalogReview = reviewCatalogBeforeMutation({ taskId, fingerprint, targetSha, failedRunId, errorText });
+  const advice = catalogReview.matched.length ? catalogReview.matched : findCatalogAdvice(errorText + ' ' + fingerprint);
   const escalation = escalationFor(fingerprint);
   const record = {
     schemaVersion: 1,
@@ -94,7 +157,9 @@ export function openErrorGate({ taskId, fingerprint, targetSha, failedRunId, err
     taskId, fingerprint, targetSha, failedRunId: String(failedRunId),
     catalog: {
       capacity: CATALOG_CAPACITY,
+      primaryIndexRecordCount: catalogReview.source.actualRecordCount,
       matched: advice,
+      review: catalogReview,
       miss: advice.length === 0,
       sources: ['ACTION-INDEX-4000','historical-action-errors','ERROR-TEACHING-ROUTER','ERROR-MEMORY'],
     },

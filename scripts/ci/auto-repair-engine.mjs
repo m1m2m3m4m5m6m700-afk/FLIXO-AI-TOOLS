@@ -22,6 +22,7 @@ import { loadAttemptLedger, isRepairRejected, rejectionReasons } from './repair-
 import { buildErrorOnlyRepairModel } from './auto-repair/error-only-programmer.mjs';
 import { simulateAstRepair } from './action-repair-sandbox.mjs';
 import { evaluateMutationGate } from './action-vault-mutation-gate.mjs';
+import { reviewCatalogBeforeMutation } from './action-vault-triad-governor.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
@@ -240,6 +241,8 @@ const diagnosisGate = {
 };
 evidence.diagnosisGate = diagnosisGate;
 
+const actionVaultCatalogReview = reviewCatalogBeforeMutation({ taskId: process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, fingerprint, targetSha, failedRunId: process.env.GITHUB_RUN_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, errorText: log });
+
 if (historicalRollbackCandidate && diagnosisGate.allowed) {
   const before = snapshot(targetDir);
   const plannedChangedPaths = preMutationProof.sandboxSimulation?.changedFiles ?? [];
@@ -267,6 +270,7 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     patchCorrectness: preMutationProof.patchCorrectness,
     regressionCounterexamples: preMutationProof.regressionCounterexamples,
     preMutationProof,
+    catalogReview: actionVaultCatalogReview,
     mutationScope,
     branch: protocolBranch,
   });

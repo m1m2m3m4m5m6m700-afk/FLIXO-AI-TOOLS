@@ -425,7 +425,11 @@
       "allThreeMayCreateCandidateArtifacts": true,
       "sourceMutationSerialized": true,
       "catalogMissIsMandatory": true,
-      "newAdvicePromotion": "CANONICAL_GREEN_ONLY"
+      "newAdvicePromotion": "CANONICAL_GREEN_ONLY",
+      "catalogReviewBeforeMutation": true,
+      "catalogReviewOwner": "ACTION-HISTORIAN-3",
+      "catalogReviewIndex": "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
+      "catalogReviewRequiredAt": "ACTION_VAULT_MUTATION_GATE"
     }
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
