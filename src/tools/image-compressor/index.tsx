@@ -7,6 +7,7 @@ import { imageCompressorOutputIntegrity } from './output-contract';
 import { assertSafeImageInput } from './file-safety';
 import type { CompressionFormat } from './engine';
 import { compressImage, MAX_FILES, MAX_INPUT_SIZE } from './engine';
+import { localizeToolUiValue } from '../../lib/i18n/tool-ui-runtime-completeness';
 
 type Parameters = {
   quality?: number;
@@ -59,7 +60,9 @@ function makeFile(input: { blob: Blob; mimeType: string; name?: string }): File 
 export function ImageCompressor({ locale }: { locale?: string }) {
   const resolvedLocale = locale ?? (typeof document !== 'undefined' ? document.documentElement.lang : 'en');
   const lang = resolvedLocale.toLowerCase().startsWith('ar') ? 'ar' : 'en';
+  const t = (value: string) => localizeToolUiValue(resolvedLocale, value, 'image-compressor');
   const ui = copy[lang];
+  const localizedUi = Object.fromEntries(Object.entries(ui).map(([key, value]) => [key, t(value)])) as typeof ui;
   const [parameters, setParameters] = useState<Parameters>({ quality: 0.82, format: 'image/webp' });
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchError, setBatchError] = useState('');
@@ -126,8 +129,8 @@ export function ImageCompressor({ locale }: { locale?: string }) {
   return (
     <ToolWorkbench
       toolId="image-compressor"
-      title={ui.title}
-      description={ui.description}
+      title={localizedUi.title}
+      description={localizedUi.description}
       locale={resolvedLocale}
       inputId="image-file"
       accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml"
@@ -180,33 +183,33 @@ export function ImageCompressor({ locale }: { locale?: string }) {
         const next = current as Parameters;
         return (
           <div className="image-workbench-control-grid">
-            <label><span>{ui.format}</span><select value={next.format ?? 'image/webp'} disabled={busy} onChange={(event) => update((value) => ({ ...value, format: event.target.value as CompressionFormat }))}><option value="image/webp">WebP</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select></label>
-            <label><span>{ui.quality} ({Math.round((next.quality ?? 0.82) * 100)}%)</span><input type="range" min="0.1" max="1" step="0.05" value={next.quality ?? 0.82} disabled={busy} onChange={(event) => update((value) => ({ ...value, quality: Number(event.target.value) }))} /></label>
-            <label><span>{ui.target}</span><input inputMode="numeric" value={next.targetSizeKB ?? ''} placeholder="Optional" disabled={busy} onChange={(event) => update((value) => ({ ...value, targetSizeKB: event.target.value ? Number(event.target.value) : undefined }))} /></label>
-            <label><span>{ui.maxWidth}</span><input inputMode="numeric" value={next.maxWidth ?? ''} placeholder="Auto" disabled={busy} onChange={(event) => update((value) => ({ ...value, maxWidth: event.target.value ? Number(event.target.value) : undefined }))} /></label>
-            <label><span>{ui.maxHeight}</span><input inputMode="numeric" value={next.maxHeight ?? ''} placeholder="Auto" disabled={busy} onChange={(event) => update((value) => ({ ...value, maxHeight: event.target.value ? Number(event.target.value) : undefined }))} /></label>
+            <label><span>{localizedUi.format}</span><select value={next.format ?? 'image/webp'} disabled={busy} onChange={(event) => update((value) => ({ ...value, format: event.target.value as CompressionFormat }))}><option value="image/webp">WebP</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select></label>
+            <label><span>{localizedUi.quality} ({Math.round((next.quality ?? 0.82) * 100)}%)</span><input type="range" min="0.1" max="1" step="0.05" value={next.quality ?? 0.82} disabled={busy} onChange={(event) => update((value) => ({ ...value, quality: Number(event.target.value) }))} /></label>
+            <label><span>{localizedUi.target}</span><input inputMode="numeric" value={next.targetSizeKB ?? ''} placeholder={t("Optional")} disabled={busy} onChange={(event) => update((value) => ({ ...value, targetSizeKB: event.target.value ? Number(event.target.value) : undefined }))} /></label>
+            <label><span>{localizedUi.maxWidth}</span><input inputMode="numeric" value={next.maxWidth ?? ''} placeholder={t("Auto")} disabled={busy} onChange={(event) => update((value) => ({ ...value, maxWidth: event.target.value ? Number(event.target.value) : undefined }))} /></label>
+            <label><span>{localizedUi.maxHeight}</span><input inputMode="numeric" value={next.maxHeight ?? ''} placeholder="Auto" disabled={busy} onChange={(event) => update((value) => ({ ...value, maxHeight: event.target.value ? Number(event.target.value) : undefined }))} /></label>
           </div>
         );
       }}
       renderFooter={({ files, busy }) => (
         <>
           <div className="button-row">
-            <button className="secondary-button" type="button" disabled={busy || batchBusy || files.length < 2} onClick={() => void runBatch(files)}>{batchBusy ? 'Processing…' : ui.batch}</button>
-            {batchZipUrl && <a className="download-button" href={batchZipUrl} download="flixo-compressed-images.zip">{ui.downloadZip}</a>}
+            <button className="secondary-button" type="button" disabled={busy || batchBusy || files.length < 2} onClick={() => void runBatch(files)}>{batchBusy ? t('Processing…') : localizedUi.batch}</button>
+            {batchZipUrl && <a className="download-button" href={batchZipUrl} download="flixo-compressed-images.zip">{localizedUi.downloadZip}</a>}
           </div>
           {batchError && <p role="alert" className="error-box">{batchError}</p>}
         </>
       )}
       onFilesChange={() => setBatchError('')}
       onReset={reset}
-      runLabel={ui.compress}
-      resetLabel={ui.reset}
-      downloadLabel={lang === 'ar' ? 'تنزيل الصورة' : 'Download image'}
+      runLabel={localizedUi.compress}
+      resetLabel={localizedUi.reset}
+      downloadLabel={t("Download image")}
       downloadRole="link"
-      inputLabel={lang === 'ar' ? 'اختر الصور' : 'Choose images'}
-      beforeLabel={lang === 'ar' ? 'قبل' : 'Before'}
-      afterLabel={lang === 'ar' ? 'بعد' : 'After'}
-      noResultLabel="No result yet."
+      inputLabel={t("Choose images")}
+      beforeLabel={t("Before")}
+      afterLabel={t("After")}
+      noResultLabel={t("No result yet.")}
     />
   );
 }

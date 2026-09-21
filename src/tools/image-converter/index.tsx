@@ -6,6 +6,7 @@ import { validateUploadBoundary } from '../../lib/contracts/upload-boundary';
 import { validateOutputIntegrity } from '../../lib/contracts/output-integrity';
 import { convertImage } from '../image-toolkit/engine';
 import { imageConverterIntegritySpec } from './output-integrity';
+import { localizeToolUiValue } from '../../lib/i18n/tool-ui-runtime-completeness';
 
 type Parameters = { format: 'image/png' | 'image/jpeg' | 'image/webp' };
 
@@ -30,12 +31,13 @@ const copy = {
 export function ImageConverterTool({ locale }: { locale?: string }) {
   const resolvedLocale = locale ?? (typeof document !== 'undefined' ? document.documentElement.lang : 'en');
   const lang = resolvedLocale.toLowerCase().startsWith('ar') ? 'ar' : 'en';
+  const t = (value: string) => localizeToolUiValue(resolvedLocale, value, 'image-converter');
   const [parameters, setParameters] = useState<Parameters>({ format: 'image/webp' });
 
   return (
     <ToolWorkbench
       toolId="image-converter"
-      title={copy[lang].title}
+      title={t(copy[lang].title)}
       description={copy[lang].description}
       locale={resolvedLocale}
       inputId="image-tool-file"
@@ -68,12 +70,12 @@ export function ImageConverterTool({ locale }: { locale?: string }) {
       }}
       renderControls={({ parameters: current, setParameters: update }) => (
         <div className="image-workbench-control-grid">
-          <label><span>{copy[lang].format}</span><select aria-label={copy[lang].format} value={(current as Parameters).format} onChange={(event) => update((value) => ({ ...value, format: event.target.value as Parameters['format'] }))}><option value="image/webp">WebP</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select></label>
+          <label><span>{t(copy[lang].format)}</span><select aria-label={t(copy[lang].format)} value={(current as Parameters).format} onChange={(event) => update((value) => ({ ...value, format: event.target.value as Parameters['format'] }))}><option value="image/webp">WebP</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select></label>
         </div>
       )}
       onReset={() => setParameters({ format: 'image/webp' })}
-      runLabel="Run tool"
-      downloadLabel="Download now"
+      runLabel={t("Run tool")}
+      downloadLabel={t("Download now")}
       downloadRole="button"
     />
   );
