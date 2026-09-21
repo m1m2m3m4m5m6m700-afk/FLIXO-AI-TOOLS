@@ -23,4 +23,6 @@ assert.match(workflow, /if: steps\.head\.outputs\.stale_event != 'true' && steps
 assert.match(workflow, /SUPERSESSION_HEAD_MOVED/);
 
 assert.match(workflow, /BRANCH='execution'/);
-assert.match(workflow, /EVENT_SHA="\$\(gh api "repos\/\$GITHUB_REPOSITORY\/git\/ref\/heads\/execution" --jq '\.object\.sha'\)"/);
+assert.match(workflow, /EVENT_SHA="\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}"/);
+assert.match(workflow, /EVENT_SHA_SOURCE=IMMUTABLE_GITHUB_EVENT_SHA/);
+assert.doesNotMatch(workflow, /EVENT_SHA="\$\(gh api "repos\/\$GITHUB_REPOSITORY\/git\/ref\/heads\/execution"/);
