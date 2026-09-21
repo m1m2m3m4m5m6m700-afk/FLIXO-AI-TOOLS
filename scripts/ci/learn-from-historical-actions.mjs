@@ -4,7 +4,8 @@ import { execFileSync } from 'node:child_process';
 import { fingerprintFailure, extractFeatures, loadMemory, writeMemory, findCase } from './auto-repair-learning.mjs';
 import { HISTORICAL_REPAIR_WORKFLOWS } from './control-plane-registry.mjs';
 
-const limit = Math.min(100, Math.max(1, Number(process.env.FLIXO_HISTORY_LIMIT ?? 100)));
+export const MAX_HISTORY_LIMIT = 1000;
+const limit = Math.min(MAX_HISTORY_LIMIT, Math.max(1, Number(process.env.FLIXO_HISTORY_LIMIT ?? 100)));
 const includeSuccess = process.env.FLIXO_HISTORY_INCLUDE_SUCCESS !== 'false';
 const workflows = (process.env.FLIXO_HISTORY_WORKFLOWS ?? HISTORICAL_REPAIR_WORKFLOWS.join(',')).split(',').map((x) => x.trim()).filter(Boolean);
 const memory = loadMemory();
