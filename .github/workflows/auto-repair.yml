@@ -16,8 +16,8 @@ on:
         default: 'false'
         type: string
       target_run_id:
-        description: 'Workflow run ID to diagnose and repair'
-        required: true
+        description: 'Workflow run ID to diagnose and repair; omitted only in resident mode'
+        required: false
         type: string
       chain_id:
         description: 'Stable repair-chain identifier; recursive runs must reuse it'
@@ -99,9 +99,62 @@ env:
   FLIXO_ACTION_MASTER: repairAgent
 
 jobs:
+  resident:
+    name: Resident Repair Bot monitor — never idle during an open repair session
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/execution') ||
+      (github.event_name == 'workflow_dispatch' && inputs.resident == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    steps:
+      - name: Checkout canonical execution branch
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: execution
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+
+      - name: Validate permanent Repair Bot residency contract
+        run: |
+          set -euo pipefail
+          node scripts/ci/agent-liveness-protocol.mjs validate
+          echo 'REPAIR_BOT_RESIDENT=true'
+          echo 'REPAIR_BOT_MAX_IDLE_GAP_SECONDS=60'
+          echo 'REPAIR_BOT_SESSION_END=CANONICAL_GREEN_ONLY'
+          echo 'REPAIR_BOT_SOURCE_MUTATION=DISABLED_IN_RESIDENT_MODE'
+
+      - name: Monitor current execution continuously until canonical GREEN
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEADLINE="$(( $(date +%s) + 19800 ))"
+          while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+            EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+            GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --commit "$EXECUTION_SHA" --limit 50 --json databaseId,status,conclusion,headSha,createdAt --jq 'map(select(.headSha == "'"$EXECUTION_SHA"'" and .conclusion == "success")) | sort_by(.createdAt) | last.databaseId // empty')"
+            FAILED="$(gh run list --repo "$GITHUB_REPOSITORY" --branch execution --commit "$EXECUTION_SHA" --limit 100 --json databaseId,name,status,conclusion,headSha,createdAt --jq 'map(select(.headSha == "'"$EXECUTION_SHA"'" and (.conclusion == "failure" or .conclusion == "timed_out"))) | sort_by(.createdAt) | last | if . == null then "" else "\(.name)#\(.databaseId)" end')"
+            echo "RESIDENT_SHA=$EXECUTION_SHA"
+            echo "RESIDENT_CANONICAL_GREEN=${GREEN:-none}"
+            echo "RESIDENT_CURRENT_RED=${FAILED:-none}"
+            if [ -n "$GREEN" ]; then
+              echo 'REPAIR_BOT_SESSION_TERMINATION=CANONICAL_GREEN'
+              exit 0
+            fi
+            echo 'REPAIR_BOT_RESIDENCY=CONTINUE'
+            sleep 60
+          done
+          echo 'REPAIR_BOT_RESIDENCY_WINDOW_EXPIRED=CONTROLLED_HANDOFF'
+          exit 1
+
   repair:
     name: Single-lane diagnose, execute, verify and learn on execution
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.resident != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
