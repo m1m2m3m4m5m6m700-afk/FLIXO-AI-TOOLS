@@ -117,7 +117,8 @@ jobs:
         run: |
           set -euo pipefail
           EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"
-          test "$EXECUTION_SHA" = "$GITHUB_SHA"
+          EXPECTED_PUSH_SHA="$GITHUB_SHA"
+          test "$EXECUTION_SHA" = "$EXPECTED_PUSH_SHA"
           echo "CELL_WAKE_READY=true"
           echo "CELL_WAKE_MODE=API_ONLY"
           echo "CELL_WAKE_TARGET_SHA=$EXECUTION_SHA"
