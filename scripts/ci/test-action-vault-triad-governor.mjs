@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import {
   ACTION_VAULT_TRIAD_PROTOCOL,
   RECURRENCE_ESCALATION_THRESHOLD,

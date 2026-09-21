@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { ingest } from './agent-communication.mjs';
 
@@ -12,7 +11,6 @@ export const ACTION_INDEX_PATH = 'diagnostics/auto-repair/action-vault/ACTION-IN
 export const ACTION_INDEX_CAPACITY = 1_000_000;
 const ROOT = process.cwd();
 const now = () => new Date().toISOString();
-const sha256 = (v) => crypto.createHash('sha256').update(String(v), 'utf8').digest('hex');
 const git = (args) => execFileSync('git',['-C',ROOT,...args],{encoding:'utf8'}).trim();
 const validSha = (v) => /^[0-9a-f]{40}$/u.test(String(v ?? ''));
 const readText = (file) => fs.readFileSync(file,'utf8');
@@ -26,17 +24,6 @@ const writeAtomic = (file,value) => {
 const masterFile = () => path.resolve(ROOT, ACTION_VAULT_MASTER_PROTOCOL_PATH);
 const extractCanonicalProtocol = (content) => String(content).match(/<!-- ACTION_VAULT_CANONICAL_PROTOCOL_START -->[\\s\\S]*?<!-- ACTION_VAULT_CANONICAL_PROTOCOL_END -->/u)?.[0] ?? null;
 const readCanonicalMaster = () => { const file=masterFile(); if(!fs.existsSync(file)) throw new Error('ACTION_VAULT_MASTER_PROTOCOL_MISSING'); const canonical=extractCanonicalProtocol(readText(file)); if(!canonical) throw new Error('ACTION_VAULT_MASTER_PROTOCOL_BLOCK_MISSING'); return canonical; };
-
-const requiredMarkers = Object.freeze([
-  'Protocol ID: ACTION-VAULT-SUPERVISORY-LEARNING-v1',
-  'ACTION-INDEX-4000.json',
-  'ACTION-HISTORIAN-3',
-  'ACTION_VAULT_KNOWLEDGE_ESCALATION',
-  'ACTION-VAULT-SUPERVISOR-TEACHING-001',
-  'SPECIALIST_TEACHING',
-  'apply-supervisor-lesson',
-  'Canonical GREEN'
-]);
 
 export function assertVaultProtocolRead({ actor='ACTION-HISTORIAN-3', targetSha=git(['rev-parse','HEAD']) }={}) {
   if(!['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3'].includes(actor)) throw new Error('ACTION_VAULT_PROTOCOL_ACTOR_INVALID');
@@ -181,7 +168,7 @@ const parseArgs=()=>{
   return args;
 };
 const jsonArg=(value,label)=>{try{return JSON.parse(value)}catch{throw new Error('ACTION_VAULT_JSON_INVALID='+label)}};
-const fileJson=(file,label)=>JSON.parse(fs.readFileSync(path.resolve(ROOT,file),'utf8'));
+const fileJson=(file)=>JSON.parse(fs.readFileSync(path.resolve(ROOT,file),'utf8'));
 if(import.meta.url===`file://${process.argv[1]}`){
   try{
     const op=String(process.argv[2]??'').trim();

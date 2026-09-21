@@ -6,7 +6,8 @@ import { execFileSync } from 'node:child_process';
 import { recordAttempt, recordFailedAttempt, recordHandoff } from './action-failure-ledger.mjs';
 import { buildPrediction } from './action-historical-predictor.mjs';
 import { selectFileScope } from './action-file-selection-intelligence.mjs';
-import { openErrorGate, escalationFor } from './action-vault-triad-governor.mjs';
+import { openErrorGate, escalationFor, reviewDiagnosisAgainstKnowledge } from './action-vault-triad-governor.mjs';
+import { assertVaultProtocolRead, recordUnresolvedRepair, recordRepairOutcome } from './action-vault-knowledge-custodian.mjs';
 
 const ROOT=process.cwd();
 const VAULT=path.resolve(ROOT,'diagnostics/auto-repair/action-vault');
