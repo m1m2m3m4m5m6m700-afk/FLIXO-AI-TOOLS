@@ -39,7 +39,7 @@ jobs:
             SHA='${{ github.sha }}'
           fi
           test "$BRANCH" != ""
-          test "$SHA" =~ ^[0-9a-f]{40}$
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "LATEST_TEST_HEAD=$SHA"

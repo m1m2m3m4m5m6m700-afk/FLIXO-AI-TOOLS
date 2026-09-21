@@ -1,3 +1,5 @@
+import { execFile } from 'node:child_process';
+
 #!/usr/bin/env node
 
 const expectedSha = (process.env.EXPECTED_SHA ?? '').trim();
@@ -13,30 +15,42 @@ if (!expectedBranch || !expectedRepository || expectedRepository.split('/').leng
   console.error('FAIL CLOSED: expected repository/branch identity is incomplete.');
   process.exit(1);
 }
-if (!token) {
-  console.error('FAIL CLOSED: GitHub API token is missing.');
-  process.exit(1);
-}
-
 const branchPath = expectedBranch.split('/').map(encodeURIComponent).join('/');
 const apiUrl = `https://api.github.com/repos/${expectedRepository}/git/ref/heads/${branchPath}`;
+const remoteRef = `refs/heads/${expectedBranch}`;
 
 let actualSha;
+let resolutionMode = token ? 'GITHUB_API' : 'PUBLIC_GIT_REMOTE';
 try {
-  const response = await fetch(apiUrl, {
-    method: 'GET',
-    headers: {
-      accept: 'application/vnd.github+json',
-      authorization: `Bearer ${token}`,
-      'x-github-api-version': '2022-11-28',
-      'user-agent': 'FLIXO-current-commit-verifier',
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`GitHub API HTTP ${response.status}: ${await response.text()}`);
+  if (token) {
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        accept: 'application/vnd.github+json',
+        authorization: `Bearer ${token}`,
+        'x-github-api-version': '2022-11-28',
+        'user-agent': 'FLIXO-current-commit-verifier',
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`GitHub API HTTP ${response.status}: ${await response.text()}`);
+    }
+    const body = await response.json();
+    actualSha = String(body?.object?.sha ?? '').trim();
+  } else {
+    const remote = await new Promise((resolve, reject) => {
+      execFile(
+        'git',
+        ['ls-remote', `https://github.com/${expectedRepository}.git`, remoteRef],
+        { encoding: 'utf8' },
+        (error, stdout, stderr) => {
+          if (error) reject(new Error(stderr || error.message));
+          else resolve(String(stdout ?? ''));
+        },
+      );
+    });
+    actualSha = String(remote).trim().split(/\s+/u)[0] ?? '';
   }
-  const body = await response.json();
-  actualSha = String(body?.object?.sha ?? '').trim();
 } catch (error) {
   console.error('FAIL CLOSED: unable to resolve the current branch tip from GitHub.');
   console.error(error instanceof Error ? error.message : String(error));
@@ -53,4 +67,4 @@ if (actualSha !== expectedSha) {
   process.exit(1);
 }
 
-console.log(`CURRENT_COMMIT_VERIFIED=1 SHA=${expectedSha} BRANCH=${expectedBranch} REPOSITORY=${expectedRepository}`);
+console.log(`CURRENT_COMMIT_VERIFIED=1 SHA=${expectedSha} BRANCH=${expectedBranch} REPOSITORY=${expectedRepository} MODE=${resolutionMode}`);

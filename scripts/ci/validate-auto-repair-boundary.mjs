@@ -120,7 +120,7 @@ export function validateStatic() {
     ['claude-security', claudeSecurity],
     ['merge-gate', mergeGate],
   ]) {
-    must(/cancel-in-progress:\s*false/.test(workflow), 'required-evidence-workflow-must-not-cancel:' + id);
+    must(/cancel-in-progress:\s*true/.test(workflow), 'required-evidence-workflow-must-cancel-stale:' + id);
     must(/github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha/.test(workflow), 'required-evidence-workflow-must-bind-exact-sha:' + id);
   }
   must(/Repository Security Baseline/.test(mergeGate), 'merge-gate-security-required');

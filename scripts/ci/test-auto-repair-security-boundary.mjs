@@ -22,3 +22,9 @@ assert.match(worker, /role==='select'/);
 assert.match(worker, /canonicalMutationOwner:'repairAgent'/);
 
 console.log('AUTO_REPAIR_SECURITY_BOUNDARY=PASS');
+const boundary = fs.readFileSync('scripts/ci/validate-auto-repair-boundary.mjs', 'utf8');
+assert.match(boundary, /required-evidence-workflow-must-cancel-stale/u);
+assert.doesNotMatch(boundary, /required-evidence-workflow-must-not-cancel/u);
+assert.match(workflow, /contents:\s*write/u);
+assert.doesNotMatch(workflow, /actions:\s*write/u);
+console.log('AUTO_REPAIR_TEST_ORCHESTRATION_REPAIR_PERMISSION=PASS');
