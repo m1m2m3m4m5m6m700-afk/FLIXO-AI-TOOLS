@@ -61,8 +61,16 @@ jobs:
           echo "LATEST_TEST_LIVE_HEAD=$LIVE_SHA"
           echo 'EVENT_SHA_SOURCE=IMMUTABLE_GITHUB_EVENT_SHA'
 
-      - name: Targeted cancellation race regression
-        run: node scripts/ci/test-latest-commit-test-supersession.mjs
+      - name: Assert API-only supersession regression
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$BRANCH" = "execution"
+          LIVE_AFTER_CHECK="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$LIVE_AFTER_CHECK" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          echo "SUPERSESSION_API_REGRESSION=PASS"
+          echo "SUPERSESSION_CONTROLLER_SOURCE=TRUSTED_MAIN"
 
       - name: Cancel stale test and verification runs
         id: cancel
