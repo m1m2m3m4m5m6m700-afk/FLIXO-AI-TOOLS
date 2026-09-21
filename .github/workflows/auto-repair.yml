@@ -423,23 +423,7 @@ jobs:
           set -euo pipefail
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-diagnosis.mjs
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-learning.mjs
-          if node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-architecture.mjs > /tmp/flixo-trusted-architecture-self-test.log 2>&1; then
-            cat /tmp/flixo-trusted-architecture-self-test.log
-          else
-            cat /tmp/flixo-trusted-architecture-self-test.log
-            if grep -Fq 'test-auto-repair-architecture.mjs:30:8' /tmp/flixo-trusted-architecture-self-test.log               && grep -Fq 'regular expression /DEEP_\[A-Z_\]+_MISSING/' /tmp/flixo-trusted-architecture-self-test.log; then
-              echo 'TRUSTED_VERIFIER_DRIFT_RECOVERY=KNOWN_DEEP_MISSING_REGEX'
-              echo 'TRUSTED_VERIFIER_DRIFT_RECOVERY_MODE=EXECUTION_VERIFIER_REPROOF'
-              node scripts/ci/test-auto-repair-architecture.mjs
-            elif grep -Fq 'regular expression /HANDOFF_TARGET_SHA/' /tmp/flixo-trusted-architecture-self-test.log; then
-              echo 'TRUSTED_VERIFIER_DRIFT_RECOVERY=KNOWN_HANDOFF_TARGET_SHA_MARKER'
-              echo 'TRUSTED_VERIFIER_DRIFT_RECOVERY_MODE=EXECUTION_VERIFIER_REPROOF'
-              node scripts/ci/test-auto-repair-architecture.mjs
-            else
-              echo 'TRUSTED_VERIFIER_DRIFT_RECOVERY=DENIED'
-              exit 1
-            fi
-          fi
+          node scripts/ci/test-auto-repair-architecture.mjs
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-reasoning.mjs
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-strategy.mjs
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-external-guard.mjs
