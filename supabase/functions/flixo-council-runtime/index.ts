@@ -72,6 +72,7 @@ const authGitHubWorkflow = async (req: Request, allowedWorkflows: string[]) => {
     if (workflow === "FLIXO Master Agent Activation Relay") return event === "workflow_run" && ref === "refs/heads/execution" && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/agent-master-activation.yml@");
     if (workflow === "FLIXO External Council Lease Watcher") return ((event === "schedule" && ref === "refs/heads/main") || (event === "workflow_dispatch" && (ref === "refs/heads/main" || ref === "refs/heads/execution"))) && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/council-external-lease-watch.yml@");
     if (workflow === "FLIXO Council Wake Push Relay") return event === "push" && ref === "refs/heads/execution" && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/council-wake-push-relay.yml@");
+    if (workflow === "FLIXO Agent Communication Relay") return event === "issue_comment" && ref === "refs/heads/main" && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/agent-communication-relay.yml@");
     if (workflow === "FLIXO Cell Master Consult Relay") return event === "workflow_dispatch" && (ref === "refs/heads/execution" || ref === "refs/heads/main") && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/cell-master-consult.yml@");
     return false;
   });
