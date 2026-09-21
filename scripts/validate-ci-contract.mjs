@@ -285,23 +285,40 @@ if (/github\.event_name\s*!=\s*'pull_request'/.test(deep)) {
   process.exit(1);
 }
 
+const semanticValidationCommands = [
+  'scripts/ci/test-execution-graph-semantic-identity.mjs',
+  'scripts/ci/test-image-core-foundation.mjs',
+  'scripts/ci/validate-playwright-surface.mjs',
+  'scripts/ci/validate-certification-surface.mjs',
+  'scripts/ci/validate-agent-protocol.mjs',
+  'scripts/ci/validate-agent-coordination.mjs',
+  'scripts/ci/action-vault-agent-gate.mjs',
+  'scripts/ci/test-action-vault-agent-gate.mjs',
+  'scripts/ci/test-action-vault-targeted-test.mjs',
+  'scripts/ci/test-action-agent-runtime.mjs',
+  'scripts/ci/test-action-agent-history.mjs',
+  'scripts/ci/test-swarm-controller.mjs',
+  'scripts/ci/test-repair-protocol.mjs',
+  'scripts/ci/test-task-agent-contract.mjs',
+  'scripts/ci/test-agent-admission.mjs',
+];
 try {
-  execFileSync(process.execPath, ['scripts/ci/test-execution-graph-semantic-identity.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/test-image-core-foundation.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/validate-playwright-surface.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/validate-certification-surface.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/validate-agent-protocol.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/validate-agent-coordination.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/action-vault-agent-gate.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/test-action-vault-agent-gate.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/test-action-vault-targeted-test.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/test-action-agent-runtime.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/test-action-agent-history.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/test-swarm-controller.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/test-repair-protocol.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/test-task-agent-contract.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/test-agent-admission.mjs'], { stdio: 'inherit' });
-} catch {
+  for (const command of semanticValidationCommands) {
+    console.log('CI_CONTRACT_CHILD_TEST_START=' + command);
+    execFileSync(process.execPath, [command], { stdio: 'inherit' });
+    console.log('CI_CONTRACT_CHILD_TEST_PASS=' + command);
+  }
+} catch (error) {
+  const command = semanticValidationCommands.find((candidate) => {
+    try {
+      execFileSync(process.execPath, [candidate], { stdio: 'ignore' });
+      return false;
+    } catch {
+      return true;
+    }
+  });
+  console.error('CI_CONTRACT_CHILD_TEST_FAILURE=' + (command ?? 'UNKNOWN'));
+  console.error(error instanceof Error ? error.message : String(error));
   console.error('CI contract failed: execution-graph semantic identity/image-core/browser/certification/agent-protocol/coordination/Task-Agent authority/admission surface validation failed.');
   process.exit(1);
 }
