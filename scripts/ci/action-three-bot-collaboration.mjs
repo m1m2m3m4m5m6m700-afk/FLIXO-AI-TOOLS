@@ -48,6 +48,7 @@ const shaDigest=(value)=>crypto.createHash('sha256').update(String(value),'utf8'
 validIdentity();
 if(!fs.existsSync(PROFILE)) throw new Error('ACTION_THREE_BOT_INTELLIGENCE_PROFILE_MISSING');
 if(!fs.existsSync(CHAT_PROTOCOL)) throw new Error('ACTION_THREE_BOT_CHAT_PROTOCOL_MISSING');
+assertVaultProtocolRead({ actor: bot || 'ACTION-HISTORIAN-3', targetSha });
 const profile=JSON.parse(fs.readFileSync(PROFILE,'utf8'));
 if(profile.roleMatrix?.['ACTION-REPAIR']?.mutationAuthority!=='ADMITTED_SEAT') throw new Error('ACTION_THREE_BOT_PRIMARY_SEAT_INVALID');
 if(profile.roleMatrix?.['ACTION-REPAIR-2']?.mutationAuthority!=='ADMITTED_SEAT') throw new Error('ACTION_THREE_BOT_FALSIFIER_SEAT_INVALID');
@@ -213,6 +214,7 @@ if(op==='start'){
   if(bot!=='ACTION-HISTORIAN-3') throw new Error('ACTION_THREE_BOT_FAILURE_RECORD_ONLY_HISTORIAN');
   const failureSummary=summary||'UNSPECIFIED_FAILURE';
   recordFailedAttempt({taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,botId:'ACTION-HISTORIAN-3',notes:failureSummary,attemptedStrategy:arg('strategy',''),evidence});
+  recordUnresolvedRepair({taskId:task,fingerprint, targetSha, failedRunId:runId, errorSummary:failureSummary, diagnosis:arg('diagnosis',''), attemptedStrategy:arg('strategy',''), evidence});
   state.outputs.lessons.push({type:'FAILURE',summary:failureSummary,evidence,at:now()});
   state.updatedAt=now();write(state);
 } else if(op==='handoff'){
@@ -225,7 +227,8 @@ if(op==='start'){
   const green=JSON.parse(fs.readFileSync(file,'utf8'));
   if(green.source!=='DAILY_FLIXO_GREEN_GATE'||green.conclusion!=='success'||green.zeroRed!==true||green.exactShaVerified!==true||green.targetSha!==targetSha||green.taskId!==task||green.fingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_GREEN_RECORD_INVALID');
   if(!green.recordId) throw new Error('ACTION_THREE_BOT_GREEN_RECORD_ID_REQUIRED');
-  state.greenRecord={recordId:green.recordId,targetSha:green.targetSha,recordedAt:green.recordedAt,source:green.source};state.phase='GREEN_LEARNING';state.status='CLOSING_GREEN';state.updatedAt=now();write(state);
+  state.greenRecord={recordId:green.recordId,targetSha:green.targetSha,recordedAt:green.recordedAt,source:green.source};
+  recordRepairOutcome({taskId:task,fingerprint,targetSha,failedRunId:runId,diagnosis:state.diagnosisKnowledgeReview?.bestMatch??state.primaryCorrectnessProof??{},repairSummary:state.outputs?.selectedRepair??state.outputs?.handoff?.summary??'TRIAD_REPAIR_VERIFIED',evidence:[green.recordId]});state.phase='GREEN_LEARNING';state.status='CLOSING_GREEN';state.updatedAt=now();write(state);
 } else if(op==='close'){
   if(!state.greenRecord) throw new Error('ACTION_THREE_BOT_CLOSE_BLOCKED_NO_GREEN_RECORD');
   state.phase='CLOSED';state.status='CLOSED_GREEN';state.updatedAt=now();write(state);

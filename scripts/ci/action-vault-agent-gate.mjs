@@ -184,6 +184,8 @@ export function runGate(root = ROOT) {
   const parallelProtocolPath = path.resolve(root, 'docs/agents/ACTION-VAULT-PARALLEL-COLLABORATION-PROTOCOL.md');
   const sleepAdmissionPath = path.resolve(root, 'scripts/ci/action-vault-sleep-admission.mjs');
   const collaborationScriptPath = path.resolve(root, 'scripts/ci/action-three-bot-collaboration.mjs');
+  const supervisoryLearningProtocolPath = path.resolve(root, 'diagnostics/auto-repair/action-vault/ACTION-VAULT-SUPERVISORY-LEARNING-PROTOCOL.md');
+  const knowledgeCustodianPath = path.resolve(root, 'scripts/ci/action-vault-knowledge-custodian.mjs');
   const targetedProtocolPath = path.resolve(root, 'docs/agents/ACTION-VAULT-TARGETED-REPAIR-PROTOCOL.md');
   const targetedPlannerPath = path.resolve(root, 'scripts/ci/action-vault-targeted-test.mjs');
   const targetedTestPath = path.resolve(root, 'scripts/ci/test-action-vault-targeted-test.mjs');
@@ -198,7 +200,7 @@ export function runGate(root = ROOT) {
   const repairEngineeringPath = path.resolve(root, 'scripts/ci/action-repair-engineering.mjs');
   const repairEngineeringTestPath = path.resolve(root, 'scripts/ci/test-action-repair-engineering.mjs');
 
-  for (const file of [profilePath, residencyPath, gradePath, mentorPath, parallelProtocolPath, sleepAdmissionPath, collaborationScriptPath, targetedProtocolPath, targetedPlannerPath, targetedTestPath, triadProtocolPath, triadGovernorPath, predictorPath, ledgerPath, engineerCorePath, patchSynthesisPath, sandboxPath, differentialVerifierPath, repairEngineeringPath, repairEngineeringTestPath]) {
+  for (const file of [profilePath, residencyPath, gradePath, mentorPath, parallelProtocolPath, sleepAdmissionPath, collaborationScriptPath, supervisoryLearningProtocolPath, knowledgeCustodianPath, targetedProtocolPath, targetedPlannerPath, targetedTestPath, triadProtocolPath, triadGovernorPath, predictorPath, ledgerPath, engineerCorePath, patchSynthesisPath, sandboxPath, differentialVerifierPath, repairEngineeringPath, repairEngineeringTestPath]) {
     if (!exists(file)) err(errors, 'REQUIRED_VAULT_CONTRACT_MISSING', path.relative(root, file));
   }
 

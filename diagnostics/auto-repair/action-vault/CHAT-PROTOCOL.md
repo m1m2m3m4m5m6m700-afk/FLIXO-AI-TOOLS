@@ -102,3 +102,18 @@ A prediction is a proposal, not proof. The programmer may reject it. A repair at
 ACTION-REPAIR is the only programming mutation owner. Patch synthesis creates bounded candidates; sandbox simulation executes only in a detached exact-SHA worktree; differential verification checks scope and gate integrity. Simulation never mutates the source worktree and never grants GREEN.
 
 ACTION-REPAIR-2 may challenge or propose candidate strategies but cannot authorize mutation. ACTION-HISTORIAN-3 records simulation outcomes and failures. Canonical GREEN remains mandatory before closure or learning promotion.
+
+## Mandatory supervisory-learning protocol
+
+Before any Action Vault bot performs analysis, repair, knowledge write, knowledge edit, escalation, handoff, or closure, it MUST read:
+
+`diagnostics/auto-repair/action-vault/ACTION-VAULT-SUPERVISORY-LEARNING-PROTOCOL.md`
+
+The protocol is enforced by the Action Vault agent gate and by the triad runtime. A bot must not claim participation until the read check succeeds on the current exact SHA.
+
+ACTION-HISTORIAN-3 owns the write/edit authority for the Action Vault index:
+
+`diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json`
+
+It records every verified repair outcome and every unresolved repair failure. Every unresolved failure is escalated to `assistantController` through the canonical agent-communication path and the active Council ingress so a specialist supervisor can teach the missing knowledge. Returned supervisor advice is written back into the same Action Vault index with full provenance. Canonical GREEN remains the promotion authority for verified learning.
+

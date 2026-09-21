@@ -110,7 +110,9 @@
     "scripts/ci/action-repair-engineering.mjs",
     "diagnostics/auto-repair/action-vault/repair-engineering",
     "scripts/ci/action-causal-discriminator.mjs",
-    "scripts/ci/meta-causal-model.mjs"
+    "scripts/ci/meta-causal-model.mjs",
+    "diagnostics/auto-repair/action-vault/ACTION-VAULT-SUPERVISORY-LEARNING-PROTOCOL.md",
+    "scripts/ci/action-vault-knowledge-custodian.mjs"
   ],
   "safetyBoundary": {
     "intelligenceDoesNotImplyMutationAuthority": true,
@@ -447,7 +449,13 @@
         "INCONCLUSIVE"
       ],
       "mismatchBlocksMutation": true,
-      "inconclusiveBlocksMutation": true
+      "inconclusiveBlocksMutation": true,
+      "requiredVaultProtocol": "diagnostics/auto-repair/action-vault/ACTION-VAULT-SUPERVISORY-LEARNING-PROTOCOL.md",
+      "protocolMustBeReadBeforeAnyAction": true,
+      "protocolReadEnforcement": "ACTION_VAULT_AGENT_GATE_AND_TRIAD_RUNTIME",
+      "failureOutcomeEscalation": "EVERY_UNRESOLVED_REPAIR_FAILURE_TO_COUNCIL",
+      "supervisorTeachingRoute": "ACTION-HISTORIAN-3 -> assistantController -> COUNCIL REVIEW -> SPECIALIST TEACHING -> ACTION-HISTORIAN-3 -> ACTION-INDEX-4000",
+      "supervisorTeachingMessageProtocol": "ACTION-VAULT-SUPERVISORY-LEARNING-v1"
     }
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
@@ -678,7 +686,15 @@
         "failureLedgerRecord",
         "DIAGNOSIS_KNOWLEDGE_MATCH_DECISION"
       ],
-      "executionAuthority": "MUTATE_WHEN_ADMITTED"
+      "executionAuthority": "MUTATE_WHEN_ADMITTED",
+      "catalogWriteAuthority": {
+        "owner": "ACTION-HISTORIAN-3",
+        "path": "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
+        "canAdd": true,
+        "canEdit": true,
+        "canDelete": false,
+        "exactShaRequired": true
+      }
     }
   },
   "residencyContract": {
@@ -765,6 +781,18 @@
     "candidateKnowledgeMayBeModifiedByAllThree": true,
     "canonicalIndexDirectMutation": false,
     "canonicalPromotion": "CANONICAL_GREEN_ONLY",
-    "sourceMutationStillSerialized": true
+    "sourceMutationStillSerialized": true,
+    "indexWrite": {
+      "enabled": true,
+      "owner": "ACTION-HISTORIAN-3",
+      "path": "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
+      "canAppend": true,
+      "canEdit": true,
+      "canDelete": false,
+      "exactShaRequired": true,
+      "executionBranchOnly": true,
+      "capacity": 1000000,
+      "promotionRule": "SUPERVISOR_TAUGHT_OR_REPAIR_OUTCOME_IS_VISIBLE_IMMEDIATELY_BUT_CANONICAL_VERIFIED_STATUS_REQUIRES_DAILY_FLIXO_GREEN_GATE"
+    }
   }
 }

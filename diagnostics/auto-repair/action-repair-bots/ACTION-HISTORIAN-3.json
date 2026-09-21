@@ -203,5 +203,31 @@
   "requiredBeforeSourceMutation": [
     "ACTION-HISTORIAN-3:DIAGNOSIS_KNOWLEDGE_MATCH",
     "ACTION-REPAIR-2:ADVERSARIAL_FALSIFICATION"
-  ]
+  ],
+  "catalogWriteAuthority": {
+    "enabled": true,
+    "owner": "ACTION-HISTORIAN-3",
+    "indexPath": "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
+    "canAdd": true,
+    "canEdit": true,
+    "canDelete": false,
+    "exactShaRequired": true,
+    "branch": "execution",
+    "capacity": 1000000
+  },
+  "requiredBeforeAction": [
+    "READ_ACTION_VAULT_SUPERVISORY_LEARNING_PROTOCOL",
+    "VALIDATE_CURRENT_EXACT_SHA",
+    "RECORD_OUTCOME_OR_ESCALATION"
+  ],
+  "supervisorCouncil": {
+    "enabled": true,
+    "route": "ACTION-HISTORIAN-3 -> assistantController -> ACTIVE_COUNCIL_INGRESS",
+    "unresolvedFailurePolicy": "ESCALATE_EVERY_UNRESOLVED_FAILURE",
+    "specialistTeachingRequest": true,
+    "lessonReturnPath": "ACTION-HISTORIAN-3",
+    "lessonWriteback": "ACTION-INDEX-4000"
+  },
+  "mandatoryProtocolFile": "diagnostics/auto-repair/action-vault/ACTION-VAULT-SUPERVISORY-LEARNING-PROTOCOL.md",
+  "indexPath": "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json"
 }
