@@ -333,14 +333,36 @@ jobs:
 
       - name: Self-test trusted repair controller before mutation
         env:
-          # Bind every controller-local state read to the trusted main worktree.
-          # Do not let the active execution workspace's memory masquerade as trusted state.
-          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-controller/diagnostics/auto-repair/memory.json
+          # Self-tests must use a deterministic fixture, not mutable production memory.
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-selftest-memory.json
           FLIXO_INTRACTABLE_ERRORS: /tmp/flixo-repair-controller/diagnostics/auto-repair/intractable-errors.json
           FLIXO_TRUSTED_REPAIR_MEMORY: ''
           FLIXO_TRUSTED_MEMORY_SHA: ''
           FLIXO_SKIP_GIT_MEMORY_HISTORY: 'true'
         run: |
+          set -euo pipefail
+          cat > /tmp/flixo-repair-selftest-memory.json <<'JSON'
+          {
+            "version": 10,
+            "cases": [],
+            "playbooks": [
+              {
+                "rootCause": "lint",
+                "rule": "eslint-unused",
+                "attempts": 3,
+                "successes": 3,
+                "failures": 0,
+                "fingerprints": ["__baseline_a__", "__baseline_b__", "__baseline_c__"],
+                "successfulFingerprints": ["__baseline_a__", "__baseline_b__", "__baseline_c__"],
+                "failedFingerprints": []
+              }
+            ],
+            "lessons": [],
+            "antiLessons": [],
+            "actionHistory": []
+          }
+          JSON
+          test -s /tmp/flixo-repair-selftest-memory.json
           set -euo pipefail
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-diagnosis.mjs
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-learning.mjs
