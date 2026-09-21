@@ -114,19 +114,6 @@ jobs:
           echo 'AUTOMATIC_GREEN_GATE_WAKE=true'
           echo 'HUMAN_MANUAL_REPAIR_LAUNCH=false'
           echo 'REPAIR_DISPATCH_REMAINS_CANONICAL_GREEN_GATE_AUTHORITY=true'
-      - name: Keep the Repair Bot itself resident
-        if: steps.state.outputs.wake == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution -f resident=true
-          echo 'AUTOMATIC_RESIDENT_REPAIR_BOT_WAKE=true'
-          echo 'RESIDENT_REPAIR_BOT_IS_NOT_SLEEPING=true'
-          echo 'RESIDENT_MODE_IS_OBSERVER_ONLY=true'
-          echo 'CANONICAL_GREEN_GATE_REMAINS_SOLE_REPAIR_DISPATCH_AUTHORITY=true'
-
       - name: Wake observer supervisor automatically
         if: steps.state.outputs.wake == 'true'
         env:
