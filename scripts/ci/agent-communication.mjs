@@ -46,6 +46,8 @@ const assertActorKnown = (actor) => {
 const required = ['messageId','actor','recipient','intent','taskId','scope','entrySha','risk','dependencies','expectedEvidence','stopConditions','proofObligations','createdAt'];
 const COUNCIL_RECIPIENTS = new Set(['assistantController','verification','analysis']);
 const PRIORITIES = new Set(['P0','P1','P2','P3']);
+export const COUNCIL_PRIORITY = 'P0';
+export const COUNCIL_RESPONSE_MODE = 'IMMEDIATE';
 const isCouncilOperation = (message) => {
   const payload = message?.payload;
   return message?.councilOperation === true || COUNCIL_RECIPIENTS.has(String(message?.recipient ?? '')) || String(message?.intent ?? '').startsWith('COUNCIL_') || Boolean(payload && typeof payload === 'object' && payload.councilOperation === true);
@@ -73,9 +75,9 @@ export function validateMessage(message, observedSha = currentSha()) {
   if (!['LOW','MEDIUM','HIGH','CRITICAL'].includes(String(message.risk))) throw new Error('AGENT_MESSAGE_RISK_INVALID');
   if (typeof message.intent !== 'string' || !message.intent.trim()) throw new Error('AGENT_MESSAGE_INTENT_INVALID');
   const councilOperation = isCouncilOperation(message);
-  const priority = String(message.priority ?? (councilOperation ? 'P0' : 'P1')).toUpperCase();
+  const priority = String(message.priority ?? (councilOperation ? COUNCIL_PRIORITY : 'P1')).toUpperCase();
   if (!PRIORITIES.has(priority)) throw new Error('AGENT_MESSAGE_PRIORITY_INVALID');
-  if (councilOperation && priority !== 'P0') throw new Error('AGENT_MESSAGE_COUNCIL_PRIORITY_REQUIRED');
+  if (councilOperation && priority !== COUNCIL_PRIORITY) throw new Error('AGENT_MESSAGE_COUNCIL_PRIORITY_REQUIRED');
   return Object.freeze({
     schemaVersion: Number(message.schemaVersion ?? 1),
     messageId: String(message.messageId),
@@ -85,6 +87,8 @@ export function validateMessage(message, observedSha = currentSha()) {
     intent: String(message.intent),
     priority,
     councilOperation,
+    councilResponseMode: councilOperation ? COUNCIL_RESPONSE_MODE : 'NORMAL',
+    immediateResponseRequired: councilOperation,
     taskId: String(message.taskId),
     scope: [...message.scope],
     entrySha: String(message.entrySha),

@@ -148,6 +148,11 @@ Repository mutation is limited to the canonical mutation roles admitted by `scri
 
 A prompt, memory record, scout report, or handoff cannot grant mutation authority.
 
+## COUNCIL-FIRST ADMINISTRATION — SUPREME COORDINATION PRIORITY
+The Council President (`assistantController`) is the highest repository administration authority for coordination. Any Council message, comment, wake, question, or invocation is P0 and requires an immediate response/receipt before lower-priority work continues. Safe-boundary preemption may interrupt scheduling at a boundary; it must never corrupt an in-flight mutation.
+
+Every agent, bot, Action Vault resident, Task Agent, Repair Agent, Execution Agent, Master/Chief runtime adapter, and certification/review role MUST consume this invariant through the canonical communication and coordination paths. No role may downgrade, defer, silently ignore, or supersede a Council request. Stale/conflicting requests are answered immediately with the corresponding fail-closed state and exact-SHA evidence; they are not silently dropped.
+
 ## COMMUNICATION-FIRST GATE
 
 The shared agent communication channel is the first operational dependency for every agent.

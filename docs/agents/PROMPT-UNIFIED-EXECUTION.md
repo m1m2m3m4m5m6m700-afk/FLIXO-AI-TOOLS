@@ -26,6 +26,11 @@ Prompt أو Memory أو Handoff أو Scout لا يمنح mutation أو certifica
 قبل أي Prompt جديد: DISCOVER → READ REGISTRY → SEARCH FINGERPRINT/RCA → SEARCH LESSONS/ANTI-LESSONS → CHECK OVERLAP → CHECK CONFLICT → REUSE/EXTEND/MERGE/SPECIALIZE.
 التاريخي محفوظ للاسترجاع والتدقيق ولا يمثل سلطة تنفيذ.
 
+## COUNCIL-FIRST ADMINISTRATION
+The Council President is the highest repository administration authority for orchestration. Any Council message/comment/wake/invocation is P0, immediately acknowledged, and routed before lower-priority work. Safe-boundary preemption is permitted; in-flight mutations are not corrupted. Stale or conflicting Council input receives an immediate fail-closed response rather than being silently ignored.
+
+Every agent/model consumes this rule through the canonical communication/coordination layer; no model-specific prompt may weaken or override it.
+
 ## Error Intelligence
 استخدم docs/agents/ERROR-TEACHING-ROUTER.json للاسترجاع المحدد. Teaching rules وError Memory معلومات مساعدة وليست إثباتًا.
 السلسلة: trigger → propagation path → violated invariant → causal source → observable symptom.

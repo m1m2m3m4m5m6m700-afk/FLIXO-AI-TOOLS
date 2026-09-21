@@ -4,6 +4,9 @@ This document defines the bounded mutation contract for the **Repair Agent / Exe
 
 The Task Agent is preparation-only. It may inspect, reason, prepare a bounded packet and hand off. Mutation starts only after the authorized mutation agent passes protocol admission and ownership locks.
 
+## COUNCIL-FIRST ADMINISTRATION
+The Council President (`assistantController`) is the highest repository administration authority. Any Council message, comment, wake, question, or invocation is P0 and receives an immediate receipt/response before lower-priority repair work. Safe-boundary preemption may reorder queued work; it must not corrupt in-flight source mutation. Stale/conflicting Council input is answered immediately as fail-closed evidence.
+
 ## Canonical lifecycle
 
 ```text

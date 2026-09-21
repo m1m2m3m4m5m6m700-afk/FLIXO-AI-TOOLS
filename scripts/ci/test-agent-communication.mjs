@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
-import { ingest, validateMessage, markRead, markConsumed } from './agent-communication.mjs';
+import { ingest, validateMessage, markRead, markConsumed, COUNCIL_PRIORITY, COUNCIL_RESPONSE_MODE } from './agent-communication.mjs';
 
 const root = process.cwd();
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
@@ -53,8 +53,16 @@ try {
   delete directIndex.messages[directId];
   fs.writeFileSync(indexFile, JSON.stringify(directIndex, null, 2) + '\n');
 
+const councilTargets = ['assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','diagnosticAgent','ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','ALL_AGENTS'];
+for (const [index, recipient] of councilTargets.entries()) {
+  const routed = validateMessage({ ...base, messageId: id + '-COUNCIL-' + index, idempotencyKey: id + '-COUNCIL-' + index, recipient, intent: 'COUNCIL_QUESTION', payload: { councilOperation: true } }, sha);
+  assert.equal(routed.priority, COUNCIL_PRIORITY);
+  assert.equal(routed.councilOperation, true);
+  assert.equal(routed.councilResponseMode, COUNCIL_RESPONSE_MODE);
+  assert.equal(routed.immediateResponseRequired, true);
+}
 const councilMessage = validateMessage({ ...base, messageId: id + '-COUNCIL', idempotencyKey: id + '-COUNCIL', recipient: 'assistantController', intent: 'COUNCIL_QUESTION', payload: { councilOperation: true } }, sha);
-assert.equal(councilMessage.priority, 'P0');
+assert.equal(councilMessage.priority, COUNCIL_PRIORITY);
 assert.equal(councilMessage.councilOperation, true);
 assert.throws(() => validateMessage({ ...base, messageId: id + '-COUNCIL-BAD', idempotencyKey: id + '-COUNCIL-BAD', recipient: 'assistantController', intent: 'COUNCIL_QUESTION', priority: 'P1' }, sha), /COUNCIL_PRIORITY_REQUIRED/);
 console.log('COUNCIL_MESSAGE_P0_PRIORITY=PASS');

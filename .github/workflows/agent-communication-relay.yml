@@ -28,9 +28,23 @@ jobs:
       - name: Checkout canonical communication implementation
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: main
-          fetch-depth: 0
+          ref: execution
+          fetch-depth: 1
           persist-credentials: false
+
+      - name: Bind relay to current exact execution SHA
+        id: relay_head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin "refs/heads/execution:$SHA"
+          git checkout --detach "$SHA"
+          test "$(git rev-parse HEAD)" = "$SHA"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
       - name: Extract President Wake when present
         id: president_wake
@@ -63,9 +77,11 @@ jobs:
         if: steps.president_wake.outputs.wake == 'true'
         env:
           CURRENT_SHA: ${{ steps.president_head.outputs.sha }}
+          RELAY_SHA: ${{ steps.relay_head.outputs.sha }}
         shell: bash
         run: |
           set -euo pipefail
+          test "$RELAY_SHA" = "$CURRENT_SHA"
           node scripts/ci/council-wake-dispatch.mjs             --comment-file=/tmp/council-wake-comment.md             --current-execution-sha="$CURRENT_SHA"             --repository="$GITHUB_REPOSITORY" > /tmp/council-wake-plan.json
           jq -r '"mode=" + .mode + "\nrole=" + .role + "\nworkflow=" + (.workflow // "") + "\nworkPackage=" + .workPackageId + "\nentrySha=" + .entrySha' /tmp/council-wake-plan.json >> "$GITHUB_OUTPUT"
 
