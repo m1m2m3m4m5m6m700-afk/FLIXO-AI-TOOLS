@@ -807,5 +807,19 @@
     "requiredRead": true,
     "failClosedOnMismatch": true,
     "sourceOfTruth": "MASTER_BLOCK"
+  },
+  "learningIndex": {
+    "canonicalPath": "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
+    "canonicalRecordRange": "T1001-T5000",
+    "canonicalRecordCount": 4000,
+    "declaredCapacity": 1000000,
+    "mirrorMode": "EXACT_CANONICAL_MIRROR",
+    "botMirrors": {
+      "ACTION-REPAIR": "diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR-INDEX-4000.json",
+      "ACTION-REPAIR-2": "diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR-2-INDEX-4000.json",
+      "ACTION-HISTORIAN-3": "diagnostics/auto-repair/action-repair-bots/ACTION-HISTORIAN-3-INDEX-4000.json"
+    },
+    "authority": "CANONICAL_INDEX_ONLY",
+    "learningRule": "Bots learn locally from their exact mirror; promoted knowledge is written by ACTION-HISTORIAN-3 to the canonical index and then mirrored."
   }
 }

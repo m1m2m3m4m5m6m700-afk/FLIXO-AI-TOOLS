@@ -242,6 +242,30 @@ export function runGate(root = ROOT) {
     if (!profile?.canonicalVaultProtocolMirror?.content || profile.canonicalVaultProtocolMirror.content !== masterBlock) err(errors, 'ACTION_VAULT_BOT_PROTOCOL_MIRROR_MISMATCH', bot);
   }
   if (intelligence?.canonicalVaultProtocol?.protocolId !== 'ACTION-VAULT-CANONICAL-BOT-PROTOCOL-v1' || intelligence?.canonicalVaultProtocol?.sourceOfTruth !== 'MASTER_BLOCK') err(errors, 'ACTION_VAULT_PROTOCOL_CANONICAL_BINDING_MISSING');
+
+  const canonicalLearningIndexPath = path.resolve(root, 'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json');
+  const canonicalLearningIndexSha = exists(canonicalLearningIndexPath) ? gitBlobSha('diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json') : null;
+  const expectedLearningMirrors = Object.freeze({
+    'ACTION-REPAIR': 'diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR-INDEX-4000.json',
+    'ACTION-REPAIR-2': 'diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR-2-INDEX-4000.json',
+    'ACTION-HISTORIAN-3': 'diagnostics/auto-repair/action-repair-bots/ACTION-HISTORIAN-3-INDEX-4000.json',
+  });
+  if (!canonicalLearningIndexSha) err(errors, 'ACTION_VAULT_LEARNING_INDEX_CANONICAL_MISSING');
+  for (const bot of EXPECTED_BOTS) {
+    const profile = profiles.find((x) => x.botId === bot);
+    const expectedMirror = expectedLearningMirrors[bot];
+    if (profile?.learningIndex?.canonicalPath !== 'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json') err(errors, 'ACTION_VAULT_LEARNING_INDEX_CANONICAL_PATH_INVALID', bot);
+    if (profile?.learningIndex?.localMirrorPath !== expectedMirror) err(errors, 'ACTION_VAULT_LEARNING_INDEX_MIRROR_PATH_INVALID', bot);
+    if (profile?.learningIndex?.mirrorMode !== 'EXACT_CANONICAL_MIRROR') err(errors, 'ACTION_VAULT_LEARNING_INDEX_MIRROR_MODE_INVALID', bot);
+    if (profile?.learningIndex?.authority !== 'CANONICAL_INDEX_ONLY') err(errors, 'ACTION_VAULT_LEARNING_INDEX_AUTHORITY_INVALID', bot);
+    if (profile?.learningIndex?.mutationAuthority !== false) err(errors, 'ACTION_VAULT_LEARNING_INDEX_LOCAL_MUTATION_ENABLED', bot);
+    const mirrorAbs = path.resolve(root, expectedMirror);
+    if (!exists(mirrorAbs)) err(errors, 'ACTION_VAULT_LEARNING_INDEX_MIRROR_MISSING', bot);
+    else if (canonicalLearningIndexSha && gitBlobSha(expectedMirror) !== canonicalLearningIndexSha) err(errors, 'ACTION_VAULT_LEARNING_INDEX_MIRROR_MISMATCH', bot);
+  }
+  if (intelligence?.learningIndex?.canonicalPath !== 'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json') err(errors, 'ACTION_VAULT_LEARNING_INDEX_INTELLIGENCE_PATH_INVALID');
+  if (JSON.stringify(intelligence?.learningIndex?.botMirrors ?? {}) !== JSON.stringify(expectedLearningMirrors)) err(errors, 'ACTION_VAULT_LEARNING_INDEX_INTELLIGENCE_MIRRORS_INVALID');
+
   const promptProtocolErrors = validatePromptProtocolBinding(root, intelligence);
   errors.push(...promptProtocolErrors);
   if (residency) errors.push(...validateResidency(residency));
