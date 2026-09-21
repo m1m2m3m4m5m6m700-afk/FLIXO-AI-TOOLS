@@ -231,7 +231,7 @@ export function runGate(root = ROOT) {
   if (intelligence) errors.push(...validateThreeBotIntelligence(intelligence, profiles));
   const masterProtocolFile = path.resolve(root, 'docs/AGENT-COLLABORATION-PROTOCOL.md');
   const vaultProtocolFile = path.resolve(root, 'diagnostics/auto-repair/action-vault/ACTION-VAULT-SUPERVISORY-LEARNING-PROTOCOL.md');
-  const canonicalBlock = (file) => fs.existsSync(file) ? fs.readFileSync(file, 'utf8').match(/<!-- ACTION_VAULT_CANONICAL_PROTOCOL_START -->[\\s\\S]*?<!-- ACTION_VAULT_CANONICAL_PROTOCOL_END -->/u)?.[0] ?? null : null;
+  const canonicalBlock = (file) => fs.existsSync(file) ? fs.readFileSync(file, 'utf8').match(/<!-- ACTION_VAULT_CANONICAL_PROTOCOL_START -->[\s\S]*?<!-- ACTION_VAULT_CANONICAL_PROTOCOL_END -->/u)?.[0] ?? null : null;
   const masterBlock = canonicalBlock(masterProtocolFile);
   const vaultBlock = canonicalBlock(vaultProtocolFile);
   if (!masterBlock) err(errors, 'ACTION_VAULT_PROTOCOL_MASTER_BLOCK_MISSING');
