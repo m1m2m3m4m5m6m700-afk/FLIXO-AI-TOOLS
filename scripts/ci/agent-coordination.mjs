@@ -87,12 +87,15 @@ const parseTaskLedger = () => {
   }
   return [...tasks.values()];
 };
+const isCouncilPriorityTask = (task) => Boolean(task?.councilPriority === true || task?.councilRole);
+const hasPendingCouncilPriorityTask = () => Object.values(state.tasks ?? {}).some((task) => ['READY','QUEUED'].includes(task.status) && isCouncilPriorityTask(task));
 const isLedgerTaskEligible = (task) => {
   const status = String(task.status ?? '');
   return Boolean(status) && !LEDGER_BLOCKED_RE.test(status) && LEDGER_READY_RE.test(status);
 };
 const existingTaskStatusForScheduling = new Set(['READY', 'QUEUED', 'RUNNING', 'DONE']);
 const selectNextLedgerTask = (excludedTaskId = null) => {
+  if (hasPendingCouncilPriorityTask()) return null;
   const tasks = parseTaskLedger();
   const activeOrKnown = new Set(Object.values(state.tasks ?? {}).filter((task) => existingTaskStatusForScheduling.has(task.status)).map((task) => task.taskId));
   return tasks
@@ -119,6 +122,7 @@ const materializeLedgerTask = (ledgerTask) => {
     missionId: `LEDGER:${ledgerTask.taskId}`,
     workPackageId: ledgerTask.taskId,
     councilRole: 'UNASSIGNED',
+    councilPriority: false,
     ownerRole: null,
     ownerAgent: null,
     workItems: [],
@@ -338,6 +342,7 @@ if (command === 'task-create') {
 if (command === 'task-claim') {
   const taskId = requireArg('task'); const sessionId = requireArg('session'); const agentId = requireArg('agent');
   const task = state.tasks[taskId]; if (!task) throw new Error(`Unknown task: ${taskId}`); if (!['READY', 'QUEUED'].includes(task.status)) throw new Error(`Task not claimable: ${task.status}`);
+  if (!isCouncilPriorityTask(task) && hasPendingCouncilPriorityTask()) throw new Error('COORDINATION_COUNCIL_PRIORITY_BLOCK');
   for (const dep of task.dependsOn ?? []) if (state.tasks[dep]?.status !== 'DONE') throw new Error(`DEPENDENCY_BLOCK=${dep}`);
   assertOpenVisibility(task, sessionId, agentId);
   const visibility = readVisibility(sessionId);
