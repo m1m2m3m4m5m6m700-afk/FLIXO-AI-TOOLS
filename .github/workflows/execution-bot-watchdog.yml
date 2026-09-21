@@ -128,9 +128,7 @@ jobs:
             OPEN_PR_COUNT="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json number --jq 'length')"
             if [ "$OPEN_PR_COUNT" -gt 0 ]; then
               echo "WATCHDOG_PR_CANONICAL_PATH=true"
-              echo "WATCHDOG_TEST_SYSTEM_DISPATCH=NOOP_PR_CANONICAL"
-              echo "WATCHDOG_CANONICAL_TEST_SYSTEM_STARTED=false"
-              exit 0
+              echo "WATCHDOG_PR_CANONICAL_PATH=EXACT_SHA_RECHECK_REQUIRED"
             fi
           fi
 
