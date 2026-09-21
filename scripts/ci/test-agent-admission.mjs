@@ -141,6 +141,7 @@ const actionVaultSession = {
   protocolHash: REPAIR_PROTOCOL_HASH,
   state: 'FAILURE_CAPTURED',
   targetSHA,
+  failureFingerprint: 'fp-test',
   actionVaultMission: {
     role: 'ACTION-REPAIR', triadId: 'triad-test', messageId: 'msg-test', taskId: 'task-test',
     failureFingerprint: 'fp-test', entrySha: targetSHA, targetSha: targetSHA, ownerAgent: 'actionRepairBot',
