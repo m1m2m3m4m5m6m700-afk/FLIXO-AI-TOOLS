@@ -144,7 +144,9 @@ const actionVaultSession = {
   actionVaultMission: {
     role: 'ACTION-REPAIR', triadId: 'triad-test', messageId: 'msg-test', taskId: 'task-test',
     failureFingerprint: 'fp-test', entrySha: targetSHA, targetSha: targetSHA, ownerAgent: 'actionRepairBot',
-    verifierAgent: 'actionRepairVerifier', historianAgent: 'actionHistorian', programmerTwinParity: { intelligenceParity: 'EXACT', authorityParity: 'SEPARATED_BY_DESIGN', targetSha: targetSHA, failureFingerprint: 'fp-test' }, cognitiveAwareness: { protocol: 'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1', targetSha: targetSHA, complete: true }, proofObligations: ['proof'], stopConditions: ['GREEN'], noBlindRetry: true,
+    verifierAgent: 'actionRepairVerifier', historianAgent: 'actionHistorian',
+    diagnosisKnowledgeReview: { protocol: 'ACTION-VAULT-DIAGNOSIS-KNOWLEDGE-REVIEW-v1', reviewer: 'ACTION-HISTORIAN-3', decision: 'MATCH', allowSourceMutation: true, targetSha: targetSHA, fingerprint: 'fp-test', diagnosisDigest: 'a'.repeat(64) },
+    catalogReview: { status: 'REVIEWED', reviewer: 'ACTION-HISTORIAN-3', beforeMutation: true, mutationAuthority: false, targetSha: targetSHA, fingerprint: 'fp-test', source: { indexId: 'ACTION-INDEX-4000', declaredCapacity: 1000000, actualRecordCount: 4000 }, digest: 'a'.repeat(64) }, programmerTwinParity: { intelligenceParity: 'EXACT', authorityParity: 'SEPARATED_BY_DESIGN', targetSha: targetSHA, failureFingerprint: 'fp-test' }, cognitiveAwareness: { protocol: 'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1', targetSha: targetSHA, complete: true }, proofObligations: ['proof'], stopConditions: ['GREEN'], noBlindRetry: true,
   },
   actionVaultVerifierProof: verifierProof,
 };
