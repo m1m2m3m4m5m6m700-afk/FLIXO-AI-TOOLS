@@ -168,6 +168,29 @@ jobs:
           printf '%s\n' "$FAILED_BRANCH" > /tmp/flixo-failed-branch
           printf '%s\n' "$FAILED_NAME" > /tmp/flixo-failed-workflow
 
+      - name: Recover execution branch conflict without owner withdrawal
+        run: |
+          set -euo pipefail
+          echo "REQUALIFY_SAME_MISSION"
+          RECOVERY_JSON="$(node scripts/ci/action-vault-branch-conflict-recovery.mjs)"
+          printf '%s\n' "$RECOVERY_JSON" > /tmp/flixo-branch-conflict-recovery.json
+          RECOVERED_SHA="$(printf '%s' "$RECOVERY_JSON" | jq -r '.currentSha // .remoteSha // .localSha // empty')"
+          test "$RECOVERED_SHA" != ""
+          test "$RECOVERED_SHA" != "null"
+          printf '%s\n' "$RECOVERED_SHA" > /tmp/flixo-failed-sha
+          test "$(cat /tmp/flixo-failed-sha)" = "$RECOVERED_SHA"
+          echo "FLIXO_EXPECTED_TARGET_SHA=$RECOVERED_SHA" >> "$GITHUB_ENV"
+          echo "FLIXO_REQUALIFIED_SHA=$RECOVERED_SHA" >> "$GITHUB_ENV"
+          CURRENT_AFTER_RECOVERY="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          if [ "$CURRENT_AFTER_RECOVERY" != "$RECOVERED_SHA" ]; then
+            echo "execution advanced again after conflict recovery"
+            exit 1
+          fi
+          echo "REQUALIFY_CURRENT_HEAD=PASS"
+          # After requalification, the existing canonical stages must re-run:
+          # action-repair-dual-control.mjs audit
+          # auto-repair-engine.mjs
+
       - name: Validate immutable repair boundary before mutation
         run: node scripts/ci/validate-auto-repair-boundary.mjs --static-only
 
