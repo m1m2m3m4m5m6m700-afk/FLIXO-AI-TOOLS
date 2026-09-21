@@ -101,6 +101,9 @@ function ImageCropperTool({ locale }: { locale?: string }) {
         return <div className="image-workbench-control-grid">{fields.map(([key, label]) => <label key={key}><span>{label}</span><input aria-label={label} inputMode="numeric" value={next[key]} onChange={(event) => update((value) => ({ ...value, [key]: Number(event.target.value) }))} /></label>)}</div>;
       }}
       onReset={() => setParameters({ x: 0, y: 0, cropWidth: 500, cropHeight: 500, width: 500, height: 500 })}
+      resetLabel={t("Reset")}
+      beforeLabel={t("Before")}
+      afterLabel={t("After")}
       runLabel={t("Run tool")}
       downloadLabel={t("Download now")}
       downloadRole="button"
