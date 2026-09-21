@@ -9997,5 +9997,31 @@
     "displayName": "MASTER-3 — CONSULTANT / المستشار",
     "hierarchy": "USER → MASTER-1 → MASTER-3",
     "position": "CONSULTANT_WITHIN_MASTER_SYSTEM"
+  },
+  "innovationPolicy": {
+    "status": "ACTIVE",
+    "purpose": "ENCOURAGE_STRUCTURED_INNOVATION_WITHIN_THE_CELL",
+    "permittedProposals": [
+      "HONORARY_RANK",
+      "HONORARY_STAR",
+      "BOT",
+      "AGENT",
+      "CELL_ROLE",
+      "COLLABORATION_PATTERN"
+    ],
+    "proposalAuthority": "MASTERS_AND_REGISTERED_AGENTS_MAY_PROPOSE",
+    "activationAuthority": "OFFICIAL_ADMIN_RECORD_ONLY",
+    "evaluation": "EVIDENCE_BASED",
+    "safeguards": [
+      "NO_AUTOMATIC_MUTATION_AUTHORITY",
+      "NO_AUTOMATIC_CERTIFICATION_AUTHORITY",
+      "NO_AUTOMATIC_PERMISSION_GRANT",
+      "NO_AUTOMATIC_PROMOTION",
+      "NO_SECOND_SOURCE_OF_TRUTH",
+      "EXACT_SHA_AND_EVIDENCE_REQUIRED"
+    ],
+    "principle": "INNOVATION_IS_ENCOURAGED; AUTHORITY_IS_EARNED_AND_EXPLICIT",
+    "reuseRule": "Validated ideas may become canonical cell capabilities or roles only through the existing control plane.",
+    "deduplication": "Equivalent proposals must reuse an existing canonical role, star, bot, agent or protocol definition rather than create duplicates."
   }
 }
