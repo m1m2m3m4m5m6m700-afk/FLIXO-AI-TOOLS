@@ -158,7 +158,6 @@ export function evaluateGreen({
   mainSha,
   observedBranch = 'execution',
   openPr = null,
-  latestMergedPr = null,
   workflowRuns = [],
   checkRuns = [],
   logs = {},
