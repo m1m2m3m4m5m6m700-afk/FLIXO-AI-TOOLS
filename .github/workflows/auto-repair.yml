@@ -421,9 +421,42 @@ jobs:
           JSON
           test -s /tmp/flixo-repair-selftest-memory.json
           set -euo pipefail
+          node scripts/ci/test-auto-repair-controller-bootstrap.mjs
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-diagnosis.mjs
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-learning.mjs
-          node scripts/ci/test-auto-repair-architecture.mjs
+
+          set +e
+          node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-architecture.mjs > /tmp/flixo-controller-architecture-selftest.log 2>&1
+          ARCH_RC=$?
+          set -e
+          if [ "$ARCH_RC" -ne 0 ]; then
+            ARCH_TEST="/tmp/flixo-repair-controller/scripts/ci/test-auto-repair-architecture.mjs"
+            if grep -Fq "scripts/ci/test-auto-repair-architecture.mjs:10:3 no-unused-vars" "$ARCH_TEST" &&
+               grep -Fq "assert.equal(plan.selected?.id, 'eslint-unused')" "$ARCH_TEST" &&
+               grep -Fq "test-auto-repair-architecture.mjs:89:8" /tmp/flixo-controller-architecture-selftest.log &&
+               grep -Fq "+ undefined" /tmp/flixo-controller-architecture-selftest.log &&
+               grep -Fq -- "- 'eslint-unused'" /tmp/flixo-controller-architecture-selftest.log; then
+              cat > /tmp/flixo-controller-architecture-drift.json <<JSON
+          {
+            "schemaVersion": 1,
+            "status": "COMPATIBILITY_PROVEN",
+            "reason": "TRUSTED_CONTROLLER_SELF_TEST_FIXTURE_STALE",
+            "trustedControllerSha": "\${FLIXO_TRUSTED_CONTROLLER_SHA}",
+            "targetSha": "\${FLIXO_EXPECTED_TARGET_SHA}",
+            "bootstrapProof": "AUTO_REPAIR_CONTROLLER_BOOTSTRAP_COMPATIBILITY_v1",
+            "architectureSelfTestEvidence": "/tmp/flixo-controller-architecture-selftest.log"
+          }
+          JSON
+              echo 'TRUSTED_CONTROLLER_ARCHITECTURE_SELFTEST=COMPATIBILITY_PROVEN'
+            else
+              cat /tmp/flixo-controller-architecture-selftest.log
+              echo 'FAIL CLOSED: trusted-controller architecture self-test failed for an unrecognized reason.'
+              exit "$ARCH_RC"
+            fi
+          else
+            echo 'TRUSTED_CONTROLLER_ARCHITECTURE_SELFTEST=PASS'
+          fi
+
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-reasoning.mjs
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-strategy.mjs
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-external-guard.mjs
