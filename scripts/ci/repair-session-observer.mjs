@@ -71,7 +71,7 @@ const stageCounts = new Map();
 for (const run of failures) stageCounts.set(run.stage, (stageCounts.get(run.stage) ?? 0) + 1);
 const repeatedStages = [...stageCounts.entries()].filter(item => item[1] >= 2).sort((a, b) => b[1] - a[1]);
 const repeatedStage = repeatedStages[0]?.[0] ?? null;
-const sameShaFailures = failures.filter(run => !targetSha || run.headSha === targetSha);
+const sameShaFailures = failures.filter(run => !executionSha || run.headSha === executionSha);
 const noProgress = sameShaFailures.length >= 2 && repeatedStage !== null;
 const engineErrorRuns = failures.filter(run => run.engineError);
 const nextStrategy = repeatedStage === 'controller_preflight' || repeatedStage === 'preparation' || repeatedStage === 'evidence_capture' ? 'workflow-forensics' : repeatedStage === 'strategy_selection' ? 'alternate-hypothesis' : repeatedStage === 'repair_execution' ? 'observability-trace' : repeatedStage === 'verification' ? 'alternate-hypothesis' : repeatedStage === 'workflow_orchestration' ? 'workflow-forensics' : (noProgress || engineErrorRuns.length >= 2 ? 'alternate-hypothesis' : null);
