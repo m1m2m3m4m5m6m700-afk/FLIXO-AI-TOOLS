@@ -74,14 +74,14 @@ Any committed change under ACTION VAULT wakes ACTION-REPAIR, ACTION-REPAIR-2, an
 ## Specialized triad roles
 
 
-### ACTION-REPAIR — Programming owner
-Reads the current code as a programmer, performs root-cause reasoning, consumes the historical prediction packet, and applies the bounded source repair when it is the active owner.
+### ACTION-REPAIR — Constructive programmer seat
+Reads the current code as a programmer, performs root-cause reasoning, consumes the historical and knowledge evidence, and may apply the bounded source repair only when selected as the single active owner after the full triad gate.
 
-### ACTION-REPAIR-2 — Historical explorer and predictor
-Searches the historical Action error index, Action repair catalog, repair memory, lessons and anti-lessons. Produces a ranked **PREDICTIVE_REPAIR_PACKET_V1** with candidate strategies, likely files and predicted checks. It never mutates source or tests.
+### ACTION-REPAIR-2 — Adversarial programmer seat
+Shares the programming reasoning stack, searches the historical Action error index, repair catalog, memory, lessons and anti-lessons, attempts to falsify the primary diagnosis/repair, and may add or edit repair knowledge. It may apply a bounded source repair only when selected as the single active owner after the full triad gate. It never mutates tests or main.
 
-### ACTION-HISTORIAN-3 — Failure ledger
-Records every RED, repair attempt, failed attempt, handoff, prediction outcome and Canonical GREEN chain with exact task/fingerprint/SHA/run provenance. Failure records are append-only and remain available as learning material.
+### ACTION-HISTORIAN-3 — Master knowledge and diagnosis seat
+Owns the Action Vault index, may add and edit index knowledge, records every RED, repair attempt, repaired outcome, unresolved failure, handoff and Canonical GREEN chain with exact task/fingerprint/SHA/run provenance, and decides whether the programming diagnosis matches the textual knowledge. It may also apply the bounded source repair when selected as the single active owner.
 
 ### Required order
 FAILURE RECORD
@@ -99,9 +99,9 @@ A prediction is a proposal, not proof. The programmer may reject it. A repair at
 
 ## Repair engineering guard
 
-ACTION-REPAIR is the only programming mutation owner. Patch synthesis creates bounded candidates; sandbox simulation executes only in a detached exact-SHA worktree; differential verification checks scope and gate integrity. Simulation never mutates the source worktree and never grants GREEN.
+All three Action Vault bots may be selected as the single programming mutation owner. Only one source-mutation owner may be active for a task. Patch synthesis creates bounded candidates; sandbox simulation executes only in a detached exact-SHA worktree; differential verification checks scope and gate integrity. Simulation never mutates the source worktree and never grants GREEN.
 
-ACTION-REPAIR-2 may challenge or propose candidate strategies but cannot authorize mutation. ACTION-HISTORIAN-3 records simulation outcomes and failures. Canonical GREEN remains mandatory before closure or learning promotion.
+ACTION-HISTORIAN-3 is the mandatory diagnosis-to-knowledge judge before source mutation and the custodian of ACTION-INDEX-4000. ACTION-REPAIR-2 remains adversarial even when selected as owner. Canonical GREEN remains mandatory before closure or learning promotion.
 
 ## Mandatory supervisory-learning protocol
 
@@ -117,3 +117,7 @@ ACTION-HISTORIAN-3 owns the write/edit authority for the Action Vault index:
 
 It records every verified repair outcome and every unresolved repair failure. Every unresolved failure is escalated to `assistantController` through the canonical agent-communication path and the active Council ingress so a specialist supervisor can teach the missing knowledge. Returned supervisor advice is written back into the same Action Vault index with full provenance. Canonical GREEN remains the promotion authority for verified learning.
 
+
+## Final mandatory rule — learning is never lost
+
+Every unresolved repair failure is recorded by ACTION-HISTORIAN-3 and escalated through the canonical Council path for specialist teaching. The returned lesson is not kept only in chat: it is written into `ACTION-INDEX-4000.json` with exact provenance. A repaired outcome is also recorded in that same index. No failure may disappear merely because the repair process moved to another attempt.
