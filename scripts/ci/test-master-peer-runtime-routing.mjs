@@ -31,6 +31,8 @@ assert.match(relay, /FAIL CLOSED: unknown recipientMaster/);
 assert.match(relay, /FAIL CLOSED: unknown senderMaster/);
 assert.match(relay, /requestedByAccountId:"SYSTEM"/);
 assert.match(relay, /masterPeerMessage:/);
+assert.match(relay, /RUNTIME_DISPATCH=NOT_APPLICABLE_FOR_NON_MASTER_AGENT_BROADCAST/);
+assert.match(relay, /TOP_RECIPIENT !== \\"MASTERS\\"/);
 
 assert.match(router, /MASTER-1/);
 assert.match(router, /MASTER-2/);
