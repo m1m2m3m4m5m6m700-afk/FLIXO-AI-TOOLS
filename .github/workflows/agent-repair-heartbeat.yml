@@ -88,29 +88,43 @@ jobs:
         run: |
           set -euo pipefail
           EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-          ACTIVE_GREEN_GATES="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status,headSha --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
-          ACTIVE_REPAIRS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status,headSha --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
+          ACTIVE_GREEN_GATES="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'")) | length')"
+          ACTIVE_REPAIRS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'")) | length')"
+          ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status,headSha,displayTitle --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'" and .displayTitle == "FLIXO Auto Repair Chain  NO_FINGERPRINT")) | length')"
           GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --commit "$EXECUTION_SHA" --limit 50 --json databaseId,status,conclusion,headSha,createdAt --jq 'map(select(.headSha == "'"$EXECUTION_SHA"'" and .conclusion == "success")) | sort_by(.createdAt) | last.databaseId // empty')"
 
           echo "EXECUTION_SHA=$EXECUTION_SHA"
           echo "ACTIVE_GREEN_GATES=$ACTIVE_GREEN_GATES"
           echo "ACTIVE_REPAIRS=$ACTIVE_REPAIRS"
+          echo "ACTIVE_RESIDENT=$ACTIVE_RESIDENT"
           echo "LAST_GREEN_GATE=${GREEN:-none}"
-
-          if [ "$ACTIVE_GREEN_GATES" -gt 0 ] || [ "$ACTIVE_REPAIRS" -gt 0 ]; then
-            echo 'RESIDENT_WORK_ALREADY_ACTIVE=true'
-            echo 'wake=false' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
 
           if [ -n "$GREEN" ]; then
             echo 'CANONICAL_GREEN_ALREADY_PROVEN=true'
             echo 'wake=false' >> "$GITHUB_OUTPUT"
+            echo 'resident_wake=false' >> "$GITHUB_OUTPUT"
           else
             echo 'CANONICAL_GREEN_NOT_PROVEN=true'
             echo 'wake=true' >> "$GITHUB_OUTPUT"
+            if [ "$ACTIVE_RESIDENT" -eq 0 ]; then
+              echo 'resident_wake=true' >> "$GITHUB_OUTPUT"
+            else
+              echo 'resident_wake=false' >> "$GITHUB_OUTPUT"
+            fi
           fi
 
+      - name: Start resident Repair Bot automatically when the repair session is open
+        if: steps.state.outputs.resident_wake == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution -f resident=true
+          echo 'AUTOMATIC_REPAIR_BOT_RESIDENCY_WAKE=true'
+          echo 'RESIDENT_MODE_IS_OBSERVATION_ONLY=true'
+          echo 'REPAIR_MUTATION_AUTHORITY_REMAINS_AUTO_REPAIR_CANONICAL_RUN=true'
+          echo 'MANUAL_WAKE_REQUIRED=false'
       - name: Wake canonical Green Gate automatically
         if: steps.state.outputs.wake == 'true'
         env:
