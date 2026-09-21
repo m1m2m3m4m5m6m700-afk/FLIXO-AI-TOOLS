@@ -25,6 +25,7 @@ export function evaluateMutationGate({
   regressionCounterexamples=null,
   preMutationProof=null,
   catalogReview=null,
+  diagnosisKnowledgeReview=null,
   mutationScope={changedPaths:[],selectedFiles:[],testMutation:false,controlPlaneMutation:false,mainMutation:false,gateWeakening:false},
   branch='execution',
 }={}){
@@ -54,6 +55,7 @@ export function evaluateMutationGate({
   const checks={
     EXACT_SHA:shaOk(targetSha)&&shaOk(currentSha)&&targetSha===currentSha,
     FAILURE_FINGERPRINT:typeof failureFingerprint==='string'&&failureFingerprint.length>0,
+    DIAGNOSIS_KNOWLEDGE_MATCH:Boolean(diagnosisKnowledgeReview?.protocol==='ACTION-VAULT-DIAGNOSIS-KNOWLEDGE-REVIEW-v1'&&diagnosisKnowledgeReview?.reviewer==='ACTION-HISTORIAN-3'&&diagnosisKnowledgeReview?.decision==='MATCH'&&diagnosisKnowledgeReview?.allowSourceMutation===true&&diagnosisKnowledgeReview?.targetSha===targetSha&&diagnosisKnowledgeReview?.fingerprint===failureFingerprint&&diagnosisKnowledgeReview?.catalogDigest===catalogReview?.digest&&typeof diagnosisKnowledgeReview?.diagnosisDigest==='string'&&diagnosisKnowledgeReview.diagnosisDigest.length===64),
     CATALOG_REVIEW:Boolean(catalogReview?.status==='REVIEWED'&&catalogReview?.reviewer==='ACTION-HISTORIAN-3'&&catalogReview?.beforeMutation===true&&catalogReview?.mutationAuthority===false&&catalogReview?.taskId&&catalogReview?.fingerprint===failureFingerprint&&catalogReview?.targetSha===targetSha&&catalogReview?.source?.indexId==='ACTION-INDEX-4000'&&Number(catalogReview?.source?.declaredCapacity)>=1000000&&Number(catalogReview?.source?.actualRecordCount)>0&&typeof catalogReview?.digest==='string'&&catalogReview.digest.length===64),
     COGNITIVE_AWARENESS:Boolean(cognitiveAwareness?.protocol==='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1'&&cognitiveAwareness?.targetSha===targetSha&&cognitiveAwareness?.failureFingerprint===failureFingerprint&&cognitiveAwareness?.awarenessCompleteness?.complete===true),
     CAUSAL_EVIDENCE_GRAPH_PROVEN:Boolean(rootCauseProof?.protocol==='CAUSAL-EVIDENCE-GRAPH-v1'&&rootCauseProof?.status==='PROVEN'&&rootCauseProof?.targetSha===targetSha&&rootCauseProof?.failureFingerprint===failureFingerprint&&rootCauseProof?.sourceMutationAllowed===false&&rootCauseProof?.proofClaims?.ROOT_CAUSE_LINKED_TO_FAILURE_SIGNAL===true&&rootCauseProof?.proofClaims?.LOCATION_LINKED_TO_CAUSE===true&&rootCauseProof?.proofClaims?.MECHANISM_EXPLAINED===true&&rootCauseProof?.proofClaims?.ALTERNATIVES_CHALLENGED===true),
@@ -86,7 +88,7 @@ export function evaluateMutationGate({
   if(!Array.isArray(verifierProof?.remainingRisks)) failures.push('REMAINING_RISKS_REQUIRED');
   const proofCompleteness=verifierProof?.proofCompleteness??{};
   const requiredCompleteness=[
-    'CATALOG_REVIEW_PROVEN','COGNITIVE_AWARENESS_PROVEN','CAUSAL_EVIDENCE_GRAPH_PROVEN','ROOT_CAUSE_PROVEN','FILE_SELECTION_PROVEN',
+    'CATALOG_REVIEW_PROVEN','DIAGNOSIS_KNOWLEDGE_MATCH_PROVEN','COGNITIVE_AWARENESS_PROVEN','CAUSAL_EVIDENCE_GRAPH_PROVEN','ROOT_CAUSE_PROVEN','FILE_SELECTION_PROVEN',
     'PROGRAMMER_TWIN_PARITY_PROVEN','ADVERSARIAL_FALSIFICATION_COMPLETE','NO_VALID_COUNTEREXAMPLE',
     'SANDBOX_SIMULATION_PASSED','DIFFERENTIAL_CHECK_PASSED','PATCH_CORRECTNESS_PROVEN',
     'REGRESSION_COUNTEREXAMPLES_EXHAUSTED','NO_SCOPE_VIOLATION','NO_TEST_MUTATION',

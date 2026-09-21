@@ -7,17 +7,17 @@
   "role": "COGNITIVE_CATALOG_SUPERVISOR_SEAT",
   "mission": "الوكيل الثالث هو أمين السجل: يسجل كل RED وكل محاولة إصلاح وكل فشل وتسليم وتعلم، مع exact provenance، لبناء ذاكرة يمكن الرجوع إليها.",
   "headquarters": "diagnostics/auto-repair/action-vault",
-  "mutationAuthority": "SUPERVISOR_20_ONLY",
-  "executionAuthority": "MUTATE_WHEN_SUPERVISOR_20",
+  "mutationAuthority": "ADMITTED_SEAT",
+  "executionAuthority": "MUTATE_WHEN_ADMITTED",
   "canWriteRepository": true,
   "canWriteTestLogs": false,
   "canModifyWorkflowLogs": false,
-  "canMutateSource": "SUPERVISOR_20_ONLY",
-  "canDispatchRepair": false,
+  "canMutateSource": "WHEN_SELECTED_OWNER",
+  "canDispatchRepair": true,
   "masterEscalationOnFirstRepositoryOccurrence": true,
   "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-HISTORIAN-3.json",
   "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
-  "cooperationRole": "FAILURE_LEDGER_AND_LEARNING_RECORDER",
+  "cooperationRole": "MASTER_KNOWLEDGE_AND_DIAGNOSIS_REVIEWER",
   "cooperationMode": "MANDATORY_SHARED_MISSION_ON_RED",
   "sharedCapabilities": "ACTION-THREE-BOT-INTELLIGENCE",
   "requiredCollaborators": [
@@ -56,16 +56,22 @@
     "recordEveryPredictionOutcome": true,
     "recordEveryGreenChain": true,
     "appendOnlyLedger": true,
-    "failureMustNeverBeDiscarded": true
+    "failureMustNeverBeDiscarded": true,
+    "diagnosisKnowledgeReview": true,
+    "decideDiagnosisKnowledgeMatch": true
   },
   "executionBoundary": {
     "singleActiveRepairOwner": true,
-    "sourceMutation": "SUPERVISOR_20_ONLY",
+    "sourceMutation": "WHEN_SELECTED_OWNER",
     "testMutation": false,
     "workflowLogMutation": false,
     "canEscalateMaster": true,
     "canonicalGreen": "DAILY_FLIXO_GREEN_GATE",
-    "repositoryWriteScope": "ACTION_VAULT_MEMORY_ONLY"
+    "repositoryWriteScope": "ACTION_VAULT_MEMORY_ONLY",
+    "canMutateWhenOwner": true,
+    "canMutateTests": false,
+    "canMutateMain": false,
+    "canDispatchRepair": true
   },
   "state": {
     "status": "READY",
@@ -85,7 +91,7 @@
       "promotionProof": "INDEX_INTEGRITY_PLUS_EXACT_PROVENANCE"
     }
   },
-  "repositoryWriteScope": "EXECUTION_SOURCE_AFTER_SUPERVISOR_20",
+  "repositoryWriteScope": "EXECUTION_SOURCE_WHEN_SELECTED_OWNER",
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
   "residencyState": "RESIDENT_ALWAYS",
   "maxOperationsPerBot": 2000000,
@@ -170,5 +176,32 @@
   },
   "outputs": {
     "repairEngineeringEvidence": "PROVISIONAL_UNTIL_CANONICAL_GREEN"
-  }
+  },
+  "knowledgeMutation": {
+    "enabled": true,
+    "canAdd": true,
+    "canModify": true,
+    "scope": "ACTION_VAULT_REPAIR_KNOWLEDGE",
+    "exactShaRequired": true,
+    "promotion": "CANONICAL_GREEN_ONLY"
+  },
+  "canAddKnowledge": true,
+  "canModifyKnowledge": true,
+  "mutationScope": "ERROR_ONLY",
+  "diagnosisKnowledgeReview": {
+    "enabled": true,
+    "reviewer": "ACTION-HISTORIAN-3",
+    "requiredBeforeMutation": true,
+    "decisions": [
+      "MATCH",
+      "MISMATCH",
+      "INCONCLUSIVE"
+    ],
+    "mismatchBlocksMutation": true,
+    "inconclusiveBlocksMutation": true
+  },
+  "requiredBeforeSourceMutation": [
+    "ACTION-HISTORIAN-3:DIAGNOSIS_KNOWLEDGE_MATCH",
+    "ACTION-REPAIR-2:ADVERSARIAL_FALSIFICATION"
+  ]
 }

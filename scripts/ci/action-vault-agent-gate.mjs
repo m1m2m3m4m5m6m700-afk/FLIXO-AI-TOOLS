@@ -91,7 +91,7 @@ export function validateThreeBotIntelligence(profile, bots) {
   const matrix = profile?.roleMatrix ?? {};
   if (matrix['ACTION-REPAIR']?.mutationAuthority !== 'ADMITTED_SEAT') err(errors, 'PROGRAMMER_ROLE_MISSION_INVALID');
   if (matrix['ACTION-REPAIR-2']?.mutationAuthority !== 'ADMITTED_SEAT') err(errors, 'PREDICTOR_ROLE_MISSION_INVALID');
-  if (matrix['ACTION-HISTORIAN-3']?.mutationAuthority !== 'SUPERVISOR_20_ONLY') err(errors, 'HISTORIAN_ROLE_MISSION_INVALID');
+  if (matrix['ACTION-HISTORIAN-3']?.mutationAuthority !== 'ADMITTED_SEAT') err(errors, 'HISTORIAN_ROLE_MISSION_INVALID');
   if (profile?.cooperation?.enabled !== true) err(errors, 'COOPERATION_DISABLED');
   if (JSON.stringify(profile?.cooperation?.participants ?? []) !== JSON.stringify(EXPECTED_BOTS)) err(errors, 'PARTICIPANT_SET_INVALID');
   if (profile?.cooperation?.authority?.taskOwnership !== 'single_active_mutation_seat') err(errors, 'SINGLE_OWNER_POLICY_MISSING');
@@ -159,15 +159,15 @@ export function validateExecutionBoundaries(profiles) {
     err(errors, 'SECONDARY_PREDICTION_CONTRACT_WEAK');
   }
 
-  if (!['ADMITTED_SEAT','SUPERVISOR_20_ONLY'].includes(historian?.mutationAuthority) ||
-      historian?.canMutateSource !== 'SUPERVISOR_20_ONLY' ||
-      historian?.canDispatchRepair !== false ||
-      historian?.executionAuthority !== 'MUTATE_WHEN_SUPERVISOR_20' ||
-      historian?.executionBoundary?.sourceMutation !== 'SUPERVISOR_20_ONLY' ||
+  if (historian?.mutationAuthority !== 'ADMITTED_SEAT' ||
+      historian?.canMutateSource !== 'WHEN_SELECTED_OWNER' ||
+      historian?.canDispatchRepair !== true ||
+      historian?.executionAuthority !== 'MUTATE_WHEN_ADMITTED' ||
+      historian?.executionBoundary?.sourceMutation !== 'WHEN_SELECTED_OWNER' ||
       historian?.executionBoundary?.testMutation !== false) {
     err(errors, 'HISTORIAN_MUTATION_BOUNDARY_WEAK');
   }
-  if (historian?.repositoryWriteScope !== 'ACTION_VAULT_MEMORY_ONLY' && historian?.repositoryWriteScope !== 'EXECUTION_SOURCE_AFTER_SUPERVISOR_20') err(errors, 'HISTORIAN_WRITE_SCOPE_TOO_BROAD');
+  if (historian?.repositoryWriteScope !== 'EXECUTION_SOURCE_WHEN_SELECTED_OWNER') err(errors, 'HISTORIAN_WRITE_SCOPE_TOO_BROAD');
   return errors;
 }
 

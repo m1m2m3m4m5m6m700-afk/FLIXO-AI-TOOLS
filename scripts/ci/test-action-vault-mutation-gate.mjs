@@ -26,6 +26,7 @@ const verifier={
 const base={
  targetSha:sha,currentSha:sha,failureFingerprint:fp,verifierProof:verifier,
  catalogReview:{status:'REVIEWED',reviewer:'ACTION-HISTORIAN-3',beforeMutation:true,mutationAuthority:false,taskId:'task',fingerprint:fp,targetSha:sha,source:{indexId:'ACTION-INDEX-4000',declaredCapacity:1000000,actualRecordCount:4000},digest:'d'.repeat(64)},
+ diagnosisKnowledgeReview:{protocol:'ACTION-VAULT-DIAGNOSIS-KNOWLEDGE-REVIEW-v1',reviewer:'ACTION-HISTORIAN-3',decision:'MATCH',allowSourceMutation:true,taskId:'task',fingerprint:fp,targetSha:sha,catalogDigest:'d'.repeat(64),diagnosisDigest:'e'.repeat(64)},
  cognitiveAwareness:{protocol:'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1',targetSha:sha,failureFingerprint:fp,awarenessCompleteness:{complete:true}},
  rootCauseProof:{protocol:'CAUSAL-EVIDENCE-GRAPH-v1',status:'PROVEN',targetSha:sha,failureFingerprint:fp,sourceMutationAllowed:false,proofClaims:{ROOT_CAUSE_LINKED_TO_FAILURE_SIGNAL:true,LOCATION_LINKED_TO_CAUSE:true,MECHANISM_EXPLAINED:true,ALTERNATIVES_CHALLENGED:true}},
  fileSelection:{decision:'SELECTED',targetSha:sha,failureFingerprint:fp,selectedFiles:[{path:'src/example.ts'}]},
@@ -42,7 +43,7 @@ const pass=evaluateMutationGate(base);
 assert.equal(pass.status,'PASS');
 assert.equal(pass.mutationAllowed,true);
 
-for(const key of ['CATALOG_REVIEW','COGNITIVE_AWARENESS','SANDBOX_SIMULATION','DIFFERENTIAL_VERIFICATION','PATCH_CORRECTNESS']){
+for(const key of ['CATALOG_REVIEW','DIAGNOSIS_KNOWLEDGE_MATCH','COGNITIVE_AWARENESS','SANDBOX_SIMULATION','DIFFERENTIAL_VERIFICATION','PATCH_CORRECTNESS']){
  const copy={...base};
  if(key==='COGNITIVE_AWARENESS') copy.cognitiveAwareness={};
  if(key==='SANDBOX_SIMULATION') copy.simulationProof={status:'BLOCK'};

@@ -13,6 +13,7 @@ assert.equal(intelligence.schemaVersion,6);
 assert.equal(intelligence.cooperation.triadGovernance.protocol,'ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-v1');
 assert.equal(intelligence.cooperation.triadGovernance.recurrenceEscalationThreshold,20);
 assert.equal(intelligence.cooperation.triadGovernance.catalogCapacity,1000000);
+assert.equal(intelligence.cooperation.triadGovernance.allBotsMayMutateWhenSelectedOwner, true);
 assert.equal(intelligence.cooperation.triadGovernance.catalogReviewBeforeMutation,true);
 assert.equal(intelligence.cooperation.triadGovernance.catalogReviewOwner,'ACTION-HISTORIAN-3');
 assert.equal(intelligence.cooperation.triadGovernance.catalogReviewIndex,'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json');

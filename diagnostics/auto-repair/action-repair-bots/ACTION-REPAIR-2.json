@@ -8,7 +8,7 @@
   "mutationAuthority": "ADMITTED_SEAT",
   "executionAuthority": "MUTATE_WHEN_ADMITTED",
   "requiredApprover": "ACTION-REPAIR",
-  "mutationScope": "NONE",
+  "mutationScope": "ERROR_ONLY",
   "branch": "execution",
   "records": [],
   "lessons": [],
@@ -21,17 +21,17 @@
     "learnBeforeGreen": true,
     "promoteOnlyAfterCanonicalGreen": true,
     "neverExecuteWithoutPrimaryApproval": true,
-    "mutationRequiresOwnership": false,
+    "mutationRequiresOwnership": true,
     "handoffActivatesOwnership": false,
     "preHandoffMutation": false,
-    "postHandoffOwnerMutation": false,
+    "postHandoffOwnerMutation": true,
     "searchHistoricalIndexBeforeProposal": true,
     "searchActionIndex4000BeforeProposal": true,
     "producePredictionPacket": true,
     "proposeCandidateRepair": true,
     "attachExactSha": true,
     "requireOwnerReviewBeforeMutation": true,
-    "neverMutateSource": true,
+    "neverMutateSource": false,
     "neverMutateTests": true
   },
   "lock": {
@@ -64,7 +64,7 @@
     "canMutateTests": false,
     "canMutateMain": false,
     "canonicalGreen": "DAILY_FLIXO_GREEN_GATE",
-    "sourceMutation": false,
+    "sourceMutation": "WHEN_SELECTED_OWNER",
     "testMutation": false,
     "canDispatchRepair": false
   },
@@ -145,7 +145,7 @@
       "COUNTERFACTUAL_PATCH_REVIEW"
     ]
   },
-  "repositoryWriteScope": "ACTION_VAULT_MEMORY_ONLY",
+  "repositoryWriteScope": "EXECUTION_SOURCE_WHEN_SELECTED_OWNER",
   "outputs": {
     "predictionPacket": "diagnostics/auto-repair/action-vault/historical-predictions/latest.json",
     "requiredFields": [
@@ -158,5 +158,32 @@
       "whyNotCertain"
     ],
     "status": "PROVISIONAL_UNTIL_GREEN"
-  }
+  },
+  "knowledgeMutation": {
+    "enabled": true,
+    "canAdd": true,
+    "canModify": true,
+    "scope": "ACTION_VAULT_REPAIR_KNOWLEDGE",
+    "exactShaRequired": true,
+    "promotion": "CANONICAL_GREEN_ONLY"
+  },
+  "canAddKnowledge": true,
+  "canModifyKnowledge": true,
+  "diagnosisKnowledgeReview": {
+    "enabled": true,
+    "reviewer": "ACTION-HISTORIAN-3",
+    "requiredBeforeMutation": true,
+    "decisions": [
+      "MATCH",
+      "MISMATCH",
+      "INCONCLUSIVE"
+    ],
+    "mismatchBlocksMutation": true,
+    "inconclusiveBlocksMutation": true
+  },
+  "requiredBeforeSourceMutation": [
+    "ACTION-HISTORIAN-3:DIAGNOSIS_KNOWLEDGE_MATCH",
+    "ACTION-REPAIR-2:ADVERSARIAL_FALSIFICATION"
+  ],
+  "mission": "يفكر كمبرمج مستقل ويطعن في الإصلاح، وله صلاحية الإضافة والتعديل والإصلاح عند اختياره مالكًا وحيدًا بعد حوكمة القبو."
 }

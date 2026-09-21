@@ -147,17 +147,20 @@
     {
       "id": "ACTION-REPAIR",
       "role": "PROGRAMMER_DEFENSE_SEAT",
-      "executionAuthority": "MUTATE_WHEN_ADMITTED"
+      "executionAuthority": "MUTATE_WHEN_ADMITTED",
+      "repairWriteAuthority": "ADD_AND_MODIFY_WITHIN_BOUNDED_REPAIR_SCOPE"
     },
     {
       "id": "ACTION-REPAIR-2",
       "role": "ADVERSARIAL_PROGRAMMER_SEAT",
-      "executionAuthority": "MUTATE_WHEN_ADMITTED"
+      "executionAuthority": "MUTATE_WHEN_ADMITTED",
+      "repairWriteAuthority": "ADD_AND_MODIFY_WITHIN_BOUNDED_REPAIR_SCOPE"
     },
     {
       "id": "ACTION-HISTORIAN-3",
       "role": "COGNITIVE_CATALOG_SUPERVISOR_SEAT",
-      "executionAuthority": "MUTATE_WHEN_SUPERVISOR_20"
+      "executionAuthority": "MUTATE_WHEN_ADMITTED",
+      "repairWriteAuthority": "ADD_AND_MODIFY_WITHIN_BOUNDED_REPAIR_SCOPE"
     }
   ],
   "note": "The three bots have capability parity and mandatory collaboration on each actionable RED. Mutation authority remains role-scoped so cooperation cannot create concurrent source writes.",
@@ -211,7 +214,12 @@
       "historicalPrediction": "SUPPORTING_EVIDENCE_ONLY",
       "supervisorAfter20": "ACTION-HISTORIAN-3",
       "agent2Mutation": "ADMITTED_AFTER_TRIAD_REVIEW",
-      "agent3Mutation": "SUPERVISOR_20_ONLY"
+      "agent3Mutation": "SUPERVISOR_20_ONLY",
+      "allBotsMayBeRepairOwner": true,
+      "allBotsMayAddAndModifyRepairKnowledge": true,
+      "sourceMutationMode": "ANY_TRIAD_BOT_WHEN_SELECTED_SINGLE_OWNER",
+      "agent3DiagnosisKnowledgeJudge": true,
+      "agent3Role": "MASTER_KNOWLEDGE_AND_DIAGNOSIS_REVIEW"
     },
     "sharedArtifact": "diagnostics/auto-repair/action-vault/current-collaboration.json",
     "hardRule": "ANY_ACTIONABLE_RED_REQUIRES_ALL_THREE_TO_CONTRIBUTE_BEFORE_OWNER_MUTATION",
@@ -314,7 +322,7 @@
       "enabled": true,
       "runtime": "scripts/ci/action-software-engineer-core.mjs",
       "protocol": "LOCAL_SOFTWARE_ENGINEER_CORE_V1",
-      "owner": "ACTION-REPAIR",
+      "owner": "SELECTED_TRIAD_SEAT",
       "readOnly": true,
       "requiredBeforeMutation": true,
       "requiredDuringSelfCheck": true,
@@ -346,7 +354,7 @@
       "patchProtocol": "BOUNDED_PATCH_SYNTHESIS_V1",
       "sandboxProtocol": "REPAIR_SANDBOX_SIMULATION_V1",
       "differentialProtocol": "DIFFERENTIAL_REPAIR_VERIFICATION_V1",
-      "owner": "ACTION-REPAIR",
+      "owner": "SELECTED_TRIAD_SEAT",
       "readOnlyDuringPlanning": true,
       "mutationDuringSimulation": false,
       "exactShaRequired": true,
@@ -429,7 +437,17 @@
       "catalogReviewBeforeMutation": true,
       "catalogReviewOwner": "ACTION-HISTORIAN-3",
       "catalogReviewIndex": "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
-      "catalogReviewRequiredAt": "ACTION_VAULT_MUTATION_GATE"
+      "catalogReviewRequiredAt": "ACTION_VAULT_MUTATION_GATE",
+      "allBotsMayMutateWhenSelectedOwner": true,
+      "diagnosisKnowledgeReviewBeforeMutation": true,
+      "diagnosisKnowledgeReviewOwner": "ACTION-HISTORIAN-3",
+      "diagnosisKnowledgeReviewDecisionValues": [
+        "MATCH",
+        "MISMATCH",
+        "INCONCLUSIVE"
+      ],
+      "mismatchBlocksMutation": true,
+      "inconclusiveBlocksMutation": true
     }
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
@@ -564,7 +582,7 @@
     },
     "ACTION-REPAIR-2": {
       "role": "ADVERSARIAL_PROGRAMMER_FALSIFIER",
-      "mission": "THINK_AS_PROGRAMMER_ASSUMING_THE_PRIMARY_REPAIR_IS_WRONG_AND_ATTEMPT_TO_PROVE_IT_WRONG",
+      "mission": "يفكر كمبرمج مستقل ويطعن في الإصلاح، ويمكنه إضافة وتعديل مواد المعرفة والإصلاح ثم يصبح مالك المصدر الوحيد بعد اعتماد الثلاثي.",
       "capabilities": [
         "CURRENT_ACTION_LOG_ANALYSIS",
         "EXACT_SHA_PROVENANCE_ANALYSIS",
@@ -623,8 +641,8 @@
       ]
     },
     "ACTION-HISTORIAN-3": {
-      "role": "FILE_SELECTION_INTELLIGENCE_AND_FAILURE_HISTORIAN",
-      "mission": "CURATE_CATALOG_COMPARE_BOTH_PROGRAMMING_PROPOSALS_SELECT_SOLUTION_AND_SUPERVISE_AFTER_20_UNRESOLVED_OCCURRENCES",
+      "role": "MASTER_KNOWLEDGE_AND_DIAGNOSIS_REVIEW",
+      "mission": "القبو الرئيسي: يراجع فهرس المعرفة ويقرر هل التشخيص البرمجي يطابق المعرفة النصية، ويدير الاختيار بين البوتات، ويمكنه امتلاك الإصلاح بعد اعتماد الثلاثي.",
       "capabilities": [
         "FAILURE_INTAKE",
         "EXACT_PROVENANCE",
@@ -639,7 +657,7 @@
         "GREEN_CHAIN_RECORDING",
         "MASTER_ESCALATION"
       ],
-      "mutationAuthority": "SUPERVISOR_20_ONLY",
+      "mutationAuthority": "ADMITTED_SEAT",
       "output": "FILE_SELECTION_DECISION_AND_APPEND_ONLY_FAILURE_LEDGER",
       "pathOnly": true,
       "codeContentReasoning": false,
@@ -657,8 +675,10 @@
         "excludedFiles",
         "selectionConfidence",
         "uncertainty",
-        "failureLedgerRecord"
-      ]
+        "failureLedgerRecord",
+        "DIAGNOSIS_KNOWLEDGE_MATCH_DECISION"
+      ],
+      "executionAuthority": "MUTATE_WHEN_ADMITTED"
     }
   },
   "residencyContract": {
@@ -727,5 +747,24 @@
       "docs/agents/ACTION-AGENT-RUNTIME-PROTOCOL.md": "65344e161febf24b6a589b7a685b8280b3166d4b",
       "docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md": "773066887155b561a681c04c1df8bca297a259f9"
     }
+  },
+  "parallelProtocol": {},
+  "knowledgeMutation": {
+    "enabled": true,
+    "mode": "BOUNDED_REPAIR_KNOWLEDGE",
+    "participants": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ],
+    "canAdd": true,
+    "canModify": true,
+    "scope": "diagnostics/auto-repair/action-vault",
+    "exactShaRequired": true,
+    "sameTaskFingerprintRunRequired": true,
+    "candidateKnowledgeMayBeModifiedByAllThree": true,
+    "canonicalIndexDirectMutation": false,
+    "canonicalPromotion": "CANONICAL_GREEN_ONLY",
+    "sourceMutationStillSerialized": true
   }
 }

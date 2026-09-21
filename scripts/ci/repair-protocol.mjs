@@ -66,6 +66,8 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
     if(mission.programmerTwinParity?.intelligenceParity!=='EXACT'||mission.programmerTwinParity?.authorityParity!=='SEPARATED_BY_DESIGN'||mission.programmerTwinParity?.targetSha!==session.targetSHA) throw new Error('REPAIR_PROTOCOL_PROGRAMMER_TWIN_PARITY_REQUIRED');
     if(mission.cognitiveAwareness?.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1'||mission.cognitiveAwareness?.targetSha!==session.targetSHA||mission.cognitiveAwareness?.complete!==true) throw new Error('REPAIR_PROTOCOL_COGNITIVE_AWARENESS_REQUIRED');
     const catalogReview=mission?.catalogReview;
+    const diagnosisKnowledgeReview=mission?.diagnosisKnowledgeReview;
+    if(diagnosisKnowledgeReview?.protocol!=='ACTION-VAULT-DIAGNOSIS-KNOWLEDGE-REVIEW-v1'||diagnosisKnowledgeReview?.reviewer!=='ACTION-HISTORIAN-3'||diagnosisKnowledgeReview?.decision!=='MATCH'||diagnosisKnowledgeReview?.allowSourceMutation!==true||diagnosisKnowledgeReview?.targetSha!==session.targetSHA||diagnosisKnowledgeReview?.fingerprint!==session.failureFingerprint||String(diagnosisKnowledgeReview?.diagnosisDigest??'').length!==64) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_DIAGNOSIS_KNOWLEDGE_REVIEW_REQUIRED');
     if(catalogReview?.status!=='REVIEWED'||catalogReview?.reviewer!=='ACTION-HISTORIAN-3'||catalogReview?.beforeMutation!==true||catalogReview?.mutationAuthority!==false||catalogReview?.targetSha!==session.targetSHA||catalogReview?.fingerprint!==session.failureFingerprint||catalogReview?.source?.indexId!=='ACTION-INDEX-4000'||Number(catalogReview?.source?.declaredCapacity)<1000000||Number(catalogReview?.source?.actualRecordCount)<=0||String(catalogReview?.digest??'').length!==64) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_CATALOG_REVIEW_REQUIRED');
     validateActionVaultVerifierProof({ proof: session.actionVaultVerifierProof, targetSHA: session.targetSHA, failureFingerprint: session.failureFingerprint, verifierAgent: mission.verifierAgent });
     validateActionVaultPreMutationProofs({ sandboxProof: mission.sandboxProof, differentialProof: mission.differentialProof, patchCorrectnessProof: mission.patchCorrectnessProof, targetSHA: session.targetSHA, failureFingerprint: session.failureFingerprint });
@@ -80,7 +82,7 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
   if(mutation&&actor==='actionHistorian') {
     const mission=session?.actionVaultMission;
     if(mission?.role!=='ACTION-HISTORIAN-3' || mission?.mutationSeat!=='ACTION-HISTORIAN-3') throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_MUTATION_SEAT_INVALID');
-    if(mission?.supervisorMode!=='SUPERVISOR_20') throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_SUPERVISOR_MODE_REQUIRED');
+    if(mission?.supervisorMode!=='BOT_3_KNOWLEDGE_JUDGE') throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_KNOWLEDGE_JUDGE_MODE_REQUIRED');
     if(mission?.targetSha!==session.targetSHA || mission?.entrySha!==session.targetSHA) throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_SHA_MISMATCH');
     if(mission?.catalogReviewed!==true || mission?.bothProgrammingProposalsReviewed!==true || mission?.supervisorDecision!==true) throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_SUPERVISOR_DECISION_REQUIRED');
   }

@@ -61,6 +61,64 @@ function loadPrimaryAdviceIndex() {
   }
 }
 
+
+const KNOWLEDGE_STOP_WORDS = new Set(['the','and','for','with','from','that','this','must','should','before','after','into','then','only','case','failure','error','repair','current','exact','sha','the','are','was','has','have','not']);
+const knowledgeTokens = (value) => [...new Set(String(value ?? '').toLowerCase().match(/[a-z][a-z0-9_-]{3,}/gu) ?? [])].filter(token => !KNOWLEDGE_STOP_WORDS.has(token));
+const diagnosisText = (diagnosis = {}) => [
+  diagnosis.rootCause, diagnosis.errorClass, diagnosis.errorType, diagnosis.stage,
+  diagnosis.mechanism, diagnosis.invariant, diagnosis.explanation, diagnosis.reason,
+  diagnosis.decision, diagnosis.location?.file, diagnosis.location?.symbol,
+  diagnosis.selectedFile, diagnosis.failureClass
+].filter(Boolean).join(' ');
+
+export function reviewDiagnosisAgainstKnowledge({ taskId, fingerprint, targetSha, failedRunId, diagnosis = {}, catalogReview = null } = {}) {
+  if (!taskId || !fingerprint || !validSha(targetSha) || !failedRunId) throw new Error('ACTION_VAULT_DIAGNOSIS_REVIEW_IDENTITY_REQUIRED');
+  if (!catalogReview || catalogReview.status !== 'REVIEWED' || catalogReview.reviewer !== 'ACTION-HISTORIAN-3' || catalogReview.targetSha !== targetSha) {
+    throw new Error('ACTION_VAULT_DIAGNOSIS_REVIEW_CATALOG_REQUIRED');
+  }
+  const dTokens = knowledgeTokens(diagnosisText(diagnosis));
+  const candidates = (catalogReview.matched ?? []).map((item) => {
+    const text = [item.class,item.stage,item.trigger,item.invariant,item.action,item.teaching,item.verify].join(' ');
+    const tokens = knowledgeTokens(text);
+    const overlap = dTokens.filter(token => tokens.includes(token)).length;
+    const classValue = String(item.class ?? '').toLowerCase();
+    const diagnosisClass = String(diagnosis.errorClass ?? diagnosis.errorType ?? '').toLowerCase();
+    const classMatch = Boolean(classValue && (
+      diagnosisClass === classValue ||
+      diagnosisClass.includes(classValue) ||
+      classValue.includes(diagnosisClass)
+    ));
+    const stageMatch = Boolean(item.stage && String(diagnosis.stage ?? '').toLowerCase() === String(item.stage).toLowerCase());
+    const overlapRatio = overlap / Math.max(1, dTokens.length);
+    const jaccard = overlap / Math.max(1, new Set([...dTokens,...tokens]).size);
+    const contradiction = /(never|must not|do not|block|forbidden|reject|unsafe)/iu.test(text) &&
+      /(allow|enable|bypass|skip|ignore|force)/iu.test(diagnosisText(diagnosis));
+    return {id:item.id ?? null,class:item.class ?? null,stage:item.stage ?? null,overlap,overlapRatio:Number(overlapRatio.toFixed(4)),jaccard:Number(jaccard.toFixed(4)),classMatch,stageMatch,contradiction};
+  }).sort((a,b) => (Number(b.classMatch)-Number(a.classMatch)) || (Number(b.stageMatch)-Number(a.stageMatch)) || (b.overlapRatio-a.overlapRatio) || (b.jaccard-a.jaccard));
+  const best = candidates[0] ?? null;
+  const confidence = best ? Math.min(1,(best.classMatch?0.60:0)+(best.stageMatch?0.12:0)+(best.overlapRatio*0.23)+(best.jaccard*0.05)) : 0;
+  let decision='INCONCLUSIVE';
+  if (best?.contradiction) decision='MISMATCH';
+  else if (best && confidence >= 0.60 && (best.classMatch || best.overlapRatio >= 0.30)) decision='MATCH';
+  else if (!best || confidence < 0.20) decision='MISMATCH';
+  return {
+    schemaVersion:1,
+    protocol:'ACTION-VAULT-DIAGNOSIS-KNOWLEDGE-REVIEW-v1',
+    reviewer:'ACTION-HISTORIAN-3',
+    reviewerRole:'MASTER_KNOWLEDGE_AND_DIAGNOSIS_REVIEW',
+    taskId,fingerprint,targetSha,failedRunId:String(failedRunId),
+    decision,allowSourceMutation:decision==='MATCH',
+    mismatchBlocksMutation:true,inconclusiveBlocksMutation:true,
+    diagnosisDigest:sha(JSON.stringify(diagnosis)),
+    catalogDigest:catalogReview.digest,
+    candidates:candidates.slice(0,12),
+    bestMatch:best,
+    confidence:Number(confidence.toFixed(4)),
+    basis:'PROGRAMMING_DIAGNOSIS_VS_TEXTUAL_KNOWLEDGE_CLASS_STAGE_INVARIANT_ACTION_TEACHING',
+    reviewedAt:new Date().toISOString()
+  };
+}
+
 export function reviewCatalogBeforeMutation({ taskId, fingerprint, targetSha, failedRunId, errorText = '' } = {}) {
   if (!taskId || !fingerprint || !validSha(targetSha) || !failedRunId) throw new Error('ACTION_VAULT_CATALOG_REVIEW_IDENTITY_REQUIRED');
   const primary = loadPrimaryAdviceIndex();

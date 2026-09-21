@@ -37,6 +37,7 @@ const fileSelectionPath=String(arg('file-selection')).trim();
 const programmerTwinParityPath=String(arg('programmer-twin-parity')).trim();
 const primaryProofPath=String(arg('primary-proof')).trim();
 const awarenessPath=String(arg('awareness')).trim();
+const diagnosisPath=String(arg('diagnosis',process.env.FLIXO_REPAIR_DIAGNOSIS_PATH??'/tmp/flixo-root-cause.json')).trim();
 const now=()=>new Date().toISOString();
 const read=()=>JSON.parse(fs.readFileSync(STATE,'utf8'));
 const write=(value)=>{fs.mkdirSync(VAULT,{recursive:true});fs.writeFileSync(STATE,JSON.stringify(value,null,2)+'\n')};
@@ -51,7 +52,7 @@ const profile=JSON.parse(fs.readFileSync(PROFILE,'utf8'));
 if(profile.roleMatrix?.['ACTION-REPAIR']?.mutationAuthority!=='ADMITTED_SEAT') throw new Error('ACTION_THREE_BOT_PRIMARY_SEAT_INVALID');
 if(profile.roleMatrix?.['ACTION-REPAIR-2']?.mutationAuthority!=='ADMITTED_SEAT') throw new Error('ACTION_THREE_BOT_FALSIFIER_SEAT_INVALID');
 if(profile.parity?.programmerTwinIntelligenceEqual!==true) throw new Error('ACTION_THREE_BOT_PROGRAMMER_TWIN_PARITY_NOT_DECLARED');
-if(profile.roleMatrix?.['ACTION-HISTORIAN-3']?.mutationAuthority!=='SUPERVISOR_20_ONLY') throw new Error('ACTION_THREE_BOT_SUPERVISOR_SEAT_INVALID');
+if(profile.roleMatrix?.['ACTION-HISTORIAN-3']?.mutationAuthority!=='ADMITTED_SEAT') throw new Error('ACTION_THREE_BOT_SUPERVISOR_SEAT_INVALID');
 if(profile.cooperation?.fileSelectionIntelligence?.runtime!=='scripts/ci/action-file-selection-intelligence.mjs') throw new Error('ACTION_THREE_BOT_FILE_SELECTION_RUNTIME_INVALID');
 if(profile.cooperation?.enabled!==true) throw new Error('ACTION_THREE_BOT_COOPERATION_DISABLED');
 if(JSON.stringify(profile.cooperation.participants)!==JSON.stringify(BOTS)) throw new Error('ACTION_THREE_BOT_PARTICIPANT_SET_INVALID');
@@ -97,6 +98,8 @@ const ensureState=()=>{
   const awareness=buildAwareness();
   const primaryProof=buildPrimaryProof();
   const programmerTwinParity=buildProgrammerTwinParity();
+  const diagnosis=diagnosisPath&&fs.existsSync(diagnosisPath)?JSON.parse(fs.readFileSync(diagnosisPath,'utf8')):primaryProof;
+  const diagnosisKnowledgeReview=reviewDiagnosisAgainstKnowledge({taskId:task,fingerprint,targetSha,failedRunId:runId,diagnosis,catalogReview:triadGate.catalog.review});
   if(fs.existsSync(STATE)){
     const state=read();
     if(state.taskId!==task||state.failureFingerprint!==fingerprint||state.targetSha!==targetSha||state.failedRunId!==runId) throw new Error('ACTION_THREE_BOT_COLLAB_ACTIVE_IDENTITY_MISMATCH');
@@ -104,6 +107,7 @@ const ensureState=()=>{
     if(state.programmerTwinParity?.targetSha!==targetSha||state.programmerTwinParity?.failureFingerprint!==fingerprint||state.programmerTwinParity?.intelligenceParity!=='EXACT') throw new Error('ACTION_THREE_BOT_PROGRAMMER_TWIN_PARITY_STATE_MISMATCH');
     if(state.primaryCorrectnessProof?.targetSha!==targetSha||state.primaryCorrectnessProof?.failureFingerprint!==fingerprint||state.primaryCorrectnessProof?.proofObjective!=='PROVE_PRIMARY_REPAIR_CORRECT') throw new Error('ACTION_THREE_BOT_PRIMARY_PROOF_STATE_MISMATCH');
     if(state.cognitiveAwareness?.targetSha!==targetSha||state.cognitiveAwareness?.failureFingerprint!==fingerprint||state.cognitiveAwareness?.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1') throw new Error('ACTION_THREE_BOT_COGNITIVE_AWARENESS_STATE_MISMATCH');
+    if(state.diagnosisKnowledgeReview?.reviewer!=='ACTION-HISTORIAN-3'||state.diagnosisKnowledgeReview?.decision!=='MATCH'||state.diagnosisKnowledgeReview?.targetSha!==targetSha||state.diagnosisKnowledgeReview?.fingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_DIAGNOSIS_KNOWLEDGE_REVIEW_STATE_MISMATCH');
     return state;
   }
   const log=logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'';
@@ -122,13 +126,14 @@ const ensureState=()=>{
     escalation:triadGate.escalation,
     participants:BOTS.map(id=>({id,lane:LANES[id],required:true,status:'ASSIGNED',contributionReceived:false,exchangeReceived:false,challengeIssued:false,learnedFromPeers:false})),
     sharedEvidence:{failureLog:logPath||null,failureSignalCount:(log.match(/(?:error|failure|failed|fatal|timeout|exception)/giu)||[]).length,actionIndex4000:'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json',historicalIndex:'docs/agents/historical-action-errors/index.json',repairMemory:'diagnostics/auto-repair/memory.json',teachingRouter:'docs/agents/ERROR-TEACHING-ROUTER.json',inferentialIntelligence:'docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md'},
-    parallelProtocol:{phases:[...PHASES],independentWorkRequired:true,crossLearningRequired:true,exchangeBeforeMutation:true,allThreeMustContributeBeforeMutation:true,oneActiveMutationOwner:true,mutationOwner:'ACTION-REPAIR',adversarialFalsifier:'ACTION-REPAIR-2',historian:'ACTION-HISTORIAN-3',mutationWindow:'OWNER_ONLY_AFTER_EXCHANGE',greenClosesMission:true},
+    parallelProtocol:{phases:[...PHASES],independentWorkRequired:true,crossLearningRequired:true,exchangeBeforeMutation:true,allThreeMustContributeBeforeMutation:true,oneActiveMutationOwner:true,mutationOwner:'SELECTED_TRIAD_SEAT',adversarialFalsifier:'ACTION-REPAIR-2',historian:'ACTION-HISTORIAN-3',mutationWindow:'OWNER_ONLY_AFTER_EXCHANGE',greenClosesMission:true},
     contributions:{},
     exchange:{status:'PENDING',digest:null,at:null,receipts:{}},
     challenge:{status:'PENDING',checks:[]},
     fileSelectionDecision:fileSelection,
     primaryCorrectnessProof:primaryProof,
     cognitiveAwareness:{protocol:awareness.protocol,targetSha:awareness.targetSha,failureFingerprint:awareness.failureFingerprint,domainCount:awareness.awarenessCompleteness.requiredDomains.length,systemWide:true},
+    diagnosisKnowledgeReview,
     programmerTwinParity,
     falsificationObjective:'ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG',
     authorization:{status:'BLOCKED',owner:null,authorizedAt:null,reason:'WAITING_FOR_FILE_SELECTION_AND_ALL_THREE_CONTRIBUTIONS_AND_CROSS_LEARNING'},
@@ -188,8 +193,7 @@ if(op==='start'){
 } else if(op==='authorize-mutation'){
   const owner=validBot(arg('owner'));
   const escalation=escalationFor(fingerprint);
-  if(escalation.mode==='SUPERVISOR_20' && owner!=='ACTION-HISTORIAN-3') throw new Error('ACTION_THREE_BOT_MUTATOR_SUSPENDED_AT_20');
-  if(escalation.mode!=='SUPERVISOR_20' && owner==='ACTION-HISTORIAN-3') throw new Error('ACTION_THREE_BOT_SUPERVISOR_3_REQUIRES_20');
+  if(state.diagnosisKnowledgeReview?.reviewer!=='ACTION-HISTORIAN-3'||state.diagnosisKnowledgeReview?.decision!=='MATCH'||state.diagnosisKnowledgeReview?.targetSha!==targetSha||state.diagnosisKnowledgeReview?.fingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_DIAGNOSIS_KNOWLEDGE_MISMATCH');
 
   for(const id of BOTS) if(!state.contributions[id]) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_MISSING_CONTRIBUTION='+id);
   if(state.exchange.status!=='COMPLETE') throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_EXCHANGE_INCOMPLETE');
@@ -199,13 +203,9 @@ if(op==='start'){
   if(state.cognitiveAwareness?.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1'||state.cognitiveAwareness?.targetSha!==targetSha) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_COGNITIVE_AWARENESS');
   if(state.participants.some(x=>!x.learnedFromPeers)) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_CROSS_LEARNING_INCOMPLETE');
   if(owner==='ACTION-REPAIR-2' && escalation.mode==='SUPERVISOR_20') throw new Error('ACTION_THREE_BOT_AGENT_2_SUSPENDED_AT_20');
-  if(owner==='ACTION-HISTORIAN-3'){
-    if(escalation.mode!=='SUPERVISOR_20') throw new Error('ACTION_THREE_BOT_SUPERVISOR_MODE_REQUIRED');
-    state.authorization={status:'AUTHORIZED',owner,authorizedAt:now(),reason:'SUPERVISOR_20_CATALOG_REVIEW_AND_TRIAD_SELECTION',targetSha,supervisorMode:'SUPERVISOR_20'};
-    state.phase='OWNER_MUTATION';state.updatedAt=now();write(state);
-  } else if(!['ACTION-REPAIR','ACTION-REPAIR-2'].includes(owner)) {
-    throw new Error('ACTION_THREE_BOT_MUTATION_OWNER_INVALID');
-  }
+  if(!BOTS.includes(owner)) throw new Error('ACTION_THREE_BOT_MUTATION_OWNER_INVALID');
+  state.authorization={status:'AUTHORIZED',owner,authorizedAt:now(),reason:'BOT_3_DIAGNOSIS_KNOWLEDGE_MATCH_AND_TRIAD_REVIEW',targetSha,supervisorMode:owner==='ACTION-HISTORIAN-3'?'BOT_3_KNOWLEDGE_JUDGE':'TRIAD_SELECTED_OWNER'};
+  state.phase='OWNER_MUTATION';state.updatedAt=now();write(state);
   if(!state.outputs.programmerTwinAnalysis && !state.contributions['ACTION-REPAIR-2']) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_NO_PROGRAMMER_TWIN_ANALYSIS');
   state.authorization={status:'AUTHORIZED',owner,authorizedAt:now(),reason:'PROGRAMMER_OWNER_AFTER_HISTORICAL_PREDICTION_AND_HISTORIAN_RECORD',targetSha};
   state.phase='OWNER_MUTATION';state.updatedAt=now();write(state);

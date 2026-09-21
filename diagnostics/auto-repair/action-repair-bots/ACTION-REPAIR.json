@@ -130,7 +130,8 @@
     "canMutateWhenOwner": true,
     "canMutateTests": false,
     "canMutateMain": false,
-    "canonicalGreen": "DAILY_FLIXO_GREEN_GATE"
+    "canonicalGreen": "DAILY_FLIXO_GREEN_GATE",
+    "sourceMutation": "WHEN_SELECTED_OWNER"
   },
   "agentGrade": {
     "lifecycle": "READY",
@@ -297,5 +298,33 @@
     "output": "diagnostics/auto-repair/action-vault/software-engineer-core/latest.json"
   },
   "executionAuthority": "MUTATE_WHEN_ADMITTED",
-  "mutationAuthority": "ADMITTED_SEAT"
+  "mutationAuthority": "ADMITTED_SEAT",
+  "knowledgeMutation": {
+    "enabled": true,
+    "canAdd": true,
+    "canModify": true,
+    "scope": "ACTION_VAULT_REPAIR_KNOWLEDGE",
+    "exactShaRequired": true,
+    "promotion": "CANONICAL_GREEN_ONLY"
+  },
+  "canAddKnowledge": true,
+  "canModifyKnowledge": true,
+  "repositoryWriteScope": "EXECUTION_SOURCE_WHEN_SELECTED_OWNER",
+  "mutationScope": "ERROR_ONLY",
+  "diagnosisKnowledgeReview": {
+    "enabled": true,
+    "reviewer": "ACTION-HISTORIAN-3",
+    "requiredBeforeMutation": true,
+    "decisions": [
+      "MATCH",
+      "MISMATCH",
+      "INCONCLUSIVE"
+    ],
+    "mismatchBlocksMutation": true,
+    "inconclusiveBlocksMutation": true
+  },
+  "requiredBeforeSourceMutation": [
+    "ACTION-HISTORIAN-3:DIAGNOSIS_KNOWLEDGE_MATCH",
+    "ACTION-REPAIR-2:ADVERSARIAL_FALSIFICATION"
+  ]
 }

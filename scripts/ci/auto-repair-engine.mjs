@@ -22,7 +22,7 @@ import { loadAttemptLedger, isRepairRejected, rejectionReasons } from './repair-
 import { buildErrorOnlyRepairModel } from './auto-repair/error-only-programmer.mjs';
 import { simulateAstRepair } from './action-repair-sandbox.mjs';
 import { evaluateMutationGate } from './action-vault-mutation-gate.mjs';
-import { reviewCatalogBeforeMutation } from './action-vault-triad-governor.mjs';
+import { reviewCatalogBeforeMutation, reviewDiagnosisAgainstKnowledge } from './action-vault-triad-governor.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
@@ -242,6 +242,41 @@ const diagnosisGate = {
 evidence.diagnosisGate = diagnosisGate;
 
 const actionVaultCatalogReview = reviewCatalogBeforeMutation({ taskId: process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, fingerprint, targetSha, failedRunId: process.env.GITHUB_RUN_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, errorText: log });
+const actionVaultDiagnosisKnowledgeReview = reviewDiagnosisAgainstKnowledge({ taskId: process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, fingerprint, targetSha, failedRunId: process.env.GITHUB_RUN_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, diagnosis: diagnosis ?? {}, catalogReview: actionVaultCatalogReview });
+
+
+const triadActorMap = {
+  actionRepairBot: { role:'ACTION-REPAIR', mutationSeat:'ACTION-REPAIR' },
+  actionRepairVerifier: { role:'ACTION-REPAIR-2', mutationSeat:'ACTION-REPAIR-2' },
+  actionHistorian: { role:'ACTION-HISTORIAN-3', mutationSeat:'ACTION-HISTORIAN-3' }
+};
+if (triadActorMap[repairActor]) {
+  const seat=triadActorMap[repairActor];
+  repairProtocolSession=Object.freeze({
+    ...repairProtocolSession,
+    actionVaultMission:{
+      ...(repairProtocolSession.actionVaultMission??{}),
+      role:seat.role,
+      mutationSeat:seat.mutationSeat,
+      triadId:'ACTION-THREE-BOT-COLLABORATION',
+      taskId:process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId,
+      entrySha:targetSha,targetSha,
+      ownerAgent:repairActor,
+      verifierAgent:'actionRepairVerifier',
+      historianAgent:'actionHistorian',
+      catalogReview:actionVaultCatalogReview,
+      diagnosisKnowledgeReview:actionVaultDiagnosisKnowledgeReview,
+      catalogReviewed:true,
+      bothProgrammingProposalsReviewed:true,
+      supervisorDecision:repairActor==='actionHistorian' ? actionVaultDiagnosisKnowledgeReview.decision==='MATCH' : true,
+      candidateRepairApproved:true,
+      supervisorMode:repairActor==='actionHistorian' ? 'BOT_3_KNOWLEDGE_JUDGE' : undefined,
+      noBlindRetry:true,
+      programmerTwinParity: programmerTwinParity ? {intelligenceParity:programmerTwinParity.intelligenceParity,authorityParity:programmerTwinParity.authorityParity,targetSha:programmerTwinParity.targetSha}: undefined,
+      cognitiveAwareness: cognitiveAwareness ? {protocol:cognitiveAwareness.protocol,targetSha:cognitiveAwareness.targetSha,complete:cognitiveAwareness.awarenessCompleteness?.complete===true}: undefined,
+    }
+  });
+}
 
 if (historicalRollbackCandidate && diagnosisGate.allowed) {
   const before = snapshot(targetDir);
@@ -271,6 +306,7 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     regressionCounterexamples: preMutationProof.regressionCounterexamples,
     preMutationProof,
     catalogReview: actionVaultCatalogReview,
+    diagnosisKnowledgeReview: actionVaultDiagnosisKnowledgeReview,
     mutationScope,
     branch: protocolBranch,
   });
