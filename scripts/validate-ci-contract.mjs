@@ -162,11 +162,33 @@ if (!watchdogExactCheckout || !watchdogExactVerify || !watchdogSourceFreshness) 
   console.error('CI contract failed: execution-bot-watchdog.yml must execute only trusted controller code from main, observe the exact execution SHA through GitHub APIs, and reject stale workflow_run events.');
   process.exit(1);
 }
-if (!/name: Record exact execution push wake[\s\S]*EXECUTION_SHA="\$\{\{ steps\.source\.outputs\.execution_sha \}\}"[\s\S]*EXPECTED_PUSH_SHA="\$GITHUB_SHA"[\s\S]*test "\$EXECUTION_SHA" = "\$EXPECTED_PUSH_SHA"/.test(executionWatchdogWorkflow)) {
+const pushWakeBlock = executionWatchdogWorkflow.match(
+  /name: Record exact execution push wake[\\s\\S]*?(?=\\n\\s{6}- name:|$)/u,
+)?.[0] ?? '';
+const pushWakeMarkers = [
+  'name: Record exact execution push wake',
+  'EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"',
+  'EXPECTED_PUSH_SHA="$GITHUB_SHA"',
+  'test "$EXECUTION_SHA" = "$EXPECTED_PUSH_SHA"',
+];
+if (!pushWakeMarkers.every((marker) => pushWakeBlock.includes(marker)) ||
+    pushWakeBlock.includes('git rev-parse HEAD')) {
   console.error('CI contract failed: push watchdog wake must bind the observed execution state to the exact push SHA without using the trusted-main HEAD.');
   process.exit(1);
 }
-if (!/name: Ensure canonical Test System exists for exact SHA without duplicate dispatch[\s\S]*EXECUTION_SHA="\$\{\{ steps\.source\.outputs\.execution_sha \}\}"[\s\S]*gh workflow run ci\.yml --repo "\$GITHUB_REPOSITORY" --ref execution[\s\S]*gh run list --repo "\$GITHUB_REPOSITORY" --workflow "FLIXO Test System"[\s\S]*--commit "\$EXECUTION_SHA"[\s\S]*FAIL CLOSED: canonical FLIXO Test System did not start for exact SHA/.test(executionWatchdogWorkflow)) {
+
+const canonicalTestBlock = executionWatchdogWorkflow.match(
+  /name: Ensure canonical Test System exists for exact SHA without duplicate dispatch[\\s\\S]*?(?=\\n\\s{6}- name:|$)/u,
+)?.[0] ?? '';
+const canonicalTestMarkers = [
+  'name: Ensure canonical Test System exists for exact SHA without duplicate dispatch',
+  'EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"',
+  'gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution',
+  'gh run list --repo "$GITHUB_REPOSITORY" --workflow "FLIXO Test System"',
+  '--commit "$EXECUTION_SHA"',
+  'FAIL CLOSED: canonical FLIXO Test System did not start for exact SHA',
+];
+if (!canonicalTestMarkers.every((marker) => canonicalTestBlock.includes(marker))) {
   console.error('CI contract failed: watchdog must dispatch the canonical Test System and admit only an active exact execution-SHA run.');
   process.exit(1);
 }
