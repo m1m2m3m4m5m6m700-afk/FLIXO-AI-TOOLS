@@ -9970,5 +9970,29 @@
         ]
       }
     ]
+  },
+  "consultativeRank": {
+    "status": "ACTIVE_UNTIL_FORMAL_WITHDRAWAL",
+    "rank": "CONSULTATIVE_ADVISOR",
+    "title": "الرتبة الاستشارية",
+    "masterId": "MASTER-3",
+    "scope": [
+      "CELL_HQ",
+      "MASTER_COUNCIL",
+      "MASTER_PEER_CHANNEL"
+    ],
+    "authority": "ADVISORY_ONLY",
+    "mayRecommend": true,
+    "mayChallenge": true,
+    "mayCoordinate": true,
+    "mutationAuthority": false,
+    "certificationAuthority": false,
+    "permissionGrantAuthority": false,
+    "promotionAuthority": false,
+    "independentCommandAuthority": false,
+    "grantedBy": "USER_ADMIN_DIRECTIVE",
+    "source": "OFFICIAL_ADMIN_RECORD",
+    "withdrawal": "OFFICIAL_ADMIN_MESSAGE_ONLY",
+    "precedence": "ADVISORY_STATUS_NEVER_OVERRIDES_PROTOCOL_VALIDATOR_EVIDENCE_EXACT_SHA_OR_CERTIFICATION"
   }
 }

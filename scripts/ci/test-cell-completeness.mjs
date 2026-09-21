@@ -27,6 +27,17 @@ assert.equal(registry.honoraryLeadership?.mutationAuthority,false);
 assert.equal(registry.honoraryLeadership?.certificationAuthority,false);
 assert.equal(registry.honoraryLeadership?.permissionGrantAuthority,false);
 assert.equal(registry.honoraryLeadership?.withdrawal,'OFFICIAL_ADMIN_MESSAGE_ONLY');
+assert.equal(registry.consultativeRank?.masterId,'MASTER-3');
+assert.equal(registry.consultativeRank?.rank,'CONSULTATIVE_ADVISOR');
+assert.equal(registry.consultativeRank?.title,'الرتبة الاستشارية');
+assert.equal(registry.consultativeRank?.status,'ACTIVE_UNTIL_FORMAL_WITHDRAWAL');
+assert.deepEqual(registry.consultativeRank?.scope,['CELL_HQ','MASTER_COUNCIL','MASTER_PEER_CHANNEL']);
+assert.equal(registry.consultativeRank?.authority,'ADVISORY_ONLY');
+assert.equal(registry.consultativeRank?.mutationAuthority,false);
+assert.equal(registry.consultativeRank?.certificationAuthority,false);
+assert.equal(registry.consultativeRank?.permissionGrantAuthority,false);
+assert.equal(registry.consultativeRank?.promotionAuthority,false);
+assert.equal(registry.consultativeRank?.independentCommandAuthority,false);
 
 assert.equal(registry.honoraryLeadership?.starCount,1);
 assert.deepEqual(registry.honoraryLeadership?.starScale,[0,1,2,3,4,5]);
