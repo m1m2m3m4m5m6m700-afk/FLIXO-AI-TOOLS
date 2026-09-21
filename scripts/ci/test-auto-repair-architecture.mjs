@@ -80,7 +80,7 @@ assert.match(classifierSource, /ensureFreshScout/);
 assert.match(classifierSource, /code-read-only-scout\.mjs/);
 assert.match(classifierSource, /INVESTIGATION_DIR: investigationDir/);
 
-const sample = 'Run 35012345678 failed: scripts/ci/test-auto-repair-architecture.mjs:10:3 no-unused-vars';
+const sample = 'Run 35012345678 failed: src/lib/agent/execution-observability.ts:42:3 no-unused-vars';
 const normalized = normalizeFailure(sample);
 assert(!normalized.includes('35012345678'));
 assert(!normalized.includes('abcdefabcdefabcdefabcdefabcdefabcdefabcd'));
@@ -88,7 +88,7 @@ assert.equal(fingerprintFailure(sample), fingerprintFailure(sample));
 const plan = planRepair(sample);
 assert.equal(plan.selected?.id, 'eslint-unused');
 assert.equal(confidenceGate({ selected: plan.selected, features: plan.features }).allowed, true);
-assert.equal(plan.selected?.file, 'scripts/ci/test-auto-repair-architecture.mjs');
+assert.equal(plan.selected?.file, 'src/lib/agent/execution-observability.ts');
 
 const asyncPlan = planRepair("src/lib/agent/execution-observability.ts:42:4 error TS1064: The return type of an async function or method must be the global Promise<T> type.");
 assert(asyncPlan.features.includes('typescript-async-contract'));
