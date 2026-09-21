@@ -187,7 +187,7 @@ export function ImageCompressor({ locale }: { locale?: string }) {
             <label><span>{localizedUi.quality} ({Math.round((next.quality ?? 0.82) * 100)}%)</span><input type="range" min="0.1" max="1" step="0.05" value={next.quality ?? 0.82} disabled={busy} onChange={(event) => update((value) => ({ ...value, quality: Number(event.target.value) }))} /></label>
             <label><span>{localizedUi.target}</span><input inputMode="numeric" value={next.targetSizeKB ?? ''} placeholder={t("Optional")} disabled={busy} onChange={(event) => update((value) => ({ ...value, targetSizeKB: event.target.value ? Number(event.target.value) : undefined }))} /></label>
             <label><span>{localizedUi.maxWidth}</span><input inputMode="numeric" value={next.maxWidth ?? ''} placeholder={t("Auto")} disabled={busy} onChange={(event) => update((value) => ({ ...value, maxWidth: event.target.value ? Number(event.target.value) : undefined }))} /></label>
-            <label><span>{localizedUi.maxHeight}</span><input inputMode="numeric" value={next.maxHeight ?? ''} placeholder="Auto" disabled={busy} onChange={(event) => update((value) => ({ ...value, maxHeight: event.target.value ? Number(event.target.value) : undefined }))} /></label>
+            <label><span>{localizedUi.maxHeight}</span><input inputMode="numeric" value={next.maxHeight ?? ''} placeholder={t("Auto")} disabled={busy} onChange={(event) => update((value) => ({ ...value, maxHeight: event.target.value ? Number(event.target.value) : undefined }))} /></label>
           </div>
         );
       }}
