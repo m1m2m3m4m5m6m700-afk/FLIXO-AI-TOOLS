@@ -35,7 +35,10 @@ const writeJson = (file, value) => {
 };
 const ensure = () => { fs.mkdirSync(INBOX_DIR, { recursive: true }); };
 const roles = new Set(['assistantController','verification','analysis','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','diagnosticAgent','ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','ALL_AGENTS']);
-const recipientKnown = (recipient) => roles.has(recipient) || loadCellBotIds().has(recipient);
+export const MASTER_IDS = Object.freeze(['MASTER-1','MASTER-2','MASTER-3']);
+export const MASTER_GROUP = 'MASTERS';
+const masterIds = new Set(MASTER_IDS);
+const recipientKnown = (recipient) => roles.has(recipient) || masterIds.has(recipient) || recipient === MASTER_GROUP || loadCellBotIds().has(recipient);
 const loadCellBotIds = () => {
   if (!fs.existsSync(CELL_REGISTRY_FILE)) return new Set();
   const registry = readJson(CELL_REGISTRY_FILE, { bots: [] });
@@ -43,6 +46,7 @@ const loadCellBotIds = () => {
 };
 const assertActorKnown = (actor) => {
   if (/^CELL-\\d{3}$/u.test(actor) && !loadCellBotIds().has(actor)) throw new Error('AGENT_MESSAGE_UNKNOWN_CELL_BOT=' + actor);
+  if (/^MASTER-\\d+$/u.test(actor) && !masterIds.has(actor)) throw new Error('AGENT_MESSAGE_UNKNOWN_MASTER=' + actor);
 };
 const required = ['messageId','actor','recipient','intent','taskId','scope','entrySha','risk','dependencies','expectedEvidence','stopConditions','proofObligations','createdAt'];
 const COUNCIL_RECIPIENTS = new Set(['assistantController','verification','analysis']);
@@ -60,16 +64,25 @@ const defaultAdministrativeRecipients = () => [
   'assistantController','verification','analysis','codeScout','executionAgent','reviewAgent',
   'testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent',
   'errorAgent','repairAgent','diagnosticAgent','ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3',
+  ...MASTER_IDS,
   ...loadCellBotIds(),
 ];
 const requiredAdministrativeRecipients = (message) => {
   const configured = message?.payload?.requiredRecipients;
   if (Array.isArray(configured) && configured.length) return [...new Set(configured.map((item) => String(item).trim()).filter((item) => recipientKnown(item)))];
+  if (String(message?.recipient ?? '') === MASTER_GROUP) return MASTER_IDS.filter((masterId) => masterId !== String(message?.actor ?? ''));
   return String(message?.recipient ?? '') === 'ALL_AGENTS' ? defaultAdministrativeRecipients() : [String(message.recipient)];
+};
+const isMasterPeerMessage = (message) => {
+  const payload = message?.payload;
+  return Boolean(
+    (payload && typeof payload === 'object' && payload.peerMessage === true) ||
+    (masterIds.has(String(message?.actor ?? '')) && (masterIds.has(String(message?.recipient ?? '')) || String(message?.recipient ?? '') === MASTER_GROUP))
+  );
 };
 const isCouncilOperation = (message) => {
   const payload = message?.payload;
-  return message?.councilOperation === true || COUNCIL_RECIPIENTS.has(String(message?.recipient ?? '')) || String(message?.intent ?? '').startsWith('COUNCIL_') || Boolean(payload && typeof payload === 'object' && payload.councilOperation === true);
+  return message?.councilOperation === true || COUNCIL_RECIPIENTS.has(String(message?.recipient ?? '')) || String(message?.recipient ?? '') === MASTER_GROUP || String(message?.intent ?? '').startsWith('COUNCIL_') || Boolean(payload && typeof payload === 'object' && payload.councilOperation === true);
 };
 const asArray = (value, name) => {
   if (!Array.isArray(value) || value.length === 0 || value.some((item) => typeof item !== 'string' || !item.trim())) {
@@ -93,6 +106,13 @@ export function validateMessage(message, observedSha = currentSha()) {
   for (const field of ['scope','dependencies','expectedEvidence','stopConditions','proofObligations']) asArray(message[field], field);
   if (!['LOW','MEDIUM','HIGH','CRITICAL'].includes(String(message.risk))) throw new Error('AGENT_MESSAGE_RISK_INVALID');
   if (typeof message.intent !== 'string' || !message.intent.trim()) throw new Error('AGENT_MESSAGE_INTENT_INVALID');
+  const masterPeerMessage = isMasterPeerMessage(message);
+  if (masterPeerMessage) {
+    if (!masterIds.has(String(message.actor))) throw new Error('MASTER_PEER_ACTOR_INVALID');
+    if (!(masterIds.has(String(message.recipient)) || String(message.recipient) === MASTER_GROUP)) throw new Error('MASTER_PEER_RECIPIENT_INVALID');
+    if (String(message.actor) === String(message.recipient)) throw new Error('MASTER_PEER_SELF_ROUTE_FORBIDDEN');
+    if (!isAdministrativeInstruction(message)) throw new Error('MASTER_PEER_ADMIN_CHANNEL_REQUIRED');
+  }
   const councilOperation = isCouncilOperation(message);
   const priority = String(message.priority ?? (councilOperation ? COUNCIL_PRIORITY : 'P1')).toUpperCase();
   if (!PRIORITIES.has(priority)) throw new Error('AGENT_MESSAGE_PRIORITY_INVALID');
@@ -109,6 +129,9 @@ export function validateMessage(message, observedSha = currentSha()) {
     councilResponseMode: councilOperation ? COUNCIL_RESPONSE_MODE : 'NORMAL',
     immediateResponseRequired: councilOperation,
     administrativeInstruction: isAdministrativeInstruction(message),
+    masterPeerMessage,
+    masterConversationId: message?.payload?.conversationId ?? null,
+    masterReplyToMessageId: message?.payload?.replyToMessageId ?? null,
     requiredAdministrativeRecipients: isAdministrativeInstruction(message) ? requiredAdministrativeRecipients(message) : [],
     taskId: String(message.taskId),
     scope: [...message.scope],
@@ -190,11 +213,16 @@ export function ingest(message, observedSha = currentSha()) {
   return record;
 }
 export function getMessage(messageId) { ensure(); return loadMessage(messageId); }
+const recipientMatchesAgent = (record, agentId) => Boolean(
+  record.recipient === 'ALL_AGENTS' ||
+  record.recipient === agentId ||
+  (record.recipient === MASTER_GROUP && masterIds.has(String(agentId)))
+);
 export function markRead(messageId, agentId, observedSha = currentSha()) {
   ensure();
   const record = loadMessage(messageId);
   if (record.status === 'STALE' || record.entrySha !== observedSha) throw new Error('AGENT_MESSAGE_STALE_REQUIRES_REVALIDATION');
-  if (!(record.recipient === 'ALL_AGENTS' || record.recipient === agentId)) throw new Error('AGENT_MESSAGE_RECIPIENT_MISMATCH');
+  if (!recipientMatchesAgent(record, agentId)) throw new Error('AGENT_MESSAGE_RECIPIENT_MISMATCH');
   if (!['RECEIVED','READ'].includes(record.status)) throw new Error(`AGENT_MESSAGE_NOT_READABLE=${record.status}`);
   record.status = 'READ';
   record.readAt = record.readAt ?? now();
@@ -210,7 +238,7 @@ export function acknowledgeAdministrativeInstruction(messageId, agentId, observe
   const record = loadMessage(messageId);
   if (!record.administrativeInstruction) throw new Error('AGENT_ADMIN_ACK_NOT_REQUIRED');
   if (record.entrySha !== observedSha) throw new Error('AGENT_ADMIN_ACK_SHA_MISMATCH');
-  if (!(record.recipient === 'ALL_AGENTS' || record.recipient === agentId)) throw new Error('AGENT_MESSAGE_RECIPIENT_MISMATCH');
+  if (!recipientMatchesAgent(record, agentId)) throw new Error('AGENT_MESSAGE_RECIPIENT_MISMATCH');
   if (!['READ','CONSUMED'].includes(record.status)) throw new Error(`AGENT_ADMIN_ACK_REQUIRES_READ=${record.status}`);
   if (!recipientKnown(agentId)) throw new Error('AGENT_ADMIN_ACK_AGENT_INVALID');
   if (understood !== true) throw new Error('AGENT_ADMIN_ACK_UNDERSTANDING_REQUIRED');
@@ -339,7 +367,7 @@ export function markConsumed(messageId, agentId, observedSha = currentSha(), exe
   ensure();
   const record = loadMessage(messageId);
   if (record.entrySha !== observedSha) throw new Error('AGENT_MESSAGE_CONSUME_SHA_MISMATCH');
-  if (!(record.recipient === 'ALL_AGENTS' || record.recipient === agentId)) throw new Error('AGENT_MESSAGE_RECIPIENT_MISMATCH');
+  if (!recipientMatchesAgent(record, agentId)) throw new Error('AGENT_MESSAGE_RECIPIENT_MISMATCH');
   if (record.status === 'CONSUMED') return { ...record, duplicate: true };
   if (record.status !== 'READ') throw new Error(`AGENT_MESSAGE_CONSUME_REQUIRES_READ=${record.status}`);
   if (record.administrativeInstruction) {
