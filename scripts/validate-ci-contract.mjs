@@ -155,12 +155,16 @@ if (!/permissions:\s*\n\s*contents:\s*read\s*\n\s*actions:\s*read/.test(cellMast
 const watchdogExactCheckout =
   /name: Checkout exact watchdog source SHA[\s\S]*actions\/checkout@[^\n]+[\s\S]*ref: \$\{\{ github\.event_name == 'workflow_run' && github\.event\.workflow_run\.head_sha \|\| 'execution' \}\}/.test(executionWatchdogWorkflow) ||
   /name: Checkout exact watchdog source SHA[\s\S]*actions\/checkout@[^\n]+[\s\S]*ref: \$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/.test(executionWatchdogWorkflow) ||
-  /name: Checkout exact watchdog source SHA[\s\S]*actions\/checkout@[^\n]+[\s\S]*ref: \$\{\{ github\.event_name == 'workflow_run' && github\.event\.workflow_run\.head_sha \|\| github\.event_name == 'schedule' && 'execution' \|\| github\.sha \}\}/.test(executionWatchdogWorkflow);
+  /name: Checkout exact watchdog source SHA[\s\S]*actions\/checkout@[^\n]+[\s\S]*ref: \$\{\{ github\.event_name == 'workflow_run' && github\.event\.workflow_run\.head_sha \|\| github\.event_name == 'schedule' && 'execution' \|\| github\.sha \}\}/.test(executionWatchdogWorkflow) ||
+  /name: Checkout exact watchdog source SHA[\s\S]*actions\/checkout@[^\n]+[\s\S]*ref: \$\{\{ github\.event_name == 'workflow_run' && 'execution' \|\| github\.event_name == 'schedule' && 'execution' \|\| github\.sha \}\}/.test(executionWatchdogWorkflow);
 const watchdogExactVerify =
   /name: Verify exact watchdog checkout[\s\S]*git rev-parse HEAD[\s\S]*test "\$EXPECTED_WATCHDOG_SHA" = "\$ACTUAL_WATCHDOG_SHA"/.test(executionWatchdogWorkflow) ||
-  /name: Verify exact watchdog checkout[\s\S]*ACTUAL_WATCHDOG_SHA="\$\(git rev-parse HEAD\)"[\s\S]*WATCHDOG_CHECKOUT_MODE=EXACT_WORKFLOW_RUN_SHA/.test(executionWatchdogWorkflow);
-if (!watchdogExactCheckout || !watchdogExactVerify) {
-  console.error('CI contract failed: execution-bot-watchdog.yml must checkout and verify the exact source SHA before running repository scripts.');
+  /name: Verify exact watchdog checkout[\s\S]*ACTUAL_WATCHDOG_SHA="\$\(git rev-parse HEAD\)"[\s\S]*WATCHDOG_CHECKOUT_MODE=EXACT_WORKFLOW_RUN_SHA/.test(executionWatchdogWorkflow) ||
+  /name: Verify exact watchdog checkout[\s\S]*ACTUAL_WATCHDOG_SHA="\$\(git rev-parse HEAD\)"[\s\S]*WATCHDOG_CHECKOUT_MODE=CANONICAL_EXECUTION_REF/.test(executionWatchdogWorkflow);
+const watchdogSourceFreshness =
+  /name: Check source SHA freshness[\s\S]*SOURCE_RUN_SHA: \$\{\{ github\.event\.workflow_run\.head_sha \}\}[\s\S]*CURRENT_EXECUTION_SHA="[\s\S]*git ls-remote[\s\S]*refs\/heads\/execution[\s\S]*test "\$ACTUAL_WATCHDOG_SHA" = "\$CURRENT_EXECUTION_SHA"[\s\S]*if \[ "\$CURRENT_EXECUTION_SHA" != "\$SOURCE_RUN_SHA" \][\s\S]*STALE_WATCHDOG_EVENT=true/.test(executionWatchdogWorkflow);
+if ((!watchdogExactCheckout || !watchdogExactVerify) && !watchdogSourceFreshness) {
+  console.error('CI contract failed: execution-bot-watchdog.yml must bootstrap from trusted execution, verify the checkout, and reject stale workflow_run source SHAs before running repository scripts.');
   process.exit(1);
 }
 if (!/EXECUTION_SHA="\$\(git rev-parse HEAD\)"[\s\S]*EXPECTED_PUSH_SHA="\$GITHUB_SHA"[\s\S]*test "\$EXECUTION_SHA" = "\$EXPECTED_PUSH_SHA"/.test(executionWatchdogWorkflow)) {
