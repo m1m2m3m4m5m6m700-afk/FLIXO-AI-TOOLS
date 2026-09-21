@@ -159,17 +159,20 @@ export function selfDisableAdmission() { throw new Error('AGENT_LIVENESS_SELF_DI
 export function selfAbortAdmission() { throw new Error('AGENT_LIVENESS_SELF_ABORT_FORBIDDEN_PERMANENT_RESIDENCY'); }
 export function runEndAdmission() { throw new Error('AGENT_LIVENESS_RUN_END_DOES_NOT_END_TASK'); }
 
-const command = process.argv[2] ?? 'validate';
-try {
-  if (command === 'validate') {
-    assertLivenessDefinition();
-    console.log(JSON.stringify({ status: 'PASS', protocolId: AGENT_LIVENESS_PROTOCOL.protocolId, version: AGENT_LIVENESS_PROTOCOL.protocolVersion, heartbeatEveryMs: AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs, forbiddenStates: [...AGENT_LIVENESS_PROTOCOL.forbiddenStates], permanentResidency: true }, null, 2));
-  } else if (command === 'check-heartbeat') {
-    console.log(JSON.stringify(checkHeartbeat({ state: process.argv.find((v) => v.startsWith('--state='))?.slice(8) ?? 'ACTIVE', lastHeartbeatAt: process.argv.find((v) => v.startsWith('--last='))?.slice(7) }), null, 2));
-  } else if (command === 'check-progress') {
-    console.log(JSON.stringify(checkProgress({ state: process.argv.find((v) => v.startsWith('--state='))?.slice(8) ?? 'ACTIVE', lastProgressAt: process.argv.find((v) => v.startsWith('--last='))?.slice(7), consecutiveNoProgress: Number(process.argv.find((v) => v.startsWith('--count='))?.slice(8) ?? 0) }), null, 2));
-  } else throw new Error('Usage: agent-liveness-protocol.mjs validate|check-heartbeat|check-progress');
-} catch (error) {
-  console.error('AGENT_LIVENESS_PROTOCOL_BLOCK=' + String(error?.message ?? error));
-  process.exitCode = 1;
+const isMain = process.argv[1] && new URL(`file://${process.argv[1]}`).href === import.meta.url;
+if (isMain) {
+  const command = process.argv[2] ?? 'validate';
+  try {
+    if (command === 'validate') {
+      assertLivenessDefinition();
+      console.log(JSON.stringify({ status: 'PASS', protocolId: AGENT_LIVENESS_PROTOCOL.protocolId, version: AGENT_LIVENESS_PROTOCOL.protocolVersion, heartbeatEveryMs: AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs, forbiddenStates: [...AGENT_LIVENESS_PROTOCOL.forbiddenStates], permanentResidency: true }, null, 2));
+    } else if (command === 'check-heartbeat') {
+      console.log(JSON.stringify(checkHeartbeat({ state: process.argv.find((v) => v.startsWith('--state='))?.slice(8) ?? 'ACTIVE', lastHeartbeatAt: process.argv.find((v) => v.startsWith('--last='))?.slice(7) }), null, 2));
+    } else if (command === 'check-progress') {
+      console.log(JSON.stringify(checkProgress({ state: process.argv.find((v) => v.startsWith('--state='))?.slice(8) ?? 'ACTIVE', lastProgressAt: process.argv.find((v) => v.startsWith('--last='))?.slice(7), consecutiveNoProgress: Number(process.argv.find((v) => v.startsWith('--count='))?.slice(8) ?? 0) }), null, 2));
+    } else throw new Error('Usage: agent-liveness-protocol.mjs validate|check-heartbeat|check-progress');
+  } catch (error) {
+    console.error('AGENT_LIVENESS_PROTOCOL_BLOCK=' + String(error?.message ?? error));
+    process.exitCode = 1;
+  }
 }
