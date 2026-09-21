@@ -1,6 +1,6 @@
-import { execFile } from 'node:child_process';
-
 #!/usr/bin/env node
+
+import { execFile } from 'node:child_process';
 
 const expectedSha = (process.env.EXPECTED_SHA ?? '').trim();
 const expectedBranch = (process.env.EXPECTED_BRANCH ?? '').trim();
