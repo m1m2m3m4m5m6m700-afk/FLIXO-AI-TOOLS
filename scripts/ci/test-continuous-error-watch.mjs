@@ -32,6 +32,20 @@ assert.equal(classifyCancelledRun(cancelledRun, [cancelledRun]).state, 'CANCELLE
 
 assert.equal(validateRepairTarget({
   run: {
+    databaseId: 10000,
+    status: 'completed',
+    conclusion: 'failure',
+    headSha: 'b'.repeat(40),
+    headBranch: 'execution',
+    workflowName: '.github/workflows/daily-flixo-green-gate.yml',
+  },
+  executionSha: 'b'.repeat(40),
+  logs: { '10000': 'EVIDENCE_CAPTURE=AVAILABLE\nfailure evidence' },
+  branch: 'execution',
+}).valid, false);
+
+assert.equal(validateRepairTarget({
+  run: {
     databaseId: 9999,
     status: 'completed',
     conclusion: 'failure',
