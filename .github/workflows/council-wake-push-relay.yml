@@ -90,49 +90,37 @@ jobs:
           jq -e '.ok == true' /tmp/council-dispatch.json >/dev/null
           jq -r '"DISPATCH_ID=" + .dispatchId + "\nDISPATCH_STATUS=" + .status + "\nPUSH_RESULT=" + (.push|tostring)' /tmp/council-dispatch.json
 
-      - name: Publish wake receipt
+      - name: Publish wake receipt evidence
         env:
           ROLE: ${{ steps.parse.outputs.role }}
           WORK_PACKAGE: ${{ steps.parse.outputs.work_package }}
           ENTRY_SHA: ${{ steps.parse.outputs.entry_sha }}
-          RUN_ID: ${{ github.run_id }}
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p /tmp/flixo-wake-receipt
-          cat > /tmp/flixo-wake-receipt/president-wake-receipt.json <<JSON
-          {
-            "schemaVersion": 1,
-            "runId": "$RUN_ID",
-            "role": "$ROLE",
-            "workPackage": "$WORK_PACKAGE",
-            "exactSha": "$ENTRY_SHA",
-            "transport": "push -> OIDC -> Supabase Council Runtime",
-            "result": "QUEUED",
-            "ackInferred": false
-          }
-          JSON
-          test -s /tmp/flixo-wake-receipt/president-wake-receipt.json
-          cat /tmp/flixo-wake-receipt/president-wake-receipt.json
-          {
-            echo "### PRESIDENT WAKE RECEIPT"
-            echo
-            echo "**Role:** $ROLE"
-            echo "**Work Package:** $WORK_PACKAGE"
-            echo "**Exact SHA:** $ENTRY_SHA"
-            echo "**Transport:** push → OIDC → Supabase Council Runtime"
-            echo "**Result:** QUEUED"
-            echo
-            echo "This receipt proves the exact-SHA wake was accepted into the canonical runtime queue. Agent ACK is separate evidence and is not inferred from queue acceptance."
-          } >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p /tmp/president-wake-receipt
+          printf '%s\n' \
+            '### PRESIDENT WAKE RECEIPT' \
+            '' \
+            "**Role:** $ROLE" \
+            "**Work Package:** $WORK_PACKAGE" \
+            "**Exact SHA:** $ENTRY_SHA" \
+            '**Transport:** push → OIDC → Supabase Council Runtime' \
+            '**Result:** QUEUED' \
+            '' \
+            'This receipt proves the exact-SHA wake was accepted into the canonical runtime queue. Agent ACK is separate evidence and is not inferred from queue acceptance.' \
+            > /tmp/president-wake-receipt/wake-receipt.md
+          test -s /tmp/president-wake-receipt/wake-receipt.md
 
-      - name: Publish wake receipt artifact
+      - name: Archive wake receipt evidence
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: president-wake-receipt-${{ github.run_id }}
-          path: /tmp/flixo-wake-receipt/president-wake-receipt.json
+          path: /tmp/president-wake-receipt/wake-receipt.md
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
+
       - name: Stop on unsupported role
         if: ${{ steps.parse.outputs.role != 'DEPUTY' && steps.parse.outputs.role != 'TASK' && steps.parse.outputs.role != 'EXECUTION' && steps.parse.outputs.role != 'REVIEW' && steps.parse.outputs.role != 'CERTIFICATION' }}
         run: |
