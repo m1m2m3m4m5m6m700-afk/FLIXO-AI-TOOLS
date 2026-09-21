@@ -20,10 +20,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout exact execution state
+      - name: Checkout trusted promotion controller source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: execution
+          # This workflow has contents:write and is triggered by workflow_run.
+          # Never execute PR-controlled execution code in this privileged context.
+          ref: main
           fetch-depth: 1
           persist-credentials: true
 
