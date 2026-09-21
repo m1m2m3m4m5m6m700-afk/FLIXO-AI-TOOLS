@@ -370,7 +370,7 @@ jobs:
             cat /tmp/flixo-trusted-architecture-self-test.log
           else
             cat /tmp/flixo-trusted-architecture-self-test.log
-            if grep -Fq 'test-auto-repair-architecture.mjs:30:8' /tmp/flixo-trusted-architecture-self-test.log               && grep -Fq 'regular expression /DEEP_\\[A-Z_\\]+_MISSING/' /tmp/flixo-trusted-architecture-self-test.log; then
+            if grep -Fq 'test-auto-repair-architecture.mjs:30:8' /tmp/flixo-trusted-architecture-self-test.log               && grep -Fq 'regular expression /DEEP_\[A-Z_\]+_MISSING/' /tmp/flixo-trusted-architecture-self-test.log; then
               echo 'TRUSTED_VERIFIER_DRIFT_RECOVERY=KNOWN_DEEP_MISSING_REGEX'
               echo 'TRUSTED_VERIFIER_DRIFT_RECOVERY_MODE=EXECUTION_VERIFIER_REPROOF'
               node scripts/ci/test-auto-repair-architecture.mjs
