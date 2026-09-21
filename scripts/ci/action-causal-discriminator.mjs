@@ -15,7 +15,7 @@ const SIGNALS = Object.freeze([
   {
     id: 'typescript-missing-import',
     className: 'TYPE_CONTRACT',
-    patterns: [/TS2304\b/iu, /Cannot find name ['"][^'"]+['"]/iu],
+    patterns: [/TS2304\b/iu, /Cannot find name ["'][^"']+["']/iu],
     mutationAllowed: true,
     targetScope: 'exact-source-import',
   },
