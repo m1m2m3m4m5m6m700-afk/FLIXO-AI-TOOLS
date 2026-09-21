@@ -730,6 +730,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   const effectiveProviderSignature = provenance?.providerSignature ?? (isExternalBlock ? externalProviderSignature(normalizedFailure) : null);
   const strategyId = String(process.env.FLIXO_REPAIR_STRATEGY_ID ?? provenance?.strategyId ?? '').trim() || null;
   const promptId = String(process.env.FLIXO_PROMPT_ID ?? provenance?.promptId ?? '').trim() || null;
+  const behaviorObservation = loadBehaviorObservation();
   const effectiveProvenance = {
     ...(provenance ?? {}),
     ...(behaviorObservation ? { behaviorObservation } : {}),
@@ -738,7 +739,6 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     ...(effectiveProviderSignature ? { providerSignature: effectiveProviderSignature } : {}),
   };
   const isHistoricalRevertFailure = outcome === 'revert-failure';
-  const behaviorObservation = loadBehaviorObservation();
   if (isExternalBlock) entry.externalBlocks = (entry.externalBlocks ?? 0) + 1;
   const recurrenceObserved = priorAttempts > 0 || priorOccurrences > 0;
   const effectivePreventionRule = preventionRule ?? recurrencePreventionRule({
