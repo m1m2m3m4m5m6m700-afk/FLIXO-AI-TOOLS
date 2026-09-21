@@ -53,6 +53,11 @@ try {
   delete directIndex.messages[directId];
   fs.writeFileSync(indexFile, JSON.stringify(directIndex, null, 2) + '\n');
 
+const councilMessage = validateMessage({ ...base, messageId: id + '-COUNCIL', idempotencyKey: id + '-COUNCIL', recipient: 'assistantController', intent: 'COUNCIL_QUESTION', payload: { councilOperation: true } }, sha);
+assert.equal(councilMessage.priority, 'P0');
+assert.equal(councilMessage.councilOperation, true);
+assert.throws(() => validateMessage({ ...base, messageId: id + '-COUNCIL-BAD', idempotencyKey: id + '-COUNCIL-BAD', recipient: 'assistantController', intent: 'COUNCIL_QUESTION', priority: 'P1' }, sha), /COUNCIL_PRIORITY_REQUIRED/);
+console.log('COUNCIL_MESSAGE_P0_PRIORITY=PASS');
   assert.equal(validateMessage(base, sha).entrySha, sha);
   assert.throws(() => validateMessage({ ...base, recipient: undefined }, sha), /RECIPIENT|REQUIRED_FIELD/);
   const first = ingest(base, sha);
