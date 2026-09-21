@@ -28,7 +28,7 @@ const DRIVER_BY_RULE = Object.freeze({
 function exactSha(value) { return SHA_RE.test(String(value ?? '')); }
 function normalizePath(value) { return String(value ?? '').trim().replace(/\\/g, '/').replace(/^\.\//u, ''); }
 function tsMissingImportSignal(log) { return /TS2304\b|Cannot find name ["']/iu.test(String(log ?? '')); }
-function tsAsyncContractSignal(log) { return /TS1064\b|return type of an async function|Did you mean to write ['\"]?Promise/iu.test(String(log ?? '')); }
+function tsAsyncContractSignal(log) { return /TS1064\b|return type of an async function|Did you mean to write ["']?Promise/iu.test(String(log ?? '')); }
 function deriveSemanticSourceSlice({ targetDir = process.cwd(), location = null } = {}) {
   const file = normalizePath(location?.file);
   const line = Number(location?.line ?? 0);
