@@ -18,7 +18,7 @@ import {
 } from '@/lib/agent/conversation';
 import { AGENT_I18N } from '@/data/agent-locales';
 import type { Locale } from '@/lib/i18n';
-import { buildFilterMaskUrl, type FilterMaskHandoff } from '@/tools/filter-mask/handoff';
+import { type FilterMaskHandoff } from '@/tools/filter-mask/handoff';
 import { askConversationalAgent } from '@/lib/agent/conversational-agent';
 import { getLiveFilter } from '@/tools/filter-mask/registry';
 import { resolveFilterMaskSelection } from '@/lib/intent/resolver';
@@ -394,9 +394,21 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
             <div className="flixo-ai-agent-confirm" data-testid="filter-mask-handoff">
               <strong>Filter Mask ready</strong>
               <span> · ready for live preview</span>
-              <a className="primary-button" href={buildFilterMaskUrl(locale, filterHandoff)}>
+              <Link
+                className="primary-button"
+                to="/$locale/$tool"
+                params={{ locale, tool: 'filter-mask' }}
+                search={{
+                  canonicalId: filterHandoff.canonicalId,
+                  intensity: filterHandoff.parameters.intensity,
+                  zoom: filterHandoff.parameters.zoom,
+                  mirror: filterHandoff.parameters.mirror,
+                  aspectRatio: filterHandoff.parameters.aspectRatio,
+                  captureQuality: filterHandoff.parameters.captureQuality,
+                }}
+              >
                 {locale === 'ar' ? 'فتح المعاينة المباشرة' : 'Open live preview'}
-              </a>
+              </Link>
             </div>
           )}
           {planned?.steps?.length ? <ol>{planned.steps.map((step, index) => <li key={`${step.toolId}-${index}`}><span>{index + 1}</span><div><strong>{step.toolId}</strong><small>{JSON.stringify(step.params ?? {})}</small></div></li>)}</ol> : <p className="flixo-ai-agent-empty">{copy.empty}</p>}
