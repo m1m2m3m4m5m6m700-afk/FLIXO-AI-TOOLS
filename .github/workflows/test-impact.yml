@@ -2,7 +2,8 @@ name: FLIXO Test Impact
 
 on:
   pull_request:
-    branches: [main]  workflow_dispatch:
+    branches: [main]
+  workflow_dispatch:
 
 # A newer commit supersedes older impact-plan evidence for the same PR/branch.
 # The surviving run still validates the exact SHA before publishing evidence.
