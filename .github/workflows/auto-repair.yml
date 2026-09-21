@@ -106,7 +106,7 @@ jobs:
       - name: Checkout canonical execution branch
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: execution
+          ref: main
           fetch-depth: 1
           persist-credentials: false
 
@@ -169,12 +169,6 @@ jobs:
 
       - name: Install repair controller dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
-
-      - name: Validate Bot-First Autonomous operating contract
-        run: node scripts/ci/action-vault-autonomy-mode.mjs
-
-      - name: Validate in-place branch conflict recovery contract
-        run: node scripts/ci/test-action-vault-branch-conflict-recovery.mjs
 
       - name: Enforce central Council directive before diagnosis or mutation
         run: node scripts/ci/test-council-directive.mjs
@@ -288,6 +282,13 @@ jobs:
           fi
           test "$(git branch --show-current)" = execution
           printf '%s\n' execution > /tmp/flixo-repair-branch
+
+      - name: Prepare execution target after trusted bootstrap
+        run: |
+          set -euo pipefail
+          node scripts/ci/test-council-directive.mjs
+          node scripts/ci/action-vault-autonomy-mode.mjs
+          node scripts/ci/test-action-vault-branch-conflict-recovery.mjs
 
       - name: Initialize Repair Control Plane cycle
         run: |
