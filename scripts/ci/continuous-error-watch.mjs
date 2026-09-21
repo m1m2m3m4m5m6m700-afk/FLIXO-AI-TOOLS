@@ -27,7 +27,7 @@ const requiredWorkflowsForBranch = (branch) =>
 // Only the repair/control-plane infrastructure itself is excluded to prevent self-repair loops.
 const NON_REPAIRABLE_WORKFLOW_PATTERNS = Object.freeze([
   /auto repair/i,
-  /daily·flixo green gate/i,
+  /daily flixo green gate/i,
   /execution bot watchdog/i,
   /agent-repair-supervisor/i,
   /agent-repair-heartbeat/i,
@@ -98,8 +98,13 @@ export function validateRepairTarget({ run, executionSha, workflowRuns = [], log
   if ((run?.headBranch ?? null) !== branch) errors.push('TARGET_BRANCH_MISMATCH');
   const workflowName = [run?.workflowName, run?.name, run?.displayTitle]
     .map((value) => String(value ?? '').trim())
-    .find(Boolean) ?? '';
-  if (NON_REPAIRABLE_WORKFLOW_PATTERNS.some((pattern) => pattern.test(workflowName))) {
+    .filter(Boolean)
+    .join(' | ');
+  const normalizedWorkflowIdentity = workflowName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, ' ')
+    .trim();
+  if (NON_REPAIRABLE_WORKFLOW_PATTERNS.some((pattern) => pattern.test(normalizedWorkflowIdentity))) {
     errors.push('TARGET_WORKFLOW_NOT_ALLOWED');
   }
   if (/auto repair/i.test(workflowName)) errors.push('TARGET_SELF_REPAIR');
