@@ -149,6 +149,8 @@ jobs:
           test -n "$FAILED_SHA" && test "$FAILED_SHA" != "null"
           test "$FAILED_BRANCH" = "main" || test "$FAILED_BRANCH" = "execution"
           CURRENT_TARGET_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$FAILED_BRANCH" --jq '.object.sha')"
+          test -n "$CURRENT_TARGET_SHA" || { echo 'FAIL CLOSED: repair target is missing.'; exit 1; }
+          echo "CURRENT_TARGET_SHA=$CURRENT_TARGET_SHA"
           ORIGINAL_FAILED_SHA="$FAILED_SHA"
           if [ "$CURRENT_TARGET_SHA" != "$FAILED_SHA" ]; then
             echo "BRANCH_CONFLICT_RECOVERY=PRE_REPAIR_HEAD_MOVED"
