@@ -623,5 +623,41 @@
     "mandatory": true,
     "exactShaRequired": true,
     "reEvaluateOnNewEvidence": true
+  },
+  "invocationContract": {
+    "schemaVersion": 1,
+    "authority": "CANONICAL_INVOCATION_CONTRACT",
+    "runtime": "scripts/ci/invocation-contract.mjs",
+    "requiredIdentity": [
+      "invocationId",
+      "messageId",
+      "taskId",
+      "targetSha",
+      "failureFingerprint",
+      "attempt",
+      "leaseEpoch"
+    ],
+    "identityRule": "invocationId = deterministic SHA-256 identity over messageId + taskId + targetSha + failureFingerprint + attempt + leaseEpoch",
+    "lifecycle": [
+      "DISPATCHED",
+      "RECEIVED",
+      "ACCEPTED",
+      "STARTED",
+      "HEARTBEAT",
+      "COMPLETED",
+      "VERIFIED"
+    ],
+    "failClosedStates": [
+      "FAILED",
+      "STALE",
+      "SUPERSEDED",
+      "BLOCKED_CONFLICT"
+    ],
+    "supersessionRule": "A newer exact execution SHA supersedes older invocations; older invocations cannot become VERIFIED after supersession.",
+    "recoveryRule": "Recovery requires lease expiry, no valid heartbeat, no newer invocation, current exact SHA, and no competing owner.",
+    "sourceOfTruth": "This contract is the canonical invocation identity/state contract; component-specific state must not redefine invocation identity or supersession semantics.",
+    "relayBinding": ".github/workflows/agent-communication-relay.yml",
+    "evidenceBinding": "Every transition may carry evidenceRefs; VERIFIED requires the current exact SHA.",
+    "authorityBoundary": "Invocation validity never grants mutation or certification authority."
   }
 }

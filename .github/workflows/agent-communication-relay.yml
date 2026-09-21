@@ -268,6 +268,17 @@ jobs:
           node scripts/ci/agent-communication.mjs ingest --message-file=message.json | tee /tmp/flixo-agent-message-receipt.json
           jq -r '"MESSAGE_STATUS=" + .status + "\\nMESSAGE_ID=" + .messageId + "\\nMESSAGE_ENTRY_SHA=" + .entrySha + "\\nMESSAGE_IDEMPOTENCY_KEY=" + .idempotencyKey' /tmp/flixo-agent-message-receipt.json >> "$GITHUB_OUTPUT"
 
+      - name: Build canonical invocation envelope
+        id: invocation
+        if: steps.ingest.outcome == 'success' && hashFiles('message.json') != ''
+        env:
+          ENTRY_SHA: ${{ steps.ingest.outputs.MESSAGE_ENTRY_SHA }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/ci/invocation-contract.mjs build --message-file=message.json --current-sha="$ENTRY_SHA" --output=/tmp/flixo-invocation.json | tee /tmp/flixo-invocation-console.json
+          jq -r '"INVOCATION_ID=" + .invocationId + "\nINVOCATION_STATE=" + .state + "\nINVOCATION_FAILURE_FINGERPRINT=" + .failureFingerprint + "\nINVOCATION_ATTEMPT=" + (.attempt|tostring) + "\nINVOCATION_LEASE_EPOCH=" + (.leaseEpoch|tostring)' /tmp/flixo-invocation.json >> "$GITHUB_OUTPUT"
+
       - name: Dispatch administrative message to canonical Council runtime
         id: runtime_dispatch
         if: steps.ingest.outcome == 'success' && hashFiles('message.json') != '' && contains(github.event.comment.body || '', '"administrativeInstruction"')
@@ -276,6 +287,10 @@ jobs:
           MESSAGE_ID: ${{ steps.ingest.outputs.MESSAGE_ID }}
           MESSAGE_KEY: ${{ steps.ingest.outputs.MESSAGE_IDEMPOTENCY_KEY }}
           TASK_ID: ${{ steps.ingest.outputs.MESSAGE_ID }}
+          INVOCATION_ID: ${{ steps.invocation.outputs.INVOCATION_ID }}
+          FAILURE_FINGERPRINT: ${{ steps.invocation.outputs.INVOCATION_FAILURE_FINGERPRINT }}
+          ATTEMPT: ${{ steps.invocation.outputs.INVOCATION_ATTEMPT }}
+          LEASE_EPOCH: ${{ steps.invocation.outputs.INVOCATION_LEASE_EPOCH }}
           RUNTIME_URL: https://zrpsmgdrtwzrhkjwwujo.supabase.co/functions/v1/flixo-council-runtime
         shell: bash
         run: |
@@ -321,7 +336,7 @@ jobs:
             DELIVERY_TASK_ID="${TASK_ID}:${DELIVERY_MASTER}"
             WORK_PACKAGE="ADMIN-COMMUNICATION-${MESSAGE_ID}-${DELIVERY_MASTER}"
 
-            jq -n               --arg messageId "$DELIVERY_ID"               --arg idempotencyKey "$DELIVERY_KEY"               --arg taskId "$DELIVERY_TASK_ID"               --arg workPackageId "$WORK_PACKAGE"               --arg entrySha "$ENTRY_SHA"               --arg primary "$PRIMARY_ACCOUNT"               --arg fallback "$FALLBACK_ACCOUNT"               --arg deliveryMaster "$DELIVERY_MASTER"               --arg canonicalRecipientMaster "$RECIPIENT_MASTER"               --slurpfile message message.json               '{messageId:$messageId,idempotencyKey:$idempotencyKey,taskId:$taskId,workPackageId:$workPackageId,entrySha:$entrySha,requestedByAccountId:"SYSTEM",primaryAccountId:$primary,fallbackAccountId:$fallback,source:"agent-communication-relay",payload:{administrativeInstruction:true,administrativeBroadcast:(($message[0].payload.masterPeerMessage // $message[0].payload.peerMessage // false)|not),canonicalMessageId:($message[0].messageId // $messageId),canonicalRecipientMaster:$canonicalRecipientMaster,exactSha:$entrySha,actor:($message[0].actor // null),recipient:($message[0].recipient // null),intent:($message[0].intent // null),priority:($message[0].priority // null),councilOperation:($message[0].councilOperation // false),masterPeerMessage:($message[0].payload.peerMessage // false),automaticDelivery:($message[0].payload.automaticDelivery // false),conversationId:($message[0].payload.conversationId // null),replyToMessageId:($message[0].payload.replyToMessageId // null),senderMaster:($message[0].payload.senderMaster // null),recipientMaster:$deliveryMaster,messageText:($message[0].payload.messageText // null)}}' > /tmp/council-runtime-dispatch.json
+            jq -n               --arg messageId "$DELIVERY_ID"               --arg idempotencyKey "$DELIVERY_KEY"               --arg taskId "$DELIVERY_TASK_ID"               --arg workPackageId "$WORK_PACKAGE"               --arg entrySha "$ENTRY_SHA"               --arg invocationId "$INVOCATION_ID"               --arg failureFingerprint "$FAILURE_FINGERPRINT"               --arg attempt "$ATTEMPT"               --arg leaseEpoch "$LEASE_EPOCH"               --arg primary "$PRIMARY_ACCOUNT"               --arg fallback "$FALLBACK_ACCOUNT"               --arg deliveryMaster "$DELIVERY_MASTER"               --arg canonicalRecipientMaster "$RECIPIENT_MASTER"               --slurpfile message message.json               '{messageId:$messageId,idempotencyKey:$idempotencyKey,taskId:$taskId,workPackageId:$workPackageId,entrySha:$entrySha,requestedByAccountId:"SYSTEM",primaryAccountId:$primary,fallbackAccountId:$fallback,source:"agent-communication-relay",payload:{administrativeInstruction:true,administrativeBroadcast:(($message[0].payload.masterPeerMessage // $message[0].payload.peerMessage // false)|not),canonicalMessageId:($message[0].messageId // $messageId),canonicalRecipientMaster:$canonicalRecipientMaster,exactSha:$entrySha,actor:($message[0].actor // null),recipient:($message[0].recipient // null),intent:($message[0].intent // null),priority:($message[0].priority // null),councilOperation:($message[0].councilOperation // false),masterPeerMessage:($message[0].payload.peerMessage // false),automaticDelivery:($message[0].payload.automaticDelivery // false),conversationId:($message[0].payload.conversationId // null),replyToMessageId:($message[0].payload.replyToMessageId // null),senderMaster:($message[0].payload.senderMaster // null),recipientMaster:$deliveryMaster,messageText:($message[0].payload.messageText // null),invocation:{invocationId:$invocationId,failureFingerprint:$failureFingerprint,attempt:($attempt|tonumber),leaseEpoch:($leaseEpoch|tonumber),targetSha:$entrySha,state:"DISPATCHED"}}' > /tmp/council-runtime-dispatch.json
 
             curl -fsSL               -H "Authorization: Bearer $OIDC_TOKEN"               -H "Content-Type: application/json"               -X POST "$RUNTIME_URL?action=dispatch"               --data-binary @/tmp/council-runtime-dispatch.json               | tee /tmp/council-runtime-dispatch-response.json
 
@@ -343,9 +358,10 @@ jobs:
           MESSAGE_STATUS: ${{ steps.ingest.outputs.MESSAGE_STATUS }}
           MESSAGE_SHA: ${{ steps.ingest.outputs.MESSAGE_ENTRY_SHA }}
           MESSAGE_KEY: ${{ steps.ingest.outputs.MESSAGE_IDEMPOTENCY_KEY }}
+          INVOCATION_ID: ${{ steps.invocation.outputs.INVOCATION_ID }}
         run: |
           set -euo pipefail
-          BODY="$(printf '%s\n' "### AGENT MESSAGE RECEIVED" "" "**Message:** $MESSAGE_ID" "**Status:** $MESSAGE_STATUS" "**Entry SHA:** $MESSAGE_SHA" "**Idempotency Key:** $MESSAGE_KEY" "**Receipt:** IMMEDIATE_EVENT_RECEIPT" "**Target ref:** ${{ steps.target.outputs.target_ref }}" "" "The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute." "" "<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->")"
+          BODY="$(printf '%s\n' "### AGENT MESSAGE RECEIVED" "" "**Message:** $MESSAGE_ID" "**Status:** $MESSAGE_STATUS" "**Entry SHA:** $MESSAGE_SHA" "**Idempotency Key:** $MESSAGE_KEY" "**Invocation:** $INVOCATION_ID" "" "**Receipt:** IMMEDIATE_EVENT_RECEIPT" "**Target ref:** ${{ steps.target.outputs.target_ref }}" "" "The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute." "" "<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->")"
           gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
 
       - name: Wake repair supervision for repair-class messages
