@@ -12,6 +12,14 @@ const base = [
   'ROLE: SCOUT',
   'WORK PACKAGE: CODE-SCOUT-CURRENT-TRUTH-001',
 ].join('\n');
+const president = buildWakePlan({ comment: base.replace('ROLE: SCOUT', 'ROLE: PRESIDENT').replace('WORK PACKAGE: CODE-SCOUT-CURRENT-TRUTH-001', 'WORK PACKAGE: COUNCIL-P0-001'), currentExecutionSha: sha });
+assert.equal(president.mode, 'WORKFLOW_DISPATCH');
+assert.equal(president.workflow, 'council-priority-wake.yml');
+assert.equal(president.machineRole, 'assistantController');
+assert.equal(president.priority, 'P0');
+assert.equal(president.preemption, 'SAFE_BOUNDARY');
+assert.equal(president.councilOperation, true);
+console.log('COUNCIL_WAKE_PRESIDENT_P0_ROUTE=PASS');
 const scout = buildWakePlan({ comment: base, currentExecutionSha: sha, repository: 'test/repo' });
 assert.equal(scout.mode, 'WORKFLOW_DISPATCH');
 assert.equal(scout.workflow, 'code-read-only-scout.yml');
