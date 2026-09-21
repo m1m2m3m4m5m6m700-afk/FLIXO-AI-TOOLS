@@ -6,8 +6,6 @@ run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id }}
 # main      = sole production/source-of-truth branch
 # No workflow in this file may create another branch.
 on:
-  push:
-    branches: [execution]
   workflow_dispatch:
     inputs:
       resident:
@@ -74,6 +72,7 @@ env:
   FLIXO_REPAIR_LEASE_REF: ${{ inputs.repair_lease_ref || '' }}
   FLIXO_REPAIR_LEASE_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
   FLIXO_REPAIR_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
+  FLIXO_REPAIR_BEHAVIOR_TRACE_PATH: /tmp/flixo-repair-behavior-trace.json
   FLIXO_HISTORICAL_SOLUTION_PATH: /tmp/flixo-historical-solution-index.json
   FLIXO_TWIN_A_PATH: /tmp/flixo-twin-a.json
   FLIXO_TWIN_B_PATH: /tmp/flixo-twin-b.json
@@ -743,6 +742,16 @@ jobs:
           jq -e '.protocol=="FLIXO-REPAIR-BOT-BEHAVIORAL-TRAINING-v1" and .authority=="TRAINING_ONLY" and .targetSha==env.FLIXO_EXPECTED_TARGET_SHA and .decision.mode != null' /tmp/flixo-repair-training.json >/dev/null
           echo "FLIXO_REPAIR_TRAINING_PATH=/tmp/flixo-repair-training.json" >> "\$GITHUB_ENV"
 
+      - name: Observe every prior Repair Bot reaction in the current session
+        id: behavior_observer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FLIXO_REPAIR_BEHAVIOR_TRACE_PATH: /tmp/flixo-repair-behavior-trace.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-session-observer.mjs
+          test -s /tmp/flixo-repair-behavior-trace.json
+          jq -e '.protocol=="FLIXO-REPAIR-BOT-BEHAVIOR-TRACE-v1" and .traceHash != null and .directive != null' /tmp/flixo-repair-behavior-trace.json >/dev/null
       - name: Select repair strategy and continue strict RED repair
         id: strategy
         env:

@@ -63,6 +63,15 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Observe every Repair Bot reaction from the active repair session
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FLIXO_REPAIR_BEHAVIOR_TRACE_PATH: /tmp/flixo-repair-behavior-trace.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-session-observer.mjs
+          test -s /tmp/flixo-repair-behavior-trace.json
+          jq -e '.protocol=="FLIXO-REPAIR-BOT-BEHAVIOR-TRACE-v1" and .traceHash != null' /tmp/flixo-repair-behavior-trace.json >/dev/null
       - name: Determine whether canonical repair work is already resident
         id: state
         env:

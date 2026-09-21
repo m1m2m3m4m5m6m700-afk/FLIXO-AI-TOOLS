@@ -13,6 +13,7 @@ const chainId = String(process.env.FLIXO_REPAIR_CHAIN_ID ?? process.env.TARGET_R
 const caseFingerprint = String(process.env.FLIXO_FAILURE_FINGERPRINT ?? '').trim();
 const attemptLedgerPath = process.env.FLIXO_REPAIR_ATTEMPT_LEDGER ?? '/tmp/flixo-repair-attempt-ledger.json';
 const trainingPath = process.env.FLIXO_REPAIR_TRAINING_PATH ?? '/tmp/flixo-repair-training.json';
+const behaviorTracePath = process.env.FLIXO_REPAIR_BEHAVIOR_TRACE_PATH ?? '/tmp/flixo-repair-behavior-trace.json';
 
 const strategies = [
   ['reproduce-exact', 'Reproduce the exact failure on the exact target SHA before changing source.'],
@@ -408,6 +409,9 @@ const selectedRepairStrategy = String(twinSelection?.selection?.selectedStrategy
 if (selectedRepairStrategy && !VALID_STRATEGY_IDS.has(selectedRepairStrategy)) {
   throw new Error('TWIN_SELECTED_STRATEGY_NOT_ALLOWLISTED');
 }
+const behaviorTrace = readJson(behaviorTracePath, null);
+const behaviorDirective = behaviorTrace?.directive ?? {};
+const forcedBehaviorStrategy = VALID_STRATEGY_IDS.has(String(behaviorDirective.nextStrategy ?? '')) ? String(behaviorDirective.nextStrategy) : null;
 const twinPreferredStrategy = selectedRepairStrategy
   || String(twinProposal?.challenge?.preferredAlternativeStrategy ?? twinA?.challenge?.preferredAlternativeStrategy ?? twinB?.challenge?.preferredAlternativeStrategy ?? '').trim();
 const memory = readJson(memoryPath, { cases: [] });
@@ -463,7 +467,10 @@ const evidenceFirstIndexes = evidenceFirstIds
 const nextEvidenceIndex = trainingDecision.nextEvidence?.strategyId
   ? strategies.findIndex(([strategyId]) => strategyId === trainingDecision.nextEvidence.strategyId)
   : -1;
-const index = selectedIndex >= 0 && availableIndexes.includes(selectedIndex)
+const forcedBehaviorIndex = forcedBehaviorStrategy ? strategies.findIndex(([id]) => id === forcedBehaviorStrategy) : -1;
+const index = forcedBehaviorIndex >= 0 && availableIndexes.includes(forcedBehaviorIndex)
+    ? forcedBehaviorIndex
+  : selectedIndex >= 0 && availableIndexes.includes(selectedIndex)
   ? selectedIndex
   : trainingDecision.abstain && nextEvidenceIndex >= 0 && availableIndexes.includes(nextEvidenceIndex)
     ? nextEvidenceIndex
@@ -582,6 +589,7 @@ fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   trainingMode: training?.decision?.mode ?? 'MISSING',
   trainingDecision,
   nextEvidence,
+  behaviorObservation: behaviorTrace ? { traceHash: behaviorTrace.traceHash ?? null, directive: behaviorDirective } : null,
   decisionTrace,
   stateActionRecommendation,
   behavioralRecommendation,

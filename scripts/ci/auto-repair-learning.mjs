@@ -6,6 +6,7 @@ import { retrieveTeachingRecords } from './error-learning-log.mjs';
 import { buildKnowledgeRecord, persistKnowledge } from './cell-learning.mjs';
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
+const behaviorTracePath = process.env.FLIXO_REPAIR_BEHAVIOR_TRACE_PATH ?? '/tmp/flixo-repair-behavior-trace.json';
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
 export const MEMORY_VERSION = 10;
 export const INTRACTABLE_THRESHOLD = 3;
@@ -30,6 +31,13 @@ export const MEMORY_RELATION_TYPES = Object.freeze([
   'regressed-by',
 ]);
 const SHA_PATTERN = /^[a-f0-9]{40}$/u;
+
+function loadBehaviorObservation() {
+  try {
+    const trace = JSON.parse(fs.readFileSync(behaviorTracePath, 'utf8'));
+    return { traceHash: trace.traceHash ?? null, repeatedStage: trace.directive?.repeatedStage ?? null, repeatedStageCount: Number(trace.directive?.repeatedStageCount ?? 0), engineErrorRuns: Number(trace.directive?.engineErrorRuns ?? 0), noProgress: trace.directive?.noProgress === true, strategyChangeRequired: trace.directive?.strategyChangeRequired === true, nextStrategy: trace.directive?.nextStrategy ?? null };
+  } catch { return null; }
+}
 
 export function normalizeRelations(relations = [], sourceFingerprint = null) {
   if (!Array.isArray(relations)) return [];
@@ -724,11 +732,13 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   const promptId = String(process.env.FLIXO_PROMPT_ID ?? provenance?.promptId ?? '').trim() || null;
   const effectiveProvenance = {
     ...(provenance ?? {}),
+    ...(behaviorObservation ? { behaviorObservation } : {}),
     ...(promptId ? { promptId } : {}),
     ...(strategyId ? { strategyId } : {}),
     ...(effectiveProviderSignature ? { providerSignature: effectiveProviderSignature } : {}),
   };
   const isHistoricalRevertFailure = outcome === 'revert-failure';
+  const behaviorObservation = loadBehaviorObservation();
   if (isExternalBlock) entry.externalBlocks = (entry.externalBlocks ?? 0) + 1;
   const recurrenceObserved = priorAttempts > 0 || priorOccurrences > 0;
   const effectivePreventionRule = preventionRule ?? recurrencePreventionRule({
