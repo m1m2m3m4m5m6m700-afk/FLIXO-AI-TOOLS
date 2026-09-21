@@ -1,0 +1,130 @@
+name: FLIXO Council Priority Wake
+
+on:
+  workflow_dispatch:
+    inputs:
+      entry_sha:
+        description: Exact execution SHA
+        required: true
+        type: string
+      request_id:
+        description: Idempotent council request identifier
+        required: true
+        type: string
+      source_comment_id:
+        description: Source PR comment id
+        required: true
+        type: string
+      question:
+        description: Council question/request
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+  actions: read
+
+concurrency:
+  group: flixo-council-priority-\${{ inputs.request_id }}
+  cancel-in-progress: false
+
+jobs:
+  wake:
+    name: Immediate P0 Council dispatch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact execution SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: execution
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate current exact SHA and Council contract
+        env:
+          GH_TOKEN: \${{ github.token }}
+          ENTRY_SHA: \${{ inputs.entry_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$ENTRY_SHA" =~ ^[0-9a-f]{40}$ ]]
+          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$ENTRY_SHA" = "$CURRENT_SHA"
+          node scripts/ci/test-council-directive.mjs
+          node scripts/ci/test-council-wake-dispatch.mjs
+
+      - name: Dispatch P0 Council request through OIDC
+        env:
+          ENTRY_SHA: \${{ inputs.entry_sha }}
+          REQUEST_ID: \${{ inputs.request_id }}
+          SOURCE_COMMENT_ID: \${{ inputs.source_comment_id }}
+          QUESTION: \${{ inputs.question }}
+          RUNTIME_URL: https://zrpsmgdrtwzrhkjwwujo.supabase.co/functions/v1/flixo-council-runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          OIDC_TOKEN="$(curl -fsSL \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$RUNTIME_URL" | jq -r '.value')"
+          test -n "$OIDC_TOKEN" && test "$OIDC_TOKEN" != "null"
+          jq -n \
+            --arg messageId "$REQUEST_ID" \
+            --arg taskId "COUNCIL-P0-$REQUEST_ID" \
+            --arg workPackageId "COUNCIL-P0-$SOURCE_COMMENT_ID" \
+            --arg entrySha "$ENTRY_SHA" \
+            --arg question "$QUESTION" \
+            --arg sourceCommentId "$SOURCE_COMMENT_ID" \
+            '{
+              messageId:$messageId,
+              idempotencyKey:($messageId + ":" + $entrySha),
+              taskId:$taskId,
+              workPackageId:$workPackageId,
+              entrySha:$entrySha,
+              primaryAccountId:"CHIEF",
+              fallbackAccountId:"CHIEF",
+              requestedByAccountId:"SYSTEM",
+              directiveVersion:"1.0.0",
+              priority:"P0",
+              councilOperation:true,
+              councilRole:"PRESIDENT",
+              payload:{
+                source:"COUNCIL_PR_759",
+                sourceCommentId:$sourceCommentId,
+                question:$question,
+                priority:"P0",
+                councilOperation:true,
+                preemption:"SAFE_BOUNDARY",
+                requestedAction:"IMMEDIATE_COUNCIL_RESPONSE"
+              }
+            }' > /tmp/council-p0.json
+          curl -fsSL \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
+            -H "Content-Type: application/json" \
+            -X POST "$RUNTIME_URL?action=dispatch" \
+            --data-binary @/tmp/council-p0.json > /tmp/council-dispatch.json
+          jq -e '.ok == true and .status == "LEASED" and .primaryAccountId == "CHIEF" and .entrySha == $ENTRY_SHA' \
+            --arg ENTRY_SHA "$ENTRY_SHA" /tmp/council-dispatch.json >/dev/null
+          jq -r '"DISPATCH_ID=" + .dispatchId + "\\nPRIORITY=P0\\nSTATUS=" + .status + "\\nEXACT_SHA=" + .entrySha + "\\nPUSH=" + (.push|tostring)' /tmp/council-dispatch.json
+
+      - name: Publish immediate P0 receipt
+        env:
+          GH_TOKEN: \${{ github.token }}
+          ENTRY_SHA: \${{ inputs.entry_sha }}
+          REQUEST_ID: \${{ inputs.request_id }}
+          COMMENT_ID: \${{ inputs.source_comment_id }}
+        run: |
+          set -euo pipefail
+          BODY="$(printf '%s\\n' \
+            '### COUNCIL P0 WAKE RECEIPT' \
+            '' \
+            '**Priority:** P0 — Council First' \
+            "**Request:** $REQUEST_ID" \
+            "**Source comment:** $COMMENT_ID" \
+            "**Exact SHA:** $ENTRY_SHA" \
+            '**Dispatch:** CHIEF / immediate' \
+            '**Preemption:** SAFE_BOUNDARY' \
+            '' \
+            'The request has been admitted to the canonical Council runtime at P0. ACK is separate evidence and is not inferred from queue admission.')"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
