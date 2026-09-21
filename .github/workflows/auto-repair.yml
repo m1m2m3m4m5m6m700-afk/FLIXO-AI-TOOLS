@@ -431,6 +431,10 @@ jobs:
               echo 'TRUSTED_VERIFIER_DRIFT_RECOVERY=KNOWN_DEEP_MISSING_REGEX'
               echo 'TRUSTED_VERIFIER_DRIFT_RECOVERY_MODE=EXECUTION_VERIFIER_REPROOF'
               node scripts/ci/test-auto-repair-architecture.mjs
+            elif grep -Fq 'regular expression /HANDOFF_TARGET_SHA/' /tmp/flixo-trusted-architecture-self-test.log; then
+              echo 'TRUSTED_VERIFIER_DRIFT_RECOVERY=KNOWN_HANDOFF_TARGET_SHA_MARKER'
+              echo 'TRUSTED_VERIFIER_DRIFT_RECOVERY_MODE=EXECUTION_VERIFIER_REPROOF'
+              node scripts/ci/test-auto-repair-architecture.mjs
             else
               echo 'TRUSTED_VERIFIER_DRIFT_RECOVERY=DENIED'
               exit 1
