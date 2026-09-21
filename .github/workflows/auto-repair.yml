@@ -398,9 +398,13 @@ jobs:
           FLIXO_SKIP_GIT_MEMORY_HISTORY: 'true'
         run: |
           set -euo pipefail
-          cat > /tmp/flixo-repair-selftest-memory.json <<'JSON'
+          MEMORY_VERSION="$(node --input-type=module -e "import { MEMORY_VERSION } from '/tmp/flixo-repair-controller/scripts/ci/auto-repair-learning.mjs'; process.stdout.write(String(MEMORY_VERSION))")"
+          case "$MEMORY_VERSION" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: trusted repair memory version is invalid.'; exit 1 ;;
+          esac
+          cat > /tmp/flixo-repair-selftest-memory.json <<JSON
           {
-            "version": 10,
+            "version": $MEMORY_VERSION,
             "cases": [],
             "playbooks": [
               {
