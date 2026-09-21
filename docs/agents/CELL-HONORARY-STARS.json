@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "authority": "CELL_CONTROL_PLANE",
+  "purpose": "Evidence-backed honorary star progression for exceptional work.",
+  "rules": {
+    "range": [0, 5],
+    "awardUnit": 1,
+    "trigger": "EXCEPTIONAL_WORK",
+    "requirements": [
+      "EXCEPTIONAL_OUTCOME",
+      "VERIFIED_EVIDENCE",
+      "CANONICAL_EXACT_SHA",
+      "UNIQUE_AWARD_EVENT_ID",
+      "OFFICIAL_ADMIN_RECORD"
+    ],
+    "deduplication": "UNIQUE_AWARD_EVENT_ID_AND_EVIDENCE_ID",
+    "fiveStarRank": "MASTER-1",
+    "formalTransitionRequired": true,
+    "automaticPrivilegeChange": false
+  },
+  "awards": [
+    {
+      "awardEventId": "MASTER-3-LEADERSHIP-MARK-20260921-01",
+      "holder": "MASTER-3",
+      "starsAfterAward": 1,
+      "workClass": "INITIAL_CELL_PLANNING",
+      "sourceMessageId": "MASTER-3-LEADERSHIP-MARK-20260921-01",
+      "status": "RECORDED"
+    }
+  ]
+}
