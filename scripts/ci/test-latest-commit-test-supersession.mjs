@@ -13,7 +13,7 @@ assert.doesNotMatch(workflow, /gh run cancel "\$run_id" --repo "\$REPOSITORY"\s*
 
 console.log('LATEST_COMMIT_TEST_SUPERSESSION_RACE_REGRESSION=PASS');
 
-assert.match(workflow, /gh api "repos\/\$GITHUB_REPOSITORY\/git\/ref\/heads\/\$BRANCH" --jq '\.object\.sha'/);
+assert.match(workflow, /gh api "repos\/\$GITHUB_REPOSITORY\/git\/ref\/heads\/execution" --jq '\.object\.sha'/);
 assert.match(workflow, /stale_event=false/);
 assert.match(workflow, /stale_event=true/);
 assert.match(workflow, /if: steps\.head\.outputs\.stale_event != 'true'/);
@@ -21,3 +21,6 @@ assert.match(workflow, /if \[ "\$LIVE_SHA" != "\$CURRENT_SHA" \]; then/);
 assert.match(workflow, /SUPERSESSION_ABORTED_HEAD_MOVEMENT/);
 assert.match(workflow, /if: steps\.head\.outputs\.stale_event != 'true' && steps\.cancel\.outputs\.obsolete != 'true'/);
 assert.match(workflow, /SUPERSESSION_HEAD_MOVED/);
+
+assert.match(workflow, /BRANCH='execution'/);
+assert.match(workflow, /EVENT_SHA="\$\(gh api "repos\/\$GITHUB_REPOSITORY\/git\/ref\/heads\/execution" --jq '\.object\.sha'\)"/);
