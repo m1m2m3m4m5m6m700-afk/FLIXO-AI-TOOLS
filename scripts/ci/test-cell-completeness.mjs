@@ -17,6 +17,17 @@ assert.equal(registry.swarmPolicy?.registeredBots,200);
 assert.deepEqual(registry.swarmPolicy?.escalationLadder,[3,7,15,30,50,100,200]);
 assert.equal(registry.personalMemory?.aggregateIndex,'diagnostics/auto-repair/cell-knowledge/index.json');
 assert.equal(registry.cellCouncil?.seats?.length,3);
+assert.equal(registry.honoraryLeadership?.masterId,'MASTER-3');
+assert.equal(registry.honoraryLeadership?.mark,'★');
+assert.equal(registry.honoraryLeadership?.title,'نجمة القيادة الشرفية');
+assert.equal(registry.honoraryLeadership?.status,'ACTIVE_UNTIL_FORMAL_WITHDRAWAL');
+assert.equal(registry.honoraryLeadership?.scope,'CELL_HQ');
+assert.equal(registry.honoraryLeadership?.authority,'COMMUNICATION_ONLY');
+assert.equal(registry.honoraryLeadership?.mutationAuthority,false);
+assert.equal(registry.honoraryLeadership?.certificationAuthority,false);
+assert.equal(registry.honoraryLeadership?.permissionGrantAuthority,false);
+assert.equal(registry.honoraryLeadership?.withdrawal,'OFFICIAL_ADMIN_MESSAGE_ONLY');
+
 assert.deepEqual(registry.cellCouncil?.seats?.map(x=>x.id),['CELL-SEAT-01','CELL-SEAT-02','CELL-SEAT-03']);
 
 for(const id of ids){

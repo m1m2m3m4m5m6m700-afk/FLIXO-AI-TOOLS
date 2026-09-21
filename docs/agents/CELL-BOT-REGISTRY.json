@@ -19,6 +19,23 @@
     "Knowledge never bypasses exact-SHA or canonical CI proof.",
     "The CELL pool contains exactly 200 workers; external specialized Action-repair workers are never counted or assigned as CELL bots."
   ],
+  "honoraryLeadership": {
+    "status": "ACTIVE_UNTIL_FORMAL_WITHDRAWAL",
+    "mark": "★",
+    "title": "نجمة القيادة الشرفية",
+    "masterId": "MASTER-3",
+    "scope": "CELL_HQ",
+    "authority": "COMMUNICATION_ONLY",
+    "mutationAuthority": false,
+    "certificationAuthority": false,
+    "permissionGrantAuthority": false,
+    "grantedBy": "assistantController",
+    "sourceMessageIds": [
+      "MASTER-3-LEADERSHIP-MARK-20260921-01",
+      "MASTER-3-HONORARY-LEADERSHIP-STATUS-20260921-01"
+    ],
+    "withdrawal": "OFFICIAL_ADMIN_MESSAGE_ONLY"
+  },
   "bots": [
     {
       "id": "CELL-001",
