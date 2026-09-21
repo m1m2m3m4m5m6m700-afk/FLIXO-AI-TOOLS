@@ -28,6 +28,24 @@ assert.equal(registry.honoraryLeadership?.certificationAuthority,false);
 assert.equal(registry.honoraryLeadership?.permissionGrantAuthority,false);
 assert.equal(registry.honoraryLeadership?.withdrawal,'OFFICIAL_ADMIN_MESSAGE_ONLY');
 
+assert.equal(registry.honoraryLeadership?.starCount,1);
+assert.deepEqual(registry.honoraryLeadership?.starScale,[0,1,2,3,4,5]);
+assert.equal(registry.honoraryLeadership?.fiveStarRank,'MASTER-1');
+assert.equal(registry.honoraryLeadership?.automaticAuthorityGrant,false);
+assert.equal(registry.honoraryStarSystem?.status,'ACTIVE');
+assert.equal(registry.honoraryStarSystem?.awardUnit,1);
+assert.equal(registry.honoraryStarSystem?.awardTrigger,'EXCEPTIONAL_WORK');
+assert.deepEqual(registry.honoraryStarSystem?.scale,[0,5]);
+assert.equal(registry.honoraryStarSystem?.ceiling,5);
+assert.equal(registry.honoraryStarSystem?.fiveStarRank,'MASTER-1');
+assert.equal(registry.honoraryStarSystem?.fiveStarTransition,'FORMAL_ADMIN_RECORD_REQUIRED');
+assert.equal(registry.honoraryStarSystem?.automaticPrivilegeChange,false);
+assert(registry.honoraryStarSystem?.awardRequirements?.includes('VERIFIED_EVIDENCE'));
+assert(registry.honoraryStarSystem?.awardRequirements?.includes('CANONICAL_EXACT_SHA'));
+assert(registry.honoraryStarSystem?.current?.every(x=>x.stars>=0&&x.stars<=5));
+assert.equal(registry.honoraryStarSystem?.current?.find(x=>x.masterId==='MASTER-3')?.stars,1);
+
+
 assert.deepEqual(registry.cellCouncil?.seats?.map(x=>x.id),['CELL-SEAT-01','CELL-SEAT-02','CELL-SEAT-03']);
 
 for(const id of ids){
