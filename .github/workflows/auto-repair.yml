@@ -6,8 +6,15 @@ run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id }}
 # main      = sole production/source-of-truth branch
 # No workflow in this file may create another branch.
 on:
+  push:
+    branches: [execution]
   workflow_dispatch:
     inputs:
+      resident:
+        description: 'Keep the Repair Bot resident and observing the active repair session'
+        required: false
+        default: 'false'
+        type: string
       target_run_id:
         description: 'Workflow run ID to diagnose and repair'
         required: true
@@ -51,7 +58,7 @@ permissions:
 
 concurrency:
   # Serialize one canonical repair chain; the chain identity includes branch, SHA, fingerprint and target run ID.
-  group: flixo-auto-repair-execution-${{ inputs.chain_id || inputs.target_run_id }}
+  group: flixo-auto-repair-${{ inputs.resident == 'true' && 'resident' || (inputs.chain_id || inputs.target_run_id) }}
   cancel-in-progress: false
 
 env:
