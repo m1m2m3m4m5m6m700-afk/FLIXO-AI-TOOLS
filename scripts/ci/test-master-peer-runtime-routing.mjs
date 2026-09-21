@@ -6,13 +6,22 @@ const runtime = fs.readFileSync('supabase/functions/flixo-council-runtime/index.
 const relay = fs.readFileSync('.github/workflows/agent-communication-relay.yml', 'utf8');
 const router = fs.readFileSync('scripts/ci/master-peer-communication.mjs', 'utf8');
 
-for (const [master, primary, fallback] of [
+const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\for (const [master, primary, fallback] of [
   ['MASTER-1', 'CHIEF', 'CHIEF'],
   ['MASTER-2', 'WORKER_A', 'WORKER_B'],
   ['MASTER-3', 'WORKER_B', 'WORKER_A'],
 ]) {
   assert.match(runtime, new RegExp('\"' + master + '\": \\{ primary: \"' + primary + '\", fallback: \"' + fallback + '\" \\}'));
   assert.match(relay, new RegExp(master.replace('-', '\\-')));
+}');
+
+for (const [master, primary, fallback] of [
+  ['MASTER-1', 'CHIEF', 'CHIEF'],
+  ['MASTER-2', 'WORKER_A', 'WORKER_B'],
+  ['MASTER-3', 'WORKER_B', 'WORKER_A'],
+]) {
+  assert.match(runtime, new RegExp(`\"${escapeRegExp(master)}\": \\{ primary: \"${escapeRegExp(primary)}\", fallback: \"${escapeRegExp(fallback)}\" \\}`));
+  assert.match(relay, new RegExp(escapeRegExp(master)));
 }
 assert.match(runtime, /const peerMessage = payload\.masterPeerMessage === true/);
 assert.match(runtime, /COUNCIL_MASTER_PEER_IDENTITY_INVALID/);
