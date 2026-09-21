@@ -23,6 +23,283 @@ This protocol defines the operating system for the FLIXO agent team. The executi
 Cooperation never weakens repository policy, certification or human authority.
 
 
+## Unified Agent Commands & Protocol Surface
+
+هذا القسم هو **فهرس تشغيلي موحّد** للقواعد والأوامر الموجودة في البروتوكولات المعتمدة. لا ينشئ Protocol أو Registry أو Certification Authority جديدة؛ عند التعارض تُطبّق أولوية docs/PROTOCOL-HIERARCHY.md والـmachine-readable validators.
+
+### Authority chain
+
+Protocol → Validator → Evidence → Certification
+
+Prompt = execution instruction فقط ولا يمنح صلاحية.
+Protocol = السلطة التنفيذية.
+Validator = إنفاذ البروتوكول.
+Evidence = الإثبات.
+Certification Authority = جهة الإغلاق النهائي.
+
+Prompt أو Memory أو Handoff أو Scout report أو Historical lesson لا تمنح mutation أو certification authority من تلقاء نفسها.
+
+### Mandatory entry gate
+
+قبل أي تنفيذ أو mutation، اقرأ بالترتيب:
+
+PROJECTS.md
+↓
+المهام.md
+↓
+AGENTS.md
+↓
+docs/EXECUTION-BRANCH-PROTOCOL.md
+↓
+docs/AGENT-COLLABORATION-PROTOCOL.md
+↓
+docs/AGENT-HANDOFF-REPORT-SCHEMA.md
+↓
+docs/AGENT-COORDINATION-CONTROL-PLANE.md
+↓
+docs/PROTOCOL-HIERARCHY.md
+↓
+docs/PROTOCOL-REGISTRY.json
+↓
+docs/agents/PROMPT-REGISTRY.json
+↓
+diagnostics/auto-repair/memory.json
+↓
+docs/MINIMAL-CI-FINAL-ARCHITECTURE.md
+↓
+scripts/ci/test-plan.json
+↓
+scripts/ci/assertion-registry.json
+↓
+current exact SHA + current workflow state
+
+أي mutation قبل اكتمال بوابة الدخول = FAIL_CLOSED.
+
+### Standard lifecycle
+
+DISCOVER
+→ READ_INBOX
+→ INGEST_HANDOFF
+→ REVALIDATE_EXACT_SHA
+→ LOCK_SCOPE
+→ TASK_CLAIM
+→ SCOUT
+→ ERROR_DETECT / DIAGNOSE
+→ TASK_UNDERSTAND
+→ RCA / INSPECT
+→ PLAN
+→ RISK_GATE
+→ PREPARE
+→ INTEGRATION_REVIEW
+→ EXECUTE
+→ APPLY
+→ TARGETED_VERIFY
+→ AFFECTED_CONTRACT_VERIFY
+→ INDEPENDENT_REVIEW
+→ REGRESSION
+→ RECURRENCE_CHECK
+→ LEARN
+→ PREVENT
+→ CERTIFY
+→ HANDOFF_OR_CLOSE
+
+### Repair lifecycle
+
+RED
+→ CAPTURE exact SHA + run/job/step/evidence
+→ FAILURE FINGERPRINT
+→ bind repairChainId
+→ RCA
+→ prove trigger → propagation → violated invariant → causal source → symptom
+→ FALSIFY / REPRODUCE
+→ PRE-MUTATION PROOF
+→ RISK_GATE
+→ REPAIR causal source on execution
+→ TARGETED_REGRESSION
+→ AFFECTED_CONTRACT_VERIFY
+→ FULL_REQUIRED_VERIFICATION
+→ EXACT_SHA_CHECK
+→ LEARN / PREVENT
+→ HANDOFF / CERTIFICATION
+
+Patch-to-green وحده لا يثبت الإصلاح.
+
+### Session and visibility commands
+
+بدء الجلسة:
+node scripts/ci/agent-session.mjs login --session=<id> --agent=<id> --role=<role> --task=<task-id>
+
+الاستمرار:
+node scripts/ci/agent-session.mjs login --session=<new-id> --agent=<id> --role=<role> --task=<task-id> --from-session=<previous-session>
+
+الاستمرار يتطلب predecessor handoff موجودًا ومغلقًا و exitSha == current SHA ونفس taskId.
+
+الأحداث:
+node scripts/ci/agent-session.mjs event --session=<id> --agent=<id> --task=<task-id> --type=<TYPE> --summary="<what happened>"
+
+استقبال:
+node scripts/ci/agent-session.mjs message-receive --session=<id> --agent=<id> --task=<task-id> --message-id=<id>
+
+استهلاك:
+node scripts/ci/agent-session.mjs message-consume --session=<id> --agent=<id> --task=<task-id> --message-id=<id>
+
+الإغلاق:
+node scripts/ci/agent-session.mjs logout --session=<id> --agent=<id> --status=VERIFIED --final-summary="<final-outcome>"
+
+VERIFIED محظور مع failedWork أو remainingWork أو openRcas. ينتج handoff في diagnostics/agents/handoffs/<sessionId>.json وسجل visibility في docs/agents/ledger/<sessionId>.json.
+
+### Canonical agent communication
+
+الأوامر:
+node scripts/ci/agent-communication.mjs validate
+node scripts/ci/agent-communication.mjs ingest
+node scripts/ci/agent-communication.mjs read
+node scripts/ci/agent-communication.mjs ack
+
+المسار:
+NOTIFICATION → MASTER INBOX → EVENT-DRIVEN RELAY → READ → EXACT-SHA REVALIDATION → OWNERSHIP / DEPENDENCY CHECK → EXECUTE
+
+Duplicate message = NO-OP. Idempotency collision = FAIL_CLOSED.
+
+### Task ownership and coordination
+
+node scripts/ci/agent-coordination.mjs task-create
+node scripts/ci/agent-coordination.mjs task-claim
+node scripts/ci/agent-coordination.mjs task-release
+node scripts/ci/agent-coordination.mjs task-complete
+node scripts/ci/agent-coordination.mjs task-next
+node scripts/ci/agent-coordination.mjs state
+node scripts/ci/agent-coordination.mjs brief
+node scripts/ci/agent-coordination.mjs visible
+node scripts/ci/agent-coordination.mjs ingest-handoff
+
+المبدأ: one mutable scope → one owner. التوازي مسموح فقط للـdisjoint scopes مع dependency barriers.
+
+### Liveness and wake
+
+الجلسة المفتوحة لا تصبح SLEEP أو IDLE أو SILENT أو ABANDONED.
+
+عند انتظار CI أو provider خارجي:
+WAITING_EXTERNAL + heartbeat
+
+الأمر:
+node scripts/ci/repair-lease.mjs heartbeat ...
+
+عند stale heartbeat/lease:
+RECOVERING → supervisor / wake path
+
+Wake الإصلاح يحمل exact execution SHA + failure fingerprint + run/workflow + classification + RCA hint + work package + targeted-test policy + learning requirements. Duplicate wake لنفس SHA + fingerprint يتم suppress.
+
+### Pre-mutation proof
+
+قبل source mutation:
+failure reproduced
++
+causal mechanism supported
++
+repair simulation / proof
++
+scope allowed
++
+SHA current
++
+mutation gate PASS
+
+ثم فقط:
+pre-mutation proof → mutation gate → mutation
+
+### Memory and prompt intelligence
+
+Error Memory = diagnostics/auto-repair/memory.json
+
+الذاكرة Advisory فقط:
+SUCCESS → lesson
+FAILURE → anti-lesson
+BLOCKED_EXTERNAL → external anti-lesson
+REVERTED → strategy rejection
+PROPOSED → لا يزيد الثقة
+
+قبل إنشاء أو تعديل Prompt:
+READ PROMPT REGISTRY → SEARCH FINGERPRINT → SEARCH RCA → SEARCH LESSONS / ANTI-LESSONS → CHECK OVERLAP / CONFLICT → REUSE / EXTEND / MERGE / SPECIALIZE
+
+أي duplicate أو overlap أو conflict غير محلول = PROMPT_REVIEW_REQUIRED.
+
+### Authority separation
+
+Task Agent = preparation / bounded task ownership
+Error Agent = diagnosis
+Repair Agent = authorized mutation
+Execution Agent = authorized mutation
+Review Agent = independent review
+Test Agent = testing / verification
+Security Agent = security verification
+Performance Agent = performance verification
+Code Scout = read-only scouting
+Certification Authority = certification / closure
+
+Task Agent ≠ mutation.
+Error Agent ≠ mutation.
+Memory ≠ authority.
+Prompt ≠ authority.
+Scout ≠ write.
+Certification ≠ repair.
+
+### Evidence and exact-SHA
+
+كل action مادي يحافظ على:
+actor + intent + entrySha + exitSha + changedFiles + commands + result + evidenceRefs + nextState
+
+أي repository movement يجعل الأدلة السابقة stale.
+لا توجد verified أو green أو repaired أو certified أو closed بدون exact current SHA.
+
+### Canonical verification
+
+بحسب السياق، تشمل بوابة الفحص الأساسية:
+npm ci --prefer-offline --no-audit --no-fund
+npm run typecheck
+npm run lint
+npm run test:unit
+npm run test:static
+npm run test:build
+npm run validate:ci-contract
+npm run validate:agent-protocol
+npm run validate:agent-coordination
+npm run validate:contracts
+npm run validate:i18n
+npm run validate:tool-registry
+npm run verify:ci-cd-trust
+
+الـtargeted regression يسبق full required verification. أي push جديد يسقط صلاحية الأدلة الأقدم ويجعل أحدث branch head وحده مصدر test evidence. ممنوع تصنيع GREEN عبر حذف أو تخطي أو إضعاف الاختبارات أو gates.
+
+### External blocker and same-cycle
+
+السبب الخارجي = BLOCKED_EXTERNAL مع حفظ evidence وprovider signature والتعلم. لا يتحول إلى source workaround لإخفاء العائق.
+
+RED جديد داخل repair cycle لا ينشئ branch أو lane أو cycle موازية:
+same repairChainId → capture RED → fingerprint → RCA → correction → hardening → regression → rescan
+
+### Closure
+
+الإغلاق النهائي فقط مع:
+Canonical CI = GREEN
+AND exact execution SHA verified
+AND zero required RED
+AND fresh evidence
+AND no open RCA
+AND no remainingWork
+AND no failedWork
+AND regression passed
+AND prevention proved
+AND certification passed
+
+بعدها:
+execution → main → fresh verification on main
+
+### Council
+
+مصدر الدخول التشغيلي الحالي هو PR #759. Issue #761 ليس activation source.
+التخطيط عبر scripts/ci/council-wake-dispatch.mjs والـrelay عبر .github/workflows/agent-communication-relay.yml.
+
 ## Central Repair Protocol Invariant
 
 ```text
