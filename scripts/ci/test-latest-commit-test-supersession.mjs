@@ -4,6 +4,7 @@ import fs from 'node:fs';
 const workflow = fs.readFileSync('.github/workflows/latest-commit-test-supersession.yml', 'utf8');
 
 assert.match(workflow, /cancel_stale_run\(\)/);
+assert.match(workflow, /group:\s*flixo-latest-commit-supersession-\$\{\{\s*github\.event_name\s*\}\}/);
 assert.match(workflow, /if ! gh run cancel "\$run_id" --repo "\$REPOSITORY"/);
 assert.match(workflow, /if ! now_status="\$\(gh run view "\$run_id" --repo "\$REPOSITORY" --json status --jq '\.status'\)"/);
 assert.match(workflow, /STALE_RUN_ALREADY_COMPLETED run=\$run_id/);
