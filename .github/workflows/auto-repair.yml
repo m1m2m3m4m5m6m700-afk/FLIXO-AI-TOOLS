@@ -378,6 +378,19 @@ jobs:
           } > /tmp/flixo-repair-summary.txt
           node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=EVIDENCE_LOCKED --actor=AUTO_REPAIR_BOT --reason=FAILURE_EVIDENCE_CAPTURED
 
+      - name: Reassert failed SHA evidence after artifact boundary
+        if: success()
+        run: |
+          set -euo pipefail
+          test -n "$FLIXO_EXPECTED_TARGET_SHA" || {
+            echo 'FAIL CLOSED: canonical failed SHA environment value is missing.'
+            exit 1
+          }
+          printf '%s\n' "$FLIXO_EXPECTED_TARGET_SHA" > /tmp/flixo-failed-sha
+          test -s /tmp/flixo-failed-sha
+          test "$(cat /tmp/flixo-failed-sha)" = "$FLIXO_EXPECTED_TARGET_SHA"
+          echo "FAILED_SHA_EVIDENCE_REASSERTED=$FLIXO_EXPECTED_TARGET_SHA"
+
       - name: ACTION-HISTORIAN-3 file-selection intelligence — path-only scope gate
         if: success()
         run: |
