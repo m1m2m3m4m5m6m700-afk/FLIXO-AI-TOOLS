@@ -66,6 +66,48 @@ assert.equal(councilMessage.priority, COUNCIL_PRIORITY);
 assert.equal(councilMessage.councilOperation, true);
 assert.throws(() => validateMessage({ ...base, messageId: id + '-COUNCIL-BAD', idempotencyKey: id + '-COUNCIL-BAD', recipient: 'assistantController', intent: 'COUNCIL_QUESTION', priority: 'P1' }, sha), /COUNCIL_PRIORITY_REQUIRED/);
 console.log('COUNCIL_MESSAGE_P0_PRIORITY=PASS');
+
+  const adminId = id + '-ADMIN';
+  const admin = {
+    ...base,
+    messageId: adminId,
+    idempotencyKey: adminId,
+    recipient: 'ALL_AGENTS',
+    intent: 'ADMIN_COUNCIL_INSTRUCTION',
+    priority: 'P0',
+    councilOperation: true,
+    administrativeInstruction: true,
+    payload: {
+      councilOperation: true,
+      administrativeInstruction: true,
+      requiredRecipients: ['assistantController', 'CELL-001'],
+      attendanceWindowSeconds: 0,
+    },
+  };
+  const adminRecord = ingest(admin, sha);
+  assert.equal(adminRecord.administrativeAcknowledgement.state, 'PENDING_ACK');
+  markRead(adminId, 'assistantController', sha);
+  const acked = acknowledgeAdministrativeInstruction(adminId, 'assistantController', sha, true, true, 'فهمت التعليمات ونطاقها.', 'ألتزم بها ضمن النطاق المحدد.');
+  assert.equal(acked.administrativeAcknowledgement.state, 'PARTIALLY_ACKNOWLEDGED');
+  const audit = auditAdministrativeAttendance(adminId, sha, Date.now() + 1000);
+  assert.equal(audit.status, 'INQUIRY_REQUIRED');
+  assert.deepEqual(audit.missingRecipients, ['CELL-001']);
+  const inquiryId = audit.inquiries['CELL-001'].inquiryId;
+  const inquiryPath = path.join(inbox, (await import('node:crypto')).createHash('sha256').update(inquiryId, 'utf8').digest('hex') + '.json');
+  const inquiryRecord = JSON.parse(fs.readFileSync(inquiryPath, 'utf8'));
+  assert.equal(inquiryRecord.intent, 'ADMIN_ATTENDANCE_INQUIRY');
+  assert.equal(inquiryRecord.priority, 'P0');
+  assert.equal(auditAdministrativeAttendance(inquiryId, sha, Date.now() + 1000).status, 'INQUIRY_WAITING_RESPONSE');
+  const adminFile = path.join(inbox, (await import('node:crypto')).createHash('sha256').update(adminId, 'utf8').digest('hex') + '.json');
+  fs.rmSync(adminFile, { force: true });
+  fs.rmSync(inquiryPath, { force: true });
+  const afterAdmin = JSON.parse(fs.readFileSync(indexFile, 'utf8'));
+  delete afterAdmin.messages[adminId];
+  delete afterAdmin.messages[inquiryId];
+  fs.writeFileSync(indexFile, JSON.stringify(afterAdmin, null, 2) + '\n');
+  console.log('ADMIN_ATTENDANCE_INQUIRY=PASS');
+  console.log('ADMIN_ACKNOWLEDGEMENT=PASS');
+
   assert.equal(validateMessage(base, sha).entrySha, sha);
   assert.throws(() => validateMessage({ ...base, recipient: undefined }, sha), /RECIPIENT|REQUIRED_FIELD/);
   const first = ingest(base, sha);

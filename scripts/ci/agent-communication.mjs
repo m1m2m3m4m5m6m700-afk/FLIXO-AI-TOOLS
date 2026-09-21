@@ -266,6 +266,7 @@ export function auditAdministrativeAttendance(messageId, observedSha = currentSh
   ensure();
   const record = loadMessage(messageId);
   if (!record.administrativeInstruction) throw new Error('AGENT_ADMIN_ATTENDANCE_NOT_REQUIRED');
+  if (record.intent === 'ADMIN_ATTENDANCE_INQUIRY') return { status: 'INQUIRY_WAITING_RESPONSE', messageId, recipient: record.recipient, entrySha: record.entrySha };
   if (record.entrySha !== observedSha) throw new Error('AGENT_ADMIN_ATTENDANCE_SHA_MISMATCH');
   const state = record.administrativeAcknowledgement ?? {
     state: 'PENDING_ACK',
