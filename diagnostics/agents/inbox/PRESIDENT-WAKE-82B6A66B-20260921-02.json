@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "messageId": "PRESIDENT-WAKE-82B6A66B-20260921-02",
+  "idempotencyKey": "PRESIDENT-WAKE-82B6A66B-20260921-02:82b6a66bd59d56d8723c4bd163e5505a4f3a580f",
+  "actor": "assistantController",
+  "recipient": "executionAgent",
+  "intent": "PRESIDENT_WAKE_REVALIDATE_CURRENT_SHA",
+  "priority": "P0",
+  "taskId": "GREEN-RECOVERY-001",
+  "workPackageId": "WP-774-779-WAKE-82B6A66B-20260921-02",
+  "entrySha": "82b6a66bd59d56d8723c4bd163e5505a4f3a580f",
+  "scope": [
+    "PR #774 exact-SHA verification",
+    "Required CI",
+    "WP0",
+    "Test Impact Execution",
+    "Security",
+    "Certification",
+    "Exact-SHA Merge Gate"
+  ],
+  "expectedEvidence": [
+    "Fresh Required CI results",
+    "Fresh RCA only for terminal RED",
+    "Minimal causal repair if proven",
+    "Targeted regression",
+    "Affected contract graph verification",
+    "Exact-SHA certification"
+  ],
+  "stopConditions": [
+    "HEAD_CHANGED",
+    "STALE_EVIDENCE",
+    "UNPROVEN_RED",
+    "SCOPE_MISMATCH",
+    "AUTHORITY_CONFLICT",
+    "THIRD_BRANCH",
+    "FALSE_GREEN"
+  ],
+  "proofObligations": [
+    "exact current execution SHA",
+    "no assertion weakening",
+    "no test deletion",
+    "no main mutation before certification"
+  ],
+  "source": "assistantController",
+  "status": "READY"
+}
