@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { validateCodeMentorProfile } from './action-code-mentor.mjs';
 
 export const EXPECTED_BOTS = Object.freeze([
@@ -16,6 +17,42 @@ const ROLE_BY_BOT = Object.freeze({
 });
 
 const ROOT = process.cwd();
+
+const PROMPT_PROTOCOL_DOCUMENTS = Object.freeze([
+  'docs/agents/PROMPT-UNIFIED-EXECUTION.md',
+  'docs/agents/ACTION-AGENT-RUNTIME-PROTOCOL.md',
+  'docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md',
+]);
+const gitBlobSha = (file) => execFileSync('git', ['hash-object', file], { cwd: ROOT, encoding: 'utf8' }).trim();
+
+export function validatePromptProtocolBinding(root = ROOT, intelligence = null) {
+  const errors = [];
+  const binding = intelligence?.promptBinding;
+  if (!binding || binding.schemaVersion !== 1) return ['PROMPT_PROTOCOL_BINDING_MISSING'];
+  if (binding.promptId !== 'RPR-UNIFIED-EXECUTION-001' || binding.promptVersion !== '3.0.0') errors.push('PROMPT_CANONICAL_ID_OR_VERSION_INVALID');
+  if (binding.enforcement !== 'LIVE_GIT_BLOB_SHA_MUST_MATCH_BEFORE_ACTION_VAULT_ADMISSION') errors.push('PROMPT_LIVE_ENFORCEMENT_INVALID');
+  if (binding.failureMode !== 'PROMPT_PROTOCOL_DRIFT_FAIL_CLOSED') errors.push('PROMPT_DRIFT_FAILURE_MODE_INVALID');
+  if (JSON.stringify(binding.requiredDocuments ?? []) !== JSON.stringify(PROMPT_PROTOCOL_DOCUMENTS)) errors.push('PROMPT_PROTOCOL_DOCUMENT_SET_INVALID');
+  for (const relative of PROMPT_PROTOCOL_DOCUMENTS) {
+    const absolute = path.resolve(root, relative);
+    if (!exists(absolute)) { errors.push('PROMPT_PROTOCOL_FILE_MISSING=' + relative); continue; }
+    const expected = binding.documents?.[relative];
+    const actual = gitBlobSha(relative);
+    if (!expected) errors.push('PROMPT_PROTOCOL_DIGEST_MISSING=' + relative);
+    else if (expected !== actual) errors.push('PROMPT_PROTOCOL_DIGEST_MISMATCH=' + relative);
+  }
+  const registryPath = path.resolve(root, binding.registryPath ?? 'docs/agents/PROMPT-REGISTRY.json');
+  if (!exists(registryPath)) errors.push('PROMPT_REGISTRY_MISSING');
+  else {
+    try {
+      const registry = readJson(registryPath);
+      const active = (registry.prompts ?? []).filter((item) => item.status === 'ACTIVE');
+      if (active.length !== 1 || active[0]?.promptId !== binding.promptId || active[0]?.sourcePath !== 'docs/agents/PROMPT-UNIFIED-EXECUTION.md' || active[0]?.version !== binding.promptVersion) errors.push('PROMPT_REGISTRY_CANONICAL_ACTIVE_MISMATCH');
+    } catch { errors.push('PROMPT_REGISTRY_INVALID_JSON'); }
+  }
+  return errors;
+}
+
 
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const exists = (file) => fs.existsSync(file);
@@ -190,6 +227,8 @@ export function runGate(root = ROOT) {
   if (mentor) errors.push(...validateCodeMentorProfile(mentor));
   else err(errors, 'CODE_MENTOR_PROFILE_MISSING');
   if (intelligence) errors.push(...validateThreeBotIntelligence(intelligence, profiles));
+  const promptProtocolErrors = validatePromptProtocolBinding(root, intelligence);
+  errors.push(...promptProtocolErrors);
   if (residency) errors.push(...validateResidency(residency));
   errors.push(...validateExecutionBoundaries(profiles));
 
@@ -297,6 +336,12 @@ export function runGate(root = ROOT) {
     })),
     warnings,
     errors,
+    promptProtocolBinding: {
+      status: promptProtocolErrors.length ? 'FAIL' : 'PASS',
+      canonicalPromptId: 'RPR-UNIFIED-EXECUTION-001',
+      canonicalPromptVersion: '3.0.0',
+      documents: Object.fromEntries(PROMPT_PROTOCOL_DOCUMENTS.map((relative) => [relative, exists(path.resolve(root, relative)) ? gitBlobSha(relative) : null])),
+    },
     checkedAt: new Date().toISOString(),
   };
   fs.mkdirSync(path.dirname(path.resolve(root, 'diagnostics/auto-repair/action-vault/agent-grade-validation.json')), { recursive: true });

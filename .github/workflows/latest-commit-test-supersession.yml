@@ -56,11 +56,8 @@ jobs:
 
           is_test_workflow() {
             case "$1" in
-              "FLIXO Test System"|"FLIXO Test Impact"|"FLIXO Test Impact Execution"|
-              "FLIXO WP0 Trust Baseline"|"FLIXO Auto Repair Merge Gate"|
-              "FLIXO Advanced Repair Contract"|"Repository Security Baseline"|
-              "Claude Security Review"|"FLIXO Test Matrix Contract"|"Bundle Boundary Contract"|
-              "SEO Production Certification (Manual Diagnostic)") return 0 ;;
+              "FLIXO Latest Commit Test Supersession") return 1 ;;
+              *Test*|*test*|*Verification*|*verification*|*Contract*|*contract*|*Security*|*security*|*Baseline*|*baseline*|*Certification*|*certification*|*Impact*|*impact*|*Code*Scanning*|*CodeQL*|*Diagnostic*|*diagnostic*|*Proof*|*proof*|*Scan*|*scan*) return 0 ;;
               *) return 1 ;;
             esac
           }

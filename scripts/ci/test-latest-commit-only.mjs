@@ -40,6 +40,23 @@ assert.match(ci, /push:\s*\n\s*branches:\s*\[main, execution\]/u);
 assert.match(ci, /group:\s*flixo-test-/u);
 assert.match(ci, /cancel-in-progress:\s*true/u);
 
+const workflowDir = '.github/workflows';
+const currentWorkflows = fs.readdirSync(workflowDir).filter((file) => /\\.ya?ml$/u.test(file)).sort();
+const latestOnlyName = /(?:test|verification|contract|security|baseline|certification|impact|codeql|code scanning|diagnostic|proof|scan)/iu;
+
+for (const file of currentWorkflows) {
+  if (file === 'latest-commit-test-supersession.yml') continue;
+  const source = fs.readFileSync(`${workflowDir}/${file}`, 'utf8');
+  const nameMatch = source.match(/^name:\\s*(.+)$/m);
+  const workflowName = nameMatch?.[1]?.trim() ?? file;
+  if (!latestOnlyName.test(workflowName)) continue;
+  assert.match(source, /concurrency:/u, `${file}: latest-only workflow must define concurrency`);
+  assert.match(source, /cancel-in-progress:\\s*true/u, `${file}: latest-only workflow must cancel superseded runs`);
+  assert.match(source, /github\\.event\\.pull_request\\.head\\.repo\\.full_name \\|\\| github\\.repository/u, `${file}: PR head repository missing from concurrency identity`);
+  assert.match(source, /github\\.event\\.pull_request\\.head\\.ref \\|\\| github\\.ref_name/u, `${file}: PR head branch missing from concurrency identity`);
+  assert.match(source, /scripts\\/ci\\/assert-current-commit\\.mjs/u, `${file}: exact-SHA freshness guard missing`);
+}
+
 console.log('LATEST_COMMIT_ONLY_TESTS=PASS');
 console.log('STALE_TEST_CANCELLATION=PASS');
 console.log('EXACT_SHA_STALE_GUARD=PASS');

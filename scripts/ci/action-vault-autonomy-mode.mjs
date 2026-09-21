@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { runGate } from './action-vault-agent-gate.mjs';
 
 const ROOT=process.cwd();
+const agentGate = runGate(ROOT);
+if (agentGate.status !== 'PASS') {
+ console.error(JSON.stringify({status:'FAIL',reason:'ACTION_VAULT_AGENT_ADMISSION_FAILED',errors:agentGate.errors},null,2));
+ process.exit(1);
+}
 const file=path.resolve(ROOT,'diagnostics/auto-repair/action-vault/ACTION-VAULT-AUTONOMY-MODE.json');
 const read=JSON.parse(fs.readFileSync(file,'utf8'));
 const errors=[];

@@ -8,6 +8,7 @@ import { buildPrediction } from './action-historical-predictor.mjs';
 import { buildRepairEngineeringPlan, executeRepairEngineering } from './action-repair-engineering.mjs';
 import { buildCausalDiscriminator } from './action-causal-discriminator.mjs';
 import { buildMetaCausalModel } from './meta-causal-model.mjs';
+import { runGate } from './action-vault-agent-gate.mjs';
 
 const ROOT=process.cwd();
 const arg=(name,fallback='')=>{const p='--'+name+'=';const v=process.argv.find(x=>x.startsWith(p));return v?v.slice(p.length):fallback};
@@ -34,6 +35,9 @@ must(task,'ACTION_AGENT_RUNTIME_TASK_REQUIRED');
 must(fingerprint,'ACTION_AGENT_RUNTIME_FINGERPRINT_REQUIRED');
 must(/^[a-f0-9]{40}$/u.test(targetSha),'ACTION_AGENT_RUNTIME_EXACT_SHA_REQUIRED');
 must(runId,'ACTION_AGENT_RUNTIME_RUN_ID_REQUIRED');
+
+const actionVaultAdmission = runGate();
+must(actionVaultAdmission.status === 'PASS', 'ACTION_AGENT_RUNTIME_ACTION_VAULT_ADMISSION_FAILED:' + JSON.stringify(actionVaultAdmission.errors));
 
 const historyIndex=readJson(path.join(ROOT,'docs/agents/historical-action-errors/index.json'),{byFingerprint:{},byNormalized:{},byClass:{},byWorkflow:{},recordCount:0});
 const actionMemory=readJson(path.join(ROOT,'diagnostics/auto-repair/memory.json'),{cases:[],actionHistory:[],lessons:[],antiLessons:[]});
@@ -207,6 +211,11 @@ const runtime={
   differentialVerification:repairEngineeringExecution?.simulations?.map((item)=>item.differential??null).filter(Boolean)??[],
   toolBudget,
   safety,
+  actionVaultAdmission:{
+    status:actionVaultAdmission.status,
+    authority:actionVaultAdmission.authority,
+    promptProtocolBinding:actionVaultAdmission.promptProtocolBinding,
+  },
   lifecycle:{current:'INTAKE',next:'CONTEXT_RETRIEVAL',closure:'CANONICAL_GREEN_ONLY'},
   outputContract:{
     required:[ 'currentEvidence','unknowns','historicalMatches','candidateHypotheses','codeMentorPacket','historicalPredictionPacket','softwareEngineerCorePacket','repairEngineeringPacket','causalDiscriminator','metaCausalModel','governingRoot','selectedStrategy','selectionConfidence','selfCritique','independentReview','targetedRegression','exactSha','canonicalGreen' ],

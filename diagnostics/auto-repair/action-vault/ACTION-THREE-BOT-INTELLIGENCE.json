@@ -704,5 +704,24 @@
       "ACTION-HISTORIAN-3": "whole-system context before file-scope selection"
     },
     "mutationAuthorityUnchanged": true
+  },
+  "promptBinding": {
+    "schemaVersion": 1,
+    "promptId": "RPR-UNIFIED-EXECUTION-001",
+    "promptVersion": "3.0.0",
+    "registryPath": "docs/agents/PROMPT-REGISTRY.json",
+    "hashAlgorithm": "git-blob-sha",
+    "enforcement": "LIVE_GIT_BLOB_SHA_MUST_MATCH_BEFORE_ACTION_VAULT_ADMISSION",
+    "failureMode": "PROMPT_PROTOCOL_DRIFT_FAIL_CLOSED",
+    "requiredDocuments": [
+      "docs/agents/PROMPT-UNIFIED-EXECUTION.md",
+      "docs/agents/ACTION-AGENT-RUNTIME-PROTOCOL.md",
+      "docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md"
+    ],
+    "documents": {
+      "docs/agents/PROMPT-UNIFIED-EXECUTION.md": "9c83cf23283e41b40ae91f045c426bf259032280",
+      "docs/agents/ACTION-AGENT-RUNTIME-PROTOCOL.md": "65344e161febf24b6a589b7a685b8280b3166d4b",
+      "docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md": "773066887155b561a681c04c1df8bca297a259f9"
+    }
   }
 }
