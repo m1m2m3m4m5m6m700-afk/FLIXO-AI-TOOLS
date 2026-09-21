@@ -15,6 +15,12 @@ const COUNCIL_DIRECTIVE_VERSION = "1.0.0";
 const COUNCIL_GREEN_AUTHORITY = "Daily·FLIXO Green Gate";
 const COUNCIL_INTEGRATION_LANE = "execution -> main";
 
+const MASTER_ACCOUNT_ROUTES: Record<string, { primary: Account; fallback: Account }> = {
+  "MASTER-1": { primary: "CHIEF", fallback: "CHIEF" },
+  "MASTER-2": { primary: "WORKER_A", fallback: "WORKER_B" },
+  "MASTER-3": { primary: "WORKER_B", fallback: "WORKER_A" },
+};
+
 const accounts: Record<Account, { tokenEnv: string; endpointEnv?: string; fallback: Account; }> = {
   CHIEF: { tokenEnv: "COUNCIL_CHIEF_TOKEN", fallback: "CHIEF" },
   WORKER_A: { tokenEnv: "COUNCIL_WORKER_A_TOKEN", endpointEnv: "COUNCIL_WORKER_A_WAKE_ENDPOINT", fallback: "WORKER_B" },
@@ -214,8 +220,24 @@ const dispatch = async (body: Body) => {
   const primary = accountFrom(body.primaryAccountId);
   const fallback = accountFrom(body.fallbackAccountId);
   const requestedBy = String(body.requestedByAccountId ?? "SYSTEM");
+  const payload = body.payload && typeof body.payload === "object" && !Array.isArray(body.payload)
+    ? body.payload as Record<string, unknown>
+    : {};
+  const peerMessage = payload.masterPeerMessage === true;
   if (requestedBy === "SYSTEM") {
-    if (primary !== "CHIEF" || fallback !== "CHIEF") throw new Error("COUNCIL_SYSTEM_DISPATCH_ONLY_CHIEF");
+    if (peerMessage) {
+      const senderMaster = String(payload.senderMaster ?? "").trim();
+      const recipientMaster = String(payload.recipientMaster ?? "").trim();
+      const senderRoute = MASTER_ACCOUNT_ROUTES[senderMaster];
+      const recipientRoute = MASTER_ACCOUNT_ROUTES[recipientMaster];
+      if (!senderRoute || !recipientRoute) throw new Error("COUNCIL_MASTER_PEER_IDENTITY_INVALID");
+      if (senderMaster === recipientMaster) throw new Error("COUNCIL_MASTER_PEER_SELF_ROUTE");
+      if (primary !== recipientRoute.primary || fallback !== recipientRoute.fallback) {
+        throw new Error("COUNCIL_MASTER_PEER_ROUTE_MISMATCH");
+      }
+    } else if (primary !== "CHIEF" || fallback !== "CHIEF") {
+      throw new Error("COUNCIL_SYSTEM_DISPATCH_ONLY_CHIEF");
+    }
   } else {
     if (requestedBy !== "CHIEF") throw new Error("COUNCIL_WORKER_DISPATCH_FORBIDDEN");
     if (!["WORKER_A", "WORKER_B"].includes(primary)) throw new Error("COUNCIL_TARGET_ACCOUNT_FORBIDDEN");
