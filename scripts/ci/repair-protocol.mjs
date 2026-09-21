@@ -73,7 +73,12 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
     const diagnosisKnowledgeReview=mission?.diagnosisKnowledgeReview;
     if(diagnosisKnowledgeReview?.protocol!=='ACTION-VAULT-DIAGNOSIS-KNOWLEDGE-REVIEW-v1'||diagnosisKnowledgeReview?.reviewer!=='ACTION-HISTORIAN-3'||diagnosisKnowledgeReview?.decision!=='MATCH'||diagnosisKnowledgeReview?.allowSourceMutation!==true||diagnosisKnowledgeReview?.targetSha!==session.targetSHA||diagnosisKnowledgeReview?.fingerprint!==session.failureFingerprint||String(diagnosisKnowledgeReview?.diagnosisDigest??'').length!==64) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_DIAGNOSIS_KNOWLEDGE_REVIEW_REQUIRED');
     if(catalogReview?.status!=='REVIEWED'||catalogReview?.reviewer!=='ACTION-HISTORIAN-3'||catalogReview?.beforeMutation!==true||catalogReview?.mutationAuthority!==false||catalogReview?.targetSha!==session.targetSHA||catalogReview?.fingerprint!==session.failureFingerprint||catalogReview?.source?.indexId!=='ACTION-INDEX-4000'||Number(catalogReview?.source?.declaredCapacity)<1000000||Number(catalogReview?.source?.actualRecordCount)<=0||String(catalogReview?.digest??'').length!==64) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_CATALOG_REVIEW_REQUIRED');
-    validateActionVaultVerifierProof({ proof: session.actionVaultVerifierProof, targetSHA: session.targetSHA, failureFingerprint: session.failureFingerprint, verifierAgent: mission.verifierAgent });
+    try {
+      validateActionVaultVerifierProof({ proof: session.actionVaultVerifierProof, targetSHA: session.targetSHA, failureFingerprint: session.failureFingerprint, verifierAgent: mission.verifierAgent });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error('REPAIR_PROTOCOL_CHALLENGE_FAILED: ' + message, { cause: error });
+    }
     validateActionVaultPreMutationProofs({ sandboxProof: mission.sandboxProof, differentialProof: mission.differentialProof, patchCorrectnessProof: mission.patchCorrectnessProof, targetSHA: session.targetSHA, failureFingerprint: session.failureFingerprint });
   }
   if(mutation&&actor==='actionRepairVerifier') {
