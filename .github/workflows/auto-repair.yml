@@ -103,6 +103,15 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install repair controller dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
       - name: Validate Bot-First Autonomous operating contract
         run: node scripts/ci/action-vault-autonomy-mode.mjs
 
@@ -250,15 +259,6 @@ jobs:
             --branch="execution" > /tmp/flixo-repair-control-plane.json
           test "$(jq -r '.state' /tmp/flixo-repair-control-plane.json)" = "CLAIMED"
           echo "FLIXO_CONTROL_PLANE_FILE=/tmp/flixo-repair-control-plane.json" >> "$GITHUB_ENV"
-
-      - name: Setup Node
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Install repair controller dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Establish trusted main controller and active execution target
         env:
