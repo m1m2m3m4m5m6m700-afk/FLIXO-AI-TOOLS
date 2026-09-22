@@ -16,7 +16,7 @@ concurrency:
 jobs:
   receive:
     name: Immediate agent message receive
-    if: ${{ github.event_name == 'issue_comment' && github.event.issue.pull_request != null && github.event.comment.body != '' && (github.event.comment.author_association == 'OWNER' || github.event.comment.user.login == 'github-actions[bot]') }}
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'issue_comment' && github.event.issue.pull_request != null && github.event.comment.body != '' && (github.event.comment.author_association == 'OWNER' || github.event.comment.user.login == 'github-actions[bot]') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout trusted communication implementation
