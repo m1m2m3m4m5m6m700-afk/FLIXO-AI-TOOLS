@@ -53,7 +53,7 @@ const admissionDigest = (file) => createHash('sha256').update(fs.readFileSync(pa
 const governanceFingerprint = (sources) => createHash('sha256').update(sources.map((item) => `${item.path}:${item.sha256}`).join('|'), 'utf8').digest('hex');
 const assertLiveSession = (record) => {
   const currentSha = gitSha();
-  if (record.entrySha && record.entrySha !== currentSha) throw new Error('AGENT_SESSION_EXACT_SHA_DRIFT');
+  if (record.entrySha && record.entrySha !== currentSha) throw new Error('AGENT_SESSION_STALE_ENTRY_SHA');
   const currentGovernance = governanceFingerprint(requiredReads.map((file) => ({ path: file, sha256: admissionDigest(file) })));
   if (record.governanceFingerprint && record.governanceFingerprint !== currentGovernance) throw new Error('AGENT_SESSION_GOVERNANCE_DRIFT');
   if (record.branch && record.branch !== gitBranch()) throw new Error('AGENT_SESSION_BRANCH_DRIFT');
