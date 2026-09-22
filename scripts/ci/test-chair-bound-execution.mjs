@@ -120,7 +120,8 @@ assert.equal(reclaimed.reclaimed,true);
 assert.equal(reclaimed.ownerAgentId,'assistantController');
 assert.equal(reclaimed.custodyStatus,'OWNER_CUSTODY');
 assert.equal(reclaimed.displaced.agentId,'task-active-agent');
-assert.throws(()=>activeChairForAgent({agentId:'task-active-agent',targetSha:realGitSha}),/AGENT_WORK_REQUIRES_CHAIR/);
+assert.equal(activeChairForAgent({agentId:'task-active-agent',targetSha:realGitSha}),null);
+assert.throws(()=>assertWorkAdmission({agentId:'task-active-agent',targetSha:realGitSha}),/AGENT_WORK_REQUIRES_CHAIR/);
 assert.throws(
   ()=>acquire({chairId:'chair_1',agentId:'agent-without-task',targetSha:realGitSha,repositoryState:'IDLE'}),
   /CHAIR1_TASK_DELEGATION_REQUIRED/
