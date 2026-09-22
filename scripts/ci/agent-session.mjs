@@ -8,7 +8,7 @@ import { ingest as ingestAgentMessage, markRead as readAgentMessage, markConsume
 import { loadPromptRegistry, validatePromptRegistry, loadErrorMemory } from './prompt-registry.mjs';
 import { assertAgentExitGate } from './agent-exit-lock.mjs';
 import { AGENT_LIVENESS_PROTOCOL, assertActiveRepairWindow, checkHeartbeat, checkContinuousSessionWindow } from './agent-liveness-protocol.mjs';
-import { initialize as initializeChairState, heartbeat as heartbeatChair, reconcileDeadLeases } from './chair-bound-execution.mjs';
+import { initialize as initializeChairState, heartbeat as heartbeatChair, reconcileDeadLeases, beginWork as beginChairWork, endWork as endChairWork, assertWorkAdmission } from './chair-bound-execution.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -27,6 +27,7 @@ const rawFromSession = String(args.get('from-session') ?? process.env.FLIXO_AGEN
 const rawMessageFile = String(args.get('message-file') ?? process.env.FLIXO_AGENT_MESSAGE_FILE ?? '').trim() || null;
 const rawMessageId = String(args.get('message-id') ?? process.env.FLIXO_AGENT_MESSAGE_ID ?? '').trim() || null;
 const meetingId = String(args.get('meeting-id') ?? process.env.FLIXO_AGENT_MEETING_ID ?? '').trim() || null;
+const requestedChairId = String(args.get('chair') ?? process.env.FLIXO_AGENT_CHAIR ?? '').trim() || null;
 const meetingRequested = String(args.get('meeting') ?? process.env.FLIXO_AGENT_MEETING ?? 'false').trim() === 'true' || Boolean(meetingId);
 const messageExecutionAdmitted = String(args.get('message-execution-admitted') ?? process.env.FLIXO_AGENT_MESSAGE_EXECUTION_ADMITTED ?? 'false').trim() === 'true';
 const safeSessionId = (value, label) => {
@@ -153,6 +154,7 @@ if (command === 'meeting-exit-approve') {
   if (record.taskId !== taskId) throw new Error('AGENT_EVENT_TASK_MISMATCH');
   if (record.status !== 'RUNNING') throw new Error('AGENT_EVENT_REQUIRES_ACTIVE_SESSION');
   assertLiveSession(record);
+  assertWorkAdmission({ agentId: record.agentId, targetSha: gitSha(), chairId: record.chairBinding?.chairId ?? null });
   const eventSha = observeCurrentHead(record);
   const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.startedAt });
   if (!heartbeat.ok) {
@@ -203,6 +205,7 @@ if (command === 'meeting-exit-approve') {
   if (record.taskId !== taskId) throw new Error('AGENT_HEARTBEAT_TASK_MISMATCH');
   if (record.status !== 'RUNNING') throw new Error('AGENT_HEARTBEAT_REQUIRES_ACTIVE_SESSION');
   assertLiveSession(record);
+  assertWorkAdmission({ agentId: record.agentId, targetSha: gitSha(), chairId: record.chairBinding?.chairId ?? null });
   const sha = observeCurrentHead(record);
   if (!record.chairId) {
     const chairBinding = readCoordinationChairBinding(sessionId, agentId, taskId);
@@ -319,6 +322,22 @@ if (command === 'meeting-exit-approve') {
     throw new Error('Continuation handoff required: use --from-session=<previous-session> or explicitly declare --bootstrap=true.');
   }
 
+  let chairAdmission = null;
+  const chairSigningKey = String(process.env.FLIXO_CHAIR_SIGNING_KEY ?? process.env.GITHUB_TOKEN ?? '').trim();
+  if (!chairSigningKey) throw new Error('AGENT_SESSION_CHAIR_SIGNING_KEY_REQUIRED');
+  process.env.FLIXO_CHAIR_SIGNING_KEY = chairSigningKey;
+  initializeChairState({ targetSha: sha });
+  chairAdmission = beginChairWork({
+    agentId,
+    targetSha: sha,
+    requestedChairId,
+    repositoryState: requestedChairId && requestedChairId !== 'chair_1' ? 'ACTIVE' : 'IDLE',
+    workPackageId: taskId,
+    taskId,
+    scope,
+    reviewId: rca,
+  });
+
   let inboundMessage = null;
   if (rawMessageFile) {
     inboundMessage = ingestAgentMessage(JSON.parse(fs.readFileSync(path.resolve(ROOT, rawMessageFile), 'utf8')), sha);
@@ -375,6 +394,7 @@ if (command === 'meeting-exit-approve') {
     ...(meetingRequested ? { meetingLock: { locked: true, meetingId, enteredBy: agentId, enteredAt: now(), entrySha: sha, exitApproval: null } } : {}),
     ...(inboundMessage ? { messageId: inboundMessage.messageId, messageStatus: inboundMessage.status, messageEntrySha: inboundMessage.entrySha, messageReadBy: agentId, messagePriority: 'P0_COMMUNICATION_FIRST' } : {}),
     status: 'RUNNING',
+    chairBinding: { required: true, admission: 'CHAIR_REQUIRED_FOR_WORK', chairId: chairAdmission.chairId, leaseId: chairAdmission.leaseId, targetSha: sha, taskId, workPackageId: chairAdmission.workPackageId ?? taskId },
     bootstrap: !continuation,
     ...(continuation ?? {}),
     actions: [{ at: now(), action: 'LOGIN', sha, ...(continuation ? { fromSession } : {}) }],
@@ -416,6 +436,7 @@ if (command === 'meeting-exit-approve') {
   const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.startedAt });
   if (!heartbeat.ok) throw new Error('AGENT_SESSION_HEARTBEAT_REQUIRED_BEFORE_CLOSE');
   assertMeetingExitApproval(record, sha);
+  assertWorkAdmission({ agentId: record.agentId, targetSha: sha, chairId: record.chairBinding?.chairId ?? null });
   const changedFiles = split(args.get('changed') ?? process.env.FLIXO_AGENT_CHANGED_FILES);
   const commands = split(args.get('commands') ?? process.env.FLIXO_AGENT_COMMANDS, '|');
   const evidence = split(args.get('evidence') ?? process.env.FLIXO_AGENT_EVIDENCE);
@@ -489,6 +510,8 @@ if (command === 'meeting-exit-approve') {
     // First session may bootstrap the chain, but its logout still establishes the handoff contract.
   }
 
+  const releasedChair = endChairWork({ agentId: record.agentId, targetSha: sha, successful: status === 'VERIFIED', sessionId: record.sessionId, taskId: record.taskId });
+  record.chairBinding = { ...record.chairBinding, released: true, releasedAt: now(), releasedChairId: releasedChair?.chairs?.[record.chairBinding?.chairId ?? 'chair_1']?.status === 'VACANT' ? (record.chairBinding?.chairId ?? null) : (record.chairBinding?.chairId ?? null), releaseReason: 'SESSION_TASK_COMPLETED' };
   record.status = status;
   record.exitSha = sha;
   record.finishedAt = now();
