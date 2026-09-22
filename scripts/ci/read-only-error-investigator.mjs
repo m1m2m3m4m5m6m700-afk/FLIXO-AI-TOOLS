@@ -447,9 +447,9 @@ function collectWithGh() {
       run.log = '';
     }
   }
-  let securityFindings = [];
-  try {
-    const rawAlerts = execFileSync('gh', [
+  const securityFindings = (() => {
+    try {
+      const rawAlerts = execFileSync('gh', [
       'api',
       '--repo', repository,
       '--method', 'GET',
@@ -460,10 +460,11 @@ function collectWithGh() {
       stdio: ['ignore', 'pipe', 'pipe'],
       maxBuffer: 8 * 1024 * 1024,
     });
-    securityFindings = JSON.parse(rawAlerts);
-  } catch {
-    securityFindings = [];
-  }
+      return JSON.parse(rawAlerts);
+    } catch {
+      return [];
+    }
+  })();
 
   return {
     repository,
