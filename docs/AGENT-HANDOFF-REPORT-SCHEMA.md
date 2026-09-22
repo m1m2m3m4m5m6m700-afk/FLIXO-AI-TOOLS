@@ -97,13 +97,22 @@ The report is a cloned communication envelope dedicated to `CHAIR_1_GUARD` and M
 - `publicationAuthority: CHAIR_1`
 - `editableBy: CHAIR_1`
 
-The guard report is a **receipt and full-detail-request surface only**. It does not grant mutation authority, merge authority, certification, or GREEN.
+The guard report is a **receipt and pending-push acknowledgement surface only**. It does not grant mutation authority, merge authority, certification, GREEN, or any content decision.
 
-The guard MUST NOT reject, delete, discard, downgrade, suppress, or judge any substantive change reported by a worker. Every worker contribution is preserved exactly as received.
+The worker MUST send the change details inside the push/handoff payload. The guard does not interrogate the worker and does not request additional details.
 
 The guard may only:
 - record receipt;
-- ask the originating agent for missing/full change details;
-- record the additional details supplied by that same agent.
+- confirm that the change/push is pending;
+- confirm that change details are present inside the report;
+- preserve the complete report exactly as received and make it available to Chair 1.
 
-Once the required details are present, the complete report remains available to Chair 1. Chair 1 is the final and only filter and the only authority that can edit, integrate, combine, remove, upgrade, commit, publish, or decide what reaches canonical execution.
+The guard MUST NOT reject, delete, discard, downgrade, suppress, edit, judge, or filter any substantive worker change.
+
+After acknowledgement, the report MUST carry:
+- `status: PUSH_PENDING`
+- `pendingPush: true`
+- `changeDetailsPresent: true`
+- `guardRole: PUSH_PENDING_ACK_ONLY`
+
+Chair 1 then reads the full report, asks the originating agent any questions it considers necessary, and remains the final and only filter and the only authority that can edit, integrate, combine, remove, upgrade, commit, publish, or decide what reaches canonical execution.
