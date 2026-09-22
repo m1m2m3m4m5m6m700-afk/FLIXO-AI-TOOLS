@@ -311,12 +311,11 @@ export function acquire({chairId='chair_1',agentId,targetSha=sha(),repositorySta
     state.repository_state='ACTIVE';state.idle_timestamp=null;writeState(state);return state;
   });
 }
-export function preemptChair1ForMaster({agentId,targetSha=sha(),role=null,repositoryState='IDLE',reviewId=null,scope=null,workPackageId=null,taskId=null,fencingToken=null,reason='MASTER_CONNECTED'}={}){
+export function takeChair1({agentId,targetSha=sha(),role=null,repositoryState='ACTIVE',reviewId=null,scope=null,workPackageId=null,taskId=null,fencingToken=null,reason='AGENT_NEEDS_CHAIR_1'}={}){
   assertAgent(agentId);
   const t=assertSha(targetSha,'TARGET_SHA');
   if(t!==sha())throw new Error('STALE_CONTEXT');
-  if(!isMasterPrincipal(agentId,role))throw new Error('CHAIR1_MASTER_PREEMPTION_REQUIRES_MASTER');
-  const incomingPriority=masterPriority(agentId,role);
+
   return withWriteLock(()=>{
     const state=readState();
     if(state.target_sha!==t)throw new Error('CHAIR_STATE_SHA_MISMATCH');
@@ -331,8 +330,6 @@ export function preemptChair1ForMaster({agentId,targetSha=sha(),role=null,reposi
       return Object.freeze({admitted:true,reused:true,preempted:false,chairId:'chair_1',leaseId,targetSha:t,taskId:chair.task_id??null,workPackageId:chair.work_package_id??null});
     }
     if(chair.status==='OCCUPIED'){
-      const existingPriority=masterPriority(chair.holder_agent_id,chair.holder_role);
-      if(existingPriority!==null&&existingPriority<=incomingPriority)throw new Error('CHAIR1_HIGHER_MASTER_ACTIVE');
       const displaced={
         agentId:chair.holder_agent_id,
         role:chair.holder_role??null,
@@ -349,9 +346,8 @@ export function preemptChair1ForMaster({agentId,targetSha=sha(),role=null,reposi
         mode:'HANDOFF_ONLY_AFTER_CHAIR_TRANSFER',
         authority:'CHAIR_1_GUARD_CONTINUITY',
         reason:String(reason||'MASTER_CONNECTED'),
-        masterAgentId:agentId,
-        masterRole:String(role??agentId),
-        masterPriority:incomingPriority,
+        incomingAgentId:agentId,
+        incomingRole:String(role??agentId),
         displacedAgentId:displaced.agentId,
         displacedRole:displaced.role,
         displacedTaskId:displaced.taskId,
@@ -399,6 +395,8 @@ export function preemptChair1ForMaster({agentId,targetSha=sha(),role=null,reposi
     return Object.freeze({admitted:true,reused:false,preempted:Boolean(latestDisplaced?.targetSha===t),preemptedAgentId:latestDisplaced?.targetSha===t?latestDisplaced.displacedAgentId:null,chairId:'chair_1',leaseId:chair.lease_id,targetSha:t,taskId:chair.task_id??null,workPackageId:chair.work_package_id??null});
   });
 }
+
+export const preemptChair1ForMaster = takeChair1;
 
 function getChair(state,chairId){
   const chair=state?.chairs?.[chairId];
@@ -678,6 +676,13 @@ export function assertWorkAdmission({agentId,targetSha=sha(),chairId=null,taskId
   return active;
 }
 
+function stateRepositoryOccupiedForTakeover(targetSha){
+  const t=assertSha(targetSha,'TARGET_SHA');
+  const state=readState();
+  if(state.target_sha!==t)throw new Error('CHAIR_STATE_SHA_MISMATCH');
+  return state.repository_state==='ACTIVE' && Object.values(state.chairs).some((chair)=>chair.status==='OCCUPIED');
+}
+
 export function beginWork({agentId,targetSha=sha(),requestedChairId=null,repositoryState='IDLE',workPackageId=null,taskId=null,fencingToken=null,scope=null,reviewId=null,role=null}={}){
   assertAgent(agentId);
   const t=assertSha(targetSha,'TARGET_SHA');
@@ -689,7 +694,9 @@ export function beginWork({agentId,targetSha=sha(),requestedChairId=null,reposit
   const chairId=String(requestedChairId??'chair_1').trim()||'chair_1';
   if(chairId!=='chair_1' && chairId!=='chair_2' && chairId!=='chair_3')throw new Error('CHAIR_UNKNOWN');
   if(chairId!=='chair_1')throw new Error('CHAIR_AUTO_ADMISSION_MUST_USE_CHAIR_1');
-  if(isMasterPrincipal(agentId,role))return preemptChair1ForMaster({agentId,targetSha:t,role,repositoryState,workPackageId,taskId,fencingToken,scope,reviewId});
+  if(requestedChairId==='chair_1' && stateRepositoryOccupiedForTakeover(t)){
+    return takeChair1({agentId,targetSha:t,role,repositoryState:'ACTIVE',workPackageId,taskId,fencingToken,scope,reviewId,reason:'AGENT_REQUESTED_CHAIR_1'});
+  }
   const acquired=acquire({
     chairId,
     agentId,
@@ -735,7 +742,8 @@ if(process.argv[1]?.endsWith('/chair-bound-execution.mjs')){
   else if(command==='validate')console.log(JSON.stringify(validateCurrent({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,paths,permission:arg('permission','SOURCE_MUTATION'),reviewId:arg('review-id')||null,boundedScope:scope.length?scope:null}),null,2));
   else if(command==='heartbeat')console.log(JSON.stringify(heartbeat({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target}),null,2));
   else if(command==='reconcile-dead-leases')console.log(JSON.stringify(reconcileDeadLeases({targetSha:target}),null,2));
-  else if(command==='master-preempt')console.log(JSON.stringify(preemptChair1ForMaster({agentId:arg('agent'),role:arg('role')||null,targetSha:target,repositoryState:arg('repository-state','IDLE'),workPackageId:arg('work-package')||null,taskId:arg('task-id')||null,fencingToken:arg('fencing-token')||null,scope:scope.length?scope:null,reviewId:arg('review-id')||null,reason:arg('reason','MASTER_CONNECTED')}),null,2));
+  else if(command==='take-chair')console.log(JSON.stringify(takeChair1({agentId:arg('agent'),role:arg('role')||null,targetSha:target,repositoryState:arg('repository-state','ACTIVE'),workPackageId:arg('work-package')||null,taskId:arg('task-id')||null,fencingToken:arg('fencing-token')||null,scope:scope.length?scope:null,reviewId:arg('review-id')||null,reason:arg('reason','AGENT_NEEDS_CHAIR_1')}),null,2));
+  else if(command==='master-preempt')console.log(JSON.stringify(takeChair1({agentId:arg('agent'),role:arg('role')||null,targetSha:target,repositoryState:arg('repository-state','ACTIVE'),workPackageId:arg('work-package')||null,taskId:arg('task-id')||null,fencingToken:arg('fencing-token')||null,scope:scope.length?scope:null,reviewId:arg('review-id')||null,reason:arg('reason','MASTER_CONNECTED')}),null,2));
   else if(command==='speculate')console.log(JSON.stringify(writeSpeculativeContext({sessionId:arg('session'),taskId:arg('task'),chairId:arg('chair'),role:arg('role'),targetSha:target,pendingDiff:arg('pending-diff'),testPlan:arg('test-plan').split(';').map(v=>v.trim()).filter(Boolean)}),null,2));
   else throw new Error('Usage: chair-bound-execution.mjs init|acquire|authorize-write|merge-proposal|release|mode|validate');
 }
