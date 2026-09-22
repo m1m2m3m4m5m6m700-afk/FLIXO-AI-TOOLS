@@ -1168,7 +1168,7 @@ BASHENV
 
       - name: Publish adversarial convergence evidence
         if: always()
-        uses: actions/upload-artifact@043fbf1d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-adversarial-convergence-${{ github.run_id }}
           path: /tmp/flixo-adversarial-convergence
@@ -1176,7 +1176,7 @@ BASHENV
           retention-days: 30
       - name: Publish Master Repair dossier
         if: always()
-        uses: actions/upload-artifact@043fbf1d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-master-repair-dossier-${{ github.run_id }}
           path: |
