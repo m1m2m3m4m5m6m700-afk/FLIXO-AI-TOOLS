@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { buildWorkPackage } from './prompt-execution-bot.mjs';
+import { buildWorkPackage, CANONICAL_SOURCES } from './prompt-execution-bot.mjs';
 import { buildAdversarialFailureReport, buildAdversarialReview, runAdversarialCorrectionLoop } from './prompt-execution-bot-adversary.mjs';
 
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
@@ -14,6 +14,8 @@ assert.equal(normal.canonicalPrompt.qualityGate, 'PASS');
 assert.ok(normal.selectedTaskId);
 assert.equal(normal.workPackage.consumerRole, 'executionAgent');
 assert.equal(normal.promptSafety.noArbitraryShellFromPrompt, true);
+assert.ok(CANONICAL_SOURCES.includes('docs/agents/ADVERSARIAL-BOT-COMMANDS.json'));
+assert.ok(CANONICAL_SOURCES.includes('scripts/ci/adversarial-bot-commands.mjs'));
 
 const repair = buildWorkPackage('أصلح خطأ CI الحالي، حلل الجذر، اختبر الإصلاح، وتحقق من Exact-SHA.');
 assert.equal(repair.intent, 'REPAIR_DIAGNOSE');
