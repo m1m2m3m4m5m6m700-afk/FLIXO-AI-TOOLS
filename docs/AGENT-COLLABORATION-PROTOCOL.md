@@ -21,6 +21,8 @@ Required behavior:
 3. Use the existing `execution → main` integration PR for promotion.
 4. Never solve a conflict by creating a third branch.
 5. Historical branches are evidence only; they are not active work surfaces.
+6. Existing `chair1/*` repair branches are quarantined read-only history and MUST receive no further commits or pushes.
+7. Branch creation is not a valid execution operation; all repair work remains on the current `execution` SHA.
 
 `BRANCH_CREATION_ATTEMPT` is a protocol violation requiring immediate controller review.
 
@@ -398,7 +400,7 @@ The repository topology is permanently limited to:
 
 `execution → main`
 
-**No new branch may be created under any circumstance.** This prohibition applies to every agent, automation, workflow, recovery path, test path, handoff path, and human-requested shortcut.
+**No new branch may be created under any circumstance.** This prohibition applies to every agent, automation, workflow, recovery path, test path, handoff path, and human-requested shortcut. Existing chair repair branches are frozen historical artifacts and are not alternate work lanes.
 
 A proposed feature/fix/chore/repair/agent/test/temp/backup/experimental/hotfix/third branch is a hard integrity violation. Stop before creation, preserve evidence, remain on `execution`, and continue through the existing canonical lane.
 

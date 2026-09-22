@@ -13,11 +13,13 @@ Branch rules are subordinate to P00. The only active mutation path remains execu
 
 ## 1. Canonical branch model
 
-The repository has exactly **two active branch paths**:
+The repository has exactly **two active branch paths** and exactly **one active working surface**:
 
 ```text
 execution → main
 ```
+
+`execution` is the sole active work/ref surface. Existing `chair1/*` repair branches are historical/quarantined artifacts only: they receive no new commits, no pushes, no active checkouts, and no promotion. They may remain for audit history but MUST NOT be reused.
 
 - `execution` is the only branch where routine development, repair, testing fixes, agent work, and integration preparation may occur.
 - `main` is the only production/source-of-truth branch.
@@ -155,10 +157,10 @@ After `main` changes, `execution` must be synchronized before new work begins. T
 
 ## 10. Enforcement
 
-Any automation that attempts to create, push, or merge a branch other than `execution` or `main` MUST fail closed.
+Any automation, agent, connector, API call, or workflow that attempts to create, checkout, push, update, or merge a branch other than `execution` or `main` MUST fail closed before the operation. Branch creation is not an available repair primitive. The sole repair surface is `execution`.
 
 Any workflow, script, task packet, or agent contract that references a third active branch is non-compliant and must be corrected before the change can be considered verified.
 
 `main` = production truth.  
-`execution` = single working truth.  
-**No third path.**
+`execution` = single working truth and sole active repair surface.  
+**No third path. No new repair branch.**
