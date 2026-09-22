@@ -224,11 +224,11 @@ export function validateStatic() {
   must(/contents:\s*read/.test(pushGateWorkflow) && !/actions:\s*write/.test(pushGateWorkflow), 'execution-push-gate-read-only');
 
   const jobBlock = (jobName) => {
-    const marker = `  ${jobName}:\n`;
-    const start = auto.indexOf(marker);
-    if (start < 0) return '';
-    const body = auto.slice(start + marker.length);
-    const next = body.search(/\n  [A-Za-z0-9_-]+:\n/u);
+    const marker = new RegExp(`^  ${jobName}:\\n`, 'm');
+    const match = marker.exec(auto);
+    if (!match) return '';
+    const body = auto.slice(match.index + match[0].length);
+    const next = body.search(/^  [A-Za-z0-9_-]+:\\n/m);
     return next >= 0 ? body.slice(0, next) : body;
   };
   const timeoutFromJob = (jobName) => Number(jobBlock(jobName).match(/(?:^|\n)\s+timeout-minutes:\s*(\d+)/)?.[1] ?? NaN);
