@@ -124,20 +124,18 @@ for (const [file, source] of exactShaVerificationWorkflows) {
   }
 }
 
-if (!/cancel-in-progress:\s*true/.test(claudeSecurityWorkflow)) {
-  console.error('CI contract failed: claude-security-review.yml must cancel superseded advisory reviews.');
+if (!/cancel-in-progress:\s*false/.test(claudeSecurityWorkflow)) {
+  console.error('CI contract failed: claude-security-review.yml must preserve advisory review runs once started.');
   process.exit(1);
 }
 const claudeConcurrencyBlock = claudeSecurityWorkflow.match(/concurrency:[\s\S]*?(?=\n#|\npermissions:)/)?.[0] ?? '';
 const claudeGroupLine = claudeConcurrencyBlock.split(/\r?\n/).find((line) => line.trim().startsWith('group:'))?.trim() ?? '';
-const claudeGroupUsesBranch = claudeGroupLine.includes('github.event.pull_request.head.ref || github.ref_name');
 const claudeGroupUsesRepository = claudeGroupLine.includes('github.event.pull_request.head.repo.full_name || github.repository');
-const claudeGroupUsesPullRequest = claudeGroupLine.includes('github.event.pull_request.number || github.ref');
-if (!claudeGroupLine.startsWith('group: claude-security-') || !claudeGroupUsesBranch || (!claudeGroupUsesRepository && !claudeGroupUsesPullRequest)) {
-  console.error('CI contract failed: claude-security-review.yml must group by PR/branch, not commit SHA.');
+const claudeGroupUsesExactSha = claudeGroupLine.includes('github.event.pull_request.head.sha || github.sha');
+if (!claudeGroupLine.startsWith('group: claude-security-') || !claudeGroupUsesRepository || !claudeGroupUsesExactSha) {
+  console.error('CI contract failed: claude-security-review.yml must bind advisory review grouping to repository and exact SHA.');
   process.exit(1);
 }
-if (/github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha/.test(claudeConcurrencyBlock)) {
   console.error('CI contract failed: claude-security-review.yml must not use head SHA as its concurrency-group identity.');
   process.exit(1);
 }
