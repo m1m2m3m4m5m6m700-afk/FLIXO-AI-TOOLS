@@ -2,7 +2,6 @@
 import assert from 'node:assert/strict';
 import {
   buildConfig,
-  pollDispatch,
   executeExternalAgent,
   createBridge,
   createWakeServer,
