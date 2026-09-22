@@ -156,6 +156,11 @@ node scripts/ci/agent-session.mjs login --session=<new-id> --agent=<id> --role=<
 الأحداث:
 node scripts/ci/agent-session.mjs event --session=<id> --agent=<id> --task=<task-id> --type=<TYPE> --summary="<what happened>"
 
+Heartbeat:
+node scripts/ci/agent-session.mjs heartbeat --session=<id> --agent=<id> --task=<task-id>
+
+كل جلسة إصلاح غير مكتملة تعمل تحت ACTIVE_REPAIR_45M لمدة لا تقل عن 45 دقيقة متواصلة. Heartbeat مطلوب أثناء النافذة، ولا يسمح بـBLOCKED logout أو SLEEP/IDLE/SILENT/ABANDONED. بلوغ 45 دقيقة لا يساوي GREEN؛ الإغلاق يتطلب Canonical GREEN وExact-SHA و0 عمل مفتوح.
+
 استقبال:
 node scripts/ci/agent-session.mjs message-receive --session=<id> --agent=<id> --task=<task-id> --message-id=<id>
 
@@ -203,6 +208,9 @@ node scripts/ci/agent-coordination.mjs ingest-handoff
 ### Liveness and wake
 
 الجلسة المفتوحة لا تصبح SLEEP أو IDLE أو SILENT أو ABANDONED.
+
+جلسة الإصلاح ACTIVE_REPAIR_45M لها حد أدنى 45 دقيقة متواصلة؛ انتهاؤها أو timeout أو lease لا يساوي إغلاقًا. Heartbeat متواصل، وفقدانه يعيد الحالة إلى RECOVERING ويُبقي العمل مفتوحًا.
+إغلاق الجلسة بحالة BLOCKED ممنوع؛ العائق يسجل ويستمر مسار recovery/coordination داخل الخلية.
 
 عند انتظار CI أو provider خارجي:
 WAITING_EXTERNAL + heartbeat
