@@ -25,6 +25,7 @@ const cellLabConsensus = (taskId, owner) => ({
   status:'AGREED',
   executionReady:true,
   discussionClosed:true,
+  communicationEvidence:{channel:'CANONICAL_AGENT_COMMUNICATION',messageIds:['m1','m2','m3','m4','r1','r2','r3','r4']},
   participants:[
     {id:'MASTER-1',status:'AGREED',basis:'Orchestration reviewed.'},
     {id:'MASTER-2',status:'AGREED',basis:'Verification reviewed.'},
@@ -32,10 +33,10 @@ const cellLabConsensus = (taskId, owner) => ({
     {id:owner,status:'AGREED',basis:'Execution scope accepted.'},
   ],
   discussions:[
-    {kind:'OPINION',actor:'MASTER-1',text:'Use the smallest causal repair.',responses:['MASTER-2','MASTER-3'],resolution:'Integrated.'},
-    {kind:'QUESTION',actor:owner,text:'Is the scope bounded?',responses:['MASTER-2'],resolution:'Yes.',status:'ANSWERED'},
-    {kind:'CHALLENGE',actor:'MASTER-3',text:'Could another cause explain the symptom?',responses:['MASTER-1','MASTER-2'],resolution:'Alternatives rejected by evidence.'},
-    {kind:'DECISION',actor:'MASTER-1',text:'Proceed with the integrated plan.',responses:['MASTER-2','MASTER-3',owner],resolution:'All required participants agreed.',status:'AGREED'},
+    {kind:'OPINION',actor:'MASTER-1',messageId:'m1',text:'Use the smallest causal repair.',responses:['MASTER-2','MASTER-3'],responseMessageIds:['r1','r2'],resolution:'Integrated.'},
+    {kind:'QUESTION',actor:owner,messageId:'m2',text:'Is the scope bounded?',responses:['MASTER-2'],responseMessageIds:['r3'],resolution:'Yes.',status:'ANSWERED'},
+    {kind:'CHALLENGE',actor:'MASTER-3',messageId:'m3',text:'Could another cause explain the symptom?',responses:['MASTER-1','MASTER-2'],responseMessageIds:['r1','r3'],resolution:'Alternatives rejected by evidence.'},
+    {kind:'DECISION',actor:'MASTER-1',messageId:'m4',text:'Proceed with the integrated plan.',responses:['MASTER-2','MASTER-3',owner],responseMessageIds:['r1','r3','r4'],resolution:'All required participants agreed.',status:'AGREED'},
   ],
   dissentResolved:[],
   remainingQuestions:[],
