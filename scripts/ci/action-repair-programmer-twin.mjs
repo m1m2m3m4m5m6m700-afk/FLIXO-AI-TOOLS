@@ -4,6 +4,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 import { READ_ONLY_POWER_PROFILE, validateReadOnlyPowerProfile } from './read-only-power-profile.mjs';
+import { buildSharedLearningContext, publishSharedMemory } from './shared-operational-memory.mjs';
 
 const POWER_PROFILE_VALIDATION=validateReadOnlyPowerProfile();
 if(!POWER_PROFILE_VALIDATION.ok) throw new Error('READ_ONLY_POWER_PROFILE_INVALID='+POWER_PROFILE_VALIDATION.failures.join(','));
@@ -30,6 +31,7 @@ const failureLog=logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8')
 const selection=selectionPath&&fs.existsSync(selectionPath)?readJson(selectionPath):null;
 const diagnosis=diagnosisPath&&fs.existsSync(diagnosisPath)?readJson(diagnosisPath):null;
 const candidateDiff=diffPath&&fs.existsSync(diffPath)?fs.readFileSync(diffPath,'utf8'):'';
+const sharedLearning=buildSharedLearningContext({fingerprint,botId:'ACTION-REPAIR-2',limit:64});
 if(!selection||selection.decision!=='SELECTED'||selection.targetSha!==targetSha||selection.failureFingerprint!==fingerprint)throw new Error('PROGRAMMER_TWIN_FILE_SELECTION_INVALID');
 
 const selectedFiles=[...new Set((selection.selectedFiles??[]).map(x=>String(x.path??'').replace(/^\.\//u,'')).filter(Boolean))];
@@ -121,8 +123,10 @@ const report={
   mutationRecommendation:status==='FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE'?'ALLOW_AFTER_FALSIFICATION_NO_COUNTEREXAMPLE':'BLOCK',
   remainingRisks:[],
   safetyRules:['NO_COUNTEREXAMPLE_IS_NOT_PATCH_CORRECT'],
+  sharedOperationalMemory:sharedLearning,
   sourceMutationAllowed:false,status,generatedAt:new Date().toISOString()
 };
+try{ publishSharedMemory({sourceBot:'ACTION-REPAIR-2',kind:validCounterexamples.length?'COUNTEREXAMPLE':'VERIFICATION',taskId:process.env.FLIXO_AGENT_TASK??runId,targetSha,fingerprint,runId,claim:validCounterexamples.length?'Programmer Twin found a counterexample; current repair candidate must be reconsidered.':'Programmer Twin completed its falsification pass; absence of a counterexample is not proof of correctness.',content:JSON.stringify({status,searches:falsificationSearches.length,counterexamples:validCounterexamples.length,sharedRecordCount:sharedLearning.recordCount}),evidenceRefs:selectedFiles,verification:status, status:validCounterexamples.length?'BLOCKED':'OBSERVED'});}catch(error){console.warn('SHARED_MEMORY_PUBLISH_WARNING='+String(error?.message??error));}
 fs.mkdirSync(path.dirname(path.resolve(output)),{recursive:true});
 fs.writeFileSync(output,JSON.stringify(report,null,2)+'\n');
 console.log(JSON.stringify({status,targetSha,failureFingerprint:fingerprint,counterexampleFound:report.counterexampleFound,searchCount:falsificationSearches.length},null,2));
