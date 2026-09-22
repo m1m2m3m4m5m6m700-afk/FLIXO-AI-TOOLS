@@ -100,6 +100,9 @@ export function saveAttemptLedger(filePath, ledger) {
   return normalized;
 }
 function env(name, fallback = '') { return process.env[name] ?? fallback; }
+function readJsonOrEmpty(filePath) {
+  try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch { return {}; }
+}
 if (process.argv[1]?.endsWith('repair-attempt-ledger.mjs')) {
   const command = process.argv[2] ?? 'contract';
   const filePath = env('FLIXO_REPAIR_ATTEMPT_LEDGER', '/tmp/flixo-repair-attempt-ledger.json');
@@ -110,10 +113,8 @@ if (process.argv[1]?.endsWith('repair-attempt-ledger.mjs')) {
     console.log(JSON.stringify({ status: 'PASS', chainId: chainId || null, caseFingerprint: caseFingerprint || null, rejected: 0 }));
   } else if (command === 'record') {
     const evidencePath = env('FLIXO_REPAIR_EVIDENCE_PATH', '/tmp/flixo-repair-evidence.json');
-    let evidence = {};
-    try { evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8')); } catch { evidence = {}; }
-    let strategyPlan = {};
-    try { strategyPlan = JSON.parse(fs.readFileSync('/tmp/flixo-repair-strategy.json', 'utf8')); } catch { strategyPlan = {}; }
+    const evidence = readJsonOrEmpty(evidencePath);
+    const strategyPlan = readJsonOrEmpty('/tmp/flixo-repair-strategy.json');
     const strategy = env('FLIXO_REPAIR_STRATEGY_ID') || strategyPlan?.strategyId || evidence?.selected || null;
     const rule = evidence?.selected || evidence?.historicalRollback?.rule || env('FLIXO_REPAIR_RULE') || null;
     const outcome = env('FLIXO_LEDGER_OUTCOME', evidence?.outcome || 'failure');
