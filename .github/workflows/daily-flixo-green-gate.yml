@@ -114,6 +114,7 @@ jobs:
           )
           MAX_RESIDENCY_POLLS=12
           RESIDENCY_POLL_SECONDS=5
+          declare -A RESIDENT_DISPATCHED=()
           for ((poll=1; poll<=MAX_RESIDENCY_POLLS; poll++)); do
             MISSING=0
             for WORKFLOW in "FLIXO Test System" "FLIXO WP0 Trust Baseline" "FLIXO Test Impact" "FLIXO Test Impact Execution" "Repository Security Baseline" "Claude Security Review"; do
@@ -127,7 +128,13 @@ jobs:
                 | jq --arg sha "$EXECUTION_SHA" '[.[] | select(.headSha == $sha and (.status == "queued" or .status == "in_progress" or .conclusion == "success" or .conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required"))] | length')"
               if [ "$RUN_COUNT" -eq 0 ]; then
                 echo "REQUIRED_CI_MISSING workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA"
-                gh workflow run "$FILE" --repo "$GITHUB_REPOSITORY" --ref execution
+                if [ -z "${RESIDENT_DISPATCHED[$WORKFLOW]+x}" ]; then
+                  gh workflow run "$FILE" --repo "$GITHUB_REPOSITORY" --ref execution
+                  RESIDENT_DISPATCHED[$WORKFLOW]=1
+                  echo "REQUIRED_CI_DISPATCHED workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA"
+                else
+                  echo "REQUIRED_CI_DISPATCH_ALREADY_REQUESTED workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA"
+                fi
                 MISSING=1
               else
                 echo "REQUIRED_CI_ALREADY_RESIDENT poll=$poll workflow=$WORKFLOW count=$RUN_COUNT sha=$EXECUTION_SHA"
