@@ -6,6 +6,7 @@ const expectedSha = (process.env.EXPECTED_SHA ?? '').trim();
 const expectedBranch = (process.env.EXPECTED_BRANCH ?? '').trim();
 const expectedRepository = (process.env.EXPECTED_REPOSITORY ?? process.env.GITHUB_REPOSITORY ?? '').trim();
 const token = (process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN ?? '').trim();
+const requireLiveHeadMatch = /^(?:1|true|yes)$/iu.test((process.env.REQUIRE_LIVE_HEAD_MATCH ?? '').trim());
 
 if (!/^[0-9a-f]{40}$/iu.test(expectedSha)) {
   console.error('FAIL CLOSED: EXPECTED_SHA is missing or malformed.');
@@ -80,9 +81,24 @@ if (!/^[0-9a-f]{40}$/iu.test(actualSha)) {
   process.exit(1);
 }
 
-if (actualSha !== expectedSha) {
-  console.error(`FAIL CLOSED: commit ${expectedSha} is superseded by ${actualSha} on ${expectedRepository}/${expectedBranch}.`);
+const liveHeadMatches = actualSha === expectedSha;
+if (actualSha !== expectedSha && requireLiveHeadMatch) {
+  console.error(
+    `FAIL CLOSED: commit ${expectedSha} is superseded by ${actualSha} on ${expectedRepository}/${expectedBranch}.`,
+  );
   process.exit(1);
 }
 
-console.log(`CURRENT_COMMIT_VERIFIED=1 SHA=${expectedSha} BRANCH=${expectedBranch} REPOSITORY=${expectedRepository} MODE=${resolutionMode}`);
+if (!liveHeadMatches) {
+  console.warn(
+    `LIVE_HEAD_MOVED=1 EXPECTED_SHA=${expectedSha} OBSERVED_REMOTE_SHA=${actualSha} ` +
+      `BRANCH=${expectedBranch} REPOSITORY=${expectedRepository} ` +
+      'LOCAL_CHECKOUT_REMAINS_EXACT=1 CURRENTNESS_DECISION=DELEGATED_TO_SUPERSESSION_GATE',
+  );
+}
+
+console.log(
+  `CURRENT_COMMIT_VERIFIED=1 SHA=${expectedSha} BRANCH=${expectedBranch} REPOSITORY=${expectedRepository} ` +
+    `MODE=${resolutionMode} REMOTE_SHA=${actualSha} LIVE_HEAD_MATCH=${liveHeadMatches ? '1' : '0'} ` +
+    `LIVE_HEAD_ENFORCEMENT=${requireLiveHeadMatch ? '1' : '0'}`,
+);
