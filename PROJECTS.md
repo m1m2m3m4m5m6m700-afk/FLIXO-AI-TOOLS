@@ -448,3 +448,14 @@ Implementation ledger only; not GREEN/certification evidence.
 - BATCH-5: IMPLEMENTED / VERIFICATION PENDING — performance manifest.
 - BATCH-6: IMPLEMENTED / VERIFICATION PENDING — release evidence binding.
 - BATCH-7: IMPLEMENTED / VERIFICATION PENDING — deterministic hybrid knowledge retrieval.
+
+
+## SECURITY-REDTEAM-TRIAD-001 — 2026-09-22
+STATUS = IMPLEMENTED / SECURITY-LIVE-VERIFICATION-PENDING
+ENTRY_SHA = 5f340c4338abbfca299223309544946e97d9ccb2
+EXECUTION = Three independent read-only security red-team bots covering control plane, application code and runtime/data boundaries.
+LEDGER = `الثغرات الامنيه.md`
+REPAIR_INTELLIGENCE = `scripts/ci/adversarial-repair-twin.mjs` (A+B, read-only advisory)
+WORKFLOW = `.github/workflows/security-red-team.yml`
+RULE = Every new finding is deduplicated by fingerprint and recorded on execution; no red-team bot can mutate source, certify, or declare GREEN.
+NEXT = Fresh exact-SHA run of the triad, then route actionable findings into the canonical repair protocol.
