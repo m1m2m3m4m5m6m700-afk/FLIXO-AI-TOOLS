@@ -76,7 +76,6 @@ assert.match(sessionSource,/agent-session\.mjs heartbeat/u);
 
 console.log('AGENT_LIVENESS_CONTRACT=PASS');
 
-const sessionSource=fs.readFileSync(path.resolve(process.cwd(),'scripts/ci/agent-session.mjs'),'utf8');
 assert.match(sessionSource,/master-update/u);
 assert.match(sessionSource,/MASTER_CELL_LAB/u);
 assert.match(sessionSource,/TASK_REMINDER/u);

@@ -53,6 +53,7 @@ const admissionDigest = (file) => createHash('sha256').update(fs.readFileSync(pa
 const governanceFingerprint = (sources) => createHash('sha256').update(sources.map((item) => `${item.path}:${item.sha256}`).join('|'), 'utf8').digest('hex');
 const assertLiveSession = (record) => {
   const currentSha = gitSha();
+  if (record.entrySha && record.entrySha !== currentSha) throw new Error('AGENT_SESSION_EXACT_SHA_DRIFT');
   const currentGovernance = governanceFingerprint(requiredReads.map((file) => ({ path: file, sha256: admissionDigest(file) })));
   if (record.governanceFingerprint && record.governanceFingerprint !== currentGovernance) throw new Error('AGENT_SESSION_GOVERNANCE_DRIFT');
   if (record.branch && record.branch !== gitBranch()) throw new Error('AGENT_SESSION_BRANCH_DRIFT');
@@ -236,7 +237,7 @@ if (command === 'meeting-exit-approve') {
   if (!message) throw new Error('MASTER_CHANNEL_MESSAGE_REQUIRED');
   const kind = String(args.get('kind') ?? 'STATUS_UPDATE').trim().toUpperCase();
   const snapshot = taskSnapshotFromRecord(record);
-  execFileSync(process.execPath,['scripts/ci/master-peer-communication.mjs','send','--repo='+(process.env.GITHUB_REPOSITORY || 'm1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS'),'--from='+agentId,'--to='+to,'--task='+taskId,'--message='+message,'--session='+sessionId,'--message-kind='+kind,'--idempotency-key=manual-master:'+sessionId+':'+kind+':'+Math.floor(Date.now()/AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs),'--payload='+JSON.stringify({channel:'MASTER_CELL_LAB',taskSnapshot,sessionId:sessionId,currentSha:sha,requalificationRequired:Boolean(record.requalificationRequired)})],{cwd:ROOT,encoding:'utf8'});
+  execFileSync(process.execPath,['scripts/ci/master-peer-communication.mjs','send','--repo='+(process.env.GITHUB_REPOSITORY || 'm1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS'),'--from='+agentId,'--to='+to,'--task='+taskId,'--message='+message,'--session='+sessionId,'--message-kind='+kind,'--idempotency-key=manual-master:'+sessionId+':'+kind+':'+Math.floor(Date.now()/AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs),'--payload='+JSON.stringify({channel:'MASTER_CELL_LAB',taskSnapshot:snapshot,sessionId:sessionId,currentSha:sha,requalificationRequired:Boolean(record.requalificationRequired)})],{cwd:ROOT,encoding:'utf8'});
   record.lastMasterUpdateAt=now();
   appendEvent(record,{at:now(),action:'MASTER_CHANNEL_UPDATE',sha,channel:'MASTER_CELL_LAB',kind,to,message,snapshot});
   record.taskStateSnapshot=snapshot;

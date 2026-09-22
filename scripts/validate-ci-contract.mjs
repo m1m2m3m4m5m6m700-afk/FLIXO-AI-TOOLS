@@ -47,6 +47,7 @@ for (const [label, pattern] of required) {
 }
 
 const executionPushTrigger = /push:\s*\n\s*branches:\s*\[execution\]/;
+const securityExecutionPushTrigger = /push:\s*\n\s*branches:\s*\[main, execution\]/;
 for (const [label, source] of [
   ['wp0-trust-baseline.yml', wp0Workflow],
   ['test-impact.yml', impactPlanWorkflow],
@@ -54,7 +55,8 @@ for (const [label, source] of [
   ['repository-security-baseline.yml', securityBaselineWorkflow],
   ['claude-security-review.yml', claudeSecurityWorkflow],
 ]) {
-  if (!executionPushTrigger.test(source)) {
+  const trigger = label === 'repository-security-baseline.yml' ? securityExecutionPushTrigger : executionPushTrigger;
+  if (!trigger.test(source)) {
     console.error('CI contract failed: ' + label + ' must have an exact execution-branch push trigger.');
     process.exit(1);
   }

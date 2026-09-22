@@ -115,7 +115,7 @@ jobs:
             ["Repository Security Baseline"]="repository-security-baseline.yml"
             ["Claude Security Review"]="claude-security-review.yml"
           )
-          MAX_RESIDENCY_POLLS=12
+          MAX_RESIDENCY_POLLS=1
           RESIDENCY_POLL_SECONDS=5
           declare -A RESIDENT_DISPATCHED=()
           for ((poll=1; poll<=MAX_RESIDENCY_POLLS; poll++)); do
