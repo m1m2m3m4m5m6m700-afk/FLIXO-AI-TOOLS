@@ -258,6 +258,8 @@ Mandatory invariants:
 - A 5-minute heartbeat is mandatory. A missed/stale heartbeat is a recovery event, never permission to stop.
 - SLEEP, IDLE, SILENT, ABANDONED, self-abort, and silent termination are forbidden while work is open.
 - A workflow run ending, timing out, reaching a session budget, losing a lease, or being superseded MUST NOT close the task. It MUST recover and continue automatically.
+- Every active repair session has a minimum 45-minute continuous residency window. The Master/Agent/Bot remains active in the shared Cell-Lab during that window; BLOCKED is a state, not a logout path, and 45 minutes never substitutes for GREEN.
+- Heartbeat is mandatory throughout the active window. Any stale heartbeat is handled as RECOVERING; the session is not considered complete and the work remains open.
 - GREEN closes the current repair obligation only after exact-SHA evidence proves zero required RED; it MUST NOT disable permanent residency.
 - No executor may dispatch itself. The canonical Green Gate remains the sole repair dispatcher.
 - Liveness failure MUST fail closed into RECOVERING and re-enter the canonical wake/dispatch path; it MUST NOT strand repair as a terminal dispatch failure.
