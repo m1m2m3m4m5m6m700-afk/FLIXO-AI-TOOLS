@@ -178,6 +178,17 @@ jobs:
           jq -e '.message.recipient == "ALL_AGENTS"' /tmp/repair-agent-intake/output.json >/dev/null
           jq -e '.incident.failureFingerprint != null' /tmp/repair-agent-intake/output.json >/dev/null
 
+      - name: Block stale incident delivery
+        if: hashFiles('/tmp/run-id') != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$(jq -r '.incident.staleTarget' /tmp/repair-agent-intake/output.json)" = "true" ]; then
+            echo 'STALE_INCIDENT_NOT_DELIVERED_TO_CURRENT_RCA=true'
+            echo 'STALE_INCIDENT_REQUIRES_EXACT_SHA_REQUALIFICATION=true'
+            exit 0
+          fi
+
       - name: Deliver incident once to Agent Council
         if: hashFiles('/tmp/run-id') != ''
         env:
@@ -185,6 +196,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [ "$(jq -r '.incident.staleTarget' /tmp/repair-agent-intake/output.json)" = "true" ]; then exit 0; fi
           INCIDENT_ID="$(jq -r '.incident.incidentId' /tmp/repair-agent-intake/output.json)"
           COUNCIL_PR_NUMBER="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 1 --json number --jq '.[0].number // empty')"
           test -n "$COUNCIL_PR_NUMBER"
