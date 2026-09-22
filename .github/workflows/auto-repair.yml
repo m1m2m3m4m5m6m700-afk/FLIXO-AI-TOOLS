@@ -1464,6 +1464,119 @@ BASHENV
             *) echo "FAIL CLOSED: unknown adversarial convergence status=$STATUS"; exit 1 ;;
           esac
           echo 'FLIXO_ADVERSARIAL_CONVERGENCE_PATH=/tmp/flixo-adversarial-convergence.json' >> "$GITHUB_ENV"
+      - name: Derive Patch Truth directly from Git
+        id: patch_truth
+        if: steps.repair_convergence.outputs.status == 'STABLE_FOR_PUBLICATION'
+        run: |
+          set -euo pipefail
+          CANDIDATE_SHA="$(cat /tmp/flixo-candidate-sha)"
+          node scripts/ci/patch-truth-engine.mjs \
+            --base="$(cat /tmp/flixo-failed-sha)" \
+            --candidate="$CANDIDATE_SHA" \
+            --output=/tmp/flixo-patch-truth.json
+          test -s /tmp/flixo-patch-truth.json
+          jq -e --arg candidate "$CANDIDATE_SHA" --arg base "$(cat /tmp/flixo-failed-sha)" \
+            '.protocol=="FLIXO-PATCH-TRUTH-v1" and .rederivedFromGit==true and .patchTextAcceptedAsEvidence==false and .candidateSha==$candidate and .baseSha==$base' \
+            /tmp/flixo-patch-truth.json >/dev/null
+
+      - name: Run isolated pre-publication Canary
+        id: master_canary
+        if: steps.patch_truth.outcome == 'success'
+        env:
+          FLIXO_CANDIDATE_SHA: ${{ env.FLIXO_CANDIDATE_SHA }}
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_CANARY_PROOF_PATH: /tmp/flixo-canary-proof.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/master-repair-canary.mjs
+          test "$(jq -r '.status' /tmp/flixo-canary-proof.json)" = PASS
+
+      - name: Run historical patch replay
+        id: historical_replay
+        if: steps.patch_truth.outcome == 'success'
+        env:
+          FLIXO_CANDIDATE_SHA: ${{ env.FLIXO_CANDIDATE_SHA }}
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_HISTORICAL_REPLAY_PATH: /tmp/flixo-historical-replay.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/master-repair-historical-replay.mjs
+          STATUS="$(jq -r '.status' /tmp/flixo-historical-replay.json)"
+          case "$STATUS" in
+            PASS|NOT_APPLICABLE) ;;
+            *) echo "FAIL CLOSED: historical replay status=$STATUS"; exit 1 ;;
+          esac
+
+      - name: Run negative-proof mutation tests
+        id: negative_proof
+        if: steps.patch_truth.outcome == 'success'
+        env:
+          FLIXO_NEGATIVE_PROOF_PATH: /tmp/flixo-negative-proof.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/master-repair-negative-proof.mjs
+          test "$(jq -r '.allRejected' /tmp/flixo-negative-proof.json)" = true
+
+      - name: Prove automatic rollback path
+        id: rollback_proof
+        if: steps.patch_truth.outcome == 'success'
+        env:
+          FLIXO_CANDIDATE_SHA: ${{ env.FLIXO_CANDIDATE_SHA }}
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_KNOWN_GOOD_SHA: ${{ env.FLIXO_KNOWN_GOOD_SHA || '' }}
+          FLIXO_ROLLBACK_PROOF_PATH: /tmp/flixo-rollback-proof.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/master-repair-rollback-proof.mjs || ROLLBACK_EXIT="$?"
+          ROLLBACK_EXIT="${{ ROLLBACK_EXIT:-0 }}"
+          test -s /tmp/flixo-rollback-proof.json
+          if [ "$ROLLBACK_EXIT" -ne 0 ]; then
+            echo 'ROLLBACK_PROOF=UNPROVEN'
+          fi
+
+      - name: Verify external GitHub publication boundary
+        id: platform_boundary
+        if: steps.patch_truth.outcome == 'success'
+        env:
+          FLIXO_PLATFORM_RECEIPT_PATH: /tmp/flixo-platform-publication-receipt.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/verify-platform-publication-boundary.mjs || PLATFORM_EXIT="$?"
+          PLATFORM_EXIT="${{ PLATFORM_EXIT:-0 }}"
+          test -s /tmp/flixo-platform-publication-receipt.json
+          if [ "$PLATFORM_EXIT" -ne 0 ]; then
+            echo 'PLATFORM_PUBLICATION_BOUNDARY=UNTRUSTED'
+          fi
+
+      - name: Master Repair Governor — pre-Chair proof reducer
+        id: master_governor_pre
+        if: steps.patch_truth.outcome == 'success'
+        env:
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_CANDIDATE_SHA: ${{ env.FLIXO_CANDIDATE_SHA }}
+          FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+          node scripts/ci/master-repair-governor.mjs \
+            --phase=PRE_CHAIR \
+            --target-sha="$(cat /tmp/flixo-failed-sha)" \
+            --candidate-sha="$(cat /tmp/flixo-candidate-sha)" \
+            --fingerprint="$FLIXO_FAILURE_FINGERPRINT" \
+            --run-id="$GITHUB_RUN_ID" \
+            --repair-evidence=/tmp/flixo-repair-evidence.json \
+            --rca=/tmp/flixo-rca-manifest.json \
+            --root-proof=/tmp/action-root-cause-proof.json \
+            --diagnosis=/tmp/flixo-root-cause.json \
+            --verification=/tmp/flixo-candidate-verification.json \
+            --adversarial=/tmp/flixo-postpatch-adversarial.json \
+            --platform=/tmp/flixo-platform-publication-receipt.json \
+            --historical-replay=/tmp/flixo-historical-replay.json \
+            --negative-proof=/tmp/flixo-negative-proof.json \
+            --rollback=/tmp/flixo-rollback-proof.json \
+            --canary=/tmp/flixo-canary-proof.json \
+            --output=/tmp/flixo-master-repair-governor-pre.json
+          test "$(jq -r '.status' /tmp/flixo-master-repair-governor-pre.json)" = EVIDENCE_READY_FOR_CHAIR
+
       - name: Strict Chair-1 audit of every Auto Repair candidate
         id: chair1_audit
         if: steps.candidate_verification.outcome == 'success' && steps.repair_convergence.outputs.status == 'STABLE_FOR_PUBLICATION'
@@ -1532,6 +1645,38 @@ BASHENV
             *) echo "FAIL CLOSED: unexpected convergence status=$STATUS"; exit 1 ;;
           esac
 
+      - name: Master Repair Governor — final 2-of-3 publication proof
+        id: master_governor_final
+        if: steps.chair1_audit.outcome == 'success'
+        env:
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_CANDIDATE_SHA: ${{ env.FLIXO_CANDIDATE_SHA }}
+          FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+          node scripts/ci/master-repair-governor.mjs \
+            --phase=FINAL \
+            --target-sha="$(cat /tmp/flixo-failed-sha)" \
+            --candidate-sha="$(cat /tmp/flixo-candidate-sha)" \
+            --fingerprint="$FLIXO_FAILURE_FINGERPRINT" \
+            --run-id="$GITHUB_RUN_ID" \
+            --repair-evidence=/tmp/flixo-repair-evidence.json \
+            --rca=/tmp/flixo-rca-manifest.json \
+            --root-proof=/tmp/action-root-cause-proof.json \
+            --diagnosis=/tmp/flixo-root-cause.json \
+            --verification=/tmp/flixo-candidate-verification.json \
+            --adversarial=/tmp/flixo-postpatch-adversarial.json \
+            --chair=/tmp/flixo-chair1-audit.json \
+            --platform=/tmp/flixo-platform-publication-receipt.json \
+            --historical-replay=/tmp/flixo-historical-replay.json \
+            --negative-proof=/tmp/flixo-negative-proof.json \
+            --rollback=/tmp/flixo-rollback-proof.json \
+            --canary=/tmp/flixo-canary-proof.json \
+            --output=/tmp/flixo-master-repair-governor.json
+          test "$(jq -r '.status' /tmp/flixo-master-repair-governor.json)" = TRUSTED_FOR_PUBLICATION
+          test -s /tmp/flixo-master-repair-governor.json
+          echo "FLIXO_MASTER_REPAIR_CHAIN_ROOT=$(jq -r '.proofChain.chainRootHash' /tmp/flixo-master-repair-governor.json)" >> "$GITHUB_ENV"
+
       - name: Require Chair-1 approval before Auto Repair publication
         if: steps.repair_convergence.outputs.status == 'STABLE_FOR_PUBLICATION' && steps.chair1_audit.outcome != 'success'
         run: |
@@ -1542,7 +1687,7 @@ BASHENV
 
       - name: Prepare exact Chair publication handoff
         id: publish_candidate
-        if: steps.chair1_audit.outcome == 'success'
+        if: steps.chair1_audit.outcome == 'success' && steps.master_governor_final.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -1732,6 +1877,14 @@ BASHENV
             /tmp/flixo-rca-manifest.json
             /tmp/flixo-candidate-verification.json
             /tmp/flixo-adversarial-convergence.json
+            /tmp/flixo-patch-truth.json
+            /tmp/flixo-canary-proof.json
+            /tmp/flixo-historical-replay.json
+            /tmp/flixo-negative-proof.json
+            /tmp/flixo-rollback-proof.json
+            /tmp/flixo-platform-publication-receipt.json
+            /tmp/flixo-master-repair-governor-pre.json
+            /tmp/flixo-master-repair-governor.json
           if-no-files-found: warn
           retention-days: 14
 
