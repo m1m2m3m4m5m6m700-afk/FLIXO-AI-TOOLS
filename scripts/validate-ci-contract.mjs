@@ -155,8 +155,8 @@ if (/flixo-repair-twins-/.test(autoRepairWorkflow) ||
 const localTwinBoundary =
   /name: Run adversarial twins locally inside the canonical repair trust domain[\s\S]*?id: twin/.test(autoRepairWorkflow) &&
   /git worktree add --detach \/tmp\/flixo-twin-target "\$EXPECTED_SHA"/.test(autoRepairWorkflow) &&
-  /A\) OUTPUT=\/tmp\/flixo-twin-a\.json/.test(autoRepairWorkflow) &&
-  /B\) OUTPUT=\/tmp\/flixo-twin-b\.json/.test(autoRepairWorkflow) &&
+  /OUTPUT=\/tmp\/flixo-twin-a\.json/.test(autoRepairWorkflow) &&
+  /OUTPUT=\/tmp\/flixo-twin-b\.json/.test(autoRepairWorkflow) &&
   /FLIXO_TWIN_DETACHED='true'/.test(autoRepairWorkflow) &&
   /validate-adversarial-repair-twin\.mjs/.test(autoRepairWorkflow) &&
   /ACTION-WISE select best repair option from history and twin A\/B[\s\S]*?if: steps\.twin\.outcome == 'success'/.test(autoRepairWorkflow) &&
