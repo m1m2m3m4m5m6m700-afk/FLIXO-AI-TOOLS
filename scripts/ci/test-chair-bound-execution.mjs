@@ -172,7 +172,7 @@ assert.equal(
 );
 assert.throws(
   ()=>beginWork({
-    agentId:'AUTO_REPAIR_BOT',
+    agentId:'AUTO_REPAIR_BOT_OTHER',
     targetSha:realGitSha,
     requestedChairId:'chair_1',
     repositoryState:'ACTIVE',
