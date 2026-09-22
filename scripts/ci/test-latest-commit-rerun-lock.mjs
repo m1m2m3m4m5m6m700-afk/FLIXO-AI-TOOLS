@@ -21,7 +21,7 @@ assert.match(supersession, /gh api --paginate --slurp/u);
 assert.match(supersession, /git ls-remote.*refs\/heads\/\$TARGET_BRANCH/u);
 assert.doesNotMatch(supersession, /gh api "repos\/\$GITHUB_REPOSITORY\/pulls\/\$PR_NUMBER"/u);
 assert.match(supersession, /CANCEL_STALE_RUN/u);
-assert.doesNotMatch(supersession, /gh run view \"\$run_id\" --repo \"\$REPOSITORY\" --json status/u);
+assert.doesNotMatch(supersession, new RegExp(['gh','run','view','$run_id','--repo','$REPOSITORY','--json','status'].join(' ')));
 assert.match(supersession, /head_repository\.full_name/u);
 assert.match(ci, /github\.run_attempt\s*>\s*1[\s\S]*format\('-rerun-\{0\}',\s*github\.run_id\)/u);
 assert.match(supersession, /actions\/runs\?branch=\$BRANCH/u);
