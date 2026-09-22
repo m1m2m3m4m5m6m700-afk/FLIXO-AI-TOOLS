@@ -82,6 +82,65 @@ export function captureWorkingTreeChange({
   return packet;
 }
 
+export function finalizeCandidateForChair1({
+  repoRoot=process.cwd(),
+  parentSha,
+  candidateSha,
+  currentExecutionSha,
+  currentMainSha,
+  agentId='CHAIR_1',
+  taskId='unknown-task',
+  workPackageId=null,
+}={}){
+  if(!shaOk(parentSha)||!shaOk(candidateSha)||!shaOk(currentExecutionSha)||!shaOk(currentMainSha)) throw new Error('CHAIR1_ACCUMULATOR_FINALIZE_SHA_INVALID');
+  const head=gitTrim(repoRoot,['rev-parse','HEAD']);
+  if(head!==candidateSha) throw new Error('CHAIR1_ACCUMULATOR_CANDIDATE_NOT_HEAD');
+  if(currentExecutionSha===parentSha){
+    return Object.freeze({status:'READY_TO_PUBLISH',candidateSha,parentSha,currentExecutionSha,currentMainSha,reconciled:false});
+  }
+  const before=gitTrim(repoRoot,['rev-parse','HEAD']);
+  try{
+    execFileSync('git',['-C',repoRoot,'rebase','--onto',currentExecutionSha,parentSha,candidateSha],{encoding:'utf8',stdio:['ignore','pipe','pipe']});
+    const rebasedSha=gitTrim(repoRoot,['rev-parse','HEAD']);
+    return Object.freeze({
+      status:'READY_TO_PUBLISH',
+      candidateSha:rebasedSha,
+      parentSha:currentExecutionSha,
+      currentExecutionSha,
+      currentMainSha,
+      reconciled:true,
+      reconciliation:'CHAIR1_AUTOMATIC_REBASE',
+      priorCandidateSha:candidateSha,
+      priorParentSha:parentSha,
+    });
+  }catch(error){
+    try{execFileSync('git',['-C',repoRoot,'rebase','--abort'],{encoding:'utf8',stdio:['ignore','pipe','pipe']});}catch{}
+    const packet=captureWorkingTreeChange({
+      repoRoot,
+      baseSha:parentSha,
+      executionSha:currentExecutionSha,
+      mainSha:currentMainSha,
+      agentId,
+      taskId,
+      workPackageId,
+      summary:'Candidate could not be replayed cleanly; preserved for Chair-1 reconciliation.',
+    });
+    const out='/tmp/flixo-chair1-pending-change.json';
+    fs.writeFileSync(out,JSON.stringify({...packet,status:'PENDING_CHAIR1_EDIT',rebaseError:String(error?.message??error),priorCandidateSha:candidateSha,priorParentSha:parentSha},null,2)+'\n');
+    return Object.freeze({
+      status:'PENDING_CHAIR1_EDIT',
+      candidateSha:before,
+      parentSha,
+      currentExecutionSha,
+      currentMainSha,
+      reconciled:false,
+      pendingPacket:out,
+      packet,
+      rebaseError:String(error?.message??error),
+    });
+  }
+}
+
 export function comparePendingToCurrent(packet,{currentExecutionSha,currentMainSha}={}){
   if(!packet||packet.protocol!=='FLIXO-CHAIR1-CHANGE-ACCUMULATOR-v1') throw new Error('CHAIR1_ACCUMULATOR_PACKET_INVALID');
   if(!shaOk(currentExecutionSha)||!shaOk(currentMainSha)) throw new Error('CHAIR1_ACCUMULATOR_CURRENT_SHA_INVALID');
@@ -224,6 +283,20 @@ if(process.argv[1]?.endsWith('/chair1-change-accumulator.mjs')){
     const out=arg('output','/tmp/flixo-chair1-pending-change.json');
     fs.writeFileSync(out,JSON.stringify(packet,null,2)+'\n');
     console.log(JSON.stringify({status:packet.status,proposalId:packet.proposalId,output:out,files:packet.changes.map(x=>x.path)},null,2));
+  }else if(command==='finalize'){
+    const result=finalizeCandidateForChair1({
+      repoRoot:arg('repo-root',process.cwd()),
+      parentSha:arg('parent-sha'),
+      candidateSha:arg('candidate-sha'),
+      currentExecutionSha:arg('execution-sha'),
+      currentMainSha:arg('main-sha'),
+      agentId:arg('agent','CHAIR_1'),
+      taskId:arg('task','unknown-task'),
+      workPackageId:arg('work-package')||null,
+    });
+    const out=arg('output','/tmp/flixo-chair1-finalize.json');
+    fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');
+    console.log(JSON.stringify({status:result.status,candidateSha:result.candidateSha,pendingPacket:result.pendingPacket??null,output:out},null,2));
   }else if(command==='reconcile'){
     const packet=JSON.parse(fs.readFileSync(arg('packet'),'utf8'));
     const result=reconcilePendingChange(packet,{repoRoot:arg('repo-root',process.cwd()),currentExecutionSha:arg('execution-sha'),currentMainSha:arg('main-sha')});
@@ -231,6 +304,6 @@ if(process.argv[1]?.endsWith('/chair1-change-accumulator.mjs')){
     fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');
     console.log(JSON.stringify({status:result.status,proposalId:result.proposalId,conflicts:result.conflicts,output:out},null,2));
   }else{
-    throw new Error('Usage: chair1-change-accumulator.mjs capture|reconcile');
+    throw new Error('Usage: chair1-change-accumulator.mjs capture|reconcile|finalize');
   }
 }
