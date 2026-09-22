@@ -368,40 +368,74 @@ jobs:
           echo 'CONTINUOUS_REPAIR=true: no finite chain-count may close an actionable RED cycle.'
           echo 'The cycle remains open until canonical GREEN evidence is observed.'
 
-      - name: Synchronize execution with the failed main SHA without creating a branch
+      - name: Prepare trusted controller and isolated execution target
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
           git fetch --no-tags origin main execution "$FAILED_SHA"
-          EXECUTION_BASE_SHA="$(git rev-parse origin/execution)"
-          test -n "$EXECUTION_BASE_SHA"
-          git switch --create execution "$EXECUTION_BASE_SHA"
-          # execution may advance to the failed main SHA only by fast-forward.
-          # If it contains unrelated/unmerged work, fail closed rather than branching.
-          if git merge-base --is-ancestor "$FAILED_SHA" HEAD; then
-            echo "execution already contains failed SHA $FAILED_SHA"
-          elif git merge-base --is-ancestor HEAD "$FAILED_SHA"; then
-            WORK_PACKAGE_ID="HEAD-REPAIR-SYNC:$GITHUB_RUN_ID"
-            TASK_ID="HEAD-REPAIR-SYNC:$GITHUB_RUN_ID"
-            EXECUTION_BASE_SHA="$EXECUTION_BASE_SHA"
-            node scripts/ci/chair-bound-execution.mjs init --sha="$EXECUTION_BASE_SHA"
-            node scripts/ci/chair-bound-execution.mjs acquire --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$EXECUTION_BASE_SHA" --repository-state=IDLE --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$(FLIXO_CHAIR_SIGNING_KEY="$FLIXO_CHAIR_SIGNING_KEY" node -e "const crypto=require('crypto');process.stdout.write(crypto.createHash('sha256').update('$WORK_PACKAGE_ID:$TASK_ID:$EXECUTION_BASE_SHA').digest('hex'))")" --scope="*" >/tmp/flixo-head-sync-chair.json
-            git merge --ff-only "$FAILED_SHA"
-            CANDIDATE_SHA="$(git rev-parse HEAD)"
-            node scripts/ci/chair-bound-execution.mjs authorize-publication --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$EXECUTION_BASE_SHA" --permission=SOURCE_MUTATION --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$(jq -r '.chairs.chair_1.fencing_token' /tmp/flixo-head-sync-chair.json)" --paths="*" >/tmp/flixo-head-sync-publication.json
-            node scripts/ci/execution-head-authority.mjs authorize --agent=AUTO_REPAIR_BOT --target-sha="$EXECUTION_BASE_SHA" --parent-sha="$EXECUTION_BASE_SHA" --candidate-sha="$CANDIDATE_SHA" --task-id="$TASK_ID" --work-package="$WORK_PACKAGE_ID" --output="$FLIXO_HEAD_AUTHORITY_PROOF"
-            echo 'CHAIR_GUARD_BLOCKED: Auto Repair cannot publish directly to execution.'
-
-            echo 'HANDOFF_REQUIRED: package the verified candidate for Chair-1 review instead.'
-            node scripts/ci/chair-bound-execution.mjs release --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$EXECUTION_BASE_SHA" --successful=true >/tmp/flixo-head-sync-release.json
+          MAIN_SHA="$(git rev-parse origin/main)"
+          EXECUTION_SHA="$(git rev-parse origin/execution)"
+          test "$EXECUTION_SHA" = "$FAILED_SHA" || {
+            echo "FAIL CLOSED: execution moved after failure; expected=$FAILED_SHA live=$EXECUTION_SHA"
             exit 1
-          else
-            echo "execution and failed main SHA have diverged; refusing a third branch or destructive reset."
+          }
+          test "$(git rev-parse HEAD)" = "$MAIN_SHA" || {
+            echo 'FAIL CLOSED: privileged Auto Repair workspace is not trusted main.'
             exit 1
+          }
+          CONTROLLER_ROOT=/tmp/flixo-repair-controller
+          TARGET_ROOT=/tmp/flixo-repair-target
+          rm -rf "$CONTROLLER_ROOT" "$TARGET_ROOT" /tmp/flixo-node-wrapper
+          git worktree add --detach "$CONTROLLER_ROOT" "$MAIN_SHA"
+          test "$(git -C "$CONTROLLER_ROOT" rev-parse HEAD)" = "$MAIN_SHA"
+          if [ -d "$GITHUB_WORKSPACE/node_modules" ]; then
+            ln -s "$GITHUB_WORKSPACE/node_modules" "$CONTROLLER_ROOT/node_modules"
           fi
-          test "$(git branch --show-current)" = execution
+          git worktree add --detach "$TARGET_ROOT" "$EXECUTION_SHA"
+          git -C "$TARGET_ROOT" switch -c execution "$EXECUTION_SHA"
+          test "$(git -C "$TARGET_ROOT" rev-parse HEAD)" = "$EXECUTION_SHA"
+          test "$(git -C "$TARGET_ROOT" branch --show-current)" = execution
+          REAL_NODE="$(command -v node)"
+          test -x "$REAL_NODE"
+          mkdir -p /tmp/flixo-node-wrapper
+          cat > /tmp/flixo-node-wrapper/node <<'WRAPPER'
+#!/usr/bin/env bash
+set -euo pipefail
+REAL_NODE="__FLIXO_REAL_NODE__"
+CONTROLLER_ROOT="${FLIXO_REPAIR_CONTROLLER:-/tmp/flixo-repair-controller}"
+TARGET_ROOT="${FLIXO_REPAIR_TARGET_ROOT:-/tmp/flixo-repair-target}"
+cd "$TARGET_ROOT"
+if [ "$#" -ge 1 ] && [[ "$1" == scripts/ci/* ]]; then
+  SCRIPT="$CONTROLLER_ROOT/$1"
+  shift
+  test -f "$SCRIPT" || { echo "FAIL CLOSED: trusted controller script not found: $SCRIPT" >&2; exit 1; }
+  exec "$REAL_NODE" "$SCRIPT" "$@"
+fi
+exec "$REAL_NODE" "$@"
+WRAPPER
+          sed -i "s#__FLIXO_REAL_NODE__#$REAL_NODE#g" /tmp/flixo-node-wrapper/node
+          chmod 0755 /tmp/flixo-node-wrapper/node
+          cat > /tmp/flixo-repair-bash-env <<'BASHENV'
+cd /tmp/flixo-repair-target
+BASHENV
+          printf '%s\n' "$MAIN_SHA" > /tmp/flixo-trusted-controller-sha
+          printf '%s\n' "$MAIN_SHA" > /tmp/flixo-trusted-memory-sha
+          printf '%s\n' "$EXECUTION_SHA" > /tmp/flixo-execution-target-sha
+          git show "$MAIN_SHA:diagnostics/auto-repair/memory.json" > /tmp/flixo-trusted-memory.json
+          test -s /tmp/flixo-trusted-memory.json
+          echo "FLIXO_TRUSTED_CONTROLLER_SHA=$MAIN_SHA" >> "$GITHUB_ENV"
+          echo "FLIXO_TRUSTED_MEMORY_SHA=$MAIN_SHA" >> "$GITHUB_ENV"
+          echo "FLIXO_TRUSTED_REPAIR_MEMORY=/tmp/flixo-trusted-memory.json" >> "$GITHUB_ENV"
+          echo "FLIXO_REPAIR_CONTROLLER=$CONTROLLER_ROOT" >> "$GITHUB_ENV"
+          echo "FLIXO_REPAIR_TARGET_ROOT=$TARGET_ROOT" >> "$GITHUB_ENV"
+          echo "FLIXO_EXECUTION_TARGET_SHA=$EXECUTION_SHA" >> "$GITHUB_ENV"
+          echo "BASH_ENV=/tmp/flixo-repair-bash-env" >> "$GITHUB_ENV"
+          echo "PATH=/tmp/flixo-node-wrapper:$PATH" >> "$GITHUB_ENV"
+          echo 'TRUST_MODEL=MAIN_CONTROLLER_CODE_EXECUTION_TARGET_DATA'
+          echo "TRUSTED_CONTROLLER_SOURCE_SHA=$MAIN_SHA"
+          echo "EXECUTION_TARGET_SHA=$EXECUTION_SHA"
           printf '%s\n' execution > /tmp/flixo-repair-branch
 
       - name: Prepare execution target after trusted bootstrap
@@ -512,30 +546,23 @@ jobs:
           echo 'REPAIR_BOT_HEARTBEAT_DAEMON=ACTIVE'
           echo 'REPAIR_BOT_HEARTBEAT_INTERVAL_SECONDS=60'
 
-      - name: Establish trusted main controller and active execution target
+      - name: Verify trusted controller and isolated execution target
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          git fetch --no-tags origin main execution
-          MAIN_SHA="$(git rev-parse origin/main)"
-          EXECUTION_SHA="$(git rev-parse origin/execution)"
-          CONTROLLER_SHA="$MAIN_SHA"
-          test "$CONTROLLER_SHA" = "$MAIN_SHA"
-          test "$EXECUTION_SHA" != ""
-          git worktree add --detach /tmp/flixo-repair-controller "$CONTROLLER_SHA"
-          test "$(git -C /tmp/flixo-repair-controller rev-parse HEAD)" = "$CONTROLLER_SHA"
-          git show "$MAIN_SHA:diagnostics/auto-repair/memory.json" > /tmp/flixo-trusted-memory.json
-          test -s /tmp/flixo-trusted-memory.json
-          printf "%s\n" "$CONTROLLER_SHA" > /tmp/flixo-trusted-controller-sha
-          printf "%s\n" "$MAIN_SHA" > /tmp/flixo-trusted-memory-sha
-          printf "%s\n" "$EXECUTION_SHA" > /tmp/flixo-execution-target-sha
-          echo "FLIXO_TRUSTED_CONTROLLER_SHA=$CONTROLLER_SHA" >> "$GITHUB_ENV"
-          echo "FLIXO_TRUSTED_MEMORY_SHA=$MAIN_SHA" >> "$GITHUB_ENV"
-          echo "FLIXO_TRUSTED_REPAIR_MEMORY=/tmp/flixo-trusted-memory.json" >> "$GITHUB_ENV"
-          echo "FLIXO_REPAIR_CONTROLLER=/tmp/flixo-repair-controller" >> "$GITHUB_ENV"
-          echo "FLIXO_EXECUTION_TARGET_SHA=$EXECUTION_SHA" >> "$GITHUB_ENV"
-          echo "TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET"
+          test -f /tmp/flixo-trusted-controller-sha
+          test -f /tmp/flixo-execution-target-sha
+          TRUSTED_SHA="$(cat /tmp/flixo-trusted-controller-sha)"
+          TARGET_SHA="$(cat /tmp/flixo-execution-target-sha)"
+          test "$(git -C "$FLIXO_REPAIR_CONTROLLER" rev-parse HEAD)" = "$TRUSTED_SHA"
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test "$(git branch --show-current)" = execution
+          test "$TARGET_SHA" = "$(git rev-parse origin/execution)"
+          echo 'TRUSTED_CONTROLLER=PASS'
+          echo 'EXECUTION_TARGET=PASS'
+          echo 'NODE_CONTROLLER_WRAPPER=ACTIVE'
+          echo 'BASH_TARGET_WORKTREE=ACTIVE'
 
       - name: Validate trusted controller memory before mutation
         run: |
