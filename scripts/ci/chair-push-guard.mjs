@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
-import {repositoryMode} from './chair-bound-execution.mjs';
+import {repositoryMode, recordRejectedPushValidation} from './chair-bound-execution.mjs';
 
 const ROOT=process.cwd();
 const SHA_RE=/^[a-f0-9]{40}$/u;
@@ -59,6 +59,14 @@ function persist(result){
     const memoryRecord={schemaVersion:2,protocol:'FLIXO-REJECTED-PUSH-MEMORY-v2',authority:'VALIDATION_ONLY',proposalId:result.proposalId??null,targetSha:result.targetSha??null,currentSha:result.currentSha??null,candidateSha:result.candidateSha??null,parentSha:result.parentSha??null,failedChecks:result.failedChecks??[],generatedAt:result.generatedAt};
     fs.mkdirSync(path.dirname(memoryOutput),{recursive:true});
     fs.appendFileSync(memoryOutput,JSON.stringify(memoryRecord)+'\n');
+  }
+  if(result.validationStatus==='FAIL' && proposal?.proposalId){
+    recordRejectedPushValidation({
+      proposalId:proposal.proposalId,
+      currentSha:result.currentSha,
+      reasonCode:'CHAIR_GUARD_VALIDATION_FAILED',
+      validationEvidence:result
+    });
   }
   console.log(JSON.stringify(result,null,2));
 }

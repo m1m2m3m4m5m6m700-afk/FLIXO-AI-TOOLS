@@ -643,6 +643,25 @@ export function recordControllerPushDecision({
   });
 }
 
+export function recordRejectedPushValidation({proposalId,currentSha=sha(),validationEvidence=null,reasonCode='CHAIR_GUARD_VALIDATION_FAILED'}={}){
+  const id=assertContextId(proposalId,'PROPOSAL_ID');
+  const t=assertSha(currentSha,'CURRENT_SHA');
+  if(t!==sha())throw new Error('STALE_CONTEXT');
+  if(validationEvidence?.authority!=='VALIDATION_ONLY'||validationEvidence?.validationStatus!=='FAIL')throw new Error('REJECTED_PUSH_VALIDATION_EVIDENCE_INVALID');
+  if(validationEvidence?.proposalId!==id)throw new Error('REJECTED_PUSH_VALIDATION_PROPOSAL_MISMATCH');
+  return withWriteLock(()=>{
+    const state=readState();
+    const idx=(state.push_proposals??[]).findIndex((p)=>p.proposalId===id);
+    if(idx<0)throw new Error('CHAIR_PUSH_PROPOSAL_NOT_FOUND');
+    const proposal=state.push_proposals[idx];
+    if(proposal.targetSha!==t)throw new Error('CHAIR_PUSH_PROPOSAL_STALE');
+    state.rejected_push_memory=Array.isArray(state.rejected_push_memory)?state.rejected_push_memory.slice(-499):[];
+    const record={schemaVersion:1,protocol:'FLIXO-REJECTED-PUSH-MEMORY-v2',authority:'VALIDATION_ONLY',memoryId:hash(JSON.stringify({proposalId:id,currentSha:t,reasonCode})),proposalId:id,proposerChair:proposal.proposerChair,proposerAgent:proposal.proposerAgent,targetSha:proposal.targetSha,parentSha:proposal.parentSha,candidateSha:proposal.candidateSha,workPackageId:proposal.workPackageId,taskId:proposal.taskId,paths:proposal.paths,patchSha256:proposal.patchSha256,reasonCode,summary:proposal.summary,validationEvidence:validationEvidence,reusableAfter:'ASSISTANT_CONTROLLER_REQUIRES_CURRENT_EXACT_SHA_AND_NEW_DECISION',createdAt:proposal.createdAt,rejectedAt:now()};
+    if(!state.rejected_push_memory.some((item)=>item.memoryId===record.memoryId))state.rejected_push_memory.push(record);
+    writeState(state);
+    return Object.freeze({record,targetSha:t,proposalId:id,authority:'VALIDATION_ONLY'});
+  });
+}
 export function recordGuardDecision(args={}){
   if(String(args.guardAgent??'').trim()!==CHAIR1_OWNER_AGENT)throw new Error('PUSH_DECISION_CONTROLLER_ONLY');
   return recordControllerPushDecision({
