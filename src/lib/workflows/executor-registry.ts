@@ -109,10 +109,24 @@ export function repairToolParameters(tool: ToolDefinition, parameters: Capabilit
 }
 
 export function assertExecutorCoverage(tools: readonly ToolDefinition[]): void {
-  const missing = tools
-    .filter((tool) => tool.capability.state === 'EXECUTABLE')
+  const executableTools = tools.filter((tool) => tool.capability.state === 'EXECUTABLE');
+  const executableBindings = executableTools
     .map((tool) => tool.operational.executorId)
-    .filter((executorId): executorId is string => Boolean(executorId))
-    .filter((executorId) => !EXECUTORS[executorId]);
-  if (missing.length) throw new Error(`Missing executor bindings: ${[...new Set(missing)].join(', ')}`);
+    .filter((executorId): executorId is string => Boolean(executorId));
+  const missing = executableTools
+    .filter((tool) => !tool.operational.executorId || !EXECUTORS[tool.operational.executorId])
+    .map((tool) => tool.id);
+  const orphan = Object.keys(EXECUTORS).filter((executorId) => !executableBindings.includes(executorId));
+  const invalidNonExecutable = tools
+    .filter((tool) => tool.capability.state !== 'EXECUTABLE' && tool.operational.executorId !== null)
+    .map((tool) => tool.id);
+
+  if (missing.length || orphan.length || invalidNonExecutable.length) {
+    const details = [
+      missing.length ? `missing=${missing.join(',')}` : '',
+      orphan.length ? `orphan=${orphan.join(',')}` : '',
+      invalidNonExecutable.length ? `nonExecutableBound=${invalidNonExecutable.join(',')}` : '',
+    ].filter(Boolean).join('; ');
+    throw new Error(`Executor registry coverage mismatch: ${details}`);
+  }
 }
