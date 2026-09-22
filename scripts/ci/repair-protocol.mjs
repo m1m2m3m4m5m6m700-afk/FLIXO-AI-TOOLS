@@ -69,7 +69,13 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
       consensus = session?.cellLabConsensus
         ? validateCellLabConsensus(session.cellLabConsensus, { taskId, exactSha: session?.targetSHA ?? '', mutationOwner: actor })
         : loadAndValidateCellLabConsensus({ file: session?.cellLabConsensusFile, taskId, exactSha: session?.targetSHA ?? '', mutationOwner: actor });
-    } catch (error) { throw new Error('CELL_LAB_CONSENSUS_REQUIRED: '+(error instanceof Error ? error.message : String(error)), {cause:error}); }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message === 'CELL_LAB_EXACT_SHA_MISMATCH' || message === 'CELL_LAB_PLAN_HASH_MISMATCH') {
+        throw new Error(message, {cause:error});
+      }
+      throw new Error('CELL_LAB_CONSENSUS_REQUIRED: '+message, {cause:error});
+    }
     if(consensus.executionReady!==true || consensus.status!=='AGREED' || consensus.exactSha!==session.targetSHA) throw new Error('CELL_LAB_CONSENSUS_NOT_EXECUTION_READY');
   }
   if(mutation&&!protocolOk(session)) throw new Error('REPAIR_PROTOCOL_SESSION_REQUIRED');
