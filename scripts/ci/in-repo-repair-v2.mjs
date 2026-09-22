@@ -68,6 +68,15 @@ function unique(items) {
   return [...new Set(items.map(function(item) { return String(item ?? '').trim(); }).filter(Boolean))];
 }
 
+function meaningfulTokens(value) {
+  return unique(String(value ?? '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .split(/\s+/u))
+    .filter(function(token) { return token.length >= 5; })
+    .slice(0, 16);
+}
+
 function hypothesisRecord(item, role, rank) {
   return {
     id: String(item?.id ?? item?.rootCause ?? item?.name ?? 'HYPOTHESIS_' + rank),
@@ -173,6 +182,23 @@ export function buildRcaManifest(input) {
   const guidancePath = String(input.convergenceGuidancePath ?? process.env.FLIXO_CONVERGENCE_GUIDANCE_PATH ?? '');
   const prior = cycle > 1 ? readJson(guidancePath) : null;
   if (cycle > 1 && !prior) fail('PRIOR_COUNTEREXAMPLE_REQUIRED', { cycle, guidancePath });
+  const priorDirective = prior?.convergenceDirective ?? prior?.convergence_directive ?? null;
+  const convergenceEvidenceText = JSON.stringify({ diagnosis, plan, selected, invariant }).toLowerCase();
+  const priorInvariantTokens = meaningfulTokens(priorDirective?.target_invariant);
+  const priorGuardTokens = meaningfulTokens(priorDirective?.missing_guard);
+  const invariantHits = priorInvariantTokens.filter(function(token) { return convergenceEvidenceText.includes(token); });
+  const guardHits = priorGuardTokens.filter(function(token) { return convergenceEvidenceText.includes(token); });
+  const previousCounterexampleAddressed = cycle === 1
+    ? false
+    : Boolean(priorDirective && priorInvariantTokens.length && priorGuardTokens.length && invariantHits.length > 0 && guardHits.length > 0);
+  if (cycle > 1 && !previousCounterexampleAddressed) {
+    fail('PRIOR_COUNTEREXAMPLE_NOT_ADDRESSED', {
+      cycle,
+      guidancePath,
+      invariantHits,
+      guardHits
+    });
+  }
   const proposedStrategy = String(selected?.id ?? plan?.selected?.id ?? process.env.FLIXO_REPAIR_STRATEGY ?? 'NO_SAFE_MUTATION');
 
   const evidenceDigest = sha256(JSON.stringify({
@@ -232,7 +258,9 @@ export function buildRcaManifest(input) {
       max_cycles: 3,
       prior_counterexample_required_after_cycle_1: true,
       prior_counterexample_digest: prior ? sha256(JSON.stringify(prior)) : null,
-      prior_counterexample: prior?.convergenceDirective ?? prior?.convergence_directive ?? null
+      prior_counterexample: priorDirective,
+      previous_counterexample_addressed: previousCounterexampleAddressed,
+      address_evidence_digest: cycle > 1 ? sha256(JSON.stringify({ invariantHits, guardHits, proposedStrategy, invariant })) : null
     },
     deterministic_proof: {
       status: 'PRE_MUTATION_BOUNDED',
@@ -268,6 +296,9 @@ export function validateRcaManifest(manifest, options = {}) {
   if (manifest.convergence?.search_space_strategy !== 'EVIDENCE_BOUNDED') fail('RCA_SEARCH_SPACE_NOT_BOUNDED');
   if (manifest.convergence?.max_cycles !== 3) fail('RCA_MAX_CYCLES_INVALID');
   if (manifest.convergence?.prior_counterexample_required_after_cycle_1 !== true) fail('RCA_PRIOR_COUNTEREXAMPLE_POLICY_INVALID');
+  if (manifest.cycle === 1 && manifest.convergence?.previous_counterexample_addressed !== false) fail('RCA_INITIAL_CONVERGENCE_STATE_INVALID');
+  if (manifest.cycle > 1 && manifest.convergence?.previous_counterexample_addressed !== true) fail('RCA_PRIOR_COUNTEREXAMPLE_NOT_ADDRESSED');
+  if (manifest.cycle > 1 && !SHA256_RE.test(String(manifest.convergence?.address_evidence_digest ?? ''))) fail('RCA_ADDRESS_EVIDENCE_MISSING');
   if (requireMutationEligible && manifest.deterministic_proof?.status !== 'PRE_MUTATION_BOUNDED') fail('RCA_PRE_MUTATION_PROOF_REQUIRED');
   return Object.freeze({ status: 'PASS', mutationEligible: requireMutationEligible });
 }
