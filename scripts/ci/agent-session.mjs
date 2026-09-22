@@ -408,7 +408,7 @@ if (command === 'meeting-exit-approve') {
     if (!fs.existsSync(predecessorFile)) throw new Error(`Previous handoff report not found: ${fromSession}`);
     const predecessor = JSON.parse(fs.readFileSync(predecessorFile, 'utf8'));
     if (!['VERIFIED', 'BLOCKED'].includes(predecessor.status)) throw new Error(`Previous session is not closed: ${fromSession}`);
-    if (!/^[a-f0-9]{40}$/u.test(String(predecessor.exitSha ?? '')) || predecessor.exitSha !== currentSha) throw new Error(`CONTINUATION_STALE_EXIT_SHA=${fromSession}`);
+    if (!predecessor.workspaceIsolation && (!/^[a-f0-9]{40}$/u.test(String(predecessor.exitSha ?? '')) || predecessor.exitSha !== currentSha)) throw new Error(`CONTINUATION_STALE_EXIT_SHA=${fromSession}`);
     continuation = {
       continuationFrom: fromSession,
       inheritedExitSha: predecessor.exitSha ?? null,
