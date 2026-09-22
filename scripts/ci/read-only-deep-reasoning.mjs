@@ -4,6 +4,13 @@ import { buildCausalDiscriminator } from './action-causal-discriminator.mjs';
 import { buildMetaCausalModel } from './meta-causal-model.mjs';
 import { buildRepairIntelligenceMirror } from './read-only-repair-intelligence.mjs';
 import { READ_ONLY_POWER_PROFILE } from './read-only-power-profile.mjs';
+import { buildSharedLearningContext } from './shared-operational-memory.mjs';
+
+const DEEP_REASONING_PROTOCOLS = Object.freeze({
+  repairIntelligence: 'FLIXO-READ-ONLY-REPAIR-INTELLIGENCE-v1',
+  causalDiscriminator: 'CAUSAL-DISCRIMINATOR-v1',
+  metaCausalModel: 'META-CAUSAL-MODEL-v1',
+});
 
 const clamp = (value, min=0, max=1) => Math.max(min, Math.min(max, Number(value) || 0));
 const exactSha = (value) => /^[a-f0-9]{40}$/u.test(String(value ?? ''));
@@ -235,6 +242,19 @@ export function buildDeepInference({
 } = {}) {
   if (!exactSha(executionSha)) throw new Error('DEEP_REASONING_EXACT_SHA_REQUIRED');
 
+  const sharedFingerprint = safeObserved.find((item) => item.fingerprint)?.fingerprint ?? null;
+  const sharedOperationalMemory = buildSharedLearningContext({
+    fingerprint: sharedFingerprint,
+    limit: 48,
+  });
+  const adaptiveInvestigation = {
+    mode: 'ADAPTIVE_READ_ONLY',
+    protocol: DEEP_REASONING_PROTOCOLS,
+    sharedOperationalMemory,
+    mutationAuthority: false,
+    certificationAuthority: false,
+  };
+
   const safeObserved = Array.isArray(observed) ? observed : [];
   const graphNodes = new Map();
   const graphEdges = [];
@@ -365,6 +385,8 @@ export function buildDeepInference({
     causalDiscriminator,
     metaCausalModel,
     repairIntelligence,
+    adaptiveInvestigation,
+    sharedOperationalMemory,
     hypotheses: classes,
     falsification,
     counterfactuals,

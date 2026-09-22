@@ -3,16 +3,23 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 const { verifyExecutionHeadAuthority } = await import('./execution-head-authority.mjs');
 
 
 const read=(file)=>fs.readFileSync(file,'utf8');
-const target='a'.repeat(40);
-const candidate='b'.repeat(40);
-const proof={
-  schemaVersion:1,
+const git=(args)=>execFileSync('git',args,{encoding:'utf8'}).trim();
+const candidate=git(['rev-parse','HEAD']);
+let target;
+try { target=git(['rev-parse','HEAD^']); }
+catch {
+  execFileSync('git',['fetch','--no-tags','--depth=2','origin',candidate],{stdio:'ignore'});
+  target=git(['rev-parse','HEAD^']);
+}
+assert.notEqual(target,candidate);
+const proofCore={
   protocol:'FLIXO-CHAIR1-EXECUTION-HEAD-AUTHORITY-v1',
-  authorized:true,
   chairId:'chair_1',
   agentId:'chair-test',
   leaseId:'c'.repeat(64),
@@ -21,7 +28,14 @@ const proof={
   targetSha:target,
   parentSha:target,
   candidateSha:candidate,
-  exactSha:true
+};
+const proof={
+  schemaVersion:1,
+  ...proofCore,
+  phase:'FINAL_PUBLICATION',
+  authorized:true,
+  exactSha:true,
+  proofDigest:createHash('sha256').update(JSON.stringify(proofCore),'utf8').digest('hex')
 };
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-head-authority-'));
 const proofFile=path.join(dir,'proof.json');
