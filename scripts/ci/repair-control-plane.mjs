@@ -71,6 +71,8 @@ export const LEASE_STATES = Object.freeze([
   'LEASE_CIRCUIT_OPEN',
 ]);
 
+const IMMUTABLE_REPAIR_IDENTITY_FIELDS = Object.freeze(['repairChainId','dispatchKey','claimKey','leaseRef','recoveryRefPrefix','eventRefPrefix','targetRunId','failureFingerprint','failedSha','executionSha','observedBranch']);
+
 export const REPAIR_OUTCOMES = Object.freeze([
   'VERIFIED_REPAIR',
   'VERIFIED_HISTORICAL_REVERT',
@@ -245,6 +247,25 @@ export function recordBrotherChallenge(session, {
   return Object.freeze(next);
 }
 
+export function repairIdentityDigest({ repairChainId, dispatchKey, claimKey, leaseRef, recoveryRefPrefix, eventRefPrefix, targetRunId, failureFingerprint, failedSha, executionSha, observedBranch } = {}) {
+  return sha256(JSON.stringify({ repairChainId:String(repairChainId??''),dispatchKey:String(dispatchKey??''),claimKey:String(claimKey??''),leaseRef:String(leaseRef??''),recoveryRefPrefix:String(recoveryRefPrefix??''),eventRefPrefix:String(eventRefPrefix??''),targetRunId:String(targetRunId??''),failureFingerprint:String(failureFingerprint??''),failedSha:String(failedSha??''),executionSha:String(executionSha??''),observedBranch:String(observedBranch??'') }));
+}
+
+export function assertRepairIdentityLocked(cycle) {
+  if (!cycle || typeof cycle !== 'object') throw new Error('CONTROL_PLANE_CYCLE_INVALID');
+  if (cycle.observedBranch !== 'execution') throw new Error('CONTROL_PLANE_REPAIR_BRANCH_BLOCKED');
+  if (!isSha(cycle.failedSha) || !isSha(cycle.executionSha)) throw new Error('CONTROL_PLANE_IDENTITY_SHA_INVALID');
+  if (cycle.failedSha !== cycle.executionSha) throw new Error('CONTROL_PLANE_EXECUTION_SHA_MISMATCH');
+  requireText('failureFingerprint',cycle.failureFingerprint); requireText('targetRunId',cycle.targetRunId);
+  const canonical=deriveRepairIdentity({failureFingerprint:cycle.failureFingerprint,failedSha:cycle.failedSha,targetRunId:cycle.targetRunId,branch:cycle.observedBranch});
+  for (const field of ['dispatchKey','claimKey','repairChainId','leaseRef','recoveryRefPrefix','eventRefPrefix']) if(cycle[field]!==canonical[field]) throw new Error('CONTROL_PLANE_IDENTITY_DERIVATION_MISMATCH:'+field);
+  if(!/^[a-f0-9]{64}$/u.test(String(cycle.identityDigest??''))) throw new Error('CONTROL_PLANE_IDENTITY_DIGEST_MISSING');
+  if(cycle.identityDigest!==repairIdentityDigest(cycle)) throw new Error('CONTROL_PLANE_IDENTITY_DIGEST_MISMATCH');
+  return true;
+}
+
+function assertImmutableIdentityPatch(cycle,patch={}) { for(const field of IMMUTABLE_REPAIR_IDENTITY_FIELDS) if(Object.prototype.hasOwnProperty.call(patch,field)&&String(patch[field])!==String(cycle[field])) throw new Error('CONTROL_PLANE_IDENTITY_IMMUTABLE:'+field); }
+
 export function deriveRepairIdentity({ failureFingerprint, failedSha, targetRunId, branch = 'execution' }) {
   requireText('failureFingerprint', failureFingerprint);
   requireText('targetRunId', targetRunId);
@@ -373,11 +394,14 @@ export function createRepairCycle({
   if (observedBranch !== 'execution') throw new Error('CONTROL_PLANE_REPAIR_BRANCH_BLOCKED');
   if (!isSha(executionSha)) throw new Error('CONTROL_PLANE_EXECUTION_SHA_INVALID');
   if (mainSha !== null && !isSha(mainSha)) throw new Error('CONTROL_PLANE_MAIN_SHA_INVALID');
-  const identity = deriveRepairIdentity({ failureFingerprint, failedSha, targetRunId, branch: observedBranch });
+  if(failedSha!==executionSha) throw new Error('CONTROL_PLANE_EXECUTION_SHA_MISMATCH');
+  const identity=deriveRepairIdentity({failureFingerprint,failedSha,targetRunId,branch:observedBranch});
+  const identityDigest=repairIdentityDigest({...identity,targetRunId,failureFingerprint,failedSha,executionSha,observedBranch});
   return Object.freeze({
     schemaVersion: CONTROL_PLANE_SCHEMA_VERSION,
     authority: CONTROL_PLANE_AUTHORITY,
     ...identity,
+    identityDigest,
     state: 'DETECTED',
     targetRunId: requireText('targetRunId', targetRunId),
     failureFingerprint: String(failureFingerprint),
@@ -419,7 +443,9 @@ export function transitionRepairCycle(cycle, to, {
   evidence = null,
   patch = {},
 } = {}) {
-  assertTransition(cycle.state, to);
+  assertRepairIdentityLocked(cycle);
+  assertImmutableIdentityPatch(cycle,patch);
+  assertTransition(cycle.state,to);
   if (to === 'MUTATING' && cycle.observedBranch !== 'execution') {
     throw new Error('CONTROL_PLANE_MUTATION_BRANCH_BLOCKED');
   }
@@ -489,12 +515,16 @@ export function assertClosure(cycle, {
   zeroRedChecks = false,
   freshExactShaEvidence = false,
   regressionProof = false,
-  noUnprocessedActionableRed = false,
+  noUnprocessedActionableRed=false,
+  closureProofs=null,
 } = {}) {
-  if (cycle.state !== 'PROMOTION') throw new Error('CONTROL_PLANE_CLOSURE_STATE_BLOCKED');
+  assertRepairIdentityLocked(cycle);
+  if(cycle.state!=='PROMOTION') throw new Error('CONTROL_PLANE_CLOSURE_STATE_BLOCKED');
   const gates = { canonicalGreen, zeroRedChecks, freshExactShaEvidence, regressionProof, noUnprocessedActionableRed };
   const failed = Object.entries(gates).filter(([, ok]) => ok !== true).map(([key]) => key);
-  if (failed.length) throw new Error(`CONTROL_PLANE_CLOSURE_BLOCKED=${failed.join(',')}`);
+  if(failed.length) throw new Error(`CONTROL_PLANE_CLOSURE_BLOCKED=${failed.join(',')}`);
+  const proofs=closureProofs??{};
+  for(const key of Object.keys(gates)){const proof=proofs[key];if(!proof||proof.result!=='PASS'||proof.sourceSha!==cycle.executionSha)throw new Error(`CONTROL_PLANE_CLOSURE_PROOF_INVALID=${key}`);}
   return true;
 }
 
@@ -511,6 +541,9 @@ export function controlPlaneSchema() {
       'CANONICAL_CI_IS_FINAL_GREEN_AUTHORITY',
       'RED_REMAINS_OPEN_UNTIL_VERIFIED_GREEN',
       'STALE_SHA_BLOCKS_PUBLICATION',
+      'REPAIR_IDENTITY_IS_IMMUTABLE_FOR_THE_FULL_CYCLE',
+      'FAILED_SHA_MUST_EQUAL_EXECUTION_SHA_AT_CYCLE_CREATION',
+      'CLOSURE_REQUIRES_SHA_BOUND_PROOF_OBJECTS',
         'DUPLICATE_CLAIMS_SHARE_A_DETERMINISTIC_CLAIM_KEY',
       'GLOBAL_REPAIR_LEASE_IS_ATOMIC_AND_DURABLE',
       'GLOBAL_REPAIR_LEASE_IS_HTTP_STATUS_DRIVEN',
