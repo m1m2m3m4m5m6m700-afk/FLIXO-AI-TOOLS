@@ -11,6 +11,9 @@ const failures=[];
 const source=fs.readFileSync(target,'utf8');
 const testSource=fs.readFileSync(test,'utf8');
 const workflowSource=fs.readFileSync(workflow,'utf8');
+const deepReasoning=path.resolve(root,'scripts/ci/read-only-deep-reasoning.mjs');
+const deepTest=path.resolve(root,'scripts/ci/test-read-only-deep-reasoning.mjs');
+const deepContract=path.resolve(root,'scripts/ci/validate-read-only-deep-reasoning.mjs');
 
 const required=[
  "authority: 'READ_ONLY_ERROR_INVESTIGATOR'",
@@ -24,7 +27,9 @@ const required=[
  "staleEvidence",
  "securitySignals",
  "historicalSignals",
+ "deepInference: buildDeepInference",
 ];
+
 for(const marker of required) if(!source.includes(marker)) failures.push('MISSING_MARKER='+marker);
 
 if(/git\s+(add|commit|push|reset|checkout)|update_file|create_file|delete_file|mergePullRequest|create_pull_request/u.test(source)) failures.push('FORBIDDEN_MUTATION_API_OR_GIT_OPERATION');
@@ -36,6 +41,8 @@ if(!workflowSource.includes('contents: read') || !workflowSource.includes('actio
 if(workflowSource.includes('contents: write') || workflowSource.includes('actions: write')) failures.push('WRITE_PERMISSION_PRESENT');
 if(!workflowSource.includes('ref: execution')) failures.push('EXECUTION_REF_NOT_PINNED');
 if(!testSource.includes('CAPIError') || !testSource.includes('CI contract failed')) failures.push('ROOT_CAUSE_FIXTURES_MISSING');
+if(!fs.existsSync(deepReasoning) || !fs.existsSync(deepTest) || !fs.existsSync(deepContract)) failures.push('DEEP_REASONING_SURFACE_MISSING');
+if(!source.includes('buildDeepInference')) failures.push('DEEP_REASONING_INTEGRATION_MARKER_MISSING');
 
 const sha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
 const result={schemaVersion:1,authority:'READ_ONLY_ERROR_INVESTIGATOR_CONTRACT',status:failures.length?'FAIL':'PASS',checkedSha:sha,failures};
