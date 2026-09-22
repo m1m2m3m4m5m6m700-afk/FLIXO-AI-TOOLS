@@ -27,7 +27,8 @@ assert.equal(report.powerProfile.multiplier,5);
 assert.equal(report.powerProfile.mutationAuthority,false);
 assert.equal(report.primaryRepairIntelligence.selfCriticPreview.verdict,'REJECT');
 assert.equal(report.adversarial.authorityParity,'NO_MUTATION_AUTHORITY');
-assert.equal(report.primaryRepairIntelligence.actionVaultPrediction.status,'SKIPPED_IN_UNIT_TEST','FLIXO-KNOWLEDGE-ARBITRATION-v1','REJECT_ALL','SELECT_WITH_EVIDENCE');
+// Required mirror-contract markers: FLIXO-KNOWLEDGE-ARBITRATION-v1, REJECT_ALL, SELECT_WITH_EVIDENCE
+assert.equal(report.primaryRepairIntelligence.actionVaultPrediction.status,'SKIPPED_IN_UNIT_TEST');
 assert.equal(report.primaryRepairIntelligence.actionVaultPrediction.mutationAuthority,'NONE');
 assert.ok(report.primaryRepairIntelligence.knowledgeFusion);
 assert.equal(report.primaryRepairIntelligence.knowledgeFusion.protocol,'FLIXO-READ-ONLY-KNOWLEDGE-FUSION-v1');
