@@ -49,7 +49,25 @@ export function validateCapabilityParameters(id: string, parameters: unknown = {
   const capability = getCapability(id);
   if (!capability) throw new Error(`Unknown capability: ${id}`);
   if (capability.state !== 'EXECUTABLE') throw new Error(`Capability '${id}' is not executable.`);
-  return capability.parameterSchema.parse(parameters) as CapabilityParameters;
+
+  const parsed = capability.parameterSchema.safeParse(parameters);
+  if (!parsed.success) throw new Error(`Capability '${id}' parameters failed the canonical schema validation.`);
+  if (
+    parameters !== null
+    && typeof parameters === 'object'
+    && !Array.isArray(parameters)
+    && parsed.data !== null
+    && typeof parsed.data === 'object'
+    && !Array.isArray(parsed.data)
+  ) {
+    const acceptedKeys = new Set(Object.keys(parsed.data as Record<string, unknown>));
+    const unknownKeys = Object.keys(parameters as Record<string, unknown>)
+      .filter((key) => !acceptedKeys.has(key));
+    if (unknownKeys.length > 0) {
+      throw new Error(`Capability '${id}' received unsupported parameters.`);
+    }
+  }
+  return parsed.data as CapabilityParameters;
 }
 
 export function assertExecutionResourceBudget(id: string, inputBlob: Blob, requestedPixels?: number): void {

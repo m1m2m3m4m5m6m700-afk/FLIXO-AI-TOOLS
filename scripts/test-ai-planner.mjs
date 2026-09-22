@@ -69,8 +69,7 @@ const unboundPlan = safeParseExecutionPlan({
   confidence: 0.9,
   steps: [{ toolId: 'image-compressor', params: { quality: 0.8 } }],
 });
-assert.equal(unboundPlan.success, true);
-if (unboundPlan.success) assert.equal(unboundPlan.data.catalogFingerprint, TOOL_CATALOG.fingerprint);
+assert.equal(unboundPlan.success, false);
 
 const unsupportedParameter = safeParseExecutionPlan({
   workflowName: 'Invalid Parameter',
