@@ -104,8 +104,30 @@ jobs:
             local status="$3"
             local name="$4"
             local event="$5"
-            echo "CANCEL stale run=$run_id sha=$head_sha name=$name event=$event status=$status"
+            echo "CANDIDATE stale run=$run_id sha=$head_sha name=$name event=$event listed_status=$status"
 
+            # A stale SHA invalidates its evidence, but must NOT kill an already-running test.
+            # Only queued/pending/requested/waiting runs are safe to cancel.
+            local live_status=""
+            live_status="$(gh run view "$run_id" --repo "$REPOSITORY" --json status --jq '.status')"
+            case "$live_status" in
+              in_progress)
+                echo "KEEP_IN_PROGRESS_STALE run=$run_id status=$live_status"
+                return 0
+                ;;
+              completed)
+                echo "STALE_RUN_ALREADY_COMPLETED run=$run_id"
+                return 0
+                ;;
+              queued|waiting|requested|pending)
+                ;;
+              *)
+                echo "KEEP_UNKNOWN_RUN_STATUS run=$run_id status=$live_status"
+                return 0
+                ;;
+            esac
+
+            echo "CANCEL_QUEUED_STALE run=$run_id status=$live_status"
             local cancel_output=""
             local attempt=1
             local now_status=""
@@ -123,10 +145,16 @@ jobs:
               local status_output=""
               if status_output="$(gh run view "$run_id" --repo "$REPOSITORY" --json status --jq '.status' 2>&1)"; then
                 now_status="$status_output"
-                if [ "$now_status" = "completed" ]; then
-                  echo "STALE_RUN_ALREADY_COMPLETED run=$run_id"
-                  return 0
-                fi
+                case "$now_status" in
+                  in_progress)
+                    echo "KEEP_IN_PROGRESS_STALE_DURING_CANCEL run=$run_id"
+                    return 0
+                    ;;
+                  completed)
+                    echo "STALE_RUN_ALREADY_COMPLETED run=$run_id"
+                    return 0
+                    ;;
+                esac
               elif printf '%s' "$status_output" | grep -Eiq 'API rate limit exceeded|rate limit exceeded|secondary rate limit|abuse detection'; then
                 echo "BLOCKED_EXTERNAL: GitHub Actions API rate limit prevented stale-run status lookup for run=$run_id"
                 echo "SUPERSESSION_EXTERNAL_BLOCKER=GITHUB_ACTIONS_API_RATE_LIMIT"
