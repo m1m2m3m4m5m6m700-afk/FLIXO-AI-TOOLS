@@ -62,7 +62,7 @@ assert.throws(()=>authorizeWrite({chairId:'chair_2',agentId:'agent-beta-2',targe
 assert.equal(repositoryMode({targetSha:realGitSha}).singleAgentMode,false);
 release({chairId:'chair_2',agentId:'agent-beta-2',targetSha:realGitSha});
 
-release({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha});
+release({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,successful:true,taskId:'CHAIR1-ALPHA-TASK'});
 
 const hardeningRoot=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-chair-hardening-'));
 process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_PATH=path.join(hardeningRoot,'readonly');
