@@ -1,9 +1,8 @@
 name: FLIXO Test System
 
 on:
-  pull_request:
-    branches: [main]
-  # Every push to execution starts the canonical test run; a newer push cancels older tests for this branch.
+  # Canonical execution source is one push-triggered run per exact SHA.
+  # PRs consume the same commit check-runs; this avoids a duplicate heavy Test System run.
   push:
     branches: [main, execution]
   workflow_dispatch:
