@@ -159,7 +159,7 @@ export function validateStatic() {
   must(!/git\s+push[^\n]*\bmain\b/.test(auto), 'auto-repair-no-main-push');
   must(!/gh\s+pr\s+merge/i.test(auto), 'auto-repair-no-self-merge');
   must(/actions\/workflows\/auto-repair\.yml\/dispatches/.test(dailyGate), 'daily-gate-auto-repair-dispatch');
-  must(/group:\s*flixo-auto-repair-.*execution-writer/.test(auto), 'auto-repair-single-execution-writer-lane');
+  must(/group:\s*flixo-execution-mutation-lane/.test(auto), 'auto-repair-single-execution-writer-lane');
   must(/contents:\s*read/.test(dailyGate) && !/contents:\s*write/.test(dailyGate), 'daily-gate-no-source-mutation-permission');
   must(!/gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i.test(dailyGate), 'daily-gate-no-watchdog-dispatch');
   must(/workflow_run:/.test(watchdog), 'watchdog-workflow-run-trigger');
