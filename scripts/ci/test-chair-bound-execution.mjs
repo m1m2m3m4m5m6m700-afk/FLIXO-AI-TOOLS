@@ -174,12 +174,21 @@ assert.throws(
   /CHAIR_NOT_OCCUPIED|UNAUTHORIZED_EXECUTION_ATTEMPT/
 );
 assert.deepEqual(assertWorkAdmission({agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha,chairId:'chair_1',taskId:'AUTO-REPAIR-TASK'}),autoRepairContinuity);
-assert.throws(
-  ()=>beginWork({agentId:'MASTER-3',role:'MASTER-3',requestedChairId:'chair_1',targetSha:realGitSha,repositoryState:'IDLE',taskId:'MASTER-3-TASK',workPackageId:'MASTER-3-WP'}),
-  /CHAIR1_HIGHER_MASTER_ACTIVE/
-);
+const master3Admission=beginWork({
+  agentId:'MASTER-3',
+  role:'MASTER-3',
+  requestedChairId:'chair_1',
+  targetSha:realGitSha,
+  repositoryState:'ACTIVE',
+  taskId:'MASTER-3-TASK',
+  workPackageId:'MASTER-3-WP'
+});
+assert.equal(master3Admission.chairId,'chair_1');
+assert.equal(master3Admission.preemptedAgentId,'MASTER-2');
+
 const master2Continuity=preemptedContinuityForAgent({agentId:'MASTER-2',targetSha:realGitSha,taskId:'MASTER-2-TASK'});
 assert.equal(master2Continuity.canContinueTask,true);
+assert.equal(master2Continuity.canMutateAfterPreemption,false);
 assert.equal(master2Continuity.handoffTo,'CHAIR_1_GUARD');
 
 const ordinaryTakeover=beginWork({
@@ -192,7 +201,7 @@ const ordinaryTakeover=beginWork({
   workPackageId:'ORDINARY-TAKEOVER-WP'
 });
 assert.equal(ordinaryTakeover.chairId,'chair_1');
-assert.equal(ordinaryTakeover.preemptedAgentId,'MASTER-2');
+assert.equal(ordinaryTakeover.preemptedAgentId,'MASTER-3');
 const master2AfterOrdinaryTakeover=preemptedContinuityForAgent({
   agentId:'MASTER-2',
   targetSha:realGitSha,
