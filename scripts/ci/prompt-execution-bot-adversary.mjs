@@ -46,6 +46,11 @@ export function buildAdversarialReview({ prompt, plan }) {
   add('PROOF_COMPLETENESS', ['CURRENT_EXACT_EXECUTION_SHA','NO_MAIN_MUTATION','NO_THIRD_ACTIVE_BRANCH','CANONICAL_PROMPT_BOUND','PROMPT_REGISTRY_VALID','TARGETED_VERIFICATION','AFFECTED_CONTRACT_GRAPH_VERIFICATION','CANONICAL_GREEN_FOR_CLOSURE'].every((item) => plan.workPackage.proofObligations.includes(item)), plan.workPackage.proofObligations.join(','), 'Is any mandatory proof obligation missing?');
   add('SAFETY_FLAGS', plan.promptSafety?.userInputIsUntrustedData && plan.promptSafety?.externalArtifactsAreUntrustedData && plan.promptSafety?.noArbitraryShellFromPrompt && plan.promptSafety?.noPromptAuthorityElevation && plan.promptSafety?.noDirectMainMutation && plan.promptSafety?.noThirdBranchCreation, JSON.stringify(plan.promptSafety ?? {}), 'Could an untrusted input or artifact gain execution authority?');
   add('NO_FALSE_GREEN', /(?:green|success|done|complete|closed|نجح|أخضر|مكتمل)/iu.test(p) ? plan.workPackage.proofObligations.includes('CANONICAL_GREEN_FOR_CLOSURE') : true, 'Closure claims remain evidence-bound.', 'Could wording about success become false proof?');
+  add('MASTER_REPAIR_BINDING', plan.intent !== 'REPAIR_DIAGNOSE' || plan.workPackage.dependencies.includes('MASTER_REPAIR_GATE'), 'Repair flows bind the Master Repair gate.', 'Could a repair bypass the Master supervisory gate?');
+  add('GUARD_HANDOFF_BINDING', plan.workPackage.dependencies.includes('GUARD_COMMUNICATION'), 'Guard communication is a required dependency.', 'Could work proceed without the required guard handoff?');
+  add('MEMORY_BINDING', plan.workPackage.dependencies.includes('SHARED_OPERATIONAL_MEMORY') && plan.workPackage.dependencies.includes('ERROR_MEMORY'), 'Operational memory is explicitly bound.', 'Could the repair forget prior failures or anti-lessons?');
+  add('SINGLE_LANE_ENFORCEMENT', plan.promptSafety.noThirdBranchCreation === true && plan.promptSafety.noDirectMainMutation === true, 'Canonical execution lane constraints are preserved.', 'Could repair create a competing mutation lane?');
+  add('CERTIFICATION_BOUNDARY', plan.workPackage.proofObligations.includes('CANONICAL_GREEN_FOR_CLOSURE'), 'Closure remains bound to Canonical GREEN.', 'Could a local repair claim certification early?');
 
   const counterexamples = [];
   const hard = plan.constraints?.hard ?? [];
@@ -73,9 +78,16 @@ export function buildAdversarialReview({ prompt, plan }) {
       { id: 'ALT_SCOPE_CREEP', question: 'Does the plan contain scope not required by the goal?' },
       { id: 'ALT_STALE_EVIDENCE', question: 'Did evidence originate from another SHA?' },
       { id: 'ALT_FALSE_CLOSURE', question: 'Is completion being inferred before canonical verification?' },
+      { id: 'ALT_SECURITY_CONTRACT', question: 'Could a security/control contract be the actual root rather than the visible failure?' },
+      { id: 'ALT_DEPENDENCY_INTERACTION', question: 'Could a transitive dependency or runtime interaction explain the signal?' },
+      { id: 'ALT_WORKFLOW_CONTRACT', question: 'Could workflow orchestration or gate ordering be the real cause?' },
+      { id: 'ALT_MEMORY_STALE', question: 'Could stale learning or historical evidence be steering the repair incorrectly?' },
+      { id: 'ALT_AUTHORITY_DRIFT', question: 'Could a control-plane or authority boundary drift be the underlying defect?' },
     ],
     requiredResponse: counterexamples.length ? 'STOP_AND_REVIEW' : 'PROCEED_TO_EXISTING_AUTHORIZED_EXECUTOR',
-    evidenceGrade: status === 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE' ? 'E4' : 'E2',
+    minimumFalsificationChecks: 10,
+    powerProfile: '10X',
+    evidenceGrade: status === 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE' ? 'E5' : 'E2',
     trace: { checksRun: checks.length, passedChecks, failedChecks: checks.length - passedChecks, counterexamples: counterexamples.length },
   });
 }
@@ -148,7 +160,7 @@ function detectRecurringFailures(rounds) {
   for (const round of rounds) for (const failure of round.failures ?? []) counts.set(failure.checkId, (counts.get(failure.checkId) ?? 0) + 1);
   return [...counts.entries()].filter(([, count]) => count >= 2).map(([checkId, count]) => ({ checkId, count, escalation: 'BOT_LOGIC_DEFECT_REVIEW' }));
 }
-export function runAdversarialCorrectionLoop({ prompt, plan, maxRounds = 12 }) {
+export function runAdversarialCorrectionLoop({ prompt, plan, maxRounds = 20 }) {
   let candidate = structuredClone(plan);
   const rounds = [];
   for (let round = 1; round <= maxRounds; round += 1) {
