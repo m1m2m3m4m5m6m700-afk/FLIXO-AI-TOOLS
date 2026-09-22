@@ -420,7 +420,7 @@ function collectWithGh() {
   const raw = execFileSync('gh', [
     'api',
     `repos/${repository}/actions/runs?branch=${encodeURIComponent(branch)}&per_page=${directRunsPerPage}`,
-  ], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
+  ], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: 16 * 1024 * 1024 });
   const snapshot = JSON.parse(raw);
   const runs = Array.isArray(snapshot?.workflow_runs) ? snapshot.workflow_runs.slice(0, limit) : [];
   const candidates = runs.filter((run) =>
