@@ -459,6 +459,8 @@ assert.ok(dailyGateWorkflow.includes('if type == "array" then . elif (.workflow_
 assert.ok(dailyGateWorkflow.includes("jq -e 'type == \"array\"'"));
 assert.ok(dailyGateWorkflow.includes('Ensure exact-SHA required CI is resident'));
 assert.ok(dailyGateWorkflow.includes('gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/$FILE/dispatches" -f ref=execution'));
+assert.ok(dailyGateWorkflow.includes('FILE="${REQUIRED_FILES[$WORKFLOW]}"'));
+assert.ok(!dailyGateWorkflow.includes('FILE="\\${REQUIRED_FILES[$WORKFLOW]}"'));
 for (const file of [
   'ci.yml',
   'wp0-trust-baseline.yml',
