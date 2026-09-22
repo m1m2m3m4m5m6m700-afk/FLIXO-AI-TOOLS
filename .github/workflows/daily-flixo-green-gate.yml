@@ -97,11 +97,7 @@ jobs:
           printf 'branch=%s\n' "$WATCH_BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Ensure exact-SHA required CI is resident
-        if: >-
-          steps.capture.outputs.branch == 'execution' &&
-          (github.event_name == 'push' ||
-           github.event_name == 'schedule' ||
-           github.event_name == 'workflow_dispatch')
+        if: steps.capture.outputs.branch == 'execution'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -116,6 +112,7 @@ jobs:
             ["Repository Security Baseline"]="repository-security-baseline.yml"
             ["Claude Security Review"]="claude-security-review.yml"
           )
+          MISSING=0
           for WORKFLOW in "FLIXO Test System" "FLIXO WP0 Trust Baseline" "FLIXO Test Impact" "FLIXO Test Impact Execution" "Repository Security Baseline" "Claude Security Review"; do
             FILE="${REQUIRED_FILES[$WORKFLOW]}"
             RUN_COUNT="$(gh run list \
@@ -126,12 +123,16 @@ jobs:
               --json headSha,status,conclusion \
               | jq --arg sha "$EXECUTION_SHA" '[.[] | select(.headSha == $sha and (.status == "queued" or .status == "in_progress" or .conclusion == "success" or .conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required"))] | length')"
             if [ "$RUN_COUNT" -eq 0 ]; then
-              echo "REQUIRED_CI_DISPATCH workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA"
-              gh workflow run "$FILE" --repo "$GITHUB_REPOSITORY" --ref execution
+              echo "REQUIRED_CI_MISSING workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA"
+              MISSING=1
             else
               echo "REQUIRED_CI_ALREADY_RESIDENT workflow=$WORKFLOW count=$RUN_COUNT sha=$EXECUTION_SHA"
             fi
           done
+          if [ "$MISSING" -ne 0 ]; then
+            echo "FAIL_CLOSED: required CI residency is incomplete for exact SHA $EXECUTION_SHA; another control-plane owner must establish residency."
+            exit 1
+          fi
 
       - name: Await required internal CI settlement on exact SHA
         id: settle_required_ci
