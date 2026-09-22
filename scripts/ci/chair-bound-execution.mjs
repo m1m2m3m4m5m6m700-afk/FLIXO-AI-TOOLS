@@ -395,7 +395,8 @@ export function preemptChair1ForMaster({agentId,targetSha=sha(),role=null,reposi
     state.repository_state='ACTIVE';
     state.idle_timestamp=null;
     writeState(state);
-    return Object.freeze({admitted:true,reused:false,preempted:Boolean(state.last_preemption?.displacedAgentId),preemptedAgentId:state.last_preemption?.displacedAgentId??null,chairId:'chair_1',leaseId:chair.lease_id,targetSha:t,taskId:chair.task_id??null,workPackageId:chair.work_package_id??null});
+    const latestDisplaced=Array.isArray(state.preemption_history)&&state.preemption_history.length?state.preemption_history.at(-1):null;
+    return Object.freeze({admitted:true,reused:false,preempted:Boolean(latestDisplaced?.targetSha===t),preemptedAgentId:latestDisplaced?.targetSha===t?latestDisplaced.displacedAgentId:null,chairId:'chair_1',leaseId:chair.lease_id,targetSha:t,taskId:chair.task_id??null,workPackageId:chair.work_package_id??null});
   });
 }
 
@@ -641,10 +642,15 @@ export function preemptedContinuityForAgent({agentId,targetSha=sha(),taskId=null
   const t=assertSha(targetSha,'TARGET_SHA');
   if(t!==sha())throw new Error('STALE_CONTEXT');
   const state=readState();
-  const preemption=state.last_preemption;
-  if(preemption?.targetSha!==t||preemption?.displacedAgentId!==agentId)return null;
-  if(taskId!==null && taskId!==undefined && String(preemption.displacedTaskId??'')!==String(taskId))return null;
-  if(preemption.status!=='CONTINUING_AFTER_PREEMPTION')return null;
+  const history=Array.isArray(state.preemption_history)?state.preemption_history:[];
+  const candidates=[...(state.last_preemption ? [state.last_preemption] : []),...history]
+    .filter((item)=>item?.status==='CONTINUING_AFTER_PREEMPTION'
+      && item.targetSha===t
+      && item.displacedAgentId===agentId
+      && (taskId===null || taskId===undefined || String(item.displacedTaskId??'')===String(taskId)))
+    .sort((a,b)=>Date.parse(String(b.at??''))-Date.parse(String(a.at??'')));
+  const preemption=candidates[0]??null;
+  if(!preemption)return null;
   return Object.freeze({
     continuity:true,
     status:preemption.status,
@@ -656,7 +662,8 @@ export function preemptedContinuityForAgent({agentId,targetSha=sha(),taskId=null
     mutationAuthorityRevoked:true,
     canContinueTask:true,
     canMutateAfterPreemption:false,
-    handoffTo:preemption.mustHandoffTo
+    handoffTo:preemption.mustHandoffTo,
+    preemptedAt:preemption.at
   });
 }
 
