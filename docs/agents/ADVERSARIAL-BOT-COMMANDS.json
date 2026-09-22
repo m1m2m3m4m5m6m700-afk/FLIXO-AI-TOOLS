@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "protocol": "FLIXO-ADVERSARIAL-BOT-COMMAND-REGISTRY-v1",
+  "authority": "COMMAND_ROUTER_ONLY",
+  "canonical": true,
+  "commandSource": "docs/agents/ADVERSARIAL-BOT-COMMANDS.json",
+  "branchPolicy": {
+    "workingBranch": "execution",
+    "productionBranch": "main",
+    "thirdBranchAllowed": false,
+    "noMainMutation": true
+  },
+  "identity": {
+    "exactShaRequired": true,
+    "failureFingerprintRequired": true,
+    "taskIdRequired": true
+  },
+  "acceptance": {
+    "primaryProofRequired": true,
+    "adversarialFalsificationRequired": true,
+    "validCounterexampleBlocksAcceptance": true,
+    "currentExactShaVerificationRequired": true,
+    "canonicalGreenRequired": true
+  },
+  "bots": {
+    "ACTION-REPAIR-2": {
+      "agentId": "actionRepairVerifier",
+      "role": "ADVERSARIAL_PROGRAMMER_FALSIFIER",
+      "mutationAuthority": "CONTROLLED_BY_REPAIR_PROTOCOL",
+      "commands": {
+        "CHALLENGE_PRIMARY": {
+          "entry": "scripts/ci/action-repair-dual-control.mjs",
+          "operation": "challenge",
+          "mode": "FALSIFY_PRIMARY",
+          "mutation": false
+        },
+        "REVISE_AFTER_COUNTEREXAMPLE": {
+          "entry": "scripts/ci/action-repair-dual-control.mjs",
+          "operation": "approve-revision",
+          "mode": "COUNTEREXAMPLE_DRIVEN_REVISION",
+          "mutation": true,
+          "preconditions": [
+            "exactShaReset",
+            "candidateRepairApproved",
+            "chairBoundAdmission",
+            "repairProtocolAdmission"
+          ]
+        },
+        "PROVE_NO_COUNTEREXAMPLE": {
+          "entry": "scripts/ci/action-repair-dual-control.mjs",
+          "operation": "verify",
+          "mode": "FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE",
+          "mutation": false
+        }
+      }
+    },
+    "PROGRAMMER-TWIN-A": {
+      "agentId": "actionRepairVerifier",
+      "variant": "A",
+      "role": "READ_ONLY_ADVERSARIAL_TWIN",
+      "mutationAuthority": "NONE",
+      "commands": {
+        "FALSIFY_PRIMARY": {
+          "entry": "scripts/ci/adversarial-repair-twin.mjs",
+          "operation": "run",
+          "mode": "CAUSAL_AND_DIRECT_EVIDENCE",
+          "mutation": false
+        }
+      }
+    },
+    "PROGRAMMER-TWIN-B": {
+      "agentId": "actionRepairVerifier",
+      "variant": "B",
+      "role": "READ_ONLY_ADVERSARIAL_TWIN",
+      "mutationAuthority": "NONE",
+      "commands": {
+        "FALSIFY_PRIMARY": {
+          "entry": "scripts/ci/adversarial-repair-twin.mjs",
+          "operation": "run",
+          "mode": "INFERENCE_AND_HISTORICAL_CHALLENGE",
+          "mutation": false
+        }
+      }
+    },
+    "REGRESSION-COUNTEREXAMPLE": {
+      "agentId": "actionRepairVerifier",
+      "role": "ADVERSARIAL_REGRESSION_VERIFIER",
+      "mutationAuthority": "NONE",
+      "commands": {
+        "SEARCH_COUNTEREXAMPLES": {
+          "entry": "scripts/ci/regression-counterexamples.mjs",
+          "operation": "scan",
+          "mode": "COUNTEREXAMPLE_SEARCH",
+          "mutation": false
+        }
+      }
+    },
+    "ADVERSARIAL-CONVERGENCE": {
+      "agentId": "actionRepairVerifier",
+      "role": "ADVERSARIAL_CONVERGENCE_ORCHESTRATOR",
+      "mutationAuthority": "NONE",
+      "commands": {
+        "RUN_ROUND": {
+          "entry": "scripts/ci/auto-repair/adversarial-convergence.mjs",
+          "operation": "round",
+          "mode": "PRIMARY_REPAIR_THEN_FALSIFY",
+          "mutation": "DELEGATED_TO_ACTION_REPAIR"
+        },
+        "ACCEPT_FOR_VERIFICATION": {
+          "entry": "scripts/ci/auto-repair/adversarial-convergence.mjs",
+          "operation": "accept",
+          "mode": "BOTH_SIDES_STABLE",
+          "mutation": false
+        },
+        "REJECT_AND_REVISE": {
+          "entry": "scripts/ci/auto-repair/adversarial-convergence.mjs",
+          "operation": "revise",
+          "mode": "COUNTEREXAMPLE_DRIVEN_CONVERGENCE",
+          "mutation": "DELEGATED_TO_ACTION_REPAIR"
+        }
+      }
+    }
+  },
+  "commonCommandRules": [
+    "READ_EXACT_SHA_FIRST",
+    "NO_STALE_EVIDENCE",
+    "COUNTEREXAMPLE_INVALIDATES_CURRENT_CANDIDATE",
+    "COUNTEREXAMPLE_REQUIRES_PRIMARY_REVISION",
+    "RESET_TO_SAME_EXACT_SHA_BEFORE_REVISION",
+    "NO_TEST_MUTATION",
+    "NO_GATE_WEAKENING",
+    "NO_MAIN_MUTATION",
+    "NO_THIRD_BRANCH",
+    "NO_BLIND_RETRY",
+    "CANONICAL_GREEN_IS_FINAL_EXIT"
+  ]
+}
