@@ -26,14 +26,13 @@ const executionWatchdogWorkflow = readFileSync('.github/workflows/execution-bot-
 const resultState = readFileSync('scripts/ci/result-state.mjs', 'utf8');
 
 const required = [
-  ['pull_request trigger', /pull_request:\s*\n\s*branches:\s*\[main\]/],
-  ['push trigger', /push:\s*\n\s*branches:\s*\[main, execution\]/],
+  ['canonical push trigger', /push:\s*\n\s*branches:\s*\[main, execution\]/],
   ['single static-build engine', /\n\s{2}verify:\s*\n/],
   ['Browser FAST engine', /\n\s{2}browser_fast:\s*\n/],
   ['Browser DEEP engine', /\n\s{2}browser_deep:\s*\n/],
   ['single certification gate', /\n\s{2}certify:\s*\n/],
   ['superseding exact-SHA verification CI', /cancel-in-progress:\s*true/],
-  ['exact-SHA concurrency isolation', /group:\s*flixo-test-[^\n]*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha[^\n]*/],
+  ['exact-SHA concurrency isolation', /group:\s*flixo-test-\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/],
   ['exact SHA', /EXPECTED_SHA/],
   ['immutable artifact identity', /flixo-head-sha\.txt[\s\S]*flixo-package-lock\.sha256/],
   ['minimal checkout', /fetch-depth:\s*1/],
@@ -58,6 +57,22 @@ for (const [label, source] of [
   const trigger = label === 'repository-security-baseline.yml' ? securityExecutionPushTrigger : canonicalVerificationPushTrigger;
   if (!trigger.test(source)) {
     console.error('CI contract failed: ' + label + ' must verify both canonical main and execution push heads.');
+    process.exit(1);
+  }
+}
+
+const canonicalConcurrencyWorkflows = [
+  ['ci.yml', workflow],
+  ['wp0-trust-baseline.yml', wp0Workflow],
+  ['test-impact.yml', impactPlanWorkflow],
+  ['test-impact-execution.yml', impactExecutionWorkflow],
+  ['repository-security-baseline.yml', securityBaselineWorkflow],
+  ['claude-security-review.yml', claudeSecurityWorkflow],
+];
+for (const [file, source] of canonicalConcurrencyWorkflows) {
+  const block = source.match(/concurrency:[\\s\\S]*?(?=\\n(?:permissions:|env:|jobs:|#|$))/)?.[0] ?? '';
+  if (!block || /\\$\\{\\{\\s*github\\.event_name\\s*\\}\\}/.test(block)) {
+    console.error('CI contract failed: ' + file + ' must converge push/pull_request observations into one concurrency lane per canonical branch/SHA.');
     process.exit(1);
   }
 }
