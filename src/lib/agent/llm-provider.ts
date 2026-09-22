@@ -166,6 +166,7 @@ export async function planFromProvider(
     throw new LLMProviderError('INVALID_REQUEST', 'Provider timeout must be an integer between 1ms and 120000ms.');
   }
   validateRetryOptions(maxRetries, retryBaseDelayMs, maxRetryDelayMs);
+  const maximumProviderAttempts = maxRetries + 1;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -174,6 +175,9 @@ export async function planFromProvider(
   try {
     for (;;) {
       attempts += 1;
+      if (attempts > maximumProviderAttempts) {
+        throw new LLMProviderError('RETRY_EXHAUSTED', 'LLM provider call budget exhausted.', undefined, undefined, attempts - 1);
+      }
       try {
         const response = await provider(request, controller.signal);
         const plan = parseProviderExecutionPlan(response);
