@@ -165,7 +165,15 @@ jobs:
             echo "RESIDENT_CURRENT_RED=${FAILED:-none}"
             PROGRESS=false
             if [ "$EXECUTION_SHA" != "$LAST_SHA" ] || [ "$FAILED" != "$LAST_FAILED" ]; then PROGRESS=true; fi
-            node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="RESIDENT:${GITHUB_RUN_ID}" --state=ACTIVE --sha="$EXECUTION_SHA" --progress="$PROGRESS" --file="$FLIXO_HEARTBEAT_PATH"
+            EXECUTION_SHA="$EXECUTION_SHA" PROGRESS="$PROGRESS" node --input-type=module <<'NODE'
+import fs from 'node:fs';
+const file = process.env.FLIXO_HEARTBEAT_PATH;
+const exactSha = process.env.EXECUTION_SHA;
+const progress = process.env.PROGRESS === 'true';
+if (!/^[a-f0-9]{40}$/.test(exactSha)) throw new Error('RESIDENT_HEARTBEAT_EXACT_SHA_INVALID');
+const record = { protocolId: 'AGENT_LIVENESS_PROTOCOL', taskId: `RESIDENT:${process.env.GITHUB_RUN_ID}`, state: 'ACTIVE', exactSha, progress, at: new Date().toISOString() };
+fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
+NODE
             LAST_SHA="$EXECUTION_SHA"
             LAST_FAILED="$FAILED"
             if [ -n "$GREEN" ]; then
