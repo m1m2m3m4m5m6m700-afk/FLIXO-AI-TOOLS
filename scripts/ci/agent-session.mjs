@@ -8,6 +8,7 @@ import { ingest as ingestAgentMessage, markRead as readAgentMessage, markConsume
 import { loadPromptRegistry, validatePromptRegistry, loadErrorMemory } from './prompt-registry.mjs';
 import { assertAgentExitGate } from './agent-exit-lock.mjs';
 import { AGENT_LIVENESS_PROTOCOL, assertActiveRepairWindow, checkHeartbeat, checkContinuousSessionWindow } from './agent-liveness-protocol.mjs';
+import { initialize as initializeChairState, heartbeat as heartbeatChair, reconcileDeadLeases } from './chair-bound-execution.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -191,6 +192,18 @@ if (command === 'meeting-exit-approve') {
   assertLiveSession(record);
   const sha = observeCurrentHead(record);
   const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.continuousActiveSince ?? record.startedAt });
+  let chairHeartbeatResult = null;
+  if (record.chairId) {
+    initializeChairState({ targetSha: gitSha() });
+    reconcileDeadLeases({ targetSha: gitSha() });
+    try {
+      chairHeartbeatResult = heartbeatChair({ chairId: record.chairId, agentId, targetSha: gitSha() });
+    } catch (error) {
+      record.livenessState = 'RECOVERING';
+      appendEvent(record, { at: now(), action: 'CHAIR_LEASE_RECOVERY_REQUIRED', sha: gitSha(), chairId: record.chairId, reason: String(error?.message ?? error), recovery: 'RECLAIM_AND_RESYNC' });
+      throw new Error('CHAIR_LEASE_RECOVERY_REQUIRED', { cause: error });
+    }
+  }
   const continuous = checkContinuousSessionWindow({ continuousStartedAt: record.continuousActiveSince ?? record.startedAt });
   const at = now();
   record.livenessState = heartbeat.ok ? 'ACTIVE' : 'RECOVERING';
@@ -200,7 +213,7 @@ if (command === 'meeting-exit-approve') {
   record.lastHeartbeatAt = at;
   const masterUpdateDue = isMaster(record.agentId) && Date.parse(String(record.lastMasterUpdateAt ?? '')) + AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs <= Date.now();
   const taskReminderDue = Date.parse(String(record.lastTaskReminderAt ?? '')) + AGENT_LIVENESS_PROTOCOL.taskReminderEveryMs <= Date.now();
-  const event = { at, action: 'HEARTBEAT', sha, liveness: heartbeat.ok ? 'ON_TIME' : 'RECOVERED_FROM_GAP', residencyRenewal: !continuous.ok && continuous.action === 'RESIDENCY_RENEWAL_REQUIRED', recovery: heartbeat.ok ? null : 'RECOVER_AND_CONTINUE', masterUpdateDue, taskReminderDue, evidenceInvalidatedByShaChange: record.evidenceInvalidatedByShaChange, requalificationRequired: record.requalificationRequired };
+  const event = { at, action: 'HEARTBEAT', sha, liveness: heartbeat.ok ? 'ON_TIME' : 'RECOVERED_FROM_GAP', chairHeartbeat: chairHeartbeatResult ? { at: chairHeartbeatResult.heartbeatAt, count: chairHeartbeatResult.heartbeatCount, deadAfterMs: chairHeartbeatResult.deadAfterMs } : null, residencyRenewal: !continuous.ok && continuous.action === 'RESIDENCY_RENEWAL_REQUIRED', recovery: heartbeat.ok ? null : 'RECOVER_AND_CONTINUE', masterUpdateDue, taskReminderDue, evidenceInvalidatedByShaChange: record.evidenceInvalidatedByShaChange, requalificationRequired: record.requalificationRequired };
   appendEvent(record, event);
   if (masterUpdateDue) record.lastMasterUpdateAt = at;
   if (taskReminderDue) record.lastTaskReminderAt = at;
