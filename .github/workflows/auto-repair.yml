@@ -208,6 +208,8 @@ jobs:
 
       - name: Enforce central Council directive before diagnosis or mutation
         run: node scripts/ci/test-council-directive.mjs
+      - name: Validate unified adversarial bot command registry
+        run: node scripts/ci/adversarial-bot-commands.mjs validate
 
       - name: Resolve target workflow run
         id: resolve_target
