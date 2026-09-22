@@ -145,6 +145,7 @@ jobs:
             done
             echo "ERROR: cancellation failed for active run=$run_id" >&2
             return 1
+          }
           RUNS_JSON=""
           if ! RUNS_JSON="$(gh api --paginate --slurp "repos/$REPOSITORY/actions/runs?branch=$BRANCH&per_page=100" 2>&1)"; then
             if printf '%s' "$RUNS_JSON" | grep -Eiq 'API rate limit exceeded|rate limit exceeded|secondary rate limit|abuse detection'; then
