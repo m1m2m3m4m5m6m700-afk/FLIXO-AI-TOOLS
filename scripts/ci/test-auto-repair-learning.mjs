@@ -270,7 +270,10 @@ recordOutcome(memory, {
   verification: 'verified-repair',
   provenance: { runId: 'proposed-run', targetSha: 'a'.repeat(40) },
 });
-const proposedCase = memory.cases.find((item) => item.fingerprint === '__proposed_test__');
+const unverifiedProposalCase = memory.cases.find((item) => item.fingerprint === '__proposed_test__');
+assert.equal(unverifiedProposalCase?.attempts, 1);
+assert.equal(unverifiedProposalCase?.successes, 0);
+assert.equal(unverifiedProposalCase?.failures, 1);
 assert.equal(proposedCase?.attempts, 1);
 assert.equal(proposedCase?.successes, 0);
 assert.equal(proposedCase?.failures, 1);
