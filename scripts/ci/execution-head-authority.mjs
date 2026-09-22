@@ -28,6 +28,7 @@ export function authorizeExecutionHead({agentId,targetSha,candidateSha,parentSha
   const proof={
     schemaVersion:1,
     protocol:HEAD_AUTHORITY_PROTOCOL,
+    phase:'FINAL_PUBLICATION',
     authorized:true,
     chairId:'chair_1',
     agentId:String(agentId),
@@ -49,7 +50,7 @@ export function authorizeExecutionHead({agentId,targetSha,candidateSha,parentSha
 export function verifyExecutionHeadAuthority({file='/tmp/flixo-head-authority.json',targetSha,parentSha,candidateSha}={}) {
   if(!fs.existsSync(file)) throw new Error('CHAIR1_HEAD_AUTHORITY_PROOF_MISSING');
   const proof=JSON.parse(fs.readFileSync(file,'utf8'));
-  if(proof.schemaVersion!==1||proof.protocol!==HEAD_AUTHORITY_PROTOCOL) throw new Error('CHAIR1_HEAD_AUTHORITY_PROOF_INVALID');
+  if(proof.schemaVersion!==1||proof.protocol!==HEAD_AUTHORITY_PROTOCOL||proof.phase!=='FINAL_PUBLICATION') throw new Error('CHAIR1_HEAD_AUTHORITY_PROOF_INVALID');
   if(proof.authorized!==true||proof.chairId!=='chair_1'||proof.exactSha!==true) throw new Error('EXECUTION_HEAD_CHANGE_REQUIRES_CHAIR1');
   if(proof.targetSha!==sha(targetSha)||proof.parentSha!==sha(parentSha)||proof.candidateSha!==sha(candidateSha)) throw new Error('CHAIR1_HEAD_AUTHORITY_SHA_MISMATCH');
   if(proof.parentSha!==proof.targetSha) throw new Error('CHAIR1_HEAD_AUTHORITY_PARENT_MISMATCH');
