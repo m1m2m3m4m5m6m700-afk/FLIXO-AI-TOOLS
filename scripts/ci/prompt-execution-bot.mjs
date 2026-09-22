@@ -45,7 +45,6 @@ const UNSAFE = [
   [/(?:expose|print|share|leak)\s+(?:secrets?|tokens?|credentials?)/iu, 'SECRET_EXFILTRATION'],
 ];
 const ACTIVE = /(OPEN|ACTIVE|IN_PROGRESS|VERIFYING|IMPLEMENTED \/ VERIFYING|IMPLEMENTED \/ CANONICAL-CI-VERIFICATION-PENDING|INCOMPLETE \/ PARTIAL)/iu;
-const CONFIDENCE_FLOOR = 0.65;
 
 function arg(name, fallback = '') {
   const token = process.argv.find((item) => item === `--${name}` || item.startsWith(`--${name}=`));
@@ -148,7 +147,7 @@ export function buildPreExecution25Evidence({
   executionSha, mainSha, branch, matchedTasks, selectedTaskId, actionList, intent,
   constraintsValue, unsafeRequests, candidates, selected, quality, training,
   adversarialLoop, adversarialReview, adversarialFailureReport, scope,
-  proofObligations, stopConditions,
+  proofObligations, stopConditions, consolidation,
 }) {
   const workflowDir = path.resolve(ROOT, '.github/workflows');
   const workflowCount = fs.existsSync(workflowDir)
