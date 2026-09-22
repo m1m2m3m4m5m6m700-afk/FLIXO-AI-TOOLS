@@ -279,6 +279,8 @@ assert.match(learningSource, /Math\.max\(parsed\.version, MEMORY_VERSION\)/);
 assert.match(learningSource, /maxActionHistory: 5000/);
 assert.match(learningSource, /longTermCorpus/);
 assert.match(learningSource, /longTermTeaching/);
+assert.match(learningSource, /loadActionBotMemory/);
+assert.match(learningSource, /actionRepairHistoryCount/);
 assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /NORMAL_MAX_REPAIR_CYCLES = 12/);
 assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /MAX_STALLED_REPAIR_CYCLES = 3/);
 assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /NORMAL_MAX_PREPARED_FILES = 12/);
