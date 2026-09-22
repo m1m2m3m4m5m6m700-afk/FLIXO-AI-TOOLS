@@ -1215,7 +1215,7 @@ BASHENV
           if [ "$OUTCOME" != "verified-repair" ] && [ "$OUTCOME" != "verified-historical-revert" ]; then echo 'verified=false' >> "$GITHUB_OUTPUT"; exit 0; fi
           git diff --quiet && { echo 'verified=false' >> "$GITHUB_OUTPUT"; echo 'Verified repair produced no source diff; refusing publication.'; exit 1; }
           node /tmp/flixo-repair-controller/scripts/ci/ensure-agent-locales.mjs
-          test "$(git branch --show-current)" = execution
+          test "$(git rev-parse HEAD)" = "$(cat /tmp/flixo-failed-sha)"
           echo 'PRE_CANDIDATE_REPAIR_EVIDENCE=PASS'
           echo 'verified=true' >> "$GITHUB_OUTPUT"
 
@@ -1353,7 +1353,7 @@ BASHENV
         run: |
           set -euo pipefail
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
-          test "$(git branch --show-current)" = execution
+          test "$(git rev-parse HEAD)" = "$FAILED_SHA"
           git fetch --no-tags origin execution
           test "$(git rev-parse HEAD)" = "$FAILED_SHA"
           test "$(git rev-parse origin/execution)" = "$FAILED_SHA"
@@ -1371,8 +1371,8 @@ BASHENV
         if: steps.verify.outputs.verified == 'true'
         run: |
           set -euo pipefail
-          test "$(git branch --show-current)" = execution
           BASE_SHA="$(git rev-parse HEAD)"
+          test "$BASE_SHA" = "$(cat /tmp/flixo-failed-sha)"
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
           test "$BASE_SHA" = "$FAILED_SHA"
           test -s "$FLIXO_MUTATION_ADMISSION"
@@ -1720,7 +1720,6 @@ BASHENV
         if: steps.publish_candidate.outcome == 'success'
         run: |
           set -euo pipefail
-          test "$(git branch --show-current)" = execution
           CANDIDATE_SHA="$(cat /tmp/flixo-candidate-sha)"
           EXECUTION_SHA="$CANDIDATE_SHA"
           PARENT_SHA="$(git rev-parse "$EXECUTION_SHA^")"
