@@ -197,6 +197,6 @@ assert.match(autoRepairWorkflow,/noDirectPushByExecutor:true/);
 assert.match(autoRepairWorkflow,/READY_FOR_CHAIR_PUBLICATION/);
 assert.doesNotMatch(autoRepairWorkflow,/gh api .*git\/refs.*PATCH/);
 assert.doesNotMatch(autoRepairWorkflow,/cp \/tmp\/flixo-repair-memory\.json diagnostics\/auto-repair\/memory\.json/);
-const chairAuditScript=fs.readFileSync(path.join(root,'scripts/ci/auto-repair-chair1-audit.mjs'),'utf8');
+const chairAuditScript=fs.readFileSync('scripts/ci/auto-repair-chair1-audit.mjs','utf8');
 assert.match(chairAuditScript,/INDEPENDENT_CHAIR_APPROVAL_MISSING/);
 assert.match(chairAuditScript,/INDEPENDENT_CHAIR_APPROVAL_SIGNATURE_INVALID/);
