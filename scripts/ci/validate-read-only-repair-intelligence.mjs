@@ -30,12 +30,10 @@ for(const marker of [
  "ACTION-VAULT-READONLY-KNOWLEDGE-LOOKUP-v1",
  "ACTION-INDEX-4000.json",
  "ERROR-TEACHING-ROUTER.json",
- "declaredCatalogCapacity"
- "buildKnowledgeFusion",
+ "declaredCatalogCapacity",
  "knowledgeFusion",
- "buildKnowledgeFusion",
  "FLIXO-READ-ONLY-KNOWLEDGE-FUSION-v1",
- "buildKnowledgeFusion",
+ "read-only-knowledge-fusion.mjs",
  "read-only-knowledge-fusion.mjs",
 ]) if(!source.includes(marker)) failures.push('MISSING_MARKER='+marker);
 
