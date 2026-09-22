@@ -17,10 +17,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout exact execution head
+      - name: Checkout trusted lease controller
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: execution
+          # This workflow can create/delete refs. Keep executable controller code pinned to trusted main.
+          ref: main
           fetch-depth: 1
           persist-credentials: false
 
