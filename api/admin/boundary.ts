@@ -68,12 +68,11 @@ export const signAdminSession = ({ subject, capabilities, role, sessionId, ttlSe
   if (!isAdminRole(role)) throw new Error('invalid session role');
   if (!sessionId || !/^[0-9a-f-]{36}$/i.test(sessionId)) throw new Error('invalid session id');
 
-  const canonicalCapabilities = [...activeCapabilitiesForRole(role)].sort();
+  const canonicalCapabilities = new Set(activeCapabilitiesForRole(role));
   const requestedCapabilities = [...new Set(capabilities)].sort();
-  if (
-    requestedCapabilities.length !== canonicalCapabilities.length
-    || requestedCapabilities.some((capability, index) => capability !== canonicalCapabilities[index])
-  ) throw new Error('session capabilities do not match role');
+  if (requestedCapabilities.some((capability) => !canonicalCapabilities.has(capability))) {
+    throw new Error('session capabilities do not match role');
+  }
 
   const payload = {
     sub: subject,
