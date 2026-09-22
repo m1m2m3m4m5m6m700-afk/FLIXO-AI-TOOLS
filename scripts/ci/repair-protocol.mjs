@@ -47,6 +47,8 @@ export function assertProtocolDefinition(){
   if(REPAIR_PROTOCOL.mutationScope!=='ERROR_ONLY') throw new Error('REPAIR_PROTOCOL_MUTATION_SCOPE_DRIFT');
   if(REPAIR_PROTOCOL.testMutationPolicy!=='BLOCK') throw new Error('REPAIR_PROTOCOL_TEST_MUTATION_POLICY_DRIFT');
   if(REPAIR_PROTOCOL.retryPolicy!=='NO_BLIND_RETRY') throw new Error('REPAIR_PROTOCOL_RETRY_POLICY_DRIFT');
+  if(REPAIR_PROTOCOL.cellLabRequired!==true) throw new Error('REPAIR_PROTOCOL_CELL_LAB_REQUIRED_DRIFT');
+  if(REPAIR_PROTOCOL.cellLabConsensusPath!=='diagnostics/agents/cell-lab/consensus/<taskId>.json') throw new Error('REPAIR_PROTOCOL_CELL_LAB_PATH_DRIFT');
   if(ACTION_PRIMARY_CORRECTNESS_PROOF!=='ACTION_PRIMARY_CORRECTNESS_PROOF') throw new Error('REPAIR_PROTOCOL_PRIMARY_PROOF_MARKER_DRIFT');
   if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-REPAIR']?.actor!=='actionRepairBot') throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_ROLE_DRIFT');
   if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-REPAIR-2']?.mutation!==true) throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_2_MUTATION_DRIFT');
