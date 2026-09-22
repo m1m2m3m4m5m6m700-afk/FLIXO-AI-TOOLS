@@ -34,7 +34,7 @@ rst is a P0 execution invariant. The canonical ingress is Master Inbox Issue #76
 
 **First work gate for every agent.** Read this file before implementation.
 
-`المهام.md` is the mandatory open-task gateway and must be read immediately after this file.
+`المهام.md` is the canonical task ledger and the mandatory open-task gateway. Any task/status table in this file is a read-only projection and must not be treated as a second task authority.
 
 ## CURRENT STATE
 
