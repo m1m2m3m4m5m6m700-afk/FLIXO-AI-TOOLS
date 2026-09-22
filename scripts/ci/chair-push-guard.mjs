@@ -48,7 +48,7 @@ if(remoteSha!==sha){
   console.log(JSON.stringify(result,null,2)); process.exit(0);
 }
 
-let candidateExists=false; try { candidateExists=git(['cat-file','-e',`${proposal.candidateSha}^{commit}`])!==''; } catch {}
+let candidateExists=false; try { candidateExists=git(['cat-file','-e',`${proposal.candidateSha}^{commit}`])!==''; } catch { candidateExists=false; }
 if(!candidateExists){
   const result={schemaVersion:1,protocol:'FLIXO-CHAIR-PUSH-GUARD-v1',proposalId:proposal.proposalId,decision:'REJECTED',reasonCode:'CANDIDATE_NOT_AVAILABLE_TO_GUARD',targetSha:proposal.targetSha,currentSha:sha,proposerChair:proposal.proposerChair,reusable:true,reuseCondition:'RESTORE_CANDIDATE_OBJECT_AND_REVALIDATE_EXACT_SHA',generatedAt:new Date().toISOString()};
   persistResult(result);
