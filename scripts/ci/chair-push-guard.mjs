@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {recordGuardDecision} from './chair-bound-execution.mjs';
+import {recordGuardDecision,repositoryMode} from './chair-bound-execution.mjs';
 
 const ROOT=process.cwd();
 const SHA_RE=/^[a-f0-9]{40}$/u;
@@ -32,6 +32,14 @@ if(!remoteSha){
 }
 function persistResult(result){ fs.mkdirSync(path.dirname(output),{recursive:true}); fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n'); }
 function persistMemory(memory){ fs.mkdirSync(path.dirname(memoryOutput),{recursive:true}); if(memory) fs.appendFileSync(memoryOutput,JSON.stringify(memory)+'\n'); }
+const mode=repositoryMode({targetSha:sha});
+if(mode.activeChairs.some((chair)=>chair.chairId==='chair_1')){
+  const result={schemaVersion:1,protocol:'FLIXO-CHAIR-PUSH-GUARD-v1',proposalId:proposal.proposalId,decision:'REJECTED',reasonCode:'CHAIR1_ACTIVE_CONFLICT',targetSha:proposal.targetSha,currentSha:sha,proposerChair:proposal.proposerChair,reusable:true,reuseCondition:'WAIT_FOR_CHAIR_1_RELEASE_THEN_REVALIDATE_EXACT_SHA',generatedAt:new Date().toISOString()};
+  persistResult(result);
+  const mem=recordGuardDecision({proposalId:proposal.proposalId,decision:'REJECTED',reasonCode:'CHAIR1_ACTIVE_CONFLICT',currentSha:sha,guardEvidence:{activeChairs:mode.activeChairs}});
+  persistMemory(mem.rejectedPushMemory);
+  console.log(JSON.stringify(result,null,2)); process.exit(0);
+}
 if(remoteSha!==sha){
   const result={schemaVersion:1,protocol:'FLIXO-CHAIR-PUSH-GUARD-v1',proposalId:proposal.proposalId,decision:'REJECTED',reasonCode:'STALE_EXECUTION_SHA',targetSha:proposal.targetSha,currentSha:remoteSha,proposerChair:proposal.proposerChair,reusable:false,generatedAt:new Date().toISOString()};
   persistResult(result);
