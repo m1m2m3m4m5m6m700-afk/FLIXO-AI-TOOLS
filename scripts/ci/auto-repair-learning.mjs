@@ -416,7 +416,7 @@ function upsertRepairTask(memory, record) {
     preventionRule: record.preventionRule ?? null,
     exactShaVerified: Boolean(record.exactShaVerified),
     canonicalGreen: Boolean(record.canonicalGreen),
-    status: Boolean(record.exactShaVerified && record.canonicalGreen) ? 'CLOSED' : record.outcome === 'blocked-external' ? 'BLOCKED_EXTERNAL' : 'RECOVERING',
+    status: (record.exactShaVerified && record.canonicalGreen) ? 'CLOSED' : record.outcome === 'blocked-external' ? 'BLOCKED_EXTERNAL' : 'RECOVERING',
     recordedAt: record.recordedAt ?? new Date().toISOString(),
   };
   if (existingIndex >= 0) memory.repairTasks[existingIndex] = { ...memory.repairTasks[existingIndex], ...normalized };
@@ -821,7 +821,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     candidateSha: process.env.FLIXO_CANDIDATE_SHA ?? null,
     strategyId,
     rule,
-    outcome: normalizedOutcome,
+    outcome,
     verification,
     changedPaths: effectiveDiagnosis?.affectedPaths ?? affectedPaths,
     preventionRule: effectivePreventionRule,
