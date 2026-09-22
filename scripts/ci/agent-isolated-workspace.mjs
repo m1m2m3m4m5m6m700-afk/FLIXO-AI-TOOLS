@@ -69,7 +69,7 @@ export function createAgentWorkspace({
   return Object.freeze(meta);
 }
 
-export function assertWorkspaceIsolation({repoRoot=ROOT,workspace,entrySha}={}){
+export function assertWorkspaceIsolation({workspace,entrySha}={}){
   if(!workspace||!fs.existsSync(workspace)) throw new Error('AGENT_WORKSPACE_MISSING');
   const current=gitTrim(workspace,['rev-parse','HEAD']);
   if(!shaOk(entrySha)||current!==entrySha) throw new Error('AGENT_WORKSPACE_ENTRY_SHA_DRIFT');
