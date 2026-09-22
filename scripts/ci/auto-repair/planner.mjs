@@ -70,7 +70,7 @@ export function planRepair(log, { historical = [], memory } = {}) {
   });
   const inferenceEligible = inferenceFallback.prediction.eligibleForBoundedMutation === true;
   const reusableKnowledge = memory
-    ? deriveReusableKnowledge(memory, { rootCause: reasoning.rootCause, features })
+    ? deriveReusableKnowledge(memory, { rootCause: reasoning.rootCause, features, normalizedFailure: log })
     : null;
 
   const failureFingerprint = process.env.FLIXO_FAILURE_FINGERPRINT ?? '';
