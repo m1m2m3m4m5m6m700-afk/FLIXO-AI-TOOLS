@@ -1058,7 +1058,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
 
   const historicalAttempts = Number(priorActionRecord?.attempts ?? 0);
   const historicalFailures = Number(priorActionRecord?.failures ?? 0);
-  const escalationAttempts = Math.max(Number(entry.attempts ?? 0), historicalAttempts) + Number(entry.externalBlocks ?? 0) + (countsAsRepairAttempt ? 1 : 0);
+  const escalationAttempts = Math.max(Number(entry.attempts ?? 0), historicalAttempts) + Number(entry.externalBlocks ?? 0);
   if (escalationAttempts >= INTRACTABLE_THRESHOLD && entry.successes === 0) {
     fs.writeFileSync('/tmp/flixo-intractable-state', 'true\n');
     const data = loadIntractable();
