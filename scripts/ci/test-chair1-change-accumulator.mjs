@@ -51,6 +51,8 @@ assert.equal(fs.readFileSync(path.join(conflictWork,'src/a.txt'),'utf8'),'line-a
 // onto the current execution head without requiring the proposing agent to resolve the drift.
 const finalRoot=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-chair1-finalize-'));
 execFileSync('git',['clone','--quiet',root,finalRoot]);
+execFileSync('git',['config','user.email','chair1-test@example.com'],{cwd:finalRoot});
+execFileSync('git',['config','user.name','Chair1 Test'],{cwd:finalRoot});
 execFileSync('git',['checkout','--quiet','-b','candidate-lane'],{cwd:finalRoot});
 const finalParent=execFileSync('git',['rev-parse','HEAD'],{cwd:finalRoot,encoding:'utf8'}).trim();
 fs.writeFileSync(path.join(finalRoot,'src/final.txt'),'candidate\n');
