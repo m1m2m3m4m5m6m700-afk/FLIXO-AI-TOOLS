@@ -568,6 +568,8 @@ export function deriveReusableKnowledge(memory, { rootCause, features = [], fing
     rejectedRules,
     teachingAdvisories: teachingAdvisories.map(({id,class:className,stage,trigger,hypothesis,falsify,action,verify,learning,source,authority,exactSha}) => ({ id, class: className, stage, trigger, hypothesis, falsify, action, verify, learning, source, authority, exactSha })),
     historicalAdvisories,
+    longTermCorpus,
+    longTermTeaching,
     policy: {
       promotionRequiresDistinctFingerprints: 2,
       promotionRequiresSuccessfulRepairs: 2,
