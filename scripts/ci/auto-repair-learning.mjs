@@ -86,7 +86,9 @@ export function normalizeLearningOutcome(outcome, verification) {
   const certifiedGreenForTarget = canonicalGreen && /^[a-f0-9]{40}$/u.test(targetSha) && canonicalGreenSha === targetSha;
   const exactShaVerified = ['passed', 'exact-sha-proof', 'verified-repair', 'verified-historical-revert'].includes(verify) || process.env.FLIXO_EXACT_SHA_VERIFIED === 'true';
   if (raw === 'unrepaired' && (verify === 'proposal-only' || verify === 'diagnostic-only')) return 'proposed';
-  if (raw === 'repair-applied') return canonicalGreen && exactShaVerified ? 'success' : 'proposed';
+  if (['success', 'repair-applied', 'verified-repair', 'verified-historical-revert'].includes(raw)) {
+    return certifiedGreenForTarget && exactShaVerified ? 'success' : 'proposed';
+  }
   return raw;
 }
 
@@ -225,7 +227,7 @@ export function hydrateActionHistory(memory) {
     item.rootCause = entry.rootCause ?? item.rootCause ?? 'unknown';
     item.latestDiagnosis = entry.latestDiagnosis ?? item.latestDiagnosis ?? null;
     item.diagnosisHistory = [...(item.diagnosisHistory ?? []), ...(entry.diagnosisHistory ?? [])].slice(-MEMORY_RETENTION.maxLessonEvidence);
-    const evidence = (entry.outcomes ?? []).filter((outcome) => ['success', 'unrepaired', 'failure', 'blocked', 'blocked-external', 'reverted-repair', 'revert-failure'].includes(outcome?.outcome));
+    const evidence = (entry.outcomes ?? []).filter((outcome) => ['success', 'unrepaired', 'failure', 'blocked', 'blocked-external', 'proposed', 'reverted-repair', 'revert-failure'].includes(outcome?.outcome));
     const uniqueAttemptKeys = new Set(evidence.map((outcome) => [
       outcome?.provenance?.runId,
       outcome?.provenance?.failedSha,
