@@ -83,6 +83,18 @@ const readCanonicalAdmissionSources = () => {
   };
 };
 const sessionPath = (id) => path.join(sessionDir, `${storageKey(id)}.json`);
+const coordinationStatePath = () => path.resolve(ROOT, process.env.FLIXO_COORDINATION_DIR ?? 'diagnostics/agents', 'coordination-state.json');
+const readCoordinationChairBinding = (sessionId, expectedAgentId, expectedTaskId) => {
+  const file = coordinationStatePath();
+  if (!fs.existsSync(file)) return null;
+  const state = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const active = state.activeSessions?.[sessionId];
+  if (!active) return null;
+  if (active.agentId !== expectedAgentId) throw new Error('AGENT_SESSION_COORDINATION_AGENT_MISMATCH');
+  if (active.taskId !== expectedTaskId) throw new Error('AGENT_SESSION_COORDINATION_TASK_MISMATCH');
+  if (!active.chairId) return null;
+  return Object.freeze({ chairId: active.chairId, chairLeaseId: active.chairLeaseId ?? null, entrySha: active.entrySha ?? null });
+};
 const handoffPath = (id) => path.join(handoffDir, `${storageKey(id)}.json`);
 const visibilityPath = (id) => path.join(visibilityDir, `${storageKey(id)}.json`);
 const ACTION_VAULT_SESSION_ROLES = Object.freeze(['actionRepairBot','actionRepairVerifier','actionHistorian']);
@@ -191,6 +203,10 @@ if (command === 'meeting-exit-approve') {
   if (record.status !== 'RUNNING') throw new Error('AGENT_HEARTBEAT_REQUIRES_ACTIVE_SESSION');
   assertLiveSession(record);
   const sha = observeCurrentHead(record);
+  if (!record.chairId) {
+    const chairBinding = readCoordinationChairBinding(sessionId, agentId, taskId);
+    if (chairBinding) { record.chairId = chairBinding.chairId; record.chairLeaseId = chairBinding.chairLeaseId; }
+  }
   const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.continuousActiveSince ?? record.startedAt });
   let chairHeartbeatResult = null;
   if (record.chairId) {
