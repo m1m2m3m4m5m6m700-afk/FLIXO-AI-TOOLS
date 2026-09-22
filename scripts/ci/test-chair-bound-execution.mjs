@@ -85,6 +85,13 @@ writeSpeculativeContext({sessionId:'release-session',taskId:'RELEASE-TASK',chair
 assert.equal(readSpeculativeContext({sessionId:'release-session',targetSha:realGitSha}).taskId,'RELEASE-TASK');
 release({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,successful:true,sessionId:'release-session',taskId:'RELEASE-TASK'});
 assert.throws(()=>readSpeculativeContext({sessionId:'release-session',targetSha:realGitSha}),/CHAIR_SPECULATION_CONTEXT_MISSING/);
+process.env.FLIXO_REQUIRE_FENCED_CHAIR='true';
+const fencedToken='d'.repeat(64);
+acquire({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,repositoryState:'IDLE',workPackageId:'WP-FENCED',taskId:'TASK-FENCED',fencingToken:fencedToken,scope:['src/fenced.ts']});
+assert.equal(authorizeWrite({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,paths:['src/fenced.ts'],permission:'SOURCE_MUTATION',workPackageId:'WP-FENCED',taskId:'TASK-FENCED',fencingToken:fencedToken}).authorized,true);
+assert.throws(()=>authorizeWrite({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,paths:['src/fenced.ts'],permission:'SOURCE_MUTATION',workPackageId:'WP-FENCED',taskId:'TASK-FENCED',fencingToken:'e'.repeat(64)}),/CHAIR_FENCING_TOKEN_MISMATCH/);
+release({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,successful:true});
+console.log('CHAIR_FENCING_TOKEN=PASS');
 console.log('CHAIR_HEARTBEAT_MICRO_LEASE=PASS');
 console.log('CHAIR_DEAD_LEASE_RECOVERY=PASS');
 console.log('CHAIR_READ_ONLY_SPECULATION=PASS');
