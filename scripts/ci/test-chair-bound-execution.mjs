@@ -61,6 +61,7 @@ const hardeningRoot=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-chair-hardening-
 process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_PATH=path.join(hardeningRoot,'readonly');
 process.env.FLIXO_CHAIR_SESSION_CONTEXT_PATH=path.join(hardeningRoot,'session');
 process.env.FLIXO_CHAIR_REF_PREFIX=`refs/flixo/tests/chair-${process.pid}`;
+acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE'});
 const hb=heartbeat({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha});
 assert.equal(hb.heartbeatCount,1);
 const stateFile=process.env.FLIXO_CHAIR_STATE_PATH;
