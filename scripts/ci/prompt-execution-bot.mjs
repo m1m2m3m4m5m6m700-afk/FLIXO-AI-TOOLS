@@ -17,7 +17,8 @@ export const CANONICAL_SOURCES = Object.freeze([
   'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/AGENT-COORDINATION-CONTROL-PLANE.md',
   'docs/PROTOCOL-HIERARCHY.md', 'docs/PROTOCOL-REGISTRY.json',
   'docs/agents/PROMPT-REGISTRY.json', 'diagnostics/auto-repair/memory.json',
-  'docs/agents/PROMPT-UNIFIED-EXECUTION.md',
+  'docs/agents/PROMPT-UNIFIED-EXECUTION.md', 'scripts/ci/prompt-execution-bot-adversary.mjs',
+  'docs/agents/PROMPT-EXECUTION-BOT-ADVERSARY.md',
 ]);
 const ACTIONS = Object.freeze([
   ['REPAIR', /(repair|fix|heal|resolve|correct|restore|إصلاح|اصلح|أصلح|عالج|حل|تصحيح)/iu],
@@ -69,6 +70,10 @@ function canonicalContext() {
   const p00 = protocols.protocols?.find((item) => item?.id === 'P00');
   if (protocols.authority !== 'FLIXO_PROTOCOL_REGISTRY' || p00?.status !== 'SUPREME_MANDATORY') throw new Error('PROMPT_EXECUTION_BOT_P00_INVALID');
   const prompt = fs.readFileSync(path.resolve(ROOT, 'docs/agents/PROMPT-UNIFIED-EXECUTION.md'), 'utf8');
+  const adversary = fs.readFileSync(path.resolve(ROOT, 'scripts/ci/prompt-execution-bot-adversary.mjs'), 'utf8');
+  const cooperation = fs.readFileSync(path.resolve(ROOT, 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json'), 'utf8');
+  if (!adversary.includes("ACTION-REPAIR-2") || !adversary.includes("NO_MUTATION_NO_CERTIFICATION")) throw new Error('PROMPT_EXECUTION_BOT_ADVERSARY_CONTRACT_INVALID');
+  if (!cooperation.includes('"ACTION-REPAIR-2"') || !cooperation.includes('"mutationAuthority": false')) throw new Error('PROMPT_EXECUTION_BOT_ADVERSARY_AUTHORITY_INVALID');
   for (const marker of ['RPR-UNIFIED-EXECUTION-001', 'FIRST OBLIGATION', 'Exact-SHA', 'execution → main']) {
     if (!prompt.includes(marker)) throw new Error(`PROMPT_EXECUTION_BOT_PROMPT_MARKER_MISSING=${marker}`);
   }
