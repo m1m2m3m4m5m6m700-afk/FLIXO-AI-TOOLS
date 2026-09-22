@@ -34,6 +34,8 @@ assert.match(supersession, /gh run list/u);
 assert.match(supersession, /CANCEL stale run=/u);
 assert.match(supersession, /HEAD_SHA" = "\$CURRENT_SHA"/u);
 assert.match(supersession, /LATEST_COMMIT_SUPERSESSION=PASS/u);
+assert.match(supersession, /SUPERSESSION_EXTERNAL_BLOCKER=GITHUB_ACTIONS_API_RATE_LIMIT/u);
+assert.match(supersession, /BLOCKED_EXTERNAL: GitHub Actions API rate limit/u);
 
 const ci = fs.readFileSync('.github/workflows/ci.yml','utf8');
 assert.match(ci, /push:\s*\n\s*branches:\s*\[main, execution\]/u);
