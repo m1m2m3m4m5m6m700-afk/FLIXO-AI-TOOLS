@@ -21,7 +21,7 @@ assert.match(guard, /greenGranted: false/u);
 assert.match(guard, /acknowledgePendingPush/u);
 assert.match(guard, /PUSH_PENDING/u);
 assert.match(guard, /changeDetailsPresent/u);
-assert.doesNotMatch(guard, /decision\s*=\s*['\"]REJECTED['\"]/u);
+assert.doesNotMatch(guard, /decision\s*=\s*['"]REJECTED['"]/u);
 assert.doesNotMatch(guard, /NEEDS_MORE_EVIDENCE/u);
 const forbiddenDetailFns = [`request${'FullDetails'}`, `record${'FullDetails'}`];
 for (const forbiddenFn of forbiddenDetailFns) assert.equal(guard.includes(forbiddenFn), false);
