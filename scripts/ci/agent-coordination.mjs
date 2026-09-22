@@ -23,6 +23,16 @@ const WRITE_LOCK_WAIT_MS = 50;
 const WRITE_LOCK_MAX_ATTEMPTS = 240;
 const WRITE_LOCK_STALE_MS = 10 * 60 * 1000;
 const STALE_SESSION_KILL_SWITCH = true;
+const CHAIR_ROLE_POLICY = Object.freeze({
+  chair_1: new Set(['assistantController','executionAgent','repairAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier','actionHistorian']),
+  chair_2: new Set(['verification','reviewAgent','testAgent','securityAgent','diagnosticAgent','errorAgent','repairAgent','assistantRepairAgent','actionRepairVerifier']),
+  chair_3: new Set(['analysis','assistantController']),
+});
+const assertChairRole = (chairId, role) => {
+  const allowed = CHAIR_ROLE_POLICY[chairId];
+  if (!allowed) throw new Error('CHAIR_UNKNOWN=' + chairId);
+  if (!allowed.has(String(role))) throw new Error('CHAIR_ROLE_NOT_AUTHORIZED=' + chairId + ':' + String(role));
+};
 const COUNCIL_MACHINE_ROLES = new Set(['assistantController','verification','analysis','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier','actionHistorian']);
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
@@ -362,6 +372,7 @@ if (command === 'task-claim') {
   let lockId = lock(sessionId, agentId, task.rca, task.scope);
   let chairLease = null;
   const selectedChair = optional('chair', 'chair_1');
+  assertChairRole(selectedChair, visibility.role);
   try {
     chairLease = acquireTaskChair({ agentId, chairId: selectedChair, reviewId: optional('review-id') || null, scope: task.scope ?? null });
     if (inboundMessage) inboundMessage = consumeAgentMessage(inboundMessage.messageId, agentId, sha(), true);
