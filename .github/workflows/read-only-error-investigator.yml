@@ -1,0 +1,68 @@
+name: FLIXO Read-Only Error Investigator
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Active observation branch
+        required: true
+        default: execution
+        type: choice
+        options:
+          - execution
+          - main
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  pull-requests: read
+
+concurrency:
+  group: flixo-read-only-error-investigator-\${{ github.event.inputs.branch || 'execution' }}
+  cancel-in-progress: true
+
+jobs:
+  investigate:
+    name: Read-only error/RCA intelligence
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject non-canonical branch
+        env:
+          TARGET_BRANCH: \${{ github.event.inputs.branch || 'execution' }}
+        run: |
+          case "\${TARGET_BRANCH}" in
+            execution|main) ;;
+            *) echo "FAIL CLOSED: branch is not canonical: \${TARGET_BRANCH}"; exit 1 ;;
+          esac
+
+      - name: Checkout observed branch
+        uses: actions/checkout@v5
+        with:
+          ref: \${{ github.event.inputs.branch || 'execution' }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate investigator contract
+        run: node scripts/ci/validate-read-only-error-investigator.mjs
+
+      - name: Run read-only investigator
+        env:
+          GH_TOKEN: \${{ github.token }}
+          EXPECTED_SHA: \${{ github.event.inputs.branch == 'execution' && github.event.workflow_run.head_sha || github.sha }}
+          GITHUB_REF_NAME: \${{ github.event.inputs.branch || 'execution' }}
+          INVESTIGATION_DIR: diagnostics/investigation
+        run: |
+          OBSERVED_SHA=$(git rev-parse HEAD)
+          node scripts/ci/read-only-error-investigator.mjs --branch="\${GITHUB_REF_NAME}" --sha="\${OBSERVED_SHA}" --max-logs=35 --limit=80
+
+      - name: Upload read-only intelligence report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: error-intelligence-\${{ github.run_id }}
+          path: |
+            diagnostics/investigation/error-intelligence-latest.json
+            diagnostics/investigation/error-investigator-contract.json
+          if-no-files-found: error
+          retention-days: 14
