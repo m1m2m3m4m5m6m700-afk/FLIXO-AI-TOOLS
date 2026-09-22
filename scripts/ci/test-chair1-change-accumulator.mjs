@@ -33,8 +33,8 @@ const work=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-chair1-current-'));
 execFileSync('git',['clone','--quiet',root,work]);
 fs.writeFileSync(path.join(work,'src/a.txt'),'line-a-current\nline-b\n');
 const rec=reconcilePendingChange(packet,{repoRoot:work,currentExecutionSha:candidate,currentMainSha:base});
-assert.equal(rec.status,'READY_TO_PUBLISH');
-assert.equal(rec.files[0].reconciledContent,'line-a-current\nline-b-agent\n');
+assert.equal(rec.status,'PENDING_CHAIR1_EDIT');
+assert.ok(rec.conflicts.includes('src/a.txt'));
 
 const conflictWork=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-chair1-conflict-'));
 execFileSync('git',['clone','--quiet',root,conflictWork]);
