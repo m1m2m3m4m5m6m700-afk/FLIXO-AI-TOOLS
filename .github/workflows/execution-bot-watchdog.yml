@@ -16,8 +16,10 @@ on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
+  # Privileged watchdog runs only from trusted/default-branch scheduling and workflow_run events.
+  # Mutable execution pushes are observed through completed canonical checks, not by executing their workflow definition.
   push:
-    branches: [execution, main]
+    branches: [main]
 
 permissions:
   # The watchdog may wake the trusted Daily·FLIXO Green Gate on the first RED.
