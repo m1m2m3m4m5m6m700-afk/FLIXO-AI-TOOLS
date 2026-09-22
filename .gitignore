@@ -48,3 +48,7 @@ PROJECT_STATUS.md
 *.njsproj
 *.sln
 *.sw?
+
+# FLIXO local Chair state; never commit ephemeral leases or session caches
+.flixo/locks/
+.flixo/cache/
