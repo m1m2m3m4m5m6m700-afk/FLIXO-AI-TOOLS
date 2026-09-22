@@ -736,5 +736,22 @@
       "AUTHORITY_BY_MEMORY"
     ],
     "successDefinition": "COOPERATION_SUCCESS requires shared current context, non-duplicated ownership, explicit challenge, evidence exchange, verified handoff and learning; it never equals GREEN without canonical certification."
+  },
+  "supremeProtocol": {
+    "protocolId": "P00",
+    "promptId": "RPR-UNIFIED-EXECUTION-001",
+    "version": "4.0.0",
+    "sourcePath": "docs/agents/PROMPT-UNIFIED-EXECUTION.md",
+    "status": "SUPREME_MANDATORY",
+    "firstObligation": true,
+    "appliesTo": [
+      "MASTER-1",
+      "MASTER-2",
+      "MASTER-3",
+      "ALL_AGENTS",
+      "ALL_BOTS",
+      "CELL"
+    ],
+    "rule": "All cooperation begins by admitting P00; lower-level prompts/contracts cannot override it."
   }
 }
