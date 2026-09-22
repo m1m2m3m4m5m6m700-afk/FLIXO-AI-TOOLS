@@ -42,6 +42,18 @@ const DEAD_LEASE_AFTER_MS=Math.max(3*HEARTBEAT_INTERVAL_MS,positiveDuration(proc
 const SPECULATIVE_CACHE_ROOT=()=>path.resolve(ROOT,String(process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_PATH??'.flixo/cache/chair-readonly'));
 const SPECULATIVE_CACHE_TTL_MS=positiveDuration(process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_TTL_MS,15*60*1000);
 const SESSION_CONTEXT_ROOT=()=>path.resolve(ROOT,String(process.env.FLIXO_CHAIR_SESSION_CONTEXT_PATH??'.flixo/cache/chair-session'));
+const centralChairStrict = () => process.env.FLIXO_STRICT_CHAIR === 'true';
+function verifyCentralChairForMutation({agentId,targetSha,workPackageId,taskId}){
+  if(!centralChairStrict() || agentId===CHAIR1_OWNER_AGENT) return;
+  const leaseId=String(process.env.FLIXO_CHAIR_LEASE_ID??'').trim();
+  const fence=String(process.env.FLIXO_CHAIR_FENCING_HASH??'').trim();
+  const holder=String(process.env.FLIXO_CHAIR_AGENT??agentId??'').trim();
+  if(!leaseId||!fence||!holder) throw new Error('CENTRAL_CHAIR_REQUIRED_FOR_MUTATION');
+  const root=process.cwd();
+  execFileSync('node',['scripts/ci/central-chair-lease.mjs','verify',
+    '--holder='+holder,'--task='+String(taskId??''),'--work-package='+String(workPackageId??''),
+    '--sha='+String(targetSha),'--lease-id='+leaseId,'--fencing-hash='+fence],{cwd:root,encoding:'utf8',stdio:'pipe'});
+}
 const CHAIR_REF_PREFIX=()=>{let value=String(process.env.FLIXO_CHAIR_REF_PREFIX??'refs/flixo/chairs');while(value.endsWith('/')||value.endsWith('\\'))value=value.slice(0,-1);return value;};
 const storageKey=(value)=>hash(String(value));
 const refValue=(ref)=>{try{return git(['rev-parse','--verify',ref]);}catch{return null;}};
@@ -304,6 +316,7 @@ export function acquire({chairId='chair_1',agentId,targetSha=sha(),repositorySta
     const wp=workPackageId===null?null:assertContextId(workPackageId,'WORK_PACKAGE_ID');
     const task=taskId===null?null:assertContextId(taskId,'TASK_ID');
     if(chairId==='chair_1'){
+      if(agentId!==CHAIR1_OWNER_AGENT) verifyCentralChairForMutation({agentId,targetSha:t,workPackageId:wp,taskId:task});
       if(agentId!==CHAIR1_OWNER_AGENT && (task===null || wp===null))throw new Error('CHAIR1_TASK_DELEGATION_REQUIRED');
       if(repositoryState!=='IDLE'||state.repository_state!=='IDLE')throw new Error('CHAIR_REPOSITORY_NOT_IDLE');
       if(active.length)throw new Error('CHAIR1_ACTIVE_DELEGATION');
@@ -394,6 +407,7 @@ export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permiss
   const state=readState();
   if(state.target_sha!==t)throw new Error('STALE_CONTEXT');
   const chair=verifyLease({state,chairId,agentId,targetSha:t});
+  verifyCentralChairForMutation({agentId,targetSha:t,workPackageId,taskId});
   const def=CHAIR_DEFINITIONS[chairId];
   if(chair.work_package_id!==null && chair.work_package_id!==String(workPackageId??''))throw new Error('CHAIR_WORK_PACKAGE_MISMATCH');
   if(chair.task_id!==null && chair.task_id!==String(taskId??''))throw new Error('CHAIR_TASK_MISMATCH');
@@ -581,6 +595,7 @@ export function revoke({chairId='chair_1',agentId,reason='STALE_CONTEXT',session
 
 export function release({chairId,agentId,targetSha=sha(),successful=false,sessionId=null,taskId=null}={}){
   const t=assertSha(targetSha,'TARGET_SHA');
+  verifyCentralChairForMutation({agentId,targetSha:t,workPackageId:null,taskId:null});
   return withWriteLock(()=>{
     const state=readState();const chair=verifyLease({state,chairId,agentId,targetSha:t,assertCurrentHead:false});
     assertChair1ReleaseAllowed(chair,{successful,reason:successful===true?'TASK_COMPLETE':'RELEASE'});
