@@ -979,6 +979,21 @@ jobs:
           test -f /tmp/flixo-repair-evidence.json
           node /tmp/flixo-repair-controller/scripts/ci/repair-protocol.mjs commit-gate --evidence=/tmp/flixo-repair-evidence.json
 
+      - name: Materialize source-anchored RCA attestation for candidate verification
+        if: steps.verify.outputs.verified == 'true'
+        run: |
+          set -euo pipefail
+          test -s /tmp/flixo-rca-manifest.json
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          MANIFEST_SHA="$(jq -r '.target_sha' /tmp/flixo-rca-manifest.json)"
+          test "$MANIFEST_SHA" = "$FAILED_SHA" || {
+            echo "FAIL CLOSED: RCA manifest source SHA $MANIFEST_SHA != failed SHA $FAILED_SHA"
+            exit 1
+          }
+          mkdir -p diagnostics/auto-repair
+          cp /tmp/flixo-rca-manifest.json diagnostics/auto-repair/last-rca-manifest.json
+          test "$(jq -r '.target_sha' diagnostics/auto-repair/last-rca-manifest.json)" = "$FAILED_SHA"
+
       - name: Create exact unpublished candidate commit
         id: candidate_commit
         if: steps.verify.outputs.verified == 'true'
