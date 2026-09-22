@@ -202,7 +202,6 @@ jobs:
               ''|*[!a-fA-F0-9]*) echo 'FAIL CLOSED: failure fingerprint must be hexadecimal.'; exit 1 ;;
             esac
           fi
-          fi
           CONCLUSION="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion')"
           case "$CONCLUSION" in
             failure|timed_out) ;;
