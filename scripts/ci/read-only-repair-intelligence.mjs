@@ -13,6 +13,7 @@ import { buildErrorOnlyRepairModel } from './auto-repair/error-only-programmer.m
 import { buildCausalDiscriminator } from './action-causal-discriminator.mjs';
 import { buildMetaCausalModel } from './meta-causal-model.mjs';
 import { buildMentorPacket } from './action-code-mentor.mjs';
+import { buildPrediction as buildActionVaultPrediction } from './action-historical-predictor.mjs';
 
 const ROOT=process.cwd();
 const exactSha=(v)=>/^[a-f0-9]{40}$/u.test(String(v??''));
@@ -222,6 +223,34 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
       return { protocol:'CODE_MENTOR_PACKET_V3', status:'READ_ONLY_MENTOR_UNAVAILABLE', readOnly:true, error:String(error?.message ?? error) };
     }
   })() : { protocol:'CODE_MENTOR_PACKET_V3', status:'SKIPPED_IN_UNIT_TEST', readOnly:true };
+  const actionVaultPrediction=full ? (() => {
+    try {
+      return buildActionVaultPrediction({
+        taskId:'READ_ONLY_REPAIR_INTELLIGENCE:'+fingerprint,
+        fingerprint,
+        targetSha,
+        failedRunId:String(failedRunId),
+        failureLog:log,
+        workflow:String(historicalSignals?.workflow??''),
+        job:String(historicalSignals?.job??'')
+      });
+    } catch (error) {
+      return {
+        protocol:'PREDICTIVE_REPAIR_PACKET_V1',
+        status:'READ_ONLY_ACTION_VAULT_PREDICTION_UNAVAILABLE',
+        identity:{taskId:'READ_ONLY_REPAIR_INTELLIGENCE:'+fingerprint,fingerprint,targetSha,failedRunId:String(failedRunId)},
+        search:{historicalIndex:false,actionIndex4000:false,repairMemory:true},
+        proposedRepair:{mode:'OWNER_REVIEW_REQUIRED',confidence:0,notCertain:true},
+        error:String(error?.message ?? error)
+      };
+    }
+  })() : {
+    protocol:'PREDICTIVE_REPAIR_PACKET_V1',
+    status:'SKIPPED_IN_UNIT_TEST',
+    mutationAuthority:'NONE',
+    identity:{taskId:'READ_ONLY_REPAIR_INTELLIGENCE:'+fingerprint,fingerprint,targetSha,failedRunId:String(failedRunId)},
+    proposedRepair:{mode:'OWNER_REVIEW_REQUIRED',confidence:0,notCertain:true}
+  };
   const adversarial=buildAdversarialMirror({
     log,targetSha,fingerprint,diagnosis,plan,selectedCandidate:selected,historicalKnowledge
   });
@@ -248,7 +277,8 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
       knowledgeGraph,
       causalDiscriminator,
       metaCausalModel,
-      codeMentor:mentorPacket
+      codeMentor:mentorPacket,
+      actionVaultPrediction
     },
     adversarial,
     deepInference,
@@ -261,6 +291,8 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
       adversarialStatus:adversarial.status,
       programmerTwinStatus:programmerTwin?.status??null,
       programmerTwinMode:'READ_ONLY_MIRROR',
+      actionVaultPredictionStatus:actionVaultPrediction?.status??'UNKNOWN',
+      actionVaultPredictionConfidence:Number(actionVaultPrediction?.proposedRepair?.confidence??0),
       mutationWouldBeAllowedByRepairStack:Boolean(errorOnly.repair?.mutationAllowed)&&Boolean(confidence.allowed)&&adversarial.counterexampleFound===false,
       readOnlyDecision:'REPORT_ONLY'
     },
@@ -274,7 +306,8 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
       'Acquire exact failure log and exact run identity for the active RED.',
       'Resolve adversarial challenges before treating the primary repair hypothesis as reliable.',
       'Trace selected source/workflow dependencies against the current exact SHA.',
-      'Never convert the mirror recommendation into mutation authority.'
+      'Use Action Vault historical prediction only as ranked evidence; require current exact-SHA proof before any repair authority.',
+      'Never convert the mirror recommendation or Action Vault prediction into mutation authority.'
     ],
     digest:hash(JSON.stringify({targetSha,fingerprint,selected:selected?.id??null,adversarialStatus:adversarial.status,planBlocked:plan.blockedReason??null}))
   };
