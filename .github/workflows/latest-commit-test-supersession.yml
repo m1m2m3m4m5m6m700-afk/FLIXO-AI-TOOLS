@@ -107,34 +107,37 @@ jobs:
             echo "CANCEL stale run=$run_id sha=$head_sha name=$name event=$event status=$status"
 
             local cancel_output=""
-            if ! cancel_output="$(gh run cancel "$run_id" --repo "$REPOSITORY" 2>&1)"; then
+            local attempt=1
+            local now_status=""
+            while [ "$attempt" -le 3 ]; do
+              if cancel_output="$(gh run cancel "$run_id" --repo "$REPOSITORY" 2>&1)"; then
+                echo "$cancel_output"
+                echo "STALE_RUN_CANCEL_REQUESTED run=$run_id attempt=$attempt"
+                return 0
+              fi
               if printf '%s' "$cancel_output" | grep -Eiq 'API rate limit exceeded|rate limit exceeded|secondary rate limit|abuse detection'; then
                 echo "BLOCKED_EXTERNAL: GitHub Actions API rate limit prevented stale-run cancellation for run=$run_id"
                 echo "SUPERSESSION_EXTERNAL_BLOCKER=GITHUB_ACTIONS_API_RATE_LIMIT"
                 return 0
               fi
-              local now_status=""
               local status_output=""
-              if ! status_output="$(gh run view "$run_id" --repo "$REPOSITORY" --json status --jq '.status' 2>&1)"; then
-                if printf '%s' "$status_output" | grep -Eiq 'API rate limit exceeded|rate limit exceeded|secondary rate limit|abuse detection'; then
-                  echo "BLOCKED_EXTERNAL: GitHub Actions API rate limit prevented stale-run status lookup for run=$run_id"
-                  echo "SUPERSESSION_EXTERNAL_BLOCKER=GITHUB_ACTIONS_API_RATE_LIMIT"
+              if status_output="$(gh run view "$run_id" --repo "$REPOSITORY" --json status --jq '.status' 2>&1)"; then
+                now_status="$status_output"
+                if [ "$now_status" = "completed" ]; then
+                  echo "STALE_RUN_ALREADY_COMPLETED run=$run_id"
                   return 0
                 fi
-                echo "ERROR: cancellation failed and status lookup failed for run=$run_id" >&2
-                return 1
-              fi
-              now_status="$status_output"
-              if [ "$now_status" = "completed" ]; then
-                echo "STALE_RUN_ALREADY_COMPLETED run=$run_id"
+              elif printf '%s' "$status_output" | grep -Eiq 'API rate limit exceeded|rate limit exceeded|secondary rate limit|abuse detection'; then
+                echo "BLOCKED_EXTERNAL: GitHub Actions API rate limit prevented stale-run status lookup for run=$run_id"
+                echo "SUPERSESSION_EXTERNAL_BLOCKER=GITHUB_ACTIONS_API_RATE_LIMIT"
                 return 0
               fi
-              echo "ERROR: cancellation failed for active run=$run_id status=$now_status" >&2
-              return 1
-            fi
-            echo "$cancel_output"
-
-            echo "STALE_RUN_CANCEL_REQUESTED run=$run_id"
+              echo "RETRY stale-run cancellation run=$run_id attempt=$attempt status=$now_status" >&2
+              sleep 2
+              attempt=$((attempt + 1))
+            done
+            echo "ERROR: cancellation failed for active run=$run_id status=$now_status" >&2
+            return 1
           }
 
           gh api "repos/$REPOSITORY/actions/runs?branch=$BRANCH&per_page=100" |

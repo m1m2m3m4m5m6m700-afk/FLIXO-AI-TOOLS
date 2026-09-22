@@ -47,6 +47,7 @@ export function createAgentWorkspace({
     taskId:String(taskId),
     workspace,
     baseSha,
+    entrySha:baseSha,
     executionSha,
     mainSha,
     workspaceBranch:null,
