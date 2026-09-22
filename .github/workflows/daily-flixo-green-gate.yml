@@ -479,9 +479,7 @@ jobs:
           fi
 
           if [ "$DISPATCH" = true ]; then
-            gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/auto-repair.yml/dispatches" \
-
-              -f ref=execution \
+            gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/auto-repair.yml/dispatches"               -f ref=execution               -f "inputs[convergence_guidance_artifact_id]=$CONVERGENCE_GUIDANCE_ARTIFACT_ID" \
               -f "inputs[target_run_id]=$TARGET_RUN_ID" \
               -f "inputs[chain_id]=$REPAIR_CHAIN_ID" \
               -f "inputs[failure_fingerprint]=$FAILURE_FINGERPRINT" \
