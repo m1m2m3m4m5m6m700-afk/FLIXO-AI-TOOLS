@@ -51,12 +51,14 @@
     "convergence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["search_space_strategy","max_cycles","prior_counterexample_required_after_cycle_1"],
+      "required": ["search_space_strategy","max_cycles","prior_counterexample_required_after_cycle_1","previous_counterexample_addressed"],
       "properties": {
         "search_space_strategy": {"const": "EVIDENCE_BOUNDED"},
         "max_cycles": {"const": 3},
         "prior_counterexample_required_after_cycle_1": {"const": true},
-        "prior_counterexample_digest": {"type": ["string","null"]}
+        "prior_counterexample_digest": {"type": ["string","null"]},
+        "previous_counterexample_addressed": {"type": "boolean"},
+        "address_evidence_digest": {"type": ["string","null"], "pattern": "^[a-f0-9]{64}$"}
       }
     },
     "deterministic_proof": {
