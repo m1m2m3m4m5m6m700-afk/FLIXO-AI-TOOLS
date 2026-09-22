@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { loadAndValidateCellLabConsensus } from './cell-lab-consensus.mjs';
+import { loadAndValidateCellLabConsensus, validateCellLabConsensus } from './cell-lab-consensus.mjs';
 
 export const ACTION_PRIMARY_CORRECTNESS_PROOF='ACTION_PRIMARY_CORRECTNESS_PROOF';
 export const REPAIR_PROTOCOL = Object.freeze({
@@ -63,8 +63,11 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
     const taskId=String(session?.taskId ?? process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? '').trim();
     if(!taskId) throw new Error('CELL_LAB_TASK_ID_REQUIRED');
     let consensus;
-    try { consensus=loadAndValidateCellLabConsensus({file: session?.cellLabConsensusFile, taskId, exactSha: session?.targetSHA ?? '' , mutationOwner: actor}); }
-    catch (error) { throw new Error('CELL_LAB_CONSENSUS_REQUIRED: '+(error instanceof Error ? error.message : String(error)), {cause:error}); }
+    try {
+      consensus = session?.cellLabConsensus
+        ? validateCellLabConsensus(session.cellLabConsensus, { taskId, exactSha: session?.targetSHA ?? '', mutationOwner: actor })
+        : loadAndValidateCellLabConsensus({ file: session?.cellLabConsensusFile, taskId, exactSha: session?.targetSHA ?? '', mutationOwner: actor });
+    } catch (error) { throw new Error('CELL_LAB_CONSENSUS_REQUIRED: '+(error instanceof Error ? error.message : String(error)), {cause:error}); }
     if(consensus.executionReady!==true || consensus.status!=='AGREED' || consensus.exactSha!==session.targetSHA) throw new Error('CELL_LAB_CONSENSUS_NOT_EXECUTION_READY');
   }
   if(mutation&&!protocolOk(session)) throw new Error('REPAIR_PROTOCOL_SESSION_REQUIRED');
