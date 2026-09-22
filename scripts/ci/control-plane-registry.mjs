@@ -57,6 +57,7 @@ export const TRUST_PERIMETER_PATHS = Object.freeze([
   'scripts/ci/execution-head-authority.mjs',
   'scripts/ci/chair1-change-accumulator.mjs',
   'scripts/ci/agent-isolated-workspace.mjs',
+  'scripts/ci/agent-session.mjs',
   'scripts/ci/auto-repair-learning.mjs',
   'scripts/ci/auto-repair-proof.mjs',
   'scripts/ci/auto-repair/',
