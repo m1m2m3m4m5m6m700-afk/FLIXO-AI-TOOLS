@@ -10,7 +10,6 @@ import {
 } from './canonical-lane-consolidator.mjs';
 
 const head='1111111111111111111111111111111111111111';
-const aBase='2222222222222222222222222222222222222222';
 const bBase='3333333333333333333333333333333333333333';
 const aHead='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const bHead='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
