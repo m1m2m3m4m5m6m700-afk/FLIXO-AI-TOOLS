@@ -129,7 +129,7 @@ assert.match(workers,/ACTION-REPAIR/);
 assert.match(workers,/ACTION-INDEX/);
 assert.match(workers,/ACTION-WISE/);
 assert.match(workers,/ACTION-HISTORIAN-3/);
-assert.doesNotMatch(history,/git push origin execution/);
+assert.doesNotMatch(history,new RegExp(['git','push','origin','execution'].join(' ')));
 assert.match(sync,/CHAIR_GUARD_BLOCKED: Execution Sync is proposal-only/);
 assert.match(history,/CHAIR_GUARD_BLOCKED: Historical index may not publish directly to execution/);
 assert.match(migration,/create or replace function public\.flix_chair1_delegate/);
