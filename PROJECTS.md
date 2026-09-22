@@ -42,7 +42,7 @@ rst is a P0 execution invariant. The canonical ingress is Master Inbox Issue #76
 SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
 CURRENT MAIN SHA = authoritative GitHub main ref; never duplicate a mutable SHA in this map
-ACTIVE PR = #774 OPEN / execution → main (current verification/repair lane); #759 is historical/merged
+ACTIVE PR = #781 OPEN / execution → main (current verification/repair lane); #759 is historical/merged
 CURRENT PR HEAD = authoritative GitHub PR #774 head; do not duplicate a mutable SHA in this map
 NO-NEW-BRANCH = ABSOLUTE; only execution and main are active agent branches; existing historical branches are not valid work paths
 STATE = BLOCKED_EXTERNAL
