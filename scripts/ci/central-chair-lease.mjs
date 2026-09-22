@@ -86,10 +86,25 @@ async function main() {
   const fence = required(arg(a, 'fencing-hash'), 'FENCING_HASH');
 
   if (command === 'verify') {
-    console.log(JSON.stringify(await rpc('flix_chair1_verify', {
+    const result = await rpc('flix_chair1_verify', {
       p_holder_agent_id: holder, p_task_id: task, p_work_package_id: workPackage,
       p_exact_sha: exactSha, p_lease_id: id, p_fencing_token_hash: fence,
-    }), null, 2));
+    });
+    const owner = result?.ownerAgentId ?? result?.owner_agent_id;
+    const delegatedBy = result?.delegatedBy ?? result?.delegated_by;
+    const holderAgent = result?.holderAgentId ?? result?.holder_agent_id;
+    if (result?.authorized !== true ||
+        owner !== 'assistantController' ||
+        delegatedBy !== 'assistantController' ||
+        holderAgent !== holder ||
+        (result?.taskId ?? result?.task_id) !== task ||
+        (result?.workPackageId ?? result?.work_package_id) !== workPackage ||
+        (result?.exactSha ?? result?.exact_sha) !== exactSha ||
+        (result?.leaseId ?? result?.lease_id) !== id ||
+        (result?.fencingTokenHash ?? result?.fencing_token_hash) !== fence) {
+      throw new Error('CENTRAL_CHAIR_PROOF_INVALID');
+    }
+    console.log(JSON.stringify(result, null, 2));
     return;
   }
   if (command === 'heartbeat') {
