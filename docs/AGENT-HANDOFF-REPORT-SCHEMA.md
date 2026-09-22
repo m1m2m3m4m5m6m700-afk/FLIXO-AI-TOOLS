@@ -59,3 +59,25 @@ Worker sessions operating under `FLIXO-AGENT-ISOLATED-WORKSPACE-v1` MUST include
 The worker's `exitSha` is the workspace entry snapshot, not a claim about the current execution head.
 
 A later movement of `execution` MUST NOT invalidate the worker's result. Chair 1 is responsible for reconciling the result against the newest execution/main state.
+
+## Chair-1 preemption handoff
+
+When a worker loses Chair 1 because another authorized master takes the seat, the session does not become abandoned.
+
+The handoff MUST preserve:
+
+- `preemptionContinuity.status = CONTINUING_AFTER_PREEMPTION`
+- original `taskId`
+- original `targetSha`
+- displaced agent identity
+- new Chair-1 holder identity
+- `mutationAuthorityRevoked = true`
+- `canContinueTask = true`
+- `canMutateAfterPreemption = false`
+- `handoffTo = CHAIR_1_GUARD`
+- `remainingWork`
+- `executionPlanNext`
+- `blockers`
+- exact evidence and cycle lessons.
+
+The displaced agent may continue its session and then close with a handoff to the guard. A successor must revalidate the current exact SHA and RCA before applying any inherited change.
