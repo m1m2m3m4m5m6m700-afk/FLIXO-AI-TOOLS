@@ -31,7 +31,7 @@ for (const [sessionId, agentId] of [['race-session-a','executionAgent-a'], ['rac
 }
 
 const runArgs = (args) => new Promise((resolve) => {
-  const child = spawn(process.execPath, ['scripts/ci/agent-coordination.mjs', ...args], { cwd: root, env: { ...process.env, FLIXO_COORDINATION_DIR: coordDir, FLIXO_AGENT_VISIBILITY_DIR: visibilityDir, FLIXO_TASK_LEDGER_FILE: ledgerFile }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, ['scripts/ci/agent-coordination.mjs', ...args], { cwd: root, env: { ...process.env, FLIXO_CHAIR_SIGNING_KEY: 'test-chair-signing-key', FLIXO_COORDINATION_DIR: coordDir, FLIXO_AGENT_VISIBILITY_DIR: visibilityDir, FLIXO_TASK_LEDGER_FILE: ledgerFile }, stdio: ['ignore', 'pipe', 'pipe'] });
   let stdout = '';
   let stderr = '';
   child.stdout.on('data', (chunk) => { stdout += chunk; });
