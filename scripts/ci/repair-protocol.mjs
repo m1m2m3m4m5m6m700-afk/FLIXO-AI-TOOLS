@@ -23,7 +23,7 @@ export const REPAIR_PROTOCOL = Object.freeze({
   fallbackMutationPolicy: Object.freeze({ actor: 'assistantRepairAgent', minConfidence: 0.90, minSupport: 2 }),
   mutationRequires: ['protocolVersion','protocolHash','repairSessionId','failureFingerprint','targetSHA','beforeState'],
   completionRequires: ['repairAttempts','retestResult','resumePoint','finalVerification','finalSHA'],
-  protectedPaths: ['scripts/ci/repair-protocol.mjs','scripts/ci/control-plane-registry.mjs','scripts/ci/auto-repair-engine.mjs','scripts/ci/auto-repair-policy.mjs','scripts/ci/agent-execution-control.mjs','.github/workflows/auto-repair.yml','scripts/ci/validate-agent-protocol.mjs','scripts/ci/validate-agent-coordination.mjs'],
+  protectedPaths: ['scripts/ci/repair-protocol.mjs','scripts/ci/control-plane-registry.mjs','scripts/ci/auto-repair-engine.mjs','scripts/ci/auto-repair-policy.mjs','scripts/ci/agent-execution-control.mjs','.github/workflows/auto-repair.yml','scripts/ci/validate-agent-protocol.mjs','scripts/ci/validate-agent-coordination.mjs','scripts/ci/chair-bound-execution.mjs','scripts/ci/chair-push-guard.mjs','scripts/ci/auto-repair-chair1-audit.mjs'],
   mutationAgents: ['repairAgent','executionAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier','actionHistorian'],
   allAgents: ['assistantController','MASTER-1','MASTER-2','MASTER-3','analysis','implementation','verification','release','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','diagnosticAgent','actionRepairBot','actionRepairVerifier','actionHistorian'],
   actionVaultRoles: Object.freeze({
