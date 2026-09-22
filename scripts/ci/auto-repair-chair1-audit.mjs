@@ -29,7 +29,10 @@ const writeJson = (file, value) => {
   fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\\n');
 };
 const requireDir = (file) => file.includes('/') ? file.slice(0, file.lastIndexOf('/')) : '.';
-const normalizePaths = (paths) => [...new Set(paths.map((value) => String(value ?? '').trim().replaceAll('\\\\', '/').replace(/^\\.\\//, '')).filter(Boolean))].sort();
+const normalizePaths = (paths) => [...new Set(paths.map((value) => {
+  const normalized = String(value ?? '').trim().replaceAll('\\\\', '/');
+  return normalized.startsWith('./') ? normalized.slice(2) : normalized;
+}).filter(Boolean))].sort();
 
 const proposalPath = arg('proposal', '/tmp/flixo-chair1-proposal.json');
 const auditPath = arg('output', '/tmp/flixo-chair1-audit.json');
