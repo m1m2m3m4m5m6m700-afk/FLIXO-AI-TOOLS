@@ -6,10 +6,119 @@ run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id }}
 # main      = sole production/source-of-truth branch
 # No workflow in this file may create another branch.
 on:
-  # Canonical dispatcher is Daily·FLIXO Green Gate; Auto Repair never self-dispatches.
+  # Main currently retains the historical push trigger for this workflow.
+  # Keep the execution copy trigger-compatible so a push cannot produce an invalid/no-job run.
+  # This compatibility job does not grant mutation or self-dispatch authority.
+  push:
+    branches: [execution]
   workflow_dispatch:
     inputs:
-      repair:
+      resident:
+        description: 'Keep the Repair Bot resident and observing the active repair session'
+        required: false
+        default: 'false'
+        type: string
+      target_run_id:
+        description: 'Workflow run ID to diagnose and repair; omitted only in resident mode'
+        required: false
+        type: string
+      chain_id:
+        description: 'Stable repair-chain identifier; recursive runs must reuse it'
+        required: false
+        type: string
+      failure_fingerprint:
+        description: 'Watcher-provided exact failure fingerprint for Control Plane identity'
+        required: false
+        type: string
+      repair_lease_ref:
+        description: 'Existing atomic global repair lease ref created by the watcher'
+        required: false
+        type: string
+      repair_lease_attempt:
+        description: 'Durable lease attempt number; 1 is initial claim, >1 is stale recovery'
+        required: false
+        default: '1'
+        type: string
+      convergence_guidance_artifact_id:
+        description: 'Prior Auto Repair artifact carrying the verified counterexample required for convergence cycles > 1'
+        required: false
+        type: string
+      prompt_source_run_id:
+        description: 'Daily Green Gate run that published the comprehensive repair prompt bundle'
+        required: false
+        type: string
+
+permissions:
+  # Sole source-mutation authority for the repair plane.
+  # Actions administration is intentionally NOT granted: peer observers may wake
+  # the bot, but cannot use it to disable or reconfigure Actions.
+  # It still cannot bypass the execution-only mutation boundary or write main.
+  contents: read
+  # Read-only artifact/run observation is required for the independent twin result.
+  actions: read
+  # No Actions-admin capability: peer agents cannot be controlled by the repair bot.
+  checks: read
+  pull-requests: write
+  issues: write
+  statuses: write
+  security-events: write
+
+concurrency:
+  # One writer lane per execution ref. Different failure fingerprints/target runs must not mutate concurrently.
+  # The resident observer is isolated because it is non-mutating and long-lived.
+  group: flixo-execution-mutation-lane
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  GITHUB_TOKEN: ${{ github.token }}
+  FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
+  FLIXO_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
+  FLIXO_REPAIR_LANE: single
+  TARGET_RUN_ID: ${{ inputs.target_run_id }}
+  FLIXO_HISTORY_LIMIT: '100'
+  FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id }}
+  FLIXO_FAILURE_FINGERPRINT: ${{ inputs.failure_fingerprint || '' }}
+  FLIXO_REPAIR_LEASE_REF: ${{ inputs.repair_lease_ref || '' }}
+  FLIXO_REPAIR_LEASE_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
+  FLIXO_REPAIR_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
+  FLIXO_CONVERGENCE_GUIDANCE_ARTIFACT_ID: ${{ inputs.convergence_guidance_artifact_id || '' }}
+  FLIXO_MUTATION_ADMISSION: /tmp/flixo-mutation-admission.json
+  FLIXO_CHAIR_CONTEXT: /tmp/flixo-chair1-proposal.json
+  FLIXO_REPAIR_BEHAVIOR_TRACE_PATH: /tmp/flixo-repair-behavior-trace.json
+  FLIXO_HISTORICAL_SOLUTION_PATH: /tmp/flixo-historical-solution-index.json
+  FLIXO_TWIN_A_PATH: /tmp/flixo-twin-a.json
+  FLIXO_TWIN_B_PATH: /tmp/flixo-twin-b.json
+  FLIXO_SELECTION_PATH: /tmp/flixo-selected-repair-option.json
+  # prompt_source_run_id remains a compatibility input; artifact provenance is resolved from the canonical Green Gate by exact SHA.
+  # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
+  # sole mutation authority: AUTO_REPAIR_BOT on execution; peer agents are review/dispatch-only.
+  # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
+  # ACTION-VAULT-AUTONOMY-MODE: diagnostics/auto-repair/action-vault/ACTION-VAULT-AUTONOMY-MODE.json is canonical admission policy.
+  # This workflow is executor-only and must never self-dispatch.
+  FLIXO_STRICT_RED_REPAIR: 'true'
+  FLIXO_REPAIR_OPERATING_MODE: PROPOSAL_ONLY_UNDER_CHAIR
+  FLIXO_ROUTINE_HUMAN_APPROVAL: 'false'
+  FLIXO_CRITICAL_HUMAN_AUTH_REQUIRED: 'true'
+  FLIXO_BRANCH_CONFLICT_RECOVERY: 'true'
+  FLIXO_CONFLICT_OWNER_WITHDRAWAL: 'false'
+  FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
+  FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
+  FLIXO_DIAGNOSTIC_LINE_LIMIT: '5000'
+  # Independent Actions learning owner.
+  FLIXO_ACTION_INDEX_BOT_ID: ACTION-INDEX
+  FLIXO_ACTION_MASTER: repairAgent
+  FLIXO_AUTO_REPAIR_ROLE: AUTO_REPAIR_BOT
+  FLIXO_AUTO_REPAIR_CHAIR_AUDIT_REQUIRED: 'true'
+  FLIXO_AUTO_REPAIR_SELF_APPROVAL: 'false'
+  FLIXO_CHAIR_SIGNING_KEY: ${{ github.token }}
+  FLIXO_HEAD_AUTHORITY_PROOF: /tmp/flixo-head-authority.json
+  FLIXO_CHAIR1_PRIMARY_MISSION: CHAIR1_PRIMARY_TEST_CYCLE_REPAIR
+  FLIXO_CHAIR1_MISSION_PATH: /tmp/flixo-chair1-repair-mission.json
+  FLIXO_REPAIR_TASK_LEDGER_PATH: /tmp/flixo-repair-task-ledger.json
+
+jobs:
+  repair:
     name: Single-lane diagnose, execute, verify and learn on execution
     concurrency:
       group: flixo-execution-mutation-lane
