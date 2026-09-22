@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {acquire,authorizeWrite,authorizeMergeProposal,release,repositoryMode,heartbeat,reconcileDeadLeases,writeSpeculativeContext,readSpeculativeContext,sanitizeSessionContext,atomicChairRefAudit} from './chair-bound-execution.mjs';
+import {acquire,authorizeWrite,authorizeMergeProposal,release,repositoryMode,heartbeat,reconcileDeadLeases,writeSpeculativeContext,readSpeculativeContext,sanitizeSessionContext,atomicChairRefAudit,proposePush} from './chair-bound-execution.mjs';
 
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-chair-test-'));
 process.env.FLIXO_CHAIR_STATE_PATH=path.join(temp,'locks','chairs.json');
@@ -91,6 +91,44 @@ acquire({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,repositor
 assert.equal(authorizeWrite({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,paths:['src/fenced.ts'],permission:'SOURCE_MUTATION',workPackageId:'WP-FENCED',taskId:'TASK-FENCED',fencingToken:fencedToken}).authorized,true);
 assert.throws(()=>authorizeWrite({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,paths:['src/fenced.ts'],permission:'SOURCE_MUTATION',workPackageId:'WP-FENCED',taskId:'TASK-FENCED',fencingToken:'e'.repeat(64)}),/CHAIR_FENCING_TOKEN_MISMATCH/);
 release({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,successful:true});
+const proposalFile=path.join(hardeningRoot,'push-proposal.json');
+const proposal=writeSpeculativeContext({
+  sessionId:'push-proposal-session',
+  taskId:'PUSH-TASK-1',
+  chairId:'chair_2',
+  role:'verification',
+  targetSha:realGitSha,
+  pendingDiff:'proposal-only'
+});
+acquire({chairId:'chair_2',agentId:'agent-proposer',targetSha:realGitSha,repositoryState:'IDLE',scope:['src/example.ts']});
+const pushProposal=proposePush({
+  chairId:'chair_2',
+  agentId:'agent-proposer',
+  targetSha:realGitSha,
+  candidateSha:'b'.repeat(40),
+  parentSha:realGitSha,
+  paths:['src/example.ts'],
+  workPackageId:'WP-PUSH-1',
+  taskId:'TASK-PUSH-1',
+  summary:'Chair-2 proposed source push; guard must review before Chair-1 adoption.'
+});
+fs.writeFileSync(proposalFile,JSON.stringify(pushProposal,null,2)+'\n');
+const guardOut=path.join(hardeningRoot,'guard.json');
+const guardMem=path.join(hardeningRoot,'rejected-push-memory.jsonl');
+execFileSync(process.execPath,['scripts/ci/chair-push-guard.mjs','--proposal='+proposalFile,'--sha='+realGitSha,'--output='+guardOut,'--memory-output='+guardMem],{
+  env:{...process.env,FLIXO_CHAIR_STATE_PATH:process.env.FLIXO_CHAIR_STATE_PATH,FLIXO_GUARD_REMOTE_SHA:realGitSha,FLIXO_CHAIR_SIGNING_KEY:'test-chair-signing-key'}
+});
+const guardReport=JSON.parse(fs.readFileSync(guardOut,'utf8'));
+assert.equal(guardReport.decision,'REJECTED');
+assert.equal(guardReport.reasonCode,'CANDIDATE_NOT_AVAILABLE_TO_GUARD');
+assert.equal(fs.readFileSync(guardMem,'utf8').trim().length>0,true);
+const finalState=JSON.parse(fs.readFileSync(process.env.FLIXO_CHAIR_STATE_PATH,'utf8'));
+assert.equal(finalState.rejected_push_memory.at(-1).proposalId,pushProposal.proposalId);
+release({chairId:'chair_2',agentId:'agent-proposer',targetSha:realGitSha});
+sanitizeSessionContext({sessionId:'push-proposal-session',taskId:'PUSH-TASK-1'});
+console.log('CHAIR_PUSH_PROPOSAL_ONLY=PASS');
+console.log('CHAIR_PUSH_GUARD=PASS');
+console.log('REJECTED_PUSH_MEMORY=PASS');
 console.log('CHAIR_FENCING_TOKEN=PASS');
 console.log('CHAIR_HEARTBEAT_MICRO_LEASE=PASS');
 console.log('CHAIR_DEAD_LEASE_RECOVERY=PASS');
