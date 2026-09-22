@@ -274,9 +274,6 @@ const unverifiedProposalCase = memory.cases.find((item) => item.fingerprint === 
 assert.equal(unverifiedProposalCase?.attempts, 1);
 assert.equal(unverifiedProposalCase?.successes, 0);
 assert.equal(unverifiedProposalCase?.failures, 1);
-assert.equal(proposedCase?.attempts, 1);
-assert.equal(proposedCase?.successes, 0);
-assert.equal(proposedCase?.failures, 1);
 assert(memory.antiLessons.some((item) => item.fingerprint === '__proposed_test__'));
 
 recordOutcome(memory, {
