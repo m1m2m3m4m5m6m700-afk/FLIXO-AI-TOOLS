@@ -54,6 +54,9 @@ jobs:
       
       - name: Validate deep reasoning contract
         run: node scripts/ci/validate-read-only-deep-reasoning.mjs
+      
+      - name: Validate repair intelligence mirror contract
+        run: node scripts/ci/validate-read-only-repair-intelligence.mjs
 
       - name: Run read-only investigator
         env:
