@@ -165,7 +165,7 @@ export function buildWorkPackage(prompt) {
   const effectiveConstraints = adversarialLoop.plan.constraints ?? constraintsValue;
   const effectiveProofObligations = adversarialLoop.plan.workPackage?.proofObligations ?? proofObligations;
   const effectiveStopConditions = adversarialLoop.plan.workPackage?.stopConditions ?? stopConditions;
-  const adversarialBlock = ['EXECUTION', 'REPAIR_DIAGNOSE'].includes(intent) && !adversarialLoop.accepted;  const adversarialBlock = ['EXECUTION', 'REPAIR_DIAGNOSE'].includes(intent) && adversarialReview.status !== 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE';
+  const adversarialBlock = ['EXECUTION', 'REPAIR_DIAGNOSE'].includes(intent) && !adversarialLoop.accepted;
   const status = blocked ? 'BLOCKED' : (reviewRequired || adversarialBlock) ? 'REVIEW_REQUIRED' : 'READY';
   const cleanGoal = prompt.replace(/\s+/gu, ' ').trim();
   return {
