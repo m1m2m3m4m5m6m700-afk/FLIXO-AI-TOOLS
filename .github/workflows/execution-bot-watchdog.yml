@@ -290,9 +290,7 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             echo "WATCHDOG_PUSH_CANONICAL_TEST_SYSTEM_EXPECTED=true"
             echo "WATCHDOG_PUSH_CANONICAL_SHA=$EXECUTION_SHA"
-            echo "WATCHDOG_TEST_SYSTEM_DISPATCH=NOOP_PUSH_TRIGGER"
-            echo "WATCHDOG_CANONICAL_TEST_SYSTEM_STARTED=false"
-            exit 0
+            echo "WATCHDOG_TEST_SYSTEM_DISPATCH=OBSERVE_PUSH_TRIGGER"
           fi
 
           RUN_STATE="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100" |
@@ -323,7 +321,7 @@ jobs:
 
           echo "WATCHDOG_TEST_SYSTEM_DISPATCH=OBSERVATION_ONLY"
           FOUND="false"
-          for attempt in $(seq 1 1); do
+          for attempt in $(seq 1 6); do
             ACTIVE_COUNT="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100" |
               jq -r --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.path == ".github/workflows/ci.yml" and .head_sha == $sha and (.status == "queued" or .status == "in_progress"))] | length')"
             if [ "$ACTIVE_COUNT" -gt 0 ]; then

@@ -25,6 +25,15 @@ const requiredWorkflowsForBranch = (branch) =>
 
 // Any failed execution workflow may enter the repair lane.
 // Only the repair/control-plane infrastructure itself is excluded to prevent self-repair loops.
+const REPAIRABLE_WORKFLOW_PATHS = Object.freeze({
+  'FLIXO Test System': '.github/workflows/ci.yml',
+  'FLIXO WP0 Trust Baseline': '.github/workflows/wp0-trust-baseline.yml',
+  'FLIXO Test Impact': '.github/workflows/test-impact.yml',
+  'FLIXO Test Impact Execution': '.github/workflows/test-impact-execution.yml',
+  'Repository Security Baseline': '.github/workflows/repository-security-baseline.yml',
+  'Claude Security Review': '.github/workflows/claude-security-review.yml',
+});
+
 const NON_REPAIRABLE_WORKFLOW_PATTERNS = Object.freeze([
   /auto repair/i,
   /daily flixo green gate/i,
@@ -116,6 +125,15 @@ export function validateRepairTarget({ run, executionSha, workflowRuns = [], log
     .toLowerCase()
     .replace(/[^a-z0-9]+/gu, ' ')
     .trim();
+  const workflowPath = String(run?.path ?? run?.workflowPath ?? '').trim();
+  const expectedWorkflowPath = REPAIRABLE_WORKFLOW_PATHS[workflowName] ?? null;
+  if (!expectedWorkflowPath) {
+    errors.push('TARGET_WORKFLOW_NOT_ALLOWED');
+  } else if (!workflowPath) {
+    errors.push('TARGET_WORKFLOW_PATH_MISSING');
+  } else if (workflowPath !== expectedWorkflowPath) {
+    errors.push('TARGET_WORKFLOW_PATH_MISMATCH');
+  }
   if (NON_REPAIRABLE_WORKFLOW_PATTERNS.some((pattern) => pattern.test(normalizedWorkflowIdentity))) {
     errors.push('TARGET_WORKFLOW_NOT_ALLOWED');
   }
@@ -381,8 +399,7 @@ export function evaluateGreen({
         candidate?.headSha === executionSha &&
         candidate?.headBranch === 'execution' &&
         candidate?.status === 'completed' &&
-        ['failure', 'timed_out'].includes(candidate?.conclusion) &&
-        !NON_REPAIRABLE_WORKFLOW_PATTERNS.some((pattern) => pattern.test(String(candidate?.workflowName ?? '')))
+        ['failure', 'timed_out'].includes(candidate?.conclusion)
       )
       .sort((a, b) => String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')));
 
@@ -395,7 +412,26 @@ export function evaluateGreen({
         logs,
         branch: 'execution',
       });
-      if (!target.valid || providerFailure(failureLog)) continue;
+      if (!target.valid) {
+        if (providerFailure(failureLog)) {
+          report.externalBlockers.push({
+            kind: 'BLOCKED_EXTERNAL',
+            checkName: String(candidate.workflowName ?? '').trim(),
+            state: candidate.conclusion,
+            rootCause: 'EXTERNAL_PROVIDER_FAILURE',
+          });
+        } else if (target.errors.includes('TARGET_WORKFLOW_NOT_ALLOWED') || target.errors.includes('TARGET_WORKFLOW_PATH_MISMATCH')) {
+          report.errors.push({
+            type: 'UNAPPROVED_WORKFLOW_RED',
+            workflow: candidate.workflowName,
+            runId: candidate.databaseId,
+            conclusion: candidate.conclusion,
+          });
+          report.rootCause = report.rootCause ?? 'UNAPPROVED_WORKFLOW_FAILURE_REQUIRES_CHAIR_REVIEW';
+        }
+        continue;
+      }
+      if (providerFailure(failureLog)) continue;
 
       const failureFingerprint = fingerprintFailure(failureLog);
       const identity = deriveRepairIdentity({
@@ -467,6 +503,7 @@ export function evaluateGreen({
     'SECURITY_CHECK_RED',
     'UNEXPECTED_CHECK_RED',
     'UNEXPECTED_COMMIT_STATUS_RED',
+    'UNAPPROVED_WORKFLOW_RED',
   ].includes(error.type))) {
     report.status = 'RED_INTERNAL';
     report.rootCause = 'REQUIRED_CHECK_FAILURE_REQUIRES_REPAIR_CYCLE';

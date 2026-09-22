@@ -10,6 +10,14 @@ const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);
 const run = (workflowName, databaseId, conclusion = 'success') => ({
   workflowName,
+  path: ({
+    'FLIXO Test System': '.github/workflows/ci.yml',
+    'FLIXO WP0 Trust Baseline': '.github/workflows/wp0-trust-baseline.yml',
+    'FLIXO Test Impact': '.github/workflows/test-impact.yml',
+    'FLIXO Test Impact Execution': '.github/workflows/test-impact-execution.yml',
+    'Repository Security Baseline': '.github/workflows/repository-security-baseline.yml',
+    'Claude Security Review': '.github/workflows/claude-security-review.yml',
+  }[workflowName] ?? ''),
   databaseId,
   headSha: SHA_A,
   headBranch: 'execution',
@@ -81,18 +89,28 @@ assert.equal(validateRepairTarget({
   workflowRuns: [],
   logs: { 53: 'EVIDENCE_CAPTURE=AVAILABLE\nself target' },
 }).errors.includes('TARGET_SELF_REPAIR'), true);
-assert.equal(validateRepairTarget({
+const unknownTarget = validateRepairTarget({
   run: { ...run('Unknown workflow', 54, 'failure'), headBranch: 'execution' },
   executionSha: SHA_A,
   workflowRuns: [],
   logs: { 54: 'EVIDENCE_CAPTURE=AVAILABLE\nunknown target' },
-}).valid, true);
+});
+assert.equal(unknownTarget.valid, false);
+assert.equal(unknownTarget.errors.includes('TARGET_WORKFLOW_NOT_ALLOWED'), true);
 assert.equal(validateRepairTarget({
   run: { ...run('FLIXO Auto Repair Bot', 56, 'failure'), headBranch: 'execution' },
   executionSha: SHA_A,
   workflowRuns: [],
   logs: { 56: 'EVIDENCE_CAPTURE=AVAILABLE\nself repair infrastructure' },
 }).errors.includes('TARGET_WORKFLOW_NOT_ALLOWED'), true);
+const wrongPathTarget = validateRepairTarget({
+  run: { ...run('FLIXO Test Impact Execution', 57, 'failure'), path: '.github/workflows/ci.yml', headBranch: 'execution' },
+  executionSha: SHA_A,
+  workflowRuns: [],
+  logs: { 57: 'EVIDENCE_CAPTURE=AVAILABLE\nwrong path' },
+});
+assert.equal(wrongPathTarget.valid, false);
+assert.equal(wrongPathTarget.errors.includes('TARGET_WORKFLOW_PATH_MISMATCH'), true);
 assert.equal(validateRepairTarget({
   run: { ...run('FLIXO Test Impact Execution', 55, 'failure'), headBranch: 'execution' },
   executionSha: SHA_A,
@@ -398,8 +416,8 @@ const arbitraryRedWorkflow = evaluateGreen({
   compare: { ahead_by: 1, behind_by: 0 },
 });
 assert.equal(arbitraryRedWorkflow.status, 'RED_INTERNAL');
-assert.equal(arbitraryRedWorkflow.repair.required, true);
-assert.equal(arbitraryRedWorkflow.repair.targetRunId, 1200);
+assert.equal(arbitraryRedWorkflow.repair.required, false);
+assert.equal(arbitraryRedWorkflow.errors.some((x) => x.type === 'UNAPPROVED_WORKFLOW_RED' && x.runId === 1200), true);
 
 const providerWorkflow = evaluateGreen({
   executionSha: SHA_A,
@@ -546,6 +564,19 @@ assert.ok(!dailyGateWorkflow.includes('FILE="\\${REQUIRED_FILES[$WORKFLOW]}"'));
 assert.ok(dailyGateWorkflow.includes('actions/runs?head_sha=$EXECUTION_SHA&per_page=100'));
 assert.ok(dailyGateWorkflow.includes('.head_sha == $sha'));
 assert.ok(!dailyGateWorkflow.includes('gh run list --repo "$GITHUB_REPOSITORY" --workflow'));
+assert.ok(dailyGateWorkflow.includes('cancel-in-progress: true'));
+assert.ok(dailyGateWorkflow.includes('group: flixo-continuous-error-watch-${{ github.ref_name }}'));
+assert.ok(!dailyGateWorkflow.includes('flixo-continuous-error-watch-${{ github.event.workflow_run.head_sha || github.sha }}-${{ github.run_id }}'));
+
+const watchdogWorkflow = fs.readFileSync('.github/workflows/execution-bot-watchdog.yml', 'utf8');
+assert.ok(watchdogWorkflow.includes('FAIL CLOSED: canonical FLIXO Test System did not start for exact SHA'));
+assert.ok(!watchdogWorkflow.includes('WATCHDOG_TEST_SYSTEM_DISPATCH=NOOP_PUSH_TRIGGER'));
+assert.ok(!/if \[ \\"\$GITHUB_EVENT_NAME\\" = \\"push\\" \]; then[\\s\\S]{0,500}exit 0/.test(watchdogWorkflow));
+
+const autoRepairWorkflow = fs.readFileSync('.github/workflows/auto-repair.yml', 'utf8');
+assert.ok(autoRepairWorkflow.includes('REPAIR_BOT_RESIDENCY_WINDOW_EXPIRED=CONTROLLED_HANDOFF'));
+assert.ok(autoRepairWorkflow.includes("echo 'RESIDENCY_RENEWAL_REQUIRED=true'"));
+assert.ok(!/RESIDENCY_RENEWAL_REQUIRED=true[\\s\\S]{0,120}exit 0/.test(autoRepairWorkflow));
 for (const file of [
   'ci.yml',
   'wp0-trust-baseline.yml',

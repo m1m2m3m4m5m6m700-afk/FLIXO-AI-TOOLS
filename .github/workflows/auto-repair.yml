@@ -216,7 +216,8 @@ jobs:
           echo 'REPAIR_BOT_RESIDENCY_WINDOW_EXPIRED=CONTROLLED_HANDOFF'
           echo 'RESIDENCY_RENEWAL_REQUIRED=true'
           echo 'CANONICAL_WAKE_OWNER=FLIXO_AGENT_REPAIR_HEARTBEAT'
-          exit 0
+          echo 'FAIL_CLOSED: residency expired before canonical GREEN evidence.'
+          exit 1
 
   repair:
     needs: [provenance-guard]
