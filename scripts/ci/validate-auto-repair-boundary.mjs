@@ -223,7 +223,7 @@ export function validateStatic() {
   must(/unified-execution-push-gate\.mjs/.test(pushGateWorkflow), 'execution-push-gate-script-wired');
   must(/contents:\s*read/.test(pushGateWorkflow) && !/actions:\s*write/.test(pushGateWorkflow), 'execution-push-gate-read-only');
 
-  const jobsSection = auto.match(/^jobs:\\n([\\s\\S]*)$/m)?.[1] ?? '';
+  const jobsSection = auto.match(/^jobs:\\n([\\s\\S]*)$/)?.[1] ?? '';
   const jobBlock = (jobName) => {
     const marker = new RegExp(`^  ${jobName}:\\n`, 'm');
     const match = marker.exec(jobsSection);
