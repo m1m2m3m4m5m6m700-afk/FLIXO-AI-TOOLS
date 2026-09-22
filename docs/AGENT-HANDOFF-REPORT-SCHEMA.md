@@ -12,6 +12,8 @@ Required fields:
 
 `schemaVersion, reportId, sessionId, agentId, role, entrySha, exitSha, startedAt, finishedAt, status, scope, currentRca, rcaClosed, openRcas, changedFiles, commands, evidence, findings, cycleLessons, completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent`.
 
+`cellLabConsensus` is mandatory for every handoff that covers material execution/mutation. It contains the Cell-Lab packet identity, exact SHA, integrated plan hash, consensus status and unresolved-question/conflict state. A successor must revalidate it against the current exact SHA before mutation.
+
 `completedWork` contains only work actually performed and verified.
 
 `failedWork` contains attempted work not proven successful.
