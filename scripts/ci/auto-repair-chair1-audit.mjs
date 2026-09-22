@@ -59,9 +59,9 @@ const changedPaths = normalizePaths(
 const patch = execFileSync('git', ['diff', '--binary', parentSha, candidateSha], { cwd: ROOT });
 const patchSha256 = crypto.createHash('sha256').update(patch).digest('hex');
 const repairPaths = normalizePaths(Array.isArray(evidence.changedPaths) ? evidence.changedPaths : []);
-const controlPlanePath = /^(?:scripts\\/ci\\/(?:repair-|auto-repair)|scripts\\/ci\\/(?:agent-|execution-mutation-gate|control-plane)|\\.github\\/workflows\\/)/u;
-const sensitivePath = /(^|\\/)\\.env(?:\\.|$)|\\.(?:pem|key|p12|pfx)$|(^|\\/)secrets?\\//iu;
-const testPath = /(^|\\/)(?:tests?|__tests__)(?:\\/|$)|(?:^|\\/)test-[^/]+\\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu;
+const controlPlanePath = /^(?:scripts\/ci\/(?:repair-|auto-repair)|scripts\/ci\/(?:agent-|execution-mutation-gate|control-plane)|\.github\/workflows\/)/u;
+const sensitivePath = /(^|\/)\.env(?:\.|$)|\.(?:pem|key|p12|pfx)$|(^|\/)secrets?\//iu;
+const testPath = /(^|\/)(?:tests?|__tests__)(?:\/|$)|(?:^|\/)test-[^/]+\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu;
 
 requireCondition(CHAIR_DEFINITIONS.chair_1.permissions.includes('SOURCE_MUTATION'), 'CHAIR1_SOURCE_MUTATION_PERMISSION_MISSING', 'chair_1 must retain SOURCE_MUTATION authority');
 requireCondition(currentSha === candidateSha, 'CANDIDATE_NOT_HEAD', { currentSha, candidateSha });
