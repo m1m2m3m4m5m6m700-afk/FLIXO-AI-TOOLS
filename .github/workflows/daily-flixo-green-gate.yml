@@ -17,11 +17,11 @@ permissions:
   checks: read
   pull-requests: read
 
-# Every observation is evidence-bearing and must complete; duplicate wake suppression is handled by the watchdog.
+# Observations are evidence-bearing; duplicate observers for the same exact SHA are superseded so only the newest state evaluator remains active.
 # The watcher itself never cancels an evidence-bearing observation.
 concurrency:
-  group: flixo-continuous-error-watch-${{ github.run_id }}
-  cancel-in-progress: false
+  group: flixo-continuous-error-watch-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: true
 
 jobs:
   watch:
