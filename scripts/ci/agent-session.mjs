@@ -634,7 +634,9 @@ if (command === 'meeting-exit-approve') {
   }
   record.chairBinding = { ...record.chairBinding, released: true, releasedAt: now(), releasedChairId: activeBeforeClose?.chairId ?? record.chairBinding?.chairId ?? null, releaseReason: activeBeforeClose ? 'SESSION_TASK_COMPLETED' : 'TASK_ALREADY_RELEASED' };
   record.status = status;
-  record.exitSha = sha;
+  record.exitSha = isWorkspaceOnlySession(record) ? record.workspaceIsolation.entrySha : sha;
+  record.exitRootExecutionShaAtLogout = gitSha();
+  record.workspaceResult = workspaceResult;
   record.finishedAt = now();
   record.changedFiles = changedFiles;
   record.commands = commands;
@@ -668,7 +670,9 @@ if (command === 'meeting-exit-approve') {
     finalSummary,
     visibilityPath: path.relative(ROOT, visibilityPath(sessionId)),
     entrySha: record.entrySha,
-    exitSha: sha,
+    exitSha: isWorkspaceOnlySession(record) ? record.workspaceIsolation.entrySha : sha,
+    workspaceResult,
+    integrationRequired: isWorkspaceOnlySession(record),
     startedAt: record.startedAt,
     finishedAt: record.finishedAt,
     status,
@@ -691,6 +695,7 @@ if (command === 'meeting-exit-approve') {
     inheritedExitSha: record.inheritedExitSha ?? null,
   };
   fs.writeFileSync(handoffPath(sessionId), `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' });
+  if (workspaceResult) cleanupAgentWorkspace({ repoRoot: ROOT, workspace: record.workspaceIsolation.workspace, force: true });
 
   console.log(`AGENT_SESSION_LOGOUT=${sessionId}`);
   console.log(`AGENT_SESSION_SHA=${sha}`);
