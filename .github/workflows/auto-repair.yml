@@ -59,8 +59,9 @@ permissions:
   security-events: write
 
 concurrency:
-  # Serialize one canonical repair chain; the chain identity includes branch, SHA, fingerprint and target run ID.
-  group: flixo-auto-repair-${{ inputs.resident == 'true' && 'resident' || (inputs.chain_id || inputs.target_run_id) }}
+  # One writer lane per execution ref. Different failure fingerprints/target runs must not mutate concurrently.
+  # The resident observer is isolated because it is non-mutating and long-lived.
+  group: flixo-auto-repair-${{ inputs.resident == 'true' && 'resident' || 'execution-writer' }}
   cancel-in-progress: false
 
 env:

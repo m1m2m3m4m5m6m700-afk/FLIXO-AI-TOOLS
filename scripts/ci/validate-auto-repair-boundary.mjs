@@ -136,6 +136,10 @@ export function validateStatic() {
   must(!/git\s+push[^\n]*\bmain\b/.test(auto), 'auto-repair-no-main-push');
   must(!/gh\s+pr\s+merge/i.test(auto), 'auto-repair-no-self-merge');
   must(/actions\/workflows\/auto-repair\.yml\/dispatches/.test(dailyGate), 'daily-gate-auto-repair-dispatch');
+  must(/github\.event\.workflow_run\.head_sha/.test(dailyGate), 'daily-gate-concurrency-observes-workflow-run-sha');
+  must(/cancel-in-progress:\s*true/.test(dailyGate), 'daily-gate-cancels-stale-observations');
+  must(/group:\s*flixo-auto-repair-.*execution-writer/.test(auto), 'auto-repair-single-execution-writer-lane');
+  must(/contents:\s*read/.test(dailyGate) && !/contents:\s*write/.test(dailyGate), 'daily-gate-no-source-mutation-permission');
   must(!/gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i.test(dailyGate), 'daily-gate-no-watchdog-dispatch');
   must(/workflow_run:/.test(watchdog), 'watchdog-workflow-run-trigger');
   must(/FLIXO Test System/.test(watchdog) && /FLIXO WP0 Trust Baseline/.test(watchdog), 'watchdog-required-workflow-set');
