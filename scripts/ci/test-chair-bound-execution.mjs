@@ -145,7 +145,7 @@ acquire({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,repositor
 assert.equal(authorizeWrite({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,paths:['src/fenced.ts'],permission:'SOURCE_MUTATION',workPackageId:'WP-FENCED',taskId:'TASK-FENCED',fencingToken:fencedToken}).authorized,true);
 assert.throws(()=>authorizeWrite({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,paths:['src/fenced.ts'],permission:'SOURCE_MUTATION',workPackageId:'WP-FENCED',taskId:'TASK-FENCED',fencingToken:'e'.repeat(64)}),/CHAIR_FENCING_TOKEN_MISMATCH/);
 release({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,successful:true});
-acquire({chairId:'chair_1',agentId:'agent-chair1-active',targetSha:realGitSha,repositoryState:'IDLE'});
+acquire({chairId:'chair_1',agentId:'agent-chair1-active',targetSha:realGitSha,repositoryState:'IDLE',workPackageId:'WP-CHAIR1-ACTIVE',taskId:'TASK-CHAIR1-ACTIVE',fencingToken:'f'.repeat(64)});
 const proposalFile=path.join(hardeningRoot,'push-proposal.json');
 const proposal=writeSpeculativeContext({
   sessionId:'push-proposal-session',
