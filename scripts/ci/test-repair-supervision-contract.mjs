@@ -58,7 +58,7 @@ assert.match(watchdog, /name: Record exact execution push wake/);
 assert.match(watchdog, /github\.event_name == 'push'.*steps\.source\.outputs\.stale != 'true'/);
 assert.match(watchdog, /EXECUTION_SHA="\$\{\{ steps\.source\.outputs\.execution_sha \}\}"/);
 assert.match(watchdog, /STALE_WATCHDOG_EVENT=true/);
-assert.match(watchdog, /EVENT_BRANCH.*execution.*EVENT_SHA.*EXECUTION_SHA.*STALE_WATCHDOG_EVENT=true/);
+assert.match(watchdog, /EVENT_BRANCH[\s\S]*execution[\s\S]*EVENT_SHA[\s\S]*EXECUTION_SHA[\s\S]*STALE_WATCHDOG_EVENT=true/);
 assert.doesNotMatch(watchdog, /GREEN_GATE_ALREADY_ACTIVE/);
 assert.doesNotMatch(watchdog, /WATCHDOG_DISPATCH_SKIPPED=DUPLICATE_SOURCE_SHA/);
 assert.doesNotMatch(watchdog, /gh\s+workflow\s+run\s+daily-flixo-green-gate\.yml/);
