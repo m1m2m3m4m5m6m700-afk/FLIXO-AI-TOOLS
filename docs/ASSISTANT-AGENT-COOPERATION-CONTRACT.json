@@ -665,10 +665,18 @@
     "status": "ACTIVE",
     "objective": "MAXIMIZE_COOPERATIVE_REASONING_AND_DELIVERY_WITHOUT_PARALLEL_AUTHORITY",
     "authoritySource": "USER",
+    "operationalCommandChain": [
+      "USER_FINAL_AUTHORITY",
+      "assistantController_OPERATIONAL_EXECUTION_LEAD",
+      "MASTER_COUNCIL_COLLABORATION",
+      "REGISTERED_AGENTS_AND_BOTS"
+    ],
+    "operationalLeader": "assistantController",
+    "userRemainsFinalAuthority": true,
     "roles": {
-      "MASTER-1": "PRESIDENT / orchestration, prioritization, integration and decision coordination",
-      "MASTER-2": "DEPUTY / dependency sequencing, contract alignment, verification coordination and challenge",
-      "MASTER-3": "CONSULTANT / causal analysis, design proposals, challenge, architecture review and knowledge synthesis"
+      "MASTER-1": "EXECUTION_COUNCIL_LEAD / orchestration, prioritization, integration and decision coordination under assistantController",
+      "MASTER-2": "VERIFICATION_COUNCIL / dependency sequencing, contract alignment, verification coordination and independent challenge under assistantController",
+      "MASTER-3": "RCA_COUNCIL / causal analysis, design proposals, challenge, architecture review and knowledge synthesis under assistantController"
     },
     "cooperationCycle": [
       "ASSIGN",
@@ -695,6 +703,20 @@
       "EXPLICIT_REJECTION_OF_CONTRADICTED_FINDINGS",
       "NO_SILENT_SCOPE_EXPANSION"
     ],
+    "sessionObligations": {
+      "minimumActiveMinutes": 45,
+      "maxContinuousSegmentMinutes": 180,
+      "totalTaskDurationUnlimitedWhileOpen": true,
+      "heartbeatEveryMinutes": 1,
+      "masterStatusEveryMinutes": 5,
+      "taskReminderEveryMinutes": 10,
+      "requiredChannel": "MASTER_CELL_LAB",
+      "noSleep": true,
+      "noIdle": true,
+      "noSilentExit": true,
+      "noBlockedLogout": true,
+      "shaChange": "invalidate dependent evidence and requalify; do not abandon task"
+    },
     "peerRules": {
       "masterToMaster": "Any Master may request analysis, challenge, clarification, evidence or handoff from another Master through the canonical communication channel.",
       "noSilentOverrides": "A Master response cannot silently overwrite another Master's finding; conflicting findings remain attributable until explicitly reconciled.",
