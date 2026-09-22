@@ -3,8 +3,9 @@ name: FLIXO Test Impact Execution
 on:
   pull_request:
     branches: [main]
+  # Execution is tested through the canonical pull_request lane; push runs remain for main after integration.
   push:
-    branches: [main, execution]
+    branches: [main]
   workflow_dispatch:
 
 # Keep only the newest test-impact execution for the same PR/branch.
