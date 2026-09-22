@@ -133,6 +133,11 @@ jobs:
               if [ "$RUN_COUNT" -eq 0 ]; then
                 echo "REQUIRED_CI_MISSING workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA"
                 if [ -z "${RESIDENT_DISPATCHED[$WORKFLOW]+x}" ]; then
+                  LIVE_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/execution" --jq '.sha')"
+                  if [ "$LIVE_EXECUTION_SHA" != "$EXECUTION_SHA" ]; then
+                    echo "STALE_GREEN_GATE_DISPATCH_BLOCKED captured=$EXECUTION_SHA live=$LIVE_EXECUTION_SHA"
+                    exit 1
+                  fi
                   gh workflow run "$FILE" --repo "$GITHUB_REPOSITORY" --ref execution
                   RESIDENT_DISPATCHED[$WORKFLOW]=1
                   echo "REQUIRED_CI_DISPATCHED workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA"
