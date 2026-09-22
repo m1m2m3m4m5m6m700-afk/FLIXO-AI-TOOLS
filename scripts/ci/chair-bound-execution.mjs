@@ -788,7 +788,7 @@ export function release({chairId,agentId,targetSha=sha(),successful=false,sessio
   const t=assertSha(targetSha,'TARGET_SHA');
   return withWriteLock(()=>{
     const state=readState();const chair=verifyLease({state,chairId,agentId,targetSha:t,assertCurrentHead:false});
-    verifyCentralChairForMutation({agentId,targetSha:t,workPackageId:chair.work_package_id??null,taskId:taskId??chair.task_id??null});
+    if(chairId==='chair_1') verifyCentralChairForMutation({agentId,targetSha:t,workPackageId:chair.work_package_id??null,taskId:taskId??chair.task_id??null});
     assertChair1ReleaseAllowed(chair,{successful,reason:successful===true?'TASK_COMPLETE':'RELEASE'});
     if(chairId==='chair_1' && successful===true) releaseCentralChair({agentId,targetSha:t,workPackageId:chair.work_package_id??null,taskId:taskId??chair.task_id??null});
     if(sessionId)sanitizeSessionContext({sessionId,taskId});
