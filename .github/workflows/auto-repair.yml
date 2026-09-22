@@ -776,10 +776,17 @@ jobs:
           trap 'git worktree remove --force /tmp/flixo-twin-target >/dev/null 2>&1 || true' EXIT
           for VARIANT in A B; do
             case "$VARIANT" in
-              A) OUTPUT=/tmp/flixo-twin-a.json ;;
-              B) OUTPUT=/tmp/flixo-twin-b.json ;;
+              A)
+                OUTPUT=/tmp/flixo-twin-a.json
+                TWIN_COMMAND="$(node scripts/ci/adversarial-bot-commands.mjs get --bot=PROGRAMMER-TWIN-A --command=FALSIFY_PRIMARY | jq -r '.command.entry')"
+                ;;
+              B)
+                OUTPUT=/tmp/flixo-twin-b.json
+                TWIN_COMMAND="$(node scripts/ci/adversarial-bot-commands.mjs get --bot=PROGRAMMER-TWIN-B --command=FALSIFY_PRIMARY | jq -r '.command.entry')"
+                ;;
               *) exit 1 ;;
             esac
+            test -n "$TWIN_COMMAND"
             rm -f "$OUTPUT"
             FLIXO_TARGET_DIR=/tmp/flixo-twin-target \
             FLIXO_FAILURE_LOG="$FLIXO_FAILURE_LOG" \
@@ -788,7 +795,7 @@ jobs:
             FLIXO_TWIN_VARIANT="$VARIANT" \
             FLIXO_TWIN_READ_ONLY='true' \
             FLIXO_TWIN_DETACHED='true' \
-            node scripts/ci/adversarial-repair-twin.mjs
+            node "$TWIN_COMMAND"
             test -s "$OUTPUT"
             node scripts/ci/validate-adversarial-repair-twin.mjs \
               --file="$OUTPUT" \
