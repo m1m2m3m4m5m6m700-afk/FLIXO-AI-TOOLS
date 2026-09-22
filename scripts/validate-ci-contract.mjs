@@ -192,8 +192,9 @@ const canonicalTestMarkers = [
   'name: Ensure canonical Test System exists for exact SHA without duplicate dispatch',
   'EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"',
   'gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution',
-  'gh run list --repo "$GITHUB_REPOSITORY" --workflow "FLIXO Test System"',
-  '--commit "$EXECUTION_SHA"',
+  'actions/runs?head_sha=$EXECUTION_SHA&per_page=100',
+  'path == ".github/workflows/ci.yml"',
+  '.head_sha == $sha',
   'FAIL CLOSED: canonical FLIXO Test System did not start for exact SHA',
 ];
 if (!canonicalTestMarkers.every((marker) => canonicalTestBlock.includes(marker))) {
