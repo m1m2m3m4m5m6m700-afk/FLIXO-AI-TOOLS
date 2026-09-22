@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [execution]
+    branches: [main, execution]
   workflow_dispatch:
 
 # A newer commit supersedes older impact-plan evidence for the same PR/branch.
