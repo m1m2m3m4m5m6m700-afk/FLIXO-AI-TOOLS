@@ -358,7 +358,7 @@ jobs:
           exit 0
 
       - name: Maintain 24/7 Repair Bot resident pulse
-        if: steps.evaluate.outputs.status != 'GREEN' && steps.capture.outputs.branch == 'execution'
+        if: steps.evaluate.outputs.status != 'GREEN' && steps.capture.outputs.branch == 'execution' && github.event_name != 'workflow_run'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -412,7 +412,7 @@ jobs:
           retention-days: 14
 
       - name: Dispatch internal repair target under Task Agent authority
-        if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.evaluate.outputs.repair_required == 'true' && steps.capture.outputs.branch == 'execution'
+        if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.evaluate.outputs.repair_required == 'true' && steps.capture.outputs.branch == 'execution' && github.event_name != 'workflow_run'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
