@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { normalizeFailure, fingerprintFailure, extractFeatures } from './auto-repair/fingerprint.mjs';
 import { retrieveTeachingRecords } from './error-learning-log.mjs';
 import { buildKnowledgeRecord, persistKnowledge } from './cell-learning.mjs';
+import { buildFiveXRepairCycleState } from './read-only-power-profile.mjs';
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 const behaviorTracePath = process.env.FLIXO_REPAIR_BEHAVIOR_TRACE_PATH ?? '/tmp/flixo-repair-behavior-trace.json';
@@ -701,6 +702,21 @@ export function buildCycleLessons({ fingerprint, rootCause, rule, outcome, verif
       : 'No exact SHA was supplied; learning remains non-certifying until exact-SHA evidence exists.',
   });
 
+  if (provenance?.fiveXCycle) {
+    lessons.push({
+      type: 'lesson',
+      category: 'FIVE_X_CYCLE',
+      text: '5X cycle state ' + String(provenance.fiveXCycle.state) + ' requires: ' + String(provenance.fiveXCycle.nextAction) + '.',
+    });
+    if (provenance.fiveXCycle.strategyChangeRequired || provenance.fiveXCycle.staleEvidence) {
+      lessons.push({
+        type: 'antiLesson',
+        category: 'FIVE_X_GUARD',
+        text: 'Do not reuse prior cycle evidence or the same strategy when the 5X cycle requires requalification.',
+      });
+    }
+  }
+
   return lessons.slice(0, 7);
 }
 function upsertLesson(memory, { fingerprint, rootCause, rule, outcome, verification, provenance, preventionRule }) {
@@ -751,7 +767,7 @@ function loadDiagnosticFromEnv() {
   try { return JSON.parse(fs.readFileSync(path, 'utf8')); } catch { return null; }
 }
 
-export function recordOutcome(memory, { fingerprint, normalizedFailure, features = [], rootCause, rule, outcome, verification, provenance, preventionRule, relationships = [], diagnosis = null, affectedPaths = [] } = {}) {
+export function recordOutcome(memory, { fingerprint, normalizedFailure, features = [], rootCause, rule, outcome, verification, provenance, preventionRule, relationships = [], diagnosis = null, affectedPaths = [], fiveXCycle = null } = {}) {
   const entry = findCase(memory, fingerprint) ?? { fingerprint, rootCause: 'unknown', attempts: 0, successes: 0, failures: 0, externalBlocks: 0, reversions: 0, revertFailures: 0, revertedRules: [], revertedCommits: [], rules: [], outcomes: [] };
   const priorAttempts = Number(entry.attempts ?? 0);
   const priorOccurrences = Number(entry.occurrences ?? entry.outcomes?.length ?? 0);
@@ -789,6 +805,32 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     rule,
     external: isExternalBlock,
   });
+  const fiveXTaskId = taskId ?? repairChainId ?? process.env.TARGET_RUN_ID ?? 'LEARNING-CYCLE';
+  const fiveXTargetSha = String(provenance?.targetSha ?? provenance?.failedSha ?? process.env.FLIXO_TARGET_SHA ?? process.env.FLIXO_FAILED_SHA ?? '').trim();
+  const fiveXCurrentSha = String(provenance?.currentSha ?? fiveXTargetSha).trim();
+  const priorFiveXCycle = entry.lastFiveXCycle ?? null;
+  const effectiveFiveXCycle = fiveXCycle ?? provenance?.fiveXCycle ?? buildFiveXRepairCycleState({
+    phase: outcome === 'success' || outcome === 'verified-repair' ? 'POST_MUTATION' : 'LEARNING',
+    chainId: repairChainId ?? 'LEARNING-CHAIN',
+    taskId: fiveXTaskId,
+    failureFingerprint: fingerprint,
+    attempt: Number(entry.attempts ?? 0) + (['success','unrepaired','failure','blocked'].includes(outcome) ? 1 : 0),
+    targetSha: fiveXTargetSha,
+    currentSha: fiveXCurrentSha,
+    failedSha: provenance?.failedSha ?? process.env.FLIXO_FAILED_SHA ?? null,
+    candidateSha: provenance?.candidateSha ?? process.env.FLIXO_CANDIDATE_SHA ?? null,
+    strategyId: strategyId ?? rule ?? null,
+    previousCycle: priorFiveXCycle,
+    outcome,
+    verification,
+    adversarialStatus: provenance?.adversarialStatus ?? null,
+    counterexampleFound: provenance?.counterexampleFound ?? null,
+    regressionOk: provenance?.regressionOk ?? null,
+    regressionDepth: Number(provenance?.regressionDepth ?? 0),
+    learningOutputs: 5,
+    canonicalGreen: process.env.FLIXO_CANONICAL_GREEN === 'true',
+    fiveXCycle: effectiveFiveXCycle,
+  });
   const cycleLessons = buildCycleLessons({
     fingerprint,
     rootCause: entry.rootCause,
@@ -800,6 +842,25 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     diagnosis: effectiveDiagnosis,
     changedPaths: effectiveDiagnosis?.affectedPaths ?? affectedPaths,
   });
+  entry.lastFiveXCycle = effectiveFiveXCycle;
+  entry.fiveXHistory = [...(entry.fiveXHistory ?? []), {
+    state: effectiveFiveXCycle.state,
+    attempt: effectiveFiveXCycle.attempt,
+    targetSha: effectiveFiveXCycle.targetSha,
+    currentSha: effectiveFiveXCycle.currentSha,
+    strategyId: effectiveFiveXCycle.strategyId,
+    nextAction: effectiveFiveXCycle.nextAction,
+    staleEvidence: effectiveFiveXCycle.staleEvidence,
+    strategyChangeRequired: effectiveFiveXCycle.strategyChangeRequired,
+    at: new Date().toISOString(),
+  }].slice(-MEMORY_RETENTION.maxLessonEvidence);
+  const fiveXCyclePath = process.env.FLIXO_FIVE_X_CYCLE_PATH ?? '/tmp/flixo-five-x-repair-cycle.json';
+  try {
+    fs.writeFileSync(fiveXCyclePath, JSON.stringify(effectiveFiveXCycle, null, 2) + '\n');
+  } catch {
+    // Cycle state remains in memory; artifact persistence is best-effort.
+  }
+
   if (recurrenceObserved || isExternalBlock) {
     entry.preventionRules = [...new Set([...(entry.preventionRules ?? []), ...(effectivePreventionRule ? [effectivePreventionRule] : [])])].slice(-MEMORY_RETENTION.maxPreventionRules);
   }
@@ -870,6 +931,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   actionRecord.occurrences = Number(actionRecord.occurrences ?? 0) + 1;
   actionRecord.lastSeenAt = new Date().toISOString();
   actionRecord.latestCycleLessons = cycleLessons;
+  actionRecord.lastFiveXCycle = effectiveFiveXCycle;
   actionRecord.taskId = taskId;
   actionRecord.repairChainId = repairChainId;
   if (countsAsPlaybookAttempt) actionRecord.attempts = Number(actionRecord.attempts ?? 0) + 1;
