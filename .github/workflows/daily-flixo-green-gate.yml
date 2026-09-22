@@ -455,7 +455,7 @@ jobs:
 
           CONVERGENCE_GUIDANCE_ARTIFACT_ID=""
           if [ "$ATTEMPT" -gt 1 ] && [ "$DISPATCH" = true ]; then
-            CONVERGENCE_GUIDANCE_ARTIFACT_ID="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq --arg prefix "flixo-auto-repair-$TARGET_RUN_ID-" '.artifacts[] | select(.expired == false and (.name | startswith($prefix))) | [.created_at,.id,.name] | @tsv' | sort -k1,1r | head -n 1 | cut -f2)"
+            CONVERGENCE_GUIDANCE_ARTIFACT_ID="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" | jq -r --arg prefix "flixo-auto-repair-$TARGET_RUN_ID-" '.artifacts[] | select(.expired == false and (.name | startswith($prefix))) | [.created_at,.id,.name] | @tsv' | sort -k1,1r | head -n 1 | cut -f2)"
             case "$CONVERGENCE_GUIDANCE_ARTIFACT_ID" in
               ''|*[!0-9]*) echo 'FAIL CLOSED: repair attempt >1 requires a prior Auto Repair evidence artifact.'; exit 1 ;;
             esac
