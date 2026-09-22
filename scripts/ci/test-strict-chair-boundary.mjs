@@ -104,7 +104,8 @@ assert.match(migration,/create or replace function public\.flix_chair1_delegate/
 assert.match(migration,/create or replace function public\.flix_chair1_verify/);
 assert.match(migration,/create or replace function public\.flix_chair1_heartbeat/);
 assert.match(migration,/create or replace function public\.flix_chair1_release/);
-assert.match(migration,/delegated_by<>'assistantController'/);
-assert.match(migration,/delegated_by',r\.delegated_by/);
-assert.match(migration,/flix_chair1_delegated_by_ck/);
+assert.match(migration,/delegated_by='assistantController'/);
+assert.match(proofMigration,/delegated_by<>'assistantController'/);
+assert.match(proofMigration,/delegatedBy',r\.delegated_by/);
+assert.match(proofMigration,/flix_chair1_delegated_by_ck/);
 console.log('STRICT_CHAIR_BOUNDARY=PASS');
