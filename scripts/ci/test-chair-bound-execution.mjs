@@ -181,18 +181,46 @@ assert.throws(
 const master2Continuity=preemptedContinuityForAgent({agentId:'MASTER-2',targetSha:realGitSha,taskId:'MASTER-2-TASK'});
 assert.equal(master2Continuity.canContinueTask,true);
 assert.equal(master2Continuity.handoffTo,'CHAIR_1_GUARD');
+
+const ordinaryTakeover=beginWork({
+  agentId:'ordinary-worker',
+  role:'worker',
+  requestedChairId:'chair_1',
+  targetSha:realGitSha,
+  repositoryState:'ACTIVE',
+  taskId:'ORDINARY-TAKEOVER-TASK',
+  workPackageId:'ORDINARY-TAKEOVER-WP'
+});
+assert.equal(ordinaryTakeover.chairId,'chair_1');
+assert.equal(ordinaryTakeover.preemptedAgentId,'MASTER-2');
+const master2AfterOrdinaryTakeover=preemptedContinuityForAgent({
+  agentId:'MASTER-2',
+  targetSha:realGitSha,
+  taskId:'MASTER-2-TASK'
+});
+assert.equal(master2AfterOrdinaryTakeover.canContinueTask,true);
+assert.equal(master2AfterOrdinaryTakeover.canMutateAfterPreemption,false);
+assert.equal(master2AfterOrdinaryTakeover.handoffTo,'CHAIR_1_GUARD');
+assert.deepEqual(
+  assertWorkAdmission({agentId:'MASTER-2',targetSha:realGitSha,chairId:'chair_1',taskId:'MASTER-2-TASK'}),
+  master2AfterOrdinaryTakeover
+);
+
 const master1Admission=beginWork({
   agentId:'MASTER-1',
   role:'MASTER-1',
   requestedChairId:'chair_1',
   targetSha:realGitSha,
-  repositoryState:'IDLE',
+  repositoryState:'ACTIVE',
   taskId:'MASTER-1-TASK',
   workPackageId:'MASTER-1-WP'
 });
-assert.equal(master1Admission.preemptedAgentId,'MASTER-2');
+assert.equal(master1Admission.preemptedAgentId,'ordinary-worker');
 assert.equal(activeChairForAgent({agentId:'MASTER-1',targetSha:realGitSha}).chairId,'chair_1');
-assert.deepEqual(assertWorkAdmission({agentId:'MASTER-2',targetSha:realGitSha,chairId:'chair_1',taskId:'MASTER-2-TASK'}),master2Continuity);
+assert.deepEqual(
+  assertWorkAdmission({agentId:'ordinary-worker',targetSha:realGitSha,chairId:'chair_1',taskId:'ORDINARY-TAKEOVER-TASK'}),
+  preemptedContinuityForAgent({agentId:'ordinary-worker',targetSha:realGitSha,taskId:'ORDINARY-TAKEOVER-TASK'})
+);
 release({chairId:'chair_1',agentId:'MASTER-1',targetSha:realGitSha,successful:true});
 
 process.env.FLIXO_REQUIRE_FENCED_CHAIR='true';
@@ -250,6 +278,7 @@ console.log('CHAIR_ATOMIC_REF_AUDIT_CAS=PASS');
 console.log('CHAIR_SINGLE_AGENT_MODE=PASS');
 console.log('CHAIR1_TASK_NONRECLAIMABLE=PASS');
 console.log('CHAIR1_TASK_PREEMPTION_CONTINUES=PASS');
+console.log('CHAIR1_ANY_AGENT_TAKEOVER=PASS');
 console.log('CHAIR1_PREEMPTED_MUTATION_REVOKED=PASS');
 console.log('CHAIR1_GUARD_HANDOFF=PASS');
 console.log('CHAIR1_RELEASE_REQUIRES_COMPLETION=PASS');
