@@ -678,7 +678,7 @@ Deno.serve(async (req) => {
         throw new Error("COUNCIL_MASTER3_IDENTITY_UNVERIFIED");
       }
       const sessionId = crypto.randomUUID();
-      const acknowledged = await db("/rest/v1/rpc/council_ack_dispatch", {
+      await db("/rest/v1/rpc/council_ack_dispatch", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -710,26 +710,6 @@ Deno.serve(async (req) => {
         }),
       });
 
-      await db("/rest/v1/flix_council_events", {
-        method: "POST",
-        headers: { "content-type": "application/json", prefer: "return=minimal" },
-        body: JSON.stringify({
-          dispatch_id: String(result.dispatchId),
-          account_id: route.primary,
-          event_type: gpt.ok ? "GPT_RESPONSE" : "GPT_ERROR",
-          exact_sha: exactSha,
-          payload: {
-            sessionId,
-            provider: gpt.provider ?? "openai-responses-api",
-            model: gpt.model ?? null,
-            responseId: gpt.responseId ?? null,
-            ok: gpt.ok,
-            reason: gpt.reason ?? null,
-            outputPreview: gpt.outputText ?? null,
-          },
-        }),
-      });
-
       if (gpt.ok) {
         await db("/rest/v1/rpc/council_complete_dispatch", {
           method: "POST",
@@ -753,40 +733,27 @@ Deno.serve(async (req) => {
           }),
         });
       } else {
-        throw new Error(String(gpt.reason ?? "COUNCIL_OPENAI_EXECUTION_FAILED"));
-      }
-
-      const pushEndpoint = accounts[route.primary].endpointEnv ? Deno.env.get(accounts[route.primary].endpointEnv!)?.trim() ?? "" : "";
-      const pushToken = Deno.env.get(accounts[route.primary].tokenEnv)?.trim() ?? "";
-      let push = { attempted: false, ok: false, reason: "POLL_ONLY" };
-      if (pushEndpoint && pushToken) {
-        push = { attempted: true, ok: false, reason: "UNSET" };
-        try {
-          const pushResponse = await fetch(pushEndpoint, {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-              authorization: "Bearer " + pushToken,
-              "x-flixo-account-id": route.primary,
-              "x-flixo-exact-sha": exactSha,
-            },
-            body: JSON.stringify({
-              wakeType: "FLIXO_COUNCIL_WAKE",
-              dispatchId: result.dispatchId,
-              accountId: route.primary,
-              recipientMaster,
+        await db("/rest/v1/rpc/council_complete_dispatch", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            p_dispatch_id: String(result.dispatchId),
+            p_account_id: route.primary,
+            p_session_id: sessionId,
+            p_exact_sha: exactSha,
+            p_status: "FAILED",
+            p_evidence: {
+              provider: "openai-responses-api",
+              model: gpt.model ?? null,
+              heartbeat: true,
               exactSha,
-              taskId: result.taskId,
-              workPackageId: result.workPackageId,
-              deliveryMode: "DIRECT_MASTER_WAKE",
-            }),
-            signal: AbortSignal.timeout(8000),
-          });
-          push.ok = pushResponse.ok;
-          push.reason = pushResponse.ok ? "DELIVERED" : "HTTP_" + pushResponse.status;
-        } catch (error) {
-          push.reason = error instanceof Error ? error.message : String(error);
-        }
+              failureReason: gpt.reason ?? "COUNCIL_OPENAI_EXECUTION_FAILED",
+            },
+            p_payload: {
+              directReply: "",
+            },
+          }),
+        });
       }
       return response({
         ok: true,
@@ -794,7 +761,7 @@ Deno.serve(async (req) => {
         purpose,
         recipientMaster,
         exactSha,
-        dispatch: { ...result, sessionId, openai: gpt, push },
+        dispatch: { ...result, sessionId, openai: gpt, status: gpt.ok ? "DONE" : "FAILED" },
         directReply: gpt.outputText ?? "",
       }, 202, requestId);
     }
