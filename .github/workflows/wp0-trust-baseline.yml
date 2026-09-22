@@ -11,7 +11,7 @@ on:
 # Exact-SHA checks below remain mandatory for the surviving run.
 concurrency:
   group: flixo-wp0-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
