@@ -62,7 +62,10 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
   if(mutation&&!REPAIR_PROTOCOL.mutationAgents.includes(actor)) throw new Error('REPAIR_PROTOCOL_MUTATION_ROLE_BLOCKED='+actor);
   if(mutation&&branch!=='execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
   if(mutation&&REPAIR_PROTOCOL.cellLabRequired){
-    const taskId=String(session?.taskId ?? process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? '').trim();
+    const sessionTaskId=String(session?.taskId??'').trim();
+    const missionTaskId=String(session?.actionVaultMission?.taskId??'').trim();
+    if(sessionTaskId&&missionTaskId&&sessionTaskId!==missionTaskId) throw new Error('CELL_LAB_TASK_ID_MISMATCH');
+    const taskId=String(sessionTaskId||missionTaskId||process.env.FLIXO_AGENT_TASK||process.env.FLIXO_TASK_ID||'').trim();
     if(!taskId) throw new Error('CELL_LAB_TASK_ID_REQUIRED');
     let consensus;
     try {
