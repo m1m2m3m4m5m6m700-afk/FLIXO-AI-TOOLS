@@ -233,6 +233,14 @@ jobs:
           set -euo pipefail
           npx playwright --version
           test -d /ms-playwright
+      - name: Reconfirm live execution head immediately before Browser FAST
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          REQUIRE_LIVE_HEAD_MATCH: 'true'
+        run: node scripts/ci/assert-current-commit.mjs
+
       - name: Run Browser FAST engine
         shell: bash
         env:
@@ -331,6 +339,14 @@ jobs:
           set -euo pipefail
           npx playwright --version
           test -d /ms-playwright
+      - name: Reconfirm live execution head immediately before Browser DEEP
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          REQUIRE_LIVE_HEAD_MATCH: 'true'
+        run: node scripts/ci/assert-current-commit.mjs
+
       - name: Run Browser DEEP engine
         shell: bash
         env:

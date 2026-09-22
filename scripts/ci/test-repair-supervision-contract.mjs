@@ -21,12 +21,13 @@ const livenessDoc = read('docs/agents/AGENT-LIVENESS-PROTOCOL.md');
 
 assert.match(watchdog, /cancel-in-progress:\s*true/);
 assert.match(supersession, /cancel_stale_run\(\)/);
-assert.match(supersession, /KEEP_IN_PROGRESS_STALE/);
-assert.match(supersession, /CANCEL_QUEUED_STALE/);
 assert.match(supersession, /if ! gh run cancel/);
-assert.match(supersession, /gh run view "\$run_id" --repo "\$REPOSITORY" --json status --jq '\.status'/);
 assert.match(supersession, /STALE_RUN_ALREADY_COMPLETED run=\$run_id/);
-assert.match(supersession, /ERROR: cancellation failed for active run=\$run_id status=\$now_status/);
+assert.match(supersession, /ERROR: cancellation failed for active run=\$run_id/);
+assert.doesNotMatch(supersession, /gh run view "\$run_id"/);
+assert.doesNotMatch(supersession, /gh api --paginate --slurp/);
+assert.match(supersession, /SOURCE_REPOSITORY: \$\{\{ steps\.head\.outputs\.source_repository \}\}/);
+assert.match(supersession, /STALE_ACTIVE_RUNS=\$stale_active/);
 assert.doesNotMatch(supersession, /gh run cancel "\$run_id" --repo "\$REPOSITORY"\s*\|\|\s*true/);
 assert.match(canonicalCi, /group: flixo-test-\$\{\{ github\.event_name \}\}-\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
 assert.match(canonicalCi, /push:\s*\n\s*branches:\s*\[main, execution\]/);
