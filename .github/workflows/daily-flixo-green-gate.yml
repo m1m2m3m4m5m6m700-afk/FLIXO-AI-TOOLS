@@ -97,7 +97,11 @@ jobs:
           printf 'branch=%s\n' "$WATCH_BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Ensure exact-SHA required CI is resident
-        if: steps.capture.outputs.branch == 'execution'
+        if: >-
+          steps.capture.outputs.branch == 'execution' &&
+          (github.event_name == 'push' ||
+           github.event_name == 'schedule' ||
+           github.event_name == 'workflow_dispatch')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
