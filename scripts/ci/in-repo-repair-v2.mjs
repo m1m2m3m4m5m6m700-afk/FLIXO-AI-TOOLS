@@ -37,6 +37,7 @@ export function loadPolicy(configPath = DEFAULT_CONFIG) {
     searchSpaceStrategy: scalar(text, 'search_space_strategy', 'EVIDENCE_BOUNDED'),
     enforceRcaManifest: scalar(text, 'enforce_rca_manifest', 'true') === 'true',
     requireThreeHypotheses: scalar(text, 'require_three_hypotheses', 'true') === 'true',
+    minimumHypotheses: Math.max(6, Number(scalar(text, 'minimum_hypotheses', '6'))),
     allowMultiFileMutation: scalar(text, 'allow_multi_file_mutation', 'false') === 'true',
     requireExactSha: scalar(text, 'require_exact_sha', 'true') === 'true',
     requireDirectFailureSignal: scalar(text, 'require_direct_failure_signal', 'true') === 'true',
@@ -53,6 +54,7 @@ export function loadPolicy(configPath = DEFAULT_CONFIG) {
   if (policy.allowMultiFileMutation) fail('CONFIG_MULTI_FILE_MUTATION_MUST_BE_DISABLED');
   if (policy.isolationLevel !== 'SURGICAL_PATCH') fail('CONFIG_ISOLATION_LEVEL_INVALID');
   if (policy.falsifierMode !== 'CONVERGENCE_GUIDED') fail('CONFIG_FALSIFIER_MODE_INVALID');
+  if (policy.minimumHypotheses < 6) fail('CONFIG_MINIMUM_HYPOTHESES_TOO_LOW');
   return policy;
 }
 
@@ -91,7 +93,7 @@ function hypothesisRecord(item, role, rank) {
   };
 }
 
-function buildThreeHypotheses(diagnosis, plan) {
+function buildMinimumHypotheses(diagnosis, plan, minimumHypotheses = 6) {
   const raw = [
     ...(Array.isArray(diagnosis?.hypotheses) ? diagnosis.hypotheses : []),
     ...(Array.isArray(plan?.candidates) ? plan.candidates : []),
@@ -104,20 +106,25 @@ function buildThreeHypotheses(diagnosis, plan) {
     if (seen.has(record.id)) continue;
     seen.add(record.id);
     result.push(record);
-    if (result.length === 3) break;
+    if (result.length >= minimumHypotheses) break;
   }
   const fallbacks = [
     ['BOUNDARY_OR_SCOPE_DRIFT', 'ALTERNATIVE'],
     ['STALE_OR_MISSING_EVIDENCE', 'ALTERNATIVE'],
-    ['DEPENDENCY_OR_RUNTIME_INTERACTION', 'ALTERNATIVE']
+    ['DEPENDENCY_OR_RUNTIME_INTERACTION', 'ALTERNATIVE'],
+    ['CONTROL_PLANE_OR_COORDINATION_DRIFT', 'ALTERNATIVE'],
+    ['SECURITY_OR_POLICY_CONTRACT', 'ALTERNATIVE'],
+    ['ENVIRONMENT_OR_EXTERNAL_LIMIT', 'ALTERNATIVE'],
+    ['DATA_OR_STATE_TRANSITION', 'ALTERNATIVE'],
+    ['ORDERING_OR_CONCURRENCY_RACE', 'ALTERNATIVE'],
   ];
   for (const pair of fallbacks) {
-    if (result.length >= 3) break;
+    if (result.length >= minimumHypotheses) break;
     if (seen.has(pair[0])) continue;
     seen.add(pair[0]);
     result.push(hypothesisRecord({ id: pair[0], score: 0, evidenceLines: ['UNPROVEN_ALTERNATIVE_REQUIRES_FALSIFICATION'] }, pair[1], result.length + 1));
   }
-  return result.slice(0, 3);
+  return result.slice(0, minimumHypotheses);
 }
 
 function deriveInvariant(diagnosis, selected) {
@@ -177,8 +184,8 @@ export function buildRcaManifest(input) {
   const boundary = primaryFile(diagnosis, selected, plan);
   if (!boundary) fail('PRIMARY_BOUNDARY_FILE_REQUIRED');
 
-  const hypotheses = buildThreeHypotheses(diagnosis, plan);
-  if (policy.requireThreeHypotheses && hypotheses.length !== 3) fail('THREE_HYPOTHESES_REQUIRED');
+  const hypotheses = buildMinimumHypotheses(diagnosis, plan, policy.minimumHypotheses);
+  if (policy.requireThreeHypotheses && hypotheses.length < policy.minimumHypotheses) fail('MINIMUM_HYPOTHESES_REQUIRED');
 
   const guidancePath = String(input.convergenceGuidancePath ?? process.env.FLIXO_CONVERGENCE_GUIDANCE_PATH ?? '');
   const prior = cycle > 1 ? readJson(guidancePath) : null;
@@ -284,8 +291,8 @@ export function validateRcaManifest(manifest, options = {}) {
   if (!Number.isInteger(manifest.cycle) || manifest.cycle < 1 || manifest.cycle > policy.maxRepairCycles) fail('RCA_CYCLE_INVALID');
   const root = manifest.root_cause_analysis;
   if (!root || !String(root.primary_cause ?? '').trim()) fail('RCA_PRIMARY_CAUSE_MISSING');
-  if (!Array.isArray(root.alternative_hypotheses) || root.alternative_hypotheses.length !== 3) fail('RCA_THREE_HYPOTHESES_REQUIRED');
-  if (new Set(root.alternative_hypotheses.map(function(item) { return String(item?.id ?? ''); })).size !== 3) fail('RCA_HYPOTHESES_NOT_DISTINCT');
+  if (!Array.isArray(root.alternative_hypotheses) || root.alternative_hypotheses.length < 6) fail('RCA_THREE_HYPOTHESES_REQUIRED');
+  if (new Set(root.alternative_hypotheses.map(function(item) { return String(item?.id ?? ''); })).size < 6) fail('RCA_HYPOTHESES_NOT_DISTINCT');
   if (!Array.isArray(root.affected_boundaries) || root.affected_boundaries.length !== 1) fail('RCA_SINGLE_BOUNDARY_REQUIRED');
   if (!String(root.invariant_violated ?? '').trim() || /UNKNOWN_INVARIANT_UNPROVEN/iu.test(root.invariant_violated)) fail('RCA_INVARIANT_UNPROVEN');
   if (!Array.isArray(root.causal_chain) || root.causal_chain.length < 6) fail('RCA_CAUSAL_CHAIN_INCOMPLETE');
