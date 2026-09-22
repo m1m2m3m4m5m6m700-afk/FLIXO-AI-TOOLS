@@ -440,6 +440,7 @@ export function authorizePublication({chairId='chair_1',agentId,targetSha=sha(),
   const state=readState();
   if(state.target_sha!==t)throw new Error('STALE_CONTEXT');
   const chair=verifyLease({state,chairId,agentId,targetSha:t,assertCurrentHead:false});
+  verifyCentralChairForMutation({agentId,targetSha:t,workPackageId,taskId});
   const def=CHAIR_DEFINITIONS[chairId];
   if(!def.permissions.includes(permission))throw new Error('CHAIR_PERMISSION_DENIED='+permission);
   if(chair.work_package_id!==null && chair.work_package_id!==String(workPackageId??''))throw new Error('CHAIR_WORK_PACKAGE_MISMATCH');
@@ -595,9 +596,9 @@ export function revoke({chairId='chair_1',agentId,reason='STALE_CONTEXT',session
 
 export function release({chairId,agentId,targetSha=sha(),successful=false,sessionId=null,taskId=null}={}){
   const t=assertSha(targetSha,'TARGET_SHA');
-  verifyCentralChairForMutation({agentId,targetSha:t,workPackageId:null,taskId:null});
   return withWriteLock(()=>{
     const state=readState();const chair=verifyLease({state,chairId,agentId,targetSha:t,assertCurrentHead:false});
+    verifyCentralChairForMutation({agentId,targetSha:t,workPackageId:chair.work_package_id??null,taskId:taskId??chair.task_id??null});
     assertChair1ReleaseAllowed(chair,{successful,reason:successful===true?'TASK_COMPLETE':'RELEASE'});
     if(sessionId)sanitizeSessionContext({sessionId,taskId});
     const wasChair1=chairId==='chair_1';
