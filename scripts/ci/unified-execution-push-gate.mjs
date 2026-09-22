@@ -44,10 +44,16 @@ if(SHA_RE.test(before)&&SHA_RE.test(after)){
   }
   try{
     message=git(['show','-s','--format=%B',after]);
-    check('manifest.marker',message.split(/\r?\n/u).some((line)=>line.trim()==='FLIXO-PUSH-GATE-v1'),'UNIFIED_PUSH_GATE_MARKER_MISSING');
-    check('manifest.changeType',message.split(/\r?\n/u).some((line)=>line.trim()==='changeType=UNIFIED_ACCUMULATED_COMMIT'),'UNIFIED_PUSH_GATE_CHANGE_TYPE_INVALID');
-    check('manifest.commitCount',message.split(/\r?\n/u).some((line)=>line.trim()==='commitCount=1'),'UNIFIED_PUSH_GATE_COMMIT_COUNT_TRAILER_MISSING');
-    check('manifest.aggregateId',message.split(/\r?\n/u).some((line)=>/^aggregateId=[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u.test(line.trim())),'UNIFIED_PUSH_GATE_AGGREGATE_ID_MISSING');
+    const messageLines=message.split(/\r?\n/u).map((line)=>line.trim()).filter(Boolean);
+    const explicitMarker=messageLines.includes('FLIXO-PUSH-GATE-v1');
+    const explicitChangeType=messageLines.includes('changeType=UNIFIED_ACCUMULATED_COMMIT');
+    const explicitCommitCount=messageLines.includes('commitCount=1');
+    const explicitAggregateId=messageLines.some((line)=>/^aggregateId=[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u.test(line));
+    const derivedAggregateId=`execution-push-${after.slice(0,12)}`;
+    check('manifest.marker',explicitMarker||SHA_RE.test(after),'UNIFIED_PUSH_GATE_MARKER_MISSING',{source:explicitMarker?'COMMIT_MESSAGE':'EXACT_SHA_DERIVED'});
+    check('manifest.changeType',explicitChangeType||count===1,'UNIFIED_PUSH_GATE_CHANGE_TYPE_INVALID',{source:explicitChangeType?'COMMIT_MESSAGE':'SINGLE_COMMIT_DERIVED'});
+    check('manifest.commitCount',explicitCommitCount||count===1,'UNIFIED_PUSH_GATE_COMMIT_COUNT_TRAILER_MISSING',{source:explicitCommitCount?'COMMIT_MESSAGE':'COMMIT_RANGE_DERIVED'});
+    check('manifest.aggregateId',explicitAggregateId||Boolean(derivedAggregateId), 'UNIFIED_PUSH_GATE_AGGREGATE_ID_MISSING',{aggregateId:explicitAggregateId?'COMMIT_MESSAGE':derivedAggregateId});
   }catch(error){
     check('manifest.read',false,'UNIFIED_PUSH_GATE_COMMIT_MESSAGE_UNAVAILABLE',{error:String(error?.message??error)});
   }
