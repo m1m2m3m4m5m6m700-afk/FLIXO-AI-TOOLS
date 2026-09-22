@@ -318,7 +318,7 @@ export function buildWorkPackage(prompt) {
     repoContext: { contextDigest: digest(CANONICAL_SOURCES.map((file) => `${file}:${fileDigest(file)}`).join('|')), p00: 'P00 / RPR-UNIFIED-EXECUTION-001 v4.0.0' },
     workPackage: {
       taskId: selectedTaskId, consumerRole: intent === 'REPAIR_DIAGNOSE' ? 'repairAgent' : intent === 'VERIFY' ? 'verification' : 'executionAgent', scope, intent, goal: cleanGoal, actions: actionList,
-      dependencies: ['P00', 'CANONICAL_AGENT_COMMUNICATION', 'PROMPT_REGISTRY', 'ERROR_MEMORY', 'CURRENT_EXECUTION_SHA', 'CELL_LAB_WHEN_MUTATION_REQUIRED'],
+      dependencies: ['P00', 'CANONICAL_AGENT_COMMUNICATION', 'PROMPT_REGISTRY', 'ERROR_MEMORY', 'CURRENT_EXECUTION_SHA', 'CELL_LAB_WHEN_MUTATION_REQUIRED', 'MASTER_REPAIR_GATE', 'GUARD_COMMUNICATION', 'SHARED_OPERATIONAL_MEMORY'],
       stages: ['INTAKE', 'CONTEXT_RETRIEVAL', 'UNDERSTAND', 'CLASSIFY_CONSTRAINTS', 'TASK_MATCH', 'PROMPT_BIND', 'SCOPE_LOCK', 'ROUTE_TO_AUTHORIZED_AGENT', 'TARGETED_VERIFY', 'AFFECTED_CONTRACT_VERIFY', 'CANONICAL_CI', 'LEARN'],
       proofObligations: effectiveProofObligations, stopConditions: effectiveStopConditions, adversarialReview, fiveX: fiveXEnvelope, tenX: fiveXEnvelope, trainingMode: 'ADVISORY_KNOWLEDGE_ONLY',
       learningOutputs: ['LESSON','ANTI_LESSON','BLOCKER','REJECTED_STRATEGY','VERIFIED_REPAIR'],
