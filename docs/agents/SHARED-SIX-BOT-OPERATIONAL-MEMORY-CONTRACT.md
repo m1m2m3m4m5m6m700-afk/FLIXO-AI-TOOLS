@@ -14,7 +14,7 @@ Canonical store:
 
 `executionAgent` ↔ `reviewAgent`
 
-Every published record is visible to all six participants.
+Every published record is visible to all six participants and remains exact-SHA-bound to its provenance.
 
 ## Memory classes
 
