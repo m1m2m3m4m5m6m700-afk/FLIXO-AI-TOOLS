@@ -402,8 +402,11 @@ try {
   process.exit(1);
 }
 
+const autoRepairGlobalEnv = autoRepairWorkflow.match(/^env:\s*\n[\s\S]*?(?=^jobs:)/m)?.[0] ?? '';
 const securityBoundaryContracts = [
   ['auto-repair-main-only', autoRepairWorkflow, /resident:[\s\S]*?if:\s*github\.ref\s*==\s*'refs\/heads\/main'/],
+  ['auto-repair-isolated-target', autoRepairWorkflow, autoRepairWorkflow.includes('git worktree add --detach "$TARGET_ROOT" "$EXECUTION_SHA"') && autoRepairWorkflow.includes('BASH_ENV=/tmp/flixo-repair-bash-env') && autoRepairWorkflow.includes('TRUST_MODEL=MAIN_CONTROLLER_CODE_EXECUTION_TARGET_DATA') && !autoRepairWorkflow.includes('git switch --create execution "$EXECUTION_BASE_SHA"')],
+  ['auto-repair-no-global-supabase-secret', autoRepairGlobalEnv, !autoRepairGlobalEnv.includes('SUPABASE_SERVICE_ROLE_KEY')],
   ['auto-repair-repair-main-only', autoRepairWorkflow, /repair:[\s\S]*?if:\s*github\.ref\s*==\s*'refs\/heads\/main'/],
   ['green-gate-no-execution-push', greenGateWorkflow, !/push:\s*\n\s*branches:\s*\[execution\]/.test(greenGateWorkflow)],
   ['watchdog-no-execution-push', executionWatchdogWorkflow, !/push:\s*\n\s*branches:\s*\[execution(?:,\s*main)?\]/.test(executionWatchdogWorkflow)],
@@ -411,6 +414,7 @@ const securityBoundaryContracts = [
   ['live-runtime-main-checkout', protectedLiveRuntime.text, /ref:\s*main/],
   ['council-priority-main-only', readFileSync('.github/workflows/council-priority-wake.yml', 'utf8'), /wake:[\s\S]*?if:\s*github\.ref\s*==\s*'refs\/heads\/main'/],
   ['agent-relay-main-only', readFileSync('.github/workflows/agent-communication-relay.yml', 'utf8'), /if:\s*\$\{\{\s*github\.ref\s*==\s*'refs\/heads\/main'/],
+  ['green-gate-auto-repair-dispatch-main', greenGateWorkflow, greenGateWorkflow.includes('actions/workflows/auto-repair.yml/dispatches') && greenGateWorkflow.includes('-f ref=main') && !greenGateWorkflow.includes('-f ref=execution')],
 ];
 for (const [label, source, rule] of securityBoundaryContracts) {
   const ok = typeof rule === 'boolean' ? rule : rule.test(source);
@@ -421,5 +425,5 @@ for (const [label, source, rule] of securityBoundaryContracts) {
 }
 
 console.log(
-  `CI contract passed: one execution graph, centralized result-state reduction, explicit evidence provenance, canonical DEEP semantic identity, shared image-core foundation, minimal SHA checkout, one FAST engine, one DEEP engine, PR+push DEEP coverage, one fail-closed certification gate, single workflow certification authority across ${workflowFiles.length} workflow definitions, and mandatory multi-agent coordination protocol.`,
+  `CI contract passed: one execution graph, centralized result-state reduction, explicit evidence provenance, canonical DEEP semantic identity, shared image-core foundation, minimal SHA checkout, one FAST engine, one DEEP engine, canonical push DEEP coverage, one fail-closed certification gate, single workflow certification authority across ${workflowFiles.length} workflow definitions, and mandatory multi-agent coordination protocol.`,
 );
