@@ -12,7 +12,7 @@ on:
 
 # Central stale-run controller. It cancels only older test/verification runs.
 concurrency:
-  group: flixo-latest-commit-supersession-${{ github.event_name }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: flixo-latest-commit-supersession-${{ github.event_name }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 permissions:
@@ -69,10 +69,14 @@ jobs:
         run: |
           set -euo pipefail
           LIVE_AFTER_CHECK="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha')"
-          test "$LIVE_AFTER_CHECK" = "$EVENT_SHA"
+          if [ "$LIVE_AFTER_CHECK" != "$EVENT_SHA" ]; then
+            echo "SUPERSESSION_EVENT_OBSOLETE_DURING_CHECK=true"
+            exit 0
+          fi
           echo "SUPERSESSION_API_REGRESSION=PASS"
           echo "SUPERSESSION_CONTROLLER_SOURCE=TRUSTED_MAIN"
           echo "SUPERSESSION_CONTROLLER_BRANCH=$TARGET_BRANCH"
+          echo "SUPERSESSION_CONTROLLER_EVENT_SHA=$EVENT_SHA"
 
       - name: Cancel stale test and verification runs
         id: cancel
@@ -89,7 +93,7 @@ jobs:
           is_test_workflow() {
             case "$1" in
               "FLIXO Latest Commit Test Supersession") return 1 ;;
-              *Test*|*test*|*Verification*|*verification*|*Contract*|*contract*|*Security*|*security*|*Baseline*|*baseline*|*Certification*|*certification*|*Impact*|*impact*|*Code*Scanning*|*CodeQL*|*Diagnostic*|*diagnostic*|*Proof*|*proof*|*Scan*|*scan*) return 0 ;;
+              *Test*|*test*|*Verification*|*verification*|*Contract*|*contract*|*Security*|*security*|*Baseline*|*baseline*|*Certification*|*certification*|*Impact*|*impact*|*Code*Scanning*|*CodeQL*|*Diagnostic*|*diagnostic*|*Proof*|*proof*|*Scan*|*scan*|*Green Gate*|*green gate*) return 0 ;;
               *) return 1 ;;
             esac
           }
