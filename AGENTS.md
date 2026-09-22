@@ -1,3 +1,14 @@
+# 🚨 SUPREME FIRST OBLIGATION — P00
+All repository/project/cell execution is governed first by:
+docs/agents/PROMPT-UNIFIED-EXECUTION.md — RPR-UNIFIED-EXECUTION-001 v4.0.0.
+
+This is mandatory for MASTER-1, MASTER-2, MASTER-3, every Agent, every Bot, every Action Vault resident, runtime adapter, and workflow. No local prompt, role prompt, memory, handoff, task packet, model behavior, timeout, queue or convenience rule may override it.
+
+FIRST ACTION:
+ADMIT → REGISTER SESSION → CAPTURE EXACT SHA → READ CONTROL PLANE → READ TASK STATE → READ ACTIVE AGENTS → DECLARE SCOPE → OBSERVE → RCA → EXECUTE → TEST → VERIFY → REPORT → CONTINUE.
+
+A role that has not admitted P00 is not execution-ready. P00 must remain consistent with the machine-enforced protocol registry, coordination plane, liveness controls and hard exit lock.
+
 # ✅ CANONICAL AGENT COUNCIL — PR #759
 
 Issue #761 is archived and MUST NOT be used as an activation source. Active Council ingress is PR #759 on `execution → main`.
