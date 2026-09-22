@@ -7,10 +7,11 @@ on:
     branches: [main, execution]
   workflow_dispatch:
 
-# Initial runs use one branch lane so a new commit supersedes the prior commit immediately.
-# Reruns use their own immutable run lane and therefore cannot cancel a newer commit.
+# Every initial verification lane is bound to repository + branch + exact head SHA.
+# The dedicated Latest Commit Supersession controller cancels older-SHA verification runs.
+# Reruns retain an immutable run-specific lane and cannot cancel a different commit.
 concurrency:
-  group: ${{ github.run_attempt > 1 && format('flixo-test-rerun-{0}', github.run_id) || format('flixo-test-lane-{0}-{1}', github.repository, github.ref_name) }}
+  group: ${{ github.run_attempt > 1 && format('flixo-test-rerun-{0}', github.run_id) || format('flixo-test-{0}-{1}-{2}', github.event.pull_request.head.repo.full_name || github.repository, github.event.pull_request.head.ref || github.ref_name, github.event.pull_request.head.sha || github.sha) }}
   cancel-in-progress: true
 
 permissions:

@@ -20,14 +20,14 @@ fs.writeFileSync(ledgerFile, ['# TEST TASK LEDGER', '## 1) P0 — DONE-001', 'ST
 
 const taskId = 'atomic-race-task';
 const scope = ['scripts/ci/agent-coordination.mjs'];
-const state = { schemaVersion: 1, authority: 'AGENT_COORDINATION_CONTROL_PLANE', authoritativeSha: currentSha, revision: 0, transactionId: null, updatedAt: new Date().toISOString(), tasks: { [taskId]: { taskId, title: 'Atomic coordination race regression', priority: 100, lane: 'test', rca: 'coordination-race', scope, objective: 'exactly one concurrent claimant may own a task', knownFailure: 'lost update', evidenceRequired: ['single-winner'], dependsOn: [], missionId: 'MISSION:COORDINATION-RACE', workPackageId: taskId, ownerRole: 'executionAgent', ownerAgent: null, workItems: ['single-owner claim'], acceptanceCriteria: ['exactly one winner'], proofObligations: ['race regression'], status: 'READY', createdAt: new Date().toISOString() } }, activeSessions: {} };
+const state = { schemaVersion: 1, authority: 'AGENT_COORDINATION_CONTROL_PLANE', authoritativeSha: currentSha, revision: 0, transactionId: null, updatedAt: new Date().toISOString(), tasks: { [taskId]: { taskId, title: 'Atomic coordination race regression', priority: 100, lane: 'test', rca: 'coordination-race', scope, objective: 'exactly one concurrent claimant may own a task', knownFailure: 'lost update', evidenceRequired: ['single-winner'], dependsOn: [], missionId: 'MISSION:COORDINATION-RACE', workPackageId: taskId, ownerRole: 'verification', ownerAgent: null, workItems: ['single-owner claim'], acceptanceCriteria: ['exactly one winner'], proofObligations: ['race regression'], status: 'READY', createdAt: new Date().toISOString() } }, activeSessions: {} };
 const locks = { schemaVersion: 1, authority: 'AGENT_SCOPE_LOCKS', revision: 0, transactionId: null, locks: {} };
 fs.writeFileSync(path.join(coordDir, 'coordination-state.json'), JSON.stringify(state, null, 2) + '\n');
 fs.writeFileSync(path.join(coordDir, 'coordination-locks.json'), JSON.stringify(locks, null, 2) + '\n');
 
 const visibilityKey = (id) => crypto.createHash('sha256').update(id).digest('hex');
-for (const [sessionId, agentId] of [['race-session-a','executionAgent-a'], ['race-session-b','executionAgent-b']]) {
-  fs.writeFileSync(path.join(visibilityDir, visibilityKey(sessionId) + '.json'), JSON.stringify({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'OPEN', taskId, sessionId, agentId, role: 'executionAgent', scope, entrySha: currentSha, exitSha: null, status: 'RUNNING', finalStatus: null, finalSummary: null, updatedAt: new Date().toISOString() }, null, 2) + '\n');
+for (const [sessionId, agentId] of [['race-session-a','verification-a'], ['race-session-b','verification-b']]) {
+  fs.writeFileSync(path.join(visibilityDir, visibilityKey(sessionId) + '.json'), JSON.stringify({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'OPEN', taskId, sessionId, agentId, role: 'verification', scope, entrySha: currentSha, exitSha: null, status: 'RUNNING', finalStatus: null, finalSummary: null, updatedAt: new Date().toISOString() }, null, 2) + '\n');
 }
 
 const runArgs = (args) => new Promise((resolve) => {
@@ -38,7 +38,7 @@ const runArgs = (args) => new Promise((resolve) => {
   child.stderr.on('data', (chunk) => { stderr += chunk; });
   child.on('close', (code) => resolve({ code, stdout, stderr }));
 });
-const run = (sessionId, agentId) => runArgs(['task-claim', `--task=${taskId}`, `--session=${sessionId}`, `--agent=${agentId}`]);
+const run = (sessionId, agentId) => runArgs(['task-claim', '--chair=chair_2', `--task=${taskId}`, `--session=${sessionId}`, `--agent=${agentId}`]);
 
 try {
   const results = await Promise.all([run('race-session-a', 'executionAgent-a'), run('race-session-b', 'executionAgent-b')]);

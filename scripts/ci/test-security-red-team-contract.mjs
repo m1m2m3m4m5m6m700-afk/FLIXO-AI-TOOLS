@@ -7,7 +7,6 @@ const root = process.cwd();
 const registry = JSON.parse(fs.readFileSync(path.join(root,'docs/agents/SECURITY-RED-TEAM-BOTS.json'),'utf8'));
 const workflow = fs.readFileSync(path.join(root,'.github/workflows/security-red-team.yml'),'utf8');
 const registryText = fs.readFileSync(path.join(root,'scripts/ci/control-plane-registry.mjs'),'utf8');
-const runnerText = fs.readFileSync(path.join(root,'scripts/security/security-red-team-runner.mjs'),'utf8');
 
 assert.equal(registry.protocol,'FLIXO-SECURITY-RED-TEAM-TRIAD-v1');
 assert.equal(registry.branchPolicy.workingBranch,'execution');

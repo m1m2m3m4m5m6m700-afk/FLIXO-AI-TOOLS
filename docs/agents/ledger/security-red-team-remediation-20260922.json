@@ -1,18 +1,16 @@
 {
   "schemaVersion": 1,
+  "authority": "AGENT_VISIBILITY_LEDGER",
+  "visibilityState": "CLOSED",
   "taskId": "SECURITY-REDTEAM-REMEDIATION-001",
   "sessionId": "security-red-team-remediation-20260922",
-  "branch": "execution",
-  "exactSha": "33607fc3f8da2269ea31e0c688b9df6dc3023a4f",
-  "owner": "assistantController",
-  "status": "ACTIVE",
-  "guardianCopy": true,
-  "scope": "Apply all verified deep Red-Team remediation findings without weakening branch, security, exact-SHA, or canonical CI gates.",
-  "currentRca": "REDTEAM-DEEP-FINDINGS-20260922",
-  "requiredVerification": [
-    "targeted contract tests",
-    "security baseline",
-    "exact-SHA canonical CI"
-  ],
-  "closure": "NO_GREEN_CLAIM_UNTIL_FRESH_EXACT_SHA_EVIDENCE"
+  "agentId": "assistantController",
+  "role": "assistantController",
+  "entrySha": "33607fc3f8da2269ea31e0c688b9df6dc3023a4f",
+  "exitSha": "33607fc3f8da2269ea31e0c688b9df6dc3023a4f",
+  "status": "BLOCKED",
+  "finalStatus": "BLOCKED",
+  "finalSummary": "Historical remediation session is closed as BLOCKED because its evidence SHA is stale; the repair continues on the current exact execution SHA.",
+  "visibilityStateReason": "STALE_HISTORICAL_SESSION",
+  "updatedAt": "2026-09-23T00:00:00Z"
 }

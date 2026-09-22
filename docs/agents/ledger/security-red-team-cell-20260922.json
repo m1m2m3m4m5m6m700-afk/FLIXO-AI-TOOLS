@@ -1,12 +1,16 @@
 {
   "schemaVersion": 1,
-  "sessionId": "security-red-team-cell-20260922",
+  "authority": "AGENT_VISIBILITY_LEDGER",
+  "visibilityState": "CLOSED",
   "taskId": "SECURITY-REDTEAM-TRIAD-001",
+  "sessionId": "security-red-team-cell-20260922",
+  "agentId": "assistantController",
+  "role": "assistantController",
   "entrySha": "fa04548d3994e7a2f1f894fbc17b675cdf2a9c22",
-  "branch": "execution",
-  "owner": "assistantController",
-  "scope": "Three-bot full-project security red team with immediate vulnerability ledger recording",
-  "active": true,
-  "exactShaRequired": true,
-  "handoffState": "OPEN"
+  "exitSha": "fa04548d3994e7a2f1f894fbc17b675cdf2a9c22",
+  "status": "BLOCKED",
+  "finalStatus": "BLOCKED",
+  "finalSummary": "Historical red-team session is closed as BLOCKED because its evidence SHA is stale; fresh exact-SHA red-team evidence is required.",
+  "visibilityStateReason": "STALE_HISTORICAL_SESSION",
+  "updatedAt": "2026-09-23T00:00:00Z"
 }
