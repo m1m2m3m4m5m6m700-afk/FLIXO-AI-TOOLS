@@ -48,4 +48,10 @@ assert.match(registry,/scripts\/security\/security-red-team-runner\.mjs/u);
 assert.match(registry,/docs\/agents\/SECURITY-RED-TEAM-BOTS\.json/u);
 assert.match(registry,/\.github\/workflows\/security-red-team\.yml/u);
 
+const stepIds = new Set([...auto.matchAll(/^\\s{8}id:\\s*([A-Za-z0-9_-]+)\\s*$/gm)].map((m) => m[1]));
+const missingStepRefs = [...auto.matchAll(/steps\\.([A-Za-z0-9_-]+)\\.(?:outcome|outputs)\\b/g)]
+  .map((m) => m[1])
+  .filter((id, index, all) => all.indexOf(id) === index && !stepIds.has(id));
+assert.deepEqual(missingStepRefs, []);
+
 console.log('SECURITY_REDTEAM_DEEP_REMEDIATION_CONTRACT=PASS');
