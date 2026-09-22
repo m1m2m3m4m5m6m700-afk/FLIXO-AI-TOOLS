@@ -9,8 +9,8 @@ const delivery=fs.readFileSync('supabase/migrations/20260922141500_master3_assis
 
 assert.match(fn,/action === "assistant-channel"/);
 assert.match(fn,/tokenHash/);
-assert.match(fn,/rpc\\/council_claim_assistant_wake/);
-assert.match(fn,/rpc\\/council_dispatch_assistant_wake/);
+assert.match(fn,/rpc\/council_claim_assistant_wake/);
+assert.match(fn,/rpc\/council_dispatch_assistant_wake/);
 assert.match(fn,/COUNCIL_ASSISTANT_WAKE_DISPATCH_REJECTED/);
 assert.match(fn,/DIRECT_MASTER3_WAKE/);
 assert.match(fn,/"MASTER-3": \{ primary: "WORKER_B", fallback: "WORKER_A" \}/);
