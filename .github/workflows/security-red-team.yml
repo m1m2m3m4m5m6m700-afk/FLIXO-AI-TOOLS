@@ -43,18 +43,11 @@ jobs:
       - name: Validate red-team contract
         run: node scripts/ci/test-security-red-team-contract.mjs
 
-  redteam:
-    name: Security Red-Team — ${{ matrix.bot }}
+  redteam-1:
+    name: Security Red-Team — SECURITY-REDTEAM-1
     needs: contract
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        bot:
-          - SECURITY-REDTEAM-1
-          - SECURITY-REDTEAM-2
-          - SECURITY-REDTEAM-3
     steps:
       - name: Checkout exact execution SHA
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -68,22 +61,87 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - name: Run full-project red-team scan
-        env:
-          BOT_ID: ${{ matrix.bot }}
         run: |
           set -euo pipefail
-          node scripts/security/security-red-team-runner.mjs             --bot="$BOT_ID"             --sha="$EXPECTED_SHA"             --output="/tmp/security-red-team-$BOT_ID.json"
+          node scripts/security/security-red-team-runner.mjs \
+            --bot="SECURITY-REDTEAM-1" \
+            --sha="$EXPECTED_SHA" \
+            --output="/tmp/security-red-team-SECURITY-REDTEAM-1.json"
       - name: Publish bot evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: flixo-security-red-team-${{ matrix.bot }}-${{ env.EXPECTED_SHA }}
-          path: /tmp/security-red-team-${{ matrix.bot }}.json
+          name: flixo-security-red-team-SECURITY-REDTEAM-1-${{ env.EXPECTED_SHA }}
+          path: /tmp/security-red-team-SECURITY-REDTEAM-1.json
+          if-no-files-found: error
+          retention-days: 30
+
+  redteam-2:
+    name: Security Red-Team — SECURITY-REDTEAM-2
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact execution SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Run full-project red-team scan
+        run: |
+          set -euo pipefail
+          node scripts/security/security-red-team-runner.mjs \
+            --bot="SECURITY-REDTEAM-2" \
+            --sha="$EXPECTED_SHA" \
+            --output="/tmp/security-red-team-SECURITY-REDTEAM-2.json"
+      - name: Publish bot evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-security-red-team-SECURITY-REDTEAM-2-${{ env.EXPECTED_SHA }}
+          path: /tmp/security-red-team-SECURITY-REDTEAM-2.json
+          if-no-files-found: error
+          retention-days: 30
+
+  redteam-3:
+    name: Security Red-Team — SECURITY-REDTEAM-3
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact execution SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Run full-project red-team scan
+        run: |
+          set -euo pipefail
+          node scripts/security/security-red-team-runner.mjs \
+            --bot="SECURITY-REDTEAM-3" \
+            --sha="$EXPECTED_SHA" \
+            --output="/tmp/security-red-team-SECURITY-REDTEAM-3.json"
+      - name: Publish bot evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-security-red-team-SECURITY-REDTEAM-3-${{ env.EXPECTED_SHA }}
+          path: /tmp/security-red-team-SECURITY-REDTEAM-3.json
           if-no-files-found: error
           retention-days: 30
 
   record-1:
     name: Record SECURITY-REDTEAM-1 findings immediately
-    needs: redteam
+    needs: redteam-1
     if: ${{ success() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -113,7 +171,7 @@ jobs:
 
   record-2:
     name: Record SECURITY-REDTEAM-2 findings immediately
-    needs: [redteam, record-1]
+    needs: [redteam-2, record-1]
     if: ${{ success() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -143,7 +201,7 @@ jobs:
 
   record-3:
     name: Record SECURITY-REDTEAM-3 findings immediately
-    needs: [redteam, record-2]
+    needs: [redteam-3, record-2]
     if: ${{ success() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
