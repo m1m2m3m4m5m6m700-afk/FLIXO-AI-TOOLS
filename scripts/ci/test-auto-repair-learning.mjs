@@ -275,6 +275,30 @@ assert.deepEqual(
   ['src/example.ts'],
 );
 
+const fiveXFingerprint = '5'.repeat(64);
+recordOutcome(memory, {
+  fingerprint: fiveXFingerprint,
+  normalizedFailure: 'five x cycle test',
+  features: ['five-x'],
+  rootCause: 'five-x-cycle',
+  rule: 'five-x-strategy',
+  outcome: 'success',
+  verification: 'exact-sha-proof',
+  provenance: {
+    targetSha: 'a'.repeat(40),
+    currentSha: 'a'.repeat(40),
+    failedSha: 'a'.repeat(40),
+    strategyId: 'five-x-strategy',
+    runId: 'five-x-run',
+  },
+});
+const fiveXCase = memory.cases.find((item) => item.fingerprint === fiveXFingerprint);
+assert(fiveXCase?.lastFiveXCycle);
+assert.equal(fiveXCase.lastFiveXCycle.protocol, 'FLIXO-FIVE-X-REPAIR-CYCLE-v1');
+assert.equal(fiveXCase.lastFiveXCycle.targetSha, 'a'.repeat(40));
+assert.equal(fiveXCase.lastFiveXCycle.state, 'VERIFICATION_PENDING_CANONICAL_GREEN');
+assert.equal(memory.actionHistory.find((item) => item.fingerprint === fiveXFingerprint)?.lastFiveXCycle?.state, 'VERIFICATION_PENDING_CANONICAL_GREEN');
+
 const afterFailureKnowledge = deriveReusableKnowledge(memory, { rootCause: 'lint', features: ['lint'] });
 assert.equal(afterFailureKnowledge.generalizedRules.some((item) => item.rule === 'eslint-unused'), false);
 assert.equal(afterFailureKnowledge.rejectedRules.some((item) => item.rule === 'eslint-unused' && item.reason === 'low-success-rate'), false);
