@@ -1,3 +1,4 @@
+import type { ExecutionPlan } from '@/lib/ai/planner';
 import type { ExecutionPlanContract } from '@/lib/contracts/ai-plan';
 import { parseAgentDecision } from '@/lib/contracts/agent-gateway';
 
@@ -10,7 +11,7 @@ export type ConversationalAgentRequest = Readonly<{
   locale: string;
   messages: readonly ConversationalAgentMessage[];
   file?: { name: string; type: string; size: number } | null;
-  activePlan?: ExecutionPlanContract | null;
+  activePlan?: ExecutionPlan | null;
   activeCommand?: string | null;
 }>;
 
