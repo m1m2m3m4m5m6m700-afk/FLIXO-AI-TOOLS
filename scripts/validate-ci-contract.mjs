@@ -120,7 +120,7 @@ for (const line of workflowLines) {
   }
   if (activeJobName !== null) activeJobLines.push(line);
 }
-if (activeJobName !== null) workflowJobBlocks.set(activeJobName, activeJobLines.join('\\n'));
+if (activeJobName !== null) workflowJobBlocks.set(activeJobName, activeJobLines.join('\n'));
 const missingCurrentCommitGuardJobs = requiredCurrentCommitGuardJobs.filter(
   (jobName) => !workflowJobBlocks.get(jobName)?.includes('scripts/ci/assert-current-commit.mjs')
 );
