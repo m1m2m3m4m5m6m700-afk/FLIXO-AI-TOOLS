@@ -2,7 +2,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
 
 const ROOT = process.cwd();
 const INBOX_DIR = path.resolve(ROOT, 'diagnostics/guard/inbox');
