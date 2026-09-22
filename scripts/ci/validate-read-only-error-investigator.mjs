@@ -42,7 +42,7 @@ if(!/['"]--log-failed['"]/u.test(source)) failures.push('READ_ONLY_FAILURE_LOG_C
 if(!/run\?\.headSha !== executionSha/u.test(source)) failures.push('EXACT_SHA_FILTER_MISSING');
 if(!workflowSource.includes('contents: read') || !workflowSource.includes('actions: read')) failures.push('READ_ONLY_WORKFLOW_PERMISSIONS_MISSING');
 if(workflowSource.includes('contents: write') || workflowSource.includes('actions: write')) failures.push('WRITE_PERMISSION_PRESENT');
-if(!workflowSource.includes('ref: execution')) failures.push('EXECUTION_REF_NOT_PINNED');
+if(!/ref:\s*\$\{\{\s*github\.event\.inputs\.branch\s*\|\|\s*'execution'\s*\}\}/u.test(workflowSource)) failures.push('EXECUTION_BRANCH_REF_BINDING_MISSING');
 if(!testSource.includes('CAPIError') || !testSource.includes('CI contract failed')) failures.push('ROOT_CAUSE_FIXTURES_MISSING');
 if(!fs.existsSync(deepReasoning) || !fs.existsSync(deepTest) || !fs.existsSync(deepContract) || !fs.existsSync(repairIntelligence)) failures.push('DEEP_REASONING_SURFACE_MISSING');
 if(!source.includes('buildDeepInference')) failures.push('DEEP_REASONING_INTEGRATION_MARKER_MISSING');
