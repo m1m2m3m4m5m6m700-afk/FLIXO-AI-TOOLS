@@ -140,6 +140,7 @@ const ensureSessionWorkChair = (record) => {
     agentId: record.agentId,
     targetSha,
     requestedChairId: effectiveChairId,
+    role: record.role,
     repositoryState: effectiveChairId !== 'chair_1' ? 'ACTIVE' : 'IDLE',
     workPackageId: record.taskId,
     taskId: record.taskId,
@@ -455,6 +456,10 @@ if (command === 'meeting-exit-approve') {
     actions: [{ at: now(), action: 'LOGIN', sha, ...(continuation ? { fromSession } : {}) }],
   };
   fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`, { flag: 'wx' });
+  if (isMaster(agentId)) {
+    ensureSessionWorkChair(record);
+    fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
+  }
   writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'OPEN', taskId, sessionId, agentId, role, entrySha: sha, exitSha: null, status: 'RUNNING', finalStatus: null, finalSummary: null, scope, currentRca: rca, rcaClosed: [], openRcas: [], changedFiles: [], commands: [], evidence: [], findings: [], activity: [], lastEvent: null, completedWork: [], failedWork: [], remainingWork: [], executionPlanNext: [], blockers: [], handoffToNextAgent: null, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() , ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha, messageStatus: inboundMessage.status } : {}) });
   console.log(`AGENT_SESSION_LOGIN=${sessionId}`);
   console.log(`AGENT_SESSION_SHA=${sha}`);
