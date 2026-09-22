@@ -20,7 +20,7 @@ const expectedFiles = [
 ];
 if (JSON.stringify(identity.testDefinitionFiles ?? []) !== JSON.stringify(expectedFiles)) throw new Error('Test definition file set changed during rerun');
 const testDefinitionSha256 = createHash('sha256')
-  .update(expectedFiles.map((file) => `${file}:${hash(file)}`).join('\\n'), 'utf8')
+  .update(expectedFiles.map((file) => `${file}:${hash(file)}`).join('\n'), 'utf8')
   .digest('hex');
 if (identity.testDefinitionSha256 !== testDefinitionSha256) throw new Error('Test definition changed during run');
 if (identity.workflowSha256 !== hash('.github/workflows/ci.yml')) throw new Error('Workflow definition changed during run');
