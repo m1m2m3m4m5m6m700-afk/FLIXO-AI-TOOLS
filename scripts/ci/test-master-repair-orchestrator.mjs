@@ -50,7 +50,10 @@ const files = {
       alternative_hypotheses: [
         { id: 'H1', hypothesis: 'contract' },
         { id: 'H2', hypothesis: 'scope' },
-        { id: 'H3', hypothesis: 'dependency' }
+        { id: 'H3', hypothesis: 'dependency' },
+        { id: 'H4', hypothesis: 'workflow-ordering' },
+        { id: 'H5', hypothesis: 'stale-memory' },
+        { id: 'H6', hypothesis: 'coordination-drift' }
       ]
     },
     proposed_fix: { isolation_level: 'SURGICAL_PATCH', scope: { max_source_files: 1 } },
@@ -93,8 +96,8 @@ const ready = await buildMasterRepairPacket({
 assert.equal(ready.protocol, 'FLIXO-MASTER-REPAIR-ORCHESTRATOR-v1');
 assert.equal(ready.mutationAuthority, false);
 assert.equal(ready.target.exactSha, true);
-assert(ready.intelligence.hypotheses.length >= 3);
-assert(ready.intelligence.falsification.length >= 5);
+assert(ready.intelligence.hypotheses.length >= 6);
+assert(ready.intelligence.falsification.length >= 10);
 assert.equal(ready.decision.closureAuthority, 'CANONICAL_GREEN_AND_CERTIFICATION_ONLY');
 
 const stale = await buildMasterRepairPacket({
