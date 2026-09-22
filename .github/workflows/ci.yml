@@ -53,6 +53,10 @@ jobs:
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Create immutable run identity
         run: node scripts/ci/create-run-identity.mjs
+      - name: Verify immutable rerun lock
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/ci/verify-run-lock.mjs
       - name: Repair generated agent locale contract
         run: node scripts/ci/ensure-agent-locales.mjs
       - name: Task Agent gate contract
@@ -186,6 +190,10 @@ jobs:
         with:
           name: flixo-build-${{ github.run_id }}
           path: dist
+      - name: Verify immutable rerun lock
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/ci/verify-run-lock.mjs
       - name: Verify immutable artifact
         shell: bash
         run: |
