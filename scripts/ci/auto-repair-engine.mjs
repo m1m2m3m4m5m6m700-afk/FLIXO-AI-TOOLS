@@ -210,7 +210,6 @@ const evidence = {
   diagnosis,
   specialist,
   candidates: plan.candidates,
-  candidates: plan.candidates,
   reasoning: plan.reasoning,
   inferenceFallback: plan.inferenceFallback ?? null,
   reusableKnowledge,
@@ -409,7 +408,6 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     writeEvidence(evidencePath, evidence);
     recordOutcome(memory, {
       fingerprint, normalizedFailure, features,
-      rootCause: diagnosis?.rootCause ?? 'unknown',
       rootCause: diagnosis?.rootCause ?? 'unknown',
       rule: historicalRollbackCandidate.rule ?? undefined,
       outcome: 'proposed',
@@ -1009,7 +1007,6 @@ try {
       reproductionAfter: evidence.reproductionAfter,
       regression: evidence.regression,
       recurrenceProof: evidence.recurrenceProof,
-      changedPaths: evidence.changedPaths,
       changedPaths: evidence.changedPaths,
       selfCritic: evidence.selfCritic,
     });
