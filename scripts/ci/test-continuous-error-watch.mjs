@@ -453,4 +453,12 @@ assert.equal(missingReport.rootCause, 'REQUIRED_EVIDENCE_MISSING');
 assert.equal(missingReport.errors[0]?.type, 'WATCHER_INPUT_INVALID');
 fs.rmSync(watchTemp, { recursive: true, force: true });
 
+const dailyGateWorkflow = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
+assert.match(dailyGateWorkflow, /Normalize settled workflow-run evidence shape/);
+assert.match(
+  dailyGateWorkflow,
+  /if type == "array" then \. elif \(\.workflow_runs \| type\) == "array" then \.workflow_runs else \[\] end/,
+);
+assert.match(dailyGateWorkflow, /jq -e 'type == "array"'/);
+
 console.log('CONTINUOUS_ERROR_WATCH_CONTRACT=PASS');

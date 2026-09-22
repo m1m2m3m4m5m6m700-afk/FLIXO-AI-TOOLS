@@ -149,6 +149,14 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/commits/$EXECUTION_SHA/status" > /tmp/flixo-watch/statuses.json
           echo "REQUIRED_CI_SETTLEMENT_COMPLETE=true"
 
+      - name: Normalize settled workflow-run evidence shape
+        if: steps.capture.outputs.branch == 'execution' && steps.settle_required_ci.outcome == 'success'
+        run: |
+          set -euo pipefail
+          jq -c 'if type == "array" then . elif (.workflow_runs | type) == "array" then .workflow_runs else [] end'             /tmp/flixo-watch/workflow-runs.json > /tmp/flixo-watch/workflow-runs.normalized.json
+          mv /tmp/flixo-watch/workflow-runs.normalized.json /tmp/flixo-watch/workflow-runs.json
+          jq -e 'type == "array"' /tmp/flixo-watch/workflow-runs.json >/dev/null
+
       - name: Capture failed CI evidence for classification
         env:
           GH_TOKEN: ${{ github.token }}
