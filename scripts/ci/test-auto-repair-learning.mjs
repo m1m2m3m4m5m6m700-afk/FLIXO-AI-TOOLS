@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge, hydrateActionHistory, normalizeMemoryCounters, mergeMemoryHistory, MEMORY_RELATION_TYPES, normalizeRelations, normalizeDiagnosticRecord, MEMORY_VERSION } from './auto-repair-learning.mjs';
+import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge, hydrateActionHistory, normalizeMemoryCounters, mergeMemoryHistory, MEMORY_RELATION_TYPES, normalizeRelations, normalizeDiagnosticRecord, MEMORY_VERSION, INTRACTABLE_THRESHOLD } from './auto-repair-learning.mjs';
 
 const sample = 'Run 35012345678 failed on webkit at abcdefabcdefabcdefabcdefabcdefabcdefabcd: Seed waitForGpuRender';
 const fingerprint = fingerprintFailure(sample);
@@ -21,6 +21,22 @@ delete process.env.FLIXO_RUN_ID;
 
 const memory = loadMemory();
 assert(memory.version >= MEMORY_VERSION);
+assert.equal(INTRACTABLE_THRESHOLD, 10);
+const previousGreen = process.env.FLIXO_CANONICAL_GREEN;
+const previousGreenSha = process.env.FLIXO_CANONICAL_GREEN_SHA;
+const previousTargetSha = process.env.FLIXO_TARGET_SHA;
+delete process.env.FLIXO_CANONICAL_GREEN;
+delete process.env.FLIXO_CANONICAL_GREEN_SHA;
+process.env.FLIXO_TARGET_SHA = 'a'.repeat(40);
+assert.equal(normalizeLearningOutcome('success', 'verified-repair'), 'proposed');
+assert.equal(normalizeLearningOutcome('repair-applied', 'exact-sha-proof'), 'proposed');
+process.env.FLIXO_CANONICAL_GREEN = 'true';
+process.env.FLIXO_CANONICAL_GREEN_SHA = 'a'.repeat(40);
+assert.equal(normalizeLearningOutcome('success', 'verified-repair'), 'success');
+if (previousGreen === undefined) delete process.env.FLIXO_CANONICAL_GREEN; else process.env.FLIXO_CANONICAL_GREEN = previousGreen;
+if (previousGreenSha === undefined) delete process.env.FLIXO_CANONICAL_GREEN_SHA; else process.env.FLIXO_CANONICAL_GREEN_SHA = previousGreenSha;
+if (previousTargetSha === undefined) delete process.env.FLIXO_TARGET_SHA; else process.env.FLIXO_TARGET_SHA = previousTargetSha;
+
 const diagnostic = normalizeDiagnosticRecord({
   rootCause: 'lint',
   violatedInvariant: 'UNEXPECTED_UNUSED_SYMBOL',
@@ -243,6 +259,22 @@ const hydrated = hydrateActionHistory({
 const hydratedRepeat = hydrated.actionHistory.find((item) => item.fingerprint === '__hydrated_repeat__');
 assert.equal(hydratedRepeat?.attempts, 3);
 assert.equal(hydratedRepeat?.failures, 3);
+
+recordOutcome(memory, {
+  fingerprint: '__proposed_test__',
+  normalizedFailure: 'repair applied without canonical green',
+  features: ['repair'],
+  rootCause: 'repair',
+  rule: 'unverified-repair',
+  outcome: 'proposed',
+  verification: 'verified-repair',
+  provenance: { runId: 'proposed-run', targetSha: 'a'.repeat(40) },
+});
+const proposedCase = memory.cases.find((item) => item.fingerprint === '__proposed_test__');
+assert.equal(proposedCase?.attempts, 1);
+assert.equal(proposedCase?.successes, 0);
+assert.equal(proposedCase?.failures, 1);
+assert(memory.antiLessons.some((item) => item.fingerprint === '__proposed_test__'));
 
 recordOutcome(memory, {
   fingerprint: '__negative_test__',
