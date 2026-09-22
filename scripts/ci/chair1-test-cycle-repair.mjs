@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
-export const CHAIR1_REPAIR_MISSION = 'CHAIR1_PERMANENT_CHANGE_AGGREGATOR';
+export const CHAIR1_REPAIR_MISSION = 'CHAIR1_TEMPORARY_TASK_DELEGATION';
 
 const ROOT = process.env.FLIXO_TARGET_DIR ?? process.cwd();
 const sha = value => {
@@ -35,7 +35,7 @@ export function buildChair1RepairMission({
     schemaVersion: 1,
     protocol: 'FLIXO-CHAIR1-CHANGE-AGGREGATION-v2',
     mission: CHAIR1_REPAIR_MISSION,
-    authority: 'CHAIR_1_FINAL_AGGREGATION_AND_PUBLICATION',
+    authority: 'CHAIR_1_DELEGATED_TASK_EXECUTION',
     branch: 'execution',
     targetSha: target,
     previousSha: previous,
@@ -52,8 +52,8 @@ export function buildChair1RepairMission({
        agentOutputs: 'ISOLATED_WORKSPACE_PATCHES_ONLY',
        agentBranchRelation: 'ENTRY_SNAPSHOT_ONLY',
        conflictPolicy: 'EDIT_REBASE_MERGE_REMOVE_OR_UPGRADE_BY_CHAIR_1_ONLY',
-       publicationPolicy: 'CHAIR_1_ONLY',
-       editAuthority: 'CHAIR_1_ONLY',
+       publicationPolicy: 'DELEGATED_CHAIR_1_SCOPE_ONLY',
+       editAuthority: 'DELEGATED_CHAIR_1_SCOPE_ONLY',
        headPolicy: 'WORKER_HEAD_INDEPENDENCE_AFTER_ENTRY_SNAPSHOT',
      },
      directRepairPolicy: {
@@ -64,7 +64,7 @@ export function buildChair1RepairMission({
       resumePolicy: 'TARGETED_RETEST_THEN_RESUME_REMAINING_REQUIRED_CHECKS',
       closurePolicy: 'CANONICAL_GREEN_ONLY',
     },
-    stopConditions: ['NO_PENDING_CHANGES','CANONICAL_GREEN','STALE_SHA','PROOF_FAILED','BLOCKED_EXTERNAL'],
+    stopConditions: ['TASK_COMPLETE','TASK_RELEASE','CANONICAL_GREEN','STALE_SHA','PROOF_FAILED','BLOCKED_EXTERNAL'],
     noSelfDispatch: true,
     noMainMutation: true,
     generatedAt: new Date().toISOString(),
