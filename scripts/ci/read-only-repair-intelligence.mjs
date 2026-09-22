@@ -152,7 +152,7 @@ function buildAdversarialMirror({log, targetSha, fingerprint, diagnosis, plan, s
   };
 }
 
-export function buildRepairIntelligenceMirror({failureLog='',targetSha='',historicalSignals={},deepInference=null,selectedCandidate=null,failedRunId='READ_ONLY'}={}){
+export function buildRepairIntelligenceMirror({failureLog='',targetSha='',historicalSignals={},deepInference=null,selectedCandidate=null,failedRunId='READ_ONLY',full=true}={}){
   if(!exactSha(targetSha)) throw new Error('REPAIR_INTELLIGENCE_MIRROR_EXACT_SHA_REQUIRED');
   const log=String(failureLog??'');
   const fingerprint=fingerprintFailure(log);
@@ -206,26 +206,32 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
     exactCases:[],
     doNotRepeat:[]
   });
-  const mentorPacket=buildMentorPacket({
-    taskId:'READ_ONLY_REPAIR_INTELLIGENCE:'+fingerprint,
-    fingerprint,
-    targetSha,
-    failedRunId:String(failedRunId),
-    sourceFiles:[...new Set([diagnosis?.location?.file,selected?.file].filter(Boolean))],
-    mode:'DEEP',
-    changedPaths:[],
-    deep:true
-  });
+  const mentorPacket=full ? (() => {
+    try {
+      return buildMentorPacket({
+        taskId:'READ_ONLY_REPAIR_INTELLIGENCE:'+fingerprint,
+        fingerprint,
+        targetSha,
+        failedRunId:String(failedRunId),
+        sourceFiles:[...new Set([diagnosis?.location?.file,selected?.file].filter(Boolean))],
+        mode:'DEEP',
+        changedPaths:[],
+        deep:true
+      });
+    } catch (error) {
+      return { protocol:'CODE_MENTOR_PACKET_V3', status:'READ_ONLY_MENTOR_UNAVAILABLE', readOnly:true, error:String(error?.message ?? error) };
+    }
+  })() : { protocol:'CODE_MENTOR_PACKET_V3', status:'SKIPPED_IN_UNIT_TEST', readOnly:true };
   const adversarial=buildAdversarialMirror({
     log,targetSha,fingerprint,diagnosis,plan,selectedCandidate:selected,historicalKnowledge
   });
-  const programmerTwin=runProgrammerTwinReadOnly({
+  const programmerTwin=full ? runProgrammerTwinReadOnly({
     log,
     targetSha,
     fingerprint,
     diagnosis,
     selected
-  });
+  }) : { protocol:'INDEPENDENT_FALSIFICATION_REPORT-v1', status:'SKIPPED_IN_UNIT_TEST', authorityParity:'NO_MUTATION_AUTHORITY' };
   return {
     protocol:'FLIXO-READ-ONLY-REPAIR-INTELLIGENCE-v1',
     mode:'READ_AND_REASON_ONLY',
