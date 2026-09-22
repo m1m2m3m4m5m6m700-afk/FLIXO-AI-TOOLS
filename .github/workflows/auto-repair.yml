@@ -991,14 +991,17 @@ jobs:
         env:
           FLIXO_TARGET_DIR: ${{ github.workspace }}
           FLIXO_REPAIR_CONTROLLER: ${{ env.FLIXO_REPAIR_CONTROLLER }}
-          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_CANDIDATE_SHA }}
-          FLIXO_PATCH_BASE_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
           FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
           FLIXO_ADVERSARIAL_OUTPUT: /tmp/flixo-postpatch-adversarial.json
           FLIXO_PARALLEL_VERIFICATION_OUTPUT: /tmp/flixo-candidate-verification.json
         run: |
           set -euo pipefail
-          node scripts/ci/candidate-verification-parallel.mjs
+          CANDIDATE_SHA="$(cat /tmp/flixo-candidate-sha)"
+          PARENT_SHA="$(git rev-parse "$CANDIDATE_SHA^")"
+          test "$CANDIDATE_SHA" = "$(git rev-parse HEAD)"
+          test "$CANDIDATE_SHA" != "$PARENT_SHA"
+          FLIXO_EXPECTED_TARGET_SHA="$CANDIDATE_SHA" FLIXO_PATCH_BASE_SHA="$PARENT_SHA" \
+            node scripts/ci/candidate-verification-parallel.mjs
           test -s /tmp/flixo-candidate-verification.json
           test "$(jq -r '.targetSha' /tmp/flixo-candidate-verification.json)" = "$(cat /tmp/flixo-candidate-sha)"
           test "$(jq -r '.mode' /tmp/flixo-candidate-verification.json)" = PARALLEL
