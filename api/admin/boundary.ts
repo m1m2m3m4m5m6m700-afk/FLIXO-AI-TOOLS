@@ -1,7 +1,8 @@
 import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { isAdminSessionStoreConfigured, isAdminSessionRevoked } from './session-store.ts';
+import { isAdminSessionStoreConfigured, getAdminSessionState } from './session-store.ts';
 import { ADMIN_CAPABILITIES } from '../../src/lib/admin/control-plane.ts';
+import { activeCapabilitiesForRole, isAdminRole } from '../../src/lib/admin/roles.ts';
 
 const SESSION_COOKIE = 'flixo_admin_session';
 const DEFAULT_TTL_SECONDS = 60 * 60;
@@ -17,7 +18,7 @@ type AdminRequest = IncomingMessage & {
 type SessionInput = {
   subject: string;
   capabilities: string[];
-  role?: string;
+  role: string;
   sessionId?: string;
   ttlSeconds?: number;
 };
@@ -64,12 +65,21 @@ const sessionSecret = () => {
 export const signAdminSession = ({ subject, capabilities, role, sessionId, ttlSeconds = DEFAULT_TTL_SECONDS }: SessionInput, secret = process.env.ADMIN_SESSION_SECRET) => {
   if (!secret || secret.length < 32) throw new Error('ADMIN_SESSION_SECRET is not configured');
   if (!subject || !Array.isArray(capabilities)) throw new Error('invalid session payload');
+  if (!isAdminRole(role)) throw new Error('invalid session role');
+  if (!sessionId || !/^[0-9a-f-]{36}$/i.test(sessionId)) throw new Error('invalid session id');
+
+  const canonicalCapabilities = [...activeCapabilitiesForRole(role)].sort();
+  const requestedCapabilities = [...new Set(capabilities)].sort();
+  if (
+    requestedCapabilities.length !== canonicalCapabilities.length
+    || requestedCapabilities.some((capability, index) => capability !== canonicalCapabilities[index])
+  ) throw new Error('session capabilities do not match role');
 
   const payload = {
     sub: subject,
     role,
     sid: sessionId,
-    cap: [...new Set(capabilities)].sort(),
+    cap: requestedCapabilities,
     exp: Math.floor(Date.now() / 1000) + ttlSeconds,
   };
   const encoded = base64url(JSON.stringify(payload));
@@ -90,10 +100,18 @@ export const verifyAdminSessionToken = (token: string | null, secret = process.e
   try {
     const payload = JSON.parse(fromBase64url(encoded)) as { sub?: string; role?: string; sid?: string; cap?: unknown; exp?: number };
     if (!payload.sub || !Array.isArray(payload.cap) || typeof payload.exp !== 'number' || !Number.isInteger(payload.exp)) return null;
+    if (typeof payload.sid !== 'string' || !/^[0-9a-f-]{36}$/i.test(payload.sid)) return null;
+    if (typeof payload.role !== 'string' || !isAdminRole(payload.role)) return null;
     if (payload.exp <= Math.floor(Date.now() / 1000)) return null;
     const capabilities = payload.cap.filter((value): value is string => typeof value === 'string');
     if (capabilities.length !== payload.cap.length || capabilities.some((value) => !ACTIVE_CAPABILITIES.has(value))) return null;
-    return { subject: payload.sub, sessionId: typeof payload.sid === 'string' ? payload.sid : undefined, role: typeof payload.role === 'string' ? payload.role : undefined, expiresAt: payload.exp, capabilities: new Set(capabilities) };
+    const canonicalCapabilities = [...activeCapabilitiesForRole(payload.role)].sort();
+    const actualCapabilities = [...new Set(capabilities)].sort();
+    if (
+      actualCapabilities.length !== canonicalCapabilities.length
+      || actualCapabilities.some((capability, index) => capability !== canonicalCapabilities[index])
+    ) return null;
+    return { subject: payload.sub, sessionId: payload.sid, role: payload.role, expiresAt: payload.exp, capabilities: new Set(actualCapabilities) };
   } catch {
     return null;
   }
@@ -103,7 +121,7 @@ export const readAdminSessionToken = (cookieHeader: string | undefined) => readC
 
 export const buildAdminSessionCookie = (token: string, ttlSeconds = DEFAULT_TTL_SECONDS) => {
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; Max-Age=${Math.max(1, Math.floor(ttlSeconds))}; HttpOnly; SameSite=Lax${secure}`;
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; Max-Age=${Math.max(1, Math.floor(ttlSeconds))}; HttpOnly; SameSite=Strict${secure}`;
 };
 
 export const buildAdminClearCookie = () => {
@@ -139,7 +157,11 @@ export const authorizeAdminRequestWithDurableSession = async (
 
   let state: Awaited<ReturnType<typeof isAdminSessionRevoked>>;
   try {
-    state = await isAdminSessionRevoked(session.sessionId);
+    state = await getAdminSessionState(session.sessionId, {
+      token: token!,
+      subject: session.subject,
+      role: session.role,
+    });
   } catch {
     return { status: 503, code: 'session_store_unavailable', correlationId: authorization.correlationId };
   }
