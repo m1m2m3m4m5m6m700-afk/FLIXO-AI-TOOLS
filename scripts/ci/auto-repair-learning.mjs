@@ -1005,7 +1005,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     playbook.generalized = new Set(playbook.successfulFingerprints ?? []).size >= 2 && playbook.successes >= 2 && playbook.successRate >= 0.8;
     if (!memory.playbooks.includes(playbook)) memory.playbooks.push(playbook);
   }
-  if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked' || outcome === 'blocked-external' || outcome === 'proposed') {
+  if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked' || outcome === 'blocked-external' || (outcome === 'proposed' && verification !== 'root-cause-evidence-insufficient')) {
     upsertLesson(memory, {
       fingerprint,
       rootCause: entry.rootCause,
