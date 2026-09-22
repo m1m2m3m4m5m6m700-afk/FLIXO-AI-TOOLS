@@ -19,15 +19,28 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
+  const isApiRequest = url.pathname.startsWith('/api/');
+  const hasAmbientCredentials = event.request.headers.has('cookie') || event.request.headers.has('authorization');
+  const isNavigation = event.request.mode === 'navigate';
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        if (response.ok && response.type === 'basic') {
+        const cacheControl = response.headers.get('cache-control') ?? '';
+        const cacheable = response.ok
+          && response.type === 'basic'
+          && !isApiRequest
+          && !hasAmbientCredentials
+          && !isNavigation
+          && !/\b(?:no-store|private)\b/iu.test(cacheControl);
+        if (cacheable) {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         }
         return response;
       })
-      .catch(() => caches.match(event.request).then((cached) => cached ?? caches.match('/en'))),
+      .catch(() => isApiRequest || hasAmbientCredentials
+        ? new Response('', { status: 503, statusText: 'Offline and uncached' })
+        : caches.match(event.request).then((cached) => cached ?? caches.match('/en'))),
   );
 });
