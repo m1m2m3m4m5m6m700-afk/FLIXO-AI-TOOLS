@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   # Execution is tested through the canonical pull_request lane; push runs remain for main after integration.
   push:
-    branches: [main]
+    branches: [main, execution]
   workflow_dispatch:
 
 # Each exact commit SHA has its own advisory execution slot; active reviews are never cancelled by newer commits.
