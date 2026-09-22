@@ -109,7 +109,7 @@ export function validatePromptRegistry(registry) {
   const prompts = registry?.prompts ?? [];
   const ids = new Set();
   if (registry?.schemaVersion !== 1) errors.push('INVALID_SCHEMA_VERSION');
-  if (registry?.authority !== 'FLIXO_PROMPT_INTELLIGENCE_LAYER') errors.push('INVALID_AUTHORITY');
+  if (registry?.authority !== 'PROMPT_INTELLIGENCE_LAYER') errors.push('INVALID_AUTHORITY');
   for (const prompt of prompts) {
     if (ids.has(prompt.promptId)) errors.push(`DUPLICATE_PROMPT_ID=${prompt.promptId}`);
     ids.add(prompt.promptId);
