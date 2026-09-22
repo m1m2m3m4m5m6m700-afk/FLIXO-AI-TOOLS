@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       bot:
-        description: Red-Team bot to wake
+        description: Red-Team bot to heartbeat
         required: false
         type: choice
         options:
@@ -22,107 +22,53 @@ concurrency:
   group: flixo-security-red-team-pulse-${{ inputs.bot || 'ALL' }}
   cancel-in-progress: true
 
-env:
-  PULSE_MS: 60000
-  STALE_MS: 150000
-
 jobs:
   pulse:
-    name: Continuous pulse — ${{ inputs.bot || 'ALL' }}
+    name: Continuous read-only security pulse
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 8
-    strategy:
-      fail-fast: false
-      matrix:
-        bot:
-          - SECURITY-REDTEAM-1
-          - SECURITY-REDTEAM-2
-          - SECURITY-REDTEAM-3
+    timeout-minutes: 5
     steps:
-      - name: Select exact bot scope
-        id: scope
-        shell: bash
-        run: |
-          set -euo pipefail
-          REQUESTED="${{ inputs.bot || '' }}"
-          BOT="${{ matrix.bot }}"
-          if [ -n "$REQUESTED" ] && [ "$REQUESTED" != "$BOT" ]; then
-            echo "active=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "active=true" >> "$GITHUB_OUTPUT"
-          echo "bot=$BOT" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout exact execution SHA
-        if: steps.scope.outputs.active == 'true'
+      - name: Checkout trusted pulse controller from main
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: execution
+          ref: main
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Emit continuous heartbeat and peer-wake
-        if: steps.scope.outputs.active == 'true'
+      - name: Emit one exact-SHA heartbeat for the selected Red-Team bots
         env:
           GH_TOKEN: ${{ github.token }}
-          BOT_ID: ${{ steps.scope.outputs.bot }}
+          BOT_FILTER: ${{ inputs.bot || '' }}
         shell: bash
         run: |
           set -euo pipefail
-
-          emit_pulse() {
-            local tick="$1"
-            local sha="$2"
-            local now
-            now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo "BOT=$BOT_ID"
-            echo "HEARTBEAT_TICK=$tick"
-            echo "HEARTBEAT_AT=$now"
-            echo "HEARTBEAT_EXACT_SHA=$sha"
-            echo "HEARTBEAT_STATE=ACTIVE"
-          }
-
-          peer_job_state() {
-            local peer="$1"
-            local sha="$2"
-            gh api --paginate               "repos/$GITHUB_REPOSITORY/actions/runs?branch=execution&per_page=50"               --jq --arg peer "$peer" --arg sha "$sha" '
-                .workflow_runs[]
-                | select(.head_sha == $sha)
-                | select(.status == "queued" or .status == "in_progress")
-                | .id
-              ' | while read -r RUN_ID; do
-                [ -n "$RUN_ID" ] || continue
-                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/jobs?per_page=100"                   --jq --arg peer "$peer" '
-                    .jobs[]
-                    | select(.name == ("Continuous pulse — " + $peer))
-                    | "(.status)|(.conclusion // "")|(.started_at // "")"
-                  ' || true
-              done
-          }
-
+          SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
           mkdir -p /tmp/security-red-team-pulse
-          : > "/tmp/security-red-team-pulse/$BOT_ID.jsonl"
-
-          for TICK in 1 2 3 4 5 6 7; do
-            SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-            emit_pulse "$TICK" "$SHA" | tee -a "/tmp/security-red-team-pulse/$BOT_ID.jsonl"
+          : > /tmp/security-red-team-pulse/heartbeat.jsonl
+          for BOT_ID in SECURITY-REDTEAM-1 SECURITY-REDTEAM-2 SECURITY-REDTEAM-3; do
+            if [ -n "$BOT_FILTER" ] && [ "$BOT_FILTER" != "$BOT_ID" ]; then
+              continue
+            fi
+            NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            printf '%s\n' "{\"bot\":\"$BOT_ID\",\"heartbeatAt\":\"$NOW\",\"exactSha\":\"$SHA\",\"state\":\"ACTIVE\",\"mutation\":\"NONE\"}" >> /tmp/security-red-team-pulse/heartbeat.jsonl
             node scripts/ci/agent-liveness-protocol.mjs heartbeat \
-              --task="SECURITY-REDTEAM-PULSE:$BOT_ID:$GITHUB_RUN_ID:$TICK" \
+              --task="SECURITY-REDTEAM-PULSE:$BOT_ID:$GITHUB_RUN_ID" \
               --state=ACTIVE \
               --sha="$SHA" \
               --progress=false \
               --file="/tmp/security-red-team-pulse/$BOT_ID-heartbeat.json"
-
-            if [ "$TICK" -lt 7 ]; then
-              sleep 60
-            fi
           done
+          test -s /tmp/security-red-team-pulse/heartbeat.jsonl
+          echo "SECURITY_RED_TEAM_PULSE_SHA=$SHA"
+          echo "SECURITY_RED_TEAM_PULSE_MUTATION=NONE"
 
       - name: Publish pulse evidence
-        if: always() && steps.scope.outputs.active == 'true'
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: flixo-security-red-team-pulse-${{ steps.scope.outputs.bot }}-${{ github.run_id }}
+          name: flixo-security-red-team-pulse-${{ github.run_id }}
           path: /tmp/security-red-team-pulse/
           if-no-files-found: error
           retention-days: 7
