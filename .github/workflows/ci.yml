@@ -10,8 +10,9 @@ on:
 # One canonical test run survives per exact commit SHA. The repository-level commit
 # supersession controller also cancels stale runs belonging to other workflows.
 concurrency:
-  group: flixo-test-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: true
+  group: flixo-test-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  # Preserve an already-running test; GitHub replaces only the older pending run in this branch group.
+  cancel-in-progress: false
 
 permissions:
   contents: read
