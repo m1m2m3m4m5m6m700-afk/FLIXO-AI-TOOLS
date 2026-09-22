@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [execution]
+    branches: [main, execution]
   workflow_dispatch:
 
 # Keep only the newest verification for the PR/branch.
@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: 01 — Checkout exact execution SHA
+      - name: 01 — Checkout exact source SHA
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -39,13 +39,14 @@ jobs:
           EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
         run: node scripts/ci/assert-current-commit.mjs
 
-      - name: 02 — Verify exact execution checkout identity and bind agent to execution
+      - name: 02 — Verify exact source checkout identity and bind agent to source branch
         shell: bash
         env:
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref || '' }}
           PR_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
           PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || '' }}
           EXPECTED_REPOSITORY: ${{ github.repository }}
+          TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -57,14 +58,14 @@ jobs:
               push|workflow_dispatch) ;;
               *) echo "Unsupported execution event: ${{ github.event_name }}"; exit 1 ;;
             esac
-            test "${{ github.ref }}" = "refs/heads/execution"
+            test "${{ github.ref_name }}" = "$TARGET_BRANCH"
           fi
           ACTUAL_SHA="$(git rev-parse HEAD)"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA"
-          git fetch --no-tags --depth=1 origin refs/heads/execution:refs/remotes/origin/execution
-          test "$(git rev-parse origin/execution)" = "$EXPECTED_SHA"
-          git switch -C execution "$EXPECTED_SHA"
-          test "$(git branch --show-current)" = "execution"
+          git fetch --no-tags --depth=1 origin "refs/heads/$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH"
+          test "$(git rev-parse "origin/$TARGET_BRANCH")" = "$EXPECTED_SHA"
+          git switch -C "$TARGET_BRANCH" "$EXPECTED_SHA"
+          test "$(git branch --show-current)" = "$TARGET_BRANCH"
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           printf '%s\n' "$ACTUAL_SHA" > flixo-wp0-head-sha.txt
 
