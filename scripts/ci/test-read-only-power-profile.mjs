@@ -133,7 +133,7 @@ const cycle5 = buildFiveXRepairCycleState({
   targetSha:sha,
   currentSha:sha,
   strategyId:'strategy-a',
-  learningOutputs:5,
+  learningOutputs:8,
   outcome:'verified-repair',
   verification:'exact-sha-proof',
   regressionOk:true,

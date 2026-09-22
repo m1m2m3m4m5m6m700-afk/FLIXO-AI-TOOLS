@@ -15,6 +15,7 @@ const env = {
   FLIXO_COORDINATION_DIR: path.join(temp, 'coordination'),
   FLIXO_CHAIR_STATE_PATH: path.join(temp, 'locks', 'chairs.json'),
   FLIXO_CHAIR_SIGNING_KEY: 'test-agent-chair-signing-key',
+  NODE_ENV: 'test',
   FLIXO_CHAIR_REF_PREFIX: 'refs/flixo/tests/agent-chair-' + process.pid,
 };
 const session = 'agent-chair-smoke-' + process.pid;
