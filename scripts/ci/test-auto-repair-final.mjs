@@ -105,7 +105,9 @@ assert.match(autoRepairWorkflow, /PARENT_SHA="\$\(git rev-parse "\$CANDIDATE_SHA
 assert.match(autoRepairWorkflow, /Run targeted regression and post-patch adversarial falsification in parallel/);
 assert.match(autoRepairWorkflow, /FLIXO_EXPECTED_TARGET_SHA="\$CANDIDATE_SHA" FLIXO_PATCH_BASE_SHA="\$PARENT_SHA"/);
 assert.match(autoRepairWorkflow, /test "\$\(git rev-parse origin\/execution\)" = "\$PARENT_SHA"/);
-assert.match(autoRepairWorkflow, /git push origin "HEAD:execution"/);
+assert.doesNotMatch(autoRepairWorkflow, /git\s+push[^\n]*\bexecution\b/);
+assert.match(autoRepairWorkflow, /CHAIR_GUARD_BLOCKED: direct execution publication is forbidden/);
+assert.match(autoRepairWorkflow, /EXECUTION_PUBLICATION=BLOCKED_BY_CHAIR_GUARD/);
 assert.match(autoRepairWorkflow, /EVIDENCE_CAPTURE=FAILED/);
 assert.match(autoRepairWorkflow, /CONTROLLER_SHA="\$MAIN_SHA"/);
 assert.match(autoRepairWorkflow, /persist-credentials:\s*false/);
