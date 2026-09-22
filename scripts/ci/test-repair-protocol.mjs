@@ -12,7 +12,18 @@ assert.equal(REPAIR_PROTOCOL.mutationScope,'ERROR_ONLY');
 assert.equal(REPAIR_PROTOCOL.cellLabRequired,true);
 assert.equal(REPAIR_PROTOCOL.cellLabConsensusPath,'diagnostics/agents/cell-lab/consensus/<taskId>.json');
 const targetSHA='a'.repeat(40);
-const chairBinding = { required:true, chairId:'chair_1', leaseId:'a'.repeat(64), targetSha:targetSHA, released:false };
+const chairBinding = {
+  required:true,
+  chairId:'chair_1',
+  leaseId:'a'.repeat(64),
+  fencingHash:'b'.repeat(64),
+  holderAgentId:'AUTO_REPAIR_BOT',
+  taskId:'repair-test-task',
+  workPackageId:'repair-test-work-package',
+  targetSha:targetSHA,
+  centralVerified:true,
+  released:false
+};
 assert.throws(()=>assertAgentAdmission({actor:'repairAgent',branch:'execution',mutation:true,session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,taskId:'missing-lab'}}),/REPAIR_PROTOCOL_CHAIR_REQUIRED/);
 
 const cellLabMutationSession = (consensus) => ({
