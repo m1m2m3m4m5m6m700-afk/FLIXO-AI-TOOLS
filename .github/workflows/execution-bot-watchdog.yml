@@ -223,6 +223,8 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_SOURCE_RUN_ID: ${{ github.event.workflow_run.id || '' }}
+          EVENT_SOURCE_RUN_SHA: ${{ github.event.workflow_run.head_sha || '' }}
         run: |
           set -euo pipefail
           mkdir -p diagnostics/watchdog
@@ -231,8 +233,8 @@ jobs:
           else
             CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           fi
-          SOURCE_RUN_ID="${{ github.event.workflow_run.id || '' }}"
-          SOURCE_RUN_SHA="${{ github.event.workflow_run.head_sha || '' }}"
+          SOURCE_RUN_ID="$EVENT_SOURCE_RUN_ID"
+          SOURCE_RUN_SHA="$EVENT_SOURCE_RUN_SHA"
           jq -n \
             --arg executionSha "$CURRENT_EXECUTION_SHA" \
             --arg sourceRunId "$SOURCE_RUN_ID" \
