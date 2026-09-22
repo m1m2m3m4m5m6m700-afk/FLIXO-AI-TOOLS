@@ -330,7 +330,14 @@ function recordCellTaskKnowledge(task, { outcome, verification }) {
   return { botId, result: persistKnowledge(record), knowledge: record };
 }
 ensure();
-if (writeLocked) reconcileStaleSessions();
+const staleReconcileRequired = Object.values(state.activeSessions ?? {}).some((session) =>
+  (session.entrySha && session.entrySha !== sha()) ||
+  (session.governanceFingerprint && session.governanceFingerprint !== currentGovernanceFingerprint)
+);
+if (writeLocked || (command === 'state' && staleReconcileRequired)) {
+  reconcileStaleSessions();
+  if (command === 'state' && staleReconcileRequired && !writeLocked) save();
+}
 if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next', 'state', 'brief', 'visible', 'ingest-handoff', 'chair-heartbeat', 'chair-reconcile', 'chair-speculate'].includes(command)) throw new Error('Usage: agent-coordination.mjs task-create|task-claim|task-release|task-complete|task-next|state|brief|visible|ingest-handoff|chair-heartbeat|chair-reconcile|chair-speculate');
 
 if (command === 'task-create') {
