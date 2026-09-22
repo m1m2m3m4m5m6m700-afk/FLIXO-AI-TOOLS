@@ -122,7 +122,7 @@ export const buildAdminSessionCookie = (token: string, ttlSeconds = DEFAULT_TTL_
 
 export const buildAdminClearCookie = () => {
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  return `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${secure}`;
+  return `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict${secure}`;
 };
 
 const readCookie = (cookieHeader: string | undefined, name: string) => {
@@ -151,7 +151,7 @@ export const authorizeAdminRequestWithDurableSession = async (
     return { status: 503, code: 'session_store_unavailable', correlationId: authorization.correlationId };
   }
 
-  let state: Awaited<ReturnType<typeof isAdminSessionRevoked>>;
+  let state: Awaited<ReturnType<typeof getAdminSessionState>>;
   try {
     state = await getAdminSessionState(session.sessionId, {
       token: token!,
