@@ -131,6 +131,7 @@ const sessionSource = exists('scripts/ci/agent-session.mjs') ? read('scripts/ci/
 const exitLockSource = exists('scripts/ci/agent-exit-lock.mjs') ? read('scripts/ci/agent-exit-lock.mjs') : '';
 const exitLockTest = exists('scripts/ci/test-agent-exit-lock.mjs') ? read('scripts/ci/test-agent-exit-lock.mjs') : '';
 for (const marker of ['assertAgentExitGate','AGENT_EXIT_LOCK_NON_GREEN_STATUS','AGENT_EXIT_LOCK_GLOBAL_SHA_DRIFT','AGENT_EXIT_LOCK_PROMOTION_NOT_CERTIFIABLE']) if (!exitLockSource.includes(marker)) failures.push('AGENT_EXIT_LOCK_MARKER_MISSING='+marker);
+if (!sessionSource.includes("'scripts/ci/cell-lab-consensus.mjs'")) failures.push('CELL_LAB_ENTRY_READ_MISSING');
 for (const marker of ['AGENT_EXIT_LOCK_BLOCKS_NON_GREEN=PASS','AGENT_EXIT_LOCK_BLOCKS_REMAINING_WORK=PASS','AGENT_EXIT_LOCK_REQUIRES_EXACT_SHA=PASS','AGENT_EXIT_LOCK_GREEN_PROOF=PASS']) if (!exitLockTest.includes(marker)) failures.push('AGENT_EXIT_LOCK_TEST_MARKER_MISSING='+marker);
 if (!sessionSource.includes('assertAgentExitGate')) failures.push('AGENT_EXIT_LOCK_NOT_WIRED_TO_SESSION');
 for (const role of ['actionRepairBot','actionRepairVerifier','actionHistorian']) if (!sessionSource.includes(role)) failures.push(`ACTION_VAULT_SESSION_ROLE_MISSING=${role}`);
