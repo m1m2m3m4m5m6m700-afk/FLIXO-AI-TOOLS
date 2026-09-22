@@ -65,3 +65,5 @@ jobs:
         run: node scripts/ci/validate-auto-repair-boundary.mjs
       - name: Validate strict Chair-1 central boundary
         run: node scripts/ci/test-strict-chair-boundary.mjs
+      - name: Validate strict push detail guard
+        run: node scripts/ci/test-chair-push-guard-strict.mjs
