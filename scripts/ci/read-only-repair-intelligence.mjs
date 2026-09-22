@@ -358,7 +358,8 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
       causalDiscriminator,
       metaCausalModel,
       codeMentor:mentorPacket,
-      actionVaultPrediction
+      actionVaultPrediction,
+      vaultKnowledge
     },
     adversarial,
     deepInference,
