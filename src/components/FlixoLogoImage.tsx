@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import type { CSSProperties, ImgHTMLAttributes } from 'react';
 
-const CANONICAL_LOGO = '/flixo-logo.webp?v=20260920';
-const FALLBACK_LOGO = '/flixo-favicon.png?v=20260920';
+const CANONICAL_LOGO = '/flixo-logo.webp?v=20260922';
+const FALLBACK_LOGO = '/flixo-favicon.png?v=20260922';
 
 type Props = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'onError'> & {
   readonly width?: number;

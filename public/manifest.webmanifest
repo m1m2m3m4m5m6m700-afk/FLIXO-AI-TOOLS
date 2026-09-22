@@ -9,13 +9,13 @@
   "icons": [
     {
       "src": "/flixo-logo.webp",
-      "sizes": "192x192",
+      "sizes": "256x256",
       "type": "image/webp",
       "purpose": "any"
     },
     {
       "src": "/flixo-favicon.png",
-      "sizes": "96x96",
+      "sizes": "64x64",
       "type": "image/png",
       "purpose": "any"
     }
