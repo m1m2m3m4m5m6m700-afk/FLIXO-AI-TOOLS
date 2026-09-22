@@ -104,6 +104,31 @@ const patchConflictB=[
   '+new-two',
 ].join('\n');
 
+
+const identical=buildCanonicalLaneConsolidation({
+  currentHead:head,
+  targetBranch:CANONICAL_LANE,
+  expectedParent:head,
+  packets:[
+    {...packetA,packetId:'P-IDENTICAL-A',sourceSha:'1111111111111111111111111111111111111131',changedFiles:['same.ts'],patchText:patchAtLines},
+    {...packetA,packetId:'P-IDENTICAL-B',sourceSha:'1111111111111111111111111111111111111132',changedFiles:['same.ts'],patchText:patchAtLines},
+  ],
+});
+assert.equal(identical.status,'READY_FOR_CANONICAL_CONSOLIDATION');
+assert.equal(identical.semanticReconciliation[0].semanticStatus,'IDENTICAL_OVERLAPPING_HUNKS');
+
+const noPatch=buildCanonicalLaneConsolidation({
+  currentHead:head,
+  targetBranch:CANONICAL_LANE,
+  expectedParent:head,
+  packets:[
+    {...packetA,packetId:'P-NO-PATCH-A',sourceSha:'1111111111111111111111111111111111111141',changedFiles:['same.ts']},
+    {...packetA,packetId:'P-NO-PATCH-B',sourceSha:'1111111111111111111111111111111111111142',changedFiles:['same.ts']},
+  ],
+});
+assert.equal(noPatch.status,'BLOCKED_CONFLICT');
+assert.equal(noPatch.conflicts[0].type,'SEMANTIC_EVIDENCE_UNAVAILABLE');
+
 const semanticConflict=buildCanonicalLaneConsolidation({
   currentHead:head,
   targetBranch:CANONICAL_LANE,
