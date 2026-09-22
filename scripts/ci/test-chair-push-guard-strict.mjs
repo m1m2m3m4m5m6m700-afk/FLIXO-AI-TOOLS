@@ -8,6 +8,7 @@ import { acquire, proposePush, release, CHAIR1_OWNER_AGENT } from './chair-bound
 
 const root=process.cwd();
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-push-guard-strict-'));
+process.env.NODE_ENV='test';
 process.env.FLIXO_CHAIR_STATE_PATH=path.join(temp,'chairs.json');
 process.env.FLIXO_CHAIR_SIGNING_KEY='strict-push-test-key';
 process.env.FLIXO_REQUIRE_FENCED_CHAIR='false';
