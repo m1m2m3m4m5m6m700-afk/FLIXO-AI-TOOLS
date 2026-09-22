@@ -81,7 +81,10 @@ const refAudit=atomicChairRefAudit({chairId:'chair_1',targetSha:realGitSha,event
 assert.equal(refAudit.atomicLocalCAS,true);
 assert.throws(()=>atomicChairRefAudit({chairId:'chair_1',targetSha:realGitSha,expectedOldSha:'c'.repeat(40)}),/CHAIR_REF_COMPARE_FAILED/);
 execFileSync('git',['update-ref','-d',refAudit.ref],{encoding:'utf8'});
-release({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,successful:true});
+writeSpeculativeContext({sessionId:'release-session',taskId:'RELEASE-TASK',chairId:'chair_2',role:'verification',targetSha:realGitSha,pendingDiff:'release-sanitization',testPlan:['cleanup']});
+assert.equal(readSpeculativeContext({sessionId:'release-session',targetSha:realGitSha}).taskId,'RELEASE-TASK');
+release({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,successful:true,sessionId:'release-session',taskId:'RELEASE-TASK'});
+assert.throws(()=>readSpeculativeContext({sessionId:'release-session',targetSha:realGitSha}),/CHAIR_SPECULATION_CONTEXT_MISSING/);
 console.log('CHAIR_HEARTBEAT_MICRO_LEASE=PASS');
 console.log('CHAIR_DEAD_LEASE_RECOVERY=PASS');
 console.log('CHAIR_READ_ONLY_SPECULATION=PASS');
