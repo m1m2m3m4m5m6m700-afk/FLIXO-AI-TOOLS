@@ -73,7 +73,7 @@ async function fetchWithTimeout(
   try {
     return await fetch(input, { ...init, signal: controller.signal });
   } catch (error) {
-    if (controller.signal.aborted) throw new Error('AI provider request timed out.');
+    if (controller.signal.aborted) throw new Error('AI provider request timed out.', { cause: error });
     throw error;
   } finally {
     clearTimeout(timer);
