@@ -45,7 +45,7 @@ for(const marker of [
  "read-only-knowledge-fusion.mjs",
 ]) if(!source.includes(marker) && !fusionSource.includes(marker)) failures.push('MISSING_MARKER='+marker);
 
-if(/git\s+(add|commit|push|reset|checkout)|update_file|create_file|delete_file|mergePullRequest|create_pull_request/u.test(source)) failures.push('MUTATION_API_OR_GIT_WRITE_DETECTED');
+if(/git\s+(add|commit|push|reset|checkout)|update_file|create_file|delete_file|mergePullRequest|create_pull_request/u.test(source+fusionSource)) failures.push('MUTATION_API_OR_GIT_WRITE_DETECTED');
 if(/fs\.writeFileSync\((?!logPath|selectionPath|diagnosisPath|outputPath|path\.dirname\(path\.resolve\(output\)\))/u.test(source)) failures.push('UNEXPECTED_WRITE_SURFACE');
 if(!source.includes("authorityParity:'NO_MUTATION_AUTHORITY'")) failures.push('ADVERSARIAL_AUTHORITY_SEPARATION_MISSING');
 if(!source.includes("actionVaultPrediction")) failures.push('ACTION_VAULT_PREDICTION_BINDING_MISSING');
