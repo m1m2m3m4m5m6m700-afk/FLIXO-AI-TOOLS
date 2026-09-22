@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { loadAndValidateCellLabConsensus } from './cell-lab-consensus.mjs';
 
 export const ACTION_PRIMARY_CORRECTNESS_PROOF='ACTION_PRIMARY_CORRECTNESS_PROOF';
 export const REPAIR_PROTOCOL = Object.freeze({
@@ -31,6 +32,8 @@ export const REPAIR_PROTOCOL = Object.freeze({
     'ACTION-HISTORIAN-3': Object.freeze({ actor: 'actionHistorian', mutation: true }),
   }),
   actionVaultMissionRequires: ['triadId','messageId','taskId','failureFingerprint','entrySha','targetSha','ownerAgent','proofObligations','stopConditions'],
+  cellLabRequired: true,
+  cellLabConsensusPath: 'diagnostics/agents/cell-lab/consensus/<taskId>.json',
 });
 export const REPAIR_PROTOCOL_HASH=createHash('sha256').update(JSON.stringify(REPAIR_PROTOCOL),'utf8').digest('hex');
 const shaOk=v=>typeof v==='string'&&/^[a-f0-9]{40}$/u.test(v);
@@ -56,6 +59,14 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
   if(!REPAIR_PROTOCOL.allAgents.includes(actor)) throw new Error('REPAIR_PROTOCOL_UNKNOWN_AGENT='+actor);
   if(mutation&&!REPAIR_PROTOCOL.mutationAgents.includes(actor)) throw new Error('REPAIR_PROTOCOL_MUTATION_ROLE_BLOCKED='+actor);
   if(mutation&&branch!=='execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
+  if(mutation&&REPAIR_PROTOCOL.cellLabRequired){
+    const taskId=String(session?.taskId ?? process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? '').trim();
+    if(!taskId) throw new Error('CELL_LAB_TASK_ID_REQUIRED');
+    let consensus;
+    try { consensus=loadAndValidateCellLabConsensus({file: session?.cellLabConsensusFile, taskId, exactSha: session?.targetSHA ?? '' , mutationOwner: actor}); }
+    catch (error) { throw new Error('CELL_LAB_CONSENSUS_REQUIRED: '+(error instanceof Error ? error.message : String(error)), {cause:error}); }
+    if(consensus.executionReady!==true || consensus.status!=='AGREED' || consensus.exactSha!==session.targetSHA) throw new Error('CELL_LAB_CONSENSUS_NOT_EXECUTION_READY');
+  }
   if(mutation&&!protocolOk(session)) throw new Error('REPAIR_PROTOCOL_SESSION_REQUIRED');
   if(mutation&&!['FAILURE_CAPTURED','MUTATION_AUTHORIZED'].includes(session.state)) throw new Error('REPAIR_PROTOCOL_MUTATION_STATE_BLOCKED');
   if(mutation&&actor==='actionRepairBot') {
