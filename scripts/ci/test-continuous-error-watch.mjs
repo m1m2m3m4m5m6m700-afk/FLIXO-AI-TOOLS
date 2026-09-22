@@ -461,7 +461,7 @@ assert.ok(dailyGateWorkflow.includes('headSha: (.headSha // .head_sha // "")'));
 assert.ok(dailyGateWorkflow.includes('headBranch: (.headBranch // .head_branch // "")'));
 assert.ok(dailyGateWorkflow.includes('updatedAt: (.updatedAt // .updated_at // .completed_at // .started_at // "")'));
 assert.ok(dailyGateWorkflow.includes('if type == "array" then . elif (.workflow_runs | type) == "array" then .workflow_runs else [] end'));
-assert.ok(dailyGateWorkflow.includes("jq -e 'type == \"array\"'"));
+assert.ok(dailyGateWorkflow.includes("jq -e 'type == \"array\" and all(.[];"));
 assert.ok(dailyGateWorkflow.includes('Ensure exact-SHA required CI is resident'));
 assert.ok(dailyGateWorkflow.includes('gh workflow run "$FILE" --repo "$GITHUB_REPOSITORY" --ref execution'));
 assert.ok(dailyGateWorkflow.includes('FILE="${REQUIRED_FILES[$WORKFLOW]}"'));
