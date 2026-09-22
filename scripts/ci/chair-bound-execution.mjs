@@ -55,7 +55,7 @@ export function atomicChairRefAudit({chairId,targetSha=sha(),expectedOldSha=null
   return Object.freeze({authority:'AUDIT_ONLY',atomicLocalCAS:true,ref,oldSha:current,newSha:t,event});
 }
 function clearChairRecord(chair,state){
-  clearChairRecord(chair,state);chair.lease_started_at=null;chair.heartbeat_at=null;chair.heartbeat_count=0;
+  chair.holder_agent_id=null;chair.status='VACANT';chair.acquired_at=null;chair.target_sha=null;chair.lease_id=null;chair.review_id=null;chair.scope=null;chair.lease_started_at=null;chair.heartbeat_at=null;chair.heartbeat_count=0;
   state.repository_state=occupied(state).length===0?'IDLE':'ACTIVE';
   state.idle_timestamp=state.repository_state==='IDLE'?now():null;
 }
@@ -187,6 +187,8 @@ function writeState(state){
 }
 function validateState(state){
   if(state?.schemaVersion!==1||state?.authority!=='FLIXO_CHAIR_BOUND_EXECUTION')throw new Error('CHAIR_STATE_HEADER_INVALID');
+  if(state.last_revoke!==undefined&&typeof state.last_revoke!=='object')throw new Error('CHAIR_LAST_REVOKE_INVALID');
+  if(state.last_dead_lease!==undefined&&typeof state.last_dead_lease!=='object')throw new Error('CHAIR_LAST_DEAD_LEASE_INVALID');
   assertSha(state.target_sha,'STATE_TARGET_SHA');
   if(!['IDLE','ACTIVE','STALE','LOCKED'].includes(state.repository_state))throw new Error('CHAIR_REPOSITORY_STATE_INVALID');
   for(const id of Object.keys(CHAIR_DEFINITIONS)){
@@ -319,8 +321,7 @@ export function release({chairId,agentId,targetSha=sha(),successful=false,sessio
   const t=assertSha(targetSha,'TARGET_SHA');
   return withWriteLock(()=>{
     const state=readState();const chair=verifyLease({state,chairId,agentId,targetSha:t});
-    chair.holder_agent_id=null;chair.status='VACANT';chair.acquired_at=null;chair.target_sha=null;chair.lease_id=null;chair.review_id=null;chair.scope=null;
-    const remaining=occupied(state).length;state.repository_state=remaining===0?'IDLE':'ACTIVE';state.idle_timestamp=remaining===0?now():null;
+    clearChairRecord(chair,state);
     if(successful===true&&state.repository_state==='ACTIVE')state.repository_state='ACTIVE';
     writeState(state);if(sessionId)sanitizeSessionContext({sessionId,taskId});return state;
   });
