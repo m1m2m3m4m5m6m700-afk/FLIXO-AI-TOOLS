@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import {REPAIR_PROTOCOL,REPAIR_PROTOCOL_HASH,assertProtocolDefinition,assertAgentAdmission,createRepairSession,captureFailure,authorizeMutation,completeRepairSession,validateActionVaultVerifierProof,validateActionVaultPreMutationProofs,validateCommitBoundary,validatePostCommitBoundary,validateErrorOnlyMutation,validateMinimalRepairScope,validateTargetedRegressionSelection} from './repair-protocol.mjs';
+import {REPAIR_PROTOCOL,REPAIR_PROTOCOL_HASH,assertProtocolDefinition,assertAgentAdmission,isCanonicalAutoRepairContext,createRepairSession,captureFailure,authorizeMutation,completeRepairSession,validateActionVaultVerifierProof,validateActionVaultPreMutationProofs,validateCommitBoundary,validatePostCommitBoundary,validateErrorOnlyMutation,validateMinimalRepairScope,validateTargetedRegressionSelection} from './repair-protocol.mjs';
 
 const definition=assertProtocolDefinition();
 assert.equal(definition.protocolId,'REPAIR_PROTOCOL');
@@ -123,10 +123,9 @@ assert.throws(()=>assertAgentAdmission({actor:'unknownFutureAgent'}),/UNKNOWN_AG
 assert.throws(()=>assertAgentAdmission({actor:'diagnosticAgent',branch:'execution',mutation:true}),/MUTATION_ROLE_BLOCKED/);
 assert.throws(()=>assertAgentAdmission({actor:'taskAgent',branch:'execution',mutation:true}),/MUTATION_ROLE_BLOCKED/);
 assert.throws(()=>assertAgentAdmission({actor:'implementation',branch:'execution',mutation:true}),/MUTATION_ROLE_BLOCKED/);
-process.env.FLIXO_AUTO_REPAIR_CONTEXT='true';
-const autoRepairAdmission=assertAgentAdmission({actor:'repairAgent',branch:'execution',mutation:true,session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,taskId:'auto-repair-exempt',cellLabConsensus:cellLabConsensus('auto-repair-exempt','repairAgent')}});
-assert.equal(autoRepairAdmission.admitted,true);
-delete process.env.FLIXO_AUTO_REPAIR_CONTEXT;
+assert.equal(isCanonicalAutoRepairContext({marker:'true',argvPath:'/tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs'}),true);
+assert.equal(isCanonicalAutoRepairContext({marker:'true',argvPath:'/tmp/test-repair-protocol.mjs'}),false);
+assert.throws(() => assertAgentAdmission({actor:'repairAgent',branch:'execution',mutation:true,session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,taskId:'auto-repair-exempt',cellLabConsensus:cellLabConsensus('auto-repair-exempt','repairAgent')}}),/REPAIR_PROTOCOL_CHAIR_REQUIRED/);
 assert.throws(()=>assertAgentAdmission({actor:'actionHistorian',branch:'execution',mutation:true,session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task-historian-fail',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,cellLabConsensus:cellLabConsensus('repair-test-task-historian-fail','actionHistorian')}}),/SUPERVISOR_MODE_REQUIRED/);
 assert.equal(assertAgentAdmission({
   actor:'actionRepairVerifier', branch:'execution', mutation:true,
