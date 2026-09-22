@@ -225,34 +225,62 @@ export function markRead(reportId, guardAgent=GUARD_ID) {
   return report;
 }
 
-export function decideChangeReport(reportId, {
-  guardAgent=GUARD_ID,
-  decision='FORWARDED_TO_CHAIR1',
-  reason='',
-  currentExecutionSha=gitSha(),
-}={}) {
+export const REQUIRED_CHANGE_DETAILS = Object.freeze([
+  'whatChanged',
+  'whyChanged',
+  'filesChanged',
+  'beforeState',
+  'afterState',
+  'testsRun',
+  'testResults',
+  'evidence',
+  'patchSha256',
+  'entrySha',
+  'workspaceSha',
+  'remainingWork',
+  'blockers',
+  'nextActions',
+]);
+
+export function inspectChangeDetails(report) {
+  const details = report?.payload?.changeDetails ?? {};
+  const missing = REQUIRED_CHANGE_DETAILS.filter((field) => {
+    const value = details[field];
+    if (field === 'patchSha256') return !report?.patchSha256;
+    if (field === 'entrySha') return !report?.entrySha;
+    if (field === 'workspaceSha') return !report?.currentWorkspaceSha;
+    if (Array.isArray(value)) return value.length === 0;
+    return value === undefined || value === null || String(value).trim() === '';
+  });
+  return Object.freeze({
+    complete: missing.length === 0,
+    missing,
+    required: [...REQUIRED_CHANGE_DETAILS],
+  });
+}
+
+export function requestFullDetails(reportId, guardAgent=GUARD_ID) {
   const report = getChangeReport(reportId);
-  if (guardAgent !== GUARD_ID && !['MASTER-1','MASTER-2','MASTER-3'].includes(guardAgent)) throw new Error('GUARD_CHANGE_DECIDER_UNAUTHORIZED');
-  if (!['READ','RECEIVED'].includes(report.status)) throw new Error(`GUARD_CHANGE_FORWARD_INVALID_STATE=${report.status}`);
-  if (String(decision) !== 'FORWARDED_TO_CHAIR1') throw new Error('GUARD_CHANGE_REJECTION_FORBIDDEN');
-  if (!SHA_RE.test(String(currentExecutionSha))) throw new Error('GUARD_CHANGE_CURRENT_SHA_INVALID');
-  report.status = 'FORWARDED_TO_CHAIR1';
-  report.decision = 'FORWARDED_TO_CHAIR1';
-  report.decisionReason = String(reason).slice(0, 4000);
-  report.decisionAt = now();
-  report.decisionBy = guardAgent;
-  report.decisionSha = currentExecutionSha;
-  report.guardRole = 'RECEIVE_VALIDATE_FORWARD_ONLY';
+  if (guardAgent !== GUARD_ID) throw new Error('GUARD_CHANGE_DETAILS_REQUEST_ONLY_GUARD');
+  const detailState = inspectChangeDetails(report);
+  report.detailsRequest = {
+    requestedAt: now(),
+    requestedBy: GUARD_ID,
+    state: detailState.complete ? 'DETAILS_COMPLETE' : 'DETAILS_REQUESTED',
+    missing: detailState.missing,
+    required: detailState.required,
+    instruction: detailState.complete
+      ? 'التفاصيل مكتملة. التقرير متاح لكرسي 1 دون أي حكم من الحارس.'
+      : 'يرجى إرسال التفاصيل الكاملة للتغيير والاحتفاظ بجميع التغييرات؛ الحارس لا يقبل أو يرفض التغيير.',
+  };
+  report.status = detailState.complete ? 'DETAILS_COMPLETE' : 'DETAILS_REQUESTED';
+  report.guardRole = 'REQUEST_DETAILS_ONLY';
   report.guardVerdict = {
-    exactShaRecorded: true,
-    checkedExecutionSha: currentExecutionSha,
-    sourceEntrySha: report.entrySha,
-    sourceExecutionShaAtEntry: report.executionShaAtEntry,
-    patchSha256: report.patchSha256,
-    publicationAuthority: 'CHAIR_1',
     contentDecision: 'NONE',
     deletionAuthority: false,
     rejectionAuthority: false,
+    mergeAuthority: false,
+    publicationAuthority: 'CHAIR_1',
     greenGranted: false,
   };
   writeJson(reportPath(reportId), report);
@@ -260,14 +288,57 @@ export function decideChangeReport(reportId, {
   index.reports[reportId] = {
     ...(index.reports[reportId] ?? {}),
     status: report.status,
-    decision: report.decision,
-    decisionBy: report.decisionBy,
-    decisionSha: report.decisionSha,
+    detailsState: report.detailsRequest.state,
+    missingDetails: report.detailsRequest.missing,
     updatedAt: now(),
   };
   saveIndex(index);
   return report;
 }
+
+export function recordFullDetails(reportId, detailPayload, agentId) {
+  const report = getChangeReport(reportId);
+  if (String(agentId) !== report.agentId) throw new Error('GUARD_CHANGE_DETAILS_AGENT_MISMATCH');
+  if (!detailPayload || typeof detailPayload !== 'object') throw new Error('GUARD_CHANGE_DETAILS_PAYLOAD_INVALID');
+  report.payload = {
+    ...(report.payload && typeof report.payload === 'object' ? report.payload : {}),
+    changeDetails: {
+      ...(report.payload?.changeDetails && typeof report.payload.changeDetails === 'object' ? report.payload.changeDetails : {}),
+      ...detailPayload,
+    },
+  };
+  const detailState = inspectChangeDetails(report);
+  report.detailsRequest = {
+    ...(report.detailsRequest ?? {}),
+    state: detailState.complete ? 'DETAILS_COMPLETE' : 'DETAILS_REQUESTED',
+    missing: detailState.missing,
+    required: detailState.required,
+    lastResponseAt: now(),
+    respondedBy: agentId,
+  };
+  report.status = detailState.complete ? 'DETAILS_COMPLETE' : 'DETAILS_REQUESTED';
+  report.guardRole = 'REQUEST_DETAILS_ONLY';
+  report.guardVerdict = {
+    contentDecision: 'NONE',
+    deletionAuthority: false,
+    rejectionAuthority: false,
+    mergeAuthority: false,
+    publicationAuthority: 'CHAIR_1',
+    greenGranted: false,
+  };
+  writeJson(reportPath(reportId), report);
+  const index = loadIndex();
+  index.reports[reportId] = {
+    ...(index.reports[reportId] ?? {}),
+    status: report.status,
+    detailsState: report.detailsRequest.state,
+    missingDetails: report.detailsRequest.missing,
+    updatedAt: now(),
+  };
+  saveIndex(index);
+  return report;
+}
+
 
 export function reportAgentChange(args) {
   const report = createChangeReport(args);
@@ -315,14 +386,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
     console.log(JSON.stringify(markRead(arg('report-id'), arg('guard-agent', GUARD_ID)), null, 2));
   } else if (command === 'list') {
     console.log(JSON.stringify(listChangeReports({ status: arg('status') || null, taskId: arg('task') || null, agentId: arg('agent') || null }), null, 2));
-  } else if (command === 'forward') {
-    console.log(JSON.stringify(decideChangeReport(arg('report-id'), {
-      guardAgent: arg('guard-agent', GUARD_ID),
-      decision: arg('decision'),
-      reason: arg('reason'),
-      currentExecutionSha: arg('execution-sha', gitSha()),
-    }), null, 2));
+  } else if (command === 'request-details') {
+    console.log(JSON.stringify(requestFullDetails(arg('report-id'), arg('guard-agent', GUARD_ID)), null, 2));
+  } else if (command === 'submit-details') {
+    const detailsText = arg('details', '{}');
+    let details;
+    try { details = JSON.parse(detailsText); } catch { throw new Error('GUARD_CHANGE_DETAILS_JSON_INVALID'); }
+    console.log(JSON.stringify(recordFullDetails(arg('report-id'), details, arg('agent')), null, 2));
   } else {
-    throw new Error('Usage: guard-communication.mjs send-change|read|list|forward');
+    throw new Error('Usage: guard-communication.mjs send-change|read|list|request-details|submit-details');
   }
 }
