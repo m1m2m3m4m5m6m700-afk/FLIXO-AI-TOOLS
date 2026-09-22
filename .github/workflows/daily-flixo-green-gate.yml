@@ -186,9 +186,22 @@ jobs:
         if: steps.capture.outputs.branch == 'execution' && steps.settle_required_ci.outcome == 'success'
         run: |
           set -euo pipefail
-          jq -c 'if type == "array" then . elif (.workflow_runs | type) == "array" then .workflow_runs else [] end'             /tmp/flixo-watch/workflow-runs.json > /tmp/flixo-watch/workflow-runs.normalized.json
+          jq -c '
+            def normalize_run:
+              {
+                databaseId: (.databaseId // .id // null),
+                workflowName: (.workflowName // .name // .display_title // ""),
+                headSha: (.headSha // .head_sha // ""),
+                headBranch: (.headBranch // .head_branch // ""),
+                status: (.status // ""),
+                conclusion: (.conclusion // null),
+                updatedAt: (.updatedAt // .updated_at // .completed_at // .started_at // "")
+              };
+            (if type == "array" then . elif (.workflow_runs | type) == "array" then .workflow_runs else [] end)
+            | map(normalize_run)
+          ' /tmp/flixo-watch/workflow-runs.json > /tmp/flixo-watch/workflow-runs.normalized.json
           mv /tmp/flixo-watch/workflow-runs.normalized.json /tmp/flixo-watch/workflow-runs.json
-          jq -e 'type == "array"' /tmp/flixo-watch/workflow-runs.json >/dev/null
+          jq -e 'type == "array" and all(.[]; (.databaseId != null and .workflowName != "" and (.headSha | test("^[0-9a-f]{40}$")) and .headBranch != "" and .status != "" and (.updatedAt != "")))' /tmp/flixo-watch/workflow-runs.json >/dev/null
 
       - name: Capture failed CI evidence for classification
         env:
