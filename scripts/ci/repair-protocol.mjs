@@ -56,6 +56,11 @@ export function assertProtocolDefinition(){
   if(JSON.stringify(REPAIR_PROTOCOL.actionVaultMissionRequires)!==JSON.stringify(['triadId','messageId','taskId','failureFingerprint','entrySha','targetSha','ownerAgent','proofObligations','stopConditions'])) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_MISSION_SCHEMA_DRIFT');
   return Object.freeze({protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH});
 }
+export function isCanonicalAutoRepairContext({ marker = process.env.FLIXO_AUTO_REPAIR_CONTEXT, argvPath = process.argv[1] } = {}) {
+  const normalized = String(argvPath ?? '').replaceAll('\\\\', '/');
+  return String(marker ?? '').trim() === 'true' && normalized.endsWith('/auto-repair-engine.mjs');
+}
+
 const assertChairBoundMutationSession = (actor, session) => {
   const binding = session?.chairBinding;
   if (!binding || binding.required !== true) throw new Error('REPAIR_PROTOCOL_CHAIR_REQUIRED');
@@ -71,7 +76,7 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
   const protocol=assertProtocolDefinition();
   if(!REPAIR_PROTOCOL.allAgents.includes(actor)) throw new Error('REPAIR_PROTOCOL_UNKNOWN_AGENT='+actor);
   if(mutation&&!REPAIR_PROTOCOL.mutationAgents.includes(actor)) throw new Error('REPAIR_PROTOCOL_MUTATION_ROLE_BLOCKED='+actor);
-  const autoRepairContext = String(process.env.FLIXO_AUTO_REPAIR_CONTEXT ?? '').trim() === 'true';
+  const autoRepairContext = isCanonicalAutoRepairContext();
   if(mutation && !autoRepairContext) assertChairBoundMutationSession(actor, session);
   if(mutation&&branch!=='execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
   if(mutation&&REPAIR_PROTOCOL.cellLabRequired){
