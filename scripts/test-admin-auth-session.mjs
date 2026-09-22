@@ -130,10 +130,12 @@ assert.equal(Array.isArray(session.body.capabilities), true);
 assert.equal(session.body.capabilities.includes('evidence.read'), true);
 
 const sessionId = session.body.provenance.sessionId;
+const originalTokenHash = sessions.get(sessionId).token_hash;
 sessions.get(sessionId).token_hash = '0'.repeat(64);
 const tokenMismatch = await invoke({ cookie });
 assert.equal(tokenMismatch.status, 401);
 assert.equal(tokenMismatch.body.error.code, 'authentication_required');
+sessions.get(sessionId).token_hash = originalTokenHash;
 assert.equal(session.body.capabilities.includes('production.write'), false);
 assert.match(session.body.provenance.sessionId, /^[0-9a-f-]{36}$/i);
 assert.equal(session.body.provenance.environment, 'test');
