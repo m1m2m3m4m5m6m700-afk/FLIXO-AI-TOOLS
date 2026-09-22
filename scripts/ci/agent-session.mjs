@@ -10,6 +10,7 @@ import { assertAgentExitGate } from './agent-exit-lock.mjs';
 import { AGENT_LIVENESS_PROTOCOL, assertActiveRepairWindow, checkHeartbeat, checkContinuousSessionWindow } from './agent-liveness-protocol.mjs';
 import { initialize as initializeChairState, heartbeat as heartbeatChair, reconcileDeadLeases, beginWork as beginChairWork, endWork as endChairWork, assertWorkAdmission, activeChairForAgent, preemptedContinuityForAgent } from './chair-bound-execution.mjs';
 import { createAgentWorkspace, captureAgentResult, assertWorkspaceIsolation, cleanupAgentWorkspace } from './agent-isolated-workspace.mjs';
+import { createChangeReport } from './guard-communication.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -623,6 +624,37 @@ if (command === 'meeting-exit-approve') {
   }
   const finalSummary = String(args.get('final-summary') ?? process.env.FLIXO_AGENT_FINAL_SUMMARY ?? '').trim();
   if (!finalSummary) throw new Error('FINAL_SUMMARY_REQUIRED_BEFORE_SESSION_CLOSE');
+
+  const guardChangeReport = createChangeReport({
+    agentId: record.agentId,
+    taskId: record.taskId,
+    entrySha: record.entrySha,
+    executionShaAtEntry: record.workspaceIsolation?.executionSha ?? record.entrySha,
+    mainShaAtEntry: record.workspaceIsolation?.mainSha ?? gitMainSha(),
+    currentWorkspaceSha: workspaceResult?.currentWorkspaceSha ?? (isWorkspaceOnlySession(record) ? record.entrySha : sha()),
+    changedFiles: changedFiles.length ? changedFiles : ['SESSION_RESULT_ONLY'],
+    changeDetails: completedWork.length
+      ? completedWork.slice(0, 24)
+      : changedFiles.map((file) => `CHANGE_REPORTED:${file}`),
+    patchSha256: workspaceResult?.patchSha256 ?? null,
+    candidateSha: workspaceResult?.currentWorkspaceSha ?? (isWorkspaceOnlySession(record) ? null : sha()),
+    resultId: workspaceResult?.resultId ?? null,
+    resultStatus: status === 'VERIFIED' ? 'READY_FOR_CHAIR1' : (remainingWork.length || failedWork.length || openRcas.length ? 'PARTIAL' : 'BLOCKED_FOR_CHAIR1'),
+    risk: blockers.length || openRcas.length ? 'CRITICAL' : (changedFiles.length ? 'HIGH' : 'MEDIUM'),
+    summary: finalSummary,
+    evidence,
+    remainingWork,
+    blockers,
+    nextActions: executionPlanNext,
+    handoffReportPath: `diagnostics/agents/handoffs/${sessionId}.json`,
+    source: isWorkspaceOnlySession(record) ? 'FLIXO-AGENT-RESULT-v1' : 'AGENT_SESSION',
+    payload: {
+      workspaceIsolation: isWorkspaceOnlySession(record),
+      preemptionContinuity: record.preemptionContinuity ?? null,
+      publicationAuthority: 'CHAIR_1',
+      guardOnly: true,
+    },
+  });
   if (remainingWork.length === 0 && openRcas.length > 0) {
     throw new Error('Open RCAs exist but remaining-work is empty; session report must preserve unresolved work.');
   }
@@ -694,6 +726,7 @@ if (command === 'meeting-exit-approve') {
   record.cycleLessons = cycleLessons;
   record.finalSummary = finalSummary;
   record.finalStatus = status;
+  record.guardChangeReport = guardChangeReport;
   record.taskId = taskId;
   record.completedWork = completedWork;
   record.failedWork = failedWork;
@@ -734,6 +767,7 @@ if (command === 'meeting-exit-approve') {
     failedWork,
     remainingWork,
     executionPlanNext,
+    guardChangeReport,
     blockers,
     cycleLessons,
     handoffToNextAgent: handoffToNextAgent ?? (continuityBeforeClose ? 'CHAIR_1_GUARD' : null),
