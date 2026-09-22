@@ -182,7 +182,7 @@ export function normalizeCaseCounters(entry) {
     item?.outcome === 'success' || (item?.outcome === 'repair' && item?.verification === 'success')
   ).length;
   const observedFailures = (entry.outcomes ?? []).filter((item) =>
-    ['failure', 'unrepaired', 'blocked', 'proposed'].includes(item?.outcome) ||
+    ['failure', 'unrepaired', 'blocked'].includes(item?.outcome) ||
     (item?.outcome === 'repair' && item?.verification !== 'success' && item?.verification !== 'proposal-only' && item?.verification !== 'diagnostic-only')
   ).length;
   const repairedSuccesses = Math.max(successes, observedSuccesses);
@@ -228,7 +228,11 @@ export function hydrateActionHistory(memory) {
     item.latestDiagnosis = entry.latestDiagnosis ?? item.latestDiagnosis ?? null;
     item.diagnosisHistory = [...(item.diagnosisHistory ?? []), ...(entry.diagnosisHistory ?? [])].slice(-MEMORY_RETENTION.maxLessonEvidence);
     const evidence = (entry.outcomes ?? []).filter((outcome) => ['success', 'unrepaired', 'failure', 'blocked', 'blocked-external', 'proposed', 'reverted-repair', 'revert-failure'].includes(outcome?.outcome));
-    const uniqueAttemptKeys = new Set(evidence.map((outcome) => [
+    const repairAttemptEvidence = evidence.filter((outcome) =>
+      ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome?.outcome) ||
+      (outcome?.outcome === 'proposed' && outcome?.verification === 'verified-repair')
+    );
+    const uniqueAttemptKeys = new Set(repairAttemptEvidence.map((outcome) => [
       outcome?.provenance?.runId,
       outcome?.provenance?.failedSha,
       outcome?.at,
