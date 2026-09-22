@@ -16,7 +16,8 @@
     "certificationAuthority": false,
     "greenAuthority": false,
     "autoCloseAuthority": false,
-    "immediateLedgerPath": "الثغرات الامنيه.md"
+    "evidenceOutput": "workflow-artifact",
+    "sourceLedgerMutation": false
   },
   "repairIntelligence": {
     "enabled": true,
@@ -56,8 +57,8 @@
     "NO_SELF_CERTIFICATION",
     "HIGH_OR_CRITICAL_FINDINGS_REQUIRE_REPAIR_INTELLIGENCE_ADVISORY",
     "EVERY_NEW_FINDING_MUST_BE_DEDUPLICATED_BY_FINGERPRINT",
-    "EVERY_NEW_FINDING_MUST_BE_WRITTEN_TO_THE_SECURITY_LEDGER",
-    "LEDGER_WRITE_MUST_FAIL_CLOSED_ON_SHA_DIVERGENCE",
+    "EVERY_NEW_FINDING_MUST_BE_WRITTEN_TO_THE_IMMUTABLE_WORKFLOW_EVIDENCE",
+    "REDTEAM_RECORDERS_MUST_NOT_MUTATE_GIT_REFS",
     "REPAIR_INTELLIGENCE_IS_ADVISORY_ONLY"
   ]
 }
