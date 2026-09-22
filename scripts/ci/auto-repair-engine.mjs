@@ -161,7 +161,7 @@ const historicalReasoningSupport = [
   ...memory.cases.map(({ rootCause, successes, attempts }) => ({ rootCause, confidence: attempts ? successes / attempts : 0 })),
   ...memory.lessons.map(({ rootCause, confidence }) => ({ rootCause, confidence })),
 ];
-const reusableKnowledge = deriveReusableKnowledge(memory, { rootCause: diagnosis?.rootCause ?? 'unknown', features, fingerprint });
+const reusableKnowledge = deriveReusableKnowledge(memory, { rootCause: diagnosis?.rootCause ?? 'unknown', features, fingerprint, normalizedFailure });
 const plan = planRepair(log, { historical: historicalReasoningSupport, memory });
 const specialist = selectSpecialist(plan.features);
 let selected = plan.selected;
@@ -209,6 +209,8 @@ const evidence = {
   },
   learning: {
     memoryVersion: memory.version,
+    longTermCorpus: reusableKnowledge.longTermCorpus ?? null,
+    longTermTeachingCount: Array.isArray(reusableKnowledge.longTermTeaching) ? reusableKnowledge.longTermTeaching.length : 0,
     exactCase: Boolean(known),
     similarCases: similar.map(({ case: item, score }) => ({ fingerprint: item.fingerprint, score, rules: item.rules ?? [] })),
     trustedLessons: trustedLessons.map(({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence }) => ({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence })),
