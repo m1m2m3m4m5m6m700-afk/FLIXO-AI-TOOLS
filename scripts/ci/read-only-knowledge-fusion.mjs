@@ -106,33 +106,21 @@ function arbitrateKnowledge({selectedAdvice=[],antiLessons=[],provenRuleHints=[]
     contradictionPenalty-
     antiPenalty
   )).toFixed(3));
-  let decision='ESCALATE';
-  let reason='INSUFFICIENT_EVIDENCE';
-  if(!top) {
-    decision='ESCALATE';
-    reason='NO_CANDIDATE_ADVICE';
-  }else if(conflicts.length>0 && margin<0.18){
-    decision='REJECT_ALL';
-    reason='UNRESOLVED_CONFLICT_WITHOUT_EVIDENCE_MARGIN';
-  }else if(antiRisk>=0.82 && margin<0.25){
-    decision='REJECT_ALL';
-    reason='HIGH_RISK_ANTILESSON_CONFLICT';
-  }else if(conflicts.length>0){
-    decision='ESCALATE';
-    reason='CONFLICT_REQUIRES_CURRENT_EVIDENCE';
-  }else if(confidence>=0.70 && antiRisk<0.68){
-    decision='SELECT_WITH_EVIDENCE';
-    reason='SINGLE_COHERENT_EVIDENCE_PATH';
-  }else{
-    decision='ESCALATE';
-    reason='EVIDENCE_MARGIN_TOO_LOW';
-  }
+  const decisionState =
+    !top ? {decision:'ESCALATE',reason:'NO_CANDIDATE_ADVICE'} :
+    conflicts.length>0 && margin<0.18 ? {decision:'REJECT_ALL',reason:'UNRESOLVED_CONFLICT_WITHOUT_EVIDENCE_MARGIN'} :
+    antiRisk>=0.82 && margin<0.25 ? {decision:'REJECT_ALL',reason:'HIGH_RISK_ANTILESSON_CONFLICT'} :
+    conflicts.length>0 ? {decision:'ESCALATE',reason:'CONFLICT_REQUIRES_CURRENT_EVIDENCE'} :
+    confidence>=0.70 && antiRisk<0.68 ? {decision:'SELECT_WITH_EVIDENCE',reason:'SINGLE_COHERENT_EVIDENCE_PATH'} :
+    {decision:'ESCALATE',reason:'EVIDENCE_MARGIN_TOO_LOW'};
+  const {decision,reason}=decisionState;
   return {
     protocol:'FLIXO-KNOWLEDGE-ARBITRATION-v1',
     authority:'ADVISORY_ONLY',
     mutationAuthority:false,
     exactShaBound:true,
     targetSha,
+    provenRuleHintCount:provenRuleHints.length,
     decision,
     reason,
     selectedAdviceId:decision==='SELECT_WITH_EVIDENCE'?top?.id??null:null,
