@@ -828,7 +828,7 @@ const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
   const mutationScope = {
     changedPaths: plannedChangedPaths,
     selectedFiles: fileSelection?.selectedFiles?.map((item) => item.path).filter(Boolean) ?? [],
-    testMutation: plannedChangedPaths.some((file) => /(^\/)(?:tests?|__tests__)\//u.test(file)),
+    NO_MATCH_SENTINELu.test(file)),
     controlPlaneMutation: plannedChangedPaths.some((file) => /^scripts\/ci\/|^\.github\/workflows\//u.test(file)),
     mainMutation: false,
     gateWeakening: /continue-on-error|test\.(?:skip|only)|describe\.(?:skip|only)|eslint-disable|@ts-(?:ignore|nocheck)/iu.test(candidateDiff),
@@ -946,6 +946,7 @@ const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
     regressionCounterexamples: preMutationProof.regressionCounterexamples,
     mutationScope,
     branch: protocolBranch,
+    fiveXEnvelope,
   });
   evidence.mutationGate = mutationGate;
   if (mutationGate.status !== 'PASS') {
