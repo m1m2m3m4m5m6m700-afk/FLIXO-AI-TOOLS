@@ -270,6 +270,26 @@ jobs:
             fi
           done < /tmp/flixo-watch/failed-check-run-ids
 
+      - name: Capture CodeQL annotation evidence for repair
+        if: steps.capture.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-watch/codeql
+          CODEQL_CHECK_ID="$(jq -r '[.[].check_runs[] | select(.name == "CodeQL") | select(.head_sha == $ENV_SHA)] | sort_by(.completed_at // .started_at // "") | last | .id // empty' --arg ENV_SHA "$(cat /tmp/flixo-watch/execution-sha)" /tmp/flixo-watch/check-runs.json)"
+          if [ -z "$CODEQL_CHECK_ID" ]; then
+            printf '%s\n' '{"status":"MISSING","reason":"CODEQL_CHECK_NOT_FOUND"}' > /tmp/flixo-watch/codeql/annotations.json
+            exit 0
+          fi
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/check-runs/$CODEQL_CHECK_ID/annotations?per_page=100" > /tmp/flixo-watch/codeql/annotations.json
+          jq -e 'type == "array"' /tmp/flixo-watch/codeql/annotations.json >/dev/null
+          jq -r 'flatten | map({path: .path, start_line: .start_line, end_line: .end_line, level: .annotation_level, title: .title, message: .message, raw_details: .raw_details})' /tmp/flixo-watch/codeql/annotations.json > /tmp/flixo-watch/codeql/annotations.normalized.json
+          mv /tmp/flixo-watch/codeql/annotations.normalized.json /tmp/flixo-watch/codeql/annotations.json
+          jq -e 'length >= 1' /tmp/flixo-watch/codeql/annotations.json >/dev/null
+          echo "CODEQL_ANNOTATION_COUNT=$(jq 'length' /tmp/flixo-watch/codeql/annotations.json)"
+
       - name: Build watcher input
         id: build_input
         run: |
