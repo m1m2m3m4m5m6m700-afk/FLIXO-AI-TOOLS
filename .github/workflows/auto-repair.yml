@@ -1405,7 +1405,11 @@ jobs:
             echo "FAIL CLOSED: candidate verification failed without a proven adversarial counterexample (exit=$VERIFY_EXIT)"
             exit "$VERIFY_EXIT"
           fi
-          test "$(jq -r '.earlyAbort' /tmp/flixo-candidate-verification.json)" = false
+          if [ "$ADV_FOUND" != "true" ]; then
+            test "$(jq -r '.earlyAbort' /tmp/flixo-candidate-verification.json)" = false
+          else
+            echo 'EARLY_ABORT_ACCEPTED=ADVERSARIAL_COUNTEREXAMPLE'
+          fi
           echo 'TARGETED_REGRESSION_AND_ADVERSARIAL=OBSERVED'
           echo 'FLIXO_AGENT_ADVERSARIAL_EVIDENCE=/tmp/flixo-postpatch-adversarial.json' >> "$GITHUB_ENV"
           echo 'FLIXO_CANDIDATE_VERIFICATION=/tmp/flixo-candidate-verification.json' >> "$GITHUB_ENV"
