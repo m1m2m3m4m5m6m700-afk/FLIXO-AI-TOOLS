@@ -39,6 +39,8 @@ assert.match(session, /heartbeat as heartbeatChair/);
 assert.match(session, /reconcileDeadLeases/);
 assert.match(session, /CHAIR_LEASE_RECOVERY_REQUIRED/);
 assert.match(session, /chairHeartbeatResult/);
+assert.match(session, /readCoordinationChairBinding/);
+assert.match(session, /AGENT_SESSION_COORDINATION_STALE_SHA/);
 
 const schema = fs.readFileSync(new URL('../../schemas/flixo-chairs.schema.json', import.meta.url), 'utf8');
 assert.match(schema, /heartbeat_at/);
