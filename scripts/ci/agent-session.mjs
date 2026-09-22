@@ -170,7 +170,20 @@ const writeVisibility = (record) => {
 };
 const secretLike = (value) => /(-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|ghp_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+|Bearer\s+[A-Za-z0-9._-]+|sk-[A-Za-z0-9_-]+)/i.test(String(value ?? ''));
 const assertSafeText = (...values) => { for (const value of values.flat()) if (secretLike(value)) throw new Error('AGENT_EVENT_SECRET_LIKE_CONTENT_REJECTED'); };
-const appendEvent = (record, event) => { record.actions = Array.isArray(record.actions) ? [...record.actions, event] : [event]; record.activity = Array.isArray(record.activity) ? [...record.activity, event] : [event]; };
+const appendEvent = (record, event) => {
+  const administrative = event.workEvent === false;
+  const chair = administrative ? null : activeChairForAgent({ agentId: record.agentId, targetSha: gitSha() });
+  if (!administrative && !chair) throw new Error('AGENT_WORK_EVENT_REQUIRES_CHAIR');
+  const enriched = {
+    ...event,
+    workEvent: !administrative,
+    workRecorded: !administrative,
+    exactSha: gitSha(),
+    ...(chair ? { chairId: chair.chairId, chairLeaseId: chair.leaseId, chairTargetSha: chair.targetSha } : {}),
+  };
+  record.actions = Array.isArray(record.actions) ? [...record.actions, enriched] : [enriched];
+  record.activity = Array.isArray(record.activity) ? [...record.activity, enriched] : [enriched];
+};
 const isMaster = (value) => ['MASTER-1','MASTER-2','MASTER-3'].includes(value);
 const taskSnapshotFromRecord = (record) => ({ taskId: record.taskId, status: record.status, livenessState: record.livenessState, currentSha: record.currentSha ?? record.entrySha, currentRca: record.currentRca, openRcas: record.openRcas ?? [], remainingWork: record.remainingWork ?? [], nextAction: record.executionPlanNext ?? [], blockers: record.blockers ?? [], lastProgressAt: record.lastProgressAt ?? null, lastHeartbeatAt: record.lastHeartbeatAt ?? null, updatedAt: now() });
 const observeCurrentHead = (record) => { const currentSha = gitSha(); const previousSha = record.currentSha ?? record.entrySha ?? currentSha; if (previousSha !== currentSha) { record.previousSha = previousSha; record.currentSha = currentSha; record.shaChanges = Math.max(0, Number(record.shaChanges) || 0) + 1; record.evidenceInvalidatedByShaChange = true; record.requalificationRequired = true; record.lastShaChangeAt = now(); appendEvent(record, { at: now(), action: 'SESSION_SHA_CHANGED', previousSha, currentSha, evidenceInvalidated: true, requalificationRequired: true, recovery: 'REQUALIFY_CURRENT_SHA' }); } else record.currentSha = currentSha; return currentSha; };
@@ -457,7 +470,7 @@ if (command === 'meeting-exit-approve') {
   if (!['VERIFIED', 'BLOCKED'].includes(status)) throw new Error(`Logout status must be VERIFIED or BLOCKED; got ${status}`);
   const sha = gitSha();
   if (status === 'BLOCKED') {
-    const event = { at: now(), action: 'SESSION_EXIT_BLOCKED', sha, reason: 'OPEN_WORK_MUST_REMAIN_IN_ACTIVE_45_MINUTE_REPAIR_SESSION', taskRemainsOpen: true, recovery: 'RECOVER_AND_CONTINUE' };
+    const event = { at: now(), action: 'SESSION_EXIT_BLOCKED', sha, reason: 'OPEN_WORK_MUST_REMAIN_IN_ACTIVE_45_MINUTE_REPAIR_SESSION', taskRemainsOpen: true, recovery: 'RECOVER_AND_CONTINUE', workEvent: false };
     appendEvent(record, event);
     fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
     const visibilityFile = visibilityPath(sessionId);
@@ -534,7 +547,7 @@ if (command === 'meeting-exit-approve') {
   try {
     assertAgentExitGate({ status, exactSha: sha, failedWork, remainingWork, openRcas });
   } catch (error) {
-    const exitBlockEvent = { at: now(), action: 'EXIT_LOCK_BLOCKED', sha, reason: String(error?.message ?? error), requiredState: 'CANONICAL_GREEN_ONLY', taskRemainsOpen: true, recovery: 'RECOVER_AND_CONTINUE' };
+    const exitBlockEvent = { at: now(), action: 'EXIT_LOCK_BLOCKED', sha, reason: String(error?.message ?? error), requiredState: 'CANONICAL_GREEN_ONLY', taskRemainsOpen: true, recovery: 'RECOVER_AND_CONTINUE', workEvent: false };
     appendEvent(record, exitBlockEvent);
     fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
     const visibilityFile = visibilityPath(sessionId);
