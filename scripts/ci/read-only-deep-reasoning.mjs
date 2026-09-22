@@ -2,6 +2,7 @@
 import { createHash } from 'node:crypto';
 import { buildCausalDiscriminator } from './action-causal-discriminator.mjs';
 import { buildMetaCausalModel } from './meta-causal-model.mjs';
+import { buildRepairIntelligenceMirror } from './read-only-repair-intelligence.mjs';
 
 const clamp = (value, min=0, max=1) => Math.max(min, Math.min(max, Number(value) || 0));
 const exactSha = (value) => /^[a-f0-9]{40}$/u.test(String(value ?? ''));
@@ -256,6 +257,10 @@ export function buildDeepInference({
     ].filter(Boolean))
     .join('\n');
   const firstCurrentRun = safeObserved.find((item) => item.headSha === executionSha && item.runId != null)?.runId ?? 'READ_ONLY';
+  const repairLog = safeObserved
+    .filter((item) => item.headSha === executionSha)
+    .flatMap((item) => item.salientEvidence ?? [])
+    .join('\n');
   const causalDiscriminator = buildCausalDiscriminator({
     failureLog: causalLog,
     exactCases: [],
@@ -275,6 +280,13 @@ export function buildDeepInference({
     exactCases: [],
     doNotRepeat: [],
   });
+  const repairIntelligence = repairLog
+    ? buildRepairIntelligenceMirror({
+        failureLog: repairLog,
+        targetSha: executionSha,
+        historicalSignals,
+      })
+    : null;
   const classes = ROOT_CAUSE_CLASSES.map((className) => buildHypothesis(safeObserved, className, executionSha))
     .filter((item) => item.supportCount > 0 || item.className === 'UNKNOWN_RCA')
     .sort((a, b) => b.score - a.score || b.currentShaMatches - a.currentShaMatches);
@@ -315,6 +327,7 @@ export function buildDeepInference({
     evidenceDiversity: diversity,
     causalDiscriminator,
     metaCausalModel,
+    repairIntelligence,
     hypotheses: classes,
     falsification,
     counterfactuals,
