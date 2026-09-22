@@ -69,6 +69,9 @@ jobs:
         run: node scripts/ci/test-repair-protocol.mjs
       - name: Validate the complete auto-repair mutation boundary
         run: node scripts/ci/validate-auto-repair-boundary.mjs
+      - name: Validate latest-commit-only supersession and immutable rerun lock
+        run: node scripts/ci/test-latest-commit-rerun-lock.mjs
+
       - name: Validate strict Chair-1 central boundary
         run: node scripts/ci/test-strict-chair-boundary.mjs
       - name: Run Chair-1 central lease adversarial attack matrix
