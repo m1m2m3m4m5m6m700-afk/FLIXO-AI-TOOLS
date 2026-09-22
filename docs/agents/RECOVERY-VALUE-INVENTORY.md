@@ -9,7 +9,7 @@ Purpose: record valuable repository system contracts discovered during historica
 - Canonical working lane: `execution`
 - Production/source-of-truth: `main`
 - Absolute branch invariant: **never create a new branch**
-- Canonical prompt: `RPR-UNIFIED-EXECUTION-001`
+- P00 Supreme Protocol: `RPR-UNIFIED-EXECUTION-001` v4.0.0
 - Canonical prompt source: `docs/agents/PROMPT-UNIFIED-EXECUTION.md`
 - Runtime file `src/lib/agent/flixo-agent-master-prompt.ts` is an adapter only.
 - Prompt inventory: `docs/agents/PROMPT-SORTING-INVENTORY.md`
