@@ -959,58 +959,72 @@ jobs:
           test -f /tmp/flixo-repair-evidence.json
           node /tmp/flixo-repair-controller/scripts/ci/repair-protocol.mjs commit-gate --evidence=/tmp/flixo-repair-evidence.json
 
-      - name: Commit and push verified repair on the single working branch
+      - name: Create exact unpublished candidate commit
+        id: candidate_commit
         if: steps.verify.outputs.verified == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           test "$(git branch --show-current)" = execution
+          BASE_SHA="$(git rev-parse HEAD)"
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          test "$BASE_SHA" = "$FAILED_SHA"
+          git fetch --no-tags origin execution
+          test "$(git rev-parse origin/execution)" = "$FAILED_SHA"
           git add -A
           git add -f diagnostics/auto-repair/memory.json
           if [ -f diagnostics/auto-repair/intractable-errors.json ]; then git add -f diagnostics/auto-repair/intractable-errors.json; fi
           git diff --cached --quiet && { echo 'No applicable repair diff; refusing empty repair.'; exit 1; }
-          ENGINE_OUTCOME="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.outcome||'unknown')")"
-          FINGERPRINT="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.fingerprint||'unknown')")"
-          RULE="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.selected||x.historicalRollback?.rule||'unknown')")"
-          BASE_SHA="$(git rev-parse HEAD)"
-          git fetch --no-tags origin execution
-          REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
-          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
-          test "$BASE_SHA" = "$FAILED_SHA" || {
-            echo "FAIL CLOSED: local repair base $BASE_SHA is not the failed target SHA $FAILED_SHA."
-            exit 1
-          }
-          test "$REMOTE_EXECUTION_SHA" = "$FAILED_SHA" || {
-            echo "FAIL CLOSED: execution advanced during repair; refusing stale publication."
-            exit 1
-          }
+          ENGINE_OUTCOME="$(node -e "const x=require('/tmp/flixo-repair-evidence.json');process.stdout.write(x.outcome||'unknown')")"
+          FINGERPRINT="$(node -e "const x=require('/tmp/flixo-repair-evidence.json');process.stdout.write(x.fingerprint||'unknown')")"
+          RULE="$(node -e "const x=require('/tmp/flixo-repair-evidence.json');process.stdout.write(x.selected||x.historicalRollback?.rule||'unknown')")"
           if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ]; then
-            REVERTED_SHA="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.historicalRollback?.revertedSha||'')")"
-            test "$REVERTED_SHA" != ""
-            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "revert(auto-repair): historical rollback for run ${TARGET_RUN_ID}" -m "FLIXO-REPAIR-ROLLBACK-v1\nkind=historical-revert\nrevertedSha=$REVERTED_SHA\nfingerprint=$FINGERPRINT\nrule=$RULE"
+            REVERTED_SHA="$(node -e "const x=require('/tmp/flixo-repair-evidence.json');process.stdout.write(x.historicalRollback?.revertedSha||'')")"
+            test -n "$REVERTED_SHA"
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "revert(auto-repair): historical rollback for run ${TARGET_RUN_ID}" -m "FLIXO-REPAIR-ROLLBACK-v1 kind=historical-revert revertedSha=$REVERTED_SHA fingerprint=$FINGERPRINT rule=$RULE"
           else
-            FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
-            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}" -m "FLIXO-REPAIR-MARKER-v1\nkind=verified-source-repair\nfingerprint=$FINGERPRINT\nrule=$RULE\nfailedSha=$FAILED_SHA\nbaseSha=$BASE_SHA"
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}" -m "FLIXO-REPAIR-MARKER-v1 kind=verified-source-repair fingerprint=$FINGERPRINT rule=$RULE failedSha=$FAILED_SHA baseSha=$BASE_SHA"
           fi
-          PUSHED=false
-          git fetch --no-tags origin execution
-          REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
-          LOCAL_REPAIR_PARENT="$(git rev-parse HEAD^)"
-          if [ "$REMOTE_EXECUTION_SHA" != "$LOCAL_REPAIR_PARENT" ]; then
-            echo "FAIL CLOSED: execution advanced after the verified repair was created; refusing stale publication."
-            exit 1
-          fi
-          if git push origin execution; then
-            PUSHED=true
-          fi
-          test "$PUSHED" = true
-          PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
-          if [ -z "$PR_URL" ]; then
-            PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head execution --title "fix(auto-repair): canonical execution repair" --body "Canonical two-branch repair path.\n\nAll repairs are applied only on execution and promoted only after exact-SHA Canonical CI GREEN.")"
-          fi
-          echo "Canonical execution -> main PR: $PR_URL"
+          CANDIDATE_SHA="$(git rev-parse HEAD)"
+          printf '%s\n' "$CANDIDATE_SHA" > /tmp/flixo-candidate-sha
+          echo "FLIXO_CANDIDATE_SHA=$CANDIDATE_SHA" >> "$GITHUB_ENV"
 
+      - name: Run post-patch adversarial falsification on the exact candidate SHA
+        id: postpatch_adversarial
+        if: steps.candidate_commit.outcome == 'success'
+        env:
+          FLIXO_TARGET_DIR: ${{ github.workspace }}
+          FLIXO_ADVERSARIAL_OUTPUT: /tmp/flixo-postpatch-adversarial.json
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_CANDIDATE_SHA }}
+          FLIXO_PATCH_BASE_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
+          FLIXO_TWIN_READ_ONLY: 'true'
+          FLIXO_TWIN_DETACHED: 'false'
+        run: |
+          set -euo pipefail
+          CANDIDATE_SHA="$(cat /tmp/flixo-candidate-sha)"
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test -z "$(git status --porcelain)"
+          node scripts/ci/post-patch-adversarial-assessor.mjs
+          test -s /tmp/flixo-postpatch-adversarial.json
+          test "$(jq -r '.status' /tmp/flixo-postpatch-adversarial.json)" = NO_COUNTEREXAMPLE
+          test "$(jq -r '.targetSha' /tmp/flixo-postpatch-adversarial.json)" = "$CANDIDATE_SHA"
+          test "$(jq -r '.mutantCasesSurvived' /tmp/flixo-postpatch-adversarial.json)" = 0
+          echo 'POST_PATCH_ADVERSARIAL_STATUS=NO_COUNTEREXAMPLE' >> "$GITHUB_ENV"
+
+      - name: Publish exact candidate commit only after post-patch adversarial validation
+        if: steps.postpatch_adversarial.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          CANDIDATE_SHA="$(cat /tmp/flixo-candidate-sha)"
+          PARENT_SHA="$(git rev-parse "$CANDIDATE_SHA^")"
+          git fetch --no-tags origin execution
+          test "$(git rev-parse origin/execution)" = "$PARENT_SHA"
+          git push origin "HEAD:execution"
+          PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
+          if [ -z "$PR_URL" ]; then PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head execution --title "fix(auto-repair): canonical execution repair" --body "Canonical execution repair with exact-SHA canonical CI and post-patch adversarial falsification.")"; fi
+          echo "Canonical execution -> main PR: $PR_URL"
       - name: Record publication state in the Repair Control Plane
         if: steps.verify.outputs.verified == 'true'
         run: |
@@ -1145,6 +1159,7 @@ jobs:
             --verification="$VERIFICATION" \
             --verificationProgress="$VERIFICATION_PROGRESS" \
             >/tmp/flixo-repair-lease-outcome.json
+            /tmp/flixo-postpatch-adversarial.json
           cat /tmp/flixo-repair-lease-outcome.json
           echo "LEASE_OUTCOME=$OUTCOME"
           echo "LEASE_EXIT_SHA=$EXIT_SHA"

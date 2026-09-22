@@ -105,6 +105,25 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
 
+      - name: Run independent post-patch adversarial falsification on the exact PR head
+        env:
+          FLIXO_TWIN_READ_ONLY: 'true'
+          FLIXO_TWIN_DETACHED: 'false'
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.EXPECTED_SHA }}
+          FLIXO_ADVERSARIAL_OUTPUT: /tmp/flixo-postpatch-adversarial.json
+          FLIXO_TARGET_DIR: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin refs/heads/main:refs/remotes/origin/main
+          BASE_SHA="$(git rev-parse origin/main)"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$BASE_SHA" != "$EXPECTED_SHA"
+          FLIXO_PATCH_BASE_SHA="$BASE_SHA" node scripts/ci/post-patch-adversarial-assessor.mjs
+          test -s /tmp/flixo-postpatch-adversarial.json
+          test "$(jq -r '.status' /tmp/flixo-postpatch-adversarial.json)" = NO_COUNTEREXAMPLE
+          test "$(jq -r '.targetSha' /tmp/flixo-postpatch-adversarial.json)" = "$EXPECTED_SHA"
+          test "$(jq -r '.mutantCasesSurvived' /tmp/flixo-postpatch-adversarial.json)" = 0
+          echo 'POST_PATCH_ADVERSARIAL_STATUS=NO_COUNTEREXAMPLE'
       - name: Require canonical workflow GREEN on exact SHA
         env:
           GH_TOKEN: ${{ github.token }}
@@ -333,5 +352,6 @@ jobs:
           path: |
             /tmp/exact-*.json
             /tmp/external-security-evidence.json
+            /tmp/flixo-postpatch-adversarial.json
           if-no-files-found: warn
           retention-days: 30

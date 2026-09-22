@@ -5,6 +5,9 @@ const DEFAULT_PROMOTION_EVIDENCE='/tmp/flixo-promotion-evidence.json';
 const readJson=(file,label)=>{if(!fs.existsSync(file))throw new Error(`AGENT_EXIT_LOCK_${label}_MISSING=${file}`);try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{throw new Error(`AGENT_EXIT_LOCK_${label}_INVALID=${file}`);}};
 const assertZeroArray=(value,code)=>{if(!Array.isArray(value)||value.length!==0)throw new Error(`AGENT_EXIT_LOCK_${code}`);};
 export function assertAgentExitGate({status,exactSha,failedWork=[],remainingWork=[],openRcas=[],globalEvidencePath=process.env.FLIXO_AGENT_GLOBAL_CERTIFICATION_EVIDENCE||DEFAULT_GLOBAL_EVIDENCE,promotionEvidencePath=process.env.FLIXO_AGENT_PROMOTION_EVIDENCE||DEFAULT_PROMOTION_EVIDENCE}={}){
+  // Optional hard adversarial layer: callers may bind a verified POST_PATCH evidence artifact to the exact exit SHA.
+  const adversarialEvidencePath=process.env.FLIXO_AGENT_ADVERSARIAL_EVIDENCE||'';
+
   if(String(status).toUpperCase()!=='VERIFIED')throw new Error('AGENT_EXIT_LOCK_NON_GREEN_STATUS');
   if(!/^[a-f0-9]{40}$/u.test(String(exactSha??'')))throw new Error('AGENT_EXIT_LOCK_EXACT_SHA_REQUIRED');
   assertZeroArray(failedWork,'FAILED_WORK_REMAINS');
@@ -25,6 +28,14 @@ export function assertAgentExitGate({status,exactSha,failedWork=[],remainingWork
   if(promotion.state!=='CERTIFIABLE')throw new Error(`AGENT_EXIT_LOCK_PROMOTION_NOT_CERTIFIABLE=${promotion.state??'MISSING'}`);
   if(promotion.exactSha!==exactSha)throw new Error(`AGENT_EXIT_LOCK_PROMOTION_SHA_DRIFT=${promotion.exactSha??'MISSING'}`);
   if(promotion.liveRuntimeState!=='LIVE_VERIFIED')throw new Error(`AGENT_EXIT_LOCK_LIVE_RUNTIME_NOT_VERIFIED=${promotion.liveRuntimeState??'MISSING'}`);
+  if(adversarialEvidencePath){
+    const adversarial=readJson(adversarialEvidencePath,'ADVERSARIAL_EVIDENCE');
+    if(adversarial.phase!=='POST_PATCH')throw new Error('AGENT_EXIT_LOCK_ADVERSARIAL_PHASE_INVALID');
+    if(adversarial.status!=='NO_COUNTEREXAMPLE')throw new Error(`AGENT_EXIT_LOCK_ADVERSARIAL_NOT_GREEN=${adversarial.status??'MISSING'}`);
+    if(adversarial.targetSha!==exactSha)throw new Error(`AGENT_EXIT_LOCK_ADVERSARIAL_SHA_DRIFT=${adversarial.targetSha??'MISSING'}`);
+    if(Number(adversarial.casesFailed??-1)!==0||Number(adversarial.regressionsFound??-1)!==0||Number(adversarial.mutantCasesSurvived??-1)!==0)throw new Error('AGENT_EXIT_LOCK_ADVERSARIAL_COUNTEREXAMPLE_REMAINS');
+  }
+
   assertZeroArray(promotion.failures,'PROMOTION_FAILURES_REMAIN');
   return Object.freeze({ok:true,state:'GREEN',exactSha,next:'ALLOW_SESSION_CLOSE'});
 };

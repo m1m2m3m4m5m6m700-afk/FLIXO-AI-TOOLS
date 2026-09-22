@@ -18,6 +18,7 @@ export const CONTROL_PLANE_FILES = Object.freeze([
   '.github/workflows/agent-repair-handoff-gate.yml',
   'scripts/ci/control-plane-registry.mjs',
   'scripts/ci/validate-auto-repair-boundary.mjs',
+  'scripts/ci/post-patch-adversarial-assessor.mjs',
   'scripts/ci/task-agent.mjs',
   'scripts/ci/agent-execution-control.mjs',
   'scripts/ci/repair-strategy.mjs',
@@ -105,6 +106,10 @@ export function validateStatic() {
   );
   must(/gh\s+workflow\s+run\s+agent-repair-supervisor\.yml/.test(heartbeat), 'heartbeat-observer-only-wakeup');
   must(handoffGate.includes('CURRENT_EXECUTION_SHA=') && handoffGate.includes('HANDOFF_EXECUTION_SHA'), 'handoff-gate-current-head-check');
+  must(/Create exact unpublished candidate commit/.test(auto), 'auto-repair-candidate-commit');
+  must(/Run post-patch adversarial falsification on the exact candidate SHA/.test(auto), 'auto-repair-post-patch-adversarial');
+  must(/POST_PATCH_ADVERSARIAL_STATUS=NO_COUNTEREXAMPLE/.test(auto), 'auto-repair-post-patch-no-counterexample');
+  must(/Publish exact candidate commit only after post-patch adversarial validation/.test(auto), 'auto-repair-post-patch-before-publish');
   must(/cannot repair itself/.test(auto), 'auto-repair-self-protection');
   must(!/assistant[_ -]?fallback/i.test(auto), 'auto-repair-no-peer-fallback');
   must(/sole mutation authority/i.test(auto), 'auto-repair-sole-mutation-authority');
