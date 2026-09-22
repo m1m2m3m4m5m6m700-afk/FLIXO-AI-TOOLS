@@ -23,12 +23,12 @@ assert.ok(agent.includes("executionMode: 'PREPARATION_ONLY'"));
 assert.ok(agent.includes("mutationPolicy: 'NO_DIRECT_MUTATION'"));
 assert.ok(agent.includes("const executionAuthority = 'TASK_PREPARATION_ONLY';"));
 assert.ok(agent.includes('executionAuthority,\n    mutationScope'));
-assert.ok(agent.includes("TASK-AGENT-PREPARATION-v3"));
+assert.ok(agent.includes("TASK-AGENT-PREPARATION-v4-ISOLATED-WORKSPACE"));
 assert.ok(agent.includes("applyAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT'"));
 assert.ok(!agent.includes('TASK_AGENT_DIRECT_EXECUTION'));
 assert.ok(!agent.includes('TASK_AGENT_ON_EXECUTION_BRANCH_ONLY'));
 
-assert.ok(execution.includes('TASK_AGENT_CONTRACT_VERSION = \'TASK-AGENT-PREPARATION-v3\''));
+assert.ok(execution.includes('TASK_AGENT_CONTRACT_VERSION = \'TASK-AGENT-PREPARATION-v4-ISOLATED-WORKSPACE\''));
 assert.ok(execution.includes("preparedOnly !== true"));
 assert.ok(execution.includes("executionMode !== 'PREPARATION_ONLY'"));
 assert.ok(execution.includes("packet.executionAuthority !== 'TASK_PREPARATION_ONLY'"));
