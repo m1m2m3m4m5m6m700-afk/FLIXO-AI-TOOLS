@@ -1,10 +1,9 @@
-name: FLIXO Repair Lease — Live 100 Worker Race
-
+name: FLIXO Repair Lease — 100 Worker Atomic Race (Read-Only Provider)
 on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   actions: read
 
 concurrency:
@@ -13,63 +12,21 @@ concurrency:
 
 jobs:
   live-race:
-    name: Atomic GitHub lease race (100 workers)
+    name: Local atomic lease race (100 workers)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout trusted lease controller
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          # This workflow can create/delete refs. Keep executable controller code pinned to trusted main.
           ref: main
           fetch-depth: 1
           persist-credentials: false
-
       - name: Setup Node
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version-file: .nvmrc
-
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
-
-      - name: Run 100-way live atomic lease race and cleanup
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-          FINGERPRINT="live-race-${GITHUB_RUN_ID}"
-          TARGET_RUN_ID="live-race-${GITHUB_RUN_ID}"
-          LEASE_REF="$(node scripts/ci/repair-control-plane.mjs identity --fingerprint="$FINGERPRINT" --failedSha="$SHA" --targetRunId="$TARGET_RUN_ID" --branch=execution | jq -r '.leaseRef')"
-          mkdir -p /tmp/lease-race
-          export FINGERPRINT TARGET_RUN_ID SHA
-          for i in $(seq 1 100); do
-            (
-              node scripts/ci/repair-lease.mjs claim                 --fingerprint="$FINGERPRINT"                 --failedSha="$SHA"                 --targetRunId="$TARGET_RUN_ID"                 --branch=execution                 --leaseOwner="LIVE_RACE_WORKER_$i"                 --repairRunId="${GITHUB_RUN_ID}-$i"                 > "/tmp/lease-race/result-$i.json" 2>&1 || true
-            ) &
-          done
-          wait
-
-          ACQUIRED="$(grep -l '"status":"ACQUIRED"' /tmp/lease-race/result-*.json | wc -l)"
-          CLAIMED="$(grep -l '"status":"ALREADY_CLAIMED"' /tmp/lease-race/result-*.json | wc -l)"
-          FAILURES="$(grep -L -E '"status":"(ACQUIRED|ALREADY_CLAIMED)"' /tmp/lease-race/result-*.json | wc -l || true)"
-
-          echo "LIVE_RACE_SHA=$SHA"
-          echo "LIVE_RACE_LEASE_REF=$LEASE_REF"
-          echo "LIVE_RACE_ACQUIRED=$ACQUIRED"
-          echo "LIVE_RACE_ALREADY_CLAIMED=$CLAIMED"
-          echo "LIVE_RACE_UNEXPECTED=$FAILURES"
-
-          test "$ACQUIRED" -eq 1
-          test "$CLAIMED" -eq 99
-          test "$FAILURES" -eq 0
-
-          echo "LIVE_RACE_CONTRACT=PASS"
-
-          gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/$LEASE_REF"
-
-          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')" = "$SHA"
-          echo "LIVE_RACE_CLEANUP=PASS"
+      - name: Run 100-way atomic lease race without GitHub write permission
+        run: node scripts/ci/test-repair-lease-live-race.mjs

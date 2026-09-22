@@ -67,3 +67,7 @@ jobs:
         run: node scripts/ci/test-strict-chair-boundary.mjs
       - name: Validate strict push detail guard
         run: node scripts/ci/test-chair-push-guard-strict.mjs
+      - name: Validate no direct push boundary
+        run: node scripts/ci/validate-no-direct-push.mjs
+      - name: Run 100-worker atomic lease race without GitHub write permission
+        run: node scripts/ci/test-repair-lease-live-race.mjs

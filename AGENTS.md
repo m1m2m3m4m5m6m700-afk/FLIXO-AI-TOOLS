@@ -400,6 +400,10 @@ The Cell-Lab gate is enforced by `scripts/ci/cell-lab-consensus.mjs` and is chec
 
 The long-lived residency model uses 45 minutes as the minimum, 3 hours as the maximum for one continuous active segment, and no total task-duration cap while work remains open. MASTER_CELL_LAB carries master status updates every 5 minutes and task reminders every 10 minutes; SHA changes invalidate evidence and require requalification, not sleep or task closure.
 
+
+## NO DIRECT PUSH / NO BYPASS
+
+**ABSOLUTE REPOSITORY RULE:** No agent, bot, Action, workflow, script, token or runtime may push or update the execution branch except through the assistantController publication path after all Chair-1 and Chair Push Validator requirements are satisfied. No automation workflow may request contents:write. No code path may invoke git push, GitHub Contents writes, or direct refs/heads/execution mutation. A failed/missing Chair lease, stale Exact-SHA, missing validator evidence, invalid Push Manifest, or any alternate publication path is FAIL_CLOSED. Tests and emergency paths are not exceptions. The Chair Push Guard remains validation-only; it never grants publication authority. Only assistantController records the final Push decision and performs the guarded publication.
 ## CHAIR-1 — CENTRAL CUSTODY / TEMPORARY DELEGATION
 
 Chair-1 is centrally owned by `assistantController`. Ownership is permanent unless the user directly commands a transfer.

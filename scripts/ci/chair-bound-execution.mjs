@@ -800,7 +800,13 @@ if(process.argv[1]?.endsWith('/chair-bound-execution.mjs')){
   else if(command==='merge-proposal')console.log(JSON.stringify(authorizeMergeProposal({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target}),null,2));
   else if(command==='propose-push')console.log(JSON.stringify(proposePush({chairId:arg('chair'),agentId:arg('agent'),targetSha:target,candidateSha:arg('candidate'),parentSha:arg('parent'),paths,workPackageId:arg('work-package'),taskId:arg('task-id'),patchSha256:arg('patch-sha')||null,summary:arg('summary')||''}),null,2));
   else if(command==='authorize-publication')console.log(JSON.stringify(authorizePublication({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,paths,permission:arg('permission','SOURCE_MUTATION'),workPackageId:arg('work-package')||null,taskId:arg('task-id')||null,fencingToken:arg('fencing-token')||null}),null,2));
-  else if(command==='controller-decision'){\n    const evidenceText=arg('evidence')||'';\n    let evidence=null;\n    if(evidenceText){try{evidence=JSON.parse(evidenceText);}catch{throw new Error('PUSH_CONTROLLER_VALIDATION_EVIDENCE_INVALID');}}\n    console.log(JSON.stringify(recordControllerPushDecision({proposalId:arg('proposal-id'),decision:arg('decision'),reasonCode:arg('reason'),controllerAgent:arg('controller','assistantController'),currentSha:target,validationEvidence:evidence}),null,2));\n  }\n  else if(command==='guard-decision')throw new Error('PUSH_DECISION_CONTROLLER_ONLY');
+  else if(command==='controller-decision'){
+    const evidenceText=arg('evidence')||'';
+    let evidence=null;
+    if(evidenceText){try{evidence=JSON.parse(evidenceText);}catch{throw new Error('PUSH_CONTROLLER_VALIDATION_EVIDENCE_INVALID');}}
+    console.log(JSON.stringify(recordControllerPushDecision({proposalId:arg('proposal-id'),decision:arg('decision'),reasonCode:arg('reason'),controllerAgent:arg('controller','assistantController'),currentSha:target,validationEvidence:evidence}),null,2));
+  }
+  else if(command==='guard-decision')throw new Error('PUSH_DECISION_CONTROLLER_ONLY');
   else if(command==='release')console.log(JSON.stringify(release({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,successful:arg('successful','false')==='true'}),null,2));
   else if(command==='mode')console.log(JSON.stringify(repositoryMode({targetSha:target}),null,2));
   else if(command==='validate')console.log(JSON.stringify(validateCurrent({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,paths,permission:arg('permission','SOURCE_MUTATION'),reviewId:arg('review-id')||null,boundedScope:scope.length?scope:null}),null,2));
