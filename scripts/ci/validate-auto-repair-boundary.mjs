@@ -223,16 +223,21 @@ export function validateStatic() {
   must(/unified-execution-push-gate\.mjs/.test(pushGateWorkflow), 'execution-push-gate-script-wired');
   must(/contents:\s*read/.test(pushGateWorkflow) && !/actions:\s*write/.test(pushGateWorkflow), 'execution-push-gate-read-only');
 
-  const jobsSection = auto.match(/^jobs:\\n([\\s\\S]*)$/)?.[1] ?? '';
+  const autoNormalized = auto.replace(/\r\n?/g, '\n');
+  const autoLines = autoNormalized.split('\n');
+  const jobsIndex = autoLines.findIndex((line) => line.trim() === 'jobs:');
   const jobBlock = (jobName) => {
-    const marker = new RegExp(`^  ${jobName}:\\n`, 'm');
-    const match = marker.exec(jobsSection);
-    if (!match) return '';
-    const body = jobsSection.slice(match.index + match[0].length);
-    const next = body.search(/^  [A-Za-z0-9_-]+:\\n/m);
-    return next >= 0 ? body.slice(0, next) : body;
+    if (jobsIndex < 0) return '';
+    const marker = `  ${jobName}:`;
+    const startIndex = autoLines.findIndex((line, index) => index > jobsIndex && line.trimEnd() === marker);
+    if (startIndex < 0) return '';
+    const endIndex = autoLines.findIndex(
+      (line, index) => index > startIndex && /^  [A-Za-z0-9_-]+:\s*$/.test(line),
+    );
+    return autoLines.slice(startIndex + 1, endIndex < 0 ? autoLines.length : endIndex).join('\n');
   };
-  const timeoutFromJob = (jobName) => Number(jobBlock(jobName).match(/(?:^|\n)\s+timeout-minutes:\s*(\d+)/)?.[1] ?? NaN);
+  const timeoutFromJob = (jobName) =>
+    Number(jobBlock(jobName).match(/^\s*timeout-minutes:\s*(\d+)\s*$/m)?.[1] ?? NaN);
   const residentTimeout = timeoutFromJob('resident');
   const repairTimeout = timeoutFromJob('repair');
   must(Number.isFinite(residentTimeout) && residentTimeout <= 345, 'auto-repair-resident-timeout-bound');
