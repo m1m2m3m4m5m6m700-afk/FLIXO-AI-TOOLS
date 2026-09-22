@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 const chair = fs.readFileSync(new URL('./chair-bound-execution.mjs', import.meta.url), 'utf8');
 const coordination = fs.readFileSync(new URL('./agent-coordination.mjs', import.meta.url), 'utf8');
+const session = fs.readFileSync(new URL('./agent-session.mjs', import.meta.url), 'utf8');
 
 assert.match(chair, /HEARTBEAT_INTERVAL_MS/);
 assert.match(chair, /DEAD_LEASE_AFTER_MS/);
@@ -29,6 +30,10 @@ assert.doesNotMatch(coordination, /acquireTaskChair/);
 assert.doesNotMatch(coordination, /releaseTaskChair/);
 assert.match(coordination, /reason: 'TASK_COMPLETE'/);
 assert.match(coordination, /reason: 'TASK_RELEASE'/);
+assert.match(session, /heartbeat as heartbeatChair/);
+assert.match(session, /reconcileDeadLeases/);
+assert.match(session, /CHAIR_LEASE_RECOVERY_REQUIRED/);
+assert.match(session, /chairHeartbeatResult/);
 
 const schema = fs.readFileSync(new URL('../../schemas/flixo-chairs.schema.json', import.meta.url), 'utf8');
 assert.match(schema, /heartbeat_at/);
