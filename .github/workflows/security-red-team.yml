@@ -1,0 +1,196 @@
+name: FLIXO Security Red-Team Triad
+
+on:
+  push:
+    branches: [execution]
+    paths-ignore:
+      - 'الثغرات الامنيه.md'
+      - 'diagnostics/security/**'
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact execution SHA to scan
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flixo-security-red-team-${{ inputs.expected_sha || github.sha }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
+
+jobs:
+  contract:
+    name: Security Red-Team Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact execution SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Validate red-team contract
+        run: node scripts/ci/test-security-red-team-contract.mjs
+
+  redteam:
+    name: Security Red-Team — ${{ matrix.bot }}
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        bot:
+          - SECURITY-REDTEAM-1
+          - SECURITY-REDTEAM-2
+          - SECURITY-REDTEAM-3
+    steps:
+      - name: Checkout exact execution SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Run full-project red-team scan
+        env:
+          BOT_ID: ${{ matrix.bot }}
+        run: |
+          set -euo pipefail
+          node scripts/security/security-red-team-runner.mjs             --bot="$BOT_ID"             --sha="$EXPECTED_SHA"             --output="/tmp/security-red-team-$BOT_ID.json"
+      - name: Publish bot evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-security-red-team-${{ matrix.bot }}-${{ env.EXPECTED_SHA }}
+          path: /tmp/security-red-team-${{ matrix.bot }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  record-1:
+    name: Record SECURITY-REDTEAM-1 findings immediately
+    needs: redteam
+    if: ${{ success() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout exact execution SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+      - name: Download bot evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: flixo-security-red-team-SECURITY-REDTEAM-1-${{ env.EXPECTED_SHA }}
+          path: /tmp/redteam-1
+      - name: Append findings to central security ledger
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/security/record-security-findings.mjs --report=/tmp/redteam-1/security-red-team-SECURITY-REDTEAM-1.json
+
+  record-2:
+    name: Record SECURITY-REDTEAM-2 findings immediately
+    needs: [redteam, record-1]
+    if: ${{ success() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout exact execution SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+      - name: Download bot evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: flixo-security-red-team-SECURITY-REDTEAM-2-${{ env.EXPECTED_SHA }}
+          path: /tmp/redteam-2
+      - name: Append findings to central security ledger
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/security/record-security-findings.mjs --report=/tmp/redteam-2/security-red-team-SECURITY-REDTEAM-2.json
+
+  record-3:
+    name: Record SECURITY-REDTEAM-3 findings immediately
+    needs: [redteam, record-2]
+    if: ${{ success() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout exact execution SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+      - name: Download bot evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: flixo-security-red-team-SECURITY-REDTEAM-3-${{ env.EXPECTED_SHA }}
+          path: /tmp/redteam-3
+      - name: Append findings to central security ledger
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/security/record-security-findings.mjs --report=/tmp/redteam-3/security-red-team-SECURITY-REDTEAM-3.json
+
+  summary:
+    name: Security Red-Team Triad Summary
+    needs: [record-1, record-2, record-3]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Read final ledger state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh api "repos/$GITHUB_REPOSITORY/contents/الثغرات%20الامنيه.md?ref=execution"             --jq '.sha' >/tmp/ledger-sha; then
+            echo "SECURITY_LEDGER_SHA=$(cat /tmp/ledger-sha)"
+          else
+            echo "SECURITY_LEDGER_READBACK_FAILED"
+            exit 1
+          fi
+          test "${{ needs.record-1.result }}" = success
+          test "${{ needs.record-2.result }}" = success
+          test "${{ needs.record-3.result }}" = success
+          echo "SECURITY_RED_TEAM_TRIAD=GREEN"
