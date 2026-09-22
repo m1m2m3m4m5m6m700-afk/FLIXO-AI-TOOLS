@@ -1523,7 +1523,7 @@ BASHENV
         env:
           FLIXO_CANDIDATE_SHA: ${{ env.FLIXO_CANDIDATE_SHA }}
           FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
-          FLIXO_KNOWN_GOOD_SHA: ${{ env.FLIXO_KNOWN_GOOD_SHA || '' }}
+          FLIXO_KNOWN_GOOD_SHA: ''
           FLIXO_ROLLBACK_PROOF_PATH: /tmp/flixo-rollback-proof.json
         run: |
           set -euo pipefail
