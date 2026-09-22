@@ -20,7 +20,9 @@ if (expectedSha && sha !== expectedSha) {
 }
 
 const identity = {
-  schemaVersion: 2,
+  schemaVersion: 3,
+  rerunContract: 'LATEST_COMMIT_ONLY_RERUN_LOCK_V1',
+  runAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
   evidenceClass: 'PRIMARY_EXECUTION',
   contractVersion,
   sha,
