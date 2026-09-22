@@ -1,5 +1,4 @@
 import type { ToolDefinition } from '../config/canonical-tool-definition';
-import type { ToolDefinition } from '../config/canonical-tool-definition';
 import type { ToolCard } from '../components/ar-home-tools-section';
 export function recommendImageTool(
   file: File,
