@@ -19,12 +19,12 @@ function argsMap(rest){const m=new Map();for(let i=0;i<rest.length;i+=1){const t
 const arg=(m,n,f='')=>String(m.get(n)??f).trim();
 export function remoteExecutionSha(){
   const mocked=String(process.env.FLIXO_MUTATION_GATE_REMOTE_SHA??'').trim();
-  if(mocked)return assertSha(mocked,'REMOTE_SHA');
+  if(mocked){ if(!trustedLocalTestHarness())throw new Error('MUTATION_GATE_REMOTE_SHA_OVERRIDE_FORBIDDEN'); return assertSha(mocked,'REMOTE_SHA'); }
   const repo=String(process.env.GITHUB_REPOSITORY??'').trim();
   if(!repo)throw new Error('MUTATION_GATE_GITHUB_REPOSITORY_MISSING');
   return assertSha(execFileSync('gh',['api',`repos/${repo}/git/ref/heads/execution`,'--jq','.object.sha'],{cwd:ROOT,encoding:'utf8'}),'REMOTE_SHA');
 }
-const STRICT_MUTATION_OWNERS = new Set(['AUTO_REPAIR_BOT','repairAgent','executionAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier']);
+const STRICT_MUTATION_OWNERS = new Set(['AUTO_REPAIR_BOT','repairAgent','executionAgent','assistantRepairAgent','actionRepairBot']);
 function centralChairStrictRequired(ownerAgent='') {
   return process.env.FLIXO_STRICT_CHAIR === 'true' || STRICT_MUTATION_OWNERS.has(String(ownerAgent ?? '').trim());
 }
