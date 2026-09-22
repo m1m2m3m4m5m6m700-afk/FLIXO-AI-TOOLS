@@ -14,6 +14,7 @@ const workflowSource=fs.readFileSync(workflow,'utf8');
 const deepReasoning=path.resolve(root,'scripts/ci/read-only-deep-reasoning.mjs');
 const deepTest=path.resolve(root,'scripts/ci/test-read-only-deep-reasoning.mjs');
 const deepContract=path.resolve(root,'scripts/ci/validate-read-only-deep-reasoning.mjs');
+const repairIntelligence=path.resolve(root,'scripts/ci/read-only-repair-intelligence.mjs');
 
 const required=[
  "authority: 'READ_ONLY_ERROR_INVESTIGATOR'",
@@ -41,7 +42,7 @@ if(!workflowSource.includes('contents: read') || !workflowSource.includes('actio
 if(workflowSource.includes('contents: write') || workflowSource.includes('actions: write')) failures.push('WRITE_PERMISSION_PRESENT');
 if(!workflowSource.includes('ref: execution')) failures.push('EXECUTION_REF_NOT_PINNED');
 if(!testSource.includes('CAPIError') || !testSource.includes('CI contract failed')) failures.push('ROOT_CAUSE_FIXTURES_MISSING');
-if(!fs.existsSync(deepReasoning) || !fs.existsSync(deepTest) || !fs.existsSync(deepContract)) failures.push('DEEP_REASONING_SURFACE_MISSING');
+if(!fs.existsSync(deepReasoning) || !fs.existsSync(deepTest) || !fs.existsSync(deepContract) || !fs.existsSync(repairIntelligence)) failures.push('DEEP_REASONING_SURFACE_MISSING');
 if(!source.includes('buildDeepInference')) failures.push('DEEP_REASONING_INTEGRATION_MARKER_MISSING');
 
 const sha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
