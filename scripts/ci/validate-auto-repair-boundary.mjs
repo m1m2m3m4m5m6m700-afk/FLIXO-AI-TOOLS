@@ -23,6 +23,7 @@ export const CONTROL_PLANE_FILES = Object.freeze([
   'scripts/ci/test-execution-mutation-gate.mjs',
   'scripts/ci/control-plane-registry.mjs',
   'scripts/ci/validate-auto-repair-boundary.mjs',
+  'scripts/ci/auto-repair-chair1-audit.mjs',
   'scripts/ci/post-patch-adversarial-assessor.mjs',
   'scripts/ci/candidate-verification-parallel.mjs',
   'scripts/ci/in-repo-repair-v2.mjs',
