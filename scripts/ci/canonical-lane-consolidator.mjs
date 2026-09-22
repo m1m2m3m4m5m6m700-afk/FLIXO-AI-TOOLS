@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
 export const CANONICAL_LANE = 'execution';
@@ -242,6 +245,94 @@ export function assertCanonicalLaneConsolidation(plan, currentHead) {
   if (plan.status !== 'READY_FOR_CANONICAL_CONSOLIDATION') throw new Error('CANONICAL_LANE_PLAN_NOT_READY');
   if (plan.conflicts.length || plan.stalePackets.length) throw new Error('CANONICAL_LANE_PLAN_CONFLICT_OR_STALE');
   return true;
+}
+
+function readJsonFiles(rootDir) {
+  if (!fs.existsSync(rootDir)) return [];
+  return fs.readdirSync(rootDir)
+    .filter((name) => name.endsWith('.json'))
+    .sort()
+    .map((name) => {
+      try {
+        const file = path.join(rootDir, name);
+        return JSON.parse(fs.readFileSync(file, 'utf8'));
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+}
+
+function isAncestor(sourceSha, currentHead, root = process.cwd()) {
+  if (!SHA_RE.test(String(sourceSha)) || !SHA_RE.test(String(currentHead))) return false;
+  try {
+    execFileSync('git', ['merge-base', '--is-ancestor', sourceSha, currentHead], {
+      cwd: root,
+      stdio: 'ignore',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function collectAccumulatedPushPackets({
+  currentHead,
+  root = process.cwd(),
+  envValue = process.env.FLIXO_ACCUMULATED_PUSH_PACKETS ?? '',
+} = {}) {
+  const candidates = [
+    ...parseAccumulatedPushPackets(envValue),
+    ...readJsonFiles(path.resolve(root, 'diagnostics/guard/inbox'))
+      .filter((report) => report.status === 'PUSH_PENDING' && report.pendingPush === true)
+      .filter((report) => report.candidateSha || report.currentWorkspaceSha)
+      .map((report) => ({
+        packetId: report.reportId,
+        agentId: report.agentId,
+        sourceSha: report.candidateSha ?? report.currentWorkspaceSha,
+        baseSha: report.executionShaAtEntry,
+        changedFiles: report.changedFiles,
+        patchSha256: report.patchSha256,
+        createdAt: report.pendingPushAt ?? report.createdAt,
+        branch: 'agent-guard-pending',
+        metadata: { source: 'GUARD_CHANGE_REPORT', guardStatus: report.status },
+      })),
+    ...readJsonFiles(path.resolve(root, 'diagnostics/agents/handoffs'))
+      .filter((handoff) => handoff.status === 'VERIFIED')
+      .filter((handoff) => handoff.exitSha && handoff.entrySha && Array.isArray(handoff.changedFiles) && handoff.changedFiles.length > 0)
+      .map((handoff) => ({
+        packetId: handoff.reportId ?? `handoff:${handoff.sessionId}`,
+        agentId: handoff.agentId,
+        sourceSha: handoff.exitSha,
+        baseSha: handoff.entrySha,
+        changedFiles: handoff.changedFiles,
+        createdAt: handoff.finishedAt ?? handoff.startedAt,
+        branch: 'agent-handoff',
+        metadata: { source: 'AGENT_HANDOFF', sessionId: handoff.sessionId },
+      })),
+  ];
+
+  const alreadyIntegrated = [];
+  const pending = [];
+  const seen = new Set();
+  for (const packet of candidates) {
+    const sourceSha = clean(packet?.sourceSha ?? packet?.headSha);
+    const packetId = clean(packet?.packetId) || `push:${sourceSha}`;
+    if (!sourceSha || !SHA_RE.test(sourceSha)) continue;
+    if (isAncestor(sourceSha, currentHead, root) || sourceSha === currentHead) {
+      alreadyIntegrated.push(packetId);
+      continue;
+    }
+    const key = `${packetId}:${sourceSha}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    pending.push(packet);
+  }
+  return Object.freeze({
+    packets: pending,
+    alreadyIntegrated: [...new Set(alreadyIntegrated)],
+    candidateCount: candidates.length,
+  });
 }
 
 export function parseAccumulatedPushPackets(value) {
