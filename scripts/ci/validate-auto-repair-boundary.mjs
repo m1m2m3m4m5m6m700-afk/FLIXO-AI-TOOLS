@@ -220,8 +220,12 @@ export function validateStatic() {
 
 
 
-  const residentTimeout = Number(auto.match(/jobs:\s*\n\s+resident:[\s\S]*?timeout-minutes:\s*(\d+)/)?.[1] ?? NaN);
-  const repairTimeout = Number(auto.match(/jobs:\s*\n\s+resident:[\s\S]*?\n\s+repair:[\s\S]*?timeout-minutes:\s*(\d+)/)?.[1] ?? NaN);
+  const jobBlock = (jobName) => {
+    const match = auto.match(new RegExp('^  ' + jobName + ':\\n([\\s\\S]*?)(?=^  [A-Za-z0-9_-]+:|$)', 'm'));
+    return match ? match[1] : '';
+  };
+  const residentTimeout = Number(jobBlock('resident').match(/(?:^|\n)\s+timeout-minutes:\s*(\d+)/)?.[1] ?? NaN);
+  const repairTimeout = Number(jobBlock('repair').match(/(?:^|\n)\s+timeout-minutes:\s*(\d+)/)?.[1] ?? NaN);
   must(Number.isFinite(residentTimeout) && residentTimeout <= 345, 'auto-repair-resident-timeout-bound');
   must(Number.isFinite(repairTimeout) && repairTimeout <= 45, 'auto-repair-repair-timeout-bound');
 
