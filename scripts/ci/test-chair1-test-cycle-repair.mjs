@@ -19,6 +19,8 @@ const mission = buildChair1RepairMission({
 });
 
 assert.equal(mission.mission, CHAIR1_REPAIR_MISSION);
+assert.equal(mission.aggregationPolicy.publicationPolicy, 'CHAIR_1_ONLY');
+assert.equal(mission.aggregationPolicy.agentBranchRelation, 'ENTRY_SNAPSHOT_ONLY');
 assert.equal(mission.comparison.previousUpdate.changedPaths.length, 2);
 assert.deepEqual(mission.comparison.previousUpdate.changedPaths, ['src/a.ts','tests/a.spec.ts']);
 assert.deepEqual(mission.comparison.latestCanonicalState.changedPaths, ['src/a.ts','src/b.ts']);
@@ -26,8 +28,8 @@ assert.equal(mission.directRepairPolicy.everyActionableRed, 'MUST_RECEIVE_ROOT_C
 assert.equal(mission.directRepairPolicy.sourcePolicy, 'REPAIR_CAUSAL_SOURCE_ONLY');
 assert.equal(mission.noSelfDispatch, true);
 assert.equal(mission.noMainMutation, true);
-assert.equal(assertChair1RepairState({mission,currentSha:target,branch:'execution'}), true);
-assert.throws(() => assertChair1RepairState({mission,currentSha:previous,branch:'execution'}), /CHAIR1_REPAIR_STALE_TARGET_SHA/);
+assert.equal(assertChair1RepairState({mission,currentSha:target,branch:'execution'}).reconciliation, 'CURRENT_BASE');
+assert.equal(assertChair1RepairState({mission,currentSha:previous,branch:'execution'}).reconciliation, 'REQUIRES_RECONCILIATION');
 assert.throws(() => assertChair1RepairState({mission,currentSha:target,branch:'main'}), /CHAIR1_REPAIR_BRANCH_BLOCKED/);
 assert.throws(() => buildChair1RepairMission({targetSha:target,previousSha:target}), /CHAIR1_REPAIR_PREVIOUS_SHA_EQUALS_TARGET/);
 
