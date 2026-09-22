@@ -965,7 +965,7 @@ const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
   ].filter(Boolean).length;
   const fiveXProofClasses = [
     ['IDENTITY', /^[a-f0-9]{40}$/iu.test(targetSha) && gateCurrentSha === targetSha && protocolBranch === 'execution' && Boolean(fiveXTaskId)],
-    ['CONSTRAINTS', !Boolean(mutationScope.testMutation || mutationScope.controlPlaneMutation || mutationScope.mainMutation || mutationScope.gateWeakening) && repairV2PlannedScope?.status === 'PASS'],
+    ['CONSTRAINTS', !(mutationScope.testMutation || mutationScope.controlPlaneMutation || mutationScope.mainMutation || mutationScope.gateWeakening) && repairV2PlannedScope?.status === 'PASS'],
     ['CAUSALITY', diagnosisGate.allowed === true && repairV2Manifest?.evidence?.exact_sha === true],
     ['FALSIFICATION', programmerTwinReport?.status === 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE' && programmerTwinReport?.counterexampleFound === false],
     ['REGRESSION', preparedVerification.reproductionStability?.classification === 'REPRODUCIBLE_FAILURE' && Number(preparedVerification.reproductionStability?.runs?.length ?? 0) >= 5],
