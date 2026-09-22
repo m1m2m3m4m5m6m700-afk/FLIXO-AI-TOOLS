@@ -819,5 +819,27 @@
       "zeroErrorTarget": true,
       "closureStillRequiresCanonicalGreen": true
     }
+  },
+  "masterRankPromotions": {
+    "schemaVersion": 1,
+    "authority": "ASSISTANT_AGENT_COOPERATION_CONTRACT",
+    "effectiveSha": "65a1906d9077cdcfa3559e3f46731209581bfd95",
+    "recordedAt": "2026-09-22",
+    "MASTER-2": {
+      "rankId": "MASTER-2-L2",
+      "display": "🔧🔧 MASTER-2 — الاحترافي — المستوى 2",
+      "status": "ACTIVE",
+      "title": "VERIFICATION COUNCIL — ADVANCED",
+      "scope": "CELL",
+      "responsibilities": [
+        "independent verification",
+        "dependency sequencing",
+        "contract alignment",
+        "challenge",
+        "Exact-SHA and evidence freshness",
+        "false-GREEN prevention"
+      ],
+      "boundary": "Rank elevation does not grant mutation, certification, or final decision authority."
+    }
   }
 }

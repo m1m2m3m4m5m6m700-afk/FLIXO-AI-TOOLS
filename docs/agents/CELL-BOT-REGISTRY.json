@@ -10039,7 +10039,51 @@
   },
   "masterDisplayNames": {
     "MASTER-1": "MASTER-1 — PRESIDENT",
-    "MASTER-2": "🔧 MASTER-2 — الاحترافي",
+    "MASTER-2": "🔧🔧 MASTER-2 — الاحترافي — المستوى 2",
     "MASTER-3": "★ MASTER-3 — CONSULTANT / المستشار"
+  },
+  "masterRankRegistry": {
+    "schemaVersion": 1,
+    "authority": "CELL_CONTROL_PLANE",
+    "effectiveAt": "2026-09-22",
+    "effectiveSha": "65a1906d9077cdcfa3559e3f46731209581bfd95",
+    "status": "ACTIVE",
+    "rule": "Rank is a formal cell designation and does not expand mutation, certification, or final-authority powers.",
+    "masters": {
+      "MASTER-2": {
+        "rankId": "MASTER-2-L2",
+        "level": 2,
+        "marks": [
+          "🔧",
+          "🔧"
+        ],
+        "displayName": "🔧🔧 MASTER-2 — الاحترافي — المستوى 2",
+        "designation": "VERIFICATION COUNCIL — ADVANCED",
+        "responsibilities": [
+          "independent verification",
+          "dependency sequencing",
+          "contract alignment",
+          "challenge",
+          "evidence freshness and Exact-SHA control",
+          "false-GREEN prevention",
+          "coordination escalation to assistantController"
+        ],
+        "authorityBoundary": {
+          "mutationAuthority": false,
+          "certificationAuthority": false,
+          "finalAuthority": false,
+          "operationalLeader": false
+        },
+        "promotionBasis": [
+          "documented sustained verification role",
+          "Exact-SHA and evidence challenge discipline",
+          "active participation in MASTER_CELL_LAB",
+          "conformance to long-lived residency and communication protocols"
+        ],
+        "grantedBy": "assistantController_OPERATIONAL_EXECUTION_LEAD",
+        "finalAuthority": "USER_FINAL_AUTHORITY",
+        "review": "Promotion remains revocable by formal administrative record and does not override canonical protocols."
+      }
+    }
   }
 }
