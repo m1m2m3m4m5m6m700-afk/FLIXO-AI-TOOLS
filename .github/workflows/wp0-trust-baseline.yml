@@ -3,8 +3,9 @@ name: FLIXO WP0 Trust Baseline
 on:
   pull_request:
     branches: [main]
+  # Execution is tested through the canonical pull_request lane; push runs remain for main after integration.
   push:
-    branches: [main, execution]
+    branches: [main]
   workflow_dispatch:
 
 # Keep only the newest verification for the PR/branch.
