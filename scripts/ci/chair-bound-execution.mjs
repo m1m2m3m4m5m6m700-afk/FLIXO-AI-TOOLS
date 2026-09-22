@@ -56,7 +56,7 @@ export function atomicChairRefAudit({chairId,targetSha=sha(),expectedOldSha=null
   return Object.freeze({authority:'AUDIT_ONLY',atomicLocalCAS:true,ref,oldSha:current,newSha:t,event});
 }
 function clearChairRecord(chair,state){
-  chair.holder_agent_id=null;chair.status='VACANT';chair.acquired_at=null;chair.target_sha=null;chair.lease_id=null;chair.review_id=null;chair.scope=null;chair.lease_started_at=null;chair.heartbeat_at=null;chair.heartbeat_count=0;
+  chair.holder_agent_id=null;chair.status='VACANT';chair.acquired_at=null;chair.target_sha=null;chair.lease_id=null;chair.review_id=null;chair.scope=null;chair.scope_hash=null;chair.work_package_id=null;chair.task_id=null;chair.fencing_token=null;chair.lease_started_at=null;chair.heartbeat_at=null;chair.heartbeat_count=0;
   state.repository_state=occupied(state).length===0?'IDLE':'ACTIVE';
   state.idle_timestamp=state.repository_state==='IDLE'?now():null;
 }
@@ -325,6 +325,7 @@ export function authorizePublication({chairId='chair_1',agentId,targetSha=sha(),
   if(chair.task_id!==null && chair.task_id!==String(taskId??''))throw new Error('CHAIR_TASK_MISMATCH');
   if(chair.fencing_token!==null && chair.fencing_token!==String(fencingToken??''))throw new Error('CHAIR_FENCING_TOKEN_MISMATCH');
   const normalized=paths.map(p=>String(p).replaceAll('\\','/').replace(/^\.\//,''));
+  if(chair.scope_hash!==null && !(Array.isArray(chair.scope)&&chair.scope.length===1&&String(chair.scope[0])==='*') && chair.scope_hash!==scopeDigest(paths))throw new Error('CHAIR_SCOPE_HASH_MISMATCH');
   for(const p of normalized){
     if(p==='*')continue;
     if(p.startsWith('/')||p.includes('..'))throw new Error('CHAIR_PATH_INVALID');
