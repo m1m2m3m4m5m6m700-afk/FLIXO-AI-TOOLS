@@ -11,7 +11,7 @@ import { runAdversarialCorrectionLoop, assertAdversarialGate } from './prompt-ex
 import { loadExecutionBotTraining, trainingSummary } from './prompt-execution-bot-training.mjs';
 import { validateAdversarialBotCommandRegistry } from './adversarial-bot-commands.mjs';
 import { buildTenXExecutionEnvelope, validateTenXExecutionLayer } from './read-only-power-profile.mjs';
-import { buildCanonicalLaneConsolidation, parseAccumulatedPushPackets } from './canonical-lane-consolidator.mjs';
+import { buildCanonicalLaneConsolidation, collectAccumulatedPushPackets } from './canonical-lane-consolidator.mjs';
 
 const ROOT = process.cwd();
 const MAX_INPUT = Math.max(1000, Number(process.env.FLIXO_PROMPT_BOT_MAX_INPUT_CHARS ?? 12000));
@@ -211,6 +211,7 @@ export function buildPreExecution25Evidence({
     { id: 'CANONICAL_LANE_CONSOLIDATOR_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'scripts/ci/canonical-lane-consolidator.mjs')) },
     { id: 'CANONICAL_LANE_BINDING', observation: consolidation?.canonicalLane === 'execution' && consolidation?.targetBranch === 'execution' },
     { id: 'ACCUMULATED_PUSHES_RECONCILED', observation: consolidation?.status === 'READY_FOR_CANONICAL_CONSOLIDATION' },
+    { id: 'INTEGRATED_PUSH_HISTORY_RETAINED', observation: Array.isArray(consolidation?.alreadyIntegratedPacketIds) },
     { id: 'PUSH_CONFLICTS_EMPTY', observation: Array.isArray(consolidation?.conflicts) && consolidation.conflicts.length === 0 },
     { id: 'PUSH_STALE_PACKETS_EMPTY', observation: Array.isArray(consolidation?.stalePackets) && consolidation.stalePackets.length === 0 },
   ];
@@ -247,13 +248,17 @@ export function buildWorkPackage(prompt) {
   const selectedTaskId = matchedTasks[0]?.task.id ?? null;
   let consolidation;
   try {
-    const packets = parseAccumulatedPushPackets(process.env.FLIXO_ACCUMULATED_PUSH_PACKETS ?? '');
-    consolidation = buildCanonicalLaneConsolidation({
-      currentHead: executionSha,
-      targetBranch: branch,
-      packets,
-      expectedParent: executionSha,
-    });
+    const collected = collectAccumulatedPushPackets({ currentHead: executionSha, root: ROOT });
+    consolidation = {
+      ...buildCanonicalLaneConsolidation({
+        currentHead: executionSha,
+        targetBranch: branch,
+        packets: collected.packets,
+        expectedParent: executionSha,
+      }),
+      alreadyIntegratedPacketIds: collected.alreadyIntegrated,
+      sourceCandidateCount: collected.candidateCount,
+    };
   } catch (error) {
     consolidation = {
       protocol: 'FLIXO-CANONICAL-LANE-CONSOLIDATION-v1',
