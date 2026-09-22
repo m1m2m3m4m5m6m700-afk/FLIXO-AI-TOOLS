@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { assertAgentAdmission, assertProtocolDefinition } from './repair-protocol.mjs';
 import { ingest as ingestAgentMessage, markRead as readAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
 import { loadPromptRegistry, validatePromptRegistry, loadErrorMemory } from './prompt-registry.mjs';
+import { assertAgentExitGate } from './agent-exit-lock.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -302,6 +303,26 @@ if (command === 'meeting-exit-approve') {
   if (status === 'VERIFIED' && completedWork.length === 0 && evidence.length === 0) throw new Error('VERIFIED_LOGOUT_REQUIRES_COMPLETED_WORK_OR_EVIDENCE');
   const activity = Array.isArray(record.activity) ? record.activity : [];
   if (status === 'VERIFIED' && activity.length === 0) throw new Error('VERIFIED_LOGOUT_REQUIRES_ACTIVITY_LOG');
+
+  try {
+    assertAgentExitGate({ status, exactSha: sha, failedWork, remainingWork, openRcas });
+  } catch (error) {
+    const exitBlockEvent = { at: now(), action: 'EXIT_LOCK_BLOCKED', sha, reason: String(error?.message ?? error), requiredState: 'CANONICAL_GREEN_ONLY', taskRemainsOpen: true, recovery: 'RECOVER_AND_CONTINUE' };
+    appendEvent(record, exitBlockEvent);
+    fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
+    const visibilityFile = visibilityPath(sessionId);
+    if (fs.existsSync(visibilityFile)) {
+      const visibility = JSON.parse(fs.readFileSync(visibilityFile, 'utf8'));
+      visibility.activity = Array.isArray(visibility.activity) ? [...visibility.activity, exitBlockEvent] : [exitBlockEvent];
+      visibility.lastEvent = exitBlockEvent;
+      visibility.status = 'RUNNING';
+      visibility.visibilityState = 'OPEN';
+      visibility.exitLock = { state: 'LOCKED', reason: exitBlockEvent.reason, exactSha: sha, updatedAt: now() };
+      visibility.updatedAt = now();
+      fs.writeFileSync(visibilityFile, JSON.stringify(visibility, null, 2) + '\n');
+    }
+    throw error;
+  }
   if (record.bootstrap && !record.continuationFrom) {
     // First session may bootstrap the chain, but its logout still establishes the handoff contract.
   }
