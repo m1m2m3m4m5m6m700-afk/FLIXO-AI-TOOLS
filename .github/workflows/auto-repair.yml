@@ -1476,7 +1476,7 @@ jobs:
           test -f /tmp/flixo-repair-evidence.json
           node /tmp/flixo-repair-controller/scripts/ci/repair-protocol.mjs commit-gate --evidence=/tmp/flixo-repair-evidence.json
 
-      - name: Prepare exact post-commit repair handoff
+      - name: Prepare exact pre-publication repair handoff
         if: steps.publish_candidate.outcome == 'success'
         run: |
           set -euo pipefail
