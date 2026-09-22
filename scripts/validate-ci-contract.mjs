@@ -106,14 +106,14 @@ if (!/EXPECTED_SHA/.test(currentCommitGuard) ||
   process.exit(1);
 }
 const requiredCurrentCommitGuardJobs = ['verify', 'browser_dependencies', 'browser_fast', 'browser_deep', 'certify'];
-const workflowLines = workflow.split('\\n');
+const workflowLines = workflow.split('\n');
 const workflowJobBlocks = new Map();
 let activeJobName = null;
 let activeJobLines = [];
 for (const line of workflowLines) {
-  const jobHeader = line.match(/^  ([A-Za-z0-9_-]+):\\s*$/u);
+  const jobHeader = line.match(/^  ([A-Za-z0-9_-]+):\s*$/u);
   if (jobHeader) {
-    if (activeJobName !== null) workflowJobBlocks.set(activeJobName, activeJobLines.join('\\n'));
+    if (activeJobName !== null) workflowJobBlocks.set(activeJobName, activeJobLines.join('\n'));
     activeJobName = jobHeader[1];
     activeJobLines = [line];
     continue;
