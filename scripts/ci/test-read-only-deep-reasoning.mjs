@@ -85,3 +85,5 @@ assert.equal(report.synthesis.noMutationAuthority, true);
 assert.equal(report.synthesis.requiresIndependentVerification, true);
 assert.equal(['CANDIDATE_ROOT_CAUSE','UNKNOWN_RCA','EXTERNAL_BLOCKED'].includes(report.synthesis.status), true);
 console.log(JSON.stringify({ status: 'PASS', checks: 11, selected: report.synthesis.selectedHypothesis }, null, 2));
+
+assert.equal(report.powerProfile,'5X');
