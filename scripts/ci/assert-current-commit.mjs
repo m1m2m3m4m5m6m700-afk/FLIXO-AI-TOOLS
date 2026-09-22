@@ -33,7 +33,8 @@ try {
         else resolve(String(stdout ?? '').trim());
       },
     );
-  });} catch (error) {
+  });
+} catch (error) {
   console.error('FAIL CLOSED: unable to resolve local checkout SHA.');
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
