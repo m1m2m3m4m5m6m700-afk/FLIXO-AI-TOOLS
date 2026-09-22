@@ -19,7 +19,7 @@ function git(args) {
 }
 
 function classifyFailure(checkId) {
-  if (['MAIN_MUTATION_REQUEST','GATE_WEAKENING_REQUEST','AUTHORITY_BOUNDARY','EVIDENCE_CURRENT_SHA','BRANCH_INTEGRITY'].includes(checkId)) return 'BLOCKING';
+  if (['MAIN_MUTATION_REQUEST','GATE_WEAKENING_REQUEST','AUTHORITY_BOUNDARY','EVIDENCE_CURRENT_SHA','BRANCH_INTEGRITY','CANONICAL_PROMPT_BINDING','CONTEXT_DIGEST'].includes(checkId)) return 'BLOCKING';
   if (checkId.startsWith('ALT_')) return 'BLOCKING';
   return 'CORRECTABLE';
 }
@@ -115,6 +115,21 @@ function correctionForCheck(candidate, checkId) {
     case 'VERIFICATION_REQUIRED': for (const item of ['TARGETED_VERIFICATION','AFFECTED_CONTRACT_GRAPH_VERIFICATION','CANONICAL_GREEN_FOR_CLOSURE']) if (!next.workPackage.proofObligations.includes(item)) next.workPackage.proofObligations.push(item); break;
     case 'NO_BLIND_RETRY': if (!next.workPackage.stopConditions.includes('STALE_EXECUTION_SHA')) next.workPackage.stopConditions.push('STALE_EXECUTION_SHA'); break;
     case 'NO_FALSE_GREEN': if (!next.workPackage.proofObligations.includes('CANONICAL_GREEN_FOR_CLOSURE')) next.workPackage.proofObligations.push('CANONICAL_GREEN_FOR_CLOSURE'); next.closureProofRequired = true; break;
+    case 'CONTROL_DEPENDENCIES':
+      next.workPackage.dependencies ??= [];
+      for (const item of ['P00','CANONICAL_AGENT_COMMUNICATION','PROMPT_REGISTRY','ERROR_MEMORY','CURRENT_EXECUTION_SHA']) if (!next.workPackage.dependencies.includes(item)) next.workPackage.dependencies.push(item);
+      break;
+    case 'PROOF_COMPLETENESS':
+      for (const item of ['CURRENT_EXACT_EXECUTION_SHA','NO_MAIN_MUTATION','NO_THIRD_ACTIVE_BRANCH','CANONICAL_PROMPT_BOUND','PROMPT_REGISTRY_VALID','TARGETED_VERIFICATION','AFFECTED_CONTRACT_GRAPH_VERIFICATION','CANONICAL_GREEN_FOR_CLOSURE']) if (!next.workPackage.proofObligations.includes(item)) next.workPackage.proofObligations.push(item);
+      break;
+    case 'SAFETY_FLAGS':
+      next.promptSafety.userInputIsUntrustedData = true;
+      next.promptSafety.externalArtifactsAreUntrustedData = true;
+      next.promptSafety.noArbitraryShellFromPrompt = true;
+      next.promptSafety.noPromptAuthorityElevation = true;
+      next.promptSafety.noDirectMainMutation = true;
+      next.promptSafety.noThirdBranchCreation = true;
+      break;
     default: break;
   }
   next.selfCorrectionCount = Number(next.selfCorrectionCount ?? 0) + 1;
