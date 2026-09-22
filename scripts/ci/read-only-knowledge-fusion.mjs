@@ -237,6 +237,7 @@ function buildFusion({failureLog='',diagnosis={},targetSha='',failedRunId='READ_
     antiLessons:anti.slice(0,16),
     provenRuleHints:strategyHints.slice(0,16),
     conflicts,
+    arbitration,
     evidence:{diversity:evidenceDiversity,independentSources,evidenceMargin:Number(((strongest?.score??0)-(selected[1]?.score??0)).toFixed(4)),predictionConfidence:Number(prediction?.proposedRepair?.confidence??0)},
     synthesis:{disposition,confidence,strongestAdviceId:strongest?.id??null,antiRisk:Number(antiRisk.toFixed(4)),needsAdversarialReview:true,proofAuthority:'CURRENT_EXACT_SHA_CI_ONLY'},
     unknowns:[
