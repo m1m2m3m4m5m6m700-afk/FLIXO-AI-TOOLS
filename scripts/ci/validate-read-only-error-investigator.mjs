@@ -14,6 +14,7 @@ const workflowSource=fs.readFileSync(workflow,'utf8');
 const deepReasoning=path.resolve(root,'scripts/ci/read-only-deep-reasoning.mjs');
 const deepTest=path.resolve(root,'scripts/ci/test-read-only-deep-reasoning.mjs');
 const deepContract=path.resolve(root,'scripts/ci/validate-read-only-deep-reasoning.mjs');
+const sharedMemory=path.resolve(root,'scripts/ci/shared-operational-memory.mjs');
 const repairIntelligence=path.resolve(root,'scripts/ci/read-only-repair-intelligence.mjs');
 const powerProfile=path.resolve(root,'scripts/ci/read-only-power-profile.mjs');
 
@@ -45,6 +46,7 @@ if(!workflowSource.includes('ref: execution')) failures.push('EXECUTION_REF_NOT_
 if(!testSource.includes('CAPIError') || !testSource.includes('CI contract failed')) failures.push('ROOT_CAUSE_FIXTURES_MISSING');
 if(!fs.existsSync(deepReasoning) || !fs.existsSync(deepTest) || !fs.existsSync(deepContract) || !fs.existsSync(repairIntelligence)) failures.push('DEEP_REASONING_SURFACE_MISSING');
 if(!source.includes('buildDeepInference')) failures.push('DEEP_REASONING_INTEGRATION_MARKER_MISSING');
+if(!fs.existsSync(sharedMemory) || !source.includes('buildSharedLearningContext')) failures.push('SHARED_SIX_BOT_MEMORY_NOT_BOUND');
 if(!fs.existsSync(powerProfile)) failures.push('FIVE_X_POWER_PROFILE_MISSING');
 if(!source.includes('READ_ONLY_POWER_PROFILE')) failures.push('FIVE_X_POWER_PROFILE_NOT_BOUND');
 if(!workflowSource.includes('--max-logs=175') || !workflowSource.includes('--limit=400')) failures.push('FIVE_X_COLLECTION_BUDGET_NOT_BOUND');
