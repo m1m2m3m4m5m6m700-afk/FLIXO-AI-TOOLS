@@ -96,20 +96,24 @@ A worker does not need to restart merely because `execution` advances while it i
 
 Taking Chair 1 from an active agent is a **authority transfer**, not a task cancellation.
 
-When a higher-priority master takes Chair 1 while the current holder has an active task:
+When any authorized agent explicitly takes Chair 1 while the current holder has an active task:
 
 1. The previous holder's Chair-1 mutation authority is revoked immediately.
 2. The task remains `CONTINUING_AFTER_PREEMPTION`.
-3. The displaced agent remains active and may continue analysis, verification, evidence collection and task completion work.
-4. The displaced agent may **not mutate source or publish** after preemption because its Chair lease is revoked.
-5. The displaced agent must deliver all remaining work, evidence, blockers and next actions to `CHAIR_1_GUARD`.
-6. The new Chair-1 holder becomes the sole mutation/publication authority.
+3. The displaced agent remains active and MUST continue its task rather than stopping.
+4. The displaced agent continues in its isolated workspace / handoff-only mode and may continue analysis, implementation preparation, verification, evidence collection and task completion.
+5. The displaced agent may **not use the old Chair lease to mutate canonical state, merge, or publish** after preemption.
+6. The displaced agent must package all completed work, remaining work, evidence, blockers and next actions and submit them through `CHAIR_1_GUARD`.
+7. The new Chair-1 holder becomes the sole mutation/publication authority.
 7. The task is not reassigned silently; the continuity record remains bound to the original `taskId` and `targetSha`.
-8. The next holder/guard revalidates the inherited state before applying any mutation.
+8. Chair 1 receives the full preserved submission and may question the originating agent directly before deciding what to edit, integrate, merge or publish.
+9. The next holder revalidates the inherited state before applying any mutation.
 
 Therefore:
 
 `PREEMPT CHAIR != STOP TASK`
+
+Any explicit chair takeover is a transfer of authority only; it is not a reassignment or deletion of the displaced task.
 
 The allowed transition is:
 
