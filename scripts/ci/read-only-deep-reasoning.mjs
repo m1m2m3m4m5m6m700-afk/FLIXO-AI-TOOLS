@@ -312,6 +312,39 @@ export function buildDeepInference({
     ? clamp((top.score * 0.50) + (diversity.diversity * 0.20) + (Math.min(1, independentSources / 4) * 0.15) + (separation * 0.15))
     : 0;
 
+  const powerPasses = [
+    {
+      id:'P1_RUNTIME_EVIDENCE_FANOUT',
+      purpose:'Recompute current-vs-stale runtime evidence across the enlarged observation window.',
+      inputs:{observedRuns:safeObserved.length,currentShaMatches:safeObserved.filter(item=>item.headSha===executionSha).length,staleMatches:safeObserved.filter(item=>item.headSha!==executionSha).length},
+      result:safeObserved.filter(item=>item.headSha===executionSha).length>0?'CURRENT_SHA_EVIDENCE_PRESENT':'CURRENT_SHA_EVIDENCE_MISSING'
+    },
+    {
+      id:'P2_SOURCE_CAUSAL_SURFACE',
+      purpose:'Cross-check workflow, run, SHA and dependency edges before causal acceptance.',
+      inputs:{graphNodes:graphNodes.size,graphEdges:graphEdges.length,timelineEvents:timeline.length},
+      result:graphEdges.length>0?'CAUSAL_GRAPH_AVAILABLE':'CAUSAL_GRAPH_LIMITED'
+    },
+    {
+      id:'P3_HISTORICAL_DEPTH',
+      purpose:'Compare the surviving hypothesis against historical lessons and known root-cause classes.',
+      inputs:{memoryLessons:(historicalSignals.memoryLessons??[]).length,knownRootCauses:(historicalSignals.knownRootCauses??[]).length,recurringPatterns:recurringPatterns.length},
+      result:(historicalSignals.memoryLessons??[]).length>0?'HISTORICAL_CONTEXT_AVAILABLE':'HISTORICAL_CONTEXT_LIMITED'
+    },
+    {
+      id:'P4_ADVERSARIAL_FALSIFICATION',
+      purpose:'Challenge the leading hypothesis and preserve disconfirming evidence.',
+      inputs:{hypotheses:classes.length,falsificationChecks:falsification.length,counterfactuals:counterfactuals.length},
+      result:falsification.some(item=>item.status==='FALSIFIED_OR_UNSUPPORTED')?'ALTERNATIVE_REJECTION_SIGNAL_FOUND':'NO_HYPOTHESIS_DISPROVEN'
+    },
+    {
+      id:'P5_KNOWLEDGE_SYNTHESIS',
+      purpose:'Fuse independent evidence sources without granting mutation authority.',
+      inputs:{independentEvidenceSources:independentSources,evidenceDiversity:diversity.diversity,separation},
+      result:evidenceConfidence>=0.65?'EVIDENCE_MARGIN_AVAILABLE':'EVIDENCE_MARGIN_LIMITED'
+    }
+  ];
+
   let causalStatus = 'UNKNOWN_RCA';
   if (top && top.className === 'BLOCKED_EXTERNAL') causalStatus = 'EXTERNAL_BLOCKED';
   else if (top && top.className === 'DOWNSTREAM_FAILURE') causalStatus = 'DOWNSTREAM';
@@ -335,6 +368,7 @@ export function buildDeepInference({
     hypotheses: classes,
     falsification,
     counterfactuals,
+    powerPasses,
     synthesis: {
       selectedHypothesis: top?.id ?? null,
       selectedClass: top?.className ?? null,
