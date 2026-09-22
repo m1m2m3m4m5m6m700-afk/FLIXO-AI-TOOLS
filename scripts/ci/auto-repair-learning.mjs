@@ -933,7 +933,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   });
   entry.outcomes = entry.outcomes.slice(-MEMORY_RETENTION.maxCaseOutcomes);
   if (!memory.cases.includes(entry)) memory.cases.push(entry);
-  const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome) || (outcome === 'proposed' && verification === 'verified-repair');
+  const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
   const priorActionRecord = memory.actionHistory.find((item) => item.fingerprint === fingerprint) ?? null;
   const actionRecord = priorActionRecord ?? {
     normalizedFailure: normalizedFailure,
