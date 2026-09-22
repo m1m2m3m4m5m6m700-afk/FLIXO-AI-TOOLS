@@ -6,11 +6,7 @@ run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id }}
 # main      = sole production/source-of-truth branch
 # No workflow in this file may create another branch.
 on:
-  # Main currently retains the historical push trigger for this workflow.
-  # Keep the execution copy trigger-compatible so a push cannot produce an invalid/no-job run.
-  # This compatibility job does not grant mutation or self-dispatch authority.
-  push:
-    branches: [execution]
+  # Canonical dispatcher is Daily·FLIXO Green Gate; Auto Repair never self-dispatches.
   workflow_dispatch:
     inputs:
       repair:
