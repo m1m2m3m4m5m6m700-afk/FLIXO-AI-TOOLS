@@ -110,7 +110,6 @@ jobs:
             else
               resolution=NO_CERTIFIED_CI_RUN_FOR_SHA
             fi
-          fi
 
           if [ -n "$run_id" ]; then
             echo "Certified CI run: $run_id ($resolution)"
