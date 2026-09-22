@@ -11,6 +11,8 @@
     "repository_state":{"type":"string","enum":["IDLE","ACTIVE","STALE","LOCKED"]},
     "idle_timestamp":{"type":["string","null"]},
     "target_sha":{"type":"string","pattern":"^[a-f0-9]{40}$"},
+    "last_revoke":{"type":["object","null"]},
+    "last_dead_lease":{"type":["object","null"]},
     "chairs":{
       "type":"object",
       "additionalProperties":false,
