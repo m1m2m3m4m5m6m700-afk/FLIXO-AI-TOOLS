@@ -51,7 +51,8 @@ function assertVariant(variant: ToolOutputVariant, result: ToolOutputResult): vo
   if (variant.maxOutputBytes !== undefined && result.byteLength > variant.maxOutputBytes) throw new Error(`Output above maximum size for ${variant.kind}`);
   if (variant.downloadRequired && !safeFilename(result.filename)) throw new Error(`Safe downloadable filename required for ${variant.kind}`);
   if (result.filename && variant.allowedExtensions.length && !variant.allowedExtensions.includes(extensionOf(result.filename))) throw new Error(`Unexpected extension for ${variant.kind}: ${extensionOf(result.filename)}`);
-  if (variant.signatures?.length) {
+  if (variant.validateSignature) {
+    if (!variant.signatures?.length) throw new Error(`Signature validation is enabled without declared signatures for ${variant.kind}`);
     if (!result.bytes || !variant.signatures.some((signature) => signatureMatches(result.bytes!, signature))) throw new Error(`Invalid signature for ${variant.kind}`);
   }
   if (variant.validateDimensions && result.dimensions) {
