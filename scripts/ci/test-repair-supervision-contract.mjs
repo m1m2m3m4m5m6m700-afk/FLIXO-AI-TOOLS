@@ -83,6 +83,8 @@ assert.match(dailyGate, /AGENT 2 WAKE/);
 assert.match(dailyGate, /ROOT-CAUSE-SPINE-001/);
 assert.match(dailyGate, /FLIXO_AGENT_2_WAKE:/);
 assert.match(dailyGate, /TARGETED REGRESSION/);
+assert.match(dailyGate, /name: Ensure exact-SHA required CI is resident[\s\S]*github\.event_name == 'push'[\s\S]*github\.event_name == 'schedule'[\s\S]*github\.event_name == 'workflow_dispatch'/);
+assert.doesNotMatch(dailyGate, /REQUIRED_CI_REDISPATCH/);
 assert.match(dailyGate, /Do NOT rerun the full suite merely because a new commit exists/);
 assert.match(dailyGate, /lesson\/anti-lesson/);
 assert.doesNotMatch(dailyGate, /gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/);

@@ -205,6 +205,18 @@ if (!/cancel-in-progress:\s*false/.test(greenGateWorkflow) ||
   console.error('CI contract failed: daily green gate must preserve each observation run for evidence integrity.');
   process.exit(1);
 }
+const residentCiBlock =
+  greenGateWorkflow.match(/name: Ensure exact-SHA required CI is resident[\s\S]*?(?=\n\s{6}- name:|$)/)?.[0] ?? '';
+const settlementBlock =
+  greenGateWorkflow.match(/name: Await required internal CI settlement on exact SHA[\s\S]*?(?=\n\s{6}- name:|$)/)?.[0] ?? '';
+if (!/if: >-\s*\n\s*steps\.capture\.outputs\.branch == 'execution'[\s\S]*github\.event_name == 'push'[\s\S]*github\.event_name == 'schedule'[\s\S]*github\.event_name == 'workflow_dispatch'/.test(residentCiBlock)) {
+  console.error('CI contract failed: required-CI residency dispatch must be limited to push/schedule/manual wake; workflow_run is observation-only.');
+  process.exit(1);
+}
+if (/REQUIRED_CI_REDISPATCH/.test(greenGateWorkflow) || /gh workflow run/.test(settlementBlock)) {
+  console.error('CI contract failed: green-gate settlement must not redispatch required CI and create same-SHA workflow storms.');
+  process.exit(1);
+}
 
 const evidenceClassPresent = workflow.includes('evidenceClass') && workflow.includes('PRIMARY_EXECUTION');
 
