@@ -60,7 +60,7 @@ export const rootRoute = createRootRoute({
       { property: 'og:site_name', content: 'FLIXO AI' },
       { property: 'og:type', content: 'website' },
       { property: 'og:title', content: 'FLIXO AI — Fast browser-first tools' },
-      { property: 'og:description', content: 'Fast browser-first tools for images, PDFs, audio, video, text, and everyday productivity.' },
+      { property: 'og:description', content: 'Fast browser-first image tools for editing, conversion, compression, cleanup, OCR, and AI-assisted image workflows.' },
       { property: 'og:url', content: SITE_ORIGIN },
       { property: 'og:image', content: `${SITE_ORIGIN}/flixo-logo.webp` },
       { name: 'twitter:card', content: 'summary_large_image' },
