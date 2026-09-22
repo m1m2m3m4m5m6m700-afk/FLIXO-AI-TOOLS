@@ -13,6 +13,7 @@ const RUN_ID = String(process.env.TARGET_RUN_ID ?? '').trim();
 const BASE_ATTEMPT = Math.max(1, Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1) || 1);
 const MAX_ROUNDS = Math.max(0, Number(process.env.FLIXO_ADVERSARIAL_MAX_ROUNDS ?? 0) || 0);
 const ENGINE = process.env.FLIXO_REPAIR_ENGINE_PATH ?? '/tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs';
+const STRATEGY_ENGINE = process.env.FLIXO_REPAIR_STRATEGY_ENGINE_PATH ?? '/tmp/flixo-repair-controller/scripts/ci/repair-strategy.mjs';
 const FILE_SELECTION = process.env.FLIXO_FILE_SELECTION_PATH ?? '/tmp/action-file-selection-decision.json';
 const DIAGNOSIS = process.env.FLIXO_REPAIR_DIAGNOSIS_PATH ?? '/tmp/flixo-root-cause.json';
 const TWIN_SCRIPT = path.join(ROOT, 'scripts/ci/action-repair-programmer-twin.mjs');
@@ -163,6 +164,7 @@ function main() {
   ensureIdentity(baseSha);
 
   if (!fs.existsSync(ENGINE)) throw new Error('ADVERSARIAL_CONVERGENCE_REPAIR_ENGINE_MISSING');
+  if (!fs.existsSync(STRATEGY_ENGINE)) throw new Error('ADVERSARIAL_CONVERGENCE_REPAIR_STRATEGY_MISSING');
   if (!fs.existsSync(TWIN_SCRIPT)) throw new Error('ADVERSARIAL_CONVERGENCE_PROGRAMMER_TWIN_MISSING');
   if (!fs.existsSync(FILE_SELECTION)) throw new Error('ADVERSARIAL_CONVERGENCE_FILE_SELECTION_MISSING');
   if (!fs.existsSync(DIAGNOSIS)) throw new Error('ADVERSARIAL_CONVERGENCE_DIAGNOSIS_MISSING');
@@ -221,7 +223,25 @@ function main() {
       FLIXO_SELECTION_PATH: round > 1 && fs.existsSync(selectionPath) ? selectionPath : '',
     };
 
-    const engineExit = executeNode(ENGINE, [], nextEnv);
+    const strategyExit = executeNode(STRATEGY_ENGINE, [], {
+      ...nextEnv,
+      FLIXO_REPAIR_STRATEGY_PATH: '/tmp/flixo-repair-strategy.json',
+    });
+    if (strategyExit !== 0 || !fs.existsSync('/tmp/flixo-repair-strategy.json')) {
+      state.rounds.push({ round, strategyExit, decision: 'REPAIR_ENGINE_BLOCKED', reason: 'REPAIR_STRATEGY_REFRESH_FAILED', at: now() });
+      state.status = 'BLOCKED';
+      state.decision = 'REPAIR_ENGINE_BLOCKED';
+      state.updatedAt = now();
+      writeJson(STATE_PATH, state);
+      process.exitCode = 1;
+      return;
+    }
+    const strategy = readJson('/tmp/flixo-repair-strategy.json');
+    const selectedStrategy = String(strategy?.strategyId ?? '').trim();
+    const engineExit = executeNode(ENGINE, [], {
+      ...nextEnv,
+      FLIXO_REPAIR_STRATEGY: selectedStrategy ? `${selectedStrategy}::${strategy.strategy ?? ''}` : '',
+    });
     const evidencePath = '/tmp/flixo-repair-evidence.json';
     if (!fs.existsSync(evidencePath)) {
       state.rounds.push({ round, engineExit, decision: 'REPAIR_ENGINE_BLOCKED', reason: 'EVIDENCE_MISSING', at: now() });
@@ -297,6 +317,8 @@ function main() {
     const roundRecord = {
       round,
       attempt: BASE_ATTEMPT + round - 1,
+      strategyExit,
+      selectedStrategy,
       engineExit,
       engineOutcome: evidence.outcome,
       targetSha: baseSha,
