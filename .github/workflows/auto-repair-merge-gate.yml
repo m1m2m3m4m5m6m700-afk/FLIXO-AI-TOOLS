@@ -113,7 +113,22 @@ jobs:
 
       - name: Install exact-SHA verification dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Classify Auto-Repair context
+        id: repair_context
+        shell: bash
+        run: |
+          set -euo pipefail
+          message="$(git log -1 --format=%B)"
+          if printf '%s' "$message" | grep -Eq 'FLIXO-REPAIR-MARKER-v1|FLIXO-REPAIR-ROLLBACK-v1'; then
+            echo 'auto_repair=true' >> "$GITHUB_OUTPUT"
+            echo 'AUTO_REPAIR_CONTEXT=TRUE'
+          else
+            echo 'auto_repair=false' >> "$GITHUB_OUTPUT"
+            echo 'AUTO_REPAIR_CONTEXT=FALSE'
+          fi
+
       - name: Run independent post-patch adversarial falsification on the exact PR head
+        if: steps.repair_context.outputs.auto_repair == 'true'
         env:
           FLIXO_TWIN_READ_ONLY: 'true'
           FLIXO_TWIN_DETACHED: 'false'
@@ -140,6 +155,13 @@ jobs:
           test "$(jq -r '.passConfirmed' /tmp/flixo-postpatch-adversarial.json)" = true
           test "$(jq -r '.mutantCasesSurvived' /tmp/flixo-postpatch-adversarial.json)" = 0
           echo 'POST_PATCH_ADVERSARIAL_STATUS=NO_COUNTEREXAMPLE'
+      - name: Record non-Auto-Repair promotion path
+        if: steps.repair_context.outputs.auto_repair == 'false'
+        run: |
+          set -euo pipefail
+          echo 'AUTO_REPAIR_ADVERSARIAL=NOT_APPLICABLE_FOR_NON_AUTO_REPAIR_COMMIT'
+          echo 'CANONICAL_CI_REMAINS_REQUIRED=true'
+
       - name: Require canonical workflow GREEN on exact SHA
         env:
           GH_TOKEN: ${{ github.token }}
