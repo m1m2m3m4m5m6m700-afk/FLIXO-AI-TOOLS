@@ -947,17 +947,30 @@ jobs:
           echo 'IN_REPO_REPAIR_V2_RCA_MANIFEST=PROVEN'
           echo 'FLIXO_RCA_MANIFEST_PATH=/tmp/flixo-rca-manifest.json' >> "$GITHUB_ENV"
 
-      - name: Execute bounded root-cause repair under selected repair authority
+      - name: Execute adversarial repair convergence until both sides stabilize
         id: execute_repair
         if: always() && steps.strategy.outcome == 'success' && steps.install_target.outcome == 'success'
         env:
           FLIXO_TARGET_DIR: ${{ github.workspace }}
           FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
           FLIXO_AUTO_REPAIR_CONTEXT: 'true'
+          FLIXO_REPAIR_ACTOR: actionRepairBot
+          FLIXO_REPAIR_ENGINE_PATH: /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs
+          FLIXO_ADVERSARIAL_CONVERGENCE_STATE_PATH: /tmp/flixo-adversarial-convergence/convergence.json
+          FLIXO_ADVERSARIAL_MAX_ROUNDS: '0'
         run: |
           set -euo pipefail
           export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
-          node /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs
+          node scripts/ci/auto-repair/adversarial-convergence.mjs
+
+      - name: Publish adversarial convergence evidence
+        if: always()
+        uses: actions/upload-artifact@043fbf1d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-adversarial-convergence-${{ github.run_id }}
+          path: /tmp/flixo-adversarial-convergence
+          if-no-files-found: warn
+          retention-days: 30
       - name: Build Phase 1 AI impact and CI orchestration plan
         id: ai_phase1
         if: always() && steps.strategy.outcome == 'success'
