@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { getMessage as getAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
 import { assertAgentAdmission, assertProtocolDefinition } from './repair-protocol.mjs';
 import { buildKnowledgeRecord, persistKnowledge } from './cell-learning.mjs';
-import { initialize as initializeChairState, acquire as acquireChair, release as releaseChair, revoke as revokeChair, heartbeat as heartbeatChair, reconcileDeadLeases, writeSpeculativeContext } from './chair-bound-execution.mjs';
+import { initialize as initializeChairState, acquire as acquireChair, release as releaseChair, revoke as revokeChair, heartbeat as heartbeatChair, reconcileDeadLeases, writeSpeculativeContext, activeChairForAgent } from './chair-bound-execution.mjs';
 
 const ROOT = process.cwd();
 const COORD_DIR = path.resolve(ROOT, process.env.FLIXO_COORDINATION_DIR ?? 'diagnostics/agents');
@@ -376,10 +376,16 @@ if (command === 'task-claim') {
   reconcileDeadLeases({targetSha:sha()});
   let lockId = lock(sessionId, agentId, task.rca, task.scope);
   let chairLease = null;
-  const selectedChair = optional('chair', 'chair_1');
+  const selectedChair = optional('chair', activeChairForAgent({agentId,targetSha:sha()})?.chairId ?? 'chair_1');
   assertChairRole(selectedChair, visibility.role);
   try {
-    chairLease = acquireChair({ agentId, chairId: selectedChair, reviewId: optional('review-id') || null, scope: task.scope ?? null });
+    const existingChair = activeChairForAgent({agentId,targetSha:sha()});
+    if (existingChair) {
+      if (existingChair.chairId !== selectedChair) throw new Error('CHAIR_SESSION_ALREADY_BOUND_TO_OTHER_CHAIR');
+      chairLease = { chairs: { [existingChair.chairId]: { lease_id: existingChair.leaseId, status: 'OCCUPIED' } }, repository_state: 'ACTIVE', reused: true };
+    } else {
+      chairLease = acquireChair({ agentId, chairId: selectedChair, reviewId: optional('review-id') || null, scope: task.scope ?? null });
+    }
     if (inboundMessage) inboundMessage = consumeAgentMessage(inboundMessage.messageId, agentId, sha(), true);
   } catch (error) {
     try { if (chairLease) releaseChair({ chairId: selectedChair, agentId, reason: 'CLAIM_ROLLBACK', sessionId, taskId }); } catch { /* rollback cleanup is best-effort */ }
@@ -394,7 +400,7 @@ if (command === 'task-claim') {
 if (command === 'task-release') {
   const taskId = requireArg('task'); const sessionId = requireArg('session'); const task = state.tasks[taskId]; if (!task) throw new Error(`Unknown task: ${taskId}`); if (task.sessionId !== sessionId) throw new Error('TASK_OWNER_MISMATCH');
   const visibility = readVisibility(sessionId); if (visibility.taskId !== taskId) throw new Error('AGENT_VISIBILITY_TASK_MISMATCH'); if (!['VERIFIED','BLOCKED'].includes(visibility.finalStatus)) throw new Error('TASK_RELEASE_REQUIRES_CLOSED_AGENT_STATUS');
-  task.status = optional('status', 'READY').toUpperCase(); task.releasedAt = now(); task.remainingWork = list('remaining-work'); task.openRcas = list('open-rcas'); releaseChair({ chairId: task.chairId, agentId: task.claimedBy, reason: 'TASK_RELEASE', successful: visibility.finalStatus === 'VERIFIED', sessionId, taskId }); const cellLearning = visibility.finalStatus === 'BLOCKED' ? recordCellTaskKnowledge(task, { outcome: 'blocked', verification: 'task-blocked', sessionId }) : null; unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ task, cellLearning }, null, 2));
+  task.status = optional('status', 'READY').toUpperCase(); task.releasedAt = now(); task.remainingWork = list('remaining-work'); task.openRcas = list('open-rcas'); const activeReleaseChair = activeChairForAgent({agentId: task.claimedBy,targetSha:sha()}); if (activeReleaseChair) releaseChair({ chairId: activeReleaseChair.chairId, agentId: task.claimedBy, reason: 'TASK_RELEASE', successful: visibility.finalStatus === 'VERIFIED', sessionId, taskId }); const cellLearning = visibility.finalStatus === 'BLOCKED' ? recordCellTaskKnowledge(task, { outcome: 'blocked', verification: 'task-blocked', sessionId }) : null; unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ task, cellLearning }, null, 2));
 }
 
 if (command === 'task-complete') {
@@ -442,7 +448,7 @@ if (command === 'task-complete') {
     task.nextTask = null;
     state.nextDispatch = null;
   }
-  releaseChair({ chairId: task.chairId, agentId: task.claimedBy, reason: 'TASK_COMPLETE', successful: true, sessionId, taskId }); unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ completedTask: task, cellLearning, nextTask: task.nextTask, councilDispatch: state.nextDispatch }, null, 2));
+  const activeCompleteChair = activeChairForAgent({agentId: task.claimedBy,targetSha:sha()}); if (activeCompleteChair) releaseChair({ chairId: activeCompleteChair.chairId, agentId: task.claimedBy, reason: 'TASK_COMPLETE', successful: true, sessionId, taskId }); unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ completedTask: task, cellLearning, nextTask: task.nextTask, councilDispatch: state.nextDispatch }, null, 2));
 }
 
 
