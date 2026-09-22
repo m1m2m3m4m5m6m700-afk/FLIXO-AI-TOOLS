@@ -292,7 +292,7 @@ export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permiss
   }
   if(chairId==='chair_2'&&permission==='SOURCE_MUTATION'&&occupied(state).some(([id])=>id==='chair_1'))throw new Error('CHAIR2_WRITE_BLOCKED_WHILE_CHAIR1_ACTIVE');
   if(chairId==='chair_2'&&permission==='SOURCE_MUTATION'){
-    const scope=new Set((boundedScope??[]).map(p=>String(p).replace(/^\\.\\//,'').replace(/\\\\/g,'/')));
+    const scope=new Set((boundedScope??[]).map((p)=>{ const value=String(p).replaceAll('\\\\','/'); return value.startsWith('./') ? value.slice(2) : value; }));
     if(normalized.some(p=>!scope.has(p)))throw new Error('CHAIR2_SCOPE_DRIFT');
   }
   return Object.freeze({authorized:true,chairId,agentId,targetSha:t,permission,paths:normalized,mode:def.mode,singleAgentMode:chairId==='chair_1'&&occupied(state).length===1});
