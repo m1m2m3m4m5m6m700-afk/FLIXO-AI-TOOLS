@@ -109,6 +109,7 @@
         "persistence-failure",
         "new-branch",
         "liveness-drift",
+        "active-repair-window-drift",
         "heartbeat-ownership-drift",
         "orchestration-preflight",
         "registry-symmetry",
@@ -131,6 +132,7 @@
         "ui-only-persistence",
         "locale-asymmetry",
         "liveness-contract-drift",
+        "active-45-minute-residency-drift",
         "heartbeat-owner-drift",
         "orchestration-causal-source",
         "registry-symmetry-drift",
@@ -188,6 +190,7 @@
       },
       "repairStrategy": [
         "current-SHA binding",
+        "active 45-minute repair residency",
         "scope lock",
         "evidence capture",
         "fingerprint",
@@ -316,6 +319,15 @@
     "firstObligation": true,
     "exitLock": "scripts/ci/agent-exit-lock.mjs",
     "cellLabRequired": true,
+    "activeRepairWindow": {
+      "minimumMinutes": 45,
+      "continuous": true,
+      "noSleep": true,
+      "noIdle": true,
+      "noBlockedLogout": true,
+      "heartbeatRequired": true,
+      "zeroErrorTarget": true
+    },
     "consensusPath": "diagnostics/agents/cell-lab/consensus/<taskId>.json"
   }
 }
