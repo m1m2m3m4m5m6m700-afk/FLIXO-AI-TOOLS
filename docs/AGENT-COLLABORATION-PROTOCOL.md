@@ -900,3 +900,5 @@ No agent may privately decide a material source mutation when the Cell-Lab gate 
 Machine enforcement:
 `scripts/ci/cell-lab-consensus.mjs → scripts/ci/repair-protocol.mjs → mutation admission`.
 
+
+سقف القطاع النشط المتصل 3 ساعات؛ بعده تجديد إجباري بلا نوم أو خمول، مع استمرار المهمة بلا حد زمني إجمالي حتى GREEN. `MASTER_CELL_LAB` يحمل تحديثات الماسترز كل 5 دقائق وتذكير المهام كل 10 دقائق، مع current exact SHA وRCA وremainingWork وnextAction.
