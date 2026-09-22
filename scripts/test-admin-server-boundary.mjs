@@ -1,10 +1,17 @@
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { signAdminSession, sessionCookieName } from '../api/admin/boundary.ts';
+import { getClientIp } from '../src/lib/server/security/request.ts';
 
 const SECRET = 'phase1-admin-test-secret'.padEnd(32, '0');
 process.env.SUPABASE_URL = 'https://example.supabase.co';
 process.env.SUPABASE_SECRET_KEY = 'test-secret';
+delete process.env.FLIXO_TRUST_PROXY_HEADERS;
+delete process.env.VERCEL;
+assert.equal(getClientIp(new Request('https://example.test', { headers: { 'x-forwarded-for': '203.0.113.9', 'x-real-ip': '198.51.100.7' } })), null);
+process.env.FLIXO_TRUST_PROXY_HEADERS = 'true';
+assert.equal(getClientIp(new Request('https://example.test', { headers: { 'x-forwarded-for': '203.0.113.9, 198.51.100.7' } })), '203.0.113.9');
+delete process.env.FLIXO_TRUST_PROXY_HEADERS;
 const sessions = new Map();
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (input, init = {}) => {
@@ -20,14 +27,15 @@ globalThis.fetch = async (input, init = {}) => {
   throw new Error('unexpected test boundary session-store mutation');
 };
 const issuedTokens = new Map();
-const issue = ({ subject, capabilities, role, ttlSeconds } = {}) => {
+const issue = ({ subject, capabilities, role = 'ADMIN', ttlSeconds } = {}) => {
   const sessionId = randomUUID();
   const now = new Date();
   const token = signAdminSession({ subject, capabilities, role, sessionId, ttlSeconds }, SECRET);
   sessions.set(sessionId, {
     session_id: sessionId,
+    token_hash: createHash('sha256').update(token).digest('hex'),
     actor_subject: subject,
-    actor_role: role ?? 'ADMIN',
+    actor_role: role,
     environment: 'test',
     issued_at: now.toISOString(),
     expires_at: new Date(now.getTime() + (ttlSeconds ?? 60 * 60) * 1000).toISOString(),
@@ -157,10 +165,15 @@ const unauthenticated = await invoke();
 assert.equal(unauthenticated.status, 401);
 assert.equal(unauthenticated.body.error.code, 'authentication_required');
 
-const inactiveCapability = issue({ subject: 'bad-capability', capabilities: ['admin.read', 'production.write'], role: 'OWNER' });
-const inactiveCapabilityResponse = await invoke({ cookie: sessionCookieName + '=' + inactiveCapability });
-assert.equal(inactiveCapabilityResponse.status, 401);
-assert.equal(inactiveCapabilityResponse.body.error.code, 'authentication_required');
+assert.throws(
+  () => signAdminSession({
+    subject: 'bad-capability',
+    capabilities: ['admin.read', 'production.write'],
+    role: 'OWNER',
+    sessionId: randomUUID(),
+  }, SECRET),
+  /session capabilities do not match role/,
+);
 
 const invalid = await invoke({ cookie: `${sessionCookieName}=invalid.token` });
 assert.equal(invalid.status, 401);
@@ -172,6 +185,13 @@ const tampered = `${sessionPayload}.${tamperedSignature}`;
 const tamperedResponse = await invoke({ cookie: `${sessionCookieName}=${tampered}` });
 assert.equal(tamperedResponse.status, 401);
 assert.equal(tamperedResponse.body.error.code, 'authentication_required');
+
+const durableRecord = sessions.get(issuedTokens.get(session));
+durableRecord.token_hash = '0'.repeat(64);
+const durableMismatch = await invoke({ cookie });
+assert.equal(durableMismatch.status, 401);
+assert.equal(durableMismatch.body.error.code, 'authentication_required');
+durableRecord.token_hash = createHash('sha256').update(session).digest('hex');
 
 const expired = issue({ subject: 'expired-owner', capabilities: ['admin.read'], ttlSeconds: -1 }, SECRET);
 const expiredResponse = await invoke({ cookie: `${sessionCookieName}=${expired}` });
