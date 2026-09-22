@@ -473,7 +473,7 @@ if (command === 'meeting-exit-approve') {
   if (inboundMessage && inboundMessage.status !== 'READ' && inboundMessage.status !== 'CONSUMED') {
     throw new Error('AGENT_MESSAGE_NOT_EXECUTION_READY=' + inboundMessage.status);
   }
-  const workspaceOnly = !['assistantController','MASTER-1','MASTER-2','MASTER-3'].includes(role);
+  const workspaceOnly = !['assistantController','MASTER-1','MASTER-2','MASTER-3','executionAgent','repairAgent','assistantRepairAgent'].includes(role);
   const workspaceIsolation = workspaceOnly ? createAgentWorkspace({
     repoRoot: ROOT,
     agentId,
