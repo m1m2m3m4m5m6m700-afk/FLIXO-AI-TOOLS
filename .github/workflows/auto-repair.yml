@@ -121,7 +121,50 @@ env:
   FLIXO_STRICT_CHAIR: 'true'
 
 jobs:
+  provenance-guard:
+    name: Repair dispatch provenance guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      INPUT_RESIDENT: ${{ inputs.resident || 'false' }}
+      INPUT_TARGET_RUN_ID: ${{ inputs.target_run_id || '' }}
+      INPUT_FAILURE_FINGERPRINT: ${{ inputs.failure_fingerprint || '' }}
+      INPUT_CHAIN_ID: ${{ inputs.chain_id || '' }}
+      INPUT_CHAIR_LEASE_ID: ${{ inputs.central_chair_lease_id || '' }}
+      INPUT_CHAIR_FENCING_HASH: ${{ inputs.central_chair_fencing_hash || '' }}
+    steps:
+      - name: Enforce canonical dispatch provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = "workflow_dispatch" || {
+            echo "FAIL CLOSED: Repair Bot execution requires workflow_dispatch; observed=$GITHUB_EVENT_NAME"
+            echo 'REPAIR_PROVENANCE=INVALID_EVENT'
+            exit 1
+          }
+          test "$GITHUB_REF" = "refs/heads/main" || {
+            echo "FAIL CLOSED: Repair Bot dispatcher ref must be main; observed=$GITHUB_REF"
+            exit 1
+          }
+          EXPECTED_WORKFLOW_REF="$GITHUB_REPOSITORY/.github/workflows/auto-repair.yml@refs/heads/main"
+          test "$GITHUB_WORKFLOW_REF" = "$EXPECTED_WORKFLOW_REF" || {
+            echo "FAIL CLOSED: workflow definition provenance mismatch."
+            echo "expected=$EXPECTED_WORKFLOW_REF"
+            echo "observed=$GITHUB_WORKFLOW_REF"
+            exit 1
+          }
+          test -n "$INPUT_CHAIR_LEASE_ID"
+          test -n "$INPUT_CHAIR_FENCING_HASH"
+          if [ "$INPUT_RESIDENT" != "true" ]; then
+            case "$INPUT_TARGET_RUN_ID" in ''|*[!0-9]*) echo 'FAIL CLOSED: target_run_id required for repair mode.'; exit 1 ;; esac
+            case "$INPUT_FAILURE_FINGERPRINT" in ''|*[!a-fA-F0-9]*) echo 'FAIL CLOSED: failure fingerprint required for repair mode.'; exit 1 ;; esac
+            test -n "$INPUT_CHAIN_ID" || { echo 'FAIL CLOSED: repair chain identity missing.'; exit 1; }
+          fi
+          echo 'REPAIR_PROVENANCE=VERIFIED'
+          echo "REPAIR_PROVENANCE_WORKFLOW_REF=$GITHUB_WORKFLOW_REF"
+
   resident:
+    needs: [provenance-guard]
     name: Resident Repair Bot monitor — never idle during an open repair session
     if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.resident == 'true'
     runs-on: ubuntu-latest
@@ -175,6 +218,7 @@ jobs:
           exit 0
 
   repair:
+    needs: [provenance-guard]
     name: Single-lane diagnose, execute, verify and learn on execution
     concurrency:
       group: flixo-execution-mutation-lane
