@@ -148,7 +148,7 @@ function buildCounterexampleChecks({ strategy, rootProof, deep, targetSha }) {
     { id: 'LOCATION_TO_CAUSE_LINK', pass: rootProof?.proofClaims?.LOCATION_LINKED_TO_CAUSE === true },
     { id: 'MECHANISM_EXPLAINED', pass: rootProof?.proofClaims?.MECHANISM_EXPLAINED === true },
     { id: 'ALTERNATIVES_CHALLENGED', pass: rootProof?.proofClaims?.ALTERNATIVES_CHALLENGED === true },
-    { id: 'DEEP_FALSIFICATION_PRESENT', pass: Array.isArray(deep?.falsification) && deep.falsification.length >= 3 },
+    { id: 'DEEP_FALSIFICATION_PRESENT', pass: Array.isArray(deep?.falsification) && deep.falsification.length >= 10 },
     { id: 'TWIN_DISPOSITION_EXPLICIT', pass: Boolean(strategy?.twin?.disposition) },
     { id: 'NO_STALE_EVIDENCE', pass: !deep?.knownContext?.staleEvidence?.length },
     { id: 'STRATEGY_TARGET_BOUND', pass: strategy?.targetSha === targetSha && Boolean(strategy?.strategyId) },
