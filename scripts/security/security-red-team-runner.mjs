@@ -57,7 +57,7 @@ function addFinding({ ruleId, severity='MEDIUM', category, title, file, line, ev
 
 const workflowFile = (file) => /^(?:\.github\/workflows\/).+\.ya?ml$/u.test(file);
 const sourceFile = (file) => /\.(?:[cm]?js|tsx?|jsx|vue|svelte|astro|css|html|mjs|cjs|json|yml|yaml)$/iu.test(file);
-const appSourceFile = (file) => /^(?:src|api|supabase|scripts|tests)\//u.test(file) && sourceFile(file);
+const appSourceFile = (file) => sourceFile(file) && !workflowFile(file);
 
 const textCache = new Map();
 for (const file of tracked) {
