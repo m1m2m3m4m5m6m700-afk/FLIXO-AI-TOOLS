@@ -25,8 +25,6 @@ import { evaluateMutationGate } from './action-vault-mutation-gate.mjs';
 import { reviewCatalogBeforeMutation, reviewDiagnosisAgainstKnowledge } from './action-vault-triad-governor.mjs';
 import { buildRcaManifest, validateRcaManifest, enforceMutationScope } from './in-repo-repair-v2.mjs';
 import { buildFiveXExecutionEnvelope } from './read-only-power-profile.mjs';
-import { buildFiveXRepairCycleState } from './read-only-power-profile.mjs';
-import { buildSharedLearningContext } from './shared-operational-memory.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
@@ -149,16 +147,6 @@ const attemptLedger = loadAttemptLedger(process.env.FLIXO_REPAIR_ATTEMPT_LEDGER 
 const stableCaseFingerprint = String(process.env.FLIXO_FAILURE_FINGERPRINT ?? '').trim() || attemptLedger.caseFingerprint || fingerprint;
 attemptLedger.caseFingerprint = stableCaseFingerprint;
 const memory = loadMemory();
-const sharedBotIdentity = repairActor === 'actionRepairBot' || repairActor === 'repairAgent' ? 'ACTION-REPAIR' : repairActor === 'actionRepairVerifier' ? 'ACTION-REPAIR-2' : repairActor === 'executionAgent' ? 'executionAgent' : 'executionAgent';
-const sharedLearning = buildSharedLearningContext({ fingerprint, botId: sharedBotIdentity, limit: 48 });
-let fiveXRepairCycle = null;
-const recordCycleOutcome = (payload = {}) => recordCycleOutcome({
-  ...payload,
-  provenance: {
-    ...(payload.provenance ?? {}),
-    ...(fiveXRepairCycle ? { fiveXCycle: fiveXRepairCycle } : {}),
-  },
-});
 const known = findCase(memory, fingerprint);
 const similar = findSimilarCases(memory, { fingerprint, normalized: normalizedFailure, features });
 const lessons = rankLessons(memory, { fingerprint });
@@ -182,7 +170,6 @@ if ((known?.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint) {
 if (repairPolicy.requireCleanGitBeforeRepair && git(['status', '--porcelain']).trim()) throw new Error('AUTO_REPAIR_DIRTY_WORKTREE');
 
 const historicalReasoningSupport = [
-  ...sharedLearning.lessons.map(item => ({ rootCause: item.rootCause ?? 'shared-memory', confidence: item.status === 'VERIFIED' || item.status === 'PROMOTED' ? 0.9 : 0.6 })),
   ...memory.cases.map(({ rootCause, successes, attempts }) => ({ rootCause, confidence: attempts ? successes / attempts : 0 })),
   ...memory.lessons.map(({ rootCause, confidence }) => ({ rootCause, confidence })),
 ];
@@ -235,7 +222,6 @@ const evidence = {
   },
   learning: {
     memoryVersion: memory.version,
-    sharedOperationalMemory: sharedLearning,
     exactCase: Boolean(known),
     similarCases: similar.map(({ case: item, score }) => ({ fingerprint: item.fingerprint, score, rules: item.rules ?? [] })),
     trustedLessons: trustedLessons.map(({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence }) => ({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence })),
@@ -310,7 +296,7 @@ try {
     blockedReasons: [String(error?.message ?? error)],
   };
   writeEvidence(evidencePath, evidence);
-  recordCycleOutcome({
+  recordOutcome(memory, {
     fingerprint,
     normalizedFailure,
     features,
@@ -365,41 +351,7 @@ if (triadActorMap[repairActor]) {
 }
 
 if (historicalRollbackCandidate && diagnosisGate.allowed) {
-  const refreshFiveXRepairCycle = ({
-  phase = 'POST_MUTATION',
-  outcome = null,
-  verification = null,
-  candidateSha = null,
-  regressionOk = null,
-  regressionDepth = 0,
-  canonicalGreen = false,
-} = {}) => {
-  fiveXRepairCycle = buildFiveXRepairCycleState({
-    phase,
-    chainId: repairChainId || repairSessionId,
-    taskId: fiveXTaskId,
-    failureFingerprint: fingerprint,
-    attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1),
-    targetSha,
-    currentSha: git(['rev-parse', 'HEAD']).trim(),
-    failedSha: process.env.FLIXO_FAILURE_SHA || null,
-    candidateSha,
-    strategyId: selected?.id ?? process.env.FLIXO_REPAIR_STRATEGY_ID ?? null,
-    previousCycle: known?.lastFiveXCycle ?? null,
-    outcome,
-    verification,
-    adversarialStatus: programmerTwinReport?.status ?? null,
-    counterexampleFound: programmerTwinReport?.counterexampleFound ?? null,
-    regressionOk,
-    regressionDepth,
-    learningOutputs: fiveXLearningOutputs,
-    canonicalGreen,
-  });
-  evidence.fiveX.cycle = fiveXRepairCycle;
-  return fiveXRepairCycle;
-};
-
-const before = snapshot(targetDir);
+  const before = snapshot(targetDir);
   const plannedChangedPaths = preMutationProof.sandboxSimulation?.changedFiles ?? [];
   const candidateDiff = preMutationProof.sandboxSimulation?.candidateDiff ?? '';
   const mutationScope = {
@@ -430,14 +382,13 @@ const before = snapshot(targetDir);
     mutationScope,
     branch: protocolBranch,
     fiveXEnvelope,
-    fiveXCycleState: fiveXRepairCycle,
   });
   evidence.mutationGate = mutationGate;
   if (mutationGate.status !== 'PASS') {
     evidence.outcome = 'proposal-only';
     evidence.escalation = { required: true, reason: 'hard-mutation-gate-blocked', blockedReasons: mutationGate.failures };
     writeEvidence(evidencePath, evidence);
-    recordCycleOutcome({
+    recordOutcome(memory, {
       fingerprint,
       normalizedFailure,
       features,
@@ -457,7 +408,7 @@ const before = snapshot(targetDir);
     evidence.outcome = 'proposal-only';
     evidence.escalation = { required: true, reason: 'historical-rollback-requires-action-vault-sandbox-proof' };
     writeEvidence(evidencePath, evidence);
-    recordCycleOutcome({
+    recordOutcome(memory, {
       fingerprint, normalizedFailure, features,
       rootCause: diagnosis?.rootCause ?? 'unknown',
       rule: historicalRollbackCandidate.rule ?? undefined,
@@ -485,7 +436,7 @@ const before = snapshot(targetDir);
     evidence.outcome = 'proposal-only';
     evidence.escalation = { required: true, reason: preparedVerification.reason };
     writeEvidence(evidencePath, evidence);
-    recordCycleOutcome({
+    recordOutcome(memory, {
       fingerprint,
       normalizedFailure,
       features,
@@ -514,14 +465,6 @@ const before = snapshot(targetDir);
     const diffSummary = summarizeDiff(changed);
     evidence.diff = diffSummary;
     evidence.changedPaths = diffSummary.files;
-    fiveXRepairCycle = refreshFiveXRepairCycle({
-      phase: 'POST_MUTATION',
-      outcome: 'candidate-created',
-      verification: 'candidate-diff-created',
-      candidateSha: null,
-      regressionOk: null,
-      regressionDepth: 0,
-    });
   evidence.errorOnlyMutationPostDiff = validateErrorOnlyMutation({
     failureLocation: diagnosis?.location?.file ?? selected?.file ?? evidence.errorOnlyMutation.selectedFiles[0],
     selectedFile: selected?.file ?? evidence.errorOnlyMutation.selectedFiles[0],
@@ -557,7 +500,7 @@ const before = snapshot(targetDir);
       evidence.outcome = 'blocked';
       evidence.rollback = true;
       evidence.escalation = { required: true, reason: 'historical-rollback-scope-policy' };
-      recordCycleOutcome({
+      recordOutcome(memory, {
         fingerprint,
         normalizedFailure,
         features,
@@ -610,7 +553,7 @@ const before = snapshot(targetDir);
       evidence.outcome = 'revert-failure';
       evidence.rollback = true;
       evidence.escalation = { required: true, reason: escalationReason(proof) };
-      recordCycleOutcome({
+      recordOutcome(memory, {
         fingerprint,
         normalizedFailure,
         features,
@@ -627,25 +570,13 @@ const before = snapshot(targetDir);
     }
 
     evidence.outcome = 'verified-historical-revert';
-    refreshFiveXRepairCycle({
-        outcome: 'verified-repair',
-        verification: 'exact-sha-proof',
-        regressionOk: evidence.regression?.ok === true,
-        regressionDepth: 3,
-      });
-      refreshFiveXRepairCycle({
-        outcome: 'verified-repair',
-        verification: 'exact-sha-proof',
-        regressionOk: evidence.regression?.ok === true,
-        regressionDepth: 3,
-      });
-      evidence.repairProtocol = completeRepairSession(repairProtocolSession, {
+    evidence.repairProtocol = completeRepairSession(repairProtocolSession, {
       retestResult: evidence.reproductionStabilityAfter?.classification === 'STABLE_PASS',
       resumePoint: 'REMAINING_REQUIRED_TESTS',
       finalVerification: { targetedRetest: evidence.reproductionStabilityAfter?.classification === 'STABLE_PASS', recurrence: evidence.recurrenceProof?.firstPass === true && evidence.recurrenceProof?.secondPass === true, regression: evidence.regression?.ok === true, exactSHA: evidence.targetSha === targetSha },
     });
     evidence.preventionRule = preventionRuleFor({ fingerprint, rule: historicalRollbackCandidate.rule ?? 'historical-revert' });
-    recordCycleOutcome({
+    recordOutcome(memory, {
       fingerprint,
       normalizedFailure,
       features,
@@ -666,7 +597,7 @@ const before = snapshot(targetDir);
     evidence.error = String(error?.message ?? error);
     evidence.rollback = true;
     evidence.escalation = { required: true, reason: 'historical-revert-exception' };
-    recordCycleOutcome({
+    recordOutcome(memory, {
       fingerprint,
       normalizedFailure,
       features,
@@ -697,7 +628,7 @@ if (externalToolingFailure) {
     reason: 'external-tooling-failure',
     action: 'Repair or rerun the external provider configuration; keep repository state unchanged.',
   };
-  recordCycleOutcome({
+  recordOutcome(memory, {
     fingerprint,
     normalizedFailure,
     features,
@@ -718,7 +649,7 @@ if (!diagnosisGate.allowed) {
   evidence.outcome = 'proposal-only';
   evidence.escalation = { required: true, reason: 'root-cause-evidence-insufficient' };
   writeEvidence(evidencePath, evidence);
-  recordCycleOutcome({
+  recordOutcome(memory, {
     fingerprint,
     normalizedFailure,
     features,
@@ -738,7 +669,7 @@ if (!diagnosisGate.allowed) {
 if (!selected) {
   evidence.escalation = { required: true, reason: durableLedgerRejected ? 'durable-no-repeat-blocked' : 'no-safe-mutation-candidate' };
   writeEvidence(evidencePath, evidence);
-  recordCycleOutcome({ fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', outcome: 'proposed', verification: 'none', provenance: { targetSha }, preventionRule: 'No safe mutation candidate; escalate with evidence.' });
+  recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', outcome: 'proposed', verification: 'none', provenance: { targetSha }, preventionRule: 'No safe mutation candidate; escalate with evidence.' });
   writeMemory(memory);
   console.log(`AUTO_REPAIR_RESULT=PROPOSAL_ONLY\nAUTO_REPAIR_PLAN=none\nAUTO_REPAIR_FINGERPRINT=${fingerprint}`);
   process.exit(0);
@@ -757,7 +688,7 @@ if (!errorOnlyProgrammer.repair.mutationAllowed) {
   evidence.outcome = 'proposal-only';
   evidence.escalation = { required: true, reason: 'error-only-programmer-blocked', blockedReasons: errorOnlyProgrammer.blockedReasons };
   writeEvidence(evidencePath, evidence);
-  recordCycleOutcome({
+  recordOutcome(memory, {
     fingerprint,
     normalizedFailure,
     features,
@@ -783,7 +714,7 @@ if (!gate.allowed) {
   evidence.outcome = 'proposal-only';
   evidence.escalation = { required: true, reason: 'confidence-gate-blocked' };
   writeEvidence(evidencePath, evidence);
-  recordCycleOutcome({ fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', rule: selected.id, outcome: 'proposed', verification: 'confidence-gate-blocked', provenance: { targetSha }, preventionRule: 'Require guarded or human-gated repair for this class.' });
+  recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', rule: selected.id, outcome: 'proposed', verification: 'confidence-gate-blocked', provenance: { targetSha }, preventionRule: 'Require guarded or human-gated repair for this class.' });
   writeMemory(memory);
   console.log(`AUTO_REPAIR_RESULT=PROPOSAL_ONLY\nAUTO_REPAIR_PLAN=${selected.id}`);
   process.exit(0);
@@ -793,7 +724,7 @@ if (!preMutationProof || preMutationProof.protocol !== 'REPAIR-SIMULATION-PROOF-
   evidence.outcome = 'proposal-only';
   evidence.escalation = { required: true, reason: 'pre-mutation-proof-missing-or-stale' };
   writeEvidence(evidencePath, evidence);
-  recordCycleOutcome({
+  recordOutcome(memory, {
     fingerprint,
     normalizedFailure,
     features,
@@ -831,7 +762,7 @@ const before = snapshot(targetDir);
     evidence.outcome = 'proposal-only';
     evidence.escalation = { required: true, reason: preparedVerification.reason };
     writeEvidence(evidencePath, evidence);
-    recordCycleOutcome({
+    recordOutcome(memory, {
       fingerprint,
       normalizedFailure,
       features,
@@ -865,7 +796,7 @@ const before = snapshot(targetDir);
       evidence.outcome = 'proposal-only';
       evidence.escalation = { required: true, reason: 'action-vault-pre-mutation-sandbox-failed' };
       writeEvidence(evidencePath, evidence);
-      recordCycleOutcome({ fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', rule: selected?.id, outcome: 'proposed', verification: 'action-vault-sandbox-failed', provenance: { targetSha, sandbox }, preventionRule: 'Action Vault mutation requires a passing exact-SHA detached-worktree AST simulation with executed differential checks.' });
+      recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', rule: selected?.id, outcome: 'proposed', verification: 'action-vault-sandbox-failed', provenance: { targetSha, sandbox }, preventionRule: 'Action Vault mutation requires a passing exact-SHA detached-worktree AST simulation with executed differential checks.' });
       writeMemory(memory);
       console.log('AUTO_REPAIR_RESULT=PROPOSAL_ONLY');
       console.log('AUTO_REPAIR_REASON=action-vault-pre-mutation-sandbox-failed');
@@ -998,25 +929,6 @@ const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
     learningOutputs: fiveXLearningOutputs,
     proofClasses: fiveXProofClasses,
   };
-  fiveXRepairCycle = buildFiveXRepairCycleState({
-    phase: 'PRE_MUTATION',
-    chainId: repairChainId || repairSessionId,
-    taskId: fiveXTaskId,
-    failureFingerprint: fingerprint,
-    attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1),
-    targetSha,
-    currentSha: gateCurrentSha,
-    failedSha: process.env.FLIXO_FAILURE_SHA || null,
-    strategyId: selected?.id ?? process.env.FLIXO_REPAIR_STRATEGY_ID ?? null,
-    previousCycle: known?.lastFiveXCycle ?? null,
-    learningOutputs: fiveXLearningOutputs,
-    adversarialStatus: programmerTwinReport?.status ?? null,
-    counterexampleFound: programmerTwinReport?.counterexampleFound ?? null,
-    regressionOk: null,
-    regressionDepth: 0,
-    canonicalGreen: false,
-  });
-  evidence.fiveX.cycle = fiveXRepairCycle;
 
   const mutationGate = evaluateMutationGate({
     targetSha,
@@ -1035,14 +947,13 @@ const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
     mutationScope,
     branch: protocolBranch,
     fiveXEnvelope,
-    fiveXCycleState: fiveXRepairCycle,
   });
   evidence.mutationGate = mutationGate;
   if (mutationGate.status !== 'PASS') {
     evidence.outcome = 'proposal-only';
     evidence.escalation = { required: true, reason: 'hard-mutation-gate-blocked', blockedReasons: mutationGate.failures };
     writeEvidence(evidencePath, evidence);
-    recordCycleOutcome({
+    recordOutcome(memory, {
       fingerprint,
       normalizedFailure,
       features,
@@ -1106,7 +1017,7 @@ try {
     };
     evidence.escalation = { required: true, reason: 'in-repo-repair-v2-actual-scope-blocked' };
     writeEvidence(evidencePath, evidence);
-    recordCycleOutcome({
+    recordOutcome(memory, {
       fingerprint,
       normalizedFailure,
       features,
@@ -1140,9 +1051,7 @@ try {
     evidence.outcome = 'rolled-back';
     evidence.rollback = true;
     evidence.escalation = { required: true, reason: 'self-critic-blocked' };
-    refreshFiveXRepairCycle({ outcome: 'failure', verification: 'self-critic-blocked' });
-    refreshFiveXRepairCycle({ outcome: 'failure', verification: 'self-critic-blocked' });
-    recordCycleOutcome({
+    recordOutcome(memory, {
       fingerprint,
       normalizedFailure,
       features,
@@ -1160,9 +1069,7 @@ try {
     evidence.outcome = 'blocked';
     evidence.escalation = { required: true, reason: 'scope-policy' };
     rollback(targetDir, before);
-    refreshFiveXRepairCycle({ outcome: 'blocked', verification: 'scope-policy' });
-    refreshFiveXRepairCycle({ outcome: 'blocked', verification: 'scope-policy' });
-    recordCycleOutcome({ fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', rule: selected.id, outcome: 'blocked', verification: 'scope-policy', provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: 'Reject repairs outside the bounded change policy.' });
+    recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', rule: selected.id, outcome: 'blocked', verification: 'scope-policy', provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: 'Reject repairs outside the bounded change policy.' });
     writeMemory(memory);
     writeEvidence(evidencePath, evidence);
     process.exitCode = 2;
@@ -1221,9 +1128,7 @@ try {
       evidence.outcome = 'rolled-back';
       evidence.rollback = true;
       evidence.escalation = { required: true, reason: escalationReason(proof) };
-      refreshFiveXRepairCycle({ outcome: 'failure', verification: 'root-cause-or-recurrence-proof-failed', regressionOk: evidence.regression?.ok === true, regressionDepth: Number(evidence.recurrenceProof?.firstPass ? 2 : 0) });
-      refreshFiveXRepairCycle({ outcome: 'failure', verification: 'root-cause-or-recurrence-proof-failed', regressionOk: evidence.regression?.ok === true, regressionDepth: Number(evidence.recurrenceProof?.firstPass ? 2 : 0) });
-      recordCycleOutcome({ fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', rule: selected.id, outcome: 'failure', verification: 'root-cause-or-recurrence-proof-failed', provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: preventionRuleFor({ fingerprint, rule: selected.id }) });
+      recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', rule: selected.id, outcome: 'failure', verification: 'root-cause-or-recurrence-proof-failed', provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: preventionRuleFor({ fingerprint, rule: selected.id }) });
       writeMemory(memory);
       writeEvidence(evidencePath, evidence);
       process.exitCode = 3;
@@ -1235,20 +1140,18 @@ try {
         finalVerification: { targetedRetest: evidence.reproductionStabilityAfter?.classification === 'STABLE_PASS', recurrence: evidence.recurrenceProof?.firstPass === true && evidence.recurrenceProof?.secondPass === true, regression: evidence.regression?.ok === true, exactSHA: evidence.targetSha === targetSha },
       });
       evidence.preventionRule = preventionRuleFor({ fingerprint, rule: selected.id });
-      recordCycleOutcome({ fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', rule: selected.id, outcome: 'success', verification: 'diagnosis-proof+root-cause-proof+recurrence-proof+typecheck+static+build', provenance: { targetSha, changedPaths: diffSummary.files, proof }, preventionRule: evidence.preventionRule });
+      recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', rule: selected.id, outcome: 'success', verification: 'diagnosis-proof+root-cause-proof+recurrence-proof+typecheck+static+build', provenance: { targetSha, changedPaths: diffSummary.files, proof }, preventionRule: evidence.preventionRule });
       writeMemory(memory);
       writeEvidence(evidencePath, evidence);
     }
   }
-  } catch (error) {
+} catch (error) {
   rollback(targetDir, before);
-  refreshFiveXRepairCycle({ outcome: 'failure', verification: 'exception' });
-  refreshFiveXRepairCycle({ outcome: 'failure', verification: 'exception' });
   evidence.outcome = 'rolled-back';
   evidence.error = String(error?.message ?? error);
   evidence.rollback = true;
   evidence.escalation = { required: true, reason: 'repair-exception' };
-  recordCycleOutcome({ fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', rule: selected.id, outcome: 'failure', verification: 'exception', provenance: { targetSha }, preventionRule: 'Do not repeat an exception-producing repair without new evidence.' });
+  recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', rule: selected.id, outcome: 'failure', verification: 'exception', provenance: { targetSha }, preventionRule: 'Do not repeat an exception-producing repair without new evidence.' });
   writeMemory(memory);
   writeEvidence(evidencePath, evidence);
   process.exitCode = 4;
