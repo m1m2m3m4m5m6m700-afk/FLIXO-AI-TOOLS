@@ -310,10 +310,11 @@ export function revoke({chairId='chair_1',agentId,reason='STALE_CONTEXT',session
     const chair=state.chairs[chairId];
     if(chair.status!=='OCCUPIED')throw new Error('CHAIR_NOT_OCCUPIED');
     if(chair.holder_agent_id!==agentId)throw new Error('UNAUTHORIZED_EXECUTION_ATTEMPT');
+    if(sessionId)sanitizeSessionContext({sessionId,taskId});
     clearChairRecord(chair,state);
     atomicChairRefAudit({chairId,targetSha:state.target_sha,event:'REVOKE'});
     state.last_revoke={chairId,agentId,reason:String(reason),at:now()};
-    writeState(state);if(sessionId)sanitizeSessionContext({sessionId,taskId});
+    writeState(state);
     return state;
   });
 }
@@ -322,10 +323,11 @@ export function release({chairId,agentId,targetSha=sha(),successful=false,sessio
   const t=assertSha(targetSha,'TARGET_SHA');
   return withWriteLock(()=>{
     const state=readState();const chair=verifyLease({state,chairId,agentId,targetSha:t});
+    if(sessionId)sanitizeSessionContext({sessionId,taskId});
     clearChairRecord(chair,state);
     atomicChairRefAudit({chairId,targetSha:t,event:'RELEASE'});
     if(successful===true&&state.repository_state==='ACTIVE')state.repository_state='ACTIVE';
-    writeState(state);if(sessionId)sanitizeSessionContext({sessionId,taskId});return state;
+    writeState(state);return state;
   });
 }
 export function validateCurrent({chairId,agentId,targetSha=sha(),paths=[],permission='SOURCE_MUTATION',reviewId=null,boundedScope=null}={}){
