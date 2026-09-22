@@ -1,4 +1,14 @@
 # P00 — SUPREME FIRST OBLIGATION
+## SECURITY-REDTEAM-REMEDIATION-001 — 2026-09-22
+
+STATUS = IMPLEMENTED / CANONICAL-CI-VERIFICATION-PENDING
+OWNER = assistantController
+BRANCH = execution only
+DISCOVERY_SHA = b49db3c2a95968d97895683a5424689e184a2cb0
+SCOPE = Deep Red-Team remediation across Red-Team trust, Auto-Repair control plane, orchestration, learning/escalation, Council OIDC provenance, and Service Worker privacy boundaries.
+REMEDIATIONS = trust perimeter + full source scan + detached repair target + least privilege + SHA-keyed wake dedup + verified-learning gate + external-block escalation + stale-incident quarantine + OIDC job-workflow SHA binding + Service Worker cache boundary.
+NEXT = Fresh targeted contracts and canonical exact-SHA CI; no closure from historical evidence.
+
 
 Before any repository, project or cell action, every Master/Agent/Bot MUST admit:
 RPR-UNIFIED-EXECUTION-001 v4.0.0 → docs/agents/PROMPT-UNIFIED-EXECUTION.md.
