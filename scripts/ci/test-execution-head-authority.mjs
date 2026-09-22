@@ -3,7 +3,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { verifyExecutionHeadAuthority } from './execution-head-authority.mjs';
+import { fileURLToPath } from 'node:url';
+
+const __testEntrypoint = fileURLToPath(import.meta.url);
+const __originalArgv1 = process.argv[1];
+process.argv[1] = __testEntrypoint;
+const { verifyExecutionHeadAuthority } = await import('./execution-head-authority.mjs');
+process.argv[1] = __originalArgv1;
 
 const read=(file)=>fs.readFileSync(file,'utf8');
 const target='a'.repeat(40);

@@ -1,14 +1,12 @@
 name: FLIXO Task History Ledger
 
 on:
-  push:
-    branches: [execution]
   pull_request:
     branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: flixo-task-history-ledger-${{ github.ref }}
@@ -36,15 +34,14 @@ jobs:
         if: github.event_name != 'pull_request'
         run: node scripts/ci/task-history-ledger.mjs verify --base=HEAD^
 
-      - name: Commit newly discovered history
-        if: github.event_name == 'push' && github.ref == 'refs/heads/execution'
+      - name: Report newly discovered history without source mutation
+        if: github.event_name != 'pull_request'
         run: |
+          set -euo pipefail
           if git diff --quiet -- docs/agents/task-history/ledger.jsonl; then
-            echo "TASK_HISTORY_COMMIT=SKIPPED"
-            exit 0
+            echo "TASK_HISTORY_MUTATION=NONE"
+          else
+            echo "TASK_HISTORY_MUTATION=DETECTED_BUT_PUBLICATION_FORBIDDEN"
+            git diff -- docs/agents/task-history/ledger.jsonl
+            exit 1
           fi
-          git config user.name "FLIXO Task History Bot"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/agents/task-history/ledger.jsonl
-          git commit -m "chore(history): append task execution records"
-          git push origin HEAD:execution
