@@ -49,6 +49,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Install read-only analysis dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
       - name: Validate shared operational memory contract
         run: node scripts/ci/validate-shared-operational-memory.mjs
 

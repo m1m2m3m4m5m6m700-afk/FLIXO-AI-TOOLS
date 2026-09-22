@@ -7,6 +7,7 @@ import {execFileSync} from 'node:child_process';
 import {admit,verifyAdmission,scopeHash,fencingToken} from './execution-mutation-gate.mjs';
 
 const sha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
+process.env.NODE_ENV='test';
 process.env.FLIXO_MUTATION_GATE_REMOTE_SHA=sha;
 process.env.FLIXO_MUTATION_GATE_TEST_MODE='true';
 process.env.GITHUB_REPOSITORY='test/repo';

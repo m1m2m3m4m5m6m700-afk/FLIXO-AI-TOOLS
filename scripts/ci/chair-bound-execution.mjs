@@ -117,13 +117,13 @@ function releaseCentralChair({agentId,targetSha,workPackageId,taskId}){
        (r?.status??'')!=='OWNER_CUSTODY') throw new Error('CENTRAL_CHAIR_RELEASE_PROOF_INVALID');
     return result;
   }
-  let raw='';
+  let raw;
   try{
     raw=execFileSync('node',['scripts/ci/central-chair-lease.mjs','release',
       '--holder='+holder,'--task='+String(taskId??''),'--work-package='+String(workPackageId??''),
       '--sha='+String(targetSha),'--lease-id='+leaseId,'--fencing-hash='+fence,'--successful=true'],{cwd:process.cwd(),encoding:'utf8',stdio:'pipe'});
   }catch(error){throw new Error('CENTRAL_CHAIR_RELEASE_FAILED',{cause:error});}
-  let result=null;
+  let result;
   try{result=JSON.parse(raw);}catch(error){throw new Error('CENTRAL_CHAIR_RELEASE_PROOF_INVALID',{cause:error});}
   const r=result?.state&&typeof result.state==='object'?result.state:result;
   if((r?.ownerAgentId??r?.owner_agent_id)!==CHAIR1_OWNER_AGENT || (r?.status??'')!=='OWNER_CUSTODY') throw new Error('CENTRAL_CHAIR_RELEASE_PROOF_INVALID');

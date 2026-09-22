@@ -14,9 +14,9 @@ on:
       - 'scripts/ci/verify-council-live-runtime.mjs'
       - 'docs/security.md'
       - '.github/CODEOWNERS'
-  # Execution is tested through the canonical pull_request lane; push runs remain for main after integration.
+  # Both canonical refs are independently verified on push; PRs are covered above.
   push:
-    branches: [main]
+    branches: [main, execution]
   workflow_dispatch:
 
 permissions:

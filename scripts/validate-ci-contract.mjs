@@ -236,9 +236,10 @@ if (!canonicalTestMarkers.every((marker) => canonicalTestBlock.includes(marker))
   process.exit(1);
 }
 const greenGateConcurrency = greenGateWorkflow.match(/concurrency:[\s\S]*?(?=\njobs:|$)/)?.[0] ?? '';
-if (!/cancel-in-progress:\s*false/.test(greenGateConcurrency) ||
-    !/group:\s*flixo-continuous-error-watch-[^\n]*\$\{\{\s*github\.run_id\s*\}\}/.test(greenGateConcurrency)) {
-  console.error('CI contract failed: daily green gate must preserve each observation run for evidence integrity.');
+if (!/cancel-in-progress:\s*true/.test(greenGateConcurrency) ||
+    !/group:\s*flixo-continuous-error-watch-\$\{\{\s*github\.ref_name\s*\}\}/.test(greenGateConcurrency) ||
+    /github\.run_id/.test(greenGateConcurrency)) {
+  console.error('CI contract failed: daily green gate must use one replaceable observer lane per canonical branch without run-id fan-out.');
   process.exit(1);
 }
 const residentCiBlock =
