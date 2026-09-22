@@ -16,7 +16,7 @@ const testDefinitionFiles = [
   'playwright.config.ts',
 ];
 const testDefinitionSha256 = createHash('sha256')
-  .update(testDefinitionFiles.map((file) => `${file}:${sha256(file)}`).join('\\n'), 'utf8')
+  .update(testDefinitionFiles.map((file) => `${file}:${sha256(file)}`).join('\n'), 'utf8')
   .digest('hex');
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 const node = process.version;
