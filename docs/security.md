@@ -68,3 +68,46 @@ Untrusted persisted state, API responses, checkpoints, and file inputs are valid
 5. Treat browser-reported MIME as advisory; file safety must include extension, MIME, magic bytes, and decoder validation where applicable.
 6. Every security repair must record root cause, hardening control, exact-SHA evidence, and regression proof.
 7. Branch topology is fixed: `execution` is the sole working branch and `main` is the sole production branch.
+
+
+## P0 — SYSTEM VULNERABILITY REPORT / RED-TEAM R1–R20 — 2026-09-22
+
+This section is the persistent security record for the current Red-Team vulnerability report. Findings R1–R20 are **P0** and remain open for verification until each item has fresh exact-SHA evidence and the final certification is Canonical GREEN. Code hardening may be implemented while the report remains **VERIFICATION PENDING**.
+
+| ID | Severity | Finding / control objective | Current status |
+|---|---|---|---|
+| R1 | CRITICAL | Chair-1 reclaim must require authenticated user-direct-command proof; text alone is insufficient. | Hardened in code; verification pending |
+| R2 | CRITICAL | Publication authorization must reject wildcard path scope and bind exact normalized paths. | Hardened in code; verification pending |
+| R3 | HIGH | Exact-head proof digest must be recomputed and verified, not merely generated. | Hardened in code; verification pending |
+| R4 | HIGH | Chair Push Guard / Head Authority lifecycle must have one consistent Chair-1 activity invariant. | Hardened in code; verification pending |
+| R5 | CRITICAL | Auto Repair Chair-1 approval must be independent; executor cannot create its own reviewer identity or APPROVED result. | Fail-closed pending independently signed Chair-1 approval |
+| R6 | HIGH | Auto Repair publication must not contain an unreachable post-`exit 1` path. | Hardened in code; verification pending |
+| R7 | HIGH | Repair handoff must exist before the guarded publication boundary and remain usable on failure. | Hardened in code; verification pending |
+| R8 | CRITICAL | Learning/promotion must not occur before Canonical GREEN. | Hardened in code; verification pending |
+| R9 | CRITICAL | Cell learning must prove a real canonical CI run/result bound to the exact SHA. | Hardened in code; verification pending |
+| R10 | CRITICAL | Shared-memory publisher identity must be authenticated, not caller-declared. | Hardened in code; verification pending |
+| R11 | HIGH | Privileged communication actor identity must be tied to authenticated transport identity. | Hardened in code; verification pending |
+| R12 | CRITICAL | Manual relay inputs must not provide an impersonation path for Master authority. | Hardened in code; verification pending |
+| R13 | HIGH | CELL→Master consultation must verify caller identity in addition to registry membership. | Hardened in code; verification pending |
+| R14 | HIGH | Council OIDC trust must bind the job workflow source SHA to an explicit trusted allowlist. | Hardened in code/deployed; operational verification pending |
+| R15 | CRITICAL / CONDITIONAL | Mutation-test bypass variables must be unavailable in production/Actions and limited to trusted local harnesses. | Hardened in code; verification pending |
+| R16 | HIGH / CONDITIONAL | Non-strict Chair paths must not weaken production authorization guarantees. | Hardened in code; verification pending |
+| R17 | HIGH / CONDITIONAL | Controller publication decisions must be bound to validated exact target/parent/candidate evidence. | Hardened in code; verification pending |
+| R18 | HIGH | Task creation must require a durable entry in `المهام.md`. | Hardened in code; verification pending |
+| R19 | HIGH | ACTION-REPAIR-2 / ACTION-HISTORIAN-3 are verification/learning roles, not source-mutation authorities. | Hardened in code/docs; verification pending |
+| R20 | MEDIUM / HIGH | Council Wake must require authenticated origin, not only a well-formed commit message. | Hardened in code; verification pending |
+
+### Mandatory P0 closure invariant
+
+`Authenticated Authority → Exact Current SHA → Chair-1 Live Lease → Independent Validation → Verified Head Proof → Exact Candidate/Parent → Canonical GREEN → Publication / Learning Promotion`
+
+### Evidence rules
+
+No R1–R20 finding may be marked closed solely from local tests, static inspection, queued CI, historical SHA evidence, self-generated approval, or commentary.
+
+R5 is intentionally fail-closed until an independently signed Chair-1 approval is supplied and verified.
+
+The required external controls include the configured signing keys/identity secrets and the trusted Council workflow-SHA allowlist. Their values must never be committed to source.
+
+Any regression, provenance anomaly, stale proof, authority bypass, or security-gate failure reopens the affected finding and the P0 security work package.
+
