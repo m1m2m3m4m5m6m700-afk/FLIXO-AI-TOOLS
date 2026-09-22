@@ -28,6 +28,11 @@ const git=(args)=>execFileSync('git',args,{cwd:ROOT,encoding:'utf8'}).trim();
 const VAULT_INDEX_PATH=path.resolve(ROOT,'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json');
 const VAULT_ROUTER_PATH=path.resolve(ROOT,'docs/agents/ERROR-TEACHING-ROUTER.json');
 const TEACHING_DIR=path.resolve(ROOT,'docs/agents/teaching-sessions');
+const PROTOCOLS = Object.freeze({
+  causalDiscriminator:'CAUSAL-DISCRIMINATOR-v1',
+  metaCausalModel:'META-CAUSAL-MODEL-v1',
+  arbitration:'FLIXO-KNOWLEDGE-ARBITRATION-v1'
+});
 const POWER_PROFILE_VALIDATION=validateReadOnlyPowerProfile();
 if(!POWER_PROFILE_VALIDATION.ok) throw new Error('READ_ONLY_POWER_PROFILE_INVALID='+POWER_PROFILE_VALIDATION.failures.join(','));
 const VAULT_CAPACITY=1_000_000;
