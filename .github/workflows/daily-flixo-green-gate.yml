@@ -601,10 +601,16 @@ jobs:
             echo "FAIL CLOSED: observed branch advanced before evidence publication: branch=$OBSERVED_BRANCH observed=$OBSERVED_SHA live=$LIVE_SHA"
             exit 1
           }
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+          TRUSTED_CONTROLLER_SHA="$(cat /tmp/flixo-watch/main-sha)"
+          test "$CHECKED_OUT_SHA" = "$TRUSTED_CONTROLLER_SHA" || {
+            echo "FAIL CLOSED: checked-out controller SHA $CHECKED_OUT_SHA differs from trusted main SHA $TRUSTED_CONTROLLER_SHA"
+            exit 1
+          }
+          echo "TRUSTED_CONTROLLER_SOURCE_SHA=$TRUSTED_CONTROLLER_SHA"
           if [ "$OBSERVED_BRANCH" = "execution" ]; then
-            CHECKED_OUT_SHA="$(git rev-parse HEAD)"
-            test "$CHECKED_OUT_SHA" = "$OBSERVED_SHA" || {
-              echo "FAIL CLOSED: checked-out source SHA $CHECKED_OUT_SHA differs from observed execution SHA $OBSERVED_SHA"
+            test "$CHECKED_OUT_SHA" != "$OBSERVED_SHA" || {
+              echo "FAIL CLOSED: trusted controller checkout unexpectedly matches execution target SHA"
               exit 1
             }
           fi
