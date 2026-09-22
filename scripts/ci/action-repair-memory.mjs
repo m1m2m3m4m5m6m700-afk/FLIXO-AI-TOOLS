@@ -9,6 +9,7 @@ const fileOf=id=>path.join(memoryDir(),String(id)+'.json');
 const valid=id=>{if(!ID_RE.test(String(id))) throw new Error('ACTION_BOT_ID_INVALID'); return String(id)};
 const now=()=>new Date().toISOString();
 const bounded=(list,max=2000)=>Array.isArray(list)?list.slice(-max):[];
+const REPAIR_HISTORY_MAX=5000;
 const CENTER_MAX_EVENTS=5000;
 const CENTER_TYPES=Object.freeze(['RED_OPEN','HISTORICAL_MATCHES','TWIN_A','TWIN_B','WISE_SELECTION','WAKE','LEARNING_REQUEST_OPEN','GREEN_VERIFIED','LEARNING_REQUEST_CLOSED','NO_SOLUTION_MASTER_REQUEST']);
 
@@ -20,7 +21,7 @@ export function loadActionBotMemory(botId){
   copyable:true, transferableKnowledgeOnly:true, permanentIndependentAuthority:false,
   state:{status:'READY',taskCount:0,lastTaskId:null,lastUpdatedAt:null},
   learnedTasks:[],knowledge:[],solutions:[],successfulStrategies:[],failedStrategies:[],
-  weaknesses:[],upgrades:[],sourceEvidence:[],redSignals:[],learningRequests:[],
+  weaknesses:[],upgrades:[],sourceEvidence:[],redSignals:[],learningRequests:[],repairHistory:[],
   importHistory:[],exportHistory:[],
   center:{
    schemaVersion:1,authority:'ACTION_REPAIR_INFORMATION_CENTER',knowledgeOnly:true,proofAuthority:'CURRENT_EXACT_SHA_CI_ONLY',
@@ -54,7 +55,8 @@ export function learnIntoActionBotMemory({botId,taskId,knowledge,solution,outcom
   solutions:solution?[...(m.solutions??[]),{taskId:task.taskId,solution,rule:rule??null,outcome:task.outcome,verification:task.verification,at}].slice(-1000):m.solutions,
   successfulStrategies:outcome==='success'&&rule?[...(m.successfulStrategies??[]),rule].slice(-1000):m.successfulStrategies,
   failedStrategies:outcome!=='success'&&rule?[...(m.failedStrategies??[]),rule].slice(-1000):m.failedStrategies,
-  sourceEvidence:evidenceRef?[...(m.sourceEvidence??[]),{taskId:task.taskId,ref:evidenceRef,at}].slice(-1000):m.sourceEvidence
+  sourceEvidence:evidenceRef?[...(m.sourceEvidence??[]),{taskId:task.taskId,ref:evidenceRef,at}].slice(-1000):m.sourceEvidence,
+  repairHistory:[...(m.repairHistory??[]),repairHistoryItem].slice(-REPAIR_HISTORY_MAX)
  });
 }
 
@@ -145,8 +147,10 @@ export function closeLearningRequest({fingerprint,runId,targetSha,solution,verif
   return item;
  });
  if(!found) throw new Error('ACTION_LEARNING_REQUEST_NOT_FOUND');
- const solutions=[...(m.solutions??[]),{requestId:'LEARN-'+String(runId)+'-'+fp.slice(0,16),solution,verification,master,validatedAt:now()}];
- saveActionBotMemory({...m,learningRequests:bounded(requests,5000),solutions:bounded(solutions,2000)});
+ const validatedAt=now();
+ const solutions=[...(m.solutions??[]),{requestId:'LEARN-'+String(runId)+'-'+fp.slice(0,16),solution,verification,master,validatedAt}];
+ const repairHistory=[...(m.repairHistory??[]),{recordType:'VALIDATED_LEARNING',fingerprint:fp,runId:String(runId),targetSha:String(targetSha),solution,verification,evidenceRef:evidenceRef??null,master,validatedAt}].slice(-REPAIR_HISTORY_MAX);
+ saveActionBotMemory({...m,learningRequests:bounded(requests,5000),solutions:bounded(solutions,2000),repairHistory});
  return appendActionCenterEvent({type:'LEARNING_REQUEST_CLOSED',taskId:'ACTION-LEARN:'+runId+':'+fp,fingerprint:fp,runId,targetSha,actor:master,payload:{requestId:'LEARN-'+String(runId)+'-'+fp.slice(0,16),solution,verification,evidenceRef:evidenceRef??null}});
 }
 
@@ -159,7 +163,9 @@ export function recordVerifiedGreen({fingerprint,runId,targetSha,solution,verifi
    return {...item,status:'GREEN_VERIFIED',solution,verification,evidenceRef:evidenceRef??null,greenVerifiedAt:now()};
   return item;
  });
- saveActionBotMemory({...m,redSignals,solutions:[...(m.solutions??[]),{fingerprint,runId,targetSha,solution,verification,evidenceRef:evidenceRef??null,greenVerifiedAt:now()}].slice(-2000)});
+ const greenVerifiedAt=now();
+ const repairHistory=[...(m.repairHistory??[]),{recordType:'GREEN_VERIFIED',fingerprint:String(fingerprint??''),runId:String(runId),targetSha:String(targetSha),solution,verification,evidenceRef:evidenceRef??null,greenVerifiedAt}].slice(-REPAIR_HISTORY_MAX);
+ saveActionBotMemory({...m,redSignals,solutions:[...(m.solutions??[]),{fingerprint,runId,targetSha,solution,verification,evidenceRef:evidenceRef??null,greenVerifiedAt}].slice(-2000),repairHistory});
  return appendActionCenterEvent({type:'GREEN_VERIFIED',taskId:'ACTION-GREEN:'+runId+':'+String(fingerprint??'').slice(0,16),fingerprint,runId,targetSha,actor:'repairAgent',payload:{solution,verification,evidenceRef:evidenceRef??null}});
 }
 
