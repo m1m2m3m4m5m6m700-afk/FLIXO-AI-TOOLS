@@ -71,6 +71,8 @@ jobs:
         run: node scripts/ci/validate-auto-repair-boundary.mjs
       - name: Validate strict Chair-1 central boundary
         run: node scripts/ci/test-strict-chair-boundary.mjs
+      - name: Run Chair-1 central lease adversarial attack matrix
+        run: node scripts/ci/test-chair1-central-lease-adversarial.mjs
       - name: Validate strict push detail guard
         run: node scripts/ci/test-chair-push-guard-strict.mjs
       - name: Validate Repair Agent cognitive clone and adversarial convergence
