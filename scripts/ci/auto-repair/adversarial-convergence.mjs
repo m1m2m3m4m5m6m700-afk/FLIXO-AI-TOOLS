@@ -44,11 +44,6 @@ const git = (args) => {
   }
   return String(result.stdout).trim();
 };
-const sha256File = (file) => {
-  const crypto = await import('node:crypto');
-  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
-};
-
 export function decideAdversarialRound({
   engineEvidence,
   adversarialReport,
