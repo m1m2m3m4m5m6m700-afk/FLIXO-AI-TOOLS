@@ -86,8 +86,10 @@ jobs:
           echo "event_branch=$EVENT_BRANCH" >> "$GITHUB_OUTPUT"
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             test -n "$SOURCE_RUN_SHA"
-            printf 'CURRENT_EXECUTION_SHA=%s\nSOURCE_RUN_SHA=%s\n' "$EXECUTION_SHA" "$SOURCE_RUN_SHA"
-            if [ "$EXECUTION_SHA" != "$SOURCE_RUN_SHA" ]; then
+            LIVE_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+            test -n "$LIVE_EXECUTION_SHA"
+            printf 'LIVE_EXECUTION_SHA=%s\nSOURCE_RUN_SHA=%s\n' "$LIVE_EXECUTION_SHA" "$SOURCE_RUN_SHA"
+            if [ "$LIVE_EXECUTION_SHA" != "$SOURCE_RUN_SHA" ]; then
               echo "STALE_WATCHDOG_EVENT=true: source run is no longer the current execution head."
               echo "stale=true" >> "$GITHUB_OUTPUT"
             else
