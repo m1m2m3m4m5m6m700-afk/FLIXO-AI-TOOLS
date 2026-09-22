@@ -36,6 +36,7 @@ const normalizePaths = (paths) => [...new Set(paths.map((value) => {
 const proposalPath = arg('proposal', '/tmp/flixo-chair1-proposal.json');
 const auditPath = arg('output', '/tmp/flixo-chair1-audit.json');
 const lessonPath = arg('lesson-output', '/tmp/flixo-chair1-learning.json');
+const externalApprovalPath = arg('approval', '/tmp/flixo-chair1-external-approval.json');
 const evidencePath = arg('evidence', '/tmp/flixo-repair-evidence.json');
 const verificationPath = arg('verification', '/tmp/flixo-candidate-verification.json');
 const adversarialPath = arg('adversarial', '/tmp/flixo-postpatch-adversarial.json');
@@ -50,6 +51,7 @@ const requireCondition = (condition, code, detail) => { if (!condition) reject(c
 const evidence = readJson(evidencePath, 'EVIDENCE');
 const verification = readJson(verificationPath, 'VERIFICATION');
 const adversarial = readJson(adversarialPath, 'ADVERSARIAL');
+const externalApproval = fs.existsSync(externalApprovalPath) ? JSON.parse(fs.readFileSync(externalApprovalPath, 'utf8')) : null;
 
 const changedPaths = normalizePaths(
   git(['diff', '--name-only', parentSha, candidateSha]).split(/\\r?\\n/u).filter(Boolean)
@@ -82,6 +84,21 @@ requireCondition(!changedPaths.some((file) => testPath.test(file)), 'TEST_MUTATI
 requireCondition(evidence.fingerprint && /^[a-f0-9]+$/iu.test(String(evidence.fingerprint)), 'FAILURE_FINGERPRINT_MISSING', evidence.fingerprint);
 requireCondition(arg('actor', 'AUTO_REPAIR_BOT') === 'AUTO_REPAIR_BOT', 'REPAIR_ACTOR_IDENTITY_INVALID', arg('actor'));
 requireCondition(arg('required-reviewer', 'chair_1') === 'chair_1', 'REQUIRED_REVIEWER_MUST_BE_CHAIR1', arg('required-reviewer'));
+requireCondition(externalApproval?.protocol === 'FLIXO-CHAIR1-EXTERNAL-APPROVAL-v1', 'INDEPENDENT_CHAIR_APPROVAL_MISSING', externalApprovalPath);
+requireCondition(externalApproval?.decision === 'APPROVED', 'INDEPENDENT_CHAIR_APPROVAL_NOT_APPROVED', externalApproval?.decision);
+requireCondition(externalApproval?.reviewerAgent === 'CHAIR_1_AUDITOR', 'INDEPENDENT_CHAIR_REVIEWER_INVALID', externalApproval?.reviewerAgent);
+requireCondition(externalApproval?.targetSha === parentSha && externalApproval?.parentSha === parentSha && externalApproval?.candidateSha === candidateSha, 'INDEPENDENT_CHAIR_APPROVAL_SHA_MISMATCH', externalApproval);
+requireCondition(String(externalApproval?.taskId ?? '') === arg('task-id', ''), 'INDEPENDENT_CHAIR_APPROVAL_TASK_MISMATCH', externalApproval?.taskId);
+requireCondition(String(externalApproval?.workPackageId ?? '') === arg('work-package', ''), 'INDEPENDENT_CHAIR_APPROVAL_WORK_PACKAGE_MISMATCH', externalApproval?.workPackageId);
+const approvalDigestPayload = JSON.stringify({protocol: externalApproval?.protocol ?? null, reviewerAgent: externalApproval?.reviewerAgent ?? null, decision: externalApproval?.decision ?? null, taskId: externalApproval?.taskId ?? null, workPackageId: externalApproval?.workPackageId ?? null, targetSha: externalApproval?.targetSha ?? null, parentSha: externalApproval?.parentSha ?? null, candidateSha: externalApproval?.candidateSha ?? null});
+requireCondition(/^[a-f0-9]{64}$/u.test(String(externalApproval?.approvalDigest ?? '')), 'INDEPENDENT_CHAIR_APPROVAL_DIGEST_MISSING', externalApproval?.approvalDigest);
+requireCondition(externalApproval?.approvalDigest === sha256(approvalDigestPayload), 'INDEPENDENT_CHAIR_APPROVAL_DIGEST_MISMATCH', externalApproval?.approvalDigest);
+const approvalKey = String(process.env.FLIXO_CHAIR1_APPROVAL_SIGNING_KEY ?? '').trim();
+if(process.env.NODE_ENV !== 'test'){
+  requireCondition(Boolean(approvalKey), 'INDEPENDENT_CHAIR_APPROVAL_SIGNING_KEY_REQUIRED', null);
+  const expected = crypto.createHmac('sha256', approvalKey).update(approvalDigestPayload, 'utf8').digest('hex');
+  requireCondition(externalApproval?.signature === expected, 'INDEPENDENT_CHAIR_APPROVAL_SIGNATURE_INVALID', null);
+}
 
 const proposal = {
   schemaVersion: 1,
@@ -126,6 +143,7 @@ const audit = {
   changedPaths,
   patchSha256,
   decision: failures.length ? 'REJECTED' : 'APPROVED',
+  independentApprovalVerified: failures.length===0,
   reasonCodes: failures.map((item) => item.code),
   exactSha: currentSha === candidateSha && evidence.targetSha === parentSha,
   adversarialProof: verification?.gate ?? null,
