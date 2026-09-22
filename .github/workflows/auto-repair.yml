@@ -112,6 +112,7 @@ env:
   FLIXO_AUTO_REPAIR_SELF_APPROVAL: 'false'
   FLIXO_CHAIR_SIGNING_KEY: ${{ github.token }}
   FLIXO_HEAD_AUTHORITY_PROOF: /tmp/flixo-head-authority.json
+  FLIXO_CHAIR_STATE_PATH: /tmp/flixo-chair1-state.json
   FLIXO_CHAIR1_PRIMARY_MISSION: CHAIR1_PRIMARY_TEST_CYCLE_REPAIR
   FLIXO_CHAIR1_MISSION_PATH: /tmp/flixo-chair1-repair-mission.json
   FLIXO_REPAIR_TASK_LEDGER_PATH: /tmp/flixo-repair-task-ledger.json
@@ -1409,6 +1410,12 @@ jobs:
           WORK_PACKAGE_ID="REPAIR:${TARGET_RUN_ID}:${FLIXO_FAILURE_FINGERPRINT}"
           TASK_ID="ACTION-REPAIR:${TARGET_RUN_ID}:${FLIXO_FAILURE_FINGERPRINT}"
           node scripts/ci/execution-mutation-gate.mjs admit --owner=AUTO_REPAIR_BOT --sha="$FAILED_SHA" --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --paths="$STAGED_PATHS" --output="$FLIXO_MUTATION_ADMISSION"
+          FENCING_TOKEN="$(jq -r '.fencingToken' "$FLIXO_MUTATION_ADMISSION")"
+          test -n "$FENCING_TOKEN" && test "$FENCING_TOKEN" != "null"
+          node scripts/ci/chair-bound-execution.mjs init --sha="$FAILED_SHA"
+          node scripts/ci/chair-bound-execution.mjs acquire --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$FAILED_SHA" --repository-state=IDLE --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --scope="$STAGED_PATHS"
+          node scripts/ci/chair-bound-execution.mjs authorize-write --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$FAILED_SHA" --permission=SOURCE_MUTATION --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --paths="$STAGED_PATHS" --scope="$STAGED_PATHS"
+          echo 'CHAIR1_LOCAL_DELEGATION=VERIFIED'
           echo 'GLOBAL_MUTATION_GATE=PASS'
       - name: Create exact unpublished candidate commit
         id: candidate_commit
@@ -1740,11 +1747,35 @@ jobs:
           node scripts/ci/execution-head-authority.mjs verify --file="$FLIXO_HEAD_AUTHORITY_PROOF" --target-sha="$PARENT_SHA" --parent-sha="$PARENT_SHA" --candidate-sha="$CANDIDATE_SHA"
           git diff --name-only "$PARENT_SHA" "$CANDIDATE_SHA" > /tmp/flixo-chair-publication-paths
           test -s /tmp/flixo-chair-publication-paths
+          MUTATION_PATHS="$(paste -sd, /tmp/flixo-chair-publication-paths)"
+          FENCING_TOKEN="$(jq -r '.fencingToken' "$FLIXO_MUTATION_ADMISSION")"
+          node scripts/ci/chair-bound-execution.mjs authorize-publication \
+            --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$PARENT_SHA" \
+            --permission=SOURCE_MUTATION --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" \
+            --fencing-token="$FENCING_TOKEN" --paths="$MUTATION_PATHS" >/tmp/flixo-chair-publication.json
+          PROOF_WORKTREE="$(mktemp -d /tmp/flixo-chair1-head-proof.XXXXXX)"
+          cleanup_proof_worktree() {
+            git worktree remove --force "$PROOF_WORKTREE" >/dev/null 2>&1 || true
+          }
+          trap cleanup_proof_worktree EXIT
+          git worktree add --detach "$PROOF_WORKTREE" "$PARENT_SHA"
+          (
+            cd "$PROOF_WORKTREE"
+            FLIXO_CHAIR_STATE_PATH="$FLIXO_CHAIR_STATE_PATH" \
+            FLIXO_CHAIR_SIGNING_KEY="$FLIXO_CHAIR_SIGNING_KEY" \
+            node scripts/ci/execution-head-authority.mjs authorize \
+              --agent=AUTO_REPAIR_BOT --target-sha="$PARENT_SHA" --parent-sha="$PARENT_SHA" \
+              --candidate-sha="$CANDIDATE_SHA" --task-id="$TASK_ID" --work-package="$WORK_PACKAGE_ID" \
+              --output="$FLIXO_HEAD_AUTHORITY_PROOF" >/tmp/flixo-head-authority-log.json
+          )
+          test -s "$FLIXO_HEAD_AUTHORITY_PROOF"
           printf '%s\n' "$CANDIDATE_SHA" > /tmp/flixo-chair-publication-candidate
           printf '%s\n' "$PARENT_SHA" > /tmp/flixo-chair-publication-parent
           jq -n --arg candidate "$CANDIDATE_SHA" --arg parent "$PARENT_SHA" --arg sha "$PARENT_SHA" --slurpfile audit "$FLIXO_CHAIR1_AUDIT" '{schemaVersion:1,protocol:"FLIXO-CHAIR-PUBLICATION-HANDOFF-v1",status:"READY_FOR_CHAIR_PUBLICATION",targetSha:$sha,parentSha:$parent,candidateSha:$candidate,chairAudit:$audit[0],requiresIndependentChairPublication:true,noDirectPushByExecutor:true,createdAt:(now|todateiso8601)}' > /tmp/flixo-chair-publication-request.json
           test -s /tmp/flixo-chair-publication-request.json
-          echo 'EXECUTION_PUBLICATION=READY_FOR_CHAIR_PUBLICATION'
+          echo 'CHAIR_GUARD_BLOCKED: direct execution publication is forbidden'
+          echo 'EXECUTION_PUBLICATION=BLOCKED_BY_CHAIR_GUARD'
+          echo 'HANDOFF_REQUIRED: Chair-1 must publish the approved candidate through the guarded execution path.'
           echo 'DIRECT_PUSH_BY_AUTO_REPAIR=FORBIDDEN'
       - name: Record publication state in the Repair Control Plane
         if: steps.publish_candidate.outcome == 'success'

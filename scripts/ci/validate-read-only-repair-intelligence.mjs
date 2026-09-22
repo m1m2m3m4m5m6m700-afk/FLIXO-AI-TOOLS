@@ -15,7 +15,7 @@ const fusionSource=fs.readFileSync(fusion,'utf8');
 for(const marker of [
  "protocol:'FLIXO-READ-ONLY-REPAIR-INTELLIGENCE-v1'",
  "mutationPolicy:'NO_SOURCE_MUTATION'",
- "powerProfile:READ_ONLY_POWER_PROFILE,"
+ "powerProfile:READ_ONLY_POWER_PROFILE,",
  "buildCausalDiscriminator",
  "buildMetaCausalModel",
  "planRepair",
