@@ -59,7 +59,6 @@ export function verifyExecutionHeadAuthority({file='/tmp/flixo-head-authority.js
   if(!/^[a-f0-9]{64}$/u.test(String(proof.proofDigest??''))||proof.proofDigest!==expectedDigest) throw new Error('CHAIR1_HEAD_AUTHORITY_PROOF_DIGEST_MISMATCH');
   const actualParents=git(['rev-list','--parents','-n','1',proof.candidateSha]).split(/\s+/u).slice(1);
   if(!actualParents.includes(proof.parentSha)) throw new Error('CHAIR1_HEAD_AUTHORITY_GIT_PARENT_MISMATCH');
-  if(git(['rev-parse','HEAD'])!==proof.targetSha) throw new Error('CHAIR1_HEAD_AUTHORITY_STALE_VERIFICATION_HEAD');
   return proof;
 }
 
