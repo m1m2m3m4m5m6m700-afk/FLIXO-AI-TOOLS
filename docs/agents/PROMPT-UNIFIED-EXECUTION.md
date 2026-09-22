@@ -71,6 +71,31 @@ taskId, role, currentSha, status, RCA, changedFiles, verification, remainingWork
 
 رسائل الإدارة = Canonical Agent Communication، وأي استدعاء إداري P0 ويجب استلامه وقراءته وإقراره فورًا.
 
+## CELL-LAB — SHARED ENGINEERING LAB
+
+الخلية هي **معمل FLIXO الهندسي المشترك** وليست مجرد قناة رسائل.
+كل رأي أو سؤال أو اعتراض أو قرار مادي يجب أن يمر داخل المعمل ويصبح مرئيًا للأطراف المعنية.
+
+دورة المعمل الإلزامية:
+OPEN → DISCUSS → QUESTION → CHALLENGE → RESOLVE → SYNTHESIZE → CONSENSUS → EXECUTE → VERIFY → LEARN
+
+في كل قرار مادي يجب أن يشارك على الأقل:
+MASTER-1 + MASTER-2 + MASTER-3 + صاحب نطاق التنفيذ.
+
+يجب تسجيل:
+opinions + questions + challenges + responses + dissent resolution + integratedPlan + planHash + proofObligations + stopConditions + exactSha.
+
+لا تنفيذ مادي مع:
+UNRESOLVED_QUESTION أو UNRESOLVED_CONFLICT أو STALE_SHA أو غياب AGREED CONSENSUS.
+
+الاتفاق على الخطة لا يمنح صلاحية mutation أو certification؛ كل صلاحية تبقى محكومة بالـControl Plane وبروتوكولات الدور.
+
+بوابة المعمل:
+scripts/ci/cell-lab-consensus.mjs
+
+مرجع القرار:
+diagnostics/agents/cell-lab/consensus/<taskId>.json
+
 ## 6. EXECUTION AUTHORITY
 
 الأدوار منفصلة:
