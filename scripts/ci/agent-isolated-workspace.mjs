@@ -98,9 +98,9 @@ export function captureAgentResult({
   status='READY_FOR_CHAIR1',
 }={}){
   assertWorkspaceIsolation({repoRoot,workspace,entrySha});
-  const patch=git(workspace,['diff','--binary',entrySha,'HEAD']);
-  const changed=git(workspace,['diff','--name-only',entrySha,'HEAD']).trim().split('\n').filter(Boolean).sort();
-  const diffCheck=(()=>{try{git(workspace,['diff','--check',entrySha,'HEAD']);return true;}catch{return false;}})();
+  const patch=git(workspace,['diff','--binary',entrySha]);
+  const changed=git(workspace,['diff','--name-only',entrySha]).trim().split('\n').filter(Boolean).sort();
+  const diffCheck=(()=>{try{git(workspace,['diff','--check',entrySha]);return true;}catch{return false;}})();
   const result={
     schemaVersion:1,
     protocol:'FLIXO-AGENT-RESULT-v1',
