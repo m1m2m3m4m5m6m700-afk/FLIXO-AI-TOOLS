@@ -5,6 +5,7 @@ run-name: FLIXO Agent Repair Heartbeat ${{ github.run_id }}
 on:
   schedule:
     - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 permissions:
   actions: read
@@ -12,7 +13,7 @@ permissions:
 
 concurrency:
   group: flixo-agent-repair-heartbeat-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   resident-watch:

@@ -653,7 +653,6 @@ jobs:
           FP="$FLIXO_FAILURE_FINGERPRINT"
           TASK_ID="ACTION-RED:$TARGET_RUN_ID:$FP"
           node scripts/ci/action-file-selection-intelligence.mjs \
-          node scripts/ci/action-file-selection-intelligence.mjs \
             --task="$TASK_ID" \
             --fingerprint="$FP" \
             --sha="$SHA" \
@@ -852,7 +851,6 @@ jobs:
           set -euo pipefail
           node scripts/ci/repair-bot-training.mjs --self-test
           node scripts/ci/repair-bot-training.mjs
-          test -s /tmp/flixo-repair-training.json
           test -s /tmp/flixo-repair-training.json
           jq -e '.protocol=="FLIXO-REPAIR-BOT-BEHAVIORAL-TRAINING-v1" and .authority=="TRAINING_ONLY" and .targetSha==env.FLIXO_EXPECTED_TARGET_SHA and .decision.mode != null' /tmp/flixo-repair-training.json >/dev/null
           echo "FLIXO_REPAIR_TRAINING_PATH=/tmp/flixo-repair-training.json" >> "\$GITHUB_ENV"
@@ -1056,7 +1054,6 @@ jobs:
             TARGET_SHA=''
             REVERTED_COMMIT=''
           fi
-          fi
           if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ] && [ "$CANDIDATE_VERIFICATION_OUTCOME" = "success" ]; then
             LEARNING_OUTCOME='reverted-repair'
           elif [ "$VERIFY_OUTCOME" = "success" ] && [ "$ENGINE_OUTCOME" = "verified-repair" ]; then
@@ -1255,7 +1252,6 @@ jobs:
           set -euo pipefail
           echo 'FAIL CLOSED: Auto Repair candidate was not approved by the independent Chair-1 strict audit.'
           echo 'AUTO_REPAIR_PUBLICATION=BLOCKED_BY_CHAIR1'
-          exit 1
           exit 1
 
       - name: Publish exact candidate commit only after post-patch adversarial validation
@@ -1456,7 +1452,6 @@ jobs:
             /tmp/flixo-postpatch-adversarial.json
             /tmp/flixo-rca-manifest.json
             /tmp/flixo-candidate-verification.json
-            /tmp/flixo-candidate-verification.json
           if-no-files-found: warn
           retention-days: 14
 
@@ -1482,7 +1477,6 @@ jobs:
             /tmp/flixo-intractable-state
             /tmp/flixo-task-agent/*.json
             /tmp/flixo-repair-memory.json
-            /tmp/flixo-postpatch-adversarial.json
             /tmp/flixo-postpatch-adversarial.json
             /tmp/flixo-rca-manifest.json
             /tmp/flixo-historical-learning.json
