@@ -829,15 +829,15 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     regressionDepth: Number(provenance?.regressionDepth ?? 0),
     learningOutputs: 5,
     canonicalGreen: process.env.FLIXO_CANONICAL_GREEN === 'true',
-    fiveXCycle: effectiveFiveXCycle,
   });
+  const fiveXProvenance = { ...effectiveProvenance, fiveXCycle: effectiveFiveXCycle };
   const cycleLessons = buildCycleLessons({
     fingerprint,
     rootCause: entry.rootCause,
     rule,
     outcome,
     verification,
-    provenance: effectiveProvenance,
+    provenance: fiveXProvenance,
     preventionRule: effectivePreventionRule,
     diagnosis: effectiveDiagnosis,
     changedPaths: effectiveDiagnosis?.affectedPaths ?? affectedPaths,
@@ -887,7 +887,8 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     changedPaths: effectiveDiagnosis?.affectedPaths ?? affectedPaths,
     preventionRule: effectivePreventionRule,
     exactShaVerified: verification === 'passed' || verification === 'exact-sha-proof',
-    canonicalGreen: process.env.FLIXO_CANONICAL_GREEN === 'true',
+    canonicalGreen: process.env.FLIXO_CANONICAL_GREEN === 'true',,
+    fiveXCycle: effectiveFiveXCycle
   });
   if (countsAsRepairAttempt) {
     entry.attempts += 1;
@@ -957,6 +958,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
       repairChainId,
       diagnosis: effectiveDiagnosis,
       affectedPaths: effectiveDiagnosis?.affectedPaths ?? [],
+      fiveXCycle: effectiveFiveXCycle,
       at: new Date().toISOString(),
     }].slice(-MEMORY_RETENTION.maxLessonEvidence);
   }
