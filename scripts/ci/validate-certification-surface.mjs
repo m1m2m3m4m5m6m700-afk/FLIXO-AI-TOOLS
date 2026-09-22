@@ -38,6 +38,7 @@ const nonTestAutomation = new Set([
   'dependency-usage-classification-v2.yml',
   'repository-security-baseline.yml',
   'latest-commit-test-supersession.yml',
+  'task-history-ledger.yml',
 ]);
 const auxiliaryEvidenceAutomation = new Set(['test-impact.yml', 'test-impact-execution.yml']);
 const trustBaselineAutomation = new Set(['wp0-trust-baseline.yml']);
