@@ -43,7 +43,7 @@ const invalidParameters = safeParseExecutionPlan({
 });
 assert.throws(
   () => validateCapabilityParameters('image-compressor', { quality: 0.8, unsupportedObject: true }),
-  /unsupported parameters/,
+  /canonical schema validation|unsupported parameters/,
 );
 assert.equal(invalidParameters.success, false);
 

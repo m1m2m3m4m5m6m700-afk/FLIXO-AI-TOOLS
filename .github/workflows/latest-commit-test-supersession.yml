@@ -93,7 +93,7 @@ jobs:
           is_test_workflow() {
             case "$1" in
               "FLIXO Latest Commit Test Supersession") return 1 ;;
-              *Test*|*test*|*Verification*|*verification*|*Contract*|*contract*|*Security*|*security*|*Baseline*|*baseline*|*Certification*|*certification*|*Impact*|*impact*|*Code*Scanning*|*CodeQL*|*Diagnostic*|*diagnostic*|*Proof*|*proof*|*Scan*|*scan*|*Green Gate*|*green gate*) return 0 ;;
+              *Test*|*test*|*Verification*|*verification*|*Contract*|*contract*|*Security*|*security*|*Baseline*|*baseline*|*Certification*|*certification*|*Impact*|*impact*|*Code*Scanning*|*CodeQL*|*Diagnostic*|*diagnostic*|*Proof*|*proof*|*Scan*|*scan*|*Green*Gate*|*green*gate*) return 0 ;;
               *) return 1 ;;
             esac
           }
