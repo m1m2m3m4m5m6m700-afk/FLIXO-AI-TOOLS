@@ -4,8 +4,6 @@ import fs from 'node:fs';
 const read = (file) => fs.readFileSync(file, 'utf8');
 const watchdog = read('.github/workflows/execution-bot-watchdog.yml');
 const canonicalCi = read('.github/workflows/ci.yml');
-const securityBaseline = read('.github/workflows/repository-security-baseline.yml');
-const claudeSecurity = read('.github/workflows/claude-security-review.yml');
 const impactExecution = read('.github/workflows/test-impact-execution.yml');
 const impactPlan = read('.github/workflows/test-impact.yml');
 const wp0 = read('.github/workflows/wp0-trust-baseline.yml');
@@ -30,7 +28,7 @@ assert.match(supersession, /gh run view "\$run_id" --repo "\$REPOSITORY" --json 
 assert.match(supersession, /STALE_RUN_ALREADY_COMPLETED run=\$run_id/);
 assert.match(supersession, /ERROR: cancellation failed for active run=\$run_id status=\$now_status/);
 assert.doesNotMatch(supersession, /gh run cancel "\$run_id" --repo "\$REPOSITORY"\s*\|\|\s*true/);
-assert.match(canonicalCi, /group: flixo-test-\$\{\{ github\.event\.pull_request\.head\.repo\.full_name \|\| github\.repository \}\}-\$\{\{ github\.event\.pull_request\.head\.ref \|\| github\.ref_name \}\}/);
+assert.match(canonicalCi, /group: flixo-test-\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
 assert.match(canonicalCi, /push:\s*\n\s*branches:\s*\[main, execution\]/);
 assert.match(canonicalCi, /cancel-in-progress:\s*true/);
 for (const workflow of [canonicalCi, impactExecution, impactPlan, wp0]) assert.match(workflow, /cancel-in-progress:\s*true/);
