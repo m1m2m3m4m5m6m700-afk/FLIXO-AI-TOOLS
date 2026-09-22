@@ -4,6 +4,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fingerprintFailure, normalizeFailure, extractFeatures } from './auto-repair/fingerprint.mjs';
+import { buildDeepInference } from './read-only-deep-reasoning.mjs';
 
 const ROOT = process.cwd();
 const DEFAULT_OUTPUT = process.env.INVESTIGATION_DIR
@@ -385,6 +386,15 @@ function analyzeSnapshot(input) {
     securitySignals,
     securityFindings,
     historicalSignals: historical,
+    deepInference: buildDeepInference({
+      executionSha: currentSha,
+      observed,
+      historicalSignals: historical,
+      securityFindings,
+      recurringPatterns,
+      downstreamFailures,
+      staleEvidence,
+    }),
     unknowns,
     decisionPolicy: 'Evidence-backed analysis only. A recurring pattern is not proof of causality. A security signal is not a vulnerability verdict. No report authorizes mutation, certification, merge, push, or repair.',
     writePolicy: 'The investigator may write only its own report path. It never mutates repository source, Git refs, CI configuration, task state, or control-plane state.',
