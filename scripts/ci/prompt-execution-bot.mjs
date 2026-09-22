@@ -139,6 +139,63 @@ function taskScore(row, prompt, intent) {
 function taskCandidates(prompt, intent) { return taskRows().map((row) => ({ task: row, score: taskScore(row, prompt, intent) })).filter((x) => x.score >= 0.15).sort((a, b) => b.score - a.score).slice(0, 5); }
 function unsafe(prompt) { return [...new Set(UNSAFE.flatMap(([pattern, code]) => pattern.test(prompt) && !isNegated(prompt, pattern) ? [code] : []))]; }
 
+export function buildPreExecution25Evidence({
+  executionSha, mainSha, branch, matchedTasks, selectedTaskId, actionList, intent,
+  constraintsValue, unsafeRequests, candidates, selected, quality, training,
+  adversarialLoop, adversarialReview, adversarialFailureReport, scope,
+  proofObligations, stopConditions,
+}) {
+  const workflowDir = path.resolve(ROOT, '.github/workflows');
+  const workflowCount = fs.existsSync(workflowDir)
+    ? fs.readdirSync(workflowDir).filter((name) => /\.ya?ml$/u.test(name)).length
+    : 0;
+  const operations = [
+    { id: 'CURRENT_EXECUTION_SHA', observation: executionSha },
+    { id: 'CURRENT_MAIN_SHA', observation: mainSha ?? 'UNAVAILABLE' },
+    { id: 'EXECUTION_BRANCH', observation: branch },
+    { id: 'TASK_GATE_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'المهام.md')) },
+    { id: 'PROJECT_MAP_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'PROJECTS.md')) },
+    { id: 'AGENTS_PROTOCOL_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'AGENTS.md')) },
+    { id: 'P00_SOURCE_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'docs/agents/PROMPT-UNIFIED-EXECUTION.md')) },
+    { id: 'PROTOCOL_REGISTRY_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'docs/PROTOCOL-REGISTRY.json')) },
+    { id: 'PROMPT_REGISTRY_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'docs/agents/PROMPT-REGISTRY.json')) },
+    { id: 'WORKFLOW_SURFACE_INVENTORY', observation: workflowCount },
+    { id: 'ACTIVE_TASK_CANDIDATES', observation: matchedTasks.length },
+    { id: 'SELECTED_TASK', observation: selectedTaskId ?? 'NONE' },
+    { id: 'INTENT_CLASSIFICATION', observation: intent },
+    { id: 'ACTION_CLASSIFICATION', observation: actionList.join(',') || 'NONE' },
+    { id: 'HARD_CONSTRAINT_COUNT', observation: constraintsValue.hard.length },
+    { id: 'SOFT_CONSTRAINT_COUNT', observation: constraintsValue.soft.length },
+    { id: 'UNCERTAIN_CONSTRAINT_COUNT', observation: constraintsValue.uncertain.length },
+    { id: 'UNSAFE_REQUEST_SCAN', observation: unsafeRequests.join(',') || 'NONE' },
+    { id: 'PROMPT_CANDIDATE_COUNT', observation: candidates.length },
+    { id: 'CANONICAL_PROMPT_SELECTED', observation: selected?.promptId ?? 'NONE' },
+    { id: 'PROMPT_QUALITY_GATE', observation: quality.status },
+    { id: 'TRAINING_LESSON_COUNT', observation: training.lessons?.length ?? 0 },
+    { id: 'TRAINING_RULE_COUNT', observation: training.ruleIds?.length ?? 0 },
+    { id: 'TRAINING_DIGEST', observation: training.trainingDigest ?? 'NONE' },
+    { id: 'ADVERSARY_ROUND', observation: adversarialLoop.round },
+    { id: 'ADVERSARY_ACCEPTANCE', observation: adversarialLoop.accepted === true },
+    { id: 'ADVERSARY_STATUS', observation: adversarialReview.status },
+    { id: 'ADVERSARY_AUTHORITY', observation: adversarialReview.authority },
+    { id: 'ADVERSARY_FAILURE_COUNT', observation: adversarialFailureReport.failureCount },
+    { id: 'ADVERSARY_COUNTEREXAMPLE', observation: adversarialReview.counterexampleFound === true },
+    { id: 'SCOPE_SURFACE_COUNT', observation: scope.length },
+    { id: 'PROOF_OBLIGATION_COUNT', observation: proofObligations.length },
+    { id: 'STOP_CONDITION_COUNT', observation: stopConditions.length },
+  ];
+  const operationCount = operations.length;
+  return Object.freeze({
+    ruleId: 'PRE-EXECUTION-25',
+    status: executionSha && branch === 'execution' && operationCount >= 25 ? 'PASS' : 'BLOCKED',
+    minOperations: 25,
+    operationCount,
+    operationDigest: digest(JSON.stringify({ executionSha, operations })),
+    exactSha: executionSha,
+    operations,
+  });
+}
+
 export function buildWorkPackage(prompt) {
   if (!prompt) throw new Error('PROMPT_EXECUTION_BOT_PROMPT_REQUIRED');
   if (prompt.length > MAX_INPUT) throw new Error(`PROMPT_EXECUTION_BOT_PROMPT_TOO_LARGE=${prompt.length}`);
@@ -161,7 +218,7 @@ export function buildWorkPackage(prompt) {
   const blocked = unsafeRequests.length > 0 || quality.status !== 'PASS' || (['EXECUTION', 'REPAIR_DIAGNOSE'].includes(intent) && branch !== 'execution');
   const reviewRequired = !selectedTaskId && !['PLAN', 'DOCUMENT'].includes(intent);
   const scope = [...new Set([...(selectedTaskId ? [selectedTaskId] : []), ...paths(prompt), ...(intent.startsWith('REPOSITORY') ? ['PROMPT_EXECUTION_BOT'] : [])])];
-  const proofObligations = ['CURRENT_EXACT_EXECUTION_SHA', 'NO_MAIN_MUTATION', 'NO_THIRD_ACTIVE_BRANCH', 'CANONICAL_PROMPT_BOUND', 'PROMPT_REGISTRY_VALID', 'TARGETED_VERIFICATION', 'AFFECTED_CONTRACT_GRAPH_VERIFICATION', 'CANONICAL_GREEN_FOR_CLOSURE'];
+  const proofObligations = ['CURRENT_EXACT_EXECUTION_SHA', 'PRE_EXECUTION_25_PASS', 'NO_MAIN_MUTATION', 'NO_THIRD_ACTIVE_BRANCH', 'CANONICAL_PROMPT_BOUND', 'PROMPT_REGISTRY_VALID', 'TARGETED_VERIFICATION', 'AFFECTED_CONTRACT_GRAPH_VERIFICATION', 'CANONICAL_GREEN_FOR_CLOSURE'];
   const stopConditions = ['STALE_EXECUTION_SHA', 'PROMPT_REGISTRY_INVALID', 'SCOPE_CONFLICT', 'UNSAFE_REQUEST', 'CANONICAL_CONTEXT_DRIFT', 'UNRESOLVED_HIGH_RISK_AMBIGUITY'];
   const provisional = {
     actions: actionList,
@@ -196,12 +253,20 @@ export function buildWorkPackage(prompt) {
   const effectiveProofObligations = adversarialLoop.plan.workPackage?.proofObligations ?? proofObligations;
   const effectiveStopConditions = adversarialLoop.plan.workPackage?.stopConditions ?? stopConditions;
   const adversarialBlock = ['EXECUTION', 'REPAIR_DIAGNOSE'].includes(intent) && !adversarialLoop.accepted;
-  const status = blocked ? 'BLOCKED' : (reviewRequired || adversarialBlock) ? 'REVIEW_REQUIRED' : 'READY';
+  const preExecution25 = buildPreExecution25Evidence({
+    executionSha, mainSha, branch, matchedTasks, selectedTaskId, actionList, intent,
+    constraintsValue, unsafeRequests, candidates, selected, quality, training,
+    adversarialLoop, adversarialReview, adversarialFailureReport, scope,
+    proofObligations, stopConditions,
+  });
+  const status = blocked ? 'BLOCKED' : (reviewRequired || adversarialBlock || preExecution25.status !== 'PASS') ? 'REVIEW_REQUIRED' : 'READY';
   const cleanGoal = prompt.replace(/\s+/gu, ' ').trim();
   return {
     schemaVersion: 1, authority: 'FLIXO_PROMPT_EXECUTION_BOT', botId: 'PROMPT-EXECUTION-BOT', mode: String(arg('mode', 'plan')).toLowerCase(), status,
     dispatchable: status === 'READY' && adversarialReview.status === 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE' && Boolean(selectedTaskId) && branch === 'execution', generatedAt: new Date().toISOString(), executionBranch: branch, executionSha, mainSha,
     userPrompt: cleanGoal, normalizedGoal: cleanGoal, actions: actionList, intent,
+    adversarialFailureReport,
+    preExecution25,
     ambiguity: status === 'READY' ? (/(maybe|perhaps|ربما|قد|يمكن|غير واضح)/iu.test(prompt) ? 'MEDIUM' : 'LOW') : 'HIGH',
     constraints: effectiveConstraints, explicitPaths: paths(prompt), unsafeRequests, requiredReads: CANONICAL_SOURCES,
     training: { ...trainingSummary(training), selectedRules: training.selectedRules, lessons: training.lessons, sourceDigests: training.sourceDigests },
@@ -228,6 +293,11 @@ export function buildWorkPackage(prompt) {
 
 export function dispatchWorkPackage(plan) {
   if (plan.status !== 'READY' || !plan.dispatchable) throw new Error(`PROMPT_EXECUTION_BOT_DISPATCH_BLOCKED=${plan.blockers.join('|') || 'NOT_DISPATCHABLE'}`);
+  if (plan.preExecution25?.status !== 'PASS' || plan.preExecution25.operationCount < 25) throw new Error('PROMPT_EXECUTION_BOT_PRE_EXECUTION_25_BLOCKED');
+  const currentBranch = git(['branch', '--show-current']);
+  const currentExecutionSha = git(['rev-parse', 'HEAD']);
+  if (currentBranch !== 'execution') throw new Error('PROMPT_EXECUTION_BOT_DISPATCH_REQUIRES_EXECUTION_BRANCH');
+  if (currentExecutionSha !== plan.executionSha) throw new Error(`PROMPT_EXECUTION_BOT_STALE_SHA_BEFORE_DISPATCH=${plan.executionSha}!=${currentExecutionSha}`);
   const actor = String(arg('agent', 'implementation'));
   const messageId = `PROMPT-EXEC-${digest(`${plan.executionSha}|${plan.selectedTaskId}|${plan.userPrompt}`).slice(0, 24)}`;
   assertAdversarialGate(plan.adversarialReview, { mutation: true });
