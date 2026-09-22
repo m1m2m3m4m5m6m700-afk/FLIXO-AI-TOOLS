@@ -28,17 +28,21 @@ const scheduleRuns=runs
   .filter((r)=>Number.isFinite(Date.parse(String(r.startedAt ?? ''))))
   .sort((a,b)=>Date.parse(a.startedAt)-Date.parse(b.startedAt));
 
+const ROLLING_WINDOW_RUNS=12;
+const recentScheduleRuns=scheduleRuns.slice(-ROLLING_WINDOW_RUNS);
+const historicalSampleCount=Math.max(0,scheduleRuns.length-recentScheduleRuns.length);
+
 const gaps=[];
-for(let i=1;i<scheduleRuns.length;i++){
-  const previous=Date.parse(scheduleRuns[i-1].startedAt);
-  const current=Date.parse(scheduleRuns[i].startedAt);
+for(let i=1;i<recentScheduleRuns.length;i++){
+  const previous=Date.parse(recentScheduleRuns[i-1].startedAt);
+  const current=Date.parse(recentScheduleRuns[i].startedAt);
   const gapMs=current-previous;
   if(gapMs>maxGapMs){
     gaps.push({
-      previousRunId:scheduleRuns[i-1].id,
-      currentRunId:scheduleRuns[i].id,
-      previousStartedAt:scheduleRuns[i-1].startedAt,
-      currentStartedAt:scheduleRuns[i].startedAt,
+      previousRunId:recentScheduleRuns[i-1].id,
+      currentRunId:recentScheduleRuns[i].id,
+      previousStartedAt:recentScheduleRuns[i-1].startedAt,
+      currentStartedAt:recentScheduleRuns[i].startedAt,
       gapMs,
       gapMinutes:Number((gapMs/60000).toFixed(3)),
       allowedMinutes:Number((maxGapMs/60000).toFixed(3)),
@@ -46,7 +50,7 @@ for(let i=1;i<scheduleRuns.length;i++){
   }
 }
 
-const latest=scheduleRuns.at(-1) ?? null;
+const latest=recentScheduleRuns.at(-1) ?? null;
 const latestAgeMs=latest ? Math.max(0,now-Date.parse(latest.startedAt)) : null;
 const latestStale=latest ? latestAgeMs>maxGapMs : true;
 const sampleState=scheduleRuns.length<2 ? 'BASELINE_REQUIRED' : gaps.length===0 && !latestStale ? 'PASS' : 'WAKE_GAP_RED';
@@ -57,7 +61,9 @@ const report={
   expectedEveryMs:expectedMs,
   graceMs,
   maxAllowedGapMs:maxGapMs,
-  sampleCount:scheduleRuns.length,
+  sampleCount:recentScheduleRuns.length,
+  historicalSampleCount,
+  rollingWindowRuns:ROLLING_WINDOW_RUNS,
   latest,
   latestAgeMs,
   latestAgeMinutes:latestAgeMs===null?null:Number((latestAgeMs/60000).toFixed(3)),
