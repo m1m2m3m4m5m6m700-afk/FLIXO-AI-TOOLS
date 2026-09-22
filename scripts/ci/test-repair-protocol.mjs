@@ -123,6 +123,10 @@ assert.throws(()=>assertAgentAdmission({actor:'unknownFutureAgent'}),/UNKNOWN_AG
 assert.throws(()=>assertAgentAdmission({actor:'diagnosticAgent',branch:'execution',mutation:true}),/MUTATION_ROLE_BLOCKED/);
 assert.throws(()=>assertAgentAdmission({actor:'taskAgent',branch:'execution',mutation:true}),/MUTATION_ROLE_BLOCKED/);
 assert.throws(()=>assertAgentAdmission({actor:'implementation',branch:'execution',mutation:true}),/MUTATION_ROLE_BLOCKED/);
+process.env.FLIXO_AUTO_REPAIR_CONTEXT='true';
+const autoRepairAdmission=assertAgentAdmission({actor:'repairAgent',branch:'execution',mutation:true,session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,taskId:'auto-repair-exempt',cellLabConsensus:cellLabConsensus('auto-repair-exempt','repairAgent')}});
+assert.equal(autoRepairAdmission.admitted,true);
+delete process.env.FLIXO_AUTO_REPAIR_CONTEXT;
 assert.throws(()=>assertAgentAdmission({actor:'actionHistorian',branch:'execution',mutation:true,session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task-historian-fail',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,cellLabConsensus:cellLabConsensus('repair-test-task-historian-fail','actionHistorian')}}),/SUPERVISOR_MODE_REQUIRED/);
 assert.equal(assertAgentAdmission({
   actor:'actionRepairVerifier', branch:'execution', mutation:true,
