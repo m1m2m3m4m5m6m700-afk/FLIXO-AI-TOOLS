@@ -929,3 +929,14 @@ Machine enforcement:
 
 
 سقف القطاع النشط المتصل 3 ساعات؛ بعده تجديد إجباري بلا نوم أو خمول، مع استمرار المهمة بلا حد زمني إجمالي حتى GREEN. `MASTER_CELL_LAB` يحمل تحديثات الماسترز كل 5 دقائق وتذكير المهام كل 10 دقائق، مع current exact SHA وRCA وremainingWork وnextAction.
+
+## CHAIR-1 — CENTRAL CUSTODY / TEMPORARY DELEGATION
+
+Chair-1 is centrally owned by `assistantController`. Ownership is permanent unless the user directly commands a transfer.
+
+An agent may use Chair-1 only for an assigned bounded task with task/work-package context. Chair-1 may not be preempted, stolen, or reassigned by another Agent/Master/Bot while an active delegation exists.
+
+Task completion or an authorized task release automatically clears the delegate and returns Chair-1 to `assistantController` custody. Session timeout, heartbeat loss, or agent failure does not authorize another agent to take the chair; recovery must preserve or reassign the task through the canonical controller path.
+
+Controller-only reclaim requires an explicit direct-user command marker. Any other reclaim, preemption, ownership change, or delegation-policy mutation is `FAIL_CLOSED`.
+
