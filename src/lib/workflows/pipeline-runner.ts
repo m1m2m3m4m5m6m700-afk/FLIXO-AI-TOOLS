@@ -27,8 +27,69 @@ function extensionForMime(mimeType: string): string {
   return map[mimeType] ?? 'bin';
 }
 
-async function readImageDimensions(blob: Blob): Promise<{ width: number; height: number } | undefined> {
+function readUint16LE(bytes: Uint8Array, offset: number): number {
+  return bytes[offset] | (bytes[offset + 1] << 8);
+}
+
+function readUint24LE(bytes: Uint8Array, offset: number): number {
+  return readUint16LE(bytes, offset) | (bytes[offset + 2] << 16);
+}
+
+function readUint32BE(bytes: Uint8Array, offset: number): number {
+  return ((bytes[offset] * 0x1000000) + (bytes[offset + 1] << 16) + (bytes[offset + 2] << 8) + bytes[offset + 3]) >>> 0;
+}
+
+function text4(bytes: Uint8Array, offset: number): string {
+  return String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
+}
+
+function extractImageDimensions(bytes: Uint8Array, mimeType: string): { width: number; height: number } | undefined {
+  if (mimeType === 'image/png' && bytes.length >= 24 &&
+      text4(bytes, 12) === 'IHDR') {
+    const width = readUint32BE(bytes, 16);
+    const height = readUint32BE(bytes, 20);
+    if (width > 0 && height > 0) return { width, height };
+  }
+
+  if (mimeType === 'image/webp' && bytes.length >= 30 &&
+      text4(bytes, 0) === 'RIFF' && text4(bytes, 8) === 'WEBP' && text4(bytes, 12) === 'VP8X') {
+    const width = 1 + readUint24LE(bytes, 24);
+    const height = 1 + readUint24LE(bytes, 27);
+    if (width > 0 && height > 0) return { width, height };
+  }
+
+  if (mimeType === 'image/jpeg' && bytes.length >= 4 &&
+      bytes[0] === 0xff && bytes[1] === 0xd8) {
+    let offset = 2;
+    while (offset + 8 < bytes.length) {
+      if (bytes[offset] !== 0xff) {
+        offset += 1;
+        continue;
+      }
+      const marker = bytes[offset + 1];
+      offset += 2;
+      if (marker === 0xd9 || marker === 0xda) break;
+      if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd7)) continue;
+      if (offset + 2 > bytes.length) break;
+      const segmentLength = (bytes[offset] << 8) | bytes[offset + 1];
+      if (segmentLength < 2 || offset + segmentLength > bytes.length) break;
+      const isSof = [0xc0,0xc1,0xc2,0xc3,0xc5,0xc6,0xc7,0xc9,0xca,0xcb,0xcd,0xce,0xcf].includes(marker);
+      if (isSof && segmentLength >= 7) {
+        const height = (bytes[offset + 3] << 8) | bytes[offset + 4];
+        const width = (bytes[offset + 5] << 8) | bytes[offset + 6];
+        if (width > 0 && height > 0) return { width, height };
+      }
+      offset += segmentLength;
+    }
+  }
+
+  return undefined;
+}
+
+async function readImageDimensions(blob: Blob, bytes: Uint8Array): Promise<{ width: number; height: number } | undefined> {
   if (!blob.type.startsWith('image/')) return undefined;
+  const parsed = extractImageDimensions(bytes, blob.type);
+  if (parsed) return parsed;
   if (typeof createImageBitmap === 'function') {
     const bitmap = await createImageBitmap(blob);
     try {
@@ -56,7 +117,7 @@ async function toOutputContractResult(toolId: string, outputBlob: Blob): Promise
     byteLength: outputBlob.size,
     bytes,
     filename: `flixo-${toolId}-output.${extensionForMime(outputBlob.type)}`,
-    dimensions: await readImageDimensions(outputBlob),
+    dimensions: await readImageDimensions(outputBlob, bytes),
   };
 }
 
@@ -68,8 +129,20 @@ export async function verifyPipelineOutput(toolId: string, inputBlob: Blob, outp
   const contract = getToolOutputContractForDefinition(tool);
   if (!contract) return false;
 
-  const timeout = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), capability.safetyLimits.timeoutMs));
-  const capabilityVerified = await Promise.race([capability.verifier(inputBlob, outputBlob, params), timeout]);
+  const controller = new AbortController();
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<boolean>((resolve) => {
+    timeoutHandle = setTimeout(() => {
+      controller.abort();
+      resolve(false);
+    }, capability.safetyLimits.timeoutMs);
+  });
+  let capabilityVerified = false;
+  try {
+    capabilityVerified = await Promise.race([capability.verifier(inputBlob, outputBlob, params, controller.signal), timeout]);
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+  }
   if (!capabilityVerified) return false;
 
   try {

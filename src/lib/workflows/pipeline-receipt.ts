@@ -10,6 +10,8 @@ export type PipelineStepReceipt = Readonly<{
   outputSha256: string;
   verified: boolean;
   recoveryApplied: boolean;
+  executionMode: string;
+  executorId: string;
 }>;
 
 async function sha256Blob(blob: Blob): Promise<string> {
@@ -72,6 +74,8 @@ function canonicalReceiptPayload(receipt: PipelineStepReceipt): string {
     receipt.outputSha256,
     receipt.verified,
     receipt.recoveryApplied,
+    receipt.executionMode,
+    receipt.executorId,
   ]);
 }
 
@@ -110,6 +114,7 @@ export async function appendPipelineStepReceipt(
   if (chain.catalogFingerprint !== TOOL_CATALOG.fingerprint) throw new Error('Pipeline receipt chain catalog fingerprint is stale.');
   if (receipt.catalogFingerprint !== chain.catalogFingerprint) throw new Error('Pipeline receipt catalog fingerprint does not match the chain.');
   if (!receipt.verified) throw new Error('Only verified pipeline step receipts may enter the receipt chain.');
+  if (!receipt.executionMode || !receipt.executorId) throw new Error('Pipeline receipt execution provenance is missing.');
 
   const previous = chain.steps[chain.steps.length - 1];
   if (previous) {
@@ -174,7 +179,9 @@ export async function createPipelineStepReceipt(input: Readonly<{
   catalogFingerprint: string;
   verified: boolean;
 }>): Promise<PipelineStepReceipt> {
-  if (!getToolById(input.toolId)) throw new Error(`Unknown pipeline tool: ${input.toolId}`);
+  const tool = getToolById(input.toolId);
+  if (!tool) throw new Error(`Unknown pipeline tool: ${input.toolId}`);
+  if (!tool.operational.executorId) throw new Error(`Pipeline receipt execution binding is missing: ${input.toolId}`);
   if (!Number.isInteger(input.stepIndex) || input.stepIndex < 1) throw new Error('Pipeline receipt stepIndex must be a positive integer.');
   if (!Number.isInteger(input.attempt) || input.attempt < 0) throw new Error('Pipeline receipt attempt must be a non-negative integer.');
   if (input.catalogFingerprint !== TOOL_CATALOG.fingerprint) throw new Error('Pipeline receipt catalog fingerprint is stale.');
@@ -188,5 +195,7 @@ export async function createPipelineStepReceipt(input: Readonly<{
     outputSha256: await sha256Blob(input.outputBlob),
     verified: input.verified,
     recoveryApplied: input.attempt > 0,
+    executionMode: tool.executionMode,
+    executorId: tool.operational.executorId,
   });
 }

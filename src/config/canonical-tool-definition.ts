@@ -35,7 +35,7 @@ type ToolConfig = ToolSource;
 export type CapabilityState = 'RECOGNIZED' | 'PLANNABLE' | 'EXECUTABLE' | 'UNAVAILABLE';
 export type ExecutionMode = 'LOCAL' | 'HYBRID' | 'CLOUD';
 export type CapabilityParameters = Record<string, string | number | boolean>;
-export type CapabilityVerifier = (inputBlob: Blob, outputBlob: Blob, parameters: CapabilityParameters) => Promise<boolean>;
+export type CapabilityVerifier = (inputBlob: Blob, outputBlob: Blob, parameters: CapabilityParameters, signal?: AbortSignal) => Promise<boolean>;
 export type CapabilityLimits = Readonly<{ maxPixels: number; maxFileSizeBytes: number; timeoutMs: number }>;
 
 export type ToolDefinition = Readonly<{
@@ -117,15 +117,15 @@ const TOOL_INTENTS: Readonly<Record<string, readonly string[]>> = {
 };
 
 const EXECUTABLE_IDS = new Set(['background-remover', 'image-upscaler', 'image-cropper', 'image-compressor', 'image-converter', 'image-effects']);
-const defaultVerifier: CapabilityVerifier = async (_inputBlob, outputBlob) => outputBlob.size > 0;
-const targetSizeVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, parameters) => {
-  if (outputBlob.size <= 0) return false;
+const defaultVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, _parameters, signal) => !signal?.aborted && outputBlob.size > 0;
+const targetSizeVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, parameters, signal) => {
+  if (signal?.aborted || outputBlob.size <= 0) return false;
   const targetSizeKB = typeof parameters.targetSizeKB === 'number' ? parameters.targetSizeKB : undefined;
   return targetSizeKB === undefined ? true : outputBlob.size <= targetSizeKB * 1024;
 };
-const formatVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, parameters) => {
+const formatVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, parameters, signal) => {
   const format = parameters.format;
-  return outputBlob.size > 0 && (typeof format !== 'string' || outputBlob.type === format);
+  return !signal?.aborted && outputBlob.size > 0 && (typeof format !== 'string' || outputBlob.type === format);
 };
 const verifierFor = (toolId: string): CapabilityVerifier => {
   if (toolId === 'image-compressor') return targetSizeVerifier;

@@ -19,8 +19,11 @@ assert.match(pipelineSource, /stage:\s*'VERIFICATION'/);
 assert.match(pipelineSource, /stage:\s*'RECOVERY'/);
 assert.match(pipelineSource, /deriveRecoveryMetadata/);
 assert.match(pipelineSource, /classifyExecutionFailure/);
+assert.match(pipelineSource, /new AbortController\(\)/);
+assert.match(pipelineSource, /controller\.abort\(\)/);
+assert.match(pipelineSource, /extractImageDimensions/);
 
-const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01]);
+const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01]);
 const validPng = new Blob([pngBytes], { type: 'image/png' });
 const invalidSignature = new Blob([new Uint8Array(9)], { type: 'image/png' });
 const wrongMime = new Blob([pngBytes], { type: 'text/plain' });
@@ -75,6 +78,8 @@ assert.match(receipt.inputSha256, /^[a-f0-9]{64}$/);
 assert.match(receipt.outputSha256, /^[a-f0-9]{64}$/);
 assert.equal(receipt.recoveryApplied, false);
 assert.equal(receipt.verified, true);
+assert.equal(receipt.executionMode, compressor.executionMode);
+assert.equal(receipt.executorId, compressor.operational.executorId);
 
 const plan = {
   workflowName: 'Receipt chain test',

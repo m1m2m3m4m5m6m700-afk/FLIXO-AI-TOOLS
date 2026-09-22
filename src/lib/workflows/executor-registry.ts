@@ -109,10 +109,12 @@ export function repairToolParameters(tool: ToolDefinition, parameters: Capabilit
 }
 
 export function assertExecutorCoverage(tools: readonly ToolDefinition[]): void {
-  const missing = tools
-    .filter((tool) => tool.capability.state === 'EXECUTABLE')
-    .map((tool) => tool.operational.executorId)
-    .filter((executorId): executorId is string => Boolean(executorId))
-    .filter((executorId) => !EXECUTORS[executorId]);
-  if (missing.length) throw new Error(`Missing executor bindings: ${[...new Set(missing)].join(', ')}`);
+  const executable = tools.filter((tool) => tool.capability.state === 'EXECUTABLE');
+  const missingIds = executable.filter((tool) => !tool.operational.executorId).map((tool) => tool.id);
+  const referencedIds = new Set(executable.map((tool) => tool.operational.executorId).filter((id): id is string => Boolean(id)));
+  const missing = [...referencedIds].filter((executorId) => !EXECUTORS[executorId]);
+  const orphan = Object.keys(EXECUTORS).filter((executorId) => !referencedIds.has(executorId));
+  if (missingIds.length || missing.length || orphan.length) {
+    throw new Error(`Executor coverage mismatch: missingIds=${missingIds.join(',')}; missing=${missing.join(',')}; orphan=${orphan.join(',')}`);
+  }
 }
