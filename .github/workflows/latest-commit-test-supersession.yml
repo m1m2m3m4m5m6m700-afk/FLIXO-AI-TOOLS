@@ -14,7 +14,7 @@ on:
 concurrency:
   # One controller lane per source repository + branch. Push and PR synchronize events for the
   # same source branch share one supersession owner, while independent forks stay isolated.
-  group: flixo-latest-commit-supersession-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: flixo-latest-commit-supersession-${{ github.event_name }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -147,7 +147,7 @@ jobs:
             return 1
           }
           RUNS_JSON=""
-          if ! RUNS_JSON="$(gh api --paginate --slurp "repos/$REPOSITORY/actions/runs?branch=$BRANCH&per_page=100" 2>&1)"; then
+          if ! RUNS_JSON="$(gh api "repos/$REPOSITORY/actions/runs?branch=$BRANCH&per_page=100" 2>&1)"; then
             if printf '%s' "$RUNS_JSON" | grep -Eiq 'API rate limit exceeded|rate limit exceeded|secondary rate limit|abuse detection'; then
               echo "BLOCKED_EXTERNAL: GitHub Actions API rate limit prevented stale-run inventory."
               echo "SUPERSESSION_EXTERNAL_BLOCKER=GITHUB_ACTIONS_API_RATE_LIMIT"
@@ -156,7 +156,7 @@ jobs:
             printf '%s\n' "$RUNS_JSON" >&2
             exit 1
           fi
-          printf '%s' "$RUNS_JSON" | jq 'add' > /tmp/supersession-all-runs.json
+          printf '%s' "$RUNS_JSON" | jq '.' > /tmp/supersession-all-runs.json
           while IFS=$'\t' read -r RUN_ID HEAD_SHA STATUS NAME EVENT HEAD_REPOSITORY; do
             [ -n "$RUN_ID" ] || continue
             if [ "$HEAD_SHA" = "$CURRENT_SHA" ]; then
@@ -187,7 +187,7 @@ jobs:
           set -euo pipefail
           stale_active=0
           for poll in 1 2 3 4 5; do
-            if ! RUNS_JSON="$(gh api --paginate --slurp "repos/$REPOSITORY/actions/runs?branch=$BRANCH&per_page=100" 2>&1)"; then
+            if ! RUNS_JSON="$(gh api "repos/$REPOSITORY/actions/runs?branch=$BRANCH&per_page=100" 2>&1)"; then
               if printf '%s' "$RUNS_JSON" | grep -Eiq 'API rate limit exceeded|rate limit exceeded|secondary rate limit|abuse detection'; then
                 echo "BLOCKED_EXTERNAL: GitHub Actions API rate limit prevented final stale-run inventory."
                 echo "SUPERSESSION_EXTERNAL_BLOCKER=GITHUB_ACTIONS_API_RATE_LIMIT"
@@ -196,7 +196,7 @@ jobs:
               printf "%s\n" "$RUNS_JSON" >&2
               exit 1
             fi
-            printf '%s' "$RUNS_JSON" | jq 'add' > /tmp/supersession-final-runs.json
+            printf '%s' "$RUNS_JSON" | jq '.' > /tmp/supersession-final-runs.json
             stale_active="$(jq -r --arg sha "$CURRENT_SHA" '[.workflow_runs[] | select(.status != "completed" and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession")] | length' /tmp/supersession-final-runs.json)"
             echo "STALE_ACTIVE_RUNS=$stale_active poll=$poll"
             if [ "$stale_active" -eq 0 ]; then break; fi
