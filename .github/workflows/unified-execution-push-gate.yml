@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  verify:
+  push_proof:
     name: Unified execution push proof
     runs-on: ubuntu-latest
     timeout-minutes: 10
