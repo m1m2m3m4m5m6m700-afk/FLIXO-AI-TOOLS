@@ -45,7 +45,7 @@ const visibilityDir = path.resolve(ROOT, 'docs/agents/ledger');
 const handoffDir = path.resolve(ROOT, 'diagnostics/agents/handoffs');
 const now = () => new Date().toISOString();
 const gitSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
-const requiredReads = ['PROJECTS.md', 'المهام.md', 'AGENTS.md', 'docs/EXECUTION-BRANCH-PROTOCOL.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md', 'docs/AGENT-COORDINATION-CONTROL-PLANE.md', 'docs/PROTOCOL-HIERARCHY.md', 'docs/PROTOCOL-REGISTRY.json', 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json', 'docs/agents/PROMPT-REGISTRY.json', 'diagnostics/auto-repair/memory.json', 'scripts/ci/agent-communication.mjs', 'docs/MINIMAL-CI-FINAL-ARCHITECTURE.md', 'scripts/ci/test-plan.json', 'scripts/ci/assertion-registry.json'];
+const requiredReads = ['docs/agents/PROMPT-UNIFIED-EXECUTION.md', 'PROJECTS.md', 'المهام.md', 'AGENTS.md', 'docs/EXECUTION-BRANCH-PROTOCOL.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md', 'docs/AGENT-COORDINATION-CONTROL-PLANE.md', 'docs/PROTOCOL-HIERARCHY.md', 'docs/PROTOCOL-REGISTRY.json', 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json', 'docs/agents/PROMPT-REGISTRY.json', 'diagnostics/auto-repair/memory.json', 'scripts/ci/agent-communication.mjs', 'docs/MINIMAL-CI-FINAL-ARCHITECTURE.md', 'scripts/ci/test-plan.json', 'scripts/ci/assertion-registry.json'];
 const split = (value, separator = ',') => String(value ?? '').split(separator).map((v) => v.trim()).filter(Boolean);
 const storageKey = (id) => createHash('sha256').update(id).digest('hex');
 const admissionDigest = (file) => createHash('sha256').update(fs.readFileSync(path.resolve(ROOT, file), 'utf8'), 'utf8').digest('hex');
@@ -60,7 +60,7 @@ const assertLiveSession = (record) => {
 const readCanonicalAdmissionSources = () => {
   const sources = requiredReads.map((file) => ({ path: file, sha256: admissionDigest(file) }));
   const protocolRegistry = JSON.parse(fs.readFileSync(path.resolve(ROOT, 'docs/PROTOCOL-REGISTRY.json'), 'utf8'));
-  if (protocolRegistry.authority !== 'FLIXO_PROTOCOL_REGISTRY') throw new Error('AGENT_ADMISSION_PROTOCOL_REGISTRY_INVALID');
+  if (protocolRegistry.authority !== 'FLIXO_PROTOCOL_REGISTRY') throw new Error('AGENT_ADMISSION_PROTOCOL_REGISTRY_INVALID');\n  const p00 = protocolRegistry.protocols?.find((item) => item?.id === 'P00');\n  if (p00?.status !== 'SUPREME_MANDATORY' || p00?.canonicalSource !== 'docs/agents/PROMPT-UNIFIED-EXECUTION.md' || p00?.version !== '4.0.0') throw new Error('AGENT_ADMISSION_P00_SUPREME_PROTOCOL_INVALID');\n  const supremePrompt = fs.readFileSync(path.resolve(ROOT, 'docs/agents/PROMPT-UNIFIED-EXECUTION.md'), 'utf8');\n  if (!supremePrompt.includes('RPR-UNIFIED-EXECUTION-001 · v4.0.0 · PROTOCOL-ROOT') || !supremePrompt.includes('FIRST OBLIGATION') || !supremePrompt.includes('HARD CIRCULAR EXIT LOCK')) throw new Error('AGENT_ADMISSION_SUPREME_PROMPT_INVALID');
   if (protocolRegistry.protocols?.find((item) => item?.id === 'P20')?.status !== 'MANDATORY') throw new Error('AGENT_ADMISSION_P20_NOT_MANDATORY');
   const promptRegistry = loadPromptRegistry();
   const promptValidation = validatePromptRegistry(promptRegistry);
