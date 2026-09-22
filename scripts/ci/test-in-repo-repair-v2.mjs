@@ -30,6 +30,7 @@ fs.writeFileSync(path.join(tmp, 'src', 'test.ts'), 'export const value = 1;\n');
 execFileSync('git', ['add', '.'], { cwd: tmp });
 execFileSync('git', ['commit', '-q', '-m', 'baseline'], { cwd: tmp });
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: tmp, encoding: 'utf8' }).trim();
+const candidateSha = 'b'.repeat(40);
 
 const diagnosis = {
   rootCause: 'lease-race',
@@ -80,7 +81,8 @@ assert.equal(directive.next_cycle_requires.includes('previous_counterexample_add
 const rejectVerdict = buildFalsifierVerdict({
   manifest,
   actualFailures: [{ label: 'fixture', stderr: 'failed edge' }],
-  targetSha: sha,
+  sourceSha: sha,
+  targetSha: candidateSha,
   patch: '',
   changedPaths: ['src/test.ts'],
 });
@@ -96,10 +98,13 @@ const passVerdict = buildFalsifierVerdict({
   changedPaths: ['src/test.ts'],
 });
 assert.equal(passVerdict.falsifierVerdict, 'PASS_CONFIRMED');
+assert.equal(passVerdict.passConfirmed, true);
+assert.equal(passVerdict.finiteInvariantProof.status, 'PROVEN');
 
 const proof = finiteInvariantProof({
   manifest,
-  targetSha: sha,
+  sourceSha: sha,
+  targetSha: candidateSha,
   changedPaths: ['src/test.ts'],
   patch: '',
   adversarial: passVerdict,
