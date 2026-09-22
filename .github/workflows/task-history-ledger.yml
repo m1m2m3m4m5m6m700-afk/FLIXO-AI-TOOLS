@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: flixo-task-history-ledger-${{ github.ref }}
@@ -36,15 +36,42 @@ jobs:
         if: github.event_name != 'pull_request'
         run: node scripts/ci/task-history-ledger.mjs verify --base=HEAD^
 
-      - name: Commit newly discovered history
+      - name: Prepare Chair-1 history publication handoff
         if: github.event_name == 'push' && github.ref == 'refs/heads/execution'
+        shell: bash
         run: |
+          set -euo pipefail
           if git diff --quiet -- docs/agents/task-history/ledger.jsonl; then
-            echo "TASK_HISTORY_COMMIT=SKIPPED"
+            echo "TASK_HISTORY_HANDOFF=NO_CHANGE"
             exit 0
           fi
-          git config user.name "FLIXO Task History Bot"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/agents/task-history/ledger.jsonl
-          git commit -m "chore(history): append task execution records"
-          git push origin HEAD:execution
+          mkdir -p /tmp/flixo-task-history-handoff
+          git diff --binary -- docs/agents/task-history/ledger.jsonl > /tmp/flixo-task-history-handoff/task-history.patch
+          sha256sum /tmp/flixo-task-history-handoff/task-history.patch | awk '{print $1}' > /tmp/flixo-task-history-handoff/patch.sha256
+          BASE_SHA="${{ github.event.before }}"
+          HEAD_SHA="${{ github.sha }}"
+          PATCH_SHA="$(cat /tmp/flixo-task-history-handoff/patch.sha256)"
+          jq -n             --arg protocol "FLIXO-CHAIR1-TASK-HISTORY-HANDOFF-v1"             --arg authority "CHAIR_1_FINAL_PUBLICATION_ONLY"             --arg baseSha "$BASE_SHA"             --arg targetSha "$HEAD_SHA"             --arg path "docs/agents/task-history/ledger.jsonl"             --arg patchSha256 "$PATCH_SHA"             '{
+              schemaVersion: 1,
+              protocol: $protocol,
+              authority: $authority,
+              mutationPolicy: "NO_DIRECT_EXECUTION_PUSH",
+              baseSha: $baseSha,
+              targetSha: $targetSha,
+              path: $path,
+              patchSha256: $patchSha256,
+              publication: "CHAIR1_REVIEW_REQUIRED"
+            }' > /tmp/flixo-task-history-handoff/handoff.json
+          test -s /tmp/flixo-task-history-handoff/task-history.patch
+          test -s /tmp/flixo-task-history-handoff/handoff.json
+          echo "TASK_HISTORY_HANDOFF=READY_FOR_CHAIR1"
+          echo "TASK_HISTORY_HANDOFF_SHA=$PATCH_SHA"
+
+      - name: Upload Chair-1 history publication handoff
+        if: github.event_name == 'push' && github.ref == 'refs/heads/execution'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-task-history-chair1-handoff-${{ github.run_id }}
+          path: /tmp/flixo-task-history-handoff
+          if-no-files-found: ignore
+          retention-days: 30
