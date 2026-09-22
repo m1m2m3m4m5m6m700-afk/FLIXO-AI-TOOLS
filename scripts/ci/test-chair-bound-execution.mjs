@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {acquire,authorizeWrite,authorizeMergeProposal,release,repositoryMode,heartbeat,reconcileDeadLeases,writeSpeculativeContext,readSpeculativeContext,sanitizeSessionContext,atomicChairRefAudit,proposePush} from './chair-bound-execution.mjs';
+import {acquire,authorizeWrite,authorizeMergeProposal,release,repositoryMode,heartbeat,reconcileDeadLeases,writeSpeculativeContext,readSpeculativeContext,sanitizeSessionContext,atomicChairRefAudit,proposePush,beginWork,endWork,assertWorkAdmission,activeChairForAgent} from './chair-bound-execution.mjs';
 
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-chair-test-'));
 process.env.FLIXO_CHAIR_STATE_PATH=path.join(temp,'locks','chairs.json');
@@ -18,6 +18,14 @@ fs.writeFileSync(process.env.FLIXO_CHAIR_STATE_PATH,JSON.stringify({
   schemaVersion:1,authority:'FLIXO_CHAIR_BOUND_EXECUTION',repository_state:'IDLE',idle_timestamp:new Date().toISOString(),target_sha:realGitSha,
   chairs:Object.fromEntries(['chair_1','chair_2','chair_3'].map(id=>[id,{holder_agent_id:null,status:'VACANT',permissions:[],acquired_at:null,target_sha:null,lease_id:null,review_id:null,scope:null}]))
 },null,2)+'\n');
+
+assert.throws(()=>assertWorkAdmission({agentId:'agent-no-chair',targetSha:realGitSha}),/AGENT_WORK_REQUIRES_CHAIR/);
+const autoAdmission=beginWork({agentId:'agent-auto-chair',targetSha:realGitSha,repositoryState:'IDLE',taskId:'TASK-AUTO-CHAIR',workPackageId:'WP-AUTO-CHAIR',scope:['src/auto.ts']});
+assert.equal(autoAdmission.admitted,true);
+assert.equal(autoAdmission.chairId,'chair_1');
+assert.equal(activeChairForAgent({agentId:'agent-auto-chair',targetSha:realGitSha}).chairId,'chair_1');
+assert.equal(endWork({agentId:'agent-auto-chair',targetSha:realGitSha,successful:true,taskId:'TASK-AUTO-CHAIR'}).repository_state,'IDLE');
+assert.throws(()=>assertWorkAdmission({agentId:'agent-auto-chair',targetSha:realGitSha}),/AGENT_WORK_REQUIRES_CHAIR/);
 
 const one=acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE'});
 assert.equal(one.chairs.chair_1.status,'OCCUPIED');
