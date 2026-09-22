@@ -633,6 +633,35 @@ if (command === 'meeting-exit-approve') {
       ...(status === 'BLOCKED' ? [{ type: 'antiLesson', category: 'BLOCKER', text: 'Blocked work is not completion; preserve evidence and continue through the next authorized cycle.' }] : []),
     ];
   }
+  const sharedSourceBot =
+    record.agentId === 'actionRepairBot' ? 'ACTION-REPAIR' :
+    record.agentId === 'actionRepairVerifier' ? 'ACTION-REPAIR-2' :
+    record.role === 'reviewAgent' ? 'reviewAgent' :
+    record.role === 'executionAgent' ? 'executionAgent' :
+    (record.role === 'analysis' || record.role === 'errorAgent' || record.role === 'codeScout') ? 'READ-INVESTIGATOR' :
+    'executionAgent';
+  const sharedContextBeforeClose=buildSharedLearningContext({botId:sharedSourceBot,limit:64});
+  try{
+    publishSharedBatch([
+      {
+        sourceBot:sharedSourceBot,kind:'OPERATION',taskId:record.taskId,targetSha:sha,
+        fingerprint:record.failureFingerprint??process.env.FLIXO_FAILURE_FINGERPRINT??null,
+        runId:process.env.FLIXO_RUN_ID??null,
+        claim:'Agent session completed a shared operational cycle and published its execution state to all six bots.',
+        content:JSON.stringify({agentId:record.agentId,role:record.role,status,changedFiles,commands,evidence,findings,remainingWork,openRcas,nextActions:executionPlanNext,sharedContextRecordCount:sharedContextBeforeClose.recordCount}),
+        evidenceRefs:evidence.slice(0,24),changedPaths:changedFiles,verification:status,status:status==='VERIFIED'?'VERIFIED':'BLOCKED'
+      },
+      ...cycleLessons.map(item=>({
+        sourceBot:sharedSourceBot,
+        kind:String(item.type).toLowerCase().includes('anti')?'ANTI_LESSON':'LESSON',
+        taskId:record.taskId,targetSha:sha,
+        fingerprint:record.failureFingerprint??process.env.FLIXO_FAILURE_FINGERPRINT??null,
+        runId:process.env.FLIXO_RUN_ID??null,
+        claim:item.text,content:item.text,advice:item.text,
+        evidenceRefs:evidence.slice(0,12),changedPaths:changedFiles,verification:status,status:status==='VERIFIED'?'VERIFIED':'OBSERVED'
+      }))
+    ]);
+  }catch(error){console.warn('SHARED_MEMORY_PUBLISH_WARNING='+String(error?.message??error));}
   const finalSummary = String(args.get('final-summary') ?? process.env.FLIXO_AGENT_FINAL_SUMMARY ?? '').trim();
   if (!finalSummary) throw new Error('FINAL_SUMMARY_REQUIRED_BEFORE_SESSION_CLOSE');
 
