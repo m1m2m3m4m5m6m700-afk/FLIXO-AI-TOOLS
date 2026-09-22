@@ -109,8 +109,8 @@ export function validateStatic() {
   must(/cancel-in-progress:\s*false/.test(auto), 'auto-repair-single-lane');
   must(/queue:\s*max/.test(auto), 'auto-repair-mutation-queue-max');
   must(/execution-mutation-gate\.mjs\s+admit/.test(auto) && /execution-mutation-gate\.mjs\s+verify/.test(auto), 'auto-repair-mutation-gate-wired');
-  must(/chair-bound-execution\.mjs\s+acquire/.test(auto) && /chair-bound-execution\.mjs\s+authorize-write/.test(auto), 'auto-repair-chair-wired');
-  must(/FLIXO_REQUIRE_FENCED_CHAIR:\s*['"]true['"]/.test(auto), 'auto-repair-fenced-chair-required');
+  must(!/chair-bound-execution\.mjs\s+(acquire|authorize-write|authorize-publication)/.test(auto), 'auto-repair-chair-policy-exempt');
+  must(!/FLIXO_REQUIRE_FENCED_CHAIR/.test(auto), 'auto-repair-chair-env-exempt');
   for (const workflowName of MUTATION_WORKFLOWS) {
     const mutationWorkflow = fs.readFileSync(path.join(workflowDir,workflowName),'utf8');
     must(mutationWorkflow.includes(`group: ${MUTATION_LANE}`), `global-mutation-lane:${workflowName}`);
