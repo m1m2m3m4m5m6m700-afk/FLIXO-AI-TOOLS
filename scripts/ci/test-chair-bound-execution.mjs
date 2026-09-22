@@ -92,6 +92,53 @@ writeSpeculativeContext({sessionId:'release-session',taskId:'RELEASE-TASK',chair
 assert.equal(readSpeculativeContext({sessionId:'release-session',targetSha:realGitSha}).taskId,'RELEASE-TASK');
 release({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,successful:true,sessionId:'release-session',taskId:'RELEASE-TASK'});
 assert.throws(()=>readSpeculativeContext({sessionId:'release-session',targetSha:realGitSha}),/CHAIR_SPECULATION_CONTEXT_MISSING/);
+
+// Auto Repair is a Chair-system participant, but connected Masters can preempt Chair-1.
+const autoRepairAdmission=beginWork({
+  agentId:'AUTO_REPAIR_BOT',
+  role:'repairAgent',
+  targetSha:realGitSha,
+  repositoryState:'IDLE',
+  taskId:'AUTO-REPAIR-TASK',
+  workPackageId:'AUTO-REPAIR-WP',
+  scope:['src/example.ts']
+});
+assert.equal(autoRepairAdmission.chairId,'chair_1');
+assert.equal(activeChairForAgent({agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha}).chairId,'chair_1');
+
+const master2Admission=beginWork({
+  agentId:'MASTER-2',
+  role:'MASTER-2',
+  requestedChairId:'chair_1',
+  targetSha:realGitSha,
+  repositoryState:'IDLE',
+  taskId:'MASTER-2-TASK',
+  workPackageId:'MASTER-2-WP'
+});
+assert.equal(master2Admission.chairId,'chair_1');
+assert.equal(master2Admission.preemptedAgentId,'AUTO_REPAIR_BOT');
+assert.equal(activeChairForAgent({agentId:'MASTER-2',targetSha:realGitSha}).chairId,'chair_1');
+assert.throws(
+  ()=>assertWorkAdmission({agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha,chairId:'chair_1',taskId:'AUTO-REPAIR-TASK'}),
+  /AGENT_WORK_CHAIR_PREEMPTED/
+);
+assert.throws(
+  ()=>beginWork({agentId:'MASTER-3',role:'MASTER-3',requestedChairId:'chair_1',targetSha:realGitSha,repositoryState:'IDLE',taskId:'MASTER-3-TASK',workPackageId:'MASTER-3-WP'}),
+  /CHAIR1_HIGHER_MASTER_ACTIVE/
+);
+const master1Admission=beginWork({
+  agentId:'MASTER-1',
+  role:'MASTER-1',
+  requestedChairId:'chair_1',
+  targetSha:realGitSha,
+  repositoryState:'IDLE',
+  taskId:'MASTER-1-TASK',
+  workPackageId:'MASTER-1-WP'
+});
+assert.equal(master1Admission.preemptedAgentId,'MASTER-2');
+assert.equal(activeChairForAgent({agentId:'MASTER-1',targetSha:realGitSha}).chairId,'chair_1');
+release({chairId:'chair_1',agentId:'MASTER-1',targetSha:realGitSha,successful:true});
+
 process.env.FLIXO_REQUIRE_FENCED_CHAIR='true';
 const fencedToken='d'.repeat(64);
 acquire({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,repositoryState:'IDLE',workPackageId:'WP-FENCED',taskId:'TASK-FENCED',fencingToken:fencedToken,scope:['src/fenced.ts']});
