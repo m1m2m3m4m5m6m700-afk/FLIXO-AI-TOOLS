@@ -114,6 +114,10 @@ Any regression, provenance anomaly, stale proof, authority bypass, or security-g
 
 
 ## Security Red-Team Triad — SECURITY-REDTEAM-TRIAD-v1
+## Deep Red-Team Remediation — 2026-09-22
+
+The deep review identified and remediated the Red-Team trust-perimeter gap, incomplete application scan scope, detached-repair branch creation, excessive Auto-Repair permissions, duplicate wake orchestration, premature learning promotion, missing external-block escalation, stale incident delivery, incomplete OIDC job-workflow provenance, and Service Worker sensitive-response caching. These controls remain verification-pending until fresh exact-SHA canonical CI proves the remediation. The Red-Team remains isolated, read-only, manual-dispatch-only, and artifact-only.
+
 
 The repository contains three independent, read-only security red-team bots that run as **manual, isolated evidence jobs** against an explicitly supplied exact SHA. Each bot executes on its own ephemeral GitHub-hosted runner with repository access limited to \`contents: read\`.
 
