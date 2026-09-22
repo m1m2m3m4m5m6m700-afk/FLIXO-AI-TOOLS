@@ -37,6 +37,7 @@ const NON_REPAIRABLE_WORKFLOW_PATTERNS = Object.freeze([
 const SECURITY_CHECK_PATTERNS = Object.freeze([
   /github-advanced-security/i,
   /github advanced security/i,
+  /workflow trust baseline/i,
   /codeql/i,
   /code scanning ai findings/i,
   /^Analyze \(javascript-typescript\)$/i,
@@ -428,85 +429,3 @@ export function evaluateGreen({
     'REQUIRED_CHECK_RED',
     'SECURITY_CHECK_RED',
     'UNEXPECTED_CHECK_RED',
-    'UNEXPECTED_COMMIT_STATUS_RED',
-  ].includes(error.type))) {
-    report.status = 'RED_INTERNAL';
-    report.rootCause = 'REQUIRED_CHECK_FAILURE_REQUIRES_REPAIR_CYCLE';
-  } else if (report.errors.length) {
-    report.status = report.rootCause ? 'BLOCKED_EXTERNAL' : 'FAIL_CLOSED';
-  } else if (report.externalBlockers.some((item) => item.state === 'action_required')) {
-    report.status = 'FAIL_CLOSED';
-    report.rootCause = report.externalBlockers.find((item) => item.state === 'action_required')?.rootCause
-      ?? 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED';
-  } else if (report.externalBlockers.some((item) =>
-    ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state)
-  )) {
-    report.status = report.externalBlockers.some((item) => item.kind === 'BLOCKED_EXTERNAL')
-      ? 'BLOCKED_EXTERNAL'
-      : 'FAIL_CLOSED';
-  } else {
-    report.status = 'GREEN';
-    report.rootCause = null;
-  }
-
-  return report;
-}
-
-export function main() {
-  const inputPath = process.argv[2];
-  const outputPath = process.argv[3];
-  if (!inputPath || !outputPath) throw new Error('Usage: continuous-error-watch.mjs <input.json> <output.json>');
-
-  let report;
-  try {
-    const input = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
-    report = evaluateGreen(input);
-  } catch (error) {
-    report = {
-      schemaVersion: 1,
-      protocol: 'FLIXO-CONTINUOUS-ERROR-WATCH-v1',
-      generatedAt: new Date().toISOString(),
-      executionSha: null,
-      mainSha: null,
-      branch: null,
-      pr: null,
-      status: 'FAIL_CLOSED',
-      rootCause: 'REQUIRED_EVIDENCE_MISSING',
-      errors: [{
-        type: 'WATCHER_INPUT_INVALID',
-        message: error instanceof Error ? error.message : String(error),
-      }],
-      externalBlockers: [],
-      repair: {
-        required: false,
-        targetRunId: null,
-        failureFingerprint: null,
-        repairKey: null,
-        claimKey: null,
-        repairChainId: null,
-        leaseRef: null,
-        failedSha: null,
-        branch: null,
-        action: 'NONE',
-        rootCauseAuthority: 'TASK_AGENT_RCA',
-      },
-      ci: {
-        requiredWorkflows: {},
-        security: { present: false, status: 'MISSING' },
-        certification: { present: false, status: 'MISSING' },
-      },
-      evidence: {
-        exactSha: false,
-        executionMatchesPr: false,
-        executionAheadOfMain: 0,
-        executionBehindMain: 0,
-      },
-    };
-  }
-
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`);
-  if (report.errors.some((error) => error.type === 'WATCHER_INPUT_INVALID')) process.exitCode = 1;
-}
-
-if (path.basename(process.argv[1] ?? '') === 'continuous-error-watch.mjs') main();
