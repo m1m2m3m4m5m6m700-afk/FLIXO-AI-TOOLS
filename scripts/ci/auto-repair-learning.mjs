@@ -10,7 +10,7 @@ const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/m
 const behaviorTracePath = process.env.FLIXO_REPAIR_BEHAVIOR_TRACE_PATH ?? '/tmp/flixo-repair-behavior-trace.json';
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
 export const MEMORY_VERSION = 10;
-export const INTRACTABLE_THRESHOLD = 3;
+export const INTRACTABLE_THRESHOLD = 10;
 // Large bounded retention: preserve substantial Actions history without making a single
 // repair-memory file unbounded or operationally hostile to GitHub/JSON tooling.
 export const MEMORY_RETENTION = Object.freeze({
@@ -81,7 +81,10 @@ export function normalizeLearningOutcome(outcome, verification) {
   const raw = String(outcome ?? '').trim();
   const verify = String(verification ?? '').trim();
   const canonicalGreen = process.env.FLIXO_CANONICAL_GREEN === 'true';
-  const exactShaVerified = verify === 'passed' || verify === 'exact-sha-proof';
+  const targetSha = String(process.env.FLIXO_TARGET_SHA ?? process.env.FLIXO_FAILED_SHA ?? '').trim();
+  const canonicalGreenSha = String(process.env.FLIXO_CANONICAL_GREEN_SHA ?? '').trim();
+  const certifiedGreenForTarget = canonicalGreen && /^[a-f0-9]{40}$/u.test(targetSha) && canonicalGreenSha === targetSha;
+  const exactShaVerified = ['passed', 'exact-sha-proof', 'verified-repair', 'verified-historical-revert'].includes(verify) || process.env.FLIXO_EXACT_SHA_VERIFIED === 'true';
   if (raw === 'unrepaired' && (verify === 'proposal-only' || verify === 'diagnostic-only')) return 'proposed';
   if (raw === 'repair-applied') return canonicalGreen && exactShaVerified ? 'success' : 'proposed';
   return raw;
@@ -177,7 +180,7 @@ export function normalizeCaseCounters(entry) {
     item?.outcome === 'success' || (item?.outcome === 'repair' && item?.verification === 'success')
   ).length;
   const observedFailures = (entry.outcomes ?? []).filter((item) =>
-    ['failure', 'unrepaired', 'blocked'].includes(item?.outcome) ||
+    ['failure', 'unrepaired', 'blocked', 'proposed'].includes(item?.outcome) ||
     (item?.outcome === 'repair' && item?.verification !== 'success' && item?.verification !== 'proposal-only' && item?.verification !== 'diagnostic-only')
   ).length;
   const repairedSuccesses = Math.max(successes, observedSuccesses);
@@ -773,6 +776,17 @@ function loadDiagnosticFromEnv() {
   try { return JSON.parse(fs.readFileSync(path, 'utf8')); } catch { return null; }
 }
 
+function normalizedOutcomeIsCanonicalGreen(outcome, verification) {
+  const raw=String(outcome ?? '').trim();
+  const verify=String(verification ?? '').trim();
+  const canonicalGreen=process.env.FLIXO_CANONICAL_GREEN === 'true';
+  const targetSha=String(process.env.FLIXO_TARGET_SHA ?? process.env.FLIXO_FAILED_SHA ?? '').trim();
+  const greenSha=String(process.env.FLIXO_CANONICAL_GREEN_SHA ?? '').trim();
+  const exactSha=/^[a-f0-9]{40}$/u.test(targetSha) && greenSha===targetSha;
+  return raw==='success' && canonicalGreen && exactSha &&
+    (['passed','exact-sha-proof','verified-repair','verified-historical-revert'].includes(verify) || process.env.FLIXO_EXACT_SHA_VERIFIED==='true');
+}
+
 export function recordOutcome(memory, { fingerprint, normalizedFailure, features = [], rootCause, rule, outcome, verification, provenance, preventionRule, relationships = [], diagnosis = null, affectedPaths = [], fiveXCycle = null } = {}) {
   const entry = findCase(memory, fingerprint) ?? { fingerprint, rootCause: 'unknown', attempts: 0, successes: 0, failures: 0, externalBlocks: 0, reversions: 0, revertFailures: 0, revertedRules: [], revertedCommits: [], rules: [], outcomes: [] };
   const priorAttempts = Number(entry.attempts ?? 0);
@@ -876,7 +890,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     if (/^[a-f0-9]{40}$/u.test(String(provenance?.revertedCommit ?? ''))) entry.revertedCommits = [...new Set([...(entry.revertedCommits ?? []), provenance.revertedCommit])];
   }
   if (isHistoricalRevertFailure) entry.revertFailures = (entry.revertFailures ?? 0) + 1;
-  const countsAsRepairAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
+  const countsAsRepairAttempt = ['success', 'unrepaired', 'failure', 'blocked', 'proposed'].includes(outcome);
   upsertRepairTask(memory, {
     taskId,
     repairChainId,
@@ -917,8 +931,9 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   });
   entry.outcomes = entry.outcomes.slice(-MEMORY_RETENTION.maxCaseOutcomes);
   if (!memory.cases.includes(entry)) memory.cases.push(entry);
-  const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
-  const actionRecord = memory.actionHistory.find((item) => item.fingerprint === fingerprint) ?? {
+  const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked', 'proposed'].includes(outcome);
+  const priorActionRecord = memory.actionHistory.find((item) => item.fingerprint === fingerprint) ?? null;
+  const actionRecord = priorActionRecord ?? {
     normalizedFailure: normalizedFailure,
     fingerprint,
     rootCause: entry.rootCause,
@@ -943,7 +958,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   actionRecord.repairChainId = repairChainId;
   if (countsAsPlaybookAttempt) actionRecord.attempts = Number(actionRecord.attempts ?? 0) + 1;
   if (outcome === 'success') actionRecord.successes = Number(actionRecord.successes ?? 0) + 1;
-  if (['failure', 'unrepaired', 'blocked', 'reverted-repair', 'revert-failure'].includes(outcome)) actionRecord.failures = Number(actionRecord.failures ?? 0) + 1;
+  if (['failure', 'unrepaired', 'blocked', 'proposed', 'reverted-repair', 'revert-failure'].includes(outcome)) actionRecord.failures = Number(actionRecord.failures ?? 0) + 1;
   const observedStrategy = strategyId ?? provenance?.strategyId ?? null;
   if (observedStrategy) {
     actionRecord.strategies = [...new Set([...(actionRecord.strategies ?? []), observedStrategy])].slice(-20);
@@ -988,7 +1003,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     playbook.generalized = new Set(playbook.successfulFingerprints ?? []).size >= 2 && playbook.successes >= 2 && playbook.successRate >= 0.8;
     if (!memory.playbooks.includes(playbook)) memory.playbooks.push(playbook);
   }
-  if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked' || outcome === 'blocked-external') {
+  if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked' || outcome === 'blocked-external' || outcome === 'proposed') {
     upsertLesson(memory, {
       fingerprint,
       rootCause: entry.rootCause,
@@ -1029,7 +1044,8 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     antiLesson: outcome === 'success' ? null : rule ? 'Do not repeat strategy ' + rule + ' for this fingerprint without new evidence.' : null,
     learningList: cycleLessons,
   });
-  const cellKnowledgePersist = persistKnowledge(cellKnowledge);
+  const positiveKnowledgeTrusted = normalizedOutcomeIsCanonicalGreen(cellKnowledge?.outcome, cellKnowledge?.evidence?.verification);
+  const cellKnowledgePersist = positiveKnowledgeTrusted ? persistKnowledge(cellKnowledge) : { persisted: false, reason: 'POSITIVE_KNOWLEDGE_REQUIRES_CANONICAL_GREEN_EXACT_SHA' };
   entry.latestKnowledge = cellKnowledge;
   entry.knowledgeHistory = [...(entry.knowledgeHistory ?? []), {
     id: cellKnowledge.id,
@@ -1038,7 +1054,9 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     at: cellKnowledge.createdAt,
   }].slice(-MEMORY_RETENTION.maxLessonEvidence);
 
-  const escalationAttempts = Number(entry.attempts ?? 0) + Number(entry.externalBlocks ?? 0);
+  const historicalAttempts = Number(priorActionRecord?.attempts ?? 0);
+  const historicalFailures = Number(priorActionRecord?.failures ?? 0);
+  const escalationAttempts = Math.max(Number(entry.attempts ?? 0), historicalAttempts) + Number(entry.externalBlocks ?? 0) + (countsAsRepairAttempt ? 1 : 0);
   if (escalationAttempts >= INTRACTABLE_THRESHOLD && entry.successes === 0) {
     fs.writeFileSync('/tmp/flixo-intractable-state', 'true\n');
     const data = loadIntractable();
@@ -1048,6 +1066,8 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
       status: 'INTRACTABLE',
       rootCause: entry.rootCause,
       attemptsAtEscalation: escalationAttempts,
+      historicalAttempts,
+      historicalFailures,
       attempts: entry.attempts,
       externalBlocks: entry.externalBlocks ?? 0,
       successes: entry.successes,
@@ -1065,7 +1085,9 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
       exitCriteria: 'A new evidence-backed strategy produces verified-repair on the exact target SHA and passes canonical CI.',
     };
     record.rootCause = entry.rootCause;
-    record.attempts = entry.attempts;
+    record.attempts = Math.max(entry.attempts, historicalAttempts);
+    record.historicalAttempts = historicalAttempts;
+    record.historicalFailures = historicalFailures;
     record.externalBlocks = entry.externalBlocks ?? 0;
     record.escalationAttempts = escalationAttempts;
     record.successes = entry.successes;
