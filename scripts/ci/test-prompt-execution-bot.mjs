@@ -16,6 +16,11 @@ assert.equal(normal.workPackage.consumerRole, 'executionAgent');
 assert.equal(normal.promptSafety.noArbitraryShellFromPrompt, true);
 assert.ok(CANONICAL_SOURCES.includes('docs/agents/ADVERSARIAL-BOT-COMMANDS.json'));
 assert.ok(CANONICAL_SOURCES.includes('scripts/ci/adversarial-bot-commands.mjs'));
+assert.equal(normal.preExecution25.ruleId, 'PRE-EXECUTION-25');
+assert.equal(normal.preExecution25.status, 'PASS');
+assert.ok(normal.preExecution25.operationCount >= 25);
+assert.equal(normal.preExecution25.operationDigest.length, 64);
+assert.equal(normal.adversarialFailureReport.targetSha, normal.executionSha);
 
 const repair = buildWorkPackage('أصلح خطأ CI الحالي، حلل الجذر، اختبر الإصلاح، وتحقق من Exact-SHA.');
 assert.equal(repair.intent, 'REPAIR_DIAGNOSE');
