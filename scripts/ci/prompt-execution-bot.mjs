@@ -7,6 +7,7 @@ import {
   loadPromptRegistry, validatePromptRegistry, selectPromptCandidates, promptQualityGate,
 } from './prompt-intelligence.mjs';
 import { ingest } from './agent-communication.mjs';
+import { buildAdversarialReview, assertAdversarialGate } from './prompt-execution-bot-adversary.mjs';
 import { loadExecutionBotTraining, trainingSummary } from './prompt-execution-bot-training.mjs';
 
 const ROOT = process.cwd();
@@ -186,12 +187,13 @@ export function dispatchWorkPackage(plan) {
   if (plan.status !== 'READY' || !plan.dispatchable) throw new Error(`PROMPT_EXECUTION_BOT_DISPATCH_BLOCKED=${plan.blockers.join('|') || 'NOT_DISPATCHABLE'}`);
   const actor = String(arg('agent', 'implementation'));
   const messageId = `PROMPT-EXEC-${digest(`${plan.executionSha}|${plan.selectedTaskId}|${plan.userPrompt}`).slice(0, 24)}`;
+  assertAdversarialGate(plan.adversarialReview, { mutation: true });
   const message = ingest({
     schemaVersion: 1, messageId, idempotencyKey: `${messageId}:${plan.executionSha}`, actor, recipient: plan.workPackage.consumerRole, intent: 'PROMPT_EXECUTION_REQUEST',
     taskId: plan.selectedTaskId, scope: plan.workPackage.scope || [plan.selectedTaskId], entrySha: plan.executionSha, risk: plan.intent === 'REPAIR_DIAGNOSE' ? 'HIGH' : 'MEDIUM',
     dependencies: plan.workPackage.dependencies, expectedEvidence: ['TASK_AGENT_OR_EXECUTION_PACKET', 'TARGETED_VERIFICATION', 'EXACT_SHA_EVIDENCE', 'CANONICAL_CI'], stopConditions: plan.workPackage.stopConditions,
     proofObligations: plan.workPackage.proofObligations, createdAt: new Date().toISOString(), source: 'PROMPT_EXECUTION_BOT',
-    payload: { botId: plan.botId, normalizedGoal: plan.normalizedGoal, intent: plan.intent, actions: plan.actions, constraints: plan.constraints, explicitPaths: plan.explicitPaths, selectedPromptId: plan.canonicalPrompt?.promptId ?? null, promptRegistryDigest: plan.canonicalPrompt?.registryDigest ?? null, trainingDigest: plan.training?.trainingDigest ?? null, ruleIds: plan.training?.ruleIds ?? [], lessonIds: plan.training?.lessonIds ?? [], workPackageDigest: digest(JSON.stringify(plan.workPackage)), executionPolicy: 'DELEGATE_ONLY_TO_AUTHORIZED_AGENT', noDirectMutation: true },
+    payload: { botId: plan.botId, normalizedGoal: plan.normalizedGoal, intent: plan.intent, actions: plan.actions, constraints: plan.constraints, explicitPaths: plan.explicitPaths, selectedPromptId: plan.canonicalPrompt?.promptId ?? null, promptRegistryDigest: plan.canonicalPrompt?.registryDigest ?? null, trainingDigest: plan.training?.trainingDigest ?? null, adversarialChallengeId: plan.adversarialReview?.challengeId ?? null, adversarialStatus: plan.adversarialReview?.status ?? null, counterexampleFound: Boolean(plan.adversarialReview?.counterexampleFound), ruleIds: plan.training?.ruleIds ?? [], lessonIds: plan.training?.lessonIds ?? [], workPackageDigest: digest(JSON.stringify(plan.workPackage)), executionPolicy: 'DELEGATE_ONLY_TO_AUTHORIZED_AGENT', noDirectMutation: true },
   }, plan.executionSha);
   return { status: message.status, messageId: message.messageId, recipient: message.recipient, taskId: message.taskId };
 }

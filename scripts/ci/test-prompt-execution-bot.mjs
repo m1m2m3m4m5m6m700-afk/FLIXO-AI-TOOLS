@@ -39,3 +39,12 @@ assert.ok(trainingDriven.training.ruleIds.includes('EBT-010'));
 assert.ok(trainingDriven.training.ruleIds.includes('EBT-007'));
 assert.equal(trainingDriven.training.trainingDigest.length,64);
 console.log('PROMPT_EXECUTION_BOT_TRAINING=PASS');
+
+const adversarial = buildWorkPackage('أصلح خطأ CI الحالي، احترم Exact-SHA، تواصل عبر الوكيل المسؤول وتحقق من النتيجة.');
+assert.equal(adversarial.adversarialReview.role, 'ADVERSARIAL_PROGRAMMER_FALSIFIER');
+assert.equal(adversarial.adversarialReview.agentId, 'ACTION-REPAIR-2');
+assert.equal(adversarial.adversarialReview.authority, 'NO_MUTATION_NO_CERTIFICATION');
+assert.ok(Array.isArray(adversarial.adversarialReview.alternativeHypotheses));
+assert.ok(adversarial.adversarialReview.falsificationChecks.length >= 10);
+assert.equal(adversarial.adversarialReview.targetSha, adversarial.executionSha);
+console.log('PROMPT_EXECUTION_BOT_ADVERSARIAL=PASS');
