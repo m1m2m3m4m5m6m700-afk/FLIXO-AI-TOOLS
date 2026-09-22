@@ -151,6 +151,25 @@ SLEEP | IDLE | SILENT | ABANDONED | SELF-ABORT | SELF-DISABLE
 انتهاء workflow أو timeout أو lease أو session budget أو supersession = RECOVER_AND_CONTINUE وليس إغلاقًا.
 Heartbeat إلزامي، وفقدانه يطلق recovery.
 
+### 11-A. ACTIVE REPAIR SESSION — 45 MINUTE LOCK
+
+عند بدء جلسة إصلاح لمشكلة أو مجموعة أخطاء مترابطة، يدخل Master/Agent/Bot في ACTIVE_REPAIR_45M.
+
+الالتزام الزمني إلزامي:
+- الحد الأدنى للجلسة النشطة = 45 دقيقة متواصلة من وقت الدخول.
+- ممنوع خلال النافذة: SLEEP أو IDLE أو SILENT أو ABANDONED أو SELF-ABORT أو SELF-DISABLE.
+- Heartbeat دوري مستمر؛ أي فجوة تتجاوز الحد المسموح بها تعيد الحالة إلى RECOVERING ولا تسمح باعتبار الجلسة مكتملة.
+- انتهاء 45 دقيقة لا يعني النجاح ولا يسمح بالخروج؛ المطلوب خلال النافذة هو التواصل والتحليل وRCA والإصلاح والاختبار وإعادة التحقق داخل الخلية.
+- لا يجوز إنهاء الجلسة بحالة BLOCKED. BLOCKED_EXTERNAL وصف لحالة عائق فقط، وليس إغلاقًا.
+- عند كل دورة داخل الـ45 دقيقة يجب على الخلية إعادة توزيع العمل المفتوح، مناقشة الرسائل والأسئلة والاعتراضات، وتسجيل الخطة/الدليل/الخطوة التالية.
+- يبقى الهدف الصريح: ZERO ERRORS / ZERO OPEN RCA / ZERO REMAINING WORK. بعد بلوغ 45 دقيقة، لا يسمح بالإغلاق إلا بوابة الخروج الحالية مع Canonical GREEN وExact-SHA Certification.
+
+بوابة الإقامة:
+scripts/ci/agent-session.mjs + scripts/ci/agent-liveness-protocol.mjs
+
+القاعدة:
+45 دقيقة = حد أدنى للإقامة، وليست مدة انتظار. كل دقيقة يجب أن تكون تنفيذًا أو تواصلًا أو تحققًا أو تعلمًا.
+
 ## 12. HARD CIRCULAR EXIT LOCK
 
 لا يملك أي Agent/Master/Bot قرار الخروج.
