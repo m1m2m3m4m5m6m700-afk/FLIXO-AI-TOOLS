@@ -30,8 +30,8 @@ assert.throws(() => assertTransition('ACTIVE','ABORTED',{workAssigned:true}), /A
 assert.doesNotThrow(() => assertTransition('VERIFYING','COMPLETE',{
   workAssigned:true, exactShaVerified:true, requiredRedCount:0, regressionPassed:true, learningRecorded:true,
 }));
-assert.equal(checkHeartbeat({state:'ACTIVE',lastHeartbeatAt:new Date(Date.now()-2*60*1000).toISOString()}).ok,true);
-assert.equal(checkHeartbeat({state:'ACTIVE',lastHeartbeatAt:new Date(Date.now()-20*60*1000).toISOString()}).action,'RECOVERY_REQUIRED');
+assert.equal(checkHeartbeat({state:'ACTIVE',lastHeartbeatAt:new Date(Date.now()-45*1000).toISOString()}).ok,true);
+assert.equal(checkHeartbeat({state:'ACTIVE',lastHeartbeatAt:new Date(Date.now()-2*60*1000).toISOString()}).action,'RECOVERY_REQUIRED');
 assert.equal(checkProgress({state:'ACTIVE',lastProgressAt:new Date(Date.now()-2*60*1000).toISOString()}).ok,true);
 assert.equal(checkProgress({state:'ACTIVE',lastProgressAt:new Date(Date.now()-20*60*1000).toISOString(),consecutiveNoProgress:2}).action,'STRATEGY_ROTATION_REQUIRED');
 assert.throws(() => sleepAdmission(), /SLEEP_FORBIDDEN_PERMANENT_RESIDENCY/u);
@@ -54,7 +54,7 @@ assert.equal(greenEarly.taskRemainsOpen,true);
 const greenAfter=sessionTerminationDirective({canonicalGreen:true,activeRepairWindowReached:true});
 assert.equal(greenAfter.action,'CLOSE_ALLOWED');
 assert.equal(greenAfter.taskRemainsOpen,false);
-const green=sessionTerminationDirective({canonicalGreen:true});
+const green=sessionTerminationDirective({canonicalGreen:true,activeRepairWindowReached:true});
 assert.equal(green.action,'CLOSE_ALLOWED');
 assert.equal(green.residentState,'READY_RESIDENT');
 
