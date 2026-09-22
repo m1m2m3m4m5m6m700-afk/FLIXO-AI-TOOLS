@@ -218,7 +218,8 @@
     "test:chair-bound-execution": "node scripts/ci/test-chair-bound-execution.mjs",
     "test:chair-hardening": "node scripts/ci/test-chair-hardening.mjs",
     "test:chair-bound-coordination": "node scripts/ci/test-chair-bound-coordination-contract.mjs",
-    "test:guard-communication": "node scripts/ci/test-guard-communication.mjs"
+    "test:guard-communication": "node scripts/ci/test-guard-communication.mjs",
+    "test:canonical-governance": "node scripts/ci/test-canonical-governance.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
