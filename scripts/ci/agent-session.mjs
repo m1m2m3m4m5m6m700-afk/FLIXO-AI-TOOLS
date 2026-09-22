@@ -7,6 +7,7 @@ import { assertAgentAdmission, assertProtocolDefinition } from './repair-protoco
 import { ingest as ingestAgentMessage, markRead as readAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
 import { loadPromptRegistry, validatePromptRegistry, loadErrorMemory } from './prompt-registry.mjs';
 import { assertAgentExitGate } from './agent-exit-lock.mjs';
+import { AGENT_LIVENESS_PROTOCOL, assertActiveRepairWindow, checkHeartbeat } from './agent-liveness-protocol.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -102,7 +103,7 @@ const secretLike = (value) => /(-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY----
 const assertSafeText = (...values) => { for (const value of values.flat()) if (secretLike(value)) throw new Error('AGENT_EVENT_SECRET_LIKE_CONTENT_REJECTED'); };
 const appendEvent = (record, event) => { record.actions = Array.isArray(record.actions) ? [...record.actions, event] : [event]; record.activity = Array.isArray(record.activity) ? [...record.activity, event] : [event]; };
 
-if (!['login', 'event', 'logout', 'meeting-exit-approve', 'message-receive', 'message-consume'].includes(command)) throw new Error('Usage: agent-session.mjs login|event|logout|meeting-exit-approve|message-receive|message-consume --session=<id> --agent=<id> --task=<task-id>');
+if (!['login', 'event', 'heartbeat', 'logout', 'meeting-exit-approve', 'message-receive', 'message-consume'].includes(command)) throw new Error('Usage: agent-session.mjs login|event|logout|meeting-exit-approve|message-receive|message-consume --session=<id> --agent=<id> --task=<task-id>');
 if (!sessionId || !agentId || !taskId) throw new Error('Agent session requires --session, --agent and --task.');
 if (meetingRequested && !meetingId) throw new Error('COUNCIL_MEETING_ID_REQUIRED');
 if (!roles.has(role)) throw new Error(`Invalid agent role: ${role}`);
@@ -135,6 +136,14 @@ if (command === 'meeting-exit-approve') {
   if (record.taskId !== taskId) throw new Error('AGENT_EVENT_TASK_MISMATCH');
   if (record.status !== 'RUNNING') throw new Error('AGENT_EVENT_REQUIRES_ACTIVE_SESSION');
   assertLiveSession(record);
+  const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.startedAt });
+  if (!heartbeat.ok) {
+    record.livenessState = 'RECOVERING';
+    appendEvent(record, { at: now(), action: 'LIVENESS_RECOVERY_REQUIRED', sha: gitSha(), reason: heartbeat.reason ?? 'HEARTBEAT_STALE', recovery: 'RECOVER_AND_CONTINUE' });
+  } else {
+    record.livenessState = 'ACTIVE';
+  }
+  record.lastHeartbeatAt = now();
   const type = String(args.get('type') ?? '').trim().toUpperCase();
   const summary = String(args.get('summary') ?? '').trim();
   const allowed = new Set(['PROGRESS','FINDING','BLOCKER','CHANGE','TEST','VERIFICATION','HANDOFF','NOTE']);
@@ -164,6 +173,35 @@ if (command === 'meeting-exit-approve') {
   writeVisibility(visibility);
   console.log('AGENT_SESSION_EVENT=' + type);
   console.log('AGENT_SESSION_SHA=' + sha);
+} else if (command === 'heartbeat') {
+  if (!fs.existsSync(file)) throw new Error('Session not found: ' + sessionId);
+  const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (record.agentId !== agentId) throw new Error('Session owner mismatch: ' + sessionId);
+  if (record.taskId !== taskId) throw new Error('AGENT_HEARTBEAT_TASK_MISMATCH');
+  if (record.status !== 'RUNNING') throw new Error('AGENT_HEARTBEAT_REQUIRES_ACTIVE_SESSION');
+  assertLiveSession(record);
+  const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.startedAt });
+  const sha = gitSha();
+  const at = now();
+  record.livenessState = heartbeat.ok ? 'ACTIVE' : 'RECOVERING';
+  record.lastHeartbeatAt = at;
+  const event = { at, action: 'HEARTBEAT', sha, liveness: heartbeat.ok ? 'ON_TIME' : 'RECOVERED_FROM_GAP', recovery: heartbeat.ok ? null : 'RECOVER_AND_CONTINUE' };
+  appendEvent(record, event);
+  fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
+  const visibilityFile = visibilityPath(sessionId);
+  if (fs.existsSync(visibilityFile)) {
+    const visibility = JSON.parse(fs.readFileSync(visibilityFile, 'utf8'));
+    visibility.activity = Array.isArray(visibility.activity) ? [...visibility.activity, event] : [event];
+    visibility.lastEvent = event;
+    visibility.updatedAt = at;
+    visibility.livenessState = record.livenessState;
+    visibility.lastHeartbeatAt = at;
+    visibility.residencyLock = record.residencyLock;
+    writeVisibility(visibility);
+  }
+  console.log('AGENT_SESSION_HEARTBEAT=' + (heartbeat.ok ? 'ON_TIME' : 'RECOVERED'));
+  console.log('AGENT_SESSION_SHA=' + sha);
+  console.log('AGENT_SESSION_LIVENESS=' + record.livenessState);
 } else if (command === 'message-receive') {
   if (!rawMessageFile && !rawMessageId) throw new Error('AGENT_MESSAGE_INPUT_REQUIRED');
   if (rawMessageFile) {
@@ -235,6 +273,20 @@ if (command === 'meeting-exit-approve') {
     admissionSources,
     currentRca: rca,
     taskId,
+    residencyLock: {
+      minimumActiveWindowMs: AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs,
+      minimumActiveWindowMinutes: 45,
+      startedAt: now(),
+      minCloseAt: new Date(Date.parse(now()) + AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs).toISOString(),
+      noSleep: true,
+      noIdle: true,
+      cellLabRequired: true,
+      zeroErrorTarget: true,
+      heartbeatEveryMs: AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs,
+      heartbeatGraceMs: AGENT_LIVENESS_PROTOCOL.heartbeatGraceMs,
+    },
+    lastHeartbeatAt: now(),
+    livenessState: 'ACTIVE',
     ...(meetingRequested ? { meetingLock: { locked: true, meetingId, enteredBy: agentId, enteredAt: now(), entrySha: sha, exitApproval: null } } : {}),
     ...(inboundMessage ? { messageId: inboundMessage.messageId, messageStatus: inboundMessage.status, messageEntrySha: inboundMessage.entrySha, messageReadBy: agentId, messagePriority: 'P0_COMMUNICATION_FIRST' } : {}),
     status: 'RUNNING',
@@ -257,6 +309,27 @@ if (command === 'meeting-exit-approve') {
   const status = String(args.get('status') ?? process.env.FLIXO_AGENT_STATUS ?? 'VERIFIED').toUpperCase();
   if (!['VERIFIED', 'BLOCKED'].includes(status)) throw new Error(`Logout status must be VERIFIED or BLOCKED; got ${status}`);
   const sha = gitSha();
+  if (status === 'BLOCKED') {
+    const event = { at: now(), action: 'SESSION_EXIT_BLOCKED', sha, reason: 'OPEN_WORK_MUST_REMAIN_IN_ACTIVE_45_MINUTE_REPAIR_SESSION', taskRemainsOpen: true, recovery: 'RECOVER_AND_CONTINUE' };
+    appendEvent(record, event);
+    fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
+    const visibilityFile = visibilityPath(sessionId);
+    if (fs.existsSync(visibilityFile)) {
+      const visibility = JSON.parse(fs.readFileSync(visibilityFile, 'utf8'));
+      visibility.activity = Array.isArray(visibility.activity) ? [...visibility.activity, event] : [event];
+      visibility.lastEvent = event;
+      visibility.status = 'RUNNING';
+      visibility.visibilityState = 'OPEN';
+      visibility.updatedAt = now();
+      visibility.livenessState = record.livenessState ?? 'RECOVERING';
+      visibility.residencyLock = record.residencyLock;
+      writeVisibility(visibility);
+    }
+    throw new Error('AGENT_SESSION_BLOCKED_LOGOUT_FORBIDDEN_OPEN_WORK_REMAINS');
+  }
+  assertActiveRepairWindow({ startedAt: record.startedAt });
+  const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.startedAt });
+  if (!heartbeat.ok) throw new Error('AGENT_SESSION_HEARTBEAT_REQUIRED_BEFORE_CLOSE');
   assertMeetingExitApproval(record, sha);
   const changedFiles = split(args.get('changed') ?? process.env.FLIXO_AGENT_CHANGED_FILES);
   const commands = split(args.get('commands') ?? process.env.FLIXO_AGENT_COMMANDS, '|');
