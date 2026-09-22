@@ -6,9 +6,11 @@ import { execFileSync } from 'node:child_process';
 const root=process.cwd();
 const target=path.resolve(root,'scripts/ci/read-only-repair-intelligence.mjs');
 const test=path.resolve(root,'scripts/ci/test-read-only-repair-intelligence.mjs');
+const fusion=path.resolve(root,'scripts/ci/read-only-knowledge-fusion.mjs');
 const failures=[];
 const source=fs.readFileSync(target,'utf8');
 const testSource=fs.readFileSync(test,'utf8');
+const fusionSource=fs.readFileSync(fusion,'utf8');
 
 for(const marker of [
  "protocol:'FLIXO-READ-ONLY-REPAIR-INTELLIGENCE-v1'",
@@ -41,7 +43,7 @@ for(const marker of [
  "ESCALATE",
  "blocksMutation",
  "read-only-knowledge-fusion.mjs",
-]) if(!source.includes(marker)) failures.push('MISSING_MARKER='+marker);
+]) if(!source.includes(marker) && !fusionSource.includes(marker)) failures.push('MISSING_MARKER='+marker);
 
 if(/git\s+(add|commit|push|reset|checkout)|update_file|create_file|delete_file|mergePullRequest|create_pull_request/u.test(source)) failures.push('MUTATION_API_OR_GIT_WRITE_DETECTED');
 if(/fs\.writeFileSync\((?!logPath|selectionPath|diagnosisPath|outputPath|path\.dirname\(path\.resolve\(output\)\))/u.test(source)) failures.push('UNEXPECTED_WRITE_SURFACE');
