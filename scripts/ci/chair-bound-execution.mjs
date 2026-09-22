@@ -521,8 +521,8 @@ export function beginWork({agentId,targetSha=sha(),requestedChairId=null,reposit
   const existing=activeChairForAgent({agentId,targetSha:t});
   if(existing)return Object.freeze({admitted:true,reused:true,...existing});
   const chairId=String(requestedChairId??'chair_1').trim()||'chair_1';
-  const state=readState();
   if(chairId!=='chair_1' && chairId!=='chair_2' && chairId!=='chair_3')throw new Error('CHAIR_UNKNOWN');
+  if(chairId!=='chair_1')throw new Error('CHAIR_AUTO_ADMISSION_MUST_USE_CHAIR_1');
   const acquired=acquire({
     chairId,
     agentId,
