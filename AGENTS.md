@@ -390,3 +390,5 @@ No unresolved question or conflict is executable. No material mutation is admitt
 
 The Cell-Lab gate is enforced by `scripts/ci/cell-lab-consensus.mjs` and is checked by the repair mutation admission path.
 
+
+The long-lived residency model uses 45 minutes as the minimum, 3 hours as the maximum for one continuous active segment, and no total task-duration cap while work remains open. MASTER_CELL_LAB carries master status updates every 5 minutes and task reminders every 10 minutes; SHA changes invalidate evidence and require requalification, not sleep or task closure.
