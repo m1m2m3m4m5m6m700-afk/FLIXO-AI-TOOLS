@@ -7,6 +7,9 @@ import { execFileSync } from 'node:child_process';
 export const CHAIR_DEFINITIONS = Object.freeze({
   chair_1:Object.freeze({
     mode:'SINGLE_AGENT_MODE',
+    primaryMission:'CHAIR1_PRIMARY_TEST_CYCLE_REPAIR',
+    missionContract:'Observe canonical test-cycle RED → compare current exact SHA with the latest update/base state → repair the causal direct failure → targeted retest → resume until canonical GREEN.',
+    missionStopConditions:Object.freeze(['CANONICAL_GREEN','STALE_SHA','PROOF_FAILED','BLOCKED_EXTERNAL']),
     permissions:Object.freeze(['FULL_EXECUTIVE_WRITE','SOURCE_MUTATION','MERGE_PROPOSAL','SINGLE_AGENT_MODE']),
     allowedPrefixes:Object.freeze(['']),
     protectedPrefixes:Object.freeze(['.github/','scripts/ci/','schemas/','core-contracts/','.flixo/','docs/architecture/','docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json','AGENTS.md','المهام.md'])
@@ -172,6 +175,22 @@ function withWriteLock(fn){
   finally{fs.rmSync(LOCK_DIR,{recursive:true,force:true});}
 }
 
+function chairPrimaryMission(chairId){
+  return CHAIR_DEFINITIONS[chairId]?.primaryMission ?? null;
+}
+
+function assertChair1Mission({chairId,taskId}={}){
+  if(chairId!=='chair_1') return;
+  if(chairPrimaryMission(chairId)!=='CHAIR1_PRIMARY_TEST_CYCLE_REPAIR') throw new Error('CHAIR1_PRIMARY_MISSION_DRIFT');
+  if(taskId===null || taskId===undefined || String(taskId).trim()==='') throw new Error('CHAIR1_TASK_ID_REQUIRED_FOR_REPAIR_MISSION');
+}
+
+function assertChair1ReleaseAllowed(chair,{successful=false,reason=''}={}){
+  if(chair?.status!=='OCCUPIED'||chair?.task_id==null||String(chair.task_id).trim()==='') return;
+  const finalized=successful===true || ['TASK_COMPLETE','TASK_RELEASE','FINALIZED'].includes(String(reason??'').trim());
+  if(!finalized) throw new Error('CHAIR1_TASK_ACTIVE_NONRELEASABLE');
+}
+
 function baseState(targetSha){
   return {
     schemaVersion:1,
@@ -182,7 +201,7 @@ function baseState(targetSha){
     push_proposals:[],
     rejected_push_memory:[],
     chairs:Object.fromEntries(Object.entries(CHAIR_DEFINITIONS).map(([id,def])=>[id,{
-      holder_agent_id:null,holder_role:null,status:'VACANT',permissions:[...def.permissions],acquired_at:null,target_sha:null,lease_id:null,review_id:null,scope:null,scope_hash:null,work_package_id:null,task_id:null,fencing_token:null,lease_started_at:null,heartbeat_at:null,heartbeat_count:0
+      holder_agent_id:null,holder_role:null,status:'VACANT',permissions:[...def.permissions],acquired_at:null,target_sha:null,lease_id:null,review_id:null,scope:null,scope_hash:null,work_package_id:null,task_id:null,fencing_token:null,lease_started_at:null,heartbeat_at:null,heartbeat_count:0,primary_mission:chairPrimaryMission(id),mission_lock:id==='chair_1'?'UNTIL_TASK_COMPLETE':'UNSET',primary_mission:null,mission_lock:'UNSET'
     }]))
   };
 }
@@ -197,6 +216,7 @@ function writeJsonAtomic(file,value){
   fs.mkdirSync(path.dirname(file),{recursive:true});
   const tmp=file+'.tmp-'+process.pid+'-'+Date.now();
   fs.writeFileSync(tmp,JSON.stringify(value,null,2)+'\n');
+  fs.renameSync(tmp,file);
   fs.renameSync(tmp,file);
 }
 function writeState(state){
@@ -300,6 +320,7 @@ export function preemptChair1ForMaster({agentId,targetSha=sha(),role=null,reposi
       return Object.freeze({admitted:true,reused:true,preempted:false,chairId:'chair_1',leaseId,targetSha:t,taskId:chair.task_id??null,workPackageId:chair.work_package_id??null});
     }
     if(chair.status==='OCCUPIED'){
+      if(chair.task_id!==null && chair.task_id!==undefined && String(chair.task_id).trim()!=='') throw new Error('CHAIR1_TASK_ACTIVE_NONPREEMPTABLE');
       const existingPriority=masterPriority(chair.holder_agent_id,chair.holder_role);
       if(existingPriority!==null&&existingPriority<=incomingPriority)throw new Error('CHAIR1_HIGHER_MASTER_ACTIVE');
       const displaced={
@@ -347,6 +368,9 @@ export function preemptChair1ForMaster({agentId,targetSha=sha(),role=null,reposi
     chair.work_package_id=wp;
     chair.task_id=task;
     chair.fencing_token=fence;
+    chair.primary_mission=chairPrimaryMission('chair_1');
+    chair.mission_lock='UNTIL_TASK_COMPLETE';
+    assertChair1Mission({chairId:'chair_1',taskId:task});
     atomicChairRefAudit({chairId:'chair_1',targetSha:t,event:'MASTER_PREEMPT_ACQUIRE'});
     state.repository_state='ACTIVE';
     state.idle_timestamp=null;
@@ -396,6 +420,7 @@ export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permiss
   if(chairId==='chair_2'&&permission==='SOURCE_MUTATION'&&occupied(state).some(([id])=>id==='chair_1'))throw new Error('CHAIR2_WRITE_BLOCKED_WHILE_CHAIR1_ACTIVE');
   if(chairId==='chair_2'&&permission==='SOURCE_MUTATION'){
     const scope=new Set((boundedScope??[]).map((p)=>{ const value=String(p).replaceAll('\\\\','/'); return value.startsWith('./') ? value.slice(2) : value; }));
+    if(normalized.some(p=>!scope.has(p)))throw new Error('CHAIR2_SCOPE_DRIFT');
     if(normalized.some(p=>!scope.has(p)))throw new Error('CHAIR2_SCOPE_DRIFT');
   }
   return Object.freeze({authorized:true,chairId,agentId,targetSha:t,permission,paths:normalized,mode:def.mode,singleAgentMode:chairId==='chair_1'&&occupied(state).length===1});
@@ -549,6 +574,7 @@ export function revoke({chairId='chair_1',agentId,reason='STALE_CONTEXT',session
     const chair=state.chairs[chairId];
     if(chair.status!=='OCCUPIED')throw new Error('CHAIR_NOT_OCCUPIED');
     if(chair.holder_agent_id!==agentId)throw new Error('UNAUTHORIZED_EXECUTION_ATTEMPT');
+    assertChair1ReleaseAllowed(chair,{successful:false,reason:'REVOKE'});
     if(sessionId)sanitizeSessionContext({sessionId,taskId});
     clearChairRecord(chair,state);
     atomicChairRefAudit({chairId,targetSha:state.target_sha,event:'REVOKE'});
@@ -562,6 +588,7 @@ export function release({chairId,agentId,targetSha=sha(),successful=false,sessio
   const t=assertSha(targetSha,'TARGET_SHA');
   return withWriteLock(()=>{
     const state=readState();const chair=verifyLease({state,chairId,agentId,targetSha:t,assertCurrentHead:false});
+    assertChair1ReleaseAllowed(chair,{successful,reason:successful===true?'TASK_COMPLETE':'RELEASE'});
     if(sessionId)sanitizeSessionContext({sessionId,taskId});
     clearChairRecord(chair,state);
     atomicChairRefAudit({chairId,targetSha:t,event:'RELEASE'});
@@ -596,6 +623,7 @@ export function assertWorkAdmission({agentId,targetSha=sha(),chairId=null,taskId
     const state=readState();
     const preemption=state.last_preemption;
     if(preemption?.targetSha===String(targetSha)&&preemption?.displacedAgentId===agentId&&preemption?.displacedTaskId!==null&&String(preemption.displacedTaskId)===String(taskId??''))throw new Error('AGENT_WORK_CHAIR_PREEMPTED');
+    if(preemption?.targetSha===String(targetSha)&&preemption?.displacedAgentId===agentId&&preemption?.displacedTaskId!==null&&String(preemption.displacedTaskId)===String(taskId??''))throw new Error('AGENT_WORK_CHAIR_PREEMPTED');
     throw new Error('AGENT_WORK_REQUIRES_CHAIR');
   }
   if(chairId&&active.chairId!==chairId)throw new Error('AGENT_WORK_CHAIR_MISMATCH');
@@ -612,6 +640,7 @@ export function beginWork({agentId,targetSha=sha(),requestedChairId=null,reposit
   if(lastPreemption?.targetSha===t&&lastPreemption.displacedAgentId===agentId&&lastPreemption.displacedTaskId!==null&&String(lastPreemption.displacedTaskId)===String(taskId??''))throw new Error('AGENT_WORK_CHAIR_PREEMPTED');
   const chairId=String(requestedChairId??'chair_1').trim()||'chair_1';
   if(chairId!=='chair_1' && chairId!=='chair_2' && chairId!=='chair_3')throw new Error('CHAIR_UNKNOWN');
+  if(chairId==='chair_1') assertChair1Mission({chairId,taskId});
   if(chairId!=='chair_1')throw new Error('CHAIR_AUTO_ADMISSION_MUST_USE_CHAIR_1');
   if(isMasterPrincipal(agentId,role))return preemptChair1ForMaster({agentId,targetSha:t,role,repositoryState,workPackageId,taskId,fencingToken,scope,reviewId});
   const acquired=acquire({
@@ -626,7 +655,7 @@ export function beginWork({agentId,targetSha=sha(),requestedChairId=null,reposit
     fencingToken
   });
   const chair=acquired.chairs[chairId];
-  return Object.freeze({admitted:true,reused:false,chairId,leaseId:chair.lease_id,targetSha:t,taskId:chair.task_id??null,workPackageId:chair.work_package_id??null});
+  return Object.freeze({admitted:true,reused:false,chairId,leaseId:chair.lease_id,targetSha:t,taskId:chair.task_id??null,workPackageId:chair.work_package_id??null,primaryMission:chair.primary_mission??chairPrimaryMission(chairId),missionLock:chair.mission_lock??'UNSET'});
 }
 
 export function endWork({agentId,targetSha=sha(),successful=false,sessionId=null,taskId=null}={}){
