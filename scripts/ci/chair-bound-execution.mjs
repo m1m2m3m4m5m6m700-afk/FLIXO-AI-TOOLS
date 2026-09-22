@@ -35,16 +35,6 @@ const SHA_RE=/^[a-f0-9]{40}$/u;
 const HASH_RE=/^[a-f0-9]{64}$/u;
 const AGENT_RE=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u;
 export const CHAIR1_OWNER_AGENT='assistantController';
-const MASTER_PRINCIPALS=Object.freeze({
-  'MASTER-1':1,
-  'MASTER-2':2,
-  'MASTER-3':3,
-  'master-1':1,
-  'master-2':2,
-  'master-3':3,
-});
-const isMasterPrincipal=(agentId,role=null)=>Boolean(MASTER_PRINCIPALS[String(role??'').trim()]||MASTER_PRINCIPALS[String(agentId??'').trim()]);
-const masterPriority=(agentId,role=null)=>MASTER_PRINCIPALS[String(role??'').trim()]??MASTER_PRINCIPALS[String(agentId??'').trim()]??null;
 
 const positiveDuration=(value,fallback)=>{const n=Number(value);return Number.isFinite(n)&&n>0?Math.floor(n):fallback;};
 const HEARTBEAT_INTERVAL_MS=positiveDuration(process.env.FLIXO_CHAIR_HEARTBEAT_INTERVAL_MS,30_000);
@@ -198,12 +188,6 @@ function chairPrimaryMission(chairId){
   return CHAIR_DEFINITIONS[chairId]?.primaryMission ?? null;
 }
 
-function assertChair1Mission({chairId,taskId}={}){
-  if(chairId!=='chair_1') return;
-  if(chairPrimaryMission(chairId)!=='CHAIR1_PERMANENT_CHANGE_AGGREGATOR') throw new Error('CHAIR1_PRIMARY_MISSION_DRIFT');
-  if(taskId===null || taskId===undefined || String(taskId).trim()==='') throw new Error('CHAIR1_TASK_ID_REQUIRED_FOR_REPAIR_MISSION');
-}
-
 function assertChair1ReleaseAllowed(chair,{successful=false,reason=''}={}){
   if(chair?.status!=='OCCUPIED'||chair?.task_id==null||String(chair.task_id).trim()==='') return;
   const finalized=successful===true || ['TASK_COMPLETE','TASK_RELEASE','FINALIZED'].includes(String(reason??'').trim());
@@ -345,7 +329,7 @@ export function acquire({chairId='chair_1',agentId,targetSha=sha(),repositorySta
     state.repository_state='ACTIVE';state.idle_timestamp=null;writeState(state);return state;
   });
 }
-export function takeChair1({agentId,targetSha=sha(),role=null,repositoryState='ACTIVE',reviewId=null,scope=null,workPackageId=null,taskId=null,fencingToken=null,reason='AGENT_NEEDS_CHAIR_1'}={}) {
+export function takeChair1({agentId,targetSha=sha(),reviewId=null,scope=null,workPackageId=null,taskId=null,fencingToken=null}={}) {
   assertAgent(agentId);
   const t=assertSha(targetSha,'TARGET_SHA');
   if(t!==sha())throw new Error('STALE_CONTEXT');
@@ -363,7 +347,7 @@ export function takeChair1({agentId,targetSha=sha(),role=null,repositoryState='A
   return acquire({chairId:'chair_1',agentId,targetSha:t,repositoryState:'IDLE',reviewId,scope,workPackageId,taskId,fencingToken});
 }
 
-export const preemptChair1ForMaster = (...args) => {
+export const preemptChair1ForMaster = () => {
   throw new Error('CHAIR1_PREEMPTION_FORBIDDEN_USE_CONTROLLER_RECLAIM');
 };
 
