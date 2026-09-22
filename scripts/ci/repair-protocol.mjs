@@ -25,6 +25,7 @@ export const REPAIR_PROTOCOL = Object.freeze({
   completionRequires: ['repairAttempts','retestResult','resumePoint','finalVerification','finalSHA'],
   protectedPaths: ['scripts/ci/repair-protocol.mjs','scripts/ci/control-plane-registry.mjs','scripts/ci/auto-repair-engine.mjs','scripts/ci/auto-repair-policy.mjs','scripts/ci/agent-execution-control.mjs','scripts/ci/execution-head-authority.mjs',
   'scripts/ci/chair1-change-accumulator.mjs',
+  'scripts/ci/guard-communication.mjs',
   'scripts/ci/agent-isolated-workspace.mjs',
   'scripts/ci/agent-session.mjs',
   'scripts/ci/task-agent.mjs','scripts/ci/execution-mutation-gate.mjs','.github/workflows/auto-repair.yml','scripts/ci/validate-agent-protocol.mjs','scripts/ci/validate-agent-coordination.mjs','scripts/ci/chair-bound-execution.mjs','scripts/ci/chair-push-guard.mjs','scripts/ci/auto-repair-chair1-audit.mjs'],
