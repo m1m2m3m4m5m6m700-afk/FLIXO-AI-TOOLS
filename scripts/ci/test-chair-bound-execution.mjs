@@ -32,8 +32,7 @@ release({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,successful
 assert.equal(repositoryMode({targetSha:realGitSha}).repositoryState,'IDLE');
 
 acquire({chairId:'chair_2',agentId:'agent-beta',targetSha:realGitSha,repositoryState:'IDLE'});
-assert.equal(authorizeWrite({chairId:'chair_2',agentId:'agent-beta',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION',boundedScope:['src/example.ts']}).authorized,true);
-assert.throws(()=>authorizeWrite({chairId:'chair_2',agentId:'agent-beta',targetSha:realGitSha,paths:['src/other.ts'],permission:'SOURCE_MUTATION',boundedScope:['src/example.ts']}),/CHAIR2_SCOPE_DRIFT/);
+assert.throws(()=>authorizeWrite({chairId:'chair_2',agentId:'agent-beta',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION',boundedScope:['src/example.ts']}),/CHAIR_PERMISSION_DENIED=SOURCE_MUTATION/);
 release({chairId:'chair_2',agentId:'agent-beta',targetSha:realGitSha});
 
 acquire({chairId:'chair_3',agentId:'agent-arch',targetSha:realGitSha,repositoryState:'IDLE',reviewId:'AR-001'});
@@ -51,7 +50,7 @@ release({chairId:'chair_3',agentId:'agent-arch-2',targetSha:realGitSha});
 
 const chair2Parallel=acquire({chairId:'chair_2',agentId:'agent-beta-2',targetSha:realGitSha,repositoryState:'ACTIVE'});
 assert.equal(chair2Parallel.chairs.chair_2.status,'OCCUPIED');
-assert.throws(()=>authorizeWrite({chairId:'chair_2',agentId:'agent-beta-2',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION',boundedScope:['src/example.ts']}),/CHAIR2_WRITE_BLOCKED_WHILE_CHAIR1_ACTIVE/);
+assert.throws(()=>authorizeWrite({chairId:'chair_2',agentId:'agent-beta-2',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION',boundedScope:['src/example.ts']}),/CHAIR_PERMISSION_DENIED=SOURCE_MUTATION/);
 assert.equal(repositoryMode({targetSha:realGitSha}).singleAgentMode,false);
 release({chairId:'chair_2',agentId:'agent-beta-2',targetSha:realGitSha});
 
