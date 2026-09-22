@@ -18,11 +18,11 @@ assert.ok(CANONICAL_SOURCES.includes('docs/agents/ADVERSARIAL-BOT-COMMANDS.json'
 assert.ok(CANONICAL_SOURCES.includes('scripts/ci/adversarial-bot-commands.mjs'));
 assert.equal(normal.preExecution25.ruleId, 'PRE-EXECUTION-25');
 assert.equal(normal.preExecution25.status, 'PASS');
-assert.ok(normal.preExecution25.operationCount >= 25);
+assert.ok(normal.preExecution25.operationCount >= 50);
 assert.equal(normal.preExecution25.operationDigest.length, 64);
 assert.equal(normal.adversarialFailureReport.targetSha, normal.executionSha);
-assert.equal(normal.fiveX.profile, '5X');
-assert.equal(normal.fiveX.multiplier, 5);
+assert.equal(normal.fiveX.profile, '10X');
+assert.equal(normal.fiveX.multiplier, 10);
 assert.equal(normal.fiveX.status, 'READY_FOR_AUTHORIZED_EXECUTION');
 assert.equal(normal.fiveX.checks.profile, true);
 assert.equal(normal.fiveX.checks.exactSha, true);
@@ -36,6 +36,10 @@ assert.equal(normal.fiveX.checks.proofClasses, true);
 assert.equal(normal.fiveX.checks.preExecution25, true);
 assert.equal(normal.fiveX.checks.adversarial, true);
 assert.equal(normal.fiveX.checks.scopeConflict, true);
+assert.equal(normal.fiveX.powerProfile, '10X');
+assert.equal(normal.fiveX.powerMultiplier, 10);
+assert.ok(normal.fiveX.minimums.counterexampleChecks >= 10);
+assert.ok(normal.fiveX.minimums.regressionDepth >= 5);
 
 const repair = buildWorkPackage('أصلح خطأ CI الحالي، حلل الجذر، اختبر الإصلاح، وتحقق من Exact-SHA.');
 assert.equal(repair.intent, 'REPAIR_DIAGNOSE');
