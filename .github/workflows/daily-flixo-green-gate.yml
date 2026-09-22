@@ -371,7 +371,7 @@ jobs:
             exit 0
           fi
           gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/auto-repair.yml/dispatches" \
-            -f ref=execution \
+            -f ref=main \
             -f 'inputs[resident]=true'
           echo "RESIDENT_PULSE=DISPATCHED"
           echo "RESIDENT_PULSE_OWNER=DAILY_FLIXO_GREEN_GATE"
@@ -555,7 +555,7 @@ jobs:
             echo "CENTRAL_CHAIR1_LEASE_ID=$CENTRAL_LEASE_ID"
 
             gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/auto-repair.yml/dispatches" \
-              -f ref=execution \
+              -f ref=main \
               -f "inputs[convergence_guidance_artifact_id]=$CONVERGENCE_GUIDANCE_ARTIFACT_ID" \
               -f "inputs[target_run_id]=$TARGET_RUN_ID" \
               -f "inputs[chain_id]=$REPAIR_CHAIN_ID" \
