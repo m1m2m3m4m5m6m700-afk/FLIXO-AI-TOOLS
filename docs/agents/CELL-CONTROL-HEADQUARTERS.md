@@ -56,3 +56,25 @@ The attendance record captures task identity, purpose, scope, result, evidence, 
 `node scripts/ci/cell-attendance.mjs assess` produces the current upgrade assessment.
 
 The assessment is advisory evidence for Controller reassessment; it never grants permissions automatically.
+
+## 🧪 CELL-LAB — THE CELL IS THE LABORATORY
+
+CELL-HQ is not only a dispatch desk. It is the shared engineering laboratory where Masters, Agents and Bots exchange evidence, opinions, questions and challenges before material execution.
+
+### Mandatory collaborative cycle
+
+`QUESTION / OPINION → BROADCAST → RESPONSES → CHALLENGE → DISSENT RESOLUTION → INTEGRATED PLAN → CONSENSUS → EXECUTION → VERIFICATION → LEARNING`
+
+Required participants for a material execution packet:
+`MASTER-1 + MASTER-2 + MASTER-3 + MUTATION OWNER`.
+
+Every question must be answered or explicitly accepted as a documented risk. Every disagreement must have a recorded resolution. The final plan must be singular, integrated and bound to the current exact SHA.
+
+Canonical artifact:
+`diagnostics/agents/cell-lab/consensus/<taskId>.json`
+
+Machine gate:
+`scripts/ci/cell-lab-consensus.mjs`
+
+A missing, stale, incomplete, unresolved or non-AGREED packet blocks material mutation and keeps the task in the collaborative lab/recovery state.
+
