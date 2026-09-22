@@ -8,6 +8,7 @@ const ROOT = process.cwd();
 const DEFAULT_CONFIG = 'configs/in-repo-repair-v2.yml';
 const SHA_RE = /^[a-f0-9]{40}$/u;
 const FP_RE = /^[a-f0-9]{64}$/u;
+const SHA256_RE = /^[a-f0-9]{64}$/u;
 const FORBIDDEN_MUTATION_RE = /continue-on-error|test\.(?:skip|only)|describe\.(?:skip|only)|eslint-disable|@ts-(?:ignore|nocheck)|gh\s+(?:pr\s+merge|workflow\s+run).*--ref\s+main/iu;
 
 function fail(code, details) {
