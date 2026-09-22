@@ -75,6 +75,7 @@ export function normalizePushPacket(packet, index = 0) {
     changedFiles,
     commits,
     patchDigest: packetPatchDigest || digest(JSON.stringify({ agentId, sourceSha, baseSha, changedFiles, commits })),
+    patchText: packet.patchText == null ? null : String(packet.patchText),
     declaredStatus: clean(packet.status) || 'PUSH_RECEIVED',
     metadata: packet.metadata && typeof packet.metadata === 'object' ? { ...packet.metadata } : {},
   });
