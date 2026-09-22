@@ -119,17 +119,25 @@ jobs:
           FLIXO_TWIN_DETACHED: 'false'
           FLIXO_EXPECTED_TARGET_SHA: ${{ env.EXPECTED_SHA }}
           FLIXO_ADVERSARIAL_OUTPUT: /tmp/flixo-postpatch-adversarial.json
+          FLIXO_RCA_MANIFEST_PATH: ${{ github.workspace }}/diagnostics/auto-repair/last-rca-manifest.json
           FLIXO_TARGET_DIR: ${{ github.workspace }}
         run: |
           set -euo pipefail
           git fetch --no-tags --depth=1 origin refs/heads/main:refs/remotes/origin/main
           BASE_SHA="$(git rev-parse origin/main)"
+          SOURCE_SHA="$(git rev-parse HEAD^)"
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-          test "$BASE_SHA" != "$EXPECTED_SHA"
-          FLIXO_PATCH_BASE_SHA="$BASE_SHA" node scripts/ci/post-patch-adversarial-assessor.mjs
+          test "$SOURCE_SHA" != "$EXPECTED_SHA"
+          test -s "$FLIXO_RCA_MANIFEST_PATH"
+          test "$(jq -r '.target_sha' "$FLIXO_RCA_MANIFEST_PATH")" = "$SOURCE_SHA"
+          FLIXO_PATCH_BASE_SHA="$SOURCE_SHA" node scripts/ci/post-patch-adversarial-assessor.mjs
           test -s /tmp/flixo-postpatch-adversarial.json
           test "$(jq -r '.status' /tmp/flixo-postpatch-adversarial.json)" = NO_COUNTEREXAMPLE
           test "$(jq -r '.targetSha' /tmp/flixo-postpatch-adversarial.json)" = "$EXPECTED_SHA"
+          test "$(jq -r '.sourceSha' /tmp/flixo-postpatch-adversarial.json)" = "$SOURCE_SHA"
+          test "$(jq -r '.falsifierVerdict' /tmp/flixo-postpatch-adversarial.json)" = PASS_CONFIRMED
+          test "$(jq -r '.finiteInvariantProof.status' /tmp/flixo-postpatch-adversarial.json)" = PROVEN
+          test "$(jq -r '.passConfirmed' /tmp/flixo-postpatch-adversarial.json)" = true
           test "$(jq -r '.mutantCasesSurvived' /tmp/flixo-postpatch-adversarial.json)" = 0
           echo 'POST_PATCH_ADVERSARIAL_STATUS=NO_COUNTEREXAMPLE'
       - name: Require canonical workflow GREEN on exact SHA
