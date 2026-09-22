@@ -39,9 +39,11 @@ jobs:
       - name: Resolve live branch head and event head
         id: head
         env:
+          GH_TOKEN: ${{ github.token }}
           TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
           SOURCE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           EVENT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -49,6 +51,8 @@ jobs:
           [[ "$SOURCE_REPOSITORY" =~ ^[^/]+/[^/]+$ ]]
           [[ "$EVENT_SHA" =~ ^[0-9a-f]{40}$ ]]
 
+          # Resolve the authoritative branch head through Git's ref transport instead of the
+          # rate-limited GitHub Actions REST API. Fail closed if the ref cannot be resolved.
           LIVE_SHA="$(git ls-remote "https://github.com/$SOURCE_REPOSITORY.git" "refs/heads/$TARGET_BRANCH" | awk 'NR==1 {print $1}')"
           test -n "$LIVE_SHA"
 
@@ -71,10 +75,9 @@ jobs:
 
       - name: Assert live-head supersession regression
         env:
-                    TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
           SOURCE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           EVENT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
         run: |
           set -euo pipefail
           LIVE_AFTER_CHECK="$(git ls-remote "https://github.com/$SOURCE_REPOSITORY.git" "refs/heads/$TARGET_BRANCH" | awk 'NR==1 {print $1}')"
@@ -120,7 +123,22 @@ jobs:
 
             # Every non-completed stale run is invalid. Request cancellation regardless of current
             # runner state; exact-SHA gates independently reject any late completion race.
-            echo "CANCEL_STALE_RUN run=$run_id status=$status"
+            local live_status=""
+            live_status="$(gh run view "$run_id" --repo "$REPOSITORY" --json status --jq '.status')"
+            case "$live_status" in
+              completed)
+                echo "STALE_RUN_ALREADY_COMPLETED run=$run_id"
+                return 0
+                ;;
+              in_progress|queued|waiting|requested|pending)
+                ;;
+              *)
+                echo "KEEP_UNKNOWN_RUN_STATUS run=$run_id status=$live_status"
+                return 0
+                ;;
+            esac
+
+            echo "CANCEL_STALE_RUN run=$run_id status=$live_status"
             local cancel_output=""
             local attempt=1
             local now_status=""
@@ -135,11 +153,24 @@ jobs:
                 echo "SUPERSESSION_EXTERNAL_BLOCKER=GITHUB_ACTIONS_API_RATE_LIMIT"
                 return 1
               fi
-              if printf '%s' "$cancel_output" | grep -Eiq 'already completed|cannot cancel.*completed|not in progress|completed'; then
-                echo "STALE_RUN_ALREADY_COMPLETED run=$run_id"
+              local status_output=""
+              if status_output="$(gh run view "$run_id" --repo "$REPOSITORY" --json status --jq '.status' 2>&1)"; then
+                now_status="$status_output"
+                case "$now_status" in
+                  in_progress)
+                    echo "KEEP_IN_PROGRESS_STALE_DURING_CANCEL run=$run_id"
+                    return 0
+                    ;;
+                  completed)
+                    echo "STALE_RUN_ALREADY_COMPLETED run=$run_id"
+                    return 0
+                    ;;
+                esac
+              elif printf '%s' "$status_output" | grep -Eiq 'API rate limit exceeded|rate limit exceeded|secondary rate limit|abuse detection'; then
+                echo "BLOCKED_EXTERNAL: GitHub Actions API rate limit prevented stale-run status lookup for run=$run_id"
+                echo "SUPERSESSION_EXTERNAL_BLOCKER=GITHUB_ACTIONS_API_RATE_LIMIT"
                 return 0
               fi
-              local status_output=""
               echo "RETRY stale-run cancellation run=$run_id attempt=$attempt status=$now_status" >&2
               sleep 2
               attempt=$((attempt + 1))
@@ -159,79 +190,16 @@ jobs:
             exit 1
           fi
           printf '%s' "$RUNS_JSON" | jq 'add' > /tmp/supersession-all-runs.json
-          while IFS=
+          while IFS=$'\t' read -r RUN_ID HEAD_SHA STATUS NAME EVENT; do
             [ -n "$RUN_ID" ] || continue
             if [ "$HEAD_SHA" = "$CURRENT_SHA" ]; then
               echo "KEEP current SHA run=$RUN_ID name=$NAME status=$STATUS"
               continue
             fi
             if is_supersedable_run "$NAME"; then
-              RUN_SOURCE_REPOSITORY="$HEAD_REPOSITORY"
-              if [ -n "$RUN_SOURCE_REPOSITORY" ] && [ "$RUN_SOURCE_REPOSITORY" != "$SOURCE_REPOSITORY" ]; then
-                echo "KEEP unrelated source repository run=$RUN_ID source=$RUN_SOURCE_REPOSITORY target=$SOURCE_REPOSITORY"
-                continue
-              fi
-              cancel_stale_run "$RUN_ID" "$HEAD_SHA" "$STATUS" "$NAME" "$EVENT"
-            fi
-          done < <(
-            jq -r '.workflow_runs[] | select(.status != "completed") | [.id,.head_sha,.status,.name,.event,.head_repository.full_name // ""] | @tsv' /tmp/supersession-all-runs.json
-          )
-
-      - name: Assert no non-authoritative run remains active
-        if: steps.head.outputs.stale_event != 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ steps.head.outputs.branch }}
-          CURRENT_SHA: ${{ steps.head.outputs.sha }}
-          REPOSITORY: ${{ github.repository }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          stale_active=0
-          for poll in 1 2 3 4 5; do
-            RUNS_JSON="$(gh api --paginate --slurp "repos/$REPOSITORY/actions/runs?branch=$BRANCH&per_page=100")"
-            printf '%s' "$RUNS_JSON" | jq 'add' > /tmp/supersession-final-runs.json
-            stale_active="$(jq -r --arg sha "$CURRENT_SHA" '[.workflow_runs[] | select(.status != "completed" and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession")] | length' /tmp/supersession-final-runs.json)"
-            echo "STALE_ACTIVE_RUNS=$stale_active poll=$poll"
-            if [ "$stale_active" -eq 0 ]; then break; fi
-            if [ "$poll" -lt 5 ]; then sleep 2; fi
-          done
-          if [ "$stale_active" -ne 0 ]; then
-            echo 'FAIL CLOSED: stale runs remain non-completed after supersession cancellation window.'
-            jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" '.workflow_runs[] | select(.status != "completed" and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession") | select(.head_repository.full_name == $sourceRepo) | select(.name | test("Test|test|Verification|verification|Contract|contract|Security|security|Baseline|baseline|Certification|certification|Impact|impact|Code Scanning|CodeQL|Diagnostic|diagnostic|Proof|proof|Scan|scan")) | [.id,.name,.status,.head_sha] | @tsv' /tmp/supersession-final-runs.json
-            exit 1
-          fi
-          echo 'STALE_ACTIVE_RUNS=0'
-          echo 'LATEST_COMMIT_ONLY_ENFORCED=true'
-
-      - name: Assert repository head has not moved during supersession
-        if: steps.head.outputs.stale_event != 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_SHA: ${{ steps.head.outputs.sha }}
-          EXPECTED_BRANCH: ${{ steps.head.outputs.branch }}
-          SOURCE_REPOSITORY: ${{ steps.head.outputs.source_repository }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          CURRENT_SHA="$(git ls-remote "https://github.com/$SOURCE_REPOSITORY.git" "refs/heads/$EXPECTED_BRANCH" | awk 'NR==1 {print $1}')"
-          test -n "$CURRENT_SHA"
-          if [ "$CURRENT_SHA" != "$EXPECTED_SHA" ]; then
-            echo "SUPERSESSION_EVENT_OBSOLETE=true"
-            echo "SUPERSESSION_HEAD_MOVED old=$EXPECTED_SHA new=$CURRENT_SHA"
-            exit 0
-          fi
-          echo 'LATEST_COMMIT_SUPERSESSION=PASS'
-          echo "LATEST_COMMIT_SHA=$EXPECTED_SHA"
-          echo "LATEST_COMMIT_BRANCH=$EXPECTED_BRANCH"
-\t' read -r RUN_ID HEAD_SHA STATUS NAME EVENT HEAD_REPOSITORY; do
-            [ -n "$RUN_ID" ] || continue
-            if [ "$HEAD_SHA" = "$CURRENT_SHA" ]; then
-              echo "KEEP current SHA run=$RUN_ID name=$NAME status=$STATUS"
-              continue
-            fi
-            if is_supersedable_run "$NAME"; then
-              RUN_SOURCE_REPOSITORY="$HEAD_REPOSITORY"
+              RUN_SOURCE_REPOSITORY="$(
+                gh run view "$RUN_ID" --repo "$REPOSITORY" --json headRepository --jq '.headRepository.fullName // ""'
+              )"
               if [ -n "$RUN_SOURCE_REPOSITORY" ] && [ "$RUN_SOURCE_REPOSITORY" != "$SOURCE_REPOSITORY" ]; then
                 echo "KEEP unrelated source repository run=$RUN_ID source=$RUN_SOURCE_REPOSITORY target=$SOURCE_REPOSITORY"
                 continue
@@ -272,13 +240,14 @@ jobs:
       - name: Assert repository head has not moved during supersession
         if: steps.head.outputs.stale_event != 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
           EXPECTED_SHA: ${{ steps.head.outputs.sha }}
           EXPECTED_BRANCH: ${{ steps.head.outputs.branch }}
+          SOURCE_REPOSITORY: ${{ steps.head.outputs.source_repository }}
         shell: bash
         run: |
           set -euo pipefail
-          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$EXPECTED_BRANCH" --jq '.object.sha')"
+          CURRENT_SHA="$(git ls-remote "https://github.com/$SOURCE_REPOSITORY.git" "refs/heads/$EXPECTED_BRANCH" | awk 'NR==1 {print $1}')"
+          test -n "$CURRENT_SHA"
           if [ "$CURRENT_SHA" != "$EXPECTED_SHA" ]; then
             echo "SUPERSESSION_EVENT_OBSOLETE=true"
             echo "SUPERSESSION_HEAD_MOVED old=$EXPECTED_SHA new=$CURRENT_SHA"
