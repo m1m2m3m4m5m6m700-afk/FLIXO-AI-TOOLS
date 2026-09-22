@@ -110,8 +110,12 @@ export function validateStatic() {
   must(/cancel-in-progress:\s*false/.test(auto), 'auto-repair-single-lane');
   must(/queue:\s*max/.test(auto), 'auto-repair-mutation-queue-max');
   must(/execution-mutation-gate\.mjs\s+admit/.test(auto) && /execution-mutation-gate\.mjs\s+verify/.test(auto), 'auto-repair-mutation-gate-wired');
-  must(!/chair-bound-execution\.mjs\s+(acquire|authorize-write|authorize-publication)/.test(auto), 'auto-repair-chair-policy-exempt');
-  must(!/FLIXO_REQUIRE_FENCED_CHAIR/.test(auto), 'auto-repair-chair-env-exempt');
+  must(/auto-repair-chair1-audit\.mjs/.test(auto), 'auto-repair-chair1-audit-required');
+  must(/CHAIR1_AUDIT=APPROVED/.test(auto), 'auto-repair-chair1-audit-approval-required');
+  must(/CHAIR1_REVIEW_AUTHORITY=STRICT_INDEPENDENT_AUDITOR/.test(auto), 'auto-repair-chair1-independent-review-required');
+  must(/FLIXO_AUTO_REPAIR_SELF_APPROVAL:\s*['\"]false['\"]/.test(auto), 'auto-repair-self-approval-forbidden');
+  must(/FLIXO_AUTO_REPAIR_ROLE:\s*AUTO_REPAIR_BOT/.test(auto), 'auto-repair-chair-identity-required');
+  must(!/auto-repair-chair-policy-exempt/.test(auto), 'auto-repair-chair-exemption-removed');
   for (const workflowName of MUTATION_WORKFLOWS) {
     const mutationWorkflow = fs.readFileSync(path.join(workflowDir,workflowName),'utf8');
     must(mutationWorkflow.includes(`group: ${MUTATION_LANE}`), `global-mutation-lane:${workflowName}`);
@@ -127,6 +131,8 @@ export function validateStatic() {
   must(/PARENT_SHA="\$\(git rev-parse "\$CANDIDATE_SHA\^"\)/.test(auto), 'auto-repair-candidate-parent-sha');
   must(/test "\$\(git rev-parse origin\/execution\)" = "\$PARENT_SHA"/.test(auto), 'auto-repair-publication-parent-integrity');
   must(/git push origin "HEAD:execution"/.test(auto), 'auto-repair-execution-only-publication');
+  must(/if: steps\.chair1_audit\.outcome == 'success'/.test(auto), 'auto-repair-publication-must-depend-on-chair1');
+  must(/FLIXO_CHAIR_CONTEXT:\s*\/tmp\/flixo-chair1-proposal\.json/.test(auto), 'auto-repair-chair-context-boundary');
   must(auto.includes('EVIDENCE_CAPTURE=FAILED'), 'auto-repair-evidence-capture-fail-closed');
   must(handoffGate.includes('branches: [execution]'), 'handoff-gate-execution-trigger');
   must(/permissions:\s*[\s\S]*contents:\s+read[\s\S]*checks:\s+read/.test(supervisor) && !/actions:\s*write/.test(supervisor), 'supervisor-read-only');
