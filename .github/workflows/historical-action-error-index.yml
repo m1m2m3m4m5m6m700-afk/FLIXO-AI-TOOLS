@@ -118,6 +118,8 @@ jobs:
           CANDIDATE_SHA="$(git rev-parse HEAD)"
           node scripts/ci/execution-mutation-gate.mjs verify --phase=pre-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA" --parent="$BASE_SHA"
           node scripts/ci/chair-bound-execution.mjs authorize-publication --chair=chair_1 --agent=HISTORICAL_ACTION_INDEX --sha="$BASE_SHA" --permission=SOURCE_MUTATION --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --paths="$MUTATION_PATHS" >/tmp/flixo-chair-publication.json
-          git push origin execution
+          echo "CHAIR_GUARD_BLOCKED: Historical index may not publish directly to execution."
+          echo "HANDOFF_REQUIRED: Chair-1 must review and publish the generated corpus through the guarded PR path."
+          exit 1
           node scripts/ci/execution-mutation-gate.mjs verify --phase=post-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA"
           node scripts/ci/chair-bound-execution.mjs release --chair=chair_1 --agent=HISTORICAL_ACTION_INDEX --sha="$BASE_SHA" --successful=true >/tmp/flixo-chair-release.json
