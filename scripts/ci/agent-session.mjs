@@ -92,6 +92,7 @@ const readCoordinationChairBinding = (sessionId, expectedAgentId, expectedTaskId
   if (!active) return null;
   if (active.agentId !== expectedAgentId) throw new Error('AGENT_SESSION_COORDINATION_AGENT_MISMATCH');
   if (active.taskId !== expectedTaskId) throw new Error('AGENT_SESSION_COORDINATION_TASK_MISMATCH');
+  if (active.entrySha && active.entrySha !== gitSha()) throw new Error('AGENT_SESSION_COORDINATION_STALE_SHA');
   if (!active.chairId) return null;
   return Object.freeze({ chairId: active.chairId, chairLeaseId: active.chairLeaseId ?? null, entrySha: active.entrySha ?? null });
 };
