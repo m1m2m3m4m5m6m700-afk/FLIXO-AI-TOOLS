@@ -4,9 +4,12 @@ import fs from 'node:fs';
 
 const fn=fs.readFileSync('supabase/functions/flixo-council-runtime/index.ts','utf8');
 const migration=fs.readFileSync('supabase/migrations/20260922140000_master3_direct_assistant_channel.sql','utf8');
+const wakeMigration=fs.readFileSync('supabase/migrations/20260922141500_master3_assistant_wake_autodelivery.sql','utf8');
 const registry=fs.readFileSync('docs/agents/COUNCIL-ACCOUNT-REGISTRY.md','utf8');
 
 assert.match(fn,/action === "assistant-channel"/);
+assert.match(fn,/searchParams.get\("tokenHash"\)/);
+assert.match(fn,/COUNCIL_ASSISTANT_CREDENTIAL_REQUIRED/);
 assert.match(fn,/purpose = "WAKE"\|\| "STATUS"/);
 assert.match(fn,/COUNCIL_ASSISTANT_NONCE_REJECTED/);
 assert.match(fn,/COUNCIL_ASSISTANT_EXACT_SHA_MISMATCH/);
@@ -28,3 +31,10 @@ console.log('MASTER3_DIRECT_CHANNEL_CONTRACT=PASS');
 console.log('MASTER3_DIRECT_WAKE_NONCE=PASS');
 console.log('MASTER3_DIRECT_STATUS_CONTRACT=PASS');
 console.log('MASTER3_DIRECT_EXACT_SHA=PASS');
+
+assert.match(wakeMigration,/pg_net/i);
+assert.match(wakeMigration,/flixo_council_assistant_wake_notify/i);
+assert.match(wakeMigration,/create trigger .*assistant_wake_notify/is);
+assert.match(wakeMigration,/cron\.schedule/i);
+assert.match(wakeMigration,/flixo-master3-assistant-wake-retry/i);
+console.log('MASTER3_WAKE_AUTODELIVERY=PASS');

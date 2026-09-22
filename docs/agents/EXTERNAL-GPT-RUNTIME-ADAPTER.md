@@ -63,3 +63,8 @@ The bridge is provider-agnostic so it can connect to an external GPT runtime, pr
 Canonical endpoint extension: `GET ?action=assistant-channel&purpose=WAKE|STATUS&nonce=<one-time-token>&entrySha=<exact-sha>`.
 
 The assistant creates the short-lived nonce in `flix_council_assistant_channel_tokens`. `WAKE` consumes it atomically and dispatches through the existing `MASTER-3 → WORKER_B` route; `STATUS` reads the exact-SHA-bound MASTER-3 runtime/account state. The nonce is stored only as a SHA-256 hash, is single-use, expires, and never replaces the Council runtime or account registry.
+
+
+## Automatic direct wake
+
+The assistant channel is now self-delivering inside Supabase. Inserting a short-lived `WAKE` token queues an asynchronous `pg_net` GET to the same canonical Council Runtime; a one-minute `pg_cron` retry job re-attempts only unconsumed, unexpired wake tokens. The credential is the SHA-256 token hash, never the raw nonce. This is an extension of the existing Council Runtime, not a parallel transport.

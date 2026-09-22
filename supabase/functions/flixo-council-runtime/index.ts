@@ -495,12 +495,15 @@ Deno.serve(async (req) => {
 
     if (action === "assistant-channel" && req.method === "GET") {
       const nonce = String(url.searchParams.get("nonce") ?? "").trim();
+      const suppliedHash = String(url.searchParams.get("tokenHash") ?? "").trim().toLowerCase();
       const purpose = String(url.searchParams.get("purpose") ?? "").trim().toUpperCase();
       const exactSha = sha(url.searchParams.get("entrySha"));
-      if (!/^[A-Za-z0-9_-]{32,256}$/.test(nonce)) throw new Error("COUNCIL_ASSISTANT_NONCE_INVALID");
+      if (nonce && !/^[A-Za-z0-9_-]{32,256}$/.test(nonce)) throw new Error("COUNCIL_ASSISTANT_NONCE_INVALID");
+      if (suppliedHash && !/^[0-9a-f]{64}$/.test(suppliedHash)) throw new Error("COUNCIL_ASSISTANT_TOKEN_HASH_INVALID");
+      if (!nonce && !suppliedHash) throw new Error("COUNCIL_ASSISTANT_CREDENTIAL_REQUIRED");
       if (!["WAKE", "STATUS"].includes(purpose)) throw new Error("COUNCIL_ASSISTANT_PURPOSE_INVALID");
 
-      const tokenHash = sha256Hex(nonce);
+      const tokenHash = suppliedHash || sha256Hex(nonce);
       const nowIso = new Date().toISOString();
       const rows = await db(
         "/rest/v1/flix_council_assistant_channel_tokens?token_hash=eq." +
