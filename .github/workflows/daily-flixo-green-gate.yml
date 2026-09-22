@@ -31,7 +31,7 @@ permissions:
 # Every observation is evidence-bearing and must complete; duplicate wake suppression is handled by the watchdog.
 # The watcher itself never cancels an evidence-bearing observation.
 concurrency:
-  group: flixo-continuous-error-watch-${{ github.run_id }}
+  group: flixo-continuous-error-watch-${{ github.event.workflow_run.head_sha || github.sha }}-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -560,6 +560,31 @@ jobs:
             /tmp/action-vault-green-record.json
           if-no-files-found: error
           retention-days: 90
+      - name: Race-safe final exact-SHA readback
+        if: always() && steps.capture.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          OBSERVED_BRANCH="$(cat /tmp/flixo-watch/observed-branch)"
+          OBSERVED_SHA="$(cat /tmp/flixo-watch/execution-sha)"
+          LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$OBSERVED_BRANCH" --jq '.object.sha')"
+          test "$LIVE_SHA" = "$OBSERVED_SHA" || {
+            echo "FAIL CLOSED: observed branch advanced before evidence publication: branch=$OBSERVED_BRANCH observed=$OBSERVED_SHA live=$LIVE_SHA"
+            exit 1
+          }
+          if [ "$OBSERVED_BRANCH" = "execution" ]; then
+            CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+            test "$CHECKED_OUT_SHA" = "$OBSERVED_SHA" || {
+              echo "FAIL CLOSED: checked-out source SHA $CHECKED_OUT_SHA differs from observed execution SHA $OBSERVED_SHA"
+              exit 1
+            }
+          fi
+          printf '%s\n' "$OBSERVED_SHA" > /tmp/flixo-watch/final-exact-sha
+          printf '%s\n' "$OBSERVED_BRANCH" > /tmp/flixo-watch/final-observed-branch
+          echo "FINAL_EXACT_SHA_READBACK=PASS sha=$OBSERVED_SHA branch=$OBSERVED_BRANCH"
+
       - name: Publish cycle evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -580,6 +605,8 @@ jobs:
             /tmp/flixo-watch/repair-control-plane.json
             /tmp/flixo-watch/lease-claim.json
             /tmp/flixo-watch/lease-recovery.json
+            /tmp/flixo-watch/final-exact-sha
+            /tmp/flixo-watch/final-observed-branch
           if-no-files-found: warn
           retention-days: 14
 
