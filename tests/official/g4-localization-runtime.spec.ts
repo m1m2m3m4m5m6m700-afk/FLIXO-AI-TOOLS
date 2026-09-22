@@ -105,7 +105,16 @@ async function snapshot(page: Page): Promise<Snapshot> {
 type ConsoleMessageLike = {
   type(): string;
   text(): string;
-  args(): Array<{ jsonValue(): Promise<unknown> }>;
+  args(): Array<{
+    jsonValue(): Promise<unknown>;
+    evaluate<T>(pageFunction: (value: unknown) => T): Promise<T>;
+  }>;
+};
+
+type ConsoleErrorDetails = {
+  name: string;
+  message: string;
+  stack: string;
 };
 
 async function serializeConsoleError(message: ConsoleMessageLike): Promise<string> {
@@ -113,14 +122,31 @@ async function serializeConsoleError(message: ConsoleMessageLike): Promise<strin
   let serializationFailed = false;
   for (const arg of message.args()) {
     try {
+      let errorDetails: ConsoleErrorDetails | null = null;
+      try {
+        errorDetails = await arg.evaluate((value) => {
+          if (!(value instanceof Error)) return null;
+          return {
+            name: value.name || 'Error',
+            message: value.message || '',
+            stack: value.stack || '',
+          };
+        });
+      } catch {
+        // Fall through to the generic JSON serialization below.
+      }
+
+      if (errorDetails) {
+        parts.push(
+          [errorDetails.name, errorDetails.message, errorDetails.stack]
+            .filter(Boolean)
+            .join(': '),
+        );
+        continue;
+      }
+
       const value = await arg.jsonValue();
-      if (value && typeof value === 'object' && 'name' in value) {
-        const errorValue = value as { name?: unknown; message?: unknown; stack?: unknown };
-        const name = typeof errorValue.name === 'string' ? errorValue.name : 'Error';
-        const detail = typeof errorValue.message === 'string' ? errorValue.message : '';
-        const stack = typeof errorValue.stack === 'string' ? errorValue.stack : '';
-        parts.push([name, detail, stack].filter(Boolean).join(': '));
-      } else if (typeof value === 'string') {
+      if (typeof value === 'string') {
         parts.push(value);
       } else if (value !== undefined) {
         try {
