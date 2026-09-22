@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { learnIntoBotMemory } from './cell-memory.mjs';
+import { publishSharedMemory } from './shared-operational-memory.mjs';
 
 const ROOT=process.cwd();
 const KNOWLEDGE_DIR=path.resolve(ROOT,process.env.FLIXO_CELL_KNOWLEDGE_DIR??'diagnostics/auto-repair/cell-knowledge');
@@ -57,7 +58,9 @@ export function persistKnowledge(record){
  index.records.push(record);index.records=index.records.slice(-MAX_RECORDS);index.recordCount=index.records.length;
  add(index.byFingerprint,record.fingerprint,record.id);add(index.byRootCause,record.rootCause,record.id);add(index.byRule,record.rule,record.id);
  index.updatedAt=now();fs.writeFileSync(INDEX_FILE,JSON.stringify(index,null,2)+'\n');
- return {persisted:true,duplicate:false,id:record.id};
+ const sharedSource=['ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent'].includes(String(record?.botProfile?.botId))?String(record.botProfile.botId):'executionAgent';
+ const shared=publishSharedMemory({sourceBot:sharedSource,kind:record.antiLesson?'ANTI_LESSON':record.outcome==='success'?'LESSON':['failure','blocked','unrepaired'].includes(record.outcome)?'ERROR':'OPERATION',taskId:record.taskId??record.id,fingerprint:record.fingerprint,runId:record.runId,targetSha:record.targetSha,failedSha:record.failedSha,rootCause:record.rootCause,rule:record.rule,claim:record.claim,content:record.antiLesson??record.claim,advice:record.antiLesson??record.rule??null,evidenceRefs:[record.evidence?.evidenceRef].filter(Boolean),changedPaths:record.evidence?.changedPaths??[],verification:record.evidence?.verification,status:record.confidence==='CONFIRMED'?'VERIFIED':'OBSERVED'});
+ return {persisted:true,duplicate:false,id:record.id,sharedMemoryId:shared.record.id};
 }
 if(import.meta.url===new URL(process.argv[1]??'','file:').href){
  const record=buildKnowledgeRecord({outcome:process.env.FLIXO_LEARNING_OUTCOME??'observation',verification:process.env.FLIXO_VERIFICATION??'unknown',targetSha:process.env.FLIXO_TARGET_SHA,failedSha:process.env.FLIXO_FAILED_SHA,runId:process.env.FLIXO_RUN_ID,fingerprint:process.env.FLIXO_FAILURE_FINGERPRINT,rootCause:process.env.FLIXO_ROOT_CAUSE,rule:process.env.FLIXO_REPAIR_RULE||null,taskId:process.env.FLIXO_TASK_ID||null,changedPaths:(process.env.FLIXO_CHANGED_PATHS??'').split(',').map((x)=>x.trim()).filter(Boolean)});
