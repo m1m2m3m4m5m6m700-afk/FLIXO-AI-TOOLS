@@ -62,6 +62,14 @@ const authAccount = (req: Request, account: Account) => {
   }
 };
 
+const trustedWorkflowSha = (workflow: string) => {
+  let parsed: unknown;
+  try { parsed = JSON.parse(Deno.env.get("COUNCIL_TRUSTED_WORKFLOW_SHAS") ?? "{}"); } catch { throw new Error("COUNCIL_TRUSTED_WORKFLOW_SHA_CONFIG_INVALID"); }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("COUNCIL_TRUSTED_WORKFLOW_SHA_CONFIG_INVALID");
+  const value = String((parsed as Record<string, unknown>)[workflow] ?? "").trim().toLowerCase();
+  if (!/^[0-9a-f]{40}$/u.test(value)) throw new Error("COUNCIL_TRUSTED_WORKFLOW_SHA_MISSING=" + workflow);
+  return value;
+};
 const authGitHubWorkflow = async (req: Request, allowedWorkflows: string[]) => {
   const token = bearer(req);
   if (!token) throw new Error("COUNCIL_GITHUB_OIDC_MISSING");
@@ -72,6 +80,14 @@ const authGitHubWorkflow = async (req: Request, allowedWorkflows: string[]) => {
   const claims = verified.payload;
   if (String(claims.repository ?? "") !== GITHUB_REPOSITORY) throw new Error("COUNCIL_GITHUB_OIDC_REPOSITORY_REJECTED");
   if (!allowedWorkflows.includes(String(claims.workflow ?? ""))) throw new Error("COUNCIL_GITHUB_OIDC_WORKFLOW_REJECTED");
+  const workflow = String(claims.workflow ?? "");
+  const workflowSha = String(claims.workflow_sha ?? "").trim().toLowerCase();
+  if (!/^[0-9a-f]{40}$/u.test(workflowSha)) throw new Error("COUNCIL_GITHUB_OIDC_WORKFLOW_SHA_MISSING");
+  if (workflowSha !== trustedWorkflowSha(workflow)) throw new Error("COUNCIL_GITHUB_OIDC_WORKFLOW_SHA_REJECTED");
+  const jobWorkflowRef = String(claims.job_workflow_ref ?? "").trim();
+  const jobWorkflowSha = String(claims.job_workflow_sha ?? "").trim().toLowerCase();
+  if (jobWorkflowRef && !/^[0-9a-f]{40}$/u.test(jobWorkflowSha)) throw new Error("COUNCIL_GITHUB_OIDC_JOB_WORKFLOW_SHA_MISSING");
+  if (jobWorkflowRef && !jobWorkflowSha) throw new Error("COUNCIL_GITHUB_OIDC_JOB_WORKFLOW_SHA_REQUIRED");
   const event = String(claims.event_name ?? "");
   const ref = String(claims.ref ?? "");
   const allowed = allowedWorkflows.some((workflow) => {
