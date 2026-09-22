@@ -48,3 +48,13 @@ assert.ok(Array.isArray(adversarial.adversarialReview.alternativeHypotheses));
 assert.ok(adversarial.adversarialReview.falsificationChecks.length >= 10);
 assert.equal(adversarial.adversarialReview.targetSha, adversarial.executionSha);
 console.log('PROMPT_EXECUTION_BOT_ADVERSARIAL=PASS');
+
+const loopPlan = buildWorkPackage('نفذ إصلاح CI مع Exact-SHA والتحقق الكامل ولا تغلق المهمة قبل إثبات الأدلة.');
+assert.ok(loopPlan.adversarialLoop);
+assert.ok(Array.isArray(loopPlan.adversarialLoop.rounds));
+assert.equal(typeof loopPlan.adversarialFailureReport.clean, 'boolean');
+assert.equal(loopPlan.adversarialFailureReport.targetSha, loopPlan.executionSha);
+assert.equal(loopPlan.adversarialFailureReport.reportDigest.length, 64);
+assert.ok(loopPlan.adversarialLoop.round >= 1);
+if (loopPlan.adversarialLoop.accepted) assert.equal(loopPlan.adversarialFailureReport.failureCount, 0);
+console.log('PROMPT_EXECUTION_BOT_ADVERSARIAL_LOOP=PASS');
