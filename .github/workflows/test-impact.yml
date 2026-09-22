@@ -11,7 +11,7 @@ on:
 # The surviving run still validates the exact SHA before publishing evidence.
 concurrency:
   group: flixo-test-impact-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
