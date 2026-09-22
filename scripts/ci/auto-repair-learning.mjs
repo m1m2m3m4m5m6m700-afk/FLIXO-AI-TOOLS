@@ -892,7 +892,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     if (/^[a-f0-9]{40}$/u.test(String(provenance?.revertedCommit ?? ''))) entry.revertedCommits = [...new Set([...(entry.revertedCommits ?? []), provenance.revertedCommit])];
   }
   if (isHistoricalRevertFailure) entry.revertFailures = (entry.revertFailures ?? 0) + 1;
-  const countsAsRepairAttempt = ['success', 'unrepaired', 'failure', 'blocked', 'proposed'].includes(outcome);
+  const countsAsRepairAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome) || (outcome === 'proposed' && verification === 'verified-repair');
   upsertRepairTask(memory, {
     taskId,
     repairChainId,
@@ -933,7 +933,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   });
   entry.outcomes = entry.outcomes.slice(-MEMORY_RETENTION.maxCaseOutcomes);
   if (!memory.cases.includes(entry)) memory.cases.push(entry);
-  const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked', 'proposed'].includes(outcome);
+  const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome) || (outcome === 'proposed' && verification === 'verified-repair');
   const priorActionRecord = memory.actionHistory.find((item) => item.fingerprint === fingerprint) ?? null;
   const actionRecord = priorActionRecord ?? {
     normalizedFailure: normalizedFailure,
