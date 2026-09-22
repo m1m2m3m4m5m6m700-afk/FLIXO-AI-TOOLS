@@ -15,6 +15,10 @@ Every assignment is bound to `planId + planVersion + planHash + entrySha + taskI
 
 A bot must stop and request presence when the plan is stale, the SHA changes, scope conflicts, evidence is contradictory/insufficient, or an authority decision is required.
 
+## Exit lock enforcement
+
+Session closure is permitted only after the machine exit gate proves canonical GREEN on the current exact SHA. Any rejected closure is recorded as `EXIT_LOCK_BLOCKED`; the visibility record remains `OPEN/RUNNING` and the cell continues recovery/coordination.
+
 ## Communication room
 
 Channels: `CONTROL`, `PRESENCE`, `RCA`, `TASK`, `VERIFY`, `KNOWLEDGE`.
