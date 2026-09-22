@@ -34,6 +34,9 @@
         "acquired_at":{"type":["string","null"]},
         "target_sha":{"type":["string","null"],"pattern":"^[a-f0-9]{40}$"},
         "lease_id":{"type":["string","null"],"pattern":"^[a-f0-9]{64}$"},
+        "lease_started_at":{"type":["string","null"]},
+        "heartbeat_at":{"type":["string","null"]},
+        "heartbeat_count":{"type":"integer","minimum":0},
         "review_id":{"type":["string","null"],"maxLength":160},
         "scope":{"type":["array","null"],"items":{"type":"string"}}
       }
