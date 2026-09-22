@@ -148,7 +148,7 @@ const prepareTargetedVerification = (currentLog, currentFeatures) => {
     verificationPlan,
     reason: 'verification-target-not-exact:' + targetIdentity.reason,
   };
-  const reproductionStability = reproduceStable(targetDir, selection.commands, reproduce, { attempts: 3 });
+  const reproductionStability = reproduceStable(targetDir, selection.commands, reproduce, { attempts: 5 });
   return {
     ok: reproductionStability.classification === 'REPRODUCIBLE_FAILURE',
     selection,
@@ -884,7 +884,7 @@ const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
     ['FAILURE_FINGERPRINT_BOUND', /^[a-f0-9]{64}$/iu.test(fingerprint)],
     ['RCA_MANIFEST_PRESENT', Boolean(repairV2Manifest)],
     ['RCA_EXACT_SHA', repairV2Manifest?.target_sha === targetSha],
-    ['RCA_THREE_HYPOTHESES', Array.isArray(repairV2Manifest?.root_cause_analysis?.alternative_hypotheses) && repairV2Manifest.root_cause_analysis.alternative_hypotheses.length === 3],
+    ['RCA_MINIMUM_HYPOTHESES_10X', Array.isArray(repairV2Manifest?.root_cause_analysis?.alternative_hypotheses) && repairV2Manifest.root_cause_analysis.alternative_hypotheses.length >= 6],
     ['DIAGNOSIS_PRESENT', Boolean(diagnosis)],
     ['DIAGNOSIS_STRONG', diagnosis?.diagnosisQuality === 'strong'],
     ['DIAGNOSIS_CONFIDENCE', Number(diagnosis?.causalConfidence ?? 0) >= 0.75],
@@ -909,12 +909,32 @@ const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
     ['NO_MAIN_MUTATION', mutationScope.mainMutation === false],
     ['NO_GATE_WEAKENING', mutationScope.gateWeakening === false],
     ['BASELINE_REPRODUCIBLE', preparedVerification.reproductionStability?.classification === 'REPRODUCIBLE_FAILURE'],
-    ['BASELINE_REGRESSION_DEPTH_3', Number(preparedVerification.reproductionStability?.runs?.length ?? 0) >= 3],
+    ['BASELINE_REGRESSION_DEPTH_5', Number(preparedVerification.reproductionStability?.runs?.length ?? 0) >= 5],
+    ['SCOUT_PRESENT', Boolean(process.env.FLIXO_SCOUT_REPORT_PATH)],
+    ['HISTORICAL_CONTEXT_PRESENT', Boolean(historicalRollbackCandidate)],
+    ['SHARED_LEARNING_PRESENT', Boolean(sharedLearning)],
+    ['ACTION_VAULT_VERIFIER_PRESENT', Boolean(actionVaultVerifierProof)],
+    ['CATALOG_REVIEW_PROVEN', actionVaultCatalogReview?.status === 'REVIEWED'],
+    ['DIAGNOSIS_KNOWLEDGE_MATCH_PROVEN', actionVaultDiagnosisKnowledgeReview?.decision === 'MATCH'],
+    ['RCA_SCOPE_BOUND', repairV2PlannedScope?.status === 'PASS'],
+    ['RCA_EVIDENCE_DIGEST', typeof repairV2Manifest?.evidence?.evidence_digest === 'string' && repairV2Manifest.evidence.evidence_digest.length === 64],
+    ['SELECTED_RULE_BOUND', Boolean(selected?.id)],
+    ['ATTEMPT_LEDGER_BOUND', Boolean(attemptLedger && typeof attemptLedger === 'object')],
+    ['TASK_ID_BOUND', Boolean(fiveXTaskId)],
+    ['RUN_ID_BOUND', Boolean(process.env.TARGET_RUN_ID)],
+    ['FINGERPRINT_64', /^[a-f0-9]{64}$/iu.test(fingerprint)],
+    ['FAILURE_LOG_PRESENT', Boolean(log.trim())],
+    ['NO_MUTATION_PRE_PROOF', preMutationProof?.noMutationApplied === true],
+    ['BRANCH_EXECUTION_10X', protocolBranch === 'execution'],
+    ['CANONICAL_GREEN_NOT_PREMATURE', process.env.FLIXO_CANONICAL_GREEN !== 'true' || Boolean(gateCurrentSha === targetSha)],
+    ['PROGRAMMER_TWIN_SEARCH_DEPTH_10X', Array.isArray(programmerTwinReport?.falsificationSearches) && programmerTwinReport.falsificationSearches.length >= 10],
+    ['MEMORY_VERSION_PRESENT', Boolean(memory?.version)],
+    ['KNOWN_CASE_CONTEXT', Boolean(known)],
   ];
   const fiveXOperationCount = fiveXObservationEvidence.filter(([, ok]) => ok === true).length;
   const fiveXPreExecution25 = Object.freeze({
-    protocol: 'FLIXO-FIVE-X-PRE-MUTATION-EVIDENCE-v1',
-    status: fiveXOperationCount >= 25 ? 'PASS' : 'BLOCKED',
+    protocol: 'FLIXO-TEN-X-PRE-MUTATION-EVIDENCE-v1',
+    status: fiveXOperationCount >= 50 ? 'PASS' : 'BLOCKED',
     operationCount: fiveXOperationCount,
     operationDigest: createHash('sha256').update(JSON.stringify(fiveXObservationEvidence), 'utf8').digest('hex'),
     targetSha,
@@ -930,6 +950,8 @@ const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
     ['programmerTwinParity', programmerTwinParity],
     ['programmerTwinReport', programmerTwinReport],
     ['fileSelection', fileSelection],
+    ['actionVaultCatalogReview', actionVaultCatalogReview],
+    ['actionVaultDiagnosisKnowledgeReview', actionVaultDiagnosisKnowledgeReview],
   ].filter(([, value]) => value && typeof value === 'object');
   const fiveXLearningOutputs = [
     Boolean(memory?.version),
@@ -937,13 +959,21 @@ const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
     Array.isArray(plan?.candidates),
     Boolean(attemptLedger && typeof attemptLedger === 'object'),
     Boolean(selected?.id ?? plan?.selected?.id),
+    Boolean(known),
+    Boolean(sharedLearning && typeof sharedLearning === 'object'),
+    Boolean(repairV2Manifest?.evidence?.evidence_digest),
   ].filter(Boolean).length;
   const fiveXProofClasses = [
     ['IDENTITY', /^[a-f0-9]{40}$/iu.test(targetSha) && gateCurrentSha === targetSha && protocolBranch === 'execution' && Boolean(fiveXTaskId)],
     ['CONSTRAINTS', !Boolean(mutationScope.testMutation || mutationScope.controlPlaneMutation || mutationScope.mainMutation || mutationScope.gateWeakening) && repairV2PlannedScope?.status === 'PASS'],
     ['CAUSALITY', diagnosisGate.allowed === true && repairV2Manifest?.evidence?.exact_sha === true],
     ['FALSIFICATION', programmerTwinReport?.status === 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE' && programmerTwinReport?.counterexampleFound === false],
-    ['REGRESSION', preparedVerification.reproductionStability?.classification === 'REPRODUCIBLE_FAILURE' && Number(preparedVerification.reproductionStability?.runs?.length ?? 0) >= 3],
+    ['REGRESSION', preparedVerification.reproductionStability?.classification === 'REPRODUCIBLE_FAILURE' && Number(preparedVerification.reproductionStability?.runs?.length ?? 0) >= 5],
+    ['DEPENDENCIES', fiveXEvidenceSources.length >= 8],
+    ['SECURITY', mutationScope.testMutation === false && mutationScope.controlPlaneMutation === false && mutationScope.mainMutation === false && mutationScope.gateWeakening === false],
+    ['REPRODUCIBILITY', preparedVerification.reproductionStability?.classification === 'REPRODUCIBLE_FAILURE' && Number(preparedVerification.reproductionStability?.runs?.length ?? 0) >= 5],
+    ['COORDINATION', Boolean(centralChairLeaseId && centralChairFencingHash)],
+    ['LEARNING', fiveXLearningOutputs >= 8],
   ].filter(([, ok]) => ok).map(([name]) => name);
   const fiveXAdversarialReview = programmerTwinReport ? {
     status: programmerTwinReport.status,
