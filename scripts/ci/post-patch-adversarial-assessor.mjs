@@ -79,7 +79,7 @@ function main(){
 
   const manifestPath=process.env.FLIXO_RCA_MANIFEST_PATH||'/tmp/flixo-rca-manifest.json';
   const rcaManifest=readJson(manifestPath);
-  let rcaManifestStatus='MISSING';
+  let rcaManifestStatus;
   let rcaManifestError=null;
   try {
     if(!rcaManifest) throw new Error('RCA_MANIFEST_MISSING');
