@@ -58,6 +58,9 @@ jobs:
       - name: Validate repair intelligence mirror contract
         run: node scripts/ci/validate-read-only-repair-intelligence.mjs
 
+      - name: Test knowledge fusion
+        run: npm run test:knowledge-fusion
+
       - name: Run read-only investigator
         env:
           GH_TOKEN: \${{ github.token }}
