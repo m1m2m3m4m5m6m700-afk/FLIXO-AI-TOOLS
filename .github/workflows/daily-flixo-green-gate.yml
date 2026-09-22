@@ -125,19 +125,7 @@ jobs:
               FILE="${REQUIRED_FILES[$WORKFLOW]}"
               RUN_COUNT="$(jq --arg name "$WORKFLOW" --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == $name and .head_sha == $sha and (.status == "queued" or .status == "in_progress" or .conclusion == "success" or .conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required"))] | length' /tmp/flixo-watch/workflow-runs.json)"
               if [ "$RUN_COUNT" -eq 0 ]; then
-                echo "REQUIRED_CI_MISSING workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA"
-                if [ -z "${RESIDENT_DISPATCHED[$WORKFLOW]+x}" ]; then
-                  LIVE_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/execution" --jq '.sha')"
-                  if [ "$LIVE_EXECUTION_SHA" != "$EXECUTION_SHA" ]; then
-                    echo "STALE_GREEN_GATE_DISPATCH_BLOCKED captured=$EXECUTION_SHA live=$LIVE_EXECUTION_SHA"
-                    exit 1
-                  fi
-                  gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/$FILE/dispatches" -f ref=execution
-                  RESIDENT_DISPATCHED[$WORKFLOW]=1
-                  echo "REQUIRED_CI_DISPATCHED workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA"
-                else
-                  echo "REQUIRED_CI_DISPATCH_ALREADY_REQUESTED workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA"
-                fi
+                echo "REQUIRED_CI_MISSING workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA poll=$poll"
                 MISSING=1
               else
                 echo "REQUIRED_CI_ALREADY_RESIDENT poll=$poll workflow=$WORKFLOW count=$RUN_COUNT sha=$EXECUTION_SHA"
@@ -153,6 +141,7 @@ jobs:
           done
           echo "FAIL_CLOSED: required CI residency is incomplete for exact SHA $EXECUTION_SHA after $MAX_RESIDENCY_POLLS polls; another control-plane owner did not establish residency."
           exit 1
+
 
       - name: Await required internal CI settlement on exact SHA
         id: settle_required_ci
