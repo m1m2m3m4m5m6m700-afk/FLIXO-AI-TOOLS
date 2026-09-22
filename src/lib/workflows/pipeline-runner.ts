@@ -27,6 +27,28 @@ function extensionForMime(mimeType: string): string {
   return map[mimeType] ?? 'bin';
 }
 
+async function readImageDimensions(blob: Blob): Promise<{ width: number; height: number } | undefined> {
+  if (!blob.type.startsWith('image/')) return undefined;
+  if (typeof createImageBitmap === 'function') {
+    const bitmap = await createImageBitmap(blob);
+    try {
+      return { width: bitmap.width, height: bitmap.height };
+    } finally {
+      bitmap.close();
+    }
+  }
+  if (typeof Image === 'undefined' || typeof URL === 'undefined') return undefined;
+  const url = URL.createObjectURL(blob);
+  const image = new Image();
+  try {
+    image.src = url;
+    await image.decode();
+    return { width: image.width, height: image.height };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 async function toOutputContractResult(toolId: string, outputBlob: Blob): Promise<ToolOutputResult> {
   const bytes = new Uint8Array(await outputBlob.arrayBuffer());
   return {
@@ -34,6 +56,7 @@ async function toOutputContractResult(toolId: string, outputBlob: Blob): Promise
     byteLength: outputBlob.size,
     bytes,
     filename: `flixo-${toolId}-output.${extensionForMime(outputBlob.type)}`,
+    dimensions: await readImageDimensions(outputBlob),
   };
 }
 
