@@ -8,7 +8,7 @@ import { ingest as ingestAgentMessage, markRead as readAgentMessage, markConsume
 import { loadPromptRegistry, validatePromptRegistry, loadErrorMemory } from './prompt-registry.mjs';
 import { assertAgentExitGate } from './agent-exit-lock.mjs';
 import { AGENT_LIVENESS_PROTOCOL, assertActiveRepairWindow, checkHeartbeat, checkContinuousSessionWindow } from './agent-liveness-protocol.mjs';
-import { initialize as initializeChairState, heartbeat as heartbeatChair, reconcileDeadLeases, beginWork as beginChairWork, endWork as endChairWork, assertWorkAdmission, activeChairForAgent } from './chair-bound-execution.mjs';
+import { initialize as initializeChairState, heartbeat as heartbeatChair, reconcileDeadLeases, beginWork as beginChairWork, endWork as endChairWork, assertWorkAdmission, activeChairForAgent, preemptedContinuityForAgent } from './chair-bound-execution.mjs';
 import { createAgentWorkspace, captureAgentResult, assertWorkspaceIsolation, cleanupAgentWorkspace } from './agent-isolated-workspace.mjs';
 
 const ROOT = process.cwd();
@@ -117,7 +117,7 @@ const isWorkspaceOnlySession = (record) => record?.workspaceIsolation?.mode === 
 const ensureSessionWorkChair = (record) => {
   if (isWorkspaceOnlySession(record)) return null;
   const targetSha = gitSha();
-  if (record.chairBinding?.released === true) throw new Error('AGENT_WORK_AFTER_TASK_RELEASE_FORBIDDEN');
+  if (record.chairBinding?.released === true && record.chairBinding?.continuityOnly !== true) throw new Error('AGENT_WORK_AFTER_TASK_RELEASE_FORBIDDEN');
   const existing = activeChairForAgent({ agentId: record.agentId, targetSha });
   if (existing) {
     record.chairId = existing.chairId;
@@ -135,6 +135,30 @@ const ensureSessionWorkChair = (record) => {
       released: false,
     };
     return existing;
+  }
+  const continuity = preemptedContinuityForAgent({ agentId: record.agentId, targetSha, taskId: record.taskId });
+  if (continuity) {
+    record.chairId = null;
+    record.chairLeaseId = null;
+    record.chairBinding = {
+      ...(record.chairBinding ?? {}),
+      required: true,
+      admission: 'CONTINUITY_HANDOFF_ONLY',
+      chairId: null,
+      leaseId: null,
+      targetSha,
+      taskId: record.taskId,
+      workPackageId: record.chairBinding?.workPackageId ?? record.taskId,
+      acquiredAt: record.chairBinding?.acquiredAt ?? record.startedAt,
+      released: true,
+      releasedAt: record.chairBinding?.releasedAt ?? now(),
+      releaseReason: 'CHAIR_PREEMPTED_CONTINUATION',
+      continuityOnly: true,
+      handoffToGuard: continuity.handoffTo,
+      mutationAuthorityRevoked: true,
+    };
+    record.preemptionContinuity = continuity;
+    return continuity;
   }
   const chairSigningKey = String(process.env.FLIXO_CHAIR_SIGNING_KEY ?? process.env.GITHUB_TOKEN ?? '').trim();
   if (!chairSigningKey) throw new Error('AGENT_SESSION_CHAIR_SIGNING_KEY_REQUIRED');
@@ -179,12 +203,16 @@ const secretLike = (value) => /(-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY----
 const assertSafeText = (...values) => { for (const value of values.flat()) if (secretLike(value)) throw new Error('AGENT_EVENT_SECRET_LIKE_CONTENT_REJECTED'); };
 const appendEvent = (record, event) => {
   const administrative = event.workEvent === false;
-  const chair = administrative || isWorkspaceOnlySession(record) ? null : activeChairForAgent({ agentId: record.agentId, targetSha: gitSha() });
-  if (!administrative && !isWorkspaceOnlySession(record) && !chair) throw new Error('AGENT_WORK_EVENT_REQUIRES_CHAIR');
+  const continuity = !isWorkspaceOnlySession(record) && !administrative
+    ? preemptedContinuityForAgent({ agentId: record.agentId, targetSha: gitSha(), taskId: record.taskId })
+    : null;
+  const chair = administrative || isWorkspaceOnlySession(record) || continuity ? null : activeChairForAgent({ agentId: record.agentId, targetSha: gitSha() });
+  if (!administrative && !isWorkspaceOnlySession(record) && !chair && !continuity) throw new Error('AGENT_WORK_EVENT_REQUIRES_CHAIR');
   const enriched = {
     ...event,
     workEvent: !administrative,
     workRecorded: !administrative,
+    ...(continuity ? { continuityOnly:true, handoffToGuard:continuity.handoffTo, mutationAuthorityRevoked:true } : {}),
     exactSha: isWorkspaceOnlySession(record) ? record.currentSha : gitSha(),
     ...(chair ? { chairId: chair.chairId, chairLeaseId: chair.leaseId, chairTargetSha: chair.targetSha } : {}),
   };
@@ -539,8 +567,11 @@ if (command === 'meeting-exit-approve') {
   if (!heartbeat.ok) throw new Error('AGENT_SESSION_HEARTBEAT_REQUIRED_BEFORE_CLOSE');
   assertMeetingExitApproval(record, sha);
   const activeBeforeClose = isWorkspaceOnlySession(record) ? null : activeChairForAgent({ agentId: record.agentId, targetSha: sha });
+  const continuityBeforeClose = isWorkspaceOnlySession(record) || activeBeforeClose ? null : preemptedContinuityForAgent({ agentId: record.agentId, targetSha: sha, taskId: record.taskId });
   if (activeBeforeClose) assertWorkAdmission({ agentId: record.agentId, targetSha: sha, chairId: record.chairBinding?.chairId ?? record.chairId ?? null });
-  else if (!isWorkspaceOnlySession(record) && record.chairBinding?.released !== true) throw new Error('AGENT_SESSION_CHAIR_REQUIRED_OR_EXPLICITLY_RELEASED');
+  else if (continuityBeforeClose) {
+    record.preemptionContinuity = continuityBeforeClose;
+  } else if (!isWorkspaceOnlySession(record) && record.chairBinding?.released !== true) throw new Error('AGENT_SESSION_CHAIR_REQUIRED_OR_EXPLICITLY_RELEASED');
   let workspaceResult = null;
   if (isWorkspaceOnlySession(record)) {
     workspaceResult = captureAgentResult({
@@ -632,7 +663,22 @@ if (command === 'meeting-exit-approve') {
   if (activeBeforeClose) {
     releasedChair = endChairWork({ agentId: record.agentId, targetSha: sha, successful: status === 'VERIFIED', sessionId: record.sessionId, taskId: record.taskId });
   }
-  record.chairBinding = { ...record.chairBinding, released: true, releasedAt: now(), releasedChairId: activeBeforeClose?.chairId ?? record.chairBinding?.chairId ?? null, releaseReason: activeBeforeClose ? 'SESSION_TASK_COMPLETED' : 'TASK_ALREADY_RELEASED' };
+  record.chairBinding = {
+    ...record.chairBinding,
+    released: true,
+    releasedAt: now(),
+    releasedChairId: activeBeforeClose?.chairId ?? null,
+    releaseReason: activeBeforeClose
+      ? 'SESSION_TASK_COMPLETED'
+      : continuityBeforeClose
+        ? 'CHAIR_PREEMPTED_CONTINUATION_HANDOFF'
+        : 'TASK_ALREADY_RELEASED',
+    ...(continuityBeforeClose ? {
+      continuityOnly: true,
+      handoffToGuard: continuityBeforeClose.handoffTo,
+      mutationAuthorityRevoked: true,
+    } : {}),
+  };
   record.status = status;
   record.exitSha = isWorkspaceOnlySession(record) ? record.workspaceIsolation.entrySha : sha;
   record.exitRootExecutionShaAtLogout = gitSha();
@@ -690,7 +736,8 @@ if (command === 'meeting-exit-approve') {
     executionPlanNext,
     blockers,
     cycleLessons,
-    handoffToNextAgent,
+    handoffToNextAgent: handoffToNextAgent ?? (continuityBeforeClose ? 'CHAIR_1_GUARD' : null),
+    preemptionContinuity: record.preemptionContinuity ?? null,
     continuationFrom: record.continuationFrom ?? null,
     inheritedExitSha: record.inheritedExitSha ?? null,
   };
