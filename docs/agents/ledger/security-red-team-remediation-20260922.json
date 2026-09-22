@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "taskId": "SECURITY-REDTEAM-REMEDIATION-001",
+  "sessionId": "security-red-team-remediation-20260922",
+  "branch": "execution",
+  "exactSha": "33607fc3f8da2269ea31e0c688b9df6dc3023a4f",
+  "owner": "assistantController",
+  "status": "ACTIVE",
+  "guardianCopy": true,
+  "scope": "Apply all verified deep Red-Team remediation findings without weakening branch, security, exact-SHA, or canonical CI gates.",
+  "currentRca": "REDTEAM-DEEP-FINDINGS-20260922",
+  "requiredVerification": [
+    "targeted contract tests",
+    "security baseline",
+    "exact-SHA canonical CI"
+  ],
+  "closure": "NO_GREEN_CLAIM_UNTIL_FRESH_EXACT_SHA_EVIDENCE"
+}
