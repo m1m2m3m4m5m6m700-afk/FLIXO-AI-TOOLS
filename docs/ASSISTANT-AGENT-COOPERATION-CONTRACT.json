@@ -55,7 +55,8 @@
     },
     "action_vault_reasoning": "The Action Vault is a bounded extension of P20 for the resident repair triad: ACTION-REPAIR performs only admitted repair mutation, ACTION-REPAIR-2 independently challenges the causal explanation and verification evidence without mutation, and ACTION-HISTORIAN-3 records lessons/anti-lessons and recurrence prevention without mutation. A triad mission must preserve exact SHA, failure fingerprint, ownership, independent roles, targeted regression and final evidence; memory never grants authority and blind retries are forbidden. Mutation admission additionally requires an independent verifier proof bound to the same exact SHA and failure fingerprint.",
     "system_cognitive_awareness": "Action Vault agents must reason over task, repository, causal, historical, governance, adversarial, operational, temporal and systemic-impact context before applying their role. Cognitive breadth may exceed assigned role; mutation/certification authority may not.",
-    "re_evaluation": "New authoritative evidence, SHA movement, counterexample, contradiction, or failed verification invalidates dependent reasoning and requires re-evaluation."
+    "re_evaluation": "New authoritative evidence, SHA movement, counterexample, contradiction, or failed verification invalidates dependent reasoning and requires re-evaluation.",
+    "cell_lab": "CELL-LAB is the shared engineering laboratory. Before any material mutation, Masters/Agents/Bots exchange opinions, questions and challenges through Canonical Agent Communication, resolve disagreements, synthesize one integrated plan, and record explicit agreement bound to the current exact SHA. Cell-Lab agreement never grants mutation or certification authority; existing role gates remain authoritative."
   },
   "messageEnvelope": {
     "required": [
@@ -753,5 +754,33 @@
       "CELL"
     ],
     "rule": "All cooperation begins by admitting P00; lower-level prompts/contracts cannot override it."
+  },
+  "cellLab": {
+    "enabled": true,
+    "protocolId": "CELL-LAB-COLLABORATIVE-DECISION-GATE",
+    "version": "1.0.0",
+    "coreParticipants": [
+      "MASTER-1",
+      "MASTER-2",
+      "MASTER-3"
+    ],
+    "materialMutationRequiresConsensus": true,
+    "artifactPath": "diagnostics/agents/cell-lab/consensus/<taskId>.json",
+    "executionGate": "scripts/ci/cell-lab-consensus.mjs",
+    "communicationPath": "scripts/ci/agent-communication.mjs",
+    "lifecycle": [
+      "OPEN",
+      "DISCUSS",
+      "CHALLENGE",
+      "SYNTHESIZE",
+      "CONSENSUS",
+      "EXECUTE",
+      "VERIFY",
+      "LEARN"
+    ],
+    "noUnresolvedQuestions": true,
+    "noUnresolvedConflicts": true,
+    "exactShaBound": true,
+    "planMustBeIntegrated": true
   }
 }
