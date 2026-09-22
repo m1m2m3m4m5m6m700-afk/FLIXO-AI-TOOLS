@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import assert from 'node:assert/strict';
 import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, assertActiveRepairWindow, sessionTerminationDirective, idleAdmission, sleepAdmission, selfDisableAdmission, selfAbortAdmission, runEndAdmission } from './agent-liveness-protocol.mjs';
 
@@ -57,5 +59,11 @@ assert.equal(greenAfter.taskRemainsOpen,false);
 const green=sessionTerminationDirective({canonicalGreen:true,activeRepairWindowReached:true});
 assert.equal(green.action,'CLOSE_ALLOWED');
 assert.equal(green.residentState,'READY_RESIDENT');
+
+const sessionSource=fs.readFileSync(path.resolve(process.cwd(),'scripts/ci/agent-session.mjs'),'utf8');
+assert.match(sessionSource,/activeRepairWindowMs/u);
+assert.match(sessionSource,/AGENT_SESSION_BLOCKED_LOGOUT_FORBIDDEN_OPEN_WORK_REMAINS/u);
+assert.match(sessionSource,/AGENT_SESSION_HEARTBEAT_REQUIRED_BEFORE_CLOSE/u);
+assert.match(sessionSource,/agent-session\.mjs heartbeat/u);
 
 console.log('AGENT_LIVENESS_CONTRACT=PASS');
