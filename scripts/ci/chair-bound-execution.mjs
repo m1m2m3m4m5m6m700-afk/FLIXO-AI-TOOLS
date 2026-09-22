@@ -318,7 +318,11 @@ export function preemptChair1ForMaster({agentId,targetSha=sha(),role=null,reposi
   return withWriteLock(()=>{
     const state=readState();
     if(state.target_sha!==t)throw new Error('CHAIR_STATE_SHA_MISMATCH');
-    for(const chairState of Object.values(state.chairs)) if(chairState.status==='OCCUPIED'&&staleHeartbeat(chairState)) clearChairRecord(chairState,state);
+    for(const chairState of Object.values(state.chairs)) {
+      if(chairState.status!=='OCCUPIED'||!staleHeartbeat(chairState)) continue;
+      if(chairState.task_id!==null && chairState.task_id!==undefined && String(chairState.task_id).trim()!=='') continue;
+      clearChairRecord(chairState,state);
+    }
     const chair=state.chairs.chair_1;
     if(chair.status==='OCCUPIED'&&chair.holder_agent_id===agentId){
       const leaseId=chair.lease_id;
