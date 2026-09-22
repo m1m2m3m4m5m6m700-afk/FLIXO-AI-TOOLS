@@ -5,7 +5,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
-const root = process.cwd();
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-guard-communication-'));
 const originalCwd = process.cwd();
 process.chdir(temp);
