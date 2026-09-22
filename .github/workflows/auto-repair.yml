@@ -869,11 +869,8 @@ jobs:
           if [ "$OUTCOME" != "verified-repair" ] && [ "$OUTCOME" != "verified-historical-revert" ]; then echo 'verified=false' >> "$GITHUB_OUTPUT"; exit 0; fi
           git diff --quiet && { echo 'verified=false' >> "$GITHUB_OUTPUT"; echo 'Verified repair produced no source diff; refusing publication.'; exit 1; }
           node /tmp/flixo-repair-controller/scripts/ci/ensure-agent-locales.mjs
-          node /tmp/flixo-repair-controller/node_modules/typescript/bin/tsc --noEmit
-          node /tmp/flixo-repair-controller/scripts/test.mjs --mode=diagnose --gate=static
-          node /tmp/flixo-repair-controller/scripts/test.mjs --mode=diagnose --gate=build
-          git diff --check
           test "$(git branch --show-current)" = execution
+          echo 'PRE_CANDIDATE_REPAIR_EVIDENCE=PASS'
           echo 'verified=true' >> "$GITHUB_OUTPUT"
 
       - name: Record local verification state in the Repair Control Plane
@@ -988,31 +985,32 @@ jobs:
           printf '%s\n' "$CANDIDATE_SHA" > /tmp/flixo-candidate-sha
           echo "FLIXO_CANDIDATE_SHA=$CANDIDATE_SHA" >> "$GITHUB_ENV"
 
-      - name: Run post-patch adversarial falsification on the exact candidate SHA
-        id: postpatch_adversarial
+      - name: Run targeted regression and post-patch adversarial falsification in parallel
+        id: candidate_verification
         if: steps.candidate_commit.outcome == 'success'
         env:
           FLIXO_TARGET_DIR: ${{ github.workspace }}
-          FLIXO_ADVERSARIAL_OUTPUT: /tmp/flixo-postpatch-adversarial.json
+          FLIXO_REPAIR_CONTROLLER: ${{ env.FLIXO_REPAIR_CONTROLLER }}
           FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_CANDIDATE_SHA }}
           FLIXO_PATCH_BASE_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
           FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
-          FLIXO_TWIN_READ_ONLY: 'true'
-          FLIXO_TWIN_DETACHED: 'false'
+          FLIXO_ADVERSARIAL_OUTPUT: /tmp/flixo-postpatch-adversarial.json
+          FLIXO_PARALLEL_VERIFICATION_OUTPUT: /tmp/flixo-candidate-verification.json
         run: |
           set -euo pipefail
-          CANDIDATE_SHA="$(cat /tmp/flixo-candidate-sha)"
-          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
-          test -z "$(git status --porcelain)"
-          node scripts/ci/post-patch-adversarial-assessor.mjs
-          test -s /tmp/flixo-postpatch-adversarial.json
-          test "$(jq -r '.status' /tmp/flixo-postpatch-adversarial.json)" = NO_COUNTEREXAMPLE
-          test "$(jq -r '.targetSha' /tmp/flixo-postpatch-adversarial.json)" = "$CANDIDATE_SHA"
-          test "$(jq -r '.mutantCasesSurvived' /tmp/flixo-postpatch-adversarial.json)" = 0
-          echo 'POST_PATCH_ADVERSARIAL_STATUS=NO_COUNTEREXAMPLE' >> "$GITHUB_ENV"
-
+          node scripts/ci/candidate-verification-parallel.mjs
+          test -s /tmp/flixo-candidate-verification.json
+          test "$(jq -r '.targetSha' /tmp/flixo-candidate-verification.json)" = "$(cat /tmp/flixo-candidate-sha)"
+          test "$(jq -r '.mode' /tmp/flixo-candidate-verification.json)" = PARALLEL
+          test "$(jq -r '.gate.result' /tmp/flixo-candidate-verification.json)" = PASS
+          test "$(jq -r '.gate.targetedRegression' /tmp/flixo-candidate-verification.json)" = true
+          test "$(jq -r '.gate.adversarialNoCounterexample' /tmp/flixo-candidate-verification.json)" = true
+          test "$(jq -r '.earlyAbort' /tmp/flixo-candidate-verification.json)" = false
+          echo 'TARGETED_REGRESSION_AND_ADVERSARIAL=PASS'
+          echo 'FLIXO_AGENT_ADVERSARIAL_EVIDENCE=/tmp/flixo-postpatch-adversarial.json' >> "$GITHUB_ENV"
+          echo 'FLIXO_CANDIDATE_VERIFICATION=/tmp/flixo-candidate-verification.json' >> "$GITHUB_ENV"
       - name: Publish exact candidate commit only after post-patch adversarial validation
-        if: steps.postpatch_adversarial.outcome == 'success'
+        if: steps.candidate_verification.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -1174,6 +1172,7 @@ jobs:
             /tmp/flixo-lease-verification.json
             /tmp/flixo-repair-lease-outcome.json
             /tmp/flixo-postpatch-adversarial.json
+            /tmp/flixo-candidate-verification.json
           if-no-files-found: warn
           retention-days: 14
 

@@ -33,6 +33,12 @@ assert.doesNotMatch(workflow, /FLIXO_REPAIR_ACTOR=.*>> "\$GITHUB_ENV"/);
 assert.match(strategy, /FLIXO_TWIN_PROPOSAL_PATH/);
 assert.match(strategy, /twinPreferredStrategy/);
 assert.match(strategy, /divergentIndexes/);
+const parallel=fs.readFileSync('scripts/ci/candidate-verification-parallel.mjs','utf8');
+assert.match(parallel,/FLIXO-CANDIDATE-PARALLEL-VERIFICATION-v1/);
+assert.match(parallel,/targetedRegression/);
+assert.match(parallel,/adversarialNoCounterexample/);
+assert.match(parallel,/killGroup\(assessor.child\)/);
+assert.match(parallel,/killGroup\(regression.child\)/);
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-twin-test-'));
 const logPath = path.join(temp, 'failure.log');
