@@ -12,10 +12,15 @@ const WATCHDOG = path.join(ROOT, '.github', 'workflows', 'execution-bot-watchdog
 const MERGE_GATE = path.join(ROOT, '.github', 'workflows', 'auto-repair-merge-gate.yml');
 const MAX_CHANGED_FILES = 12;
 const MAX_CHANGED_LINES = 300;
+const MUTATION_WORKFLOWS = Object.freeze(['auto-repair.yml','execution-sync.yml','historical-action-error-index.yml']);
+const MUTATION_LANE = 'flixo-execution-mutation-lane';
+const MUTATION_GATE_SCRIPT = path.join(ROOT,'scripts','ci','execution-mutation-gate.mjs');
 
 export const CONTROL_PLANE_FILES = Object.freeze([
   ...REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${name}`),
   '.github/workflows/agent-repair-handoff-gate.yml',
+  'scripts/ci/execution-mutation-gate.mjs',
+  'scripts/ci/test-execution-mutation-gate.mjs',
   'scripts/ci/control-plane-registry.mjs',
   'scripts/ci/validate-auto-repair-boundary.mjs',
   'scripts/ci/post-patch-adversarial-assessor.mjs',
@@ -71,6 +76,15 @@ export function validateStatic() {
   const heartbeat = read(path.join(ROOT, '.github', 'workflows', 'agent-repair-heartbeat.yml'));
   const errors = [];
   const must = (condition, code) => { if (!condition) errors.push(code); };
+  const workflowDir = path.join(ROOT,'.github','workflows');
+  const workflowNames = fs.readdirSync(workflowDir).filter((name)=>/\.ya?ml$/u.test(name));
+  for (const name of workflowNames) {
+    const workflowText = fs.readFileSync(path.join(workflowDir,name),'utf8');
+    const directExecutionPush = /^\s*(?:-\s*)?(?:git\s+push[^\n]*(?:\bexecution\b|HEAD:execution)|gh\s+api[^\n]*--method\s+(?:POST|PATCH|PUT|DELETE)[^\n]*git\/refs\/heads\/execution)/imu.test(workflowText);
+    if (directExecutionPush) must(MUTATION_WORKFLOWS.includes(name), `execution-push-outside-mutation-allowlist:${name}`);
+  }
+  const mutationGate = read(MUTATION_GATE_SCRIPT);
+  must(mutationGate.includes('FLIXO-EXECUTION-MUTATION-GATE-v1'),'mutation-gate-canonical-protocol');
 
   must(/name:\s*FLIXO Auto Repair Bot/.test(auto), 'auto-repair-identity');
   must(!/workflow_run:/.test(auto), 'auto-repair-executor-only-trigger');
@@ -91,7 +105,16 @@ export function validateStatic() {
   must(/contents:\s*write/.test(auto) && /pull-requests:\s*write/.test(auto), 'auto-repair-required-permissions');
   must(!/actions:\s*write/.test(auto), 'auto-repair-no-actions-admin');
   must(/checks:\s*read/.test(auto), 'auto-repair-check-permission');
+  must(/group:\s*flixo-execution-mutation-lane/.test(auto), 'auto-repair-global-mutation-lane');
   must(/cancel-in-progress:\s*false/.test(auto), 'auto-repair-single-lane');
+  must(/execution-mutation-gate\.mjs\s+admit/.test(auto) && /execution-mutation-gate\.mjs\s+verify/.test(auto), 'auto-repair-mutation-gate-wired');
+  must(/chair-bound-execution\.mjs\s+acquire/.test(auto) && /chair-bound-execution\.mjs\s+authorize-write/.test(auto), 'auto-repair-chair-wired');
+  must(/FLIXO_REQUIRE_FENCED_CHAIR:\s*['"]true['"]/.test(auto), 'auto-repair-fenced-chair-required');
+  for (const workflowName of MUTATION_WORKFLOWS) {
+    const mutationWorkflow = fs.readFileSync(path.join(workflowDir,workflowName),'utf8');
+    must(mutationWorkflow.includes(`group: ${MUTATION_LANE}`), `global-mutation-lane:${workflowName}`);
+    must(/execution-mutation-gate\.mjs\s+(admit|verify)/.test(mutationWorkflow), `mutation-gate-wired:${workflowName}`);
+  }
   must(/FLIXO_STRICT_RED_REPAIR:\s*['"]true['"]/.test(auto), 'auto-repair-strict-red');
   must(/not a diagnosable failure/.test(auto), 'auto-repair-failure-only-policy');
   must(auto.includes('CURRENT_TARGET_SHA=') && auto.includes('FAIL CLOSED: repair target'), 'auto-repair-no-superseded-target');
