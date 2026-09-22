@@ -249,7 +249,7 @@ A repair that creates a new failure remains on `execution` with its own RCA-ID a
 
 ## SUPREME AUTOMATION RESIDENCY PROTOCOL
 
-The Agent Liveness / Permanent Residency Protocol is the highest operational automation contract in this repository. It governs the repair and automation plane and overrides lower-level workflow, agent, task, session, timeout, budget, queue, retry, or convenience rules whenever they conflict with residency, heartbeat, recovery, or continuity.
+The Agent Liveness / Permanent Residency Protocol is the liveness-enforcement layer contained by P00; P00 is the repository's first and highest execution obligation. It governs the repair and automation plane and overrides lower-level workflow, agent, task, session, timeout, budget, queue, retry, or convenience rules whenever they conflict with residency, heartbeat, recovery, or continuity.
 
 Mandatory invariants:
 - The automation/repair plane MUST remain resident while any RED, OPEN WORK, BLOCKED_EXTERNAL, ACTIVE REPAIR, or unverified execution state exists.
@@ -262,13 +262,13 @@ Mandatory invariants:
 - Manual workflow dispatch is never a prerequisite for repair continuity.
 - Every change to this contract requires targeted enforcement tests proving lower-level actors cannot suspend or bypass residency.
 
-Enforcement order: SUPREME RESIDENCY -> ZERO-FALSE-GREEN -> ROOT-CAUSE REPAIR -> all other repository protocols.
+Enforcement order: P00 SUPREME UNIVERSAL EXECUTION -> SUPREME RESIDENCY -> ZERO-FALSE-GREEN -> ROOT-CAUSE REPAIR -> all other repository protocols.
 
 ## PROTOCOL HIERARCHY
 
 The normative hierarchy and anti-bloat gate are defined in `docs/PROTOCOL-HIERARCHY.md`, while `docs/PROTOCOL-REGISTRY.json` is the canonical machine-readable inventory of approved protocols.
 
-When protocol rules conflict, precedence is: Master execution and safety contract → Zero-False-Green/evidence integrity → Root-Cause-First Repair → G1/G2/G3/G4 and release contracts → Change-Scope Integrity/Dependency-Graph Closure → testing/certification/collaboration/coordination/recovery → CI optimization.
+When protocol rules conflict, precedence is: P00 Supreme Universal Agent Execution → Supreme Residency → Master Execution and Safety → Zero-False-Green/evidence integrity → Root-Cause-First Repair → G1/G2/G3/G4 and release contracts → Change-Scope Integrity/Dependency-Graph Closure → testing/certification/collaboration/coordination/recovery → CI optimization.
 
 No new standalone protocol may be introduced unless a recurring failure class is proven, existing controls are insufficient, the invariant and authoritative enforcement boundary are named, a regression/enforcement test is defined, and duplication/conflict analysis passes. Extend an existing protocol when it can absorb the requirement without ambiguity.
 
