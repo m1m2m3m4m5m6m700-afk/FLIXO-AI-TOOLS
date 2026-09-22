@@ -81,3 +81,22 @@ The handoff MUST preserve:
 - exact evidence and cycle lessons.
 
 The displaced agent may continue its session and then close with a handoff to the guard. A successor must revalidate the current exact SHA and RCA before applying any inherited change.
+
+## Guard Change Report
+
+Every worker handoff that contains material change information MUST include `guardChangeReport` created by `scripts/ci/guard-communication.mjs`.
+
+The report is a cloned communication envelope dedicated to `CHAIR_1_GUARD` and MUST preserve:
+
+- `reportId`, `idempotencyKey`, `agentId`, `taskId`
+- `entrySha`, `executionShaAtEntry`, `mainShaAtEntry`
+- `changedFiles` and `changeDetails`
+- `patchSha256` and `resultId` when available
+- `resultStatus`, `risk`, `summary`, `evidence`
+- `remainingWork`, `blockers`, `nextActions`
+- `publicationAuthority: CHAIR_1`
+- `editableBy: CHAIR_1`
+
+The guard report is a **receipt and review surface only**. It does not grant mutation authority, merge authority, certification, or GREEN.
+
+The guard may mark the report `ACCEPTED_FOR_CHAIR1`, `NEEDS_MORE_EVIDENCE`, or `REJECTED`. Chair 1 remains the only authority that can edit, integrate, commit, and publish the change.
