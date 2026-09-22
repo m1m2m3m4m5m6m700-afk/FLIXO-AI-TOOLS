@@ -51,7 +51,7 @@ const masterSessionFile = sessionPath(masterSessionId);
 if (!fs.existsSync(masterSessionFile)) throw new Error(`MASTER_PEER_ACTIVE_SESSION_REQUIRED=${from}`);
 const masterSession = JSON.parse(fs.readFileSync(masterSessionFile, 'utf8'));
 if (masterSession.status !== 'RUNNING' || masterSession.agentId !== from || masterSession.role !== from) throw new Error(`MASTER_PEER_SESSION_IDENTITY_INVALID=${from}`);
-if (Number(masterSession.residencyLock?.minimumActiveWindowMs) !== AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs || masterSession.residencyLock?.noSleep !== true || masterSession.residencyLock?.noIdle !== true) throw new Error(`MASTER_PEER_45M_RESIDENCY_POLICY_INVALID=${from}`);
+if (Number(masterSession.residencyLock?.minimumActiveWindowMs) !== AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs || Number(masterSession.residencyLock?.maxContinuousActiveSessionMs ?? 0) !== AGENT_LIVENESS_PROTOCOL.maxContinuousActiveSessionMs || masterSession.residencyLock?.noSleep !== true || masterSession.residencyLock?.noIdle !== true) throw new Error(`MASTER_PEER_45M_RESIDENCY_POLICY_INVALID=${from}`);
 const heartbeat = checkHeartbeat({ state: masterSession.livenessState ?? 'ACTIVE', lastHeartbeatAt: masterSession.lastHeartbeatAt ?? masterSession.startedAt });
 if (!heartbeat.ok) throw new Error(`MASTER_PEER_MASTER_SESSION_HEARTBEAT_STALE=${from}`);
 
@@ -74,6 +74,8 @@ if (payloadText) {
 const messageId = arg('message-id') || `master-peer:${from}:${to}:${taskId}:${Date.now().toString(36)}`;
 const priority = arg('priority', to === MASTER_GROUP ? 'P0' : 'P1').toUpperCase();
 const risk = arg('risk', 'MEDIUM').toUpperCase();
+const messageKind = arg('message-kind', 'STATUS_UPDATE').toUpperCase();
+if (!new Set(['STATUS_UPDATE','TASK_REMINDER','QUESTION','CHALLENGE','DECISION','HANDOFF']).has(messageKind)) throw new Error(`MASTER_PEER_MESSAGE_KIND_INVALID=${messageKind}`);
 const recipientList = to === MASTER_GROUP ? MASTER_IDS.filter((id) => id !== from) : [to];
 
 const message = {
@@ -100,6 +102,10 @@ const message = {
     ...extraPayload,
     peerMessage: true,
     administrativeInstruction: true,
+    channel: 'MASTER_CELL_LAB',
+    messageKind,
+    sessionId: masterSessionId,
+    taskSnapshot: { taskId: masterSession.taskId, status: masterSession.status, livenessState: masterSession.livenessState, currentSha: masterSession.currentSha ?? localSha, currentRca: masterSession.currentRca, openRcas: masterSession.openRcas ?? [], remainingWork: masterSession.remainingWork ?? [], nextAction: masterSession.executionPlanNext ?? [], blockers: masterSession.blockers ?? [], lastProgressAt: masterSession.lastProgressAt ?? null, lastHeartbeatAt: masterSession.lastHeartbeatAt ?? null, updatedAt: new Date().toISOString() },
     automaticDelivery: true,
     conversationId: arg('conversation-id', `master-thread:${taskId}`),
     replyToMessageId: arg('reply-to') || null,
