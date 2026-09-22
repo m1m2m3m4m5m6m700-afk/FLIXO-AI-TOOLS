@@ -207,6 +207,7 @@ jobs:
             "FLIXO Test Impact Execution"
             "Repository Security Baseline"
             "Claude Security Review"
+            "FLIXO Unified Execution Push Gate"
           )
           MAX_POLLS=40
           POLL_SECONDS=15

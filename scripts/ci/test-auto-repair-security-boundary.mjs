@@ -34,3 +34,16 @@ assert.doesNotMatch(workflow, /git\s+(?:switch|checkout)\s+-c\s+execution/u);
 assert.match(workflow, /FLIXO_DETACHED_EXECUTION_TARGET=true/u);
 assert.doesNotMatch(workflow, /actions:\s*write/u);
 console.log('AUTO_REPAIR_TEST_ORCHESTRATION_REPAIR_PERMISSION=PASS');
+
+const pushGate = fs.readFileSync('.github/workflows/unified-execution-push-gate.yml', 'utf8');
+const pushGateScript = fs.readFileSync('scripts/ci/unified-execution-push-gate.mjs', 'utf8');
+assert.match(pushGate, /push:\s*\n\s*branches:\s*\[execution\]/u);
+assert.match(pushGate, /github\.event\.before/u);
+assert.match(pushGate, /github\.sha/u);
+assert.match(pushGate, /unified-execution-push-gate\.mjs/u);
+assert.doesNotMatch(pushGate, /actions:\s*write/u);
+assert.match(pushGateScript, /UNIFIED_ACCUMULATED_COMMIT/u);
+assert.match(pushGateScript, /commitCount=1/u);
+assert.match(pushGateScript, /aggregateId=/u);
+assert.match(pushGateScript, /rev-list.*--count/u);
+console.log('UNIFIED_EXECUTION_PUSH_GATE_CONTRACT=PASS');

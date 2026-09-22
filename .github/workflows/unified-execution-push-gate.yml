@@ -1,0 +1,40 @@
+name: FLIXO Unified Execution Push Gate
+
+on:
+  push:
+    branches: [execution]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flixo-unified-execution-push-gate-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Unified execution push proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact pushed SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify unified single-commit push contract
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          node scripts/ci/unified-execution-push-gate.mjs             --before="${{ github.event.before }}"             --after="${{ github.sha }}"             --output=/tmp/unified-execution-push-gate.json
+
+      - name: Publish exact-SHA push-gate evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: unified-execution-push-gate-${{ github.run_id }}
+          path: /tmp/unified-execution-push-gate.json
+          if-no-files-found: warn
+          retention-days: 30

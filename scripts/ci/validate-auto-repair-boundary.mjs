@@ -10,6 +10,7 @@ const DAILY_GATE = path.join(ROOT, '.github', 'workflows', 'daily-flixo-green-ga
 const HANDOFF_GATE = path.join(ROOT, '.github', 'workflows', 'agent-repair-handoff-gate.yml');
 const WATCHDOG = path.join(ROOT, '.github', 'workflows', 'execution-bot-watchdog.yml');
 const MERGE_GATE = path.join(ROOT, '.github', 'workflows', 'auto-repair-merge-gate.yml');
+const PUSH_GATE_WORKFLOW = path.join(ROOT, '.github', 'workflows', 'unified-execution-push-gate.yml');
 const MAX_CHANGED_FILES = 12;
 const MAX_CHANGED_LINES = 300;
 const MUTATION_WORKFLOWS = Object.freeze(['auto-repair.yml','execution-sync.yml','historical-action-error-index.yml']);
@@ -70,6 +71,7 @@ export function validateStatic() {
   const handoffGate = read(HANDOFF_GATE);
   const watchdog = read(WATCHDOG);
   const mergeGate = read(MERGE_GATE);
+  const pushGateWorkflow = read(PUSH_GATE_WORKFLOW);
   const masterGovernor = read(path.join(ROOT, 'scripts', 'ci', 'master-repair-governor.mjs'));
   const patchTruth = read(path.join(ROOT, 'scripts', 'ci', 'patch-truth-engine.mjs'));
   const platformBoundary = read(path.join(ROOT, 'scripts', 'ci', 'verify-platform-publication-boundary.mjs'));
@@ -195,6 +197,7 @@ export function validateStatic() {
   must(/HEAD_BRANCH.*execution|HEAD_BRANCH.*=\s*"execution"/.test(mergeGate), 'merge-gate-execution-head');
   must(/CURRENT_EXECUTION_SHA/.test(mergeGate), 'merge-gate-exact-sha');
   must(/Certification/.test(mergeGate), 'merge-gate-certification-required');
+  must(/FLIXO Unified Execution Push Gate/.test(mergeGate), 'merge-gate-push-gate-required');
   const exactShaEvidenceWorkflows = [
     ['canonical-test', canonicalTest],
     ['wp0', wp0],
