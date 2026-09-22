@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { assertAgentAdmission, REPAIR_PROTOCOL, REPAIR_PROTOCOL_HASH, validateActionVaultVerifierProof, validateErrorOnlyMutation } from './repair-protocol.mjs';
 
 const session = fs.readFileSync('scripts/ci/agent-session.mjs', 'utf8');
+const supremePrompt = fs.readFileSync('docs/agents/PROMPT-UNIFIED-EXECUTION.md', 'utf8');
 const repair = fs.readFileSync('scripts/ci/repair-protocol.mjs', 'utf8');
 const repairEngine = fs.readFileSync('scripts/ci/auto-repair-engine.mjs', 'utf8');
 const task = fs.readFileSync('scripts/ci/task-agent.mjs', 'utf8');
@@ -14,6 +15,7 @@ const cooperation = JSON.parse(fs.readFileSync('docs/ASSISTANT-AGENT-COOPERATION
 const protocolRegistry = JSON.parse(fs.readFileSync('docs/PROTOCOL-REGISTRY.json', 'utf8'));
 
 const requiredReads = [
+  'docs/agents/PROMPT-UNIFIED-EXECUTION.md',
   'PROJECTS.md',
   'المهام.md',
   'AGENTS.md',
@@ -40,6 +42,13 @@ assert.ok(session.includes('loadPromptRegistry'));
 assert.ok(session.includes('validatePromptRegistry'));
 assert.ok(session.includes('loadErrorMemory'));
 assert.ok(session.includes('readCanonicalAdmissionSources'));
+assert.ok(session.includes('AGENT_ADMISSION_P00_SUPREME_PROTOCOL_INVALID'));
+assert.ok(session.includes('AGENT_ADMISSION_SUPREME_PROMPT_INVALID'));
+assert.equal(protocolRegistry.protocols.find((item) => item.id === 'P00')?.status, 'SUPREME_MANDATORY');
+assert.equal(protocolRegistry.protocols.find((item) => item.id === 'P00')?.canonicalSource, 'docs/agents/PROMPT-UNIFIED-EXECUTION.md');
+assert.equal(protocolRegistry.protocols.find((item) => item.id === 'P00')?.version, '4.0.0');
+for (const marker of ['RPR-UNIFIED-EXECUTION-001 · v4.0.0 · PROTOCOL-ROOT','FIRST OBLIGATION','ZERO-ERROR / NON-STOP','SHARED CELL / MULTI-AGENT COORDINATION','HARD CIRCULAR EXIT LOCK','DIRECTIVE']) assert.ok(supremePrompt.includes(marker));
+
 assert.ok(session.includes('admissionSources'));
 
 for (const role of ["'repairAgent'", "'executionAgent'", "'assistantRepairAgent'"]) assert.ok(repair.includes(role));
