@@ -9,6 +9,9 @@ assert.equal(definition.protocolVersion,'1.0.0');
 assert.equal(definition.protocolHash,REPAIR_PROTOCOL_HASH);
 assert.equal(REPAIR_PROTOCOL.commitPolicy,'ONE_COMMIT_PER_COMPLETED_REPAIR_SESSION');
 assert.equal(REPAIR_PROTOCOL.mutationScope,'ERROR_ONLY');
+assert.equal(REPAIR_PROTOCOL.cellLabRequired,true);
+assert.equal(REPAIR_PROTOCOL.cellLabConsensusPath,'diagnostics/agents/cell-lab/consensus/<taskId>.json');
+assert.throws(()=>assertAgentAdmission({actor:'repairAgent',branch:'execution',mutation:true,session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,taskId:'missing-lab'}}),/CELL_LAB_CONSENSUS_REQUIRED/);
 const targetSHA='a'.repeat(40);
 const cellLabConsensus = (taskId, owner) => ({
   protocolId:'CELL-LAB-COLLABORATIVE-CONSENSUS',
