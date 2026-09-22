@@ -23,6 +23,7 @@ import { buildErrorOnlyRepairModel } from './auto-repair/error-only-programmer.m
 import { simulateAstRepair } from './action-repair-sandbox.mjs';
 import { evaluateMutationGate } from './action-vault-mutation-gate.mjs';
 import { reviewCatalogBeforeMutation, reviewDiagnosisAgainstKnowledge } from './action-vault-triad-governor.mjs';
+import { buildRcaManifest, validateRcaManifest, enforceMutationScope } from './in-repo-repair-v2.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
@@ -241,6 +242,63 @@ const diagnosisGate = {
   ) || Boolean(plan.inferenceFallback?.prediction?.eligibleForBoundedMutation),
 };
 evidence.diagnosisGate = diagnosisGate;
+
+const repairV2ManifestPath = process.env.FLIXO_RCA_MANIFEST_PATH ?? '/tmp/flixo-rca-manifest.json';
+let repairV2Manifest = null;
+try {
+  repairV2Manifest = buildRcaManifest({
+    targetDir,
+    targetSha,
+    failureFingerprint: fingerprint,
+    failureLog: log,
+    diagnosis,
+    plan,
+    selected,
+    cycle: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1),
+    convergenceGuidancePath: process.env.FLIXO_CONVERGENCE_GUIDANCE_PATH ?? '',
+  });
+  validateRcaManifest(repairV2Manifest, { currentSha: targetSha, requireMutationEligible: true });
+  fs.writeFileSync(repairV2ManifestPath, JSON.stringify(repairV2Manifest, null, 2) + '\n');
+  evidence.repairV2 = {
+    protocol: repairV2Manifest.protocol,
+    manifestPath: repairV2ManifestPath,
+    status: 'RCA_PROVEN',
+    cycle: repairV2Manifest.cycle,
+    primaryCause: repairV2Manifest.root_cause_analysis.primary_cause,
+    hypotheses: repairV2Manifest.root_cause_analysis.alternative_hypotheses,
+    invariant: repairV2Manifest.root_cause_analysis.invariant_violated,
+    affectedBoundary: repairV2Manifest.root_cause_analysis.affected_boundaries[0],
+    evidenceDigest: repairV2Manifest.evidence.evidence_digest,
+  };
+} catch (error) {
+  evidence.outcome = 'proposal-only';
+  evidence.repairV2 = {
+    protocol: 'FLIXO-IN-REPO-REPAIR-V2',
+    status: 'BLOCKED',
+    error: String(error?.message ?? error),
+  };
+  evidence.escalation = {
+    required: true,
+    reason: 'in-repo-repair-v2-gate-blocked',
+    blockedReasons: [String(error?.message ?? error)],
+  };
+  writeEvidence(evidencePath, evidence);
+  recordOutcome(memory, {
+    fingerprint,
+    normalizedFailure,
+    features,
+    rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown',
+    rule: selected?.id,
+    outcome: 'proposed',
+    verification: 'in-repo-repair-v2-blocked',
+    provenance: { targetSha, repairV2: evidence.repairV2 },
+    preventionRule: 'Repair v2 requires deterministic RCA, three hypotheses, a single surgical boundary, and exact-SHA evidence before mutation.',
+  });
+  writeMemory(memory);
+  console.log('AUTO_REPAIR_RESULT=PROPOSAL_ONLY');
+  console.log('AUTO_REPAIR_REASON=in-repo-repair-v2-gate-blocked');
+  process.exit(0);
+}
 
 const actionVaultCatalogReview = reviewCatalogBeforeMutation({ taskId: process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, fingerprint, targetSha, failedRunId: process.env.GITHUB_RUN_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, errorText: log });
 const actionVaultDiagnosisKnowledgeReview = reviewDiagnosisAgainstKnowledge({ taskId: process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, fingerprint, targetSha, failedRunId: process.env.GITHUB_RUN_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, diagnosis: diagnosis ?? {}, catalogReview: actionVaultCatalogReview });
@@ -752,6 +810,8 @@ const before = snapshot(targetDir);
 const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
   const plannedChangedPaths = evidence.actionVaultSandbox?.changedFiles ?? preMutationProof.sandboxSimulation?.changedFiles ?? [];
   const candidateDiff = evidence.actionVaultSandbox?.candidateDiff ?? preMutationProof.sandboxSimulation?.candidateDiff ?? '';
+  const repairV2PlannedScope = enforceMutationScope({ manifest: repairV2Manifest, changedPaths: plannedChangedPaths });
+  evidence.repairV2 = { ...(evidence.repairV2 ?? {}), plannedScope: repairV2PlannedScope };
   const mutationScope = {
     changedPaths: plannedChangedPaths,
     selectedFiles: fileSelection?.selectedFiles?.map((item) => item.path).filter(Boolean) ?? [],
@@ -823,6 +883,36 @@ try {
   const diffSummary = summarizeDiff(changed);
   evidence.diff = diffSummary;
   evidence.changedPaths = diffSummary.files;
+  try {
+    evidence.repairV2 = {
+      ...(evidence.repairV2 ?? {}),
+      actualScope: enforceMutationScope({ manifest: repairV2Manifest, changedPaths: diffSummary.files }),
+    };
+  } catch (error) {
+    rollback(targetDir, before);
+    evidence.outcome = 'blocked';
+    evidence.repairV2 = {
+      ...(evidence.repairV2 ?? {}),
+      status: 'BLOCKED',
+      actualScopeError: String(error?.message ?? error),
+    };
+    evidence.escalation = { required: true, reason: 'in-repo-repair-v2-actual-scope-blocked' };
+    writeEvidence(evidencePath, evidence);
+    recordOutcome(memory, {
+      fingerprint,
+      normalizedFailure,
+      features,
+      rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown',
+      rule: selected.id,
+      outcome: 'blocked',
+      verification: 'in-repo-repair-v2-actual-scope-blocked',
+      provenance: { targetSha, changedPaths: diffSummary.files },
+      preventionRule: 'Reject the patch if the actual source scope differs from the RCA surgical boundary.',
+    });
+    writeMemory(memory);
+    process.exitCode = 2;
+    throw error;
+  }
   const declaredAffectedPaths = diagnosis?.affectedPaths ?? (selected?.files?.length ? selected.files : [diagnosis?.location?.file].filter(Boolean));
   evidence.minimalRepairScope = validateMinimalRepairScope({ affectedPaths: declaredAffectedPaths, changedPaths: diffSummary.files });
   evidence.selfCritic = critiqueRepair({
