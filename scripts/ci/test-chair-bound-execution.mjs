@@ -4,11 +4,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
+import {createHmac} from 'node:crypto';
 import {acquire,authorizeWrite,authorizeMergeProposal,release,repositoryMode,heartbeat,reconcileDeadLeases,writeSpeculativeContext,readSpeculativeContext,sanitizeSessionContext,atomicChairRefAudit,proposePush,beginWork,endWork,assertWorkAdmission,activeChairForAgent,preemptedContinuityForAgent,reclaimChair1} from './chair-bound-execution.mjs';
 
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-chair-test-'));
 process.env.FLIXO_CHAIR_STATE_PATH=path.join(temp,'locks','chairs.json');
 process.env.FLIXO_CHAIR_SIGNING_KEY='test-chair-signing-key';
+process.env.NODE_ENV='test';
+process.env.FLIXO_USER_COMMAND_SIGNING_KEY='test-user-command-key';
 const SHA='a'.repeat(40),SHA2='b'.repeat(40);
 
 const realGitSha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
@@ -111,11 +114,9 @@ assert.throws(
   ()=>reclaimChair1({agentId:'MASTER-2',targetSha:realGitSha,reason:'NOT_USER_DIRECT_COMMAND'}),
   /CHAIR1_RECLAIM_CONTROLLER_ONLY/
 );
-const reclaimed=reclaimChair1({
-  agentId:'assistantController',
-  targetSha:realGitSha,
-  reason:'USER_DIRECT_COMMAND: reclaim Chair-1'
-});
+const reclaimReason='USER_DIRECT_COMMAND: reclaim Chair-1';
+assert.throws(()=>reclaimChair1({agentId:'assistantController',targetSha:realGitSha,reason:reclaimReason,userCommandProof:'USER_DIRECT_COMMAND',userCommandSignature:'0'.repeat(64)}),/CHAIR1_RECLAIM_USER_COMMAND_SIGNATURE_INVALID/);
+const reclaimed=reclaimChair1({agentId:'assistantController',targetSha:realGitSha,reason:reclaimReason,userCommandProof:'USER_DIRECT_COMMAND',userCommandSignature:createHmac('sha256','test-user-command-key').update(`${realGitSha}:USER_DIRECT_COMMAND: reclaim Chair-1`,'utf8').digest('hex')});
 assert.equal(reclaimed.reclaimed,true);
 assert.equal(reclaimed.ownerAgentId,'assistantController');
 assert.equal(reclaimed.custodyStatus,'OWNER_CUSTODY');
