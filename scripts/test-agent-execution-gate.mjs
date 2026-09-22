@@ -41,7 +41,7 @@ await assert.rejects(
 
 await assert.rejects(
   authorizeExecution({ task, capabilityId: 'image-compressor', parameters: { quality: 9 }, inputBlob: input }),
-  /Number must be less than or equal to 1/,
+  /Capability 'image-compressor' parameters failed the canonical schema validation\./,
 );
 
 const oversized = new Blob([new Uint8Array(64 * 1024 * 1024 + 1)]);
