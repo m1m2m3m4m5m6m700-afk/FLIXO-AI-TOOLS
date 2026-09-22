@@ -26,8 +26,12 @@ for(const marker of [
  "ADVERSARIAL_PROGRAMMER_FALSIFIER",
  "NO_MUTATION_AUTHORITY",
  "action-repair-programmer-twin.mjs",
- "READ_ONLY_REPAIR_INTELLIGENCE"
-]) if(!source.includes(marker)) failures.push('MISSING_MARKER='+marker);
+ "READ_ONLY_REPAIR_INTELLIGENCE",
+ "ACTION-VAULT-READONLY-KNOWLEDGE-LOOKUP-v1",
+ "ACTION-INDEX-4000.json",
+ "ERROR-TEACHING-ROUTER.json",
+ "declaredCatalogCapacity"
+] if(!source.includes(marker)) failures.push('MISSING_MARKER='+marker);
 
 if(/git\s+(add|commit|push|reset|checkout)|update_file|create_file|delete_file|mergePullRequest|create_pull_request/u.test(source)) failures.push('MUTATION_API_OR_GIT_WRITE_DETECTED');
 if(/fs\.writeFileSync\((?!logPath|selectionPath|diagnosisPath|outputPath|path\.dirname\(path\.resolve\(output\)\))/u.test(source)) failures.push('UNEXPECTED_WRITE_SURFACE');
