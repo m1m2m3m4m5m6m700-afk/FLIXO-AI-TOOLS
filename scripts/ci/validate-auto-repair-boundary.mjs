@@ -194,7 +194,7 @@ export function validateStatic() {
   must(/HEAD_BRANCH.*execution|HEAD_BRANCH.*=\s*"execution"/.test(mergeGate), 'merge-gate-execution-head');
   must(/CURRENT_EXECUTION_SHA/.test(mergeGate), 'merge-gate-exact-sha');
   must(/Certification/.test(mergeGate), 'merge-gate-certification-required');
-  for (const [id, workflow] of [
+  const exactShaEvidenceWorkflows = [
     ['canonical-test', canonicalTest],
     ['wp0', wp0],
     ['test-impact', testImpact],
@@ -202,10 +202,14 @@ export function validateStatic() {
     ['security-baseline', securityBaseline],
     ['claude-security', claudeSecurity],
     ['merge-gate', mergeGate],
-  ]) {
-    must(/cancel-in-progress:\s*true/.test(workflow), 'required-evidence-workflow-must-cancel-stale:' + id);
+  ];
+  for (const [id, workflow] of exactShaEvidenceWorkflows) {
     must(/github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha/.test(workflow), 'required-evidence-workflow-must-bind-exact-sha:' + id);
   }
+  for (const [id, workflow] of exactShaEvidenceWorkflows.filter(([id]) => id !== 'claude-security')) {
+    must(/cancel-in-progress:\s*true/.test(workflow), 'required-evidence-workflow-must-cancel-stale:' + id);
+  }
+  must(/cancel-in-progress:\s*false/.test(claudeSecurity), 'advisory-security-review-must-preserve-started-run');
   must(/Repository Security Baseline/.test(mergeGate), 'merge-gate-security-required');
   must(!/continue-on-error:\s*true/i.test(mergeGate), 'merge-gate-no-continue-on-error');
   must(!/gh\s+pr\s+merge/i.test(mergeGate), 'merge-gate-no-self-merge');
