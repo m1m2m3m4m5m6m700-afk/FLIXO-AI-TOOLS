@@ -253,6 +253,55 @@ Mandatory invariants:
 
 Enforcement order: SUPREME RESIDENCY -> ZERO-FALSE-GREEN -> ROOT-CAUSE REPAIR -> all other repository protocols.
 
+## SUPREME MULTI-AGENT CELL COORDINATION CONTRACT
+
+Every Agent/Bot/Master is a resident of one shared execution cell. No role may behave as an isolated executor. Each agent MUST know and declare `MY_SCOPE`, `OTHER_AGENT_SCOPE`, `DEPENDENCIES`, `COLLABORATORS`, `HANDOFFS`, and `OPEN_WORK`.
+
+The agent may determine the operational scope required by the active task from current exact-SHA evidence and the canonical task/control plane. Scope must remain explicit, bounded, and visible to the cell. Cross-scope overlap is allowed only for intentional independent verification or an explicitly recorded coordination decision.
+
+### Mandatory collaboration
+
+When work crosses scopes, depends on another owner, creates a conflict, or needs another specialist, the agent MUST use:
+
+`DISCOVER → CONTACT → HANDOFF/REQUEST → EXECUTE → VERIFY → REPORT`
+
+A handoff MUST include RCA, evidence, exact SHA, requested action, and remaining work. No agent may silently retain information required by another active owner.
+
+### ZERO-ERROR NON-STOP
+
+The shared cell objective is `0 ERRORS`. Completion of one agent's scope does NOT complete the cell.
+
+While any RED, OPEN WORK, unresolved RCA, required unrun check, contradictory evidence, or unverified result remains, the execution system MUST continue through recovery, reassignment, assistance, verification, or handoff. Session, lease, workflow, timeout, or queue termination is not a completion signal.
+
+`BLOCKED_EXTERNAL` is reserved for independently proven external conditions and does not close unrelated internal work. GREEN remains the certification-defined terminal state backed by fresh exact-SHA evidence.
+
+### Masters 1 / 2 / 3
+
+Masters 1, 2, and 3 MUST maintain one shared operational view and explicitly publish:
+
+`CURRENT_WORKFLOW`
+`CURRENT_PLAN`
+`CURRENT_SCOPE`
+`EXECUTED`
+`IN_PROGRESS`
+`REMAINING`
+`DEPENDENCIES`
+`COLLABORATORS`
+`BLOCKERS`
+`NEXT_ACTION`
+`CURRENT_SHA`
+`VERIFICATION_STATUS`
+
+They MUST cooperate openly through the existing canonical communication/control plane, prevent duplicate work, expose conflicts immediately, and keep the shared plan/state synchronized. No Master may declare cell completion while another relevant owner still has unresolved work.
+
+### Supervisors Council execution visibility
+
+After each material repair/verification cycle, every agent and Master MUST publish a `SUPERVISORS_UPDATE` through the existing canonical communication path. It MUST report actual execution, not intentions:
+
+`AGENT`, `SESSION_ID`, `TASK`, `START_SHA`, `CURRENT_SHA`, `EXECUTED`, `FILES_CHANGED`, `AGENTS_CONTACTED`, `CHECKS_EXECUTED`, `PASSED`, `FAILED`, `NOT_RUN`, `ERRORS_BEFORE`, `ERRORS_RESOLVED`, `ERRORS_REMAINING`, `RCA_OPEN_BEFORE`, `RCA_RESOLVED`, `RCA_REMAINING`, `SECURITY_STATUS`, `CI_STATUS`, `REMAINING_WORK`, `BLOCKERS`, `NEXT_ACTION`, `STATUS`.
+
+No agent may report "fixed", "complete", or equivalent without the corresponding counts and evidence. New failures MUST be reported immediately and entered into the active RCA/work queue.
+
 ## PROTOCOL HIERARCHY
 
 The normative hierarchy and anti-bloat gate are defined in `docs/PROTOCOL-HIERARCHY.md`, while `docs/PROTOCOL-REGISTRY.json` is the canonical machine-readable inventory of approved protocols.
