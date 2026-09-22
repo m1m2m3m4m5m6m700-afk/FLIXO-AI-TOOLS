@@ -1,0 +1,50 @@
+name: FLIXO Task History Ledger
+
+on:
+  push:
+    branches: [execution]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: flixo-task-history-ledger-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  task-history:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Validate historical prefix
+        if: github.event_name == 'pull_request'
+        run: node scripts/ci/task-history-ledger.mjs verify --base=${{ github.event.pull_request.base.sha }}
+
+      - name: Reconcile executed tasks
+        if: github.event_name != 'pull_request'
+        run: node scripts/ci/task-history-ledger.mjs reconcile
+
+      - name: Verify append-only invariant
+        if: github.event_name != 'pull_request'
+        run: node scripts/ci/task-history-ledger.mjs verify --base=HEAD^ || true
+
+      - name: Commit newly discovered history
+        if: github.event_name == 'push' && github.ref == 'refs/heads/execution'
+        run: |
+          if git diff --quiet -- docs/agents/task-history/ledger.jsonl; then
+            echo "TASK_HISTORY_COMMIT=SKIPPED"
+            exit 0
+          fi
+          git config user.name "FLIXO Task History Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/agents/task-history/ledger.jsonl
+          git commit -m "chore(history): append task execution records"
+          git push origin HEAD:execution
