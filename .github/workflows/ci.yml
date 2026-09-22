@@ -7,10 +7,10 @@ on:
     branches: [main, execution]
   workflow_dispatch:
 
-# One concurrency slot is isolated per exact commit SHA; a newer SHA does not wait behind an older SHA.
+# Initial runs use one branch lane so a new commit supersedes the prior commit immediately.
+# Reruns use their own immutable run lane and therefore cannot cancel a newer commit.
 concurrency:
-  group: flixo-test-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
-  # Preserve an already-running test; GitHub replaces only the older pending run in this branch group.
+  group: ${{ github.run_attempt > 1 && format('flixo-test-rerun-{0}', github.run_id) || format('flixo-test-lane-{0}-{1}', github.repository, github.ref_name) }}
   cancel-in-progress: true
 
 permissions:
@@ -49,6 +49,7 @@ jobs:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
           EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          REQUIRE_LIVE_HEAD_MATCH: 'true'
         run: node scripts/ci/assert-current-commit.mjs
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Create immutable run identity
