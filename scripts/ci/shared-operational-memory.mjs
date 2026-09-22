@@ -74,6 +74,10 @@ export function validateSharedMemoryRecord(input={}){
   if(!String(input.claim??input.content??'').trim()) failures.push('LEARNING_CONTENT_REQUIRED');
   if(input.mutationAuthority===true) failures.push('SHARED_MEMORY_CANNOT_GRANT_MUTATION');
   if(input.certificationAuthority===true) failures.push('SHARED_MEMORY_CANNOT_GRANT_CERTIFICATION');
+  const authenticated=String(input.authenticatedSourceBot??process.env.FLIXO_AUTHENTICATED_AGENT_ID??'').trim();
+  if(process.env.NODE_ENV!=='test' && process.env.GITHUB_ACTIONS==='true' && (!authenticated || authenticated!==sourceBot)) failures.push('SOURCE_BOT_AUTHENTICATION_REQUIRED');
+  const status=String(input.status??'OBSERVED').toUpperCase();
+  if(['VERIFIED','PROMOTED'].includes(status) && input.canonicalGreen!==true) failures.push('VERIFIED_MEMORY_REQUIRES_CANONICAL_GREEN');
   return Object.freeze({ok:failures.length===0,failures});
 }
 
@@ -111,6 +115,9 @@ function normalizeRecord(input={}){
     evidenceRefs:Array.isArray(input.evidenceRefs)?input.evidenceRefs.slice(0,64):[],
     changedPaths:Array.isArray(input.changedPaths)?input.changedPaths.slice(0,64):[],
     verification:String(input.verification??'')||null,
+    canonicalGreen:input.canonicalGreen===true,
+    greenRunId:String(input.greenRunId??'')||null,
+    authenticatedSourceBot:String(input.authenticatedSourceBot??process.env.FLIXO_AUTHENTICATED_AGENT_ID??'')||null,
     antiLesson:Boolean(input.antiLesson===true||String(input.kind)==='ANTI_LESSON'),
     source:'SHARED_MEMORY_WRITE',
     exactShaBound:true,
