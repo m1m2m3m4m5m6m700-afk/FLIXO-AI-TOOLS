@@ -39,6 +39,7 @@ export function planFromIntent(input: string): ExecutionPlan | null {
     return validateExecutionPlan({
       workflowName: steps.length > 1 ? 'Dynamic QuickFlow' : 'Direct Tool',
       confidence: steps.length > 1 ? 0.95 : intent.confidence,
+      catalogFingerprint: TOOL_CATALOG.fingerprint,
       steps,
     });
   }
