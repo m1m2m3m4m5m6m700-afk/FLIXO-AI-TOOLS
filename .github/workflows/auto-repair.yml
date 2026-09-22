@@ -1298,6 +1298,8 @@ jobs:
             /tmp/flixo-intractable-state
             /tmp/flixo-task-agent/*.json
             /tmp/flixo-repair-memory.json
+            /tmp/flixo-postpatch-adversarial.json
+            /tmp/flixo-rca-manifest.json
             /tmp/flixo-historical-learning.json
             /tmp/flixo-intractable-errors.json
             diagnostics/auto-repair/memory.json
