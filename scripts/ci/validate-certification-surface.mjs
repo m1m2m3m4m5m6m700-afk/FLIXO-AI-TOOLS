@@ -39,6 +39,7 @@ const nonTestAutomation = new Set([
   'repository-security-baseline.yml',
   'latest-commit-test-supersession.yml',
   'task-history-ledger.yml',
+  'read-only-error-investigator.yml',
 ]);
 const auxiliaryEvidenceAutomation = new Set(['test-impact.yml', 'test-impact-execution.yml']);
 const trustBaselineAutomation = new Set(['wp0-trust-baseline.yml']);
