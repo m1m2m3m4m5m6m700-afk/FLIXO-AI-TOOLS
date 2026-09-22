@@ -397,3 +397,14 @@ The Cell-Lab gate is enforced by `scripts/ci/cell-lab-consensus.mjs` and is chec
 
 
 The long-lived residency model uses 45 minutes as the minimum, 3 hours as the maximum for one continuous active segment, and no total task-duration cap while work remains open. MASTER_CELL_LAB carries master status updates every 5 minutes and task reminders every 10 minutes; SHA changes invalidate evidence and require requalification, not sleep or task closure.
+
+## CHAIR-1 — CENTRAL CUSTODY / TEMPORARY DELEGATION
+
+Chair-1 is centrally owned by `assistantController`. Ownership is permanent unless the user directly commands a transfer.
+
+An agent may use Chair-1 only for an assigned bounded task with task/work-package context. Chair-1 may not be preempted, stolen, or reassigned by another Agent/Master/Bot while an active delegation exists.
+
+Task completion or an authorized task release automatically clears the delegate and returns Chair-1 to `assistantController` custody. Session timeout, heartbeat loss, or agent failure does not authorize another agent to take the chair; recovery must preserve or reassign the task through the canonical controller path.
+
+Controller-only reclaim requires an explicit direct-user command marker. Any other reclaim, preemption, ownership change, or delegation-policy mutation is `FAIL_CLOSED`.
+
