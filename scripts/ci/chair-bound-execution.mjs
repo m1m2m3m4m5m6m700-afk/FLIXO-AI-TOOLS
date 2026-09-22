@@ -491,7 +491,7 @@ export function proposePush({
   const wp=assertContextId(workPackageId,'WORK_PACKAGE_ID');
   const task=assertContextId(taskId,'TASK_ID');
   const details = pushDetails && typeof pushDetails==='object' && !Array.isArray(pushDetails) ? pushDetails : {};
-  const requiredPushDetails=['pushId','actorAgent','actorRole','sessionId','event','reason','changeType','commitMessage','commitTreeSha','requestedAt'];
+  const requiredPushDetails=['pushId','actorAgent','actorRole','sessionId','event','reason','changeType','repository','branch','commitMessage','commitTreeSha','requestedAt'];
   for(const field of requiredPushDetails){
     if(String(details[field]??'').trim()==='')throw new Error('CHAIR_PUSH_DETAILS_REQUIRED='+field);
   }
@@ -527,6 +527,8 @@ export function proposePush({
         event:String(details.event),
         reason:String(details.reason).slice(0,1000),
         changeType:String(details.changeType),
+        repository:String(details.repository),
+        branch:String(details.branch),
         commitMessage:String(details.commitMessage).slice(0,4000),
         commitTreeSha:String(details.commitTreeSha),
         requestedAt:String(details.requestedAt),
