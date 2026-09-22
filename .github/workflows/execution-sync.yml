@@ -31,6 +31,7 @@ jobs:
           FLIXO_REQUIRE_FENCED_CHAIR: 'true'
           FLIXO_CHAIR_SIGNING_KEY: ${{ github.token }}
           FLIXO_MUTATION_ADMISSION: /tmp/flixo-mutation-admission.json
+          FLIXO_HEAD_AUTHORITY_PROOF: /tmp/flixo-head-authority.json
         run: |
           set -euo pipefail
           git fetch --no-tags origin main execution
@@ -112,6 +113,7 @@ jobs:
           CANDIDATE_SHA="$(git rev-parse HEAD)"
           node scripts/ci/execution-mutation-gate.mjs verify --phase=pre-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA" --parent="$EXEC_SHA"
           node scripts/ci/chair-bound-execution.mjs authorize-publication --chair=chair_1 --agent=EXECUTION_SYNC --sha="$EXEC_SHA" --permission=SOURCE_MUTATION --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --paths="$MUTATION_PATHS" >/tmp/flixo-chair-publication.json
+          node scripts/ci/execution-head-authority.mjs authorize --agent=EXECUTION_SYNC --target-sha="$EXEC_SHA" --parent-sha="$EXEC_SHA" --candidate-sha="$CANDIDATE_SHA" --task-id="$TASK_ID" --work-package="$WORK_PACKAGE_ID" --output="$FLIXO_HEAD_AUTHORITY_PROOF" >/tmp/flixo-head-authority-log.json
           git push origin HEAD:execution
           node scripts/ci/execution-mutation-gate.mjs verify --phase=post-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA"
           NEW_SHA="$CANDIDATE_SHA"
