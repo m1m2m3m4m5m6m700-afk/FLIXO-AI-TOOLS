@@ -108,6 +108,9 @@ assert.match(master, /NON-STOP EXECUTION \/ CONTINUITY CONTRACT/);
 assert.match(master, /OPEN_WORK.*NEVER_SELF_STOP/);
 assert.match(master, /FAILURE.*RECOVER_AND_CONTINUE/);
 assert.match(master, /WAITING_EXTERNAL.*HEARTBEAT_AND_RECHECK/);
+for (const workflow of [canonicalCi, securityBaseline, claudeSecurity, impactExecution, impactPlan, wp0]) {
+  assert.doesNotMatch(workflow, /push:\\s*\\n\\s*branches:\\s*\\[main,\\s*execution\\]/);
+}
 assert.match(master, /LEASE_STALE.*CRASH.*TIMEOUT.*RECLAIM/);
 assert.match(master, /COMPLETE.*HANDOFF_TO_SUPERVISOR/);
 assert.match(master, /ABORTED.*السلطة الصريحة/);
