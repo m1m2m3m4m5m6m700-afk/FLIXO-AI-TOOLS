@@ -402,6 +402,24 @@ try {
   process.exit(1);
 }
 
+const securityBoundaryContracts = [
+  ['auto-repair-main-only', autoRepairWorkflow, /resident:[\s\S]*?if:\s*github\.ref\s*==\s*'refs\/heads\/main'/],
+  ['auto-repair-repair-main-only', autoRepairWorkflow, /repair:[\s\S]*?if:\s*github\.ref\s*==\s*'refs\/heads\/main'/],
+  ['green-gate-no-execution-push', greenGateWorkflow, !/push:\s*\n\s*branches:\s*\[execution\]/.test(greenGateWorkflow)],
+  ['watchdog-no-execution-push', executionWatchdogWorkflow, !/push:\s*\n\s*branches:\s*\[execution(?:,\s*main)?\]/.test(executionWatchdogWorkflow)],
+  ['live-runtime-main-only', protectedLiveRuntime.text, /verify:[\s\S]*?if:\s*github\.ref\s*==\s*'refs\/heads\/main'/],
+  ['live-runtime-main-checkout', protectedLiveRuntime.text, /ref:\s*main/],
+  ['council-priority-main-only', readFileSync('.github/workflows/council-priority-wake.yml', 'utf8'), /wake:[\s\S]*?if:\s*github\.ref\s*==\s*'refs\/heads\/main'/],
+  ['agent-relay-main-only', readFileSync('.github/workflows/agent-communication-relay.yml', 'utf8'), /if:\s*\$\{\{\s*github\.ref\s*==\s*'refs\/heads\/main'/],
+];
+for (const [label, source, rule] of securityBoundaryContracts) {
+  const ok = typeof rule === 'boolean' ? rule : rule.test(source);
+  if (!ok) {
+    console.error('CI contract failed: privileged security boundary regression=' + label);
+    process.exit(1);
+  }
+}
+
 console.log(
   `CI contract passed: one execution graph, centralized result-state reduction, explicit evidence provenance, canonical DEEP semantic identity, shared image-core foundation, minimal SHA checkout, one FAST engine, one DEEP engine, PR+push DEEP coverage, one fail-closed certification gate, single workflow certification authority across ${workflowFiles.length} workflow definitions, and mandatory multi-agent coordination protocol.`,
 );
