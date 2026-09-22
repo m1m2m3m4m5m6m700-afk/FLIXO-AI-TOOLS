@@ -189,7 +189,8 @@ const pushWakeBlock = watchdogStepBlock(executionWatchdogWorkflow, 'Record exact
 const pushWakeMarkers = [
   'name: Record exact execution push wake',
   'if: github.event_name == \'push\' && github.ref_name == \'execution\' && steps.source.outputs.stale != \'true\'',
-  'EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"',
+  'SOURCE_EXECUTION_SHA: ${{ steps.source.outputs.execution_sha }}',
+  'EXECUTION_SHA="$SOURCE_EXECUTION_SHA"',
   'EXPECTED_PUSH_SHA="$GITHUB_SHA"',
   'test "$EXECUTION_SHA" = "$EXPECTED_PUSH_SHA"',
 ];

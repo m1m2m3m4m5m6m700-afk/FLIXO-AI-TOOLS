@@ -59,7 +59,7 @@ assert.match(masterActivation, /pull-requests:\\s+write/);
 assert.match(watchdog, /gh\s+api\s+"repos\/\$GITHUB_REPOSITORY\/git\/ref\/heads\/execution"/);
 assert.match(watchdog, /name: Record exact execution push wake/);
 assert.match(watchdog, /github\.event_name == 'push'.*steps\.source\.outputs\.stale != 'true'/);
-assert.match(watchdog, /EXECUTION_SHA="\$\{\{ steps\.source\.outputs\.execution_sha \}\}"/);
+assert.match(watchdog, /SOURCE_EXECUTION_SHA: \$\{\{ steps\.source\.outputs\.execution_sha \}\}/);\nassert.match(watchdog, /EXECUTION_SHA="\$SOURCE_EXECUTION_SHA"/);
 assert.match(watchdog, /STALE_WATCHDOG_EVENT=true/);
 assert.match(watchdog, /EVENT_BRANCH[\s\S]*execution[\s\S]*EVENT_SHA[\s\S]*EXECUTION_SHA[\s\S]*STALE_WATCHDOG_EVENT=true/);
 assert.doesNotMatch(watchdog, /GREEN_GATE_ALREADY_ACTIVE/);
