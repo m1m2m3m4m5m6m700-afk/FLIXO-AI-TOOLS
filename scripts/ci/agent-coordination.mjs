@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { getMessage as getAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
 import { assertAgentAdmission, assertProtocolDefinition } from './repair-protocol.mjs';
 import { buildKnowledgeRecord, persistKnowledge } from './cell-learning.mjs';
+import { initialize as initializeChairState, acquire as acquireChair, release as releaseChair, revoke as revokeChair } from './chair-bound-execution.mjs';
 
 const ROOT = process.cwd();
 const COORD_DIR = path.resolve(ROOT, process.env.FLIXO_COORDINATION_DIR ?? 'diagnostics/agents');
@@ -359,23 +360,25 @@ if (command === 'task-claim') {
     if (!overlap(task.scope ?? [], new Set(inboundMessage.scope ?? []))) throw new Error('COORDINATION_MESSAGE_SCOPE_MISMATCH');
   }
   let lockId = lock(sessionId, agentId, task.rca, task.scope);
-  if (inboundMessage) {
-    try {
-      inboundMessage = consumeAgentMessage(inboundMessage.messageId, agentId, sha(), true);
-    } catch (error) {
-      unlock(sessionId);
-      throw error;
-    }
+  let chairLease = null;
+  const selectedChair = optional('chair', 'chair_1');
+  try {
+    chairLease = acquireTaskChair({ agentId, chairId: selectedChair, reviewId: optional('review-id') || null, scope: task.scope ?? null });
+    if (inboundMessage) inboundMessage = consumeAgentMessage(inboundMessage.messageId, agentId, sha(), true);
+  } catch (error) {
+    try { if (chairLease) releaseTaskChair({ chairId: selectedChair, agentId, reason: 'CLAIM_ROLLBACK' }); } catch {}
+    unlock(sessionId);
+    throw error;
   }
-  task.status = 'RUNNING'; task.claimedBy = agentId; task.sessionId = sessionId; task.claimedAt = now(); task.entrySha = sha(); task.lockId = lockId;
-  state.activeSessions[sessionId] = { sessionId, agentId, taskId, lockId, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, protocolHash: assertProtocolDefinition().protocolHash, ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}), updatedAt: now() };
+  task.status = 'RUNNING'; task.claimedBy = agentId; task.sessionId = sessionId; task.claimedAt = now(); task.entrySha = sha(); task.lockId = lockId; task.chairId = selectedChair;
+  state.activeSessions[sessionId] = { sessionId, agentId, taskId, lockId, chairId: selectedChair, chairLeaseId: chairLease?.chairs?.[selectedChair]?.lease_id ?? null, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, protocolHash: assertProtocolDefinition().protocolHash, ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}), updatedAt: now() };
   const packetFile = packetPath(taskId); const packet = readJson(packetFile, task); packet.claim = { sessionId, agentId, lockId, claimedAt: now(), entrySha: sha(), ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}) }; writeJson(packetFile, packet); save(); console.log(JSON.stringify(task, null, 2));
 }
 
 if (command === 'task-release') {
   const taskId = requireArg('task'); const sessionId = requireArg('session'); const task = state.tasks[taskId]; if (!task) throw new Error(`Unknown task: ${taskId}`); if (task.sessionId !== sessionId) throw new Error('TASK_OWNER_MISMATCH');
   const visibility = readVisibility(sessionId); if (visibility.taskId !== taskId) throw new Error('AGENT_VISIBILITY_TASK_MISMATCH'); if (!['VERIFIED','BLOCKED'].includes(visibility.finalStatus)) throw new Error('TASK_RELEASE_REQUIRES_CLOSED_AGENT_STATUS');
-  task.status = optional('status', 'READY').toUpperCase(); task.releasedAt = now(); task.remainingWork = list('remaining-work'); task.openRcas = list('open-rcas'); const cellLearning = visibility.finalStatus === 'BLOCKED' ? recordCellTaskKnowledge(task, { outcome: 'blocked', verification: 'task-blocked', sessionId }) : null; unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ task, cellLearning }, null, 2));
+  task.status = optional('status', 'READY').toUpperCase(); task.releasedAt = now(); task.remainingWork = list('remaining-work'); task.openRcas = list('open-rcas'); releaseTaskChair({ chairId: task.chairId, agentId: task.claimedBy, reason: 'TASK_RELEASE', successful: visibility.finalStatus === 'VERIFIED' }); const cellLearning = visibility.finalStatus === 'BLOCKED' ? recordCellTaskKnowledge(task, { outcome: 'blocked', verification: 'task-blocked', sessionId }) : null; unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ task, cellLearning }, null, 2));
 }
 
 if (command === 'task-complete') {
@@ -423,7 +426,7 @@ if (command === 'task-complete') {
     task.nextTask = null;
     state.nextDispatch = null;
   }
-  unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ completedTask: task, cellLearning, nextTask: task.nextTask, councilDispatch: state.nextDispatch }, null, 2));
+  releaseTaskChair({ chairId: task.chairId, agentId: task.claimedBy, reason: 'TASK_COMPLETE', successful: true }); unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ completedTask: task, cellLearning, nextTask: task.nextTask, councilDispatch: state.nextDispatch }, null, 2));
 }
 
 if (command === 'task-next') {
