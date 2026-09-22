@@ -139,9 +139,11 @@ if (command === 'meeting-exit-approve') {
   const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.startedAt });
   if (!heartbeat.ok) {
     record.livenessState = 'RECOVERING';
-    appendEvent(record, { at: now(), action: 'LIVENESS_RECOVERY_REQUIRED', sha: gitSha(), reason: heartbeat.reason ?? 'HEARTBEAT_STALE', recovery: 'RECOVER_AND_CONTINUE' });
+    record.continuousActiveSince = now();
+    appendEvent(record, { at: now(), action: 'LIVENESS_RECOVERY_REQUIRED', sha: gitSha(), reason: heartbeat.reason ?? 'HEARTBEAT_STALE', recovery: 'RECOVER_AND_CONTINUE', continuousWindowReset: true });
   } else {
     record.livenessState = 'ACTIVE';
+    record.continuousActiveSince = record.continuousActiveSince ?? record.startedAt;
   }
   record.lastHeartbeatAt = now();
   const type = String(args.get('type') ?? '').trim().toUpperCase();
@@ -180,10 +182,12 @@ if (command === 'meeting-exit-approve') {
   if (record.taskId !== taskId) throw new Error('AGENT_HEARTBEAT_TASK_MISMATCH');
   if (record.status !== 'RUNNING') throw new Error('AGENT_HEARTBEAT_REQUIRES_ACTIVE_SESSION');
   assertLiveSession(record);
-  const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.startedAt });
+  const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.continuousActiveSince ?? record.startedAt });
   const sha = gitSha();
   const at = now();
   record.livenessState = heartbeat.ok ? 'ACTIVE' : 'RECOVERING';
+  if (!heartbeat.ok) record.continuousActiveSince = at;
+  record.continuousActiveSince = record.continuousActiveSince ?? record.startedAt;
   record.lastHeartbeatAt = at;
   const event = { at, action: 'HEARTBEAT', sha, liveness: heartbeat.ok ? 'ON_TIME' : 'RECOVERED_FROM_GAP', recovery: heartbeat.ok ? null : 'RECOVER_AND_CONTINUE' };
   appendEvent(record, event);
@@ -286,6 +290,7 @@ if (command === 'meeting-exit-approve') {
       heartbeatGraceMs: AGENT_LIVENESS_PROTOCOL.heartbeatGraceMs,
     },
     lastHeartbeatAt: now(),
+    continuousActiveSince: now(),
     livenessState: 'ACTIVE',
     ...(meetingRequested ? { meetingLock: { locked: true, meetingId, enteredBy: agentId, enteredAt: now(), entrySha: sha, exitApproval: null } } : {}),
     ...(inboundMessage ? { messageId: inboundMessage.messageId, messageStatus: inboundMessage.status, messageEntrySha: inboundMessage.entrySha, messageReadBy: agentId, messagePriority: 'P0_COMMUNICATION_FIRST' } : {}),
@@ -327,7 +332,7 @@ if (command === 'meeting-exit-approve') {
     }
     throw new Error('AGENT_SESSION_BLOCKED_LOGOUT_FORBIDDEN_OPEN_WORK_REMAINS');
   }
-  assertActiveRepairWindow({ startedAt: record.startedAt });
+  assertActiveRepairWindow({ startedAt: record.startedAt, continuousStartedAt: record.continuousActiveSince });
   const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.startedAt });
   if (!heartbeat.ok) throw new Error('AGENT_SESSION_HEARTBEAT_REQUIRED_BEFORE_CLOSE');
   assertMeetingExitApproval(record, sha);
