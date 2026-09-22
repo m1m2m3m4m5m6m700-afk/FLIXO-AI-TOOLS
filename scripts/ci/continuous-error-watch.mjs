@@ -70,7 +70,18 @@ const latestBy = (items, predicate) => items
   .filter(predicate)
   .sort((a, b) => String(b.updatedAt ?? b.completed_at ?? b.started_at ?? '').localeCompare(String(a.updatedAt ?? a.completed_at ?? a.started_at ?? '')))[0] ?? null;
 
-const latestWorkflow = (runs, name) => latestBy(runs, (run) => run.workflowName === name);
+const latestWorkflow = (runs, name) => {
+  const candidates = runs
+    .filter((run) => run.workflowName === name)
+    .sort((a, b) => String(b.updatedAt ?? b.completed_at ?? b.started_at ?? '')
+      .localeCompare(String(a.updatedAt ?? a.completed_at ?? a.started_at ?? '')));
+  for (const candidate of candidates) {
+    const cancellation = classifyCancelledRun(candidate, runs);
+    if (cancellation?.state === 'CANCELLED_SUPERSEDED') continue;
+    return candidate;
+  }
+  return null;
+};
 const latestCheck = (checks, patterns) => latestBy(checks, (check) => patterns.some((pattern) => pattern.test(String(check.name ?? ''))));
 const stateOf = (item) => !item ? 'MISSING' : item.status === 'completed' ? (item.conclusion ?? 'unknown') : (item.status ?? 'unknown');
 const providerFailure = (log) => PROVIDER_FAILURE_PATTERNS.some((pattern) => pattern.test(String(log ?? '')));
