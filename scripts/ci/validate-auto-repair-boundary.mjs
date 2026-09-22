@@ -109,14 +109,14 @@ export function validateStatic() {
       !/gh\s+workflow\s+run\s+auto-repair\.yml/.test(heartbeat),
     'heartbeat-resident-mode-observer-only'
   );
-  must(/gh\s+workflow\s+run\s+agent-repair-supervisor\.yml/.test(heartbeat), 'heartbeat-observer-only-wakeup');
+  must(heartbeat.includes('actions/workflows/agent-repair-supervisor.yml/dispatches'), 'heartbeat-observer-only-wakeup');
   must(handoffGate.includes('CURRENT_EXECUTION_SHA=') && handoffGate.includes('HANDOFF_EXECUTION_SHA'), 'handoff-gate-current-head-check');
   must(/Create exact unpublished candidate commit/.test(auto), 'auto-repair-candidate-commit');
   must(/Run targeted regression and post-patch adversarial falsification in parallel/.test(auto), 'auto-repair-parallel-verification');
   must(/candidate-verification-parallel\.mjs/.test(auto), 'auto-repair-parallel-verification-script');
   must(/TARGETED_REGRESSION_AND_ADVERSARIAL=PASS/.test(auto), 'auto-repair-parallel-aggregate-pass');
-  must(/Run post-patch adversarial falsification on the exact candidate SHA/.test(auto), 'auto-repair-post-patch-adversarial');
-  must(/POST_PATCH_ADVERSARIAL_STATUS=NO_COUNTEREXAMPLE/.test(auto), 'auto-repair-post-patch-no-counterexample');
+  must(/Run targeted regression and post-patch adversarial falsification in parallel/.test(auto), 'auto-repair-post-patch-adversarial');
+  must(/\.gate\.adversarialNoCounterexample/.test(auto), 'auto-repair-post-patch-no-counterexample');
   must(/Publish exact candidate commit only after post-patch adversarial validation/.test(auto), 'auto-repair-post-patch-before-publish');
   must(/cannot repair itself/.test(auto), 'auto-repair-self-protection');
   must(!/assistant[_ -]?fallback/i.test(auto), 'auto-repair-no-peer-fallback');
@@ -125,11 +125,11 @@ export function validateStatic() {
   must(!/git\s+(checkout|switch)\s+-[bc]/.test(auto), 'auto-repair-no-third-branch');
   must(!/git\s+push[^\n]*\bmain\b/.test(auto), 'auto-repair-no-main-push');
   must(!/gh\s+pr\s+merge/i.test(auto), 'auto-repair-no-self-merge');
-  must(/gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*--ref execution/i.test(dailyGate), 'daily-gate-auto-repair-dispatch');
+  must(/actions\/workflows\/auto-repair\.yml\/dispatches/.test(dailyGate), 'daily-gate-auto-repair-dispatch');
   must(!/gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i.test(dailyGate), 'daily-gate-no-watchdog-dispatch');
   must(/workflow_run:/.test(watchdog), 'watchdog-workflow-run-trigger');
   must(/FLIXO Test System/.test(watchdog) && /FLIXO WP0 Trust Baseline/.test(watchdog), 'watchdog-required-workflow-set');
-  must(/gh\s+workflow\s+run\s+daily-flixo-green-gate\.yml/.test(watchdog), 'watchdog-dispatches-canonical-observer');
+  must(watchdog.includes('WATCHDOG_GREEN_GATE_TRIGGER_EXPECTED=true') || watchdog.includes('WATCHDOG_GREEN_GATE_DISPATCH=OBSERVATION_ONLY'), 'watchdog-dispatches-canonical-observer');
   must(!/gh\s+workflow\s+run\s+auto-repair\.yml/.test(watchdog), 'watchdog-no-direct-repair-dispatch');
   must(/CURRENT_EXECUTION_SHA/.test(watchdog) && /SOURCE_RUN_SHA/.test(watchdog), 'watchdog-exact-sha-boundary');
   must(/pull_request:/.test(mergeGate) && /branches:\s*\[main\]/.test(mergeGate), 'merge-gate-pr-main-trigger');

@@ -30,7 +30,7 @@ const supersession = fs.readFileSync('.github/workflows/latest-commit-test-super
 assert.match(supersession, /name:\s*FLIXO Latest Commit Test Supersession/u);
 assert.match(supersession, /branches:\s*\n\s*- execution/u);
 assert.match(supersession, /actions:\s*write/u);
-assert.match(supersession, /gh run list/u);
+assert.match(supersession, /actions\/runs\?branch=\$BRANCH&per_page=100/u);
 assert.match(supersession, /CANCEL stale run=/u);
 assert.match(supersession, /HEAD_SHA" = "\$CURRENT_SHA"/u);
 assert.match(supersession, /LATEST_COMMIT_SUPERSESSION=PASS/u);

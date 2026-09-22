@@ -105,6 +105,14 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
 
+      - name: Setup Node for exact-SHA adversarial verification
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install exact-SHA verification dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
       - name: Run independent post-patch adversarial falsification on the exact PR head
         env:
           FLIXO_TWIN_READ_ONLY: 'true'

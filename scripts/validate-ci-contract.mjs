@@ -160,8 +160,16 @@ const watchdogExactCheckout =
   /name: Checkout trusted watchdog source[\s\S]*actions\/checkout@[^\n]+[\s\S]*ref: main/.test(executionWatchdogWorkflow);
 const watchdogExactVerify =
   /name: Verify trusted watchdog checkout[\s\S]*git rev-parse HEAD[\s\S]*test "\$ACTUAL_WATCHDOG_SHA" = "\$TRUSTED_MAIN_SHA"[\s\S]*WATCHDOG_CHECKOUT_MODE=TRUSTED_MAIN/.test(executionWatchdogWorkflow);
-const watchdogSourceFreshness =
-  /name: Capture exact execution state[\s\S]*SOURCE_RUN_SHA: \$\{\{ github\.event\.workflow_run\.head_sha \|\| '' \}\}[\s\S]*EXECUTION_SHA="[\s\S]*git\/ref\/heads\/execution[\s\S]*if \[ "\$EXECUTION_SHA" != "\$SOURCE_RUN_SHA" \][\s\S]*STALE_WATCHDOG_EVENT=true/.test(executionWatchdogWorkflow);
+const watchdogSourceFreshnessMarkers = [
+  'name: Capture exact execution state',
+  "SOURCE_RUN_SHA: ${{ github.event.workflow_run.head_sha || '' }}",
+  'LIVE_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq \'.object.sha\')"',
+  'if [ "$LIVE_EXECUTION_SHA" != "$SOURCE_RUN_SHA" ]',
+  'STALE_WATCHDOG_EVENT=true',
+];
+const watchdogSourceFreshness = watchdogSourceFreshnessMarkers.every((marker) =>
+  executionWatchdogWorkflow.includes(marker),
+);
 const watchdogConcurrency =
   /concurrency:[\s\S]*group:\s*flixo-execution-watchdog-\$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}[\s\S]*cancel-in-progress:\s*true/.test(executionWatchdogWorkflow);
 if (!watchdogExactCheckout || !watchdogExactVerify || !watchdogSourceFreshness || !watchdogConcurrency) {

@@ -11,7 +11,7 @@ import { critiqueRepair } from './auto-repair/self-critic.mjs';
 import { buildCausalProof } from './auto-repair/causal-proof.mjs';
 import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
 
-const lint = 'Run 35012345678 failed: abcdefabcdefabcdefabcdefabcdefabcdefabcd no-unused-vars';
+const lint = 'Run 35012345678 failed: src/lib/agent/execution-observability.ts:42:3 abcdefabcdefabcdefabcdefabcdefabcdefabcd no-unused-vars';
 assert(!normalizeFailure(lint).includes('35012345678'));
 assert.equal(fingerprintFailure(lint), fingerprintFailure(lint));
 const plan = planRepair(lint);
@@ -111,7 +111,7 @@ assert.match(autoRepairWorkflow, /CONTROLLER_SHA="\$MAIN_SHA"/);
 assert.match(autoRepairWorkflow, /persist-credentials:\s*false/);
 assert.match(autoRepairWorkflow, /TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET/);
 assert.match(autoRepairWorkflow, /FLIXO_TRUSTED_CONTROLLER_SHA=\$CONTROLLER_SHA/);
-assert.match(dailyGateWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*--ref execution/i);
+assert.match(dailyGateWorkflow, /actions\/workflows\/auto-repair\.yml\/dispatches/);
 assert.match(dailyGateWorkflow, /workflow_run:[\s\S]*workflows:\s*\n\s+- FLIXO Test System/);
 assert.match(dailyGateWorkflow, /group:\s*flixo-continuous-error-watch-\$\{\{\s*github\.run_id\s*\}\}/);
 assert.match(dailyGateWorkflow, /cancel-in-progress:\s*false/);
