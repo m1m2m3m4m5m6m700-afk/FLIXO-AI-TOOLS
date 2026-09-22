@@ -3,8 +3,10 @@ name: Daily·FLIXO Green Gate
 run-name: Daily·FLIXO Green Gate ${{ github.run_id }}
 
 on:
+  # Privileged observer definitions must not execute from the mutable execution ref.
+  # Execution changes re-enter through workflow_run completions and the trusted 5-minute schedule.
   push:
-    branches: [execution]
+    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: '*/5 * * * *'
