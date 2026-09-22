@@ -855,3 +855,40 @@ Exact copies are required in:
 No resident bot may invent, shorten, fork, or override this protocol.
 
 <!-- ACTION_VAULT_CANONICAL_PROTOCOL_END -->
+
+## CELL-LAB — SHARED ENGINEERING LAB
+
+The FLIXO cell is the full communication and decision laboratory for the Masters, Agents and Bots. P00 is admitted first; P20 then requires the Cell-Lab collaboration cycle for every material execution decision.
+
+### Cell-Lab lifecycle
+
+`OPEN → DISCUSS → QUESTION → CHALLENGE → RESOLVE → SYNTHESIZE → CONSENSUS → EXECUTE → VERIFY → LEARN`
+
+The laboratory is the canonical place to exchange:
+`OPINION | QUESTION | CHALLENGE | DECISION`.
+
+Every material task must expose its discussion to the applicable Masters and execution participants through the Canonical Agent Communication path. Replies, objections, evidence and resolution are retained. A single integrated plan is produced only after the required participants agree.
+
+### Consensus gate
+
+The canonical packet is:
+`diagnostics/agents/cell-lab/consensus/<taskId>.json`
+
+It must be bound to:
+`taskId + exactSha + objective + integratedPlan + planHash + participants + discussions + dissentResolved + proofObligations + stopConditions`.
+
+Required core participants:
+`MASTER-1 + MASTER-2 + MASTER-3`, plus the mutation owner.
+
+A packet is execution-ready only when:
+`status=AGREED + executionReady=true + discussionClosed=true + no remaining questions + no unresolved conflicts + every final DECISION is AGREED`.
+
+Consensus does not grant mutation, merge or certification authority. It creates the shared plan and proves that the relevant cell participants discussed and resolved the decision before execution.
+
+### No silent bypass
+
+No agent may privately decide a material source mutation when the Cell-Lab gate is required. A conflicting opinion is not discarded; it becomes a documented dissent and must be resolved or preserved as an explicit accepted risk. Stale SHA invalidates the packet.
+
+Machine enforcement:
+`scripts/ci/cell-lab-consensus.mjs → scripts/ci/repair-protocol.mjs → mutation admission`.
+
