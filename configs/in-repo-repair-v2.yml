@@ -1,0 +1,25 @@
+in_repo_repair_v2:
+  max_repair_cycles: 3
+  search_space_strategy: EVIDENCE_BOUNDED
+
+  repair_engine:
+    enforce_rca_manifest: true
+    require_three_hypotheses: true
+    allow_multi_file_mutation: false
+    require_exact_sha: true
+    require_direct_failure_signal: true
+    require_non_ambiguous_rca: true
+    isolation_level: SURGICAL_PATCH
+
+  adversarial_falsifier:
+    mode: CONVERGENCE_GUIDED
+    generate_fuzz_test_on_reject: true
+    require_counterexample_on_reject: true
+    require_finite_invariant_proof: true
+    require_exact_sha: true
+
+  gate_promotion:
+    require_zero_falsification_failures: true
+    require_pass_confirmed: true
+    exact_sha_anchored: true
+    canonical_green_is_final_authority: true
