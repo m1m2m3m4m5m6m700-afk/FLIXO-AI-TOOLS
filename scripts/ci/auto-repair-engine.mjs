@@ -38,6 +38,17 @@ const git = (args, options = {}) => execFileSync('git', ['-C', targetDir, ...arg
 const targetSha = git(['rev-parse', 'HEAD']).trim();
 const protocolBranch = git(['branch', '--show-current']);
 if (protocolBranch !== 'execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
+
+const chair1MissionPath = process.env.FLIXO_CHAIR1_MISSION_PATH ?? '';
+let chair1Mission = null;
+if (process.env.FLIXO_CHAIR1_PRIMARY_MISSION === 'CHAIR1_PRIMARY_TEST_CYCLE_REPAIR') {
+  if (!chair1MissionPath || !fs.existsSync(chair1MissionPath)) throw new Error('CHAIR1_PRIMARY_MISSION_MISSING');
+  chair1Mission = JSON.parse(fs.readFileSync(chair1MissionPath, 'utf8'));
+  if (chair1Mission.mission !== 'CHAIR1_PRIMARY_TEST_CYCLE_REPAIR') throw new Error('CHAIR1_PRIMARY_MISSION_INVALID');
+  if (chair1Mission.targetSha !== targetSha) throw new Error('CHAIR1_PRIMARY_MISSION_SHA_MISMATCH');
+  if (chair1Mission.noMainMutation !== true || chair1Mission.noSelfDispatch !== true) throw new Error('CHAIR1_PRIMARY_MISSION_SAFETY_DRIFT');
+  if (chair1Mission.directRepairPolicy?.requiredDecision !== 'REVALIDATE_CURRENT_SHA_BEFORE_EVERY_MUTATION') throw new Error('CHAIR1_PRIMARY_MISSION_REVALIDATION_MISSING');
+}
 const repairSessionId = process.env.FLIXO_REPAIR_SESSION_ID ?? process.env.FLIXO_REPAIR_CHAIN_ID ?? `repair-${process.env.GITHUB_RUN_ID ?? 'local'}-${targetSha.slice(0, 12)}`;
 const repairActor = process.env.FLIXO_REPAIR_ACTOR ?? 'repairAgent';
 const fallbackProofPath = process.env.FLIXO_ASSISTANT_FALLBACK_PROOF_PATH ?? '';
@@ -194,9 +205,11 @@ const evidence = {
   actionVault: repairActor === 'actionRepairBot' ? { enabled: true, verifierProofPath: actionVaultVerifierProofPath, verifierProof: actionVaultVerifierProof, verifierAgent: 'actionRepairVerifier', historianAgent: 'actionHistorian' } : null,
   fingerprint,
   targetSha,
+  chair1Mission: chair1Mission ? { mission: chair1Mission.mission, targetSha: chair1Mission.targetSha, comparison: chair1Mission.comparison, directRepairPolicy: chair1Mission.directRepairPolicy } : null,
   features,
   diagnosis,
   specialist,
+  candidates: plan.candidates,
   candidates: plan.candidates,
   reasoning: plan.reasoning,
   inferenceFallback: plan.inferenceFallback ?? null,
@@ -397,6 +410,7 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     recordOutcome(memory, {
       fingerprint, normalizedFailure, features,
       rootCause: diagnosis?.rootCause ?? 'unknown',
+      rootCause: diagnosis?.rootCause ?? 'unknown',
       rule: historicalRollbackCandidate.rule ?? undefined,
       outcome: 'proposed',
       verification: 'action-vault-historical-rollback-sandbox-required',
@@ -595,6 +609,7 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
       preventionRule: 'Do not repeat a conflicting historical revert without new evidence.',
     });
     writeMemory(memory);
+    writeEvidence(evidencePath, evidence);
     writeEvidence(evidencePath, evidence);
     process.exit(8);
   }
@@ -795,6 +810,7 @@ const before = snapshot(targetDir);
         differentialProof: sandbox.differentialProof ?? sandbox.differential,
         counterexampleProof: sandbox.regressionCounterexamples,
 
+
         patchCorrectnessProof: sandbox.patchCorrectnessProof,
         preMutationProof,
       },
@@ -993,6 +1009,7 @@ try {
       reproductionAfter: evidence.reproductionAfter,
       regression: evidence.regression,
       recurrenceProof: evidence.recurrenceProof,
+      changedPaths: evidence.changedPaths,
       changedPaths: evidence.changedPaths,
       selfCritic: evidence.selfCritic,
     });
