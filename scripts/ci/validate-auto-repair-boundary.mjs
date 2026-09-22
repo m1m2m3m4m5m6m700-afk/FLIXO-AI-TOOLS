@@ -107,6 +107,8 @@ export function validateStatic() {
   );
   must(/persist-credentials:\s*false/.test(auto), 'auto-repair-checkout-credential-isolation');
   must(/CONTROLLER_SHA="\$MAIN_SHA"/.test(auto), 'auto-repair-main-controller-trust');
+  must(/git worktree add --detach \"\$TARGET_ROOT\" \"\$EXECUTION_SHA\"/.test(auto), 'auto-repair-detached-execution-target');
+  must(!/git\s+(?:switch|checkout)\s+-c\s+execution/.test(auto), 'auto-repair-no-local-branch-creation');
   must(/TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET/.test(auto), 'auto-repair-trust-model');
   must(/FLIXO_TRUSTED_CONTROLLER_SHA=\$CONTROLLER_SHA/.test(auto), 'auto-repair-controller-provenance');
   must(/contents:\s*read/.test(auto) && /pull-requests:\s*write/.test(auto), 'auto-repair-required-permissions');
