@@ -25,6 +25,7 @@ process.env.FLIXO_CHAIR_AGENT = 'AUTO_REPAIR_BOT';
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 initialize({ targetSha: sha });
 const canonical = {
+  ownerAgentId: 'assistantController',
   holderAgentId: 'AUTO_REPAIR_BOT',
   taskId: 'TASK-CHAIR1-CANONICAL',
   workPackageId: 'WP-CHAIR1-CANONICAL',
