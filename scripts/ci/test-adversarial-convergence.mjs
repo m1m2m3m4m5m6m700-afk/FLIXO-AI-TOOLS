@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { decideAdversarialRound } from './auto-repair/adversarial-convergence.mjs';
 
 const sha='a'.repeat(40);
@@ -57,4 +58,12 @@ result=decideAdversarialRound({
 });
 assert.equal(result.decision,'REPAIR_ENGINE_BLOCKED');
 
+const controller=fs.readFileSync('scripts/ci/auto-repair/adversarial-convergence.mjs','utf8');
+const workflow=fs.readFileSync('.github/workflows/auto-repair.yml','utf8');
+assert.match(controller,/primaryRevisionAuthority:\s*true/u);
+assert.match(controller,/adversaryMutationAuthority:\s*false/u);
+assert.match(controller,/PRIMARY_REPAIR_AND_ADVERSARIAL_FALSIFICATION_CONVERGED/u);
+assert.match(controller,/resetToSameExactShaBeforeRevision:\s*true/u);
+assert.match(workflow,/node scripts\/ci\/auto-repair\/adversarial-convergence\.mjs/u);
+assert.match(workflow,/FLIXO_ADVERSARIAL_MAX_ROUNDS:\s*'0'/u);
 console.log('test-adversarial-convergence: PASS');
