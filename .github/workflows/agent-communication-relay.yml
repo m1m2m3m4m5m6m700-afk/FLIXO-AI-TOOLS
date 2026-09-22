@@ -40,6 +40,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          case "$COMMENT_ID" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid comment id'; exit 1 ;;
+          esac
+          case "$COUNCIL_PR_NUMBER" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid canonical PR number'; exit 1 ;;
+          esac
           SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
           git fetch --no-tags origin "refs/heads/execution:$SHA"
@@ -109,14 +115,21 @@ jobs:
       - name: Check President Wake idempotency
         id: president_duplicate
         if: steps.president_wake.outputs.wake == 'true'
-        env:
+env:
           GH_TOKEN: ${{ github.token }}
           COMMENT_ID: ${{ github.event.comment.id }}
+          COUNCIL_PR_NUMBER: ${{ steps.council_ingress.outputs.issue_number }}
         shell: bash
         run: |
           set -euo pipefail
+          case "$COMMENT_ID" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid comment id'; exit 1 ;;
+          esac
+          case "$COUNCIL_PR_NUMBER" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid canonical PR number'; exit 1 ;;
+          esac
           RECEIPT="<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->"
-          if gh api "repos/$GITHUB_REPOSITORY/issues/${{ steps.council_ingress.outputs.issue_number }}/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
+          if gh api "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
             echo 'duplicate=true' >> "$GITHUB_OUTPUT"
           else
             echo 'duplicate=false' >> "$GITHUB_OUTPUT"
@@ -161,11 +174,18 @@ jobs:
           WORKPACKAGE: ${{ steps.president_plan.outputs.workPackage }}
           ENTRY_SHA: ${{ steps.president_plan.outputs.entrySha }}
           COMMENT_ID: ${{ github.event.comment.id }}
+          COUNCIL_PR_NUMBER: ${{ steps.council_ingress.outputs.issue_number }}
         shell: bash
         run: |
           set -euo pipefail
+          case "$COMMENT_ID" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid comment id'; exit 1 ;;
+          esac
+          case "$COUNCIL_PR_NUMBER" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid canonical PR number'; exit 1 ;;
+          esac
           BODY="$(printf '%s\n' "### PRESIDENT WAKE RECEIPT" "" "**Role:** $ROLE" "**Mode:** $MODE" "**Work Package:** $WORKPACKAGE" "**Exact SHA:** $ENTRY_SHA" "" "Wake accepted through the canonical communication relay. Workflow dispatch remains subject to exact-SHA and role controls." "" "<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->")"
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/${{ steps.council_ingress.outputs.issue_number }}/comments" --raw-field body="$BODY" >/dev/null
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments" --raw-field body="$BODY" >/dev/null
 
       - name: Detect P0 Council question / request
         id: council_question
@@ -193,6 +213,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           COMMENT_ID: ${{ github.event.comment.id }}
           QUESTION: ${{ steps.council_question.outputs.question }}
+          COUNCIL_PR_NUMBER: ${{ steps.council_ingress.outputs.issue_number }}
         shell: bash
         run: |
           set -euo pipefail
@@ -277,11 +298,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           MESSAGE_ID: ${{ steps.message.outputs.MESSAGE_ID }}
+          COUNCIL_PR_NUMBER: ${{ steps.council_ingress.outputs.issue_number }}
         shell: bash
         run: |
           set -euo pipefail
+          case "$COUNCIL_PR_NUMBER" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid canonical PR number'; exit 1 ;;
+          esac
           RECEIPT="<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->"
-          if gh api "repos/$GITHUB_REPOSITORY/issues/${{ steps.council_ingress.outputs.issue_number }}/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
+          case "$COUNCIL_PR_NUMBER" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid canonical PR number'; exit 1 ;;
+          esac
+          if gh api "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
             echo 'duplicate=true' >> "$GITHUB_OUTPUT"
             echo 'DUPLICATE_AGENT_MESSAGE=NO_OP'
           else
@@ -388,8 +416,12 @@ jobs:
           MESSAGE_SHA: ${{ steps.ingest.outputs.MESSAGE_ENTRY_SHA }}
           MESSAGE_KEY: ${{ steps.ingest.outputs.MESSAGE_IDEMPOTENCY_KEY }}
           INVOCATION_ID: ${{ steps.invocation.outputs.INVOCATION_ID }}
+          COUNCIL_PR_NUMBER: ${{ steps.council_ingress.outputs.issue_number }}
         run: |
           set -euo pipefail
+          case "$COUNCIL_PR_NUMBER" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid canonical PR number'; exit 1 ;;
+          esac
           BODY="$(printf '%s\n' "### AGENT MESSAGE RECEIVED" "" "**Message:** $MESSAGE_ID" "**Status:** $MESSAGE_STATUS" "**Entry SHA:** $MESSAGE_SHA" "**Idempotency Key:** $MESSAGE_KEY" "**Invocation:** $INVOCATION_ID" "" "**Receipt:** IMMEDIATE_EVENT_RECEIPT" "**Target ref:** ${{ steps.target.outputs.target_ref }}" "" "The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute." "" "<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->")"
           gh api --method POST "repos/$GITHUB_REPOSITORY/issues/${{ steps.council_ingress.outputs.issue_number }}/comments" --raw-field body="$BODY" >/dev/null
 

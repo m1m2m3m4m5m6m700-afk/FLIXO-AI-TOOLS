@@ -24,7 +24,13 @@ jobs:
 
       - name: Validate historical prefix
         if: github.event_name == 'pull_request'
-        run: node scripts/ci/task-history-ledger.mjs verify --base=${{ github.event.pull_request.base.sha }}
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          node scripts/ci/task-history-ledger.mjs verify --base="$BASE_SHA"
 
       - name: Reconcile executed tasks
         if: github.event_name != 'pull_request'
