@@ -12,8 +12,9 @@ on:
 
 # Central stale-run controller. Any non-authoritative run for an older SHA is cancelled and its evidence is stale.
 concurrency:
-  # One controller lane per branch. Push and PR synchronize events for the same branch share the same supersession owner.
-  group: flixo-latest-commit-supersession-${{ github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  # One controller lane per source repository + branch. Push and PR synchronize events for the
+  # same source branch share one supersession owner, while independent forks stay isolated.
+  group: flixo-latest-commit-supersession-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -40,15 +41,33 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          SOURCE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           EVENT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
         shell: bash
         run: |
           set -euo pipefail
           [[ "$TARGET_BRANCH" =~ ^[[:alnum:]_./-]+$ ]]
+          [[ "$SOURCE_REPOSITORY" =~ ^[^/]+/[^/]+$ ]]
           [[ "$EVENT_SHA" =~ ^[0-9a-f]{40}$ ]]
-          LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha')"
+
+          if [ -n "$PR_NUMBER" ]; then
+            # PRs may originate from forks. Resolve the authoritative head through the base-repo PR
+            # object instead of querying a same-named branch in the base repository.
+            PR_HEAD_JSON="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")"
+            LIVE_SHA="$(printf '%s' "$PR_HEAD_JSON" | jq -r '.head.sha')"
+            LIVE_BRANCH="$(printf '%s' "$PR_HEAD_JSON" | jq -r '.head.ref')"
+            LIVE_REPOSITORY="$(printf '%s' "$PR_HEAD_JSON" | jq -r '.head.repo.full_name')"
+            test "$LIVE_BRANCH" = "$TARGET_BRANCH"
+            test "$LIVE_REPOSITORY" = "$SOURCE_REPOSITORY"
+            test "$LIVE_SHA" != ""
+          else
+            LIVE_SHA="$(gh api "repos/$SOURCE_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha')"
+          fi
+
           [[ "$LIVE_SHA" =~ ^[0-9a-f]{40}$ ]]
           echo "branch=$TARGET_BRANCH" >> "$GITHUB_OUTPUT"
+          echo "source_repository=$SOURCE_REPOSITORY" >> "$GITHUB_OUTPUT"
           echo "event_sha=$EVENT_SHA" >> "$GITHUB_OUTPUT"
           echo "sha=$LIVE_SHA" >> "$GITHUB_OUTPUT"
           if [ "$EVENT_SHA" = "$LIVE_SHA" ]; then
@@ -60,16 +79,23 @@ jobs:
           echo "LATEST_TEST_EVENT_HEAD=$EVENT_SHA"
           echo "LATEST_TEST_LIVE_HEAD=$LIVE_SHA"
           echo "LATEST_TEST_LIVE_BRANCH=$TARGET_BRANCH"
+          echo "LATEST_TEST_SOURCE_REPOSITORY=$SOURCE_REPOSITORY"
           echo 'EVENT_SHA_SOURCE=IMMUTABLE_GITHUB_EVENT_SHA'
 
       - name: Assert API-only supersession regression
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          SOURCE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           EVENT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
         run: |
           set -euo pipefail
-          LIVE_AFTER_CHECK="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha')"
+          if [ -n "$PR_NUMBER" ]; then
+            LIVE_AFTER_CHECK="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.head.sha')"
+          else
+            LIVE_AFTER_CHECK="$(gh api "repos/$SOURCE_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha')"
+          fi
           if [ "$LIVE_AFTER_CHECK" != "$EVENT_SHA" ]; then
             echo "SUPERSESSION_EVENT_OBSOLETE_DURING_CHECK=true"
             exit 0
@@ -77,6 +103,7 @@ jobs:
           echo "SUPERSESSION_API_REGRESSION=PASS"
           echo "SUPERSESSION_CONTROLLER_SOURCE=TRUSTED_MAIN"
           echo "SUPERSESSION_CONTROLLER_BRANCH=$TARGET_BRANCH"
+          echo "SUPERSESSION_CONTROLLER_SOURCE_REPOSITORY=$SOURCE_REPOSITORY"
           echo "SUPERSESSION_CONTROLLER_EVENT_SHA=$EVENT_SHA"
 
       - name: Cancel stale test and verification runs
@@ -87,13 +114,17 @@ jobs:
           BRANCH: ${{ steps.head.outputs.branch }}
           CURRENT_SHA: ${{ steps.head.outputs.sha }}
           REPOSITORY: ${{ github.repository }}
+          SOURCE_REPOSITORY: ${{ steps.head.outputs.source_repository }}
         shell: bash
         run: |
           set -euo pipefail
 
           is_supersedable_run() {
-            # The newest branch SHA is the only authoritative lane.
-            [ "$1" != "FLIXO Latest Commit Test Supersession" ]
+            case "$1" in
+              "FLIXO Latest Commit Test Supersession") return 1 ;;
+              *Test*|*test*|*Verification*|*verification*|*Contract*|*contract*|*Security*|*security*|*Baseline*|*baseline*|*Certification*|*certification*|*Impact*|*impact*|*Code*Scanning*|*CodeQL*|*Diagnostic*|*diagnostic*|*Proof*|*proof*|*Scan*|*scan*) return 0 ;;
+              *) return 1 ;;
+            esac
           }
 
           cancel_stale_run() {
@@ -180,6 +211,13 @@ jobs:
               continue
             fi
             if is_supersedable_run "$NAME"; then
+              RUN_SOURCE_REPOSITORY="$(
+                gh run view "$RUN_ID" --repo "$REPOSITORY" --json headRepository --jq '.headRepository.fullName // ""'
+              )"
+              if [ -n "$RUN_SOURCE_REPOSITORY" ] && [ "$RUN_SOURCE_REPOSITORY" != "$SOURCE_REPOSITORY" ]; then
+                echo "KEEP unrelated source repository run=$RUN_ID source=$RUN_SOURCE_REPOSITORY target=$SOURCE_REPOSITORY"
+                continue
+              fi
               cancel_stale_run "$RUN_ID" "$HEAD_SHA" "$STATUS" "$NAME" "$EVENT"
             fi
           done < <(
@@ -207,7 +245,7 @@ jobs:
           done
           if [ "$stale_active" -ne 0 ]; then
             echo 'FAIL CLOSED: stale runs remain non-completed after supersession cancellation window.'
-            jq -r --arg sha "$CURRENT_SHA" '.workflow_runs[] | select(.status != "completed" and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession") | [.id,.name,.status,.head_sha] | @tsv' /tmp/supersession-final-runs.json
+            jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" '.workflow_runs[] | select(.status != "completed" and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession") | select(.head_repository.full_name == $sourceRepo) | select(.name | test("Test|test|Verification|verification|Contract|contract|Security|security|Baseline|baseline|Certification|certification|Impact|impact|Code Scanning|CodeQL|Diagnostic|diagnostic|Proof|proof|Scan|scan")) | [.id,.name,.status,.head_sha] | @tsv' /tmp/supersession-final-runs.json
             exit 1
           fi
           echo 'STALE_ACTIVE_RUNS=0'
