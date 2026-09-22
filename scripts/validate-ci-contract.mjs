@@ -108,7 +108,7 @@ if (!/EXPECTED_SHA/.test(currentCommitGuard) ||
 const requiredCurrentCommitGuardJobs = ['verify', 'browser_dependencies', 'browser_fast', 'browser_deep', 'certify'];
 const missingCurrentCommitGuardJobs = requiredCurrentCommitGuardJobs.filter((jobName) => {
   const jobBlock = workflow.match(new RegExp('\\n  ' + jobName + ':[\\s\\S]*?(?=\\n  [A-Za-z0-9_-]+:\\s*$|$)', 'mu'))?.[0] ?? '';
-  return !/assert-current-commit\\.mjs/u.test(jobBlock);
+  return !/assert-current-commit\.mjs/u.test(jobBlock);
 });
 if (missingCurrentCommitGuardJobs.length) {
   console.error('CI contract failed: canonical CI must guard every verification job against a superseding commit: ' + missingCurrentCommitGuardJobs.join(', '));
