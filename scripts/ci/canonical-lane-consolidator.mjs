@@ -74,7 +74,8 @@ export function normalizePushPacket(packet, index = 0) {
     createdAt: clean(packet.createdAt) || null,
     changedFiles,
     commits,
-    patchDigest: packetPatchDigest || digest(JSON.stringify({ agentId, sourceSha, baseSha, changedFiles, commits })),
+    patchDigest: packetPatchDigest || null,
+    patchDigestDeclared: Boolean(packetPatchDigest),
     patchText: packet.patchText == null ? null : String(packet.patchText),
     declaredStatus: clean(packet.status) || 'PUSH_RECEIVED',
     metadata: packet.metadata && typeof packet.metadata === 'object' ? { ...packet.metadata } : {},
@@ -175,18 +176,52 @@ function parsePatchHunks(diffText) {
   return { status: hunks.length ? 'PARSED' : 'NO_HUNKS', files: normalizedFiles, hunks };
 }
 
-function packetPatch(packet, root = process.cwd()) {
-  if (packet.patchText != null) return parsePatchHunks(packet.patchText);
+const syntheticFixturesAllowed =
+  process.env.NODE_ENV === 'test' &&
+  process.env.FLIXO_CANONICAL_LANE_SYNTHETIC_FIXTURES === 'true';
+
+function gitPatch(packet, root = process.cwd()) {
   try {
     const diff = execFileSync('git', ['diff', '--unified=3', packet.baseSha, packet.sourceSha], {
       cwd: root,
       encoding: 'utf8',
       maxBuffer: MAX_DIFF_CHARS + 1024,
     });
-    return parsePatchHunks(diff);
+    return { ...parsePatchHunks(diff), rawDigest: digest(diff) };
   } catch {
     return { status: 'PATCH_UNAVAILABLE', files: {}, hunks: [] };
   }
+}
+
+function verifyPacketPatchIntegrity(packet, root = process.cwd()) {
+  const actual = gitPatch(packet, root);
+  if (actual.status === 'PATCH_UNAVAILABLE') {
+    if (syntheticFixturesAllowed && packet.patchText != null) {
+      return { status: 'SYNTHETIC_TEST_FIXTURE', patch: parsePatchHunks(packet.patchText) };
+    }
+    return actual;
+  }
+  if (packet.patchDigestDeclared && packet.patchDigest !== actual.rawDigest) {
+    return { status: 'PATCH_DIGEST_MISMATCH', reason: 'PACKET_PATCH_DIGEST_MISMATCH', patch: actual };
+  }
+  for (const commit of packet.commits) {
+    if (!commit.patchSha256) continue;
+    if (!HASH_RE.test(commit.patchSha256)) return { status: 'PATCH_DIGEST_INVALID', reason: 'COMMIT_PATCH_DIGEST_INVALID', patch: actual };
+    const parent = commit.parents[0];
+    try {
+      const commitDiff = execFileSync('git', ['diff', '--binary', parent, commit.sha], { cwd: root, encoding: 'utf8', maxBuffer: MAX_DIFF_CHARS + 1024 });
+      if (digest(commitDiff) !== commit.patchSha256) return { status: 'PATCH_DIGEST_MISMATCH', reason: 'COMMIT_PATCH_DIGEST_MISMATCH', patch: actual };
+    } catch {
+      return { status: 'PATCH_UNAVAILABLE', reason: 'COMMIT_PATCH_GIT_LOOKUP_FAILED', patch: actual };
+    }
+  }
+  return { status: 'VERIFIED', patch: actual };
+}
+
+function packetPatch(packet, root = process.cwd()) {
+  const integrity = verifyPacketPatchIntegrity(packet, root);
+  if (integrity.status === 'VERIFIED' || integrity.status === 'SYNTHETIC_TEST_FIXTURE') return integrity.patch;
+  return { status: integrity.status, files: {}, hunks: [], integrityReason: integrity.reason ?? integrity.status };
 }
 
 function rangeOverlap(a, b) {
@@ -236,8 +271,24 @@ function semanticReconcilePackets(a, b, root = process.cwd()) {
     return { status: 'DISJOINT_FILES', compatible: true, files: [], conflicts: [] };
   }
 
-  const aPatch = packetPatch(a, root);
-  const bPatch = packetPatch(b, root);
+  const aIntegrity = verifyPacketPatchIntegrity(a, root);
+  const bIntegrity = verifyPacketPatchIntegrity(b, root);
+  if (!['VERIFIED', 'SYNTHETIC_TEST_FIXTURE'].includes(aIntegrity.status) ||
+      !['VERIFIED', 'SYNTHETIC_TEST_FIXTURE'].includes(bIntegrity.status)) {
+    return {
+      status: 'PATCH_INTEGRITY_BLOCKED',
+      compatible: false,
+      files: commonFiles.map((file) => ({
+        file,
+        status: 'PATCH_INTEGRITY_BLOCKED',
+        reason: String(aIntegrity.status) + '/' + String(bIntegrity.status),
+        overlappingHunks: [],
+      })),
+      conflicts: [{ reason: 'PATCH_INTEGRITY_BLOCKED', overlappingHunks: [] }],
+    };
+  }
+  const aPatch = aIntegrity.patch;
+  const bPatch = bIntegrity.patch;
   const files = [];
   const conflicts = [];
 
