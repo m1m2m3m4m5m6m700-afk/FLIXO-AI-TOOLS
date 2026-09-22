@@ -1,6 +1,9 @@
 name: FLIXO Read-Only Error Investigator
 
 on:
+  push:
+    branches:
+      - execution
   schedule:
     - cron: '*/30 * * * *'
   workflow_dispatch:
