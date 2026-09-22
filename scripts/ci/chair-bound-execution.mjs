@@ -467,7 +467,8 @@ export function proposePush({
   workPackageId,
   taskId,
   patchSha256=null,
-  summary=''
+  summary='',
+  pushDetails=null
 }={}){
   if(!['chair_2','chair_3'].includes(chairId))throw new Error('CHAIR_PUSH_PROPOSAL_SEAT_REQUIRED');
   const t=assertSha(targetSha,'TARGET_SHA');
@@ -489,7 +490,16 @@ export function proposePush({
   if(chair.scope_hash!==null && chair.scope_hash!==scopeDigest(normalized))throw new Error('CHAIR_PUSH_SCOPE_HASH_MISMATCH');
   const wp=assertContextId(workPackageId,'WORK_PACKAGE_ID');
   const task=assertContextId(taskId,'TASK_ID');
-  const proposalId=hash(JSON.stringify({chairId,agentId,targetSha:t,candidateSha:candidate,parentSha:parent,paths:normalized,workPackageId:wp,taskId:task,patchSha256:patchSha256??null}));
+  const details = pushDetails && typeof pushDetails==='object' && !Array.isArray(pushDetails) ? pushDetails : {};
+  const requiredPushDetails=['pushId','actorAgent','actorRole','sessionId','event','reason','changeType','commitMessage','commitTreeSha','requestedAt'];
+  for(const field of requiredPushDetails){
+    if(String(details[field]??'').trim()==='')throw new Error('CHAIR_PUSH_DETAILS_REQUIRED='+field);
+  }
+  if(String(details.actorAgent)!==agentId)throw new Error('CHAIR_PUSH_DETAILS_ACTOR_MISMATCH');
+  if(String(details.event)!=='PUSH')throw new Error('CHAIR_PUSH_DETAILS_EVENT_INVALID');
+  if(!HASH_RE.test(String(patchSha256??'')))throw new Error('CHAIR_PUSH_PATCH_SHA_REQUIRED');
+  if(!HASH_RE.test(String(details.commitTreeSha)))throw new Error('CHAIR_PUSH_COMMIT_TREE_SHA_REQUIRED');
+  const proposalId=hash(JSON.stringify({chairId,agentId,targetSha:t,candidateSha:candidate,parentSha:parent,paths:normalized,workPackageId:wp,taskId:task,patchSha256:String(patchSha256),pushDetails:details}));
   return withWriteLock(()=>{
     const fresh=readState();
     if(fresh.target_sha!==t)throw new Error('STALE_CONTEXT');
@@ -507,8 +517,23 @@ export function proposePush({
       taskId:task,
       paths:normalized,
       scopeHash:scopeDigest(normalized),
-      patchSha256:patchSha256&&HASH_RE.test(String(patchSha256))?String(patchSha256):null,
+      patchSha256:String(patchSha256),
       summary:String(summary??'').slice(0,4000),
+      pushDetails:{
+        pushId:String(details.pushId),
+        actorAgent:String(details.actorAgent),
+        actorRole:String(details.actorRole),
+        sessionId:String(details.sessionId),
+        event:String(details.event),
+        reason:String(details.reason).slice(0,1000),
+        changeType:String(details.changeType),
+        commitMessage:String(details.commitMessage).slice(0,4000),
+        commitTreeSha:String(details.commitTreeSha),
+        requestedAt:String(details.requestedAt),
+        expectedRemoteSha:t,
+        candidateSha:candidate,
+        parentSha:parent
+      },
       createdAt:now(),
       guardDecision:null
     };
