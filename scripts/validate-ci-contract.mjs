@@ -136,9 +136,6 @@ if (!claudeGroupLine.startsWith('group: claude-security-') || !claudeGroupUsesRe
   console.error('CI contract failed: claude-security-review.yml must bind advisory review grouping to repository and exact SHA.');
   process.exit(1);
 }
-  console.error('CI contract failed: claude-security-review.yml must not use head SHA as its concurrency-group identity.');
-  process.exit(1);
-}
 
 for (const [file, source] of [
   ['auto-repair.yml', readFileSync('.github/workflows/auto-repair.yml', 'utf8')],
