@@ -119,6 +119,10 @@ const ensureSessionWorkChair = (record) => {
   if (isWorkspaceOnlySession(record)) return null;
   const targetSha = gitSha();
   if (record.chairBinding?.released === true && record.chairBinding?.continuityOnly !== true) throw new Error('AGENT_WORK_AFTER_TASK_RELEASE_FORBIDDEN');
+  const chairSigningKey = String(process.env.FLIXO_CHAIR_SIGNING_KEY ?? process.env.GITHUB_TOKEN ?? '').trim();
+  if (!chairSigningKey) throw new Error('AGENT_SESSION_CHAIR_SIGNING_KEY_REQUIRED');
+  process.env.FLIXO_CHAIR_SIGNING_KEY = chairSigningKey;
+  initializeChairState({ targetSha });
   const existing = activeChairForAgent({ agentId: record.agentId, targetSha });
   if (existing) {
     record.chairId = existing.chairId;
@@ -172,10 +176,6 @@ const ensureSessionWorkChair = (record) => {
     });
     return continuity;
   }
-  const chairSigningKey = String(process.env.FLIXO_CHAIR_SIGNING_KEY ?? process.env.GITHUB_TOKEN ?? '').trim();
-  if (!chairSigningKey) throw new Error('AGENT_SESSION_CHAIR_SIGNING_KEY_REQUIRED');
-  process.env.FLIXO_CHAIR_SIGNING_KEY = chairSigningKey;
-  initializeChairState({ targetSha });
   const coordinationChair = readCoordinationChairBinding(record.sessionId, record.agentId, record.taskId);
   const effectiveChairId = coordinationChair?.chairId ?? 'chair_1';
   const admission = beginChairWork({
