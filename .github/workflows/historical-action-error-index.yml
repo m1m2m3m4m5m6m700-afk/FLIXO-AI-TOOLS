@@ -26,7 +26,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: flixo-historical-action-error-index
+  group: flixo-execution-mutation-lane
   cancel-in-progress: false
 
 jobs:
@@ -65,6 +65,10 @@ jobs:
       - name: Backfill real Action error lines
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          FLIXO_REQUIRE_FENCED_CHAIR: 'true'
+          FLIXO_CHAIR_SIGNING_KEY: ${{ github.token }}
+          FLIXO_MUTATION_ADMISSION: /tmp/flixo-mutation-admission.json
           FLIXO_HISTORY_START: ${{ steps.window.outputs.start }}
           FLIXO_HISTORY_END: ${{ steps.window.outputs.end }}
           FLIXO_HISTORY_BATCH_DAYS: ${{ inputs.batch_days || '7' }}
@@ -98,7 +102,23 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git branch --show-current)" = execution
+          BASE_SHA="$(git rev-parse HEAD)"
+          git fetch --no-tags origin execution
+          test "$(git rev-parse origin/execution)" = "$BASE_SHA" || { echo 'FAIL CLOSED: execution advanced before historical mutation.'; exit 1; }
           git add docs/agents/historical-action-errors diagnostics/auto-repair/action-repair-bots/ACTION-INDEX.json
           git diff --cached --quiet && exit 0
+          MUTATION_PATHS="$(git diff --cached --name-only | paste -sd, -)"
+          WORK_PACKAGE_ID="HISTORICAL-ACTION-INDEX:$GITHUB_RUN_ID"
+          TASK_ID="HISTORICAL-ACTION-INDEX:$GITHUB_RUN_ID"
+          node scripts/ci/execution-mutation-gate.mjs admit --owner=HISTORICAL_ACTION_INDEX --sha="$BASE_SHA" --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --paths="$MUTATION_PATHS" --output="$FLIXO_MUTATION_ADMISSION"
+          FENCING_TOKEN="$(jq -r '.fencingToken' "$FLIXO_MUTATION_ADMISSION")"
+          node scripts/ci/chair-bound-execution.mjs init --sha="$BASE_SHA"
+          node scripts/ci/chair-bound-execution.mjs acquire --chair=chair_1 --agent=HISTORICAL_ACTION_INDEX --sha="$BASE_SHA" --repository-state=IDLE --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --scope="$MUTATION_PATHS" >/tmp/flixo-chair-acquire.json
+          node scripts/ci/chair-bound-execution.mjs authorize-write --chair=chair_1 --agent=HISTORICAL_ACTION_INDEX --sha="$BASE_SHA" --permission=SOURCE_MUTATION --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --paths="$MUTATION_PATHS" >/tmp/flixo-chair-authorize.json
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "chore(memory): index historical GitHub Action errors [skip ci]"
+          CANDIDATE_SHA="$(git rev-parse HEAD)"
+          node scripts/ci/execution-mutation-gate.mjs verify --phase=pre-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA" --parent="$BASE_SHA"
+          node scripts/ci/chair-bound-execution.mjs authorize-publication --chair=chair_1 --agent=HISTORICAL_ACTION_INDEX --sha="$BASE_SHA" --permission=SOURCE_MUTATION --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --paths="$MUTATION_PATHS" >/tmp/flixo-chair-publication.json
           git push origin execution
+          node scripts/ci/execution-mutation-gate.mjs verify --phase=post-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA"
+          node scripts/ci/chair-bound-execution.mjs release --chair=chair_1 --agent=HISTORICAL_ACTION_INDEX --sha="$BASE_SHA" --successful=true >/tmp/flixo-chair-release.json
