@@ -242,6 +242,7 @@ export function buildDeepInference({
 } = {}) {
   if (!exactSha(executionSha)) throw new Error('DEEP_REASONING_EXACT_SHA_REQUIRED');
 
+  const safeObserved = Array.isArray(observed) ? observed : [];
   const sharedFingerprint = safeObserved.find((item) => item.fingerprint)?.fingerprint ?? null;
   const sharedOperationalMemory = buildSharedLearningContext({
     fingerprint: sharedFingerprint,
@@ -254,8 +255,6 @@ export function buildDeepInference({
     mutationAuthority: false,
     certificationAuthority: false,
   };
-
-  const safeObserved = Array.isArray(observed) ? observed : [];
   const graphNodes = new Map();
   const graphEdges = [];
 
