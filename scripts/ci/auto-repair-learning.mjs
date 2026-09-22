@@ -5,6 +5,7 @@ import { normalizeFailure, fingerprintFailure, extractFeatures } from './auto-re
 import { retrieveTeachingRecords } from './error-learning-log.mjs';
 import { loadLongTermRepairCorpus, retrieveLongTermTeaching } from './auto-repair/long-term-memory.mjs';
 import { buildKnowledgeRecord, persistKnowledge } from './cell-learning.mjs';
+import { loadActionBotMemory } from './action-repair-memory.mjs';
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 const behaviorTracePath = process.env.FLIXO_REPAIR_BEHAVIOR_TRACE_PATH ?? '/tmp/flixo-repair-behavior-trace.json';
@@ -485,6 +486,35 @@ export function deriveReusableKnowledge(memory, { rootCause, features = [], fing
     }
   }
 
+  const actionRepairHistory = (() => {
+    try {
+      return (loadActionBotMemory('ACTION-INDEX').repairHistory ?? []).slice(-5000);
+    } catch {
+      return [];
+    }
+  })();
+  for (const record of actionRepairHistory) {
+    const rule = String(record.rule ?? '').trim();
+    const rootCauseValue = String(record.rootCause ?? '').trim() || 'unknown';
+    if (!rule || rootCauseValue === 'unknown') continue;
+    const item = ensure(rootCauseValue, rule);
+    const fingerprintValue = String(record.fingerprint ?? '').trim();
+    if (fingerprintValue) item.fingerprints.add(fingerprintValue);
+    const verified = record.recordType === 'GREEN_VERIFIED' ||
+      record.recordType === 'VALIDATED_LEARNING' ||
+      record.outcome === 'success' ||
+      record.verification === 'success';
+    if (verified) {
+      item.attempts += 1;
+      item.successes += 1;
+      if (fingerprintValue) item.successfulFingerprints.add(fingerprintValue);
+    } else if (['failure', 'blocked', 'unrepaired'].includes(String(record.outcome ?? '').trim())) {
+      item.attempts += 1;
+      item.failures += 1;
+      if (fingerprintValue) item.failedFingerprints.add(fingerprintValue);
+    }
+  }
+
   const relevantPlaybooks = [...aggregate.values()]
     .filter((item) => !rootCause || item.rootCause === rootCause)
     .map((item) => {
@@ -570,6 +600,7 @@ export function deriveReusableKnowledge(memory, { rootCause, features = [], fing
     historicalAdvisories,
     longTermCorpus,
     longTermTeaching,
+    actionRepairHistoryCount: actionRepairHistory.length,
     policy: {
       promotionRequiresDistinctFingerprints: 2,
       promotionRequiresSuccessfulRepairs: 2,
