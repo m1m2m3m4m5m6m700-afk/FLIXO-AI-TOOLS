@@ -450,6 +450,53 @@ jobs:
             --branch="execution" > /tmp/flixo-repair-control-plane.json
           test "$(jq -r '.state' /tmp/flixo-repair-control-plane.json)" = "CLAIMED"
           echo "FLIXO_CONTROL_PLANE_FILE=/tmp/flixo-repair-control-plane.json" >> "$GITHUB_ENV"
+      - name: Start one-minute Repair Bot lease heartbeat
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          FP="$FLIXO_FAILURE_FINGERPRINT"
+          ATTEMPT="$FLIXO_REPAIR_LEASE_ATTEMPT"
+          mkdir -p /tmp/flixo-repair-heartbeat
+          printf '%s\n' "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" > /tmp/flixo-repair-heartbeat/last-heartbeat
+          (
+            while true; do
+              PREVIOUS="$(cat /tmp/flixo-repair-heartbeat/last-heartbeat 2>/dev/null || true)"
+              CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+              if [ "$CURRENT_SHA" != "$FAILED_SHA" ]; then
+                echo "HEARTBEAT_SHA_DRIFT=$CURRENT_SHA"
+                echo 'HEARTBEAT_ACTION=REQUALIFY_REQUIRED'
+                sleep 60
+                continue
+              fi
+              NOW="$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+              if node scripts/ci/repair-lease.mjs heartbeat \
+                --repo="$GITHUB_REPOSITORY" \
+                --failedSha="$FAILED_SHA" \
+                --fingerprint="$FP" \
+                --targetRunId="$TARGET_RUN_ID" \
+                --branch=execution \
+                --attempt="$ATTEMPT" \
+                --repairRunId="$GITHUB_RUN_ID" \
+                --leaseOwner=AUTO_REPAIR_BOT \
+                --livenessState=ACTIVE \
+                --progress=false \
+                --previousHeartbeat="$PREVIOUS" \
+                > /tmp/flixo-repair-heartbeat/latest.json 2>&1; then
+                printf '%s\n' "$NOW" > /tmp/flixo-repair-heartbeat/last-heartbeat
+                echo "REPAIR_BOT_HEARTBEAT=$NOW"
+              else
+                echo 'REPAIR_BOT_HEARTBEAT_ACTION=RECOVER_AND_CONTINUE'
+                cat /tmp/flixo-repair-heartbeat/latest.json || true
+              fi
+              sleep 60
+            done
+          ) > /tmp/flixo-repair-heartbeat/daemon.log 2>&1 &
+          echo $! > /tmp/flixo-repair-heartbeat/daemon.pid
+          echo 'REPAIR_BOT_HEARTBEAT_DAEMON=ACTIVE'
+          echo 'REPAIR_BOT_HEARTBEAT_INTERVAL_SECONDS=60'
 
       - name: Establish trusted main controller and active execution target
         env:
