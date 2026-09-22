@@ -1,8 +1,27 @@
 import type { Locale } from './config';
 import type { ToolCategory } from '../../config/canonical-tool-definition.ts';
 
-export const CATEGORY_LABELS: Record<Locale, Partial<Record<ToolCategory, string>>> = {
-  ar: { Images: 'الصور' }, en: { Images: 'Images' }, es: { Images: 'Imágenes' }, fr: { Images: 'Images' }, de: { Images: 'Bilder' }, hi: { Images: 'छवियाँ' }, id: { Images: 'Gambar' }, it: { Images: 'Immagini' }, ja: { Images: '画像' }, ko: { Images: '이미지' }, ms: { Images: 'Imej' }, nl: { Images: 'Afbeeldingen' }, pl: { Images: 'Obrazy' }, pt: { Images: 'Imagens' }, ru: { Images: 'Изображения' }, sv: { Images: 'Bilder' }, th: { Images: 'รูปภาพ' }, tr: { Images: 'Görseller' }, uk: { Images: 'Зображення' }, vi: { Images: 'Hình ảnh' },
+export const CATEGORY_LABELS: Record<Locale, Record<ToolCategory, string>> = {
+  ar: { Images: 'الصور', Video: 'الفيديو', Audio: 'الصوت', AI: 'الذكاء الاصطناعي', Editor: 'المحرر' },
+  en: { Images: 'Images', Video: 'Video', Audio: 'Audio', AI: 'AI', Editor: 'Editor' },
+  es: { Images: 'Imágenes', Video: 'Vídeo', Audio: 'Audio', AI: 'IA', Editor: 'Editor' },
+  fr: { Images: 'Images', Video: 'Vidéo', Audio: 'Audio', AI: 'IA', Editor: 'Éditeur' },
+  de: { Images: 'Bilder', Video: 'Video', Audio: 'Audio', AI: 'KI', Editor: 'Editor' },
+  hi: { Images: 'छवियाँ', Video: 'वीडियो', Audio: 'ऑडियो', AI: 'एआई', Editor: 'एडिटर' },
+  id: { Images: 'Gambar', Video: 'Video', Audio: 'Audio', AI: 'AI', Editor: 'Editor' },
+  it: { Images: 'Immagini', Video: 'Video', Audio: 'Audio', AI: 'IA', Editor: 'Editor' },
+  ja: { Images: '画像', Video: '動画', Audio: '音声', AI: 'AI', Editor: 'エディター' },
+  ko: { Images: '이미지', Video: '동영상', Audio: '오디오', AI: 'AI', Editor: '편집기' },
+  ms: { Images: 'Imej', Video: 'Video', Audio: 'Audio', AI: 'AI', Editor: 'Editor' },
+  nl: { Images: 'Afbeeldingen', Video: 'Video', Audio: 'Audio', AI: 'AI', Editor: 'Editor' },
+  pl: { Images: 'Obrazy', Video: 'Wideo', Audio: 'Audio', AI: 'AI', Editor: 'Edytor' },
+  pt: { Images: 'Imagens', Video: 'Vídeo', Audio: 'Áudio', AI: 'IA', Editor: 'Editor' },
+  ru: { Images: 'Изображения', Video: 'Видео', Audio: 'Аудио', AI: 'ИИ', Editor: 'Редактор' },
+  sv: { Images: 'Bilder', Video: 'Video', Audio: 'Ljud', AI: 'AI', Editor: 'Redigerare' },
+  th: { Images: 'รูปภาพ', Video: 'วิดีโอ', Audio: 'เสียง', AI: 'AI', Editor: 'ตัวแก้ไข' },
+  tr: { Images: 'Görseller', Video: 'Video', Audio: 'Ses', AI: 'Yapay zekâ', Editor: 'Düzenleyici' },
+  uk: { Images: 'Зображення', Video: 'Відео', Audio: 'Аудіо', AI: 'ШІ', Editor: 'Редактор' },
+  vi: { Images: 'Hình ảnh', Video: 'Video', Audio: 'Âm thanh', AI: 'AI', Editor: 'Trình chỉnh sửa' },
 };
 
 type LocalizedTerms = Partial<Record<Locale, string>>;
@@ -56,7 +75,9 @@ function fallbackTitle(locale: Locale, category: ToolCategory): string {
 }
 
 export function localizeToolCategory(locale: Locale, category: ToolCategory): string {
-  return CATEGORY_LABELS[locale][category] ?? category;
+  const label = CATEGORY_LABELS[locale][category];
+  if (!label) throw new Error(`Missing localized category '${category}' for locale '${locale}'.`);
+  return label;
 }
 
 export function localizeToolTitle(locale: Locale, title: string, category: ToolCategory): string {
