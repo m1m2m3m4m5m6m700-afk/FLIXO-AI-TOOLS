@@ -15,6 +15,7 @@ import { buildMetaCausalModel } from './meta-causal-model.mjs';
 import { buildMentorPacket } from './action-code-mentor.mjs';
 import { buildPrediction as buildActionVaultPrediction } from './action-historical-predictor.mjs';
 import { buildFusion as buildKnowledgeFusion } from './read-only-knowledge-fusion.mjs';
+import { READ_ONLY_POWER_PROFILE, validateReadOnlyPowerProfile } from './read-only-power-profile.mjs';
 
 const ROOT=process.cwd();
 const exactSha=(v)=>/^[a-f0-9]{40}$/u.test(String(v??''));
@@ -26,6 +27,8 @@ const git=(args)=>execFileSync('git',args,{cwd:ROOT,encoding:'utf8'}).trim();
 const VAULT_INDEX_PATH=path.resolve(ROOT,'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json');
 const VAULT_ROUTER_PATH=path.resolve(ROOT,'docs/agents/ERROR-TEACHING-ROUTER.json');
 const TEACHING_DIR=path.resolve(ROOT,'docs/agents/teaching-sessions');
+const POWER_PROFILE_VALIDATION=validateReadOnlyPowerProfile();
+if(!POWER_PROFILE_VALIDATION.ok) throw new Error('READ_ONLY_POWER_PROFILE_INVALID='+POWER_PROFILE_VALIDATION.failures.join(','));
 const VAULT_CAPACITY=1_000_000;
 const textTokens=(value)=>[...new Set(String(value??'').toLowerCase().match(/[a-z][a-z0-9_-]{3,}|\bts\d{3,5}\b|\b(?:t|hae)-?\d{3,8}\b/gu)??[])];
 const loadVaultSources=()=>{
@@ -53,7 +56,7 @@ const retrieveVaultAdvice=({failureLog='',diagnosis=null,selected=null}={})=>{
   const primary=readJson(VAULT_INDEX_PATH,null);
   const router=readJson(VAULT_ROUTER_PATH,{});
   const query=[failureLog,diagnosis?.rootCause,diagnosis?.errorClass,diagnosis?.errorType,diagnosis?.stage,diagnosis?.mechanism,diagnosis?.invariant,diagnosis?.explanation,diagnosis?.reason,diagnosis?.location?.file,diagnosis?.location?.symbol,selected?.id,selected?.file].filter(Boolean).join(' ');
-  const terms=textTokens(query).filter(term=>term.length>=4).slice(0,48);
+  const terms=textTokens(query).filter(term=>term.length>=4).slice(0,READ_ONLY_POWER_PROFILE.budgets.vaultQueryTerms);
   const sourceFiles=loadVaultSources();
   const matches=[];
   const seen=new Set();
@@ -95,7 +98,7 @@ const retrieveVaultAdvice=({failureLog='',diagnosis=null,selected=null}={})=>{
     teachingCorpusPath:path.relative(ROOT,TEACHING_DIR),
     teachingSourceCount:sourceFiles.filter(file=>file.startsWith(TEACHING_DIR)).length,
     queryTerms:terms.slice(0,24),
-    matchedAdvice:matches.slice(0,32),
+    matchedAdvice:matches.slice(0,READ_ONLY_POWER_PROFILE.budgets.vaultAdviceMatches),
     status,
     recommendation:'Retrieved advice is advisory context only; current exact-SHA evidence and CI remain authoritative.'
   };
@@ -352,6 +355,7 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
   return {
     protocol:'FLIXO-READ-ONLY-REPAIR-INTELLIGENCE-v1',
     mode:'READ_AND_REASON_ONLY',
+    powerProfile:READ_ONLY_POWER_PROFILE,
     mutationPolicy:'NO_SOURCE_MUTATION',
     exactShaVerified:true,
     targetSha,
@@ -381,6 +385,7 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
       adversarialStatus:adversarial.status,
       programmerTwinStatus:programmerTwin?.status??null,
       programmerTwinMode:'READ_ONLY_MIRROR',
+      powerProfile:READ_ONLY_POWER_PROFILE.profile,
       vaultAdviceStatus:vaultKnowledge.status,
       vaultAdviceCount:vaultKnowledge.matchedAdvice.length,
       knowledgeFusionDisposition:knowledgeFusion.synthesis.disposition,
