@@ -118,15 +118,15 @@ jobs:
 
           gh api "repos/$REPOSITORY/actions/runs?branch=$BRANCH&per_page=100" |
             jq -r '.workflow_runs[] | select(.status != "completed") | [.id,.head_sha,.status,.name,.event] | @tsv' |
-          while IFS=\$'\\t' read -r RUN_ID HEAD_SHA STATUS NAME EVENT; do
-            [ -n "\$RUN_ID" ] || continue
-            LIVE_SHA="\$CURRENT_SHA"
-            if [ "\$HEAD_SHA" = "\$LIVE_SHA" ]; then
-              echo "KEEP current SHA run=\$RUN_ID name=\$NAME status=\$STATUS"
+          while IFS=$'\t' read -r RUN_ID HEAD_SHA STATUS NAME EVENT; do
+            [ -n "$RUN_ID" ] || continue
+            LIVE_SHA="$CURRENT_SHA"
+            if [ "$HEAD_SHA" = "$LIVE_SHA" ]; then
+              echo "KEEP current SHA run=$RUN_ID name=$NAME status=$STATUS"
               continue
             fi
-            if is_test_workflow "\$NAME"; then
-              cancel_stale_run "\$RUN_ID" "\$HEAD_SHA" "\$STATUS" "\$NAME" "\$EVENT"
+            if is_test_workflow "$NAME"; then
+              cancel_stale_run "$RUN_ID" "$HEAD_SHA" "$STATUS" "$NAME" "$EVENT"
             fi
           done
 
