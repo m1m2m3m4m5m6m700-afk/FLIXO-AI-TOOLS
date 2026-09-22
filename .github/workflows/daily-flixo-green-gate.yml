@@ -152,7 +152,6 @@ jobs:
           )
           MAX_POLLS=24
           POLL_SECONDS=15
-          declare -A REDISPATCHED=()
           declare -A REQUIRED_FILES=(
             ["FLIXO Test System"]="ci.yml"
             ["FLIXO WP0 Trust Baseline"]="wp0-trust-baseline.yml"
