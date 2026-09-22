@@ -4,22 +4,22 @@ import { READ_ONLY_POWER_PROFILE, validateReadOnlyPowerProfile, buildFiveXExecut
 
 const result = validateReadOnlyPowerProfile();
 assert.equal(result.ok, true);
-assert.equal(READ_ONLY_POWER_PROFILE.profile, '5X');
-assert.equal(READ_ONLY_POWER_PROFILE.multiplier, 5);
+assert.equal(READ_ONLY_POWER_PROFILE.profile, '10X');
+assert.equal(READ_ONLY_POWER_PROFILE.multiplier, 10);
 assert.equal(READ_ONLY_POWER_PROFILE.mutationAuthority, false);
 assert.equal(READ_ONLY_POWER_PROFILE.exactShaRequired, true);
 assert.equal(Object.keys(READ_ONLY_POWER_PROFILE.dimensions).length, 5);
-assert.ok(READ_ONLY_POWER_PROFILE.layers.includes('ADVERSARIAL_FALSIFICATION_EXPANSION'));
+assert.ok(READ_ONLY_POWER_PROFILE.layers.includes('ADVERSARIAL_VERIFICATION_10X'));
 const fiveX = READ_ONLY_POWER_PROFILE.execution;
-assert.equal(fiveX.protocol, 'FLIXO-FIVE-X-EXECUTION-LAYER-v1');
-assert.equal(fiveX.layerCount, 5);
-assert.equal(fiveX.requiredEvidenceClassCount, 5);
-assert.ok(fiveX.minimumHypotheses >= 3);
+assert.equal(fiveX.protocol, 'FLIXO-TEN-X-EXECUTION-LAYER-v1');
+assert.equal(fiveX.layerCount, 10);
+assert.equal(fiveX.requiredEvidenceClassCount, 10);
+assert.ok(fiveX.minimumHypotheses >= 6);
 assert.ok(fiveX.maximumHypotheses >= fiveX.minimumHypotheses);
-assert.ok(fiveX.minimumCounterexampleChecks >= 5);
-assert.ok(fiveX.minimumRegressionDepth >= 3);
-assert.ok(fiveX.minimumIndependentEvidenceSources >= 5);
-assert.ok(fiveX.minimumLearningOutputs >= 5);
+assert.ok(fiveX.minimumCounterexampleChecks >= 10);
+assert.ok(fiveX.minimumRegressionDepth >= 5);
+assert.ok(fiveX.minimumIndependentEvidenceSources >= 8);
+assert.ok(fiveX.minimumLearningOutputs >= 8);
 assert.equal(validateFiveXExecutionLayer().ok, true);
 
 const sha = 'a'.repeat(40);
@@ -27,13 +27,13 @@ const ready = buildFiveXExecutionEnvelope({
   exactSha: sha,
   branch: 'execution',
   selectedTaskId: 'FIVE-X-001',
-  hypothesisCount: 5,
+  hypothesisCount: 6,
   counterexampleChecks: 10,
-  regressionDepth: 3,
-  independentEvidenceSources: 5,
-  learningOutputs: 5,
-  proofClasses: ['IDENTITY', 'CONSTRAINTS', 'CAUSALITY', 'FALSIFICATION', 'REGRESSION'],
-  preExecution25: { status: 'PASS', operationCount: 25 },
+  regressionDepth: 5,
+  independentEvidenceSources: 8,
+  learningOutputs: 8,
+  proofClasses: ['IDENTITY', 'CONSTRAINTS', 'CAUSALITY', 'FALSIFICATION', 'REGRESSION', 'DEPENDENCIES', 'SECURITY', 'REPRODUCIBILITY', 'COORDINATION', 'LEARNING'],
+  preExecution25: { status: 'PASS', operationCount: 50 },
   adversarialReview: { status: 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE', counterexampleFound: false },
   scopeConflict: false,
 });
@@ -53,9 +53,9 @@ const blocked = buildFiveXExecutionEnvelope({
   counterexampleChecks: 10,
   regressionDepth: 3,
   independentEvidenceSources: 5,
-  learningOutputs: 5,
-  proofClasses: ['IDENTITY', 'CONSTRAINTS', 'CAUSALITY', 'FALSIFICATION', 'REGRESSION'],
-  preExecution25: { status: 'PASS', operationCount: 25 },
+  learningOutputs: 8,
+  proofClasses: ['IDENTITY', 'CONSTRAINTS', 'CAUSALITY', 'FALSIFICATION', 'REGRESSION', 'DEPENDENCIES', 'SECURITY', 'REPRODUCIBILITY', 'COORDINATION', 'LEARNING'],
+  preExecution25: { status: 'PASS', operationCount: 50 },
   adversarialReview: { status: 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE', counterexampleFound: false },
   scopeConflict: false,
 });
@@ -69,7 +69,7 @@ const cycle1 = buildFiveXRepairCycleState({
   targetSha:sha,
   currentSha:sha,
   strategyId:'strategy-a',
-  learningOutputs:5,
+  learningOutputs:8,
   adversarialStatus:'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE',
   counterexampleFound:false,
 });
@@ -85,7 +85,7 @@ const cycle2 = buildFiveXRepairCycleState({
   currentSha:'b'.repeat(40),
   strategyId:'strategy-a',
   previousCycle:cycle1,
-  learningOutputs:5,
+  learningOutputs:8,
   adversarialStatus:'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE',
   counterexampleFound:false,
 });
@@ -120,7 +120,7 @@ const cycle4 = buildFiveXRepairCycleState({
   outcome:'verified-repair',
   verification:'exact-sha-proof',
   regressionOk:true,
-  regressionDepth:3,
+  regressionDepth:5,
 });
 assert.equal(cycle4.state,'VERIFICATION_PENDING_CANONICAL_GREEN');
 assert.equal(cycle4.closureAuthority,'NONE');
@@ -137,7 +137,7 @@ const cycle5 = buildFiveXRepairCycleState({
   outcome:'verified-repair',
   verification:'exact-sha-proof',
   regressionOk:true,
-  regressionDepth:3,
+  regressionDepth:5,
   canonicalGreen:true,
 });
 assert.equal(cycle5.state,'CLOSED_BY_CANONICAL_GREEN');
@@ -146,7 +146,7 @@ assert.equal(cycle5.closureAuthority,'CANONICAL_GREEN_AND_CERTIFICATION');
 console.log('FIVE_X_REPAIR_CYCLE=PASS');
 assert.ok(blocked.blockers.includes('FIVE_X_HYPOTHESES_BLOCKED'));
 
-console.log('READ_ONLY_POWER_PROFILE_5X=PASS');
-console.log('FIVE_X_EXECUTION_LAYER=PASS');
-console.log('FIVE_X_ENVELOPE=PASS');
-console.log('FIVE_X_FAIL_CLOSED=PASS');
+console.log('READ_ONLY_POWER_PROFILE_10X=PASS');
+console.log('TEN_X_EXECUTION_LAYER=PASS');
+console.log('TEN_X_ENVELOPE=PASS');
+console.log('TEN_X_FAIL_CLOSED=PASS');
