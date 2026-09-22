@@ -36,3 +36,7 @@ console.log('MASTER3_DIRECT_WAKE_NONCE=PASS');
 console.log('MASTER3_DIRECT_WAKE_CLAIM_RPC=PASS');
 console.log('MASTER3_DIRECT_WAKE_DISPATCH_RPC=PASS');
 console.log('MASTER3_WAKE_AUTODELIVERY=PASS');
+
+assert.match(fn,/endpointEnv/);
+assert.match(fn,/FLIXO_COUNCIL_WAKE/);
+console.log('MASTER3_DIRECT_WAKE_PUSH_PATH=PASS');

@@ -560,13 +560,46 @@ Deno.serve(async (req) => {
       }
       const result = dispatchResult.dispatch as Record<string, unknown>;
       if (!result || typeof result !== "object") throw new Error("COUNCIL_ASSISTANT_WAKE_DISPATCH_PAYLOAD_INVALID");
+
+      const pushEndpoint = accounts[route.primary].endpointEnv ? Deno.env.get(accounts[route.primary].endpointEnv!)?.trim() ?? "" : "";
+      const pushToken = Deno.env.get(accounts[route.primary].tokenEnv)?.trim() ?? "";
+      let push = { attempted: false, ok: false, reason: "POLL_ONLY" };
+      if (pushEndpoint && pushToken) {
+        push = { attempted: true, ok: false, reason: "UNSET" };
+        try {
+          const pushResponse = await fetch(pushEndpoint, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              authorization: "Bearer " + pushToken,
+              "x-flixo-account-id": route.primary,
+              "x-flixo-exact-sha": exactSha,
+            },
+            body: JSON.stringify({
+              wakeType: "FLIXO_COUNCIL_WAKE",
+              dispatchId: result.dispatchId,
+              accountId: route.primary,
+              recipientMaster,
+              exactSha,
+              taskId: result.taskId,
+              workPackageId: result.workPackageId,
+              deliveryMode: "DIRECT_MASTER_WAKE",
+            }),
+            signal: AbortSignal.timeout(8000),
+          });
+          push.ok = pushResponse.ok;
+          push.reason = pushResponse.ok ? "DELIVERED" : "HTTP_" + pushResponse.status;
+        } catch (error) {
+          push.reason = error instanceof Error ? error.message : String(error);
+        }
+      }
       return response({
         ok: true,
         channel: "MASTER3_DIRECT_ASSISTANT",
         purpose,
         recipientMaster,
         exactSha,
-        dispatch: result,
+        dispatch: { ...result, push },
       }, 202, requestId);
     }
 
