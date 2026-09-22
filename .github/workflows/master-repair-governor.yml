@@ -70,6 +70,8 @@ jobs:
 
       - name: Verify external GitHub publication enforcement
         env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
           FLIXO_PLATFORM_RECEIPT_PATH: /tmp/flixo-platform-publication-receipt.json
         run: node scripts/ci/verify-platform-publication-boundary.mjs
 
