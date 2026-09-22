@@ -1,4 +1,4 @@
-import { REPAIR_GATE_AUTOMATION, WRITE_CAPABLE_WORKFLOWS, SECURITY_CRITICAL_WORKFLOWS, TRUST_PERIMETER_PATHS } from './control-plane-registry.mjs';
+import { REPAIR_GATE_AUTOMATION, WRITE_CAPABLE_WORKFLOWS, SECURITY_CRITICAL_WORKFLOWS, SENSITIVE_PERMISSION_ALLOWLISTS, TRUST_PERIMETER_PATHS } from './control-plane-registry.mjs';
 import { isProtectedPath } from './auto-repair-policy.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,7 +11,12 @@ const failures = [];
 // execution-sync is the canonical execution-branch reconciliation controller; it
 // may write only to execution and trigger canonical CI, and it merges only after
 // exact-head GREEN evidence. Direct-main repair remains intentionally forbidden.
-const writeWorkflowAllowlist = new Set(WRITE_CAPABLE_WORKFLOWS.map((name) => `.github/workflows/${name}`));
+const writePermissionAllowlists = new Map(
+  Object.entries(SENSITIVE_PERMISSION_ALLOWLISTS).map(([permission, workflowNames]) => [
+    permission,
+    new Set(workflowNames.map((name) => `.github/workflows/${name}`)),
+  ]),
+);
 
 const securityCriticalWorkflows = new Set(SECURITY_CRITICAL_WORKFLOWS.map((name) => `.github/workflows/${name}`));
 
@@ -60,9 +65,12 @@ for (const file of workflowFiles()) {
     failures.push(`${relative}: permissions: write-all is forbidden`);
   }
 
-  const hasContentsWrite = /^\s*contents\s*:\s*write\s*$/m.test(text);
-  if (hasContentsWrite && !writeWorkflowAllowlist.has(relative)) {
-    failures.push(`${relative}: contents: write requires explicit security allowlisting`);
+  for (const match of text.matchAll(/^\s*([A-Za-z0-9_-]+)\s*:\s*write\s*$/gmu)) {
+    const permission = match[1];
+    const allowlist = writePermissionAllowlists.get(permission);
+    if (!allowlist || !allowlist.has(relative)) {
+      failures.push(`${relative}: ${permission}: write requires explicit sensitive-permission allowlisting`);
+    }
   }
 
   if (securityCriticalWorkflows.has(relative)) {
@@ -92,4 +100,4 @@ if (failures.length) {
 }
 
 console.log(`Repository security baseline PASS: ${workflowFiles().length} workflow files inspected.`);
-console.log('Controls: no pull_request_target, no write-all, only isolated-repair/green-merge workflows may request contents:write, explicit permissions, lockfile, security documentation.');
+console.log('Controls: no pull_request_target, no write-all, all workflow write permissions are explicitly allowlisted, privileged trust-boundary workflows require immutable actions, explicit permissions, lockfile, security documentation.');

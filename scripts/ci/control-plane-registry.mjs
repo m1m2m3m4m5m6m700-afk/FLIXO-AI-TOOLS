@@ -6,6 +6,8 @@ export const REPAIR_GATE_AUTOMATION = Object.freeze([
   'auto-repair-merge-gate.yml',
   'advanced-repair-contract.yml',
   'master-repair-governor.yml',
+  'agent-communication-relay.yml',
+  'ultra-investigator.yml',
 ]);
 
 export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
@@ -17,6 +19,45 @@ export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
   'action-agent-history-promotion.yml',
   'task-history-ledger.yml',
 ]);
+
+export const SENSITIVE_PERMISSION_ALLOWLISTS = Object.freeze({
+  contents: Object.freeze([...WRITE_CAPABLE_WORKFLOWS]),
+  actions: Object.freeze([
+    'agent-communication-relay.yml',
+    'daily-flixo-green-gate.yml',
+    'execution-bot-watchdog.yml',
+    'latest-commit-test-supersession.yml',
+  ]),
+  'id-token': Object.freeze([
+    'agent-communication-relay.yml',
+    'council-priority-wake.yml',
+    'council-wake-push-relay.yml',
+    'agent-master-activation.yml',
+    'council-external-lease-watch.yml',
+  ]),
+  issues: Object.freeze([
+    'agent-communication-relay.yml',
+    'council-priority-wake.yml',
+    'council-wake-push-relay.yml',
+    'agent-master-activation.yml',
+    'repair-agent-intake.yml',
+    'auto-repair.yml',
+  ]),
+  'pull-requests': Object.freeze([
+    'agent-master-activation.yml',
+    'claude-security-review.yml',
+    'auto-repair.yml',
+  ]),
+  'security-events': Object.freeze([
+    'auto-repair.yml',
+  ]),
+  statuses: Object.freeze([
+    'auto-repair.yml',
+  ]),
+  deployments: Object.freeze([
+    'cd.yml',
+  ]),
+});
 
 export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
   'auto-repair.yml',
