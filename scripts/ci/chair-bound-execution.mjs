@@ -42,17 +42,90 @@ const DEAD_LEASE_AFTER_MS=Math.max(3*HEARTBEAT_INTERVAL_MS,positiveDuration(proc
 const SPECULATIVE_CACHE_ROOT=()=>path.resolve(ROOT,String(process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_PATH??'.flixo/cache/chair-readonly'));
 const SPECULATIVE_CACHE_TTL_MS=positiveDuration(process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_TTL_MS,15*60*1000);
 const SESSION_CONTEXT_ROOT=()=>path.resolve(ROOT,String(process.env.FLIXO_CHAIR_SESSION_CONTEXT_PATH??'.flixo/cache/chair-session'));
-const centralChairStrict = () => process.env.NODE_ENV === 'test' ? process.env.FLIXO_STRICT_CHAIR === 'true' : true;
+const centralChairStrict = () => true;
+let centralChairTestTransport = null;
+
+export function configureCentralChairTestTransport({verify,release}={}){
+  if(process.env.NODE_ENV !== 'test') throw new Error('CENTRAL_CHAIR_TEST_TRANSPORT_FORBIDDEN');
+  if(typeof verify !== 'function') throw new Error('CENTRAL_CHAIR_TEST_VERIFY_REQUIRED');
+  centralChairTestTransport={verify,release:typeof release==='function'?release:null};
+}
+
+function centralChairProof(result,{agentId,targetSha,workPackageId,taskId,leaseId,fence}){
+  const r=result?.state&&typeof result.state==='object'?result.state:result;
+  const owner=r?.ownerAgentId??r?.owner_agent_id;
+  const holder=r?.holderAgentId??r?.holder_agent_id;
+  const task=r?.taskId??r?.task_id;
+  const workPackage=r?.workPackageId??r?.work_package_id;
+  const exactSha=r?.exactSha??r?.exact_sha;
+  const receivedLease=r?.leaseId??r?.lease_id;
+  const receivedFence=r?.fencingTokenHash??r?.fencing_token_hash;
+  const delegatedBy=r?.delegatedBy??r?.delegated_by;
+  if(r?.authorized!==true || owner!==CHAIR1_OWNER_AGENT || holder!==agentId || task!==String(taskId??'') ||
+     workPackage!==String(workPackageId??'') || exactSha!==targetSha || receivedLease!==leaseId ||
+     receivedFence!==fence || delegatedBy!==CHAIR1_OWNER_AGENT){
+    throw new Error('CENTRAL_CHAIR_PROOF_INVALID');
+  }
+  return Object.freeze({
+    authorized:true,
+    chairId:'chair_1',
+    ownerAgentId:owner,
+    holderAgentId:holder,
+    taskId:task,
+    workPackageId:workPackage,
+    exactSha,
+    leaseId:receivedLease,
+    fencingTokenHash:receivedFence,
+    delegatedBy,
+  });
+}
+
 function verifyCentralChairForMutation({agentId,targetSha,workPackageId,taskId}){
-  if(!centralChairStrict() || agentId===CHAIR1_OWNER_AGENT) return;
+  if(agentId===CHAIR1_OWNER_AGENT) return;
   const leaseId=String(process.env.FLIXO_CHAIR_LEASE_ID??'').trim();
   const fence=String(process.env.FLIXO_CHAIR_FENCING_HASH??'').trim();
   const holder=String(process.env.FLIXO_CHAIR_AGENT??agentId??'').trim();
-  if(!leaseId||!fence||!holder) throw new Error('CENTRAL_CHAIR_REQUIRED_FOR_MUTATION');
-  const root=process.cwd();
-  execFileSync('node',['scripts/ci/central-chair-lease.mjs','verify',
-    '--holder='+holder,'--task='+String(taskId??''),'--work-package='+String(workPackageId??''),
-    '--sha='+String(targetSha),'--lease-id='+leaseId,'--fencing-hash='+fence],{cwd:root,encoding:'utf8',stdio:'pipe'});
+  if(!leaseId||!fence||!holder||holder!==agentId) throw new Error('CENTRAL_CHAIR_REQUIRED_FOR_MUTATION');
+  const args={holder,task:String(taskId??''),workPackage:String(workPackageId??''),sha:String(targetSha),leaseId,fence};
+  if(centralChairTestTransport){
+    return centralChairProof(centralChairTestTransport.verify(args),{agentId,targetSha:String(targetSha),workPackageId,taskId,leaseId,fence});
+  }
+  let raw='';
+  try{
+    raw=execFileSync('node',['scripts/ci/central-chair-lease.mjs','verify',
+      '--holder='+holder,'--task='+String(taskId??''),'--work-package='+String(workPackageId??''),
+      '--sha='+String(targetSha),'--lease-id='+leaseId,'--fencing-hash='+fence],{cwd:process.cwd(),encoding:'utf8',stdio:'pipe'});
+  }catch(error){throw new Error('CENTRAL_CHAIR_VERIFICATION_FAILED',{cause:error});}
+  let result=null;
+  try{result=JSON.parse(raw);}catch(error){throw new Error('CENTRAL_CHAIR_PROOF_INVALID',{cause:error});}
+  return centralChairProof(result,{agentId,targetSha:String(targetSha),workPackageId,taskId,leaseId,fence});
+}
+
+function releaseCentralChair({agentId,targetSha,workPackageId,taskId}){
+  if(agentId===CHAIR1_OWNER_AGENT) return null;
+  const leaseId=String(process.env.FLIXO_CHAIR_LEASE_ID??'').trim();
+  const fence=String(process.env.FLIXO_CHAIR_FENCING_HASH??'').trim();
+  const holder=String(process.env.FLIXO_CHAIR_AGENT??agentId??'').trim();
+  if(!leaseId||!fence||holder!==agentId) throw new Error('CENTRAL_CHAIR_RELEASE_CONTEXT_REQUIRED');
+  const args={holder,task:String(taskId??''),workPackage:String(workPackageId??''),sha:String(targetSha),leaseId,fence};
+  if(centralChairTestTransport?.release){
+    const result=centralChairTestTransport.release(args);
+    const r=result?.state&&typeof result.state==='object'?result.state:result;
+    if((r?.ownerAgentId??r?.owner_agent_id)!==CHAIR1_OWNER_AGENT ||
+       (r?.status??'')!=='OWNER_CUSTODY') throw new Error('CENTRAL_CHAIR_RELEASE_PROOF_INVALID');
+    return result;
+  }
+  let raw='';
+  try{
+    raw=execFileSync('node',['scripts/ci/central-chair-lease.mjs','release',
+      '--holder='+holder,'--task='+String(taskId??''),'--work-package='+String(workPackageId??''),
+      '--sha='+String(targetSha),'--lease-id='+leaseId,'--fencing-hash='+fence,'--successful=true'],{cwd:process.cwd(),encoding:'utf8',stdio:'pipe'});
+  }catch(error){throw new Error('CENTRAL_CHAIR_RELEASE_FAILED',{cause:error});}
+  let result=null;
+  try{result=JSON.parse(raw);}catch(error){throw new Error('CENTRAL_CHAIR_RELEASE_PROOF_INVALID',{cause:error});}
+  const r=result?.state&&typeof result.state==='object'?result.state:result;
+  if((r?.ownerAgentId??r?.owner_agent_id)!==CHAIR1_OWNER_AGENT || (r?.status??'')!=='OWNER_CUSTODY') throw new Error('CENTRAL_CHAIR_RELEASE_PROOF_INVALID');
+  return result;
 }
 const CHAIR_REF_PREFIX=()=>{let value=String(process.env.FLIXO_CHAIR_REF_PREFIX??'refs/flixo/chairs');while(value.endsWith('/')||value.endsWith('\\'))value=value.slice(0,-1);return value;};
 const storageKey=(value)=>hash(String(value));
@@ -353,7 +426,10 @@ export function takeChair1({agentId,targetSha=sha(),reviewId=null,scope=null,wor
   if(state.target_sha!==t)throw new Error('CHAIR_STATE_SHA_MISMATCH');
   const chair=state.chairs.chair_1;
   if(chair.status==='OCCUPIED'){
-    if(chair.holder_agent_id===agentId)return Object.freeze({admitted:true,reused:true,preempted:false,chairId:'chair_1',leaseId:chair.lease_id,targetSha:t,taskId:chair.task_id??null,workPackageId:chair.work_package_id??null,ownerAgentId:CHAIR1_OWNER_AGENT,custodyStatus:'DELEGATED'});
+    if(chair.holder_agent_id===agentId){
+      verifyCentralChairForMutation({agentId,targetSha:t,workPackageId:chair.work_package_id??workPackageId,taskId:chair.task_id??taskId});
+      return Object.freeze({admitted:true,reused:true,preempted:false,chairId:'chair_1',leaseId:chair.lease_id,targetSha:t,taskId:chair.task_id??null,workPackageId:chair.work_package_id??null,ownerAgentId:CHAIR1_OWNER_AGENT,custodyStatus:'DELEGATED'});
+    }
     throw new Error('CHAIR1_ACTIVE_DELEGATION');
   }
   if(taskId===null||workPackageId===null)throw new Error('CHAIR1_TASK_DELEGATION_REQUIRED');
@@ -699,6 +775,7 @@ export function release({chairId,agentId,targetSha=sha(),successful=false,sessio
     const state=readState();const chair=verifyLease({state,chairId,agentId,targetSha:t,assertCurrentHead:false});
     verifyCentralChairForMutation({agentId,targetSha:t,workPackageId:chair.work_package_id??null,taskId:taskId??chair.task_id??null});
     assertChair1ReleaseAllowed(chair,{successful,reason:successful===true?'TASK_COMPLETE':'RELEASE'});
+    if(chairId==='chair_1' && successful===true) releaseCentralChair({agentId,targetSha:t,workPackageId:chair.work_package_id??null,taskId:taskId??chair.task_id??null});
     if(sessionId)sanitizeSessionContext({sessionId,taskId});
     const wasChair1=chairId==='chair_1';
     if(wasChair1 && chair.auto_return_on_task_close!==true)throw new Error('CHAIR1_AUTO_RETURN_DISABLED');
