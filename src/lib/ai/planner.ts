@@ -5,6 +5,7 @@ import type { ToolDefinition } from '@/config/canonical-tool-definition';
 import { getCapability } from '@/lib/agent/capability-registry';
 import { TOOLS_REGISTRY } from '@/config/tools';
 import { getWorkflow } from '@/lib/workflows/registry';
+import { TOOL_CATALOG } from '@/config/registry';
 
 export type ExecutionPlan = {
   workflowName: string;
@@ -20,7 +21,12 @@ export function planFromWorkflow(workflowId: string): ExecutionPlan | null {
   if (!workflow) return null;
   const steps = workflow.steps.slice(0, MAX_STEPS).map((step) => ({ toolId: step.toolId, params: step.params }));
   if (!steps.every((step) => getCapability(step.toolId)?.state === 'EXECUTABLE')) return null;
-  return validateExecutionPlan({ workflowName: workflow.title, confidence: 0.99, steps });
+  return validateExecutionPlan({
+    workflowName: workflow.title,
+    confidence: 0.99,
+    catalogFingerprint: TOOL_CATALOG.fingerprint,
+    steps,
+  });
 }
 
 export function planFromIntent(input: string): ExecutionPlan | null {
