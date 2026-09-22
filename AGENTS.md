@@ -371,3 +371,18 @@ Every RED MUST pass the triad error gate and be recorded. A catalog miss MUST be
 The same stable failure fingerprint reaching 20 unresolved occurrences activates `SUPERVISOR_20`: VAULT-1 and VAULT-2 are suspended from autonomous source mutation for that fingerprint; VAULT-3 becomes supervisor and may execute the bounded repair after all normal Repair Protocol, exact-SHA, targeted regression and canonical verification gates. Each seat must contribute a lesson/advice record.
 
 Forbidden: unrecorded RED, unrecorded catalog miss, repeated identical strategy without new evidence, self-approved GREEN, or silent removal of any triad resident.
+
+## 🧪 CELL-LAB — SHARED ENGINEERING LAB
+
+The FLIXO cell is the complete communication and collaborative decision laboratory for MASTER-1, MASTER-2, MASTER-3, all Agents and all Bots.
+
+For every material task or mutation, the cell MUST:
+OPEN → DISCUSS → QUESTION → CHALLENGE → RESOLVE → SYNTHESIZE → CONSENSUS → EXECUTE → VERIFY → LEARN.
+
+Every opinion, question, challenge and decision must be visible through Canonical Agent Communication. The integrated plan, dissent resolutions, proof obligations and exact SHA are recorded in the Cell-Lab consensus artifact:
+`diagnostics/agents/cell-lab/consensus/<taskId>.json`.
+
+No unresolved question or conflict is executable. No material mutation is admitted without an AGREED Cell-Lab packet bound to the current exact SHA. Agreement is coordination evidence only; existing role/mutation/certification authorities remain unchanged.
+
+The Cell-Lab gate is enforced by `scripts/ci/cell-lab-consensus.mjs` and is checked by the repair mutation admission path.
+
