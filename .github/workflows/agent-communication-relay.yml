@@ -3,13 +3,6 @@ name: FLIXO Agent Communication Relay
 on:
   issue_comment:
     types: [created]
-  workflow_dispatch:
-    inputs:
-      message_json:
-        description: 'Canonical agent message JSON for controlled manual delivery testing'
-        required: true
-        type: string
-
 permissions:
   contents: read
   issues: write
@@ -23,7 +16,7 @@ concurrency:
 jobs:
   receive:
     name: Immediate agent message receive
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.issue.pull_request != null && github.event.comment.body != '' && (github.event.comment.author_association == 'OWNER' || github.event.comment.user.login == 'github-actions[bot]')) }}
+    if: ${{ github.event_name == 'issue_comment' && github.event.issue.pull_request != null && github.event.comment.body != '' && (github.event.comment.author_association == 'OWNER' || github.event.comment.user.login == 'github-actions[bot]') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout trusted communication implementation
@@ -235,8 +228,7 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body || '' }}
           EVENT_NAME: ${{ github.event_name }}
           RUN_SHA: ${{ github.sha }}
-          MANUAL_MESSAGE_JSON: ${{ github.event.inputs.message_json || '' }}
-        shell: bash
+          shell: bash
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
@@ -252,15 +244,6 @@ jobs:
           const match = payloadStart >= 0 && fenceEnd >= 0
             ? body.slice(payloadStart, fenceEnd).trim()
             : null;
-          if (!match && process.env.EVENT_NAME === 'workflow_dispatch') {
-            if (!manual) throw new Error('MANUAL_MESSAGE_PAYLOAD_REQUIRED');
-            const message = JSON.parse(manual);
-            fs.writeFileSync('message.json', JSON.stringify(message, null, 2) + '\\n');
-            if (!message.messageId) throw new Error('AGENT_MESSAGE_ID_MISSING');
-            process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'MESSAGE_ID=' + message.messageId + '\\n');
-            process.exit(0);
-          }
           if (!match) {
             fs.writeFileSync('/tmp/flixo-agent-message-skip', 'NO_CANONICAL_AGENT_MESSAGE\\n');
             process.exit(0);
