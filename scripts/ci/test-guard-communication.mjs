@@ -53,17 +53,19 @@ const listed = mod.listChangeReports({status:'RECEIVED',taskId:'GUARD-COMM-TEST'
 assert.equal(listed.length,1);
 const read = mod.markRead(sent.reportId,'CHAIR_1_GUARD');
 assert.equal(read.status,'READ');
-const decided = mod.decideChangeReport(sent.reportId,{
+const forwarded = mod.decideChangeReport(sent.reportId,{
   guardAgent:'CHAIR_1_GUARD',
-  decision:'ACCEPTED_FOR_CHAIR1',
-  reason:'Exact entry evidence received',
+  decision:'FORWARDED_TO_CHAIR1',
+  reason:'Receipt complete; final filtering belongs to Chair 1',
   currentExecutionSha:workspaceSha
 });
-assert.equal(decided.status,'ACCEPTED_FOR_CHAIR1');
-assert.equal(decided.guardVerdict.greenGranted,false);
+assert.equal(forwarded.status,'FORWARDED_TO_CHAIR1');
+assert.equal(forwarded.guardVerdict.contentDecision,'NONE');
+assert.equal(forwarded.guardVerdict.rejectionAuthority,false);
+assert.equal(forwarded.guardVerdict.deletionAuthority,false);
 assert.throws(
-  ()=>mod.decideChangeReport(sent.reportId,{guardAgent:'RANDOM',decision:'REJECTED',reason:'x',currentExecutionSha:workspaceSha}),
-  /GUARD_CHANGE_DECIDER_UNAUTHORIZED/
+  ()=>mod.decideChangeReport(sent.reportId,{guardAgent:'CHAIR_1_GUARD',decision:'REJECTED',reason:'x',currentExecutionSha:workspaceSha}),
+  /GUARD_CHANGE_REJECTION_FORBIDDEN/
 );
 assert.throws(
   ()=>mod.createChangeReport({
@@ -76,6 +78,6 @@ assert.throws(
 process.chdir(originalCwd);
 console.log('GUARD_CHANGE_COMMUNICATION=PASS');
 console.log('GUARD_CHANGE_READ_ACK=PASS');
-console.log('GUARD_CHANGE_DECISION=PASS');
+console.log('GUARD_CHANGE_FORWARD_ONLY=PASS');
 console.log('GUARD_CHANGE_NO_GREEN=PASS');
 console.log('GUARD_CHANGE_EXACT_SHA=PASS');
