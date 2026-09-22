@@ -8,6 +8,7 @@ import {
   assertAgentAdmission,
 } from './repair-protocol.mjs';
 import { evaluateMutationGate } from './action-vault-mutation-gate.mjs';
+import { buildFiveXRepairCycleState } from './read-only-power-profile.mjs';
 import { buildFiveXExecutionEnvelope } from './read-only-power-profile.mjs';
 import { buildPatchCorrectnessProof } from './patch-correctness-proof.mjs';
 import { evaluateCertification } from './action-vault-certification.mjs';
@@ -53,6 +54,11 @@ const base={
     proofClasses:['IDENTITY','CONSTRAINTS','CAUSALITY','FALSIFICATION','REGRESSION'],
     preExecution25:{status:'PASS',operationCount:30,operationDigest:'e'.repeat(64)},
     adversarialReview:{status:'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE',counterexampleFound:false},
+  }),
+  fiveXCycleState:buildFiveXRepairCycleState({
+    phase:'PRE_MUTATION',chainId:'chain-1',taskId:'task',failureFingerprint:fp,attempt:1,
+    targetSha:sha,currentSha:sha,strategyId:'example',learningOutputs:5,
+    adversarialStatus:'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE',counterexampleFound:false
   })
 };
 const patchBase={
