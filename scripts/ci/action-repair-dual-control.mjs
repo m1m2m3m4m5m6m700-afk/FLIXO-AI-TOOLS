@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import { validateAdversarialBotCommandRegistry, resolveAdversarialCommand } from './adversarial-bot-commands.mjs';
 import crypto from 'node:crypto';
+
+const adversarialCommandRegistry = validateAdversarialBotCommandRegistry();
+if (!adversarialCommandRegistry.ok) throw new Error('ACTION_PAIR_COMMAND_REGISTRY_INVALID='+adversarialCommandRegistry.failures.join(','));
+resolveAdversarialCommand({ botId: 'ACTION-REPAIR-2', commandId: 'CHALLENGE_PRIMARY' });
 
 const arg=(name,fallback='')=>{const p='--'+name+'=';const x=process.argv.find(v=>v.startsWith(p));return x?x.slice(p.length):fallback};
 const mode=arg('mode','');
