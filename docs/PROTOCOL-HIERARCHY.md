@@ -29,6 +29,10 @@ The registry contains exactly 20 approved mandatory protocols grouped into these
 
 The approved registry is the sole inventory for protocol identity, status, invariant, and enforcement boundary. Any protocol not present in the registry is non-authoritative.
 
+### Machine-enforced Exit Lock
+
+Session closure is a control-plane action, not an agent preference. `scripts/ci/agent-exit-lock.mjs` MUST prove canonical GREEN on the same exact SHA before `agent-session.mjs` can write a terminal session status. Missing/stale/failed certification evidence, any failed work, remaining work, or open RCA rejects logout; the session remains `RUNNING` and returns to recovery.
+
 ## Change-Scope Integrity
 
 Every non-trivial change MUST declare its affected source files, assertions, coverage, contracts, execution surfaces, and expected non-affected surfaces. The executor MUST verify the declared affected graph and MUST NOT silently expand or shrink scope to evade a failure.
