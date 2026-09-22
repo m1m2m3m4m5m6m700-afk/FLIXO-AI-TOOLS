@@ -36,7 +36,8 @@
         "RUNTIME_ADAPTERS",
         "WORKFLOWS"
       ],
-      "cellLab": "P20 Cell-Lab collaboration is mandatory for material decisions before mutation; disagreements/questions must be resolved and the integrated plan must be agreed on the current exact SHA."
+      "cellLab": "P20 Cell-Lab collaboration is mandatory for material decisions before mutation; disagreements/questions must be resolved and the integrated plan must be agreed on the current exact SHA.",
+      "activeRepairWindow": "Every unresolved repair session has a minimum 45-minute continuous active residency; SLEEP/IDLE/SILENT and BLOCKED logout are forbidden; heartbeat is required; 45 minutes never replaces Canonical GREEN."
     },
     {
       "id": "P01",
