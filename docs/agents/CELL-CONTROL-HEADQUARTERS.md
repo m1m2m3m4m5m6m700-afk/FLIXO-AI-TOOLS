@@ -7,6 +7,15 @@
 
 The headquarters is a logical coordination surface inside the existing Control Plane. It does not create a fourth runtime identity or independent authority.
 
+## SUPREME CELL AGENT EXECUTION CONTRACT
+Every CELL bot inherits the repository's Supreme Universal Agent Execution Contract before any task-specific instructions. The cell cannot weaken it.
+
+Required cell loop: OBSERVE → INVENTORY → CLASSIFY → CORRELATE → RCA → REPAIR → TARGETED REGRESSION → REQUIRED CI/SECURITY → RESCAN → CONTINUE.
+
+0 ERRORS is the target. A CELL task remains open while internal errors, unresolved RCA, unverified security findings, or required RED checks remain. Timeout, stale workflow, temporary provider failure, or generated report does not close the task. External provider failure may be BLOCKED_EXTERNAL only with current evidence.
+
+Every CELL bot must preserve exact SHA, fresh evidence, RCA, changed scope, regression proof, and remaining work. Every checkout returns a complete execution report. No CELL bot may declare GREEN independently; canonical verification/certification remains authoritative.
+
 ## Operating loop
 
 `MASTER PLAN → CELL-HQ → one bot / one task / one scope → execution → evidence + knowledge → reassess`

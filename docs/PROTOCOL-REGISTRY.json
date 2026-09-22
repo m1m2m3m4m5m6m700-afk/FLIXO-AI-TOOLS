@@ -15,11 +15,11 @@
   "protocols": [
     {
       "id": "P00",
-      "name": "Supreme Automation Residency / Agent Liveness",
+      "name": "Supreme Universal Agent Execution / Zero-Error / Automation Residency",
       "class": "EXECUTION",
       "status": "SUPREME_MANDATORY",
-      "enforcement": "scripts/ci/agent-liveness-protocol.mjs + enforcement tests + 5-minute heartbeat + canonical Green Gate recovery",
-      "invariant": "The repair automation plane is permanently resident while work is open; heartbeat is mandatory every 5 minutes; sleep, idle, silent stop, abandonment, self-disable and self-abort are forbidden; run/session/lease termination triggers automatic recovery; manual wake is never required; GREEN does not suspend residency."
+      "enforcement": "AGENTS.md + docs/agents/PROMPT-UNIFIED-EXECUTION.md + docs/agents/CELL-CONTROL-HEADQUARTERS.md + scripts/ci/agent-liveness-protocol.mjs + Repair Protocol + certification/evidence validators",
+      "invariant": "Every agent and automation resident must execute admitted work through observe→inventory→classify→correlate→RCA→repair→targeted regression→required verification→rescan, remain active/recovering while work is open, target zero unresolved internal errors and zero unresolved RCA, preserve exact-SHA fresh evidence, reject masking/suppression/fake GREEN, classify proven external provider blockers explicitly, and emit a complete session report. Closure requires final exact SHA, fresh required evidence, zero unresolved internal errors, zero unresolved RCA, security verified, and required checks green."
     },
     {
       "id": "P01",

@@ -354,3 +354,24 @@ Every RED MUST pass the triad error gate and be recorded. A catalog miss MUST be
 The same stable failure fingerprint reaching 20 unresolved occurrences activates `SUPERVISOR_20`: VAULT-1 and VAULT-2 are suspended from autonomous source mutation for that fingerprint; VAULT-3 becomes supervisor and may execute the bounded repair after all normal Repair Protocol, exact-SHA, targeted regression and canonical verification gates. Each seat must contribute a lesson/advice record.
 
 Forbidden: unrecorded RED, unrecorded catalog miss, repeated identical strategy without new evidence, self-approved GREEN, or silent removal of any triad resident.
+
+
+## SUPREME UNIVERSAL AGENT EXECUTION CONTRACT — ZERO-ERROR
+
+This contract is mandatory for every agent, bot, Master, specialist, cell bot, repair runtime, execution runtime, reviewer and automation resident. It is the highest agent-operating contract and is subordinate only to platform/security permissions that the repository cannot grant.
+
+Mandatory behavior:
+- Accept the admitted repair/engineering scope and execute it; do not stop at diagnosis or recommendations when mutation is authorized.
+- Discover the complete current error/complexity/security inventory, correlate symptoms, and identify root causes before broad repair.
+- Repair causes rather than suppress symptoms. No disabling checks, deleting coverage, silent skips, masked failures, fake passes, or weakening assertions to obtain GREEN.
+- Continue the repair loop OBSERVE → INVENTORY → CLASSIFY → CORRELATE → RCA → REPAIR → TARGETED REGRESSION → REQUIRED CI/SECURITY → RESCAN → REPAIR AGAIN while internal work remains open.
+- 0 ERRORS is the closure target. A session is not closed because progress was made, one check passed, a report was produced, a timeout occurred, or a provider is unavailable.
+- Every material repair records RCA, evidence, changed scope, regression proof, exact SHA and remaining work.
+- Any new failure created or exposed by a repair becomes an active RCA/recovery item; it is never silently deferred.
+- Exact-SHA and fresh evidence are mandatory. Evidence from a previous SHA cannot certify the current SHA.
+- External provider failures are recorded as BLOCKED_EXTERNAL only when independently proven; they do not erase internal errors and do not authorize a false GREEN.
+- At the end of every session, emit a complete execution report containing start SHA, final SHA, errors before/after, root causes, repairs, verification, blockers and remaining work.
+- The agent must remain operational/recovering while open work exists; timeout, lease expiry, workflow completion or temporary failure is a recovery event, not automatic closure.
+
+Universal closure condition:
+FINAL_SHA + FRESH_REQUIRED_EVIDENCE + ZERO_UNRESOLVED_INTERNAL_ERRORS + ZERO_UNRESOLVED_RCA + SECURITY_VERIFIED + REQUIRED_CHECKS_GREEN

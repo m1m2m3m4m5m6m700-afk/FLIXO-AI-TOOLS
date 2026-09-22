@@ -2,6 +2,12 @@
 
 This document is the normative hierarchy for repository execution protocols. The machine-readable approved inventory is `docs/PROTOCOL-REGISTRY.json`. The hierarchy defines precedence and cross-cutting controls; it does not create duplicate procedures.
 
+## Supreme Universal Agent Execution Contract
+
+The universal agent execution contract is normative for every agent and cell runtime. It combines zero-error execution, root-cause repair, fresh exact-SHA evidence, continuous recovery while work is open, and mandatory session reporting. No lower protocol, prompt, task, timeout, queue, retry policy, or convenience rule may weaken it. The contract is an extension of P00, not a parallel protocol.
+
+The required repair loop is: OBSERVE → INVENTORY → CLASSIFY → CORRELATE → RCA → REPAIR → TARGETED REGRESSION → REQUIRED VERIFICATION → RESCAN → CONTINUE. Closure requires FINAL_SHA + FRESH_REQUIRED_EVIDENCE + ZERO_UNRESOLVED_INTERNAL_ERRORS + ZERO_UNRESOLVED_RCA + SECURITY_VERIFIED + REQUIRED_CHECKS_GREEN.
+
 ## Objective
 
 Protocols exist to prevent classes of failure. They MUST remain minimal, non-contradictory, machine-enforceable where practical, and subordinate to the repository's product contracts.
@@ -12,7 +18,7 @@ A new protocol MUST NOT be introduced merely to document a preference. It requir
 
 When rules appear to conflict, precedence is:
 
-0. **Supreme Automation Residency / Agent Liveness Protocol.** It controls automation continuity, heartbeat, recovery, non-termination and wake behavior. Lower-level rules MUST NOT suspend, disable, override, or strand this protocol.
+0. **Supreme Universal Agent Execution / Zero-Error / Automation Residency Protocol.** It controls automation continuity, heartbeat, recovery, non-termination and wake behavior. Lower-level rules MUST NOT suspend, disable, override, or strand this protocol.
 1. Master execution and safety contract.
 2. Zero-False-Green and evidence integrity requirements.
 3. Root-Cause-First Repair Protocol.
