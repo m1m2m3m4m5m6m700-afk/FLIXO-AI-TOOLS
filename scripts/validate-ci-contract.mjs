@@ -70,8 +70,8 @@ const canonicalConcurrencyWorkflows = [
   ['claude-security-review.yml', claudeSecurityWorkflow],
 ];
 for (const [file, source] of canonicalConcurrencyWorkflows) {
-  const block = source.match(/concurrency:[\\s\\S]*?(?=\\n\\s*(?:permissions:|env:|jobs:|#|$))/)?.[0] ?? '';
-  if (!block || /\\$\\{\\{\\s*github\\.event_name\\s*\\}\\}/.test(block)) {
+  const block = source.match(/concurrency:[\s\S]*?(?=\n\s*(?:permissions:|env:|jobs:|#|$))/)?.[0] ?? '';
+  if (!block || /\$\{\{\s*github\.event_name\s*\}\}/.test(block)) {
     console.error('CI contract failed: ' + file + ' must converge push/pull_request observations into one concurrency lane per canonical branch/SHA.');
     process.exit(1);
   }
