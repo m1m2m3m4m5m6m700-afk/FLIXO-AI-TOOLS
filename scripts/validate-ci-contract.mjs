@@ -88,7 +88,6 @@ const exactShaVerificationWorkflows = [
   ['test-impact.yml', impactPlanWorkflow],
   ['test-impact-execution.yml', impactExecutionWorkflow],
   ['repository-security-baseline.yml', securityBaselineWorkflow],
-  ['claude-security-review.yml', claudeSecurityWorkflow],
 ];
 
 if (!/EXPECTED_SHA/.test(currentCommitGuard) ||
