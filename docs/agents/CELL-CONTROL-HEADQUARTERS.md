@@ -40,6 +40,18 @@ Responsible participants:
 
 Bots use the canonical Master Inbox and send `PRESENCE_REQUEST` to `assistantController`. Minimum data: request ID, message ID, bot, task, priority, reason, exact SHA, evidence, requested action, blocking flag.
 
+### 45-minute active repair residency
+
+Every repair/recovery cell for unresolved work starts an ACTIVE_REPAIR_45M window. The window is a minimum of 45 continuous minutes and cannot be closed by BLOCKED, BLOCKED_EXTERNAL, timeout, budget exhaustion, or silent inactivity.
+
+During the window, Masters/Agents/Bots must remain active in the cell: exchange messages, opinions, questions, challenges, RCA findings, repair ownership, targeted regressions, verification evidence, and next actions. No SLEEP, IDLE, SILENT, ABANDONED, self-abort, or self-disable path is permitted.
+
+Heartbeat is required. A heartbeat gap triggers recovery and does not count as successful session completion. Reaching 45 minutes only satisfies the residency minimum; closure still requires canonical GREEN, zero remaining work/open RCA, Exact-SHA certification, and the existing exit lock.
+
+Machine enforcement:
+scripts/ci/agent-session.mjs
+scripts/ci/agent-liveness-protocol.mjs
+
 Lifecycle remains `RECEIVED → READ → CONSUMED`. Presence never grants authority.
 
 Example:
