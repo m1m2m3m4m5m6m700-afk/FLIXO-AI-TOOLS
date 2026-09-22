@@ -2,6 +2,24 @@
 
 The repository uses one shared control plane for multi-agent execution, one durable per-session visibility ledger, and a President-controlled Wake Dispatcher integrated into the canonical communication relay. Runtime locks/state protect active ownership; the visibility ledger makes each agent's task and final outcome readable by the other agents.
 
+## CELL-LAB — SHARED ENGINEERING LAB
+
+The shared cell is the collaborative engineering laboratory. The coordination plane routes every material opinion, question, challenge and decision through Canonical Agent Communication and preserves the resulting agreement as a Cell-Lab packet.
+
+Material lifecycle:
+`OPEN → DISCUSS → QUESTION → CHALLENGE → RESOLVE → SYNTHESIZE → CONSENSUS → EXECUTE → VERIFY → LEARN`
+
+Required core participants:
+`MASTER-1 + MASTER-2 + MASTER-3 + mutation owner`.
+
+A task may be claimed for preparation/analysis before consensus, but material source mutation is not execution-ready until the current Cell-Lab packet is `AGREED`, `executionReady=true`, `discussionClosed=true`, has no unresolved question/conflict, and its `exactSha` equals the current execution SHA.
+
+Canonical packet:
+`diagnostics/agents/cell-lab/consensus/<taskId>.json`
+
+Machine enforcement:
+`scripts/ci/cell-lab-consensus.mjs → scripts/ci/repair-protocol.mjs → mutation admission`
+
 ## State
 
 `diagnostics/agents/coordination-state.json` is the canonical machine-readable queue state. It tracks tasks, dependencies, owners, sessions, authoritative SHA and task lifecycle.
