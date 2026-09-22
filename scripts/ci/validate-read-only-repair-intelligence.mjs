@@ -21,6 +21,8 @@ for(const marker of [
  "critiqueRepair",
  "buildRepairKnowledgeGraph",
  "buildMentorPacket",
+ "buildActionVaultPrediction",
+ "PREDICTIVE_REPAIR_PACKET_V1",
  "ADVERSARIAL_PROGRAMMER_FALSIFIER",
  "NO_MUTATION_AUTHORITY",
  "action-repair-programmer-twin.mjs",
@@ -30,8 +32,12 @@ for(const marker of [
 if(/git\s+(add|commit|push|reset|checkout)|update_file|create_file|delete_file|mergePullRequest|create_pull_request/u.test(source)) failures.push('MUTATION_API_OR_GIT_WRITE_DETECTED');
 if(/fs\.writeFileSync\((?!logPath|selectionPath|diagnosisPath|outputPath|path\.dirname\(path\.resolve\(output\)\))/u.test(source)) failures.push('UNEXPECTED_WRITE_SURFACE');
 if(!source.includes("authorityParity:'NO_MUTATION_AUTHORITY'")) failures.push('ADVERSARIAL_AUTHORITY_SEPARATION_MISSING');
+if(!source.includes("actionVaultPrediction")) failures.push('ACTION_VAULT_PREDICTION_BINDING_MISSING');
+if(!source.includes("OWNER_REVIEW_REQUIRED")) failures.push('ACTION_VAULT_OWNER_REVIEW_BOUNDARY_MISSING');
+if(/mutationAuthority\s*[:=]\s*['\"](?:ACTION-REPAIR|AUTO|GRANTED)/u.test(source)) failures.push('ACTION_VAULT_MUTATION_AUTHORITY_LEAK');
 if(!source.includes("mutationWouldBeAllowedByRepairStack")) failures.push('REPAIR_STACK_SIMULATION_MISSING');
 if(!testSource.includes('SKIPPED_IN_UNIT_TEST')) failures.push('UNIT_BOUNDARY_MISSING');
+if(!testSource.includes('actionVaultPrediction')) failures.push('ACTION_VAULT_UNIT_ASSERTION_MISSING');
 
 const sha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
 const result={schemaVersion:1,authority:'READ_ONLY_REPAIR_INTELLIGENCE_CONTRACT',status:failures.length?'FAIL':'PASS',checkedSha:sha,failures};
