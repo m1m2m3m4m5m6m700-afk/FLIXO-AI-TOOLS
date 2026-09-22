@@ -43,6 +43,14 @@ on:
         description: 'Daily Green Gate run that published the comprehensive repair prompt bundle'
         required: false
         type: string
+      central_chair_lease_id:
+        description: 'Central Chair-1 lease issued by the trusted Green Gate controller'
+        required: true
+        type: string
+      central_chair_fencing_hash:
+        description: 'Central Chair-1 fencing proof bound to task/work-package/exact SHA'
+        required: true
+        type: string
 
 permissions:
   # Sole source-mutation authority for the repair plane.
@@ -112,6 +120,12 @@ env:
   FLIXO_CHAIR1_PRIMARY_MISSION: CHAIR1_PRIMARY_TEST_CYCLE_REPAIR
   FLIXO_CHAIR1_MISSION_PATH: /tmp/flixo-chair1-repair-mission.json
   FLIXO_REPAIR_TASK_LEDGER_PATH: /tmp/flixo-repair-task-ledger.json
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  FLIXO_CHAIR_LEASE_ID: ${{ inputs.central_chair_lease_id }}
+  FLIXO_CHAIR_FENCING_HASH: ${{ inputs.central_chair_fencing_hash }}
+  FLIXO_CHAIR_AGENT: AUTO_REPAIR_BOT
+  FLIXO_STRICT_CHAIR: 'true'
 
 jobs:
   resident:
@@ -1177,6 +1191,24 @@ jobs:
           mkdir -p diagnostics/auto-repair
           cp /tmp/flixo-rca-manifest.json diagnostics/auto-repair/last-rca-manifest.json
           test "$(jq -r '.target_sha' diagnostics/auto-repair/last-rca-manifest.json)" = "$FAILED_SHA"
+
+      - name: Verify central Chair-1 lease before mutation
+        id: central_chair
+        if: steps.verify.outputs.verified == 'true'
+        run: |
+          set -euo pipefail
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          WORK_PACKAGE_ID="REPAIR:$TARGET_RUN_ID:$FLIXO_FAILURE_FINGERPRINT"
+          TASK_ID="ACTION-REPAIR:$TARGET_RUN_ID:$FLIXO_FAILURE_FINGERPRINT"
+          node scripts/ci/central-chair-lease.mjs verify \
+            --holder=AUTO_REPAIR_BOT \
+            --task="$TASK_ID" \
+            --work-package="$WORK_PACKAGE_ID" \
+            --sha="$FAILED_SHA" \
+            --lease-id="$FLIXO_CHAIR_LEASE_ID" \
+            --fencing-hash="$FLIXO_CHAIR_FENCING_HASH"
+          echo 'CENTRAL_CHAIR1=VERIFIED'
+          echo 'CENTRAL_CHAIR1_MUTATION=ADMITTED'
 
       - name: Acquire execution mutation gate
         id: mutation_gate
