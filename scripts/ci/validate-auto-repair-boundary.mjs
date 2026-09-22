@@ -113,7 +113,7 @@ export function validateStatic() {
   must(/auto-repair-chair1-audit\.mjs/.test(auto), 'auto-repair-chair1-audit-required');
   must(/CHAIR1_AUDIT=APPROVED/.test(auto), 'auto-repair-chair1-audit-approval-required');
   must(/CHAIR1_REVIEW_AUTHORITY=STRICT_INDEPENDENT_AUDITOR/.test(auto), 'auto-repair-chair1-independent-review-required');
-  must(/FLIXO_AUTO_REPAIR_SELF_APPROVAL:\s*['\"]false['\"]/.test(auto), 'auto-repair-self-approval-forbidden');
+  must(/FLIXO_AUTO_REPAIR_SELF_APPROVAL:\s*['"]false['"]/.test(auto), 'auto-repair-self-approval-forbidden');
   must(/FLIXO_AUTO_REPAIR_ROLE:\s*AUTO_REPAIR_BOT/.test(auto), 'auto-repair-chair-identity-required');
   must(!/auto-repair-chair-policy-exempt/.test(auto), 'auto-repair-chair-exemption-removed');
   for (const workflowName of MUTATION_WORKFLOWS) {
