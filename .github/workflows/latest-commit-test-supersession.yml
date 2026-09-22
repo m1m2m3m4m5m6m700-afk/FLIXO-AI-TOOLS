@@ -38,19 +38,18 @@ jobs:
         id: head
         env:
           GH_TOKEN: ${{ github.token }}
+          TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          EVENT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         shell: bash
         run: |
           set -euo pipefail
-          BRANCH='execution'
-          EVENT_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
-          LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-          test "$BRANCH" != ""
+          [[ "$TARGET_BRANCH" =~ ^[[:alnum:]_./-]+$ ]]
           [[ "$EVENT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha')"
           [[ "$LIVE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "branch=$TARGET_BRANCH" >> "$GITHUB_OUTPUT"
           echo "event_sha=$EVENT_SHA" >> "$GITHUB_OUTPUT"
           echo "sha=$LIVE_SHA" >> "$GITHUB_OUTPUT"
-          test "$BRANCH" = "execution"
           if [ "$EVENT_SHA" = "$LIVE_SHA" ]; then
             echo "stale_event=false" >> "$GITHUB_OUTPUT"
           else
@@ -59,18 +58,21 @@ jobs:
           fi
           echo "LATEST_TEST_EVENT_HEAD=$EVENT_SHA"
           echo "LATEST_TEST_LIVE_HEAD=$LIVE_SHA"
+          echo "LATEST_TEST_LIVE_BRANCH=$TARGET_BRANCH"
           echo 'EVENT_SHA_SOURCE=IMMUTABLE_GITHUB_EVENT_SHA'
 
       - name: Assert API-only supersession regression
         env:
           GH_TOKEN: ${{ github.token }}
+          TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
           EVENT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          LIVE_AFTER_CHECK="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          LIVE_AFTER_CHECK="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha')"
           test "$LIVE_AFTER_CHECK" = "$EVENT_SHA"
           echo "SUPERSESSION_API_REGRESSION=PASS"
           echo "SUPERSESSION_CONTROLLER_SOURCE=TRUSTED_MAIN"
+          echo "SUPERSESSION_CONTROLLER_BRANCH=$TARGET_BRANCH"
 
       - name: Cancel stale test and verification runs
         id: cancel
@@ -162,3 +164,4 @@ jobs:
           fi
           echo "LATEST_COMMIT_SUPERSESSION=PASS"
           echo "LATEST_COMMIT_SHA=$EXPECTED_SHA"
+          echo "LATEST_COMMIT_BRANCH=$EXPECTED_BRANCH"
