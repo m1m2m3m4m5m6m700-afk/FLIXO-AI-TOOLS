@@ -377,10 +377,12 @@ export function buildConvergenceDirective(input = {}) {
 
 export function finiteInvariantProof(input = {}) {
   const manifest = input.manifest;
-  const current = String(input.targetSha ?? '');
+  const candidateSha = String(input.targetSha ?? '');
+  const sourceSha = String(input.sourceSha ?? manifest?.target_sha ?? '');
   const source = unique(input.changedPaths ?? []).filter(function(value) { return !String(value).startsWith('diagnostics/'); });
   const checks = {
-    EXACT_SHA: manifest?.target_sha === current && SHA_RE.test(current),
+    SOURCE_SHA: manifest?.target_sha === sourceSha && SHA_RE.test(sourceSha),
+    CANDIDATE_SHA: SHA_RE.test(candidateSha) && candidateSha !== sourceSha,
     SINGLE_SOURCE_FILE: source.length <= 1,
     PRIMARY_BOUNDARY_MATCH: source.length === 0 || source[0] === manifest?.proposed_fix?.scope?.primary_file,
     NO_GATE_WEAKENING: !FORBIDDEN_MUTATION_RE.test(String(input.patch ?? '')),
@@ -389,12 +391,14 @@ export function finiteInvariantProof(input = {}) {
   };
   const passed = Object.values(checks).every(Boolean);
   return Object.freeze({
-    protocol: 'FLIXO-FINITE-INVARIANT-PROOF-v1',
+    protocol: 'FLIXO-FINITE-INVARIANT-PROOF-v2',
     status: passed ? 'PROVEN' : 'BLOCKED',
     proofMode: 'FINITE_WITNESS_INVARIANT',
-    formula: 'EXACT_SHA && SINGLE_SOURCE_FILE && PRIMARY_BOUNDARY_MATCH && NO_GATE_WEAKENING && RCA_PROOF_FIELDS_PRESENT && ADVERSARIAL_PASS_CONFIRMED',
+    formula: 'SOURCE_SHA && CANDIDATE_SHA && SINGLE_SOURCE_FILE && PRIMARY_BOUNDARY_MATCH && NO_GATE_WEAKENING && RCA_PROOF_FIELDS_PRESENT && ADVERSARIAL_PASS_CONFIRMED',
     checks,
-    witnessDigest: sha256(JSON.stringify({ manifest, targetSha: current, changedPaths: source, patch: String(input.patch ?? '').slice(0, 20000), adversarial: input.adversarial ?? null })),
+    sourceSha,
+    candidateSha,
+    witnessDigest: sha256(JSON.stringify({ manifest, sourceSha, candidateSha, changedPaths: source, patch: String(input.patch ?? '').slice(0, 20000), adversarial: input.adversarial ?? null })),
     generatedAt: new Date().toISOString()
   });
 }
@@ -402,8 +406,12 @@ export function finiteInvariantProof(input = {}) {
 export function buildFalsifierVerdict(input = {}) {
   const manifest = input.manifest;
   const counterexamples = generateCounterexamples(input);
-  const reject = (input.actualFailures?.length ?? 0) > 0 || Number(input.mutantCasesSurvived ?? 0) > 0 || !manifest;
+  const sourceSha = String(input.sourceSha ?? manifest?.target_sha ?? '');
+  const targetSha = String(input.targetSha ?? '');
+  const adversarialFailure = (input.actualFailures?.length ?? 0) > 0 || Number(input.mutantCasesSurvived ?? 0) > 0;
+  const reject = adversarialFailure || !manifest;
   if (reject) {
+    const directive = buildConvergenceDirective({ ...input, targetSha, sourceSha });
     return {
       falsifierVerdict: 'REJECTED_WITH_COUNTER_EXAMPLE',
       falsification_evidence: {
@@ -412,8 +420,32 @@ export function buildFalsifierVerdict(input = {}) {
         expected_behavior: counterexamples[0]?.expected_behavior ?? 'candidate must preserve the declared invariant',
         counterexamples
       },
-      convergence_directive: buildConvergenceDirective(input),
-      targetSha: input.targetSha ?? null
+      convergence_directive: directive,
+      targetSha,
+      sourceSha
+    };
+  }
+  const provisional = { falsifierVerdict: 'PASS_CONFIRMED', targetSha, sourceSha };
+  const proof = finiteInvariantProof({ ...input, sourceSha, targetSha, adversarial: provisional });
+  if (proof.status !== 'PROVEN') {
+    const blocked = buildConvergenceDirective({
+      ...input,
+      sourceSha,
+      targetSha,
+      rejectionReason: { message: 'FINITE_INVARIANT_PROOF_BLOCKED' }
+    });
+    return {
+      falsifierVerdict: 'REJECTED_WITH_COUNTER_EXAMPLE',
+      falsification_evidence: {
+        test_case: 'finite_invariant_proof',
+        observed_behavior: 'finite invariant proof obligations were not all satisfied',
+        expected_behavior: 'all finite proof obligations must pass before promotion',
+        counterexamples
+      },
+      convergence_directive: blocked,
+      finiteInvariantProof: proof,
+      targetSha,
+      sourceSha
     };
   }
   return {
@@ -425,7 +457,10 @@ export function buildFalsifierVerdict(input = {}) {
       counterexamples: []
     },
     convergence_directive: null,
-    targetSha: input.targetSha ?? null
+    finiteInvariantProof: proof,
+    targetSha,
+    sourceSha,
+    passConfirmed: true
   };
 }
 
