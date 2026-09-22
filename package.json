@@ -201,7 +201,8 @@
     "test:latest-commit-only": "node scripts/ci/test-latest-commit-only.mjs",
     "test:action-vault-supervisory-learning": "node scripts/ci/test-action-vault-supervisory-learning.mjs",
     "test:honorary-stars": "node scripts/ci/test-cell-honorary-stars.mjs",
-    "test:invocation-contract": "node scripts/ci/test-invocation-contract.mjs"
+    "test:invocation-contract": "node scripts/ci/test-invocation-contract.mjs",
+    "test:agent-exit-lock": "node scripts/ci/test-agent-exit-lock.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
