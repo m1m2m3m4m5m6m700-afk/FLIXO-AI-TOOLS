@@ -1,5 +1,7 @@
 # FLIXO Platform Architecture v1
 
+> **STATUS: HISTORICAL / SUPERSEDED.** This document is preserved for evidence only. It is not a current architecture authority and must not impose image-only product constraints on the target FLIXO platform. Current architectural decisions are governed by the canonical task ledger, executable contracts, Capability Registry, and exact-SHA evidence.
+
 ## Purpose
 
 Transform FLIXO from an image-tool collection into an **Agentic Visual Execution Platform** without duplicating or replacing working foundations.
