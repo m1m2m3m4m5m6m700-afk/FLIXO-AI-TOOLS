@@ -926,6 +926,31 @@ jobs:
           jq -e '.protocol=="FLIXO-REPAIR-BOT-BEHAVIORAL-TRAINING-v1" and .authority=="TRAINING_ONLY" and .targetSha==env.FLIXO_EXPECTED_TARGET_SHA and .decision.mode != null' /tmp/flixo-repair-training.json >/dev/null
           echo "FLIXO_REPAIR_TRAINING_PATH=/tmp/flixo-repair-training.json" >> "\$GITHUB_ENV"
 
+      - name: Run independent cognitive clone for Repair Agent
+        id: repair_agent_clone
+        env:
+          FLIXO_REPAIR_AGENT_CLONE_OUTPUT: /tmp/flixo-repair-agent-clone.json
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
+          FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
+          FLIXO_REPAIR_DIAGNOSIS_PATH: /tmp/flixo-root-cause.json
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          TARGET_RUN_ID: ${{ env.TARGET_RUN_ID }}
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-agent-cognitive-clone.mjs
+          test -s /tmp/flixo-repair-agent-clone.json
+          node scripts/ci/validate-repair-agent-cognitive-clone.mjs             --file=/tmp/flixo-repair-agent-clone.json             --target-sha="$(cat /tmp/flixo-failed-sha)"
+          jq -e '
+            .sameCognitiveEngine == true and
+            .cognitiveParity.level == "EXACT" and
+            (.cognitiveParity.missingCapabilities | length) == 0 and
+            .mutationAuthority == false and
+            .greenAuthority == false and
+            .adversarialPeer.enabled == true
+          ' /tmp/flixo-repair-agent-clone.json >/dev/null
+          echo "REPAIR_AGENT_COGNITIVE_CLONE=PASS"
+          echo "FLIXO_REPAIR_AGENT_CLONE_PATH=/tmp/flixo-repair-agent-clone.json" >> "$GITHUB_ENV"
+
       - name: Observe every prior Repair Bot reaction in the current session
         id: behavior_observer
         env:
