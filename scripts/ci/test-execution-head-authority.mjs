@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 const testEntrypoint = '/tmp/flixo-test-execution-head-authority-entrypoint.mjs';
 const originalArgv1 = process.argv[1];
 process.argv[1] = testEntrypoint;
