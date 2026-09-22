@@ -42,7 +42,8 @@ const sent = mod.reportAgentChange({
   remainingWork:['chair1-reconciliation'],
   blockers:[],
   nextActions:['chair1-review'],
-  source:'TEST'
+  source:'TEST',
+  authority:'CHAIR_1_FINAL_AGGREGATION_AND_PUBLICATION'
 });
 assert.equal(sent.status,'RECEIVED');
 assert.equal(sent.recipient,'CHAIR_1_GUARD');
