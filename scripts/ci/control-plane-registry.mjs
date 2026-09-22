@@ -134,4 +134,9 @@ export const TRUST_PERIMETER_PATHS = Object.freeze([
   'scripts/ci/validate-promotion-closure.mjs',
   'scripts/ci/test-promotion-closure.mjs',
   'scripts/ci/verify-council-live-runtime.mjs',
+  'scripts/security/security-red-team-runner.mjs',
+  'scripts/security/record-security-findings.mjs',
+  'scripts/ci/test-security-red-team-contract.mjs',
+  'docs/agents/SECURITY-RED-TEAM-BOTS.json',
+  '.github/workflows/security-red-team.yml',
 ]);
