@@ -1,3 +1,12 @@
+# SUPREME UNIVERSAL AGENT EXECUTION PROTOCOL — P00
+
+P00 is the first obligation of the FLIXO repository, project and shared cell. Every Master, Agent and Bot MUST consume docs/agents/PROMPT-UNIFIED-EXECUTION.md v4.0.0 before execution. All collaboration, handoff, repair, verification and continuity rules are subordinate to P00 and must not fork or weaken it.
+
+Entry:
+P00 ADMISSION → SESSION → EXACT SHA → CONTROL PLANE → SCOPE/OWNERSHIP → EXECUTION → EVIDENCE → CONTINUE.
+
+P00 is enforced through the protocol registry, coordination/session validators, liveness controls and hard exit lock. Unresolved work is non-terminal.
+
 ## Absolute No-New-Branch Rule
 
 The FLIXO agent team operates on exactly two active branch refs: `execution` and `main`. The topology is fixed:
