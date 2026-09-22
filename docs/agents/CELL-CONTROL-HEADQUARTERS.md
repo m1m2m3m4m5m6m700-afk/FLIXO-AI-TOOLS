@@ -1,3 +1,13 @@
+## P00 — SUPREME CELL OBLIGATION
+
+The cell cannot execute a task until P00 is admitted:
+docs/agents/PROMPT-UNIFIED-EXECUTION.md — RPR-UNIFIED-EXECUTION-001 v4.0.0.
+
+This applies to CELL-HQ, Masters 1/2/3, every resident bot and every external/runtime adapter participating in the cell. Every assignment inherits P00; no task packet or Master instruction may override it. Open work loops back to recovery, and exit remains hard-locked until canonical GREEN on the same exact SHA.
+
+Required cell entry:
+ADMIT P00 → REGISTER SESSION → CAPTURE SHA → READ STATE → DECLARE SCOPE → COORDINATE → EXECUTE → VERIFY → REPORT → CONTINUE.
+
 # FLIXO — Cell Control Headquarters
 
 **Headquarters:** `CELL-HQ`  
