@@ -23,6 +23,8 @@ assert.match(chair,/const centralChairStrict = \(\) => true;/u);
 assert.match(chair,/configureCentralChairTestTransport/);
 assert.match(chair,/CENTRAL_CHAIR_PROOF_INVALID/);
 assert.match(chair,/delegatedBy/);
+assert.doesNotMatch(chair,/function verifyCentralChairForMutation\([^\n]+\)\{\n\s*if\(agentId===CHAIR1_OWNER_AGENT\) return;/u);
+assert.doesNotMatch(chair,/function releaseCentralChair\([^\n]+\)\{\n\s*if\(agentId===CHAIR1_OWNER_AGENT\) return null;/u);
 assert.match(chair,/releaseCentralChair/);
 assert.doesNotMatch(chair,/process\.env\.CI === 'true' \|\| process\.env\.GITHUB_ACTIONS === 'true'/u);
 
@@ -79,6 +81,33 @@ const probe = spawnSync(
 assert.notEqual(probe.status, 0);
 assert.match(String(probe.stderr) + String(probe.stdout), /CENTRAL_CHAIR_REQUIRED_FOR_MUTATION/u);
 console.log('LOCAL_PRODUCTION_CHAIR_BYPASS=BLOCKED');
+
+// Production-mode owner-identity spoof regression: naming the caller assistantController is not authentication.
+const ownerSpoof = spawnSync(
+  process.execPath,
+  ['--experimental-strip-types', 'scripts/ci/chair-bound-execution.mjs', 'acquire',
+    '--chair=chair_1', '--agent=assistantController', '--sha=' + probeSha,
+    '--repository-state=IDLE', '--task-id=OWNER-SPOOF-TASK', '--work-package=OWNER-SPOOF-WP'],
+  {
+    cwd: probeRoot,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      CI: 'false',
+      GITHUB_ACTIONS: 'false',
+      FLIXO_STRICT_CHAIR: 'false',
+      FLIXO_CHAIR_SIGNING_KEY: 'probe-key',
+      FLIXO_CHAIR_STATE_PATH: probeStatePath,
+      FLIXO_CHAIR_LEASE_ID: '',
+      FLIXO_CHAIR_FENCING_HASH: '',
+      FLIXO_CHAIR_AGENT: ''
+    }
+  }
+);
+assert.notEqual(ownerSpoof.status, 0);
+assert.match(String(ownerSpoof.stderr) + String(ownerSpoof.stdout), /CENTRAL_CHAIR_REQUIRED_FOR_MUTATION/u);
+console.log('LOCAL_CONTROLLER_IDENTITY_SPOOF=BLOCKED');
 
 assert.match(chair,/takeChair1[\s\S]*verifyCentralChairForMutation/);
 assert.match(chair,/authorizePublication[\s\S]*verifyCentralChairForMutation/);
