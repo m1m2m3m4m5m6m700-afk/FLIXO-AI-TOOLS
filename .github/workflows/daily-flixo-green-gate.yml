@@ -72,12 +72,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           WORKFLOW_RUN_IS_MAIN: ${{ github.event.workflow_run.head_branch == 'main' }}
           WORKFLOW_RUN_IS_EXECUTION: ${{ github.event.workflow_run.head_branch == 'execution' }}
-          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
           mkdir -p /tmp/flixo-watch/logs
           WATCH_BRANCH="execution"
-          if [ "$EVENT_NAME" = "workflow_run" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
             if [ "$WORKFLOW_RUN_IS_MAIN" = "true" ]; then
               WATCH_BRANCH="main"
             elif [ "$WORKFLOW_RUN_IS_EXECUTION" = "true" ]; then

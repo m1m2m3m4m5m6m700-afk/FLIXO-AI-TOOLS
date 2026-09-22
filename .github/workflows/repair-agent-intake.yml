@@ -74,7 +74,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           INPUT_RUN_ID: ${{ inputs.run_id || '' }}
           EVENT_RUN_ID: ${{ github.event.workflow_run.id || '' }}
-          EVENT_NAME: ${{ github.event_name }}
         shell: bash
         run: |
           set -euo pipefail
@@ -102,7 +101,7 @@ jobs:
 
           RUN_ID="$EVENT_RUN_ID"
           if [ -n "$INPUT_RUN_ID" ]; then RUN_ID="$INPUT_RUN_ID"; fi
-          if [ -z "$RUN_ID" ] && [ "$EVENT_NAME" = "schedule" ]; then
+          if [ -z "$RUN_ID" ] && [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
             echo 'INTAKE_SCHEDULE_RESCUE_MODE=true'
             RUN_LIST_JSON="$(gh_retry gh run list --repo "$GITHUB_REPOSITORY" --limit 100 --json databaseId,name,conclusion,headSha,headBranch,createdAt)"
             RUN_ID="$(jq -r '

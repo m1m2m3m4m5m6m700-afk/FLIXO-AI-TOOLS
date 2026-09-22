@@ -70,12 +70,11 @@ jobs:
           SOURCE_RUN_SHA: ${{ github.event.workflow_run.head_sha || '' }}
           EVENT_SHA: ${{ github.sha }}
           EVENT_BRANCH: ${{ github.ref_name }}
-          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" = "push" ] && [ "$EVENT_BRANCH" = "execution" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$EVENT_BRANCH" = "execution" ]; then
             EXECUTION_SHA="$EVENT_SHA"
-          elif [ "$EVENT_NAME" = "workflow_run" ]; then
+          elif [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
             EXECUTION_SHA="$SOURCE_RUN_SHA"
             test -n "$EXECUTION_SHA"
           else
@@ -85,7 +84,7 @@ jobs:
           echo "execution_sha=$EXECUTION_SHA" >> "$GITHUB_OUTPUT"
           echo "event_sha=$EVENT_SHA" >> "$GITHUB_OUTPUT"
           echo "event_branch=$EVENT_BRANCH" >> "$GITHUB_OUTPUT"
-          if [ "$EVENT_NAME" = "workflow_run" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
             test -n "$SOURCE_RUN_SHA"
             LIVE_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
             test -n "$LIVE_EXECUTION_SHA"
@@ -148,7 +147,7 @@ jobs:
           test -n "$EXECUTION_SHA"
           echo "WATCHDOG_EXPECTED_TEST_SHA=$EXECUTION_SHA"
 
-          if [ "$EVENT_NAME" = "push" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             echo "WATCHDOG_PUSH_CANONICAL_TEST_SYSTEM_EXPECTED=true"
             echo "WATCHDOG_PUSH_CANONICAL_SHA=$EXECUTION_SHA"
             echo "WATCHDOG_TEST_SYSTEM_DISPATCH=NOOP_PUSH_TRIGGER"
@@ -210,7 +209,7 @@ jobs:
           set -euo pipefail
           EXECUTION_SHA="$SOURCE_EXECUTION_SHA"
           test -n "$EXECUTION_SHA"
-          if [ "$EVENT_NAME" = "push" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             echo "WATCHDOG_GREEN_GATE_TRIGGER_EXPECTED=true"
             exit 0
           fi
@@ -232,7 +231,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p diagnostics/watchdog
-          if [ "$EVENT_NAME" = "push" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             CURRENT_EXECUTION_SHA="$GITHUB_SHA"
           else
             CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"

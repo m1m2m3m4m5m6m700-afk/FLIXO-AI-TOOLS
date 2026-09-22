@@ -47,18 +47,17 @@ jobs:
           PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || '' }}
           EXPECTED_REPOSITORY: ${{ github.repository }}
           TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
-          EVENT_NAME: ${{ github.event_name }}
           EVENT_REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" = "pull_request" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             test "$PR_HEAD_REF" = "execution"
             test "$PR_BASE_REF" = "main"
             test "$PR_HEAD_REPOSITORY" = "$EXPECTED_REPOSITORY"
           else
-            case "$EVENT_NAME" in
+            case "$GITHUB_EVENT_NAME" in
               push|workflow_dispatch) ;;
-              *) echo "Unsupported execution event: $EVENT_NAME"; exit 1 ;;
+              *) echo "Unsupported execution event: $GITHUB_EVENT_NAME"; exit 1 ;;
             esac
             test "$EVENT_REF_NAME" = "$TARGET_BRANCH"
           fi
