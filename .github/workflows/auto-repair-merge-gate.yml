@@ -25,6 +25,11 @@ jobs:
       - name: Resolve canonical PR and exact execution SHA
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          EVENT_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
+          EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref || '' }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha || '' }}
+          EVENT_PR_STATE: ${{ github.event.pull_request.state || '' }}
           PR_EVENT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         shell: bash
         run: |
@@ -58,11 +63,11 @@ jobs:
             done
           }
 
-          PR_NUMBER="${{ github.event.pull_request.number || '' }}"
-          BASE="${{ github.event.pull_request.base.ref || '' }}"
-          HEAD_BRANCH="${{ github.event.pull_request.head.ref || '' }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha || '' }}"
-          STATE="${{ github.event.pull_request.state || '' }}"
+          PR_NUMBER="$EVENT_PR_NUMBER"
+          BASE="$EVENT_BASE_REF"
+          HEAD_BRANCH="$EVENT_HEAD_REF"
+          HEAD_SHA="$EVENT_HEAD_SHA"
+          STATE="$EVENT_PR_STATE"
 
           if [ -z "$PR_NUMBER" ]; then
             PR_JSON="$(gh_with_backoff pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 1 --json number,state,baseRefName,headRefName,headRefOid --jq '.[0]')" || {
