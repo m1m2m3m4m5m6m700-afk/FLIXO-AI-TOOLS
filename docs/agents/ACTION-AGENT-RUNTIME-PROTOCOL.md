@@ -1,3 +1,9 @@
+## P00 — SUPREME FIRST OBLIGATION
+
+All Action Agent runtime execution inherits P00 first:
+RPR-UNIFIED-EXECUTION-001 v4.0.0 → docs/agents/PROMPT-UNIFIED-EXECUTION.md.
+The runtime may specialize execution intelligence but may not fork, weaken or override P00. Admission must occur on the current exact SHA and unresolved work remains resident until Canonical GREEN.
+
 # ACTION AGENT RUNTIME v2
 
 ## Cognitive execution
