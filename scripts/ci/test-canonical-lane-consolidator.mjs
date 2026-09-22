@@ -54,6 +54,68 @@ assert.equal(clean.integrationDecision.mode,'SEQUENTIAL_CANONICAL_LANE_APPLICATI
 assert.equal(clean.packetCountUnique,2);
 assertCanonicalLaneConsolidation(clean,head);
 
+
+const patchAtLines=[
+  'diff --git a/same.ts b/same.ts',
+  '--- a/same.ts',
+  '+++ b/same.ts',
+  '@@ -10,2 +10,2 @@',
+  '-oldA',
+  '+newA',
+].join('\n');
+
+const patchAtOtherLines=[
+  'diff --git a/same.ts b/same.ts',
+  '--- a/same.ts',
+  '+++ b/same.ts',
+  '@@ -40,2 +40,2 @@',
+  '-oldB',
+  '+newB',
+].join('\n');
+
+const semanticallyReconciled=buildCanonicalLaneConsolidation({
+  currentHead:head,
+  targetBranch:CANONICAL_LANE,
+  expectedParent:head,
+  packets:[
+    {...packetA,packetId:'P-NONOVERLAP-A',sourceSha:'1111111111111111111111111111111111111112',changedFiles:['same.ts'],patchText:patchAtLines},
+    {...packetA,packetId:'P-NONOVERLAP-B',sourceSha:'1111111111111111111111111111111111111113',changedFiles:['same.ts'],patchText:patchAtOtherLines},
+  ],
+});
+assert.equal(semanticallyReconciled.status,'READY_FOR_CANONICAL_CONSOLIDATION');
+assert.equal(semanticallyReconciled.conflicts.length,0);
+assert.equal(semanticallyReconciled.semanticReconciliation[0].semanticStatus,'SEMANTICALLY_RECONCILABLE');
+
+const patchConflictA=[
+  'diff --git a/conflict.ts b/conflict.ts',
+  '--- a/conflict.ts',
+  '+++ b/conflict.ts',
+  '@@ -20,2 +20,2 @@',
+  '-old',
+  '+new-one',
+].join('\n');
+
+const patchConflictB=[
+  'diff --git a/conflict.ts b/conflict.ts',
+  '--- a/conflict.ts',
+  '+++ b/conflict.ts',
+  '@@ -20,2 +20,2 @@',
+  '-old',
+  '+new-two',
+].join('\n');
+
+const semanticConflict=buildCanonicalLaneConsolidation({
+  currentHead:head,
+  targetBranch:CANONICAL_LANE,
+  expectedParent:head,
+  packets:[
+    {...packetA,packetId:'P-CONFLICT-A',sourceSha:'1111111111111111111111111111111111111121',changedFiles:['conflict.ts'],patchText:patchConflictA},
+    {...packetA,packetId:'P-CONFLICT-B',sourceSha:'1111111111111111111111111111111111111122',changedFiles:['conflict.ts'],patchText:patchConflictB},
+  ],
+});
+assert.equal(semanticConflict.status,'BLOCKED_CONFLICT');
+assert.equal(semanticConflict.conflicts[0].type,'TRUE_HUNK_CONFLICT');
+
 const duplicate=buildCanonicalLaneConsolidation({
   currentHead:head,
   targetBranch:CANONICAL_LANE,
@@ -69,12 +131,12 @@ const overlap=buildCanonicalLaneConsolidation({
   targetBranch:CANONICAL_LANE,
   expectedParent:head,
   packets:[
-    {...packetA,packetId:'P-C',sourceSha:'cccccccccccccccccccccccccccccccccccccccc',changedFiles:['same.ts']},
-    {...packetA,packetId:'P-D',sourceSha:'dddddddddddddddddddddddddddddddddddddddd',changedFiles:['same.ts']},
+    {...packetA,packetId:'P-C',sourceSha:'cccccccccccccccccccccccccccccccccccccccc',changedFiles:['same.ts'],patchText:patchAtLines},
+    {...packetA,packetId:'P-D',sourceSha:'dddddddddddddddddddddddddddddddddddddddd',changedFiles:['same.ts'],patchText:patchConflictB},
   ],
 });
 assert.equal(overlap.status,'BLOCKED_CONFLICT');
-assert.equal(overlap.conflicts[0].type,'OVERLAPPING_FILE_SCOPE_REQUIRES_EXPLICIT_RECONCILIATION');
+assert.equal(overlap.conflicts[0].type,'TRUE_HUNK_CONFLICT');
 
 const unjoined=buildCanonicalLaneConsolidation({
   currentHead:head,
