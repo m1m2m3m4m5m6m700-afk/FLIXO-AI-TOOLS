@@ -161,7 +161,8 @@ export function validateStatic() {
   must(/Publish exact candidate commit only after post-patch adversarial validation/.test(auto), 'auto-repair-post-patch-before-publish');
   must(/cannot repair itself/.test(auto), 'auto-repair-self-protection');
   must(!/assistant[_ -]?fallback/i.test(auto), 'auto-repair-no-peer-fallback');
-  must(/sole mutation authority/i.test(auto), 'auto-repair-sole-mutation-authority');
+  must(/AUTO_REPAIR_BOT/.test(auto), 'auto-repair-executor-identity');
+  must(/CHAIR_1_STRICT_AUDIT/.test(auto), 'auto-repair-chair1-final-authority');
   must(!/continue-on-error:\s*true/i.test(auto), 'auto-repair-no-continue-on-error');
   must(!/git\s+(checkout|switch)\s+-[bc]/.test(auto), 'auto-repair-no-third-branch');
   must(!/git\s+push[^\n]*\bmain\b/.test(auto), 'auto-repair-no-main-push');
