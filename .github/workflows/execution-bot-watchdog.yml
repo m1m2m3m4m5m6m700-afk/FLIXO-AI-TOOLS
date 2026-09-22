@@ -197,7 +197,13 @@ jobs:
           set -euo pipefail
           EXECUTION_SHA="$SOURCE_EXECUTION_SHA"
           test -n "$EXECUTION_SHA"
+          RUN_COUNT="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100" --jq '[.workflow_runs[] | select(.name == "FLIXO Test System" and .head_sha == $sha and .path == ".github/workflows/ci.yml")] | length' --raw-field sha="$EXECUTION_SHA")"
+          test "$RUN_COUNT" -ge 1 || {
+            echo "FAIL CLOSED: canonical FLIXO Test System did not start for exact SHA=$EXECUTION_SHA"
+            exit 1
+          }
           echo "WATCHDOG_EXPECTED_TEST_SHA=$EXECUTION_SHA"
+          echo "WATCHDOG_CANONICAL_TEST_SYSTEM_RUNS=$RUN_COUNT"
       - name: Validate mission continuity contract
         if: steps.source.outputs.stale != 'true'
         shell: bash

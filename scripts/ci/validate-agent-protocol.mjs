@@ -163,7 +163,13 @@ if (registry) {
     if (new Set(names).size !== names.length) fail('PROTOCOL_REGISTRY_DUPLICATE_NAMES');
     for (const protocol of registry.protocols) {
       for (const field of ['id', 'name', 'class', 'status', 'enforcement', 'invariant']) if (typeof protocol?.[field] !== 'string' || !protocol[field].trim()) fail('PROTOCOL_REGISTRY_FIELD_MISSING', `${protocol?.id ?? 'unknown'}.${field}`);
-      if (protocol?.id === 'P00') { if (protocol?.status !== 'SUPREME_MANDATORY') fail('PROTOCOL_REGISTRY_NON_MANDATORY', protocol?.id ?? 'unknown'); } else if (protocol?.status !== 'MANDATORY') fail('PROTOCOL_REGISTRY_NON_MANDATORY', protocol?.id ?? 'unknown');
+      if (protocol?.id === 'P00') {
+        if (protocol?.status !== 'SUPREME_MANDATORY') fail('PROTOCOL_REGISTRY_NON_MANDATORY', protocol?.id ?? 'unknown');
+      } else if (protocol?.id === 'P21') {
+        if (protocol?.status !== 'RETIRED') fail('PROTOCOL_REGISTRY_P21_STATUS_INVALID', protocol?.status ?? 'unknown');
+      } else if (protocol?.status !== 'MANDATORY') {
+        fail('PROTOCOL_REGISTRY_NON_MANDATORY', protocol?.id ?? 'unknown');
+      }
     }
     const expectedIds = registry.protocols.map((_, index) => `P${String(index).padStart(2, '0')}`);
     if (JSON.stringify(ids) !== JSON.stringify(expectedIds)) fail('PROTOCOL_REGISTRY_IDS_INVALID');

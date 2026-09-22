@@ -217,15 +217,23 @@ export function validateStatic() {
   must(/Repository Security Baseline/.test(mergeGate), 'merge-gate-security-required');
   must(!/continue-on-error:\s*true/i.test(mergeGate), 'merge-gate-no-continue-on-error');
   must(!/gh\s+pr\s+merge/i.test(mergeGate), 'merge-gate-no-self-merge');
-
-
+  must(/name:\s*FLIXO Unified Execution Push Gate/.test(pushGateWorkflow), 'execution-push-gate-identity');
+  must(/push:\s*\n\s*branches:\s*\[execution\]/.test(pushGateWorkflow), 'execution-push-gate-execution-trigger');
+  must(/github\.event\.before/.test(pushGateWorkflow) && /github\.sha/.test(pushGateWorkflow), 'execution-push-gate-exact-event-bound');
+  must(/unified-execution-push-gate\.mjs/.test(pushGateWorkflow), 'execution-push-gate-script-wired');
+  must(/contents:\s*read/.test(pushGateWorkflow) && !/actions:\s*write/.test(pushGateWorkflow), 'execution-push-gate-read-only');
 
   const jobBlock = (jobName) => {
-    const match = auto.match(new RegExp('^  ' + jobName + ':\\n([\\s\\S]*?)(?=^  [A-Za-z0-9_-]+:|$)', 'm'));
-    return match ? match[1] : '';
+    const marker = `  ${jobName}:\n`;
+    const start = auto.indexOf(marker);
+    if (start < 0) return '';
+    const body = auto.slice(start + marker.length);
+    const next = body.search(/\n  [A-Za-z0-9_-]+:\n/u);
+    return next >= 0 ? body.slice(0, next) : body;
   };
-  const residentTimeout = Number(jobBlock('resident').match(/(?:^|\n)\s+timeout-minutes:\s*(\d+)/)?.[1] ?? NaN);
-  const repairTimeout = Number(jobBlock('repair').match(/(?:^|\n)\s+timeout-minutes:\s*(\d+)/)?.[1] ?? NaN);
+  const timeoutFromJob = (jobName) => Number(jobBlock(jobName).match(/(?:^|\n)\s+timeout-minutes:\s*(\d+)/)?.[1] ?? NaN);
+  const residentTimeout = timeoutFromJob('resident');
+  const repairTimeout = timeoutFromJob('repair');
   must(Number.isFinite(residentTimeout) && residentTimeout <= 345, 'auto-repair-resident-timeout-bound');
   must(Number.isFinite(repairTimeout) && repairTimeout <= 45, 'auto-repair-repair-timeout-bound');
 

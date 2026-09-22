@@ -25,7 +25,7 @@ check('sha.after',SHA_RE.test(after),'UNIFIED_PUSH_GATE_AFTER_SHA_INVALID');
 let count=null;
 let parentCount=null;
 let parent=null;
-let message='';
+let message;
 if(SHA_RE.test(before)&&SHA_RE.test(after)){
   try{
     count=Number(git(['rev-list','--count',`${before}..${after}`]));
