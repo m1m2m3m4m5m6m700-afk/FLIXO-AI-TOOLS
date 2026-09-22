@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   MASTER_IDS,
   MASTER_GROUP,
@@ -8,6 +10,12 @@ import {
 } from './agent-communication.mjs';
 
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+const masterPeerSource=fs.readFileSync(path.resolve(process.cwd(),'scripts/ci/master-peer-communication.mjs'),'utf8');
+assert.match(masterPeerSource,/--session=<active-master-session>/u);
+assert.match(masterPeerSource,/MASTER_PEER_ACTIVE_SESSION_REQUIRED/u);
+assert.match(masterPeerSource,/MASTER_PEER_SESSION_IDENTITY_INVALID/u);
+assert.match(masterPeerSource,/MASTER_PEER_45M_RESIDENCY_POLICY_INVALID/u);
+assert.match(masterPeerSource,/MASTER_PEER_MASTER_SESSION_HEARTBEAT_STALE/u);
 
 const base = {
   schemaVersion: 1,
