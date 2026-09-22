@@ -756,9 +756,9 @@ All three resident bots have intensive repair authority within the bounded Vault
 
 `ACTION-REPAIR`: constructive programmer; may add/edit repair knowledge; may become the single active source-repair owner after admission.
 
-`ACTION-REPAIR-2`: adversarial programmer; may add/edit repair knowledge; must challenge the primary diagnosis and search for counterexamples; may become the single active source-repair owner after admission.
+`ACTION-REPAIR-2`: adversarial programmer and verification-only seat; may add/edit repair knowledge, must challenge the primary diagnosis and search for counterexamples, and may never become a source-mutation owner.
 
-`ACTION-HISTORIAN-3`: master knowledge/index custodian and diagnosis-to-knowledge judge; may ADD and EDIT the canonical Action Vault index; records every RED, attempt, repaired outcome and unresolved failure; decides whether programming diagnosis matches textual knowledge; may become the single active source-repair owner after admission.
+`ACTION-HISTORIAN-3`: master knowledge/index custodian and diagnosis-to-knowledge judge; may ADD and EDIT the canonical Action Vault index; records every RED, attempt, repaired outcome and unresolved failure; decides whether programming diagnosis matches textual knowledge; never owns source mutation.
 
 No Vault bot may mutate `main`, mutate tests for repair purposes, weaken gates, delete historical knowledge, or declare Canonical GREEN.
 
