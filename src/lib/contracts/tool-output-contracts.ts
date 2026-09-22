@@ -52,6 +52,9 @@ export function assertReadyToolsHaveOutputContracts(): void {
     for (const variant of contract.variants) {
       if (!variant.outputMimeTypes.length || !variant.allowedExtensions.length) throw new Error(`Output contract variant is incomplete: ${contract.toolId}/${variant.kind}`);
       if (variant.maxOutputBytes !== undefined && variant.minOutputBytes !== undefined && variant.maxOutputBytes < variant.minOutputBytes) throw new Error(`Invalid byte bounds: ${contract.toolId}/${variant.kind}`);
+      if (variant.validateSignature && !variant.signatures?.length) throw new Error(`Signature validation requires signatures: ${contract.toolId}/${variant.kind}`);
+      if (variant.validateDimensions && (!Number.isInteger(variant.maxPixels) || (variant.maxPixels ?? 0) <= 0)) throw new Error(`Dimension validation requires a positive pixel budget: ${contract.toolId}/${variant.kind}`);
+      if (variant.validateDecode && !variant.parseAs && !variant.signatures?.length) throw new Error(`Decode validation lacks an artifact validation primitive: ${contract.toolId}/${variant.kind}`);
     }
   }
 }
