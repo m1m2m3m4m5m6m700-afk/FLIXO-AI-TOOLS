@@ -19,7 +19,7 @@ assert.match(ci, /verify-run-proof\.mjs/u);
 
 assert.match(supersession, /gh api --paginate --slurp/u);
 assert.match(supersession, /CANCEL_STALE_RUN/u);
-assert.doesNotMatch(supersession, /KEEP_IN_PROGRESS_STALE/u);
+assert.match(supersession, /KEEP_IN_PROGRESS_STALE_DURING_CANCEL/u);
 assert.match(supersession, /Repair/u);
 assert.match(supersession, /actions\/runs\?branch=\$BRANCH/u);
 assert.match(supersession, /flixo-latest-commit-supersession-\$\{\{ github\.repository \}\}/u);
