@@ -784,6 +784,11 @@
     "planMustBeIntegrated": true,
     "activeRepairWindow": {
       "minimumMinutes": 45,
+      "maxContinuousSegmentMinutes": 180,
+      "totalTaskDurationUnlimitedWhileOpen": true,
+      "masterChannel": "MASTER_CELL_LAB",
+      "masterStatusEveryMinutes": 5,
+      "taskReminderEveryMinutes": 10,
       "continuous": true,
       "noSleep": true,
       "noIdle": true,
