@@ -158,7 +158,9 @@ const watchdogExactVerify =
   /name: Verify trusted watchdog checkout[\s\S]*git rev-parse HEAD[\s\S]*test "\$ACTUAL_WATCHDOG_SHA" = "\$TRUSTED_MAIN_SHA"[\s\S]*WATCHDOG_CHECKOUT_MODE=TRUSTED_MAIN/.test(executionWatchdogWorkflow);
 const watchdogSourceFreshness =
   /name: Capture exact execution state[\s\S]*SOURCE_RUN_SHA: \$\{\{ github\.event\.workflow_run\.head_sha \|\| '' \}\}[\s\S]*EXECUTION_SHA="[\s\S]*git\/ref\/heads\/execution[\s\S]*if \[ "\$EXECUTION_SHA" != "\$SOURCE_RUN_SHA" \][\s\S]*STALE_WATCHDOG_EVENT=true/.test(executionWatchdogWorkflow);
-if (!watchdogExactCheckout || !watchdogExactVerify || !watchdogSourceFreshness) {
+const watchdogConcurrency =
+  /concurrency:[\s\S]*group:\s*flixo-execution-watchdog-\$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}[\s\S]*cancel-in-progress:\s*true/.test(executionWatchdogWorkflow);
+if (!watchdogExactCheckout || !watchdogExactVerify || !watchdogSourceFreshness || !watchdogConcurrency) {
   console.error('CI contract failed: execution-bot-watchdog.yml must execute only trusted controller code from main, observe the exact execution SHA through GitHub APIs, and reject stale workflow_run events.');
   process.exit(1);
 }
@@ -174,6 +176,7 @@ const watchdogStepBlock = (workflowText, stepName) => {
 const pushWakeBlock = watchdogStepBlock(executionWatchdogWorkflow, 'Record exact execution push wake');
 const pushWakeMarkers = [
   'name: Record exact execution push wake',
+  'if: github.event_name == \'push\' && github.ref_name == \'execution\' && steps.source.outputs.stale != \'true\'',
   'EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"',
   'EXPECTED_PUSH_SHA="$GITHUB_SHA"',
   'test "$EXECUTION_SHA" = "$EXPECTED_PUSH_SHA"',

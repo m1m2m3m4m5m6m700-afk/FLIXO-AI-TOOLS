@@ -24,10 +24,10 @@ permissions:
   contents: read
 
 concurrency:
-  # Serialize all watchdog observations for the same exact source SHA.
-  # Multiple required-workflow completions for one SHA must collapse into one observer wake.
+  # Supersede older watchdog observations for the same exact source SHA.
+  # Required-workflow completions for one SHA must leave only the newest observer wake.
   group: flixo-execution-watchdog-${{ github.event.workflow_run.head_sha || github.sha }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   wake:
@@ -86,9 +86,11 @@ jobs:
               echo "stale=false" >> "$GITHUB_OUTPUT"
             fi
           else
-            echo "stale=false" >> "$GITHUB_OUTPUT"
-            if [ "$EVENT_BRANCH" = "execution" ]; then
-              test "$EVENT_SHA" = "$EXECUTION_SHA"
+            if [ "$EVENT_BRANCH" = "execution" ] && [ "$EVENT_SHA" != "$EXECUTION_SHA" ]; then
+              echo "STALE_WATCHDOG_EVENT=true: push event is no longer the current execution head."
+              echo "stale=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "stale=false" >> "$GITHUB_OUTPUT"
             fi
           fi
       - name: Decide scheduled wake from durable GREEN evidence
@@ -111,7 +113,7 @@ jobs:
           fi
 
       - name: Record exact execution push wake
-        if: github.event_name == 'push' && github.ref_name == 'execution'
+        if: github.event_name == 'push' && github.ref_name == 'execution' && steps.source.outputs.stale != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
