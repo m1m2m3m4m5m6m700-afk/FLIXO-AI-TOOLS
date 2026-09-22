@@ -438,25 +438,25 @@ jobs:
           test -x "$REAL_NODE"
           mkdir -p /tmp/flixo-node-wrapper
           cat > /tmp/flixo-node-wrapper/node <<'WRAPPER'
-#!/usr/bin/env bash
-set -euo pipefail
-REAL_NODE="__FLIXO_REAL_NODE__"
-CONTROLLER_ROOT="${FLIXO_REPAIR_CONTROLLER:-/tmp/flixo-repair-controller}"
-TARGET_ROOT="${FLIXO_REPAIR_TARGET_ROOT:-/tmp/flixo-repair-target}"
-cd "$TARGET_ROOT"
-if [ "$#" -ge 1 ] && [[ "$1" == scripts/ci/* ]]; then
-  SCRIPT="$CONTROLLER_ROOT/$1"
-  shift
-  test -f "$SCRIPT" || { echo "FAIL CLOSED: trusted controller script not found: $SCRIPT" >&2; exit 1; }
-  exec "$REAL_NODE" "$SCRIPT" "$@"
-fi
-exec "$REAL_NODE" "$@"
-WRAPPER
-          sed -i "s#__FLIXO_REAL_NODE__#$REAL_NODE#g" /tmp/flixo-node-wrapper/node
-          chmod 0755 /tmp/flixo-node-wrapper/node
-          cat > /tmp/flixo-repair-bash-env <<'BASHENV'
-cd /tmp/flixo-repair-target
-BASHENV
+          #!/usr/bin/env bash
+          set -euo pipefail
+          REAL_NODE="__FLIXO_REAL_NODE__"
+          CONTROLLER_ROOT="${FLIXO_REPAIR_CONTROLLER:-/tmp/flixo-repair-controller}"
+          TARGET_ROOT="${FLIXO_REPAIR_TARGET_ROOT:-/tmp/flixo-repair-target}"
+          cd "$TARGET_ROOT"
+          if [ "$#" -ge 1 ] && [[ "$1" == scripts/ci/* ]]; then
+            SCRIPT="$CONTROLLER_ROOT/$1"
+            shift
+            test -f "$SCRIPT" || { echo "FAIL CLOSED: trusted controller script not found: $SCRIPT" >&2; exit 1; }
+            exec "$REAL_NODE" "$SCRIPT" "$@"
+          fi
+          exec "$REAL_NODE" "$@"
+          WRAPPER
+                    sed -i "s#__FLIXO_REAL_NODE__#$REAL_NODE#g" /tmp/flixo-node-wrapper/node
+                    chmod 0755 /tmp/flixo-node-wrapper/node
+                    cat > /tmp/flixo-repair-bash-env <<'BASHENV'
+          cd /tmp/flixo-repair-target
+          BASHENV
           printf '%s\n' "$MAIN_SHA" > /tmp/flixo-trusted-controller-sha
           printf '%s\n' "$MAIN_SHA" > /tmp/flixo-trusted-memory-sha
           printf '%s\n' "$EXECUTION_SHA" > /tmp/flixo-execution-target-sha
