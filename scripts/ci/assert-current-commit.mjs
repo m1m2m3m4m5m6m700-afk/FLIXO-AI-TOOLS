@@ -19,6 +19,24 @@ const branchPath = expectedBranch.split('/').map(encodeURIComponent).join('/');
 const apiUrl = `https://api.github.com/repos/${expectedRepository}/git/ref/heads/${branchPath}`;
 const remoteRef = `refs/heads/${expectedBranch}`;
 
+let localSha;
+try {
+  localSha = await new Promise((resolve, reject) => {
+    execFile('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }, (error, stdout, stderr) => {
+      if (error) reject(new Error(stderr || error.message));
+      else resolve(String(stdout ?? '').trim());
+    });
+  });
+} catch (error) {
+  console.error('FAIL CLOSED: unable to resolve local checkout SHA.');
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
+if (!/^[0-9a-f]{40}$/iu.test(localSha) || localSha !== expectedSha) {
+  console.error(`FAIL CLOSED: local checkout SHA ${localSha || '<empty>'} does not equal EXPECTED_SHA ${expectedSha}.`);
+  process.exit(1);
+}
+
 let actualSha;
 let resolutionMode = token ? 'GITHUB_API' : 'PUBLIC_GIT_REMOTE';
 try {
