@@ -3,7 +3,7 @@ import { z, type ZodType } from 'zod';
 import { LOCALES, type Locale } from '@/lib/i18n/config.ts';
 import type { ComponentType, LazyExoticComponent } from 'react';
 
-export type ToolFamily = 'image';
+export type ToolFamily = 'image' | 'video' | 'audio' | 'ai' | 'editor';
 export type ToolLifecycle = 'experimental' | 'beta' | 'ready' | 'deprecated';
 export type ToolExecution = 'browser-local' | 'browser-worker' | 'remote';
 export type ToolContractLevel = 'structural' | 'runtime' | 'artifact';
