@@ -169,7 +169,6 @@ jobs:
 
   repair:
     name: Single-lane diagnose, execute, verify and learn on execution
-    timeout-minutes: 345
     concurrency:
       group: flixo-execution-mutation-lane
       cancel-in-progress: false
