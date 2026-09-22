@@ -34,6 +34,12 @@ for(const marker of [
  "knowledgeFusion",
  "FLIXO-READ-ONLY-KNOWLEDGE-FUSION-v1",
  "read-only-knowledge-fusion.mjs",
+ "FLIXO-KNOWLEDGE-ARBITRATION-v1",
+ "arbitrateKnowledge",
+ "REJECT_ALL",
+ "SELECT_WITH_EVIDENCE",
+ "ESCALATE",
+ "blocksMutation",
  "read-only-knowledge-fusion.mjs",
 ]) if(!source.includes(marker)) failures.push('MISSING_MARKER='+marker);
 
@@ -46,6 +52,9 @@ if(/mutationAuthority\s*[:=]\s*['\"](?:ACTION-REPAIR|AUTO|GRANTED)/u.test(source
 if(!source.includes("mutationWouldBeAllowedByRepairStack")) failures.push('REPAIR_STACK_SIMULATION_MISSING');
 if(!testSource.includes('SKIPPED_IN_UNIT_TEST')) failures.push('UNIT_BOUNDARY_MISSING');
 if(!testSource.includes('actionVaultPrediction')) failures.push('ACTION_VAULT_UNIT_ASSERTION_MISSING');
+if(!testSource.includes('FLIXO-KNOWLEDGE-ARBITRATION-v1')) failures.push('KNOWLEDGE_ARBITRATION_UNIT_ASSERTION_MISSING');
+if(!testSource.includes('REJECT_ALL')) failures.push('KNOWLEDGE_ARBITRATION_REJECT_ALL_TEST_MISSING');
+if(!testSource.includes('SELECT_WITH_EVIDENCE')) failures.push('KNOWLEDGE_ARBITRATION_SELECT_TEST_MISSING');
 
 const sha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
 const result={schemaVersion:1,authority:'READ_ONLY_REPAIR_INTELLIGENCE_CONTRACT',status:failures.length?'FAIL':'PASS',checkedSha:sha,failures};
