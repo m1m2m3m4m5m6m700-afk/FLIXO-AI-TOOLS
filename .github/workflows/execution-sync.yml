@@ -111,9 +111,9 @@ jobs:
           MUTATION_PATHS="$(git diff --name-only "$EXEC_SHA" HEAD | paste -sd, -)"
           test -n "$MUTATION_PATHS" || { echo 'No reconciliation diff remains; refusing empty execution mutation.'; exit 0; }
           CANDIDATE_SHA="$(git rev-parse HEAD)"
-          node scripts/ci/execution-mutation-gate.mjs verify --phase=pre-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA" --parent="$EXEC_SHA"
           node scripts/ci/chair-bound-execution.mjs authorize-publication --chair=chair_1 --agent=EXECUTION_SYNC --sha="$EXEC_SHA" --permission=SOURCE_MUTATION --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --paths="$MUTATION_PATHS" >/tmp/flixo-chair-publication.json
           node scripts/ci/execution-head-authority.mjs authorize --agent=EXECUTION_SYNC --target-sha="$EXEC_SHA" --parent-sha="$EXEC_SHA" --candidate-sha="$CANDIDATE_SHA" --task-id="$TASK_ID" --work-package="$WORK_PACKAGE_ID" --output="$FLIXO_HEAD_AUTHORITY_PROOF" >/tmp/flixo-head-authority-log.json
+          node scripts/ci/execution-mutation-gate.mjs verify --phase=pre-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA" --parent="$EXEC_SHA"
           git push origin HEAD:execution
           node scripts/ci/execution-mutation-gate.mjs verify --phase=post-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA"
           NEW_SHA="$CANDIDATE_SHA"
