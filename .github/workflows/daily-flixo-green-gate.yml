@@ -31,8 +31,10 @@ permissions:
 # Every observation is evidence-bearing and must complete; duplicate wake suppression is handled by the watchdog.
 # The watcher itself never cancels an evidence-bearing observation.
 concurrency:
-  group: flixo-continuous-error-watch-${{ github.event.workflow_run.head_sha || github.sha }}-${{ github.run_id }}
-  cancel-in-progress: false
+  # Coalesce observer wakes by branch. Green Gate is an observer, not the source of certification evidence.
+  # A newer wake for the same branch supersedes an older observer; required workflow evidence remains exact-SHA bound.
+  group: flixo-continuous-error-watch-${{ github.event.workflow_run.head_branch || (github.event_name == 'push' && github.ref_name) || 'execution' }}
+  cancel-in-progress: true
 
 jobs:
   watch:
