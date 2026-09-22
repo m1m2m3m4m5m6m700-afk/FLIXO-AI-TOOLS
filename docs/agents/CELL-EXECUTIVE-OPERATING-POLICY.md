@@ -1,5 +1,7 @@
 # FLIXO CELL EXECUTIVE OPERATING POLICY — RETIRED
 
+Machine-readable status marker: CELL-EXEC-RETIRED
+
 The historical CELL-001..CELL-200 worker pool has been permanently retired by direct user directive.
 
 - No CELL-001..CELL-200 bot is active or assignable.
