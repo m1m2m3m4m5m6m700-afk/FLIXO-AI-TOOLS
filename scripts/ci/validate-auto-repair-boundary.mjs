@@ -103,7 +103,7 @@ export function validateStatic() {
   must(/CONTROLLER_SHA="\$MAIN_SHA"/.test(auto), 'auto-repair-main-controller-trust');
   must(/TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET/.test(auto), 'auto-repair-trust-model');
   must(/FLIXO_TRUSTED_CONTROLLER_SHA=\$CONTROLLER_SHA/.test(auto), 'auto-repair-controller-provenance');
-  must(/contents:\s*write/.test(auto) && /pull-requests:\s*write/.test(auto), 'auto-repair-required-permissions');
+  must(/contents:\s*read/.test(auto) && /pull-requests:\s*write/.test(auto), 'auto-repair-required-permissions');
   must(!/actions:\s*write/.test(auto), 'auto-repair-no-actions-admin');
   must(/checks:\s*read/.test(auto), 'auto-repair-check-permission');
   must(/group:\s*flixo-execution-mutation-lane/.test(auto), 'auto-repair-global-mutation-lane');
@@ -130,7 +130,7 @@ export function validateStatic() {
   must(/CANDIDATE_SHA="\$\(git rev-parse HEAD\)/.test(auto), 'auto-repair-candidate-sha');
   must(/PARENT_SHA="\$\(git rev-parse "\$CANDIDATE_SHA\^"\)/.test(auto), 'auto-repair-candidate-parent-sha');
   must(/test "\$\(git rev-parse origin\/execution\)" = "\$PARENT_SHA"/.test(auto), 'auto-repair-publication-parent-integrity');
-  must(/git push origin "HEAD:execution"/.test(auto), 'auto-repair-execution-only-publication');
+  must(!/git\s+push[^\n]*\bexecution\b/.test(auto) && /EXECUTION_PUBLICATION=BLOCKED_BY_CHAIR_GUARD/.test(auto), 'auto-repair-execution-publication-chair-gated');
   must(/if: steps\.chair1_audit\.outcome == 'success'/.test(auto), 'auto-repair-publication-must-depend-on-chair1');
   must(/FLIXO_CHAIR_CONTEXT:\s*\/tmp\/flixo-chair1-proposal\.json/.test(auto), 'auto-repair-chair-context-boundary');
   must(auto.includes('EVIDENCE_CAPTURE=FAILED'), 'auto-repair-evidence-capture-fail-closed');
@@ -162,7 +162,7 @@ export function validateStatic() {
   must(/cannot repair itself/.test(auto), 'auto-repair-self-protection');
   must(!/assistant[_ -]?fallback/i.test(auto), 'auto-repair-no-peer-fallback');
   must(/AUTO_REPAIR_BOT/.test(auto), 'auto-repair-executor-identity');
-  must(/CHAIR_1_STRICT_AUDIT/.test(auto), 'auto-repair-chair1-final-authority');
+  must(/CHAIR1_AUDIT=APPROVED/.test(auto) && /CHAIR1_REVIEW_AUTHORITY=STRICT_INDEPENDENT_AUDITOR/.test(auto) && /CHAIR_GUARD_BLOCKED: direct execution publication is forbidden/.test(auto), 'auto-repair-chair1-final-authority');
   must(!/continue-on-error:\s*true/i.test(auto), 'auto-repair-no-continue-on-error');
   must(!/git\s+(checkout|switch)\s+-[bc]/.test(auto), 'auto-repair-no-third-branch');
   must(!/git\s+push[^\n]*\bmain\b/.test(auto), 'auto-repair-no-main-push');
