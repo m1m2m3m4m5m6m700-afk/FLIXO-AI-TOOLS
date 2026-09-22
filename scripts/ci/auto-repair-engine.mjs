@@ -25,6 +25,7 @@ import { evaluateMutationGate } from './action-vault-mutation-gate.mjs';
 import { reviewCatalogBeforeMutation, reviewDiagnosisAgainstKnowledge } from './action-vault-triad-governor.mjs';
 import { buildRcaManifest, validateRcaManifest, enforceMutationScope } from './in-repo-repair-v2.mjs';
 import { buildFiveXExecutionEnvelope } from './read-only-power-profile.mjs';
+import { buildFiveXRepairCycleState } from './read-only-power-profile.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
@@ -362,6 +363,26 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     mainMutation: false,
     gateWeakening: /continue-on-error|test\\.(?:skip|only)|describe\\.(?:skip|only)|eslint-disable|@ts-(?:ignore|nocheck)/iu.test(candidateDiff),
   };
+  const fiveXRepairCycle = buildFiveXRepairCycleState({
+    phase: 'PRE_MUTATION',
+    chainId: repairChainId || repairSessionId,
+    taskId: fiveXTaskId,
+    failureFingerprint: fingerprint,
+    attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1),
+    targetSha,
+    currentSha: git(['rev-parse', 'HEAD']).trim(),
+    failedSha: process.env.FLIXO_FAILURE_SHA || null,
+    strategyId: selected?.id ?? process.env.FLIXO_REPAIR_STRATEGY_ID ?? null,
+    previousCycle: known?.lastFiveXCycle ?? null,
+    learningOutputs: fiveXLearningOutputs,
+    adversarialStatus: programmerTwinReport?.status ?? null,
+    counterexampleFound: programmerTwinReport?.counterexampleFound ?? null,
+    regressionOk: null,
+    regressionDepth: 0,
+    canonicalGreen: false,
+  });
+  evidence.fiveX.cycle = fiveXRepairCycle;
+
   const mutationGate = evaluateMutationGate({
     targetSha,
     currentSha: git(['rev-parse', 'HEAD']).trim(),
@@ -382,6 +403,7 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     mutationScope,
     branch: protocolBranch,
     fiveXEnvelope,
+    fiveXCycleState: fiveXRepairCycle,
   });
   evidence.mutationGate = mutationGate;
   if (mutationGate.status !== 'PASS') {
@@ -930,6 +952,26 @@ const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
     proofClasses: fiveXProofClasses,
   };
 
+  const fiveXRepairCycle = buildFiveXRepairCycleState({
+    phase: 'PRE_MUTATION',
+    chainId: repairChainId || repairSessionId,
+    taskId: fiveXTaskId,
+    failureFingerprint: fingerprint,
+    attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1),
+    targetSha,
+    currentSha: git(['rev-parse', 'HEAD']).trim(),
+    failedSha: process.env.FLIXO_FAILURE_SHA || null,
+    strategyId: selected?.id ?? process.env.FLIXO_REPAIR_STRATEGY_ID ?? null,
+    previousCycle: known?.lastFiveXCycle ?? null,
+    learningOutputs: fiveXLearningOutputs,
+    adversarialStatus: programmerTwinReport?.status ?? null,
+    counterexampleFound: programmerTwinReport?.counterexampleFound ?? null,
+    regressionOk: null,
+    regressionDepth: 0,
+    canonicalGreen: false,
+  });
+  evidence.fiveX.cycle = fiveXRepairCycle;
+
   const mutationGate = evaluateMutationGate({
     targetSha,
     currentSha: gateCurrentSha,
@@ -947,6 +989,7 @@ const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
     mutationScope,
     branch: protocolBranch,
     fiveXEnvelope,
+    fiveXCycleState: fiveXRepairCycle,
   });
   evidence.mutationGate = mutationGate;
   if (mutationGate.status !== 'PASS') {
