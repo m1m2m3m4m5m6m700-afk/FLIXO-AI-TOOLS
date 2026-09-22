@@ -1,4 +1,4 @@
-import { getToolDefinition } from '../config/canonical-tool-definition';
+import { getToolDefinition, TOOL_DEFINITIONS } from '../config/canonical-tool-definition';
 
 export type ProcessingMode = 'local' | 'remote';
 
@@ -15,6 +15,11 @@ const definePrivacyCopy = (
   localDetail: (title: string) => string,
   remoteDetail: (title: string) => string,
 ): PrivacyLocaleCopy => ({ local, remote, localDetail, remoteDetail });
+
+// Non-authoritative compatibility projection for legacy static contracts. Runtime privacy decisions do not read this set; ai-image-generator remains canonical data in TOOL_DEFINITIONS.
+export const REMOTE_TOOL_IDS = new Set(
+  TOOL_DEFINITIONS.filter((tool) => tool.executionMode === 'CLOUD').map((tool) => tool.id),
+);
 
 const PRIVACY_COPY: Record<string, PrivacyLocaleCopy> = {
   ar: definePrivacyCopy('معالجة محلية', 'معالجة خارجية', (title) => `تتم معالجة الملفات والمدخلات لأداة ${title} داخل متصفحك عندما تسمح طبيعة الأداة بذلك.`, (title) => `تستخدم أداة ${title} نقطة معالجة خارجية. لا تُعرض كأداة معالجة محلية.`),
