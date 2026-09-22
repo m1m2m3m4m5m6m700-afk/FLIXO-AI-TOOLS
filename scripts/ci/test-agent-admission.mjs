@@ -90,7 +90,7 @@ assert.ok(safeExecution.includes('Task Agent is explicitly not a mutation role')
 const unifiedPrompt = prompts.prompts.find((item) => item.promptId === 'RPR-UNIFIED-EXECUTION-001');
 assert.ok(unifiedPrompt);
 assert.equal(unifiedPrompt.status, 'ACTIVE');
-assert.equal(unifiedPrompt.version, '3.0.0');
+assert.equal(unifiedPrompt.version, '4.0.0');
 assert.ok(unifiedPrompt.provenance?.replacedFamilies?.includes('Task Agent preparation'));
 assert.ok(unifiedPrompt.provenance?.replacedFamilies?.includes('Safe Task Agent execution'));
 assert.equal(prompts.prompts.filter((item) => item.status === 'ACTIVE').length, 1);
