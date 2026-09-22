@@ -1,13 +1,18 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, assertActiveRepairWindow, sessionTerminationDirective, idleAdmission, sleepAdmission, selfDisableAdmission, selfAbortAdmission, runEndAdmission } from './agent-liveness-protocol.mjs';
+import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, assertActiveRepairWindow, checkContinuousSessionWindow, sessionTerminationDirective, idleAdmission, sleepAdmission, selfDisableAdmission, selfAbortAdmission, runEndAdmission } from './agent-liveness-protocol.mjs';
 
 assert.equal(assertLivenessDefinition(), true);
 assert.deepEqual([...AGENT_LIVENESS_PROTOCOL.forbiddenStates].sort(), ['ABANDONED','IDLE','SILENT','SLEEP'].sort());
 assert.equal(AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs, 60 * 1000);
 assert.equal(AGENT_LIVENESS_PROTOCOL.heartbeatGraceMs, 30 * 1000);
 assert.equal(AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs, 45 * 60 * 1000);
+assert.equal(AGENT_LIVENESS_PROTOCOL.maxContinuousActiveSessionMs, 3 * 60 * 60 * 1000);
+assert.equal(AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs, 5 * 60 * 1000);
+assert.equal(AGENT_LIVENESS_PROTOCOL.taskReminderEveryMs, 10 * 60 * 1000);
+assert.equal(AGENT_LIVENESS_PROTOCOL.sessionPolicy.totalTaskDurationUnlimitedWhileOpen, true);
+assert.equal(AGENT_LIVENESS_PROTOCOL.sessionPolicy.masterChannelRequired, true);
 assert.equal(AGENT_LIVENESS_PROTOCOL.sessionPolicy.minimumActiveWindowMs, 45 * 60 * 1000);
 assert.equal(AGENT_LIVENESS_PROTOCOL.sessionPolicy.minimumActiveWindowEnforced, true);
 assert.equal(AGENT_LIVENESS_PROTOCOL.sessionPolicy.noSleepDuringActiveWindow, true);
@@ -56,6 +61,8 @@ assert.equal(greenEarly.action,'RECOVER_AND_CONTINUE');
 assert.equal(greenEarly.taskRemainsOpen,true);
 const greenAfter=sessionTerminationDirective({canonicalGreen:true,activeRepairWindowReached:true});
 assert.equal(greenAfter.action,'CLOSE_ALLOWED');
+assert.equal(checkContinuousSessionWindow({continuousStartedAt:new Date(Date.now()-179*60*1000).toISOString()}).action,'CONTINUE');
+assert.equal(checkContinuousSessionWindow({continuousStartedAt:new Date(Date.now()-181*60*1000).toISOString()}).action,'RESIDENCY_RENEWAL_REQUIRED');
 assert.equal(greenAfter.taskRemainsOpen,false);
 const green=sessionTerminationDirective({canonicalGreen:true,activeRepairWindowReached:true});
 assert.equal(green.action,'CLOSE_ALLOWED');
@@ -68,3 +75,9 @@ assert.match(sessionSource,/AGENT_SESSION_HEARTBEAT_REQUIRED_BEFORE_CLOSE/u);
 assert.match(sessionSource,/agent-session\.mjs heartbeat/u);
 
 console.log('AGENT_LIVENESS_CONTRACT=PASS');
+
+const sessionSource=fs.readFileSync(path.resolve(process.cwd(),'scripts/ci/agent-session.mjs'),'utf8');
+assert.match(sessionSource,/master-update/u);
+assert.match(sessionSource,/MASTER_CELL_LAB/u);
+assert.match(sessionSource,/TASK_REMINDER/u);
+assert.match(sessionSource,/SESSION_SHA_CHANGED/u);
