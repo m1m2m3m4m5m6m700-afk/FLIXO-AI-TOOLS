@@ -284,7 +284,7 @@ export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permiss
   if(chairId==='chair_1'&&permission==='MERGE_PROPOSAL')throw new Error('MERGE_PROPOSAL_IS_NOT_MERGE_AUTHORITY');
   if(['chair_2','chair_3'].includes(chairId)&&permission==='SOURCE_MUTATION'&&chairId==='chair_2'&&!boundedScope?.length)throw new Error('CHAIR2_BOUNDED_SCOPE_REQUIRED');
   if(chairId==='chair_3'&&(!reviewId||reviewId!==chair.review_id))throw new Error('CHAIR3_REVIEW_ID_MISMATCH');
-  const normalized=paths.map(p=>String(p).replace(/\\\\/g,'/').replace(/^\\.\\//,''));
+  const normalized=paths.map(p=>String(p).replaceAll('\\','/').replace(/^\.\//,''));
   if(normalized.some(p=>p.startsWith('/')||p.includes('..')))throw new Error('CHAIR_PATH_INVALID');
   for(const p of normalized){
     if(def.protectedPrefixes.some(prefix=>p===prefix||p.startsWith(prefix)))throw new Error('CHAIR_PROTECTED_PATH');
