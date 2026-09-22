@@ -40,9 +40,11 @@ Before any repository action, every agent MUST read, in this order:
 9. `docs/PROTOCOL-REGISTRY.json`
 10. `docs/agents/PROMPT-REGISTRY.json`
 11. `diagnostics/auto-repair/memory.json`
-12. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
-13. `scripts/ci/test-plan.json`
-14. `scripts/ci/assertion-registry.json`
+12. `scripts/ci/cell-lab-consensus.mjs`
+13. `docs/agents/CELL-CONTROL-HEADQUARTERS.md`
+14. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+15. `scripts/ci/test-plan.json`
+16. `scripts/ci/assertion-registry.json`
 15. the current exact `main` SHA and current workflow state
 
 `PROJECTS.md` is the navigation/control layer; `المهام.md` is the open-task scope gate; the linked contract/plan remains authoritative for implementation semantics, and CI/evidence remains authoritative for completion.
