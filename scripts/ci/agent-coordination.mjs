@@ -25,7 +25,7 @@ const WRITE_LOCK_MAX_ATTEMPTS = 240;
 const WRITE_LOCK_STALE_MS = 10 * 60 * 1000;
 const STALE_SESSION_KILL_SWITCH = true;
 const CHAIR_ROLE_POLICY = Object.freeze({
-  chair_1: new Set(['assistantController','executionAgent','repairAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier','actionHistorian']),
+  chair_1: new Set(['assistantController','executionAgent','repairAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier','actionHistorian','AUTO_REPAIR_BOT']),
   chair_2: new Set(['verification','reviewAgent','testAgent','securityAgent','diagnosticAgent','errorAgent','repairAgent','assistantRepairAgent','actionRepairVerifier']),
   chair_3: new Set(['analysis','assistantController']),
 });
