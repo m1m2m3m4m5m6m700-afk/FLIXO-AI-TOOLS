@@ -910,7 +910,7 @@ jobs:
             TARGET_SHA=''
             REVERTED_COMMIT=''
           fi
-          if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ]; then
+          if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ] && [ "${{ steps.postpatch_adversarial.outcome }}" = "success" ]; then
             LEARNING_OUTCOME='reverted-repair'
           elif [ "$VERIFY_OUTCOME" = "success" ] && [ "$ENGINE_OUTCOME" = "verified-repair" ]; then
             LEARNING_OUTCOME='success'
@@ -1127,7 +1127,7 @@ jobs:
           if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ]; then
             OUTCOME="VERIFIED_HISTORICAL_REVERT"
             VERIFICATION="verified-historical-revert"
-          elif [ "$ENGINE_OUTCOME" = "verified-repair" ] && [ "${{ steps.verify.outputs.verified }}" = "true" ]; then
+          elif [ "$ENGINE_OUTCOME" = "verified-repair" ] && [ "${{ steps.verify.outputs.verified }}" = "true" ] && [ "${{ steps.postpatch_adversarial.outcome }}" = "success" ]; then
             OUTCOME="VERIFIED_REPAIR"
             VERIFICATION="verified-repair"
           elif [ "$ENGINE_OUTCOME" = "blocked-external" ]; then
@@ -1159,7 +1159,6 @@ jobs:
             --verification="$VERIFICATION" \
             --verificationProgress="$VERIFICATION_PROGRESS" \
             >/tmp/flixo-repair-lease-outcome.json
-            /tmp/flixo-postpatch-adversarial.json
           cat /tmp/flixo-repair-lease-outcome.json
           echo "LEASE_OUTCOME=$OUTCOME"
           echo "LEASE_EXIT_SHA=$EXIT_SHA"
@@ -1174,6 +1173,7 @@ jobs:
             /tmp/flixo-repair-control-plane.json
             /tmp/flixo-lease-verification.json
             /tmp/flixo-repair-lease-outcome.json
+            /tmp/flixo-postpatch-adversarial.json
           if-no-files-found: warn
           retention-days: 14
 
