@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: flixo-auto-repair-merge-gate-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   gate:
