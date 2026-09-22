@@ -13,7 +13,7 @@ const sha=String(arg('sha')||git(['rev-parse','HEAD'])).trim();
 const readJson=(file)=>JSON.parse(fs.readFileSync(file,'utf8'));
 const proposalFile=arg('proposal');
 const output=arg('output','/tmp/flixo-chair-push-guard.json');
-const memoryOutput=arg('memory-output','/tmp/flixo-chair-rejected-push-memory.jsonl');
+const memoryOutput=arg('memory-output','.flixo/locks/rejected-push-memory.jsonl');
 if(!SHA_RE.test(sha))throw new Error('CHAIR_GUARD_SHA_INVALID');
 if(!proposalFile)throw new Error('CHAIR_GUARD_PROPOSAL_REQUIRED');
 const proposal=readJson(proposalFile);
