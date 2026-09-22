@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import {REPAIR_PROTOCOL,REPAIR_PROTOCOL_HASH,assertProtocolDefinition,assertAgentAdmission,createRepairSession,captureFailure,authorizeMutation,completeRepairSession,validateActionVaultVerifierProof,validateActionVaultPreMutationProofs,validateCommitBoundary,validatePostCommitBoundary,validateErrorOnlyMutation,validateMinimalRepairScope,validateTargetedRegressionSelection} from './repair-protocol.mjs';
 
 const definition=assertProtocolDefinition();
@@ -17,7 +18,7 @@ const cellLabConsensus = (taskId, owner) => ({
   exactSha:targetSHA,
   objective:'Test shared-cell decision process.',
   integratedPlan:'Discuss → challenge → synthesize → agree → execute → verify.',
-  planHash:'b'.repeat(64),
+  planHash:crypto.createHash('sha256').update('Discuss → challenge → synthesize → agree → execute → verify.','utf8').digest('hex'),
   status:'AGREED',
   executionReady:true,
   discussionClosed:true,
