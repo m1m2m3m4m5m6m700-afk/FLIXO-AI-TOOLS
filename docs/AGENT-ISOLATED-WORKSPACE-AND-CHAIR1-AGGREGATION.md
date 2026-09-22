@@ -91,3 +91,28 @@ The worker result is evidence and candidate source material. It is not a certifi
 Exact SHA applies to the worker's **entry snapshot** and to Chair 1's **current integration snapshot**.
 
 A worker does not need to restart merely because `execution` advances while it is working. Chair 1 is responsible for bringing the worker result forward onto the latest state.
+
+## Chair-1 preemption continuity
+
+Taking Chair 1 from an active agent is a **authority transfer**, not a task cancellation.
+
+When a higher-priority master takes Chair 1 while the current holder has an active task:
+
+1. The previous holder's Chair-1 mutation authority is revoked immediately.
+2. The task remains `CONTINUING_AFTER_PREEMPTION`.
+3. The displaced agent remains active and may continue analysis, verification, evidence collection and task completion work.
+4. The displaced agent may **not mutate source or publish** after preemption because its Chair lease is revoked.
+5. The displaced agent must deliver all remaining work, evidence, blockers and next actions to `CHAIR_1_GUARD`.
+6. The new Chair-1 holder becomes the sole mutation/publication authority.
+7. The task is not reassigned silently; the continuity record remains bound to the original `taskId` and `targetSha`.
+8. The next holder/guard revalidates the inherited state before applying any mutation.
+
+Therefore:
+
+`PREEMPT CHAIR != STOP TASK`
+
+The allowed transition is:
+
+`CHAIR_ACTIVE -> CHAIR_TRANSFERRED -> CONTINUING_AFTER_PREEMPTION -> GUARD_HANDOFF -> CHAIR_1_RECONCILIATION`
+
+A preempted agent that attempts mutation must fail closed. Continuation is for finishing and handing off work, not for bypassing the new Chair-1 authority.
