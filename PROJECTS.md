@@ -451,11 +451,11 @@ Implementation ledger only; not GREEN/certification evidence.
 
 
 ## SECURITY-REDTEAM-TRIAD-001 — 2026-09-22
-STATUS = IMPLEMENTED / SECURITY-LIVE-VERIFICATION-PENDING
-ENTRY_SHA = 5f340c4338abbfca299223309544946e97d9ccb2
-EXECUTION = Three independent read-only security red-team bots covering control plane, application code and runtime/data boundaries.
-LEDGER = `الثغرات الامنيه.md`
-REPAIR_INTELLIGENCE = `scripts/ci/adversarial-repair-twin.mjs` (A+B, read-only advisory)
-WORKFLOW = `.github/workflows/security-red-team.yml`
-RULE = Every new finding is deduplicated by fingerprint and recorded on execution; no red-team bot can mutate source, certify, or declare GREEN.
-NEXT = Fresh exact-SHA run of the triad, then route actionable findings into the canonical repair protocol.
+STATUS = IMPLEMENTED / ISOLATED-EVIDENCE-MODE
+EXECUTION = Three independent read-only security red-team bots on separate ephemeral runners.
+TRIGGER = MANUAL_DISPATCH_ONLY with explicit Exact SHA.
+LEDGER = NOT AUTO-MUTATED; findings remain workflow artifacts until separately promoted.
+REPAIR_INTELLIGENCE = scripts/ci/adversarial-repair-twin.mjs (A+B, read-only advisory)
+WORKFLOW = .github/workflows/security-red-team.yml
+ISOLATION = contents:read / no source mutation / no ledger mutation / no peer wake / no shared workspace.
+NEXT = Run the isolated triad against a chosen exact SHA and inspect its three evidence artifacts.
