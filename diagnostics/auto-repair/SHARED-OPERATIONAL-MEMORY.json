@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "protocol": "FLIXO-SHARED-OPERATIONAL-MEMORY-v1",
+  "authority": "SHARED_KNOWLEDGE_ONLY",
+  "mutationAuthority": false,
+  "certificationAuthority": false,
+  "canonical": true,
+  "botCount": 6,
+  "bots": ["ACTION-REPAIR","ACTION-REPAIR-2","READ-INVESTIGATOR","READ-ADVERSARY","executionAgent","reviewAgent"],
+  "recordCount": 0,
+  "updatedAt": null,
+  "records": [],
+  "indexes": {"byFingerprint": {}, "byBot": {}, "byKind": {}},
+  "legacyReadThrough": {
+    "enabled": true,
+    "authority": "CONTEXT_ONLY",
+    "sources": [
+      "diagnostics/auto-repair/memory.json",
+      "diagnostics/auto-repair/cell-knowledge/index.json",
+      "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
+      "docs/agents/ACTION-ERROR-HISTORY.md",
+      "docs/agents/ERROR-TEACHING-ROUTER.json"
+    ]
+  }
+}
