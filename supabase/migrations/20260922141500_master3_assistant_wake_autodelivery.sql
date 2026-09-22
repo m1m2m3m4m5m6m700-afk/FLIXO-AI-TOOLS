@@ -38,35 +38,3 @@ create trigger flixo_council_assistant_wake_notify_trigger
 after insert on public.flixo_council_assistant_channel_tokens
 for each row
 execute function public.flixo_council_assistant_wake_notify();
-
-do $cron$
-begin
-  if not exists (
-    select 1 from cron.job
-    where jobname = 'flixo-master3-assistant-wake-retry'
-  ) then
-    perform cron.schedule(
-      'flixo-master3-assistant-wake-retry',
-      '* * * * *',
-      $job$
-        select net.http_get(
-          'https://zrpsmgdrtwzrhkjwwujo.supabase.co/functions/v1/flixo-council-runtime',
-          params := jsonb_build_object(
-            'action', 'assistant-channel',
-            'purpose', 'WAKE',
-            'tokenHash', token_hash,
-            'entrySha', entry_sha
-          ),
-          timeout_milliseconds := 5000
-        )
-        from public.flix_council_assistant_channel_tokens
-        where purpose = 'WAKE'
-          and consumed_at is null
-          and expires_at > now()
-        order by created_at asc
-        limit 20;
-      $job$
-    );
-  end if;
-end
-$cron$;
