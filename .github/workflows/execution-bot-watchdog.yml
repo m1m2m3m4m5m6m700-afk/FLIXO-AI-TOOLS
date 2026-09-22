@@ -20,7 +20,9 @@ on:
     branches: [execution, main]
 
 permissions:
-  actions: read
+  # The watchdog may wake the trusted Daily·FLIXO Green Gate on the first RED.
+  # It still has no direct Auto Repair dispatch authority.
+  actions: write
   contents: read
 
 concurrency:
@@ -108,6 +110,49 @@ jobs:
               echo "stale=false" >> "$GITHUB_OUTPUT"
             fi
           fi
+      - name: Dispatch canonical Green Gate on the first RED signal
+        if: >-
+          github.event_name == 'workflow_run' &&
+          steps.source.outputs.stale != 'true' &&
+          (
+            github.event.workflow_run.conclusion == 'failure' ||
+            github.event.workflow_run.conclusion == 'timed_out'
+          )
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"
+          test "$GITHUB_EVENT_NAME" = "workflow_run"
+          test -n "$EXECUTION_SHA"
+
+          ACTIVE_GREEN_GATES="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow daily-flixo-green-gate.yml \
+            --branch execution \
+            --limit 50 \
+            --json databaseId,status,headSha \
+            --jq '[.[] | select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'")] | length')"
+
+          if [ "$ACTIVE_GREEN_GATES" -gt 0 ]; then
+            echo 'FIRST_RED_SIGNAL=true'
+            echo 'RED_WAKE_ALREADY_BACKED_BY_ACTIVE_GREEN_GATE=true'
+            echo "RED_WAKE_TARGET_SHA=$EXECUTION_SHA"
+            exit 0
+          fi
+
+          gh api --method POST \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/daily-flixo-green-gate.yml/dispatches" \
+            -f ref=main
+
+          echo 'FIRST_RED_SIGNAL=true'
+          echo 'CANONICAL_GREEN_GATE_DISPATCHED=true'
+          echo 'CANONICAL_REPAIR_DISPATCH=false'
+          echo "RED_WAKE_TARGET_SHA=$EXECUTION_SHA"
+          echo "RED_WAKE_SOURCE_RUN_ID=${{ github.event.workflow_run.id }}"
+          echo "RED_WAKE_SOURCE_WORKFLOW=${{ github.event.workflow_run.name }}"
+
       - name: Decide scheduled wake from durable GREEN evidence
         id: scheduled_wake
         if: github.event_name == 'schedule'
@@ -266,6 +311,7 @@ jobs:
               sourceRunSha: $sourceRunSha,
               action: "WAKE_CANONICAL_OBSERVER",
               repairDispatcher: "daily-flixo-green-gate.yml",
+              firstRedWake: "${{ github.event_name }}" == "workflow_run" && "${{ github.event.workflow_run.conclusion || '' }}" != "success" && "${{ steps.source.outputs.stale }}" == "false",
               directRepairDispatch: false
             }' > diagnostics/watchdog/evidence.json
           test -s diagnostics/watchdog/evidence.json
