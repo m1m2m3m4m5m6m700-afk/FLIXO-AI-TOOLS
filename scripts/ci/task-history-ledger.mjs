@@ -27,7 +27,7 @@ const parseLedger = () => {
     let record;
     try {
       record = JSON.parse(lines[index]);
-    } catch (error) {
+    } catch {
       fail(`MALFORMED_JSON_LINE=${index + 1}`);
     }
     if (!record || typeof record !== 'object' || Array.isArray(record)) fail(`INVALID_RECORD_LINE=${index + 1}`);
