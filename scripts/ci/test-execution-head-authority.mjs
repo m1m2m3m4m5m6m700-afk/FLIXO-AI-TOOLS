@@ -45,11 +45,12 @@ for(const workflow of workflows){
     assert.doesNotMatch(text,/git\\s+push[^\\n]*\\bexecution\\b/,workflow+' must not publish execution directly');
     assert.match(text,/CHAIR_GUARD_BLOCKED: direct execution publication is forbidden/,workflow+' missing Chair-gated publication block');
     assert.match(text,/EXECUTION_PUBLICATION=BLOCKED_BY_CHAIR_GUARD/,workflow+' missing Chair-gated publication state');
-  } else {
-    assert.match(text,/git push origin(?: "HEAD:execution"| execution)/,workflow+' missing execution push surface');
   }
+  assert.doesNotMatch(text,/git\\s+push[^\\n]*\\bexecution\\b/,workflow+' must not publish execution directly');
   assert.match(text,/execution-head-authority\.mjs authorize/,workflow+' missing Chair1 head authority');
   assert.match(text,/chair-bound-execution\.mjs authorize-publication/,workflow+' missing Chair1 publication authorization');
+  assert.match(text,/CHAIR_GUARD_BLOCKED:/,workflow+' missing Chair-gated publication block');
+  assert.match(text,/HANDOFF_REQUIRED:/,workflow+' missing Chair handoff requirement');
 }
 
 assert.match(read('scripts/ci/control-plane-registry.mjs'),/execution-head-authority\.mjs/);
