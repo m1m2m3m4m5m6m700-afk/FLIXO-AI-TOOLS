@@ -40,3 +40,17 @@ console.log('MASTER3_WAKE_AUTODELIVERY=PASS');
 assert.match(fn,/endpointEnv/);
 assert.match(fn,/FLIXO_COUNCIL_WAKE/);
 console.log('MASTER3_DIRECT_WAKE_PUSH_PATH=PASS');
+
+const source=fn;
+assert.match(source,/\/v1\/responses/);
+assert.match(source,/OPENAI_API_KEY_MISSING/);
+assert.match(source,/gpt-5\.6-luna/);
+assert.match(source,/openai-responses-api/);
+assert.match(source,/council_ack_dispatch/);
+assert.match(source,/council_heartbeat_dispatch/);
+assert.match(source,/council_complete_dispatch/);
+assert.match(source,/GPT_RESPONSE/);
+assert.match(source,/exactSha/);
+console.log('MASTER3_GPT_BACKED_WAKE=PASS');
+console.log('MASTER3_OPENAI_RESPONSES_API=PASS');
+console.log('MASTER3_ACK_HEARTBEAT_COMPLETE=PASS');
