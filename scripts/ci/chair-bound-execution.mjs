@@ -198,6 +198,7 @@ function assertChair1ReleaseAllowed(chair,{successful=false,reason=''}={}){
 }
 
 function baseState(targetSha){
+function baseState(targetSha){
   return {
     schemaVersion:1,
     authority:'FLIXO_CHAIR_BOUND_EXECUTION',
@@ -396,6 +397,7 @@ function verifyLease({state,chairId,agentId,targetSha,assertCurrentHead=true}){
   const t=assertSha(targetSha,'TARGET_SHA');if(assertCurrentHead && t!==sha())throw new Error('STALE_CONTEXT');
   const chair=getChair(state,chairId);
   if(chair.holder_agent_id!==agentId)throw new Error('UNAUTHORIZED_EXECUTION_ATTEMPT');
+  if(chair.target_sha!==t||state.target_sha!==t)throw new Error('STALE_CONTEXT');
   if(chair.target_sha!==t||state.target_sha!==t)throw new Error('STALE_CONTEXT');
   const input={chairId,agentId,targetSha:t,permissions:CHAIR_DEFINITIONS[chairId].permissions,reviewId:chair.review_id,scope:chair.scope,workPackageId:chair.work_package_id??null,taskId:chair.task_id??null,fencingToken:chair.fencing_token??null};
   const expected=signLease(input);
@@ -596,6 +598,7 @@ export function release({chairId,agentId,targetSha=sha(),successful=false,sessio
   const t=assertSha(targetSha,'TARGET_SHA');
   return withWriteLock(()=>{
     const state=readState();const chair=verifyLease({state,chairId,agentId,targetSha:t,assertCurrentHead:false});
+    const state=readState();const chair=verifyLease({state,chairId,agentId,targetSha:t,assertCurrentHead:false});
     assertChair1ReleaseAllowed(chair,{successful,reason:successful===true?'TASK_COMPLETE':'RELEASE'});
     if(sessionId)sanitizeSessionContext({sessionId,taskId});
     clearChairRecord(chair,state);
@@ -649,7 +652,6 @@ export function beginWork({agentId,targetSha=sha(),requestedChairId=null,reposit
   if(lastPreemption?.targetSha===t&&lastPreemption.displacedAgentId===agentId&&lastPreemption.displacedTaskId!==null&&String(lastPreemption.displacedTaskId)===String(taskId??''))throw new Error('AGENT_WORK_CHAIR_PREEMPTED');
   const chairId=String(requestedChairId??'chair_1').trim()||'chair_1';
   if(chairId!=='chair_1' && chairId!=='chair_2' && chairId!=='chair_3')throw new Error('CHAIR_UNKNOWN');
-  if(chairId==='chair_1') assertChair1Mission({chairId,taskId});
   if(chairId!=='chair_1')throw new Error('CHAIR_AUTO_ADMISSION_MUST_USE_CHAIR_1');
   if(isMasterPrincipal(agentId,role))return preemptChair1ForMaster({agentId,targetSha:t,role,repositoryState,workPackageId,taskId,fencingToken,scope,reviewId});
   const acquired=acquire({
