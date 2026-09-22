@@ -156,6 +156,127 @@ export function buildFiveXExecutionEnvelope({
   });
 }
 
+
+export function buildFiveXRepairCycleState({
+  phase = 'PRE_MUTATION',
+  chainId = null,
+  taskId = null,
+  failureFingerprint = null,
+  attempt = 1,
+  targetSha = null,
+  currentSha = null,
+  failedSha = null,
+  candidateSha = null,
+  strategyId = null,
+  previousCycle = null,
+  outcome = null,
+  verification = null,
+  adversarialStatus = null,
+  counterexampleFound = null,
+  regressionOk = null,
+  regressionDepth = 0,
+  learningOutputs = 0,
+  canonicalGreen = false,
+} = {}) {
+  const shaOk = (value) => /^[a-f0-9]{40}$/iu.test(String(value ?? ''));
+  const fpOk = (value) => /^[a-f0-9]{64}$/iu.test(String(value ?? ''));
+  const normalizedAttempt = Number(attempt);
+  const previousStrategy = String(previousCycle?.strategyId ?? '').trim() || null;
+  const currentStrategy = String(strategyId ?? '').trim() || null;
+  const sameStrategy = Boolean(previousStrategy && currentStrategy && previousStrategy === currentStrategy);
+  const exactSha = shaOk(targetSha) && shaOk(currentSha) && targetSha === currentSha;
+  const failedShaMatchesTarget = !failedSha || !shaOk(failedSha) || failedSha === targetSha;
+  const candidateBound = !candidateSha || shaOk(candidateSha);
+  const identityValid =
+    shaOk(targetSha) &&
+    fpOk(failureFingerprint) &&
+    String(chainId ?? '').trim().length > 0 &&
+    String(taskId ?? '').trim().length > 0 &&
+    Number.isInteger(normalizedAttempt) &&
+    normalizedAttempt >= 1;
+  const staleEvidence = !exactSha || !failedShaMatchesTarget || !candidateBound;
+  const invalidatedPriorEvidence = Boolean(previousCycle?.targetSha && previousCycle.targetSha !== targetSha);
+  const learningReady = Number(learningOutputs) >= READ_ONLY_POWER_PROFILE.execution.minimumLearningOutputs;
+  const adversarialClean =
+    adversarialStatus == null ||
+    (adversarialStatus === 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE' && counterexampleFound === false);
+  const regressionReady =
+    regressionOk == null ||
+    (regressionOk === true && Number(regressionDepth) >= READ_ONLY_POWER_PROFILE.execution.minimumRegressionDepth);
+  const repeatBlocked = sameStrategy && phase === 'PRE_MUTATION' && String(outcome ?? '').trim() !== 'success';
+  const strategyChangeRequired = sameStrategy && Number(previousCycle?.attempt ?? 0) < normalizedAttempt;
+  let state = 'READY_TO_CONTINUE';
+  let nextAction = 'RUN_REQUIRED_VERIFICATION';
+  if (!identityValid) {
+    state = 'BLOCKED_IDENTITY';
+    nextAction = 'REBUILD_CYCLE_WITH_EXACT_IDENTITY';
+  } else if (staleEvidence || invalidatedPriorEvidence) {
+    state = 'STALE_EVIDENCE';
+    nextAction = 'INVALIDATE_PRIOR_EVIDENCE_AND_REQUALIFY_CURRENT_SHA';
+  } else if (!adversarialClean) {
+    state = 'COUNTEREXAMPLE_BLOCKED';
+    nextAction = 'CAPTURE_COUNTEREXAMPLE_AND_CHANGE_STRATEGY';
+  } else if (!regressionReady) {
+    state = 'REGRESSION_INCOMPLETE';
+    nextAction = 'RUN_REQUIRED_REGRESSION_DEPTH';
+  } else if (!learningReady) {
+    state = 'LEARNING_INCOMPLETE';
+    nextAction = 'PERSIST_REQUIRED_LEARNING_OUTPUTS';
+  } else if (repeatBlocked || strategyChangeRequired) {
+    state = 'STRATEGY_REPEAT_BLOCKED';
+    nextAction = 'SELECT_A_NEW_STRATEGY_USING_FRESH_EVIDENCE';
+  } else if (canonicalGreen === true) {
+    state = 'CLOSED_BY_CANONICAL_GREEN';
+    nextAction = 'NO_FURTHER_REPAIR_CYCLE';
+  } else if (
+    outcome === 'verified-repair' ||
+    outcome === 'verified-historical-revert' ||
+    verification === 'exact-sha-proof'
+  ) {
+    state = 'VERIFICATION_PENDING_CANONICAL_GREEN';
+    nextAction = 'WAIT_FOR_CANONICAL_GREEN_AND_CERTIFICATION_ON_NEW_SHA';
+  }
+  const statusForMutation = new Set([
+    'READY_TO_CONTINUE',
+    'VERIFICATION_PENDING_CANONICAL_GREEN',
+  ]).has(state);
+  const digest = globalThis?.crypto?.subtle
+    ? null
+    : null;
+  return Object.freeze({
+    protocol: 'FLIXO-FIVE-X-REPAIR-CYCLE-v1',
+    phase: String(phase),
+    chainId: String(chainId ?? ''),
+    taskId: String(taskId ?? ''),
+    failureFingerprint: String(failureFingerprint ?? ''),
+    attempt: normalizedAttempt,
+    targetSha: String(targetSha ?? ''),
+    currentSha: String(currentSha ?? ''),
+    failedSha: failedSha == null ? null : String(failedSha),
+    candidateSha: candidateSha == null ? null : String(candidateSha),
+    strategyId: currentStrategy,
+    previousStrategy,
+    sameStrategy,
+    exactSha,
+    invalidatedPriorEvidence,
+    staleEvidence,
+    strategyChangeRequired,
+    mutationReady: statusForMutation && !staleEvidence && !invalidatedPriorEvidence && !repeatBlocked,
+    adversarialStatus,
+    counterexampleFound,
+    regressionOk,
+    regressionDepth: Number(regressionDepth),
+    learningOutputs: Number(learningOutputs),
+    learningReady,
+    outcome: outcome == null ? null : String(outcome),
+    verification: verification == null ? null : String(verification),
+    canonicalGreen: canonicalGreen === true,
+    state,
+    closureAuthority: canonicalGreen === true ? 'CANONICAL_GREEN_AND_CERTIFICATION' : 'NONE',
+    nextAction,
+  });
+}
+
 export function validateReadOnlyPowerProfile(profile = READ_ONLY_POWER_PROFILE) {
   const failures = [];
   if (profile?.profile !== '5X') failures.push('PROFILE_NOT_5X');
