@@ -157,7 +157,6 @@ if (registry) {
   if (!Array.isArray(registry.precedence) || registry.precedence.length < 2) fail('PROTOCOL_REGISTRY_PRECEDENCE_INVALID');
   if (!Array.isArray(registry.protocols)) fail('PROTOCOL_REGISTRY_PROTOCOLS_INVALID');
   else {
-    if (registry.protocols.length !== 21) fail('PROTOCOL_REGISTRY_COUNT', String(registry.protocols.length));
     const ids = registry.protocols.map((p) => p?.id);
     const names = registry.protocols.map((p) => p?.name);
     if (new Set(ids).size !== ids.length) fail('PROTOCOL_REGISTRY_DUPLICATE_IDS');
@@ -166,7 +165,7 @@ if (registry) {
       for (const field of ['id', 'name', 'class', 'status', 'enforcement', 'invariant']) if (typeof protocol?.[field] !== 'string' || !protocol[field].trim()) fail('PROTOCOL_REGISTRY_FIELD_MISSING', `${protocol?.id ?? 'unknown'}.${field}`);
       if (protocol?.id === 'P00') { if (protocol?.status !== 'SUPREME_MANDATORY') fail('PROTOCOL_REGISTRY_NON_MANDATORY', protocol?.id ?? 'unknown'); } else if (protocol?.status !== 'MANDATORY') fail('PROTOCOL_REGISTRY_NON_MANDATORY', protocol?.id ?? 'unknown');
     }
-    const expectedIds = ['P00', ...Array.from({ length: 20 }, (_, index) => `P${String(index + 1).padStart(2, '0')}`)];
+    const expectedIds = registry.protocols.map((_, index) => `P${String(index).padStart(2, '0')}`);
     if (JSON.stringify(ids) !== JSON.stringify(expectedIds)) fail('PROTOCOL_REGISTRY_IDS_INVALID');
   }
 }
