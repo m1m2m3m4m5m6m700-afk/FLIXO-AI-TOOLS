@@ -10,7 +10,7 @@ assert.match(source,/STABLE_FOR_PUBLICATION/);
 assert.match(source,/ADVERSARIAL_COUNTEREXAMPLE_INVALIDATES_CANDIDATE/);
 assert.match(source,/ONLY_AFTER_CANONICAL_GREEN/);
 assert.match(source,/GUARDED_CHAIR_PUBLICATION_ONLY/);
-assert.match(workflow,/repair-adversarial-convergence\\.mjs/);
+assert.match(workflow,/repair-adversarial-convergence\.mjs/);
 assert.match(workflow,/REPAIR_REQUEUE_REQUIRED/);
 assert.match(workflow,/STABLE_FOR_PUBLICATION/);
 assert.match(workflow,/FLIXO_CONVERGENCE_GUIDANCE_ARTIFACT_ID/);
