@@ -31,6 +31,16 @@ const LOCK_DIR=path.resolve(ROOT,'.flixo/locks/.chair-write.lock');
 const SHA_RE=/^[a-f0-9]{40}$/u;
 const HASH_RE=/^[a-f0-9]{64}$/u;
 const AGENT_RE=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u;
+const MASTER_PRINCIPALS=Object.freeze({
+  'MASTER-1':1,
+  'MASTER-2':2,
+  'MASTER-3':3,
+  'master-1':1,
+  'master-2':2,
+  'master-3':3,
+});
+const isMasterPrincipal=(agentId,role=null)=>Boolean(MASTER_PRINCIPALS[String(role??'').trim()]||MASTER_PRINCIPALS[String(agentId??'').trim()]);
+const masterPriority=(agentId,role=null)=>MASTER_PRINCIPALS[String(role??'').trim()]??MASTER_PRINCIPALS[String(agentId??'').trim()]??null;
 
 const positiveDuration=(value,fallback)=>{const n=Number(value);return Number.isFinite(n)&&n>0?Math.floor(n):fallback;};
 const HEARTBEAT_INTERVAL_MS=positiveDuration(process.env.FLIXO_CHAIR_HEARTBEAT_INTERVAL_MS,30_000);
@@ -56,7 +66,7 @@ export function atomicChairRefAudit({chairId,targetSha=sha(),expectedOldSha=null
   return Object.freeze({authority:'AUDIT_ONLY',atomicLocalCAS:true,ref,oldSha:current,newSha:t,event});
 }
 function clearChairRecord(chair,state){
-  chair.holder_agent_id=null;chair.status='VACANT';chair.acquired_at=null;chair.target_sha=null;chair.lease_id=null;chair.review_id=null;chair.scope=null;chair.scope_hash=null;chair.work_package_id=null;chair.task_id=null;chair.fencing_token=null;chair.lease_started_at=null;chair.heartbeat_at=null;chair.heartbeat_count=0;
+  chair.holder_agent_id=null;chair.holder_role=null;chair.status='VACANT';chair.acquired_at=null;chair.target_sha=null;chair.lease_id=null;chair.review_id=null;chair.scope=null;chair.scope_hash=null;chair.work_package_id=null;chair.task_id=null;chair.fencing_token=null;chair.lease_started_at=null;chair.heartbeat_at=null;chair.heartbeat_count=0;
   state.repository_state=occupied(state).length===0?'IDLE':'ACTIVE';
   state.idle_timestamp=state.repository_state==='IDLE'?now():null;
 }
@@ -172,7 +182,7 @@ function baseState(targetSha){
     push_proposals:[],
     rejected_push_memory:[],
     chairs:Object.fromEntries(Object.entries(CHAIR_DEFINITIONS).map(([id,def])=>[id,{
-      holder_agent_id:null,status:'VACANT',permissions:[...def.permissions],acquired_at:null,target_sha:null,lease_id:null,review_id:null,scope:null,scope_hash:null,work_package_id:null,task_id:null,fencing_token:null,lease_started_at:null,heartbeat_at:null,heartbeat_count:0
+      holder_agent_id:null,holder_role:null,status:'VACANT',permissions:[...def.permissions],acquired_at:null,target_sha:null,lease_id:null,review_id:null,scope:null,scope_hash:null,work_package_id:null,task_id:null,fencing_token:null,lease_started_at:null,heartbeat_at:null,heartbeat_count:0
     }]))
   };
 }
@@ -201,6 +211,7 @@ function validateState(state){
   if(state?.schemaVersion!==1||state?.authority!=='FLIXO_CHAIR_BOUND_EXECUTION')throw new Error('CHAIR_STATE_HEADER_INVALID');
   if(state.last_revoke!==undefined&&typeof state.last_revoke!=='object')throw new Error('CHAIR_LAST_REVOKE_INVALID');
   if(state.last_dead_lease!==undefined&&typeof state.last_dead_lease!=='object')throw new Error('CHAIR_LAST_DEAD_LEASE_INVALID');
+  if(state.last_preemption!==undefined&&typeof state.last_preemption!=='object')throw new Error('CHAIR_LAST_PREEMPTION_INVALID');
   if(state.push_proposals!==undefined&&!Array.isArray(state.push_proposals))throw new Error('CHAIR_PUSH_PROPOSALS_INVALID');
   if(state.rejected_push_memory!==undefined&&!Array.isArray(state.rejected_push_memory))throw new Error('CHAIR_REJECTED_PUSH_MEMORY_INVALID');
   assertSha(state.target_sha,'STATE_TARGET_SHA');
@@ -210,6 +221,7 @@ function validateState(state){
     if(!chair||!['VACANT','OCCUPIED','REVOKED','STALE'].includes(chair.status))throw new Error('CHAIR_RECORD_INVALID='+id);
     if(chair.status==='OCCUPIED'){
       assertAgent(chair.holder_agent_id);
+      if(chair.holder_role!==undefined&&chair.holder_role!==null&&String(chair.holder_role).length>160)throw new Error('CHAIR_HOLDER_ROLE_INVALID');
       assertSha(chair.target_sha,'CHAIR_TARGET_SHA');
       if(!HASH_RE.test(String(chair.lease_id??'')))throw new Error('CHAIR_LEASE_ID_INVALID');
       if(chair.target_sha!==state.target_sha)throw new Error('CHAIR_STATE_SHA_MISMATCH='+id);
@@ -267,11 +279,82 @@ export function acquire({chairId='chair_1',agentId,targetSha=sha(),repositorySta
     const fence=fencingToken===null?null:assertFence(fencingToken);
     if(chairId==='chair_1' && process.env.FLIXO_REQUIRE_FENCED_CHAIR==='true' && (!wp||!task||!fence))throw new Error('CHAIR1_MUTATION_CONTEXT_REQUIRED');
     const leaseInput={chairId,agentId,targetSha:t,permissions:CHAIR_DEFINITIONS[chairId].permissions,reviewId,scope,workPackageId:wp,taskId:task,fencingToken:fence};
-    chair.holder_agent_id=agentId;chair.status='OCCUPIED';chair.acquired_at=now();chair.lease_started_at=chair.acquired_at;chair.heartbeat_at=chair.acquired_at;chair.heartbeat_count=0;chair.target_sha=t;chair.lease_id=signLease(leaseInput);chair.review_id=reviewId;chair.scope=scope;chair.scope_hash=scopeDigest(scope);chair.work_package_id=wp;chair.task_id=task;chair.fencing_token=fence;
+    chair.holder_agent_id=agentId;chair.holder_role=String(agentId);chair.status='OCCUPIED';chair.acquired_at=now();chair.lease_started_at=chair.acquired_at;chair.heartbeat_at=chair.acquired_at;chair.heartbeat_count=0;chair.target_sha=t;chair.lease_id=signLease(leaseInput);chair.review_id=reviewId;chair.scope=scope;chair.scope_hash=scopeDigest(scope);chair.work_package_id=wp;chair.task_id=task;chair.fencing_token=fence;
     atomicChairRefAudit({chairId,targetSha:t,event:'ACQUIRE'});
     state.repository_state='ACTIVE';state.idle_timestamp=null;writeState(state);return state;
   });
 }
+export function preemptChair1ForMaster({agentId,targetSha=sha(),role=null,repositoryState='IDLE',reviewId=null,scope=null,workPackageId=null,taskId=null,fencingToken=null,reason='MASTER_CONNECTED'}={}){
+  assertAgent(agentId);
+  const t=assertSha(targetSha,'TARGET_SHA');
+  if(t!==sha())throw new Error('STALE_CONTEXT');
+  if(!isMasterPrincipal(agentId,role))throw new Error('CHAIR1_MASTER_PREEMPTION_REQUIRES_MASTER');
+  const incomingPriority=masterPriority(agentId,role);
+  return withWriteLock(()=>{
+    const state=readState();
+    if(state.target_sha!==t)throw new Error('CHAIR_STATE_SHA_MISMATCH');
+    for(const chairState of Object.values(state.chairs)) if(chairState.status==='OCCUPIED'&&staleHeartbeat(chairState)) clearChairRecord(chairState,state);
+    const chair=state.chairs.chair_1;
+    if(chair.status==='OCCUPIED'&&chair.holder_agent_id===agentId){
+      const leaseId=chair.lease_id;
+      return Object.freeze({admitted:true,reused:true,preempted:false,chairId:'chair_1',leaseId,targetSha:t,taskId:chair.task_id??null,workPackageId:chair.work_package_id??null});
+    }
+    if(chair.status==='OCCUPIED'){
+      const existingPriority=masterPriority(chair.holder_agent_id,chair.holder_role);
+      if(existingPriority!==null&&existingPriority<=incomingPriority)throw new Error('CHAIR1_HIGHER_MASTER_ACTIVE');
+      const displaced={
+        agentId:chair.holder_agent_id,
+        role:chair.holder_role??null,
+        taskId:chair.task_id??null,
+        workPackageId:chair.work_package_id??null,
+        leaseId:chair.lease_id,
+        targetSha:t,
+      };
+      clearChairRecord(chair,state);
+      atomicChairRefAudit({chairId:'chair_1',targetSha:t,event:'MASTER_PREEMPT_REVOKE'});
+      state.last_preemption={
+        schemaVersion:1,
+        reason:String(reason||'MASTER_CONNECTED'),
+        masterAgentId:agentId,
+        masterRole:String(role??agentId),
+        masterPriority:incomingPriority,
+        displacedAgentId:displaced.agentId,
+        displacedRole:displaced.role,
+        displacedTaskId:displaced.taskId,
+        displacedWorkPackageId:displaced.workPackageId,
+        displacedLeaseId:displaced.leaseId,
+        targetSha:t,
+        at:now()
+      };
+    }
+    const wp=workPackageId===null?null:assertContextId(workPackageId,'WORK_PACKAGE_ID');
+    const task=taskId===null?null:assertContextId(taskId,'TASK_ID');
+    const fence=fencingToken===null?null:assertFence(fencingToken);
+    if(process.env.FLIXO_REQUIRE_FENCED_CHAIR==='true' && (!wp||!task||!fence))throw new Error('CHAIR1_MUTATION_CONTEXT_REQUIRED');
+    const leaseInput={chairId:'chair_1',agentId,targetSha:t,permissions:CHAIR_DEFINITIONS.chair_1.permissions,reviewId,scope,workPackageId:wp,taskId:task,fencingToken:fence};
+    chair.holder_agent_id=agentId;
+    chair.holder_role=String(role??agentId);
+    chair.status='OCCUPIED';
+    chair.acquired_at=now();
+    chair.lease_started_at=chair.acquired_at;
+    chair.heartbeat_at=chair.acquired_at;
+    chair.heartbeat_count=0;
+    chair.target_sha=t;
+    chair.lease_id=signLease(leaseInput);
+    chair.review_id=reviewId;
+    chair.scope=scope;
+    chair.scope_hash=scopeDigest(scope);
+    chair.work_package_id=wp;
+    chair.task_id=task;
+    chair.fencing_token=fence;
+    atomicChairRefAudit({chairId:'chair_1',targetSha:t,event:'MASTER_PREEMPT_ACQUIRE'});
+    state.repository_state='ACTIVE';
+    state.idle_timestamp=null;
+    writeState(state);
+    return Object.freeze({admitted:true,reused:false,preempted:Boolean(state.last_preemption?.displacedAgentId),preemptedAgentId:state.last_preemption?.displacedAgentId??null,chairId:'chair_1',leaseId:chair.lease_id,targetSha:t,taskId:chair.task_id??null,workPackageId:chair.work_package_id??null});
+  });
+}
+
 function getChair(state,chairId){
   const chair=state?.chairs?.[chairId];
   if(!chair)throw new Error('CHAIR_UNKNOWN');
@@ -507,22 +590,30 @@ export function activeChairForAgent({agentId,targetSha=sha()}={}){
   return found[0]??null;
 }
 
-export function assertWorkAdmission({agentId,targetSha=sha(),chairId=null}={}){
+export function assertWorkAdmission({agentId,targetSha=sha(),chairId=null,taskId=null}={}){
   const active=activeChairForAgent({agentId,targetSha});
-  if(!active)throw new Error('AGENT_WORK_REQUIRES_CHAIR');
+  if(!active){
+    const state=readState();
+    const preemption=state.last_preemption;
+    if(preemption?.targetSha===String(targetSha)&&preemption?.displacedAgentId===agentId&&preemption?.displacedTaskId!==null&&String(preemption.displacedTaskId)===String(taskId??''))throw new Error('AGENT_WORK_CHAIR_PREEMPTED');
+    throw new Error('AGENT_WORK_REQUIRES_CHAIR');
+  }
   if(chairId&&active.chairId!==chairId)throw new Error('AGENT_WORK_CHAIR_MISMATCH');
   return active;
 }
 
-export function beginWork({agentId,targetSha=sha(),requestedChairId=null,repositoryState='IDLE',workPackageId=null,taskId=null,fencingToken=null,scope=null,reviewId=null}={}){
+export function beginWork({agentId,targetSha=sha(),requestedChairId=null,repositoryState='IDLE',workPackageId=null,taskId=null,fencingToken=null,scope=null,reviewId=null,role=null}={}){
   assertAgent(agentId);
   const t=assertSha(targetSha,'TARGET_SHA');
   if(t!==sha())throw new Error('STALE_CONTEXT');
   const existing=activeChairForAgent({agentId,targetSha:t});
   if(existing)return Object.freeze({admitted:true,reused:true,...existing});
+  const lastPreemption=readState().last_preemption;
+  if(lastPreemption?.targetSha===t&&lastPreemption.displacedAgentId===agentId&&lastPreemption.displacedTaskId!==null&&String(lastPreemption.displacedTaskId)===String(taskId??''))throw new Error('AGENT_WORK_CHAIR_PREEMPTED');
   const chairId=String(requestedChairId??'chair_1').trim()||'chair_1';
   if(chairId!=='chair_1' && chairId!=='chair_2' && chairId!=='chair_3')throw new Error('CHAIR_UNKNOWN');
   if(chairId!=='chair_1')throw new Error('CHAIR_AUTO_ADMISSION_MUST_USE_CHAIR_1');
+  if(isMasterPrincipal(agentId,role))return preemptChair1ForMaster({agentId,targetSha:t,role,repositoryState,workPackageId,taskId,fencingToken,scope,reviewId});
   const acquired=acquire({
     chairId,
     agentId,
@@ -568,6 +659,7 @@ if(process.argv[1]?.endsWith('/chair-bound-execution.mjs')){
   else if(command==='validate')console.log(JSON.stringify(validateCurrent({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,paths,permission:arg('permission','SOURCE_MUTATION'),reviewId:arg('review-id')||null,boundedScope:scope.length?scope:null}),null,2));
   else if(command==='heartbeat')console.log(JSON.stringify(heartbeat({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target}),null,2));
   else if(command==='reconcile-dead-leases')console.log(JSON.stringify(reconcileDeadLeases({targetSha:target}),null,2));
+  else if(command==='master-preempt')console.log(JSON.stringify(preemptChair1ForMaster({agentId:arg('agent'),role:arg('role')||null,targetSha:target,repositoryState:arg('repository-state','IDLE'),workPackageId:arg('work-package')||null,taskId:arg('task-id')||null,fencingToken:arg('fencing-token')||null,scope:scope.length?scope:null,reviewId:arg('review-id')||null,reason:arg('reason','MASTER_CONNECTED')}),null,2));
   else if(command==='speculate')console.log(JSON.stringify(writeSpeculativeContext({sessionId:arg('session'),taskId:arg('task'),chairId:arg('chair'),role:arg('role'),targetSha:target,pendingDiff:arg('pending-diff'),testPlan:arg('test-plan').split(';').map(v=>v.trim()).filter(Boolean)}),null,2));
   else throw new Error('Usage: chair-bound-execution.mjs init|acquire|authorize-write|merge-proposal|release|mode|validate');
 }
