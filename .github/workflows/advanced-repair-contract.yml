@@ -51,6 +51,12 @@ jobs:
           node --check scripts/ci/agent-coordination.mjs
       - name: Run Chair fencing and push proposal regression tests
         run: node scripts/ci/test-chair-bound-execution.mjs
+      - name: Validate Repair Agent learning fail-closed contract
+        run: |
+          set -euo pipefail
+          node --check scripts/ci/auto-repair-learning.mjs
+          node scripts/ci/test-auto-repair-learning.mjs
+
       - name: Validate Auto Repair Chair-1 audit syntax and regression
         run: |
           node --check scripts/ci/auto-repair-chair1-audit.mjs
