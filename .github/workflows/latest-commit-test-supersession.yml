@@ -91,12 +91,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          is_test_workflow() {
-            case "$1" in
-              "FLIXO Latest Commit Test Supersession") return 1 ;;
-              *Test*|*test*|*Verification*|*verification*|*Contract*|*contract*|*Security*|*security*|*Baseline*|*baseline*|*Certification*|*certification*|*Impact*|*impact*|*Code*Scanning*|*CodeQL*|*Diagnostic*|*diagnostic*|*Proof*|*proof*|*Scan*|*scan*|*Green*Gate*|*green*gate*|*Repair*|*repair*|*Watchdog*|*watchdog*) return 0 ;;
-              *) return 1 ;;
-            esac
+          is_supersedable_run() {
+            # The newest branch SHA is the only authoritative lane.
+            [ "$1" != "FLIXO Latest Commit Test Supersession" ]
           }
 
           cancel_stale_run() {
@@ -182,12 +179,34 @@ jobs:
               echo "KEEP current SHA run=$RUN_ID name=$NAME status=$STATUS"
               continue
             fi
-            if is_test_workflow "$NAME"; then
+            if is_supersedable_run "$NAME"; then
               cancel_stale_run "$RUN_ID" "$HEAD_SHA" "$STATUS" "$NAME" "$EVENT"
             fi
           done < <(
             jq -r '.workflow_runs[] | select(.status != "completed") | [.id,.head_sha,.status,.name,.event] | @tsv' /tmp/supersession-all-runs.json
           )
+
+      - name: Assert no non-authoritative run remains active
+        if: steps.head.outputs.stale_event != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.head.outputs.branch }}
+          CURRENT_SHA: ${{ steps.head.outputs.sha }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sleep 2
+          RUNS_JSON="$(gh api --paginate --slurp "repos/$REPOSITORY/actions/runs?branch=$BRANCH&per_page=100")"
+          printf '%s' "$RUNS_JSON" | jq -s 'add' > /tmp/supersession-final-runs.json
+          stale_active="$(jq -r --arg sha "$CURRENT_SHA" '[.workflow_runs[] | select(.status != "completed" and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession")] | length' /tmp/supersession-final-runs.json)"
+          if [ "$stale_active" -ne 0 ]; then
+            echo "FAIL CLOSED: $stale_active stale runs remain non-completed after supersession."
+            jq -r --arg sha "$CURRENT_SHA" '.workflow_runs[] | select(.status != "completed" and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession") | [.id,.name,.status,.head_sha] | @tsv' /tmp/supersession-final-runs.json
+            exit 1
+          fi
+          echo 'STALE_ACTIVE_RUNS=0'
+          echo 'LATEST_COMMIT_ONLY_ENFORCED=true'
 
       - name: Assert repository head has not moved during supersession
         if: steps.head.outputs.stale_event != 'true'
