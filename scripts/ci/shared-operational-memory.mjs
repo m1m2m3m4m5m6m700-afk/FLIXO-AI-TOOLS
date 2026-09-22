@@ -26,6 +26,8 @@ export const SHARED_KINDS=Object.freeze([
 ]);
 
 const SHA=/^[a-f0-9]{40}$/u;
+const LEGACY_MEMORY_PATH=path.resolve(ROOT,'diagnostics/auto-repair/memory.json');
+const LEGACY_CELL_INDEX_PATH=path.resolve(ROOT,'diagnostics/auto-repair/cell-knowledge/index.json');
 const now=()=>new Date().toISOString();
 const hash=(value)=>createHash('sha256').update(String(value),'utf8').digest('hex');
 const readJson=(file,fallback)=>{try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return fallback;}};
@@ -186,9 +188,49 @@ export function readSharedMemory({fingerprint=null,botId=null,kinds=null,limit=8
   return rows.slice(0,Math.max(1,Number(limit)||80));
 }
 
+function legacyReadThroughContext(limit=48){
+  const memory=readJson(LEGACY_MEMORY_PATH,{cases:[],lessons:[],antiLessons:[],playbooks:[],actionHistory:[]});
+  const cell=readJson(LEGACY_CELL_INDEX_PATH,{records:[]});
+  const legacyLessons=[...(memory.lessons??[]).slice(-limit),...(cell.records??[]).filter(x=>x?.outcome==='success').slice(-limit)].map((item,index)=>({
+    id:'LEGACY-L'+index,
+    kind:'LESSON',
+    status:'LEGACY_CONTEXT',
+    rootCause:item.rootCause??null,
+    rule:item.rule??null,
+    claim:item.claim??item.knowledgeClaim??null,
+    content:item.claim??item.knowledgeClaim??item.outcome??null,
+    fingerprint:item.fingerprint??null,
+    targetSha:item.targetSha??null,
+  })).filter(item=>item.claim||item.content);
+  const legacyAnti=[...(memory.antiLessons??[]).slice(-limit)].map((item,index)=>({
+    id:'LEGACY-A'+index,
+    kind:'ANTI_LESSON',
+    status:'LEGACY_CONTEXT',
+    rootCause:item.rootCause??null,
+    rule:item.rule??null,
+    claim:item.reason??item.text??item.rule??null,
+    content:item.reason??item.text??item.rule??null,
+    fingerprint:item.fingerprint??null,
+    targetSha:item.targetSha??null,
+  })).filter(item=>item.claim||item.content);
+  const legacyErrors=[...(memory.cases??[]).slice(-limit),...(memory.actionHistory??[]).slice(-limit)].map((item,index)=>({
+    id:'LEGACY-E'+index,
+    kind:'ERROR',
+    status:'LEGACY_CONTEXT',
+    rootCause:item.rootCause??null,
+    rule:item.rule??null,
+    claim:item.normalizedFailure??item.rootCause??null,
+    content:item.normalizedFailure??item.rootCause??null,
+    fingerprint:item.fingerprint??null,
+    targetSha:item.targetSha??null,
+  })).filter(item=>item.claim||item.content);
+  return {lessons:legacyLessons,antiLessons:legacyAnti,errors:legacyErrors,sourceCount:2,authority:'CONTEXT_ONLY'};
+}
+
 export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48}={}){
   const records=readSharedMemory({fingerprint,botId,limit});
   const grouped=Object.fromEntries(SHARED_KINDS.map(kind=>[kind,records.filter(r=>r.kind===kind)]));
+  const legacy=legacyReadThroughContext(limit);
   return {
     protocol:SHARED_MEMORY_PROTOCOL,
     authority:'CONTEXT_ONLY',
@@ -197,12 +239,13 @@ export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48
     canonical:true,
     targetAudience:[...SHARED_BOTS],
     recordCount:records.length,
-    errors:grouped.ERROR,
+    errors:[...grouped.ERROR,...legacy.errors].slice(0,limit),
     operations:grouped.OPERATION,
     advice:grouped.ADVICE,
     obligations:grouped.OBLIGATION,
-    lessons:grouped.LESSON,
-    antiLessons:grouped.ANTI_LESSON,
+    lessons:[...grouped.LESSON,...legacy.lessons].slice(0,limit),
+    antiLessons:[...grouped.ANTI_LESSON,...legacy.antiLessons].slice(0,limit),
+    legacyContext:legacy,
     counterexamples:grouped.COUNTEREXAMPLE,
     verifications:grouped.VERIFICATION,
     note:'Shared memory informs all six bots; it never proves GREEN or grants authority.'
