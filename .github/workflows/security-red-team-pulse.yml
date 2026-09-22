@@ -16,11 +16,11 @@ on:
 
 permissions:
   contents: read
-  actions: write
+  actions: read
 
 concurrency:
   group: flixo-security-red-team-pulse-${{ inputs.bot || 'ALL' }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   PULSE_MS: 60000
@@ -100,13 +100,6 @@ jobs:
               done
           }
 
-          wake_peer() {
-            local peer="$1"
-            echo "PEER_WAKE_TARGET=$peer"
-            gh workflow run security-red-team-pulse.yml               --repo "$GITHUB_REPOSITORY"               --ref execution               -f "bot=$peer"
-            echo "PEER_WAKE_DISPATCHED=$peer"
-          }
-
           mkdir -p /tmp/security-red-team-pulse
           : > "/tmp/security-red-team-pulse/$BOT_ID.jsonl"
 
@@ -119,20 +112,6 @@ jobs:
               --sha="$SHA" \
               --progress=false \
               --file="/tmp/security-red-team-pulse/$BOT_ID-heartbeat.json"
-
-            for PEER in SECURITY-REDTEAM-1 SECURITY-REDTEAM-2 SECURITY-REDTEAM-3; do
-              [ "$PEER" = "$BOT_ID" ] && continue
-
-              STATES="$(peer_job_state "$PEER" "$SHA" | tail -n 10)"
-              if printf '%s
-' "$STATES" | grep -Eq '^(queued|in_progress)\|'; then
-                echo "PEER=$PEER STATUS=ALIVE"
-                continue
-              fi
-
-              echo "PEER=$PEER STATUS=MISSING"
-              wake_peer "$PEER" || echo "PEER_WAKE_FAILED=$PEER"
-            done
 
             if [ "$TICK" -lt 7 ]; then
               sleep 60
