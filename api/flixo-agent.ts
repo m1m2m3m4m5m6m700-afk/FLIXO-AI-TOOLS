@@ -297,13 +297,13 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       ...messages,
     ];
     const started = Date.now();
+    let providerCalls = 0;
+    const invoke = async (selectedProvider: SupportedProvider): Promise<string> => {
+      if (providerCalls >= MAX_PROVIDER_CALLS) throw new Error('AI provider call budget exhausted.');
+      providerCalls += 1;
+      return callProvider(selectedProvider, promptMessages, runtime.timeoutMs);
+    };
     try {
-      let providerCalls = 0;
-      const invoke = async (selectedProvider: SupportedProvider): Promise<string> => {
-        if (providerCalls >= MAX_PROVIDER_CALLS) throw new Error('AI provider call budget exhausted.');
-        providerCalls += 1;
-        return callProvider(selectedProvider, promptMessages, runtime.timeoutMs);
-      };
       const raw = await invoke(provider);
       const decision = parseAgentDecision(parseJsonObject(raw));
       json(res, 200, { ...decision, latencyMs: Date.now() - started, provider });
