@@ -32,7 +32,7 @@ const required = [
   ['Browser DEEP engine', /\n\s{2}browser_deep:\s*\n/],
   ['single certification gate', /\n\s{2}certify:\s*\n/],
   ['superseding exact-SHA verification CI', /cancel-in-progress:\s*true/],
-  ['exact-SHA concurrency isolation', /group:\s*flixo-test-\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/],
+  ['event-scoped exact-SHA concurrency isolation', /group:\s*flixo-test-\$\{\{\s*github\.event_name\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/],
   ['exact SHA', /EXPECTED_SHA/],
   ['immutable artifact identity', /flixo-head-sha\.txt[\s\S]*flixo-package-lock\.sha256/],
   ['minimal checkout', /fetch-depth:\s*1/],
