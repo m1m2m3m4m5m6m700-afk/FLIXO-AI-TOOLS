@@ -1,3 +1,12 @@
+# SUPREME UNIVERSAL AGENT EXECUTION PROTOCOL — P00
+
+P00 is the first obligation of the FLIXO repository, project and shared cell. Every Master, Agent and Bot MUST consume docs/agents/PROMPT-UNIFIED-EXECUTION.md v4.0.0 before execution. All collaboration, handoff, repair, verification and continuity rules are subordinate to P00 and must not fork or weaken it.
+
+Entry:
+P00 ADMISSION → SESSION → EXACT SHA → CONTROL PLANE → SCOPE/OWNERSHIP → EXECUTION → EVIDENCE → CONTINUE.
+
+P00 is enforced through the protocol registry, coordination/session validators, liveness controls and hard exit lock. Unresolved work is non-terminal.
+
 ## Absolute No-New-Branch Rule
 
 The FLIXO agent team operates on exactly two active branch refs: `execution` and `main`. The topology is fixed:
@@ -23,6 +32,10 @@ This protocol defines the operating system for the FLIXO agent team. The executi
 Cooperation never weakens repository policy, certification or human authority.
 
 
+## CELL EXECUTIVE GOVERNANCE — MANDATORY
+
+`CELL-EXEC-GOV-001` is the single operating policy for MASTER-1/2/3 and all 200 Bots. It is absorbed by P20/P21 and is not a parallel protocol. Repair is continuous while RED/open RCA exists; development/learning is parallel only on disjoint scope; shared-scope conflict prioritizes repair; Rank #1→#200 is performance only; escalation L0→L7 is mandatory. Canonical: `docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md`.
+
 ## Unified Agent Commands & Protocol Surface
 
 هذا القسم هو **فهرس تشغيلي موحّد** للقواعد والأوامر الموجودة في البروتوكولات المعتمدة. لا ينشئ Protocol أو Registry أو Certification Authority جديدة؛ عند التعارض تُطبّق أولوية docs/PROTOCOL-HIERARCHY.md والـmachine-readable validators.
@@ -30,6 +43,14 @@ Cooperation never weakens repository policy, certification or human authority.
 ### Authority chain
 
 Protocol → Validator → Evidence → Certification
+
+### Operational command chain
+
+`USER_FINAL_AUTHORITY → assistantController_OPERATIONAL_EXECUTION_LEAD → MASTER_COUNCIL_COLLABORATION → REGISTERED_AGENTS_AND_BOTS`
+
+`assistantController` is the operational execution lead for the cell: it assigns work, integrates the Masters' findings, arbitrates unresolved conflicts through evidence and existing validators, and controls execution sequencing. The user remains the final authority. MASTER-1, MASTER-2 and MASTER-3 must not create a competing command chain, parallel authority, alternate registry, or hidden communication path.
+
+For material work, every Master remains in `MASTER_CELL_LAB` and follows the active residency contract: minimum 45 minutes, maximum 3-hour continuous segment before revalidation, 1-minute heartbeat, 5-minute Master status update, 10-minute task reminder, no sleep/idle/silent exit, and continued work until the task is actually closed by the canonical exit gate.
 
 Prompt = execution instruction فقط ولا يمنح صلاحية.
 Protocol = السلطة التنفيذية.
@@ -147,6 +168,11 @@ node scripts/ci/agent-session.mjs login --session=<new-id> --agent=<id> --role=<
 الأحداث:
 node scripts/ci/agent-session.mjs event --session=<id> --agent=<id> --task=<task-id> --type=<TYPE> --summary="<what happened>"
 
+Heartbeat:
+node scripts/ci/agent-session.mjs heartbeat --session=<id> --agent=<id> --task=<task-id>
+
+كل جلسة إصلاح غير مكتملة تعمل تحت ACTIVE_REPAIR_45M لمدة لا تقل عن 45 دقيقة متواصلة. Heartbeat مطلوب أثناء النافذة، ولا يسمح بـBLOCKED logout أو SLEEP/IDLE/SILENT/ABANDONED. بلوغ 45 دقيقة لا يساوي GREEN؛ الإغلاق يتطلب Canonical GREEN وExact-SHA و0 عمل مفتوح.
+
 استقبال:
 node scripts/ci/agent-session.mjs message-receive --session=<id> --agent=<id> --task=<task-id> --message-id=<id>
 
@@ -194,6 +220,11 @@ node scripts/ci/agent-coordination.mjs ingest-handoff
 ### Liveness and wake
 
 الجلسة المفتوحة لا تصبح SLEEP أو IDLE أو SILENT أو ABANDONED.
+
+For MASTER-1/2/3 specifically, lack of activity is a coordination failure: wake/recovery must restore the Master session, restore the shared task snapshot, and require a current `MASTER_CELL_LAB` update before the Master is considered participating again.
+
+جلسة الإصلاح ACTIVE_REPAIR_45M لها حد أدنى 45 دقيقة متواصلة؛ انتهاؤها أو timeout أو lease لا يساوي إغلاقًا. Heartbeat متواصل، وفقدانه يعيد الحالة إلى RECOVERING ويُبقي العمل مفتوحًا.
+إغلاق الجلسة بحالة BLOCKED ممنوع؛ العائق يسجل ويستمر مسار recovery/coordination داخل الخلية.
 
 عند انتظار CI أو provider خارجي:
 WAITING_EXTERNAL + heartbeat
@@ -846,3 +877,42 @@ Exact copies are required in:
 No resident bot may invent, shorten, fork, or override this protocol.
 
 <!-- ACTION_VAULT_CANONICAL_PROTOCOL_END -->
+
+## CELL-LAB — SHARED ENGINEERING LAB
+
+The FLIXO cell is the full communication and decision laboratory for the Masters, Agents and Bots. P00 is admitted first; P20 then requires the Cell-Lab collaboration cycle for every material execution decision.
+
+### Cell-Lab lifecycle
+
+`OPEN → DISCUSS → QUESTION → CHALLENGE → RESOLVE → SYNTHESIZE → CONSENSUS → EXECUTE → VERIFY → LEARN`
+
+The laboratory is the canonical place to exchange:
+`OPINION | QUESTION | CHALLENGE | DECISION`.
+
+Every material task must expose its discussion to the applicable Masters and execution participants through the Canonical Agent Communication path. Replies, objections, evidence and resolution are retained. A single integrated plan is produced only after the required participants agree.
+
+### Consensus gate
+
+The canonical packet is:
+`diagnostics/agents/cell-lab/consensus/<taskId>.json`
+
+It must be bound to:
+`taskId + exactSha + objective + integratedPlan + planHash + participants + discussions + dissentResolved + proofObligations + stopConditions`.
+
+Required core participants:
+`MASTER-1 + MASTER-2 + MASTER-3`, plus the mutation owner.
+
+A packet is execution-ready only when:
+`status=AGREED + executionReady=true + discussionClosed=true + no remaining questions + no unresolved conflicts + every final DECISION is AGREED`.
+
+Consensus does not grant mutation, merge or certification authority. It creates the shared plan and proves that the relevant cell participants discussed and resolved the decision before execution.
+
+### No silent bypass
+
+No agent may privately decide a material source mutation when the Cell-Lab gate is required. A conflicting opinion is not discarded; it becomes a documented dissent and must be resolved or preserved as an explicit accepted risk. Stale SHA invalidates the packet.
+
+Machine enforcement:
+`scripts/ci/cell-lab-consensus.mjs → scripts/ci/repair-protocol.mjs → mutation admission`.
+
+
+سقف القطاع النشط المتصل 3 ساعات؛ بعده تجديد إجباري بلا نوم أو خمول، مع استمرار المهمة بلا حد زمني إجمالي حتى GREEN. `MASTER_CELL_LAB` يحمل تحديثات الماسترز كل 5 دقائق وتذكير المهام كل 10 دقائق، مع current exact SHA وRCA وremainingWork وnextAction.

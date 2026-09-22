@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { loadAndValidateCellLabConsensus, validateCellLabConsensus } from './cell-lab-consensus.mjs';
 
 export const ACTION_PRIMARY_CORRECTNESS_PROOF='ACTION_PRIMARY_CORRECTNESS_PROOF';
 export const REPAIR_PROTOCOL = Object.freeze({
@@ -24,13 +25,15 @@ export const REPAIR_PROTOCOL = Object.freeze({
   completionRequires: ['repairAttempts','retestResult','resumePoint','finalVerification','finalSHA'],
   protectedPaths: ['scripts/ci/repair-protocol.mjs','scripts/ci/control-plane-registry.mjs','scripts/ci/auto-repair-engine.mjs','scripts/ci/auto-repair-policy.mjs','scripts/ci/agent-execution-control.mjs','.github/workflows/auto-repair.yml','scripts/ci/validate-agent-protocol.mjs','scripts/ci/validate-agent-coordination.mjs'],
   mutationAgents: ['repairAgent','executionAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier','actionHistorian'],
-  allAgents: ['assistantController','analysis','implementation','verification','release','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','diagnosticAgent','actionRepairBot','actionRepairVerifier','actionHistorian'],
+  allAgents: ['assistantController','MASTER-1','MASTER-2','MASTER-3','analysis','implementation','verification','release','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','diagnosticAgent','actionRepairBot','actionRepairVerifier','actionHistorian'],
   actionVaultRoles: Object.freeze({
     'ACTION-REPAIR': Object.freeze({ actor: 'actionRepairBot', mutation: true }),
     'ACTION-REPAIR-2': Object.freeze({ actor: 'actionRepairVerifier', mutation: true }),
     'ACTION-HISTORIAN-3': Object.freeze({ actor: 'actionHistorian', mutation: true }),
   }),
   actionVaultMissionRequires: ['triadId','messageId','taskId','failureFingerprint','entrySha','targetSha','ownerAgent','proofObligations','stopConditions'],
+  cellLabRequired: true,
+  cellLabConsensusPath: 'diagnostics/agents/cell-lab/consensus/<taskId>.json',
 });
 export const REPAIR_PROTOCOL_HASH=createHash('sha256').update(JSON.stringify(REPAIR_PROTOCOL),'utf8').digest('hex');
 const shaOk=v=>typeof v==='string'&&/^[a-f0-9]{40}$/u.test(v);
@@ -44,6 +47,8 @@ export function assertProtocolDefinition(){
   if(REPAIR_PROTOCOL.mutationScope!=='ERROR_ONLY') throw new Error('REPAIR_PROTOCOL_MUTATION_SCOPE_DRIFT');
   if(REPAIR_PROTOCOL.testMutationPolicy!=='BLOCK') throw new Error('REPAIR_PROTOCOL_TEST_MUTATION_POLICY_DRIFT');
   if(REPAIR_PROTOCOL.retryPolicy!=='NO_BLIND_RETRY') throw new Error('REPAIR_PROTOCOL_RETRY_POLICY_DRIFT');
+  if(REPAIR_PROTOCOL.cellLabRequired!==true) throw new Error('REPAIR_PROTOCOL_CELL_LAB_REQUIRED_DRIFT');
+  if(REPAIR_PROTOCOL.cellLabConsensusPath!=='diagnostics/agents/cell-lab/consensus/<taskId>.json') throw new Error('REPAIR_PROTOCOL_CELL_LAB_PATH_DRIFT');
   if(ACTION_PRIMARY_CORRECTNESS_PROOF!=='ACTION_PRIMARY_CORRECTNESS_PROOF') throw new Error('REPAIR_PROTOCOL_PRIMARY_PROOF_MARKER_DRIFT');
   if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-REPAIR']?.actor!=='actionRepairBot') throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_ROLE_DRIFT');
   if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-REPAIR-2']?.mutation!==true) throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_2_MUTATION_DRIFT');
@@ -56,6 +61,26 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
   if(!REPAIR_PROTOCOL.allAgents.includes(actor)) throw new Error('REPAIR_PROTOCOL_UNKNOWN_AGENT='+actor);
   if(mutation&&!REPAIR_PROTOCOL.mutationAgents.includes(actor)) throw new Error('REPAIR_PROTOCOL_MUTATION_ROLE_BLOCKED='+actor);
   if(mutation&&branch!=='execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
+  if(mutation&&REPAIR_PROTOCOL.cellLabRequired){
+    const sessionTaskId=String(session?.taskId??'').trim();
+    const missionTaskId=String(session?.actionVaultMission?.taskId??'').trim();
+    if(sessionTaskId&&missionTaskId&&sessionTaskId!==missionTaskId) throw new Error('CELL_LAB_TASK_ID_MISMATCH');
+    const taskId=String(sessionTaskId||missionTaskId||process.env.FLIXO_AGENT_TASK||process.env.FLIXO_TASK_ID||'').trim();
+    if(!taskId) throw new Error('CELL_LAB_TASK_ID_REQUIRED');
+    let consensus;
+    try {
+      consensus = session?.cellLabConsensus
+        ? validateCellLabConsensus(session.cellLabConsensus, { taskId, exactSha: session?.targetSHA ?? '', mutationOwner: actor })
+        : loadAndValidateCellLabConsensus({ file: session?.cellLabConsensusFile, taskId, exactSha: session?.targetSHA ?? '', mutationOwner: actor });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message === 'CELL_LAB_EXACT_SHA_MISMATCH' || message === 'CELL_LAB_PLAN_HASH_MISMATCH') {
+        throw new Error(message, {cause:error});
+      }
+      throw new Error('CELL_LAB_CONSENSUS_REQUIRED: '+message, {cause:error});
+    }
+    if(consensus.executionReady!==true || consensus.status!=='AGREED' || consensus.exactSha!==session.targetSHA) throw new Error('CELL_LAB_CONSENSUS_NOT_EXECUTION_READY');
+  }
   if(mutation&&!protocolOk(session)) throw new Error('REPAIR_PROTOCOL_SESSION_REQUIRED');
   if(mutation&&!['FAILURE_CAPTURED','MUTATION_AUTHORIZED'].includes(session.state)) throw new Error('REPAIR_PROTOCOL_MUTATION_STATE_BLOCKED');
   if(mutation&&actor==='actionRepairBot') {
@@ -276,12 +301,13 @@ export function validateTargetedRegressionSelection(selection = {}) {
   });
 }
 
-export function createRepairSession({repairSessionId,actor='repairAgent',failureFingerprint,targetSHA,beforeState={worktree:'clean'},attempt=1,fallback=null,assistantApproval=null,actionVaultVerifierProof=null}={}){
+export function createRepairSession({repairSessionId,actor='repairAgent',failureFingerprint,targetSHA,beforeState={worktree:'clean'},attempt=1,fallback=null,assistantApproval=null,actionVaultVerifierProof=null,taskId=null,cellLabConsensus=null,cellLabConsensusFile=null}={}){
   assertAgentAdmission({actor,branch:'execution',mutation:false});
   if(!String(repairSessionId??'').trim()) throw new Error('REPAIR_PROTOCOL_SESSION_ID_REQUIRED');
   if(!failureFingerprint) throw new Error('REPAIR_PROTOCOL_FAILURE_FINGERPRINT_REQUIRED');
   if(!shaOk(targetSHA)) throw new Error('REPAIR_PROTOCOL_TARGET_SHA_INVALID');
-  return Object.freeze({schemaVersion:1,protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,repairSessionId:String(repairSessionId),actor,state:'PROTOCOL_VALIDATED',failureFingerprint:String(failureFingerprint),targetSHA,beforeState:{...beforeState},repairAttempts:Math.max(1,Number(attempt)||1),retestResult:null,resumePoint:null,finalVerification:null,finalSHA:null,commitCount:0,fallback,assistantApproval,actionVaultVerifierProof});
+  const normalizedTaskId=String(taskId??'').trim();
+  return Object.freeze({schemaVersion:1,protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,repairSessionId:String(repairSessionId),actor,state:'PROTOCOL_VALIDATED',failureFingerprint:String(failureFingerprint),targetSHA,beforeState:{...beforeState},repairAttempts:Math.max(1,Number(attempt)||1),retestResult:null,resumePoint:null,finalVerification:null,finalSHA:null,commitCount:0,fallback,assistantApproval,actionVaultVerifierProof,taskId:normalizedTaskId||undefined,cellLabConsensus:cellLabConsensus??undefined,cellLabConsensusFile:cellLabConsensusFile??undefined});
 }
 export function captureFailure(session,evidence={}){
   if(!protocolOk(session)) throw new Error('REPAIR_PROTOCOL_SESSION_INVALID');

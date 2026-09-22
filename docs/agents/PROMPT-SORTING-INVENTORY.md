@@ -5,10 +5,10 @@
 
 All prompt text, prompt lineage, review copies, and consolidation decisions are mastered in `المهام.md`. This is the only human/review/task prompt source of truth.
 
-## ACTIVE RUNTIME PROJECTION
-RPR-UNIFIED-EXECUTION-001 → `docs/agents/PROMPT-UNIFIED-EXECUTION.md`
+## SUPREME ACTIVE RUNTIME PROTOCOL
+RPR-UNIFIED-EXECUTION-001 v4.0.0 → `docs/agents/PROMPT-UNIFIED-EXECUTION.md` → P00
 
-The runtime file above is a machine-consumed projection of the active prompt stored in `المهام.md`; it is not a second prompt authority and must not diverge from the ledger.
+The runtime file above is the canonical P00 execution text. It is mirrored in `المهام.md` for task-ledger continuity and must not fork into a second authority.
 
 ## HISTORICAL / DEPRECATED
 RPR-ERROR-RCA-001 → docs/archive/agents/prompts/RPR-ERROR-RCA-001.md → Error Agent + Unified Prompt

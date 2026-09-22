@@ -12,8 +12,8 @@ A new protocol MUST NOT be introduced merely to document a preference. It requir
 
 When rules appear to conflict, precedence is:
 
-0. **Supreme Automation Residency / Agent Liveness Protocol.** It controls automation continuity, heartbeat, recovery, non-termination and wake behavior. Lower-level rules MUST NOT suspend, disable, override, or strand this protocol.
-1. Master execution and safety contract.
+0. **SUPREME UNIVERSAL AGENT EXECUTION PROTOCOL (RPR-UNIFIED-EXECUTION-001 v4.0.0).** This is the repository/project/cell first obligation and applies to every Master, Agent, Bot, runtime adapter and workflow. It defines the mandatory execution, coordination, zero-error, RCA, Exact-SHA, liveness and circular-exit rules. Lower-level rules MUST NOT weaken, override, fork, or bypass it.
+1. **Supreme Automation Residency / Agent Liveness Protocol.** It enforces permanent residency, heartbeat, recovery and non-termination under the root protocol.
 2. Zero-False-Green and evidence integrity requirements.
 3. Root-Cause-First Repair Protocol.
 4. Product contract graph: G1, G2, G3, G4 and release gates.
@@ -25,9 +25,19 @@ A lower-level rule MUST NOT weaken or override a higher-level invariant. In part
 
 ## Canonical Protocol Families
 
-The registry contains exactly 20 approved mandatory protocols grouped into these families: GOVERNANCE, INTEGRITY, ROOT_CAUSE, TESTING, BROWSER, PRODUCT_CONTRACT, EVIDENCE, CI, and EXECUTION. Individual requirements SHOULD be implemented inside the owning family/protocol rather than by creating parallel protocols.
+The registry contains the approved mandatory protocols grouped into these families: GOVERNANCE, INTEGRITY, ROOT_CAUSE, TESTING, BROWSER, PRODUCT_CONTRACT, EVIDENCE, CI, and EXECUTION. Individual requirements SHOULD be implemented inside the owning family/protocol rather than by creating parallel protocols.
 
-The approved registry is the sole inventory for protocol identity, status, invariant, and enforcement boundary. Any protocol not present in the registry is non-authoritative.
+The approved registry is the sole inventory for protocol identity, status, invariant, and enforcement boundary. P00 is the machine-registered root protocol and docs/agents/PROMPT-UNIFIED-EXECUTION.md is its canonical execution text. Any protocol not present in the registry is non-authoritative.
+
+### CELL-LAB / COLLABORATIVE DECISION GATE
+
+The shared cell is the repository's collaborative engineering laboratory. P00/P20 execution requires material decisions to pass through the Cell Lab before mutation: every material opinion, question, challenge and decision is recorded; affected Masters/Agents/Bots respond; disagreements are explicitly resolved; one integrated plan is produced; and the plan is bound to the current exact SHA. No consensus packet means no material mutation.
+
+Cell Lab is a P00/P20 enforcement extension, not a competing protocol. It uses `scripts/ci/cell-lab-consensus.mjs` and the consensus artifact under `diagnostics/agents/cell-lab/consensus/`.
+
+## Machine-enforced Exit Lock
+
+Session closure is a control-plane action, not an agent preference. `scripts/ci/agent-exit-lock.mjs` MUST prove canonical GREEN on the same exact SHA before `agent-session.mjs` can write a terminal session status. Missing/stale/failed certification evidence, any failed work, remaining work, or open RCA rejects logout; the session remains `RUNNING` and returns to recovery.
 
 ## Change-Scope Integrity
 

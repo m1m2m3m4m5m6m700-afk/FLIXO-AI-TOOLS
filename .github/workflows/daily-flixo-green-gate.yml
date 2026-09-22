@@ -82,8 +82,7 @@ jobs:
             --json number,headRefOid,baseRefOid,url,mergedAt,mergeCommit,isDraft > /tmp/flixo-watch/open-prs.json
           gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state all --limit 10 \
             --json number,state,headRefOid,baseRefOid,url,mergedAt,mergeCommit,isDraft > /tmp/flixo-watch/all-prs.json
-          gh run list --repo "$GITHUB_REPOSITORY" --commit "$EXECUTION_SHA" --limit 100 \
-            --json databaseId,workflowName,status,conclusion,headSha,headBranch,event,displayTitle,createdAt,updatedAt > /tmp/flixo-watch/workflow-runs.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100" > /tmp/flixo-watch/workflow-runs.json
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$EXECUTION_SHA/check-runs?per_page=100" > /tmp/flixo-watch/check-runs.json
           gh api "repos/$GITHUB_REPOSITORY/commits/$EXECUTION_SHA/status" > /tmp/flixo-watch/statuses.json
           if [ "$WATCH_BRANCH" = "execution" ]; then
@@ -95,6 +94,136 @@ jobs:
           printf '%s\n' "$MAIN_SHA" > /tmp/flixo-watch/main-sha
           printf '%s\n' "$WATCH_BRANCH" > /tmp/flixo-watch/observed-branch
           printf 'branch=%s\n' "$WATCH_BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure exact-SHA required CI is resident
+        if: >-
+          steps.capture.outputs.branch == 'execution' &&
+          (github.event_name == 'push' ||
+           github.event_name == 'schedule' ||
+           github.event_name == 'workflow_dispatch')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(cat /tmp/flixo-watch/execution-sha)"
+          declare -A REQUIRED_FILES=(
+            ["FLIXO Test System"]="ci.yml"
+            ["FLIXO WP0 Trust Baseline"]="wp0-trust-baseline.yml"
+            ["FLIXO Test Impact"]="test-impact.yml"
+            ["FLIXO Test Impact Execution"]="test-impact-execution.yml"
+            ["Repository Security Baseline"]="repository-security-baseline.yml"
+            ["Claude Security Review"]="claude-security-review.yml"
+          )
+          MAX_RESIDENCY_POLLS=1
+          RESIDENCY_POLL_SECONDS=5
+          declare -A RESIDENT_DISPATCHED=()
+          for ((poll=1; poll<=MAX_RESIDENCY_POLLS; poll++)); do
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100" > /tmp/flixo-watch/workflow-runs.json
+            MISSING=0
+            for WORKFLOW in "FLIXO Test System" "FLIXO WP0 Trust Baseline" "FLIXO Test Impact" "FLIXO Test Impact Execution" "Repository Security Baseline" "Claude Security Review"; do
+              FILE="${REQUIRED_FILES[$WORKFLOW]}"
+              RUN_COUNT="$(jq --arg name "$WORKFLOW" --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == $name and .head_sha == $sha and (.status == "queued" or .status == "in_progress" or .conclusion == "success" or .conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required"))] | length' /tmp/flixo-watch/workflow-runs.json)"
+              if [ "$RUN_COUNT" -eq 0 ]; then
+                echo "REQUIRED_CI_MISSING workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA poll=$poll"
+                MISSING=1
+              else
+                echo "REQUIRED_CI_ALREADY_RESIDENT poll=$poll workflow=$WORKFLOW count=$RUN_COUNT sha=$EXECUTION_SHA"
+              fi
+            done
+            if [ "$MISSING" -eq 0 ]; then
+              echo "REQUIRED_CI_RESIDENCY=PASS sha=$EXECUTION_SHA"
+              exit 0
+            fi
+            if [ "$poll" -lt "$MAX_RESIDENCY_POLLS" ]; then
+              sleep "$RESIDENCY_POLL_SECONDS"
+            fi
+          done
+          echo "FAIL_CLOSED: required CI residency is incomplete for exact SHA $EXECUTION_SHA after $MAX_RESIDENCY_POLLS polls; another control-plane owner did not establish residency."
+          exit 1
+
+
+      - name: Await required internal CI settlement on exact SHA
+        id: settle_required_ci
+        if: steps.capture.outcome == 'success' && steps.capture.outputs.branch == 'execution'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(cat /tmp/flixo-watch/execution-sha)"
+          REQUIRED_WORKFLOWS=(
+            "FLIXO Test System"
+            "FLIXO WP0 Trust Baseline"
+            "FLIXO Test Impact"
+            "FLIXO Test Impact Execution"
+            "Repository Security Baseline"
+            "Claude Security Review"
+          )
+          MAX_POLLS=24
+          POLL_SECONDS=15
+          declare -A REQUIRED_FILES=(
+            ["FLIXO Test System"]="ci.yml"
+            ["FLIXO WP0 Trust Baseline"]="wp0-trust-baseline.yml"
+            ["FLIXO Test Impact"]="test-impact.yml"
+            ["FLIXO Test Impact Execution"]="test-impact-execution.yml"
+            ["Repository Security Baseline"]="repository-security-baseline.yml"
+            ["Claude Security Review"]="claude-security-review.yml"
+          )
+          for ((poll=1; poll<=MAX_POLLS; poll++)); do
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100" > /tmp/flixo-watch/workflow-runs.json
+            WAITING=false
+            FAILED=false
+            for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
+              RUN_JSON="$(jq -c --arg name "$workflow" --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == $name and .head_sha == $sha and .conclusion != "cancelled")] | sort_by(.updated_at) | last // empty' /tmp/flixo-watch/workflow-runs.json)"
+              if [ -z "$RUN_JSON" ]; then
+                echo "SETTLEMENT_WAITING poll=$poll workflow=$workflow state=MISSING"
+                WAITING=true
+                continue
+              fi
+              RUN_STATUS="$(printf '%s' "$RUN_JSON" | jq -r '.status')"
+              RUN_CONCLUSION="$(printf '%s' "$RUN_JSON" | jq -r '.conclusion // ""')"
+              if [ "$RUN_STATUS" = "completed" ]; then
+                if [ "$RUN_CONCLUSION" != "success" ]; then
+                  echo "SETTLEMENT_FOUND_RED poll=$poll workflow=$workflow conclusion=$RUN_CONCLUSION"
+                  FAILED=true
+                fi
+              else
+                echo "SETTLEMENT_WAITING poll=$poll workflow=$workflow status=$RUN_STATUS"
+                WAITING=true
+              fi
+            done
+            if [ "$FAILED" = true ] || [ "$WAITING" = false ]; then
+              break
+            fi
+            if [ "$poll" -lt "$MAX_POLLS" ]; then
+              sleep "$POLL_SECONDS"
+            fi
+          done
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$EXECUTION_SHA/check-runs?per_page=100" > /tmp/flixo-watch/check-runs.json
+          gh api "repos/$GITHUB_REPOSITORY/commits/$EXECUTION_SHA/status" > /tmp/flixo-watch/statuses.json
+          echo "REQUIRED_CI_SETTLEMENT_COMPLETE=true"
+
+      - name: Normalize settled workflow-run evidence shape
+        if: steps.capture.outputs.branch == 'execution' && steps.settle_required_ci.outcome == 'success'
+        run: |
+          set -euo pipefail
+          jq -c '
+            def normalize_run:
+              {
+                databaseId: (.databaseId // .id // null),
+                workflowName: (.workflowName // .name // .display_title // ""),
+                headSha: (.headSha // .head_sha // ""),
+                headBranch: (.headBranch // .head_branch // ""),
+                status: (.status // ""),
+                conclusion: (.conclusion // null),
+                updatedAt: (.updatedAt // .updated_at // .completed_at // .started_at // "")
+              };
+            (if type == "array" then . elif (.workflow_runs | type) == "array" then .workflow_runs else [] end)
+            | map(normalize_run)
+          ' /tmp/flixo-watch/workflow-runs.json > /tmp/flixo-watch/workflow-runs.normalized.json
+          mv /tmp/flixo-watch/workflow-runs.normalized.json /tmp/flixo-watch/workflow-runs.json
+          jq -e 'type == "array" and all(.[]; (.databaseId != null and .workflowName != "" and (.headSha | test("^[0-9a-f]{40}$")) and .headBranch != "" and .status != "" and (.updatedAt != "")))' /tmp/flixo-watch/workflow-runs.json >/dev/null
 
       - name: Capture failed CI evidence for classification
         env:
@@ -311,13 +440,14 @@ jobs:
           esac
 
           if [ "$DISPATCH" = true ]; then
-            gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution \
-              -f "target_run_id=$TARGET_RUN_ID" \
-              -f "chain_id=$REPAIR_CHAIN_ID" \
-              -f "failure_fingerprint=$FAILURE_FINGERPRINT" \
-              -f "repair_lease_ref=$LEASE_REF" \
-              -f "repair_lease_attempt=$ATTEMPT" \
-              -f "prompt_source_run_id=$GITHUB_RUN_ID"
+            gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/auto-repair.yml/dispatches" \
+              -f ref=execution \
+              -f "inputs[target_run_id]=$TARGET_RUN_ID" \
+              -f "inputs[chain_id]=$REPAIR_CHAIN_ID" \
+              -f "inputs[failure_fingerprint]=$FAILURE_FINGERPRINT" \
+              -f "inputs[repair_lease_ref]=$LEASE_REF" \
+              -f "inputs[repair_lease_attempt]=$ATTEMPT" \
+              -f "inputs[prompt_source_run_id]=$GITHUB_RUN_ID"
             echo "REPAIR_LEASE_DISPATCHED=true"
             echo "REPAIR_DISPATCH_TARGET=$TARGET_RUN_ID"
             echo "REPAIR_CHAIN_ID=$REPAIR_CHAIN_ID"

@@ -27,7 +27,7 @@ const resultState = readFileSync('scripts/ci/result-state.mjs', 'utf8');
 
 const required = [
   ['pull_request trigger', /pull_request:\s*\n\s*branches:\s*\[main\]/],
-  ['push trigger', /push:\s*\n\s*branches:\s*\[main\]/],
+  ['push trigger', /push:\s*\n\s*branches:\s*\[main, execution\]/],
   ['single static-build engine', /\n\s{2}verify:\s*\n/],
   ['Browser FAST engine', /\n\s{2}browser_fast:\s*\n/],
   ['Browser DEEP engine', /\n\s{2}browser_deep:\s*\n/],
@@ -46,15 +46,18 @@ for (const [label, pattern] of required) {
   }
 }
 
-const executionPushDuplicate = /push:\s*\n\s*branches:\s*\[execution\]/;
+const executionPushTrigger = /push:\s*\n\s*branches:\s*\[execution\]/;
+const securityExecutionPushTrigger = /push:\s*\n\s*branches:\s*\[main, execution\]/;
 for (const [label, source] of [
-  ['ci.yml', workflow],
   ['wp0-trust-baseline.yml', wp0Workflow],
+  ['test-impact.yml', impactPlanWorkflow],
   ['test-impact-execution.yml', impactExecutionWorkflow],
   ['repository-security-baseline.yml', securityBaselineWorkflow],
+  ['claude-security-review.yml', claudeSecurityWorkflow],
 ]) {
-  if (executionPushDuplicate.test(source)) {
-    console.error(`CI contract failed: ${label} must not duplicate pull_request verification with an execution-branch push trigger.`);
+  const trigger = label === 'repository-security-baseline.yml' ? securityExecutionPushTrigger : executionPushTrigger;
+  if (!trigger.test(source)) {
+    console.error('CI contract failed: ' + label + ' must have an exact execution-branch push trigger.');
     process.exit(1);
   }
 }
@@ -65,6 +68,7 @@ const exactShaVerificationWorkflows = [
   ['test-impact.yml', impactPlanWorkflow],
   ['test-impact-execution.yml', impactExecutionWorkflow],
   ['repository-security-baseline.yml', securityBaselineWorkflow],
+  ['claude-security-review.yml', claudeSecurityWorkflow],
 ];
 
 if (!/EXPECTED_SHA/.test(currentCommitGuard) ||
@@ -158,7 +162,9 @@ const watchdogExactVerify =
   /name: Verify trusted watchdog checkout[\s\S]*git rev-parse HEAD[\s\S]*test "\$ACTUAL_WATCHDOG_SHA" = "\$TRUSTED_MAIN_SHA"[\s\S]*WATCHDOG_CHECKOUT_MODE=TRUSTED_MAIN/.test(executionWatchdogWorkflow);
 const watchdogSourceFreshness =
   /name: Capture exact execution state[\s\S]*SOURCE_RUN_SHA: \$\{\{ github\.event\.workflow_run\.head_sha \|\| '' \}\}[\s\S]*EXECUTION_SHA="[\s\S]*git\/ref\/heads\/execution[\s\S]*if \[ "\$EXECUTION_SHA" != "\$SOURCE_RUN_SHA" \][\s\S]*STALE_WATCHDOG_EVENT=true/.test(executionWatchdogWorkflow);
-if (!watchdogExactCheckout || !watchdogExactVerify || !watchdogSourceFreshness) {
+const watchdogConcurrency =
+  /concurrency:[\s\S]*group:\s*flixo-execution-watchdog-\$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}[\s\S]*cancel-in-progress:\s*true/.test(executionWatchdogWorkflow);
+if (!watchdogExactCheckout || !watchdogExactVerify || !watchdogSourceFreshness || !watchdogConcurrency) {
   console.error('CI contract failed: execution-bot-watchdog.yml must execute only trusted controller code from main, observe the exact execution SHA through GitHub APIs, and reject stale workflow_run events.');
   process.exit(1);
 }
@@ -174,6 +180,7 @@ const watchdogStepBlock = (workflowText, stepName) => {
 const pushWakeBlock = watchdogStepBlock(executionWatchdogWorkflow, 'Record exact execution push wake');
 const pushWakeMarkers = [
   'name: Record exact execution push wake',
+  'if: github.event_name == \'push\' && github.ref_name == \'execution\' && steps.source.outputs.stale != \'true\'',
   'EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"',
   'EXPECTED_PUSH_SHA="$GITHUB_SHA"',
   'test "$EXECUTION_SHA" = "$EXPECTED_PUSH_SHA"',
@@ -184,22 +191,36 @@ if (!pushWakeMarkers.every((marker) => pushWakeBlock.includes(marker)) ||
   process.exit(1);
 }
 
-const canonicalTestBlock = watchdogStepBlock(executionWatchdogWorkflow, 'Ensure canonical Test System exists for exact SHA without duplicate dispatch');
+const canonicalTestBlock = watchdogStepBlock(executionWatchdogWorkflow, 'Verify canonical Test System exists for exact SHA');
 const canonicalTestMarkers = [
-  'name: Ensure canonical Test System exists for exact SHA without duplicate dispatch',
+  'name: Verify canonical Test System exists for exact SHA',
   'EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"',
-  'gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution',
-  'gh run list --repo "$GITHUB_REPOSITORY" --workflow "FLIXO Test System"',
-  '--commit "$EXECUTION_SHA"',
+  'actions/runs?head_sha=$EXECUTION_SHA&per_page=100',
+  'path == ".github/workflows/ci.yml"',
+  '.head_sha == $sha',
   'FAIL CLOSED: canonical FLIXO Test System did not start for exact SHA',
 ];
-if (!canonicalTestMarkers.every((marker) => canonicalTestBlock.includes(marker))) {
-  console.error('CI contract failed: watchdog must dispatch the canonical Test System and admit only an active exact execution-SHA run.');
+if (!canonicalTestMarkers.every((marker) => canonicalTestBlock.includes(marker)) || /\/dispatches/.test(canonicalTestBlock)) {
+  console.error('CI contract failed: watchdog must observe the canonical exact-SHA Test System run without dispatching it.');
   process.exit(1);
 }
 if (!/cancel-in-progress:\s*false/.test(greenGateWorkflow) ||
     !/group:\s*flixo-continuous-error-watch-\$\{\{\s*github\.run_id\s*\}\}/.test(greenGateWorkflow)) {
   console.error('CI contract failed: daily green gate must preserve each observation run for evidence integrity.');
+  process.exit(1);
+}
+const residentCiBlock =
+  greenGateWorkflow.match(/name: Ensure exact-SHA required CI is resident[\s\S]*?(?=\n\s{6}- name:|$)/)?.[0] ?? '';
+const settlementBlock =
+  greenGateWorkflow.match(/name: Await required internal CI settlement on exact SHA[\s\S]*?(?=\n\s{6}- name:|$)/)?.[0] ?? '';
+if (!/if:\s*(?:>-\s*)?\n?\s*steps\.capture\.outputs\.branch == 'execution'/.test(residentCiBlock) ||
+    /actions\/workflows\//.test(residentCiBlock) ||
+    !/FAIL_CLOSED: required CI residency is incomplete for exact SHA(?: after [^\n]+)?/.test(residentCiBlock)) {
+  console.error('CI contract failed: Green Gate must observe required execution-push CI residency and fail closed without redispatch.');
+  process.exit(1);
+}
+if (/actions\/workflows\//.test(residentCiBlock) || /gh workflow run/.test(settlementBlock)) {
+  console.error('CI contract failed: Green Gate must not redispatch required CI.');
   process.exit(1);
 }
 

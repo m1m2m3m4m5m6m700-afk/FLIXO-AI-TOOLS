@@ -40,6 +40,17 @@ assert.equal(lint.location?.line, 10);
 assert.equal(lint.locationVerified, true);
 assert.equal(lint.decision, 'ALLOW_BOUNDED_MUTATION');
 
+const mixedStaticBrowser = reasonFailure([
+  'Static + Build',
+  'Browser matrix includes chromium / firefox / webkit',
+  'ERROR eslint: no-unused-vars at src/components/FlixoAIAgent.tsx:18:7',
+  'Process completed with exit code 1',
+].join('\\n'));
+assert.equal(mixedStaticBrowser.rootCause, 'lint');
+assert.equal(mixedStaticBrowser.decision, 'PROPOSE_ONLY');
+assert.equal(mixedStaticBrowser.hypotheses.some((item) => item.id === 'webkit-render'), true);
+assert.equal(mixedStaticBrowser.hypotheses.find((item) => item.id === 'webkit-render')?.directMatches ?? 0, 0);
+
 const missingSource = reasonFailure('ERROR eslint: no-unused-vars at does/not/exist.ts:10:3');
 assert.equal(missingSource.locationVerified, false);
 assert.equal(missingSource.decision, 'PROPOSE_ONLY');

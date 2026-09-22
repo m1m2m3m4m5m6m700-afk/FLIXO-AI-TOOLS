@@ -747,10 +747,23 @@
     },
     "mutationAuthorityUnchanged": true
   },
+  "supremeProtocol": {
+    "protocolId": "P00",
+    "promptId": "RPR-UNIFIED-EXECUTION-001",
+    "version": "4.0.0",
+    "sourcePath": "docs/agents/PROMPT-UNIFIED-EXECUTION.md",
+    "status": "SUPREME_MANDATORY",
+    "firstObligation": true,
+    "appliesTo": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ]
+  },
   "promptBinding": {
     "schemaVersion": 1,
     "promptId": "RPR-UNIFIED-EXECUTION-001",
-    "promptVersion": "3.0.0",
+    "promptVersion": "4.0.0",
     "registryPath": "docs/agents/PROMPT-REGISTRY.json",
     "hashAlgorithm": "git-blob-sha",
     "enforcement": "LIVE_GIT_BLOB_SHA_MUST_MATCH_BEFORE_ACTION_VAULT_ADMISSION",
@@ -761,9 +774,9 @@
       "docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md"
     ],
     "documents": {
-      "docs/agents/PROMPT-UNIFIED-EXECUTION.md": "c5e54c0a9da41016f448817c9cfc231fd7fb9627",
-      "docs/agents/ACTION-AGENT-RUNTIME-PROTOCOL.md": "65344e161febf24b6a589b7a685b8280b3166d4b",
-      "docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md": "773066887155b561a681c04c1df8bca297a259f9"
+      "docs/agents/PROMPT-UNIFIED-EXECUTION.md": "448f34b7b0194f21220a30a74c50676ab3755082",
+      "docs/agents/ACTION-AGENT-RUNTIME-PROTOCOL.md": "63265769daede5c16f99b31ae925764093a2513b",
+      "docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md": "8716ebd538c923d892b033cb07018d5fea833afb"
     }
   },
   "parallelProtocol": {},

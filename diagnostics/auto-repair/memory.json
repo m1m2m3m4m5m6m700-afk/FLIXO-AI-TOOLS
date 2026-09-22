@@ -3,7 +3,7 @@
   "cases": [
     {
       "fingerprint": "cefe8e431b2be0d946960754d598c026fdb7e760c2b8803922a69344eb2921c0",
-      "rootCause": "webkit-render",
+      "rootCause": "build",
       "attempts": 0,
       "successes": 0,
       "failures": 0,
@@ -33,7 +33,7 @@
     },
     {
       "fingerprint": "34c22b220ea6fdb6103bedefc90d64d4ce1d8e9e1f296b5dc06fae609284c3e7",
-      "rootCause": "webkit-render",
+      "rootCause": "lint",
       "attempts": 0,
       "successes": 0,
       "failures": 0,
@@ -63,7 +63,7 @@
     },
     {
       "fingerprint": "73040a161c5db072490c2f29d923520a227756b656c27a23502ff5707fa57c9e",
-      "rootCause": "webkit-render",
+      "rootCause": "lint",
       "attempts": 0,
       "successes": 0,
       "failures": 0,
@@ -93,7 +93,7 @@
     },
     {
       "fingerprint": "ac42590a393a7959ef4a5eeafb4404be388d65a4fdf8bdf30f6b8bd8d1c8e32b",
-      "rootCause": "webkit-render",
+      "rootCause": "lint",
       "attempts": 0,
       "successes": 0,
       "failures": 0,
@@ -124,7 +124,7 @@
     },
     {
       "fingerprint": "532797ab0996e58cc954922f4d6dd589d7da1be2c19d93d8035903cded49b2b3",
-      "rootCause": "webkit-render",
+      "rootCause": "lint",
       "attempts": 0,
       "successes": 0,
       "failures": 0,
@@ -155,7 +155,7 @@
     },
     {
       "fingerprint": "b45d3ec6d6885e6c85aa0e862e2c6899644c8416992f750a2f146a512b528314",
-      "rootCause": "webkit-render",
+      "rootCause": "lint",
       "attempts": 0,
       "successes": 0,
       "failures": 0,
@@ -290,7 +290,7 @@
     },
     {
       "fingerprint": "3effd3fe4242dd41eccde82cf598ff9586c26426116b49f39ab629935dd30189",
-      "rootCause": "webkit-render",
+      "rootCause": "lint",
       "attempts": 0,
       "successes": 0,
       "failures": 0,
@@ -444,7 +444,7 @@
     },
     {
       "fingerprint": "0c34cb9acfc5243b230b21d270a4d8d86e4a3e977b264ce2110374e270690407",
-      "rootCause": "webkit-render",
+      "rootCause": "lint",
       "attempts": 0,
       "successes": 0,
       "failures": 0,
@@ -910,7 +910,7 @@
     },
     {
       "fingerprint": "repair-training-self-lint-duplicate-helper-unused-parameter",
-      "rootCause": "repair-training-self-lint",
+      "rootCause": "lint",
       "attempts": 1,
       "successes": 0,
       "failures": 1,
@@ -1311,7 +1311,7 @@
   "actionHistory": [
     {
       "fingerprint": "cefe8e431b2be0d946960754d598c026fdb7e760c2b8803922a69344eb2921c0",
-      "rootCause": "webkit-render",
+      "rootCause": "build",
       "attempts": 0,
       "successes": 0,
       "failures": 0,
@@ -1325,7 +1325,7 @@
     },
     {
       "fingerprint": "34c22b220ea6fdb6103bedefc90d64d4ce1d8e9e1f296b5dc06fae609284c3e7",
-      "rootCause": "webkit-render",
+      "rootCause": "lint",
       "attempts": 0,
       "successes": 0,
       "failures": 0,
@@ -1339,7 +1339,7 @@
     },
     {
       "fingerprint": "73040a161c5db072490c2f29d923520a227756b656c27a23502ff5707fa57c9e",
-      "rootCause": "webkit-render",
+      "rootCause": "lint",
       "attempts": 0,
       "successes": 0,
       "failures": 0,
@@ -1353,7 +1353,7 @@
     },
     {
       "fingerprint": "ac42590a393a7959ef4a5eeafb4404be388d65a4fdf8bdf30f6b8bd8d1c8e32b",
-      "rootCause": "webkit-render",
+      "rootCause": "lint",
       "attempts": 0,
       "successes": 0,
       "failures": 0,
@@ -1367,7 +1367,7 @@
     },
     {
       "fingerprint": "532797ab0996e58cc954922f4d6dd589d7da1be2c19d93d8035903cded49b2b3",
-      "rootCause": "webkit-render",
+      "rootCause": "lint",
       "attempts": 0,
       "successes": 0,
       "failures": 0,
@@ -1381,7 +1381,7 @@
     },
     {
       "fingerprint": "b45d3ec6d6885e6c85aa0e862e2c6899644c8416992f750a2f146a512b528314",
-      "rootCause": "webkit-render",
+      "rootCause": "lint",
       "attempts": 0,
       "successes": 0,
       "failures": 0,
@@ -1437,7 +1437,7 @@
     },
     {
       "fingerprint": "3effd3fe4242dd41eccde82cf598ff9586c26426116b49f39ab629935dd30189",
-      "rootCause": "webkit-render",
+      "rootCause": "lint",
       "attempts": 0,
       "successes": 0,
       "failures": 0,
@@ -1465,7 +1465,7 @@
     },
     {
       "fingerprint": "0c34cb9acfc5243b230b21d270a4d8d86e4a3e977b264ce2110374e270690407",
-      "rootCause": "webkit-render",
+      "rootCause": "lint",
       "attempts": 0,
       "successes": 0,
       "failures": 0,

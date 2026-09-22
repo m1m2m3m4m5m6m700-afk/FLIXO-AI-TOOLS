@@ -1,0 +1,30 @@
+#!/usr/bin/env node
+import fs from 'node:fs';
+const DEFAULT_GLOBAL_EVIDENCE='diagnostics/certification/global-evidence.json';
+const DEFAULT_PROMOTION_EVIDENCE='/tmp/flixo-promotion-evidence.json';
+const readJson=(file,label)=>{if(!fs.existsSync(file))throw new Error(`AGENT_EXIT_LOCK_${label}_MISSING=${file}`);try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{throw new Error(`AGENT_EXIT_LOCK_${label}_INVALID=${file}`);}};
+const assertZeroArray=(value,code)=>{if(!Array.isArray(value)||value.length!==0)throw new Error(`AGENT_EXIT_LOCK_${code}`);};
+export function assertAgentExitGate({status,exactSha,failedWork=[],remainingWork=[],openRcas=[],globalEvidencePath=process.env.FLIXO_AGENT_GLOBAL_CERTIFICATION_EVIDENCE||DEFAULT_GLOBAL_EVIDENCE,promotionEvidencePath=process.env.FLIXO_AGENT_PROMOTION_EVIDENCE||DEFAULT_PROMOTION_EVIDENCE}={}){
+  if(String(status).toUpperCase()!=='VERIFIED')throw new Error('AGENT_EXIT_LOCK_NON_GREEN_STATUS');
+  if(!/^[a-f0-9]{40}$/u.test(String(exactSha??'')))throw new Error('AGENT_EXIT_LOCK_EXACT_SHA_REQUIRED');
+  assertZeroArray(failedWork,'FAILED_WORK_REMAINS');
+  assertZeroArray(remainingWork,'REMAINING_WORK');
+  assertZeroArray(openRcas,'OPEN_RCA');
+  const global=readJson(globalEvidencePath,'GLOBAL_EVIDENCE');
+  if(global.authority!=='CANONICAL_CERTIFY_ENGINE')throw new Error('AGENT_EXIT_LOCK_GLOBAL_AUTHORITY_INVALID');
+  if(global.status!=='PASS')throw new Error(`AGENT_EXIT_LOCK_GLOBAL_NOT_GREEN=${global.status??'MISSING'}`);
+  if(global.certificationSha!==exactSha)throw new Error(`AGENT_EXIT_LOCK_GLOBAL_SHA_DRIFT=${global.certificationSha??'MISSING'}`);
+  for(const [field,code] of [['failures','GLOBAL_FAILURES_REMAIN'],['unknowns','GLOBAL_UNKNOWNS_REMAIN'],['invalidEvidence','GLOBAL_INVALID_EVIDENCE_REMAIN'],['shaMismatches','GLOBAL_SHA_MISMATCHES_REMAIN'],['unauthorizedSkips','GLOBAL_UNAUTHORIZED_SKIPS_REMAIN'],['duplicatePrimaryEvidence','GLOBAL_DUPLICATE_PRIMARY_EVIDENCE_REMAIN']])assertZeroArray(global[field],code);
+  if(Number(global.zeroFalseGreen?.independentRootCauses??-1)!==0)throw new Error('AGENT_EXIT_LOCK_ROOT_CAUSE_REMAINS');
+  if(Number(global.zeroFalseGreen?.unknowns??-1)!==0)throw new Error('AGENT_EXIT_LOCK_GLOBAL_UNKNOWN_COUNT');
+  if(Number(global.zeroFalseGreen?.invalidEvidence??-1)!==0)throw new Error('AGENT_EXIT_LOCK_GLOBAL_INVALID_COUNT');
+  if(Number(global.zeroFalseGreen?.shaMismatches??-1)!==0)throw new Error('AGENT_EXIT_LOCK_GLOBAL_SHA_COUNT');
+  if(Number(global.zeroFalseGreen?.unauthorizedSkips??-1)!==0)throw new Error('AGENT_EXIT_LOCK_GLOBAL_SKIP_COUNT');
+  const promotion=readJson(promotionEvidencePath,'PROMOTION_EVIDENCE');
+  if(promotion.authority!=='FLIXO_EXACT_SHA_PROMOTION_EVIDENCE')throw new Error('AGENT_EXIT_LOCK_PROMOTION_AUTHORITY_INVALID');
+  if(promotion.state!=='CERTIFIABLE')throw new Error(`AGENT_EXIT_LOCK_PROMOTION_NOT_CERTIFIABLE=${promotion.state??'MISSING'}`);
+  if(promotion.exactSha!==exactSha)throw new Error(`AGENT_EXIT_LOCK_PROMOTION_SHA_DRIFT=${promotion.exactSha??'MISSING'}`);
+  if(promotion.liveRuntimeState!=='LIVE_VERIFIED')throw new Error(`AGENT_EXIT_LOCK_LIVE_RUNTIME_NOT_VERIFIED=${promotion.liveRuntimeState??'MISSING'}`);
+  assertZeroArray(promotion.failures,'PROMOTION_FAILURES_REMAIN');
+  return Object.freeze({ok:true,state:'GREEN',exactSha,next:'ALLOW_SESSION_CLOSE'});
+};

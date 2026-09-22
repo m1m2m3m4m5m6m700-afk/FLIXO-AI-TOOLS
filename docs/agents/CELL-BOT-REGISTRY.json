@@ -95,7 +95,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-002",
@@ -143,7 +156,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-003",
@@ -191,7 +217,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-004",
@@ -239,7 +278,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-005",
@@ -287,7 +339,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-006",
@@ -335,7 +400,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-007",
@@ -383,7 +461,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-008",
@@ -431,7 +522,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-009",
@@ -479,7 +583,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-010",
@@ -527,7 +644,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-011",
@@ -575,7 +705,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-012",
@@ -623,7 +766,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-013",
@@ -671,7 +827,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-014",
@@ -719,7 +888,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-015",
@@ -767,7 +949,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-016",
@@ -815,7 +1010,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-017",
@@ -863,7 +1071,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-018",
@@ -911,7 +1132,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-019",
@@ -959,7 +1193,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-020",
@@ -1007,7 +1254,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-021",
@@ -1055,7 +1315,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-022",
@@ -1103,7 +1376,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-023",
@@ -1151,7 +1437,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-024",
@@ -1199,7 +1498,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-025",
@@ -1247,7 +1559,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-026",
@@ -1295,7 +1620,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-027",
@@ -1343,7 +1681,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-028",
@@ -1391,7 +1742,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-029",
@@ -1439,7 +1803,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-030",
@@ -1487,7 +1864,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-031",
@@ -1535,7 +1925,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-032",
@@ -1583,7 +1986,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-033",
@@ -1631,7 +2047,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-034",
@@ -1679,7 +2108,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-035",
@@ -1727,7 +2169,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-036",
@@ -1775,7 +2230,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-037",
@@ -1823,7 +2291,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-038",
@@ -1871,7 +2352,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-039",
@@ -1919,7 +2413,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-040",
@@ -1967,7 +2474,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-041",
@@ -2015,7 +2535,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-042",
@@ -2063,7 +2596,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-043",
@@ -2111,7 +2657,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-044",
@@ -2159,7 +2718,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-045",
@@ -2207,7 +2779,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-046",
@@ -2255,7 +2840,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-047",
@@ -2303,7 +2901,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-048",
@@ -2351,7 +2962,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-049",
@@ -2399,7 +3023,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-050",
@@ -2447,7 +3084,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-051",
@@ -2495,7 +3145,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-052",
@@ -2543,7 +3206,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-053",
@@ -2591,7 +3267,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-054",
@@ -2639,7 +3328,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-055",
@@ -2687,7 +3389,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-056",
@@ -2735,7 +3450,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-057",
@@ -2783,7 +3511,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-058",
@@ -2831,7 +3572,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-059",
@@ -2879,7 +3633,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-060",
@@ -2927,7 +3694,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-061",
@@ -2975,7 +3755,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-062",
@@ -3023,7 +3816,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-063",
@@ -3071,7 +3877,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-064",
@@ -3119,7 +3938,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-065",
@@ -3167,7 +3999,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-066",
@@ -3215,7 +4060,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-067",
@@ -3263,7 +4121,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-068",
@@ -3311,7 +4182,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-069",
@@ -3359,7 +4243,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-070",
@@ -3407,7 +4304,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-071",
@@ -3455,7 +4365,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-072",
@@ -3503,7 +4426,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-073",
@@ -3551,7 +4487,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-074",
@@ -3599,7 +4548,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-075",
@@ -3647,7 +4609,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-076",
@@ -3695,7 +4670,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-077",
@@ -3743,7 +4731,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-078",
@@ -3791,7 +4792,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-079",
@@ -3839,7 +4853,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-080",
@@ -3887,7 +4914,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-081",
@@ -3935,7 +4975,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-082",
@@ -3983,7 +5036,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-083",
@@ -4031,7 +5097,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-084",
@@ -4079,7 +5158,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-085",
@@ -4127,7 +5219,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-086",
@@ -4175,7 +5280,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-087",
@@ -4223,7 +5341,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-088",
@@ -4271,7 +5402,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-089",
@@ -4319,7 +5463,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-090",
@@ -4367,7 +5524,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-091",
@@ -4415,7 +5585,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-092",
@@ -4463,7 +5646,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-093",
@@ -4511,7 +5707,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-094",
@@ -4559,7 +5768,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-095",
@@ -4607,7 +5829,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-096",
@@ -4655,7 +5890,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-097",
@@ -4703,7 +5951,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-098",
@@ -4751,7 +6012,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-099",
@@ -4799,7 +6073,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-100",
@@ -4847,7 +6134,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-101",
@@ -4895,7 +6195,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-102",
@@ -4943,7 +6256,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-103",
@@ -4991,7 +6317,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-104",
@@ -5039,7 +6378,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-105",
@@ -5087,7 +6439,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-106",
@@ -5135,7 +6500,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-107",
@@ -5183,7 +6561,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-108",
@@ -5231,7 +6622,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-109",
@@ -5279,7 +6683,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-110",
@@ -5327,7 +6744,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-111",
@@ -5375,7 +6805,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-112",
@@ -5423,7 +6866,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-113",
@@ -5471,7 +6927,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-114",
@@ -5519,7 +6988,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-115",
@@ -5567,7 +7049,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-116",
@@ -5615,7 +7110,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-117",
@@ -5663,7 +7171,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-118",
@@ -5711,7 +7232,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-119",
@@ -5759,7 +7293,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-120",
@@ -5807,7 +7354,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-121",
@@ -5855,7 +7415,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-122",
@@ -5903,7 +7476,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-123",
@@ -5951,7 +7537,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-124",
@@ -5999,7 +7598,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-125",
@@ -6047,7 +7659,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-126",
@@ -6095,7 +7720,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-127",
@@ -6143,7 +7781,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-128",
@@ -6191,7 +7842,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-129",
@@ -6239,7 +7903,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-130",
@@ -6287,7 +7964,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-131",
@@ -6335,7 +8025,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-132",
@@ -6383,7 +8086,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-133",
@@ -6431,7 +8147,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-134",
@@ -6479,7 +8208,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-135",
@@ -6527,7 +8269,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-136",
@@ -6575,7 +8330,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-137",
@@ -6623,7 +8391,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-138",
@@ -6671,7 +8452,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-139",
@@ -6719,7 +8513,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-140",
@@ -6767,7 +8574,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-141",
@@ -6815,7 +8635,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-142",
@@ -6863,7 +8696,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-143",
@@ -6911,7 +8757,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-144",
@@ -6959,7 +8818,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-145",
@@ -7007,7 +8879,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-146",
@@ -7055,7 +8940,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-147",
@@ -7103,7 +9001,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-148",
@@ -7151,7 +9062,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-149",
@@ -7199,7 +9123,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-150",
@@ -7247,7 +9184,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-151",
@@ -7295,7 +9245,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-152",
@@ -7343,7 +9306,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-153",
@@ -7391,7 +9367,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-154",
@@ -7439,7 +9428,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-155",
@@ -7487,7 +9489,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-156",
@@ -7535,7 +9550,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-157",
@@ -7583,7 +9611,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-158",
@@ -7631,7 +9672,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-159",
@@ -7679,7 +9733,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-160",
@@ -7727,7 +9794,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-161",
@@ -7775,7 +9855,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-162",
@@ -7823,7 +9916,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-163",
@@ -7871,7 +9977,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-164",
@@ -7919,7 +10038,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-165",
@@ -7967,7 +10099,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-166",
@@ -8015,7 +10160,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-167",
@@ -8063,7 +10221,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-168",
@@ -8111,7 +10282,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-169",
@@ -8159,7 +10343,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-170",
@@ -8207,7 +10404,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-171",
@@ -8255,7 +10465,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-172",
@@ -8303,7 +10526,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-173",
@@ -8351,7 +10587,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-174",
@@ -8399,7 +10648,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-175",
@@ -8447,7 +10709,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-176",
@@ -8495,7 +10770,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-177",
@@ -8543,7 +10831,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-178",
@@ -8591,7 +10892,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-179",
@@ -8639,7 +10953,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-180",
@@ -8687,7 +11014,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-181",
@@ -8735,7 +11075,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-182",
@@ -8783,7 +11136,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-183",
@@ -8831,7 +11197,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-184",
@@ -8879,7 +11258,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-185",
@@ -8927,7 +11319,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-186",
@@ -8975,7 +11380,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-187",
@@ -9023,7 +11441,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-188",
@@ -9071,7 +11502,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-189",
@@ -9119,7 +11563,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-190",
@@ -9167,7 +11624,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-191",
@@ -9215,7 +11685,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-192",
@@ -9263,7 +11746,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-193",
@@ -9311,7 +11807,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-194",
@@ -9359,7 +11868,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-195",
@@ -9407,7 +11929,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-196",
@@ -9455,7 +11990,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-197",
@@ -9503,7 +12051,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-198",
@@ -9551,7 +12112,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-199",
@@ -9599,7 +12173,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     },
     {
       "id": "CELL-200",
@@ -9647,7 +12234,20 @@
         "CELL-SEAT-02",
         "CELL-SEAT-03"
       ],
-      "currentAssignment": null
+      "currentAssignment": null,
+      "cellRole": "EXECUTIVE_AGENT",
+      "cellGovernanceContract": "CELL-EXEC-GOV-001",
+      "executionMode": "ASSIGNED_SCOPE_ONLY",
+      "performanceProfile": {
+        "rank": null,
+        "rankState": "UNQUALIFIED",
+        "score": null,
+        "confidence": 0,
+        "evidenceCount": 0,
+        "validatedTasks": 0,
+        "lastValidated": null
+      },
+      "escalationState": "L0_BOT_LOCAL"
     }
   ],
   "lifecycle": {
@@ -10039,7 +12639,661 @@
   },
   "masterDisplayNames": {
     "MASTER-1": "MASTER-1 — PRESIDENT",
-    "MASTER-2": "🔧 MASTER-2 — الاحترافي",
+    "MASTER-2": "🔧🔧 MASTER-2 — الاحترافي — المستوى 2",
     "MASTER-3": "★ MASTER-3 — CONSULTANT / المستشار"
+  },
+  "masterRankRegistry": {
+    "schemaVersion": 1,
+    "authority": "CELL_CONTROL_PLANE",
+    "effectiveAt": "2026-09-22",
+    "effectiveSha": "65a1906d9077cdcfa3559e3f46731209581bfd95",
+    "status": "ACTIVE",
+    "rule": "Rank is a formal cell designation and does not expand mutation, certification, or final-authority powers.",
+    "masters": {
+      "MASTER-2": {
+        "rankId": "MASTER-2-L2",
+        "level": 2,
+        "marks": [
+          "🔧",
+          "🔧"
+        ],
+        "displayName": "🔧🔧 MASTER-2 — الاحترافي — المستوى 2",
+        "designation": "VERIFICATION COUNCIL — ADVANCED",
+        "responsibilities": [
+          "independent verification",
+          "dependency sequencing",
+          "contract alignment",
+          "challenge",
+          "evidence freshness and Exact-SHA control",
+          "false-GREEN prevention",
+          "coordination escalation to assistantController"
+        ],
+        "authorityBoundary": {
+          "mutationAuthority": false,
+          "certificationAuthority": false,
+          "finalAuthority": false,
+          "operationalLeader": false
+        },
+        "promotionBasis": [
+          "documented sustained verification role",
+          "Exact-SHA and evidence challenge discipline",
+          "active participation in MASTER_CELL_LAB",
+          "conformance to long-lived residency and communication protocols"
+        ],
+        "grantedBy": "assistantController_OPERATIONAL_EXECUTION_LEAD",
+        "finalAuthority": "USER_FINAL_AUTHORITY",
+        "review": "Promotion remains revocable by formal administrative record and does not override canonical protocols."
+      }
+    }
+  },
+  "sharedOperationalMemoryContract": {
+    "contractId": "CELL-SHARED-OPERATIONAL-MEMORY-001",
+    "version": "1.0.0",
+    "status": "MANDATORY",
+    "authority": "CELL_CONTROL_PLANE",
+    "appliesTo": [
+      "MASTER-1",
+      "MASTER-2",
+      "MASTER-3",
+      "ALL_AGENTS",
+      "ALL_BOTS",
+      "CELL-001",
+      "CELL-002",
+      "CELL-003",
+      "CELL-004",
+      "CELL-005",
+      "CELL-006",
+      "CELL-007",
+      "CELL-008",
+      "CELL-009",
+      "CELL-010",
+      "CELL-011",
+      "CELL-012",
+      "CELL-013",
+      "CELL-014",
+      "CELL-015",
+      "CELL-016",
+      "CELL-017",
+      "CELL-018",
+      "CELL-019",
+      "CELL-020",
+      "CELL-021",
+      "CELL-022",
+      "CELL-023",
+      "CELL-024",
+      "CELL-025",
+      "CELL-026",
+      "CELL-027",
+      "CELL-028",
+      "CELL-029",
+      "CELL-030",
+      "CELL-031",
+      "CELL-032",
+      "CELL-033",
+      "CELL-034",
+      "CELL-035",
+      "CELL-036",
+      "CELL-037",
+      "CELL-038",
+      "CELL-039",
+      "CELL-040",
+      "CELL-041",
+      "CELL-042",
+      "CELL-043",
+      "CELL-044",
+      "CELL-045",
+      "CELL-046",
+      "CELL-047",
+      "CELL-048",
+      "CELL-049",
+      "CELL-050",
+      "CELL-051",
+      "CELL-052",
+      "CELL-053",
+      "CELL-054",
+      "CELL-055",
+      "CELL-056",
+      "CELL-057",
+      "CELL-058",
+      "CELL-059",
+      "CELL-060",
+      "CELL-061",
+      "CELL-062",
+      "CELL-063",
+      "CELL-064",
+      "CELL-065",
+      "CELL-066",
+      "CELL-067",
+      "CELL-068",
+      "CELL-069",
+      "CELL-070",
+      "CELL-071",
+      "CELL-072",
+      "CELL-073",
+      "CELL-074",
+      "CELL-075",
+      "CELL-076",
+      "CELL-077",
+      "CELL-078",
+      "CELL-079",
+      "CELL-080",
+      "CELL-081",
+      "CELL-082",
+      "CELL-083",
+      "CELL-084",
+      "CELL-085",
+      "CELL-086",
+      "CELL-087",
+      "CELL-088",
+      "CELL-089",
+      "CELL-090",
+      "CELL-091",
+      "CELL-092",
+      "CELL-093",
+      "CELL-094",
+      "CELL-095",
+      "CELL-096",
+      "CELL-097",
+      "CELL-098",
+      "CELL-099",
+      "CELL-100",
+      "CELL-101",
+      "CELL-102",
+      "CELL-103",
+      "CELL-104",
+      "CELL-105",
+      "CELL-106",
+      "CELL-107",
+      "CELL-108",
+      "CELL-109",
+      "CELL-110",
+      "CELL-111",
+      "CELL-112",
+      "CELL-113",
+      "CELL-114",
+      "CELL-115",
+      "CELL-116",
+      "CELL-117",
+      "CELL-118",
+      "CELL-119",
+      "CELL-120",
+      "CELL-121",
+      "CELL-122",
+      "CELL-123",
+      "CELL-124",
+      "CELL-125",
+      "CELL-126",
+      "CELL-127",
+      "CELL-128",
+      "CELL-129",
+      "CELL-130",
+      "CELL-131",
+      "CELL-132",
+      "CELL-133",
+      "CELL-134",
+      "CELL-135",
+      "CELL-136",
+      "CELL-137",
+      "CELL-138",
+      "CELL-139",
+      "CELL-140",
+      "CELL-141",
+      "CELL-142",
+      "CELL-143",
+      "CELL-144",
+      "CELL-145",
+      "CELL-146",
+      "CELL-147",
+      "CELL-148",
+      "CELL-149",
+      "CELL-150",
+      "CELL-151",
+      "CELL-152",
+      "CELL-153",
+      "CELL-154",
+      "CELL-155",
+      "CELL-156",
+      "CELL-157",
+      "CELL-158",
+      "CELL-159",
+      "CELL-160",
+      "CELL-161",
+      "CELL-162",
+      "CELL-163",
+      "CELL-164",
+      "CELL-165",
+      "CELL-166",
+      "CELL-167",
+      "CELL-168",
+      "CELL-169",
+      "CELL-170",
+      "CELL-171",
+      "CELL-172",
+      "CELL-173",
+      "CELL-174",
+      "CELL-175",
+      "CELL-176",
+      "CELL-177",
+      "CELL-178",
+      "CELL-179",
+      "CELL-180",
+      "CELL-181",
+      "CELL-182",
+      "CELL-183",
+      "CELL-184",
+      "CELL-185",
+      "CELL-186",
+      "CELL-187",
+      "CELL-188",
+      "CELL-189",
+      "CELL-190",
+      "CELL-191",
+      "CELL-192",
+      "CELL-193",
+      "CELL-194",
+      "CELL-195",
+      "CELL-196",
+      "CELL-197",
+      "CELL-198",
+      "CELL-199",
+      "CELL-200"
+    ],
+    "canonicalMemory": {
+      "path": "diagnostics/auto-repair/cell-knowledge/index.json",
+      "authority": "CELL_KNOWLEDGE_INDEX",
+      "source": "FLIXO_TASK_OUTCOME",
+      "proofAuthority": "CURRENT_EXACT_SHA_CI_ONLY",
+      "publishStates": [
+        "VALIDATED",
+        "PUBLISHED"
+      ],
+      "nonCanonicalStates": [
+        "PROPOSED",
+        "UNPROVEN",
+        "STALE",
+        "RETIRED"
+      ]
+    },
+    "learningFlow": [
+      "OBSERVE",
+      "CAPTURE",
+      "RCA",
+      "EVIDENCE",
+      "VALIDATE",
+      "MASTER_REVIEW",
+      "MEMORY_COMMIT",
+      "PUBLISH",
+      "CELL_BROADCAST",
+      "BOT_SYNC",
+      "REUSE",
+      "REASSESS"
+    ],
+    "publicationGate": {
+      "evidenceRequired": true,
+      "exactShaRequired": true,
+      "validationRequired": true,
+      "masterReviewRequired": true,
+      "unprovenLearningMayNotPublish": true,
+      "knowledgeDoesNotGrantAuthority": true
+    },
+    "distribution": {
+      "targetBotCount": 200,
+      "propagationEvent": "CELL_MEMORY_UPDATED",
+      "versionField": "memoryVersion",
+      "syncStates": [
+        "CURRENT",
+        "SYNC_PENDING",
+        "STALE",
+        "SYNC_FAILED"
+      ],
+      "reconnectRule": "Any Bot below the canonical memory version must synchronize before relying on newly published knowledge."
+    },
+    "integrity": {
+      "contentHashRequired": true,
+      "sourceProvenanceRequired": true,
+      "atomicPublicationRequired": true,
+      "conflictState": "MEMORY_CONFLICT",
+      "conflictRoute": "MASTER-2 + MASTER-3 → MASTER-1"
+    },
+    "invalidation": {
+      "shaChange": "REVALIDATION_REQUIRED",
+      "failedReuse": "SUSPEND_AND_REASSESS",
+      "challengedKnowledge": "UNDER_REVIEW",
+      "rejectedKnowledge": "RETIRED"
+    },
+    "botObligations": [
+      "Read canonical shared memory before a new RCA when relevant.",
+      "Publish validated generalizable learning through the canonical memory path.",
+      "Synchronize to the latest canonical memory version.",
+      "Verify memory content hash and provenance before reuse.",
+      "Record reuse outcome and feedback.",
+      "Never treat memory as current GREEN evidence or as authority."
+    ],
+    "botIdentityBinding": [
+      "CELL-001",
+      "CELL-002",
+      "CELL-003",
+      "CELL-004",
+      "CELL-005",
+      "CELL-006",
+      "CELL-007",
+      "CELL-008",
+      "CELL-009",
+      "CELL-010",
+      "CELL-011",
+      "CELL-012",
+      "CELL-013",
+      "CELL-014",
+      "CELL-015",
+      "CELL-016",
+      "CELL-017",
+      "CELL-018",
+      "CELL-019",
+      "CELL-020",
+      "CELL-021",
+      "CELL-022",
+      "CELL-023",
+      "CELL-024",
+      "CELL-025",
+      "CELL-026",
+      "CELL-027",
+      "CELL-028",
+      "CELL-029",
+      "CELL-030",
+      "CELL-031",
+      "CELL-032",
+      "CELL-033",
+      "CELL-034",
+      "CELL-035",
+      "CELL-036",
+      "CELL-037",
+      "CELL-038",
+      "CELL-039",
+      "CELL-040",
+      "CELL-041",
+      "CELL-042",
+      "CELL-043",
+      "CELL-044",
+      "CELL-045",
+      "CELL-046",
+      "CELL-047",
+      "CELL-048",
+      "CELL-049",
+      "CELL-050",
+      "CELL-051",
+      "CELL-052",
+      "CELL-053",
+      "CELL-054",
+      "CELL-055",
+      "CELL-056",
+      "CELL-057",
+      "CELL-058",
+      "CELL-059",
+      "CELL-060",
+      "CELL-061",
+      "CELL-062",
+      "CELL-063",
+      "CELL-064",
+      "CELL-065",
+      "CELL-066",
+      "CELL-067",
+      "CELL-068",
+      "CELL-069",
+      "CELL-070",
+      "CELL-071",
+      "CELL-072",
+      "CELL-073",
+      "CELL-074",
+      "CELL-075",
+      "CELL-076",
+      "CELL-077",
+      "CELL-078",
+      "CELL-079",
+      "CELL-080",
+      "CELL-081",
+      "CELL-082",
+      "CELL-083",
+      "CELL-084",
+      "CELL-085",
+      "CELL-086",
+      "CELL-087",
+      "CELL-088",
+      "CELL-089",
+      "CELL-090",
+      "CELL-091",
+      "CELL-092",
+      "CELL-093",
+      "CELL-094",
+      "CELL-095",
+      "CELL-096",
+      "CELL-097",
+      "CELL-098",
+      "CELL-099",
+      "CELL-100",
+      "CELL-101",
+      "CELL-102",
+      "CELL-103",
+      "CELL-104",
+      "CELL-105",
+      "CELL-106",
+      "CELL-107",
+      "CELL-108",
+      "CELL-109",
+      "CELL-110",
+      "CELL-111",
+      "CELL-112",
+      "CELL-113",
+      "CELL-114",
+      "CELL-115",
+      "CELL-116",
+      "CELL-117",
+      "CELL-118",
+      "CELL-119",
+      "CELL-120",
+      "CELL-121",
+      "CELL-122",
+      "CELL-123",
+      "CELL-124",
+      "CELL-125",
+      "CELL-126",
+      "CELL-127",
+      "CELL-128",
+      "CELL-129",
+      "CELL-130",
+      "CELL-131",
+      "CELL-132",
+      "CELL-133",
+      "CELL-134",
+      "CELL-135",
+      "CELL-136",
+      "CELL-137",
+      "CELL-138",
+      "CELL-139",
+      "CELL-140",
+      "CELL-141",
+      "CELL-142",
+      "CELL-143",
+      "CELL-144",
+      "CELL-145",
+      "CELL-146",
+      "CELL-147",
+      "CELL-148",
+      "CELL-149",
+      "CELL-150",
+      "CELL-151",
+      "CELL-152",
+      "CELL-153",
+      "CELL-154",
+      "CELL-155",
+      "CELL-156",
+      "CELL-157",
+      "CELL-158",
+      "CELL-159",
+      "CELL-160",
+      "CELL-161",
+      "CELL-162",
+      "CELL-163",
+      "CELL-164",
+      "CELL-165",
+      "CELL-166",
+      "CELL-167",
+      "CELL-168",
+      "CELL-169",
+      "CELL-170",
+      "CELL-171",
+      "CELL-172",
+      "CELL-173",
+      "CELL-174",
+      "CELL-175",
+      "CELL-176",
+      "CELL-177",
+      "CELL-178",
+      "CELL-179",
+      "CELL-180",
+      "CELL-181",
+      "CELL-182",
+      "CELL-183",
+      "CELL-184",
+      "CELL-185",
+      "CELL-186",
+      "CELL-187",
+      "CELL-188",
+      "CELL-189",
+      "CELL-190",
+      "CELL-191",
+      "CELL-192",
+      "CELL-193",
+      "CELL-194",
+      "CELL-195",
+      "CELL-196",
+      "CELL-197",
+      "CELL-198",
+      "CELL-199",
+      "CELL-200"
+    ]
+  },
+  "executiveCellGovernance": {
+    "contractId": "CELL-EXEC-GOV-001",
+    "version": "1.0.0",
+    "status": "MANDATORY",
+    "canonicalPolicy": "docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md",
+    "absorbedByProtocols": [
+      "P20",
+      "P21"
+    ],
+    "authority": "CELL_CONTROL_PLANE",
+    "targetBotCount": 200,
+    "appliesTo": "ALL_CELL_BOTS",
+    "masterAuthority": {
+      "MASTER-1": "COMMAND_DISPATCH_PRIORITIZATION_REASSIGNMENT_ARBITRATION",
+      "MASTER-2": "INDEPENDENT_VERIFICATION_EVIDENCE_FALSE_GREEN_REQUALIFICATION",
+      "MASTER-3": "RCA_LEARNING_ANTI_LESSON_SPECIALIZATION_TRAINING",
+      "finalAuthority": "USER_FINAL_AUTHORITY"
+    },
+    "botAuthority": {
+      "role": "CELL_EXECUTIVE_AGENT",
+      "scope": "ASSIGNED_SCOPE_ONLY",
+      "allowed": [
+        "EXECUTION",
+        "RCA_INITIAL",
+        "TARGETED_REGRESSION",
+        "EVIDENCE_CAPTURE",
+        "LEARNING_PROPOSAL",
+        "ESCALATION"
+      ],
+      "forbidden": [
+        "MAIN_DIRECT_MUTATION",
+        "CERTIFICATION",
+        "GREEN_DECLARATION",
+        "SELF_PROMOTION",
+        "PERMISSION_GRANT",
+        "POLICY_OVERRIDE",
+        "SECURITY_BYPASS",
+        "UNPROVEN_MEMORY_PUBLICATION"
+      ]
+    },
+    "ranking": {
+      "range": [
+        1,
+        200
+      ],
+      "authorityInheritance": false,
+      "coldStart": "PROVISIONAL",
+      "weights": {
+        "execution": 0.25,
+        "learning": 0.2,
+        "rca": 0.15,
+        "verification": 0.15,
+        "reliability": 0.1,
+        "knowledgeReuse": 0.05,
+        "recovery": 0.05,
+        "collaboration": 0.05
+      },
+      "requiredEvidenceFields": [
+        "score",
+        "confidence",
+        "evidenceCount",
+        "validatedTasks",
+        "lastValidated"
+      ],
+      "recalculationTriggers": [
+        "VERIFIED_SUCCESS",
+        "VERIFIED_FAILURE",
+        "RCA_VALIDATED",
+        "LEARNING_REUSE",
+        "RECOVERY",
+        "REGRESSION_FAILURE",
+        "REQUALIFICATION",
+        "SPECIALIZATION_CHANGE"
+      ],
+      "tieBreakers": [
+        "CONFIDENCE",
+        "VALIDATED_TASKS",
+        "RECENT_VERIFIED_PERFORMANCE"
+      ]
+    },
+    "escalation": {
+      "levels": {
+        "L0": "BOT_LOCAL",
+        "L1": "MASTER-3",
+        "L2": "MASTER-2",
+        "L3": "MASTER-1",
+        "L4": "MASTER-2+MASTER-3",
+        "L5": "CONTROL_PLANE",
+        "L6": "SECURITY_CI_CERTIFICATION",
+        "L7": "USER_FINAL_AUTHORITY"
+      },
+      "unresolvedConflict": "BLOCK_AND_ARBITRATE",
+      "silent": false
+    },
+    "continuousLanes": {
+      "repair": "CONTINUOUS_WHEN_RED",
+      "developmentLearning": "CONTINUOUS_ON_DISJOINT_SCOPE",
+      "sharedScopePriority": "REPAIR",
+      "conflict": "FREEZE_OVERLAP_AND_REASSIGN",
+      "evidenceAfterMutation": "REQUALIFY_CURRENT_SHA"
+    },
+    "monitoring": {
+      "requiredFields": [
+        "BOT_ID",
+        "CURRENT_TASK",
+        "OWNER",
+        "CURRENT_SHA",
+        "STATE",
+        "NEXT_ACTION",
+        "RCA",
+        "SCORE",
+        "RANK",
+        "CONFIDENCE",
+        "MEMORY_VERSION"
+      ],
+      "forbiddenSilentStates": [
+        "SLEEP",
+        "IDLE",
+        "SILENT",
+        "ABANDONED"
+      ],
+      "externalBlockerState": "BLOCKED_EXTERNAL"
+    }
   }
 }

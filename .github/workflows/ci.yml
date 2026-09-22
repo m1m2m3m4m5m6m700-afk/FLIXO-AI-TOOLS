@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, execution]
   workflow_dispatch:
 
 # One canonical test run survives per exact commit SHA. The repository-level commit

@@ -1,9 +1,16 @@
+# P00 — SUPREME FIRST OBLIGATION
+
+Before any repository, project or cell action, every Master/Agent/Bot MUST admit:
+RPR-UNIFIED-EXECUTION-001 v4.0.0 → docs/agents/PROMPT-UNIFIED-EXECUTION.md.
+
+P00 is the first execution obligation for MASTER-1/2/3 and all agents/bots. It controls zero-error circular execution, shared-cell coordination, Exact-SHA evidence, root-cause repair, liveness and hard exit. The machine-enforced source is the protocol registry + control plane + validators + exit lock.
+
 ## UNIFIED PROMPT — CANONICAL EXECUTION SURFACE
 
-The repository has exactly one active execution prompt:
-RPR-UNIFIED-EXECUTION-001 → docs/agents/PROMPT-UNIFIED-EXECUTION.md.
+The repository has exactly one active execution protocol/prompt:
+RPR-UNIFIED-EXECUTION-001 v4.0.0 → docs/agents/PROMPT-UNIFIED-EXECUTION.md.
 
-It absorbs orchestration, causal repair, task preparation, contract-drift, external classification, product/platform implementation, Action Vault learning, Exact-SHA verification and GREEN-closure intent.
+It absorbs orchestration, causal repair, task preparation, contract-drift, external classification, product/platform implementation, Action Vault learning, Exact-SHA verification, Council coordination and circular GREEN-closure intent.
 
 The canonical prompt source is docs/agents/PROMPT-UNIFIED-EXECUTION.md. src/lib/agent/flixo-agent-master-prompt.ts is only the customer-runtime adapter and does not contain a second instruction source.
 
@@ -35,8 +42,8 @@ rst is a P0 execution invariant. The canonical ingress is Master Inbox Issue #76
 SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
 CURRENT MAIN SHA = authoritative GitHub main ref; never duplicate a mutable SHA in this map
-ACTIVE PR = #774 OPEN / execution → main (current verification/repair lane); #759 is historical/merged
-CURRENT PR HEAD = authoritative GitHub PR #774 head; do not duplicate a mutable SHA in this map
+ACTIVE PR = #781 OPEN / execution → main (current verification/repair lane); #759 is historical/merged
+CURRENT PR HEAD = authoritative GitHub PR #781 head; do not duplicate a mutable SHA in this map
 NO-NEW-BRANCH = ABSOLUTE; only execution and main are active agent branches; existing historical branches are not valid work paths
 STATE = BLOCKED_EXTERNAL
 CANONICAL TEST SYSTEM = FRESH EVIDENCE REQUIRED ON CURRENT MAIN/EXECUTION HEAD; prior exact-head evidence is stale
@@ -95,9 +102,25 @@ ADMIN PROVENANCE = production Vercel→Supabase binding not proven
 | BUILD-002 | CLOSED / VERIFIED | Preserve canonical artifact identity producer/consumer contract |
 | TEST-001 | CLOSED / VERIFIED | Preserve deterministic ownership registry and validator |
 | AGENT-PROTOCOL-003 | CLOSED / VERIFIED | Preserve proof-driven fail-closed repair lifecycle and learning/prevention contracts |
+| CELL-EXEC-GOV-001 | IMPLEMENTED / VERIFICATION PENDING | Run current governance regression, then certify current execution head as required |
 | AGENT-PROMPT-INTEL-001 | CONSOLIDATED / VERIFICATION PENDING | Shared Prompt Registry + causal deduplication + quality gate + Task Agent prompt provenance | Run current main canonical static/contract verification; reconcile execution exact-SHA before promotion |
 | DEBT-001 | BLOCKED_EXTERNAL | Deterministic validator delivered; required exact-head external security/Vercel gates are unresolved |
 | TOOL-EXPANSION | CANDIDATE | Activate only after a fresh deterministic scope is proven |
+
+## CELL-EXEC-GOV-001
+
+```text
+STATUS = IMPLEMENTED / VERIFICATION PENDING
+CANONICAL POLICY = docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md
+CONTRACT ID = CELL-EXEC-GOV-001
+ABSORBED PROTOCOLS = P20 + P21
+SCOPE = MASTER-1/2/3 + CELL-001..CELL-200
+REPAIR = CONTINUOUS_WHEN_RED
+DEVELOPMENT_LEARNING = CONTINUOUS_ON_DISJOINT_SCOPE
+RANK = #1..#200 VERIFIED PERFORMANCE ONLY
+ESCALATION = L0..L7
+NEXT EXIT = fresh exact-SHA governance regression + canonical CI evidence
+```
 
 ## DEBT-001
 

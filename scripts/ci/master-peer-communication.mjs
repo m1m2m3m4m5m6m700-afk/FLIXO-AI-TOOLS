@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { validateMessage, MASTER_IDS, MASTER_GROUP } from './agent-communication.mjs';
+import { AGENT_LIVENESS_PROTOCOL, checkHeartbeat } from './agent-liveness-protocol.mjs';
 
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
@@ -24,6 +28,7 @@ const listArg = (name, fallback) => {
   return out;
 };
 const currentSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+const sessionPath = (sessionId) => path.resolve(process.cwd(), 'diagnostics/agents/sessions', `${createHash('sha256').update(sessionId).digest('hex')}.json`);
 const repository = process.env.GITHUB_REPOSITORY || requireArg('repo');
 const remoteSha = execFileSync('gh', [
   'api',
@@ -33,14 +38,22 @@ const remoteSha = execFileSync('gh', [
 ], { encoding: 'utf8' }).trim();
 const command = String(process.argv[2] ?? '').toLowerCase();
 if (command !== 'send') {
-  throw new Error('Usage: master-peer-communication.mjs send --from=MASTER-3 --to=MASTER-1|MASTER-2|MASTERS --task=... --message=...');
+  throw new Error('Usage: master-peer-communication.mjs send --from=MASTER-3 --to=MASTER-1|MASTER-2|MASTERS --task=... --message=... --session=<active-master-session>');
 }
 
 const from = requireArg('from');
 const to = requireArg('to');
 const taskId = requireArg('task');
 const messageText = requireArg('message');
+const masterSessionId = requireArg('session');
 const localSha = currentSha();
+const masterSessionFile = sessionPath(masterSessionId);
+if (!fs.existsSync(masterSessionFile)) throw new Error(`MASTER_PEER_ACTIVE_SESSION_REQUIRED=${from}`);
+const masterSession = JSON.parse(fs.readFileSync(masterSessionFile, 'utf8'));
+if (masterSession.status !== 'RUNNING' || masterSession.agentId !== from || masterSession.role !== from) throw new Error(`MASTER_PEER_SESSION_IDENTITY_INVALID=${from}`);
+if (Number(masterSession.residencyLock?.minimumActiveWindowMs) !== AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs || Number(masterSession.residencyLock?.maxContinuousActiveSessionMs ?? 0) !== AGENT_LIVENESS_PROTOCOL.maxContinuousActiveSessionMs || masterSession.residencyLock?.noSleep !== true || masterSession.residencyLock?.noIdle !== true) throw new Error(`MASTER_PEER_45M_RESIDENCY_POLICY_INVALID=${from}`);
+const heartbeat = checkHeartbeat({ state: masterSession.livenessState ?? 'ACTIVE', lastHeartbeatAt: masterSession.lastHeartbeatAt ?? masterSession.startedAt });
+if (!heartbeat.ok) throw new Error(`MASTER_PEER_MASTER_SESSION_HEARTBEAT_STALE=${from}`);
 
 if (!/^[0-9a-f]{40}$/.test(localSha) || localSha !== remoteSha) {
   throw new Error(`MASTER_PEER_EXACT_SHA_MISMATCH local=${localSha} remote=${remoteSha}`);
@@ -61,6 +74,8 @@ if (payloadText) {
 const messageId = arg('message-id') || `master-peer:${from}:${to}:${taskId}:${Date.now().toString(36)}`;
 const priority = arg('priority', to === MASTER_GROUP ? 'P0' : 'P1').toUpperCase();
 const risk = arg('risk', 'MEDIUM').toUpperCase();
+const messageKind = arg('message-kind', 'STATUS_UPDATE').toUpperCase();
+if (!new Set(['STATUS_UPDATE','TASK_REMINDER','QUESTION','CHALLENGE','DECISION','HANDOFF']).has(messageKind)) throw new Error(`MASTER_PEER_MESSAGE_KIND_INVALID=${messageKind}`);
 const recipientList = to === MASTER_GROUP ? MASTER_IDS.filter((id) => id !== from) : [to];
 
 const message = {
@@ -87,6 +102,10 @@ const message = {
     ...extraPayload,
     peerMessage: true,
     administrativeInstruction: true,
+    channel: 'MASTER_CELL_LAB',
+    messageKind,
+    sessionId: masterSessionId,
+    taskSnapshot: { taskId: masterSession.taskId, status: masterSession.status, livenessState: masterSession.livenessState, currentSha: masterSession.currentSha ?? localSha, currentRca: masterSession.currentRca, openRcas: masterSession.openRcas ?? [], remainingWork: masterSession.remainingWork ?? [], nextAction: masterSession.executionPlanNext ?? [], blockers: masterSession.blockers ?? [], lastProgressAt: masterSession.lastProgressAt ?? null, lastHeartbeatAt: masterSession.lastHeartbeatAt ?? null, updatedAt: new Date().toISOString() },
     automaticDelivery: true,
     conversationId: arg('conversation-id', `master-thread:${taskId}`),
     replyToMessageId: arg('reply-to') || null,

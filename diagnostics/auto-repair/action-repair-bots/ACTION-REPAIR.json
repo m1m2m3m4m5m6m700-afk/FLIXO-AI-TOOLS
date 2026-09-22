@@ -1,5 +1,6 @@
 {
   "schemaVersion": 4,
+  "supremeProtocol": {"protocolId":"P00","promptId":"RPR-UNIFIED-EXECUTION-001","version":"4.0.0","sourcePath":"docs/agents/PROMPT-UNIFIED-EXECUTION.md","status":"SUPREME_MANDATORY","firstObligation":true},
   "authority": "ACTION_REPAIR_BOT_PERSONAL_MEMORY",
   "botId": "ACTION-REPAIR",
   "displayName": "بوت إصلاح Actions",

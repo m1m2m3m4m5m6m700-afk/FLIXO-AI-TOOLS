@@ -55,7 +55,8 @@
     },
     "action_vault_reasoning": "The Action Vault is a bounded extension of P20 for the resident repair triad: ACTION-REPAIR performs only admitted repair mutation, ACTION-REPAIR-2 independently challenges the causal explanation and verification evidence without mutation, and ACTION-HISTORIAN-3 records lessons/anti-lessons and recurrence prevention without mutation. A triad mission must preserve exact SHA, failure fingerprint, ownership, independent roles, targeted regression and final evidence; memory never grants authority and blind retries are forbidden. Mutation admission additionally requires an independent verifier proof bound to the same exact SHA and failure fingerprint.",
     "system_cognitive_awareness": "Action Vault agents must reason over task, repository, causal, historical, governance, adversarial, operational, temporal and systemic-impact context before applying their role. Cognitive breadth may exceed assigned role; mutation/certification authority may not.",
-    "re_evaluation": "New authoritative evidence, SHA movement, counterexample, contradiction, or failed verification invalidates dependent reasoning and requires re-evaluation."
+    "re_evaluation": "New authoritative evidence, SHA movement, counterexample, contradiction, or failed verification invalidates dependent reasoning and requires re-evaluation.",
+    "cell_lab": "CELL-LAB is the shared engineering laboratory. Before any material mutation, Masters/Agents/Bots exchange opinions, questions and challenges through Canonical Agent Communication, resolve disagreements, synthesize one integrated plan, and record explicit agreement bound to the current exact SHA. Cell-Lab agreement never grants mutation or certification authority; existing role gates remain authoritative."
   },
   "messageEnvelope": {
     "required": [
@@ -664,10 +665,18 @@
     "status": "ACTIVE",
     "objective": "MAXIMIZE_COOPERATIVE_REASONING_AND_DELIVERY_WITHOUT_PARALLEL_AUTHORITY",
     "authoritySource": "USER",
+    "operationalCommandChain": [
+      "USER_FINAL_AUTHORITY",
+      "assistantController_OPERATIONAL_EXECUTION_LEAD",
+      "MASTER_COUNCIL_COLLABORATION",
+      "REGISTERED_AGENTS_AND_BOTS"
+    ],
+    "operationalLeader": "assistantController",
+    "userRemainsFinalAuthority": true,
     "roles": {
-      "MASTER-1": "PRESIDENT / orchestration, prioritization, integration and decision coordination",
-      "MASTER-2": "DEPUTY / dependency sequencing, contract alignment, verification coordination and challenge",
-      "MASTER-3": "CONSULTANT / causal analysis, design proposals, challenge, architecture review and knowledge synthesis"
+      "MASTER-1": "EXECUTION_COUNCIL_LEAD / orchestration, prioritization, integration and decision coordination under assistantController",
+      "MASTER-2": "VERIFICATION_COUNCIL / dependency sequencing, contract alignment, verification coordination and independent challenge under assistantController",
+      "MASTER-3": "RCA_COUNCIL / causal analysis, design proposals, challenge, architecture review and knowledge synthesis under assistantController"
     },
     "cooperationCycle": [
       "ASSIGN",
@@ -694,6 +703,20 @@
       "EXPLICIT_REJECTION_OF_CONTRADICTED_FINDINGS",
       "NO_SILENT_SCOPE_EXPANSION"
     ],
+    "sessionObligations": {
+      "minimumActiveMinutes": 45,
+      "maxContinuousSegmentMinutes": 180,
+      "totalTaskDurationUnlimitedWhileOpen": true,
+      "heartbeatEveryMinutes": 1,
+      "masterStatusEveryMinutes": 5,
+      "taskReminderEveryMinutes": 10,
+      "requiredChannel": "MASTER_CELL_LAB",
+      "noSleep": true,
+      "noIdle": true,
+      "noSilentExit": true,
+      "noBlockedLogout": true,
+      "shaChange": "invalidate dependent evidence and requalify; do not abandon task"
+    },
     "peerRules": {
       "masterToMaster": "Any Master may request analysis, challenge, clarification, evidence or handoff from another Master through the canonical communication channel.",
       "noSilentOverrides": "A Master response cannot silently overwrite another Master's finding; conflicting findings remain attributable until explicitly reconciled.",
@@ -736,5 +759,102 @@
       "AUTHORITY_BY_MEMORY"
     ],
     "successDefinition": "COOPERATION_SUCCESS requires shared current context, non-duplicated ownership, explicit challenge, evidence exchange, verified handoff and learning; it never equals GREEN without canonical certification."
+  },
+  "supremeProtocol": {
+    "protocolId": "P00",
+    "promptId": "RPR-UNIFIED-EXECUTION-001",
+    "version": "4.0.0",
+    "sourcePath": "docs/agents/PROMPT-UNIFIED-EXECUTION.md",
+    "status": "SUPREME_MANDATORY",
+    "firstObligation": true,
+    "appliesTo": [
+      "MASTER-1",
+      "MASTER-2",
+      "MASTER-3",
+      "ALL_AGENTS",
+      "ALL_BOTS",
+      "CELL"
+    ],
+    "rule": "All cooperation begins by admitting P00; lower-level prompts/contracts cannot override it."
+  },
+  "cellLab": {
+    "enabled": true,
+    "protocolId": "CELL-LAB-COLLABORATIVE-DECISION-GATE",
+    "version": "1.0.0",
+    "coreParticipants": [
+      "MASTER-1",
+      "MASTER-2",
+      "MASTER-3"
+    ],
+    "materialMutationRequiresConsensus": true,
+    "artifactPath": "diagnostics/agents/cell-lab/consensus/<taskId>.json",
+    "executionGate": "scripts/ci/cell-lab-consensus.mjs",
+    "communicationPath": "scripts/ci/agent-communication.mjs",
+    "lifecycle": [
+      "OPEN",
+      "DISCUSS",
+      "CHALLENGE",
+      "SYNTHESIZE",
+      "CONSENSUS",
+      "EXECUTE",
+      "VERIFY",
+      "LEARN"
+    ],
+    "noUnresolvedQuestions": true,
+    "noUnresolvedConflicts": true,
+    "exactShaBound": true,
+    "planMustBeIntegrated": true,
+    "activeRepairWindow": {
+      "minimumMinutes": 45,
+      "maxContinuousSegmentMinutes": 180,
+      "totalTaskDurationUnlimitedWhileOpen": true,
+      "masterChannel": "MASTER_CELL_LAB",
+      "masterStatusEveryMinutes": 5,
+      "taskReminderEveryMinutes": 10,
+      "continuous": true,
+      "noSleep": true,
+      "noIdle": true,
+      "noBlockedLogout": true,
+      "heartbeatRequired": true,
+      "zeroErrorTarget": true,
+      "closureStillRequiresCanonicalGreen": true
+    }
+  },
+  "masterRankPromotions": {
+    "schemaVersion": 1,
+    "authority": "ASSISTANT_AGENT_COOPERATION_CONTRACT",
+    "effectiveSha": "65a1906d9077cdcfa3559e3f46731209581bfd95",
+    "recordedAt": "2026-09-22",
+    "MASTER-2": {
+      "rankId": "MASTER-2-L2",
+      "display": "🔧🔧 MASTER-2 — الاحترافي — المستوى 2",
+      "status": "ACTIVE",
+      "title": "VERIFICATION COUNCIL — ADVANCED",
+      "scope": "CELL",
+      "responsibilities": [
+        "independent verification",
+        "dependency sequencing",
+        "contract alignment",
+        "challenge",
+        "Exact-SHA and evidence freshness",
+        "false-GREEN prevention"
+      ],
+      "boundary": "Rank elevation does not grant mutation, certification, or final decision authority."
+    }
+  },
+  "cellExecutiveGovernance": {
+    "contractId": "CELL-EXEC-GOV-001",
+    "version": "1.0.0",
+    "status": "MANDATORY",
+    "canonicalPolicy": "docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md",
+    "appliesTo": [
+      "MASTER-1",
+      "MASTER-2",
+      "MASTER-3",
+      "CELL-001..CELL-200"
+    ],
+    "authorityBoundary": "Rank, memory and learning never grant mutation, certification, permission or command authority.",
+    "parallelLanes": "REPAIR continuous when RED; DEVELOPMENT_LEARNING continuous only on disjoint scope; shared conflict prioritizes repair.",
+    "escalation": "L0 BOT → L1 MASTER-3 → L2 MASTER-2 → L3 MASTER-1 → L4 JOINT → L5 CONTROL_PLANE → L6 SECURITY_CI_CERTIFICATION → L7 USER_FINAL_AUTHORITY"
   }
 }

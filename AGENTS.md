@@ -1,3 +1,14 @@
+# 🚨 SUPREME FIRST OBLIGATION — P00
+All repository/project/cell execution is governed first by:
+docs/agents/PROMPT-UNIFIED-EXECUTION.md — RPR-UNIFIED-EXECUTION-001 v4.0.0.
+
+This is mandatory for MASTER-1, MASTER-2, MASTER-3, every Agent, every Bot, every Action Vault resident, runtime adapter, and workflow. No local prompt, role prompt, memory, handoff, task packet, model behavior, timeout, queue or convenience rule may override it.
+
+FIRST ACTION:
+ADMIT → REGISTER SESSION → CAPTURE EXACT SHA → READ CONTROL PLANE → READ TASK STATE → READ ACTIVE AGENTS → DECLARE SCOPE → OBSERVE → RCA → EXECUTE → TEST → VERIFY → REPORT → CONTINUE.
+
+A role that has not admitted P00 is not execution-ready. P00 must remain consistent with the machine-enforced protocol registry, coordination plane, liveness controls and hard exit lock.
+
 # ✅ CANONICAL AGENT COUNCIL — PR #759
 
 Issue #761 is archived and MUST NOT be used as an activation source. Active Council ingress is PR #759 on `execution → main`.
@@ -28,13 +39,20 @@ Before any repository action, every agent MUST read, in this order:
 8. `docs/PROTOCOL-HIERARCHY.md`
 9. `docs/PROTOCOL-REGISTRY.json`
 10. `docs/agents/PROMPT-REGISTRY.json`
-11. `diagnostics/auto-repair/memory.json`
-12. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
-13. `scripts/ci/test-plan.json`
-14. `scripts/ci/assertion-registry.json`
-15. the current exact `main` SHA and current workflow state
+11. `docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md`
+12. `diagnostics/auto-repair/memory.json`
+12. `scripts/ci/cell-lab-consensus.mjs`
+13. `docs/agents/CELL-CONTROL-HEADQUARTERS.md`
+14. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+15. `scripts/ci/test-plan.json`
+16. `scripts/ci/assertion-registry.json`
+17. the current exact `main` SHA and current workflow state
 
 `PROJECTS.md` is the navigation/control layer; `المهام.md` is the open-task scope gate; the linked contract/plan remains authoritative for implementation semantics, and CI/evidence remains authoritative for completion.
+
+## CELL EXECUTIVE GOVERNANCE — MANDATORY
+
+`CELL-EXEC-GOV-001` applies to MASTER-1/2/3 and CELL-001..CELL-200. MASTER-1 commands/assigns, MASTER-2 independently verifies/requalifies, MASTER-3 owns RCA/learning/training, and every Bot executes only within assigned scope. Repair is continuous while RED/open RCA exists; development/learning is parallel only on disjoint ownership/dependency scope. Shared-scope conflict prioritizes repair and requires MASTER-1 arbitration. Rank #1..#200 is verified performance only and never grants authority. Escalation L0..L7 is mandatory. Canonical policy: `docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md`.
 
 ## TASK GATE
 
@@ -238,26 +256,28 @@ A repair that creates a new failure remains on `execution` with its own RCA-ID a
 
 ## SUPREME AUTOMATION RESIDENCY PROTOCOL
 
-The Agent Liveness / Permanent Residency Protocol is the highest operational automation contract in this repository. It governs the repair and automation plane and overrides lower-level workflow, agent, task, session, timeout, budget, queue, retry, or convenience rules whenever they conflict with residency, heartbeat, recovery, or continuity.
+The Agent Liveness / Permanent Residency Protocol is the liveness-enforcement layer contained by P00; P00 is the repository's first and highest execution obligation. It governs the repair and automation plane and overrides lower-level workflow, agent, task, session, timeout, budget, queue, retry, or convenience rules whenever they conflict with residency, heartbeat, recovery, or continuity.
 
 Mandatory invariants:
 - The automation/repair plane MUST remain resident while any RED, OPEN WORK, BLOCKED_EXTERNAL, ACTIVE REPAIR, or unverified execution state exists.
 - A 5-minute heartbeat is mandatory. A missed/stale heartbeat is a recovery event, never permission to stop.
 - SLEEP, IDLE, SILENT, ABANDONED, self-abort, and silent termination are forbidden while work is open.
 - A workflow run ending, timing out, reaching a session budget, losing a lease, or being superseded MUST NOT close the task. It MUST recover and continue automatically.
+- Every active repair session has a minimum 45-minute continuous residency window. The Master/Agent/Bot remains active in the shared Cell-Lab during that window; BLOCKED is a state, not a logout path, and 45 minutes never substitutes for GREEN.
+- Heartbeat is mandatory throughout the active window. Any stale heartbeat is handled as RECOVERING; the session is not considered complete and the work remains open.
 - GREEN closes the current repair obligation only after exact-SHA evidence proves zero required RED; it MUST NOT disable permanent residency.
 - No executor may dispatch itself. The canonical Green Gate remains the sole repair dispatcher.
 - Liveness failure MUST fail closed into RECOVERING and re-enter the canonical wake/dispatch path; it MUST NOT strand repair as a terminal dispatch failure.
 - Manual workflow dispatch is never a prerequisite for repair continuity.
 - Every change to this contract requires targeted enforcement tests proving lower-level actors cannot suspend or bypass residency.
 
-Enforcement order: SUPREME RESIDENCY -> ZERO-FALSE-GREEN -> ROOT-CAUSE REPAIR -> all other repository protocols.
+Enforcement order: P00 SUPREME UNIVERSAL EXECUTION -> SUPREME RESIDENCY -> ZERO-FALSE-GREEN -> ROOT-CAUSE REPAIR -> all other repository protocols.
 
 ## PROTOCOL HIERARCHY
 
 The normative hierarchy and anti-bloat gate are defined in `docs/PROTOCOL-HIERARCHY.md`, while `docs/PROTOCOL-REGISTRY.json` is the canonical machine-readable inventory of approved protocols.
 
-When protocol rules conflict, precedence is: Master execution and safety contract → Zero-False-Green/evidence integrity → Root-Cause-First Repair → G1/G2/G3/G4 and release contracts → Change-Scope Integrity/Dependency-Graph Closure → testing/certification/collaboration/coordination/recovery → CI optimization.
+When protocol rules conflict, precedence is: P00 Supreme Universal Agent Execution → Supreme Residency → Master Execution and Safety → Zero-False-Green/evidence integrity → Root-Cause-First Repair → G1/G2/G3/G4 and release contracts → Change-Scope Integrity/Dependency-Graph Closure → testing/certification/collaboration/coordination/recovery → CI optimization.
 
 No new standalone protocol may be introduced unless a recurring failure class is proven, existing controls are insufficient, the invariant and authoritative enforcement boundary are named, a regression/enforcement test is defined, and duplication/conflict analysis passes. Extend an existing protocol when it can absorb the requirement without ambiguity.
 
@@ -285,11 +305,17 @@ Agents MUST NOT weaken assertions, disable tests, add silent skips, relabel fail
 
 Every completed repair/verification cycle MUST emit `cycleLessons` containing the RCA lesson, strategy lesson or anti-lesson, verification state, affected scope when applicable, recurrence/prevention rule, and external-blocker anti-lesson when applicable. `cycleLessons` is learning/continuity evidence only; it never authorizes mutation or certification.
 
+## EXECUTIVE EXIT-LOCK ENFORCEMENT
+
+`scripts/ci/agent-exit-lock.mjs` is the machine-enforced closure gate. Logout is rejected unless the current exact SHA has zero failed work, zero remaining work, zero open RCAs, canonical certification `PASS`, promotion evidence `CERTIFIABLE`, and `LIVE_VERIFIED` runtime evidence. A rejected attempt records `EXIT_LOCK_BLOCKED`, leaves the session `RUNNING`, and returns the work to recovery. Process/lease/workflow termination never closes open work.
+
 ## HANDOFF / LOGOUT
 
-Every completed session MUST logout using:
+Every completed session MAY logout only through the hard exit lock:
 
-`node scripts/ci/agent-session.mjs logout --session=<id> --agent=<id> --status=VERIFIED|BLOCKED --final-summary=<final-outcome>`
+`node scripts/ci/agent-session.mjs logout --session=<id> --agent=<id> --task=<task-id> --status=VERIFIED --final-summary=<final-outcome>`
+
+`BLOCKED` is not a terminal session exit. Unresolved or externally blocked work remains `RUNNING` and must continue through recovery/coordination until canonical GREEN.
 
 A final summary is mandatory. Logout automatically writes:
 `diagnostics/agents/handoffs/<session-id>.json`
@@ -354,3 +380,20 @@ Every RED MUST pass the triad error gate and be recorded. A catalog miss MUST be
 The same stable failure fingerprint reaching 20 unresolved occurrences activates `SUPERVISOR_20`: VAULT-1 and VAULT-2 are suspended from autonomous source mutation for that fingerprint; VAULT-3 becomes supervisor and may execute the bounded repair after all normal Repair Protocol, exact-SHA, targeted regression and canonical verification gates. Each seat must contribute a lesson/advice record.
 
 Forbidden: unrecorded RED, unrecorded catalog miss, repeated identical strategy without new evidence, self-approved GREEN, or silent removal of any triad resident.
+
+## 🧪 CELL-LAB — SHARED ENGINEERING LAB
+
+The FLIXO cell is the complete communication and collaborative decision laboratory for MASTER-1, MASTER-2, MASTER-3, all Agents and all Bots.
+
+For every material task or mutation, the cell MUST:
+OPEN → DISCUSS → QUESTION → CHALLENGE → RESOLVE → SYNTHESIZE → CONSENSUS → EXECUTE → VERIFY → LEARN.
+
+Every opinion, question, challenge and decision must be visible through Canonical Agent Communication. The integrated plan, dissent resolutions, proof obligations and exact SHA are recorded in the Cell-Lab consensus artifact:
+`diagnostics/agents/cell-lab/consensus/<taskId>.json`.
+
+No unresolved question or conflict is executable. No material mutation is admitted without an AGREED Cell-Lab packet bound to the current exact SHA. Agreement is coordination evidence only; existing role/mutation/certification authorities remain unchanged.
+
+The Cell-Lab gate is enforced by `scripts/ci/cell-lab-consensus.mjs` and is checked by the repair mutation admission path.
+
+
+The long-lived residency model uses 45 minutes as the minimum, 3 hours as the maximum for one continuous active segment, and no total task-duration cap while work remains open. MASTER_CELL_LAB carries master status updates every 5 minutes and task reminders every 10 minutes; SHA changes invalidate evidence and require requalification, not sleep or task closure.

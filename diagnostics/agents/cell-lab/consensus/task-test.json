@@ -1,0 +1,134 @@
+{
+  "protocolId": "CELL-LAB-COLLABORATIVE-CONSENSUS",
+  "protocolVersion": "1.0.0",
+  "labId": "CELL-LAB-TEST-001",
+  "taskId": "task-test",
+  "exactSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "objective": "Test shared-cell mutation admission with explicit Cell-Lab consensus.",
+  "integratedPlan": "Discuss → challenge → synthesize → agree → execute → verify.",
+  "planHash": "b574a37bb2f8265e8c88c07fa6547e843ef766ec88ef948e181ad44ba71872b2",
+  "status": "AGREED",
+  "executionReady": true,
+  "discussionClosed": true,
+  "communicationEvidence": {
+    "channel": "CANONICAL_AGENT_COMMUNICATION",
+    "messageIds": [
+      "m1",
+      "m2",
+      "m3",
+      "m4",
+      "r1",
+      "r2",
+      "r3",
+      "r4"
+    ]
+  },
+  "participants": [
+    {
+      "id": "MASTER-1",
+      "status": "AGREED",
+      "basis": "Orchestration reviewed."
+    },
+    {
+      "id": "MASTER-2",
+      "status": "AGREED",
+      "basis": "Verification reviewed."
+    },
+    {
+      "id": "MASTER-3",
+      "status": "AGREED",
+      "basis": "RCA reviewed."
+    },
+    {
+      "id": "actionRepairBot",
+      "status": "AGREED",
+      "basis": "Execution scope accepted."
+    },
+    {
+      "id": "actionRepairVerifier",
+      "status": "AGREED",
+      "basis": "Verification mutation scope accepted."
+    },
+    {
+      "id": "actionHistorian",
+      "status": "AGREED",
+      "basis": "Historical review scope accepted."
+    }
+  ],
+  "discussions": [
+    {
+      "kind": "OPINION",
+      "actor": "MASTER-1",
+      "messageId": "m1",
+      "text": "Use the smallest causal repair.",
+      "responses": [
+        "MASTER-2",
+        "MASTER-3"
+      ],
+      "responseMessageIds": [
+        "r1",
+        "r2"
+      ],
+      "resolution": "Integrated."
+    },
+    {
+      "kind": "QUESTION",
+      "actor": "actionRepairBot",
+      "messageId": "m2",
+      "text": "Is the scope bounded?",
+      "responses": [
+        "MASTER-2"
+      ],
+      "responseMessageIds": [
+        "r3"
+      ],
+      "resolution": "Yes.",
+      "status": "ANSWERED"
+    },
+    {
+      "kind": "CHALLENGE",
+      "actor": "MASTER-3",
+      "messageId": "m3",
+      "text": "Could another cause explain the symptom?",
+      "responses": [
+        "MASTER-1",
+        "MASTER-2"
+      ],
+      "responseMessageIds": [
+        "r1",
+        "r3"
+      ],
+      "resolution": "Alternatives rejected by evidence."
+    },
+    {
+      "kind": "DECISION",
+      "actor": "MASTER-1",
+      "messageId": "m4",
+      "text": "Proceed with the integrated plan.",
+      "responses": [
+        "MASTER-2",
+        "MASTER-3",
+        "actionRepairBot"
+      ],
+      "responseMessageIds": [
+        "r1",
+        "r3",
+        "r4"
+      ],
+      "resolution": "All required participants agreed.",
+      "status": "AGREED"
+    }
+  ],
+  "dissentResolved": [],
+  "remainingQuestions": [],
+  "unresolvedConflicts": [],
+  "proofObligations": [
+    "TARGETED_REGRESSION",
+    "EXACT_SHA_VERIFY"
+  ],
+  "stopConditions": [
+    "SHA_DRIFT",
+    "UNSAFE_SCOPE",
+    "CONFLICT"
+  ]
+}

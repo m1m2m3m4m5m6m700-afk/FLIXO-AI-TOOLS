@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "registryId": "FLIXO_REPAIR_PROMPT_REGISTRY",
   "authority": "PROMPT_INTELLIGENCE_LAYER",
-  "authorityBoundary": "Prompt text is execution instruction only. Protocols, validators, control-plane authority, certification, security, and exact-SHA evidence remain authoritative.",
+  "authorityBoundary": "RPR-UNIFIED-EXECUTION-001 is the supreme execution protocol root. Protocol/validator/control-plane/certification/evidence authority remains machine-enforced; no prompt, memory or model may create a competing execution path.",
   "statuses": [
     "ACTIVE",
     "CANDIDATE",
@@ -69,7 +69,7 @@
   "prompts": [
     {
       "promptId": "RPR-UNIFIED-EXECUTION-001",
-      "title": "FLIXO Unified Execution, Product Runtime, RCA, Repair & Green Closure",
+      "title": "FLIXO Supreme Universal Agent Execution Protocol — Zero-Error Circular Execution",
       "domain": "unified-execution-and-runtime",
       "agentRole": "executive-repair-development-controller",
       "sourcePath": "docs/agents/PROMPT-UNIFIED-EXECUTION.md",
@@ -89,7 +89,9 @@
         "REGISTRY",
         "ADMIN",
         "I18N",
-        "PERFORMANCE"
+        "PERFORMANCE",
+        "ALL_EXECUTION",
+        "ALL_COORDINATION"
       ],
       "fingerprints": [
         "SHA_RACE",
@@ -107,6 +109,7 @@
         "persistence-failure",
         "new-branch",
         "liveness-drift",
+        "active-repair-window-drift",
         "heartbeat-ownership-drift",
         "orchestration-preflight",
         "registry-symmetry",
@@ -129,6 +132,7 @@
         "ui-only-persistence",
         "locale-asymmetry",
         "liveness-contract-drift",
+        "active-45-minute-residency-drift",
         "heartbeat-owner-drift",
         "orchestration-causal-source",
         "registry-symmetry-drift",
@@ -186,6 +190,7 @@
       },
       "repairStrategy": [
         "current-SHA binding",
+        "active 45-minute repair residency",
         "scope lock",
         "evidence capture",
         "fingerprint",
@@ -257,9 +262,9 @@
         "canonical certification"
       ],
       "status": "ACTIVE",
-      "version": "3.0.0",
+      "version": "4.0.0",
       "createdBy": "prompt-consolidation",
-      "lastUpdatedBy": "unified-execution-operational-recovery",
+      "lastUpdatedBy": "supreme-protocol-elevation",
       "provenance": {
         "source": "prompt sorting inventory + current execution architecture",
         "replacedFamilies": [
@@ -286,7 +291,8 @@
           "docs/agents/prompts/RPR-ERROR-RCA-001.md",
           "historical prompt families from docs/agents/PROMPT-SORTING-INVENTORY.md"
         ]
-      }
+      },
+      "supremeProtocol": true
     }
   ],
   "promptMasterLedger": {
@@ -294,5 +300,39 @@
     "authority": "MASTER_HUMAN_REVIEW_TASK_SOURCE",
     "rule": "All prompt text must be consolidated into المهام.md first. Runtime projections and historical files are non-authoritative mirrors/archives.",
     "runtimeProjection": "docs/agents/PROMPT-UNIFIED-EXECUTION.md"
+  },
+  "supremeProtocol": {
+    "protocolId": "P00",
+    "sourcePath": "docs/agents/PROMPT-UNIFIED-EXECUTION.md",
+    "version": "4.0.0",
+    "status": "SUPREME_MANDATORY",
+    "appliesTo": [
+      "REPOSITORY",
+      "PROJECT",
+      "CELL",
+      "MASTER-1",
+      "MASTER-2",
+      "MASTER-3",
+      "ALL_AGENTS",
+      "ALL_BOTS"
+    ],
+    "firstObligation": true,
+    "exitLock": "scripts/ci/agent-exit-lock.mjs",
+    "cellLabRequired": true,
+    "activeRepairWindow": {
+      "minimumMinutes": 45,
+      "maxContinuousSegmentMinutes": 180,
+      "totalTaskDurationUnlimitedWhileOpen": true,
+      "masterChannel": "MASTER_CELL_LAB",
+      "masterStatusEveryMinutes": 5,
+      "taskReminderEveryMinutes": 10,
+      "continuous": true,
+      "noSleep": true,
+      "noIdle": true,
+      "noBlockedLogout": true,
+      "heartbeatRequired": true,
+      "zeroErrorTarget": true
+    },
+    "consensusPath": "diagnostics/agents/cell-lab/consensus/<taskId>.json"
   }
 }

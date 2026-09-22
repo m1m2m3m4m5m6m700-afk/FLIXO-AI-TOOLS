@@ -9,6 +9,8 @@ const read = (file) => fs.readFileSync(path.resolve(root, file), 'utf8');
 const exists = (file) => fs.existsSync(path.resolve(root, file));
 
 const expected = {
+  'scripts/ci/cell-lab-consensus.mjs': ['CELL_LAB_PROTOCOL_ID','CELL_LAB_PROTOCOL_VERSION','validateCellLabConsensus','CELL-LAB-COLLABORATIVE-CONSENSUS','CELL_LAB_CONSENSUS_NOT_AGREED','CELL_LAB_EXACT_SHA_MISMATCH'],
+  'scripts/ci/test-cell-lab-consensus.mjs': ['CELL_LAB_CONSENSUS_TEST=PASS','CELL_LAB_REQUIRES_THREE_MASTERS=PASS','CELL_LAB_REQUIRES_DISCUSSION=PASS','CELL_LAB_REQUIRES_AGREEMENT=PASS'],
   'scripts/ci/invocation-contract.mjs': ['buildInvocationIdentity', 'buildInvocationFromMessage', 'assertInvocationCurrent', 'INVOCATION_TRANSITION_FORBIDDEN', 'INVOCATION_STALE_TARGET_SHA', 'INVOCATION_RECOVERY_NOT_ADMISSIBLE', 'supersedeInvocation'],
   'scripts/ci/test-invocation-contract.mjs': ['INVOCATION_CONTRACT_TEST=PASS', 'INVOCATION_IDENTITY=PASS', 'INVOCATION_LIFECYCLE=PASS', 'INVOCATION_SUPERSESSION=PASS', 'INVOCATION_RECOVERY_GATE=PASS'],
   'scripts/ci/agent-coordination.mjs': ['task-create', 'task-claim', 'task-release', 'task-complete', 'visible', 'ingest-handoff', 'COORDINATION_CONFLICT', 'AGENT_VISIBILITY', 'TASK_COMPLETION_REQUIRES_VERIFIED_AGENT_STATUS', 'getAgentMessage', 'COORDINATION_MESSAGE_NOT_READ', 'COORDINATION_MESSAGE_SHA_STALE', 'consumeAgentMessage', 'COORDINATION_WRITE_LOCK', 'COORDINATION_STATE_VERSION_CONFLICT', 'COORDINATION_TRANSACTION_MISMATCH', 'writeJsonAtomic', 'transactionId', 'COORDINATION_MUTATION_BRANCH_BLOCKED', 'HANDOFF_STALE_EXIT_SHA', 'HANDOFF_SCOPE_EXPANSION_BLOCKED', 'COORDINATION_GOVERNANCE_DRIFT', 'STALE_SESSION_KILL_SWITCH', 'AGENT_COORDINATION_FAST_READ_PATH', 'COORDINATION_READ_SHA_STALE', 'COORDINATION_READ_STATE_MISMATCH', 'TASK_OWNER_ROLE_REQUIRED', 'TASK_OWNER_ROLE_MISMATCH', 'TASK_WORK_PACKAGE_REQUIRED', 'TASK_WORK_ITEMS_REQUIRED', 'TASK_PROOF_OBLIGATIONS_REQUIRED'],
@@ -23,11 +25,15 @@ const expected = {
   'scripts/ci/validate-promotion-closure.mjs': ['FLIXO_EXACT_SHA_PROMOTION_EVIDENCE', 'LIVE_VERIFIED', 'CERTIFIABLE', 'failures'],
   'scripts/ci/test-promotion-closure.mjs': ['PROMOTION_CLOSURE_TEST=PASS', 'LIVE_RUNTIME_STATE=UNVERIFIED'],
   'scripts/ci/agent-session.mjs': ['login', 'event', 'logout', 'meeting-exit-approve', 'message-receive', 'message-consume', 'COUNCIL_MEETING_EXIT_REQUIRES_PRESIDENT_APPROVAL', '--from-session=<previous-session>', '--task=<task-id>', 'AGENT_MESSAGE_NOT_EXECUTION_READY', 'P0_COMMUNICATION_FIRST', 'VERIFIED', 'BLOCKED', 'FINAL_SUMMARY_REQUIRED_BEFORE_SESSION_CLOSE', 'AGENT_EVENT_SUMMARY_REQUIRED', 'VERIFIED_LOGOUT_REQUIRES_ACTIVITY_LOG', 'docs/agents/ledger', 'CONTINUATION_STALE_EXIT_SHA', 'AGENT_SESSION_STALE_ENTRY_SHA', 'AGENT_SESSION_GOVERNANCE_DRIFT'],
+  'docs/agents/PROMPT-UNIFIED-EXECUTION.md': ['RPR-UNIFIED-EXECUTION-001 · v4.0.0 · PROTOCOL-ROOT', 'FIRST OBLIGATION', 'ZERO-ERROR / NON-STOP', 'SHARED CELL / MULTI-AGENT COORDINATION', 'EXACT-SHA LOCK', 'HARD CIRCULAR EXIT LOCK', 'DIRECTIVE'],
   'docs/AGENT-HANDOFF-REPORT-SCHEMA.md': ['completedWork', 'failedWork', 'remainingWork', 'executionPlanNext', 'handoffToNextAgent', 'cycleLessons'],
   'docs/AGENT-COLLABORATION-PROTOCOL.md': ['Unified Agent Commands & Protocol Surface', 'Protocol → Validator → Evidence → Certification', 'PROJECTS.md', 'المهام.md', 'AGENTS.md', 'docs/EXECUTION-BRANCH-PROTOCOL.md', 'docs/PROTOCOL-REGISTRY.json', 'docs/agents/PROMPT-REGISTRY.json', 'diagnostics/auto-repair/memory.json', 'DISCOVER', 'READ_INBOX', 'INGEST_HANDOFF', 'REVALIDATE_EXACT_SHA', 'LOCK_SCOPE', 'TASK_CLAIM', 'SCOUT', 'RCA', 'FALSIFY', 'PRE-MUTATION PROOF', 'TARGETED_REGRESSION', 'AFFECTED_CONTRACT_VERIFY', 'EXACT_SHA_CHECK', 'WAITING_EXTERNAL', 'RECOVERING', 'repair-lease.mjs heartbeat', 'same repairChainId', 'BLOCKED_EXTERNAL', 'Canonical CI = GREEN', 'execution → main', 'Multi-Agent', 'handoff', 'scope', 'RCA', 'Assistant/controller', 'Execution Agent', 'Evidence over assertion', 'Stop-and-escalate', 'Challenge-before-mutation', 'Independent review', 'Decision trace', 'Parallel execution protocol', 'Conflict arbitration', 'Quality dimensions', 'Council President', 'Council Deputy', 'Council Investigator', 'large Work Package', 'PRESIDENT → DEPUTY → INVESTIGATOR'],
   'docs/agents/ledger/README.md': ['Agent Visibility Ledger', 'docs/agents/ledger/<sessionId>.json', 'taskId', 'finalStatus', 'finalSummary', 'visibilityState'],
   'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json': ['ASSISTANT_AGENT_COOPERATION_CONTRACT', 'assistantController', 'councilPresident', 'councilDeputy', 'councilInvestigator', 'codeScout', 'executionAgent', 'reviewAgent', 'testAgent', 'securityAgent', 'performanceAgent', 'certificationAuthority', 'actionRepairBot', 'actionRepairVerifier', 'actionHistorian', 'ACTION-REPAIR', 'ACTION-REPAIR-2', 'ACTION-HISTORIAN-3', 'action_vault_reasoning', 'messageEnvelope', 'no_implicit_authority', 'parallelism', 'arbitration', 'architecture', 'quality', 'efficiency', 'recovery', 'security', 'release', 'communication_first', 'event_driven_delivery', 'message_idempotency', 'message_freshness'],
   'docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md': ['READ', 'WRITE', 'FORBIDDEN', 'NO_SOURCE_MUTATION', 'code-scout-latest.json', 'execution agents'],
+  'scripts/ci/test-shared-operational-memory-contract.mjs': ['SHARED_OPERATIONAL_MEMORY_CONTRACT_TEST=PASS','CELL-SHARED-OPERATIONAL-MEMORY-001','targetBotCount','botIdentityBinding'],
+  'docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md': ['CELL-EXEC-GOV-001','REPAIR LANE','DEVELOPMENT & LEARNING LANE','L0','L7','Exit Lock'],
+  'scripts/ci/test-cell-executive-governance.mjs': ['CELL_EXECUTIVE_GOVERNANCE_TEST=PASS','BOT_COUNT=PASS','RANKING=PASS','ESCALATION=PASS','PARALLEL_LANES=PASS'],
 };
 
 for (const [file, markers] of Object.entries(expected)) {
@@ -41,7 +47,7 @@ if (exists('docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json')) {
     const contract = JSON.parse(read('docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json'));
     if (contract?.schemaVersion !== 5) failures.push('COOPERATION_SCHEMA_INVALID');
     if (contract?.authority !== 'ASSISTANT_AGENT_COOPERATION_CONTRACT') failures.push('COOPERATION_AUTHORITY_INVALID');
-    const rules = ['command','truth','evidence','delegation','checkpoint','challenge','independent_review','feedback','handoff','stop','verification','learning','decision_trace','fresh_state','parallelism','arbitration','architecture','quality','efficiency','recovery','security','release','no_implicit_authority'];
+    const rules = ['command','truth','evidence','delegation','checkpoint','challenge','independent_review','feedback','handoff','stop','verification','learning','decision_trace','fresh_state','parallelism','arbitration','architecture','quality','efficiency','recovery','security','release','no_implicit_authority','cell_lab'];
     for (const key of rules) if (typeof contract?.protocols?.[key] !== 'string' || !contract.protocols[key].trim()) failures.push(`COOPERATION_RULE_MISSING=${key}`);
     for (const key of ['messageId','actor','recipient','intent','taskId','scope','entrySha','risk','dependencies','expectedEvidence','stopConditions','proofObligations','createdAt']) if (!contract?.messageEnvelope?.required?.includes(key)) failures.push(`COOPERATION_ENVELOPE_MISSING=${key}`);
     for (const key of ['status','exitSha','changedFiles','commands','evidenceRefs','remainingWork','openRcas','nextAction','decisionTrace','verificationState','ownershipState','messageId','messageStatus']) if (!contract?.messageEnvelope?.completion?.includes(key)) failures.push(`COOPERATION_COMPLETION_MISSING=${key}`);
@@ -110,14 +116,60 @@ if (exists('docs/agents/ledger/README.md')) {
 const packageJson = exists('package.json') ? JSON.parse(read('package.json')) : { scripts: {} };
 for (const key of ['validate:agent-coordination','agent:coordination','agent:communication','test:agent-communication','validate:code-scout','agent:code-scout','test:council-wake','agent:council-wake']) if (typeof packageJson.scripts?.[key] !== 'string') failures.push(`PACKAGE_SCRIPT_MISSING=${key}`);
 
+const sharedMemoryRegistry = exists('docs/agents/CELL-BOT-REGISTRY.json') ? JSON.parse(read('docs/agents/CELL-BOT-REGISTRY.json')) : null;
+if (!sharedMemoryRegistry?.sharedOperationalMemoryContract) failures.push('SHARED_MEMORY_CONTRACT_MISSING');
+else {
+  const memory = sharedMemoryRegistry.sharedOperationalMemoryContract;
+  if (memory.contractId !== 'CELL-SHARED-OPERATIONAL-MEMORY-001') failures.push('SHARED_MEMORY_CONTRACT_ID_INVALID');
+  if (memory.version !== '1.0.0' || memory.status !== 'MANDATORY') failures.push('SHARED_MEMORY_CONTRACT_STATUS_INVALID');
+  if (memory.canonicalMemory?.authority !== 'CELL_KNOWLEDGE_INDEX') failures.push('SHARED_MEMORY_AUTHORITY_INVALID');
+  if (memory.canonicalMemory?.path !== 'diagnostics/auto-repair/cell-knowledge/index.json') failures.push('SHARED_MEMORY_PATH_INVALID');
+  if (memory.distribution?.targetBotCount !== 200) failures.push('SHARED_MEMORY_TARGET_COUNT_INVALID');
+  if (!Array.isArray(memory.botIdentityBinding) || memory.botIdentityBinding.length !== 200) failures.push('SHARED_MEMORY_BOT_BINDING_INCOMPLETE');
+  if (memory.publicationGate?.validationRequired !== true || memory.publicationGate?.exactShaRequired !== true || memory.publicationGate?.unprovenLearningMayNotPublish !== true) failures.push('SHARED_MEMORY_PUBLICATION_GATE_INVALID');
+  if (!Array.isArray(memory.distribution?.syncStates) || !memory.distribution.syncStates.includes('CURRENT') || !memory.distribution.syncStates.includes('STALE')) failures.push('SHARED_MEMORY_SYNC_STATES_INVALID');
+  if (memory.publicationGate?.knowledgeDoesNotGrantAuthority !== true) failures.push('SHARED_MEMORY_AUTHORITY_BOUNDARY_INVALID');
+}
+
+const executiveGovernance = sharedMemoryRegistry?.executiveCellGovernance;
+const executivePolicy = exists('docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md') ? read('docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md') : '';
+if (executiveGovernance?.contractId !== 'CELL-EXEC-GOV-001' || executiveGovernance?.status !== 'MANDATORY') failures.push('CELL_EXECUTIVE_CONTRACT_INVALID');
+if (executiveGovernance?.canonicalPolicy !== 'docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md' || executiveGovernance?.targetBotCount !== 200) failures.push('CELL_EXECUTIVE_POLICY_BINDING_INVALID');
+if (!Array.isArray(sharedMemoryRegistry?.bots) || sharedMemoryRegistry.bots.length !== 200) failures.push('CELL_EXECUTIVE_BOT_COUNT_INVALID');
+if (JSON.stringify(executiveGovernance?.ranking?.range) !== JSON.stringify([1,200]) || executiveGovernance?.ranking?.authorityInheritance !== false) failures.push('CELL_EXECUTIVE_RANKING_INVALID');
+if (executiveGovernance?.continuousLanes?.repair !== 'CONTINUOUS_WHEN_RED' || executiveGovernance?.continuousLanes?.developmentLearning !== 'CONTINUOUS_ON_DISJOINT_SCOPE' || executiveGovernance?.continuousLanes?.sharedScopePriority !== 'REPAIR') failures.push('CELL_EXECUTIVE_PARALLEL_LANES_INVALID');
+for (const level of ['L0','L1','L2','L3','L4','L5','L6','L7']) if (!executiveGovernance?.escalation?.levels?.[level]) failures.push(`CELL_EXECUTIVE_ESCALATION_MISSING=${level}`);
+for (const [i,bot] of (sharedMemoryRegistry?.bots ?? []).entries()) {
+  const id=`CELL-${String(i+1).padStart(3,'0')}`;
+  if (bot.id!==id || bot.cellRole!=='EXECUTIVE_AGENT' || bot.cellGovernanceContract!=='CELL-EXEC-GOV-001' || bot.executionMode!=='ASSIGNED_SCOPE_ONLY' || !bot.performanceProfile) failures.push(`CELL_EXECUTIVE_BOT_BINDING_INVALID=${id}`);
+}
+if (!executivePolicy.includes('CELL-EXEC-GOV-001') || !executivePolicy.includes('REPAIR LANE') || !executivePolicy.includes('DEVELOPMENT & LEARNING LANE') || !executivePolicy.includes('L0 — BOT LOCAL') || !executivePolicy.includes('L7 — USER_FINAL_AUTHORITY')) failures.push('CELL_EXECUTIVE_POLICY_MARKERS_MISSING');
+
 const protocolRegistry = exists('docs/PROTOCOL-REGISTRY.json') ? JSON.parse(read('docs/PROTOCOL-REGISTRY.json')) : null;
+const supremePromptFile = exists('docs/agents/PROMPT-UNIFIED-EXECUTION.md') ? read('docs/agents/PROMPT-UNIFIED-EXECUTION.md') : '';
+if (!supremePromptFile.includes('CELL-LAB')) failures.push('CELL_LAB_CONTRACT_MISSING');
+const p00CellLab = protocolRegistry?.protocols?.find((item) => item.id === 'P00')?.cellLab;
+if (typeof p00CellLab !== 'string' || !p00CellLab.includes('P20 Cell-Lab collaboration is mandatory')) failures.push('CELL_LAB_REGISTRATION_MISSING');
+if (protocolRegistry) {
+  const p00 = protocolRegistry.protocols?.find((item) => item?.id === 'P00');
+  if (p00?.status !== 'SUPREME_MANDATORY' || p00?.canonicalSource !== 'docs/agents/PROMPT-UNIFIED-EXECUTION.md' || p00?.version !== '4.0.0') failures.push('P00_SUPREME_PROTOCOL_INVALID');
+}
 if (!protocolRegistry) failures.push('PROTOCOL_REGISTRY_MISSING');
 else {
   const p20 = protocolRegistry.protocols?.find((item) => item?.id === 'P20');
   for (const marker of ['decision provenance','independent verification','parallel work','conflicts','dependency edges','learning never grants authority']) if (!p20?.invariant?.includes(marker)) failures.push(`P20_COOPERATION_EXTENSION_MISSING=${marker}`);
+  if (p20?.absorbedPolicyId !== 'CELL-EXEC-GOV-001' || p20?.canonicalPolicy !== 'docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md') failures.push('P20_CELL_EXECUTIVE_POLICY_BINDING_INVALID');
+  const p21 = protocolRegistry.protocols?.find((item) => item?.id === 'P21');
+  if (p21?.absorbedPolicyId !== 'CELL-EXEC-GOV-001' || p21?.canonicalPolicy !== 'docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md') failures.push('P21_CELL_EXECUTIVE_POLICY_BINDING_INVALID');
 }
 
 const sessionSource = exists('scripts/ci/agent-session.mjs') ? read('scripts/ci/agent-session.mjs') : '';
+const exitLockSource = exists('scripts/ci/agent-exit-lock.mjs') ? read('scripts/ci/agent-exit-lock.mjs') : '';
+const exitLockTest = exists('scripts/ci/test-agent-exit-lock.mjs') ? read('scripts/ci/test-agent-exit-lock.mjs') : '';
+for (const marker of ['assertAgentExitGate','AGENT_EXIT_LOCK_NON_GREEN_STATUS','AGENT_EXIT_LOCK_GLOBAL_SHA_DRIFT','AGENT_EXIT_LOCK_PROMOTION_NOT_CERTIFIABLE']) if (!exitLockSource.includes(marker)) failures.push('AGENT_EXIT_LOCK_MARKER_MISSING='+marker);
+if (!sessionSource.includes('scripts/ci/cell-lab-consensus.mjs')) failures.push('CELL_LAB_ENTRY_READ_MISSING');
+for (const marker of ['AGENT_EXIT_LOCK_BLOCKS_NON_GREEN=PASS','AGENT_EXIT_LOCK_BLOCKS_REMAINING_WORK=PASS','AGENT_EXIT_LOCK_REQUIRES_EXACT_SHA=PASS','AGENT_EXIT_LOCK_GREEN_PROOF=PASS']) if (!exitLockTest.includes(marker)) failures.push('AGENT_EXIT_LOCK_TEST_MARKER_MISSING='+marker);
+if (!sessionSource.includes('assertAgentExitGate')) failures.push('AGENT_EXIT_LOCK_NOT_WIRED_TO_SESSION');
 for (const role of ['actionRepairBot','actionRepairVerifier','actionHistorian']) if (!sessionSource.includes(role)) failures.push(`ACTION_VAULT_SESSION_ROLE_MISSING=${role}`);
 const actionVaultSandboxSource = exists('scripts/ci/action-repair-sandbox.mjs') ? read('scripts/ci/action-repair-sandbox.mjs') : '';
 const actionVaultDifferentialSource = exists('scripts/ci/action-differential-verifier.mjs') ? read('scripts/ci/action-differential-verifier.mjs') : '';
@@ -126,7 +178,7 @@ for (const marker of ['simulateAstRepair','REPAIR_SANDBOX_SIMULATION_V1','patchD
 for (const marker of ['candidateCheckResults','executionEvidence','DIFFERENTIAL_REPAIR_VERIFICATION_V1']) if (!actionVaultDifferentialSource.includes(marker)) failures.push('ACTION_VAULT_DIFFERENTIAL_MARKER_MISSING='+marker);
 for (const marker of ['ACTION-VAULT-INTELLIGENCE-BENCHMARK-v1','GATE_INTEGRITY_ADVERSARIAL','score','blockedCases']) if (!actionVaultBenchmarkSource.includes(marker)) failures.push('ACTION_VAULT_BENCHMARK_MARKER_MISSING='+marker);
 const repairSource = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';
-for (const marker of ['ACTION-SYSTEM-COGNITIVE-AWARENESS-v1','ACTION_PRIMARY_CORRECTNESS_PROOF','ADVERSARIAL_PROGRAMMER_FALSIFIER','ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','NO_BLIND_RETRY','ACTION_VAULT_SHA_MISMATCH','ACTION_VAULT_TRIAD_INCOMPLETE','ACTION_VAULT_VERIFIER_PROOF_REQUIRED','ACTION_VAULT_ALTERNATIVES_MISSING','ACTION_VAULT_FALSIFICATION_CHECKS_MISSING','ACTION_VAULT_ADVERSARIAL_FALSIFICATION_FAILED','ACTION_VAULT_COGNITIVE_AWARENESS_INVALID','ACTION_VAULT_SANDBOX_PROOF_REQUIRED','ACTION_VAULT_DIFFERENTIAL_PROOF_REQUIRED','ACTION_VAULT_PATCH_CORRECTNESS_PROOF_REQUIRED']) if (!repairSource.includes(marker)) failures.push(`ACTION_VAULT_REPAIR_MARKER_MISSING=${marker}`);
+for (const marker of ['ACTION-SYSTEM-COGNITIVE-AWARENESS-v1','ACTION_PRIMARY_CORRECTNESS_PROOF','ADVERSARIAL_PROGRAMMER_FALSIFIER','ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','NO_BLIND_RETRY','ACTION_VAULT_SHA_MISMATCH','ACTION_VAULT_TRIAD_INCOMPLETE','ACTION_VAULT_VERIFIER_PROOF_REQUIRED','ACTION_VAULT_ALTERNATIVES_MISSING','ACTION_VAULT_FALSIFICATION_CHECKS_MISSING','ACTION_VAULT_ADVERSARIAL_FALSIFICATION_FAILED','CELL_LAB_CONSENSUS_REQUIRED','CELL_LAB_EXACT_SHA_MISMATCH','CELL_LAB_PLAN_HASH_MISMATCH','ACTION_VAULT_COGNITIVE_AWARENESS_INVALID','ACTION_VAULT_SANDBOX_PROOF_REQUIRED','ACTION_VAULT_DIFFERENTIAL_PROOF_REQUIRED','ACTION_VAULT_PATCH_CORRECTNESS_PROOF_REQUIRED']) if (!repairSource.includes(marker)) failures.push(`ACTION_VAULT_REPAIR_MARKER_MISSING=${marker}`);
 const sha = execFileSync('git', ['rev-parse','HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 const result = { schemaVersion: 7, authority: 'AGENT_COORDINATION_GUARD', status: failures.length ? 'FAIL' : 'PASS', checkedSha: sha, controlPlane: 'scripts/ci/agent-coordination.mjs', sessionTool: 'scripts/ci/agent-session.mjs', cooperationContract: 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json', scoutProtocol: 'docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md', scout: 'scripts/ci/code-read-only-scout.mjs', protocolRegistry: 'docs/PROTOCOL-REGISTRY.json#P20', runtimeStatePolicy: 'generated-and-ignored', atomicCoordination: 'WRITE_LOCK_PLUS_OPTIMISTIC_REVISION_AND_ATOMIC_RENAME', failures };
 fs.mkdirSync(path.resolve(root,'diagnostics/agents'), { recursive:true });

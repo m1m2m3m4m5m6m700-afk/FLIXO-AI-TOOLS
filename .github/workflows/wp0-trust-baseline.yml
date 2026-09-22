@@ -3,6 +3,8 @@ name: FLIXO WP0 Trust Baseline
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [execution]
   workflow_dispatch:
 
 # Keep only the newest verification for the PR/branch.
@@ -51,7 +53,10 @@ jobs:
             test "$PR_BASE_REF" = "main"
             test "$PR_HEAD_REPOSITORY" = "$EXPECTED_REPOSITORY"
           else
-            test "${{ github.event_name }}" = "push"
+            case "${{ github.event_name }}" in
+              push|workflow_dispatch) ;;
+              *) echo "Unsupported execution event: ${{ github.event_name }}"; exit 1 ;;
+            esac
             test "${{ github.ref }}" = "refs/heads/execution"
           fi
           ACTUAL_SHA="$(git rev-parse HEAD)"

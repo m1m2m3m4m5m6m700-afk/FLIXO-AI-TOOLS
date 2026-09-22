@@ -1,8 +1,9 @@
 {
   "schemaVersion": 1,
   "authority": "FLIXO_PROTOCOL_REGISTRY",
-  "policy": "No standalone protocol may be added unless the Protocol Addition Gate passes. Existing protocols must absorb compatible requirements instead of creating duplicates.",
+  "policy": "No standalone protocol may be added unless the Protocol Addition Gate passes. Existing protocols must absorb compatible requirements instead of creating duplicates. CELL-EXEC-GOV-001 is absorbed by P20/P21 and may not create a parallel protocol.",
   "precedence": [
+    "SUPREME_UNIVERSAL_AGENT_EXECUTION",
     "SUPREME_AUTOMATION_RESIDENCY",
     "MASTER_EXECUTION_AND_SAFETY",
     "ZERO_FALSE_GREEN_AND_EVIDENCE",
@@ -15,19 +16,36 @@
   "protocols": [
     {
       "id": "P00",
-      "name": "Supreme Automation Residency / Agent Liveness",
+      "name": "Supreme Universal Agent Execution + Automation Residency",
       "class": "EXECUTION",
       "status": "SUPREME_MANDATORY",
-      "enforcement": "scripts/ci/agent-liveness-protocol.mjs + enforcement tests + 5-minute heartbeat + canonical Green Gate recovery",
-      "invariant": "The repair automation plane is permanently resident while work is open; heartbeat is mandatory every 5 minutes; sleep, idle, silent stop, abandonment, self-disable and self-abort are forbidden; run/session/lease termination triggers automatic recovery; manual wake is never required; GREEN does not suspend residency."
+      "enforcement": "docs/agents/PROMPT-UNIFIED-EXECUTION.md + scripts/ci/agent-session.mjs + scripts/ci/agent-exit-lock.mjs + scripts/ci/agent-liveness-protocol.mjs + scripts/ci/validate-agent-coordination.mjs",
+      "invariant": "Every Master, Agent and Bot is bound first to the unified execution protocol: immediate session admission; shared-cell coordination; root-cause-first repair; zero-error non-terminal execution; Exact-SHA evidence; permanent residency; mandatory Council reporting; and hard circular exit lock. Open work, failed work, open RCAs or non-canonical evidence keep execution RUNNING/RECOVERING. Only fresh canonical GREEN and promotion evidence on the same exact SHA permit session closure.",
+      "canonicalSource": "docs/agents/PROMPT-UNIFIED-EXECUTION.md",
+      "version": "4.0.0",
+      "scope": [
+        "REPOSITORY",
+        "PROJECT",
+        "CELL",
+        "MASTER-1",
+        "MASTER-2",
+        "MASTER-3",
+        "ALL_AGENTS",
+        "ALL_BOTS",
+        "ACTION_VAULT",
+        "RUNTIME_ADAPTERS",
+        "WORKFLOWS"
+      ],
+      "cellLab": "P20 Cell-Lab collaboration is mandatory for material decisions before mutation; disagreements/questions must be resolved and the integrated plan must be agreed on the current exact SHA.",
+      "activeRepairWindow": "Every unresolved repair session has a minimum 45-minute continuous active residency; SLEEP/IDLE/SILENT and BLOCKED logout are forbidden; heartbeat is required; 45 minutes never replaces Canonical GREEN."
     },
     {
       "id": "P01",
       "name": "Master Execution Contract",
       "class": "GOVERNANCE",
       "status": "MANDATORY",
-      "enforcement": "AGENTS.md + CI contract",
-      "invariant": "Execution remains non-terminal until required work, evidence, tests and root causes are closed."
+      "enforcement": "AGENTS.md + scripts/ci/agent-exit-lock.mjs + canonical communication/control plane + CI contract",
+      "invariant": "Execution remains non-terminal until required work, evidence, tests and root causes are closed. Session exit is machine-locked: only VERIFIED with zero failed/remaining work and zero open RCAs plus fresh canonical certification and promotion evidence for the same exact SHA may close the session; otherwise the session remains RUNNING."
     },
     {
       "id": "P02",
@@ -179,7 +197,93 @@
       "class": "EXECUTION",
       "status": "MANDATORY",
       "enforcement": "v7 executive orchestration + session + coordination control plane + Task Agent + Error Agent + assistant-agent cooperation contract; scripts/ci/agent-communication.mjs + .github/workflows/agent-communication-relay.yml + agent-session/task-claim integration",
-      "invariant": "The Executive Controller coordinates Task Agent preparation and Error Agent diagnosis through immutable exact-SHA handoffs; mutable scopes have one owner; conflicts are arbitrated; stale packets are rejected; diagnosis is never execution; preparation is never closure; independent verification and certification remain mandatory; learning never grants authority; decision provenance is preserved; independent verification is explicit; parallel work requires disjoint ownership; conflicts are explicitly arbitrated; dependency edges remain closed; learning never grants authority; durable cross-agent visibility records preserve task ownership, active/closed status, exact entry/exit SHA and final handoff state in a tracked per-session ledger; task closure requires the corresponding closed ledger record. communication-first event delivery; message receive/read/consume lifecycle; message idempotency; exact-SHA revalidation before ownership claim; mutation coordination is serialized by an atomic write lock and monotonic revision/transaction CAS; mismatched coordination state fails closed; handoff admission parity requires execution topology, exact current predecessor exit SHA, task/scope continuity and canonical role admission; stale-session kill switch revokes ownership on entry-SHA or governance drift; lock-free read fast path prevents status inspection from contending with mutation locks; compact brief snapshots reduce repeated state scans; Action Vault repair uses three distinct residents (ACTION-REPAIR, ACTION-REPAIR-2, ACTION-HISTORIAN-3) as one shared intelligence: VAULT-1 and VAULT-2 have programming-intelligence parity with opposed proof objectives; VAULT-3 curates the knowledge catalog and selects between proposals; every RED and catalog miss is recorded; the same stable fingerprint reaching 20 unresolved occurrences activates SUPERVISOR_20, suspends VAULT-1/VAULT-2 autonomous source mutation for that fingerprint, and gives VAULT-3 supervisor responsibility under the existing Repair Protocol; candidate learning is promoted only after exact-SHA canonical GREEN"
+      "invariant": "The Executive Controller coordinates Task Agent preparation and Error Agent diagnosis through immutable exact-SHA handoffs; mutable scopes have one owner; conflicts are arbitrated; stale packets are rejected; diagnosis is never execution; preparation is never closure; independent verification and certification remain mandatory; learning never grants authority; decision provenance is preserved; independent verification is explicit; parallel work requires disjoint ownership; conflicts are explicitly arbitrated; dependency edges remain closed; learning never grants authority; durable cross-agent visibility records preserve task ownership, active/closed status, exact entry/exit SHA and final handoff state in a tracked per-session ledger; task closure requires the corresponding closed ledger record. communication-first event delivery; message receive/read/consume lifecycle; message idempotency; exact-SHA revalidation before ownership claim; mutation coordination is serialized by an atomic write lock and monotonic revision/transaction CAS; mismatched coordination state fails closed; handoff admission parity requires execution topology, exact current predecessor exit SHA, task/scope continuity and canonical role admission; stale-session kill switch revokes ownership on entry-SHA or governance drift; lock-free read fast path prevents status inspection from contending with mutation locks; compact brief snapshots reduce repeated state scans; Action Vault repair uses three distinct residents (ACTION-REPAIR, ACTION-REPAIR-2, ACTION-HISTORIAN-3) as one shared intelligence: VAULT-1 and VAULT-2 have programming-intelligence parity with opposed proof objectives; VAULT-3 curates the knowledge catalog and selects between proposals; every RED and catalog miss is recorded; the same stable fingerprint reaching 20 unresolved occurrences activates SUPERVISOR_20, suspends VAULT-1/VAULT-2 autonomous source mutation for that fingerprint, and gives VAULT-3 supervisor responsibility under the existing Repair Protocol; candidate learning is promoted only after exact-SHA canonical GREEN Cell Lab is mandatory for material decision-making: every material opinion, question, challenge and decision is discussed through the shared communication surface, unresolved questions/conflicts block execution, and a single integrated plan must reach explicit agreement on the current exact SHA before mutation.",
+      "cellLab": {
+        "status": "MANDATORY",
+        "identity": "CELL-LAB",
+        "purpose": "Full communication and collaborative decision laboratory for Masters, Agents and Bots.",
+        "appliesTo": [
+          "MASTER-1",
+          "MASTER-2",
+          "MASTER-3",
+          "ALL_AGENTS",
+          "ALL_BOTS"
+        ],
+        "lifecycle": [
+          "OPEN",
+          "DISCUSS",
+          "CHALLENGE",
+          "SYNTHESIZE",
+          "CONSENSUS",
+          "EXECUTE",
+          "VERIFY",
+          "LEARN"
+        ],
+        "requiredBeforeMaterialMutation": true,
+        "requiredCoreParticipants": [
+          "MASTER-1",
+          "MASTER-2",
+          "MASTER-3"
+        ],
+        "requiredEvidence": [
+          "opinions",
+          "questions",
+          "challenges",
+          "responses",
+          "resolvedDissent",
+          "integratedPlan",
+          "planHash",
+          "exactSha",
+          "proofObligations"
+        ],
+        "unresolvedQuestionPolicy": "BLOCK",
+        "unresolvedConflictPolicy": "BLOCK",
+        "disagreementPolicy": "DISSENT_MUST_BE_RESOLVED_OR_EXPLICITLY_ACCEPTED_AS_RISK_BY_ALL_REQUIRED_PARTICIPANTS",
+        "consensusAuthority": "COMMUNICATION_AND_PLAN_AGREEMENT_ONLY",
+        "mutationAuthority": "EXISTING_ROLE_AUTHORITY_ONLY",
+        "enforcement": "scripts/ci/cell-lab-consensus.mjs + repair-protocol mutation admission + coordination/communication evidence",
+        "canonicalArtifact": "diagnostics/agents/cell-lab/consensus/<taskId>.json"
+      },
+      "canonicalPolicy": "docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md",
+      "absorbedPolicyId": "CELL-EXEC-GOV-001"
+    },
+    {
+      "id": "P21",
+      "name": "Shared Operational Memory for 200 Cell Bots",
+      "class": "LEARNING",
+      "status": "MANDATORY",
+      "enforcement": "docs/agents/CELL-BOT-REGISTRY.json + scripts/ci/cell-learning.mjs + scripts/ci/validate-agent-coordination.mjs + canonical shared memory index",
+      "invariant": "All 200 CELL bots share one canonical operational knowledge index. Validated, provenance-bound learning is published once to the canonical memory, assigned a memory version and made reusable by every bot; unproven learning is not published; memory never grants authority or replaces current Exact-SHA evidence.",
+      "canonicalSource": "docs/agents/SHARED-OPERATIONAL-MEMORY-CONTRACT.md",
+      "scope": [
+        "CELL-001",
+        "CELL-002",
+        "CELL-003",
+        "CELL-004",
+        "CELL-005",
+        "CELL-006",
+        "CELL-007",
+        "CELL-008",
+        "CELL-009",
+        "CELL-010",
+        "CELL-011",
+        "CELL-012",
+        "CELL-013",
+        "CELL-014",
+        "CELL-015",
+        "CELL-016",
+        "CELL-017",
+        "CELL-018",
+        "CELL-019",
+        "CELL-020",
+        "ALL_CELL_BOTS"
+      ],
+      "sharedMemory": "diagnostics/auto-repair/cell-knowledge/index.json",
+      "publishRule": "VALIDATED → MEMORY_COMMIT → PUBLISH → VERSION → CELL_MEMORY_UPDATED → SYNC",
+      "invalidationRule": "SOURCE_SHA_CHANGE or MEMORY_CHALLENGE invalidates immediate reuse until revalidation.",
+      "authorityBoundary": "Shared knowledge is reusable information; it never grants mutation, certification, permission, or command authority.",
+      "canonicalPolicy": "docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md",
+      "absorbedPolicyId": "CELL-EXEC-GOV-001"
     }
   ]
 }

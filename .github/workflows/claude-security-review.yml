@@ -3,6 +3,8 @@ name: Claude Security Review
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [execution]
   workflow_dispatch:
 
 # A newer commit supersedes older advisory security-review evidence for the same PR/branch.

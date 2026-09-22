@@ -6,6 +6,8 @@ import { createHash } from 'node:crypto';
 import { assertAgentAdmission, assertProtocolDefinition } from './repair-protocol.mjs';
 import { ingest as ingestAgentMessage, markRead as readAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
 import { loadPromptRegistry, validatePromptRegistry, loadErrorMemory } from './prompt-registry.mjs';
+import { assertAgentExitGate } from './agent-exit-lock.mjs';
+import { AGENT_LIVENESS_PROTOCOL, assertActiveRepairWindow, checkHeartbeat, checkContinuousSessionWindow } from './agent-liveness-protocol.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -44,14 +46,14 @@ const visibilityDir = path.resolve(ROOT, 'docs/agents/ledger');
 const handoffDir = path.resolve(ROOT, 'diagnostics/agents/handoffs');
 const now = () => new Date().toISOString();
 const gitSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
-const requiredReads = ['PROJECTS.md', 'المهام.md', 'AGENTS.md', 'docs/EXECUTION-BRANCH-PROTOCOL.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md', 'docs/AGENT-COORDINATION-CONTROL-PLANE.md', 'docs/PROTOCOL-HIERARCHY.md', 'docs/PROTOCOL-REGISTRY.json', 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json', 'docs/agents/PROMPT-REGISTRY.json', 'diagnostics/auto-repair/memory.json', 'scripts/ci/agent-communication.mjs', 'docs/MINIMAL-CI-FINAL-ARCHITECTURE.md', 'scripts/ci/test-plan.json', 'scripts/ci/assertion-registry.json'];
+const requiredReads = ['docs/agents/PROMPT-UNIFIED-EXECUTION.md', 'scripts/ci/cell-lab-consensus.mjs', 'docs/agents/CELL-CONTROL-HEADQUARTERS.md', 'PROJECTS.md', 'المهام.md', 'AGENTS.md', 'docs/EXECUTION-BRANCH-PROTOCOL.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md', 'docs/AGENT-COORDINATION-CONTROL-PLANE.md', 'docs/PROTOCOL-HIERARCHY.md', 'docs/PROTOCOL-REGISTRY.json', 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json', 'docs/agents/PROMPT-REGISTRY.json', 'diagnostics/auto-repair/memory.json', 'scripts/ci/agent-communication.mjs', 'docs/MINIMAL-CI-FINAL-ARCHITECTURE.md', 'scripts/ci/test-plan.json', 'scripts/ci/assertion-registry.json'];
 const split = (value, separator = ',') => String(value ?? '').split(separator).map((v) => v.trim()).filter(Boolean);
 const storageKey = (id) => createHash('sha256').update(id).digest('hex');
 const admissionDigest = (file) => createHash('sha256').update(fs.readFileSync(path.resolve(ROOT, file), 'utf8'), 'utf8').digest('hex');
 const governanceFingerprint = (sources) => createHash('sha256').update(sources.map((item) => `${item.path}:${item.sha256}`).join('|'), 'utf8').digest('hex');
 const assertLiveSession = (record) => {
   const currentSha = gitSha();
-  if (record.entrySha !== currentSha) throw new Error('AGENT_SESSION_STALE_ENTRY_SHA');
+  if (record.entrySha && record.entrySha !== currentSha) throw new Error('AGENT_SESSION_STALE_ENTRY_SHA');
   const currentGovernance = governanceFingerprint(requiredReads.map((file) => ({ path: file, sha256: admissionDigest(file) })));
   if (record.governanceFingerprint && record.governanceFingerprint !== currentGovernance) throw new Error('AGENT_SESSION_GOVERNANCE_DRIFT');
   if (record.branch && record.branch !== gitBranch()) throw new Error('AGENT_SESSION_BRANCH_DRIFT');
@@ -60,6 +62,10 @@ const readCanonicalAdmissionSources = () => {
   const sources = requiredReads.map((file) => ({ path: file, sha256: admissionDigest(file) }));
   const protocolRegistry = JSON.parse(fs.readFileSync(path.resolve(ROOT, 'docs/PROTOCOL-REGISTRY.json'), 'utf8'));
   if (protocolRegistry.authority !== 'FLIXO_PROTOCOL_REGISTRY') throw new Error('AGENT_ADMISSION_PROTOCOL_REGISTRY_INVALID');
+  const p00 = protocolRegistry.protocols?.find((item) => item?.id === 'P00');
+  if (p00?.status !== 'SUPREME_MANDATORY' || p00?.canonicalSource !== 'docs/agents/PROMPT-UNIFIED-EXECUTION.md' || p00?.version !== '4.0.0') throw new Error('AGENT_ADMISSION_P00_SUPREME_PROTOCOL_INVALID');
+  const supremePrompt = fs.readFileSync(path.resolve(ROOT, 'docs/agents/PROMPT-UNIFIED-EXECUTION.md'), 'utf8');
+  if (!supremePrompt.includes('RPR-UNIFIED-EXECUTION-001 · v4.0.0 · PROTOCOL-ROOT') || !supremePrompt.includes('FIRST OBLIGATION') || !supremePrompt.includes('HARD CIRCULAR EXIT LOCK')) throw new Error('AGENT_ADMISSION_SUPREME_PROMPT_INVALID');
   if (protocolRegistry.protocols?.find((item) => item?.id === 'P20')?.status !== 'MANDATORY') throw new Error('AGENT_ADMISSION_P20_NOT_MANDATORY');
   const promptRegistry = loadPromptRegistry();
   const promptValidation = validatePromptRegistry(promptRegistry);
@@ -79,7 +85,7 @@ const sessionPath = (id) => path.join(sessionDir, `${storageKey(id)}.json`);
 const handoffPath = (id) => path.join(handoffDir, `${storageKey(id)}.json`);
 const visibilityPath = (id) => path.join(visibilityDir, `${storageKey(id)}.json`);
 const ACTION_VAULT_SESSION_ROLES = Object.freeze(['actionRepairBot','actionRepairVerifier','actionHistorian']);
-const roles = new Set(['analysis','implementation','verification','release','assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','diagnosticAgent', ...ACTION_VAULT_SESSION_ROLES]);
+const roles = new Set(['analysis','implementation','verification','release','assistantController','MASTER-1','MASTER-2','MASTER-3','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','diagnosticAgent', ...ACTION_VAULT_SESSION_ROLES]);
 const isMeetingSession = (record) => Boolean(record?.meetingLock?.locked === true);
 const assertMeetingExitApproval = (record, currentSha) => {
   if (!isMeetingSession(record)) return;
@@ -96,8 +102,11 @@ const writeVisibility = (record) => {
 const secretLike = (value) => /(-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|ghp_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+|Bearer\s+[A-Za-z0-9._-]+|sk-[A-Za-z0-9_-]+)/i.test(String(value ?? ''));
 const assertSafeText = (...values) => { for (const value of values.flat()) if (secretLike(value)) throw new Error('AGENT_EVENT_SECRET_LIKE_CONTENT_REJECTED'); };
 const appendEvent = (record, event) => { record.actions = Array.isArray(record.actions) ? [...record.actions, event] : [event]; record.activity = Array.isArray(record.activity) ? [...record.activity, event] : [event]; };
+const isMaster = (value) => ['MASTER-1','MASTER-2','MASTER-3'].includes(value);
+const taskSnapshotFromRecord = (record) => ({ taskId: record.taskId, status: record.status, livenessState: record.livenessState, currentSha: record.currentSha ?? record.entrySha, currentRca: record.currentRca, openRcas: record.openRcas ?? [], remainingWork: record.remainingWork ?? [], nextAction: record.executionPlanNext ?? [], blockers: record.blockers ?? [], lastProgressAt: record.lastProgressAt ?? null, lastHeartbeatAt: record.lastHeartbeatAt ?? null, updatedAt: now() });
+const observeCurrentHead = (record) => { const currentSha = gitSha(); const previousSha = record.currentSha ?? record.entrySha ?? currentSha; if (previousSha !== currentSha) { record.previousSha = previousSha; record.currentSha = currentSha; record.shaChanges = Math.max(0, Number(record.shaChanges) || 0) + 1; record.evidenceInvalidatedByShaChange = true; record.requalificationRequired = true; record.lastShaChangeAt = now(); appendEvent(record, { at: now(), action: 'SESSION_SHA_CHANGED', previousSha, currentSha, evidenceInvalidated: true, requalificationRequired: true, recovery: 'REQUALIFY_CURRENT_SHA' }); } else record.currentSha = currentSha; return currentSha; };
 
-if (!['login', 'event', 'logout', 'meeting-exit-approve', 'message-receive', 'message-consume'].includes(command)) throw new Error('Usage: agent-session.mjs login|event|logout|meeting-exit-approve|message-receive|message-consume --session=<id> --agent=<id> --task=<task-id>');
+if (!['login', 'event', 'heartbeat', 'master-update', 'logout', 'meeting-exit-approve', 'message-receive', 'message-consume'].includes(command)) throw new Error('Usage: agent-session.mjs login|event|logout|meeting-exit-approve|message-receive|message-consume --session=<id> --agent=<id> --task=<task-id>');
 if (!sessionId || !agentId || !taskId) throw new Error('Agent session requires --session, --agent and --task.');
 if (meetingRequested && !meetingId) throw new Error('COUNCIL_MEETING_ID_REQUIRED');
 if (!roles.has(role)) throw new Error(`Invalid agent role: ${role}`);
@@ -130,6 +139,17 @@ if (command === 'meeting-exit-approve') {
   if (record.taskId !== taskId) throw new Error('AGENT_EVENT_TASK_MISMATCH');
   if (record.status !== 'RUNNING') throw new Error('AGENT_EVENT_REQUIRES_ACTIVE_SESSION');
   assertLiveSession(record);
+  const eventSha = observeCurrentHead(record);
+  const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.startedAt });
+  if (!heartbeat.ok) {
+    record.livenessState = 'RECOVERING';
+    record.continuousActiveSince = now();
+    appendEvent(record, { at: now(), action: 'LIVENESS_RECOVERY_REQUIRED', sha: gitSha(), reason: heartbeat.reason ?? 'HEARTBEAT_STALE', recovery: 'RECOVER_AND_CONTINUE', continuousWindowReset: true });
+  } else {
+    record.livenessState = 'ACTIVE';
+    record.continuousActiveSince = record.continuousActiveSince ?? record.startedAt;
+  }
+  record.lastHeartbeatAt = now();
   const type = String(args.get('type') ?? '').trim().toUpperCase();
   const summary = String(args.get('summary') ?? '').trim();
   const allowed = new Set(['PROGRESS','FINDING','BLOCKER','CHANGE','TEST','VERIFICATION','HANDOFF','NOTE']);
@@ -142,7 +162,10 @@ if (command === 'meeting-exit-approve') {
   const next = split(args.get('next') ?? process.env.FLIXO_AGENT_EVENT_NEXT, '|');
   const sha = gitSha();
   assertSafeText(type, summary, files, evidence, findings, blockers, next);
-  const event = { at: now(), action: 'EVENT', type, summary, sha, files, evidence, findings, blockers, next };
+  const event = { at: now(), action: 'EVENT', type, summary, sha: eventSha ?? sha, files, evidence, findings, blockers, next };
+  if (['PROGRESS','FINDING','CHANGE','TEST','VERIFICATION','HANDOFF','NOTE'].includes(type)) record.lastProgressAt = event.at;
+  if (type === 'MASTER_UPDATE' || type === 'HANDOFF') record.lastMasterUpdateAt = event.at;
+  record.taskStateSnapshot = taskSnapshotFromRecord(record);
   appendEvent(record, event);
   fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
   const visibilityFile = visibilityPath(sessionId);
@@ -159,6 +182,67 @@ if (command === 'meeting-exit-approve') {
   writeVisibility(visibility);
   console.log('AGENT_SESSION_EVENT=' + type);
   console.log('AGENT_SESSION_SHA=' + sha);
+} else if (command === 'heartbeat') {
+  if (!fs.existsSync(file)) throw new Error('Session not found: ' + sessionId);
+  const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (record.agentId !== agentId) throw new Error('Session owner mismatch: ' + sessionId);
+  if (record.taskId !== taskId) throw new Error('AGENT_HEARTBEAT_TASK_MISMATCH');
+  if (record.status !== 'RUNNING') throw new Error('AGENT_HEARTBEAT_REQUIRES_ACTIVE_SESSION');
+  assertLiveSession(record);
+  const sha = observeCurrentHead(record);
+  const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.continuousActiveSince ?? record.startedAt });
+  const continuous = checkContinuousSessionWindow({ continuousStartedAt: record.continuousActiveSince ?? record.startedAt });
+  const at = now();
+  record.livenessState = heartbeat.ok ? 'ACTIVE' : 'RECOVERING';
+  if (!heartbeat.ok) record.continuousActiveSince = at;
+  if (!continuous.ok && continuous.action === 'RESIDENCY_RENEWAL_REQUIRED') { record.livenessState = 'RECOVERING'; record.residencyRenewals = Math.max(0, Number(record.residencyRenewals) || 0) + 1; record.previousContinuousActiveSince = record.continuousActiveSince; record.continuousActiveSince = at; record.requalificationRequired = true; record.livenessState = 'ACTIVE'; }
+  record.continuousActiveSince = record.continuousActiveSince ?? record.startedAt;
+  record.lastHeartbeatAt = at;
+  const masterUpdateDue = isMaster(record.agentId) && Date.parse(String(record.lastMasterUpdateAt ?? '')) + AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs <= Date.now();
+  const taskReminderDue = Date.parse(String(record.lastTaskReminderAt ?? '')) + AGENT_LIVENESS_PROTOCOL.taskReminderEveryMs <= Date.now();
+  const event = { at, action: 'HEARTBEAT', sha, liveness: heartbeat.ok ? 'ON_TIME' : 'RECOVERED_FROM_GAP', residencyRenewal: !continuous.ok && continuous.action === 'RESIDENCY_RENEWAL_REQUIRED', recovery: heartbeat.ok ? null : 'RECOVER_AND_CONTINUE', masterUpdateDue, taskReminderDue, evidenceInvalidatedByShaChange: record.evidenceInvalidatedByShaChange, requalificationRequired: record.requalificationRequired };
+  appendEvent(record, event);
+  if (masterUpdateDue) record.lastMasterUpdateAt = at;
+  if (taskReminderDue) record.lastTaskReminderAt = at;
+  if (masterUpdateDue || taskReminderDue) appendEvent(record, { at, action: taskReminderDue ? 'TASK_REMINDER' : 'MASTER_STATUS_UPDATE_DUE', sha, channel: 'MASTER_CELL_LAB', required: true, snapshot: taskSnapshotFromRecord(record) });
+  record.taskStateSnapshot = taskSnapshotFromRecord(record);
+  fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
+  if (isMaster(record.agentId) && (masterUpdateDue || taskReminderDue)) {
+    try { execFileSync(process.execPath,['scripts/ci/master-peer-communication.mjs','send','--repo='+(process.env.GITHUB_REPOSITORY || 'm1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS'),'--from='+record.agentId,'--to=MASTERS','--task='+record.taskId,'--message='+(taskReminderDue?'TASK REMINDER: review remaining work and next action.':'MASTER STATUS UPDATE: review current exact SHA and continue.'),'--session='+record.sessionId,'--message-kind='+(taskReminderDue?'TASK_REMINDER':'STATUS_UPDATE'),'--idempotency-key=master-session:'+record.sessionId+':'+Math.floor(Date.now()/AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs),'--payload='+JSON.stringify({channel:'MASTER_CELL_LAB',taskSnapshot:taskSnapshotFromRecord(record),sessionId:record.sessionId,currentSha:sha,requalificationRequired:Boolean(record.requalificationRequired)})],{cwd:ROOT,encoding:'utf8',stdio:['ignore','pipe','pipe']}); appendEvent(record,{at:now(),action:'MASTER_CHANNEL_PUBLISHED',sha,channel:'MASTER_CELL_LAB',kind:taskReminderDue?'TASK_REMINDER':'STATUS_UPDATE'}); } catch(error) { appendEvent(record,{at:now(),action:'MASTER_CHANNEL_PUBLISH_BLOCKED',sha,channel:'MASTER_CELL_LAB',reason:String(error?.message ?? error),taskRemainsOpen:true}); }
+    fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
+  }
+  const visibilityFile = visibilityPath(sessionId);
+  if (fs.existsSync(visibilityFile)) {
+    const visibility = JSON.parse(fs.readFileSync(visibilityFile, 'utf8'));
+    visibility.activity = Array.isArray(visibility.activity) ? [...visibility.activity, event] : [event];
+    visibility.lastEvent = event;
+    visibility.updatedAt = at;
+    visibility.livenessState = record.livenessState;
+    visibility.lastHeartbeatAt = at;
+    visibility.residencyLock = record.residencyLock;
+    writeVisibility(visibility);
+  }
+  console.log('AGENT_SESSION_HEARTBEAT=' + (heartbeat.ok ? 'ON_TIME' : 'RECOVERED'));
+  console.log('AGENT_SESSION_SHA=' + sha);
+  console.log('AGENT_SESSION_LIVENESS=' + record.livenessState);
+} else if (command === 'master-update') {
+  if (!isMaster(agentId)) throw new Error('MASTER_CHANNEL_MASTER_ONLY');
+  if (!fs.existsSync(file)) throw new Error('Session not found: ' + sessionId);
+  const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (record.agentId !== agentId || record.taskId !== taskId || record.status !== 'RUNNING') throw new Error('MASTER_CHANNEL_SESSION_INVALID');
+  assertLiveSession(record);
+  const sha = observeCurrentHead(record);
+  const to = String(args.get('to') ?? 'MASTERS').trim();
+  const message = String(args.get('message') ?? '').trim();
+  if (!message) throw new Error('MASTER_CHANNEL_MESSAGE_REQUIRED');
+  const kind = String(args.get('kind') ?? 'STATUS_UPDATE').trim().toUpperCase();
+  const snapshot = taskSnapshotFromRecord(record);
+  execFileSync(process.execPath,['scripts/ci/master-peer-communication.mjs','send','--repo='+(process.env.GITHUB_REPOSITORY || 'm1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS'),'--from='+agentId,'--to='+to,'--task='+taskId,'--message='+message,'--session='+sessionId,'--message-kind='+kind,'--idempotency-key=manual-master:'+sessionId+':'+kind+':'+Math.floor(Date.now()/AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs),'--payload='+JSON.stringify({channel:'MASTER_CELL_LAB',taskSnapshot:snapshot,sessionId:sessionId,currentSha:sha,requalificationRequired:Boolean(record.requalificationRequired)})],{cwd:ROOT,encoding:'utf8'});
+  record.lastMasterUpdateAt=now();
+  appendEvent(record,{at:now(),action:'MASTER_CHANNEL_UPDATE',sha,channel:'MASTER_CELL_LAB',kind,to,message,snapshot});
+  record.taskStateSnapshot=snapshot;
+  fs.writeFileSync(file,JSON.stringify(record,null,2)+'\n');
+  console.log(JSON.stringify({status:'MASTER_CHANNEL_UPDATE_RECORDED',sha,kind,to,snapshot},null,2));
 } else if (command === 'message-receive') {
   if (!rawMessageFile && !rawMessageId) throw new Error('AGENT_MESSAGE_INPUT_REQUIRED');
   if (rawMessageFile) {
@@ -221,6 +305,8 @@ if (command === 'meeting-exit-approve') {
     agentId,
     role,
     entrySha: currentSha,
+    currentSha,
+    observedSha: currentSha,
     baseSha: currentSha,
     branch: gitBranch(),
     governanceFingerprint: currentGovernanceFingerprint,
@@ -230,6 +316,31 @@ if (command === 'meeting-exit-approve') {
     admissionSources,
     currentRca: rca,
     taskId,
+    residencyLock: {
+      minimumActiveWindowMs: AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs,
+      maxContinuousActiveSessionMs: AGENT_LIVENESS_PROTOCOL.maxContinuousActiveSessionMs,
+      masterChannel: 'MASTER_CELL_LAB',
+      masterStatusUpdateEveryMs: AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs,
+      taskReminderEveryMs: AGENT_LIVENESS_PROTOCOL.taskReminderEveryMs,
+      minimumActiveWindowMinutes: 45,
+      startedAt: now(),
+      minCloseAt: new Date(Date.parse(now()) + AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs).toISOString(),
+      noSleep: true,
+      noIdle: true,
+      cellLabRequired: true,
+      zeroErrorTarget: true,
+      heartbeatEveryMs: AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs,
+      heartbeatGraceMs: AGENT_LIVENESS_PROTOCOL.heartbeatGraceMs,
+    },
+    lastHeartbeatAt: now(),
+    lastProgressAt: now(),
+    lastMasterUpdateAt: now(),
+    lastTaskReminderAt: now(),
+    continuousActiveSince: now(),
+    residencyRenewals: 0,
+    evidenceInvalidatedByShaChange: false,
+    requalificationRequired: false,
+    livenessState: 'ACTIVE',
     ...(meetingRequested ? { meetingLock: { locked: true, meetingId, enteredBy: agentId, enteredAt: now(), entrySha: sha, exitApproval: null } } : {}),
     ...(inboundMessage ? { messageId: inboundMessage.messageId, messageStatus: inboundMessage.status, messageEntrySha: inboundMessage.entrySha, messageReadBy: agentId, messagePriority: 'P0_COMMUNICATION_FIRST' } : {}),
     status: 'RUNNING',
@@ -252,6 +363,27 @@ if (command === 'meeting-exit-approve') {
   const status = String(args.get('status') ?? process.env.FLIXO_AGENT_STATUS ?? 'VERIFIED').toUpperCase();
   if (!['VERIFIED', 'BLOCKED'].includes(status)) throw new Error(`Logout status must be VERIFIED or BLOCKED; got ${status}`);
   const sha = gitSha();
+  if (status === 'BLOCKED') {
+    const event = { at: now(), action: 'SESSION_EXIT_BLOCKED', sha, reason: 'OPEN_WORK_MUST_REMAIN_IN_ACTIVE_45_MINUTE_REPAIR_SESSION', taskRemainsOpen: true, recovery: 'RECOVER_AND_CONTINUE' };
+    appendEvent(record, event);
+    fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
+    const visibilityFile = visibilityPath(sessionId);
+    if (fs.existsSync(visibilityFile)) {
+      const visibility = JSON.parse(fs.readFileSync(visibilityFile, 'utf8'));
+      visibility.activity = Array.isArray(visibility.activity) ? [...visibility.activity, event] : [event];
+      visibility.lastEvent = event;
+      visibility.status = 'RUNNING';
+      visibility.visibilityState = 'OPEN';
+      visibility.updatedAt = now();
+      visibility.livenessState = record.livenessState ?? 'RECOVERING';
+      visibility.residencyLock = record.residencyLock;
+      writeVisibility(visibility);
+    }
+    throw new Error('AGENT_SESSION_BLOCKED_LOGOUT_FORBIDDEN_OPEN_WORK_REMAINS');
+  }
+  assertActiveRepairWindow({ startedAt: record.startedAt, continuousStartedAt: record.continuousActiveSince });
+  const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.startedAt });
+  if (!heartbeat.ok) throw new Error('AGENT_SESSION_HEARTBEAT_REQUIRED_BEFORE_CLOSE');
   assertMeetingExitApproval(record, sha);
   const changedFiles = split(args.get('changed') ?? process.env.FLIXO_AGENT_CHANGED_FILES);
   const commands = split(args.get('commands') ?? process.env.FLIXO_AGENT_COMMANDS, '|');
@@ -302,6 +434,26 @@ if (command === 'meeting-exit-approve') {
   if (status === 'VERIFIED' && completedWork.length === 0 && evidence.length === 0) throw new Error('VERIFIED_LOGOUT_REQUIRES_COMPLETED_WORK_OR_EVIDENCE');
   const activity = Array.isArray(record.activity) ? record.activity : [];
   if (status === 'VERIFIED' && activity.length === 0) throw new Error('VERIFIED_LOGOUT_REQUIRES_ACTIVITY_LOG');
+
+  try {
+    assertAgentExitGate({ status, exactSha: sha, failedWork, remainingWork, openRcas });
+  } catch (error) {
+    const exitBlockEvent = { at: now(), action: 'EXIT_LOCK_BLOCKED', sha, reason: String(error?.message ?? error), requiredState: 'CANONICAL_GREEN_ONLY', taskRemainsOpen: true, recovery: 'RECOVER_AND_CONTINUE' };
+    appendEvent(record, exitBlockEvent);
+    fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
+    const visibilityFile = visibilityPath(sessionId);
+    if (fs.existsSync(visibilityFile)) {
+      const visibility = JSON.parse(fs.readFileSync(visibilityFile, 'utf8'));
+      visibility.activity = Array.isArray(visibility.activity) ? [...visibility.activity, exitBlockEvent] : [exitBlockEvent];
+      visibility.lastEvent = exitBlockEvent;
+      visibility.status = 'RUNNING';
+      visibility.visibilityState = 'OPEN';
+      visibility.exitLock = { state: 'LOCKED', reason: exitBlockEvent.reason, exactSha: sha, updatedAt: now() };
+      visibility.updatedAt = now();
+      fs.writeFileSync(visibilityFile, JSON.stringify(visibility, null, 2) + '\n');
+    }
+    throw error;
+  }
   if (record.bootstrap && !record.continuationFrom) {
     // First session may bootstrap the chain, but its logout still establishes the handoff contract.
   }

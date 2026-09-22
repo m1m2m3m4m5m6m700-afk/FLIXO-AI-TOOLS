@@ -7,7 +7,7 @@
 ## Review Index
 
 ### ACTIVE
-- `docs/agents/PROMPT-UNIFIED-EXECUTION.md` — canonical active repository execution prompt.
+- `docs/agents/PROMPT-UNIFIED-EXECUTION.md` — P00 supreme active repository execution protocol.
 - `docs/agents/TASK-AGENT-SYSTEM-PROMPT.md` — preparation-only Task Agent contract.
 - `docs/agents/SAFE-TASK-AGENT-EXECUTION.md` — bounded mutation contract for Repair/Execution Agent.
 
@@ -39,7 +39,7 @@ The following current paths are deprecated redirect stubs and are intentionally 
 
 ```text
 # FLIXO Unified Execution Prompt
-## RPR-UNIFIED-EXECUTION-001 · v3.0.0
+## RPR-UNIFIED-EXECUTION-001 · v4.0.0 · PROTOCOL-ROOT
 
 هذا هو Prompt التنفيذ النشط الوحيد في FLIXO. النص يوجّه التنفيذ ولا يمنح سلطة.
 

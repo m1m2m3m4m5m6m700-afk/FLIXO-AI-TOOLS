@@ -100,12 +100,25 @@ jobs:
             local event="$5"
             echo "CANCEL stale run=$run_id sha=$head_sha name=$name event=$event status=$status"
 
-            if ! gh run cancel "$run_id" --repo "$REPOSITORY"; then
+            local cancel_output=""
+            if ! cancel_output="$(gh run cancel "$run_id" --repo "$REPOSITORY" 2>&1)"; then
+              if printf '%s' "$cancel_output" | grep -Eiq 'API rate limit exceeded|rate limit exceeded|secondary rate limit|abuse detection'; then
+                echo "BLOCKED_EXTERNAL: GitHub Actions API rate limit prevented stale-run cancellation for run=$run_id"
+                echo "SUPERSESSION_EXTERNAL_BLOCKER=GITHUB_ACTIONS_API_RATE_LIMIT"
+                return 0
+              fi
               local now_status=""
-              if ! now_status="$(gh run view "$run_id" --repo "$REPOSITORY" --json status --jq '.status')"; then
+              local status_output=""
+              if ! status_output="$(gh run view "$run_id" --repo "$REPOSITORY" --json status --jq '.status' 2>&1)"; then
+                if printf '%s' "$status_output" | grep -Eiq 'API rate limit exceeded|rate limit exceeded|secondary rate limit|abuse detection'; then
+                  echo "BLOCKED_EXTERNAL: GitHub Actions API rate limit prevented stale-run status lookup for run=$run_id"
+                  echo "SUPERSESSION_EXTERNAL_BLOCKER=GITHUB_ACTIONS_API_RATE_LIMIT"
+                  return 0
+                fi
                 echo "ERROR: cancellation failed and status lookup failed for run=$run_id" >&2
                 return 1
               fi
+              now_status="$status_output"
               if [ "$now_status" = "completed" ]; then
                 echo "STALE_RUN_ALREADY_COMPLETED run=$run_id"
                 return 0
@@ -113,19 +126,16 @@ jobs:
               echo "ERROR: cancellation failed for active run=$run_id status=$now_status" >&2
               return 1
             fi
+            echo "$cancel_output"
+
             echo "STALE_RUN_CANCEL_REQUESTED run=$run_id"
           }
 
-          gh run list --repo "$REPOSITORY" --branch "$BRANCH" --limit 100 --json databaseId,headSha,status,name,event --jq '.[] | select(.status != "completed") | [.databaseId,.headSha,.status,.name,.event] | @tsv' |
+          gh api "repos/$REPOSITORY/actions/runs?branch=$BRANCH&per_page=100" |
+            jq -r '.workflow_runs[] | select(.status != "completed") | [.id,.head_sha,.status,.name,.event] | @tsv' |
           while IFS=$'\t' read -r RUN_ID HEAD_SHA STATUS NAME EVENT; do
             [ -n "$RUN_ID" ] || continue
-            LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-            if [ "$LIVE_SHA" != "$CURRENT_SHA" ]; then
-              echo "obsolete=true" >> "$GITHUB_OUTPUT"
-              echo "SUPERSESSION_OBSOLETE=true"
-              echo "SUPERSESSION_ABORTED_HEAD_MOVEMENT old=$CURRENT_SHA new=$LIVE_SHA"
-              exit 0
-            fi
+            LIVE_SHA="$CURRENT_SHA"
             if [ "$HEAD_SHA" = "$LIVE_SHA" ]; then
               echo "KEEP current SHA run=$RUN_ID name=$NAME status=$STATUS"
               continue

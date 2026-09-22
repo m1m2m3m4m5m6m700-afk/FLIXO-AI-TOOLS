@@ -104,7 +104,25 @@ const securityAndCertification = [
   { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success' },
   { id: 102, name: 'Certification', status: 'completed', conclusion: 'success' },
 ];
+
+
 const openPr = { number: 748, headRefOid: SHA_A, baseRefOid: SHA_B };
+
+const securityWorkflowEvidence = evaluateGreen({
+  executionSha: SHA_A, mainSha: SHA_B, openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: [
+    { id: 109, name: 'Workflow trust baseline', status: 'completed', conclusion: 'success' },
+    { id: 110, name: 'Certification', status: 'completed', conclusion: 'success' },
+  ],
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(securityWorkflowEvidence.ci.security.present, true);
+assert.equal(securityWorkflowEvidence.ci.security.status, 'success');
+assert.equal(securityWorkflowEvidence.ci.security.name, 'Workflow trust baseline');
+assert.equal(securityWorkflowEvidence.errors.some((x) => x.type === 'SECURITY_EVIDENCE_MISSING'), false);
+assert.equal(securityWorkflowEvidence.status, 'GREEN');
+
 
 const green = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
@@ -285,6 +303,31 @@ const securityMissingEvidence = evaluateGreen({
 assert.equal(securityMissingEvidence.status, 'FAIL_CLOSED');
 assert.equal(securityMissingEvidence.repair.required, false);
 
+const securityAggregation = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: [
+    { id: 301, name: 'github-advanced-security', status: 'completed', conclusion: 'failure', updatedAt: '2026-09-19T00:04:00Z', details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/301' },
+    { id: 302, name: 'CodeQL', status: 'completed', conclusion: 'success', updatedAt: '2026-09-19T00:05:00Z' },
+    { id: 303, name: 'Certification', status: 'completed', conclusion: 'success', updatedAt: '2026-09-19T00:05:00Z' },
+  ],
+  logs: { 301: 'CAPIError: 400 The requested model is not supported' },
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(securityAggregation.ci.security.status, 'failure');
+assert.equal(securityAggregation.ci.security.checks.length, 2);
+assert.equal(securityAggregation.status, 'BLOCKED_EXTERNAL');
+assert.equal(securityAggregation.repair.required, false);
+assert.equal(
+  securityAggregation.externalBlockers.some((item) =>
+    item.checkName === 'github-advanced-security' &&
+    item.rootCause === 'EXTERNAL_SECURITY_PROVIDER_FAILURE'
+  ),
+  true
+);
+
 const internal = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
   workflowRuns: requiredRuns.map((item) =>
@@ -346,7 +389,7 @@ const missing = evaluateGreen({
   workflowRuns: requiredRuns.slice(1), checkRuns: securityAndCertification,
   compare: { ahead_by: 1, behind_by: 0 },
 });
-assert.equal(missing.status, 'FAIL_CLOSED');
+assert.equal(missing.status, 'WAITING_REQUIRED_CHECKS');
 
 const stale = evaluateGreen({
   executionSha: SHA_B, mainSha: SHA_B, openPr,
@@ -379,35 +422,43 @@ const waiting = evaluateGreen({
 });
 assert.equal(waiting.status, 'WAITING_REQUIRED_CHECKS');
 
-const postMergeWrongMain = evaluateGreen({
+const missingRequiredOnExecution = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr: null,
-  latestMergedPr: { headRefOid: SHA_A, mergeCommit: { oid: SHA_A } },
-  workflowRuns: requiredRuns, checkRuns: securityAndCertification,
-  compare: { ahead_by: 0, behind_by: 0 },
+  latestMergedPr: { headRefOid: SHA_B, mergeCommit: { oid: SHA_B } },
+  workflowRuns: requiredRuns.filter((item) => item.workflowName !== 'FLIXO Test System'),
+  checkRuns: securityAndCertification,
+  compare: { ahead_by: 1, behind_by: 0 },
 });
-assert.equal(postMergeWrongMain.status, 'RED_INTERNAL');
-assert.equal(postMergeWrongMain.repair.required, false);
-assert(postMergeWrongMain.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'));
+assert.equal(missingRequiredOnExecution.status, 'WAITING_REQUIRED_CHECKS');
+assert.equal(missingRequiredOnExecution.repair.required, false);
+assert(missingRequiredOnExecution.errors.some((item) => item.type === 'REQUIRED_WORKFLOW_MISSING'));
 
-const postMergeWrongHead = evaluateGreen({
+const postMergeExecutionAdvance = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr: null,
   latestMergedPr: { headRefOid: SHA_B, mergeCommit: { oid: SHA_B } },
   workflowRuns: requiredRuns, checkRuns: securityAndCertification,
-  compare: { ahead_by: 0, behind_by: 0 },
+  compare: { ahead_by: 1, behind_by: 0 },
 });
-assert.equal(postMergeWrongHead.status, 'RED_INTERNAL');
-assert.equal(postMergeWrongHead.repair.required, false);
-assert(postMergeWrongHead.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'));
+assert.equal(postMergeExecutionAdvance.status, 'GREEN');
+assert.equal(postMergeExecutionAdvance.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'), false);
+
+const postMergeHistoricalHead = evaluateGreen({
+  executionSha: SHA_A, mainSha: SHA_B, openPr: null,
+  latestMergedPr: { headRefOid: 'c'.repeat(40), mergeCommit: { oid: SHA_B } },
+  workflowRuns: requiredRuns, checkRuns: securityAndCertification,
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(postMergeHistoricalHead.status, 'GREEN');
+assert.equal(postMergeHistoricalHead.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'), false);
 
 const postMergeMissingCommit = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr: null,
-  latestMergedPr: { headRefOid: SHA_A, mergeCommit: null },
+  latestMergedPr: { headRefOid: 'c'.repeat(40), mergeCommit: null },
   workflowRuns: requiredRuns, checkRuns: securityAndCertification,
-  compare: { ahead_by: 0, behind_by: 0 },
+  compare: { ahead_by: 1, behind_by: 0 },
 });
-assert.equal(postMergeMissingCommit.status, 'RED_INTERNAL');
-assert.equal(postMergeMissingCommit.repair.required, false);
-assert(postMergeMissingCommit.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'));
+assert.equal(postMergeMissingCommit.status, 'GREEN');
+assert.equal(postMergeMissingCommit.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'), false);
 
 const postMerge = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr: null,
@@ -415,7 +466,8 @@ const postMerge = evaluateGreen({
   workflowRuns: requiredRuns, checkRuns: securityAndCertification,
   compare: { ahead_by: 0, behind_by: 1 },
 });
-assert.equal(postMerge.status, 'GREEN');
+assert.equal(postMerge.status, 'RED_INTERNAL');
+assert(postMerge.errors.some((item) => item.type === 'MAIN_DIVERGENCE'));
 
 const mainObservedFailure = evaluateGreen({
   executionSha: SHA_A,
@@ -444,4 +496,32 @@ assert.equal(missingReport.rootCause, 'REQUIRED_EVIDENCE_MISSING');
 assert.equal(missingReport.errors[0]?.type, 'WATCHER_INPUT_INVALID');
 fs.rmSync(watchTemp, { recursive: true, force: true });
 
+const dailyGateWorkflow = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
+assert.ok(dailyGateWorkflow.includes('Normalize settled workflow-run evidence shape'));
+assert.ok(dailyGateWorkflow.includes('databaseId: (.databaseId // .id // null)'));
+assert.ok(dailyGateWorkflow.includes('workflowName: (.workflowName // .name // .display_title // "")'));
+assert.ok(dailyGateWorkflow.includes('headSha: (.headSha // .head_sha // "")'));
+assert.ok(dailyGateWorkflow.includes('headBranch: (.headBranch // .head_branch // "")'));
+assert.ok(dailyGateWorkflow.includes('updatedAt: (.updatedAt // .updated_at // .completed_at // .started_at // "")'));
+assert.ok(dailyGateWorkflow.includes('if type == "array" then . elif (.workflow_runs | type) == "array" then .workflow_runs else [] end'));
+assert.ok(dailyGateWorkflow.includes("jq -e 'type == \"array\" and all(.[];"));
+assert.ok(dailyGateWorkflow.includes('Ensure exact-SHA required CI is resident'));
+assert.ok(!dailyGateWorkflow.includes('/actions/workflows/$FILE/dispatches'));
+const settlementBlock = dailyGateWorkflow.match(/name: Await required internal CI settlement on exact SHA[\s\S]*?(?=\n\s{6}- name:|$)/)?.[0] ?? '';
+assert.ok(dailyGateWorkflow.includes('REQUIRED_CI_MISSING workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA poll=$poll'));
+assert.ok(!settlementBlock.includes('/dispatches'));
+assert.ok(!dailyGateWorkflow.includes('FILE="\\${REQUIRED_FILES[$WORKFLOW]}"'));
+assert.ok(dailyGateWorkflow.includes('actions/runs?head_sha=$EXECUTION_SHA&per_page=100'));
+assert.ok(dailyGateWorkflow.includes('.head_sha == $sha'));
+assert.ok(!dailyGateWorkflow.includes('gh run list --repo "$GITHUB_REPOSITORY" --workflow'));
+for (const file of [
+  'ci.yml',
+  'wp0-trust-baseline.yml',
+  'test-impact.yml',
+  'test-impact-execution.yml',
+  'repository-security-baseline.yml',
+  'claude-security-review.yml',
+]) {
+  assert.ok(dailyGateWorkflow.includes(file), 'daily gate must know required workflow file: ' + file);
+}
 console.log('CONTINUOUS_ERROR_WATCH_CONTRACT=PASS');
