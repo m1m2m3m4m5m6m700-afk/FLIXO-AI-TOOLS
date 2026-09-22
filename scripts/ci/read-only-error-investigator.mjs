@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { fingerprintFailure, normalizeFailure, extractFeatures } from './auto-repair/fingerprint.mjs';
 import { buildDeepInference } from './read-only-deep-reasoning.mjs';
 import { READ_ONLY_POWER_PROFILE, validateReadOnlyPowerProfile } from './read-only-power-profile.mjs';
+import { buildSharedLearningContext, publishSharedMemory } from './shared-operational-memory.mjs';
 
 const POWER_PROFILE_VALIDATION = validateReadOnlyPowerProfile();
 if (!POWER_PROFILE_VALIDATION.ok) throw new Error('READ_ONLY_POWER_PROFILE_INVALID=' + POWER_PROFILE_VALIDATION.failures.join(','));
@@ -321,6 +322,7 @@ function analyzeSnapshot(input) {
   const securitySignals = observed.filter((item) => item.security);
   const securityFindings = normalizeSecurityAlerts(input.securityFindings);
   const historical = historicalSignals();
+  const sharedLearning = buildSharedLearningContext({ fingerprint: observed.find(item=>item.fingerprint)?.fingerprint??null, botId:'READ-INVESTIGATOR', limit:96 });
   const knownFingerprints = new Set(historical.memoryLessons.map((item) => item.fingerprint).filter(Boolean));
   const recurringKnown = recurringPatterns.map((item) => ({
     ...item,
@@ -391,6 +393,7 @@ function analyzeSnapshot(input) {
     securitySignals,
     securityFindings,
     historicalSignals: historical,
+    sharedOperationalMemory: sharedLearning,
     deepInference: buildDeepInference({
       executionSha: currentSha,
       observed,
@@ -483,6 +486,10 @@ if (import.meta.url === 'file://' + process.argv[1]) {
   const input = inputPath ? readJson(path.resolve(ROOT, inputPath), null) : collectWithGh();
   if (!input || !Array.isArray(input.runs)) throw new Error('INVESTIGATOR_INPUT_RUNS_REQUIRED');
   const report = analyzeSnapshot(input);
+  const publishSha=report.executionSha;
+  try{
+    publishSharedMemory({sourceBot:'READ-INVESTIGATOR',kind:'ERROR',taskId:process.env.FLIXO_AGENT_TASK??('READ-INVESTIGATION:'+publishSha.slice(0,12)),fingerprint:report.observed.find(item=>item.fingerprint)?.fingerprint??null,targetSha:publishSha,claim:'Read-only investigator observed current and historical error patterns for the exact execution SHA.',content:JSON.stringify({summary:report.summary,unknowns:report.unknowns,rootCauseCandidates:report.rootCauseCandidates.slice(0,12),sharedRecordCount:report.sharedOperationalMemory.recordCount}),evidenceRefs:report.observed.slice(0,12).map(item=>item.runId).filter(Boolean),verification:'READ_ONLY_INVESTIGATION',status:'OBSERVED'});
+  }catch(error){console.warn('SHARED_MEMORY_PUBLISH_WARNING='+String(error?.message??error));}
   fs.mkdirSync(path.dirname(output), { recursive: true });
   fs.writeFileSync(output, JSON.stringify(report, null, 2) + '\n', { encoding: 'utf8', flag: 'w' });
   console.log(JSON.stringify({
