@@ -104,6 +104,8 @@ const securityAndCertification = [
   { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success' },
   { id: 102, name: 'Certification', status: 'completed', conclusion: 'success' },
 ];
+
+
 const openPr = { number: 748, headRefOid: SHA_A, baseRefOid: SHA_B };
 
 const securityWorkflowEvidence = evaluateGreen({
