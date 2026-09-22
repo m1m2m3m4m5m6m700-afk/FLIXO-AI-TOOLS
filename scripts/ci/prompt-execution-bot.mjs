@@ -9,6 +9,7 @@ import {
 import { ingest } from './agent-communication.mjs';
 import { runAdversarialCorrectionLoop, assertAdversarialGate } from './prompt-execution-bot-adversary.mjs';
 import { loadExecutionBotTraining, trainingSummary } from './prompt-execution-bot-training.mjs';
+import { validateAdversarialBotCommandRegistry } from './adversarial-bot-commands.mjs';
 
 const ROOT = process.cwd();
 const MAX_INPUT = Math.max(1000, Number(process.env.FLIXO_PROMPT_BOT_MAX_INPUT_CHARS ?? 12000));
@@ -19,7 +20,7 @@ export const CANONICAL_SOURCES = Object.freeze([
   'docs/agents/PROMPT-REGISTRY.json', 'diagnostics/auto-repair/memory.json',
   'docs/agents/PROMPT-UNIFIED-EXECUTION.md', 'scripts/ci/prompt-execution-bot-adversary.mjs',
   'docs/agents/PROMPT-EXECUTION-BOT-ADVERSARY.md', 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json',
-  'docs/agents/ACTION-AGENT-TRIAD.md',
+  'docs/agents/ACTION-AGENT-TRIAD.md', 'docs/agents/ADVERSARIAL-BOT-COMMANDS.json', 'scripts/ci/adversarial-bot-commands.mjs',
 ]);
 const ACTIONS = Object.freeze([
   ['REPAIR', /(repair|fix|heal|resolve|correct|restore|إصلاح|اصلح|أصلح|عالج|حل|تصحيح)/iu],
@@ -73,8 +74,11 @@ function canonicalContext() {
   const prompt = fs.readFileSync(path.resolve(ROOT, 'docs/agents/PROMPT-UNIFIED-EXECUTION.md'), 'utf8');
   const adversary = fs.readFileSync(path.resolve(ROOT, 'scripts/ci/prompt-execution-bot-adversary.mjs'), 'utf8');
   const cooperation = fs.readFileSync(path.resolve(ROOT, 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json'), 'utf8');
+  const adversarialRegistry = JSON.parse(fs.readFileSync(path.resolve(ROOT, 'docs/agents/ADVERSARIAL-BOT-COMMANDS.json'), 'utf8'));
+  const adversarialRegistryValidation = validateAdversarialBotCommandRegistry(adversarialRegistry);
   if (!adversary.includes("ACTION-REPAIR-2") || !adversary.includes("NO_MUTATION_NO_CERTIFICATION")) throw new Error('PROMPT_EXECUTION_BOT_ADVERSARY_CONTRACT_INVALID');
   if (!cooperation.includes('"ACTION-REPAIR-2"') || !cooperation.includes('"mutationAuthority": false')) throw new Error('PROMPT_EXECUTION_BOT_ADVERSARY_AUTHORITY_INVALID');
+  if (!adversarialRegistryValidation.ok || adversarialRegistryValidation.botCount < 4) throw new Error('PROMPT_EXECUTION_BOT_ADVERSARIAL_COMMAND_REGISTRY_INVALID');
   for (const marker of ['RPR-UNIFIED-EXECUTION-001', 'FIRST OBLIGATION', 'Exact-SHA', 'execution → main']) {
     if (!prompt.includes(marker)) throw new Error(`PROMPT_EXECUTION_BOT_PROMPT_MARKER_MISSING=${marker}`);
   }
