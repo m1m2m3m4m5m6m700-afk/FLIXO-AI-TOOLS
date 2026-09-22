@@ -9,6 +9,8 @@ const read = (file) => fs.readFileSync(path.resolve(root, file), 'utf8');
 const exists = (file) => fs.existsSync(path.resolve(root, file));
 
 const expected = {
+  'scripts/ci/cell-lab-consensus.mjs': ['CELL_LAB_PROTOCOL_ID','CELL_LAB_PROTOCOL_VERSION','validateCellLabConsensus','CELL-LAB-COLLABORATIVE-CONSENSUS','CELL_LAB_CONSENSUS_NOT_AGREED','CELL_LAB_EXACT_SHA_MISMATCH'],
+  'scripts/ci/test-cell-lab-consensus.mjs': ['CELL_LAB_CONSENSUS_TEST=PASS','CELL_LAB_REQUIRES_THREE_MASTERS=PASS','CELL_LAB_REQUIRES_DISCUSSION=PASS','CELL_LAB_REQUIRES_AGREEMENT=PASS'],
   'scripts/ci/invocation-contract.mjs': ['buildInvocationIdentity', 'buildInvocationFromMessage', 'assertInvocationCurrent', 'INVOCATION_TRANSITION_FORBIDDEN', 'INVOCATION_STALE_TARGET_SHA', 'INVOCATION_RECOVERY_NOT_ADMISSIBLE', 'supersedeInvocation'],
   'scripts/ci/test-invocation-contract.mjs': ['INVOCATION_CONTRACT_TEST=PASS', 'INVOCATION_IDENTITY=PASS', 'INVOCATION_LIFECYCLE=PASS', 'INVOCATION_SUPERSESSION=PASS', 'INVOCATION_RECOVERY_GATE=PASS'],
   'scripts/ci/agent-coordination.mjs': ['task-create', 'task-claim', 'task-release', 'task-complete', 'visible', 'ingest-handoff', 'COORDINATION_CONFLICT', 'AGENT_VISIBILITY', 'TASK_COMPLETION_REQUIRES_VERIFIED_AGENT_STATUS', 'getAgentMessage', 'COORDINATION_MESSAGE_NOT_READ', 'COORDINATION_MESSAGE_SHA_STALE', 'consumeAgentMessage', 'COORDINATION_WRITE_LOCK', 'COORDINATION_STATE_VERSION_CONFLICT', 'COORDINATION_TRANSACTION_MISMATCH', 'writeJsonAtomic', 'transactionId', 'COORDINATION_MUTATION_BRANCH_BLOCKED', 'HANDOFF_STALE_EXIT_SHA', 'HANDOFF_SCOPE_EXPANSION_BLOCKED', 'COORDINATION_GOVERNANCE_DRIFT', 'STALE_SESSION_KILL_SWITCH', 'AGENT_COORDINATION_FAST_READ_PATH', 'COORDINATION_READ_SHA_STALE', 'COORDINATION_READ_STATE_MISMATCH', 'TASK_OWNER_ROLE_REQUIRED', 'TASK_OWNER_ROLE_MISMATCH', 'TASK_WORK_PACKAGE_REQUIRED', 'TASK_WORK_ITEMS_REQUIRED', 'TASK_PROOF_OBLIGATIONS_REQUIRED'],
@@ -110,7 +112,10 @@ if (exists('docs/agents/ledger/README.md')) {
 const packageJson = exists('package.json') ? JSON.parse(read('package.json')) : { scripts: {} };
 for (const key of ['validate:agent-coordination','agent:coordination','agent:communication','test:agent-communication','validate:code-scout','agent:code-scout','test:council-wake','agent:council-wake']) if (typeof packageJson.scripts?.[key] !== 'string') failures.push(`PACKAGE_SCRIPT_MISSING=${key}`);
 
-const protocolRegistry = exists('docs/PROTOCOL-REGISTRY.json') ? JSON.parse(read('docs/PROTOCOL-REGISTRY.json')) : null;\nif (protocolRegistry) {\n  const p00 = protocolRegistry.protocols?.find((item) => item?.id === 'P00');\n  if (p00?.status !== 'SUPREME_MANDATORY' || p00?.canonicalSource !== 'docs/agents/PROMPT-UNIFIED-EXECUTION.md' || p00?.version !== '4.0.0') failures.push('P00_SUPREME_PROTOCOL_INVALID');\n}\n
+const protocolRegistry = exists('docs/PROTOCOL-REGISTRY.json') ? JSON.parse(read('docs/PROTOCOL-REGISTRY.json')) : null;
+const supremePromptFile = exists('docs/agents/PROMPT-UNIFIED-EXECUTION.md') ? read('docs/agents/PROMPT-UNIFIED-EXECUTION.md') : '';
+if (!supremePromptFile.includes('CELL-LAB')) failures.push('CELL_LAB_CONTRACT_MISSING');
+if (protocolRegistry?.protocols?.find((item) => item.id === 'P20')?.cellLab?.status !== 'MANDATORY') failures.push('CELL_LAB_P20_REGISTRATION_MISSING');\nif (protocolRegistry) {\n  const p00 = protocolRegistry.protocols?.find((item) => item?.id === 'P00');\n  if (p00?.status !== 'SUPREME_MANDATORY' || p00?.canonicalSource !== 'docs/agents/PROMPT-UNIFIED-EXECUTION.md' || p00?.version !== '4.0.0') failures.push('P00_SUPREME_PROTOCOL_INVALID');\n}\n
 if (!protocolRegistry) failures.push('PROTOCOL_REGISTRY_MISSING');
 else {
   const p20 = protocolRegistry.protocols?.find((item) => item?.id === 'P20');
