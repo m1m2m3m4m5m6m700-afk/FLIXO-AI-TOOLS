@@ -279,8 +279,10 @@ execFileSync(process.execPath,['scripts/ci/chair-push-guard.mjs','--proposal='+p
   env:{...process.env,FLIXO_CHAIR_STATE_PATH:process.env.FLIXO_CHAIR_STATE_PATH,FLIXO_GUARD_REMOTE_SHA:realGitSha,FLIXO_CHAIR_SIGNING_KEY:'test-chair-signing-key'}
 });
 const guardReport=JSON.parse(fs.readFileSync(guardOut,'utf8'));
-assert.equal(guardReport.decision,'REJECTED');
-assert.equal(guardReport.reasonCode,'CHAIR1_ACTIVE_CONFLICT');
+assert.equal(guardReport.validationStatus,'FAIL');
+assert.equal(guardReport.readyForController,false);
+assert.equal(guardReport.decision,null);
+assert(guardReport.failedChecks.includes('CHAIR1_ACTIVE_CONDITION'));
 assert.equal(fs.readFileSync(guardMem,'utf8').trim().length>0,true);
 const finalState=JSON.parse(fs.readFileSync(process.env.FLIXO_CHAIR_STATE_PATH,'utf8'));
 assert.equal(finalState.rejected_push_memory.at(-1).proposalId,pushProposal.proposalId);

@@ -1,65 +1,46 @@
-# FLIXO — SHARED OPERATIONAL MEMORY CONTRACT
+# FLIXO Shared Operational Memory Contract
 
-Contract ID: CELL-SHARED-OPERATIONAL-MEMORY-001
-Version: 1.0.0
-Status: MANDATORY
-Scope: 200 CELL Bots + Master Council + registered agents
+## Identity
 
-## Canonical memory
+CELL-SHARED-OPERATIONAL-MEMORY-001
 
-Path: `diagnostics/auto-repair/cell-knowledge/index.json`
+This is the canonical descriptive contract for the 200-cell-bot operational knowledge index referenced by P21. The runtime source of truth is `diagnostics/auto-repair/cell-knowledge/index.json`.
 
-`CELL_KNOWLEDGE_INDEX` is the single canonical operational learning index for the cell.
+## Authority
 
-Personal Bot memory may exist for local continuity, but it is not the canonical shared memory.
+CELL_KNOWLEDGE_INDEX
 
-## Required learning lifecycle
+Shared memory is reusable information only. It never grants mutation, certification, permission, command, merge, or policy-override authority.
 
-`OBSERVE → CAPTURE → RCA → EVIDENCE → VALIDATE → MASTER_REVIEW → MEMORY_COMMIT → PUBLISH → CELL_BROADCAST → BOT_SYNC → REUSE → REASSESS`
+## Publication
 
-## Publication gate
+CELL_MEMORY_UPDATED
 
-Learning becomes cell-wide knowledge only when the record is validated, bound to provenance and Exact-SHA, and published through the canonical shared memory path.
+A memory record may be published only after validation, provenance, and exact-SHA binding. Unproven learning remains local/provisional and may not be promoted.
 
-Unproven learning must not enter the published shared memory.
+## Versioning
+
+memoryVersion is monotonically assigned to published knowledge. A source-SHA change invalidates immediate reuse until the record is requalified.
+
+## Conflict handling
+
+MEMORY_CONFLICT
+
+Conflicting knowledge remains visible and blocking until current exact-SHA evidence resolves the conflict. Historical success cannot override fresh contrary evidence.
 
 ## Distribution
 
-The contract applies to all 200 CELL bots.
+The canonical index is synced to the 200-cell-bot pool with explicit states:
 
-Every published learning record receives a canonical memory version. Bots track whether they are `CURRENT`, `SYNC_PENDING`, `STALE`, or `SYNC_FAILED`.
+- CURRENT
+- SYNC_PENDING
+- STALE
+- SYNC_FAILED
 
-Any Bot that is behind the canonical memory version must synchronize before relying on newly published knowledge.
+Every sync record preserves source SHA, memory version, provenance, and publication state.
 
-## Integrity
+## Safety boundary
 
-Published knowledge requires content integrity, source provenance and an auditable publication event.
+knowledge does not grant authority.
 
-If knowledge conflicts, the Bot must not choose arbitrarily. The conflict is routed through Master-2 and Master-3 and then Master-1 for operational resolution.
-
-## Invalidation
-
-Source SHA change, failed reuse, or a formal challenge causes revalidation before continued reuse.
-
-Historical knowledge is not current GREEN evidence.
-
-## Authority boundary
-
-Shared knowledge never grants mutation authority, certification authority, permission escalation or command authority.
-
-## Bot obligation
-
-Every Bot must:
-
-1. Search the canonical shared memory when relevant before rediscovering a known failure.
-2. Publish validated generalizable learning through the canonical path.
-3. Synchronize to the latest canonical memory version.
-4. Verify provenance and integrity before reuse.
-5. Record reuse outcomes and new feedback.
-6. Challenge incorrect knowledge rather than silently overwriting it.
-
-## Cell law
-
-**LEARN ONCE → VALIDATE ONCE → PUBLISH ONCE → MAKE AVAILABLE TO ALL 200 → REUSE → FEEDBACK → REASSESS**
-
-**KNOWLEDGE IS SHARED; AUTHORITY REMAINS CONTROLLED.**
+Exact-SHA evidence, Control Plane admission, Repair Protocol mutation gates, regression evidence, and Canonical GREEN remain authoritative.
