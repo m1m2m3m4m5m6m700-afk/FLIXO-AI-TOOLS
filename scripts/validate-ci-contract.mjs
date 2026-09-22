@@ -3,8 +3,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 const workflowDir = '.github/workflows';
 const packageSource = readFileSync('package.json', 'utf8');
-const scriptsBlock = packageSource.match(/"scripts"\\s*:\\s*\\{([\\s\\S]*?)\\n\\s*\\},\\n\\s*"dependencies"/u)?.[1] ?? '';
-const scriptKeys = [...scriptsBlock.matchAll(/^\\s*"([^"\\n]+)"\\s*:/gmu)].map((match) => match[1]);
+const scriptsBlock = packageSource.match(/"scripts"\s*:\s*\{([\s\S]*?)\n\s*\},\n\s*"dependencies"/u)?.[1] ?? '';
+const scriptKeys = [...scriptsBlock.matchAll(/^\s*"([^"\n]+)"\s*:/gmu)].map((match) => match[1]);
 const duplicateScriptKeys = [...new Set(scriptKeys.filter((key, index) => scriptKeys.indexOf(key) !== index))];
 if (duplicateScriptKeys.length) {
   console.error('CI contract failed: duplicate package.json script keys=' + duplicateScriptKeys.join(','));
