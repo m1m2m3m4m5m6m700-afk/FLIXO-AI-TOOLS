@@ -22,6 +22,8 @@ assert.match(supersession, /CANCEL_STALE_RUN/u);
 assert.doesNotMatch(supersession, /KEEP_IN_PROGRESS_STALE/u);
 assert.match(supersession, /Repair/u);
 assert.match(supersession, /actions\/runs\?branch=\$BRANCH/u);
+assert.match(supersession, /flixo-latest-commit-supersession-\$\{\{ github\.repository \}\}/u);
+assert.doesNotMatch(supersession, /github\.event_name.*flixo-latest-commit-supersession/u);
 
 assert.match(createIdentity, /LATEST_COMMIT_ONLY_RERUN_LOCK_V2/u);
 assert.match(createIdentity, /testDefinitionSha256/u);
