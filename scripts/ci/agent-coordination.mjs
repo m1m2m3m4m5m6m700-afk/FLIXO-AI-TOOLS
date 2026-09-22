@@ -531,7 +531,7 @@ if (command === 'task-next') {
       dispatchId: `TASK-NEXT:${completedTaskId ?? 'IDLE'}:${sha()}:${task.taskId}`,
       completedTaskId,
       nextTaskId: task.taskId,
-      recipient: task.ownerAgent ?? 'assistantController',
+      recipient: task.ownerAgent ?? optional('agent', 'assistantController'),
       sourceOfTruth: 'المهام.md',
       ledgerLine: ledgerTask.line,
       ledgerStatus: ledgerTask.status,
