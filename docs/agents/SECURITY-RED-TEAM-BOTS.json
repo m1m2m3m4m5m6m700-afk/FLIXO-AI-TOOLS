@@ -17,33 +17,74 @@
     "greenAuthority": false,
     "autoCloseAuthority": false,
     "evidenceOutput": "workflow-artifact",
-    "sourceLedgerMutation": false
+    "sourceLedgerMutation": false,
+    "isolation": {
+      "mode": "EPHEMERAL_RUNNER_PER_BOT",
+      "workflowTrigger": "MANUAL_DISPATCH_ONLY",
+      "repositoryAccess": "CONTENTS_READ_ONLY",
+      "sourceMutation": false,
+      "ledgerMutation": false,
+      "peerWake": false,
+      "sharedWorkspace": false,
+      "evidence": "ARTIFACT_ONLY"
+    }
   },
   "repairIntelligence": {
     "enabled": true,
     "entry": "scripts/ci/adversarial-repair-twin.mjs",
     "authority": "READ_ONLY_ADVISORY",
     "mutationAuthority": false,
-    "variants": ["A", "B"],
+    "variants": [
+      "A",
+      "B"
+    ],
     "counterexampleBlocksAcceptance": true
   },
   "bots": {
     "SECURITY-REDTEAM-1": {
       "agentId": "securityRedTeamControlPlane",
       "role": "SECURITY_CONTROL_PLANE_RED_TEAM",
-      "focus": ["GitHub Actions", "OIDC", "permissions", "workflow triggers", "supply-chain", "agent control plane", "exact-SHA", "branch safety"],
+      "focus": [
+        "GitHub Actions",
+        "OIDC",
+        "permissions",
+        "workflow triggers",
+        "supply-chain",
+        "agent control plane",
+        "exact-SHA",
+        "branch safety"
+      ],
       "mutationAuthority": false
     },
     "SECURITY-REDTEAM-2": {
       "agentId": "securityRedTeamApplication",
       "role": "APPLICATION_CODE_RED_TEAM",
-      "focus": ["injection", "DOM", "dynamic code", "network boundaries", "secrets", "storage", "external resources", "dependency execution"],
+      "focus": [
+        "injection",
+        "DOM",
+        "dynamic code",
+        "network boundaries",
+        "secrets",
+        "storage",
+        "external resources",
+        "dependency execution"
+      ],
       "mutationAuthority": false
     },
     "SECURITY-REDTEAM-3": {
       "agentId": "securityRedTeamRuntime",
       "role": "RUNTIME_DATA_BOUNDARY_RED_TEAM",
-      "focus": ["uploads", "redirects", "CORS", "cookies", "postMessage", "worker boundaries", "SSR/client secrets", "runtime trust boundaries", "privacy"],
+      "focus": [
+        "uploads",
+        "redirects",
+        "CORS",
+        "cookies",
+        "postMessage",
+        "worker boundaries",
+        "SSR/client secrets",
+        "runtime trust boundaries",
+        "privacy"
+      ],
       "mutationAuthority": false
     }
   },
