@@ -1,31 +1,31 @@
 #!/usr/bin/env node
 export const READ_ONLY_POWER_PROFILE = Object.freeze({
   protocol: 'FLIXO-READ-ONLY-POWER-PROFILE-v1',
-  profile: '5X',
-  multiplier: 5,
+  profile: '10X',
+  multiplier: 10,
   authority: 'READ_ONLY',
   mutationAuthority: false,
   exactShaRequired: true,
   dimensions: Object.freeze({
-    runtimeEvidence: 5,
-    sourceSurface: 5,
-    historicalDepth: 5,
-    adversarialChallenge: 5,
-    knowledgeSynthesis: 5,
+    runtimeEvidence: 10,
+    sourceSurface: 10,
+    historicalDepth: 10,
+    adversarialChallenge: 10,
+    knowledgeSynthesis: 10,
   }),
   budgets: Object.freeze({
-    investigatorRunLimit: 400,
-    investigatorMaxLogs: 175,
-    vaultQueryTerms: 240,
-    vaultAdviceMatches: 160,
-    programmerTwinTrackedFiles: 6000,
-    programmerTwinDefinitions: 600,
-    programmerTwinCallersPerSymbol: 250,
-    programmerTwinCalleesPerFunction: 250,
-    programmerTwinEvidencePerSearch: 300,
-    salientSignals: 150,
-    recurringPatterns: 100,
-    hypotheses: 45,
+    investigatorRunLimit: 800,
+    investigatorMaxLogs: 350,
+    vaultQueryTerms: 480,
+    vaultAdviceMatches: 320,
+    programmerTwinTrackedFiles: 12000,
+    programmerTwinDefinitions: 1200,
+    programmerTwinCallersPerSymbol: 500,
+    programmerTwinCalleesPerFunction: 500,
+    programmerTwinEvidencePerSearch: 600,
+    salientSignals: 300,
+    recurringPatterns: 200,
+    hypotheses: 120,
   }),
   layers: Object.freeze([
     'RUNTIME_EVIDENCE_FANOUT',
@@ -43,60 +43,74 @@ export const READ_ONLY_POWER_PROFILE = Object.freeze({
     'EXACT_SHA_BOUND',
   ]),
   execution: Object.freeze({
-    protocol: 'FLIXO-FIVE-X-EXECUTION-LAYER-v1',
+    protocol: 'FLIXO-TEN-X-EXECUTION-LAYER-v1',
     status: 'ENFORCED_EXTENSION_OF_CANONICAL_POWER_PROFILE',
     layers: Object.freeze([
-      'PROMPT_UNDERSTANDING_5X',
-      'CONSTRAINT_REASONING_5X',
-      'RCA_HYPOTHESIS_5X',
-      'ADVERSARIAL_VERIFICATION_5X',
-      'LEARNING_CONTINUITY_5X',
+      'PROMPT_UNDERSTANDING_10X',
+      'CONSTRAINT_REASONING_10X',
+      'INTENT_AND_SCOPE_REASONING_10X',
+      'RCA_HYPOTHESIS_10X',
+      'CAUSAL_GRAPH_PROOF_10X',
+      'ADVERSARIAL_VERIFICATION_10X',
+      'REGRESSION_DEPTH_10X',
+      'SECURITY_AND_INTEGRITY_10X',
+      'COORDINATION_AND_HANDOFF_10X',
+      'LEARNING_CONTINUITY_10X',
     ]),
-    layerCount: 5,
+    layerCount: 10,
     requiredEvidenceClasses: Object.freeze([
       'IDENTITY',
       'CONSTRAINTS',
       'CAUSALITY',
       'FALSIFICATION',
       'REGRESSION',
+      'DEPENDENCIES',
+      'SECURITY',
+      'REPRODUCIBILITY',
+      'COORDINATION',
+      'LEARNING',
     ]),
-    requiredEvidenceClassCount: 5,
-    minimumHypotheses: 3,
-    maximumHypotheses: 5,
-    minimumCounterexampleChecks: 5,
-    minimumRegressionDepth: 3,
-    minimumIndependentEvidenceSources: 5,
-    minimumLearningOutputs: 5,
+    requiredEvidenceClassCount: 10,
+    minimumHypotheses: 6,
+    maximumHypotheses: 12,
+    minimumCounterexampleChecks: 10,
+    minimumRegressionDepth: 5,
+    minimumIndependentEvidenceSources: 8,
+    minimumLearningOutputs: 8,
     dispatchRequirements: Object.freeze([
       'CURRENT_EXACT_EXECUTION_SHA',
       'EXECUTION_BRANCH',
-      'PRE_EXECUTION_25_PASS',
-      'ADVERSARIAL_FALSIFICATION',
+      'PRE_EXECUTION_50_PASS',
+      'ADVERSARIAL_FALSIFICATION_10X',
       'NO_SCOPE_CONFLICT',
       'CURRENT_SHA_RECHECK_BEFORE_DISPATCH',
+      'GUARD_HANDOFF_BOUND',
+      'MASTER_REPAIR_BOUND',
+      'MEMORY_CONSISTENCY_BOUND',
+      'CANONICAL_GREEN_FOR_CLOSURE',
     ]),
   }),
 });
 
 
-export function validateFiveXExecutionLayer(execution = READ_ONLY_POWER_PROFILE.execution) {
+export function validateTenXExecutionLayer(execution = READ_ONLY_POWER_PROFILE.execution) {
   const failures = [];
-  if (execution?.protocol !== 'FLIXO-FIVE-X-EXECUTION-LAYER-v1') failures.push('FIVE_X_PROTOCOL_INVALID');
+  if (execution?.protocol !== 'FLIXO-TEN-X-EXECUTION-LAYER-v1') failures.push('FIVE_X_PROTOCOL_INVALID');
   if (execution?.status !== 'ENFORCED_EXTENSION_OF_CANONICAL_POWER_PROFILE') failures.push('FIVE_X_STATUS_INVALID');
-  if (!Array.isArray(execution?.layers) || execution.layers.length !== 5) failures.push('FIVE_X_LAYERS_INVALID');
-  if (execution?.layerCount !== 5) failures.push('FIVE_X_LAYER_COUNT_INVALID');
-  if (!Array.isArray(execution?.requiredEvidenceClasses) || execution.requiredEvidenceClasses.length !== 5) failures.push('FIVE_X_EVIDENCE_CLASSES_INVALID');
-  if (execution?.requiredEvidenceClassCount !== 5) failures.push('FIVE_X_EVIDENCE_CLASS_COUNT_INVALID');
-  if (Number(execution?.minimumHypotheses) < 3 || Number(execution?.maximumHypotheses) < Number(execution?.minimumHypotheses)) failures.push('FIVE_X_HYPOTHESIS_RANGE_INVALID');
-  if (Number(execution?.minimumCounterexampleChecks) < 5) failures.push('FIVE_X_COUNTEREXAMPLE_DEPTH_INVALID');
-  if (Number(execution?.minimumRegressionDepth) < 3) failures.push('FIVE_X_REGRESSION_DEPTH_INVALID');
-  if (Number(execution?.minimumIndependentEvidenceSources) < 5) failures.push('FIVE_X_EVIDENCE_DIVERSITY_INVALID');
-  if (Number(execution?.minimumLearningOutputs) < 5) failures.push('FIVE_X_LEARNING_OUTPUT_INVALID');
+  if (!Array.isArray(execution?.layers) || execution.layers.length !== 10) failures.push('FIVE_X_LAYERS_INVALID');
+  if (execution?.layerCount !== 10) failures.push('FIVE_X_LAYER_COUNT_INVALID');
+  if (!Array.isArray(execution?.requiredEvidenceClasses) || execution.requiredEvidenceClasses.length !== 10) failures.push('FIVE_X_EVIDENCE_CLASSES_INVALID');
+  if (execution?.requiredEvidenceClassCount !== 10) failures.push('FIVE_X_EVIDENCE_CLASS_COUNT_INVALID');
+  if (Number(execution?.minimumHypotheses) < 6 || Number(execution?.maximumHypotheses) < Number(execution?.minimumHypotheses)) failures.push('FIVE_X_HYPOTHESIS_RANGE_INVALID');
+  if (Number(execution?.minimumCounterexampleChecks) < 10) failures.push('FIVE_X_COUNTEREXAMPLE_DEPTH_INVALID');
+  if (Number(execution?.minimumRegressionDepth) < 5) failures.push('FIVE_X_REGRESSION_DEPTH_INVALID');
+  if (Number(execution?.minimumIndependentEvidenceSources) < 8) failures.push('FIVE_X_EVIDENCE_DIVERSITY_INVALID');
+  if (Number(execution?.minimumLearningOutputs) < 8) failures.push('FIVE_X_LEARNING_OUTPUT_INVALID');
   if (!Array.isArray(execution?.dispatchRequirements) || execution.dispatchRequirements.length < 6) failures.push('FIVE_X_DISPATCH_REQUIREMENTS_INVALID');
   return Object.freeze({ ok: failures.length === 0, failures });
 }
 
-export function buildFiveXExecutionEnvelope({
+export function buildTenXExecutionEnvelope({
   exactSha,
   branch,
   selectedTaskId = null,
@@ -129,7 +143,7 @@ export function buildFiveXExecutionEnvelope({
     evidenceDiversity: Number(independentEvidenceSources) >= execution.minimumIndependentEvidenceSources,
     learningOutputs: Number(learningOutputs) >= execution.minimumLearningOutputs,
     proofClasses: proofComplete,
-    preExecution25: preExecution25?.status === 'PASS' && Number(preExecution25?.operationCount) >= 25,
+    preExecution25: preExecution25?.status === 'PASS' && Number(preExecution25?.operationCount) >= 50,
     adversarial: adversarialClean,
     scopeConflict: scopeConflict === false,
   });
@@ -151,13 +165,15 @@ export function buildFiveXExecutionEnvelope({
       learningOutputs: execution.minimumLearningOutputs,
     },
     authority: READ_ONLY_POWER_PROFILE.authority,
+    powerProfile: '10X',
+    powerMultiplier: 10,
     mutationAuthority: false,
     certificationAuthority: false,
   });
 }
 
 
-export function buildFiveXRepairCycleState({
+export function buildTenXRepairCycleState({
   phase = 'PRE_MUTATION',
   chainId = null,
   taskId = null,
@@ -243,6 +259,8 @@ export function buildFiveXRepairCycleState({
   ]).has(state);
   return Object.freeze({
     protocol: 'FLIXO-FIVE-X-REPAIR-CYCLE-v1',
+    powerProfile: '10X',
+    powerMultiplier: 10,
     phase: String(phase),
     chainId: String(chainId ?? ''),
     taskId: String(taskId ?? ''),
@@ -275,16 +293,20 @@ export function buildFiveXRepairCycleState({
   });
 }
 
+export const validateFiveXExecutionLayer = validateTenXExecutionLayer;
+export const buildFiveXExecutionEnvelope = buildTenXExecutionEnvelope;
+export const buildFiveXRepairCycleState = buildTenXRepairCycleState;
+
 export function validateReadOnlyPowerProfile(profile = READ_ONLY_POWER_PROFILE) {
   const failures = [];
-  if (profile?.profile !== '5X') failures.push('PROFILE_NOT_5X');
-  if (profile?.multiplier !== 5) failures.push('MULTIPLIER_NOT_5');
+  if (profile?.profile !== '10X') failures.push('PROFILE_NOT_5X');
+  if (profile?.multiplier !== 10) failures.push('MULTIPLIER_NOT_5');
   if (profile?.authority !== 'READ_ONLY') failures.push('AUTHORITY_NOT_READ_ONLY');
   if (profile?.mutationAuthority !== false) failures.push('MUTATION_AUTHORITY_LEAK');
   if (profile?.exactShaRequired !== true) failures.push('EXACT_SHA_REQUIREMENT_MISSING');
-  if (!Array.isArray(profile?.layers) || profile.layers.length !== 5) failures.push('FIVE_LAYERS_REQUIRED');
+  if (!Array.isArray(profile?.layers) || profile.layers.length !== 10) failures.push('TEN_LAYERS_REQUIRED');
   for (const [key, value] of Object.entries(profile?.dimensions ?? {})) {
-    if (value !== 5) failures.push('DIMENSION_NOT_5=' + key);
+    if (value !== 10) failures.push('DIMENSION_NOT_5=' + key);
   }
   for (const rule of profile?.safety ?? []) {
     if (!String(rule).startsWith('NO_') && rule !== 'EXACT_SHA_BOUND') failures.push('UNRECOGNIZED_SAFETY_RULE=' + rule);
