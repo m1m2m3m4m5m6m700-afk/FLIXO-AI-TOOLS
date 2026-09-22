@@ -41,6 +41,9 @@ const diagnosis = {
     { id: 'lease-race', score: 0.96, evidenceLines: ['chair lease write collided'] },
     { id: 'stale-state', score: 0.55, evidenceLines: ['state may be stale'] },
     { id: 'io-ordering', score: 0.42, evidenceLines: ['write ordering is relevant'] },
+    { id: 'workflow-ordering', score: 0.35, evidenceLines: ['workflow sequence can alter state'] },
+    { id: 'stale-memory', score: 0.30, evidenceLines: ['historical state may be stale'] },
+    { id: 'coordination-drift', score: 0.25, evidenceLines: ['agent handoff may be inconsistent'] },
   ],
   location: { file: 'src/test.ts', line: 1, column: 1 },
   repairHypothesis: { violatedInvariant: 'Chair 1 lease transition is exclusive and atomic.' },
@@ -58,7 +61,7 @@ const manifest = buildRcaManifest({
 });
 assert.equal(manifest.protocol, 'FLIXO-IN-REPO-REPAIR-V2');
 assert.equal(manifest.cycle, 1);
-assert.equal(manifest.root_cause_analysis.alternative_hypotheses.length, 3);
+assert.equal(manifest.root_cause_analysis.alternative_hypotheses.length, 6);
 assert.equal(manifest.proposed_fix.isolation_level, 'SURGICAL_PATCH');
 assert.equal(validateRcaManifest(manifest, { currentSha: sha }).status, 'PASS');
 assert.equal(enforceMutationScope({ manifest, changedPaths: ['src/test.ts'] }).status, 'PASS');
