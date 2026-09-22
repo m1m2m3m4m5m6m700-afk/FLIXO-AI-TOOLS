@@ -22,7 +22,7 @@ A new agent session consumes the predecessor handoff before executing inherited 
 
 ## Safe completion
 
-A task cannot become `DONE` while `remainingWork` or `openRcas` exist. A session cannot logout as `VERIFIED` while failed work, remaining work or open RCAs exist.
+A task cannot become `DONE` while `remainingWork` or `openRcas` exist. A session cannot logout as `VERIFIED` while failed work, remaining work or open RCAs exist. In addition, `scripts/ci/agent-exit-lock.mjs` MUST prove canonical GREEN on the exact current SHA before closure. A failed exit attempt remains `OPEN/RUNNING`, records `EXIT_LOCK_BLOCKED`, and returns the work to recovery.
 
 ## Evidence
 
