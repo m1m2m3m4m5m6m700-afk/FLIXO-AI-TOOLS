@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "flixo://schemas/in-repo-repair-v2.schema.json",
+  "title": "FLIXO In-Repo Repair Engine v2 RCA Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion","protocol","failure_signature","target_sha","cycle","root_cause_analysis","proposed_fix","evidence","convergence","deterministic_proof"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "protocol": {"const": "FLIXO-IN-REPO-REPAIR-V2"},
+    "failure_signature": {"type": "string", "minLength": 3},
+    "target_sha": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "cycle": {"type": "integer", "minimum": 1, "maximum": 3},
+    "root_cause_analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary_cause","alternative_hypotheses","affected_boundaries","invariant_violated","causal_chain"],
+      "properties": {
+        "primary_cause": {"type": "string", "minLength": 1},
+        "alternative_hypotheses": {"type": "array", "minItems": 3, "maxItems": 3},
+        "affected_boundaries": {"type": "array", "minItems": 1, "maxItems": 1},
+        "invariant_violated": {"type": "string", "minLength": 1},
+        "causal_chain": {"type": "array", "minItems": 6}
+      }
+    },
+    "proposed_fix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy","isolation_level","scope"],
+      "properties": {
+        "strategy": {"type": "string", "minLength": 1},
+        "isolation_level": {"const": "SURGICAL_PATCH"},
+        "scope": {
+          "type": "object",
+          "required": ["max_source_files"],
+          "properties": {"max_source_files": {"const": 1}}
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exact_sha","direct_failure_signal","non_ambiguous","evidence_digest"],
+      "properties": {
+        "exact_sha": {"const": true},
+        "direct_failure_signal": {"const": true},
+        "non_ambiguous": {"const": true},
+        "evidence_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "convergence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["search_space_strategy","max_cycles","prior_counterexample_required_after_cycle_1"],
+      "properties": {
+        "search_space_strategy": {"const": "EVIDENCE_BOUNDED"},
+        "max_cycles": {"const": 3},
+        "prior_counterexample_required_after_cycle_1": {"const": true},
+        "prior_counterexample_digest": {"type": ["string","null"]}
+      }
+    },
+    "deterministic_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status","formula"],
+      "properties": {
+        "status": {"enum": ["PRE_MUTATION_BOUNDED","BLOCKED"]},
+        "formula": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
