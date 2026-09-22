@@ -191,7 +191,7 @@ const canonicalTestBlock = watchdogStepBlock(executionWatchdogWorkflow, 'Ensure 
 const canonicalTestMarkers = [
   'name: Ensure canonical Test System exists for exact SHA without duplicate dispatch',
   'EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"',
-  'gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution',
+  'gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/dispatches" -f ref=execution',
   'actions/runs?head_sha=$EXECUTION_SHA&per_page=100',
   'path == ".github/workflows/ci.yml"',
   '.head_sha == $sha',

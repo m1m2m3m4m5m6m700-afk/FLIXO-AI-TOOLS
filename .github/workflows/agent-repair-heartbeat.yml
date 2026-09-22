@@ -120,7 +120,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution -f resident=true
+          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/auto-repair.yml/dispatches" -f ref=execution -f "inputs[resident]=true"
           echo 'AUTOMATIC_REPAIR_BOT_RESIDENCY_WAKE=true'
           echo 'RESIDENT_MODE_IS_OBSERVATION_ONLY=true'
           echo 'REPAIR_MUTATION_AUTHORITY_REMAINS_AUTO_REPAIR_CANONICAL_RUN=true'
@@ -132,7 +132,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh workflow run daily-flixo-green-gate.yml --repo "$GITHUB_REPOSITORY" --ref main
+          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/daily-flixo-green-gate.yml/dispatches" -f ref=main
           echo 'AUTOMATIC_GREEN_GATE_WAKE=true'
           echo 'HUMAN_MANUAL_REPAIR_LAUNCH=false'
           echo 'REPAIR_DISPATCH_REMAINS_CANONICAL_GREEN_GATE_AUTHORITY=true'
@@ -143,6 +143,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh workflow run agent-repair-supervisor.yml --repo "$GITHUB_REPOSITORY" --ref execution
+          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/agent-repair-supervisor.yml/dispatches" -f ref=execution
           echo 'AUTOMATIC_REPAIR_SUPERVISOR_WAKE=true'
           echo 'SUPERVISOR_REMAINS_OBSERVER_ONLY=true'

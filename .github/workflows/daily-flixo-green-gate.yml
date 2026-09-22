@@ -132,7 +132,7 @@ jobs:
                     echo "STALE_GREEN_GATE_DISPATCH_BLOCKED captured=$EXECUTION_SHA live=$LIVE_EXECUTION_SHA"
                     exit 1
                   fi
-                  gh workflow run "$FILE" --repo "$GITHUB_REPOSITORY" --ref execution
+                  gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/$FILE/dispatches" -f ref=execution
                   RESIDENT_DISPATCHED[$WORKFLOW]=1
                   echo "REQUIRED_CI_DISPATCHED workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA"
                 else
@@ -451,13 +451,14 @@ jobs:
           esac
 
           if [ "$DISPATCH" = true ]; then
-            gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution \
-              -f "target_run_id=$TARGET_RUN_ID" \
-              -f "chain_id=$REPAIR_CHAIN_ID" \
-              -f "failure_fingerprint=$FAILURE_FINGERPRINT" \
-              -f "repair_lease_ref=$LEASE_REF" \
-              -f "repair_lease_attempt=$ATTEMPT" \
-              -f "prompt_source_run_id=$GITHUB_RUN_ID"
+            gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/auto-repair.yml/dispatches" \
+              -f ref=execution \
+              -f "inputs[target_run_id]=$TARGET_RUN_ID" \
+              -f "inputs[chain_id]=$REPAIR_CHAIN_ID" \
+              -f "inputs[failure_fingerprint]=$FAILURE_FINGERPRINT" \
+              -f "inputs[repair_lease_ref]=$LEASE_REF" \
+              -f "inputs[repair_lease_attempt]=$ATTEMPT" \
+              -f "inputs[prompt_source_run_id]=$GITHUB_RUN_ID"
             echo "REPAIR_LEASE_DISPATCHED=true"
             echo "REPAIR_DISPATCH_TARGET=$TARGET_RUN_ID"
             echo "REPAIR_CHAIN_ID=$REPAIR_CHAIN_ID"
