@@ -27,7 +27,6 @@ const rawFromSession = String(args.get('from-session') ?? process.env.FLIXO_AGEN
 const rawMessageFile = String(args.get('message-file') ?? process.env.FLIXO_AGENT_MESSAGE_FILE ?? '').trim() || null;
 const rawMessageId = String(args.get('message-id') ?? process.env.FLIXO_AGENT_MESSAGE_ID ?? '').trim() || null;
 const meetingId = String(args.get('meeting-id') ?? process.env.FLIXO_AGENT_MEETING_ID ?? '').trim() || null;
-const requestedChairId = String(args.get('chair') ?? process.env.FLIXO_AGENT_CHAIR ?? '').trim() || null;
 const meetingRequested = String(args.get('meeting') ?? process.env.FLIXO_AGENT_MEETING ?? 'false').trim() === 'true' || Boolean(meetingId);
 const messageExecutionAdmitted = String(args.get('message-execution-admitted') ?? process.env.FLIXO_AGENT_MESSAGE_EXECUTION_ADMITTED ?? 'false').trim() === 'true';
 const safeSessionId = (value, label) => {
@@ -136,7 +135,7 @@ const ensureSessionWorkChair = (record) => {
   process.env.FLIXO_CHAIR_SIGNING_KEY = chairSigningKey;
   initializeChairState({ targetSha });
   const coordinationChair = readCoordinationChairBinding(record.sessionId, record.agentId, record.taskId);
-  const effectiveChairId = coordinationChair?.chairId ?? requestedChairId ?? 'chair_1';
+  const effectiveChairId = coordinationChair?.chairId ?? 'chair_1';
   const admission = beginChairWork({
     agentId: record.agentId,
     targetSha,
