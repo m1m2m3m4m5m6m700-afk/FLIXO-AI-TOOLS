@@ -1152,7 +1152,7 @@ BASHENV
 
       - name: Execute adversarial repair convergence until both sides stabilize
         id: execute_repair
-        if: steps.master_repair.outcome == 'success' && steps.strategy.outcome == 'success' && steps.install_target.outcome == 'success'
+        if: steps.master_repair.outcome == 'success' && steps.strategy.outcome == 'success' && steps.repair_v2.outcome == 'success'
         env:
           FLIXO_TARGET_DIR: ${{ github.workspace }}
           FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
