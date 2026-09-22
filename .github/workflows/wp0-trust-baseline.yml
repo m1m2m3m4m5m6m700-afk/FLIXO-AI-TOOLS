@@ -1,9 +1,8 @@
 name: FLIXO WP0 Trust Baseline
 
 on:
-  pull_request:
-    branches: [main]
-  # Every push to execution starts the canonical test run; a newer push cancels older tests for this branch.
+  # One canonical push-triggered verification is sufficient for each exact execution SHA.
+  # PRs consume the same check-runs from that head commit; avoid duplicate heavy execution.
   push:
     branches: [main, execution]
   workflow_dispatch:
