@@ -192,63 +192,42 @@ assert.throws(
   /CHAIR_NOT_OCCUPIED|UNAUTHORIZED_EXECUTION_ATTEMPT/
 );
 assert.throws(()=>assertWorkAdmission({agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha,chairId:'chair_1',taskId:'AUTO-REPAIR-TASK'}),/AGENT_WORK_REQUIRES_CHAIR/);
-const master3Admission=beginWork({
-  agentId:'MASTER-3',
-  role:'MASTER-3',
-  requestedChairId:'chair_1',
-  targetSha:realGitSha,
-  repositoryState:'ACTIVE',
-  taskId:'MASTER-3-TASK',
-  workPackageId:'MASTER-3-WP'
-});
-assert.equal(master3Admission.chairId,'chair_1');
-assert.equal(master3Admission.preemptedAgentId,'MASTER-2');
-
-const master2Continuity=preemptedContinuityForAgent({agentId:'MASTER-2',targetSha:realGitSha,taskId:'MASTER-2-TASK'});
-assert.equal(master2Continuity.canContinueTask,true);
-assert.equal(master2Continuity.canMutateAfterPreemption,false);
-assert.equal(master2Continuity.handoffTo,'CHAIR_1_GUARD');
-
-const ordinaryTakeover=beginWork({
-  agentId:'ordinary-worker',
+const delegationAnchor=beginWork({
+  agentId:'delegation-anchor',
   role:'worker',
-  requestedChairId:'chair_1',
   targetSha:realGitSha,
-  repositoryState:'ACTIVE',
-  taskId:'ORDINARY-TAKEOVER-TASK',
-  workPackageId:'ORDINARY-TAKEOVER-WP'
+  repositoryState:'IDLE',
+  taskId:'DELEGATION-ANCHOR-TASK',
+  workPackageId:'DELEGATION-ANCHOR-WP'
 });
-assert.equal(ordinaryTakeover.chairId,'chair_1');
-assert.equal(ordinaryTakeover.preemptedAgentId,'MASTER-3');
-const master2AfterOrdinaryTakeover=preemptedContinuityForAgent({
-  agentId:'MASTER-2',
-  targetSha:realGitSha,
-  taskId:'MASTER-2-TASK'
-});
-assert.equal(master2AfterOrdinaryTakeover.canContinueTask,true);
-assert.equal(master2AfterOrdinaryTakeover.canMutateAfterPreemption,false);
-assert.equal(master2AfterOrdinaryTakeover.handoffTo,'CHAIR_1_GUARD');
-assert.deepEqual(
-  assertWorkAdmission({agentId:'MASTER-2',targetSha:realGitSha,chairId:'chair_1',taskId:'MASTER-2-TASK'}),
-  master2AfterOrdinaryTakeover
+assert.equal(delegationAnchor.chairId,'chair_1');
+assert.throws(
+  ()=>beginWork({
+    agentId:'MASTER-3',
+    role:'MASTER-3',
+    requestedChairId:'chair_1',
+    targetSha:realGitSha,
+    repositoryState:'ACTIVE',
+    taskId:'MASTER-3-TASK',
+    workPackageId:'MASTER-3-WP'
+  }),
+  /CHAIR1_ACTIVE_DELEGATION/
 );
-
-const master1Admission=beginWork({
-  agentId:'MASTER-1',
-  role:'MASTER-1',
-  requestedChairId:'chair_1',
-  targetSha:realGitSha,
-  repositoryState:'ACTIVE',
-  taskId:'MASTER-1-TASK',
-  workPackageId:'MASTER-1-WP'
-});
-assert.equal(master1Admission.preemptedAgentId,'ordinary-worker');
-assert.equal(activeChairForAgent({agentId:'MASTER-1',targetSha:realGitSha}).chairId,'chair_1');
-assert.deepEqual(
-  assertWorkAdmission({agentId:'ordinary-worker',targetSha:realGitSha,chairId:'chair_1',taskId:'ORDINARY-TAKEOVER-TASK'}),
-  preemptedContinuityForAgent({agentId:'ordinary-worker',targetSha:realGitSha,taskId:'ORDINARY-TAKEOVER-TASK'})
+assert.equal(preemptedContinuityForAgent({agentId:'MASTER-3',targetSha:realGitSha,taskId:'MASTER-3-TASK'}),null);
+assert.throws(
+  ()=>beginWork({
+    agentId:'ordinary-worker',
+    role:'worker',
+    requestedChairId:'chair_1',
+    targetSha:realGitSha,
+    repositoryState:'ACTIVE',
+    taskId:'ORDINARY-TAKEOVER-TASK',
+    workPackageId:'ORDINARY-TAKEOVER-WP'
+  }),
+  /CHAIR1_ACTIVE_DELEGATION/
 );
-release({chairId:'chair_1',agentId:'MASTER-1',targetSha:realGitSha,successful:true});
+assert.equal(preemptedContinuityForAgent({agentId:'ordinary-worker',targetSha:realGitSha,taskId:'ORDINARY-TAKEOVER-TASK'}),null);
+release({chairId:'chair_1',agentId:'delegation-anchor',targetSha:realGitSha,successful:true,taskId:'DELEGATION-ANCHOR-TASK'});
 
 process.env.FLIXO_REQUIRE_FENCED_CHAIR='true';
 const fencedToken='d'.repeat(64);
