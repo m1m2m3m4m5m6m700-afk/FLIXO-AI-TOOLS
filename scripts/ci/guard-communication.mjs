@@ -227,28 +227,32 @@ export function markRead(reportId, guardAgent=GUARD_ID) {
 
 export function decideChangeReport(reportId, {
   guardAgent=GUARD_ID,
-  decision,
+  decision='FORWARDED_TO_CHAIR1',
   reason='',
   currentExecutionSha=gitSha(),
 }={}) {
   const report = getChangeReport(reportId);
   if (guardAgent !== GUARD_ID && !['MASTER-1','MASTER-2','MASTER-3'].includes(guardAgent)) throw new Error('GUARD_CHANGE_DECIDER_UNAUTHORIZED');
-  if (!['READ','RECEIVED'].includes(report.status)) throw new Error(`GUARD_CHANGE_DECISION_INVALID_STATE=${report.status}`);
-  if (!['ACCEPTED_FOR_CHAIR1','NEEDS_MORE_EVIDENCE','REJECTED'].includes(String(decision))) throw new Error('GUARD_CHANGE_DECISION_INVALID');
+  if (!['READ','RECEIVED'].includes(report.status)) throw new Error(`GUARD_CHANGE_FORWARD_INVALID_STATE=${report.status}`);
+  if (String(decision) !== 'FORWARDED_TO_CHAIR1') throw new Error('GUARD_CHANGE_REJECTION_FORBIDDEN');
   if (!SHA_RE.test(String(currentExecutionSha))) throw new Error('GUARD_CHANGE_CURRENT_SHA_INVALID');
-  report.status = String(decision);
-  report.decision = String(decision);
+  report.status = 'FORWARDED_TO_CHAIR1';
+  report.decision = 'FORWARDED_TO_CHAIR1';
   report.decisionReason = String(reason).slice(0, 4000);
   report.decisionAt = now();
   report.decisionBy = guardAgent;
   report.decisionSha = currentExecutionSha;
+  report.guardRole = 'RECEIVE_VALIDATE_FORWARD_ONLY';
   report.guardVerdict = {
-    exactShaChecked: true,
+    exactShaRecorded: true,
     checkedExecutionSha: currentExecutionSha,
     sourceEntrySha: report.entrySha,
     sourceExecutionShaAtEntry: report.executionShaAtEntry,
     patchSha256: report.patchSha256,
     publicationAuthority: 'CHAIR_1',
+    contentDecision: 'NONE',
+    deletionAuthority: false,
+    rejectionAuthority: false,
     greenGranted: false,
   };
   writeJson(reportPath(reportId), report);
@@ -311,7 +315,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
     console.log(JSON.stringify(markRead(arg('report-id'), arg('guard-agent', GUARD_ID)), null, 2));
   } else if (command === 'list') {
     console.log(JSON.stringify(listChangeReports({ status: arg('status') || null, taskId: arg('task') || null, agentId: arg('agent') || null }), null, 2));
-  } else if (command === 'decide') {
+  } else if (command === 'forward') {
     console.log(JSON.stringify(decideChangeReport(arg('report-id'), {
       guardAgent: arg('guard-agent', GUARD_ID),
       decision: arg('decision'),
@@ -319,6 +323,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
       currentExecutionSha: arg('execution-sha', gitSha()),
     }), null, 2));
   } else {
-    throw new Error('Usage: guard-communication.mjs send-change|read|list|decide');
+    throw new Error('Usage: guard-communication.mjs send-change|read|list|forward');
   }
 }
