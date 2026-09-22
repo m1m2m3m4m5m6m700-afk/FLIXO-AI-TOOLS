@@ -70,16 +70,25 @@ jobs:
         id: capture
         env:
           GH_TOKEN: ${{ github.token }}
+          WORKFLOW_RUN_IS_MAIN: ${{ github.event.workflow_run.head_branch == 'main' }}
+          WORKFLOW_RUN_IS_EXECUTION: ${{ github.event.workflow_run.head_branch == 'execution' }}
         run: |
           set -euo pipefail
           mkdir -p /tmp/flixo-watch/logs
           WATCH_BRANCH="execution"
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            WATCH_BRANCH="${{ github.event.workflow_run.head_branch }}"
+            if [ "$WORKFLOW_RUN_IS_MAIN" = "true" ]; then
+              WATCH_BRANCH="main"
+            elif [ "$WORKFLOW_RUN_IS_EXECUTION" = "true" ]; then
+              WATCH_BRANCH="execution"
+            else
+              echo "Unsupported observer workflow_run branch."
+              exit 1
+            fi
           fi
           case "$WATCH_BRANCH" in
             execution|main) ;;
-            *) echo "Unsupported observer branch: $WATCH_BRANCH"; exit 1 ;;
+            *) echo "Unsupported observer branch."; exit 1 ;;
           esac
           EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/$WATCH_BRANCH" --jq '.sha')"
           MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')"
@@ -120,7 +129,7 @@ jobs:
             ["Repository Security Baseline"]="repository-security-baseline.yml"
             ["Claude Security Review"]="claude-security-review.yml"
           )
-          MAX_RESIDENCY_POLLS=1
+          MAX_RESIDENCY_POLLS=24
           RESIDENCY_POLL_SECONDS=5
           declare -A RESIDENT_DISPATCHED=()
           for ((poll=1; poll<=MAX_RESIDENCY_POLLS; poll++)); do
