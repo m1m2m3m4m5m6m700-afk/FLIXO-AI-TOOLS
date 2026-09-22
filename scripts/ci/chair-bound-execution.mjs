@@ -198,13 +198,11 @@ function assertChair1ReleaseAllowed(chair,{successful=false,reason=''}={}){
 }
 
 function baseState(targetSha){
-function baseState(targetSha){
   return {
     schemaVersion:1,
     authority:'FLIXO_CHAIR_BOUND_EXECUTION',
     repository_state:'IDLE',
     idle_timestamp:now(),
-    target_sha:assertSha(targetSha,'TARGET_SHA'),
     target_sha:assertSha(targetSha,'TARGET_SHA'),
     push_proposals:[],
     rejected_push_memory:[],
@@ -224,7 +222,6 @@ function writeJsonAtomic(file,value){
   fs.mkdirSync(path.dirname(file),{recursive:true});
   const tmp=file+'.tmp-'+process.pid+'-'+Date.now();
   fs.writeFileSync(tmp,JSON.stringify(value,null,2)+'\n');
-  fs.renameSync(tmp,file);
   fs.renameSync(tmp,file);
 }
 function writeState(state){
