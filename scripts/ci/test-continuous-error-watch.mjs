@@ -100,6 +100,12 @@ assert.equal(validateRepairTarget({
   logs: {},
 }).errors.includes('EVIDENCE_CAPTURE_FAILED'), true);
 
+const securityAndCertification = [
+  { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success' },
+  { id: 102, name: 'Certification', status: 'completed', conclusion: 'success' },
+];
+const openPr = { number: 748, headRefOid: SHA_A, baseRefOid: SHA_B };
+
 const securityWorkflowEvidence = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
   workflowRuns: requiredRuns,
@@ -115,11 +121,6 @@ assert.equal(securityWorkflowEvidence.ci.security.name, 'Workflow trust baseline
 assert.equal(securityWorkflowEvidence.errors.some((x) => x.type === 'SECURITY_EVIDENCE_MISSING'), false);
 assert.equal(securityWorkflowEvidence.status, 'GREEN');
 
-const securityAndCertification = [
-  { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success' },
-  { id: 102, name: 'Certification', status: 'completed', conclusion: 'success' },
-];
-const openPr = { number: 748, headRefOid: SHA_A, baseRefOid: SHA_B };
 
 const green = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
