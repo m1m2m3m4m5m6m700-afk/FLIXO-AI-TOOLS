@@ -22,6 +22,9 @@ assert.equal(report.primaryRepairIntelligence.vaultKnowledge.status,'CORPUS_MATC
 assert.ok(report.primaryRepairIntelligence.vaultKnowledge.matchedAdvice.length>0);
 assert.ok(report.adversarial);
 assert.equal(report.synthesis.readOnlyDecision,'REPORT_ONLY');
+assert.equal(report.powerProfile.profile,'5X');
+assert.equal(report.powerProfile.multiplier,5);
+assert.equal(report.powerProfile.mutationAuthority,false);
 assert.equal(report.primaryRepairIntelligence.selfCriticPreview.verdict,'REJECT');
 assert.equal(report.adversarial.authorityParity,'NO_MUTATION_AUTHORITY');
 assert.equal(report.primaryRepairIntelligence.actionVaultPrediction.status,'SKIPPED_IN_UNIT_TEST');
