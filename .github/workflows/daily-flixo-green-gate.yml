@@ -82,8 +82,7 @@ jobs:
             --json number,headRefOid,baseRefOid,url,mergedAt,mergeCommit,isDraft > /tmp/flixo-watch/open-prs.json
           gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state all --limit 10 \
             --json number,state,headRefOid,baseRefOid,url,mergedAt,mergeCommit,isDraft > /tmp/flixo-watch/all-prs.json
-          gh run list --repo "$GITHUB_REPOSITORY" --commit "$EXECUTION_SHA" --limit 100 \
-            --json databaseId,workflowName,status,conclusion,headSha,headBranch,event,displayTitle,createdAt,updatedAt > /tmp/flixo-watch/workflow-runs.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100" > /tmp/flixo-watch/workflow-runs.json
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$EXECUTION_SHA/check-runs?per_page=100" > /tmp/flixo-watch/check-runs.json
           gh api "repos/$GITHUB_REPOSITORY/commits/$EXECUTION_SHA/status" > /tmp/flixo-watch/statuses.json
           if [ "$WATCH_BRANCH" = "execution" ]; then
@@ -120,16 +119,11 @@ jobs:
           RESIDENCY_POLL_SECONDS=5
           declare -A RESIDENT_DISPATCHED=()
           for ((poll=1; poll<=MAX_RESIDENCY_POLLS; poll++)); do
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100" > /tmp/flixo-watch/workflow-runs.json
             MISSING=0
             for WORKFLOW in "FLIXO Test System" "FLIXO WP0 Trust Baseline" "FLIXO Test Impact" "FLIXO Test Impact Execution" "Repository Security Baseline" "Claude Security Review"; do
               FILE="${REQUIRED_FILES[$WORKFLOW]}"
-              RUN_COUNT="$(gh run list \
-                --repo "$GITHUB_REPOSITORY" \
-                --workflow "$FILE" \
-                --branch execution \
-                --limit 20 \
-                --json headSha,status,conclusion \
-                | jq --arg sha "$EXECUTION_SHA" '[.[] | select(.headSha == $sha and (.status == "queued" or .status == "in_progress" or .conclusion == "success" or .conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required"))] | length')"
+              RUN_COUNT="$(jq --arg name "$WORKFLOW" --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == $name and .head_sha == $sha and (.status == "queued" or .status == "in_progress" or .conclusion == "success" or .conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required"))] | length' /tmp/flixo-watch/workflow-runs.json)"
               if [ "$RUN_COUNT" -eq 0 ]; then
                 echo "REQUIRED_CI_MISSING workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA"
                 if [ -z "${RESIDENT_DISPATCHED[$WORKFLOW]+x}" ]; then
