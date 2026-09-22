@@ -63,12 +63,6 @@ permissions:
   statuses: write
   security-events: write
 
-concurrency:
-  # One writer lane per execution ref. Different failure fingerprints/target runs must not mutate concurrently.
-  # The resident observer is isolated because it is non-mutating and long-lived.
-  group: flixo-${{ inputs.resident == 'true' && 'resident-monitor' || 'execution-mutation-lane' }}
-  cancel-in-progress: false
-
 env:
   GH_TOKEN: ${{ github.token }}
   GITHUB_TOKEN: ${{ github.token }}
@@ -121,6 +115,9 @@ env:
 jobs:
   resident:
     name: Resident Repair Bot monitor — never idle during an open repair session
+    concurrency:
+      group: flixo-resident-monitor
+      cancel-in-progress: false
     if: github.event_name == 'workflow_dispatch' && inputs.resident == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 175
@@ -190,6 +187,9 @@ NODE
 
   repair:
     name: Single-lane diagnose, execute, verify and learn on execution
+    concurrency:
+      group: flixo-execution-mutation-lane
+      cancel-in-progress: false
     if: github.event_name == 'workflow_dispatch' && inputs.resident != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
