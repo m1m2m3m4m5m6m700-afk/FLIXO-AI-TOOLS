@@ -8,6 +8,7 @@ import { execFileSync } from 'node:child_process';
 const ROOT=process.cwd();
 const SHA_RE=/^[a-f0-9]{40}$/u;
 const hash=v=>crypto.createHash('sha256').update(String(v),'utf8').digest('hex');
+const proofDigest=({protocol,chairId,agentId,leaseId,taskId,workPackageId,targetSha,parentSha,candidateSha})=>hash(JSON.stringify({protocol,chairId,agentId,leaseId,taskId,workPackageId,targetSha,parentSha,candidateSha}));
 const git=args=>execFileSync('git',args,{cwd:ROOT,encoding:'utf8'}).trim();
 const sha=v=>{const s=String(v??'').trim();if(!SHA_RE.test(s))throw new Error('CHAIR1_HEAD_AUTHORITY_SHA_INVALID');return s;};
 
@@ -54,6 +55,11 @@ export function verifyExecutionHeadAuthority({file='/tmp/flixo-head-authority.js
   if(proof.parentSha!==proof.targetSha) throw new Error('CHAIR1_HEAD_AUTHORITY_PARENT_MISMATCH');
   if(proof.candidateSha===proof.targetSha) throw new Error('CHAIR1_HEAD_AUTHORITY_EMPTY_CANDIDATE');
   if(!String(proof.leaseId??'').length) throw new Error('CHAIR1_HEAD_AUTHORITY_LEASE_MISSING');
+  const expectedDigest=proofDigest({protocol:proof.protocol,chairId:proof.chairId,agentId:proof.agentId,leaseId:proof.leaseId,taskId:proof.taskId,workPackageId:proof.workPackageId,targetSha:proof.targetSha,parentSha:proof.parentSha,candidateSha:proof.candidateSha});
+  if(!/^[a-f0-9]{64}$/u.test(String(proof.proofDigest??''))||proof.proofDigest!==expectedDigest) throw new Error('CHAIR1_HEAD_AUTHORITY_PROOF_DIGEST_MISMATCH');
+  const actualParents=git(['rev-list','--parents','-n','1',proof.candidateSha]).split(/\s+/u).slice(1);
+  if(!actualParents.includes(proof.parentSha)) throw new Error('CHAIR1_HEAD_AUTHORITY_GIT_PARENT_MISMATCH');
+  if(git(['rev-parse','HEAD'])!==proof.targetSha) throw new Error('CHAIR1_HEAD_AUTHORITY_STALE_VERIFICATION_HEAD');
   return proof;
 }
 
