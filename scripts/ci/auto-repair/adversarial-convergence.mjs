@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { validateAdversarialBotCommandRegistry, resolveAdversarialCommand } from '../adversarial-bot-commands.mjs';
 
 const ROOT = process.env.FLIXO_TARGET_DIR ?? process.cwd();
 const STATE_DIR = process.env.FLIXO_ADVERSARIAL_CONVERGENCE_DIR ?? '/tmp/flixo-adversarial-convergence';
@@ -14,6 +15,7 @@ const BASE_ATTEMPT = Math.max(1, Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1) |
 const MAX_ROUNDS = Math.max(0, Number(process.env.FLIXO_ADVERSARIAL_MAX_ROUNDS ?? 0) || 0);
 const ENGINE = process.env.FLIXO_REPAIR_ENGINE_PATH ?? '/tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs';
 const STRATEGY_ENGINE = process.env.FLIXO_REPAIR_STRATEGY_ENGINE_PATH ?? '/tmp/flixo-repair-controller/scripts/ci/repair-strategy.mjs';
+const COMMAND_REGISTRY = validateAdversarialBotCommandRegistry();
 const FILE_SELECTION = process.env.FLIXO_FILE_SELECTION_PATH ?? '/tmp/action-file-selection-decision.json';
 const DIAGNOSIS = process.env.FLIXO_REPAIR_DIAGNOSIS_PATH ?? '/tmp/flixo-root-cause.json';
 const TWIN_SCRIPT = path.join(ROOT, 'scripts/ci/action-repair-programmer-twin.mjs');
@@ -157,6 +159,11 @@ function rollbackToBase(baseSha) {
 }
 
 function main() {
+  if (!COMMAND_REGISTRY.ok) throw new Error('ADVERSARIAL_COMMAND_REGISTRY_INVALID=' + COMMAND_REGISTRY.failures.join(','));
+  resolveAdversarialCommand({ botId: 'ACTION-REPAIR-2', commandId: 'CHALLENGE_PRIMARY' });
+  resolveAdversarialCommand({ botId: 'PROGRAMMER-TWIN-A', commandId: 'FALSIFY_PRIMARY' });
+  resolveAdversarialCommand({ botId: 'PROGRAMMER-TWIN-B', commandId: 'FALSIFY_PRIMARY' });
+  resolveAdversarialCommand({ botId: 'REGRESSION-COUNTEREXAMPLE', commandId: 'SEARCH_COUNTEREXAMPLES' });
   fs.rmSync(STATE_DIR, { recursive: true, force: true });
   fs.mkdirSync(STATE_DIR, { recursive: true });
 
