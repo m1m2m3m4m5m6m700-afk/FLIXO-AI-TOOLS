@@ -5,6 +5,7 @@ in_repo_repair_v2:
   repair_engine:
     enforce_rca_manifest: true
     require_three_hypotheses: true
+    minimum_hypotheses: 6
     allow_multi_file_mutation: false
     require_exact_sha: true
     require_direct_failure_signal: true
