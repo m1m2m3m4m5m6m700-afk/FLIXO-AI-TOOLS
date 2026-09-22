@@ -3,6 +3,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
+import { READ_ONLY_POWER_PROFILE, validateReadOnlyPowerProfile } from './read-only-power-profile.mjs';
+
+const POWER_PROFILE_VALIDATION=validateReadOnlyPowerProfile();
+if(!POWER_PROFILE_VALIDATION.ok) throw new Error('READ_ONLY_POWER_PROFILE_INVALID='+POWER_PROFILE_VALIDATION.failures.join(','));
+
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):fallback;};
 const output=arg('output','/tmp/action-repair-programmer-twin.json');
 const targetSha=arg('sha','');
@@ -29,7 +34,7 @@ if(!selection||selection.decision!=='SELECTED'||selection.targetSha!==targetSha|
 
 const selectedFiles=[...new Set((selection.selectedFiles??[]).map(x=>String(x.path??'').replace(/^\.\//u,'')).filter(Boolean))];
 const tracked=git(['ls-files']).split(/\r?\n/u).filter(Boolean);
-const relevant=tracked.filter(file=>/^(?:src|scripts\/ci|\.github\/workflows)\/.*\.(?:ts|tsx|js|jsx|mjs|cjs|yml|yaml)$/u.test(file)).slice(0,1200);
+const relevant=tracked.filter(file=>/^(?:src|scripts\/ci|\.github\/workflows)\/.*\.(?:ts|tsx|js|jsx|mjs|cjs|yml|yaml)$/u.test(file)).slice(0,READ_ONLY_POWER_PROFILE.budgets.programmerTwinTrackedFiles);
 const safeRead=(file)=>{const full=path.resolve(root,file);if(!full.startsWith(path.resolve(root)+path.sep)||!fs.existsSync(full))return null;return fs.readFileSync(full,'utf8');};
 const cache=new Map();
 const readText=(file)=>{if(!cache.has(file))cache.set(file,safeRead(file));return cache.get(file);};
@@ -47,7 +52,7 @@ const extract=(file)=>{
   };
 };
 const sources=selectedFiles.map(extract);
-const defs=[...new Set(sources.flatMap(x=>x.functions.concat(x.exports)))].slice(0,120);
+const defs=[...new Set(sources.flatMap(x=>x.functions.concat(x.exports)))].slice(0,READ_ONLY_POWER_PROFILE.budgets.programmerTwinDefinitions);
 const escapeRegExp=(v)=>v.replace(/[.*+?^{}()|[\]\\]/gu,'\\$&');
 const sourceGraph=sources.map(source=>{
   const content=readText(source.file)??'';
@@ -57,13 +62,14 @@ const sourceGraph=sources.map(source=>{
     const c=readText(file)??'';
     for(const symbol of source.functions.slice(0,60)){
       if(new RegExp('\\b'+escapeRegExp(symbol)+'\\s*\\(','u').test(c))callers.push({symbol,file});
+      if(callers.length>=READ_ONLY_POWER_PROFILE.budgets.programmerTwinCallersPerSymbol) break;
     }
   }
   const callees=source.functions.flatMap(symbol=>defs.filter(candidate=>candidate!==symbol&&new RegExp('\\b'+escapeRegExp(candidate)+'\\s*\\(','u').test(content)).slice(0,50));
   return {
     file:source.file,
     callers,
-    callees:[...new Set(callees)],
+    callees:[...new Set(callees)].slice(0,READ_ONLY_POWER_PROFILE.budgets.programmerTwinCalleesPerFunction),
     dependencyEdges:source.imports.map(specifier=>({from:source.file,to:specifier})),
     stateTransitions:source.states.map((state,index)=>({from:index===0?'ENTRY':source.states[index-1],to:state})),
     controlFlowSignals:source.controlFlowSignals,
@@ -96,6 +102,7 @@ const status=currentSha!==targetSha?'BLOCKED_STALE_SHA':validCounterexamples.len
 const report={
   schemaVersion:3,protocol:'INDEPENDENT_FALSIFICATION_REPORT-v1',role:'ADVERSARIAL_PROGRAMMER_FALSIFIER',verifierAgent:'actionRepairVerifier',challengeMode:'FALSIFY_PRIMARY',
   runId,targetSha,failureFingerprint:fingerprint,exactShaVerified:currentSha===targetSha,selectedFiles,sourceLevelAnalysis:sources,sourceGraph,
+  powerProfile:READ_ONLY_POWER_PROFILE.profile,
   alternativeHypotheses:[
     {id:'ALT_EXTERNAL_PROVIDER',test:'external/provider classification'},
     {id:'ALT_WRONG_FILE',test:'causal surface linkage'},
@@ -106,6 +113,7 @@ const report={
   falsificationSearches,
   falsificationChecks:falsificationSearches.map(x=>({id:x.id,status:x.result,evidence:x.evidence})),
   counterEvidence:Object.fromEntries(falsificationSearches.map(x=>[x.id,x.evidence])),
+  adversarialPower:{multiplier:READ_ONLY_POWER_PROFILE.multiplier,dimensions:READ_ONLY_POWER_PROFILE.dimensions,layers:READ_ONLY_POWER_PROFILE.layers},
   counterexampleFound:validCounterexamples.length>0,
   falsificationComplete:status==='FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE',
   programmerTwinParity:{intelligenceParity:'EXACT',authorityParity:'SEPARATED_BY_DESIGN',targetSha,failureFingerprint:fingerprint},
