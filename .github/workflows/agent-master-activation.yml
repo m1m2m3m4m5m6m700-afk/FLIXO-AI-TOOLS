@@ -35,8 +35,10 @@ jobs:
           set -euo pipefail
           test "$BRANCH" = "execution"
           test -n "$SHA"
+          COUNCIL_PR_NUMBER="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 1 --json number --jq '.[0].number // empty')"
+          test -n "$COUNCIL_PR_NUMBER"
           MARKER="<!-- activation-run:${RUN_ID}:sha:${SHA} -->"
-          if gh api "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$MARKER"; then
+          if gh api "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$MARKER"; then
             echo "MASTER_ACTIVATION_DEDUP=1"
             exit 0
           fi
@@ -52,7 +54,7 @@ jobs:
             echo
             echo "$MARKER"
           } > /tmp/activation-comment.md
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$(cat /tmp/activation-comment.md)" >/dev/null
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments" --raw-field body="$(cat /tmp/activation-comment.md)" >/dev/null
 
       - name: Dispatch canonical RED wake to Chief GPT runtime
         env:

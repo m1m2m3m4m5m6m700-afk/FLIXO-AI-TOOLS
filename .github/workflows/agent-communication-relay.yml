@@ -49,7 +49,6 @@ jobs:
 
       - name: Resolve canonical Council ingress
         id: council_ingress
-        if: github.event_name == 'issue_comment'
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number || '' }}

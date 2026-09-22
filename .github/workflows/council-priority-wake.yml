@@ -90,7 +90,7 @@ jobs:
               councilOperation:true,
               councilRole:"PRESIDENT",
               payload:{
-                source:"COUNCIL_PR_759",
+                source:"COUNCIL_ACTIVE_EXECUTION_PR",
                 sourceCommentId:$sourceCommentId,
                 question:$question,
                 priority:"P0",
@@ -116,6 +116,8 @@ jobs:
           COMMENT_ID: \${{ inputs.source_comment_id }}
         run: |
           set -euo pipefail
+          COUNCIL_PR_NUMBER="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 1 --json number --jq '.[0].number // empty')"
+          test -n "$COUNCIL_PR_NUMBER"
           BODY="$(printf '%s\\n' \
             '### COUNCIL P0 WAKE RECEIPT' \
             '' \
@@ -127,4 +129,4 @@ jobs:
             '**Preemption:** SAFE_BOUNDARY' \
             '' \
             'The request has been admitted to the canonical Council runtime at P0. ACK is separate evidence and is not inferred from queue admission.')"
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments" --raw-field body="$BODY" >/dev/null

@@ -31,8 +31,8 @@ permissions:
 # Every observation is evidence-bearing and must complete; duplicate wake suppression is handled by the watchdog.
 # The watcher itself never cancels an evidence-bearing observation.
 concurrency:
-  group: flixo-continuous-error-watch-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
-  cancel-in-progress: true
+  group: flixo-continuous-error-watch-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   watch:

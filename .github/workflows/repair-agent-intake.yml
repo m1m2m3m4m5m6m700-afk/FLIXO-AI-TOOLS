@@ -166,13 +166,15 @@ jobs:
         run: |
           set -euo pipefail
           INCIDENT_ID="$(jq -r '.incident.incidentId' /tmp/repair-agent-intake/output.json)"
-          RECEIPT="<!-- repair-agent-incident:$INCIDENT_ID -->"
-          if gh api "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
+COUNCIL_PR_NUMBER="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 1 --json number --jq '.[0].number // empty')"
+          test -n "$COUNCIL_PR_NUMBER"
+                    RECEIPT="<!-- repair-agent-incident:$INCIDENT_ID -->"
+          if gh api "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
             echo "REPAIR_AGENT_INTAKE_DUPLICATE=NO_OP"
             exit 0
           fi
           jq -r '.issueComment' /tmp/repair-agent-intake/output.json > /tmp/repair-agent-intake/comment.md
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$(cat /tmp/repair-agent-intake/comment.md)" >/dev/null
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments" --raw-field body="$(cat /tmp/repair-agent-intake/comment.md)" >/dev/null
           echo 'REPAIR_AGENT_ERROR_DELIVERED_TO_COUNCIL=true'
           echo 'OTHER_AGENTS_LOG_POLLING_REQUIRED=false'
 
