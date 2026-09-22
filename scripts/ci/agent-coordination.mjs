@@ -45,7 +45,13 @@ for (let i = 2; i < process.argv.length; i += 1) {
   args.set(key, value ?? null);
 }
 const command = String(process.argv[2] ?? '').toLowerCase();
-const gitBranch = () => execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim();
+const gitBranch = () => {
+  const checkedOut = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  if (checkedOut) return checkedOut;
+  const headRef = String(process.env.GITHUB_HEAD_REF ?? '').trim();
+  if (headRef) return headRef;
+  return String(process.env.GITHUB_REF_NAME ?? '').trim();
+};
 const GOVERNANCE_FILES = ['AGENTS.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/PROTOCOL-HIERARCHY.md', 'docs/PROTOCOL-REGISTRY.json', 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json'];
 const governanceFingerprint = () => createHash('sha256').update(GOVERNANCE_FILES.map((file) => `${file}:${createHash('sha256').update(fs.readFileSync(path.resolve(ROOT, file), 'utf8'), 'utf8').digest('hex')}`).join('|'), 'utf8').digest('hex');
 const assertMutationTopology = () => { if (MUTATING_COMMANDS.has(command) && gitBranch() !== 'execution') throw new Error('COORDINATION_MUTATION_BRANCH_BLOCKED'); };
