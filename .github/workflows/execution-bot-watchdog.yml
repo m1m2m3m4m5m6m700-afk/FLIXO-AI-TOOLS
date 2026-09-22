@@ -30,7 +30,7 @@ permissions:
 concurrency:
   # Supersede older watchdog observations for the same exact source SHA.
   # Required-workflow completions for one SHA must leave only the newest observer wake.
-  group: flixo-execution-watchdog-${{ github.event_name }}-${{ github.event.workflow_run.head_sha || github.sha }}
+  group: flixo-execution-watchdog-${{ github.event.workflow_run.head_sha || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
