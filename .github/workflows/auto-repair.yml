@@ -892,6 +892,7 @@ jobs:
         env:
           FLIXO_TARGET_DIR: ${{ github.workspace }}
           FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
+          FLIXO_AUTO_REPAIR_CONTEXT: 'true'
         run: |
           set -euo pipefail
           export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
