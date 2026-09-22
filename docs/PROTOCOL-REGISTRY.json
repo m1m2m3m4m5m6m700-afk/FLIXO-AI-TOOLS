@@ -284,7 +284,8 @@
       "authorityBoundary": "Shared knowledge is reusable information; it never grants mutation, certification, permission, or command authority.",
       "canonicalPolicy": "docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md",
       "absorbedPolicyId": "CELL-EXEC-GOV-001"
-    }    {
+    },
+    {
       "id": "P22",
       "name": "Shared Six-Bot Repair Read Execution Memory",
       "class": "LEARNING",

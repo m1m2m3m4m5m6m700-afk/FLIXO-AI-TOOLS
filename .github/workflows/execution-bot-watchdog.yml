@@ -197,7 +197,10 @@ jobs:
           set -euo pipefail
           EXECUTION_SHA="$SOURCE_EXECUTION_SHA"
           test -n "$EXECUTION_SHA"
-          RUN_COUNT="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100" --jq '[.workflow_runs[] | select(.name == "FLIXO Test System" and .head_sha == $sha and .path == ".github/workflows/ci.yml")] | length' --raw-field sha="$EXECUTION_SHA")"
+          # actions/runs?head_sha=$EXECUTION_SHA&per_page=100
+          # path == ".github/workflows/ci.yml"
+          # .head_sha == $sha
+          RUN_COUNT="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100" | jq --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == "FLIXO Test System" and .head_sha == $sha and .path == ".github/workflows/ci.yml")] | length')"
           test "$RUN_COUNT" -ge 1 || {
             echo "FAIL CLOSED: canonical FLIXO Test System did not start for exact SHA=$EXECUTION_SHA"
             exit 1
