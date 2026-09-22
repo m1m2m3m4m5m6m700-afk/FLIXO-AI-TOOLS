@@ -81,7 +81,6 @@ function centralChairProof(result,{agentId,targetSha,workPackageId,taskId,leaseI
 }
 
 function verifyCentralChairForMutation({agentId,targetSha,workPackageId,taskId}){
-  if(agentId===CHAIR1_OWNER_AGENT) return;
   const leaseId=String(process.env.FLIXO_CHAIR_LEASE_ID??'').trim();
   const fence=String(process.env.FLIXO_CHAIR_FENCING_HASH??'').trim();
   const holder=String(process.env.FLIXO_CHAIR_AGENT??agentId??'').trim();
@@ -102,7 +101,6 @@ function verifyCentralChairForMutation({agentId,targetSha,workPackageId,taskId})
 }
 
 function releaseCentralChair({agentId,targetSha,workPackageId,taskId}){
-  if(agentId===CHAIR1_OWNER_AGENT) return null;
   const leaseId=String(process.env.FLIXO_CHAIR_LEASE_ID??'').trim();
   const fence=String(process.env.FLIXO_CHAIR_FENCING_HASH??'').trim();
   const holder=String(process.env.FLIXO_CHAIR_AGENT??agentId??'').trim();
