@@ -18,6 +18,8 @@ assert.match(ci, /create-run-proof\.mjs/u);
 assert.match(ci, /verify-run-proof\.mjs/u);
 
 assert.doesNotMatch(supersession, /gh api --paginate --slurp/u);
+assert.doesNotMatch(supersession, /--paginate\b/u);
+assert.doesNotMatch(supersession, /--slurp\b/u);
 assert.match(supersession, /git ls-remote.*refs\/heads\/\$TARGET_BRANCH/u);
 assert.doesNotMatch(supersession, /gh api "repos\/\$GITHUB_REPOSITORY\/pulls\/\$PR_NUMBER"/u);
 assert.match(supersession, /CANCEL_STALE_RUN/u);
