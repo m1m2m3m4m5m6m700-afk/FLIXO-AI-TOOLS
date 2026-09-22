@@ -36,6 +36,7 @@ const positiveDuration=(value,fallback)=>{const n=Number(value);return Number.is
 const HEARTBEAT_INTERVAL_MS=positiveDuration(process.env.FLIXO_CHAIR_HEARTBEAT_INTERVAL_MS,30_000);
 const DEAD_LEASE_AFTER_MS=Math.max(3*HEARTBEAT_INTERVAL_MS,positiveDuration(process.env.FLIXO_CHAIR_DEAD_LEASE_AFTER_MS,90_000));
 const SPECULATIVE_CACHE_ROOT=()=>path.resolve(ROOT,String(process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_PATH??'.flixo/cache/chair-readonly'));
+const SPECULATIVE_CACHE_TTL_MS=positiveDuration(process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_TTL_MS,15*60*1000);
 const SESSION_CONTEXT_ROOT=()=>path.resolve(ROOT,String(process.env.FLIXO_CHAIR_SESSION_CONTEXT_PATH??'.flixo/cache/chair-session'));
 const CHAIR_REF_PREFIX=()=>String(process.env.FLIXO_CHAIR_REF_PREFIX??'refs/flixo/chairs').replace(/\\/+$/u,'');
 const storageKey=(value)=>hash(String(value));
@@ -75,6 +76,7 @@ export function reconcileDeadLeases({targetSha=sha(),atMs=Date.now()}={}){
       const holder=chair.holder_agent_id;
       const leaseId=chair.lease_id;
       clearChairRecord(chair,state);
+      atomicChairRefAudit({chairId:id,targetSha:t,event:'DEAD_LEASE'});
       reclaimed.push({chairId:id,agentId:holder,leaseId,reason:'DEAD_LEASE'});
     }
     if(reclaimed.length){
@@ -109,7 +111,7 @@ export function writeSpeculativeContext({sessionId,taskId,chairId,role,targetSha
   if(t!==sha())throw new Error('STALE_CONTEXT');
   const diff=String(pendingDiff??'');
   const boundedDiff=Buffer.byteLength(diff,'utf8')>100_000?diff.slice(0,100_000):diff;
-  const record={schemaVersion:1,authority:'FLIXO_CHAIR_READ_ONLY_SPECULATION',readOnly:true,sessionId:session,taskId:task,chairId:selected,role:actorRole,targetSha:t,createdAt:now(),expiresAt:new Date(Date.now()+DEAD_LEASE_AFTER_MS).toISOString(),pendingDiff:boundedDiff,pendingDiffSha:boundedDiff?hash(boundedDiff):null,testPlan:Array.isArray(testPlan)?testPlan.map(String).slice(0,200):[]};
+  const record={schemaVersion:1,authority:'FLIXO_CHAIR_READ_ONLY_SPECULATION',readOnly:true,sessionId:session,taskId:task,chairId:selected,role:actorRole,targetSha:t,createdAt:now(),expiresAt:new Date(Date.now()+SPECULATIVE_CACHE_TTL_MS).toISOString(),pendingDiff:boundedDiff,pendingDiffSha:boundedDiff?hash(boundedDiff):null,testPlan:Array.isArray(testPlan)?testPlan.map(String).slice(0,200):[]};
   const file=speculationPath(session);
   fs.mkdirSync(path.dirname(file),{recursive:true});
   writeJsonAtomic(file,record);
@@ -250,6 +252,7 @@ export function acquire({chairId='chair_1',agentId,targetSha=sha(),repositorySta
     if((chairId==='chair_3')&&!reviewId)throw new Error('CHAIR3_ARCHITECTURE_REVIEW_ID_REQUIRED');
     const leaseInput={chairId,agentId,targetSha:t,permissions:CHAIR_DEFINITIONS[chairId].permissions,reviewId,scope};
     chair.holder_agent_id=agentId;chair.status='OCCUPIED';chair.acquired_at=now();chair.lease_started_at=chair.acquired_at;chair.heartbeat_at=chair.acquired_at;chair.heartbeat_count=0;chair.target_sha=t;chair.lease_id=signLease(leaseInput);chair.review_id=reviewId;chair.scope=scope;
+    atomicChairRefAudit({chairId,targetSha:t,event:'ACQUIRE'});
     state.repository_state='ACTIVE';state.idle_timestamp=null;writeState(state);return state;
   });
 }
@@ -308,6 +311,7 @@ export function revoke({chairId='chair_1',agentId,reason='STALE_CONTEXT',session
     if(chair.status!=='OCCUPIED')throw new Error('CHAIR_NOT_OCCUPIED');
     if(chair.holder_agent_id!==agentId)throw new Error('UNAUTHORIZED_EXECUTION_ATTEMPT');
     clearChairRecord(chair,state);
+    atomicChairRefAudit({chairId,targetSha:state.target_sha,event:'REVOKE'});
     state.last_revoke={chairId,agentId,reason:String(reason),at:now()};
     writeState(state);if(sessionId)sanitizeSessionContext({sessionId,taskId});
     return state;
@@ -319,6 +323,7 @@ export function release({chairId,agentId,targetSha=sha(),successful=false,sessio
   return withWriteLock(()=>{
     const state=readState();const chair=verifyLease({state,chairId,agentId,targetSha:t});
     clearChairRecord(chair,state);
+    atomicChairRefAudit({chairId,targetSha:t,event:'RELEASE'});
     if(successful===true&&state.repository_state==='ACTIVE')state.repository_state='ACTIVE';
     writeState(state);if(sessionId)sanitizeSessionContext({sessionId,taskId});return state;
   });
