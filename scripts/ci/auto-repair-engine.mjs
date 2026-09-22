@@ -26,6 +26,7 @@ import { reviewCatalogBeforeMutation, reviewDiagnosisAgainstKnowledge } from './
 import { buildRcaManifest, validateRcaManifest, enforceMutationScope } from './in-repo-repair-v2.mjs';
 import { buildFiveXExecutionEnvelope } from './read-only-power-profile.mjs';
 import { buildFiveXRepairCycleState } from './read-only-power-profile.mjs';
+import { buildSharedLearningContext } from './shared-operational-memory.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
@@ -148,6 +149,8 @@ const attemptLedger = loadAttemptLedger(process.env.FLIXO_REPAIR_ATTEMPT_LEDGER 
 const stableCaseFingerprint = String(process.env.FLIXO_FAILURE_FINGERPRINT ?? '').trim() || attemptLedger.caseFingerprint || fingerprint;
 attemptLedger.caseFingerprint = stableCaseFingerprint;
 const memory = loadMemory();
+const sharedBotIdentity = repairActor === 'actionRepairBot' || repairActor === 'repairAgent' ? 'ACTION-REPAIR' : repairActor === 'actionRepairVerifier' ? 'ACTION-REPAIR-2' : repairActor === 'executionAgent' ? 'executionAgent' : 'executionAgent';
+const sharedLearning = buildSharedLearningContext({ fingerprint, botId: sharedBotIdentity, limit: 48 });
 let fiveXRepairCycle = null;
 const recordCycleOutcome = (payload = {}) => recordCycleOutcome({
   ...payload,
@@ -179,6 +182,7 @@ if ((known?.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint) {
 if (repairPolicy.requireCleanGitBeforeRepair && git(['status', '--porcelain']).trim()) throw new Error('AUTO_REPAIR_DIRTY_WORKTREE');
 
 const historicalReasoningSupport = [
+  ...sharedLearning.lessons.map(item => ({ rootCause: item.rootCause ?? 'shared-memory', confidence: item.status === 'VERIFIED' || item.status === 'PROMOTED' ? 0.9 : 0.6 })),
   ...memory.cases.map(({ rootCause, successes, attempts }) => ({ rootCause, confidence: attempts ? successes / attempts : 0 })),
   ...memory.lessons.map(({ rootCause, confidence }) => ({ rootCause, confidence })),
 ];
@@ -231,6 +235,7 @@ const evidence = {
   },
   learning: {
     memoryVersion: memory.version,
+    sharedOperationalMemory: sharedLearning,
     exactCase: Boolean(known),
     similarCases: similar.map(({ case: item, score }) => ({ fingerprint: item.fingerprint, score, rules: item.rules ?? [] })),
     trustedLessons: trustedLessons.map(({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence }) => ({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence })),
