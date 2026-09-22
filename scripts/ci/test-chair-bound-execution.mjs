@@ -5,13 +5,37 @@ import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {createHmac} from 'node:crypto';
-import {acquire,authorizeWrite,authorizeMergeProposal,release,repositoryMode,heartbeat,reconcileDeadLeases,writeSpeculativeContext,readSpeculativeContext,sanitizeSessionContext,atomicChairRefAudit,proposePush,beginWork,endWork,assertWorkAdmission,activeChairForAgent,preemptedContinuityForAgent,reclaimChair1} from './chair-bound-execution.mjs';
+import {acquire,authorizeWrite,authorizeMergeProposal,release,repositoryMode,heartbeat,reconcileDeadLeases,writeSpeculativeContext,readSpeculativeContext,sanitizeSessionContext,atomicChairRefAudit,proposePush,beginWork,endWork,assertWorkAdmission,activeChairForAgent,preemptedContinuityForAgent,reclaimChair1,configureCentralChairTestTransport} from './chair-bound-execution.mjs';
 
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-chair-test-'));
 process.env.FLIXO_CHAIR_STATE_PATH=path.join(temp,'locks','chairs.json');
 process.env.FLIXO_CHAIR_SIGNING_KEY='test-chair-signing-key';
 process.env.NODE_ENV='test';
 process.env.FLIXO_USER_COMMAND_SIGNING_KEY='test-user-command-key';
+process.env.FLIXO_STRICT_CHAIR='false';
+process.env.FLIXO_CHAIR_LEASE_ID='123e4567-e89b-12d3-a456-426614174000';
+process.env.FLIXO_CHAIR_FENCING_HASH='c'.repeat(64);
+let centralDelegator='assistantController';
+let centralReleaseCount=0;
+configureCentralChairTestTransport({
+  verify: ({holder,task,workPackage,sha,leaseId,fence}) => ({
+    authorized:true,
+    chairId:'chair_1',
+    ownerAgentId:'assistantController',
+    holderAgentId:holder,
+    taskId:task,
+    workPackageId:workPackage,
+    exactSha:sha,
+    leaseId,
+    fencingTokenHash:fence,
+    delegatedBy:centralDelegator,
+  }),
+  release: ({holder,task,workPackage,sha,leaseId,fence}) => {
+    centralReleaseCount += 1;
+    return {status:'OWNER_CUSTODY',ownerAgentId:'assistantController',holderAgentId:holder,taskId:task,workPackageId:workPackage,exactSha:sha,leaseId,fencingTokenHash:fence};
+  }
+});
+
 const SHA='a'.repeat(40),SHA2='b'.repeat(40);
 
 const realGitSha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
@@ -25,9 +49,17 @@ fs.writeFileSync(process.env.FLIXO_CHAIR_STATE_PATH,JSON.stringify({
 assert.throws(()=>assertWorkAdmission({agentId:'agent-no-chair',targetSha:realGitSha}),/AGENT_WORK_REQUIRES_CHAIR/);
 const autoAdmission=beginWork({agentId:'agent-auto-chair',targetSha:realGitSha,repositoryState:'IDLE',taskId:'TASK-AUTO-CHAIR',workPackageId:'WP-AUTO-CHAIR',scope:['src/auto.ts']});
 assert.equal(autoAdmission.admitted,true);
+assert.equal(process.env.FLIXO_STRICT_CHAIR,'false');
 assert.equal(autoAdmission.chairId,'chair_1');
 assert.equal(activeChairForAgent({agentId:'agent-auto-chair',targetSha:realGitSha}).chairId,'chair_1');
+assert.throws(() => {
+  centralDelegator='malicious-agent';
+  beginWork({agentId:'central-proof-attack',targetSha:realGitSha,repositoryState:'IDLE',taskId:'CENTRAL-PROOF-ATTACK',workPackageId:'CENTRAL-PROOF-ATTACK-WP'});
+}, /CENTRAL_CHAIR_PROOF_INVALID/);
+centralDelegator='assistantController';
+
 assert.equal(endWork({agentId:'agent-auto-chair',targetSha:realGitSha,successful:true,taskId:'TASK-AUTO-CHAIR'}).repository_state,'IDLE');
+assert.equal(centralReleaseCount >= 1,true);
 assert.throws(()=>assertWorkAdmission({agentId:'agent-auto-chair',targetSha:realGitSha}),/AGENT_WORK_REQUIRES_CHAIR/);
 
 const one=acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE',taskId:'CHAIR1-ALPHA-TASK',workPackageId:'CHAIR1-ALPHA-WP'});
@@ -193,6 +225,11 @@ assert.throws(
   /CHAIR_NOT_OCCUPIED|UNAUTHORIZED_EXECUTION_ATTEMPT/
 );
 assert.throws(()=>assertWorkAdmission({agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha,chairId:'chair_1',taskId:'AUTO-REPAIR-TASK'}),/AGENT_WORK_REQUIRES_CHAIR/);
+assert.throws(
+  ()=>authorizeWrite({chairId:'chair_1',agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION',workPackageId:'AUTO-REPAIR-TASK',taskId:'AUTO-REPAIR-TASK'}),
+  /CHAIR_NOT_OCCUPIED|UNAUTHORIZED_EXECUTION_ATTEMPT/
+);
+
 const delegationAnchor=beginWork({
   agentId:'delegation-anchor',
   role:'worker',
