@@ -4,6 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { verifyExecutionHeadAuthority } from './execution-head-authority.mjs';
+import { execFileSync as nodeExecFileSync } from 'node:child_process';
 
 const ROOT=process.cwd();
 const SHA_RE=/^[a-f0-9]{40}$/u;
@@ -23,6 +24,19 @@ export function remoteExecutionSha(){
   if(!repo)throw new Error('MUTATION_GATE_GITHUB_REPOSITORY_MISSING');
   return assertSha(execFileSync('gh',['api',`repos/${repo}/git/ref/heads/execution`,'--jq','.object.sha'],{cwd:ROOT,encoding:'utf8'}),'REMOTE_SHA');
 }
+function centralChairStrictRequired() { return process.env.FLIXO_STRICT_CHAIR === 'true'; }
+function verifyCentralChair({ownerAgent,targetSha,workPackageId,taskId}) {
+  if (!centralChairStrictRequired()) return { required:false, verified:false };
+  if (process.env.FLIXO_MUTATION_GATE_TEST_MODE === 'true' && process.env.FLIXO_ALLOW_TEST_CHAIR_BYPASS === 'true') return { required:true, verified:false, testBypass:true };
+  const leaseId=String(process.env.FLIXO_CHAIR_LEASE_ID ?? '').trim();
+  const fence=String(process.env.FLIXO_CHAIR_FENCING_HASH ?? '').trim();
+  const holder=String(process.env.FLIXO_CHAIR_AGENT ?? ownerAgent ?? '').trim();
+  if(!leaseId||!fence||!holder) throw new Error('MUTATION_GATE_CENTRAL_CHAIR_CONTEXT_MISSING');
+  nodeExecFileSync('node',['scripts/ci/central-chair-lease.mjs','verify',
+    '--holder='+holder,'--task='+String(taskId),'--work-package='+String(workPackageId),
+    '--sha='+String(targetSha),'--lease-id='+leaseId,'--fencing-hash='+fence],{cwd:ROOT,encoding:'utf8'});
+  return { required:true, verified:true, leaseId, holder, targetSha };
+}
 function assertExecutionCheckout(){
   if(process.env.FLIXO_MUTATION_GATE_TEST_MODE==='true')return;
   if(git(['branch','--show-current'])!=='execution')throw new Error('MUTATION_GATE_NOT_ON_EXECUTION');
@@ -40,13 +54,16 @@ export function admit({ownerAgent,targetSha,workPackageId,taskId,paths,output='/
   const t=assertSha(targetSha,'TARGET_SHA');assertExecutionCheckout();
   if(assertSha(git(['rev-parse','HEAD']),'HEAD')!==t)throw new Error('MUTATION_GATE_STALE_LOCAL_HEAD');
   if(remoteExecutionSha()!==t)throw new Error('MUTATION_GATE_REMOTE_HEAD_CHANGED');
+  const centralChair = verifyCentralChair({ownerAgent,targetSha:t,workPackageId,taskId});
   const record=context({ownerAgent,targetSha:t,workPackageId,taskId,paths});
+  record.centralChair = centralChair;
   fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(output,JSON.stringify(record,null,2)+'\n');
   return record;
 }
 function readAdmission(file){if(!fs.existsSync(file))throw new Error('MUTATION_GATE_ADMISSION_MISSING');const x=JSON.parse(fs.readFileSync(file,'utf8'));if(x?.schemaVersion!==1||x?.protocol!=='FLIXO-EXECUTION-MUTATION-GATE-v1')throw new Error('MUTATION_GATE_ADMISSION_INVALID');return x;}
 export function verifyAdmission({file='/tmp/flixo-mutation-admission.json',phase='pre-commit',candidateSha=null,parentSha=null}={}){
   const a=readAdmission(file);assertExecutionCheckout();
+  if (centralChairStrictRequired()) verifyCentralChair({ownerAgent:a.ownerAgent,targetSha:a.targetSha,workPackageId:a.workPackageId,taskId:a.taskId});
   const expected=fencingToken({ownerAgent:a.ownerAgent,runId:a.runId,runAttempt:a.runAttempt,targetSha:a.targetSha,workPackageId:a.workPackageId,taskId:a.taskId,scopeDigest:a.scopeHash});
   if(expected!==a.fencingToken||!HASH_RE.test(a.fencingToken))throw new Error('MUTATION_GATE_FENCING_TOKEN_INVALID');
   if(String(process.env.GITHUB_RUN_ID??'')!==a.runId||String(process.env.GITHUB_RUN_ATTEMPT??'1')!==a.runAttempt)throw new Error('MUTATION_GATE_RUN_CONTEXT_STALE');
