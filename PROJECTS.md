@@ -44,7 +44,7 @@ ACTIVE REPAIR LANE = execution
 CURRENT MAIN SHA = authoritative GitHub main ref; never duplicate a mutable SHA in this map
 ACTIVE PR = #801 OPEN / execution → main (current verification/repair lane); prior PRs are historical only
 CURRENT PR HEAD = authoritative GitHub PR #801 head; do not duplicate a mutable SHA in this map
-LIVE RECONCILIATION = 2026-09-22; observed execution head was 237827e8daad6ce904ec81d65271f0a1b4e7110b and main head was 5f340c4338abbfca299223309544946e97d9ccb2; fresh evidence is required after every subsequent push
+LIVE RECONCILIATION = 2026-09-22; GitHub execution/main refs are authoritative and must be re-read after every push; the reconciliation snapshot is historical evidence only
 NO-NEW-BRANCH = ABSOLUTE; only execution and main are active agent branches; existing historical branches are not valid work paths
 STATE = BLOCKED_EXTERNAL
 CANONICAL TEST SYSTEM = FRESH EVIDENCE REQUIRED ON CURRENT MAIN/EXECUTION HEAD; prior exact-head evidence is stale
@@ -58,7 +58,7 @@ PRODUCTION DEPLOYMENT EXACT-SHA = NOT PROVEN IN CURRENT EVIDENCE
 POST-MERGE MAIN SHA VERIFIED = historical 5115ac0528a7b18ae9ae3d392ccbfd2257900ea3; not current GREEN proof
 POST-MERGE CI / CERTIFICATION = PENDING FRESH EVIDENCE
 NO CLOSED/VERIFIED LABEL IN THIS FILE IS CURRENT GREEN PROOF UNLESS IT IS REPROVEN ON THE ACTIVE MAIN SHA
-CURRENT CI SNAPSHOT ON OBSERVED EXECUTION SHA = Test System IN_PROGRESS; WP0 IN_PROGRESS; Test Impact SUCCESS; Test Impact Execution IN_PROGRESS; Repository Security SUCCESS; Claude Security SUCCESS; Code Scanning AI findings FAILURE; Auto Repair Merge Gate IN_PROGRESS; Daily Green Gate IN_PROGRESS
+CURRENT CI SNAPSHOT (RECONCILIATION EVIDENCE; INVALIDATED BY SUBSEQUENT execution COMMITS) = Test System IN_PROGRESS; WP0 IN_PROGRESS; Test Impact SUCCESS; Test Impact Execution IN_PROGRESS; Repository Security SUCCESS; Claude Security SUCCESS; Code Scanning AI findings FAILURE; Auto Repair Merge Gate IN_PROGRESS; Daily Green Gate IN_PROGRESS
 CURRENT CERTIFICATION = NOT PROVEN
 BRANCH POLICY = execution + main are the only active paths; all other visible branches remain historical/unapproved and are not new work paths
 ```
