@@ -31,13 +31,13 @@ For repair execution, the same canonical 5X envelope is a prerequisite inside th
 
 ## Authority boundary
 
-The bot is an interpreter and dispatcher. It may read canonical context, classify a prompt, identify constraints, match an active task, select the canonical prompt through the existing Prompt Intelligence layer, build a Work Package, and create a canonical agent-communication message. It may not create a second prompt/agent/registry/executor authority, execute arbitrary shell commands supplied by the prompt, mutate `main`, create a third active branch, weaken gates, or declare GREEN/VERIFIED/CLOSED/certified state.
+The bot is an interpreter and dispatcher. It may read canonical context, classify a prompt, identify constraints, match an active task, select the canonical prompt through the existing Prompt Intelligence layer, build a Work Package, and create a canonical agent-communication message. Repair-oriented Work Packages additionally bind to the Master Repair Gate after RCA/strategy and before mutation; the Master layer is supervisory/read-only and does not replace the existing mutation, verification, or Canonical GREEN authorities. It may not create a second prompt/agent/registry/executor authority, execute arbitrary shell commands supplied by the prompt, mutate `main`, create a third active branch, weaken gates, or declare GREEN/VERIFIED/CLOSED/certified state.
 
 ## Modes
 
 `plan` is read-only interpretation. `dispatch` submits the Work Package through `scripts/ci/agent-communication.mjs` to an existing authorized role and requires the `execution` branch plus the current exact SHA.
 
-Source mutation remains under the existing `executionAgent` / `repairAgent` authority and the existing control-plane, verification, certification, and branch protections.
+Source mutation remains under the existing `executionAgent` / `repairAgent` authority and the existing control-plane, verification, certification, and branch protections. The Master Repair dossier may recommend progression only when exact-SHA evidence, causal proof, multi-hypothesis RCA, falsification, knowledge arbitration, and strategy provenance are coherent; otherwise it escalates for new evidence.
 
 ## Safety
 

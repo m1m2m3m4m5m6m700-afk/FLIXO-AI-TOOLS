@@ -971,6 +971,52 @@ jobs:
           jq -e --arg sha "$SHA" --arg fp "$FP" '.protocol == "CAUSAL-EVIDENCE-GRAPH-v1" and .status == "PROVEN" and .targetSha == $sha and .failureFingerprint == $fp and .sourceMutationAllowed == false and .proofClaims.ROOT_CAUSE_LINKED_TO_FAILURE_SIGNAL == true and .proofClaims.LOCATION_LINKED_TO_CAUSE == true and .proofClaims.MECHANISM_EXPLAINED == true and .proofClaims.ALTERNATIVES_CHALLENGED == true' /tmp/action-root-cause-proof.json >/dev/null
           echo "FLIXO_ROOT_CAUSE_PROOF_PATH=/tmp/action-root-cause-proof.json" >> "$GITHUB_ENV"
 
+      - name: Master Repair Gate — synthesize evidence, falsification and knowledge before mutation
+        id: master_repair
+        if: steps.strategy.outcome == 'success' && steps.root_cause_proof.outcome == 'success'
+        env:
+          GH_TOKEN: \${{ github.token }}
+          FLIXO_EXPECTED_TARGET_SHA: \${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_CURRENT_TARGET_SHA: \${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_FAILURE_FINGERPRINT: \${{ env.FLIXO_FAILURE_FINGERPRINT }}
+          TARGET_RUN_ID: \${{ env.TARGET_RUN_ID }}
+          FLIXO_FAILURE_LOG: \${{ env.FLIXO_FAILURE_LOG }}
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
+          FLIXO_MASTER_REPAIR_PACKET: /tmp/flixo-master-repair-packet.json
+        run: |
+          set -euo pipefail
+          LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$LIVE_SHA" = "$FLIXO_EXPECTED_TARGET_SHA" || {
+            echo "FAIL CLOSED: master repair gate target moved: expected=$FLIXO_EXPECTED_TARGET_SHA live=$LIVE_SHA"
+            exit 1
+          }
+          node /tmp/flixo-repair-controller/scripts/ci/master-repair-orchestrator.mjs \
+            --sha="$FLIXO_EXPECTED_TARGET_SHA" \
+            --current-sha="$LIVE_SHA" \
+            --run-id="$TARGET_RUN_ID" \
+            --fingerprint="$FLIXO_FAILURE_FINGERPRINT" \
+            --log="$FLIXO_FAILURE_LOG" \
+            --diagnosis=/tmp/flixo-root-cause.json \
+            --scout=/tmp/flixo-scout-report.json \
+            --strategy=/tmp/flixo-repair-strategy.json \
+            --root-proof=/tmp/action-root-cause-proof.json \
+            --rca-manifest=/tmp/flixo-rca-manifest.json \
+            --historical=/tmp/flixo-historical-learning.json \
+            --teaching=/tmp/flixo-teaching-sessions.json \
+            --memory=/tmp/flixo-repair-memory.json \
+            --output="$FLIXO_MASTER_REPAIR_PACKET"
+          test -s "$FLIXO_MASTER_REPAIR_PACKET"
+          jq -e --arg sha "$FLIXO_EXPECTED_TARGET_SHA" '
+            .protocol=="FLIXO-MASTER-REPAIR-ORCHESTRATOR-v1"
+            and .authority=="READ_ONLY_MASTER_REPAIR_GATE"
+            and .mutationAuthority==false
+            and .target.targetSha==$sha
+            and .target.currentSha==$sha
+            and .decision.status=="MASTER_REPAIR_READY"
+          ' "$FLIXO_MASTER_REPAIR_PACKET" >/dev/null
+          echo "FLIXO_MASTER_REPAIR_PACKET=$FLIXO_MASTER_REPAIR_PACKET" >> "$GITHUB_ENV"
+          echo 'MASTER_REPAIR_GATE=PASS'
+
       - name: Enforce divergent twin decision before mutation
         if: steps.strategy.outcome == 'success'
         run: |
@@ -1019,7 +1065,7 @@ jobs:
 
       - name: Execute adversarial repair convergence until both sides stabilize
         id: execute_repair
-        if: always() && steps.strategy.outcome == 'success' && steps.install_target.outcome == 'success'
+        if: steps.master_repair.outcome == 'success' && steps.strategy.outcome == 'success' && steps.install_target.outcome == 'success'
         env:
           FLIXO_TARGET_DIR: ${{ github.workspace }}
           FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
@@ -1041,9 +1087,37 @@ jobs:
           path: /tmp/flixo-adversarial-convergence
           if-no-files-found: warn
           retention-days: 30
+      - name: Publish Master Repair dossier
+        if: always()
+        uses: actions/upload-artifact@043fbf1d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-master-repair-dossier-\${{ github.run_id }}
+          path: |
+            /tmp/flixo-master-repair-packet.json
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Escalate blocked Master Repair dossier to Master consult
+        if: always() && steps.strategy.outcome == 'success' && steps.master_repair.outcome != 'success'
+        env:
+          FLIXO_EXPECTED_TARGET_SHA: \${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_FAILURE_FINGERPRINT: \${{ env.FLIXO_FAILURE_FINGERPRINT }}
+          TARGET_RUN_ID: \${{ env.TARGET_RUN_ID }}
+        run: |
+          set -euo pipefail
+          QUESTION="Master Repair Gate blocked; require new evidence or a changed strategy for the current exact SHA."
+          OBSTACLE="$(jq -r '.decision.blockers | join(" | ")' /tmp/flixo-master-repair-packet.json 2>/dev/null || printf '%s' 'MASTER_REPAIR_PACKET_UNAVAILABLE')"
+          node /tmp/flixo-repair-controller/scripts/ci/cell-master-consult.mjs \
+            --agent=AUTO_REPAIR_BOT \
+            --task="MASTER-REPAIR:$TARGET_RUN_ID:$FLIXO_FAILURE_FINGERPRINT" \
+            --sha="$FLIXO_EXPECTED_TARGET_SHA" \
+            --risk=HIGH \
+            --question="$QUESTION" \
+            --obstacle="$OBSTACLE" \
+            --evidence="/tmp/flixo-master-repair-packet.json,/tmp/action-root-cause-proof.json,/tmp/flixo-rca-manifest.json"
+          echo 'MASTER_REPAIR_ESCALATION=SUBMITTED'
       - name: Build Phase 1 AI impact and CI orchestration plan
         id: ai_phase1
-        if: always() && steps.strategy.outcome == 'success'
+        if: steps.master_repair.outcome == 'success' && steps.strategy.outcome == 'success'
         env:
           FLIXO_CURRENT_TARGET_SHA_FILE: /tmp/flixo-failed-sha
           FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
@@ -1052,7 +1126,7 @@ jobs:
 
       - name: Run Phase 2 AI strategy, set-cover and security guard from Phase 1 canonical context
         id: ai_phase2
-        if: always() && steps.ai_phase1.outcome == 'success'
+        if: steps.master_repair.outcome == 'success' && steps.ai_phase1.outcome == 'success'
         env:
           FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
           FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2.json
@@ -1062,7 +1136,7 @@ jobs:
 
       - name: Run Phase 3 AI decision-intelligence postflight
         id: ai_phase3
-        if: always() && steps.ai_phase2.outcome == 'success'
+        if: steps.master_repair.outcome == 'success' && steps.ai_phase2.outcome == 'success'
         env:
           FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
           FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2.json
@@ -1078,7 +1152,7 @@ jobs:
 
       - name: Verify Repair Agent repair before publication
         id: verify
-        if: always() && steps.boundary.outcome == 'success'
+        if: steps.master_repair.outcome == 'success' && steps.boundary.outcome == 'success'
         env:
           INTRACTABLE: ${{ steps.strategy.outputs.intractable }}
         run: |
