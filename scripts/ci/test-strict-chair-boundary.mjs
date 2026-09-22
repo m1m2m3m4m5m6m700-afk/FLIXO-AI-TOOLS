@@ -121,7 +121,7 @@ assert.match(auto,/central_chair_lease_id:/);
 assert.match(auto,/central_chair_fencing_hash:/);
 assert.match(auto,/FLIXO_STRICT_CHAIR: 'true'/);
 assert.match(auto,/central-chair-lease\.mjs verify/);
-assert.doesNotMatch(sync,/git push origin execution/);
+assert.doesNotMatch(sync,new RegExp(['git','push','origin','execution'].join(' ')));
 
 const workers=read('scripts/ci/action-repair-five-workers.mjs');
 assert.doesNotMatch(workers,/git\\s+push\\s+origin\\s+execution/u);
