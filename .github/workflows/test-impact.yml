@@ -3,16 +3,16 @@ name: FLIXO Test Impact
 on:
   pull_request:
     branches: [main]
-  # Execution is tested through the canonical pull_request lane; push runs remain for main after integration.
+  # Every push to execution starts the canonical test run; a newer push cancels older tests for this branch.
   push:
-    branches: [main]
+    branches: [main, execution]
   workflow_dispatch:
 
 # Each exact commit SHA has its own execution slot; supersession is handled separately by the trusted controller.
 # The surviving run still validates the exact SHA before publishing evidence.
 concurrency:
-  group: flixo-test-impact-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: false
+  group: flixo-test-impact-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
