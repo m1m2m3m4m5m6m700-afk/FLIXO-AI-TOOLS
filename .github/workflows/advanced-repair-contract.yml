@@ -14,6 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
       - name: Fail closed when this commit is superseded
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
