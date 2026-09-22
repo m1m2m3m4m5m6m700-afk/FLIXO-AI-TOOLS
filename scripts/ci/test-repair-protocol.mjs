@@ -13,6 +13,17 @@ assert.equal(REPAIR_PROTOCOL.cellLabRequired,true);
 assert.equal(REPAIR_PROTOCOL.cellLabConsensusPath,'diagnostics/agents/cell-lab/consensus/<taskId>.json');
 const targetSHA='a'.repeat(40);
 assert.throws(()=>assertAgentAdmission({actor:'repairAgent',branch:'execution',mutation:true,session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,taskId:'missing-lab'}}),/CELL_LAB_CONSENSUS_REQUIRED/);
+
+const cellLabMutationSession = (consensus) => ({
+  state:'FAILURE_CAPTURED',
+  protocolId:REPAIR_PROTOCOL.protocolId,
+  protocolVersion:REPAIR_PROTOCOL.protocolVersion,
+  protocolHash:REPAIR_PROTOCOL_HASH,
+  targetSHA,
+  taskId:'repair-test-cell-lab-errors',
+  cellLabConsensus:consensus,
+});
+
 const cellLabConsensus = (taskId, owner) => ({
   protocolId:'CELL-LAB-COLLABORATIVE-CONSENSUS',
   protocolVersion:'1.0.0',
@@ -44,6 +55,18 @@ const cellLabConsensus = (taskId, owner) => ({
   proofObligations:['TARGETED_REGRESSION','EXACT_SHA_VERIFY'],
   stopConditions:['SHA_DRIFT','UNSAFE_SCOPE','CONFLICT'],
 });
+
+const exactShaMismatchConsensus = {...cellLabConsensus('repair-test-cell-lab-errors','repairAgent'), exactSha:'b'.repeat(40)};
+assert.throws(
+  () => assertAgentAdmission({actor:'repairAgent',branch:'execution',mutation:true,session:cellLabMutationSession(exactShaMismatchConsensus)}),
+  /CELL_LAB_EXACT_SHA_MISMATCH/,
+);
+const planHashMismatchConsensus = {...cellLabConsensus('repair-test-cell-lab-errors','repairAgent'), planHash:'0'.repeat(64)};
+assert.throws(
+  () => assertAgentAdmission({actor:'repairAgent',branch:'execution',mutation:true,session:cellLabMutationSession(planHashMismatchConsensus)}),
+  /CELL_LAB_PLAN_HASH_MISMATCH/,
+);
+
 
 assert.equal(REPAIR_PROTOCOL.testMutationPolicy,'BLOCK');
 assert.throws(
