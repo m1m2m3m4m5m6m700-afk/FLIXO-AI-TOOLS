@@ -16,6 +16,8 @@ assert.ok(report.adversarial);
 assert.equal(report.synthesis.readOnlyDecision,'REPORT_ONLY');
 assert.equal(report.primaryRepairIntelligence.selfCriticPreview.verdict,'REJECT');
 assert.equal(report.adversarial.authorityParity,'NO_MUTATION_AUTHORITY');
+assert.equal(report.primaryRepairIntelligence.actionVaultPrediction.status,'SKIPPED_IN_UNIT_TEST');
+assert.equal(report.primaryRepairIntelligence.actionVaultPrediction.mutationAuthority,'NONE');
 console.log(JSON.stringify({status:'PASS',checks:11,primary:report.synthesis.primaryCandidate,adversarial:report.adversarial.status},null,2));
 
 assert.equal(report.primaryRepairIntelligence.codeMentor.status,'SKIPPED_IN_UNIT_TEST');
