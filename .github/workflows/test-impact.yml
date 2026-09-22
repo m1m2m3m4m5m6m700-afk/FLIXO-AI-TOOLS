@@ -10,7 +10,7 @@ on:
 # A newer commit supersedes older impact-plan evidence for the same PR/branch.
 # The surviving run still validates the exact SHA before publishing evidence.
 concurrency:
-  group: flixo-test-impact-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: flixo-test-impact-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}-${{ github.event_name }}
   cancel-in-progress: true
 
 permissions:
