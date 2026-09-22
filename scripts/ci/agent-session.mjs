@@ -112,6 +112,7 @@ const assertMeetingExitApproval = (record, currentSha) => {
 };
 const ensureSessionWorkChair = (record) => {
   const targetSha = gitSha();
+  if (record.chairBinding?.released === true) throw new Error('AGENT_WORK_AFTER_TASK_RELEASE_FORBIDDEN');
   const existing = activeChairForAgent({ agentId: record.agentId, targetSha });
   if (existing) {
     record.chairId = existing.chairId;
