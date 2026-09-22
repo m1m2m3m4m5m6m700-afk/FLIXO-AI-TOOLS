@@ -10,7 +10,7 @@ import {
 } from './boundary.ts';
 import { verifyAdminPassword } from './credentials.ts';
 import { activeCapabilitiesForRole } from '../../src/lib/admin/roles.ts';
-import { persistAdminSession, revokeAdminSession, isAdminSessionStoreConfigured, getAdminSessionState } from './session-store.ts';
+import { persistAdminSession, revokeAdminSession, isAdminSessionStoreConfigured, getAdminSessionState, getAdminSessionRecord } from './session-store.ts';
 
 type AdminRequest = IncomingMessage & { body?: unknown };
 type BodyRecord = Record<string, unknown>;
@@ -69,6 +69,11 @@ const allowMutationOrigin = (req: AdminRequest) => {
 const rateAllowed = (ip: string) => {
   const now = Date.now();
   const current = loginBuckets.get(ip);
+  if (loginBuckets.size > 10_000) {
+    for (const [key, bucket] of loginBuckets) {
+      if (now >= bucket.resetAt) loginBuckets.delete(key);
+    }
+  }
   if (!current || now >= current.resetAt) {
     loginBuckets.set(ip, { attempts: 1, resetAt: now + LOGIN_WINDOW_MS });
     return true;
@@ -86,6 +91,8 @@ const parseBody = async (req: AdminRequest): Promise<BodyRecord | null> => {
   }
   if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) return req.body as BodyRecord;
   if (typeof req.body === 'string' || Buffer.isBuffer(req.body)) {
+    const bodySize = Buffer.byteLength(String(req.body), 'utf8');
+    if (bodySize > MAX_REQUEST_BODY_BYTES) return null;
     try {
       const parsed = JSON.parse(String(req.body));
       return parsed && typeof parsed === 'object' ? parsed as BodyRecord : null;
@@ -143,6 +150,8 @@ export default async function adminSession(req: AdminRequest, res: ServerRespons
         role: session.role,
       });
       if (state !== 'ACTIVE') return fail(res, 401, 'authentication_required', correlationId);
+      record = await getAdminSessionRecord(session.sessionId);
+      if (!record) return fail(res, 401, 'authentication_required', correlationId);
     } catch {
       return fail(res, 503, 'session_store_unavailable', correlationId);
     }
