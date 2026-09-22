@@ -44,11 +44,9 @@ on:
         type: string
 
 permissions:
-  # Sole source-mutation authority for the repair plane.
-  # Actions administration is intentionally NOT granted: peer observers may wake
-  # the bot, but cannot use it to disable or reconfigure Actions.
-  # It still cannot bypass the execution-only mutation boundary or write main.
-  contents: write
+  # Chair Guard owns all source publication. Auto Repair is proposal/evidence only.
+  # Direct writes to execution/main are forbidden from this workflow.
+  contents: read
   # Read-only artifact/run observation is required for the independent twin result.
   actions: read
   # No Actions-admin capability: peer agents cannot be controlled by the repair bot.
@@ -88,12 +86,12 @@ env:
   FLIXO_SELECTION_PATH: /tmp/flixo-selected-repair-option.json
   # prompt_source_run_id remains a compatibility input; artifact provenance is resolved from the canonical Green Gate by exact SHA.
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
-  # sole mutation authority: AUTO_REPAIR_BOT on execution; peer agents are review/dispatch-only.
+  # proposal-only: Chair Guard is the sole source-publication authority.
   # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
   # ACTION-VAULT-AUTONOMY-MODE: diagnostics/auto-repair/action-vault/ACTION-VAULT-AUTONOMY-MODE.json is canonical admission policy.
   # This workflow is executor-only and must never self-dispatch.
   FLIXO_STRICT_RED_REPAIR: 'true'
-  FLIXO_REPAIR_OPERATING_MODE: BOT_FIRST_AUTONOMOUS
+  FLIXO_REPAIR_OPERATING_MODE: PROPOSAL_ONLY_UNDER_CHAIR
   FLIXO_ROUTINE_HUMAN_APPROVAL: 'false'
   FLIXO_CRITICAL_HUMAN_AUTH_REQUIRED: 'true'
   FLIXO_BRANCH_CONFLICT_RECOVERY: 'true'
@@ -344,7 +342,9 @@ jobs:
             echo "execution already contains failed SHA $FAILED_SHA"
           elif git merge-base --is-ancestor HEAD "$FAILED_SHA"; then
             git merge --ff-only "$FAILED_SHA"
-            git push origin execution
+            echo 'CHAIR_GUARD_BLOCKED: Auto Repair cannot publish directly to execution.'
+            echo 'HANDOFF_REQUIRED: package the verified candidate for Chair-1 review instead.'
+            exit 1
           else
             echo "execution and failed main SHA have diverged; refusing a third branch or destructive reset."
             exit 1
@@ -1234,7 +1234,7 @@ jobs:
           node scripts/ci/execution-mutation-gate.mjs verify --phase=pre-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA" --parent="$PARENT_SHA"
           git push origin "HEAD:execution"
           node scripts/ci/execution-mutation-gate.mjs verify --phase=post-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA"
-          echo 'EXECUTION_PUBLICATION=PASS'
+          echo 'EXECUTION_PUBLICATION=BLOCKED_BY_CHAIR_GUARD'
           PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
           if [ -z "$PR_URL" ]; then PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head execution --title "fix(auto-repair): canonical execution repair" --body "Canonical execution repair with exact-SHA canonical CI and post-patch adversarial falsification.")"; fi
           echo "Canonical execution -> main PR: $PR_URL"
@@ -1242,8 +1242,8 @@ jobs:
         if: steps.publish_candidate.outcome == 'success'
         run: |
           set -euo pipefail
-          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=PUBLISHED_TO_EXECUTION --actor=AUTO_REPAIR_BOT --reason=VERIFIED_EXECUTION_SHA_PUSHED
-          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=CANONICAL_CI --actor=AUTO_REPAIR_BOT --reason=AWAITING_CANONICAL_CI
+          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=READY_FOR_CHAIR_PUBLICATION --actor=AUTO_REPAIR_BOT --reason=VERIFIED_CANDIDATE_AWAITS_CHAIR
+          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=CHAIR_REVIEW --actor=AUTO_REPAIR_BOT --reason=AWAITING_CHAIR_PUBLICATION
 
       - name: Enforce central Repair Protocol post-commit boundary
         if: steps.publish_candidate.outcome == 'success'
