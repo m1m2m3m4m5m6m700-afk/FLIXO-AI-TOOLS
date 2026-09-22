@@ -147,6 +147,9 @@ export function createChangeReport({
     createdAt: now(),
     payload: {
       ...(payload && typeof payload === 'object' ? payload : {}),
+      changeDetails: (payload && typeof payload === 'object' && payload.changeDetails && Object.keys(payload.changeDetails).length > 0)
+        ? payload.changeDetails
+        : details,
       exactShaBinding: 'ENTRY_SNAPSHOT',
       mutationAuthority: 'CHAIR_1_ONLY',
       guardRole: 'RECEIVE_REVIEW_HANDOFF_ONLY',
