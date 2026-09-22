@@ -6,9 +6,10 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   protocolId: 'AGENT_LIVENESS_PROTOCOL',
   protocolVersion: '4.0.0',
   authority: 'CONTROL_PLANE',
-  heartbeatEveryMs: 5 * 60 * 1000,
-  heartbeatGraceMs: 2 * 60 * 1000,
-  wakeIntervalMs: 5 * 60 * 1000,
+  heartbeatEveryMs: 60 * 1000,
+  heartbeatGraceMs: 30 * 1000,
+  wakeIntervalMs: 60 * 1000,
+  activeRepairWindowMs: 45 * 60 * 1000,
   manualWakeRequired: false,
   selfDisableAllowed: false,
   selfAbortAllowed: false,
@@ -18,11 +19,17 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   sessionPolicy: Object.freeze({
     maxSessionCycles: 12,
     sessionBudgetScopedOnly: true,
+    minimumActiveWindowMs: 45 * 60 * 1000,
+    minimumActiveWindowEnforced: true,
     sessionEndIsNotTaskCompletion: true,
     nonGreenSessionAction: 'RECOVER_AND_REDISPATCH',
     taskRemainsOpen: true,
     terminalCompletion: 'GREEN_ONLY',
     permanentResidency: true,
+    noSleepDuringActiveWindow: true,
+    noIdleDuringActiveWindow: true,
+    cellLabRequired: true,
+    zeroErrorTarget: true,
   }),
   workAssignedStates: Object.freeze([
     'BOOTING','ACTIVE','WAITING_EXTERNAL','RECOVERING','VERIFYING','BLOCKED_EXTERNAL',
@@ -72,7 +79,12 @@ export function assertLivenessDefinition() {
   if (!AGENT_LIVENESS_PROTOCOL.protocolVersion.startsWith('4.')) throw new Error('AGENT_LIVENESS_VERSION_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs <= 0 || AGENT_LIVENESS_PROTOCOL.leaseTtlMs <= AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs) throw new Error('AGENT_LIVENESS_TIMING_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.maxNoProgressHeartbeats < 1) throw new Error('AGENT_LIVENESS_PROGRESS_THRESHOLD_INVALID');
-  if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs !== 5 * 60 * 1000) throw new Error('AGENT_LIVENESS_HEARTBEAT_NOT_FIVE_MINUTES');
+  if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_HEARTBEAT_NOT_ONE_MINUTE');
+  if (AGENT_LIVENESS_PROTOCOL.heartbeatGraceMs !== 30 * 1000) throw new Error('AGENT_LIVENESS_HEARTBEAT_GRACE_NOT_THIRTY_SECONDS');
+  if (AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs !== 45 * 60 * 1000) throw new Error('AGENT_LIVENESS_ACTIVE_WINDOW_NOT_FORTY_FIVE_MINUTES');
+  if (AGENT_LIVENESS_PROTOCOL.sessionPolicy.minimumActiveWindowMs !== AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs || AGENT_LIVENESS_PROTOCOL.sessionPolicy.minimumActiveWindowEnforced !== true) throw new Error('AGENT_LIVENESS_ACTIVE_WINDOW_POLICY_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.sessionPolicy.noSleepDuringActiveWindow !== true || AGENT_LIVENESS_PROTOCOL.sessionPolicy.noIdleDuringActiveWindow !== true) throw new Error('AGENT_LIVENESS_ACTIVE_WINDOW_RESIDENCY_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.sessionPolicy.cellLabRequired !== true || AGENT_LIVENESS_PROTOCOL.sessionPolicy.zeroErrorTarget !== true) throw new Error('AGENT_LIVENESS_CELL_LAB_OR_ZERO_ERROR_POLICY_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.manualWakeRequired !== false) throw new Error('AGENT_LIVENESS_MANUAL_WAKE_FORBIDDEN');
   if (AGENT_LIVENESS_PROTOCOL.selfDisableAllowed !== false || AGENT_LIVENESS_PROTOCOL.selfAbortAllowed !== false) throw new Error('AGENT_LIVENESS_SELF_DISABLE_OR_ABORT_FORBIDDEN');
   for (const state of working) if (forbidden.has(state)) throw new Error('AGENT_LIVENESS_WORKING_FORBIDDEN_STATE');
@@ -148,8 +160,20 @@ export function buildRecoveryDirective({ reason, currentState = 'ACTIVE', newEvi
   });
 }
 
-export function sessionTerminationDirective({ canonicalGreen = false, reason = 'SESSION_BUDGET_EXHAUSTED' } = {}) {
-  if (canonicalGreen === true) return Object.freeze({ action: 'CLOSE_ALLOWED', taskRemainsOpen: false, residentState: 'READY_RESIDENT', reason: 'CANONICAL_GREEN_PROVEN' });
+
+export function assertActiveRepairWindow({ startedAt, now = Date.now() } = {}) {
+  const start = Date.parse(String(startedAt ?? ''));
+  if (!Number.isFinite(start)) throw new Error('AGENT_LIVENESS_ACTIVE_WINDOW_START_REQUIRED');
+  const elapsedMs = Math.max(0, Number(now) - start);
+  if (elapsedMs < AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs) {
+    throw new Error(`AGENT_LIVENESS_ACTIVE_WINDOW_NOT_COMPLETE=\${Math.ceil((AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs - elapsedMs) / 1000)}s`);
+  }
+  return Object.freeze({ ok: true, elapsedMs, minimumMs: AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs });
+}
+
+export function sessionTerminationDirective({ canonicalGreen = false, activeRepairWindowReached = false, reason = 'SESSION_BUDGET_EXHAUSTED' } = {}) {
+  if (canonicalGreen === true && activeRepairWindowReached === true) return Object.freeze({ action: 'CLOSE_ALLOWED', taskRemainsOpen: false, residentState: 'READY_RESIDENT', reason: 'CANONICAL_GREEN_PROVEN' });
+  if (canonicalGreen === true && activeRepairWindowReached !== true) return Object.freeze({ action: 'RECOVER_AND_CONTINUE', taskRemainsOpen: true, residentState: 'ACTIVE_OR_RECOVERING', reason: 'ACTIVE_45_MIN_WINDOW_REQUIRED', next: 'maintain_heartbeat_until_minimum_window_then_reverify' });
   return Object.freeze({ action: 'RECOVER_AND_REDISPATCH', taskRemainsOpen: true, residentState: 'ACTIVE_OR_RECOVERING', reason: String(reason), next: 'renew_lease -> capture_state -> new_evidence_or_strategy -> continue_until_verified' });
 }
 
@@ -166,7 +190,7 @@ if (isMain) {
   try {
     if (command === 'validate') {
       assertLivenessDefinition();
-      console.log(JSON.stringify({ status: 'PASS', protocolId: AGENT_LIVENESS_PROTOCOL.protocolId, version: AGENT_LIVENESS_PROTOCOL.protocolVersion, heartbeatEveryMs: AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs, forbiddenStates: [...AGENT_LIVENESS_PROTOCOL.forbiddenStates], permanentResidency: true }, null, 2));
+      console.log(JSON.stringify({ status: 'PASS', protocolId: AGENT_LIVENESS_PROTOCOL.protocolId, version: AGENT_LIVENESS_PROTOCOL.protocolVersion, heartbeatEveryMs: AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs, activeRepairWindowMs: AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs, forbiddenStates: [...AGENT_LIVENESS_PROTOCOL.forbiddenStates], permanentResidency: true }, null, 2));
     } else if (command === 'check-heartbeat') {
       console.log(JSON.stringify(checkHeartbeat({ state: process.argv.find((v) => v.startsWith('--state='))?.slice(8) ?? 'ACTIVE', lastHeartbeatAt: process.argv.find((v) => v.startsWith('--last='))?.slice(7) }), null, 2));
     } else if (command === 'check-progress') {
