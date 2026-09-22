@@ -63,3 +63,5 @@ jobs:
         run: node scripts/ci/test-repair-protocol.mjs
       - name: Validate the complete auto-repair mutation boundary
         run: node scripts/ci/validate-auto-repair-boundary.mjs
+      - name: Validate strict Chair-1 central boundary
+        run: node scripts/ci/test-strict-chair-boundary.mjs
