@@ -1,297 +1,84 @@
-name: FLIXO Security Red-Team Triad
+name: FLIXO Security Red-Team Triad (Isolated)
 
 on:
-  push:
-    branches: [execution]
-    paths-ignore:
-      - 'الثغرات الامنيه.md'
-      - 'diagnostics/security/**'
   workflow_dispatch:
     inputs:
       expected_sha:
-        description: Exact execution SHA to scan
-        required: false
+        description: Exact commit SHA to scan
+        required: true
         type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: flixo-security-red-team-${{ github.ref }}
-  cancel-in-progress: true
+  group: flixo-security-red-team-isolated-${{ inputs.expected_sha }}
+  cancel-in-progress: false
 
 env:
-  EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
+  EXPECTED_SHA: ${{ inputs.expected_sha }}
 
 jobs:
-  contract:
-    name: Security Red-Team Contract
+  redteam:
+    name: Isolated Security Red-Team — ${{ matrix.bot }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        bot:
+          - SECURITY-REDTEAM-1
+          - SECURITY-REDTEAM-2
+          - SECURITY-REDTEAM-3
     steps:
-      - name: Checkout exact execution SHA
+      - name: Validate exact SHA format
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]] || {
+            echo "INVALID_EXPECTED_SHA"
+            exit 1
+          }
+
+      - name: Checkout exact SHA into ephemeral isolated runner
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ env.EXPECTED_SHA }}
           fetch-depth: 0
           persist-credentials: false
+
       - name: Setup Node
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Validate red-team contract
+
+      - name: Validate isolated red-team contract
         run: node scripts/ci/test-security-red-team-contract.mjs
 
-  redteam-1:
-    name: Security Red-Team — SECURITY-REDTEAM-1
-    needs: contract
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout exact execution SHA
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
-          ref: ${{ env.EXPECTED_SHA }}
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Setup Node
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        with:
-          node-version-file: .nvmrc
-          cache: npm
       - name: Run full-project red-team scan
-        run: |
-          set -euo pipefail
-          node scripts/security/security-red-team-runner.mjs \
-            --bot="SECURITY-REDTEAM-1" \
-            --sha="$EXPECTED_SHA" \
-            --output="/tmp/security-red-team-SECURITY-REDTEAM-1.json"
-      - name: Publish bot evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: flixo-security-red-team-SECURITY-REDTEAM-1-${{ env.EXPECTED_SHA }}
-          path: /tmp/security-red-team-SECURITY-REDTEAM-1.json
-          if-no-files-found: error
-          retention-days: 30
-
-  redteam-2:
-    name: Security Red-Team — SECURITY-REDTEAM-2
-    needs: contract
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout exact execution SHA
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
-          ref: ${{ env.EXPECTED_SHA }}
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Setup Node
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Run full-project red-team scan
-        run: |
-          set -euo pipefail
-          node scripts/security/security-red-team-runner.mjs \
-            --bot="SECURITY-REDTEAM-2" \
-            --sha="$EXPECTED_SHA" \
-            --output="/tmp/security-red-team-SECURITY-REDTEAM-2.json"
-      - name: Publish bot evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: flixo-security-red-team-SECURITY-REDTEAM-2-${{ env.EXPECTED_SHA }}
-          path: /tmp/security-red-team-SECURITY-REDTEAM-2.json
-          if-no-files-found: error
-          retention-days: 30
-
-  redteam-3:
-    name: Security Red-Team — SECURITY-REDTEAM-3
-    needs: contract
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout exact execution SHA
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
-          ref: ${{ env.EXPECTED_SHA }}
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Setup Node
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Run full-project red-team scan
-        run: |
-          set -euo pipefail
-          node scripts/security/security-red-team-runner.mjs \
-            --bot="SECURITY-REDTEAM-3" \
-            --sha="$EXPECTED_SHA" \
-            --output="/tmp/security-red-team-SECURITY-REDTEAM-3.json"
-      - name: Publish bot evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: flixo-security-red-team-SECURITY-REDTEAM-3-${{ env.EXPECTED_SHA }}
-          path: /tmp/security-red-team-SECURITY-REDTEAM-3.json
-          if-no-files-found: error
-          retention-days: 30
-
-  record-1:
-    name: Record SECURITY-REDTEAM-1 findings immediately
-    needs: redteam-1
-    if: ${{ success() }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout exact execution SHA
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
-          ref: ${{ env.EXPECTED_SHA }}
-          fetch-depth: 1
-          persist-credentials: false
-      - name: Setup Node
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        with:
-          node-version-file: .nvmrc
-      - name: Download bot evidence
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
-        with:
-          name: flixo-security-red-team-SECURITY-REDTEAM-1-${{ env.EXPECTED_SHA }}
-          path: /tmp/redteam-1
-      - name: Append findings to central security ledger
         env:
-          GITHUB_TOKEN: ${{ github.token }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          node scripts/security/record-security-findings.mjs \
-            --report=/tmp/redteam-1/security-red-team-SECURITY-REDTEAM-1.json \
-            --output=/tmp/redteam-1/security-red-team-record.json
-      - name: Upload immutable read-only record
-        if: always()
-        uses: actions/upload-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
-        with:
-          name: flixo-security-red-team-record-1-${{ env.EXPECTED_SHA }}
-          path: /tmp/redteam-1/security-red-team-record.json
-          if-no-files-found: error
-          retention-days: 30
-
-  record-2:
-    name: Record SECURITY-REDTEAM-2 findings immediately
-    needs: [redteam-2, record-1]
-    if: ${{ success() }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout exact execution SHA
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
-          ref: ${{ env.EXPECTED_SHA }}
-          fetch-depth: 1
-          persist-credentials: false
-      - name: Setup Node
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        with:
-          node-version-file: .nvmrc
-      - name: Download bot evidence
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
-        with:
-          name: flixo-security-red-team-SECURITY-REDTEAM-2-${{ env.EXPECTED_SHA }}
-          path: /tmp/redteam-2
-      - name: Append findings to central security ledger
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          node scripts/security/record-security-findings.mjs \
-            --report=/tmp/redteam-2/security-red-team-SECURITY-REDTEAM-2.json \
-            --output=/tmp/redteam-2/security-red-team-record.json
-      - name: Upload immutable read-only record
-        if: always()
-        uses: actions/upload-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
-        with:
-          name: flixo-security-red-team-record-2-${{ env.EXPECTED_SHA }}
-          path: /tmp/redteam-2/security-red-team-record.json
-          if-no-files-found: error
-          retention-days: 30
-
-  record-3:
-    name: Record SECURITY-REDTEAM-3 findings immediately
-    needs: [redteam-3, record-2]
-    if: ${{ success() }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout exact execution SHA
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
-          ref: ${{ env.EXPECTED_SHA }}
-          fetch-depth: 1
-          persist-credentials: false
-      - name: Setup Node
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        with:
-          node-version-file: .nvmrc
-      - name: Download bot evidence
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
-        with:
-          name: flixo-security-red-team-SECURITY-REDTEAM-3-${{ env.EXPECTED_SHA }}
-          path: /tmp/redteam-3
-      - name: Append findings to central security ledger
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          node scripts/security/record-security-findings.mjs \
-            --report=/tmp/redteam-3/security-red-team-SECURITY-REDTEAM-3.json \
-            --output=/tmp/redteam-3/security-red-team-record.json
-      - name: Upload immutable read-only record
-        if: always()
-        uses: actions/upload-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
-        with:
-          name: flixo-security-red-team-record-3-${{ env.EXPECTED_SHA }}
-          path: /tmp/redteam-3/security-red-team-record.json
-          if-no-files-found: error
-          retention-days: 30
-
-  summary:
-    name: Security Red-Team Triad Summary
-    needs: [record-1, record-2, record-3]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Download immutable read-only records
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
-        with:
-          pattern: flixo-security-red-team-record-*-${{ env.EXPECTED_SHA }}
-          path: /tmp/redteam-records
-          merge-multiple: true
-      - name: Validate triad evidence
+          FLIXO_TWIN_READ_ONLY: "true"
+          FLIXO_TWIN_DETACHED: "true"
+          FLIXO_TWIN_VARIANT: "A/B"
         shell: bash
-        env:
-          EXPECTED_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          test '${{ needs.record-1.result }}' = success
-          test '${{ needs.record-2.result }}' = success
-          test '${{ needs.record-3.result }}' = success
-          mapfile -t records < <(find /tmp/redteam-records -type f -name 'security-red-team-record.json' -print | sort)
-          test "${#records[@]}" -eq 3
-          for record in "${records[@]}"; do
-            jq -e --arg sha "$EXPECTED_SHA" '.protocol == "FLIXO-SECURITY-REDTEAM-RECORD-v2" and .status == "EVIDENCE_RECORDED_READ_ONLY" and .authority == "READ_ONLY_SECURITY_DISCOVERY" and .mutationAuthority == false and .exactSha == $sha and (.findingDigest | strings | test("^[0-9a-f]{64}$"))' "$record" >/dev/null
-          done
-          echo 'SECURITY_RED_TEAM_TRIAD=EVIDENCE_ONLY'
-          echo 'SECURITY_RED_TEAM_MUTATION=NONE'
+          mkdir -p /tmp/flixo-redteam
+          node scripts/security/security-red-team-runner.mjs             --bot="${{ matrix.bot }}"             --sha="$EXPECTED_SHA"             --output="/tmp/flixo-redteam/${{ matrix.bot }}.json"
+
+      - name: Verify report is local, read-only evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "/tmp/flixo-redteam/${{ matrix.bot }}.json"
+          jq -e             --arg sha "$EXPECTED_SHA"             --arg bot "${{ matrix.bot }}"             '.exactSha == $sha and .botId == $bot and .mutationAuthority == false'             "/tmp/flixo-redteam/${{ matrix.bot }}.json" >/dev/null
+
+      - name: Publish isolated evidence artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-security-red-team-isolated-${{ matrix.bot }}-${{ env.EXPECTED_SHA }}
+          path: /tmp/flixo-redteam/${{ matrix.bot }}.json
+          if-no-files-found: error
+          retention-days: 30
