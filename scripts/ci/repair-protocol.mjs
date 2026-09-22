@@ -57,7 +57,7 @@ export function assertProtocolDefinition(){
   return Object.freeze({protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH});
 }
 export function isCanonicalAutoRepairContext({ marker = process.env.FLIXO_AUTO_REPAIR_CONTEXT, argvPath = process.argv[1] } = {}) {
-  const normalized = String(argvPath ?? '').replaceAll('\\\\', '/');
+  const normalized = String(argvPath ?? '').replaceAll('\\', '/');
   return String(marker ?? '').trim() === 'true' && normalized.endsWith('/auto-repair-engine.mjs');
 }
 
