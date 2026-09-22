@@ -458,7 +458,7 @@ assert.ok(dailyGateWorkflow.includes('Normalize settled workflow-run evidence sh
 assert.ok(dailyGateWorkflow.includes('if type == "array" then . elif (.workflow_runs | type) == "array" then .workflow_runs else [] end'));
 assert.ok(dailyGateWorkflow.includes("jq -e 'type == \"array\"'"));
 assert.ok(dailyGateWorkflow.includes('Ensure exact-SHA required CI is resident'));
-assert.ok(dailyGateWorkflow.includes('gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/$FILE/dispatches" -f ref=execution'));
+assert.ok(dailyGateWorkflow.includes('gh workflow run "$FILE" --repo "$GITHUB_REPOSITORY" --ref execution'));
 assert.ok(dailyGateWorkflow.includes('FILE="${REQUIRED_FILES[$WORKFLOW]}"'));
 assert.ok(!dailyGateWorkflow.includes('FILE="\\${REQUIRED_FILES[$WORKFLOW]}"'));
 assert.ok(dailyGateWorkflow.includes('--arg sha "$EXECUTION_SHA"'));
