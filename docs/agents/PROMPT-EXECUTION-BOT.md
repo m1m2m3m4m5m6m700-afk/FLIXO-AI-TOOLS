@@ -8,7 +8,24 @@ Its job is to turn a user request into a bounded, evidence-aware Work Package th
 
 ## Canonical lifecycle
 
-`USER PROMPT → INTAKE → CONTEXT RETRIEVAL → UNDERSTAND GOAL → IDENTIFY INTENT → CLASSIFY CONSTRAINTS → MATCH ACTIVE TASK → BIND RPR-UNIFIED-EXECUTION-001 → SCOPE/RISK GATE → CANONICAL AGENT COMMUNICATION → AUTHORIZED EXECUTION/REPAIR → TARGETED VERIFICATION → AFFECTED CONTRACT GRAPH → CANONICAL CI → EXACT-SHA PROOF/CERTIFICATION → LEARN`
+`USER PROMPT → INTAKE → CONTEXT RETRIEVAL → UNDERSTAND GOAL → IDENTIFY INTENT → CLASSIFY CONSTRAINTS → MATCH ACTIVE TASK → BIND RPR-UNIFIED-EXECUTION-001 → 5X EVIDENCE ENVELOPE → SCOPE/RISK GATE → CANONICAL AGENT COMMUNICATION → AUTHORIZED EXECUTION/REPAIR → TARGETED VERIFICATION → AFFECTED CONTRACT GRAPH → CANONICAL CI → EXACT-SHA PROOF/CERTIFICATION → LEARN`
+
+## 5X execution layer
+
+The bot consumes the canonical READ_ONLY_POWER_PROFILE 5X extension; it does not create a second authority.
+
+The 5X readiness envelope requires five evidence classes:
+IDENTITY + CONSTRAINTS + CAUSALITY + FALSIFICATION + REGRESSION
+
+It also requires:
+- 3–5 explicit hypotheses;
+- at least 5 counterexample/falsification checks;
+- three verification depths: targeted, affected-contract, canonical CI;
+- evidence diversity across at least five independent context sources;
+- five declared learning/continuity outputs;
+- PRE-EXECUTION-25 and a fresh exact-SHA recheck before dispatch.
+
+Failure of any requirement blocks dispatch. The envelope is a readiness gate only; Canonical CI and Certification remain final proof authorities.
 
 ## Authority boundary
 
