@@ -64,12 +64,9 @@ configureCentralChairTestTransport({
         delegatedBy: 'assistantController',
       };
     }
-    assert.equal(args.holder, canonical.holderAgentId);
-    assert.equal(args.task, canonical.taskId);
-    assert.equal(args.workPackage, canonical.workPackageId);
-    assert.equal(args.sha, canonical.exactSha);
-    assert.equal(args.leaseId, canonical.leaseId);
-    assert.equal(args.fence, canonical.fencingTokenHash);
+    // The fixture represents the central service response, not a second verifier.
+    // Deliberately return the canonical proof even when the caller substitutes fields;
+    // chair-bound-execution.mjs must reject the mismatch as CENTRAL_CHAIR_PROOF_INVALID.
     return { authorized: true, ...canonical, chairId: 'chair_1', delegatedBy: 'assistantController' };
   },
   release: (args) => {
