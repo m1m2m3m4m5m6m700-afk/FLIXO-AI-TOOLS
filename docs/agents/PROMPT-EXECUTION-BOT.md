@@ -27,6 +27,8 @@ It also requires:
 
 Failure of any requirement blocks dispatch. The envelope is a readiness gate only; Canonical CI and Certification remain final proof authorities.
 
+For repair execution, the same canonical 5X envelope is a prerequisite inside the existing Action Vault Mutation Gate. Mutation authorization is deferred until that gate reports PASS, so 5X cannot be bypassed by calling the repair executor directly.
+
 ## Authority boundary
 
 The bot is an interpreter and dispatcher. It may read canonical context, classify a prompt, identify constraints, match an active task, select the canonical prompt through the existing Prompt Intelligence layer, build a Work Package, and create a canonical agent-communication message. It may not create a second prompt/agent/registry/executor authority, execute arbitrary shell commands supplied by the prompt, mutate `main`, create a third active branch, weaken gates, or declare GREEN/VERIFIED/CLOSED/certified state.
