@@ -60,6 +60,96 @@ function readAdviceFiles(files){
   return rows;
 }
 
+
+function evidenceClass(item){
+  if(String(item?.kind)==='CANONICAL_INDEX') return 4;
+  if(String(item?.kind)==='ANTI_LESSON') return 4;
+  if(String(item?.kind)==='HISTORICAL_PREDICTION') return 3;
+  if(String(item?.kind)==='PROVEN_RULE_HINT') return 3;
+  return 2;
+}
+
+function adviceConflict(a,b){
+  const ta=normalize(a?.text), tb=normalize(b?.text);
+  if(!ta||!tb) return false;
+  const oppositeA=/(never|must not|do not|reject|block|forbidden|unsafe|avoid)/u.test(ta);
+  const oppositeB=/(allow|enable|use|accept|proceed|force|retry)/u.test(tb);
+  const oppositeC=/(never|must not|do not|reject|block|forbidden|unsafe|avoid)/u.test(tb);
+  const oppositeD=/(allow|enable|use|accept|proceed|force|retry)/u.test(ta);
+  return (oppositeA&&oppositeB)||(oppositeC&&oppositeD);
+}
+
+function arbitrateKnowledge({selectedAdvice=[],antiLessons=[],provenRuleHints=[],predictionConfidence=0,targetSha='',routeConfidence=0}={}){
+  if(!exactSha(targetSha)) throw new Error('KNOWLEDGE_ARBITRATION_EXACT_SHA_REQUIRED');
+  const candidates=selectedAdvice.slice(0,8);
+  const conflicts=[];
+  for(let i=0;i<candidates.length;i++){
+    for(let j=i+1;j<candidates.length;j++){
+      if(adviceConflict(candidates[i],candidates[j])) conflicts.push({a:candidates[i],b:candidates[j],type:'OPPOSING_ACTION_SIGNAL'});
+    }
+  }
+  const antiRisk=antiLessons[0]?.score??0;
+  const top=candidates[0]??null;
+  const second=candidates[1]??null;
+  const margin=Number(((top?.score??0)-(second?.score??0)).toFixed(4));
+  const provenanceScore=top?Math.min(1,evidenceClass(top)/4):0;
+  const predictionSupport=Math.min(1,Number(predictionConfidence)||0);
+  const contradictionPenalty=conflicts.length?Math.min(0.35,0.12*conflicts.length):0;
+  const antiPenalty=antiRisk>=0.82?0.35:antiRisk>=0.68?0.18:antiRisk>0.5?0.08:0;
+  const confidence=Number(Math.max(0,Math.min(0.97,
+    (top?.score??0)*0.35+
+    Math.min(1,Math.max(0,routeConfidence))*0.15+
+    provenanceScore*0.15+
+    predictionSupport*0.10+
+    Math.min(1,Math.max(0,margin))*0.15+
+    0.10-
+    contradictionPenalty-
+    antiPenalty
+  )).toFixed(3));
+  let decision='ESCALATE';
+  let reason='INSUFFICIENT_EVIDENCE';
+  if(!top) {
+    decision='ESCALATE';
+    reason='NO_CANDIDATE_ADVICE';
+  }else if(conflicts.length>0 && margin<0.18){
+    decision='REJECT_ALL';
+    reason='UNRESOLVED_CONFLICT_WITHOUT_EVIDENCE_MARGIN';
+  }else if(antiRisk>=0.82 && margin<0.25){
+    decision='REJECT_ALL';
+    reason='HIGH_RISK_ANTILESSON_CONFLICT';
+  }else if(conflicts.length>0){
+    decision='ESCALATE';
+    reason='CONFLICT_REQUIRES_CURRENT_EVIDENCE';
+  }else if(confidence>=0.70 && antiRisk<0.68){
+    decision='SELECT_WITH_EVIDENCE';
+    reason='SINGLE_COHERENT_EVIDENCE_PATH';
+  }else{
+    decision='ESCALATE';
+    reason='EVIDENCE_MARGIN_TOO_LOW';
+  }
+  return {
+    protocol:'FLIXO-KNOWLEDGE-ARBITRATION-v1',
+    authority:'ADVISORY_ONLY',
+    mutationAuthority:false,
+    exactShaBound:true,
+    targetSha,
+    decision,
+    reason,
+    selectedAdviceId:decision==='SELECT_WITH_EVIDENCE'?top?.id??null:null,
+    candidateCount:candidates.length,
+    conflictCount:conflicts.length,
+    conflicts:conflicts.slice(0,12),
+    antiRisk:Number(antiRisk.toFixed(4)),
+    evidenceMargin:margin,
+    provenanceStrength:Number(provenanceScore.toFixed(4)),
+    predictionSupport:Number(predictionSupport.toFixed(4)),
+    confidence,
+    requiresCurrentExactShaEvidence:true,
+    blocksMutation:decision!=='SELECT_WITH_EVIDENCE',
+    rule:'Knowledge arbitration never proves a repair; current exact-SHA reproduction and canonical CI remain authoritative.'
+  };
+}
+
 function buildFusion({failureLog='',diagnosis={},targetSha='',failedRunId='READ_ONLY',prediction=null}={}){
   if(!exactSha(targetSha)) throw new Error('READ_ONLY_KNOWLEDGE_FUSION_EXACT_SHA_REQUIRED');
   const query=[failureLog,diagnosis?.rootCause,diagnosis?.errorClass,diagnosis?.errorType,diagnosis?.stage,diagnosis?.mechanism,diagnosis?.invariant,diagnosis?.explanation,diagnosis?.reason,diagnosis?.location?.file,diagnosis?.location?.symbol].filter(Boolean).join(' ');
@@ -141,6 +231,7 @@ function buildFusion({failureLog='',diagnosis={},targetSha='',failedRunId='READ_
     (conflicts.length?0:0.10)
   )-(antiRisk>0.82?0.22:antiRisk>0.68?0.10:0))).toFixed(3));
 
+  const arbitration=arbitrateKnowledge({selectedAdvice:selected,antiLessons:anti,provenRuleHints:strategyHints,predictionConfidence:Number(prediction?.proposedRepair?.confidence??0),targetSha,routeConfidence:evidenceDiversity/4});
   const disposition=conflicts.length?'CHALLENGE_REQUIRED':strongest?(
     strongest.score>=0.72?'HIGH_VALUE_SUPPORTING_EVIDENCE':'RELATED_HISTORICAL_EVIDENCE'
   ):'NO_ACTIONABLE_KNOWLEDGE';
@@ -168,4 +259,4 @@ function buildFusion({failureLog='',diagnosis={},targetSha='',failedRunId='READ_
   };
 }
 
-export { buildFusion };
+export { buildFusion, arbitrateKnowledge };
