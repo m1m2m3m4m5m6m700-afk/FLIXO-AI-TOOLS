@@ -397,7 +397,9 @@ export function acquire({chairId='chair_1',agentId,targetSha=sha(),repositorySta
     const wp=workPackageId===null?null:assertContextId(workPackageId,'WORK_PACKAGE_ID');
     const task=taskId===null?null:assertContextId(taskId,'TASK_ID');
     if(chairId==='chair_1'){
-      if(agentId!==CHAIR1_OWNER_AGENT) verifyCentralChairForMutation({agentId,targetSha:t,workPackageId:wp,taskId:task});
+      // Chair-1 custody is never authenticated by caller-supplied identity alone.
+      // Even assistantController must present a valid central lease/proof before mutation.
+      verifyCentralChairForMutation({agentId,targetSha:t,workPackageId:wp,taskId:task});
       if(agentId!==CHAIR1_OWNER_AGENT && (task===null || wp===null))throw new Error('CHAIR1_TASK_DELEGATION_REQUIRED');
       if(repositoryState!=='IDLE'||state.repository_state!=='IDLE')throw new Error('CHAIR_REPOSITORY_NOT_IDLE');
       if(active.length)throw new Error('CHAIR1_ACTIVE_DELEGATION');
