@@ -17,6 +17,7 @@ import { validateRepairProof, preventionRuleFor, escalationReason } from './auto
 import { critiqueRepair } from './auto-repair/self-critic.mjs';
 import { buildCausalProof } from './auto-repair/causal-proof.mjs';
 import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
+import { loadAndValidateCellLabConsensus } from './cell-lab-consensus.mjs';
 import { assertAgentAdmission, createRepairSession, captureFailure, authorizeMutation, completeRepairSession, validateActionVaultVerifierProof, validateErrorOnlyMutation, validateMinimalRepairScope, validateTargetedRegressionSelection } from './repair-protocol.mjs';
 import { loadAttemptLedger, isRepairRejected, rejectionReasons } from './repair-attempt-ledger.mjs';
 import { buildErrorOnlyRepairModel } from './auto-repair/error-only-programmer.mjs';
@@ -52,6 +53,7 @@ const programmerTwinParityPath = process.env.FLIXO_ACTION_REPAIR_TWIN_PARITY_PAT
 const programmerTwinReportPath = process.env.FLIXO_ACTION_REPAIR_PROGRAMMER_TWIN_PATH ?? '';
 const preMutationProofPath = process.env.FLIXO_ACTION_VAULT_PRE_MUTATION_PROOF_PATH ?? '';
 const fileSelectionPath = process.env.FLIXO_FILE_SELECTION_PATH ?? '';
+const cellLabConsensusPath = process.env.FLIXO_CELL_LAB_CONSENSUS_FILE ?? '';
 const actionVaultVerifierProof = actionVaultVerifierProofPath && fs.existsSync(actionVaultVerifierProofPath)
   ? JSON.parse(fs.readFileSync(actionVaultVerifierProofPath, 'utf8'))
   : null;
@@ -75,7 +77,7 @@ if (repairActor === 'actionRepairBot') {
   if (programmerTwinParity?.status !== 'EXACT_INTELLIGENCE_PARITY' || programmerTwinParity?.intelligenceParity !== 'EXACT' || programmerTwinParity?.authorityParity !== 'SEPARATED_BY_DESIGN' || programmerTwinParity?.targetSha !== targetSha) throw new Error('ACTION_REPAIR_PROGRAMMER_TWIN_PARITY_REQUIRED');
   validateActionVaultVerifierProof({ proof: actionVaultVerifierProof, targetSHA: targetSha, failureFingerprint: fingerprint });
 }
-let repairProtocolSession = createRepairSession({ repairSessionId, actor: repairActor, failureFingerprint: fingerprint, targetSHA: targetSha, beforeState: { worktree: 'clean', targetSha }, attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1), fallback: repairActor === 'assistantRepairAgent' ? { ...fallbackProof, actor: 'assistantRepairAgent', targetSha } : null, assistantApproval, actionVaultVerifierProof });
+let repairProtocolSession = createRepairSession({ repairSessionId, actor: repairActor, failureFingerprint: fingerprint, targetSHA: targetSha, beforeState: { worktree: 'clean', targetSha }, attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1), fallback: repairActor === 'assistantRepairAgent' ? { ...fallbackProof, actor: 'assistantRepairAgent', targetSha } : null, assistantApproval, actionVaultVerifierProof, taskId: process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, cellLabConsensusFile: cellLabConsensusPath || undefined });
 if (repairActor === 'actionRepairBot') {
   const taskId = process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId;
   repairProtocolSession = Object.freeze({
