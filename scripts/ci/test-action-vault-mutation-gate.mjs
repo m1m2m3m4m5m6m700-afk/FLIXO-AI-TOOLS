@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { buildFiveXExecutionEnvelope } from './read-only-power-profile.mjs';
 import { evaluateMutationGate } from './action-vault-mutation-gate.mjs';
 
 const sha='a'.repeat(40);
@@ -37,11 +38,21 @@ const base={
  patchCorrectness:{status:'PROVEN',proofCompleteness:{PATCH_TARGET_PROVEN:true,PATCH_MECHANISM_PROVEN:true}},
  regressionCounterexamples:{counterexampleFound:false,exhausted:true},
  mutationScope:{testMutation:false,controlPlaneMutation:false,mainMutation:false,gateWeakening:false},
- branch:'execution'
+ branch:'execution',
+ fiveXEnvelope:buildFiveXExecutionEnvelope({
+  exactSha:sha,branch:'execution',selectedTaskId:'task',
+  hypothesisCount:3,counterexampleChecks:10,regressionDepth:3,
+  independentEvidenceSources:5,learningOutputs:5,
+  proofClasses:['IDENTITY','CONSTRAINTS','CAUSALITY','FALSIFICATION','REGRESSION'],
+  preExecution25:{status:'PASS',operationCount:30,operationDigest:'e'.repeat(64)},
+  adversarialReview:{status:'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE',counterexampleFound:false},
+ })
 };
 const pass=evaluateMutationGate(base);
 assert.equal(pass.status,'PASS');
 assert.equal(pass.mutationAllowed,true);
+const missingFiveX=evaluateMutationGate({...base,fiveXEnvelope:null});
+assert.equal(missingFiveX.status,'BLOCK','FIVE_X_EXECUTION_READY');
 
 for(const key of ['CATALOG_REVIEW','DIAGNOSIS_KNOWLEDGE_MATCH','COGNITIVE_AWARENESS','SANDBOX_SIMULATION','DIFFERENTIAL_VERIFICATION','PATCH_CORRECTNESS']){
  const copy={...base};
