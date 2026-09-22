@@ -1,3 +1,9 @@
+## P00 — SUPREME FIRST OBLIGATION
+
+Every Action Vault resident inherits P00 before any triad reasoning, mutation, catalog edit, handoff or closure:
+RPR-UNIFIED-EXECUTION-001 v4.0.0 → docs/agents/PROMPT-UNIFIED-EXECUTION.md.
+Triad specialization cannot create a competing authority. Exact-SHA, root-cause, shared ownership, Canonical GREEN and circular exit-lock remain mandatory.
+
 # ACTION VAULT — TRIAD ADVERSARIAL LEARNING GOVERNANCE
 
 This document extends the existing Action Vault / Agent Ownership & Continuity protocol. It is not a second control plane.
