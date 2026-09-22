@@ -27,4 +27,8 @@ assert.equal(report.staleEvidence.some((x)=>x.runId===105),true);
 assert.equal(report.staleEvidence.some((x)=>x.runId===106),true);
 assert.equal(report.staleEvidence.some((x)=>x.classification==='CANCELLED_SUPERSEDED'),true);
 assert.equal(report.securitySignals.some((x)=>x.runId===104),true);
+assert.equal(report.deepInference.protocol,'FLIXO-DEEP-READ-ONLY-INFERENCE-v1');
+assert.equal(report.deepInference.synthesis.noMutationAuthority,true);
+assert.equal(report.deepInference.falsification.length > 0,true);
+assert.equal(report.deepInference.counterfactuals.length > 0,true);
 console.log(JSON.stringify({status:'PASS',checks:11},null,2));
