@@ -24,7 +24,7 @@ for (const marker of [
   'consumerAuthority',
   'executionAgent',
   'repairAgent',
-  'TASK-AGENT-PREPARATION-v3',
+  'TASK-AGENT-PREPARATION-v4-ISOLATED-WORKSPACE',
 ]) {
   if (!contract.includes(marker)) throw new Error(`TASK_AGENT_CONTRACT_MARKER_MISSING=${marker}`);
 }

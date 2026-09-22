@@ -92,8 +92,8 @@ assert.ok(task.includes('preparedOnly: true'));
 assert.ok(task.includes("executionMode: 'PREPARATION_ONLY'"));
 assert.ok(task.includes("mutationPolicy: 'NO_DIRECT_MUTATION'"));
 assert.ok(task.includes("const executionAuthority = 'TASK_PREPARATION_ONLY';"));
-assert.ok(task.includes("TASK-AGENT-PREPARATION-v3"));
-assert.ok(task.includes("applyAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT'"));
+assert.ok(task.includes("TASK-AGENT-PREPARATION-v4-ISOLATED-WORKSPACE"));
+assert.ok(task.includes("applyAuthority: 'CHAIR_1'"));
 
 assert.ok(taskContract.toLowerCase().includes('preparation-only'));
 assert.ok(taskContract.includes('MUST NOT'));

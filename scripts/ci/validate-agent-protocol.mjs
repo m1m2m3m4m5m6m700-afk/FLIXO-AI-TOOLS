@@ -86,7 +86,7 @@ if (exists('docs/AGENT-COLLABORATION-PROTOCOL.md')) {
 
 const taskAgentSource = exists('scripts/ci/task-agent.mjs') ? read('scripts/ci/task-agent.mjs') : '';
 if (taskAgentSource) {
-  for (const marker of ["actor: 'taskAgent'", "preparedOnly: true", "executionMode: 'PREPARATION_ONLY'", "mutationPolicy: 'NO_DIRECT_MUTATION'", "const executionAuthority = 'TASK_PREPARATION_ONLY';", "TASK-AGENT-PREPARATION-v3", "applyAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT'"]) if (!taskAgentSource.includes(marker)) fail('TASK_AGENT_PREPARATION_CONTRACT_MISSING', marker);
+  for (const marker of ["actor: 'taskAgent'", "preparedOnly: true", "executionMode: 'PREPARATION_ONLY'", "mutationPolicy: 'NO_DIRECT_MUTATION'", "const executionAuthority = 'TASK_PREPARATION_ONLY';", "TASK-AGENT-PREPARATION-v4-ISOLATED-WORKSPACE", "applyAuthority: 'CHAIR_1'"]) if (!taskAgentSource.includes(marker)) fail('TASK_AGENT_PREPARATION_CONTRACT_MISSING', marker);
   if (taskAgentSource.includes("TASK_AGENT_DIRECT_EXECUTION") || taskAgentSource.includes("TASK_AGENT_ON_EXECUTION_BRANCH_ONLY")) fail('TASK_AGENT_DIRECT_MUTATION_MARKER_PRESENT');
 }
 const repairProtocolSource = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';

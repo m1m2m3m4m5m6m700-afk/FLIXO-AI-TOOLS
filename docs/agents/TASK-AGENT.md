@@ -163,6 +163,6 @@ When the baseline SHA moves, discard the prepared packet and re-prepare against 
 
 ## Canonical contract version
 
-`TASK-AGENT-PREPARATION-v3`
+`TASK-AGENT-PREPARATION-v4-ISOLATED-WORKSPACE`
 
 This contract supersedes the former direct-execution interpretation. The repository's central Repair Protocol remains the sole mutation authority for repair execution.
