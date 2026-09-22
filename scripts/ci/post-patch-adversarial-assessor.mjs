@@ -68,71 +68,205 @@ function mutateWorkflow(content){
 function main(){
   if(process.env.FLIXO_TWIN_READ_ONLY!=='true') die('READ_ONLY_REQUIRED');
   if(!['execution',''].includes(git(['branch','--show-current']))) die('EXECUTION_REF_REQUIRED');
+
   const target=git(['rev-parse','HEAD']);
   if(!/^[a-f0-9]{40}$/.test(target)) die('TARGET_SHA_INVALID');
   if(expectedSha&&target!==expectedSha) die('TARGET_SHA_MISMATCH:'+target+':'+expectedSha);
   if(git(['status','--porcelain'])) die('WORKTREE_NOT_CLEAN');
+
+  const parent=baseSha||git(['rev-parse','HEAD^']);
+  if(!/^[a-f0-9]{40}$/.test(parent)||parent===target) die('BASE_SHA_INVALID');
+
   const manifestPath=process.env.FLIXO_RCA_MANIFEST_PATH||'/tmp/flixo-rca-manifest.json';
   const rcaManifest=readJson(manifestPath);
   let rcaManifestStatus='MISSING';
   let rcaManifestError=null;
   try {
     if(!rcaManifest) throw new Error('RCA_MANIFEST_MISSING');
-    validateRcaManifest(rcaManifest,{currentSha:target,requireMutationEligible:true});
+    validateRcaManifest(rcaManifest,{currentSha:parent,requireMutationEligible:true});
     rcaManifestStatus='PASS';
   } catch(error) {
     rcaManifestStatus='BLOCKED';
     rcaManifestError=String(error?.message??error);
   }
-  const parent=baseSha||git(['rev-parse','HEAD^']);
-  if(!/^[a-f0-9]{40}$/.test(parent)||parent===target) die('BASE_SHA_INVALID');
+
   const patch=git(['diff','--binary',parent,target]);
   const changed=git(['diff','--name-only',parent,target]).split(/\r?\n/).filter(Boolean);
   if(!changed.length) die('PATCH_EMPTY');
+
   const seed='0x'+sha256(target+':'+(process.env.FLIXO_FAILURE_FINGERPRINT||'POST_PATCH_FALSIFICATION')).slice(0,12);
   const actual=[];
-  function record(label,result){ actual.push({label,code:result.status,signal:result.signal,stdout:String(result.stdout||'').slice(-2500),stderr:String(result.stderr||'').slice(-2500)}); }
+  function record(label,result){
+    actual.push({label,code:result.status,signal:result.signal,stdout:String(result.stdout||'').slice(-2500),stderr:String(result.stderr||'').slice(-2500)});
+  }
+
   const diffCheck=spawnSync('git',['-C',root,'diff','--check',parent,target],{encoding:'utf8',timeout:60000,env:process.env});
   record('git-diff-check',diffCheck);
   if(changed.some(v=>/\.(yml|yaml)$/i.test(v))) record('validate-auto-repair-boundary',runNode(root,'scripts/ci/validate-auto-repair-boundary.mjs'));
   if(changed.some(v=>v.startsWith('scripts/ci/'))) record('validate-ci-contract',runNode(root,'scripts/validate-ci-contract.mjs'));
+
   const tests=relevantTests(root,changed);
   for(const test of tests) record('targeted-test:'+test.rel,runNode(root,test.file));
+
   const failures=actual.filter(v=>v.code!==0&&v.code!==null);
-  if(failures.length){
-    const result={schemaVersion:1,protocol:'FLIXO-POST-PATCH-ADVERSARIAL-v1',phase:'POST_PATCH',authority:'READ_ONLY_ADVERSARIAL_ASSESSOR',mutationAuthority:false,repositoryWrite:false,actionsWrite:false,branch:'execution',targetSha:target,baseSha:parent,patchDigest:'sha256:'+sha256(patch),seed,strategyTested:'targeted-regression-plus-deterministic-mutation',casesGenerated:actual.length,casesFailed:failures.length,regressionsFound:failures.length,mutantCasesGenerated:0,mutantCasesKilled:0,mutantCasesSurvived:0,relevantTests:tests.map(v=>v.rel),actualProbeResults:actual,mutationResults:[],status:'FOUND_FAILURE',failureFingerprint:process.env.FLIXO_FAILURE_FINGERPRINT||null,testArtifactDigest:'sha256:'+sha256(JSON.stringify(actual)),generatedAt:new Date().toISOString()};
-    fs.mkdirSync(path.dirname(output),{recursive:true}); fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n'); console.log(JSON.stringify(result,null,2)); process.exitCode=1; return;
+  if(failures.length || rcaManifestStatus!=='PASS'){
+    const verdict=buildFalsifierVerdict({
+      manifest:rcaManifest,
+      actualFailures:failures.length?failures:[{label:'RCA_MANIFEST_VALIDATION',stderr:rcaManifestError||'RCA manifest unavailable or stale'}],
+      mutantCasesSurvived:0,
+      targetSha:target,
+      sourceSha:parent,
+      patch,
+      changedPaths:changed,
+      rejectionReason:{message:rcaManifestError||'ADVERSARIAL_PRECONDITION_BLOCKED'}
+    });
+    const proof=finiteInvariantProof({
+      manifest:rcaManifest,
+      sourceSha:parent,
+      targetSha:target,
+      changedPaths:changed,
+      patch,
+      adversarial:verdict
+    });
+    const result={
+      schemaVersion:2,
+      protocol:'FLIXO-POST-PATCH-ADVERSARIAL-v2',
+      phase:'POST_PATCH',
+      authority:'READ_ONLY_ADVERSARIAL_ASSESSOR',
+      mutationAuthority:false,
+      repositoryWrite:false,
+      actionsWrite:false,
+      branch:'execution',
+      targetSha:target,
+      sourceSha:parent,
+      baseSha:parent,
+      patchDigest:'sha256:'+sha256(patch),
+      seed,
+      strategyTested:'targeted-regression-plus-convergence-guided-deterministic-mutation',
+      casesGenerated:actual.length,
+      casesFailed:failures.length,
+      regressionsFound:failures.length,
+      mutantCasesGenerated:0,
+      mutantCasesKilled:0,
+      mutantCasesSurvived:0,
+      relevantTests:tests.map(v=>v.rel),
+      actualProbeResults:actual,
+      mutationResults:[],
+      rcaManifestStatus,
+      rcaManifestError,
+      falsifierVerdict:'REJECTED_WITH_COUNTER_EXAMPLE',
+      falsificationEvidence:verdict.falsification_evidence,
+      convergenceDirective:verdict.convergence_directive,
+      finiteInvariantProof:proof,
+      passConfirmed:false,
+      status:'REJECTED_WITH_COUNTER_EXAMPLE',
+      failureFingerprint:process.env.FLIXO_FAILURE_FINGERPRINT||null,
+      testArtifactDigest:'sha256:'+sha256(JSON.stringify({actual,verdict,proof,target,parent})),
+      generatedAt:new Date().toISOString()
+    };
+    fs.mkdirSync(path.dirname(output),{recursive:true});
+    fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n');
+    console.log(JSON.stringify(result,null,2));
+    process.exitCode=1;
+    return;
   }
+
   const sandbox='/tmp/flixo-adversarial-'+target;
   fs.rmSync(sandbox,{recursive:true,force:true});
   execFileSync('git',['-C',root,'worktree','add','--detach',sandbox,target],{encoding:'utf8'});
   const mutations=[];
   try{
-    const codeFiles=changed.filter(v=>/\.(mjs|js|ts)$/i.test(v)).slice(0,4);
+    const codeFiles=changed.filter(v=>/\.(mjs|js|ts)$/i.test(v)).filter(v=>!v.startsWith('diagnostics/')).slice(0,4);
     for(let i=0;i<codeFiles.length&&mutations.length<6;i++){
-      const rel=codeFiles[i],file=path.join(sandbox,rel); if(!fs.existsSync(file)) continue;
-      const original=fs.readFileSync(file,'utf8'); const mutation=mutateCode(original,i+parseInt(seed.slice(2),16)%7); if(!mutation) continue;
+      const rel=codeFiles[i],file=path.join(sandbox,rel);
+      if(!fs.existsSync(file)) continue;
+      const original=fs.readFileSync(file,'utf8');
+      const mutation=mutateCode(original,i+parseInt(seed.slice(2),16)%7);
+      if(!mutation) continue;
       const testsForFile=relevantTests(sandbox,[rel]).slice(0,2);
-      if(!testsForFile.length){ mutations.push({file:rel,mutation:mutation.mutation,outcome:'NO_KILL_TEST'}); continue; }
+      if(!testsForFile.length){
+        mutations.push({file:rel,mutation:mutation.mutation,outcome:'NO_KILL_TEST'});
+        continue;
+      }
       fs.writeFileSync(file,mutation.content);
       const probes=testsForFile.map(t=>({test:t.rel,...runNode(sandbox,t.file)}));
       fs.writeFileSync(file,original);
       mutations.push({file:rel,mutation:mutation.mutation,outcome:probes.some(v=>v.code!==0&&v.code!==null)?'KILLED':'SURVIVED',probes:probes.map(v=>({test:v.test,code:v.code,signal:v.signal}))});
     }
     for(const rel of changed.filter(v=>/\.(yml|yaml)$/i.test(v)).slice(0,2)){
-      const file=path.join(sandbox,rel); if(!fs.existsSync(file)) continue;
-      const original=fs.readFileSync(file,'utf8'); const mutation=mutateWorkflow(original);
+      const file=path.join(sandbox,rel);
+      if(!fs.existsSync(file)) continue;
+      const original=fs.readFileSync(file,'utf8');
+      const mutation=mutateWorkflow(original);
       if(!mutation){mutations.push({file:rel,mutation:'NONE_APPLICABLE',outcome:'NO_MUTANT'});continue;}
       fs.writeFileSync(file,mutation.content);
       const probe=runNode(sandbox,'scripts/ci/validate-auto-repair-boundary.mjs');
       fs.writeFileSync(file,original);
       mutations.push({file:rel,mutation:mutation.mutation,outcome:probe.status!==0?'KILLED':'SURVIVED',code:probe.status});
     }
-  }finally{ execFileSync('git',['-C',root,'worktree','remove','--force',sandbox],{encoding:'utf8'}); }
+  }finally{
+    execFileSync('git',['-C',root,'worktree','remove','--force',sandbox],{encoding:'utf8'});
+  }
+
   const survivors=mutations.filter(v=>v.outcome==='SURVIVED'||v.outcome==='NO_KILL_TEST');
-  const sourceNeedsCoverage=changed.some(v=>/\.(mjs|js|ts|tsx|jsx)$/i.test(v))&&tests.length===0;
-  const status=sourceNeedsCoverage||survivors.length?'INCONCLUSIVE':'NO_COUNTEREXAMPLE';
-  const result={schemaVersion:1,protocol:'FLIXO-POST-PATCH-ADVERSARIAL-v1',phase:'POST_PATCH',authority:'READ_ONLY_ADVERSARIAL_ASSESSOR',mutationAuthority:false,repositoryWrite:false,actionsWrite:false,branch:'execution',targetSha:target,baseSha:parent,patchDigest:'sha256:'+sha256(patch),seed,strategyTested:'targeted-regression-plus-deterministic-mutation',casesGenerated:actual.length,casesFailed:0,regressionsFound:0,mutantCasesGenerated:mutations.filter(v=>v.outcome!=='NO_MUTANT').length,mutantCasesKilled:mutations.filter(v=>v.outcome==='KILLED').length,mutantCasesSurvived:mutations.filter(v=>v.outcome==='SURVIVED').length,relevantTests:tests.map(v=>v.rel),actualProbeResults:actual,mutationResults:mutations,status,failureFingerprint:process.env.FLIXO_FAILURE_FINGERPRINT||null,testArtifactDigest:'sha256:'+sha256(JSON.stringify({actual,mutations,target,parent})),generatedAt:new Date().toISOString()};
-  fs.mkdirSync(path.dirname(output),{recursive:true}); fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n'); console.log(JSON.stringify(result,null,2)); if(status!=='NO_COUNTEREXAMPLE') process.exitCode=1;
+  const sourceNeedsCoverage=changed.some(v=>/\.(mjs|js|ts|tsx|jsx)$/i.test(v)&&!v.startsWith('diagnostics/'))&&tests.length===0;
+  const verdict=buildFalsifierVerdict({
+    manifest:rcaManifest,
+    actualFailures:[],
+    mutantCasesSurvived:survivors.length,
+    targetSha:target,
+    sourceSha:parent,
+    patch,
+    changedPaths:changed,
+    rejectionReason:survivors.length?{message:'ADVERSARIAL_MUTANT_SURVIVED'}:sourceNeedsCoverage?{message:'SOURCE_COVERAGE_MISSING'}:null
+  });
+  const proof=finiteInvariantProof({
+    manifest:rcaManifest,
+    sourceSha:parent,
+    targetSha:target,
+    changedPaths:changed,
+    patch,
+    adversarial:verdict
+  });
+  const result={
+    schemaVersion:2,
+    protocol:'FLIXO-POST-PATCH-ADVERSARIAL-v2',
+    phase:'POST_PATCH',
+    authority:'READ_ONLY_ADVERSARIAL_ASSESSOR',
+    mutationAuthority:false,
+    repositoryWrite:false,
+    actionsWrite:false,
+    branch:'execution',
+    targetSha:target,
+    sourceSha:parent,
+    baseSha:parent,
+    patchDigest:'sha256:'+sha256(patch),
+    seed,
+    strategyTested:'targeted-regression-plus-convergence-guided-deterministic-mutation',
+    casesGenerated:actual.length,
+    casesFailed:0,
+    regressionsFound:0,
+    mutantCasesGenerated:mutations.filter(v=>v.outcome!=='NO_MUTANT').length,
+    mutantCasesKilled:mutations.filter(v=>v.outcome==='KILLED').length,
+    mutantCasesSurvived:survivors.length,
+    relevantTests:tests.map(v=>v.rel),
+    actualProbeResults:actual,
+    mutationResults:mutations,
+    rcaManifestStatus,
+    rcaManifestError,
+    falsifierVerdict:verdict.falsifierVerdict,
+    falsificationEvidence:verdict.falsification_evidence,
+    convergenceDirective:verdict.convergence_directive,
+    finiteInvariantProof:proof,
+    passConfirmed:verdict.passConfirmed===true&&proof.status==='PROVEN'&&!sourceNeedsCoverage,
+    status:verdict.falsifierVerdict==='PASS_CONFIRMED'&&proof.status==='PROVEN'&&!sourceNeedsCoverage?'NO_COUNTEREXAMPLE':'REJECTED_WITH_COUNTER_EXAMPLE',
+    failureFingerprint:process.env.FLIXO_FAILURE_FINGERPRINT||null,
+    testArtifactDigest:'sha256:'+sha256(JSON.stringify({actual,mutations,target,parent,proof})),
+    generatedAt:new Date().toISOString()
+  };
+  fs.mkdirSync(path.dirname(output),{recursive:true});
+  fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n');
+  console.log(JSON.stringify(result,null,2));
+  if(!result.passConfirmed) process.exitCode=1;
 }
 main();
