@@ -203,7 +203,8 @@ if (!pushWakeMarkers.every((marker) => pushWakeBlock.includes(marker)) ||
 const canonicalTestBlock = watchdogStepBlock(executionWatchdogWorkflow, 'Verify canonical Test System exists for exact SHA');
 const canonicalTestMarkers = [
   'name: Verify canonical Test System exists for exact SHA',
-  'EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"',
+  'SOURCE_EXECUTION_SHA: ${{ steps.source.outputs.execution_sha }}',
+  'EXECUTION_SHA="$SOURCE_EXECUTION_SHA"',
   'actions/runs?head_sha=$EXECUTION_SHA&per_page=100',
   'path == ".github/workflows/ci.yml"',
   '.head_sha == $sha',
