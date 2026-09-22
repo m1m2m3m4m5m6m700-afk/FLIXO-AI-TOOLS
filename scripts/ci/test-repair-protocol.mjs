@@ -153,17 +153,18 @@ assert.throws(() => assertAgentAdmission({
   mutation:true,
   session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,taskId:'auto-repair-no-chair',cellLabConsensus:cellLabConsensus('auto-repair-no-chair','repairAgent')}
 }),/REPAIR_PROTOCOL_CHAIR_REQUIRED/);
-assert.throws(()=>assertAgentAdmission({actor:'actionHistorian',branch:'execution',mutation:true,session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task-historian-fail',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,chairBinding,cellLabConsensus:cellLabConsensus('repair-test-task-historian-fail','actionHistorian')}}),/SUPERVISOR_MODE_REQUIRED/);
-assert.equal(assertAgentAdmission({
-  actor:'actionRepairVerifier', branch:'execution', mutation:true,
-  session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,chairBinding,cellLabConsensus:cellLabConsensus('repair-test-task','actionRepairVerifier'),
-    actionVaultMission:{role:'ACTION-REPAIR-2',mutationSeat:'ACTION-REPAIR-2',supervisorMode:'NORMAL_TRIAD',entrySha:targetSHA,targetSha:targetSHA,candidateRepairApproved:true}}
-}).admitted,true);
-assert.equal(assertAgentAdmission({
-  actor:'actionHistorian', branch:'execution', mutation:true,
-  session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task-historian',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,chairBinding,cellLabConsensus:cellLabConsensus('repair-test-task-historian','actionHistorian'),
-    actionVaultMission:{role:'ACTION-HISTORIAN-3',mutationSeat:'ACTION-HISTORIAN-3',supervisorMode:'SUPERVISOR_20',entrySha:targetSHA,targetSha:targetSHA,catalogReviewed:true,bothProgrammingProposalsReviewed:true,supervisorDecision:true}}
-}).admitted,true);
+assert.throws(()=>assertAgentAdmission({
+  actor:'actionHistorian',
+  branch:'execution',
+  mutation:true,
+  session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task-historian',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,chairBinding,cellLabConsensus:cellLabConsensus('repair-test-task-historian','actionHistorian')}
+}),/MUTATION_ROLE_BLOCKED/);
+assert.throws(()=>assertAgentAdmission({
+  actor:'actionRepairVerifier',
+  branch:'execution',
+  mutation:true,
+  session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,chairBinding,cellLabConsensus:cellLabConsensus('repair-test-task','actionRepairVerifier')}
+}),/MUTATION_ROLE_BLOCKED/);
 const actionRepairSession=createRepairSession({repairSessionId:'action-repair-session',actor:'actionRepairBot',failureFingerprint:'action-repair-test',targetSHA,beforeState:{worktree:'clean'}});
 assert.equal(actionRepairSession.actor,'actionRepairBot');
 const completeProof={
