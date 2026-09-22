@@ -42,7 +42,7 @@ const DEAD_LEASE_AFTER_MS=Math.max(3*HEARTBEAT_INTERVAL_MS,positiveDuration(proc
 const SPECULATIVE_CACHE_ROOT=()=>path.resolve(ROOT,String(process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_PATH??'.flixo/cache/chair-readonly'));
 const SPECULATIVE_CACHE_TTL_MS=positiveDuration(process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_TTL_MS,15*60*1000);
 const SESSION_CONTEXT_ROOT=()=>path.resolve(ROOT,String(process.env.FLIXO_CHAIR_SESSION_CONTEXT_PATH??'.flixo/cache/chair-session'));
-const centralChairStrict = () => process.env.FLIXO_STRICT_CHAIR === 'true';
+const centralChairStrict = () => process.env.NODE_ENV === 'test' ? process.env.FLIXO_STRICT_CHAIR === 'true' : (process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true' || process.env.FLIXO_STRICT_CHAIR === 'true');
 function verifyCentralChairForMutation({agentId,targetSha,workPackageId,taskId}){
   if(!centralChairStrict() || agentId===CHAIR1_OWNER_AGENT) return;
   const leaseId=String(process.env.FLIXO_CHAIR_LEASE_ID??'').trim();
@@ -364,11 +364,20 @@ export const preemptChair1ForMaster = () => {
   throw new Error('CHAIR1_PREEMPTION_FORBIDDEN_USE_CONTROLLER_RECLAIM');
 };
 
-export function reclaimChair1({agentId=CHAIR1_OWNER_AGENT,targetSha=sha(),reason=''}={}) {
+export function reclaimChair1({agentId=CHAIR1_OWNER_AGENT,targetSha=sha(),reason='',userCommandProof='',userCommandSignature=''}={}) {
   assertAgent(agentId);
   if(agentId!==CHAIR1_OWNER_AGENT)throw new Error('CHAIR1_RECLAIM_CONTROLLER_ONLY');
-  if(!/^USER_DIRECT_COMMAND(?:[: ]|$)/u.test(String(reason).trim()))throw new Error('CHAIR1_RECLAIM_REQUIRES_USER_DIRECT_COMMAND');
+  const normalizedReason=String(reason).trim();
+  if(!/^USER_DIRECT_COMMAND(?:[: ]|$)/u.test(normalizedReason))throw new Error('CHAIR1_RECLAIM_REQUIRES_USER_DIRECT_COMMAND');
   const t=assertSha(targetSha,'TARGET_SHA');
+  const proof=String(userCommandProof??'').trim();
+  const signature=String(userCommandSignature??'').trim();
+  const commandKey=String(process.env.FLIXO_USER_COMMAND_SIGNING_KEY??'').trim();
+  if(proof!=='USER_DIRECT_COMMAND')throw new Error('CHAIR1_RECLAIM_USER_COMMAND_PROOF_REQUIRED');
+  if(!commandKey)throw new Error('CHAIR1_RECLAIM_USER_COMMAND_KEY_REQUIRED');
+  if(!HASH_RE.test(signature))throw new Error('CHAIR1_RECLAIM_USER_COMMAND_SIGNATURE_INVALID');
+  const expected=createHmac('sha256',commandKey).update(`${t}:${normalizedReason}`,'utf8').digest('hex');
+  if(!timingSafeEqual(Buffer.from(signature,'hex'),Buffer.from(expected,'hex')))throw new Error('CHAIR1_RECLAIM_USER_COMMAND_SIGNATURE_INVALID');
   if(t!==sha())throw new Error('STALE_CONTEXT');
   return withWriteLock(()=>{
     const state=readState();
@@ -446,10 +455,17 @@ export function authorizePublication({chairId='chair_1',agentId,targetSha=sha(),
   if(chair.work_package_id!==null && chair.work_package_id!==String(workPackageId??''))throw new Error('CHAIR_WORK_PACKAGE_MISMATCH');
   if(chair.task_id!==null && chair.task_id!==String(taskId??''))throw new Error('CHAIR_TASK_MISMATCH');
   if(chair.fencing_token!==null && chair.fencing_token!==String(fencingToken??''))throw new Error('CHAIR_FENCING_TOKEN_MISMATCH');
-  const normalized=paths.map(p=>String(p).replaceAll('\\','/').replace(/^\.\//,''));
-  if(chair.scope_hash!==null && !(Array.isArray(chair.scope)&&chair.scope.length===1&&String(chair.scope[0])==='*') && chair.scope_hash!==scopeDigest(paths))throw new Error('CHAIR_SCOPE_HASH_MISMATCH');
+  const normalized=[...new Set(paths.map(p=>String(p).replaceAll('\\','/').replace(/^\.\//,'').trim()).filter(Boolean))].sort();
+  if(normalized.some(p=>p==='*'))throw new Error('CHAIR_PUBLICATION_WILDCARD_FORBIDDEN');
+  if(chair.scope_hash!==null && chair.scope_hash!==scopeDigest(normalized))throw new Error('CHAIR_SCOPE_HASH_MISMATCH');
+  if(chair.work_package_id!==null && chair.work_package_id!==String(workPackageId??''))throw new Error('CHAIR_WORK_PACKAGE_MISMATCH');
+  if(chair.task_id!==null && chair.task_id!==String(taskId??''))throw new Error('CHAIR_TASK_MISMATCH');
+  if(chair.fencing_token!==null && chair.fencing_token!==String(fencingToken??''))throw new Error('CHAIR_FENCING_TOKEN_MISMATCH');
+  if(chairId==='chair_1'){
+    if(chair.owner_agent_id!==CHAIR1_OWNER_AGENT)throw new Error('CHAIR1_OWNER_MISSING');
+    if(chair.custody_status!=='DELEGATED' && agentId!==CHAIR1_OWNER_AGENT)throw new Error('CHAIR1_NOT_DELEGATED');
+  }
   for(const p of normalized){
-    if(p==='*')continue;
     if(p.startsWith('/')||p.includes('..'))throw new Error('CHAIR_PATH_INVALID');
     if(def.protectedPrefixes.some(prefix=>p===prefix||p.startsWith(prefix)))throw new Error('CHAIR_PROTECTED_PATH');
     if(!def.allowedPrefixes.some(prefix=>p.startsWith(prefix)))throw new Error('CHAIR_SCOPE_DENIED='+p);
@@ -814,7 +830,7 @@ if(process.argv[1]?.endsWith('/chair-bound-execution.mjs')){
   else if(command==='reconcile-dead-leases')console.log(JSON.stringify(reconcileDeadLeases({targetSha:target}),null,2));
   else if(command==='take-chair')console.log(JSON.stringify(takeChair1({agentId:arg('agent'),role:arg('role')||null,targetSha:target,repositoryState:arg('repository-state','ACTIVE'),workPackageId:arg('work-package')||null,taskId:arg('task-id')||null,fencingToken:arg('fencing-token')||null,scope:scope.length?scope:null,reviewId:arg('review-id')||null,reason:arg('reason','AGENT_NEEDS_CHAIR_1')}),null,2));
   else if(command==='master-preempt')throw new Error('CHAIR1_PREEMPTION_FORBIDDEN_USE_CONTROLLER_RECLAIM');
-  else if(command==='reclaim-chair')console.log(JSON.stringify(reclaimChair1({agentId:arg('agent','assistantController'),targetSha:target,reason:arg('reason')}),null,2));
+  else if(command==='reclaim-chair')console.log(JSON.stringify(reclaimChair1({agentId:arg('agent','assistantController'),targetSha:target,reason:arg('reason'),userCommandProof:arg('user-command-proof'),userCommandSignature:arg('user-command-signature')}),null,2));
   else if(command==='speculate')console.log(JSON.stringify(writeSpeculativeContext({sessionId:arg('session'),taskId:arg('task'),chairId:arg('chair'),role:arg('role'),targetSha:target,pendingDiff:arg('pending-diff'),testPlan:arg('test-plan').split(';').map(v=>v.trim()).filter(Boolean)}),null,2));
   else throw new Error('Usage: chair-bound-execution.mjs init|acquire|authorize-write|merge-proposal|release|mode|validate');
 }
