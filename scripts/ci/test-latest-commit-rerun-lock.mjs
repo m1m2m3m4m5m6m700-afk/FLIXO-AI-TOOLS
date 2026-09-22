@@ -17,13 +17,18 @@ assert.match(ci, /verify-run-lock\.mjs/u);
 assert.match(ci, /create-run-proof\.mjs/u);
 assert.match(ci, /verify-run-proof\.mjs/u);
 
+const verifyStart = ci.indexOf('  verify:\n');
 const browserFastStart = ci.indexOf('  browser_fast:\n');
 const browserDeepStart = ci.indexOf('  browser_deep:\n');
-if (browserFastStart < 0 || browserDeepStart <= browserFastStart) throw new Error('BROWSER_FAST_SECTION_NOT_FOUND');
+if (verifyStart < 0 || browserFastStart <= verifyStart || browserDeepStart <= browserFastStart) throw new Error('BROWSER_SECTIONS_NOT_FOUND');
+const verifySection = ci.slice(verifyStart, browserFastStart);
 const browserFast = ci.slice(browserFastStart, browserDeepStart);
-assert.match(browserFast, /name:\s*flixo-static-build-evidence-\$\{\{\s*github\.run_id\s*\}\}/u);
-assert.match(browserFast, /name:\s*flixo-static-build-evidence-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*path:\s*diagnostics[\s\S]*Verify immutable rerun lock/u);
-assert.match(ci, /flixo-static-build-evidence-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*path:\s*diagnostics\//u);
+const browserDeep = ci.slice(browserDeepStart);
+assert.match(verifySection, /name:\s*flixo-build-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*path:\s*\|\n\s*dist\/\n\s*diagnostics\/certification\/run-identity\.json/u);
+assert.match(browserFast, /name:\s*flixo-build-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*path:\s*\./u);
+assert.doesNotMatch(browserFast, /flixo-static-build-evidence-\$\{\{\s*github\.run_id\s*\}\}/u);
+assert.match(browserFast, /name:\s*flixo-build-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*path:\s*\.[\s\S]*Verify immutable rerun lock/u);
+assert.match(browserDeep, /name:\s*flixo-build-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*path:\s*\./u);
 
 assert.doesNotMatch(supersession, /gh api --paginate --slurp/u);
 assert.doesNotMatch(supersession, /--paginate\b/u);
