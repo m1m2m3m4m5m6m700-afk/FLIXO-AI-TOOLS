@@ -6,6 +6,7 @@ import {
   normalizePushPacket,
   buildCanonicalLaneConsolidation,
   assertCanonicalLaneConsolidation,
+  collectAccumulatedPushPackets,
 } from './canonical-lane-consolidator.mjs';
 
 const head='1111111111111111111111111111111111111111';
@@ -13,6 +14,18 @@ const aBase='2222222222222222222222222222222222222222';
 const bBase='3333333333333333333333333333333333333333';
 const aHead='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const bHead='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+
+const collected=collectAccumulatedPushPackets({
+  currentHead:head,
+  root:'/tmp/flixo-non-repository-root',
+  envValue:JSON.stringify([{
+    packetId:'ENV-A', agentId:'ACTION-REPAIR', sourceSha:aHead, baseSha:head,
+    changedFiles:['scripts/a.mjs'],
+  }]),
+});
+assert.equal(collected.candidateCount,1);
+assert.equal(collected.packets.length,1);
+assert.equal(collected.packets[0].packetId,'ENV-A');
 
 const packetA=normalizePushPacket({
   packetId:'P-A', agentId:'ACTION-REPAIR', sourceSha:aHead, baseSha:head,
