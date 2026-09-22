@@ -303,6 +303,31 @@ const securityMissingEvidence = evaluateGreen({
 assert.equal(securityMissingEvidence.status, 'FAIL_CLOSED');
 assert.equal(securityMissingEvidence.repair.required, false);
 
+const securityAggregation = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: [
+    { id: 301, name: 'github-advanced-security', status: 'completed', conclusion: 'failure', updatedAt: '2026-09-19T00:04:00Z', details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/301' },
+    { id: 302, name: 'CodeQL', status: 'completed', conclusion: 'success', updatedAt: '2026-09-19T00:05:00Z' },
+    { id: 303, name: 'Certification', status: 'completed', conclusion: 'success', updatedAt: '2026-09-19T00:05:00Z' },
+  ],
+  logs: { 301: 'CAPIError: 400 The requested model is not supported' },
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(securityAggregation.ci.security.status, 'failure');
+assert.equal(securityAggregation.ci.security.checks.length, 2);
+assert.equal(securityAggregation.status, 'BLOCKED_EXTERNAL');
+assert.equal(securityAggregation.repair.required, false);
+assert.equal(
+  securityAggregation.externalBlockers.some((item) =>
+    item.checkName === 'github-advanced-security' &&
+    item.rootCause === 'EXTERNAL_SECURITY_PROVIDER_FAILURE'
+  ),
+  true
+);
+
 const internal = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
   workflowRuns: requiredRuns.map((item) =>

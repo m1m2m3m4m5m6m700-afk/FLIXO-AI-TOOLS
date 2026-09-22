@@ -282,23 +282,6 @@ export function evaluateGreen({
     }
   }
 
-  const securityCheck = latestCheck(checkRuns, SECURITY_CHECK_PATTERNS);
-  report.ci.security = {
-    present: Boolean(securityCheck),
-    status: stateOf(securityCheck),
-    name: securityCheck?.name ?? null,
-    checkId: securityCheck?.id ?? null,
-  };
-  if (!securityCheck) report.errors.push({ type: 'SECURITY_EVIDENCE_MISSING' });
-  const certificationCheck = latestCheck(checkRuns, CERTIFICATION_CHECK_PATTERNS);
-  report.ci.certification = {
-    present: Boolean(certificationCheck),
-    status: stateOf(certificationCheck),
-    name: certificationCheck?.name ?? null,
-    checkId: certificationCheck?.id ?? null,
-  };
-  if (!certificationCheck) report.errors.push({ type: 'CERTIFICATION_EVIDENCE_MISSING' });
-
   const latestChecksByName = new Map();
   for (const check of checkRuns) {
     const name = String(check.name ?? '');
@@ -310,6 +293,45 @@ export function evaluateGreen({
     }
   }
   const latestChecks = [...latestChecksByName.values()];
+
+  // Security is an aggregate surface, not a single "latest" check.
+  // A successful CodeQL check must never hide a failing GHAS/provider check.
+  const securityChecks = latestChecks.filter((check) =>
+    SECURITY_CHECK_PATTERNS.some((pattern) => pattern.test(String(check.name ?? '')))
+  );
+  const securityCheck = [...securityChecks]
+    .sort((a, b) => String(b.updated_at ?? b.updatedAt ?? b.completed_at ?? b.started_at ?? '')
+      .localeCompare(String(a.updated_at ?? a.updatedAt ?? a.completed_at ?? a.started_at ?? '')))[0] ?? null;
+  const aggregateSecurityStatus = !securityChecks.length
+    ? 'MISSING'
+    : securityChecks.some((check) => ['failure', 'timed_out', 'cancelled', 'action_required'].includes(stateOf(check)))
+      ? 'failure'
+      : securityChecks.some((check) => ['queued', 'in_progress', 'pending'].includes(stateOf(check)))
+        ? 'in_progress'
+        : 'success';
+
+  report.ci.security = {
+    present: Boolean(securityChecks.length),
+    status: aggregateSecurityStatus,
+    name: securityCheck?.name ?? null,
+    checkId: securityCheck?.id ?? null,
+    checks: securityChecks.map((check) => ({
+      name: check.name ?? null,
+      status: stateOf(check),
+      checkId: check.id ?? null,
+    })),
+  };
+  if (!securityChecks.length) report.errors.push({ type: 'SECURITY_EVIDENCE_MISSING' });
+
+  const certificationCheck = latestCheck(checkRuns, CERTIFICATION_CHECK_PATTERNS);
+  report.ci.certification = {
+    present: Boolean(certificationCheck),
+    status: stateOf(certificationCheck),
+    name: certificationCheck?.name ?? null,
+    checkId: certificationCheck?.id ?? null,
+  };
+  if (!certificationCheck) report.errors.push({ type: 'CERTIFICATION_EVIDENCE_MISSING' });
+
   const externalCandidates = latestChecks.map((check) => externalCheckBlock(check, logForCheck(check, logs))).filter(Boolean);
   const externalStatusCandidates = statuses
     .filter((status) => isExternalCheckName(status?.context))
@@ -328,14 +350,18 @@ export function evaluateGreen({
   if (externalCandidates.some((item) => ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state))) {
     report.rootCause = 'EXTERNAL_CHECK_BLOCKED';
   }
-  const securityBlock = securityProviderBlock(securityCheck, logForCheck(securityCheck, logs));
-  if (securityBlock) report.externalBlockers.push(securityBlock);
-  else if (securityCheck && stateOf(securityCheck) !== 'success') {
-    report.errors.push({
-      type: 'SECURITY_EVIDENCE_MISSING',
-      checkName: securityCheck.name ?? null,
-      status: stateOf(securityCheck),
-    });
+
+  for (const check of securityChecks) {
+    const securityBlock = securityProviderBlock(check, logForCheck(check, logs));
+    if (securityBlock) {
+      report.externalBlockers.push(securityBlock);
+    } else if (stateOf(check) !== 'success') {
+      report.errors.push({
+        type: 'SECURITY_EVIDENCE_MISSING',
+        checkName: check.name ?? null,
+        status: stateOf(check),
+      });
+    }
   }
 
   if (observedBranch === 'execution' && !report.repair.required) {
