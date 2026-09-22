@@ -71,7 +71,7 @@ export const LEASE_STATES = Object.freeze([
   'LEASE_CIRCUIT_OPEN',
 ]);
 
-const IMMUTABLE_REPAIR_IDENTITY_FIELDS = Object.freeze(['repairChainId','dispatchKey','claimKey','leaseRef','recoveryRefPrefix','eventRefPrefix','targetRunId','failureFingerprint','failedSha','executionSha','observedBranch']);
+const IMMUTABLE_REPAIR_IDENTITY_FIELDS = Object.freeze(['repairChainId','dispatchKey','claimKey','leaseRef','recoveryRefPrefix','eventRefPrefix','targetRunId','failureFingerprint','failedSha','executionSha','identityDigest','observedBranch']);
 
 export const REPAIR_OUTCOMES = Object.freeze([
   'VERIFIED_REPAIR',
