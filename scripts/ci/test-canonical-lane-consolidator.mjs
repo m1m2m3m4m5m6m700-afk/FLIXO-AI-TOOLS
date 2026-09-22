@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+
+process.env.NODE_ENV='test';
+process.env.FLIXO_CANONICAL_LANE_SYNTHETIC_FIXTURES='true';
 import {
   CANONICAL_LANE,
   CONSOLIDATION_PROTOCOL,
@@ -127,6 +130,21 @@ const noPatch=buildCanonicalLaneConsolidation({
 });
 assert.equal(noPatch.status,'BLOCKED_CONFLICT');
 assert.equal(noPatch.conflicts[0].type,'SEMANTIC_EVIDENCE_UNAVAILABLE');
+
+const previousFixtureMode=process.env.FLIXO_CANONICAL_LANE_SYNTHETIC_FIXTURES;
+process.env.FLIXO_CANONICAL_LANE_SYNTHETIC_FIXTURES='false';
+const forgedPatch=buildCanonicalLaneConsolidation({
+  currentHead:head,
+  targetBranch:CANONICAL_LANE,
+  expectedParent:head,
+  packets:[
+    {...packetA,packetId:'P-FORGED-A',sourceSha:'1111111111111111111111111111111111111181',changedFiles:['same.ts'],patchText:patchAtLines},
+    {...packetA,packetId:'P-FORGED-B',sourceSha:'1111111111111111111111111111111111111182',changedFiles:['same.ts'],patchText:patchAtLines},
+  ],
+});
+assert.equal(forgedPatch.status,'BLOCKED_CONFLICT');
+assert.equal(forgedPatch.conflicts[0].type,'PATCH_INTEGRITY_BLOCKED');
+process.env.FLIXO_CANONICAL_LANE_SYNTHETIC_FIXTURES=previousFixtureMode;
 
 const semanticConflict=buildCanonicalLaneConsolidation({
   currentHead:head,
