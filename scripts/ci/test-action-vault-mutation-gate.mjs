@@ -4,6 +4,10 @@ import { evaluateMutationGate } from './action-vault-mutation-gate.mjs';
 
 const sha='a'.repeat(40);
 const fp='fp';
+const runId='run-1';
+const observedAt='2026-09-22T18:00:00.000Z';
+const falsificationSearches=Array.from({length:10},(_,i)=>({id:'F'+i,targetSha:sha,failureFingerprint:fp,runId,observedAt}));
+const patchDigest='p'.repeat(64);
 const completeness=Object.fromEntries([
  'COGNITIVE_AWARENESS_PROVEN','CAUSAL_EVIDENCE_GRAPH_PROVEN','ROOT_CAUSE_PROVEN','FILE_SELECTION_PROVEN','PROGRAMMER_TWIN_PARITY_PROVEN',
  'ADVERSARIAL_FALSIFICATION_COMPLETE','NO_VALID_COUNTEREXAMPLE','SANDBOX_SIMULATION_PASSED',
@@ -14,7 +18,7 @@ const verifier={
  status:'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE',
  verifierAgent:'actionRepairVerifier',
  targetSha:sha,failureFingerprint:fp,
- alternativeHypotheses:[{id:'alt'}],falsificationChecks:[{id:'f'}],falsificationSearches:Array.from({length:10},()=>({})),
+ alternativeHypotheses:[{id:'alt'}],falsificationChecks:[{id:'f'}],falsificationSearches,runId,
  counterEvidence:{noCounterexampleIsNotPatchCorrect:true},
  role:'ADVERSARIAL_PROGRAMMER_FALSIFIER',challengeMode:'FALSIFY_PRIMARY',
  programmerTwinParity:{intelligenceParity:'EXACT',authorityParity:'SEPARATED_BY_DESIGN',targetSha:sha,failureFingerprint:fp},
@@ -22,21 +26,28 @@ const verifier={
  primaryCorrectnessProof:{objective:'PROVE_PRIMARY_REPAIR_CORRECT',status:'PRIMARY_CORRECTNESS_PROVEN'},
  falsificationComplete:true,counterexampleFound:false,
  mutationRecommendation:'ALLOW_AFTER_FALSIFICATION_NO_COUNTEREXAMPLE',
- remainingRisks:['canonical-ci'],proofCompleteness:completeness,preMutationProof:{status:'PROVEN',targetSha:sha,failureFingerprint:fp},
+ remainingRisks:['canonical-ci'],proofCompleteness:completeness,
+preMutationProof:{
+ status:'PROVEN',noMutationApplied:true,failedRunId:runId,targetSha:sha,failureFingerprint:fp,
+ sandboxSimulation:{protocol:'REPAIR-SANDBOX-SIMULATION-PROOF-v2',status:'PASS',ok:true,targetSha:sha,failureFingerprint:fp,exactShaBound:true,mutationPerformed:false,patchDigest,regressionCounterexamples:{exhausted:true,counterexampleFound:false}},
+ differentialProof:{protocol:'DIFFERENTIAL-REPAIR-PROOF-v1',status:'PASS',targetSha:sha,behavioralVerification:{ok:true},exactShaBound:true,scopeProof:true},
+ patchCorrectness:{protocol:'PATCH-CORRECTNESS-PROOF-v1',status:'PROVEN',targetSha:sha,failureFingerprint:fp,sourceMutationAllowed:false,proofCompleteness:{NO_VALID_COUNTEREXAMPLE:true,SIMULATION_PASSED:true,DIFFERENTIAL_CHECK_PASSED:true,PATCH_TARGET_PROVEN:true,PATCH_MECHANISM_PROVEN:true}},
+ regressionCounterexamples:{targetSha:sha,failureFingerprint:fp,exhausted:true,counterexampleFound:false}
+ },
 };
 const base={
  targetSha:sha,currentSha:sha,failureFingerprint:fp,verifierProof:verifier,
  catalogReview:{status:'REVIEWED',reviewer:'ACTION-HISTORIAN-3',beforeMutation:true,mutationAuthority:false,taskId:'task',fingerprint:fp,targetSha:sha,source:{indexId:'ACTION-INDEX-4000',declaredCapacity:1000000,actualRecordCount:4000},digest:'d'.repeat(64)},
  diagnosisKnowledgeReview:{protocol:'ACTION-VAULT-DIAGNOSIS-KNOWLEDGE-REVIEW-v1',reviewer:'ACTION-HISTORIAN-3',decision:'MATCH',allowSourceMutation:true,taskId:'task',fingerprint:fp,targetSha:sha,catalogDigest:'d'.repeat(64),diagnosisDigest:'e'.repeat(64)},
  cognitiveAwareness:{protocol:'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1',targetSha:sha,failureFingerprint:fp,awarenessCompleteness:{complete:true}},
- rootCauseProof:{protocol:'CAUSAL-EVIDENCE-GRAPH-v1',status:'PROVEN',targetSha:sha,failureFingerprint:fp,sourceMutationAllowed:false,proofClaims:{ROOT_CAUSE_LINKED_TO_FAILURE_SIGNAL:true,LOCATION_LINKED_TO_CAUSE:true,MECHANISM_EXPLAINED:true,ALTERNATIVES_CHALLENGED:true}},
+ rootCauseProof:{protocol:'CAUSAL-EVIDENCE-GRAPH-v1',status:'PROVEN',targetSha:sha,failureFingerprint:fp,sourceMutationAllowed:false,proofClaims:{ROOT_CAUSE_LINKED_TO_FAILURE_SIGNAL:true,LOCATION_LINKED_TO_CAUSE:true,MECHANISM_EXPLAINED:true,ALTERNATIVES_CHALLENGED:true},evidenceRecords:[{targetSha:sha,failureFingerprint:fp,runId,timestamp:observedAt}]},
  fileSelection:{decision:'SELECTED',targetSha:sha,failureFingerprint:fp,selectedFiles:[{path:'src/example.ts'}]},
  programmerTwinParity:{intelligenceParity:'EXACT',authorityParity:'SEPARATED_BY_DESIGN',targetSha:sha,failureFingerprint:fp},
- falsificationReport:{falsificationComplete:true,counterexampleFound:false,targetSha:sha,failureFingerprint:fp},
- simulationProof:{status:'PASS'},
- differentialProof:{status:'PASS'},
+ falsificationReport:{falsificationComplete:true,counterexampleFound:false,targetSha:sha,failureFingerprint:fp,runId,falsificationSearches},
+ simulationProof:{protocol:'REPAIR-SANDBOX-SIMULATION-PROOF-v2',status:'PASS',ok:true,targetSha:sha,failureFingerprint:fp,exactShaBound:true,mutationPerformed:false,patchDigest},
+ differentialProof:{protocol:'DIFFERENTIAL-REPAIR-PROOF-v1',status:'PASS',targetSha:sha,behavioralVerification:{ok:true},exactShaBound:true,scopeProof:true},
  patchCorrectness:{status:'PROVEN',proofCompleteness:{PATCH_TARGET_PROVEN:true,PATCH_MECHANISM_PROVEN:true}},
- regressionCounterexamples:{counterexampleFound:false,exhausted:true},
+ regressionCounterexamples:{targetSha:sha,failureFingerprint:fp,counterexampleFound:false,exhausted:true},
  mutationScope:{testMutation:false,controlPlaneMutation:false,mainMutation:false,gateWeakening:false},
  branch:'execution',
  fiveXEnvelope:buildFiveXExecutionEnvelope({
