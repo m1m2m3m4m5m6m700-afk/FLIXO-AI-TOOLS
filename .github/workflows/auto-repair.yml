@@ -61,7 +61,7 @@ permissions:
 concurrency:
   # One writer lane per execution ref. Different failure fingerprints/target runs must not mutate concurrently.
   # The resident observer is isolated because it is non-mutating and long-lived.
-  group: flixo-auto-repair-${{ inputs.resident == 'true' && 'resident' || 'execution-writer' }}
+  group: flixo-execution-mutation-lane
   cancel-in-progress: false
 
 env:
@@ -78,6 +78,10 @@ env:
   FLIXO_REPAIR_LEASE_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
   FLIXO_REPAIR_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
   FLIXO_CONVERGENCE_GUIDANCE_ARTIFACT_ID: ${{ inputs.convergence_guidance_artifact_id || '' }}
+  FLIXO_REQUIRE_FENCED_CHAIR: 'true'
+  FLIXO_CHAIR_SIGNING_KEY: ${{ github.token }}
+  FLIXO_MUTATION_ADMISSION: /tmp/flixo-mutation-admission.json
+  FLIXO_CHAIR_CONTEXT: /tmp/flixo-chair-context.json
   FLIXO_REPAIR_BEHAVIOR_TRACE_PATH: /tmp/flixo-repair-behavior-trace.json
   FLIXO_HISTORICAL_SOLUTION_PATH: /tmp/flixo-historical-solution-index.json
   FLIXO_TWIN_A_PATH: /tmp/flixo-twin-a.json
@@ -1051,6 +1055,32 @@ jobs:
           cp /tmp/flixo-rca-manifest.json diagnostics/auto-repair/last-rca-manifest.json
           test "$(jq -r '.target_sha' diagnostics/auto-repair/last-rca-manifest.json)" = "$FAILED_SHA"
 
+      - name: Acquire global execution mutation gate and Chair-1
+        id: mutation_gate
+        if: steps.verify.outputs.verified == 'true'
+        run: |
+          set -euo pipefail
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          test "$(git branch --show-current)" = execution
+          git fetch --no-tags origin execution
+          test "$(git rev-parse HEAD)" = "$FAILED_SHA"
+          test "$(git rev-parse origin/execution)" = "$FAILED_SHA"
+          git add -A
+          git add -f diagnostics/auto-repair/memory.json
+          if [ -f diagnostics/auto-repair/intractable-errors.json ]; then git add -f diagnostics/auto-repair/intractable-errors.json; fi
+          STAGED_PATHS="$(git diff --cached --name-only | paste -sd, -)"
+          test -n "$STAGED_PATHS"
+          WORK_PACKAGE_ID="REPAIR:${TARGET_RUN_ID}:${FLIXO_FAILURE_FINGERPRINT}"
+          TASK_ID="ACTION-REPAIR:${TARGET_RUN_ID}:${FLIXO_FAILURE_FINGERPRINT}"
+          node scripts/ci/execution-mutation-gate.mjs admit --owner=AUTO_REPAIR_BOT --sha="$FAILED_SHA" --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --paths="$STAGED_PATHS" --output="$FLIXO_MUTATION_ADMISSION"
+          FENCING_TOKEN="$(jq -r '.fencingToken' "$FLIXO_MUTATION_ADMISSION")"
+          node scripts/ci/chair-bound-execution.mjs init --sha="$FAILED_SHA"
+          node scripts/ci/chair-bound-execution.mjs acquire --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$FAILED_SHA" --repository-state=IDLE --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --scope="$STAGED_PATHS" >/tmp/flixo-chair-acquire.json
+          node scripts/ci/chair-bound-execution.mjs authorize-write --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$FAILED_SHA" --permission=SOURCE_MUTATION --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --paths="$STAGED_PATHS" >/tmp/flixo-chair-authorize.json
+          jq -n --arg sha "$FAILED_SHA" --arg wp "$WORK_PACKAGE_ID" --arg task "$TASK_ID" --arg fence "$FENCING_TOKEN" '{targetSha:$sha,workPackageId:$wp,taskId:$task,fencingToken:$fence}' > "$FLIXO_CHAIR_CONTEXT"
+          echo 'GLOBAL_MUTATION_GATE=PASS'
+          echo 'CHAIR_1_WRITE_ADMISSION=PASS'
+
       - name: Create exact unpublished candidate commit
         id: candidate_commit
         if: steps.verify.outputs.verified == 'true'
@@ -1060,6 +1090,8 @@ jobs:
           BASE_SHA="$(git rev-parse HEAD)"
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
           test "$BASE_SHA" = "$FAILED_SHA"
+          test -s "$FLIXO_MUTATION_ADMISSION"
+          test -s "$FLIXO_CHAIR_CONTEXT"
           git fetch --no-tags origin execution
           test "$(git rev-parse origin/execution)" = "$FAILED_SHA"
           git add -A
@@ -1116,12 +1148,32 @@ jobs:
           set -euo pipefail
           CANDIDATE_SHA="$(cat /tmp/flixo-candidate-sha)"
           PARENT_SHA="$(git rev-parse "$CANDIDATE_SHA^")"
+          test -s "$FLIXO_MUTATION_ADMISSION"
+          test -s "$FLIXO_CHAIR_CONTEXT"
           git fetch --no-tags origin execution
           test "$(git rev-parse origin/execution)" = "$PARENT_SHA"
+          node scripts/ci/execution-mutation-gate.mjs verify --phase=pre-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA" --parent="$PARENT_SHA"
+          WORK_PACKAGE_ID="$(jq -r '.workPackageId' "$FLIXO_MUTATION_ADMISSION")"
+          TASK_ID="$(jq -r '.taskId' "$FLIXO_MUTATION_ADMISSION")"
+          FENCING_TOKEN="$(jq -r '.fencingToken' "$FLIXO_MUTATION_ADMISSION")"
+          MUTATION_PATHS="$(jq -r '.scope | join(",")' "$FLIXO_MUTATION_ADMISSION")"
+          node scripts/ci/chair-bound-execution.mjs authorize-publication --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$PARENT_SHA" --permission=SOURCE_MUTATION --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --paths="$MUTATION_PATHS" >/tmp/flixo-chair-publication.json
           git push origin "HEAD:execution"
+          node scripts/ci/execution-mutation-gate.mjs verify --phase=post-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA"
+          echo 'EXECUTION_PUBLICATION=PASS'
           PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
           if [ -z "$PR_URL" ]; then PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head execution --title "fix(auto-repair): canonical execution repair" --body "Canonical execution repair with exact-SHA canonical CI and post-patch adversarial falsification.")"; fi
           echo "Canonical execution -> main PR: $PR_URL"
+      - name: Release Chair-1 mutation lease
+        if: always() && steps.mutation_gate.outcome == 'success'
+        run: |
+          set +e
+          if [ -s "$FLIXO_MUTATION_ADMISSION" ] && [ -s "$FLIXO_CHAIR_CONTEXT" ]; then
+            FAILED_SHA="$(jq -r '.targetSha' "$FLIXO_CHAIR_CONTEXT")"
+            node scripts/ci/chair-bound-execution.mjs release --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$FAILED_SHA" --successful="${{ steps.publish_candidate.outcome == 'success' }}" >/tmp/flixo-chair-release.json
+            rc=$?
+            [ "$rc" -eq 0 ] && echo 'CHAIR_1_RELEASE=PASS' || { echo 'CHAIR_1_RELEASE=FAIL_CLOSED'; exit "$rc"; }
+          fi
       - name: Record publication state in the Repair Control Plane
         if: steps.publish_candidate.outcome == 'success'
         run: |
