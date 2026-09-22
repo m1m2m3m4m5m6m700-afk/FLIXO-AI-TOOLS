@@ -16,6 +16,8 @@ const runs=[
 
 const report=runInvestigator({observedBranch:'execution',executionSha:SHA,mainSha:'c'.repeat(40),runs});
 assert.equal(report.authority,'READ_ONLY_ERROR_INVESTIGATOR');
+assert.equal(report.sharedOperationalMemory.protocol,'FLIXO-SHARED-OPERATIONAL-MEMORY-v1');
+assert.equal(report.sharedOperationalMemory.mutationAuthority,false);
 assert.equal(report.mutationPolicy,'NO_SOURCE_MUTATION');
 assert.equal(report.exactShaVerified,true);
 assert.equal(report.summary.recurringPatterns,1);
