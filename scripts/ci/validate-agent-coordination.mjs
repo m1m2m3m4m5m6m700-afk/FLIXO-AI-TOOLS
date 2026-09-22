@@ -116,7 +116,8 @@ for (const key of ['validate:agent-coordination','agent:coordination','agent:com
 const protocolRegistry = exists('docs/PROTOCOL-REGISTRY.json') ? JSON.parse(read('docs/PROTOCOL-REGISTRY.json')) : null;
 const supremePromptFile = exists('docs/agents/PROMPT-UNIFIED-EXECUTION.md') ? read('docs/agents/PROMPT-UNIFIED-EXECUTION.md') : '';
 if (!supremePromptFile.includes('CELL-LAB')) failures.push('CELL_LAB_CONTRACT_MISSING');
-if (protocolRegistry?.protocols?.find((item) => item.id === 'P20')?.cellLab?.status !== 'MANDATORY') failures.push('CELL_LAB_P20_REGISTRATION_MISSING');
+const p00CellLab = protocolRegistry?.protocols?.find((item) => item.id === 'P00')?.cellLab;
+if (typeof p00CellLab !== 'string' || !p00CellLab.includes('P20 Cell-Lab collaboration is mandatory')) failures.push('CELL_LAB_REGISTRATION_MISSING');
 if (protocolRegistry) {
   const p00 = protocolRegistry.protocols?.find((item) => item?.id === 'P00');
   if (p00?.status !== 'SUPREME_MANDATORY' || p00?.canonicalSource !== 'docs/agents/PROMPT-UNIFIED-EXECUTION.md' || p00?.version !== '4.0.0') failures.push('P00_SUPREME_PROTOCOL_INVALID');
