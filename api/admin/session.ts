@@ -55,18 +55,15 @@ const clientIpFor = (req: AdminRequest) => {
 };
 
 const allowMutationOrigin = (req: AdminRequest) => {
-  const origin = headerValue(req.headers.origin);
-  if (!origin || origin.trim() === '') return true;
+  const origin = headerValue(req.headers.origin)?.trim();
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (!origin) return !isProduction;
 
-  const host = headerValue(req.headers.host);
-  if (!host || !host.trim()) return false;
+  const configuredOrigin = process.env.ADMIN_PUBLIC_ORIGIN?.trim().replace(/\/$/, '');
+  if (isProduction) return Boolean(configuredOrigin && origin === configuredOrigin);
 
-  const forwardedProto = headerValue(req.headers['x-forwarded-proto']);
-  const protocol = forwardedProto && forwardedProto.trim()
-    ? forwardedProto.split(',')[0].trim()
-    : process.env.NODE_ENV === 'production' ? 'https' : 'http';
-
-  return origin === `${protocol}://${host}`;
+  const host = headerValue(req.headers.host)?.trim();
+  return Boolean(host && origin === 'http://' + host);
 };
 
 const rateAllowed = (ip: string) => {
