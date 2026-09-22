@@ -341,7 +341,10 @@ jobs:
         run: node scripts/ci/validate-auto-repair-boundary.mjs --static-only
 
       - name: Self-test Auto Repair Task Ledger
-        run: node scripts/ci/auto-repair-task-ledger.mjs contract
+        run: |
+          set -euo pipefail
+          node scripts/ci/auto-repair-task-ledger.mjs contract
+          node scripts/ci/test-auto-repair-task-ledger.mjs
 
       - name: Record repair pre-mutation evidence phase
         if: always() && steps.resolve_target.outcome == 'success'
