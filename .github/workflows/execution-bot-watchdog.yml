@@ -237,10 +237,22 @@ jobs:
               rm -f /tmp/flixo-mission-continuity.zip
               gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > /tmp/flixo-mission-continuity.zip
               unzip -o /tmp/flixo-mission-continuity.zip -d /tmp/flixo-mission-continuity-restore >/dev/null
-              if [ -d /tmp/flixo-mission-continuity-restore/$ROOT ]; then
+              RESTORED_ROOT="/tmp/flixo-mission-continuity-restore"
+              if [ -d "$RESTORED_ROOT/$ROOT" ]; then
                 rm -rf "$ROOT"
                 mkdir -p "$ROOT"
-                cp -R /tmp/flixo-mission-continuity-restore/$ROOT/. "$ROOT/"
+                cp -R "$RESTORED_ROOT/$ROOT/." "$ROOT/"
+              else
+                RESTORED_FILE="$(find "$RESTORED_ROOT" -type f -name "$MISSION_ID.json" -print -quit)"
+                if [ -n "$RESTORED_FILE" ]; then
+                  rm -rf "$ROOT"
+                  mkdir -p "$ROOT"
+                  cp "$RESTORED_FILE" "$ROOT/$MISSION_ID.json"
+                  RESTORED_EVENTS="$(find "$RESTORED_ROOT" -type f -name "$MISSION_ID.events.jsonl" -print -quit || true)"
+                  if [ -n "$RESTORED_EVENTS" ]; then
+                    cp "$RESTORED_EVENTS" "$ROOT/$MISSION_ID.events.jsonl"
+                  fi
+                fi
               fi
               echo "MISSION_CONTINUITY_RESTORED_FROM_RUN=$PREVIOUS_RUN_ID"
               echo "MISSION_CONTINUITY_RESTORED_ARTIFACT=$ARTIFACT_ID"
@@ -359,7 +371,7 @@ jobs:
           name: flixo-mission-continuity-${{ steps.source.outputs.execution_sha }}-${{ github.run_id }}
           path: diagnostics/mission-continuity
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: 90
 
       - name: Record watchdog evidence
         if: always()
