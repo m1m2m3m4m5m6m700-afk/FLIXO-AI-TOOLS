@@ -4,7 +4,6 @@ import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from
 import { TOOL_CATALOG } from '../src/config/registry.ts';
 import { buildFlixoAgentMasterPrompt } from '../src/lib/agent/flixo-agent-master-prompt.ts';
 
-const MAX_INPUT_CHARS = Math.max(2000, Number(process.env.FLIXO_AI_MAX_INPUT_CHARS ?? 12000));
 const MAX_MESSAGES = 24;
 
 function json(res: ServerResponse, status: number, body: unknown): void {
@@ -149,7 +148,7 @@ async function callProvider(
   return callOpenAI(messages);
 }
 
-function fallbackDecision(message: string, file: RequestBody['file']): AgentDecision {
+function fallbackDecision(message: string, file: AgentRequestContract['file']): ReturnType<typeof parseAgentDecision> {
   const normalized = message.toLocaleLowerCase();
   if (!file && /(?:الصوره|الصورة|image|photo|صور)/i.test(normalized)) {
     return {
