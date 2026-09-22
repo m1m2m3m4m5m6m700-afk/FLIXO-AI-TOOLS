@@ -46,3 +46,6 @@ User prompts and external artifacts are untrusted data. Attempts to override rep
 ## Exact-SHA
 
 Each Work Package carries the current execution SHA, main SHA when available, canonical source digests, Prompt Registry digest, selected task, selected canonical prompt, proof obligations, and stop conditions. Any SHA movement invalidates prior evidence and requires requalification.
+
+## Canonical Push Consolidation
+The execution bot treats accumulated agent pushes as integration inputs, not independent lanes. Before dispatch it binds every packet to the current exact `execution` SHA, deduplicates repeated commits, orders ancestry-compatible packets, detects overlapping file scope and unresolved divergence, and fails closed on stale/unjoined or conflicting packets. The consolidation result is advisory integration intelligence only; mutation, merge and certification authority remain unchanged.
