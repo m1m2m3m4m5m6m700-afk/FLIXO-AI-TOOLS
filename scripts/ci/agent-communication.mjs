@@ -56,6 +56,18 @@ const roles = new Set(['assistantController','verification','analysis','codeScou
 export const MASTER_IDS = Object.freeze(['MASTER-1','MASTER-2','MASTER-3']);
 export const MASTER_GROUP = 'MASTERS';
 const masterIds = new Set(MASTER_IDS);
+const validatePrivilegedTransportIdentity = (message) => {
+  const actor=String(message?.actor??'').trim();
+  const privileged=masterIds.has(actor) || isAdministrativeInstruction(message);
+  if(!privileged) return;
+  const identity=message?.transportIdentity;
+  if(process.env.NODE_ENV==='test' && identity?.testHarness===true) return;
+  if(String(process.env.GITHUB_ACTIONS??'')!=='true') throw new Error('AGENT_MESSAGE_PRIVILEGED_TRANSPORT_REQUIRED');
+  if(identity?.provider!=='github-actions') throw new Error('AGENT_MESSAGE_TRANSPORT_PROVIDER_INVALID');
+  if(identity?.actor!=='github-actions[bot]') throw new Error('AGENT_MESSAGE_TRANSPORT_ACTOR_INVALID');
+  if(String(identity?.repository??'')!==String(process.env.GITHUB_REPOSITORY??'')) throw new Error('AGENT_MESSAGE_TRANSPORT_REPOSITORY_INVALID');
+  if(!/^\\d+$/u.test(String(identity?.runId??''))) throw new Error('AGENT_MESSAGE_TRANSPORT_RUN_INVALID');
+};
 const recipientKnown = (recipient) => roles.has(recipient) || masterIds.has(recipient) || recipient === MASTER_GROUP || loadCellBotIds().has(recipient);
 const loadCellBotIds = () => {
   if (!fs.existsSync(CELL_REGISTRY_FILE)) return new Set();
@@ -124,6 +136,7 @@ export function validateMessage(message, observedSha = currentSha()) {
   for (const field of ['scope','dependencies','expectedEvidence','stopConditions','proofObligations']) asArray(message[field], field);
   if (!['LOW','MEDIUM','HIGH','CRITICAL'].includes(String(message.risk))) throw new Error('AGENT_MESSAGE_RISK_INVALID');
   if (typeof message.intent !== 'string' || !message.intent.trim()) throw new Error('AGENT_MESSAGE_INTENT_INVALID');
+  validatePrivilegedTransportIdentity(message);
   const masterPeerMessage = isMasterPeerMessage(message);
   if (masterPeerMessage) {
     if (!masterIds.has(String(message.actor))) throw new Error('MASTER_PEER_ACTOR_INVALID');
@@ -163,6 +176,7 @@ export function validateMessage(message, observedSha = currentSha()) {
     source: String(message.source ?? 'UNKNOWN'),
     notificationRef: message.notificationRef ?? null,
     payload: message.payload ?? null,
+    transportIdentity: message.transportIdentity ?? null,
     observedSha: observedSha,
   });
 }
