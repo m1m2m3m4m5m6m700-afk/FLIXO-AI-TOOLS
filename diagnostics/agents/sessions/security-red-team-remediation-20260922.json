@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "sessionId": "security-red-team-remediation-20260922",
+  "agentId": "assistantController",
+  "role": "SECURITY_REDTEAM_REMEDIATION_EXECUTOR",
+  "status": "ACTIVE",
+  "entrySha": "33607fc3f8da2269ea31e0c688b9df6dc3023a4f",
+  "baseBranch": "main",
+  "workingBranch": "execution",
+  "scope": "Apply all verified deep Red-Team remediation findings without weakening branch, security, exact-SHA, or canonical CI gates.",
+  "guardian": "docs/agents/ledger/security-red-team-remediation-20260922.json",
+  "plannedFixes": [
+    "Protect Red-Team definitions and scanner inside trust perimeter.",
+    "Expand Red-Team application/runtime scan surface to public and root source files.",
+    "Remove repair worktree local branch creation; use detached exact-SHA target.",
+    "Reduce Auto-Repair permissions to read-only observer needs.",
+    "Deduplicate Watchdog/Green Gate wake events per exact SHA.",
+    "Prevent unverified repair-applied states from becoming trusted learning.",
+    "Escalate repeated external-block fingerprints into intractable supervision state.",
+    "Suppress stale incident delivery into active Council RCA.",
+    "Bind Council job_workflow_sha to trusted workflow SHA.",
+    "Prevent Service Worker caching of authenticated/API/no-store responses."
+  ],
+  "exactShaRequired": true,
+  "noThirdBranch": true,
+  "noMainMutation": true
+}
