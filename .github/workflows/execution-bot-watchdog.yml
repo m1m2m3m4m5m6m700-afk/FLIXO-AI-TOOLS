@@ -20,7 +20,7 @@ on:
     branches: [execution, main]
 
 permissions:
-  actions: write
+  actions: read
   contents: read
 
 concurrency:
