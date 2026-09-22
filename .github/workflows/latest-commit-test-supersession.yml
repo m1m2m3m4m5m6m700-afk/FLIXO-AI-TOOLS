@@ -116,10 +116,43 @@ jobs:
             echo "STALE_RUN_CANCEL_REQUESTED run=$run_id"
           }
 
-          gh run list --repo "$REPOSITORY" --branch "$BRANCH" --limit 100 --json databaseId,headSha,status,name,event --jq '.[] | select(.status != "completed") | [.databaseId,.headSha,.status,.name,.event] | @tsv' |
-          while IFS=$'\t' read -r RUN_ID HEAD_SHA STATUS NAME EVENT; do
+          gh api "repos/$REPOSITORY/actions/runs?branch=$BRANCH&per_page=100" |
+            jq -r '.workflow_runs[] | select(.status != "completed") | [.id,.head_sha,.status,.name,.event] | @tsv' |
+          while IFS=
+              echo "obsolete=true" >> "$GITHUB_OUTPUT"
+              echo "SUPERSESSION_OBSOLETE=true"
+              echo "SUPERSESSION_ABORTED_HEAD_MOVEMENT old=$CURRENT_SHA new=$LIVE_SHA"
+              exit 0
+            fi
+            if [ "$HEAD_SHA" = "$LIVE_SHA" ]; then
+              echo "KEEP current SHA run=$RUN_ID name=$NAME status=$STATUS"
+              continue
+            fi
+            if is_test_workflow "$NAME"; then
+              cancel_stale_run "$RUN_ID" "$HEAD_SHA" "$STATUS" "$NAME" "$EVENT"
+            fi
+          done
+
+      - name: Assert repository head has not moved during supersession
+        if: steps.head.outputs.stale_event != 'true' && steps.cancel.outputs.obsolete != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ steps.head.outputs.sha }}
+          EXPECTED_BRANCH: ${{ steps.head.outputs.branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$EXPECTED_BRANCH" --jq '.object.sha')"
+          if [ "$CURRENT_SHA" != "$EXPECTED_SHA" ]; then
+            echo "SUPERSESSION_EVENT_OBSOLETE=true"
+            echo "SUPERSESSION_HEAD_MOVED old=$EXPECTED_SHA new=$CURRENT_SHA"
+            exit 0
+          fi
+          echo "LATEST_COMMIT_SUPERSESSION=PASS"
+          echo "LATEST_COMMIT_SHA=$EXPECTED_SHA"
+\t' read -r RUN_ID HEAD_SHA STATUS NAME EVENT; do
             [ -n "$RUN_ID" ] || continue
-            LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+            LIVE_SHA="$CURRENT_SHA"
             if [ "$LIVE_SHA" != "$CURRENT_SHA" ]; then
               echo "obsolete=true" >> "$GITHUB_OUTPUT"
               echo "SUPERSESSION_OBSOLETE=true"
