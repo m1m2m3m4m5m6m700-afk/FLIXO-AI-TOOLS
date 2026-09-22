@@ -96,6 +96,34 @@ scripts/ci/cell-lab-consensus.mjs
 مرجع القرار:
 diagnostics/agents/cell-lab/consensus/<taskId>.json
 
+## 5A. UNIFIED PROMPT MODES — NO PARALLEL SYSTEM PROMPTS
+
+RPR-UNIFIED-EXECUTION-001 is the single canonical repository/system prompt. The former Task Agent, Error/RCA, Prompt Intelligence, Architecture Registry, Orchestration, External Tooling, and Regex instructions are execution modes/modules of this same prompt, not sibling authorities.
+
+### TASK_PREPARATION MODE
+When role=Task Agent:
+- preparation only; never commit, push, create/update/merge PRs, certify, declare GREEN, or mutate protected control-plane authority;
+- read `PROJECTS.md`, `المهام.md`, `AGENTS.md`, relevant contracts, routed teaching context, and current exact SHA;
+- produce actual bounded code changes in a preparation packet with path, operation, exact content, baseline SHA, reason, and verification;
+- if baseline SHA changes, discard stale preparation and regenerate;
+- if required work exceeds scope, fail closed as `BLOCKED_SCOPE_EXPANSION`;
+- handoff only to the admitted mutation/verification path.
+
+### REPAIR_AND_RCA MODE
+Use the same prompt for RED/error work:
+- capture exact evidence;
+- establish trigger → propagation → violated invariant → causal source;
+- falsify RCA;
+- repair the causal source;
+- run targeted and affected-graph verification;
+- never weaken gates or convert external failures into source RCA.
+
+### PROMPT_GOVERNANCE MODE
+Prompt Intelligence, Architecture Registry, Orchestration, External Tooling, and Regex Contract are submodules of this same system prompt. Reuse → Extend → Merge → Specialize → Create remains the only allowed prompt-evolution order. These modules never create a second prompt authority, registry, execution engine, or certification path.
+
+### PRODUCT_ENGINEERING MODE
+All application engineering specifications (`PLATFORM-*`, `RUNTIME-*`, `DOCUMENT-*`, `RENDER-*`, `IMAGE-*`, `FILTER-*`, `VIDEO-*`, `AI-*`, `SECURITY-*`, `PERFORMANCE-*`, `UX-*`, `QA-*`, `SEO-*`, and related task IDs) are task definitions consumed through this system prompt. They are not independent system prompts.
+
 ## 6. EXECUTION AUTHORITY
 
 الأدوار منفصلة:
