@@ -28,6 +28,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22.x
+      - name: Bind validation workspace to canonical execution branch
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          git switch --create execution "$EXPECTED_SHA"
+          test "$(git branch --show-current)" = execution
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - name: Validate packet validator syntax
         run: node --check scripts/ci/validate-advanced-repair-packet.mjs
       - name: Run positive and negative contract tests

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import crypto from 'node:crypto';
 import { activeChairForAgent } from './chair-bound-execution.mjs';
 import { execFileSync } from 'node:child_process';
@@ -56,7 +57,8 @@ export function verifyExecutionHeadAuthority({file='/tmp/flixo-head-authority.js
   return proof;
 }
 
-if(process.argv[1]?.endsWith('execution-head-authority.mjs')){
+const isDirectCliEntry = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
+if(isDirectCliEntry){
   const args=new Map();
   for(let i=2;i<process.argv.length;i+=1){const t=process.argv[i];if(!t.startsWith('--'))continue;const e=t.indexOf('=');args.set(t.slice(2,e>=0?e:undefined),e>=0?t.slice(e+1):(process.argv[i+1]??''));}
   const arg=(n,d='')=>String(args.get(n)??d).trim();

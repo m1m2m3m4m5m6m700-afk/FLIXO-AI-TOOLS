@@ -3,11 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-const testEntrypoint = '/tmp/flixo-test-execution-head-authority-entrypoint.mjs';
-const originalArgv1 = process.argv[1];
-process.argv[1] = testEntrypoint;
 const { verifyExecutionHeadAuthority } = await import('./execution-head-authority.mjs');
-process.argv[1] = originalArgv1;
+
 
 const read=(file)=>fs.readFileSync(file,'utf8');
 const target='a'.repeat(40);
@@ -59,3 +56,9 @@ console.log('AUTO_REPAIR_HEAD_AUTHORITY=PASS');
 console.log('EXECUTION_SYNC_HEAD_AUTHORITY=PASS');
 console.log('HISTORICAL_INDEX_HEAD_AUTHORITY=PASS');
 console.log('HEAD_AUTHORITY_REGISTERED=PASS');
+
+const cliSource=read('scripts/ci/execution-head-authority.mjs');
+assert.match(cliSource,/isDirectCliEntry/);
+assert.match(cliSource,/pathToFileURL\(process\.argv\[1\]\)\.href/);
+assert.doesNotMatch(cliSource,/endsWith\('execution-head-authority\.mjs'\)/);
+console.log('HEAD_AUTHORITY_IMPORT_NO_CLI_SIDE_EFFECT=PASS');
