@@ -15,8 +15,6 @@ export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
   'historical-action-error-index.yml',
   'action-agent-history-promotion.yml',
   'task-history-ledger.yml',
-  'security-red-team.yml',
-  'security-red-team-pulse.yml',
 ]);
 
 export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
@@ -30,7 +28,6 @@ export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
   'auto-repair-merge-gate.yml',
   'council-live-runtime-verification.yml',
   'security-red-team.yml',
-  'security-red-team-pulse.yml',
 ]);
 
 export const HISTORICAL_REPAIR_WORKFLOWS = Object.freeze([
