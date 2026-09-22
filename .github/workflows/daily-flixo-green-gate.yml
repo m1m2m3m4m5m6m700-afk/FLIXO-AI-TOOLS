@@ -298,8 +298,10 @@ jobs:
           jq -e 'type == "array"' /tmp/flixo-watch/codeql/annotations.json >/dev/null
           jq -r 'flatten | map({path: .path, start_line: .start_line, end_line: .end_line, level: .annotation_level, title: .title, message: .message, raw_details: .raw_details})' /tmp/flixo-watch/codeql/annotations.json > /tmp/flixo-watch/codeql/annotations.normalized.json
           mv /tmp/flixo-watch/codeql/annotations.normalized.json /tmp/flixo-watch/codeql/annotations.json
-          jq -e 'length >= 1' /tmp/flixo-watch/codeql/annotations.json >/dev/null
-          echo "CODEQL_ANNOTATION_COUNT=$(jq 'length' /tmp/flixo-watch/codeql/annotations.json)"
+          CODEQL_ANNOTATION_COUNT="$(jq 'length' /tmp/flixo-watch/codeql/annotations.json)"
+          echo "CODEQL_ANNOTATION_COUNT=$CODEQL_ANNOTATION_COUNT"
+          # Zero annotations is valid when CodeQL completed without repository annotations.
+          # Failed security/AI checks remain independently captured and classified below.
 
       - name: Build watcher input
         id: build_input
