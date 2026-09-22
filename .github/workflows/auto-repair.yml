@@ -447,7 +447,6 @@ jobs:
       - name: Establish trusted main controller and active execution target
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git fetch --no-tags origin main execution
