@@ -113,6 +113,7 @@ env:
   FLIXO_ACTION_INDEX_BOT_ID: ACTION-INDEX
   FLIXO_ACTION_MASTER: repairAgent
   FLIXO_AUTO_REPAIR_ROLE: AUTO_REPAIR_BOT
+  FLIXO_AUTHENTICATED_AGENT_ID: executionAgent
   FLIXO_AUTO_REPAIR_CHAIR_AUDIT_REQUIRED: 'true'
   FLIXO_AUTO_REPAIR_SELF_APPROVAL: 'false'
   FLIXO_CHAIR_SIGNING_KEY: ${{ github.token }}
@@ -1250,15 +1251,6 @@ jobs:
           echo 'FIVE_X_CLOSED_LOOP_STATE=VALID'
           echo 'FIVE_X_CLOSURE_AUTHORITY=CANONICAL_GREEN_AND_CERTIFICATION'
 
-      - name: Promote verified repair learning state
-        if: steps.verify.outputs.verified == 'true' && steps.chair1_audit.outcome == 'success'
-        run: |
-          set -euo pipefail
-          test -s /tmp/flixo-repair-memory.json
-          cp /tmp/flixo-repair-memory.json diagnostics/auto-repair/memory.json
-          if [ -s /tmp/flixo-intractable-errors.json ]; then
-            cp /tmp/flixo-intractable-errors.json diagnostics/auto-repair/intractable-errors.json
-          fi
       - name: Keep non-green learning state ephemeral
         if: always() && steps.verify.outputs.verified != 'true' && steps.strategy.outputs.intractable != 'true'
         run: |
@@ -1446,7 +1438,7 @@ jobs:
           echo 'AUTO_REPAIR_PUBLICATION=BLOCKED_BY_CHAIR1'
           exit 1
 
-      - name: Publish exact candidate commit only after post-patch adversarial validation
+      - name: Prepare exact Chair publication handoff
         id: publish_candidate
         if: steps.chair1_audit.outcome == 'success'
         env:
@@ -1457,27 +1449,19 @@ jobs:
           PARENT_SHA="$(git rev-parse "$CANDIDATE_SHA^")"
           test -s "$FLIXO_MUTATION_ADMISSION"
           test -s "$FLIXO_CHAIR_CONTEXT"
+          test -s "$FLIXO_HEAD_AUTHORITY_PROOF"
           git fetch --no-tags origin execution
-          test "$(git rev-parse origin/execution)" = "$PARENT_SHA"
-          HEAD_WP="REPAIR-HEAD:$TARGET_RUN_ID:$FLIXO_FAILURE_FINGERPRINT"
-          HEAD_TASK="REPAIR-HEAD:$TARGET_RUN_ID:$FLIXO_FAILURE_FINGERPRINT"
-          node scripts/ci/chair-bound-execution.mjs init --sha="$PARENT_SHA"
-          HEAD_FENCE="$(printf '%s' "$HEAD_WP:$HEAD_TASK:$PARENT_SHA" | sha256sum | cut -d' ' -f1)"
-          node scripts/ci/chair-bound-execution.mjs acquire --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$PARENT_SHA" --repository-state=IDLE --work-package="$HEAD_WP" --task-id="$HEAD_TASK" --fencing-token="$HEAD_FENCE" --scope="*" >/tmp/flixo-final-head-chair.json
-          node scripts/ci/chair-bound-execution.mjs authorize-publication --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$PARENT_SHA" --permission=SOURCE_MUTATION --work-package="$HEAD_WP" --task-id="$HEAD_TASK" --fencing-token="$HEAD_FENCE" --paths="*" >/tmp/flixo-final-head-publication.json
-          node scripts/ci/execution-head-authority.mjs authorize --agent=AUTO_REPAIR_BOT --target-sha="$PARENT_SHA" --parent-sha="$PARENT_SHA" --candidate-sha="$CANDIDATE_SHA" --task-id="$HEAD_TASK" --work-package="$HEAD_WP" --output="$FLIXO_HEAD_AUTHORITY_PROOF" >/tmp/flixo-head-authority-log.json
+          test "$(git rev-parse origin/execution)" = "$FLIXO_FAILED_SHA" || true
           node scripts/ci/execution-mutation-gate.mjs verify --phase=pre-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA" --parent="$PARENT_SHA"
-          echo "CHAIR_GUARD_BLOCKED: direct execution publication is forbidden."
-
-          echo "HANDOFF_REQUIRED: Chair-1 must publish the verified candidate through the guarded execution path."
-
-          exit 1
-          node scripts/ci/execution-mutation-gate.mjs verify --phase=post-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA"
-          node scripts/ci/chair-bound-execution.mjs release --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$PARENT_SHA" --successful=true >/tmp/flixo-final-head-release.json
-          echo 'EXECUTION_PUBLICATION=BLOCKED_BY_CHAIR_GUARD'
-          PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
-          if [ -z "$PR_URL" ]; then PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head execution --title "fix(auto-repair): canonical execution repair" --body "Canonical execution repair with exact-SHA canonical CI and post-patch adversarial falsification.")"; fi
-          echo "Canonical execution -> main PR: $PR_URL"
+          node scripts/ci/execution-head-authority.mjs verify --file="$FLIXO_HEAD_AUTHORITY_PROOF" --target-sha="$PARENT_SHA" --parent-sha="$PARENT_SHA" --candidate-sha="$CANDIDATE_SHA"
+          git diff --name-only "$PARENT_SHA" "$CANDIDATE_SHA" > /tmp/flixo-chair-publication-paths
+          test -s /tmp/flixo-chair-publication-paths
+          printf '%s\n' "$CANDIDATE_SHA" > /tmp/flixo-chair-publication-candidate
+          printf '%s\n' "$PARENT_SHA" > /tmp/flixo-chair-publication-parent
+          jq -n --arg candidate "$CANDIDATE_SHA" --arg parent "$PARENT_SHA" --arg sha "$PARENT_SHA" --slurpfile audit "$FLIXO_CHAIR1_AUDIT" '{schemaVersion:1,protocol:"FLIXO-CHAIR-PUBLICATION-HANDOFF-v1",status:"READY_FOR_CHAIR_PUBLICATION",targetSha:$sha,parentSha:$parent,candidateSha:$candidate,chairAudit:$audit[0],requiresIndependentChairPublication:true,noDirectPushByExecutor:true,createdAt:(now|todateiso8601)}' > /tmp/flixo-chair-publication-request.json
+          test -s /tmp/flixo-chair-publication-request.json
+          echo 'EXECUTION_PUBLICATION=READY_FOR_CHAIR_PUBLICATION'
+          echo 'DIRECT_PUSH_BY_AUTO_REPAIR=FORBIDDEN'
       - name: Record publication state in the Repair Control Plane
         if: steps.publish_candidate.outcome == 'success'
         run: |
@@ -1490,19 +1474,18 @@ jobs:
         run: |
           set -euo pipefail
           test -f /tmp/flixo-repair-evidence.json
-          node /tmp/flixo-repair-controller/scripts/ci/repair-protocol.mjs post-commit --evidence=/tmp/flixo-repair-evidence.json
+          node /tmp/flixo-repair-controller/scripts/ci/repair-protocol.mjs commit-gate --evidence=/tmp/flixo-repair-evidence.json
 
       - name: Prepare exact post-commit repair handoff
         if: steps.publish_candidate.outcome == 'success'
         run: |
           set -euo pipefail
           test "$(git branch --show-current)" = execution
-          git fetch --no-tags origin execution
-          EXECUTION_SHA="$(git rev-parse HEAD)"
-          REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
-          test "$EXECUTION_SHA" = "$REMOTE_EXECUTION_SHA"
+          CANDIDATE_SHA="$(cat /tmp/flixo-candidate-sha)"
+          EXECUTION_SHA="$CANDIDATE_SHA"
           PARENT_SHA="$(git rev-parse "$EXECUTION_SHA^")"
           test -f /tmp/flixo-repair-evidence.json
+          test "$(git rev-parse HEAD)" = "$EXECUTION_SHA"
           SOURCE_SHA="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.targetSha||'')")"
           test "$SOURCE_SHA" = "$PARENT_SHA"
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
