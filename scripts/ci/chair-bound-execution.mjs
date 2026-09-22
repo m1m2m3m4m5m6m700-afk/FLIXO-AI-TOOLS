@@ -403,7 +403,7 @@ function verifyLease({state,chairId,agentId,targetSha,assertCurrentHead=true}){
   return chair;
 }
 export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permission='SOURCE_MUTATION',reviewId=null,boundedScope=null,workPackageId=null,taskId=null,fencingToken=null}={}){
-export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permission='SOURCE_MUTATION',reviewId=null,boundedScope=null,workPackageId=null,taskId=null,fencingToken=null}={}){
+
   if(!Array.isArray(paths)||paths.length===0)throw new Error('CHAIR_WRITE_PATHS_REQUIRED');
   const t=assertSha(targetSha,'TARGET_SHA');
   const state=readState();
