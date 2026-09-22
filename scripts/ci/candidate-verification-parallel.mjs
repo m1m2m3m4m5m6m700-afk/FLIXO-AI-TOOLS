@@ -25,8 +25,8 @@ function spawnGroup(command,args,env,logFile){
 
 function killGroup(child){
   if(!child?.pid) return;
-  try{process.kill(-child.pid,'SIGTERM');}catch{}
-  setTimeout(()=>{try{process.kill(-child.pid,'SIGKILL');}catch{}},3000).unref();
+  try{process.kill(-child.pid,'SIGTERM');}catch{ /* process may already have exited */ }
+  setTimeout(()=>{try{process.kill(-child.pid,'SIGKILL');}catch{ /* process may already have exited */ }},3000).unref();
 }
 
 async function main(){
@@ -60,7 +60,7 @@ async function main(){
     assessor.settled.then(v=>settle('adversarial',v));
   });
   let adversarial=null;
-  if(fs.existsSync(assessorOutput)){try{adversarial=JSON.parse(fs.readFileSync(assessorOutput,'utf8'));}catch{}}
+  if(fs.existsSync(assessorOutput)){try{adversarial=JSON.parse(fs.readFileSync(assessorOutput,'utf8'));}catch{ /* process may already have exited */ }}
   const bothPass=outcomes.targetedRegression?.code===0&&outcomes.adversarial?.code===0&&adversarial?.status==='NO_COUNTEREXAMPLE'&&adversarial?.falsifierVerdict==='PASS_CONFIRMED'&&adversarial?.finiteInvariantProof?.status==='PROVEN'&&adversarial?.passConfirmed===true;
   const aggregate={
     schemaVersion:1,protocol:'FLIXO-CANDIDATE-PARALLEL-VERIFICATION-v1',targetSha:expectedSha,parentSha,mode:'PARALLEL',earlyAbort:Boolean(firstFailure),firstFailure,
