@@ -258,7 +258,7 @@ assert.throws(()=>authorizeWrite({chairId:'chair_1',agentId:'fenced-agent',targe
 release({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,successful:true});
 acquire({chairId:'chair_1',agentId:'agent-chair1-active',targetSha:realGitSha,repositoryState:'IDLE',workPackageId:'WP-CHAIR1-ACTIVE',taskId:'TASK-CHAIR1-ACTIVE',fencingToken:'f'.repeat(64)});
 const proposalFile=path.join(hardeningRoot,'push-proposal.json');
-const proposal=writeSpeculativeContext({
+writeSpeculativeContext({
   sessionId:'push-proposal-session',
   taskId:'PUSH-TASK-1',
   chairId:'chair_2',
