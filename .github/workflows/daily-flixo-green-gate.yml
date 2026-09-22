@@ -114,10 +114,10 @@ jobs:
           )
           for WORKFLOW in "FLIXO Test System" "FLIXO WP0 Trust Baseline" "FLIXO Test Impact" "FLIXO Test Impact Execution" "Repository Security Baseline" "Claude Security Review"; do
             FILE="\${REQUIRED_FILES[$WORKFLOW]}"
-            RUN_COUNT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$FILE" --branch execution --commit "$EXECUTION_SHA" --limit 20 --json databaseId,status,conclusion --jq 'map(select(.status == "queued" or .status == "in_progress" or .conclusion == "success" or .conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required")) | length')"
+            RUN_COUNT="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$FILE/runs?branch=execution&head_sha=$EXECUTION_SHA&per_page=20" --jq 'map(select(.status == "queued" or .status == "in_progress" or .conclusion == "success" or .conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required")) | length')"
             if [ "$RUN_COUNT" -eq 0 ]; then
               echo "REQUIRED_CI_DISPATCH workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA"
-              gh workflow run "$FILE" --repo "$GITHUB_REPOSITORY" --ref execution
+              gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/$FILE/dispatches" -f ref=execution >/dev/null
             else
               echo "REQUIRED_CI_ALREADY_RESIDENT workflow=$WORKFLOW count=$RUN_COUNT sha=$EXECUTION_SHA"
             fi
