@@ -57,8 +57,9 @@ jobs:
         run: |
           set -euo pipefail
           ACTUAL_WATCHDOG_SHA="$(git rev-parse HEAD)"
-          TRUSTED_MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          TRUSTED_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
           test -n "$ACTUAL_WATCHDOG_SHA"
+          test -n "$TRUSTED_MAIN_SHA"
           test "$ACTUAL_WATCHDOG_SHA" = "$TRUSTED_MAIN_SHA"
           echo "WATCHDOG_CHECKOUT_MODE=TRUSTED_MAIN"
           echo "WATCHDOG_TRUSTED_SOURCE_SHA=$TRUSTED_MAIN_SHA"
