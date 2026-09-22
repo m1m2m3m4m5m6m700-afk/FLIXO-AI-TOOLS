@@ -114,7 +114,9 @@ export function finalizeCandidateForChair1({
       priorParentSha:parentSha,
     });
   }catch(error){
-    try{execFileSync('git',['-C',repoRoot,'rebase','--abort'],{encoding:'utf8',stdio:['ignore','pipe','pipe']});}catch{}
+    try{execFileSync('git',['-C',repoRoot,'rebase','--abort'],{encoding:'utf8',stdio:['ignore','pipe','pipe']});}catch{
+      // Best-effort rebase cleanup; the pending packet preserves the failed candidate.
+    }
     const packet=captureWorkingTreeChange({
       repoRoot,
       baseSha:parentSha,
@@ -166,7 +168,7 @@ function mergeText({base,current,candidate,label}){
   fs.writeFileSync(basePath,normalizeText(base??''));
   fs.writeFileSync(currentPath,normalizeText(current??''));
   fs.writeFileSync(candidatePath,normalizeText(candidate??''));
-  let merged='';
+  let merged;
   let code=0;
   try{
     merged=execFileSync('git',['merge-file','-p',currentPath,basePath,candidatePath],{encoding:'utf8',stdio:['ignore','pipe','pipe']});
