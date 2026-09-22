@@ -271,7 +271,18 @@ READ PROMPT REGISTRY → SEARCH FINGERPRINT → SEARCH RCA → SEARCH LESSONS / 
 
 أي duplicate أو overlap أو conflict غير محلول = PROMPT_REVIEW_REQUIRED.
 
-### Authority separation
+### Chair push-conflict policy
+
+The three chair seats have a strict separation for repository push proposals:
+
+- **Chair-1** is the only chair with source-write admission and final adoption authority.
+- **Chair-2** and **Chair-3** are proposal-only under this chair policy. They may prepare a candidate and submit a signed push proposal to the Chair Push Guard, but they do not source-mutate or publish the candidate.
+- The **Chair Push Guard** checks the proposal against the current exact `execution` SHA, candidate parent, paths/scope and conflict state.
+- A rejected proposal is preserved as reusable **rejected-push memory** containing the proposal identity, exact SHA, candidate, scope, rejection reason and explicit revalidation condition. A later Chair-1 decision must revalidate the current SHA before reuse.
+- **Auto Repair is exempt from the Chair-1/2/3 policy.** It continues to use its own repair lease, execution mutation gate and exact-SHA repair controls; the chair conflict policy must never block or become an authority requirement for Auto Repair.
+
+This policy resolves chair contention only. It does not create a second mutation authority or an alternative repair protocol.
+## Authority separation
 
 Task Agent = preparation / bounded task ownership
 Error Agent = diagnosis
