@@ -201,6 +201,7 @@ if (command === 'meeting-exit-approve') {
     } catch (error) {
       record.livenessState = 'RECOVERING';
       appendEvent(record, { at: now(), action: 'CHAIR_LEASE_RECOVERY_REQUIRED', sha: gitSha(), chairId: record.chairId, reason: String(error?.message ?? error), recovery: 'RECLAIM_AND_RESYNC' });
+      fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
       throw new Error('CHAIR_LEASE_RECOVERY_REQUIRED', { cause: error });
     }
   }
