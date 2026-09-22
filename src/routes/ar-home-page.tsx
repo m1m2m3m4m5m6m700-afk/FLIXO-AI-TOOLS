@@ -9,19 +9,13 @@ import { getBestToolIntent } from '../lib/intent-router';
 import { getToolCategories, filterTools } from '../lib/ar-home-search';
 import { recommendImageTool } from '../lib/ar-home-recommendation';
 import { HOME_AR } from '../data/home-i18n';
+import type { ToolCategoryFilter } from '../lib/ar-home-search';
+import type { ToolDefinition } from '../config/canonical-tool-definition';
 
-
-type LocalizableTool = {
-  id: string;
-  title: string;
-  description: string;
-  category: ToolCard['category'];
-  path: string;
-};
 
 const READY_TOOLS = TOOLS_REGISTRY.filter((tool) => tool.isReady);
 
-function localTool(tool: LocalizableTool): ToolCard {
+function localTool(tool: ToolDefinition): ToolCard {
   return {
     title: HOME_AR.tools[tool.id as keyof typeof HOME_AR.tools] ?? tool.title,
     description: HOME_AR.toolDescriptions[tool.id as keyof typeof HOME_AR.toolDescriptions] ?? tool.description,
@@ -32,7 +26,7 @@ function localTool(tool: LocalizableTool): ToolCard {
 
 export function ArHomePage() {
   const [query, setQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState<ToolCategoryFilter>('All');
   const [dropRecommendation, setDropRecommendation] = useState<ToolCard | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const intent = useMemo(() => getBestToolIntent(query, READY_TOOLS), [query]);
