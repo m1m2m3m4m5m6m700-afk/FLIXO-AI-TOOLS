@@ -78,8 +78,13 @@ export function externalProviderSignature(text = '') {
 }
 
 export function normalizeLearningOutcome(outcome, verification) {
-  if (outcome === 'unrepaired' && (verification === 'proposal-only' || verification === 'diagnostic-only')) return 'proposed';
-  return outcome;
+  const raw = String(outcome ?? '').trim();
+  const verify = String(verification ?? '').trim();
+  const canonicalGreen = process.env.FLIXO_CANONICAL_GREEN === 'true';
+  const exactShaVerified = verify === 'passed' || verify === 'exact-sha-proof';
+  if (raw === 'unrepaired' && (verify === 'proposal-only' || verify === 'diagnostic-only')) return 'proposed';
+  if (raw === 'repair-applied') return canonicalGreen && exactShaVerified ? 'success' : 'proposed';
+  return raw;
 }
 
 const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [], actionHistory: [], repairTasks: [] });
@@ -1033,7 +1038,8 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     at: cellKnowledge.createdAt,
   }].slice(-MEMORY_RETENTION.maxLessonEvidence);
 
-  if (entry.attempts >= INTRACTABLE_THRESHOLD && entry.successes === 0) {
+  const escalationAttempts = Number(entry.attempts ?? 0) + Number(entry.externalBlocks ?? 0);
+  if (escalationAttempts >= INTRACTABLE_THRESHOLD && entry.successes === 0) {
     fs.writeFileSync('/tmp/flixo-intractable-state', 'true\n');
     const data = loadIntractable();
     const existing = data.cases.find((item) => item.fingerprint === entry.fingerprint);
@@ -1041,8 +1047,9 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
       fingerprint: entry.fingerprint,
       status: 'INTRACTABLE',
       rootCause: entry.rootCause,
-      attemptsAtEscalation: entry.attempts,
+      attemptsAtEscalation: escalationAttempts,
       attempts: entry.attempts,
+      externalBlocks: entry.externalBlocks ?? 0,
       successes: entry.successes,
       failures: entry.failures,
       firstSeenAt: new Date().toISOString(),
@@ -1059,6 +1066,8 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     };
     record.rootCause = entry.rootCause;
     record.attempts = entry.attempts;
+    record.externalBlocks = entry.externalBlocks ?? 0;
+    record.escalationAttempts = escalationAttempts;
     record.successes = entry.successes;
     record.failures = entry.failures;
     record.lastSeenAt = new Date().toISOString();
