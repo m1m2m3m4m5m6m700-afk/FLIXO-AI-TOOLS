@@ -17,6 +17,8 @@ const cleanTwin={
   status:'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE',
   falsificationComplete:true,
   counterexampleFound:false,
+  falsificationSearches:Array.from({length:10},(_,index)=>({id:`F0${index+1}`,counterexampleStatus:'NO_VALID_COUNTEREXAMPLE'})),
+  remainingRisks:[],
 };
 
 const counterTwin={
