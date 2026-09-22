@@ -195,7 +195,53 @@
       "class": "EXECUTION",
       "status": "MANDATORY",
       "enforcement": "v7 executive orchestration + session + coordination control plane + Task Agent + Error Agent + assistant-agent cooperation contract; scripts/ci/agent-communication.mjs + .github/workflows/agent-communication-relay.yml + agent-session/task-claim integration",
-      "invariant": "The Executive Controller coordinates Task Agent preparation and Error Agent diagnosis through immutable exact-SHA handoffs; mutable scopes have one owner; conflicts are arbitrated; stale packets are rejected; diagnosis is never execution; preparation is never closure; independent verification and certification remain mandatory; learning never grants authority; decision provenance is preserved; independent verification is explicit; parallel work requires disjoint ownership; conflicts are explicitly arbitrated; dependency edges remain closed; learning never grants authority; durable cross-agent visibility records preserve task ownership, active/closed status, exact entry/exit SHA and final handoff state in a tracked per-session ledger; task closure requires the corresponding closed ledger record. communication-first event delivery; message receive/read/consume lifecycle; message idempotency; exact-SHA revalidation before ownership claim; mutation coordination is serialized by an atomic write lock and monotonic revision/transaction CAS; mismatched coordination state fails closed; handoff admission parity requires execution topology, exact current predecessor exit SHA, task/scope continuity and canonical role admission; stale-session kill switch revokes ownership on entry-SHA or governance drift; lock-free read fast path prevents status inspection from contending with mutation locks; compact brief snapshots reduce repeated state scans; Action Vault repair uses three distinct residents (ACTION-REPAIR, ACTION-REPAIR-2, ACTION-HISTORIAN-3) as one shared intelligence: VAULT-1 and VAULT-2 have programming-intelligence parity with opposed proof objectives; VAULT-3 curates the knowledge catalog and selects between proposals; every RED and catalog miss is recorded; the same stable fingerprint reaching 20 unresolved occurrences activates SUPERVISOR_20, suspends VAULT-1/VAULT-2 autonomous source mutation for that fingerprint, and gives VAULT-3 supervisor responsibility under the existing Repair Protocol; candidate learning is promoted only after exact-SHA canonical GREEN"
+      "invariant": "The Executive Controller coordinates Task Agent preparation and Error Agent diagnosis through immutable exact-SHA handoffs; mutable scopes have one owner; conflicts are arbitrated; stale packets are rejected; diagnosis is never execution; preparation is never closure; independent verification and certification remain mandatory; learning never grants authority; decision provenance is preserved; independent verification is explicit; parallel work requires disjoint ownership; conflicts are explicitly arbitrated; dependency edges remain closed; learning never grants authority; durable cross-agent visibility records preserve task ownership, active/closed status, exact entry/exit SHA and final handoff state in a tracked per-session ledger; task closure requires the corresponding closed ledger record. communication-first event delivery; message receive/read/consume lifecycle; message idempotency; exact-SHA revalidation before ownership claim; mutation coordination is serialized by an atomic write lock and monotonic revision/transaction CAS; mismatched coordination state fails closed; handoff admission parity requires execution topology, exact current predecessor exit SHA, task/scope continuity and canonical role admission; stale-session kill switch revokes ownership on entry-SHA or governance drift; lock-free read fast path prevents status inspection from contending with mutation locks; compact brief snapshots reduce repeated state scans; Action Vault repair uses three distinct residents (ACTION-REPAIR, ACTION-REPAIR-2, ACTION-HISTORIAN-3) as one shared intelligence: VAULT-1 and VAULT-2 have programming-intelligence parity with opposed proof objectives; VAULT-3 curates the knowledge catalog and selects between proposals; every RED and catalog miss is recorded; the same stable fingerprint reaching 20 unresolved occurrences activates SUPERVISOR_20, suspends VAULT-1/VAULT-2 autonomous source mutation for that fingerprint, and gives VAULT-3 supervisor responsibility under the existing Repair Protocol; candidate learning is promoted only after exact-SHA canonical GREEN",
+      "cellLab": {
+        "status": "MANDATORY",
+        "identity": "CELL-LAB",
+        "purpose": "Full communication and collaborative decision laboratory for Masters, Agents and Bots.",
+        "appliesTo": [
+          "MASTER-1",
+          "MASTER-2",
+          "MASTER-3",
+          "ALL_AGENTS",
+          "ALL_BOTS"
+        ],
+        "lifecycle": [
+          "OPEN",
+          "DISCUSS",
+          "CHALLENGE",
+          "SYNTHESIZE",
+          "CONSENSUS",
+          "EXECUTE",
+          "VERIFY",
+          "LEARN"
+        ],
+        "requiredBeforeMaterialMutation": true,
+        "requiredCoreParticipants": [
+          "MASTER-1",
+          "MASTER-2",
+          "MASTER-3"
+        ],
+        "requiredEvidence": [
+          "opinions",
+          "questions",
+          "challenges",
+          "responses",
+          "resolvedDissent",
+          "integratedPlan",
+          "planHash",
+          "exactSha",
+          "proofObligations"
+        ],
+        "unresolvedQuestionPolicy": "BLOCK",
+        "unresolvedConflictPolicy": "BLOCK",
+        "disagreementPolicy": "DISSENT_MUST_BE_RESOLVED_OR_EXPLICITLY_ACCEPTED_AS_RISK_BY_ALL_REQUIRED_PARTICIPANTS",
+        "consensusAuthority": "COMMUNICATION_AND_PLAN_AGREEMENT_ONLY",
+        "mutationAuthority": "EXISTING_ROLE_AUTHORITY_ONLY",
+        "enforcement": "scripts/ci/cell-lab-consensus.mjs + repair-protocol mutation admission + coordination/communication evidence",
+        "canonicalArtifact": "diagnostics/agents/cell-lab/consensus/<taskId>.json"
+      }
     }
   ]
 }
