@@ -382,7 +382,7 @@ if (command === 'task-claim') {
     chairLease = acquireChair({ agentId, chairId: selectedChair, reviewId: optional('review-id') || null, scope: task.scope ?? null });
     if (inboundMessage) inboundMessage = consumeAgentMessage(inboundMessage.messageId, agentId, sha(), true);
   } catch (error) {
-    try { if (chairLease) releaseChair({ chairId: selectedChair, agentId, reason: 'CLAIM_ROLLBACK', sessionId, taskId }); } catch {}
+    try { if (chairLease) releaseChair({ chairId: selectedChair, agentId, reason: 'CLAIM_ROLLBACK', sessionId, taskId }); } catch { /* rollback cleanup is best-effort */ }
     unlock(sessionId);
     throw error;
   }
