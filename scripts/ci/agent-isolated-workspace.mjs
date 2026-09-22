@@ -60,6 +60,12 @@ export function createAgentWorkspace({
     createdAt:new Date().toISOString(),
   };
   fs.writeFileSync(path.join(workspace,'.flixo-workspace.json'),JSON.stringify(meta,null,2)+'\n');
+  const hooksDir=path.join(workspace,'.flixo-agent-hooks');
+  fs.mkdirSync(hooksDir,{recursive:true});
+  const block='#!/bin/sh\necho "FLIXO: agent workspaces are proposal-only; Chair 1 owns commit and push." >&2\nexit 1\n';
+  fs.writeFileSync(path.join(hooksDir,'pre-commit'),block,{mode:0o755});
+  fs.writeFileSync(path.join(hooksDir,'pre-push'),block,{mode:0o755});
+  git(workspace,['config','core.hooksPath','.flixo-agent-hooks']);
   return Object.freeze(meta);
 }
 
