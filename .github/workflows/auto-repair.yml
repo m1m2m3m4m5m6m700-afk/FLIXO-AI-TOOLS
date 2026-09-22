@@ -107,6 +107,8 @@ env:
   FLIXO_AUTO_REPAIR_ROLE: AUTO_REPAIR_BOT
   FLIXO_AUTO_REPAIR_CHAIR_AUDIT_REQUIRED: 'true'
   FLIXO_AUTO_REPAIR_SELF_APPROVAL: 'false'
+  FLIXO_CHAIR1_PRIMARY_MISSION: CHAIR1_PRIMARY_TEST_CYCLE_REPAIR
+  FLIXO_CHAIR1_MISSION_PATH: /tmp/flixo-chair1-repair-mission.json
 
 jobs:
   resident:
@@ -198,6 +200,7 @@ jobs:
               ''|*[!a-fA-F0-9]*) echo 'FAIL CLOSED: failure fingerprint must be hexadecimal.'; exit 1 ;;
             esac
           fi
+          fi
           CONCLUSION="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion')"
           case "$CONCLUSION" in
             failure|timed_out) ;;
@@ -242,6 +245,22 @@ jobs:
             exit 1
           }
           echo "EXACT_FAILED_SHA_REQUALIFICATION=PASS"
+
+      - name: Bind Chair-1 primary test-cycle repair mission to the exact failed SHA
+        run: |
+          set -euo pipefail
+          node scripts/ci/chair1-test-cycle-repair.mjs \
+            --target-sha="$(cat /tmp/flixo-failed-sha)" \
+            --workflow="$(cat /tmp/flixo-failed-workflow)" \
+            --failure-fingerprint="$FLIXO_FAILURE_FINGERPRINT" \
+            --write="$FLIXO_CHAIR1_MISSION_PATH"
+          jq -e \
+            --arg sha "$(cat /tmp/flixo-failed-sha)" \
+            --arg mission "$FLIXO_CHAIR1_PRIMARY_MISSION" \
+            '.mission == $mission and .targetSha == $sha and .noMainMutation == true and .noSelfDispatch == true' \
+            "$FLIXO_CHAIR1_MISSION_PATH" >/dev/null
+          echo 'CHAIR1_PRIMARY_MISSION=BOUND'
+          echo "CHAIR1_REPAIR_TARGET_SHA=$(cat /tmp/flixo-failed-sha)"
 
       - name: Materialize prior counterexample guidance for convergence cycles
         env:
@@ -396,6 +415,7 @@ jobs:
 
       - name: Establish trusted main controller and active execution target
         env:
+          GH_TOKEN: ${{ github.token }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -596,6 +616,7 @@ jobs:
           FP="$FLIXO_FAILURE_FINGERPRINT"
           TASK_ID="ACTION-RED:$TARGET_RUN_ID:$FP"
           node scripts/ci/action-file-selection-intelligence.mjs \
+          node scripts/ci/action-file-selection-intelligence.mjs \
             --task="$TASK_ID" \
             --fingerprint="$FP" \
             --sha="$SHA" \
@@ -794,6 +815,7 @@ jobs:
           set -euo pipefail
           node scripts/ci/repair-bot-training.mjs --self-test
           node scripts/ci/repair-bot-training.mjs
+          test -s /tmp/flixo-repair-training.json
           test -s /tmp/flixo-repair-training.json
           jq -e '.protocol=="FLIXO-REPAIR-BOT-BEHAVIORAL-TRAINING-v1" and .authority=="TRAINING_ONLY" and .targetSha==env.FLIXO_EXPECTED_TARGET_SHA and .decision.mode != null' /tmp/flixo-repair-training.json >/dev/null
           echo "FLIXO_REPAIR_TRAINING_PATH=/tmp/flixo-repair-training.json" >> "\$GITHUB_ENV"
@@ -994,6 +1016,7 @@ jobs:
             TARGET_SHA=''
             REVERTED_COMMIT=''
           fi
+          fi
           if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ] && [ "${{ steps.candidate_verification.outcome }}" = "success" ]; then
             LEARNING_OUTCOME='reverted-repair'
           elif [ "$VERIFY_OUTCOME" = "success" ] && [ "$ENGINE_OUTCOME" = "verified-repair" ]; then
@@ -1193,6 +1216,7 @@ jobs:
           echo 'FAIL CLOSED: Auto Repair candidate was not approved by the independent Chair-1 strict audit.'
           echo 'AUTO_REPAIR_PUBLICATION=BLOCKED_BY_CHAIR1'
           exit 1
+          exit 1
 
       - name: Publish exact candidate commit only after post-patch adversarial validation
         id: publish_candidate
@@ -1391,6 +1415,7 @@ jobs:
             /tmp/flixo-intractable-state
             /tmp/flixo-task-agent/*.json
             /tmp/flixo-repair-memory.json
+            /tmp/flixo-postpatch-adversarial.json
             /tmp/flixo-postpatch-adversarial.json
             /tmp/flixo-rca-manifest.json
             /tmp/flixo-historical-learning.json
