@@ -212,8 +212,9 @@ if (!canonicalTestMarkers.every((marker) => canonicalTestBlock.includes(marker))
   console.error('CI contract failed: watchdog must observe the canonical exact-SHA Test System run without dispatching it.');
   process.exit(1);
 }
-if (!/cancel-in-progress:\s*false/.test(greenGateWorkflow) ||
-    !/group:\s*flixo-continuous-error-watch-\$\{\{\s*github\.run_id\s*\}\}/.test(greenGateWorkflow)) {
+const greenGateConcurrency = greenGateWorkflow.match(/concurrency:[\\s\\S]*?(?=\\njobs:|$)/)?.[0] ?? '';
+if (!/cancel-in-progress:\s*false/.test(greenGateConcurrency) ||
+    !/group:\s*flixo-continuous-error-watch-[^\\n]*\\$\\{\\{\\s*github\.run_id\\s*\\}\\}/.test(greenGateConcurrency)) {
   console.error('CI contract failed: daily green gate must preserve each observation run for evidence integrity.');
   process.exit(1);
 }
