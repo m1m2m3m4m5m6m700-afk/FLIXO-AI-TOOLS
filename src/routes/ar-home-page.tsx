@@ -11,12 +11,6 @@ import { recommendImageTool } from '../lib/ar-home-recommendation';
 import { HOME_AR } from '../data/home-i18n';
 
 
-  title: string;
-  description: string;
-  category: ToolCategory;
-  path: string;
-};
-
 type LocalizableTool = {
   id: string;
   title: string;
@@ -31,7 +25,7 @@ function localTool(tool: LocalizableTool): ToolCard {
   return {
     title: HOME_AR.tools[tool.id as keyof typeof HOME_AR.tools] ?? tool.title,
     description: HOME_AR.toolDescriptions[tool.id as keyof typeof HOME_AR.toolDescriptions] ?? tool.description,
-    category,
+    category: tool.category,
     path: tool.path.replace(/^\/en\//, '/ar/'),
   };
 }
