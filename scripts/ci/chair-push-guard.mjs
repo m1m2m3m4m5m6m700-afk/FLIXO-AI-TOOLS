@@ -27,9 +27,8 @@ for(const p of proposal.paths??[])if(!PATH_RE.test(String(p)))throw new Error('C
 const details=proposal.pushDetails;
 if(!details || typeof details!=='object' || Array.isArray(details))throw new Error('CHAIR_GUARD_PUSH_DETAILS_REQUIRED');
 const requiredPushFields=['pushId','actorAgent','actorRole','sessionId','event','reason','changeType','repository','branch','commitMessage','commitTreeSha','requestedAt','expectedRemoteSha','candidateSha','parentSha'];
-for(const field of requiredPushFields){
-  if(String(details[field]??'').trim()==='')throw new Error('CHAIR_GUARD_PUSH_DETAIL_REQUIRED='+field);
-}
+const missingPushFields=requiredPushFields.filter((field)=>String(details[field]??'').trim()==='');
+if(missingPushFields.length)throw new Error('CHAIR_GUARD_PUSH_DETAILS_REQUIRED='+missingPushFields.join(','));
 if(String(details.actorAgent)!==String(proposal.proposerAgent))throw new Error('CHAIR_GUARD_PUSH_ACTOR_MISMATCH');
 if(String(details.event)!=='PUSH')throw new Error('CHAIR_GUARD_PUSH_EVENT_INVALID');
 if(String(details.repository)!==String(process.env.GITHUB_REPOSITORY??details.repository))throw new Error('CHAIR_GUARD_PUSH_REPOSITORY_MISMATCH');
@@ -38,7 +37,7 @@ if(String(details.expectedRemoteSha)!==String(sha))throw new Error('CHAIR_GUARD_
 if(String(details.candidateSha)!==String(proposal.candidateSha)||String(details.parentSha)!==String(proposal.parentSha))throw new Error('CHAIR_GUARD_PUSH_COMMIT_IDENTITY_MISMATCH');
 if(!/^[0-9a-f]{64}$/u.test(String(proposal.patchSha256)))throw new Error('CHAIR_GUARD_PATCH_DIGEST_REQUIRED');
 if(!/^[0-9a-f]{64}$/u.test(String(details.commitTreeSha)))throw new Error('CHAIR_GUARD_COMMIT_TREE_REQUIRED');
-if(!/^[^\r\n]{1,4000}$/u.test(String(details.commitMessage)))throw new Error('CHAIR_GUARD_COMMIT_MESSAGE_INVALID');
+if(!/^[\s\S]{1,4000}$/u.test(String(details.commitMessage)))throw new Error('CHAIR_GUARD_COMMIT_MESSAGE_INVALID');
 if(!/^[^\r\n]{8,1000}$/u.test(String(details.reason)))throw new Error('CHAIR_GUARD_REASON_REQUIRED');
 if(!/^\d{4}-\d{2}-\d{2}T[^\r\n]+Z$/u.test(String(details.requestedAt)))throw new Error('CHAIR_GUARD_REQUESTED_AT_INVALID');
 
