@@ -12,8 +12,8 @@ on:
 
 # Central stale-run controller. Any non-authoritative run for an older SHA is cancelled and its evidence is stale.
 concurrency:
-  # One observer per branch/event; stale SHA runs are the data being cancelled, not separate controller lanes.
-  group: flixo-latest-commit-supersession-${{ github.event_name }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  # One controller lane per branch. Push and PR synchronize events for the same branch share the same supersession owner.
+  group: flixo-latest-commit-supersession-${{ github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
