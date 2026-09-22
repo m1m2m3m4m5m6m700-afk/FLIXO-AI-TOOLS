@@ -41,6 +41,17 @@ jobs:
           echo 'SELF_ABORT_ALLOWED=false'
           echo 'RUN_END_DOES_NOT_END_TASK=true'
 
+      - name: Emit canonical repair heartbeat
+        env:
+          FLIXO_HEARTBEAT_PATH: /tmp/flixo-heartbeat/heartbeat.json
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-heartbeat
+          SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="HEARTBEAT:${GITHUB_RUN_ID}" --state=ACTIVE --sha="$SHA" --progress=true --file="$FLIXO_HEARTBEAT_PATH"
+          jq -e --arg sha "$SHA" '.protocolId=="AGENT_LIVENESS_PROTOCOL" and .state=="ACTIVE" and .exactSha==$sha and .progress==true' "$FLIXO_HEARTBEAT_PATH" >/dev/null
+          echo "HEARTBEAT_EMITTED=true"
+          echo "HEARTBEAT_EXACT_SHA=$SHA"
       - name: Verify five-minute heartbeat compliance
         id: heartbeat_compliance
         env:
@@ -59,7 +70,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-heartbeat-compliance-${{ github.run_id }}
-          path: /tmp/flixo-heartbeat/wake-compliance.json
+          path: |
+            /tmp/flixo-heartbeat/wake-compliance.json
+            /tmp/flixo-heartbeat/heartbeat.json
           if-no-files-found: warn
           retention-days: 14
 
