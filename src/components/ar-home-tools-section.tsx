@@ -1,6 +1,8 @@
 import type { ToolCategory } from '../config/canonical-tool-definition';
 import { Link } from '@tanstack/react-router';
 import { HOME_AR } from '../data/home-i18n';
+import { localizeToolCategory } from '../lib/i18n/tool-localization';
+import type { ToolCategoryFilter } from '../lib/ar-home-search';
 
 export type ToolCard = {
   title: string;
@@ -10,18 +12,10 @@ export type ToolCard = {
 };
 
 type Props = {
-  categories: string[];
-  filteredTools: ToolCard[];
-  selectedCategory: string;
-  onSelectCategory: (category: string) => void;
-};
-
-const AR_CATEGORY: Record<ToolCategory, string> = {
-  Images: 'الصور',
-  Video: 'الفيديو',
-  Audio: 'الصوت',
-  AI: 'الذكاء الاصطناعي',
-  Editor: 'المحرر',
+  categories: readonly ToolCategoryFilter[];
+  filteredTools: readonly ToolCard[];
+  selectedCategory: ToolCategoryFilter;
+  onSelectCategory: (category: ToolCategoryFilter) => void;
 };
 
 export function ArHomeToolsSection({ categories, filteredTools, selectedCategory, onSelectCategory }: Props) {
@@ -42,7 +36,7 @@ export function ArHomeToolsSection({ categories, filteredTools, selectedCategory
             className={selectedCategory === category ? 'is-active' : ''}
             onClick={() => onSelectCategory(category)}
           >
-            {category === 'All' ? HOME_AR.all : AR_CATEGORY[category as ToolCard['category']]}
+            {category === 'All' ? HOME_AR.all : localizeToolCategory('ar', category)}
           </button>
         ))}
       </div>
@@ -50,7 +44,7 @@ export function ArHomeToolsSection({ categories, filteredTools, selectedCategory
         {filteredTools.map((tool) => (
           <Link key={tool.path} to={tool.path} className="home-tool-card" aria-label={`${HOME_AR.openTool} ${tool.title}`}>
             <div className="tool-card-topline">
-              <span className="tool-card-category">{AR_CATEGORY[tool.category]}</span>
+              <span className="tool-card-category">{localizeToolCategory('ar', tool.category)}</span>
               <span className="tool-card-arrow" aria-hidden="true">↗</span>
             </div>
             <h3>{tool.title}</h3>
