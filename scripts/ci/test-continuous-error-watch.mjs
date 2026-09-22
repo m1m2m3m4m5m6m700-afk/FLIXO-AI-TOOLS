@@ -489,9 +489,9 @@ assert.ok(!dailyGateWorkflow.includes('REDISPATCHED[$workflow]=1'));
 assert.ok(!settlementBlock.includes('gh workflow run "$FILE" --repo "$GITHUB_REPOSITORY" --ref execution'));
 assert.ok(dailyGateWorkflow.includes('FILE="${REQUIRED_FILES[$WORKFLOW]}"'));
 assert.ok(!dailyGateWorkflow.includes('FILE="\\${REQUIRED_FILES[$WORKFLOW]}"'));
-assert.ok(dailyGateWorkflow.includes('| jq --arg sha "$EXECUTION_SHA"'));
-assert.ok(dailyGateWorkflow.includes('.headSha == $sha'));
-assert.ok(!dailyGateWorkflow.includes('--jq --arg sha "$EXECUTION_SHA"'));
+assert.ok(dailyGateWorkflow.includes('actions/runs?head_sha=$EXECUTION_SHA&per_page=100'));
+assert.ok(dailyGateWorkflow.includes('.head_sha == $sha'));
+assert.ok(!dailyGateWorkflow.includes('gh run list --repo "$GITHUB_REPOSITORY" --workflow'));
 for (const file of [
   'ci.yml',
   'wp0-trust-baseline.yml',
