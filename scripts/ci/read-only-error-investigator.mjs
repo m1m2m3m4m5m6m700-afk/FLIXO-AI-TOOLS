@@ -5,6 +5,10 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fingerprintFailure, normalizeFailure, extractFeatures } from './auto-repair/fingerprint.mjs';
 import { buildDeepInference } from './read-only-deep-reasoning.mjs';
+import { READ_ONLY_POWER_PROFILE, validateReadOnlyPowerProfile } from './read-only-power-profile.mjs';
+
+const POWER_PROFILE_VALIDATION = validateReadOnlyPowerProfile();
+if (!POWER_PROFILE_VALIDATION.ok) throw new Error('READ_ONLY_POWER_PROFILE_INVALID=' + POWER_PROFILE_VALIDATION.failures.join(','));
 
 const ROOT = process.cwd();
 const DEFAULT_OUTPUT = process.env.INVESTIGATION_DIR
@@ -366,8 +370,9 @@ function analyzeSnapshot(input) {
   };
 
   const base = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     authority: 'READ_ONLY_ERROR_INVESTIGATOR',
+    powerProfile: READ_ONLY_POWER_PROFILE,
     mode: 'READ_ONLY_ERROR_INTELLIGENCE',
     mutationPolicy: 'NO_SOURCE_MUTATION',
     reportWriteScope: DEFAULT_OUTPUT,
@@ -407,7 +412,7 @@ function collectWithGh() {
   const branch = arg('branch', process.env.GITHUB_REF_NAME || 'execution');
   if (!repository) throw new Error('GITHUB_REPOSITORY_REQUIRED_FOR_LIVE_COLLECTION');
   const executionSha = arg('sha', process.env.EXPECTED_SHA || sha());
-  const limit = Math.min(Math.max(Number(arg('limit', '80')), 1), 120);
+  const limit = Math.min(Math.max(Number(arg('limit', String(READ_ONLY_POWER_PROFILE.budgets.investigatorRunLimit))), 1), READ_ONLY_POWER_PROFILE.budgets.investigatorRunLimit);
   const raw = execFileSync('gh', [
     'run', 'list',
     '--repo', repository,
@@ -420,7 +425,7 @@ function collectWithGh() {
     run.status === 'completed' &&
     ['failure', 'timed_out', 'cancelled'].includes(String(run.conclusion ?? '').toLowerCase())
   );
-  const maxLogs = Math.min(Number(arg('max-logs', '35')), candidates.length);
+  const maxLogs = Math.min(Number(arg('max-logs', String(READ_ONLY_POWER_PROFILE.budgets.investigatorMaxLogs))), candidates.length);
   let captured = 0;
   for (const run of candidates.slice(0, maxLogs)) {
     if (run.conclusion === 'cancelled') {
