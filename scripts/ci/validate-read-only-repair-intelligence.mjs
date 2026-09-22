@@ -51,6 +51,7 @@ if(/fs\.writeFileSync\((?!logPath|selectionPath|diagnosisPath|outputPath|path\.d
 if(!source.includes("authorityParity:'NO_MUTATION_AUTHORITY'")) failures.push('ADVERSARIAL_AUTHORITY_SEPARATION_MISSING');
 if(!source.includes("actionVaultPrediction")) failures.push('ACTION_VAULT_PREDICTION_BINDING_MISSING');
 if(!source.includes("powerProfile:READ_ONLY_POWER_PROFILE")) failures.push('FIVE_X_POWER_PROFILE_NOT_BOUND');
+if(!source.includes('buildSharedLearningContext') || !source.includes('sharedOperationalMemory')) failures.push('SHARED_SIX_BOT_MEMORY_NOT_BOUND');
 if(!source.includes("OWNER_REVIEW_REQUIRED")) failures.push('ACTION_VAULT_OWNER_REVIEW_BOUNDARY_MISSING');
 if(/mutationAuthority\s*[:=]\s*['\"](?:ACTION-REPAIR|AUTO|GRANTED)/u.test(source)) failures.push('ACTION_VAULT_MUTATION_AUTHORITY_LEAK');
 if(!source.includes("mutationWouldBeAllowedByRepairStack")) failures.push('REPAIR_STACK_SIMULATION_MISSING');
