@@ -35,7 +35,8 @@
         "ACTION_VAULT",
         "RUNTIME_ADAPTERS",
         "WORKFLOWS"
-      ]
+      ],
+      "cellLab": "P20 Cell-Lab collaboration is mandatory for material decisions before mutation; disagreements/questions must be resolved and the integrated plan must be agreed on the current exact SHA."
     },
     {
       "id": "P01",
