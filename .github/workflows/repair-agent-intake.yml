@@ -137,7 +137,18 @@ jobs:
             *) echo "FAIL CLOSED: workflow head branch is outside the canonical trust boundary."; exit 1 ;;
           esac
           [[ "$FAILED_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
-          CURRENT_SHA="$(gh_retry gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
+          case "$BRANCH" in
+            execution)
+              CURRENT_SHA="$(gh_retry gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+              ;;
+            main)
+              CURRENT_SHA="$(gh_retry gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+              ;;
+            *)
+              echo "FAIL CLOSED: workflow head branch is outside the canonical trust boundary."
+              exit 1
+              ;;
+          esac
           printf '%s\n' "$RUN_ID" >/tmp/run-id
           printf '%s\n' "$FAILED_SHA" >/tmp/failed-sha
           printf '%s\n' "$WORKFLOW" >/tmp/workflow

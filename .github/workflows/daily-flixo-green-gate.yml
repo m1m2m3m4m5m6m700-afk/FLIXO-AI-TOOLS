@@ -97,7 +97,11 @@ jobs:
             execution|main) ;;
             *) echo "Unsupported observer branch."; exit 1 ;;
           esac
-          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/$WATCH_BRANCH" --jq '.sha')"
+          if [ "$WATCH_BRANCH" = "execution" ]; then
+            EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/execution" --jq '.sha')"
+          else
+            EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')"
+          fi
           MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')"
           gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 5 \
             --json number,headRefOid,baseRefOid,url,mergedAt,mergeCommit,isDraft > /tmp/flixo-watch/open-prs.json
@@ -596,7 +600,14 @@ jobs:
           set -euo pipefail
           OBSERVED_BRANCH="$(cat /tmp/flixo-watch/observed-branch)"
           OBSERVED_SHA="$(cat /tmp/flixo-watch/execution-sha)"
-          LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$OBSERVED_BRANCH" --jq '.object.sha')"
+          if [ "$OBSERVED_BRANCH" = "execution" ]; then
+            LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          elif [ "$OBSERVED_BRANCH" = "main" ]; then
+            LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          else
+            echo "FAIL CLOSED: unexpected observed branch."
+            exit 1
+          fi
           test "$LIVE_SHA" = "$OBSERVED_SHA" || {
             echo "FAIL CLOSED: observed branch advanced before evidence publication: branch=$OBSERVED_BRANCH observed=$OBSERVED_SHA live=$LIVE_SHA"
             exit 1

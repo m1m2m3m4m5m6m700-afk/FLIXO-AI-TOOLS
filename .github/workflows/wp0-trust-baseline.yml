@@ -69,10 +69,24 @@ jobs:
           fi
           ACTUAL_SHA="$(git rev-parse HEAD)"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA"
-          git fetch --no-tags --depth=1 origin "refs/heads/$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH"
-          test "$(git rev-parse "origin/$TARGET_BRANCH")" = "$EXPECTED_SHA"
-          git switch -C "$TARGET_BRANCH" "$EXPECTED_SHA"
-          test "$(git branch --show-current)" = "$TARGET_BRANCH"
+          case "$TARGET_BRANCH" in
+            execution)
+              git fetch --no-tags --depth=1 origin refs/heads/execution:refs/remotes/origin/execution
+              test "$(git rev-parse origin/execution)" = "$EXPECTED_SHA"
+              git switch -C execution "$EXPECTED_SHA"
+              test "$(git branch --show-current)" = execution
+              ;;
+            main)
+              git fetch --no-tags --depth=1 origin refs/heads/main:refs/remotes/origin/main
+              test "$(git rev-parse origin/main)" = "$EXPECTED_SHA"
+              git switch -C main "$EXPECTED_SHA"
+              test "$(git branch --show-current)" = main
+              ;;
+            *)
+              echo "FAIL CLOSED: invalid canonical target branch"
+              exit 1
+              ;;
+          esac
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           printf '%s\n' "$ACTUAL_SHA" > flixo-wp0-head-sha.txt
 

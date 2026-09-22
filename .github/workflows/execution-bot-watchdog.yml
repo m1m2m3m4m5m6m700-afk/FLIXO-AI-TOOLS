@@ -235,6 +235,17 @@ jobs:
           EVENT_SOURCE_RUN_SHA: ${{ github.event.workflow_run.head_sha || '' }}
         run: |
           set -euo pipefail
+          if [ -n "$EVENT_SOURCE_RUN_ID" ]; then
+            case "$EVENT_SOURCE_RUN_ID" in
+              ''|*[!0-9]*) echo 'FAIL CLOSED: invalid workflow_run source id'; exit 1 ;;
+            esac
+          fi
+          if [ -n "$EVENT_SOURCE_RUN_SHA" ]; then
+            [[ "$EVENT_SOURCE_RUN_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || {
+              echo 'FAIL CLOSED: invalid workflow_run source SHA'
+              exit 1
+            }
+          fi
           mkdir -p diagnostics/watchdog
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             CURRENT_EXECUTION_SHA="$GITHUB_SHA"
