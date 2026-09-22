@@ -1,16 +1,10 @@
 import type { ToolCategory } from '../config/canonical-tool-definition';
+import type { ToolCard } from '../components/ar-home-tools-section';
 type ReadyTool = {
   id: string;
   title: string;
   description: string;
   category: ToolCategory;
-  path: string;
-};
-
-type ToolCard = {
-  title: string;
-  description: string;
-  category: 'Images' | 'AI' | 'Other';
   path: string;
 };
 

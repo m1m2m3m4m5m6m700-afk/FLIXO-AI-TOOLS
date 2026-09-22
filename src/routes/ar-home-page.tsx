@@ -3,15 +3,14 @@ import { useMemo, useState } from 'react';
 import { SmartCommandPalette } from '../components/SmartCommandPalette';
 import { FlixoLogoImage } from '../components/FlixoLogoImage';
 import { FlixoHeroWorkspace } from '../components/home/FlixoHeroWorkspace';
-import { ArHomeToolsSection } from '../components/ar-home-tools-section';
+import { ArHomeToolsSection, type ToolCard } from '../components/ar-home-tools-section';
 import { TOOLS_REGISTRY } from '../config/tools';
 import { getBestToolIntent } from '../lib/intent-router';
 import { getToolCategories, filterTools } from '../lib/ar-home-search';
 import { recommendImageTool } from '../lib/ar-home-recommendation';
 import { HOME_AR } from '../data/home-i18n';
-import type { ToolCategory } from '../config/canonical-tool-definition';
 
-type ToolCard = {
+
   title: string;
   description: string;
   category: ToolCategory;
@@ -29,7 +28,6 @@ type LocalizableTool = {
 const READY_TOOLS = TOOLS_REGISTRY.filter((tool) => tool.isReady);
 
 function localTool(tool: LocalizableTool): ToolCard {
-  const category: ToolCard['category'] = tool.category === 'Images' ? 'Images' : tool.category === 'AI' ? 'AI' : 'Other';
   return {
     title: HOME_AR.tools[tool.id as keyof typeof HOME_AR.tools] ?? tool.title,
     description: HOME_AR.toolDescriptions[tool.id as keyof typeof HOME_AR.toolDescriptions] ?? tool.description,

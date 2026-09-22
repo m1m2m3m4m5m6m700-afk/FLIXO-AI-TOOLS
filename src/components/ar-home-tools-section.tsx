@@ -1,10 +1,11 @@
+import type { ToolCategory } from '../config/canonical-tool-definition';
 import { Link } from '@tanstack/react-router';
 import { HOME_AR } from '../data/home-i18n';
 
-type ToolCard = {
+export type ToolCard = {
   title: string;
   description: string;
-  category: 'Images' | 'AI' | 'Other';
+  category: ToolCategory;
   path: string;
 };
 
@@ -15,10 +16,12 @@ type Props = {
   onSelectCategory: (category: string) => void;
 };
 
-const AR_CATEGORY: Record<ToolCard['category'], string> = {
+const AR_CATEGORY: Record<ToolCategory, string> = {
   Images: 'الصور',
+  Video: 'الفيديو',
+  Audio: 'الصوت',
   AI: 'الذكاء الاصطناعي',
-  Other: 'أخرى',
+  Editor: 'المحرر',
 };
 
 export function ArHomeToolsSection({ categories, filteredTools, selectedCategory, onSelectCategory }: Props) {
