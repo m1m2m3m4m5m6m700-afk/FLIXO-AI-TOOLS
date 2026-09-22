@@ -31,6 +31,12 @@ for(const marker of [
  "ACTION-INDEX-4000.json",
  "ERROR-TEACHING-ROUTER.json",
  "declaredCatalogCapacity"
+ "buildKnowledgeFusion",
+ "knowledgeFusion",
+ "buildKnowledgeFusion",
+ "FLIXO-READ-ONLY-KNOWLEDGE-FUSION-v1",
+ "buildKnowledgeFusion",
+ "read-only-knowledge-fusion.mjs",
 ]) if(!source.includes(marker)) failures.push('MISSING_MARKER='+marker);
 
 if(/git\s+(add|commit|push|reset|checkout)|update_file|create_file|delete_file|mergePullRequest|create_pull_request/u.test(source)) failures.push('MUTATION_API_OR_GIT_WRITE_DETECTED');
