@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -19,6 +20,57 @@ const hash=(v)=>createHash('sha256').update(String(v),'utf8').digest('hex');
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):fallback;};
 const readJson=(file,fallback=null)=>{try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return fallback;}};
 const git=(args)=>execFileSync('git',args,{cwd:ROOT,encoding:'utf8'}).trim();
+
+
+function runProgrammerTwinReadOnly({log,targetSha,fingerprint,diagnosis,selected}) {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-readonly-twin-'));
+  const logPath = path.join(tempRoot, 'failure.log');
+  const selectionPath = path.join(tempRoot, 'selection.json');
+  const diagnosisPath = path.join(tempRoot, 'diagnosis.json');
+  const outputPath = path.join(tempRoot, 'twin.json');
+  try {
+    const selectedFile = selected?.file ?? diagnosis?.location?.file ?? null;
+    fs.writeFileSync(logPath, String(log ?? ''), 'utf8');
+    fs.writeFileSync(selectionPath, JSON.stringify({
+      decision: 'SELECTED',
+      targetSha,
+      failureFingerprint: fingerprint,
+      selectedFiles: selectedFile ? [{ path: selectedFile }] : [],
+    }) + '\n', 'utf8');
+    fs.writeFileSync(diagnosisPath, JSON.stringify({
+      ...(diagnosis ?? {}),
+      failureLog: String(log ?? ''),
+      targetSha,
+      sourceMutationAllowed: false,
+    }) + '\n', 'utf8');
+    execFileSync(process.execPath, [
+      path.resolve(ROOT, 'scripts/ci/action-repair-programmer-twin.mjs'),
+      '--sha=' + targetSha,
+      '--fingerprint=' + fingerprint,
+      '--run-id=READ_ONLY',
+      '--log=' + logPath,
+      '--file-selection=' + selectionPath,
+      '--diagnosis=' + diagnosisPath,
+      '--output=' + outputPath,
+    ], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      maxBuffer: 16 * 1024 * 1024,
+    });
+    return readJson(outputPath, null);
+  } catch (error) {
+    return {
+      protocol: 'INDEPENDENT_FALSIFICATION_REPORT-v1',
+      role: 'ADVERSARIAL_PROGRAMMER_FALSIFIER',
+      status: 'READ_ONLY_TWIN_UNAVAILABLE',
+      authorityParity: 'NO_MUTATION_AUTHORITY',
+      error: String(error?.message ?? error),
+    };
+  } finally {
+    try { fs.rmSync(tempRoot, { recursive: true, force: true }); } catch {}
+  }
+}
 
 function buildAdversarialMirror({log, targetSha, fingerprint, diagnosis, plan, selectedCandidate, historicalKnowledge=[]}){
   const alternatives=[];
@@ -167,6 +219,13 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
   const adversarial=buildAdversarialMirror({
     log,targetSha,fingerprint,diagnosis,plan,selectedCandidate:selected,historicalKnowledge
   });
+  const programmerTwin=runProgrammerTwinReadOnly({
+    log,
+    targetSha,
+    fingerprint,
+    diagnosis,
+    selected
+  });
   return {
     protocol:'FLIXO-READ-ONLY-REPAIR-INTELLIGENCE-v1',
     mode:'READ_AND_REASON_ONLY',
@@ -194,6 +253,7 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
       plannerBlockedReason:plan.blockedReason??null,
       externalBoundary:diagnosis?.decision==='BLOCK_EXTERNAL',
       adversarialStatus:adversarial.status,
+      programmerTwinStatus:programmerTwin?.status??null,
       programmerTwinMode:'READ_ONLY_MIRROR',
       mutationWouldBeAllowedByRepairStack:Boolean(errorOnly.repair?.mutationAllowed)&&Boolean(confidence.allowed)&&adversarial.counterexampleFound===false,
       readOnlyDecision:'REPORT_ONLY'
