@@ -230,6 +230,7 @@ export function buildDeepInference({
   recurringPatterns = [],
   downstreamFailures = [],
   staleEvidence = [],
+  fullRepairIntelligence = true,
 } = {}) {
   if (!exactSha(executionSha)) throw new Error('DEEP_REASONING_EXACT_SHA_REQUIRED');
 
@@ -285,6 +286,7 @@ export function buildDeepInference({
         failureLog: repairLog,
         targetSha: executionSha,
         historicalSignals,
+        full: fullRepairIntelligence,
       })
     : null;
   const classes = ROOT_CAUSE_CLASSES.map((className) => buildHypothesis(safeObserved, className, executionSha))
