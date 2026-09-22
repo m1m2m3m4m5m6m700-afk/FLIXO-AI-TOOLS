@@ -7,7 +7,7 @@ import {
   loadPromptRegistry, validatePromptRegistry, selectPromptCandidates, promptQualityGate,
 } from './prompt-intelligence.mjs';
 import { ingest } from './agent-communication.mjs';
-import { buildAdversarialReview, assertAdversarialGate } from './prompt-execution-bot-adversary.mjs';
+import { runAdversarialCorrectionLoop, assertAdversarialGate } from './prompt-execution-bot-adversary.mjs';
 import { loadExecutionBotTraining, trainingSummary } from './prompt-execution-bot-training.mjs';
 
 const ROOT = process.cwd();
@@ -153,22 +153,19 @@ export function buildWorkPackage(prompt) {
   const scope = [...new Set([...(selectedTaskId ? [selectedTaskId] : []), ...paths(prompt), ...(intent.startsWith('REPOSITORY') ? ['PROMPT_EXECUTION_BOT'] : [])])];
   const proofObligations = ['CURRENT_EXACT_EXECUTION_SHA', 'NO_MAIN_MUTATION', 'NO_THIRD_ACTIVE_BRANCH', 'CANONICAL_PROMPT_BOUND', 'PROMPT_REGISTRY_VALID', 'TARGETED_VERIFICATION', 'AFFECTED_CONTRACT_GRAPH_VERIFICATION', 'CANONICAL_GREEN_FOR_CLOSURE'];
   const stopConditions = ['STALE_EXECUTION_SHA', 'PROMPT_REGISTRY_INVALID', 'SCOPE_CONFLICT', 'UNSAFE_REQUEST', 'CANONICAL_CONTEXT_DRIFT', 'UNRESOLVED_HIGH_RISK_AMBIGUITY'];
-  const adversarialReview = buildAdversarialReview({
-    prompt,
-    plan: {
-      actions: actionList,
-      selectedTaskId,
-      constraints: constraintsValue,
-      workPackage: { scope, proofObligations, stopConditions },
-      promptSafety: { noPromptAuthorityElevation: true, noDirectMainMutation: true },
-      training,
-      intent,
-      status: 'PROVISIONAL',
-      clarificationQuestions: [],
-      executionSha,
-    },
-  });
-  const adversarialBlock = ['EXECUTION', 'REPAIR_DIAGNOSE'].includes(intent) && adversarialReview.status !== 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE';
+  const provisional = {
+    actions: actionList, selectedTaskId, constraints: constraintsValue,
+    workPackage: { scope, proofObligations, stopConditions },
+    promptSafety: { noPromptAuthorityElevation: true, noDirectMainMutation: true },
+    training, intent, status: 'PROVISIONAL', clarificationQuestions: [], executionSha,
+  };
+  const adversarialLoop = runAdversarialCorrectionLoop({ prompt, plan: provisional, maxRounds: 8 });
+  const adversarialReview = adversarialLoop.review;
+  const adversarialFailureReport = adversarialLoop.failureReport;
+  const effectiveConstraints = adversarialLoop.plan.constraints ?? constraintsValue;
+  const effectiveProofObligations = adversarialLoop.plan.workPackage?.proofObligations ?? proofObligations;
+  const effectiveStopConditions = adversarialLoop.plan.workPackage?.stopConditions ?? stopConditions;
+  const adversarialBlock = ['EXECUTION', 'REPAIR_DIAGNOSE'].includes(intent) && !adversarialLoop.accepted;  const adversarialBlock = ['EXECUTION', 'REPAIR_DIAGNOSE'].includes(intent) && adversarialReview.status !== 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE';
   const status = blocked ? 'BLOCKED' : (reviewRequired || adversarialBlock) ? 'REVIEW_REQUIRED' : 'READY';
   const cleanGoal = prompt.replace(/\s+/gu, ' ').trim();
   return {
@@ -176,7 +173,7 @@ export function buildWorkPackage(prompt) {
     dispatchable: status === 'READY' && adversarialReview.status === 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE' && Boolean(selectedTaskId) && branch === 'execution', generatedAt: new Date().toISOString(), executionBranch: branch, executionSha, mainSha,
     userPrompt: cleanGoal, normalizedGoal: cleanGoal, actions: actionList, intent,
     ambiguity: status === 'READY' ? (/(maybe|perhaps|ربما|قد|يمكن|غير واضح)/iu.test(prompt) ? 'MEDIUM' : 'LOW') : 'HIGH',
-    constraints: constraintsValue, explicitPaths: paths(prompt), unsafeRequests, requiredReads: CANONICAL_SOURCES,
+    constraints: effectiveConstraints, explicitPaths: paths(prompt), unsafeRequests, requiredReads: CANONICAL_SOURCES,
     training: { ...trainingSummary(training), selectedRules: training.selectedRules, lessons: training.lessons, sourceDigests: training.sourceDigests },
     taskCandidates: matchedTasks.map((x) => ({ ...x.task, score: x.score })), selectedTaskId,
     canonicalPrompt: selected ? { promptId: selected.promptId, title: selected.title, version: selected.version, status: selected.status, sourcePath: selected.sourcePath, registryDigest: fileDigest('docs/agents/PROMPT-REGISTRY.json'), qualityGate: quality.status } : null,
@@ -186,10 +183,10 @@ export function buildWorkPackage(prompt) {
       taskId: selectedTaskId, consumerRole: intent === 'REPAIR_DIAGNOSE' ? 'repairAgent' : intent === 'VERIFY' ? 'verification' : 'executionAgent', scope, intent, goal: cleanGoal, actions: actionList,
       dependencies: ['P00', 'CANONICAL_AGENT_COMMUNICATION', 'PROMPT_REGISTRY', 'ERROR_MEMORY', 'CURRENT_EXECUTION_SHA', 'CELL_LAB_WHEN_MUTATION_REQUIRED'],
       stages: ['INTAKE', 'CONTEXT_RETRIEVAL', 'UNDERSTAND', 'CLASSIFY_CONSTRAINTS', 'TASK_MATCH', 'PROMPT_BIND', 'SCOPE_LOCK', 'ROUTE_TO_AUTHORIZED_AGENT', 'TARGETED_VERIFY', 'AFFECTED_CONTRACT_VERIFY', 'CANONICAL_CI', 'LEARN'],
-      proofObligations, stopConditions, adversarialReview, trainingMode: 'ADVISORY_KNOWLEDGE_ONLY',
+      proofObligations: effectiveProofObligations, stopConditions: effectiveStopConditions, adversarialReview, trainingMode: 'ADVISORY_KNOWLEDGE_ONLY',
       learningOutputs: ['LESSON','ANTI_LESSON','BLOCKER','REJECTED_STRATEGY','VERIFIED_REPAIR'],
     },
-    blockers: (blocked || reviewRequired || adversarialBlock) ? [...unsafeRequests, ...(quality.status === 'PASS' ? [] : quality.reasons), ...(reviewRequired ? ['NO_ACTIVE_TASK_MATCH'] : []), ...(adversarialBlock ? ['ADVERSARIAL_REVIEW_REQUIRED'] : [])] : [],
+    blockers: (blocked || reviewRequired || adversarialBlock) ? [...unsafeRequests, ...(quality.status === 'PASS' ? [] : quality.reasons), ...(reviewRequired ? ['NO_ACTIVE_TASK_MATCH'] : []), ...(adversarialBlock ? ['ADVERSARIAL_REVIEW_REQUIRED'] : []), ...(adversarialBlock && adversarialLoop.round >= 8 ? ['ADVERSARIAL_REPAIR_EXHAUSTED'] : [])] : [],
     promptSafety: { userInputIsUntrustedData: true, externalArtifactsAreUntrustedData: true, noArbitraryShellFromPrompt: true, noPromptAuthorityElevation: true, noDirectMainMutation: true, noThirdBranchCreation: true },
     lifecycle: {
       planning: 'UNDERSTAND → USE CONTEXT → IDENTIFY INTENT → IDENTIFY CONSTRAINTS → DECOMPOSE GOAL → COMPOSE SAFE TOOL PLAN',
@@ -209,7 +206,7 @@ export function dispatchWorkPackage(plan) {
     taskId: plan.selectedTaskId, scope: plan.workPackage.scope || [plan.selectedTaskId], entrySha: plan.executionSha, risk: plan.intent === 'REPAIR_DIAGNOSE' ? 'HIGH' : 'MEDIUM',
     dependencies: plan.workPackage.dependencies, expectedEvidence: ['TASK_AGENT_OR_EXECUTION_PACKET', 'TARGETED_VERIFICATION', 'EXACT_SHA_EVIDENCE', 'CANONICAL_CI'], stopConditions: plan.workPackage.stopConditions,
     proofObligations: plan.workPackage.proofObligations, createdAt: new Date().toISOString(), source: 'PROMPT_EXECUTION_BOT',
-    payload: { botId: plan.botId, normalizedGoal: plan.normalizedGoal, intent: plan.intent, actions: plan.actions, constraints: plan.constraints, explicitPaths: plan.explicitPaths, selectedPromptId: plan.canonicalPrompt?.promptId ?? null, promptRegistryDigest: plan.canonicalPrompt?.registryDigest ?? null, trainingDigest: plan.training?.trainingDigest ?? null, adversarialChallengeId: plan.adversarialReview?.challengeId ?? null, adversarialStatus: plan.adversarialReview?.status ?? null, counterexampleFound: Boolean(plan.adversarialReview?.counterexampleFound), ruleIds: plan.training?.ruleIds ?? [], lessonIds: plan.training?.lessonIds ?? [], workPackageDigest: digest(JSON.stringify(plan.workPackage)), executionPolicy: 'DELEGATE_ONLY_TO_AUTHORIZED_AGENT', noDirectMutation: true },
+    payload: { botId: plan.botId, normalizedGoal: plan.normalizedGoal, intent: plan.intent, actions: plan.actions, constraints: plan.constraints, explicitPaths: plan.explicitPaths, selectedPromptId: plan.canonicalPrompt?.promptId ?? null, promptRegistryDigest: plan.canonicalPrompt?.registryDigest ?? null, trainingDigest: plan.training?.trainingDigest ?? null, adversarialFailureReportDigest: plan.adversarialFailureReport?.reportDigest ?? null, adversarialRounds: plan.adversarialLoop?.round ?? null, adversarialChallengeId: plan.adversarialReview?.challengeId ?? null, adversarialStatus: plan.adversarialReview?.status ?? null, counterexampleFound: Boolean(plan.adversarialReview?.counterexampleFound), ruleIds: plan.training?.ruleIds ?? [], lessonIds: plan.training?.lessonIds ?? [], workPackageDigest: digest(JSON.stringify(plan.workPackage)), executionPolicy: 'DELEGATE_ONLY_TO_AUTHORIZED_AGENT', noDirectMutation: true },
   }, plan.executionSha);
   return { status: message.status, messageId: message.messageId, recipient: message.recipient, taskId: message.taskId };
 }
