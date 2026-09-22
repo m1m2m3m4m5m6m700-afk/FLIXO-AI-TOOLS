@@ -11,7 +11,6 @@ import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
 import { buildErrorOnlyRepairModel } from './auto-repair/error-only-programmer.mjs';
 import { buildCausalDiscriminator } from './action-causal-discriminator.mjs';
 import { buildMetaCausalModel } from './meta-causal-model.mjs';
-import { buildDeepInference } from './read-only-deep-reasoning.mjs';
 
 const ROOT=process.cwd();
 const exactSha=(v)=>/^[a-f0-9]{40}$/u.test(String(v??''));
