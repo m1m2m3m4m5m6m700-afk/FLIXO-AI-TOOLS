@@ -97,9 +97,15 @@ assert.match(autoRepairWorkflow,/ACTION-REPAIR-2 adversarial falsification of AC
 assert.match(autoRepairWorkflow,/FLIXO_SYSTEM_COGNITIVE_AWARENESS_PATH/);
 assert.ok(markIndex>auditIndex, 'MUTATING state must be opened only after verifier audit/approval');
 assert.match(autoRepairWorkflow, /CURRENT_TARGET_SHA=/);
-assert.match(autoRepairWorkflow, /execution advanced during repair; refusing stale publication/);
-assert.match(autoRepairWorkflow, /REMOTE_EXECUTION_SHA.*FAILED_SHA/);
-assert.doesNotMatch(autoRepairWorkflow, /git rebase "\$REMOTE_EXECUTION_SHA"/);
+assert.match(autoRepairWorkflow, /Create exact unpublished candidate commit/);
+assert.match(autoRepairWorkflow, /test "\$BASE_SHA" = "\$FAILED_SHA"/);
+assert.match(autoRepairWorkflow, /test "\$\(git rev-parse origin\/execution\)" = "\$FAILED_SHA"/);
+assert.match(autoRepairWorkflow, /CANDIDATE_SHA="\$\(git rev-parse HEAD\)/);
+assert.match(autoRepairWorkflow, /PARENT_SHA="\$\(git rev-parse "\$CANDIDATE_SHA\^"\)/);
+assert.match(autoRepairWorkflow, /Run targeted regression and post-patch adversarial falsification in parallel/);
+assert.match(autoRepairWorkflow, /FLIXO_EXPECTED_TARGET_SHA="\$CANDIDATE_SHA" FLIXO_PATCH_BASE_SHA="\$PARENT_SHA"/);
+assert.match(autoRepairWorkflow, /test "\$\(git rev-parse origin\/execution\)" = "\$PARENT_SHA"/);
+assert.match(autoRepairWorkflow, /git push origin "HEAD:execution"/);
 assert.match(autoRepairWorkflow, /EVIDENCE_CAPTURE=FAILED/);
 assert.match(autoRepairWorkflow, /CONTROLLER_SHA="\$MAIN_SHA"/);
 assert.match(autoRepairWorkflow, /persist-credentials:\s*false/);
@@ -111,7 +117,8 @@ assert.match(dailyGateWorkflow, /group:\s*flixo-continuous-error-watch-\$\{\{\s*
 assert.match(dailyGateWorkflow, /cancel-in-progress:\s*false/);
 assert.match(dailyGateWorkflow, /const observedBranch = read\('\/tmp\/flixo-watch\/observed-branch'\)\.trim\(\);/);
 assert.match(dailyGateWorkflow, /observedBranch,/);
-assert.doesNotMatch(dailyGateWorkflow, /- FLIXO WP0 Trust Baseline\n\s+- FLIXO Test Impact/);
+assert.match(dailyGateWorkflow, /- FLIXO WP0 Trust Baseline\n\s+- FLIXO Test Impact\n\s+- FLIXO Test Impact Execution/);
+assert.match(dailyGateWorkflow, /- Repository Security Baseline\n\s+- Claude Security Review/);
 assert.doesNotMatch(dailyGateWorkflow, /gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i);
 assert.match(handoffGateWorkflow, /branches: \[execution\]/);
 assert.match(handoffGateWorkflow, /test "\$REPAIR_TARGET_BRANCH" = "execution"/);
