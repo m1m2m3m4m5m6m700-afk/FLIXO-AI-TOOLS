@@ -2,7 +2,7 @@ name: FLIXO Security Red-Team Continuous Pulse
 
 on:
   schedule:
-    - cron: '* * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       bot:
@@ -69,31 +69,60 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          emit_pulse() {
+            local tick="$1"
+            local sha="$2"
+            local now
+            now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "BOT=$BOT_ID"
+            echo "HEARTBEAT_TICK=$tick"
+            echo "HEARTBEAT_AT=$now"
+            echo "HEARTBEAT_EXACT_SHA=$sha"
+            echo "HEARTBEAT_STATE=ACTIVE"
+          }
+
+          peer_job_state() {
+            local peer="$1"
+            local sha="$2"
+            gh api --paginate               "repos/$GITHUB_REPOSITORY/actions/runs?branch=execution&per_page=50"               --jq --arg peer "$peer" --arg sha "$sha" '
+                .workflow_runs[]
+                | select(.head_sha == $sha)
+                | select(.status == "queued" or .status == "in_progress")
+                | .id
+              ' | while read -r RUN_ID; do
+                [ -n "$RUN_ID" ] || continue
+                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/jobs?per_page=100"                   --jq --arg peer "$peer" '
+                    .jobs[]
+                    | select(.name == ("Continuous pulse — " + $peer))
+                    | "(.status)|(.conclusion // "")|(.started_at // "")"
+                  ' || true
+              done
+          }
+
+          wake_peer() {
+            local peer="$1"
+            echo "PEER_WAKE_TARGET=$peer"
+            gh workflow run security-red-team-pulse.yml               --repo "$GITHUB_REPOSITORY"               --ref execution               -f "bot=$peer"
+            echo "PEER_WAKE_DISPATCHED=$peer"
+          }
+
           for TICK in 1 2 3 4 5 6 7; do
             SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-            NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo "BOT=$BOT_ID"
-            echo "HEARTBEAT_TICK=$TICK"
-            echo "HEARTBEAT_AT=$NOW"
-            echo "HEARTBEAT_EXACT_SHA=$SHA"
+            emit_pulse "$TICK" "$SHA"
 
             for PEER in SECURITY-REDTEAM-1 SECURITY-REDTEAM-2 SECURITY-REDTEAM-3; do
-              if [ "$PEER" = "$BOT_ID" ]; then
-                continue
-              fi
-              LAST_RUN="$(
-                gh run list                   --repo "$GITHUB_REPOSITORY"                   --workflow security-red-team-pulse.yml                   --limit 30                   --json databaseId,status,conclusion,createdAt,headSha                   --jq --arg peer "$PEER"                     'map(select(.status == "in_progress" or .status == "completed") | select(.headSha == "'"$SHA"'")) |
-                     map(select(.databaseId != '"$GITHUB_RUN_ID"')) |
-                     .[]?' 2>/dev/null |
-                head -n 1 || true
-              )"
+              [ "$PEER" = "$BOT_ID" ] && continue
 
-              if [ -z "$LAST_RUN" ]; then
-                echo "PEER=$PEER STATUS=UNKNOWN"
-                gh workflow run security-red-team-pulse.yml                   --repo "$GITHUB_REPOSITORY"                   --ref execution                   -f "bot=$PEER" || echo "PEER_WAKE_DISPATCH_FAILED=$PEER"
+              STATES="$(peer_job_state "$PEER" "$SHA" | tail -n 10)"
+              if printf '%s
+' "$STATES" | grep -Eq '^(queued|in_progress)\|'; then
+                echo "PEER=$PEER STATUS=ALIVE"
                 continue
               fi
-              echo "PEER=$PEER STATUS=OBSERVED"
+
+              echo "PEER=$PEER STATUS=MISSING"
+              wake_peer "$PEER" || echo "PEER_WAKE_FAILED=$PEER"
             done
 
             if [ "$TICK" -lt 7 ]; then
