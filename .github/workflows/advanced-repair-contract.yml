@@ -29,6 +29,12 @@ jobs:
         run: node scripts/ci/test-advanced-repair-packet-validator.mjs
       - name: Validate Chair push guard syntax
         run: node --check scripts/ci/chair-push-guard.mjs
+      - name: Validate agent chair lifecycle syntax
+        run: |
+          node --check scripts/ci/chair-bound-execution.mjs
+          node --check scripts/ci/chair-push-guard.mjs
+          node --check scripts/ci/agent-session.mjs
+          node --check scripts/ci/agent-coordination.mjs
       - name: Run Chair fencing and push proposal regression tests
         run: node scripts/ci/test-chair-bound-execution.mjs
       - name: Run execution mutation gate regression tests
