@@ -17,6 +17,11 @@ assert.match(chair, /export function readSpeculativeContext/);
 assert.match(chair, /export function sanitizeSessionContext/);
 assert.match(chair, /export function atomicChairRefAudit/);
 assert.match(chair, /atomicLocalCAS:true/);
+assert.match(chair, /event:'ACQUIRE'/);
+assert.match(chair, /event:'RELEASE'/);
+assert.match(chair, /event:'REVOKE'/);
+assert.match(chair, /event:'DEAD_LEASE'/);
+assert.match(chair, /SPECULATIVE_CACHE_TTL_MS/);
 
 assert.match(coordination, /heartbeat as heartbeatChair/);
 assert.match(coordination, /reconcileDeadLeases/);
