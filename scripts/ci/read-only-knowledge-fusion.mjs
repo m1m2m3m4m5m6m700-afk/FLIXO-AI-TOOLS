@@ -232,7 +232,7 @@ function buildFusion({failureLog='',diagnosis={},targetSha='',failedRunId='READ_
   )-(antiRisk>0.82?0.22:antiRisk>0.68?0.10:0))).toFixed(3));
 
   const arbitration=arbitrateKnowledge({selectedAdvice:selected,antiLessons:anti,provenRuleHints:strategyHints,predictionConfidence:Number(prediction?.proposedRepair?.confidence??0),targetSha,routeConfidence:evidenceDiversity/4});
-  const disposition=conflicts.length?'CHALLENGE_REQUIRED':strongest?(
+  const disposition=arbitration.decision==='REJECT_ALL'?'KNOWLEDGE_REJECTED':arbitration.decision==='ESCALATE'?'KNOWLEDGE_ESCALATION_REQUIRED':conflicts.length?'CHALLENGE_REQUIRED':strongest?(
     strongest.score>=0.72?'HIGH_VALUE_SUPPORTING_EVIDENCE':'RELATED_HISTORICAL_EVIDENCE'
   ):'NO_ACTIONABLE_KNOWLEDGE';
 
