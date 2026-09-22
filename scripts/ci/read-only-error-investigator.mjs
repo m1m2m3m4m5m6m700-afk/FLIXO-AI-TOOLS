@@ -416,14 +416,16 @@ function collectWithGh() {
   if (!repository) throw new Error('GITHUB_REPOSITORY_REQUIRED_FOR_LIVE_COLLECTION');
   const executionSha = arg('sha', process.env.EXPECTED_SHA || sha());
   const limit = Math.min(Math.max(Number(arg('limit', String(READ_ONLY_POWER_PROFILE.budgets.investigatorRunLimit))), 1), READ_ONLY_POWER_PROFILE.budgets.investigatorRunLimit);
+  const directRunsPerPage = 100;
   const raw = execFileSync('gh', [
-    'run', 'list',
-    '--repo', repository,
-    '--branch', branch,
-    '--limit', String(limit),
-    '--json', 'databaseId,workflowName,status,conclusion,headSha,headBranch,createdAt,updatedAt,url',
+    'api',
+    '--paginate',
+    '--slurp',
+    `repos/${repository}/actions/runs?branch=${encodeURIComponent(branch)}&per_page=${directRunsPerPage}`,
   ], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
-  const runs = JSON.parse(raw);
+  const pages = JSON.parse(raw);
+  const runs = (Array.isArray(pages) ? pages.flatMap((page) => Array.isArray(page?.workflow_runs) ? page.workflow_runs : []) : [])
+    .slice(0, limit);
   const candidates = runs.filter((run) =>
     run.status === 'completed' &&
     ['failure', 'timed_out', 'cancelled'].includes(String(run.conclusion ?? '').toLowerCase())

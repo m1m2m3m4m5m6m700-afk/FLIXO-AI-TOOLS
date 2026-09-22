@@ -111,7 +111,7 @@ const workflowJobBlocks = new Map();
 let activeJobName = null;
 let activeJobLines = [];
 for (const line of workflowLines) {
-  const jobHeader = line.match(/^  ([A-Za-z0-9_-]+):\s*$/u);
+  const jobHeader = line.match(/^ {2}([A-Za-z0-9_-]+):\s*$/u);
   if (jobHeader) {
     if (activeJobName !== null) workflowJobBlocks.set(activeJobName, activeJobLines.join('\n'));
     activeJobName = jobHeader[1];

@@ -37,7 +37,7 @@ for(const marker of required) if(!source.includes(marker)) failures.push('MISSIN
 
 if(/git\s+(add|commit|push|reset|checkout)|update_file|create_file|delete_file|mergePullRequest|create_pull_request/u.test(source)) failures.push('FORBIDDEN_MUTATION_API_OR_GIT_OPERATION');
 if(/fs\.writeFileSync\((?!output)/u.test(source)) failures.push('UNEXPECTED_FILE_WRITE_SURFACE');
-if(!/gh['"],\s*\[\s*['"]run['"],\s*['"]list['"]/u.test(source)) failures.push('READ_ONLY_GH_RUN_LIST_MISSING');
+if(!source.includes("'api',") || !source.includes('actions/runs?branch=')) failures.push('READ_ONLY_GH_RUNS_API_MISSING');
 if(!/['"]--log-failed['"]/u.test(source)) failures.push('READ_ONLY_FAILURE_LOG_CAPTURE_MISSING');
 if(!/run\?\.headSha !== executionSha/u.test(source)) failures.push('EXACT_SHA_FILTER_MISSING');
 if(!workflowSource.includes('contents: read') || !workflowSource.includes('actions: read')) failures.push('READ_ONLY_WORKFLOW_PERMISSIONS_MISSING');
@@ -49,7 +49,7 @@ if(!source.includes('buildDeepInference')) failures.push('DEEP_REASONING_INTEGRA
 if(!fs.existsSync(sharedMemory) || !source.includes('buildSharedLearningContext')) failures.push('SHARED_SIX_BOT_MEMORY_NOT_BOUND');
 if(!fs.existsSync(powerProfile)) failures.push('FIVE_X_POWER_PROFILE_MISSING');
 if(!source.includes('READ_ONLY_POWER_PROFILE')) failures.push('FIVE_X_POWER_PROFILE_NOT_BOUND');
-if(!workflowSource.includes('--max-logs=350') || !workflowSource.includes('--limit=800')) failures.push('FIVE_X_COLLECTION_BUDGET_NOT_BOUND');
+if(!workflowSource.includes('--max-logs=100') || !workflowSource.includes('--limit=100')) failures.push('HUNDRED_ERROR_COLLECTION_BUDGET_NOT_BOUND');
 
 const sha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
 const result={schemaVersion:1,authority:'READ_ONLY_ERROR_INVESTIGATOR_CONTRACT',status:failures.length?'FAIL':'PASS',checkedSha:sha,failures};
