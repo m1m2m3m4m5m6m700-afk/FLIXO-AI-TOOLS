@@ -32,7 +32,8 @@ function readCanonicalRunEvidence(runId,targetSha){
     const idMatch=String(run.databaseId??'')===String(runId);
     const headMatch=String(run.headSha??'')===String(targetSha);
     if(!idMatch||!headMatch)return {available:true,validated:false,canonicalGreen:false,reason:'CANONICAL_RUN_ID_OR_SHA_MISMATCH',run};
-    return {available:true,validated:true,canonicalGreen:String(run.conclusion??'').toLowerCase()==='success',run};
+    const canonicalGreen=String(run.name??'')==='Daily·FLIXO Green Gate' && String(run.conclusion??'').toLowerCase()==='success';
+    return {available:true,validated:true,canonicalGreen,run};
   }catch(error){
     return {available:true,validated:false,canonicalGreen:false,reason:'CANONICAL_RUN_LOOKUP_FAILED',error:String(error?.message??error)};
   }
