@@ -49,6 +49,7 @@ const invoke = async ({
   secret = SECRET,
   passwordHash = HASH,
   forwardedProto = 'http',
+  contentLength,
 } = {}) => {
   process.env.ADMIN_SESSION_SECRET = secret;
   process.env.ADMIN_PASSWORD_HASH = passwordHash;
@@ -70,6 +71,7 @@ const invoke = async ({
       origin,
       'x-forwarded-proto': forwardedProto,
       'x-request-id': 'admin-auth-test',
+      ...(contentLength === undefined ? {} : { 'content-length': String(contentLength) }),
     },
   };
 
@@ -92,6 +94,14 @@ assert.equal(productionOriginMissing.status, 403);
 assert.equal(productionOriginMissing.body.error.code, 'csrf_origin_denied');
 process.env.NODE_ENV = 'test';
 process.env.ADMIN_PUBLIC_ORIGIN = 'http://localhost:3000';
+
+const oversizedBody = await invoke({
+  method: 'POST',
+  body: JSON.stringify({ password: 'x'.repeat(70_000) }),
+  contentLength: 70_000,
+});
+assert.equal(oversizedBody.status, 400);
+assert.equal(oversizedBody.body.error.code, 'invalid_credentials_payload');
 
 const wrongPassword = await invoke({ method: 'POST', body: { password: 'wrong' } });
 assert.equal(wrongPassword.status, 401);
