@@ -453,7 +453,11 @@ assert.equal(missingReport.rootCause, 'REQUIRED_EVIDENCE_MISSING');
 assert.equal(missingReport.errors[0]?.type, 'WATCHER_INPUT_INVALID');
 fs.rmSync(watchTemp, { recursive: true, force: true });
 
-assert.match(dailyGateWorkflow, /Ensure exact-SHA required CI is resident/);
+const dailyGateWorkflow = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
+assert.ok(dailyGateWorkflow.includes('Normalize settled workflow-run evidence shape'));
+assert.ok(dailyGateWorkflow.includes('if type == "array" then . elif (.workflow_runs | type) == "array" then .workflow_runs else [] end'));
+assert.ok(dailyGateWorkflow.includes("jq -e 'type == \"array\"'"));
+assert.ok(dailyGateWorkflow.includes('Ensure exact-SHA required CI is resident'));
 for (const file of [
   'ci.yml',
   'wp0-trust-baseline.yml',
@@ -462,14 +466,6 @@ for (const file of [
   'repository-security-baseline.yml',
   'claude-security-review.yml',
 ]) {
-  assert.ok(dailyGateWorkflow.includes(file), \`daily gate must know required workflow file: \${file}\`);
+  assert.ok(dailyGateWorkflow.includes(file), 'daily gate must know required workflow file: ' + file);
 }
-const dailyGateWorkflow = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
-assert.match(dailyGateWorkflow, /Normalize settled workflow-run evidence shape/);
-assert.match(
-  dailyGateWorkflow,
-  /if type == "array" then \. elif \(\.workflow_runs \| type\) == "array" then \.workflow_runs else \[\] end/,
-);
-assert.match(dailyGateWorkflow, /jq -e 'type == "array"'/);
-
 console.log('CONTINUOUS_ERROR_WATCH_CONTRACT=PASS');
