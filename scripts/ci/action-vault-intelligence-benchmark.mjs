@@ -8,6 +8,7 @@ import {
   assertAgentAdmission,
 } from './repair-protocol.mjs';
 import { evaluateMutationGate } from './action-vault-mutation-gate.mjs';
+import { buildFiveXExecutionEnvelope } from './read-only-power-profile.mjs';
 import { buildPatchCorrectnessProof } from './patch-correctness-proof.mjs';
 import { evaluateCertification } from './action-vault-certification.mjs';
 
@@ -44,7 +45,15 @@ const base={
   differentialProof:{status:'PASS',scopeProof:true,behavioralVerification:{ok:true},exactShaBound:true},
   patchCorrectness:{status:'PROVEN',proofCompleteness:{PATCH_TARGET_PROVEN:true,PATCH_MECHANISM_PROVEN:true}},
   regressionCounterexamples:{counterexampleFound:false,exhausted:true},
-  mutationScope:{testMutation:false,controlPlaneMutation:false,mainMutation:false,gateWeakening:false}
+  mutationScope:{testMutation:false,controlPlaneMutation:false,mainMutation:false,gateWeakening:false},
+  fiveXEnvelope:buildFiveXExecutionEnvelope({
+    exactSha:sha,branch:'execution',selectedTaskId:'task',
+    hypothesisCount:3,counterexampleChecks:10,regressionDepth:3,
+    independentEvidenceSources:5,learningOutputs:5,
+    proofClasses:['IDENTITY','CONSTRAINTS','CAUSALITY','FALSIFICATION','REGRESSION'],
+    preExecution25:{status:'PASS',operationCount:30,operationDigest:'e'.repeat(64)},
+    adversarialReview:{status:'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE',counterexampleFound:false},
+  })
 };
 const patchBase={
   targetSha:sha,failureFingerprint:fp,
@@ -107,6 +116,7 @@ const blockedCases=blockedCaseDefinitions.map(([name,test])=>{
 });
 assert.equal(blockedCases.length,5);
 assert.equal(blockedCases.every(item=>item.blocked),true);
+assert.equal(evaluateMutationGate({...base,fiveXEnvelope:null}).status,'BLOCK','FIVE_X_EXECUTION_READY');
 
 const results=spec.cases.map(c=>{
   const result=run(c.name,()=>runners.get(c.id)());
