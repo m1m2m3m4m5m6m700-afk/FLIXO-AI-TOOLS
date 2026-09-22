@@ -28,9 +28,9 @@ permissions:
   contents: read
 
 concurrency:
-  # Supersede older watchdog observations for the same exact source SHA.
-  # Required-workflow completions for one SHA must leave only the newest observer wake.
-  group: flixo-execution-watchdog-${{ github.event.workflow_run.head_sha || github.ref_name }}
+  # One observer lane only. Every wake is read-only and re-evaluates the current execution SHA,
+  # so cancelling an older observer cannot lose repair authority; it removes duplicate wake pressure.
+  group: flixo-execution-watchdog-single-observer
   cancel-in-progress: true
 
 jobs:
