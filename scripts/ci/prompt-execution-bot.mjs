@@ -364,7 +364,16 @@ export function buildWorkPackage(prompt) {
       proofObligations: effectiveProofObligations, stopConditions: effectiveStopConditions, adversarialReview, fiveX: fiveXEnvelope, tenX: fiveXEnvelope, trainingMode: 'ADVISORY_KNOWLEDGE_ONLY',
       learningOutputs: ['LESSON','ANTI_LESSON','BLOCKER','REJECTED_STRATEGY','VERIFIED_REPAIR'],
     },
-    blockers: (blocked || reviewRequired || adversarialBlock) ? [...unsafeRequests, ...(quality.status === 'PASS' ? [] : quality.reasons), ...(reviewRequired ? ['NO_ACTIVE_TASK_MATCH'] : []), ...(adversarialBlock ? ['ADVERSARIAL_REVIEW_REQUIRED'] : []), ...(adversarialBlock && adversarialLoop.round >= 8 ? ['ADVERSARIAL_REPAIR_EXHAUSTED'] : [])] : [],
+    blockers: (blocked || reviewRequired || adversarialBlock) ? [
+      ...unsafeRequests,
+      ...(quality.status === 'PASS' ? [] : quality.reasons),
+      ...(reviewRequired ? ['NO_ACTIVE_TASK_MATCH'] : []),
+      ...(adversarialBlock ? ['ADVERSARIAL_REVIEW_REQUIRED'] : []),
+      ...(adversarialBlock && adversarialLoop.round >= 8 ? ['ADVERSARIAL_REPAIR_EXHAUSTED'] : []),
+      ...(consolidation.status !== 'READY_FOR_CANONICAL_CONSOLIDATION' ? [`CANONICAL_LANE_CONSOLIDATION_BLOCKED:${consolidation.status}`] : []),
+      ...(consolidation.conflicts ?? []).map((x) => `PUSH_CONFLICT:${x.type}`),
+      ...(consolidation.stalePackets ?? []).map((x) => `STALE_PUSH_PACKET:${x.packetId}`),
+    ] : [],
     promptSafety: { userInputIsUntrustedData: true, externalArtifactsAreUntrustedData: true, noArbitraryShellFromPrompt: true, noPromptAuthorityElevation: true, noDirectMainMutation: true, noThirdBranchCreation: true },
     lifecycle: {
       planning: 'UNDERSTAND → USE CONTEXT → IDENTIFY INTENT → IDENTIFY CONSTRAINTS → DECOMPOSE GOAL → COMPOSE SAFE TOOL PLAN',
