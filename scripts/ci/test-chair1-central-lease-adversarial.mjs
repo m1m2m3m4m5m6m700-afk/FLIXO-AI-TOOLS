@@ -37,7 +37,7 @@ const canonical = {
 let forgedProof = false;
 let replayProof = false;
 configureCentralChairTestTransport({
-  verify: (args) => {
+  verify: () => {
     if (forgedProof) {
       return {
         authorized: true,
@@ -196,6 +196,8 @@ assert.throws(() => authorizeWrite({
 }), /CHAIR_NOT_OCCUPIED|UNAUTHORIZED_EXECUTION_ATTEMPT/);
 
 replayProof = true;
+const previousChairAgent = process.env.FLIXO_CHAIR_AGENT;
+process.env.FLIXO_CHAIR_AGENT = 'ACTION-REPAIR-2';
 assert.throws(() => acquire({
   chairId: 'chair_1',
   agentId: 'ACTION-REPAIR-2',
@@ -205,6 +207,7 @@ assert.throws(() => acquire({
   workPackageId: canonical.workPackageId,
   fencingToken: fenced,
 }), /CENTRAL_CHAIR_PROOF_INVALID/);
+process.env.FLIXO_CHAIR_AGENT = previousChairAgent;
 replayProof = false;
 
 console.log('CHAIR1_STALE_SHA=BLOCKED');
