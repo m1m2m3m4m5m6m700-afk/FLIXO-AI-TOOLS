@@ -137,7 +137,7 @@ export async function verifyPipelineOutput(toolId: string, inputBlob: Blob, outp
       resolve(false);
     }, capability.safetyLimits.timeoutMs);
   });
-  let capabilityVerified = false;
+  let capabilityVerified: boolean;
   try {
     capabilityVerified = await Promise.race([capability.verifier(inputBlob, outputBlob, params, controller.signal), timeout]);
   } finally {
