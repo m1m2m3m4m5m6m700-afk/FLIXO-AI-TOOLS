@@ -224,6 +224,9 @@ const staleSessionRecord = (sessionId, session, reason) => {
   state.staleSessions[sessionId] = { ...session, staleAt: now(), staleAtSha, staleReason: reason };
   const task = session.taskId ? state.tasks[session.taskId] : null;
   if (task?.sessionId === sessionId && task.status === 'RUNNING') { task.status = 'STALE'; task.staleReason = reason; task.staleAt = now(); }
+  if (session.chairId && session.agentId) {
+    revokeChair({ chairId: session.chairId, agentId: session.agentId, reason });
+  }
   unlock(sessionId);
   delete state.activeSessions[sessionId];
   try { const file = visibilityPath(sessionId); if (fs.existsSync(file)) { const visibility = JSON.parse(fs.readFileSync(file, 'utf8')); visibility.status = 'STALE'; visibility.staleReason = reason; visibility.staleAt = now(); visibility.updatedAt = now(); fs.writeFileSync(file, JSON.stringify(visibility, null, 2) + '\n'); } } catch { return false; }
