@@ -781,6 +781,16 @@
     "noUnresolvedQuestions": true,
     "noUnresolvedConflicts": true,
     "exactShaBound": true,
-    "planMustBeIntegrated": true
+    "planMustBeIntegrated": true,
+    "activeRepairWindow": {
+      "minimumMinutes": 45,
+      "continuous": true,
+      "noSleep": true,
+      "noIdle": true,
+      "noBlockedLogout": true,
+      "heartbeatRequired": true,
+      "zeroErrorTarget": true,
+      "closureStillRequiresCanonicalGreen": true
+    }
   }
 }
