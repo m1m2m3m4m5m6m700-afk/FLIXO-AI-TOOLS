@@ -56,6 +56,8 @@ export const TRUST_PERIMETER_PATHS = Object.freeze([
   'scripts/ci/auto-repair-engine.mjs',
   'scripts/ci/repair-agent-cognitive-clone.mjs',
   'scripts/ci/validate-repair-agent-cognitive-clone.mjs',
+  'scripts/ci/repair-adversarial-convergence.mjs',
+  'scripts/ci/test-repair-adversarial-convergence.mjs',
   'scripts/ci/auto-repair-chair1-audit.mjs',
   'scripts/ci/execution-head-authority.mjs',
   'scripts/ci/chair1-change-accumulator.mjs',

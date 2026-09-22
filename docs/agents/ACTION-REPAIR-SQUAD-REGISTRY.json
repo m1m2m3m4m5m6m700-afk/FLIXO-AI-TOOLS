@@ -805,5 +805,29 @@
       "mayOverridePrimary": false,
       "mayAuthorizeMutation": false
     }
+  },
+  "adversarialConvergenceLoop": {
+    "protocol": "FLIXO-ADVERSARIAL-CONVERGENCE-v1",
+    "loop": "REPAIR ↔ ADVERSARIAL_CHALLENGE ↔ REPAIR",
+    "primaryOwner": "repairAgent",
+    "cognitiveAdversary": "repairAgentClone",
+    "sameExactShaRequired": true,
+    "sameFailureFingerprintRequired": true,
+    "counterexamplePolicy": "INVALIDATE_CANDIDATE_AND_REQUEUE",
+    "stabilityCondition": [
+      "EXACT_SHA_VERIFIED",
+      "TARGETED_REGRESSION_PASS",
+      "ADVERSARIAL_NO_COUNTEREXAMPLE",
+      "NO_EARLY_ABORT",
+      "INDEPENDENT_CHAIR_AUDIT",
+      "GUARDED_PUBLICATION"
+    ],
+    "pushAuthority": "GUARDED_CHAIR_PUBLICATION_ONLY",
+    "greenAuthority": "DAILY_FLIXO_GREEN_GATE",
+    "promotionOnlyAfterCanonicalGreen": true,
+    "negativeLearningOnCounterexample": true,
+    "guidanceArtifact": "/tmp/flixo-adversarial-convergence.json",
+    "maxFiniteAttempts": false,
+    "terminalCondition": "CANONICAL_GREEN_ONLY"
   }
 }

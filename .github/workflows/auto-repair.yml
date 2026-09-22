@@ -1391,21 +1391,51 @@ jobs:
           PARENT_SHA="$(git rev-parse "$CANDIDATE_SHA^")"
           test "$CANDIDATE_SHA" = "$(git rev-parse HEAD)"
           test "$CANDIDATE_SHA" != "$PARENT_SHA"
+          VERIFY_EXIT=0
           FLIXO_EXPECTED_TARGET_SHA="$CANDIDATE_SHA" FLIXO_PATCH_BASE_SHA="$PARENT_SHA" \
-            node scripts/ci/candidate-verification-parallel.mjs
+            node scripts/ci/candidate-verification-parallel.mjs || VERIFY_EXIT="$?"
           test -s /tmp/flixo-candidate-verification.json
           test "$(jq -r '.targetSha' /tmp/flixo-candidate-verification.json)" = "$(cat /tmp/flixo-candidate-sha)"
           test "$(jq -r '.mode' /tmp/flixo-candidate-verification.json)" = PARALLEL
-          test "$(jq -r '.gate.result' /tmp/flixo-candidate-verification.json)" = PASS
-          test "$(jq -r '.gate.targetedRegression' /tmp/flixo-candidate-verification.json)" = true
-          test "$(jq -r '.gate.adversarialNoCounterexample' /tmp/flixo-candidate-verification.json)" = true
+          ADV_FOUND="$(jq -r '.gate.adversarialNoCounterexample == false' /tmp/flixo-candidate-verification.json)"
+          TARGETED_FAIL="$(jq -r '.gate.targetedRegression != true' /tmp/flixo-candidate-verification.json)"
+          if [ "$ADV_FOUND" = "true" ]; then
+            echo 'ADVERSARIAL_COUNTEREXAMPLE=PROVEN_REQUEUE'
+          elif [ "$TARGETED_FAIL" = "true" ] || [ "$VERIFY_EXIT" -ne 0 ]; then
+            echo "FAIL CLOSED: candidate verification failed without a proven adversarial counterexample (exit=$VERIFY_EXIT)"
+            exit "$VERIFY_EXIT"
+          fi
           test "$(jq -r '.earlyAbort' /tmp/flixo-candidate-verification.json)" = false
-          echo 'TARGETED_REGRESSION_AND_ADVERSARIAL=PASS'
+          echo 'TARGETED_REGRESSION_AND_ADVERSARIAL=OBSERVED'
           echo 'FLIXO_AGENT_ADVERSARIAL_EVIDENCE=/tmp/flixo-postpatch-adversarial.json' >> "$GITHUB_ENV"
           echo 'FLIXO_CANDIDATE_VERIFICATION=/tmp/flixo-candidate-verification.json' >> "$GITHUB_ENV"
+      - name: Resolve adversarial convergence before any publication
+        id: repair_convergence
+        if: steps.candidate_verification.outcome == 'success'
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-adversarial-convergence.mjs \
+            --candidate="$(cat /tmp/flixo-candidate-sha)" \
+            --failed="$(cat /tmp/flixo-failed-sha)" \
+            --verification=/tmp/flixo-candidate-verification.json \
+            --adversarial=/tmp/flixo-postpatch-adversarial.json \
+            --memory=/tmp/flixo-repair-memory.json \
+            --attempt="$FLIXO_REPAIR_ATTEMPT" \
+            --output=/tmp/flixo-adversarial-convergence.json
+          test -s /tmp/flixo-adversarial-convergence.json
+          STATUS="$(jq -r '.status' /tmp/flixo-adversarial-convergence.json)"
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "REPAIR_CONVERGENCE_STATUS=$STATUS"
+          case "$STATUS" in
+            STABLE_FOR_PUBLICATION) echo 'REPAIR_CONVERGENCE=STABLE' ;;
+            REPAIR_REQUEUE_REQUIRED) echo 'REPAIR_CONVERGENCE=COUNTEREXAMPLE_REQUEUE' ;;
+            FAIL_CLOSED_REQUEUE) echo 'REPAIR_CONVERGENCE=FAIL_CLOSED_REQUEUE' ;;
+            *) echo "FAIL CLOSED: unknown adversarial convergence status=$STATUS"; exit 1 ;;
+          esac
+          echo 'FLIXO_ADVERSARIAL_CONVERGENCE_PATH=/tmp/flixo-adversarial-convergence.json' >> "$GITHUB_ENV"
       - name: Strict Chair-1 audit of every Auto Repair candidate
         id: chair1_audit
-        if: steps.candidate_verification.outcome == 'success'
+        if: steps.candidate_verification.outcome == 'success' && steps.repair_convergence.outputs.status == 'STABLE_FOR_PUBLICATION'
         env:
           FLIXO_REPAIR_EVIDENCE_PATH: /tmp/flixo-repair-evidence.json
           FLIXO_CANDIDATE_VERIFICATION: /tmp/flixo-candidate-verification.json
@@ -1455,8 +1485,24 @@ jobs:
           NODE
           echo 'AUTO_REPAIR_TEACHING=CHAIR1_REJECTION_RECORDED'
           echo 'CHAIR1_REVIEW_STATUS=REJECTED' >> "$GITHUB_ENV"
+      - name: Re-enter circular Repair ↔ Adversarial loop when stability is not proven
+        if: always() && steps.repair_convergence.outcome == 'success' && steps.repair_convergence.outputs.status != 'STABLE_FOR_PUBLICATION'
+        run: |
+          set -euo pipefail
+          STATUS="$(jq -r '.status' /tmp/flixo-adversarial-convergence.json)"
+          case "$STATUS" in
+            REPAIR_REQUEUE_REQUIRED|FAIL_CLOSED_REQUEUE)
+              echo 'REPAIR_ADVERSARIAL_LOOP=REQUEUE'
+              echo "REPAIR_ADVERSARIAL_LOOP_REASON=$(jq -r '.nextAction' /tmp/flixo-adversarial-convergence.json)"
+              echo "REPAIR_ADVERSARIAL_NEXT_STRATEGY=$(jq -r '.nextStrategy // "AUTO_RESELECT"' /tmp/flixo-adversarial-convergence.json)"
+              echo 'No publication permitted; Daily·FLIXO Green Gate must dispatch the next exact-SHA repair cycle.'
+              exit 1
+              ;;
+            *) echo "FAIL CLOSED: unexpected convergence status=$STATUS"; exit 1 ;;
+          esac
+
       - name: Require Chair-1 approval before Auto Repair publication
-        if: steps.chair1_audit.outcome != 'success'
+        if: steps.repair_convergence.outputs.status == 'STABLE_FOR_PUBLICATION' && steps.chair1_audit.outcome != 'success'
         run: |
           set -euo pipefail
           echo 'FAIL CLOSED: Auto Repair candidate was not approved by the independent Chair-1 strict audit.'
@@ -1650,8 +1696,11 @@ jobs:
             /tmp/flixo-lease-verification.json
             /tmp/flixo-repair-lease-outcome.json
             /tmp/flixo-postpatch-adversarial.json
+            /tmp/flixo-adversarial-convergence.json
+            /tmp/flixo-repair-agent-clone.json
             /tmp/flixo-rca-manifest.json
             /tmp/flixo-candidate-verification.json
+            /tmp/flixo-adversarial-convergence.json
           if-no-files-found: warn
           retention-days: 14
 
