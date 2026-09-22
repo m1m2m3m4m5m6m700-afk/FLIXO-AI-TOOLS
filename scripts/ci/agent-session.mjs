@@ -9,6 +9,7 @@ import { loadPromptRegistry, validatePromptRegistry, loadErrorMemory } from './p
 import { assertAgentExitGate } from './agent-exit-lock.mjs';
 import { AGENT_LIVENESS_PROTOCOL, assertActiveRepairWindow, checkHeartbeat, checkContinuousSessionWindow } from './agent-liveness-protocol.mjs';
 import { initialize as initializeChairState, heartbeat as heartbeatChair, reconcileDeadLeases, beginWork as beginChairWork, endWork as endChairWork, assertWorkAdmission, activeChairForAgent } from './chair-bound-execution.mjs';
+import { createAgentWorkspace, captureAgentResult, assertWorkspaceIsolation } from './agent-isolated-workspace.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -47,6 +48,7 @@ const visibilityDir = path.resolve(ROOT, 'docs/agents/ledger');
 const handoffDir = path.resolve(ROOT, 'diagnostics/agents/handoffs');
 const now = () => new Date().toISOString();
 const gitSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
+const gitMainSha = () => execFileSync('git', ['rev-parse', 'main'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const requiredReads = ['docs/agents/PROMPT-UNIFIED-EXECUTION.md', 'scripts/ci/cell-lab-consensus.mjs', 'docs/agents/CELL-CONTROL-HEADQUARTERS.md', 'PROJECTS.md', 'المهام.md', 'AGENTS.md', 'docs/EXECUTION-BRANCH-PROTOCOL.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md', 'docs/AGENT-COORDINATION-CONTROL-PLANE.md', 'docs/PROTOCOL-HIERARCHY.md', 'docs/PROTOCOL-REGISTRY.json', 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json', 'docs/agents/PROMPT-REGISTRY.json', 'diagnostics/auto-repair/memory.json', 'scripts/ci/agent-communication.mjs', 'docs/MINIMAL-CI-FINAL-ARCHITECTURE.md', 'scripts/ci/test-plan.json', 'scripts/ci/assertion-registry.json'];
 const split = (value, separator = ',') => String(value ?? '').split(separator).map((v) => v.trim()).filter(Boolean);
 const storageKey = (id) => createHash('sha256').update(id).digest('hex');
@@ -109,7 +111,9 @@ const assertMeetingExitApproval = (record, currentSha) => {
   if (approval.sessionId !== record.sessionId) throw new Error('COUNCIL_MEETING_EXIT_APPROVAL_SESSION_MISMATCH');
   if (approval.approvalSha !== currentSha) throw new Error('COUNCIL_MEETING_EXIT_APPROVAL_STALE_SHA');
 };
+const isWorkspaceOnlySession = (record) => record?.workspaceIsolation?.mode === 'WORKSPACE_ONLY';
 const ensureSessionWorkChair = (record) => {
+  if (isWorkspaceOnlySession(record)) return null;
   const targetSha = gitSha();
   if (record.chairBinding?.released === true) throw new Error('AGENT_WORK_AFTER_TASK_RELEASE_FORBIDDEN');
   const existing = activeChairForAgent({ agentId: record.agentId, targetSha });
@@ -173,8 +177,8 @@ const secretLike = (value) => /(-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY----
 const assertSafeText = (...values) => { for (const value of values.flat()) if (secretLike(value)) throw new Error('AGENT_EVENT_SECRET_LIKE_CONTENT_REJECTED'); };
 const appendEvent = (record, event) => {
   const administrative = event.workEvent === false;
-  const chair = administrative ? null : activeChairForAgent({ agentId: record.agentId, targetSha: gitSha() });
-  if (!administrative && !chair) throw new Error('AGENT_WORK_EVENT_REQUIRES_CHAIR');
+  const chair = administrative || isWorkspaceOnlySession(record) ? null : activeChairForAgent({ agentId: record.agentId, targetSha: gitSha() });
+  if (!administrative && !isWorkspaceOnlySession(record) && !chair) throw new Error('AGENT_WORK_EVENT_REQUIRES_CHAIR');
   const enriched = {
     ...event,
     workEvent: !administrative,
@@ -187,7 +191,28 @@ const appendEvent = (record, event) => {
 };
 const isMaster = (value) => ['MASTER-1','MASTER-2','MASTER-3'].includes(value);
 const taskSnapshotFromRecord = (record) => ({ taskId: record.taskId, status: record.status, livenessState: record.livenessState, currentSha: record.currentSha ?? record.entrySha, currentRca: record.currentRca, openRcas: record.openRcas ?? [], remainingWork: record.remainingWork ?? [], nextAction: record.executionPlanNext ?? [], blockers: record.blockers ?? [], lastProgressAt: record.lastProgressAt ?? null, lastHeartbeatAt: record.lastHeartbeatAt ?? null, updatedAt: now() });
-const observeCurrentHead = (record) => { const currentSha = gitSha(); const previousSha = record.currentSha ?? record.entrySha ?? currentSha; if (previousSha !== currentSha) { record.previousSha = previousSha; record.currentSha = currentSha; record.shaChanges = Math.max(0, Number(record.shaChanges) || 0) + 1; record.evidenceInvalidatedByShaChange = true; record.requalificationRequired = true; record.lastShaChangeAt = now(); appendEvent(record, { at: now(), action: 'SESSION_SHA_CHANGED', previousSha, currentSha, evidenceInvalidated: true, requalificationRequired: true, recovery: 'REQUALIFY_CURRENT_SHA' }); } else record.currentSha = currentSha; return currentSha; };
+const observeCurrentHead = (record) => {
+  if (isWorkspaceOnlySession(record)) {
+    const isolated = assertWorkspaceIsolation({ repoRoot: ROOT, workspace: record.workspaceIsolation.workspace, entrySha: record.workspaceIsolation.entrySha });
+    record.currentSha = isolated.currentSha;
+    record.observedSha = isolated.currentSha;
+    record.branchHeadObservedAtEntry = record.entrySha;
+    record.rootBranchHeadChangesIgnored = true;
+    return isolated.currentSha;
+  }
+  const currentSha = gitSha();
+  const previousSha = record.currentSha ?? record.entrySha ?? currentSha;
+  if (previousSha !== currentSha) {
+    record.previousSha = previousSha;
+    record.currentSha = currentSha;
+    record.shaChanges = Math.max(0, Number(record.shaChanges) || 0) + 1;
+    record.evidenceInvalidatedByShaChange = true;
+    record.requalificationRequired = true;
+    record.lastShaChangeAt = now();
+    appendEvent(record, { at: now(), action: 'SESSION_SHA_CHANGED', previousSha, currentSha, evidenceInvalidated: true, requalificationRequired: true, recovery: 'REQUALIFY_CURRENT_SHA' });
+  } else record.currentSha = currentSha;
+  return currentSha;
+};
 
 if (!['login', 'event', 'heartbeat', 'master-update', 'logout', 'meeting-exit-approve', 'message-receive', 'message-consume'].includes(command)) throw new Error('Usage: agent-session.mjs login|event|logout|meeting-exit-approve|message-receive|message-consume --session=<id> --agent=<id> --task=<task-id>');
 if (!sessionId || !agentId || !taskId) throw new Error('Agent session requires --session, --agent and --task.');
@@ -274,14 +299,16 @@ if (command === 'meeting-exit-approve') {
   if (record.taskId !== taskId) throw new Error('AGENT_HEARTBEAT_TASK_MISMATCH');
   if (record.status !== 'RUNNING') throw new Error('AGENT_HEARTBEAT_REQUIRES_ACTIVE_SESSION');
   assertLiveSession(record);
-  ensureSessionWorkChair(record);
-  assertWorkAdmission({ agentId: record.agentId, targetSha: gitSha(), chairId: record.chairBinding?.chairId ?? record.chairId ?? null });
+  if (!isWorkspaceOnlySession(record)) {
+    ensureSessionWorkChair(record);
+    assertWorkAdmission({ agentId: record.agentId, targetSha: gitSha(), chairId: record.chairBinding?.chairId ?? record.chairId ?? null });
+  }
   const sha = observeCurrentHead(record);
   if (!record.chairId) record.chairId = record.chairBinding?.chairId ?? null;
   if (!record.chairLeaseId) record.chairLeaseId = record.chairBinding?.leaseId ?? null;
   const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.continuousActiveSince ?? record.startedAt });
   let chairHeartbeatResult = null;
-  if (record.chairId) {
+  if (record.chairId && !isWorkspaceOnlySession(record)) {
     initializeChairState({ targetSha: gitSha() });
     reconcileDeadLeases({ targetSha: gitSha() });
     try {
@@ -402,8 +429,17 @@ if (command === 'meeting-exit-approve') {
   if (inboundMessage && inboundMessage.status !== 'READ' && inboundMessage.status !== 'CONSUMED') {
     throw new Error('AGENT_MESSAGE_NOT_EXECUTION_READY=' + inboundMessage.status);
   }
+  const workspaceOnly = !['assistantController','MASTER-1','MASTER-2','MASTER-3'].includes(role);
+  const workspaceIsolation = workspaceOnly ? createAgentWorkspace({
+    repoRoot: ROOT,
+    agentId,
+    taskId,
+    baseSha: currentSha,
+    executionSha: currentSha,
+    mainSha: gitMainSha(),
+  }) : null;
   const record = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     repairProtocol: { ...assertProtocolDefinition(), compliance: 'VALIDATED_AT_ENTRY', admission: protocolAdmission },
     sessionId,
     agentId,
@@ -412,7 +448,8 @@ if (command === 'meeting-exit-approve') {
     currentSha,
     observedSha: currentSha,
     baseSha: currentSha,
-    branch: gitBranch(),
+    branch: workspaceOnly ? 'execution(workspace-isolated)' : gitBranch(),
+    workspaceIsolation: workspaceOnly ? { mode: 'WORKSPACE_ONLY', ...workspaceIsolation } : { mode: 'INTEGRATION_SESSION' },
     governanceFingerprint: currentGovernanceFingerprint,
     startedAt: now(),
     scope,
@@ -456,13 +493,14 @@ if (command === 'meeting-exit-approve') {
     actions: [{ at: now(), action: 'LOGIN', sha, ...(continuation ? { fromSession } : {}) }],
   };
   fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`, { flag: 'wx' });
-  if (isMaster(agentId)) {
+  if (!workspaceOnly && isMaster(agentId)) {
     ensureSessionWorkChair(record);
     fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
   }
   writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'OPEN', taskId, sessionId, agentId, role, entrySha: sha, exitSha: null, status: 'RUNNING', finalStatus: null, finalSummary: null, scope, currentRca: rca, rcaClosed: [], openRcas: [], changedFiles: [], commands: [], evidence: [], findings: [], activity: [], lastEvent: null, completedWork: [], failedWork: [], remainingWork: [], executionPlanNext: [], blockers: [], handoffToNextAgent: null, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() , ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha, messageStatus: inboundMessage.status } : {}) });
   console.log(`AGENT_SESSION_LOGIN=${sessionId}`);
   console.log(`AGENT_SESSION_SHA=${sha}`);
+  if (workspaceIsolation) console.log(`AGENT_SESSION_WORKSPACE=${workspaceIsolation.workspace}`);
   console.log(`AGENT_SESSION_FILE=${path.relative(ROOT, file)}`);
   if (continuation) console.log(`AGENT_SESSION_CONTINUATION_FROM=${fromSession}`);
 } else {
@@ -499,7 +537,21 @@ if (command === 'meeting-exit-approve') {
   const activeBeforeClose = activeChairForAgent({ agentId: record.agentId, targetSha: sha });
   if (activeBeforeClose) assertWorkAdmission({ agentId: record.agentId, targetSha: sha, chairId: record.chairBinding?.chairId ?? record.chairId ?? null });
   else if (record.chairBinding?.released !== true) throw new Error('AGENT_SESSION_CHAIR_REQUIRED_OR_EXPLICITLY_RELEASED');
-  const changedFiles = split(args.get('changed') ?? process.env.FLIXO_AGENT_CHANGED_FILES);
+  let workspaceResult = null;
+  if (isWorkspaceOnlySession(record)) {
+    workspaceResult = captureAgentResult({
+      repoRoot: ROOT,
+      workspace: record.workspaceIsolation.workspace,
+      agentId: record.agentId,
+      taskId: record.taskId,
+      entrySha: record.workspaceIsolation.entrySha,
+      executionSha: record.workspaceIsolation.executionSha,
+      mainSha: record.workspaceIsolation.mainSha,
+      summary: String(args.get('final-summary') ?? process.env.FLIXO_AGENT_FINAL_SUMMARY ?? '').trim(),
+      status: status === 'VERIFIED' ? 'READY_FOR_CHAIR1' : 'BLOCKED_FOR_CHAIR1',
+    });
+  }
+  const changedFiles = [...new Set([...split(args.get('changed') ?? process.env.FLIXO_AGENT_CHANGED_FILES), ...(workspaceResult?.changedFiles ?? [])])];
   const commands = split(args.get('commands') ?? process.env.FLIXO_AGENT_COMMANDS, '|');
   const evidence = split(args.get('evidence') ?? process.env.FLIXO_AGENT_EVIDENCE);
   const findings = split(args.get('findings') ?? process.env.FLIXO_AGENT_FINDINGS, '|');
