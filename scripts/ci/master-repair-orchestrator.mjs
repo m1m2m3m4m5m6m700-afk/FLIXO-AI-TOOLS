@@ -7,7 +7,7 @@ import { buildFusion } from './read-only-knowledge-fusion.mjs';
 import { buildTeachingPacket } from './repair-teaching-sessions.mjs';
 import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
 import { buildFiveXRepairCycleState } from './read-only-power-profile.mjs';
-import { buildCanonicalLaneConsolidation, parseAccumulatedPushPackets } from './canonical-lane-consolidator.mjs';
+import { buildCanonicalLaneConsolidation, collectAccumulatedPushPackets } from './canonical-lane-consolidator.mjs';
 
 const args = Object.fromEntries(
   process.argv.slice(2).filter((arg) => arg.startsWith('--')).map((arg) => {
@@ -198,12 +198,17 @@ export async function buildMasterRepairPacket({
   const memory = readJson(memoryPath) ?? { cases: [], lessons: [], antiLessons: [], actionHistory: [] };
   let consolidation;
   try {
-    consolidation = buildCanonicalLaneConsolidation({
-      currentHead: currentSha,
-      targetBranch: 'execution',
-      packets: parseAccumulatedPushPackets(process.env.FLIXO_ACCUMULATED_PUSH_PACKETS ?? ''),
-      expectedParent: currentSha,
-    });
+    const collected = collectAccumulatedPushPackets({ currentHead: currentSha, root: process.cwd() });
+    consolidation = {
+      ...buildCanonicalLaneConsolidation({
+        currentHead: currentSha,
+        targetBranch: 'execution',
+        packets: collected.packets,
+        expectedParent: currentSha,
+      }),
+      alreadyIntegratedPacketIds: collected.alreadyIntegrated,
+      sourceCandidateCount: collected.candidateCount,
+    };
   } catch (error) {
     consolidation = {
       protocol: 'FLIXO-CANONICAL-LANE-CONSOLIDATION-v1', status: 'BLOCKED_INPUT',
