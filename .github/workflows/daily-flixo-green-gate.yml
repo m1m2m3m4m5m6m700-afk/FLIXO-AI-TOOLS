@@ -76,6 +76,11 @@ jobs:
           WORKFLOW_RUN_IS_EXECUTION: ${{ github.event.workflow_run.head_branch == 'execution' }}
         run: |
           set -euo pipefail
+          case "$WORKFLOW_RUN_IS_MAIN:$WORKFLOW_RUN_IS_EXECUTION" in
+            true:false|false:true|false:false) ;;
+            true:true) echo "FAIL CLOSED: workflow_run cannot be both main and execution."; exit 1 ;;
+            *) echo "FAIL CLOSED: invalid workflow_run branch binding."; exit 1 ;;
+          esac
           mkdir -p /tmp/flixo-watch/logs
           WATCH_BRANCH="execution"
           if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then

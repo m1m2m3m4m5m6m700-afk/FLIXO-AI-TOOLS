@@ -120,6 +120,9 @@ jobs:
             echo "SCHEDULE_RESCUE_RUN_ID=$RUN_ID"
           fi
           test -n "$RUN_ID"
+          case "$RUN_ID" in
+            ""|*[!0-9]*) echo "FAIL CLOSED: run_id must be numeric."; exit 1 ;;
+          esac
           META="$(gh_retry gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,name,conclusion,headSha,headBranch,status,updatedAt)"
           CONCLUSION="$(jq -r '.conclusion // empty' <<<"$META")"
           case "$CONCLUSION" in
@@ -129,12 +132,18 @@ jobs:
           FAILED_SHA="$(jq -r '.headSha' <<<"$META")"
           WORKFLOW="$(jq -r '.name' <<<"$META")"
           BRANCH="$(jq -r '.headBranch' <<<"$META")"
+          case "$BRANCH" in
+            execution|main) ;;
+            *) echo "FAIL CLOSED: workflow head branch is outside the canonical trust boundary."; exit 1 ;;
+          esac
+          [[ "$FAILED_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
           CURRENT_SHA="$(gh_retry gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
           printf '%s\n' "$RUN_ID" >/tmp/run-id
           printf '%s\n' "$FAILED_SHA" >/tmp/failed-sha
           printf '%s\n' "$WORKFLOW" >/tmp/workflow
           printf '%s\n' "$BRANCH" >/tmp/branch
           printf '%s\n' "$CONCLUSION" >/tmp/conclusion
+          [[ "$CURRENT_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
           printf '%s\n' "$CURRENT_SHA" >/tmp/current-sha
 
       - name: Capture logs once at the gateway
