@@ -9,6 +9,37 @@ assert.equal(definition.protocolHash,REPAIR_PROTOCOL_HASH);
 assert.equal(REPAIR_PROTOCOL.commitPolicy,'ONE_COMMIT_PER_COMPLETED_REPAIR_SESSION');
 assert.equal(REPAIR_PROTOCOL.mutationScope,'ERROR_ONLY');
 const targetSHA='a'.repeat(40);
+const cellLabConsensus = (taskId, owner) => ({
+  protocolId:'CELL-LAB-COLLABORATIVE-CONSENSUS',
+  protocolVersion:'1.0.0',
+  labId:'CELL-LAB-TEST-001',
+  taskId,
+  exactSha:targetSHA,
+  objective:'Test shared-cell decision process.',
+  integratedPlan:'Discuss → challenge → synthesize → agree → execute → verify.',
+  planHash:'b'.repeat(64),
+  status:'AGREED',
+  executionReady:true,
+  discussionClosed:true,
+  participants:[
+    {id:'MASTER-1',status:'AGREED',basis:'Orchestration reviewed.'},
+    {id:'MASTER-2',status:'AGREED',basis:'Verification reviewed.'},
+    {id:'MASTER-3',status:'AGREED',basis:'RCA reviewed.'},
+    {id:owner,status:'AGREED',basis:'Execution scope accepted.'},
+  ],
+  discussions:[
+    {kind:'OPINION',actor:'MASTER-1',text:'Use the smallest causal repair.',responses:['MASTER-2','MASTER-3'],resolution:'Integrated.'},
+    {kind:'QUESTION',actor:owner,text:'Is the scope bounded?',responses:['MASTER-2'],resolution:'Yes.',status:'ANSWERED'},
+    {kind:'CHALLENGE',actor:'MASTER-3',text:'Could another cause explain the symptom?',responses:['MASTER-1','MASTER-2'],resolution:'Alternatives rejected by evidence.'},
+    {kind:'DECISION',actor:'MASTER-1',text:'Proceed with the integrated plan.',responses:['MASTER-2','MASTER-3',owner],resolution:'All required participants agreed.',status:'AGREED'},
+  ],
+  dissentResolved:[],
+  remainingQuestions:[],
+  unresolvedConflicts:[],
+  proofObligations:['TARGETED_REGRESSION','EXACT_SHA_VERIFY'],
+  stopConditions:['SHA_DRIFT','UNSAFE_SCOPE','CONFLICT'],
+});
+
 assert.equal(REPAIR_PROTOCOL.testMutationPolicy,'BLOCK');
 assert.throws(
   () => validateErrorOnlyMutation({failureLocation:'src/failure.ts',selectedFile:'src/other.ts',changedPaths:['src/other.ts']}),
@@ -65,12 +96,12 @@ assert.throws(()=>assertAgentAdmission({actor:'implementation',branch:'execution
 assert.throws(()=>assertAgentAdmission({actor:'actionHistorian',branch:'execution',mutation:true,session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA}}),/SUPERVISOR_MODE_REQUIRED/);
 assert.equal(assertAgentAdmission({
   actor:'actionRepairVerifier', branch:'execution', mutation:true,
-  session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,
+  session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,cellLabConsensus:cellLabConsensus('repair-test-task','actionRepairVerifier'),
     actionVaultMission:{role:'ACTION-REPAIR-2',mutationSeat:'ACTION-REPAIR-2',supervisorMode:'NORMAL_TRIAD',entrySha:targetSHA,targetSha:targetSHA,candidateRepairApproved:true}}
 }).admitted,true);
 assert.equal(assertAgentAdmission({
   actor:'actionHistorian', branch:'execution', mutation:true,
-  session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,
+  session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,cellLabConsensus:cellLabConsensus('repair-test-task-historian','actionHistorian'),
     actionVaultMission:{role:'ACTION-HISTORIAN-3',mutationSeat:'ACTION-HISTORIAN-3',supervisorMode:'SUPERVISOR_20',entrySha:targetSHA,targetSha:targetSHA,catalogReviewed:true,bothProgrammingProposalsReviewed:true,supervisorDecision:true}}
 }).admitted,true);
 const actionRepairSession=createRepairSession({repairSessionId:'action-repair-session',actor:'actionRepairBot',failureFingerprint:'action-repair-test',targetSHA,beforeState:{worktree:'clean'}});
@@ -130,6 +161,7 @@ const vaultMutationSession={
   state:'FAILURE_CAPTURED',
   actionVaultMission:{role:'ACTION-REPAIR',triadId:'triad-1',messageId:'msg-1',taskId:'task-1',failureFingerprint:'action-repair-test',entrySha:targetSHA,targetSha:targetSHA,ownerAgent:'actionRepairBot',verifierAgent:'actionRepairVerifier',historianAgent:'actionHistorian',programmerTwinParity:{intelligenceParity:'EXACT',authorityParity:'SEPARATED_BY_DESIGN',targetSha:targetSHA},cognitiveAwareness:{protocol:'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1',targetSha:targetSHA,complete:true},sandboxProof:{protocol:'REPAIR_SANDBOX_SIMULATION_V1',status:'PASS',targetSha:targetSHA,failureFingerprint:'action-repair-test',exactShaBound:true,mutationPerformed:false,patchDigest:'digest',regressionCounterexamples:{targetSha:targetSHA,failureFingerprint:'action-repair-test',exhausted:true,counterexampleFound:false}},differentialProof:{protocol:'DIFFERENTIAL_REPAIR_VERIFICATION_V1',status:'PASS',targetSha:targetSHA,executionEvidence:{required:true,receiptCount:1}},patchCorrectnessProof:{status:'PROVEN',targetSha:targetSHA,patchDigest:'digest',mutationPerformed:false,differentialStatus:'PASS'},proofObligations:['proof'],stopConditions:['GREEN'],noBlindRetry:true,diagnosisKnowledgeReview:{protocol:'ACTION-VAULT-DIAGNOSIS-KNOWLEDGE-REVIEW-v1',reviewer:'ACTION-HISTORIAN-3',decision:'MATCH',allowSourceMutation:true,targetSha:targetSHA,fingerprint:'action-repair-test',diagnosisDigest:'a'.repeat(64)},catalogReview:{status:'REVIEWED',reviewer:'ACTION-HISTORIAN-3',beforeMutation:true,mutationAuthority:false,targetSha:targetSHA,fingerprint:'action-repair-test',source:{indexId:'ACTION-INDEX-4000',declaredCapacity:1000000,actualRecordCount:1},digest:'b'.repeat(64)}},
   actionVaultVerifierProof:verifierProof,
+  cellLabConsensus:cellLabConsensus('task-1','actionRepairBot'),
 };
 assert.equal(validateActionVaultPreMutationProofs({sandboxProof:vaultMutationSession.actionVaultMission.sandboxProof,differentialProof:vaultMutationSession.actionVaultMission.differentialProof,patchCorrectnessProof:vaultMutationSession.actionVaultMission.patchCorrectnessProof,regressionCounterexamples:{targetSha:targetSHA,failureFingerprint:'action-repair-test',exhausted:true,counterexampleFound:false},targetSHA,failureFingerprint:'action-repair-test'}).verified,true);
 assert.equal(assertAgentAdmission({actor:'actionRepairBot',branch:'execution',mutation:true,session:vaultMutationSession}).admitted,true);
@@ -138,7 +170,7 @@ assert.throws(()=>assertAgentAdmission({actor:'actionRepairBot',branch:'executio
 assert.equal(assertAgentAdmission({actor:'actionRepairBot',branch:'execution',mutation:false}).admitted,true);
 const actionCaptured=captureFailure(actionRepairSession,{runId:'action-test-run'});
 assert.equal(authorizeMutation(actionCaptured).state,'MUTATION_AUTHORIZED');
-const fallbackSession={protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,state:'FAILURE_CAPTURED',targetSHA,fallback:{actor:'assistantRepairAgent',primaryAgentsUnavailable:true,learnedRule:'known-rule',learnedRuleConfidence:0.95,learnedRuleSupport:2,targetSha:targetSHA}};
+const fallbackSession={protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,state:'FAILURE_CAPTURED',targetSHA,cellLabConsensus:cellLabConsensus('fallback-task','assistantRepairAgent'),fallback:{actor:'assistantRepairAgent',primaryAgentsUnavailable:true,learnedRule:'known-rule',learnedRuleConfidence:0.95,learnedRuleSupport:2,targetSha:targetSHA}};
 assert.equal(assertAgentAdmission({actor:'assistantRepairAgent',branch:'execution',mutation:true,session:fallbackSession}).admitted,true);
 assert.throws(()=>assertAgentAdmission({actor:'assistantRepairAgent',branch:'execution',mutation:true,session:{...fallbackSession,fallback:{...fallbackSession.fallback,primaryAgentsUnavailable:false}}}),/FALLBACK_PRIMARY_AGENT_AVAILABLE/);
 assert.throws(()=>assertAgentAdmission({actor:'assistantRepairAgent',branch:'execution',mutation:true,session:{...fallbackSession,fallback:{...fallbackSession.fallback,learnedRuleConfidence:0.89}}}),/FALLBACK_LEARNING_THRESHOLD/);
