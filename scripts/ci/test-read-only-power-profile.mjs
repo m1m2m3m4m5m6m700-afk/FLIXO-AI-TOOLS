@@ -101,7 +101,7 @@ const cycle3 = buildFiveXRepairCycleState({
   currentSha:sha,
   strategyId:'strategy-a',
   previousCycle:cycle1,
-  learningOutputs:5,
+  learningOutputs:8,
   adversarialStatus:'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE',
   counterexampleFound:false,
 });
@@ -116,7 +116,7 @@ const cycle4 = buildFiveXRepairCycleState({
   targetSha:sha,
   currentSha:sha,
   strategyId:'strategy-a',
-  learningOutputs:5,
+  learningOutputs:8,
   outcome:'verified-repair',
   verification:'exact-sha-proof',
   regressionOk:true,
