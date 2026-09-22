@@ -159,3 +159,10 @@ Chair 1 is the default single-agent execution seat for an idle repository. It gr
 Chair 2 is restricted to verification, falsification and bounded repair. Its source mutation requires an explicit bounded scope. Chair 3 is restricted to architecture/schema review and requires an architecture review identity.
 
 Every lease is bound to the current exact SHA and authenticated with `FLIXO_CHAIR_SIGNING_KEY`. Stale SHA, wrong holder, protected path, scope drift, missing review identity or invalid lease signature fails closed.
+
+
+### Task claim is the Chair 1 admission boundary
+
+The default execution seat is acquired at `task-claim`, after the canonical ownership/scope lock is obtained and before the message is consumed as executable work. The selected chair, lease ID and exact SHA are persisted in the active task/session record. If chair acquisition or message consumption fails, the ownership lock and any acquired chair are rolled back.
+
+Task completion/release releases the chair. Stale-session reconciliation revokes the chair lease when the entry SHA or governance fingerprint becomes stale. Chair state may resynchronize its target SHA only while the repository is `IDLE` and every chair is vacant; an active stale chair state is fail-closed.
