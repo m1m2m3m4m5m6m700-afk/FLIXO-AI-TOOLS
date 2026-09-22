@@ -11,6 +11,7 @@ import { runAdversarialCorrectionLoop, assertAdversarialGate } from './prompt-ex
 import { loadExecutionBotTraining, trainingSummary } from './prompt-execution-bot-training.mjs';
 import { validateAdversarialBotCommandRegistry } from './adversarial-bot-commands.mjs';
 import { buildTenXExecutionEnvelope, validateTenXExecutionLayer } from './read-only-power-profile.mjs';
+import { buildCanonicalLaneConsolidation, parseAccumulatedPushPackets } from './canonical-lane-consolidator.mjs';
 
 const ROOT = process.cwd();
 const MAX_INPUT = Math.max(1000, Number(process.env.FLIXO_PROMPT_BOT_MAX_INPUT_CHARS ?? 12000));
@@ -22,6 +23,7 @@ export const CANONICAL_SOURCES = Object.freeze([
   'docs/agents/PROMPT-UNIFIED-EXECUTION.md', 'scripts/ci/prompt-execution-bot-adversary.mjs',
   'docs/agents/PROMPT-EXECUTION-BOT-ADVERSARY.md', 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json',
   'docs/agents/ACTION-AGENT-TRIAD.md', 'docs/agents/ADVERSARIAL-BOT-COMMANDS.json', 'scripts/ci/adversarial-bot-commands.mjs',
+  'scripts/ci/canonical-lane-consolidator.mjs',
 ]);
 const ACTIONS = Object.freeze([
   ['REPAIR', /(repair|fix|heal|resolve|correct|restore|إصلاح|اصلح|أصلح|عالج|حل|تصحيح)/iu],
@@ -206,6 +208,11 @@ export function buildPreExecution25Evidence({
     { id: 'MAIN_SHA_FORMAT', observation: !mainSha || /^[a-f0-9]{40}$/iu.test(mainSha) },
     { id: 'SELECTED_TASK_STATUS', observation: selected?.status ?? 'NONE' },
     { id: 'NO_DUPLICATE_CANDIDATES', observation: new Set(candidates.map((x) => x.prompt?.promptId)).size === candidates.length },
+    { id: 'CANONICAL_LANE_CONSOLIDATOR_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'scripts/ci/canonical-lane-consolidator.mjs')) },
+    { id: 'CANONICAL_LANE_BINDING', observation: consolidation?.canonicalLane === 'execution' && consolidation?.targetBranch === 'execution' },
+    { id: 'ACCUMULATED_PUSHES_RECONCILED', observation: consolidation?.status === 'READY_FOR_CANONICAL_CONSOLIDATION' },
+    { id: 'PUSH_CONFLICTS_EMPTY', observation: Array.isArray(consolidation?.conflicts) && consolidation.conflicts.length === 0 },
+    { id: 'PUSH_STALE_PACKETS_EMPTY', observation: Array.isArray(consolidation?.stalePackets) && consolidation.stalePackets.length === 0 },
   ];
   const operationCount = operations.length;
   return Object.freeze({
@@ -238,11 +245,38 @@ export function buildWorkPackage(prompt) {
   const quality = selected ? promptQualityGate(ctx.registry, selected.promptId) : { status: 'PROMPT_REVIEW_REQUIRED', reasons: ['CANONICAL_PROMPT_NOT_FOUND'] };
   const unsafeRequests = unsafe(prompt);
   const selectedTaskId = matchedTasks[0]?.task.id ?? null;
-  const blocked = unsafeRequests.length > 0 || quality.status !== 'PASS' || (['EXECUTION', 'REPAIR_DIAGNOSE'].includes(intent) && branch !== 'execution');
+  let consolidation;
+  try {
+    const packets = parseAccumulatedPushPackets(process.env.FLIXO_ACCUMULATED_PUSH_PACKETS ?? '');
+    consolidation = buildCanonicalLaneConsolidation({
+      currentHead: executionSha,
+      targetBranch: branch,
+      packets,
+      expectedParent: executionSha,
+    });
+  } catch (error) {
+    consolidation = {
+      protocol: 'FLIXO-CANONICAL-LANE-CONSOLIDATION-v1',
+      status: 'BLOCKED_INPUT',
+      canonicalLane: branch,
+      targetBranch: branch,
+      currentHead: executionSha,
+      expectedParent: executionSha,
+      packetCountReceived: 0,
+      packetCountUnique: 0,
+      duplicatePacketIds: [],
+      orderedPackets: [],
+      conflicts: [{ type: 'INVALID_ACCUMULATED_PUSH_INPUT', message: String(error?.message ?? error) }],
+      stalePackets: [],
+      requiredEvidence: [],
+      consolidationDigest: digest(String(error?.message ?? error)),
+    };
+  }
+  const blocked = unsafeRequests.length > 0 || quality.status !== 'PASS' || consolidation.status !== 'READY_FOR_CANONICAL_CONSOLIDATION' || (['EXECUTION', 'REPAIR_DIAGNOSE'].includes(intent) && branch !== 'execution');
   const reviewRequired = !selectedTaskId && !['PLAN', 'DOCUMENT'].includes(intent);
   const scope = [...new Set([...(selectedTaskId ? [selectedTaskId] : []), ...paths(prompt), ...(intent.startsWith('REPOSITORY') ? ['PROMPT_EXECUTION_BOT'] : [])])];
-  const proofObligations = ['CURRENT_EXACT_EXECUTION_SHA', 'PRE_EXECUTION_25_PASS', 'NO_MAIN_MUTATION', 'NO_THIRD_ACTIVE_BRANCH', 'CANONICAL_PROMPT_BOUND', 'PROMPT_REGISTRY_VALID', 'TARGETED_VERIFICATION', 'AFFECTED_CONTRACT_GRAPH_VERIFICATION', 'CANONICAL_GREEN_FOR_CLOSURE'];
-  const stopConditions = ['STALE_EXECUTION_SHA', 'PROMPT_REGISTRY_INVALID', 'SCOPE_CONFLICT', 'UNSAFE_REQUEST', 'CANONICAL_CONTEXT_DRIFT', 'UNRESOLVED_HIGH_RISK_AMBIGUITY'];
+  const proofObligations = ['CURRENT_EXACT_EXECUTION_SHA', 'PRE_EXECUTION_25_PASS', 'ACCUMULATED_PUSH_RECONCILIATION', 'SINGLE_CANONICAL_EXECUTION_LANE', 'NO_MAIN_MUTATION', 'NO_THIRD_ACTIVE_BRANCH', 'CANONICAL_PROMPT_BOUND', 'PROMPT_REGISTRY_VALID', 'TARGETED_VERIFICATION', 'AFFECTED_CONTRACT_GRAPH_VERIFICATION', 'CANONICAL_GREEN_FOR_CLOSURE'];
+  const stopConditions = ['STALE_EXECUTION_SHA', 'PROMPT_REGISTRY_INVALID', 'SCOPE_CONFLICT', 'PUSH_RECONCILIATION_CONFLICT', 'STALE_PUSH_PACKET', 'UNSAFE_REQUEST', 'CANONICAL_CONTEXT_DRIFT', 'UNRESOLVED_HIGH_RISK_AMBIGUITY'];
   const provisional = {
     actions: actionList,
     selectedTaskId,
@@ -251,7 +285,8 @@ export function buildWorkPackage(prompt) {
       scope,
       proofObligations,
       stopConditions,
-      dependencies: ['P00', 'CANONICAL_AGENT_COMMUNICATION', 'PROMPT_REGISTRY', 'ERROR_MEMORY', 'CURRENT_EXECUTION_SHA', 'CELL_LAB_WHEN_MUTATION_REQUIRED', 'MASTER_REPAIR_GATE', 'GUARD_COMMUNICATION', 'SHARED_OPERATIONAL_MEMORY'],
+      consolidation,
+      dependencies: ['P00', 'CANONICAL_AGENT_COMMUNICATION', 'PROMPT_REGISTRY', 'ERROR_MEMORY', 'CURRENT_EXECUTION_SHA', 'CELL_LAB_WHEN_MUTATION_REQUIRED', 'MASTER_REPAIR_GATE', 'GUARD_COMMUNICATION', 'SHARED_OPERATIONAL_MEMORY', 'CANONICAL_LANE_CONSOLIDATION'],
     },
     promptSafety: {
       userInputIsUntrustedData: true,
@@ -280,7 +315,7 @@ export function buildWorkPackage(prompt) {
     executionSha, mainSha, branch, matchedTasks, selectedTaskId, actionList, intent,
     constraintsValue, unsafeRequests, candidates, selected, quality, training,
     adversarialLoop, adversarialReview, adversarialFailureReport, scope,
-    proofObligations, stopConditions,
+    proofObligations, stopConditions, consolidation,
   });
   const fiveXEnvelope = buildTenXExecutionEnvelope({
     exactSha: executionSha,
@@ -308,6 +343,7 @@ export function buildWorkPackage(prompt) {
     userPrompt: cleanGoal, normalizedGoal: cleanGoal, actions: actionList, intent,
     adversarialFailureReport,
     preExecution25,
+    consolidation,
     fiveX: fiveXEnvelope,
     ambiguity: status === 'READY' ? (/(maybe|perhaps|ربما|قد|يمكن|غير واضح)/iu.test(prompt) ? 'MEDIUM' : 'LOW') : 'HIGH',
     constraints: effectiveConstraints, explicitPaths: paths(prompt), unsafeRequests, requiredReads: CANONICAL_SOURCES,
@@ -318,7 +354,7 @@ export function buildWorkPackage(prompt) {
     repoContext: { contextDigest: digest(CANONICAL_SOURCES.map((file) => `${file}:${fileDigest(file)}`).join('|')), p00: 'P00 / RPR-UNIFIED-EXECUTION-001 v4.0.0' },
     workPackage: {
       taskId: selectedTaskId, consumerRole: intent === 'REPAIR_DIAGNOSE' ? 'repairAgent' : intent === 'VERIFY' ? 'verification' : 'executionAgent', scope, intent, goal: cleanGoal, actions: actionList,
-      dependencies: ['P00', 'CANONICAL_AGENT_COMMUNICATION', 'PROMPT_REGISTRY', 'ERROR_MEMORY', 'CURRENT_EXECUTION_SHA', 'CELL_LAB_WHEN_MUTATION_REQUIRED', 'MASTER_REPAIR_GATE', 'GUARD_COMMUNICATION', 'SHARED_OPERATIONAL_MEMORY'],
+      dependencies: ['P00', 'CANONICAL_AGENT_COMMUNICATION', 'PROMPT_REGISTRY', 'ERROR_MEMORY', 'CURRENT_EXECUTION_SHA', 'CELL_LAB_WHEN_MUTATION_REQUIRED', 'MASTER_REPAIR_GATE', 'GUARD_COMMUNICATION', 'SHARED_OPERATIONAL_MEMORY', 'CANONICAL_LANE_CONSOLIDATION'],
       stages: ['INTAKE', 'CONTEXT_RETRIEVAL', 'UNDERSTAND', 'CLASSIFY_CONSTRAINTS', 'TASK_MATCH', 'PROMPT_BIND', 'SCOPE_LOCK', 'ROUTE_TO_AUTHORIZED_AGENT', 'TARGETED_VERIFY', 'AFFECTED_CONTRACT_VERIFY', 'CANONICAL_CI', 'LEARN'],
       proofObligations: effectiveProofObligations, stopConditions: effectiveStopConditions, adversarialReview, fiveX: fiveXEnvelope, tenX: fiveXEnvelope, trainingMode: 'ADVISORY_KNOWLEDGE_ONLY',
       learningOutputs: ['LESSON','ANTI_LESSON','BLOCKER','REJECTED_STRATEGY','VERIFIED_REPAIR'],
@@ -341,6 +377,7 @@ export function dispatchWorkPackage(plan) {
   const currentExecutionSha = git(['rev-parse', 'HEAD']);
   if (currentBranch !== 'execution') throw new Error('PROMPT_EXECUTION_BOT_DISPATCH_REQUIRES_EXECUTION_BRANCH');
   if (currentExecutionSha !== plan.executionSha) throw new Error(`PROMPT_EXECUTION_BOT_STALE_SHA_BEFORE_DISPATCH=${plan.executionSha}!=${currentExecutionSha}`);
+  if (plan.workPackage?.consolidation?.status !== 'READY_FOR_CANONICAL_CONSOLIDATION') throw new Error('PROMPT_EXECUTION_BOT_PUSH_RECONCILIATION_BLOCKED');
   const actor = String(arg('agent', 'implementation'));
   const messageId = `PROMPT-EXEC-${digest(`${plan.executionSha}|${plan.selectedTaskId}|${plan.userPrompt}`).slice(0, 24)}`;
   assertAdversarialGate(plan.adversarialReview, { mutation: true });
