@@ -166,7 +166,7 @@ jobs:
         run: |
           set -euo pipefail
           INCIDENT_ID="$(jq -r '.incident.incidentId' /tmp/repair-agent-intake/output.json)"
-COUNCIL_PR_NUMBER="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 1 --json number --jq '.[0].number // empty')"
+          COUNCIL_PR_NUMBER="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 1 --json number --jq '.[0].number // empty')"
           test -n "$COUNCIL_PR_NUMBER"
                     RECEIPT="<!-- repair-agent-incident:$INCIDENT_ID -->"
           if gh api "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
