@@ -41,19 +41,13 @@ export const SENSITIVE_PERMISSION_ALLOWLISTS = Object.freeze({
     'council-wake-push-relay.yml',
     'agent-master-activation.yml',
     'repair-agent-intake.yml',
-    'auto-repair.yml',
   ]),
   'pull-requests': Object.freeze([
     'agent-master-activation.yml',
     'claude-security-review.yml',
-    'auto-repair.yml',
   ]),
-  'security-events': Object.freeze([
-    'auto-repair.yml',
-  ]),
-  statuses: Object.freeze([
-    'auto-repair.yml',
-  ]),
+  'security-events': Object.freeze([]),
+  statuses: Object.freeze([]),
   deployments: Object.freeze([
     'cd.yml',
   ]),
