@@ -7,10 +7,10 @@ import { execFileSync } from 'node:child_process';
 export const CHAIR_DEFINITIONS = Object.freeze({
   chair_1:Object.freeze({
     mode:'SINGLE_AGENT_MODE',
-    primaryMission:'CHAIR1_PRIMARY_TEST_CYCLE_REPAIR',
-    missionContract:'Observe canonical test-cycle RED → compare current exact SHA with the latest update/base state → repair the causal direct failure → targeted retest → resume until canonical GREEN.',
-    missionStopConditions:Object.freeze(['CANONICAL_GREEN','STALE_SHA','PROOF_FAILED','BLOCKED_EXTERNAL']),
-    permissions:Object.freeze(['FULL_EXECUTIVE_WRITE','SOURCE_MUTATION','MERGE_PROPOSAL','SINGLE_AGENT_MODE']),
+    primaryMission:'CHAIR1_PERMANENT_CHANGE_AGGREGATOR',
+    missionContract:'Permanently collect isolated agent results → compare every pending change with the latest execution/main state → edit/rebase/merge/remove/upgrade as required → publish only the final reconciled execution state.',
+    missionStopConditions:Object.freeze(['NO_PENDING_CHANGES','CANONICAL_GREEN','STALE_SHA','PROOF_FAILED','BLOCKED_EXTERNAL']),
+    permissions:Object.freeze(['AGGREGATE_PENDING_CHANGES','EDIT_PENDING_CHANGES','SOURCE_MUTATION','MERGE_PROPOSAL','FINAL_PUBLICATION','SINGLE_AGENT_MODE']),
     allowedPrefixes:Object.freeze(['']),
     protectedPrefixes:Object.freeze(['.github/','scripts/ci/','schemas/','core-contracts/','.flixo/','docs/architecture/','docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json','AGENTS.md','المهام.md'])
   }),
@@ -187,7 +187,7 @@ function chairPrimaryMission(chairId){
 
 function assertChair1Mission({chairId,taskId}={}){
   if(chairId!=='chair_1') return;
-  if(chairPrimaryMission(chairId)!=='CHAIR1_PRIMARY_TEST_CYCLE_REPAIR') throw new Error('CHAIR1_PRIMARY_MISSION_DRIFT');
+  if(chairPrimaryMission(chairId)!=='CHAIR1_PERMANENT_CHANGE_AGGREGATOR') throw new Error('CHAIR1_PRIMARY_MISSION_DRIFT');
   if(taskId===null || taskId===undefined || String(taskId).trim()==='') throw new Error('CHAIR1_TASK_ID_REQUIRED_FOR_REPAIR_MISSION');
 }
 
@@ -198,13 +198,11 @@ function assertChair1ReleaseAllowed(chair,{successful=false,reason=''}={}){
 }
 
 function baseState(targetSha){
-function baseState(targetSha){
   return {
     schemaVersion:1,
     authority:'FLIXO_CHAIR_BOUND_EXECUTION',
     repository_state:'IDLE',
     idle_timestamp:now(),
-    target_sha:assertSha(targetSha,'TARGET_SHA'),
     target_sha:assertSha(targetSha,'TARGET_SHA'),
     push_proposals:[],
     rejected_push_memory:[],
@@ -224,7 +222,6 @@ function writeJsonAtomic(file,value){
   fs.mkdirSync(path.dirname(file),{recursive:true});
   const tmp=file+'.tmp-'+process.pid+'-'+Date.now();
   fs.writeFileSync(tmp,JSON.stringify(value,null,2)+'\n');
-  fs.renameSync(tmp,file);
   fs.renameSync(tmp,file);
 }
 function writeState(state){
@@ -398,14 +395,12 @@ function verifyLease({state,chairId,agentId,targetSha,assertCurrentHead=true}){
   const chair=getChair(state,chairId);
   if(chair.holder_agent_id!==agentId)throw new Error('UNAUTHORIZED_EXECUTION_ATTEMPT');
   if(chair.target_sha!==t||state.target_sha!==t)throw new Error('STALE_CONTEXT');
-  if(chair.target_sha!==t||state.target_sha!==t)throw new Error('STALE_CONTEXT');
   const input={chairId,agentId,targetSha:t,permissions:CHAIR_DEFINITIONS[chairId].permissions,reviewId:chair.review_id,scope:chair.scope,workPackageId:chair.work_package_id??null,taskId:chair.task_id??null,fencingToken:chair.fencing_token??null};
   const expected=signLease(input);
   const supplied=String(chair.lease_id??'');
   if(!HASH_RE.test(supplied)||!timingSafeEqual(Buffer.from(expected,'utf8'),Buffer.from(supplied,'utf8')))throw new Error('CHAIR_LEASE_SIGNATURE_INVALID');
   return chair;
 }
-export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permission='SOURCE_MUTATION',reviewId=null,boundedScope=null,workPackageId=null,taskId=null,fencingToken=null}={}){
 export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permission='SOURCE_MUTATION',reviewId=null,boundedScope=null,workPackageId=null,taskId=null,fencingToken=null}={}){
   if(!Array.isArray(paths)||paths.length===0)throw new Error('CHAIR_WRITE_PATHS_REQUIRED');
   const t=assertSha(targetSha,'TARGET_SHA');
@@ -430,7 +425,6 @@ export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permiss
   if(chairId==='chair_2'&&permission==='SOURCE_MUTATION'&&occupied(state).some(([id])=>id==='chair_1'))throw new Error('CHAIR2_WRITE_BLOCKED_WHILE_CHAIR1_ACTIVE');
   if(chairId==='chair_2'&&permission==='SOURCE_MUTATION'){
     const scope=new Set((boundedScope??[]).map((p)=>{ const value=String(p).replaceAll('\\\\','/'); return value.startsWith('./') ? value.slice(2) : value; }));
-    if(normalized.some(p=>!scope.has(p)))throw new Error('CHAIR2_SCOPE_DRIFT');
     if(normalized.some(p=>!scope.has(p)))throw new Error('CHAIR2_SCOPE_DRIFT');
   }
   return Object.freeze({authorized:true,chairId,agentId,targetSha:t,permission,paths:normalized,mode:def.mode,singleAgentMode:chairId==='chair_1'&&occupied(state).length===1});
@@ -598,7 +592,6 @@ export function release({chairId,agentId,targetSha=sha(),successful=false,sessio
   const t=assertSha(targetSha,'TARGET_SHA');
   return withWriteLock(()=>{
     const state=readState();const chair=verifyLease({state,chairId,agentId,targetSha:t,assertCurrentHead:false});
-    const state=readState();const chair=verifyLease({state,chairId,agentId,targetSha:t,assertCurrentHead:false});
     assertChair1ReleaseAllowed(chair,{successful,reason:successful===true?'TASK_COMPLETE':'RELEASE'});
     if(sessionId)sanitizeSessionContext({sessionId,taskId});
     clearChairRecord(chair,state);
@@ -606,7 +599,6 @@ export function release({chairId,agentId,targetSha=sha(),successful=false,sessio
     if(successful===true&&state.repository_state==='ACTIVE')state.repository_state='ACTIVE';
     writeState(state);return state;
   });
-}
 }
 export function validateCurrent({chairId,agentId,targetSha=sha(),paths=[],permission='SOURCE_MUTATION',reviewId=null,boundedScope=null,workPackageId=null,taskId=null,fencingToken=null}={}){
   const t=assertSha(targetSha,'TARGET_SHA');if(t!==sha())throw new Error('STALE_CONTEXT');
@@ -634,7 +626,6 @@ export function assertWorkAdmission({agentId,targetSha=sha(),chairId=null,taskId
   if(!active){
     const state=readState();
     const preemption=state.last_preemption;
-    if(preemption?.targetSha===String(targetSha)&&preemption?.displacedAgentId===agentId&&preemption?.displacedTaskId!==null&&String(preemption.displacedTaskId)===String(taskId??''))throw new Error('AGENT_WORK_CHAIR_PREEMPTED');
     if(preemption?.targetSha===String(targetSha)&&preemption?.displacedAgentId===agentId&&preemption?.displacedTaskId!==null&&String(preemption.displacedTaskId)===String(taskId??''))throw new Error('AGENT_WORK_CHAIR_PREEMPTED');
     throw new Error('AGENT_WORK_REQUIRES_CHAIR');
   }
