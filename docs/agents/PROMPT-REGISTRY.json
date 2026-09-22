@@ -314,6 +314,8 @@
       "ALL_BOTS"
     ],
     "firstObligation": true,
-    "exitLock": "scripts/ci/agent-exit-lock.mjs"
+    "exitLock": "scripts/ci/agent-exit-lock.mjs",
+    "cellLabRequired": true,
+    "consensusPath": "diagnostics/agents/cell-lab/consensus/<taskId>.json"
   }
 }
