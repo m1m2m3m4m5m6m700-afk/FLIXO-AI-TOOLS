@@ -66,7 +66,9 @@ The agent MUST NOT:
 - delete an open task before the deletion protocol is satisfied;
 - reuse a closed task as current proof without a new RCA and current evidence.
 
-The active queue in `المهام.md` is the only default execution scope. Any addition, status transition, or retirement of a material task MUST be reflected in `المهام.md` and `PROJECTS.md`.
+The active execution queue in `المهام.md` is the only default planned scope. `المهام.md` is a project-plan/task-queue document only: it MUST contain planned executable work items and their plan-level disposition, and MUST NOT be used as an operational log.
+
+Agents MUST NOT write into `المهام.md` runtime RCA, heartbeat/liveness updates, CI/run results, job logs, failure evidence, Exact-SHA proof records, handoff reports, or repair-session history. Operational evidence belongs in the repository's diagnostics/evidence surfaces. Changes to the task plan itself (add/remove/reprioritize/retire a planned task) may update `المهام.md`; execution telemetry does not.
 
 ## TWO-BRANCH EXECUTION POLICY
 
