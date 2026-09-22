@@ -1,0 +1,42 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://flixoai.local/schemas/flixo-chairs.schema.json",
+  "title":"FLIXO Chair-Bound Execution Lease",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["schemaVersion","authority","repository_state","target_sha","chairs"],
+  "properties":{
+    "schemaVersion":{"type":"integer","const":1},
+    "authority":{"type":"string","const":"FLIXO_CHAIR_BOUND_EXECUTION"},
+    "repository_state":{"type":"string","enum":["IDLE","ACTIVE","STALE","LOCKED"]},
+    "idle_timestamp":{"type":["string","null"]},
+    "target_sha":{"type":"string","pattern":"^[a-f0-9]{40}$"},
+    "chairs":{
+      "type":"object",
+      "additionalProperties":false,
+      "required":["chair_1","chair_2","chair_3"],
+      "properties":{
+        "chair_1":{"$ref":"#/$defs/chair"},
+        "chair_2":{"$ref":"#/$defs/chair"},
+        "chair_3":{"$ref":"#/$defs/chair"}
+      }
+    }
+  },
+  "$defs":{
+    "chair":{
+      "type":"object",
+      "additionalProperties":false,
+      "required":["holder_agent_id","status","permissions","acquired_at","target_sha","lease_id"],
+      "properties":{
+        "holder_agent_id":{"type":["string","null"],"maxLength":160},
+        "status":{"type":"string","enum":["VACANT","OCCUPIED","REVOKED","STALE"]},
+        "permissions":{"type":"array","items":{"type":"string"},"minItems":1},
+        "acquired_at":{"type":["string","null"]},
+        "target_sha":{"type":["string","null"],"pattern":"^[a-f0-9]{40}$"},
+        "lease_id":{"type":["string","null"],"pattern":"^[a-f0-9]{64}$"},
+        "review_id":{"type":["string","null"],"maxLength":160},
+        "scope":{"type":["array","null"],"items":{"type":"string"}}
+      }
+    }
+  }
+}

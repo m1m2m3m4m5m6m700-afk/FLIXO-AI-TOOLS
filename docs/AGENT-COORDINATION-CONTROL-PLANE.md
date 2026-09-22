@@ -149,3 +149,13 @@ Account boundaries:
 A Worker's lease is bound to the exact repository SHA in its Dispatch. Expiry transfers the package to the configured counterpart once. The second expiry stays unresolved for Chief review.
 
 The external bridge does not grant GitHub mutation, merge, deployment or certification authority. It is a transport and durable handoff layer only.
+
+## Chair-Bound Execution Engine
+
+The repository uses a capability lease model in which execution permissions are granted to a temporary chair/seat, not permanently to an agent identity. Runtime lease state is stored at `.flixo/locks/chairs.json` and is validated by `scripts/ci/chair-bound-execution.mjs`.
+
+Chair 1 is the default single-agent execution seat for an idle repository. It grants source mutation only within the approved source scopes; it does not grant `main` mutation, control-plane mutation, schema ownership, merge authority, or promotion authority. `MERGE_PROPOSAL` remains proposal-only and is still subject to the existing Promotion Gate.
+
+Chair 2 is restricted to verification, falsification and bounded repair. Its source mutation requires an explicit bounded scope. Chair 3 is restricted to architecture/schema review and requires an architecture review identity.
+
+Every lease is bound to the current exact SHA and authenticated with `FLIXO_CHAIR_SIGNING_KEY`. Stale SHA, wrong holder, protected path, scope drift, missing review identity or invalid lease signature fails closed.
