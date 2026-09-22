@@ -178,6 +178,7 @@
     "test:repair-engineering": "node scripts/ci/test-action-repair-engineering.mjs",
     "validate:repair-engineering": "node scripts/ci/action-repair-engineering.mjs",
     "test:cell-completeness": "node scripts/ci/test-cell-completeness.mjs",
+    "test:cell-lab": "node scripts/ci/test-cell-lab-consensus.mjs",
     "test:error-only-programmer": "node scripts/ci/auto-repair/test-error-only-programmer.mjs",
     "test:root-closure": "node scripts/ci/test-root-closure-contract.mjs",
     "test:promotion-closure": "node scripts/ci/test-promotion-closure.mjs",
