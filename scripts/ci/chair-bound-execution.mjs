@@ -42,7 +42,7 @@ const DEAD_LEASE_AFTER_MS=Math.max(3*HEARTBEAT_INTERVAL_MS,positiveDuration(proc
 const SPECULATIVE_CACHE_ROOT=()=>path.resolve(ROOT,String(process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_PATH??'.flixo/cache/chair-readonly'));
 const SPECULATIVE_CACHE_TTL_MS=positiveDuration(process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_TTL_MS,15*60*1000);
 const SESSION_CONTEXT_ROOT=()=>path.resolve(ROOT,String(process.env.FLIXO_CHAIR_SESSION_CONTEXT_PATH??'.flixo/cache/chair-session'));
-const centralChairStrict = () => process.env.NODE_ENV === 'test' ? process.env.FLIXO_STRICT_CHAIR === 'true' : (process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true' || process.env.FLIXO_STRICT_CHAIR === 'true');
+const centralChairStrict = () => process.env.NODE_ENV === 'test' ? process.env.FLIXO_STRICT_CHAIR === 'true' : true;
 function verifyCentralChairForMutation({agentId,targetSha,workPackageId,taskId}){
   if(!centralChairStrict() || agentId===CHAIR1_OWNER_AGENT) return;
   const leaseId=String(process.env.FLIXO_CHAIR_LEASE_ID??'').trim();
