@@ -10,7 +10,7 @@ on:
       - main
     types: [synchronize]
 
-# Central stale-run controller. It cancels only older test/verification runs.
+# Central stale-run controller. Any non-authoritative run for an older SHA is cancelled and its evidence is stale.
 concurrency:
   # One observer per branch/event; stale SHA runs are the data being cancelled, not separate controller lanes.
   group: flixo-latest-commit-supersession-${{ github.event_name }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
@@ -94,7 +94,7 @@ jobs:
           is_test_workflow() {
             case "$1" in
               "FLIXO Latest Commit Test Supersession") return 1 ;;
-              *Test*|*test*|*Verification*|*verification*|*Contract*|*contract*|*Security*|*security*|*Baseline*|*baseline*|*Certification*|*certification*|*Impact*|*impact*|*Code*Scanning*|*CodeQL*|*Diagnostic*|*diagnostic*|*Proof*|*proof*|*Scan*|*scan*|*Green*Gate*|*green*gate*) return 0 ;;
+              *Test*|*test*|*Verification*|*verification*|*Contract*|*contract*|*Security*|*security*|*Baseline*|*baseline*|*Certification*|*certification*|*Impact*|*impact*|*Code*Scanning*|*CodeQL*|*Diagnostic*|*diagnostic*|*Proof*|*proof*|*Scan*|*scan*|*Green*Gate*|*green*gate*|*Repair*|*repair*|*Watchdog*|*watchdog*) return 0 ;;
               *) return 1 ;;
             esac
           }
@@ -107,20 +107,16 @@ jobs:
             local event="$5"
             echo "CANDIDATE stale run=$run_id sha=$head_sha name=$name event=$event listed_status=$status"
 
-            # A stale SHA invalidates its evidence, but must NOT kill an already-running test.
-            # Only queued/pending/requested/waiting runs are safe to cancel.
+            # Every non-completed stale run is invalid. Request cancellation regardless of current
+            # runner state; exact-SHA gates independently reject any late completion race.
             local live_status=""
             live_status="$(gh run view "$run_id" --repo "$REPOSITORY" --json status --jq '.status')"
             case "$live_status" in
-              in_progress)
-                echo "KEEP_IN_PROGRESS_STALE run=$run_id status=$live_status"
-                return 0
-                ;;
               completed)
                 echo "STALE_RUN_ALREADY_COMPLETED run=$run_id"
                 return 0
                 ;;
-              queued|waiting|requested|pending)
+              in_progress|queued|waiting|requested|pending)
                 ;;
               *)
                 echo "KEEP_UNKNOWN_RUN_STATUS run=$run_id status=$live_status"
@@ -128,7 +124,7 @@ jobs:
                 ;;
             esac
 
-            echo "CANCEL_QUEUED_STALE run=$run_id status=$live_status"
+            echo "CANCEL_STALE_RUN run=$run_id status=$live_status"
             local cancel_output=""
             local attempt=1
             local now_status=""
@@ -170,7 +166,7 @@ jobs:
           }
 
           RUNS_JSON=""
-          if ! RUNS_JSON="$(gh api "repos/$REPOSITORY/actions/runs?branch=$BRANCH&per_page=100" 2>&1)"; then
+          if ! RUNS_JSON="$(gh api --paginate --slurp "repos/$REPOSITORY/actions/runs?branch=$BRANCH&per_page=100" 2>&1)"; then
             if printf '%s' "$RUNS_JSON" | grep -Eiq 'API rate limit exceeded|rate limit exceeded|secondary rate limit|abuse detection'; then
               echo "BLOCKED_EXTERNAL: GitHub Actions API rate limit prevented stale-run inventory."
               echo "SUPERSESSION_EXTERNAL_BLOCKER=GITHUB_ACTIONS_API_RATE_LIMIT"
@@ -179,7 +175,39 @@ jobs:
             printf '%s\n' "$RUNS_JSON" >&2
             exit 1
           fi
-          while IFS=$'\t' read -r RUN_ID HEAD_SHA STATUS NAME EVENT; do
+          printf '%s' "$RUNS_JSON" | jq -s 'add' > /tmp/supersession-all-runs.json
+          while IFS=
+            [ -n "$RUN_ID" ] || continue
+            if [ "$HEAD_SHA" = "$CURRENT_SHA" ]; then
+              echo "KEEP current SHA run=$RUN_ID name=$NAME status=$STATUS"
+              continue
+            fi
+            if is_test_workflow "$NAME"; then
+              cancel_stale_run "$RUN_ID" "$HEAD_SHA" "$STATUS" "$NAME" "$EVENT"
+            fi
+          done < <(
+            jq -r '.workflow_runs[] | select(.status != "completed") | [.id,.head_sha,.status,.name,.event] | @tsv' /tmp/supersession-all-runs.json
+          )
+
+      - name: Assert repository head has not moved during supersession
+        if: steps.head.outputs.stale_event != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ steps.head.outputs.sha }}
+          EXPECTED_BRANCH: ${{ steps.head.outputs.branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$EXPECTED_BRANCH" --jq '.object.sha')"
+          if [ "$CURRENT_SHA" != "$EXPECTED_SHA" ]; then
+            echo "SUPERSESSION_EVENT_OBSOLETE=true"
+            echo "SUPERSESSION_HEAD_MOVED old=$EXPECTED_SHA new=$CURRENT_SHA"
+            exit 0
+          fi
+          echo "LATEST_COMMIT_SUPERSESSION=PASS"
+          echo "LATEST_COMMIT_SHA=$EXPECTED_SHA"
+          echo "LATEST_COMMIT_BRANCH=$EXPECTED_BRANCH"
+\t' read -r RUN_ID HEAD_SHA STATUS NAME EVENT; do
             [ -n "$RUN_ID" ] || continue
             if [ "$HEAD_SHA" = "$CURRENT_SHA" ]; then
               echo "KEEP current SHA run=$RUN_ID name=$NAME status=$STATUS"
