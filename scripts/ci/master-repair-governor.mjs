@@ -117,7 +117,7 @@ const classifyFailure = (log) => {
 };
 
 let failureLog = '';
-try { failureLog = fs.readFileSync(process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log', 'utf8'); } catch {}
+try { failureLog = fs.readFileSync(process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log', 'utf8'); } catch { /* optional log */ }
 const failureTaxonomy = classifyFailure(failureLog);
 
 const authorityVotes = [

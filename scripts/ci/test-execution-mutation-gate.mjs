@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {admit,verifyAdmission,scopeHash,fencingToken,configureCentralChairTestVerifier} from './execution-mutation-gate.mjs';
+import {admit,verifyAdmission,scopeHash,fencingToken} from './execution-mutation-gate.mjs';
 
 const sha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
 process.env.FLIXO_MUTATION_GATE_REMOTE_SHA=sha;

@@ -344,8 +344,8 @@ recordOutcome(memory, {
   outcome: 'proposed',
   verification: 'root-cause-evidence-insufficient',
 });
-const proposedCase = memory.cases.find((item) => item.fingerprint === '__proposal_test__');
-assert.equal(proposedCase?.attempts ?? 0, proposedBefore);
+const rejectedProposalCase = memory.cases.find((item) => item.fingerprint === '__proposal_test__');
+assert.equal(rejectedProposalCase?.attempts ?? 0, proposedBefore);
 assert(!memory.antiLessons.some((item) => item.fingerprint === '__proposal_test__'));
 
 const revertBefore = memory.cases.find((item) => item.fingerprint === '__revert_test__')?.reversions ?? 0;

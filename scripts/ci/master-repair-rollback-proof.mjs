@@ -30,7 +30,7 @@ if (!/^[a-f0-9]{40}$/u.test(knownGoodSha)) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-rollback-proof-'));
   const worktree = path.join(temp, 'repo');
   let attached = false;
-  let mechanicallyReversible = false;
+  let mechanicallyReversible;
   try {
     git(root, ['worktree', 'add', '--detach', worktree, candidateSha]);
     attached = true;
@@ -39,14 +39,14 @@ if (!/^[a-f0-9]{40}$/u.test(knownGoodSha)) {
   } catch {
     mechanicallyReversible = false;
   } finally {
-    if (attached) { try { git(root, ['worktree', 'remove', '--force', worktree]); } catch {} }
-    try { fs.rmSync(temp, { recursive: true, force: true }); } catch {}
+    if (attached) { try { git(root, ['worktree', 'remove', '--force', worktree]); } catch { /* best-effort cleanup or reachability probe */ } }
+    try { fs.rmSync(temp, { recursive: true, force: true }); } catch { /* best-effort cleanup or reachability probe */ }
   }
   let knownGoodReachable = false;
   try {
     execFileSync('git', ['cat-file', '-e', knownGoodSha + '^{commit}'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
     knownGoodReachable = true;
-  } catch {}
+  } catch { /* best-effort cleanup or reachability probe */ }
   const status = mechanicallyReversible && knownGoodReachable ? 'PROVEN' : 'UNPROVEN';
   const receipt = {
     schemaVersion: 1,

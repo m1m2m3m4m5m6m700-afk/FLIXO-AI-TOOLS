@@ -70,9 +70,9 @@ for (const item of similar) {
     });
   } finally {
     if (attached) {
-      try { git(root, ['worktree', 'remove', '--force', worktree]); } catch {}
+      try { git(root, ['worktree', 'remove', '--force', worktree]); } catch { /* best-effort cleanup */ }
     }
-    try { fs.rmSync(temp, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(temp, { recursive: true, force: true }); } catch { /* best-effort cleanup */ }
   }
 }
 

@@ -11,13 +11,13 @@ const requiredContexts = [
 if (!repo) throw new Error('PLATFORM_BOUNDARY_GITHUB_REPOSITORY_REQUIRED');
 const gh = (args) => execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }).trim();
 
-let rulesets = [];
-let main = null;
+let rulesets;
+let main;
 try {
   rulesets = JSON.parse(gh(['api', 'repos/' + repo + '/rulesets?includes_parents=true']));
   main = JSON.parse(gh(['api', 'repos/' + repo + '/branches/main']));
 } catch (error) {
-  throw new Error('PLATFORM_BOUNDARY_API_UNAVAILABLE:' + String(error?.message ?? error));
+  throw new Error('PLATFORM_BOUNDARY_API_UNAVAILABLE:' + String(error?.message ?? error), { cause: error });
 }
 
 const active = Array.isArray(rulesets) ? rulesets.filter((x) => String(x?.enforcement).toLowerCase() === 'active') : [];

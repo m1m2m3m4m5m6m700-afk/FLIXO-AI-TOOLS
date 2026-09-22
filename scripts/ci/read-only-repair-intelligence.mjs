@@ -62,7 +62,7 @@ const retrieveVaultAdvice=({failureLog='',diagnosis=null,selected=null}={})=>{
   const matches=[];
   const seen=new Set();
   for(const file of sourceFiles){
-    let lines=[];
+    let lines;
     try{lines=fs.readFileSync(file,'utf8').split(/\r?\n/u);}catch{continue;}
     for(let i=0;i<lines.length;i++){
       const line=String(lines[i]??'').trim();

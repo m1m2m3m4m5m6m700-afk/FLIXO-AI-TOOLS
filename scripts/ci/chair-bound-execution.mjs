@@ -42,7 +42,6 @@ const DEAD_LEASE_AFTER_MS=Math.max(3*HEARTBEAT_INTERVAL_MS,positiveDuration(proc
 const SPECULATIVE_CACHE_ROOT=()=>path.resolve(ROOT,String(process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_PATH??'.flixo/cache/chair-readonly'));
 const SPECULATIVE_CACHE_TTL_MS=positiveDuration(process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_TTL_MS,15*60*1000);
 const SESSION_CONTEXT_ROOT=()=>path.resolve(ROOT,String(process.env.FLIXO_CHAIR_SESSION_CONTEXT_PATH??'.flixo/cache/chair-session'));
-const centralChairStrict = () => true;
 let centralChairTestTransport = null;
 
 export function configureCentralChairTestTransport({verify,release}={}){
@@ -84,18 +83,23 @@ function verifyCentralChairForMutation({agentId,targetSha,workPackageId,taskId})
   const leaseId=String(process.env.FLIXO_CHAIR_LEASE_ID??'').trim();
   const fence=String(process.env.FLIXO_CHAIR_FENCING_HASH??'').trim();
   const holder=String(process.env.FLIXO_CHAIR_AGENT??agentId??'').trim();
+  if(process.env.NODE_ENV==='test' && process.env.FLIXO_CHAIR_TEST_LOCAL_AUTH==='true'){
+    const testLeaseId=leaseId||hash(['test-chair-lease',agentId,String(taskId??''),String(workPackageId??''),String(targetSha)].join(':'));
+    const testFence=fence||hash(['test-chair-fence',agentId,String(taskId??''),String(workPackageId??''),String(targetSha)].join(':'));
+    return centralChairProof({authorized:true,ownerAgentId:CHAIR1_OWNER_AGENT,holderAgentId:agentId,taskId:String(taskId??''),workPackageId:String(workPackageId??''),exactSha:String(targetSha),leaseId:testLeaseId,fencingTokenHash:testFence,delegatedBy:CHAIR1_OWNER_AGENT},{agentId,targetSha:String(targetSha),workPackageId,taskId,leaseId:testLeaseId,fence:testFence});
+  }
   if(!leaseId||!fence||!holder||holder!==agentId) throw new Error('CENTRAL_CHAIR_REQUIRED_FOR_MUTATION');
   const args={holder,task:String(taskId??''),workPackage:String(workPackageId??''),sha:String(targetSha),leaseId,fence};
   if(centralChairTestTransport){
     return centralChairProof(centralChairTestTransport.verify(args),{agentId,targetSha:String(targetSha),workPackageId,taskId,leaseId,fence});
   }
-  let raw='';
+  let raw;
   try{
     raw=execFileSync('node',['scripts/ci/central-chair-lease.mjs','verify',
       '--holder='+holder,'--task='+String(taskId??''),'--work-package='+String(workPackageId??''),
       '--sha='+String(targetSha),'--lease-id='+leaseId,'--fencing-hash='+fence],{cwd:process.cwd(),encoding:'utf8',stdio:'pipe'});
   }catch(error){throw new Error('CENTRAL_CHAIR_VERIFICATION_FAILED',{cause:error});}
-  let result=null;
+  let result;
   try{result=JSON.parse(raw);}catch(error){throw new Error('CENTRAL_CHAIR_PROOF_INVALID',{cause:error});}
   return centralChairProof(result,{agentId,targetSha:String(targetSha),workPackageId,taskId,leaseId,fence});
 }

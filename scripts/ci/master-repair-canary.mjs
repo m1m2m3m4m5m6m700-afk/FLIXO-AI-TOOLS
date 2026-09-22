@@ -39,9 +39,9 @@ try {
   }
 } finally {
   if (attached) {
-    try { git(root, ['worktree', 'remove', '--force', worktree]); } catch {}
+    try { git(root, ['worktree', 'remove', '--force', worktree]); } catch { /* cleanup failure is non-authoritative */ }
   }
-  try { fs.rmSync(temp, { recursive: true, force: true }); } catch {}
+  try { fs.rmSync(temp, { recursive: true, force: true }); } catch { /* cleanup failure is non-authoritative */ }
 }
 
 const status = checks.every((x) => x.status === 'PASS') ? 'PASS' : 'FAIL';

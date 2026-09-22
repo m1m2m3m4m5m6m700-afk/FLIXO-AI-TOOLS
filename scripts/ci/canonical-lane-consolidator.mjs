@@ -218,12 +218,6 @@ function verifyPacketPatchIntegrity(packet, root = process.cwd()) {
   return { status: 'VERIFIED', patch: actual };
 }
 
-function packetPatch(packet, root = process.cwd()) {
-  const integrity = verifyPacketPatchIntegrity(packet, root);
-  if (integrity.status === 'VERIFIED' || integrity.status === 'SYNTHETIC_TEST_FIXTURE') return integrity.patch;
-  return { status: integrity.status, files: {}, hunks: [], integrityReason: integrity.reason ?? integrity.status };
-}
-
 function rangeOverlap(a, b) {
   return Math.max(a.rangeStart, b.rangeStart) < Math.min(a.rangeEnd, b.rangeEnd);
 }

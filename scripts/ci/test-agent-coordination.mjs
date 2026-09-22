@@ -15,6 +15,7 @@ const visibilityDir = path.join(temp, 'visibility');
 fs.mkdirSync(path.join(coordDir, 'task-packets'), { recursive: true });
 fs.mkdirSync(path.join(coordDir, 'handoffs'), { recursive: true });
 fs.mkdirSync(visibilityDir, { recursive: true });
+const chairStatePath = path.join(temp, 'chair-state.json');
 const ledgerFile = path.join(temp, 'المهام.md');
 fs.writeFileSync(ledgerFile, ['# TEST TASK LEDGER', '## 1) P0 — DONE-001', 'STATUS = CLOSED / VERIFIED', '## 2) P1 — NEXT-001', 'STATUS = OPEN', '## 3) P1 — BLOCKED-001', 'STATUS = OPEN / BLOCKED', '## 4) P1 — LATE-001', 'STATUS = READY'].join('\n') + '\n');
 
@@ -31,7 +32,7 @@ for (const [sessionId, agentId] of [['race-session-a','verification-a'], ['race-
 }
 
 const runArgs = (args) => new Promise((resolve) => {
-  const child = spawn(process.execPath, ['scripts/ci/agent-coordination.mjs', ...args], { cwd: root, env: { ...process.env, FLIXO_CHAIR_SIGNING_KEY: 'test-chair-signing-key', FLIXO_COORDINATION_DIR: coordDir, FLIXO_AGENT_VISIBILITY_DIR: visibilityDir, FLIXO_TASK_LEDGER_FILE: ledgerFile }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, ['scripts/ci/agent-coordination.mjs', ...args], { cwd: root, env: { ...process.env, NODE_ENV: 'test', FLIXO_CHAIR_TEST_LOCAL_AUTH: 'true', FLIXO_CHAIR_SIGNING_KEY: 'test-chair-signing-key', FLIXO_CHAIR_STATE_PATH: chairStatePath, FLIXO_COORDINATION_DIR: coordDir, FLIXO_AGENT_VISIBILITY_DIR: visibilityDir, FLIXO_TASK_LEDGER_FILE: ledgerFile }, stdio: ['ignore', 'pipe', 'pipe'] });
   let stdout = '';
   let stderr = '';
   child.stdout.on('data', (chunk) => { stdout += chunk; });

@@ -4,7 +4,7 @@
 
 CELL-SHARED-OPERATIONAL-MEMORY-001
 
-This is the canonical descriptive contract for the 200-cell-bot operational knowledge index referenced by P21. The runtime source of truth is `diagnostics/auto-repair/cell-knowledge/index.json`.
+This contract remains the canonical descriptive interface for shared operational memory referenced by P21. The former CELL-001..CELL-200 worker pool is retired; `diagnostics/auto-repair/cell-knowledge/index.json` is retained only as the retirement record.
 
 ## Authority
 
@@ -30,14 +30,14 @@ Conflicting knowledge remains visible and blocking until current exact-SHA evide
 
 ## Distribution
 
-The canonical index is synced to the 200-cell-bot pool with explicit states:
+The retired cell index preserves the historical synchronization states for compatibility and audit:
 
 - CURRENT
 - SYNC_PENDING
 - STALE
 - SYNC_FAILED
 
-Every sync record preserves source SHA, memory version, provenance, and publication state.
+Any retained sync record preserves source SHA, memory version, provenance, and publication state; no CELL-001..CELL-200 identity may be reprovisioned.
 
 ## Safety boundary
 

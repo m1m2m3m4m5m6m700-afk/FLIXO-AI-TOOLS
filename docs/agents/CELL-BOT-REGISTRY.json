@@ -13,6 +13,26 @@
     "Specialized Action-repair workers remain external to the retired cell pool.",
     "Canonical repair, security, CI, and Chair-1 control planes remain authoritative."
   ],
+  "sharedOperationalMemoryContract": {
+    "contractId": "CELL-SHARED-OPERATIONAL-MEMORY-001",
+    "status": "RETIRED",
+    "distribution": {
+      "targetBotCount": 0,
+      "botIdentityBinding": [],
+      "automaticResynchronization": false,
+      "retirementReason": "USER_DIRECTIVE",
+      "syncStates": ["CURRENT", "SYNC_PENDING", "STALE", "SYNC_FAILED"]
+    },
+    "canonicalMemory": {
+      "authority": "CELL_KNOWLEDGE_INDEX",
+      "path": "diagnostics/auto-repair/cell-knowledge/index.json"
+    },
+    "publicationGate": {
+      "validationRequired": true,
+      "exactShaRequired": true,
+      "unprovenLearningMayNotPublish": true
+    }
+  },
   "bots": [],
   "lifecycle": {
     "status": "RETIRED",
