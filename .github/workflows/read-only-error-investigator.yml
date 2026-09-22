@@ -51,6 +51,9 @@ jobs:
 
       - name: Validate investigator contract
         run: node scripts/ci/validate-read-only-error-investigator.mjs
+      
+      - name: Validate deep reasoning contract
+        run: node scripts/ci/validate-read-only-deep-reasoning.mjs
 
       - name: Run read-only investigator
         env:
