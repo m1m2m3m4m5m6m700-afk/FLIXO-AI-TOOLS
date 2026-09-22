@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { normalizeFailure, fingerprintFailure, extractFeatures } from './auto-repair/fingerprint.mjs';
 import { retrieveTeachingRecords } from './error-learning-log.mjs';
+import { loadLongTermRepairCorpus, retrieveLongTermTeaching } from './auto-repair/long-term-memory.mjs';
 import { buildKnowledgeRecord, persistKnowledge } from './cell-learning.mjs';
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
@@ -13,7 +14,7 @@ export const INTRACTABLE_THRESHOLD = 3;
 // Large bounded retention: preserve substantial Actions history without making a single
 // repair-memory file unbounded or operationally hostile to GitHub/JSON tooling.
 export const MEMORY_RETENTION = Object.freeze({
-  maxActionHistory: 2000,
+  maxActionHistory: 5000,
   maxCaseOutcomes: 100,
   maxLessonEvidence: 50,
   maxPreventionRules: 50,
@@ -80,7 +81,7 @@ export function normalizeLearningOutcome(outcome, verification) {
   return outcome;
 }
 
-const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [], actionHistory: [] });
+const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [], actionHistory: [], longTermTeaching: { authority: 'ADVISORY_ONLY', proofAuthority: 'CURRENT_EXACT_SHA_CI_ONLY', recordCount: 0, digest: null } });
 
 const historicalKnowledgePath = process.env.FLIXO_HISTORICAL_KNOWLEDGE ?? 'docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json';
 
@@ -427,7 +428,7 @@ export function rankLessons(memory, { fingerprint, rootCause, rule } = {}) {
     .sort((a, b) => b.score - a.score);
 }
 
-export function deriveReusableKnowledge(memory, { rootCause, features = [], fingerprint } = {}) {
+export function deriveReusableKnowledge(memory, { rootCause, features = [], fingerprint, normalizedFailure = '' } = {}) {
   const aggregate = new Map();
   const caseBackedKeys = new Set();
 
@@ -549,6 +550,24 @@ export function deriveReusableKnowledge(memory, { rootCause, features = [], fing
       activation: 'fresh-proof-required',
     }));
 
+  let longTermCorpus = { authority: 'ADVISORY_ONLY', proofAuthority: 'CURRENT_EXACT_SHA_CI_ONLY', available: false, reason: 'not-loaded' };
+  let longTermTeaching = [];
+  try {
+    longTermCorpus = { available: true, ...loadLongTermRepairCorpus() };
+    longTermTeaching = retrieveLongTermTeaching({
+      normalizedFailure,
+      rootCause,
+      features,
+      limit: 24,
+    });
+  } catch (error) {
+    longTermCorpus = {
+      ...longTermCorpus,
+      available: false,
+      reason: error instanceof Error ? error.message : String(error),
+    };
+  }
+
   return {
     schemaVersion: 3,
     fingerprint: fingerprint ?? null,
@@ -558,6 +577,8 @@ export function deriveReusableKnowledge(memory, { rootCause, features = [], fing
     rejectedRules,
     teachingAdvisories: teachingAdvisories.map(({id,class:className,stage,trigger,hypothesis,falsify,action,verify,learning,source,authority,exactSha}) => ({ id, class: className, stage, trigger, hypothesis, falsify, action, verify, learning, source, authority, exactSha })),
     historicalAdvisories,
+    longTermCorpus,
+    longTermTeaching,
     policy: {
       promotionRequiresDistinctFingerprints: 2,
       promotionRequiresSuccessfulRepairs: 2,
