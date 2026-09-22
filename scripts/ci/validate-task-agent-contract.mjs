@@ -61,7 +61,7 @@ for (const marker of [
 }
 
 for (const marker of [
-  'execution`',
+  'only active mutation path remains execution → main',
   '`main`',
   'exactly **two active branch paths**',
   'There is no third branch',
