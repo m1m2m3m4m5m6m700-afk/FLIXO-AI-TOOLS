@@ -1,10 +1,17 @@
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { signAdminSession, sessionCookieName } from '../api/admin/boundary.ts';
+import { getClientIp } from '../src/lib/server/security/request.ts';
 
 const SECRET = 'phase1-admin-test-secret'.padEnd(32, '0');
 process.env.SUPABASE_URL = 'https://example.supabase.co';
 process.env.SUPABASE_SECRET_KEY = 'test-secret';
+delete process.env.FLIXO_TRUST_PROXY_HEADERS;
+delete process.env.VERCEL;
+assert.equal(getClientIp(new Request('https://example.test', { headers: { 'x-forwarded-for': '203.0.113.9', 'x-real-ip': '198.51.100.7' } })), null);
+process.env.FLIXO_TRUST_PROXY_HEADERS = 'true';
+assert.equal(getClientIp(new Request('https://example.test', { headers: { 'x-forwarded-for': '203.0.113.9, 198.51.100.7' } })), '203.0.113.9');
+delete process.env.FLIXO_TRUST_PROXY_HEADERS;
 const sessions = new Map();
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (input, init = {}) => {
