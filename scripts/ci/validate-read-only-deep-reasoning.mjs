@@ -23,6 +23,8 @@ for (const marker of [
   'noMutationAuthority: true',
   'causalDiscriminator',
   'metaCausalModel',
+  'repairIntelligence',
+  "FLIXO-READ-ONLY-REPAIR-INTELLIGENCE-v1",
   "CAUSAL-DISCRIMINATOR-v1",
   "META-CAUSAL-MODEL-v1",
 ]) {
