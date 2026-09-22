@@ -17,7 +17,7 @@ assert.match(ci, /verify-run-lock\.mjs/u);
 assert.match(ci, /create-run-proof\.mjs/u);
 assert.match(ci, /verify-run-proof\.mjs/u);
 
-assert.match(supersession, /gh api --paginate --slurp/u);
+assert.doesNotMatch(supersession, /gh api --paginate --slurp/u);
 assert.match(supersession, /git ls-remote.*refs\/heads\/\$TARGET_BRANCH/u);
 assert.doesNotMatch(supersession, /gh api "repos\/\$GITHUB_REPOSITORY\/pulls\/\$PR_NUMBER"/u);
 assert.match(supersession, /CANCEL_STALE_RUN/u);
@@ -25,8 +25,10 @@ assert.doesNotMatch(supersession, new RegExp(['gh','run','view','$run_id','--rep
 assert.match(supersession, /head_repository\.full_name/u);
 assert.match(ci, /github\.run_attempt\s*>\s*1[\s\S]*format\('-rerun-\{0\}',\s*github\.run_id\)/u);
 assert.match(supersession, /actions\/runs\?branch=\$BRANCH/u);
-assert.match(supersession, /group:\s*flixo-latest-commit-supersession-\$\{\{\s*github\.event\.pull_request\.head\.repo\.full_name\s*\|\|\s*github\.repository\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name\s*\}\}/u);
-assert.doesNotMatch(supersession, /group:[^\n]*github\.event_name/u);
+assert.match(supersession, /group:\s*flixo-latest-commit-supersession-\$\{\{\s*github\.event_name\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.repo\.full_name\s*\|\|\s*github\.repository\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name\s*\}\}/u);
+assert.doesNotMatch(supersession, /gh\s+run\s+view\s+"\$run_id"/u);
+assert.match(supersession, /SOURCE_REPOSITORY:\s*\$\{\{\s*steps\.head\.outputs\.source_repository\s*\}\}/u);
+assert.match(supersession, /LATEST_COMMIT_ONLY_ENFORCED=true/u);
 assert.match(supersession, /\*Repair\*/u);
 
 assert.match(createIdentity, /LATEST_COMMIT_ONLY_RERUN_LOCK_V2/u);
