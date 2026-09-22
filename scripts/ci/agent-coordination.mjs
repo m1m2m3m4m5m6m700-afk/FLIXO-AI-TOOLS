@@ -342,6 +342,10 @@ if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next',
 
 if (command === 'task-create') {
   const taskId = requireArg('task');
+  const tasksAuthorityFile = path.resolve(ROOT, 'المهام.md');
+  if (!fs.existsSync(tasksAuthorityFile)) throw new Error('TASK_PERMANENT_LEDGER_MISSING');
+  const ledgerText = fs.readFileSync(tasksAuthorityFile, 'utf8');
+  if (!ledgerText.includes(taskId)) throw new Error('TASK_PERMANENT_LEDGER_ENTRY_REQUIRED=' + taskId);
   if (state.tasks[taskId]) throw new Error(`Task already exists: ${taskId}`);
   const ownerRole = optional('owner-role') || null;
   if (ownerRole && !COUNCIL_MACHINE_ROLES.has(ownerRole)) throw new Error('TASK_OWNER_ROLE_INVALID=' + ownerRole);
