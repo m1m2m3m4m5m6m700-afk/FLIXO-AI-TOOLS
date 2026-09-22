@@ -591,6 +591,12 @@ export function recordControllerPushDecision({
     if(proposal.targetSha!==t)throw new Error('CHAIR_PUSH_PROPOSAL_STALE');
     const report=validationEvidence??null;
     if(verdict==='ACCEPTED' && (report?.authority!=='VALIDATION_ONLY' || report?.validationStatus!=='PASS'))throw new Error('PUSH_CONTROLLER_ACCEPT_REQUIRES_VALIDATION_PASS');
+    if(verdict==='ACCEPTED'){
+      if(report?.proposalId!==id)throw new Error('PUSH_CONTROLLER_VALIDATION_PROPOSAL_MISMATCH');
+      if(report?.currentSha!==t||proposal.targetSha!==t)throw new Error('PUSH_CONTROLLER_VALIDATION_SHA_MISMATCH');
+      if(report?.candidateSha!==proposal.candidateSha||report?.parentSha!==proposal.parentSha)throw new Error('PUSH_CONTROLLER_VALIDATION_COMMIT_MISMATCH');
+      if(String(report?.taskId??'')!==String(proposal.taskId??'')||String(report?.workPackageId??'')!==String(proposal.workPackageId??''))throw new Error('PUSH_CONTROLLER_VALIDATION_CONTEXT_MISMATCH');
+    }
     const decisionRecord={
       decision:verdict,
       authority:CHAIR1_OWNER_AGENT,
