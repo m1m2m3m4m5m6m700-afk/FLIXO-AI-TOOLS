@@ -453,8 +453,34 @@ jobs:
               ;;
           esac
 
+          CONVERGENCE_GUIDANCE_ARTIFACT_ID=""
+          if [ "$ATTEMPT" -gt 1 ] && [ "$DISPATCH" = true ]; then
+            CONVERGENCE_GUIDANCE_ARTIFACT_ID="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq --arg prefix "flixo-auto-repair-$TARGET_RUN_ID-" '.artifacts[] | select(.expired == false and (.name | startswith($prefix))) | [.created_at,.id,.name] | @tsv' | sort -k1,1r | head -n 1 | cut -f2)"
+            case "$CONVERGENCE_GUIDANCE_ARTIFACT_ID" in
+              ''|*[!0-9]*) echo 'FAIL CLOSED: repair attempt >1 requires a prior Auto Repair evidence artifact.'; exit 1 ;;
+            esac
+            mkdir -p /tmp/flixo-dispatch-guidance
+            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$CONVERGENCE_GUIDANCE_ARTIFACT_ID/zip" > /tmp/flixo-dispatch-guidance.zip
+            unzip -o /tmp/flixo-dispatch-guidance.zip -d /tmp/flixo-dispatch-guidance >/dev/null
+            GUIDANCE_JSON="$(find /tmp/flixo-dispatch-guidance -name flixo-postpatch-adversarial.json -type f -print -quit)"
+            test -s "$GUIDANCE_JSON" || { echo 'FAIL CLOSED: prior repair evidence lacks the adversarial counterexample.'; exit 1; }
+            jq -e --arg fp "$FAILURE_FINGERPRINT" --arg sha "$FAILED_SHA" '
+              .schemaVersion == 2
+              and .protocol == "FLIXO-POST-PATCH-ADVERSARIAL-v2"
+              and .falsifierVerdict == "REJECTED_WITH_COUNTER_EXAMPLE"
+              and .passConfirmed == false
+              and .failureFingerprint == $fp
+              and .sourceSha == $sha
+              and (.convergenceDirective != null)' "$GUIDANCE_JSON" >/dev/null || {
+                echo 'FAIL CLOSED: prior counterexample is not causally bound to the current failure SHA/fingerprint.'
+                exit 1
+              }
+            echo "CONVERGENCE_GUIDANCE_ARTIFACT_ID=$CONVERGENCE_GUIDANCE_ARTIFACT_ID"
+          fi
+
           if [ "$DISPATCH" = true ]; then
             gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/auto-repair.yml/dispatches" \
+
               -f ref=execution \
               -f "inputs[target_run_id]=$TARGET_RUN_ID" \
               -f "inputs[chain_id]=$REPAIR_CHAIN_ID" \
