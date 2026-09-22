@@ -754,7 +754,11 @@
     "sourcePath": "docs/agents/PROMPT-UNIFIED-EXECUTION.md",
     "status": "SUPREME_MANDATORY",
     "firstObligation": true,
-    "appliesTo": ["ACTION-REPAIR","ACTION-REPAIR-2","ACTION-HISTORIAN-3"]
+    "appliesTo": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ]
   },
   "promptBinding": {
     "schemaVersion": 1,
@@ -770,9 +774,9 @@
       "docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md"
     ],
     "documents": {
-      "docs/agents/PROMPT-UNIFIED-EXECUTION.md": "c5e54c0a9da41016f448817c9cfc231fd7fb9627",
-      "docs/agents/ACTION-AGENT-RUNTIME-PROTOCOL.md": "65344e161febf24b6a589b7a685b8280b3166d4b",
-      "docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md": "773066887155b561a681c04c1df8bca297a259f9"
+      "docs/agents/PROMPT-UNIFIED-EXECUTION.md": "55ca38755a3cad797ba0a258de6ba9e3380ffe08",
+      "docs/agents/ACTION-AGENT-RUNTIME-PROTOCOL.md": "63265769daede5c16f99b31ae925764093a2513b",
+      "docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md": "8716ebd538c923d892b033cb07018d5fea833afb"
     }
   },
   "parallelProtocol": {},
