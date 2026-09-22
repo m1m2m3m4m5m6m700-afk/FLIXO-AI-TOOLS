@@ -46,7 +46,7 @@ for (const [label, pattern] of required) {
   }
 }
 
-const executionPushTrigger = /push:\s*\n\s*branches:\s*\[execution\]/;
+const canonicalVerificationPushTrigger = /push:\s*\n\s*branches:\s*\[main, execution\]/;
 const securityExecutionPushTrigger = /push:\s*\n\s*branches:\s*\[main, execution\]/;
 for (const [label, source] of [
   ['wp0-trust-baseline.yml', wp0Workflow],
@@ -55,9 +55,9 @@ for (const [label, source] of [
   ['repository-security-baseline.yml', securityBaselineWorkflow],
   ['claude-security-review.yml', claudeSecurityWorkflow],
 ]) {
-  const trigger = label === 'repository-security-baseline.yml' ? securityExecutionPushTrigger : executionPushTrigger;
+  const trigger = label === 'repository-security-baseline.yml' ? securityExecutionPushTrigger : canonicalVerificationPushTrigger;
   if (!trigger.test(source)) {
-    console.error('CI contract failed: ' + label + ' must have an exact execution-branch push trigger.');
+    console.error('CI contract failed: ' + label + ' must verify both canonical main and execution push heads.');
     process.exit(1);
   }
 }
