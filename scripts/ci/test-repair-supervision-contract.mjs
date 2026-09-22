@@ -27,7 +27,7 @@ assert.match(supersession, /gh run view "\$run_id" --repo "\$REPOSITORY" --json 
 assert.match(supersession, /STALE_RUN_ALREADY_COMPLETED run=\$run_id/);
 assert.match(supersession, /ERROR: cancellation failed for active run=\$run_id status=\$now_status/);
 assert.doesNotMatch(supersession, /gh run cancel "\$run_id" --repo "\$REPOSITORY"\s*\|\|\s*true/);
-for (const workflow of [canonicalCi, securityBaseline, impactExecution, impactPlan, wp0]) assert.match(workflow, /cancel-in-progress:\s*false/);
+for (const workflow of [canonicalCi, securityBaseline, impactExecution, impactPlan, wp0]) assert.match(workflow, /cancel-in-progress:\s*true/);
 assert.match(watchdog, /name: Checkout trusted watchdog source/);
 assert.match(watchdog, /ref: main/);
 assert.match(watchdog, /name: Verify trusted watchdog checkout/);
