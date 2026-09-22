@@ -729,6 +729,8 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   const isHistoricalRevert = outcome === 'reverted-repair';
   const effectiveProviderSignature = provenance?.providerSignature ?? (isExternalBlock ? externalProviderSignature(normalizedFailure) : null);
   const strategyId = String(process.env.FLIXO_REPAIR_STRATEGY_ID ?? provenance?.strategyId ?? '').trim() || null;
+  const taskId = String(process.env.FLIXO_TASK_ID ?? process.env.FLIXO_AGENT_TASK ?? provenance?.taskId ?? process.env.TARGET_RUN_ID ?? '').trim() || null;
+  const repairChainId = String(process.env.FLIXO_REPAIR_CHAIN_ID ?? provenance?.repairChainId ?? '').trim() || null;
   const promptId = String(process.env.FLIXO_PROMPT_ID ?? provenance?.promptId ?? '').trim() || null;
   const behaviorObservation = loadBehaviorObservation();
   const effectiveProvenance = {
@@ -736,6 +738,8 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     ...(behaviorObservation ? { behaviorObservation } : {}),
     ...(promptId ? { promptId } : {}),
     ...(strategyId ? { strategyId } : {}),
+    ...(taskId ? { taskId } : {}),
+    ...(repairChainId ? { repairChainId } : {}),
     ...(effectiveProviderSignature ? { providerSignature: effectiveProviderSignature } : {}),
   };
   const isHistoricalRevertFailure = outcome === 'revert-failure';
@@ -809,6 +813,8 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   actionRecord.occurrences = Number(actionRecord.occurrences ?? 0) + 1;
   actionRecord.lastSeenAt = new Date().toISOString();
   actionRecord.latestCycleLessons = cycleLessons;
+  actionRecord.taskId = taskId;
+  actionRecord.repairChainId = repairChainId;
   if (countsAsPlaybookAttempt) actionRecord.attempts = Number(actionRecord.attempts ?? 0) + 1;
   if (outcome === 'success') actionRecord.successes = Number(actionRecord.successes ?? 0) + 1;
   if (['failure', 'unrepaired', 'blocked', 'reverted-repair', 'revert-failure'].includes(outcome)) actionRecord.failures = Number(actionRecord.failures ?? 0) + 1;
@@ -828,6 +834,8 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
       failedSha: effectiveProvenance?.failedSha ?? null,
       targetSha: effectiveProvenance?.targetSha ?? null,
       runId: effectiveProvenance?.runId ?? null,
+      taskId,
+      repairChainId,
       diagnosis: effectiveDiagnosis,
       affectedPaths: effectiveDiagnosis?.affectedPaths ?? [],
       at: new Date().toISOString(),
