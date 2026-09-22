@@ -7,7 +7,7 @@ import { assertAgentAdmission, assertProtocolDefinition } from './repair-protoco
 import { ingest as ingestAgentMessage, markRead as readAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
 import { loadPromptRegistry, validatePromptRegistry, loadErrorMemory } from './prompt-registry.mjs';
 import { assertAgentExitGate } from './agent-exit-lock.mjs';
-import { AGENT_LIVENESS_PROTOCOL, assertActiveRepairWindow, checkHeartbeat } from './agent-liveness-protocol.mjs';
+import { AGENT_LIVENESS_PROTOCOL, assertActiveRepairWindow, checkHeartbeat, checkContinuousSessionWindow } from './agent-liveness-protocol.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -53,7 +53,6 @@ const admissionDigest = (file) => createHash('sha256').update(fs.readFileSync(pa
 const governanceFingerprint = (sources) => createHash('sha256').update(sources.map((item) => `${item.path}:${item.sha256}`).join('|'), 'utf8').digest('hex');
 const assertLiveSession = (record) => {
   const currentSha = gitSha();
-  if (record.entrySha !== currentSha) throw new Error('AGENT_SESSION_STALE_ENTRY_SHA');
   const currentGovernance = governanceFingerprint(requiredReads.map((file) => ({ path: file, sha256: admissionDigest(file) })));
   if (record.governanceFingerprint && record.governanceFingerprint !== currentGovernance) throw new Error('AGENT_SESSION_GOVERNANCE_DRIFT');
   if (record.branch && record.branch !== gitBranch()) throw new Error('AGENT_SESSION_BRANCH_DRIFT');
@@ -102,8 +101,11 @@ const writeVisibility = (record) => {
 const secretLike = (value) => /(-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|ghp_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+|Bearer\s+[A-Za-z0-9._-]+|sk-[A-Za-z0-9_-]+)/i.test(String(value ?? ''));
 const assertSafeText = (...values) => { for (const value of values.flat()) if (secretLike(value)) throw new Error('AGENT_EVENT_SECRET_LIKE_CONTENT_REJECTED'); };
 const appendEvent = (record, event) => { record.actions = Array.isArray(record.actions) ? [...record.actions, event] : [event]; record.activity = Array.isArray(record.activity) ? [...record.activity, event] : [event]; };
+const isMaster = (value) => ['MASTER-1','MASTER-2','MASTER-3'].includes(value);
+const taskSnapshotFromRecord = (record) => ({ taskId: record.taskId, status: record.status, livenessState: record.livenessState, currentSha: record.currentSha ?? record.entrySha, currentRca: record.currentRca, openRcas: record.openRcas ?? [], remainingWork: record.remainingWork ?? [], nextAction: record.executionPlanNext ?? [], blockers: record.blockers ?? [], lastProgressAt: record.lastProgressAt ?? null, lastHeartbeatAt: record.lastHeartbeatAt ?? null, updatedAt: now() });
+const observeCurrentHead = (record) => { const currentSha = gitSha(); const previousSha = record.currentSha ?? record.entrySha ?? currentSha; if (previousSha !== currentSha) { record.previousSha = previousSha; record.currentSha = currentSha; record.shaChanges = Math.max(0, Number(record.shaChanges) || 0) + 1; record.evidenceInvalidatedByShaChange = true; record.requalificationRequired = true; record.lastShaChangeAt = now(); appendEvent(record, { at: now(), action: 'SESSION_SHA_CHANGED', previousSha, currentSha, evidenceInvalidated: true, requalificationRequired: true, recovery: 'REQUALIFY_CURRENT_SHA' }); } else record.currentSha = currentSha; return currentSha; };
 
-if (!['login', 'event', 'heartbeat', 'logout', 'meeting-exit-approve', 'message-receive', 'message-consume'].includes(command)) throw new Error('Usage: agent-session.mjs login|event|logout|meeting-exit-approve|message-receive|message-consume --session=<id> --agent=<id> --task=<task-id>');
+if (!['login', 'event', 'heartbeat', 'master-update', 'logout', 'meeting-exit-approve', 'message-receive', 'message-consume'].includes(command)) throw new Error('Usage: agent-session.mjs login|event|logout|meeting-exit-approve|message-receive|message-consume --session=<id> --agent=<id> --task=<task-id>');
 if (!sessionId || !agentId || !taskId) throw new Error('Agent session requires --session, --agent and --task.');
 if (meetingRequested && !meetingId) throw new Error('COUNCIL_MEETING_ID_REQUIRED');
 if (!roles.has(role)) throw new Error(`Invalid agent role: ${role}`);
@@ -136,6 +138,7 @@ if (command === 'meeting-exit-approve') {
   if (record.taskId !== taskId) throw new Error('AGENT_EVENT_TASK_MISMATCH');
   if (record.status !== 'RUNNING') throw new Error('AGENT_EVENT_REQUIRES_ACTIVE_SESSION');
   assertLiveSession(record);
+  const eventSha = observeCurrentHead(record);
   const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.startedAt });
   if (!heartbeat.ok) {
     record.livenessState = 'RECOVERING';
@@ -158,7 +161,10 @@ if (command === 'meeting-exit-approve') {
   const next = split(args.get('next') ?? process.env.FLIXO_AGENT_EVENT_NEXT, '|');
   const sha = gitSha();
   assertSafeText(type, summary, files, evidence, findings, blockers, next);
-  const event = { at: now(), action: 'EVENT', type, summary, sha, files, evidence, findings, blockers, next };
+  const event = { at: now(), action: 'EVENT', type, summary, sha: eventSha ?? sha, files, evidence, findings, blockers, next };
+  if (['PROGRESS','FINDING','CHANGE','TEST','VERIFICATION','HANDOFF','NOTE'].includes(type)) record.lastProgressAt = event.at;
+  if (type === 'MASTER_UPDATE' || type === 'HANDOFF') record.lastMasterUpdateAt = event.at;
+  record.taskStateSnapshot = taskSnapshotFromRecord(record);
   appendEvent(record, event);
   fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
   const visibilityFile = visibilityPath(sessionId);
@@ -182,16 +188,28 @@ if (command === 'meeting-exit-approve') {
   if (record.taskId !== taskId) throw new Error('AGENT_HEARTBEAT_TASK_MISMATCH');
   if (record.status !== 'RUNNING') throw new Error('AGENT_HEARTBEAT_REQUIRES_ACTIVE_SESSION');
   assertLiveSession(record);
+  const sha = observeCurrentHead(record);
   const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.continuousActiveSince ?? record.startedAt });
-  const sha = gitSha();
+  const continuous = checkContinuousSessionWindow({ continuousStartedAt: record.continuousActiveSince ?? record.startedAt });
   const at = now();
   record.livenessState = heartbeat.ok ? 'ACTIVE' : 'RECOVERING';
   if (!heartbeat.ok) record.continuousActiveSince = at;
+  if (!continuous.ok && continuous.action === 'RESIDENCY_RENEWAL_REQUIRED') { record.livenessState = 'RECOVERING'; record.residencyRenewals = Math.max(0, Number(record.residencyRenewals) || 0) + 1; record.previousContinuousActiveSince = record.continuousActiveSince; record.continuousActiveSince = at; record.requalificationRequired = true; record.livenessState = 'ACTIVE'; }
   record.continuousActiveSince = record.continuousActiveSince ?? record.startedAt;
   record.lastHeartbeatAt = at;
-  const event = { at, action: 'HEARTBEAT', sha, liveness: heartbeat.ok ? 'ON_TIME' : 'RECOVERED_FROM_GAP', recovery: heartbeat.ok ? null : 'RECOVER_AND_CONTINUE' };
+  const masterUpdateDue = isMaster(record.agentId) && Date.parse(String(record.lastMasterUpdateAt ?? '')) + AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs <= Date.now();
+  const taskReminderDue = Date.parse(String(record.lastTaskReminderAt ?? '')) + AGENT_LIVENESS_PROTOCOL.taskReminderEveryMs <= Date.now();
+  const event = { at, action: 'HEARTBEAT', sha, liveness: heartbeat.ok ? 'ON_TIME' : 'RECOVERED_FROM_GAP', residencyRenewal: !continuous.ok && continuous.action === 'RESIDENCY_RENEWAL_REQUIRED', recovery: heartbeat.ok ? null : 'RECOVER_AND_CONTINUE', masterUpdateDue, taskReminderDue, evidenceInvalidatedByShaChange: record.evidenceInvalidatedByShaChange, requalificationRequired: record.requalificationRequired };
   appendEvent(record, event);
+  if (masterUpdateDue) record.lastMasterUpdateAt = at;
+  if (taskReminderDue) record.lastTaskReminderAt = at;
+  if (masterUpdateDue || taskReminderDue) appendEvent(record, { at, action: taskReminderDue ? 'TASK_REMINDER' : 'MASTER_STATUS_UPDATE_DUE', sha, channel: 'MASTER_CELL_LAB', required: true, snapshot: taskSnapshotFromRecord(record) });
+  record.taskStateSnapshot = taskSnapshotFromRecord(record);
   fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
+  if (isMaster(record.agentId) && (masterUpdateDue || taskReminderDue)) {
+    try { execFileSync(process.execPath,['scripts/ci/master-peer-communication.mjs','send','--repo='+(process.env.GITHUB_REPOSITORY || 'm1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS'),'--from='+record.agentId,'--to=MASTERS','--task='+record.taskId,'--message='+(taskReminderDue?'TASK REMINDER: review remaining work and next action.':'MASTER STATUS UPDATE: review current exact SHA and continue.'),'--session='+record.sessionId,'--message-kind='+(taskReminderDue?'TASK_REMINDER':'STATUS_UPDATE'),'--idempotency-key=master-session:'+record.sessionId+':'+Math.floor(Date.now()/AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs),'--payload='+JSON.stringify({channel:'MASTER_CELL_LAB',taskSnapshot:taskSnapshotFromRecord(record),sessionId:record.sessionId,currentSha:sha,requalificationRequired:Boolean(record.requalificationRequired)})],{cwd:ROOT,encoding:'utf8',stdio:['ignore','pipe','pipe']}); appendEvent(record,{at:now(),action:'MASTER_CHANNEL_PUBLISHED',sha,channel:'MASTER_CELL_LAB',kind:taskReminderDue?'TASK_REMINDER':'STATUS_UPDATE'}); } catch(error) { appendEvent(record,{at:now(),action:'MASTER_CHANNEL_PUBLISH_BLOCKED',sha,channel:'MASTER_CELL_LAB',reason:String(error?.message ?? error),taskRemainsOpen:true}); }
+    fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
+  }
   const visibilityFile = visibilityPath(sessionId);
   if (fs.existsSync(visibilityFile)) {
     const visibility = JSON.parse(fs.readFileSync(visibilityFile, 'utf8'));
@@ -206,6 +224,24 @@ if (command === 'meeting-exit-approve') {
   console.log('AGENT_SESSION_HEARTBEAT=' + (heartbeat.ok ? 'ON_TIME' : 'RECOVERED'));
   console.log('AGENT_SESSION_SHA=' + sha);
   console.log('AGENT_SESSION_LIVENESS=' + record.livenessState);
+} else if (command === 'master-update') {
+  if (!isMaster(agentId)) throw new Error('MASTER_CHANNEL_MASTER_ONLY');
+  if (!fs.existsSync(file)) throw new Error('Session not found: ' + sessionId);
+  const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (record.agentId !== agentId || record.taskId !== taskId || record.status !== 'RUNNING') throw new Error('MASTER_CHANNEL_SESSION_INVALID');
+  assertLiveSession(record);
+  const sha = observeCurrentHead(record);
+  const to = String(args.get('to') ?? 'MASTERS').trim();
+  const message = String(args.get('message') ?? '').trim();
+  if (!message) throw new Error('MASTER_CHANNEL_MESSAGE_REQUIRED');
+  const kind = String(args.get('kind') ?? 'STATUS_UPDATE').trim().toUpperCase();
+  const snapshot = taskSnapshotFromRecord(record);
+  execFileSync(process.execPath,['scripts/ci/master-peer-communication.mjs','send','--repo='+(process.env.GITHUB_REPOSITORY || 'm1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS'),'--from='+agentId,'--to='+to,'--task='+taskId,'--message='+message,'--session='+sessionId,'--message-kind='+kind,'--idempotency-key=manual-master:'+sessionId+':'+kind+':'+Math.floor(Date.now()/AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs),'--payload='+JSON.stringify({channel:'MASTER_CELL_LAB',taskSnapshot,sessionId:sessionId,currentSha:sha,requalificationRequired:Boolean(record.requalificationRequired)})],{cwd:ROOT,encoding:'utf8'});
+  record.lastMasterUpdateAt=now();
+  appendEvent(record,{at:now(),action:'MASTER_CHANNEL_UPDATE',sha,channel:'MASTER_CELL_LAB',kind,to,message,snapshot});
+  record.taskStateSnapshot=snapshot;
+  fs.writeFileSync(file,JSON.stringify(record,null,2)+'\n');
+  console.log(JSON.stringify({status:'MASTER_CHANNEL_UPDATE_RECORDED',sha,kind,to,snapshot},null,2));
 } else if (command === 'message-receive') {
   if (!rawMessageFile && !rawMessageId) throw new Error('AGENT_MESSAGE_INPUT_REQUIRED');
   if (rawMessageFile) {
@@ -268,6 +304,8 @@ if (command === 'meeting-exit-approve') {
     agentId,
     role,
     entrySha: currentSha,
+    currentSha,
+    observedSha: currentSha,
     baseSha: currentSha,
     branch: gitBranch(),
     governanceFingerprint: currentGovernanceFingerprint,
@@ -279,6 +317,10 @@ if (command === 'meeting-exit-approve') {
     taskId,
     residencyLock: {
       minimumActiveWindowMs: AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs,
+      maxContinuousActiveSessionMs: AGENT_LIVENESS_PROTOCOL.maxContinuousActiveSessionMs,
+      masterChannel: 'MASTER_CELL_LAB',
+      masterStatusUpdateEveryMs: AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs,
+      taskReminderEveryMs: AGENT_LIVENESS_PROTOCOL.taskReminderEveryMs,
       minimumActiveWindowMinutes: 45,
       startedAt: now(),
       minCloseAt: new Date(Date.parse(now()) + AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs).toISOString(),
@@ -290,7 +332,13 @@ if (command === 'meeting-exit-approve') {
       heartbeatGraceMs: AGENT_LIVENESS_PROTOCOL.heartbeatGraceMs,
     },
     lastHeartbeatAt: now(),
+    lastProgressAt: now(),
+    lastMasterUpdateAt: now(),
+    lastTaskReminderAt: now(),
     continuousActiveSince: now(),
+    residencyRenewals: 0,
+    evidenceInvalidatedByShaChange: false,
+    requalificationRequired: false,
     livenessState: 'ACTIVE',
     ...(meetingRequested ? { meetingLock: { locked: true, meetingId, enteredBy: agentId, enteredAt: now(), entrySha: sha, exitApproval: null } } : {}),
     ...(inboundMessage ? { messageId: inboundMessage.messageId, messageStatus: inboundMessage.status, messageEntrySha: inboundMessage.entrySha, messageReadBy: agentId, messagePriority: 'P0_COMMUNICATION_FIRST' } : {}),
