@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { isAdminSessionStoreConfigured, isAdminSessionRevoked } from './session-store.ts';
+import { isAdminSessionStoreConfigured, getAdminSessionState } from './session-store.ts';
 import { ADMIN_CAPABILITIES } from '../../src/lib/admin/control-plane.ts';
 import { activeCapabilitiesForRole, isAdminRole } from '../../src/lib/admin/roles.ts';
 
@@ -157,7 +157,11 @@ export const authorizeAdminRequestWithDurableSession = async (
 
   let state: Awaited<ReturnType<typeof isAdminSessionRevoked>>;
   try {
-    state = await isAdminSessionRevoked(session.sessionId);
+    state = await getAdminSessionState(session.sessionId, {
+      token: token!,
+      subject: session.subject,
+      role: session.role,
+    });
   } catch {
     return { status: 503, code: 'session_store_unavailable', correlationId: authorization.correlationId };
   }
