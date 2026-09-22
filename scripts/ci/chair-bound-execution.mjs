@@ -144,7 +144,6 @@ export function sanitizeSessionContext({sessionId,taskId=null}={}){
 const git=(args)=>execFileSync('git',args,{cwd:ROOT,encoding:'utf8'}).trim();
 const sha=()=>git(['rev-parse','HEAD']);
 const now=()=>new Date().toISOString();
-const json=(v)=>JSON.stringify(v);
 const hash=(v)=>createHash('sha256').update(String(v),'utf8').digest('hex');
 const key=()=>String(process.env.FLIXO_CHAIR_SIGNING_KEY??'').trim();
 const hmac=(v)=>{const k=key();if(!k)throw new Error('CHAIR_SIGNING_KEY_REQUIRED');return createHmac('sha256',k).update(v,'utf8').digest('hex');};
