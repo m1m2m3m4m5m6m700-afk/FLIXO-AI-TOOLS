@@ -314,6 +314,11 @@ export function acquire({chairId='chair_1',agentId,targetSha=sha(),repositorySta
     if(state.target_sha!==t)throw new Error('CHAIR_STATE_SHA_MISMATCH');
     for(const chairState of Object.values(state.chairs)) if(chairState.status==='OCCUPIED'&&staleHeartbeat(chairState)) clearChairRecord(chairState,state);
     const active=occupied(state);
+    const chair=state.chairs[chairId];
+    if(chair.status!=='VACANT')throw new Error(chairId==='chair_1'?'CHAIR1_ACTIVE_DELEGATION':'CHAIR_NOT_VACANT');
+    if((chairId==='chair_3')&&!reviewId)throw new Error('CHAIR3_ARCHITECTURE_REVIEW_ID_REQUIRED');
+    const wp=workPackageId===null?null:assertContextId(workPackageId,'WORK_PACKAGE_ID');
+    const task=taskId===null?null:assertContextId(taskId,'TASK_ID');
     if(chairId==='chair_1'){
       if(agentId!==CHAIR1_OWNER_AGENT && (task===null || wp===null))throw new Error('CHAIR1_TASK_DELEGATION_REQUIRED');
       if(repositoryState!=='IDLE'||state.repository_state!=='IDLE')throw new Error('CHAIR_REPOSITORY_NOT_IDLE');
@@ -321,12 +326,6 @@ export function acquire({chairId='chair_1',agentId,targetSha=sha(),repositorySta
     }else if(state.repository_state==='STALE'||state.repository_state==='LOCKED'){
       throw new Error('CHAIR_REPOSITORY_NOT_AVAILABLE');
     }
-    const chair=state.chairs[chairId];
-    if(chair.status!=='VACANT')throw new Error('CHAIR_NOT_VACANT');
-    if((chairId==='chair_3')&&!reviewId)throw new Error('CHAIR3_ARCHITECTURE_REVIEW_ID_REQUIRED');
-    const wp=workPackageId===null?null:assertContextId(workPackageId,'WORK_PACKAGE_ID');
-    const task=taskId===null?null:assertContextId(taskId,'TASK_ID');
-    if(chairId==='chair_1' && agentId!==CHAIR1_OWNER_AGENT && (task===null || wp===null))throw new Error('CHAIR1_TASK_DELEGATION_REQUIRED');
     const fence=fencingToken===null?null:assertFence(fencingToken);
     if(chairId==='chair_1' && process.env.FLIXO_REQUIRE_FENCED_CHAIR==='true' && (!wp||!task||!fence))throw new Error('CHAIR1_MUTATION_CONTEXT_REQUIRED');
     const leaseInput={chairId,agentId,targetSha:t,permissions:CHAIR_DEFINITIONS[chairId].permissions,reviewId,scope,workPackageId:wp,taskId:task,fencingToken:fence};
