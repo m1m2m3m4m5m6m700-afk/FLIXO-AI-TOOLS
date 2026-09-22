@@ -45,7 +45,7 @@ Before any repository action, every agent MUST read, in this order:
 14. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
 15. `scripts/ci/test-plan.json`
 16. `scripts/ci/assertion-registry.json`
-15. the current exact `main` SHA and current workflow state
+17. the current exact `main` SHA and current workflow state
 
 `PROJECTS.md` is the navigation/control layer; `المهام.md` is the open-task scope gate; the linked contract/plan remains authoritative for implementation semantics, and CI/evidence remains authoritative for completion.
 
