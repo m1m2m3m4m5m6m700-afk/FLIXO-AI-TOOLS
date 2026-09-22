@@ -207,10 +207,8 @@ if (command === 'meeting-exit-approve') {
   assertLiveSession(record);
   assertWorkAdmission({ agentId: record.agentId, targetSha: gitSha(), chairId: record.chairBinding?.chairId ?? null });
   const sha = observeCurrentHead(record);
-  if (!record.chairId) {
-    const chairBinding = readCoordinationChairBinding(sessionId, agentId, taskId);
-    if (chairBinding) { record.chairId = chairBinding.chairId; record.chairLeaseId = chairBinding.chairLeaseId; }
-  }
+  if (!record.chairId) record.chairId = record.chairBinding?.chairId ?? null;
+  if (!record.chairLeaseId) record.chairLeaseId = record.chairBinding?.leaseId ?? null;
   const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.continuousActiveSince ?? record.startedAt });
   let chairHeartbeatResult = null;
   if (record.chairId) {
@@ -265,6 +263,7 @@ if (command === 'meeting-exit-approve') {
   const record = JSON.parse(fs.readFileSync(file, 'utf8'));
   if (record.agentId !== agentId || record.taskId !== taskId || record.status !== 'RUNNING') throw new Error('MASTER_CHANNEL_SESSION_INVALID');
   assertLiveSession(record);
+  assertWorkAdmission({ agentId: record.agentId, targetSha: gitSha(), chairId: record.chairBinding?.chairId ?? record.chairId ?? null });
   const sha = observeCurrentHead(record);
   const to = String(args.get('to') ?? 'MASTERS').trim();
   const message = String(args.get('message') ?? '').trim();
@@ -322,22 +321,6 @@ if (command === 'meeting-exit-approve') {
     throw new Error('Continuation handoff required: use --from-session=<previous-session> or explicitly declare --bootstrap=true.');
   }
 
-  let chairAdmission = null;
-  const chairSigningKey = String(process.env.FLIXO_CHAIR_SIGNING_KEY ?? process.env.GITHUB_TOKEN ?? '').trim();
-  if (!chairSigningKey) throw new Error('AGENT_SESSION_CHAIR_SIGNING_KEY_REQUIRED');
-  process.env.FLIXO_CHAIR_SIGNING_KEY = chairSigningKey;
-  initializeChairState({ targetSha: sha });
-  chairAdmission = beginChairWork({
-    agentId,
-    targetSha: sha,
-    requestedChairId,
-    repositoryState: requestedChairId && requestedChairId !== 'chair_1' ? 'ACTIVE' : 'IDLE',
-    workPackageId: taskId,
-    taskId,
-    scope,
-    reviewId: rca,
-  });
-
   let inboundMessage = null;
   if (rawMessageFile) {
     inboundMessage = ingestAgentMessage(JSON.parse(fs.readFileSync(path.resolve(ROOT, rawMessageFile), 'utf8')), sha);
@@ -348,6 +331,24 @@ if (command === 'meeting-exit-approve') {
   if (inboundMessage && inboundMessage.status !== 'READ' && inboundMessage.status !== 'CONSUMED') {
     throw new Error('AGENT_MESSAGE_NOT_EXECUTION_READY=' + inboundMessage.status);
   }
+  let chairAdmission = null;
+  const chairSigningKey = String(process.env.FLIXO_CHAIR_SIGNING_KEY ?? process.env.GITHUB_TOKEN ?? '').trim();
+  if (!chairSigningKey) throw new Error('AGENT_SESSION_CHAIR_SIGNING_KEY_REQUIRED');
+  process.env.FLIXO_CHAIR_SIGNING_KEY = chairSigningKey;
+  initializeChairState({ targetSha: sha });
+  const coordinationChair = readCoordinationChairBinding(sessionId, agentId, taskId);
+  const effectiveChairId = coordinationChair?.chairId ?? requestedChairId ?? 'chair_1';
+  chairAdmission = beginChairWork({
+    agentId,
+    targetSha: sha,
+    requestedChairId: effectiveChairId,
+    repositoryState: effectiveChairId !== 'chair_1' ? 'ACTIVE' : 'IDLE',
+    workPackageId: taskId,
+    taskId,
+    scope,
+    reviewId: rca,
+  });
+
   const record = {
     schemaVersion: 3,
     repairProtocol: { ...assertProtocolDefinition(), compliance: 'VALIDATED_AT_ENTRY', admission: protocolAdmission },
@@ -394,7 +395,9 @@ if (command === 'meeting-exit-approve') {
     ...(meetingRequested ? { meetingLock: { locked: true, meetingId, enteredBy: agentId, enteredAt: now(), entrySha: sha, exitApproval: null } } : {}),
     ...(inboundMessage ? { messageId: inboundMessage.messageId, messageStatus: inboundMessage.status, messageEntrySha: inboundMessage.entrySha, messageReadBy: agentId, messagePriority: 'P0_COMMUNICATION_FIRST' } : {}),
     status: 'RUNNING',
-    chairBinding: { required: true, admission: 'CHAIR_REQUIRED_FOR_WORK', chairId: chairAdmission.chairId, leaseId: chairAdmission.leaseId, targetSha: sha, taskId, workPackageId: chairAdmission.workPackageId ?? taskId },
+    chairId: chairAdmission.chairId,
+    chairLeaseId: chairAdmission.leaseId,
+    chairBinding: { required: true, admission: 'CHAIR_REQUIRED_FOR_WORK', chairId: chairAdmission.chairId, leaseId: chairAdmission.leaseId, targetSha: sha, taskId, workPackageId: chairAdmission.workPackageId ?? taskId, acquiredAt: now() },
     bootstrap: !continuation,
     ...(continuation ?? {}),
     actions: [{ at: now(), action: 'LOGIN', sha, ...(continuation ? { fromSession } : {}) }],
