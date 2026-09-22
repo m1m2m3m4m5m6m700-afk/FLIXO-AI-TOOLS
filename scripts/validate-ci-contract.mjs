@@ -431,7 +431,7 @@ try {
 
 const autoRepairGlobalEnv = autoRepairWorkflow.match(/^env:\s*\n[\s\S]*?(?=^jobs:)/m)?.[0] ?? '';
 const autoRepairProvenanceContract = [
-  /on:\s*\n\s*workflow_dispatch:/,
+  /on:\s*(?:#.*\n\s*)*workflow_dispatch:/,
   /name:\s*Repair dispatch provenance guard/,
   /test "\$GITHUB_EVENT_NAME" = "workflow_dispatch"/,
   /test "\$GITHUB_REF" = "refs\/heads\/main"/,
