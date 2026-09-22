@@ -39,6 +39,9 @@ export const CONTROL_PLANE_FILES = Object.freeze([
   'scripts/ci/auto-repair/ai-phase3.mjs',
   'scripts/ci/auto-repair-supervisor.mjs',
   'scripts/ci/auto-repair-learning.mjs',
+  'scripts/ci/master-repair-governor.mjs',
+  'scripts/ci/patch-truth-engine.mjs',
+  'scripts/ci/verify-platform-publication-boundary.mjs',
   'scripts/ci/continuous-error-watch.mjs',
   '.github/workflows/agent-repair-supervisor.yml',
   '.github/workflows/agent-repair-heartbeat.yml',
@@ -67,6 +70,9 @@ export function validateStatic() {
   const handoffGate = read(HANDOFF_GATE);
   const watchdog = read(WATCHDOG);
   const mergeGate = read(MERGE_GATE);
+  const masterGovernor = read(path.join(ROOT, 'scripts', 'ci', 'master-repair-governor.mjs'));
+  const patchTruth = read(path.join(ROOT, 'scripts', 'ci', 'patch-truth-engine.mjs'));
+  const platformBoundary = read(path.join(ROOT, 'scripts', 'ci', 'verify-platform-publication-boundary.mjs'));
   const canonicalTest = read(path.join(ROOT, '.github', 'workflows', 'ci.yml'));
   const wp0 = read(path.join(ROOT, '.github', 'workflows', 'wp0-trust-baseline.yml'));
   const testImpact = read(path.join(ROOT, '.github', 'workflows', 'test-impact.yml'));
@@ -113,6 +119,12 @@ export function validateStatic() {
   must(/auto-repair-chair1-audit\.mjs/.test(auto), 'auto-repair-chair1-audit-required');
   must(/CHAIR1_AUDIT=APPROVED/.test(auto), 'auto-repair-chair1-audit-approval-required');
   must(/CHAIR1_REVIEW_AUTHORITY=STRICT_INDEPENDENT_AUDITOR/.test(auto), 'auto-repair-chair1-independent-review-required');
+  must(/master-repair-governor\.mjs/.test(auto), 'master-repair-governor-required');
+  must(/patch-truth-engine\.mjs/.test(auto), 'patch-truth-engine-required');
+  must(/verify-platform-publication-boundary\.mjs/.test(auto), 'platform-publication-boundary-required');
+  must(/FLIXO-MASTER-REPAIR-GOVERNOR-v1/.test(masterGovernor), 'master-repair-governor-protocol-required');
+  must(/PATCH_TEXT_IS_NEVER_AUTHORITATIVE/.test(patchTruth), 'patch-truth-non-authoritative-input-rule');
+  must(/FLIXO-PLATFORM-PUBLICATION-BOUNDARY-v1/.test(platformBoundary), 'external-platform-attestation-required');
   must(/FLIXO_AUTO_REPAIR_SELF_APPROVAL:\s*['"]false['"]/.test(auto), 'auto-repair-self-approval-forbidden');
   must(/FLIXO_AUTO_REPAIR_ROLE:\s*AUTO_REPAIR_BOT/.test(auto), 'auto-repair-chair-identity-required');
   must(!/auto-repair-chair-policy-exempt/.test(auto), 'auto-repair-chair-exemption-removed');

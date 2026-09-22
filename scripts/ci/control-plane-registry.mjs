@@ -5,6 +5,7 @@ export const REPAIR_GATE_AUTOMATION = Object.freeze([
   'execution-bot-watchdog.yml',
   'auto-repair-merge-gate.yml',
   'advanced-repair-contract.yml',
+  'master-repair-governor.yml',
 ]);
 
 export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
@@ -28,6 +29,7 @@ export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
   'auto-repair-merge-gate.yml',
   'council-live-runtime-verification.yml',
   'security-red-team.yml',
+  'master-repair-governor.yml',
 ]);
 
 export const HISTORICAL_REPAIR_WORKFLOWS = Object.freeze([
@@ -55,6 +57,15 @@ export const TRUST_PERIMETER_PATHS = Object.freeze([
   'scripts/ci/auto-repair-policy.mjs',
   'scripts/ci/repair-protocol.mjs',
   'scripts/ci/auto-repair-engine.mjs',
+  'scripts/ci/patch-truth-engine.mjs',
+  'scripts/ci/verify-platform-publication-boundary.mjs',
+  'scripts/ci/master-repair-historical-replay.mjs',
+  'scripts/ci/master-repair-negative-proof.mjs',
+  'scripts/ci/master-repair-canary.mjs',
+  'scripts/ci/master-repair-rollback-proof.mjs',
+  'scripts/ci/master-repair-governor.mjs',
+  'scripts/ci/test-patch-truth-engine.mjs',
+  'scripts/ci/test-master-repair-governor.mjs',
   'scripts/ci/repair-agent-cognitive-clone.mjs',
   'scripts/ci/validate-repair-agent-cognitive-clone.mjs',
   'scripts/ci/repair-adversarial-convergence.mjs',
