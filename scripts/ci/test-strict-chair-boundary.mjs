@@ -11,10 +11,12 @@ const auto=read('.github/workflows/auto-repair.yml');
 const sync=read('.github/workflows/execution-sync.yml');
 const history=read('.github/workflows/historical-action-error-index.yml');
 const migration=read('supabase/migrations/20260922210000_central_chair1_lease_strictness.sql');
+const proofMigration=read('supabase/migrations/20260922220000_central_chair1_proof_binding.sql');
 
 assert.match(central,/flix_chair1_(delegate|verify|heartbeat|release)/g);
 assert.match(gate,/central-chair-lease\.mjs/);
 assert.match(gate,/MUTATION_GATE_CENTRAL_CHAIR_CONTEXT_MISSING/);
+assert.doesNotMatch(gate,/FLIXO_ALLOW_TEST_CHAIR_BYPASS/);
 assert.match(chair,/verifyCentralChairForMutation/);
 assert.match(chair,/CENTRAL_CHAIR_REQUIRED_FOR_MUTATION/);
 assert.match(chair,/const centralChairStrict = \(\) => true;/u);
