@@ -725,9 +725,8 @@ if (command === 'meeting-exit-approve') {
     // First session may bootstrap the chain, but its logout still establishes the handoff contract.
   }
 
-  let releasedChair = null;
   if (activeBeforeClose) {
-    releasedChair = endChairWork({ agentId: record.agentId, targetSha: sha, successful: status === 'VERIFIED', sessionId: record.sessionId, taskId: record.taskId });
+    endChairWork({ agentId: record.agentId, targetSha: sha, successful: status === 'VERIFIED', sessionId: record.sessionId, taskId: record.taskId });
   }
   record.chairBinding = {
     ...record.chairBinding,
