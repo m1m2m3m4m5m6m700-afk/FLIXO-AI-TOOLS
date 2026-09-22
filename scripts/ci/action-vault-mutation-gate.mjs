@@ -84,6 +84,27 @@ export function evaluateMutationGate({
       Array.isArray(fiveXEnvelope?.blockers) &&
       fiveXEnvelope.blockers.length===0
     ),
+    TEN_X_EXECUTION_READY:Boolean(
+      fiveXEnvelope?.powerProfile==='10X' &&
+      fiveXEnvelope?.powerMultiplier===10 &&
+      fiveXEnvelope?.status==='READY_FOR_AUTHORIZED_EXECUTION' &&
+      fiveXEnvelope?.exactSha===targetSha &&
+      fiveXEnvelope?.branch===branch &&
+      fiveXEnvelope?.mutationAuthority===false &&
+      fiveXEnvelope?.certificationAuthority===false &&
+      Array.isArray(fiveXEnvelope?.blockers) &&
+      fiveXEnvelope.blockers.length===0
+    ),
+    TEN_X_REPAIR_CYCLE_READY:Boolean(
+      fiveXCycleState?.powerProfile==='10X' &&
+      fiveXCycleState?.powerMultiplier===10 &&
+      fiveXCycleState?.targetSha===targetSha &&
+      fiveXCycleState?.currentSha===currentSha &&
+      fiveXCycleState?.mutationReady===true &&
+      fiveXCycleState?.staleEvidence===false &&
+      fiveXCycleState?.invalidatedPriorEvidence===false &&
+      fiveXCycleState?.counterexampleFound!==true
+    ),
     FIVE_X_REPAIR_CYCLE_READY:Boolean(
       fiveXCycleState?.protocol==='FLIXO-FIVE-X-REPAIR-CYCLE-v1' &&
       fiveXCycleState?.targetSha===targetSha &&
