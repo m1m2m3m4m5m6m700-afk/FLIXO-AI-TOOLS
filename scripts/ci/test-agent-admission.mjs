@@ -187,7 +187,7 @@ assert.doesNotThrow(() => assertAgentAdmission({ actor: 'actionRepairBot', branc
 assert.throws(() => assertAgentAdmission({ actor: 'actionRepairBot', branch: 'execution', mutation: true, session: { ...actionVaultSession, actionVaultMission: { ...actionVaultSession.actionVaultMission, verifierAgent: 'wrong' } } }), /ACTION_VAULT_TRIAD_INCOMPLETE/);
 assert.throws(() => assertAgentAdmission({ actor: 'actionRepairBot', branch: 'execution', mutation: true, session: { ...actionVaultSession, actionVaultMission: { ...actionVaultSession.actionVaultMission, noBlindRetry: false } } }), /BLIND_RETRY_BLOCKED/);
 const invalidVerifierSession = { ...actionVaultSession, actor: 'actionRepairVerifier' };
-assert.throws(() => assertAgentAdmission({ actor: 'actionRepairVerifier', branch: 'execution', mutation: true, session: invalidVerifierSession }), /ACTION_REPAIR_2_MUTATION_SEAT_INVALID/);
+assert.throws(() => assertAgentAdmission({ actor: 'actionRepairVerifier', branch: 'execution', mutation: true, session: invalidVerifierSession }), /REPAIR_PROTOCOL_MUTATION_ROLE_BLOCKED=actionRepairVerifier/);
 
 console.log('AGENT_ADMISSION_CONTRACT=PASS');
 console.log('TASK_AGENT_MUTATION_AUTHORITY=BLOCKED');
