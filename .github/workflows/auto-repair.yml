@@ -63,6 +63,7 @@ concurrency:
   # The resident observer is isolated because it is non-mutating and long-lived.
   group: flixo-execution-mutation-lane
   cancel-in-progress: false
+  queue: max
 
 env:
   GH_TOKEN: ${{ github.token }}
