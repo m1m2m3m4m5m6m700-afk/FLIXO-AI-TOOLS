@@ -72,7 +72,11 @@ export function validateStatic() {
   must(/target_run_id:[\s\S]*required:\s*false/.test(auto), 'auto-repair-target-run-input-optional-for-resident');
   must(/case "\$TARGET_RUN_ID"/.test(auto) && /target_run_id must be numeric/.test(auto), 'auto-repair-repair-mode-requires-target-run');
   must(/inputs\.resident == 'true'/.test(auto), 'auto-repair-resident-mode-declared');
-  must(/ref:\s*execution/.test(auto), 'auto-repair-checkout-execution');
+  must(
+    /git switch --create execution "\$EXECUTION_BASE_SHA"/.test(auto) &&
+      /test "\$\(git branch --show-current\)" = execution/.test(auto),
+    'auto-repair-execution-mutation-boundary'
+  );
   must(/persist-credentials:\s*false/.test(auto), 'auto-repair-checkout-credential-isolation');
   must(/CONTROLLER_SHA="\$MAIN_SHA"/.test(auto), 'auto-repair-main-controller-trust');
   must(/TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET/.test(auto), 'auto-repair-trust-model');
@@ -94,7 +98,11 @@ export function validateStatic() {
   must(!/push:\s*\n\s+branches:/m.test(supervisor) && !/pull_request:/m.test(supervisor), 'supervisor-observer-only-trigger');
   must(!/gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*-f\s+"?(?:target_run_id|failure_fingerprint|repair_lease_ref)=/i.test(heartbeat), 'heartbeat-no-mutation-repair-dispatch');
   must(/gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*--ref\s+execution\s+-f\s+resident=true/.test(heartbeat) || !/gh\s+workflow\s+run\s+auto-repair\.yml/.test(heartbeat), 'heartbeat-resident-dispatch-must-be-explicit');
-  must(/RESIDENT_MODE_IS_OBSERVER_ONLY|resident.*observer/i.test(heartbeat) || !/gh\s+workflow\s+run\s+auto-repair\.yml/.test(heartbeat), 'heartbeat-resident-mode-observer-only');
+  must(
+    /RESIDENT_MODE_IS_(?:OBSERVER|OBSERVATION)_ONLY|resident.*observ(?:er|ation)/i.test(heartbeat) ||
+      !/gh\s+workflow\s+run\s+auto-repair\.yml/.test(heartbeat),
+    'heartbeat-resident-mode-observer-only'
+  );
   must(/gh\s+workflow\s+run\s+agent-repair-supervisor\.yml/.test(heartbeat), 'heartbeat-observer-only-wakeup');
   must(handoffGate.includes('CURRENT_EXECUTION_SHA=') && handoffGate.includes('HANDOFF_EXECUTION_SHA'), 'handoff-gate-current-head-check');
   must(/cannot repair itself/.test(auto), 'auto-repair-self-protection');
