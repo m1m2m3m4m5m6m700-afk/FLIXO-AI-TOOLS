@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
-export const CHAIR1_REPAIR_MISSION = 'CHAIR1_PRIMARY_TEST_CYCLE_REPAIR';
+export const CHAIR1_REPAIR_MISSION = 'CHAIR1_PERMANENT_CHANGE_AGGREGATOR';
 
 const ROOT = process.env.FLIXO_TARGET_DIR ?? process.cwd();
 const sha = value => {
@@ -33,9 +33,9 @@ export function buildChair1RepairMission({
 
   return Object.freeze({
     schemaVersion: 1,
-    protocol: 'FLIXO-CHAIR1-TEST-CYCLE-REPAIR-v1',
+    protocol: 'FLIXO-CHAIR1-CHANGE-AGGREGATION-v2',
     mission: CHAIR1_REPAIR_MISSION,
-    authority: 'CHAIR_1_PRIMARY_REPAIR',
+    authority: 'CHAIR_1_FINAL_AGGREGATION_AND_PUBLICATION',
     branch: 'execution',
     targetSha: target,
     previousSha: previous,
@@ -46,9 +46,16 @@ export function buildChair1RepairMission({
     comparison: {
       previousUpdate: { fromSha: previous, toSha: target, changedPaths: [...new Set(changedPathsSincePrevious.map(String))].sort() },
       latestCanonicalState: { fromSha: main, toSha: target, changedPaths: [...new Set(changedPathsFromMain.map(String))].sort() },
-      requiredDecision: 'REVALIDATE_CURRENT_SHA_BEFORE_EVERY_MUTATION',
+      requiredDecision: 'COMPARE_AND_RECONCILE_EVERY_PENDING_RESULT_AGAINST_LATEST_EXECUTION_AND_MAIN',
     },
-    directRepairPolicy: {
+    aggregationPolicy: {
+       agentOutputs: 'ISOLATED_WORKSPACE_PATCHES_ONLY',
+       agentBranchRelation: 'ENTRY_SNAPSHOT_ONLY',
+       conflictPolicy: 'EDIT_REBASE_MERGE_REMOVE_OR_UPGRADE_BY_CHAIR_1_ONLY',
+       publicationPolicy: 'CHAIR_1_ONLY',
+       headPolicy: 'WORKER_HEAD_INDEPENDENCE_AFTER_ENTRY_SNAPSHOT',
+     },
+     directRepairPolicy: {
       everyActionableRed: 'MUST_RECEIVE_ROOT_CAUSE_REPAIR_ATTEMPT',
       sourcePolicy: 'REPAIR_CAUSAL_SOURCE_ONLY',
       testPolicy: 'TESTS_ARE_EVIDENCE_NOT_REPAIR_TARGETS',
@@ -56,7 +63,7 @@ export function buildChair1RepairMission({
       resumePolicy: 'TARGETED_RETEST_THEN_RESUME_REMAINING_REQUIRED_CHECKS',
       closurePolicy: 'CANONICAL_GREEN_ONLY',
     },
-    stopConditions: ['CANONICAL_GREEN','STALE_SHA','PROOF_FAILED','BLOCKED_EXTERNAL'],
+    stopConditions: ['NO_PENDING_CHANGES','CANONICAL_GREEN','STALE_SHA','PROOF_FAILED','BLOCKED_EXTERNAL'],
     noSelfDispatch: true,
     noMainMutation: true,
     generatedAt: new Date().toISOString(),
@@ -67,10 +74,11 @@ export function buildChair1RepairMission({
 export function assertChair1RepairState({ mission, currentSha, branch = 'execution' } = {}) {
   if (!mission || mission.mission !== CHAIR1_REPAIR_MISSION) throw new Error('CHAIR1_REPAIR_MISSION_MISSING');
   if (branch !== 'execution') throw new Error('CHAIR1_REPAIR_BRANCH_BLOCKED');
-  if (sha(currentSha) !== mission.targetSha) throw new Error('CHAIR1_REPAIR_STALE_TARGET_SHA');
+  const current = sha(currentSha);
+  const reconciliation = current === mission.targetSha ? 'CURRENT_BASE' : 'REQUIRES_RECONCILIATION';
   if (mission.noMainMutation !== true) throw new Error('CHAIR1_REPAIR_MAIN_MUTATION_POLICY_DRIFT');
   if (mission.noSelfDispatch !== true) throw new Error('CHAIR1_REPAIR_SELF_DISPATCH_POLICY_DRIFT');
-  return true;
+  return Object.freeze({ ok: true, currentSha: current, reconciliation });
 }
 
 function names(refA, refB) {
