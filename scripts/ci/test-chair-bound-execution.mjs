@@ -30,12 +30,12 @@ assert.throws(()=>assertWorkAdmission({agentId:'agent-auto-chair',targetSha:real
 const one=acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE',taskId:'CHAIR1-ALPHA-TASK',workPackageId:'CHAIR1-ALPHA-WP'});
 assert.equal(one.chairs.chair_1.status,'OCCUPIED');
 assert.equal(repositoryMode({targetSha:realGitSha}).singleAgentMode,true);
-assert.equal(authorizeWrite({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION'}).authorized,true);
+assert.equal(authorizeWrite({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION',workPackageId:'CHAIR1-ALPHA-WP',taskId:'CHAIR1-ALPHA-TASK'}).authorized,true);
 assert.throws(()=>authorizeWrite({chairId:'chair_1',agentId:'agent-beta',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION'}),/UNAUTHORIZED_EXECUTION_ATTEMPT/);
-assert.throws(()=>authorizeWrite({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,paths:['.github/workflows/ci.yml'],permission:'SOURCE_MUTATION'}),/CHAIR_PROTECTED_PATH/);
+assert.throws(()=>authorizeWrite({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,paths:['.github/workflows/ci.yml'],permission:'SOURCE_MUTATION',workPackageId:'CHAIR1-ALPHA-WP',taskId:'CHAIR1-ALPHA-TASK'}),/CHAIR_PROTECTED_PATH/);
 assert.throws(()=>authorizeWrite({chairId:'chair_1',agentId:'agent-alpha',targetSha:SHA2,paths:['src/example.ts'],permission:'SOURCE_MUTATION'}),/STALE_CONTEXT/);
 assert.equal(authorizeMergeProposal({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha}).requiresPromotionGate,true);
-assert.throws(()=>authorizeWrite({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,paths:['src/example.ts'],permission:'MERGE_PROPOSAL'}),/MERGE_PROPOSAL_IS_NOT_MERGE_AUTHORITY/);
+assert.throws(()=>authorizeWrite({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,paths:['src/example.ts'],permission:'MERGE_PROPOSAL',workPackageId:'CHAIR1-ALPHA-WP',taskId:'CHAIR1-ALPHA-TASK'}),/MERGE_PROPOSAL_IS_NOT_MERGE_AUTHORITY/);
 release({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,successful:true});
 assert.equal(repositoryMode({targetSha:realGitSha}).repositoryState,'IDLE');
 
@@ -50,7 +50,7 @@ release({chairId:'chair_3',agentId:'agent-arch',targetSha:realGitSha});
 
 acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE',taskId:'CHAIR1-ALPHA-TASK',workPackageId:'CHAIR1-ALPHA-WP'});
 const chair3Parallel=acquire({chairId:'chair_3',agentId:'agent-arch-2',targetSha:realGitSha,repositoryState:'ACTIVE',reviewId:'AR-002'});
-assert.equal(authorizeWrite({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION'}).authorized,true);
+assert.equal(authorizeWrite({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION',workPackageId:'CHAIR1-ALPHA-WP',taskId:'CHAIR1-ALPHA-TASK'}).authorized,true);
 assert.equal(authorizeWrite({chairId:'chair_3',agentId:'agent-arch-2',targetSha:realGitSha,paths:['schemas/example.json'],permission:'SCHEMA_VALIDATION',reviewId:'AR-002'}).authorized,true);
 assert.equal(chair3Parallel.repository_state,'ACTIVE');
 
@@ -191,7 +191,7 @@ assert.throws(
   ()=>authorizeWrite({chairId:'chair_1',agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION'}),
   /CHAIR_NOT_OCCUPIED|UNAUTHORIZED_EXECUTION_ATTEMPT/
 );
-assert.deepEqual(assertWorkAdmission({agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha,chairId:'chair_1',taskId:'AUTO-REPAIR-TASK'}),autoRepairContinuity);
+assert.throws(()=>assertWorkAdmission({agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha,chairId:'chair_1',taskId:'AUTO-REPAIR-TASK'}),/AGENT_WORK_REQUIRES_CHAIR/);
 const master3Admission=beginWork({
   agentId:'MASTER-3',
   role:'MASTER-3',
