@@ -96,6 +96,33 @@ jobs:
           printf '%s\n' "$WATCH_BRANCH" > /tmp/flixo-watch/observed-branch
           printf 'branch=%s\n' "$WATCH_BRANCH" >> "$GITHUB_OUTPUT"
 
+      - name: Ensure exact-SHA required CI is resident
+        if: steps.capture.outputs.branch == 'execution'
+        env:
+          GH_TOKEN: \${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(cat /tmp/flixo-watch/execution-sha)"
+          declare -A REQUIRED_FILES=(
+            ["FLIXO Test System"]="ci.yml"
+            ["FLIXO WP0 Trust Baseline"]="wp0-trust-baseline.yml"
+            ["FLIXO Test Impact"]="test-impact.yml"
+            ["FLIXO Test Impact Execution"]="test-impact-execution.yml"
+            ["Repository Security Baseline"]="repository-security-baseline.yml"
+            ["Claude Security Review"]="claude-security-review.yml"
+          )
+          for WORKFLOW in "FLIXO Test System" "FLIXO WP0 Trust Baseline" "FLIXO Test Impact" "FLIXO Test Impact Execution" "Repository Security Baseline" "Claude Security Review"; do
+            FILE="\${REQUIRED_FILES[$WORKFLOW]}"
+            RUN_COUNT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$FILE" --branch execution --commit "$EXECUTION_SHA" --limit 20 --json databaseId,status,conclusion --jq 'map(select(.status == "queued" or .status == "in_progress" or .conclusion == "success" or .conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required")) | length')"
+            if [ "$RUN_COUNT" -eq 0 ]; then
+              echo "REQUIRED_CI_DISPATCH workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA"
+              gh workflow run "$FILE" --repo "$GITHUB_REPOSITORY" --ref execution
+            else
+              echo "REQUIRED_CI_ALREADY_RESIDENT workflow=$WORKFLOW count=$RUN_COUNT sha=$EXECUTION_SHA"
+            fi
+          done
+
       - name: Await required internal CI settlement on exact SHA
         id: settle_required_ci
         if: steps.capture.outcome == 'success' && steps.capture.outputs.branch == 'execution'
