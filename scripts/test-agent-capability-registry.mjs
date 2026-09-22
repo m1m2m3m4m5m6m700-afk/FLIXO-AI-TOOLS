@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { TOOL_DEFINITIONS } from '../src/config/canonical-tool-definition.ts';
+import { TOOL_CATALOG } from '../src/config/registry.ts';
 import { CAPABILITY_REGISTRY, getCapability, getExecutableCapabilityIds, validateCapabilityParameters } from '../src/lib/agent/capability-registry.ts';
 import { planFromIntent } from '../src/lib/ai/planner.ts';
 import { EXECUTABLE_PIPELINE_TOOL_IDS } from '../src/lib/workflows/executable-tools.ts';
@@ -29,6 +30,7 @@ assert.deepEqual(validateCapabilityParameters('image-compressor', { quality: 0.8
 const valid = safeParseExecutionPlan({
   workflowName: 'Direct Tool',
   confidence: 0.9,
+  catalogFingerprint: TOOL_CATALOG.fingerprint,
   steps: [{ toolId: 'image-compressor', params: { quality: 0.8 } }],
 });
 assert.equal(valid.success, true);
@@ -36,8 +38,13 @@ assert.equal(valid.success, true);
 const invalidParameters = safeParseExecutionPlan({
   workflowName: 'Invalid Parameters',
   confidence: 0.9,
+  catalogFingerprint: TOOL_CATALOG.fingerprint,
   steps: [{ toolId: 'image-compressor', params: { unsupportedObject: {} } }],
 });
+assert.throws(
+  () => validateCapabilityParameters('image-compressor', { quality: 0.8, unsupportedObject: true }),
+  /unsupported parameters/,
+);
 assert.equal(invalidParameters.success, false);
 
 const directPlan = planFromIntent('compress this image');

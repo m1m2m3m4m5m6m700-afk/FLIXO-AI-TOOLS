@@ -10,9 +10,13 @@ const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).tri
 const node = process.version;
 const npm = execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim();
 const contractVersion = 'MASTER AUTONOMOUS RECOVERY & EXECUTION CONTRACT v5';
+const expectedSha = (process.env.EXPECTED_SHA ?? '').trim();
 
-if (process.env.EXPECTED_SHA && sha !== process.env.EXPECTED_SHA) {
-  throw new Error(`Exact SHA mismatch: HEAD=${sha} EXPECTED_SHA=${process.env.EXPECTED_SHA}`);
+if (expectedSha && !/^[0-9a-f]{40}$/iu.test(expectedSha)) {
+  throw new Error('EXPECTED_SHA must be a 40-character Git SHA');
+}
+if (expectedSha && sha !== expectedSha) {
+  throw new Error(`Exact SHA mismatch: HEAD=${sha} EXPECTED_SHA=${expectedSha}`);
 }
 
 const identity = {
@@ -20,6 +24,12 @@ const identity = {
   evidenceClass: 'PRIMARY_EXECUTION',
   contractVersion,
   sha,
+  expectedSha: expectedSha || null,
+  exactShaBound: Boolean(expectedSha && sha === expectedSha),
+  repository: process.env.GITHUB_REPOSITORY ?? null,
+  ref: process.env.GITHUB_REF ?? null,
+  headRef: process.env.GITHUB_HEAD_REF ?? null,
+  sourceEventSha: process.env.GITHUB_SHA ?? null,
   workflowSha256: sha256('.github/workflows/ci.yml'),
   testPlanSha256: sha256('scripts/ci/test-plan.json'),
   assertionRegistrySha256: sha256('scripts/ci/assertion-registry.json'),
