@@ -804,6 +804,29 @@ jobs:
             echo "ADVERSARIAL_TWIN_DISPOSITION=$TWIN_DISPOSITION"
           fi
 
+      - name: Enforce In-Repo Repair Engine v2 causal manifest before mutation
+        id: repair_v2
+        if: steps.strategy.outcome == 'success'
+        env:
+          FLIXO_TARGET_DIR: ${{ github.workspace }}
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
+          FLIXO_FAILURE_LOG: ${{ env.FLIXO_FAILURE_LOG }}
+          FLIXO_REPAIR_ATTEMPT: ${{ env.FLIXO_REPAIR_ATTEMPT }}
+          FLIXO_REPAIR_DIAGNOSIS_PATH: /tmp/flixo-root-cause.json
+          FLIXO_REPAIR_STRATEGY_JSON: /tmp/flixo-repair-strategy.json
+          FLIXO_SELECTED_REPAIR_JSON: /tmp/flixo-selected-repair-option.json
+          FLIXO_RCA_MANIFEST_PATH: /tmp/flixo-rca-manifest.json
+          FLIXO_CONVERGENCE_GUIDANCE_PATH: ${{ env.FLIXO_CONVERGENCE_GUIDANCE_PATH || '' }}
+        run: |
+          set -euo pipefail
+          node scripts/ci/in-repo-repair-v2.mjs validate-config
+          node scripts/ci/in-repo-repair-v2.mjs rca
+          test -s /tmp/flixo-rca-manifest.json
+          jq -e --arg sha "$FLIXO_EXPECTED_TARGET_SHA"             '.protocol=="FLIXO-IN-REPO-REPAIR-V2" and .target_sha==$sha and .cycle>=1 and .cycle<=3 and (.root_cause_analysis.alternative_hypotheses|length)==3 and .proposed_fix.isolation_level=="SURGICAL_PATCH" and .proposed_fix.scope.max_source_files==1 and .evidence.exact_sha==true and .deterministic_proof.status=="PRE_MUTATION_BOUNDED"'             /tmp/flixo-rca-manifest.json >/dev/null
+          echo 'IN_REPO_REPAIR_V2_RCA_MANIFEST=PROVEN'
+          echo 'FLIXO_RCA_MANIFEST_PATH=/tmp/flixo-rca-manifest.json' >> "$GITHUB_ENV"
+
       - name: Execute bounded root-cause repair under selected repair authority
         id: execute_repair
         if: always() && steps.strategy.outcome == 'success' && steps.install_target.outcome == 'success'
@@ -1176,6 +1199,8 @@ jobs:
             /tmp/flixo-lease-verification.json
             /tmp/flixo-repair-lease-outcome.json
             /tmp/flixo-postpatch-adversarial.json
+            /tmp/flixo-rca-manifest.json
+            /tmp/flixo-candidate-verification.json
             /tmp/flixo-candidate-verification.json
           if-no-files-found: warn
           retention-days: 14
