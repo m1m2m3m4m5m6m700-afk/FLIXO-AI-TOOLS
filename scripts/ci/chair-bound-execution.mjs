@@ -307,10 +307,7 @@ export function revoke({chairId='chair_1',agentId,reason='STALE_CONTEXT',session
     const chair=state.chairs[chairId];
     if(chair.status!=='OCCUPIED')throw new Error('CHAIR_NOT_OCCUPIED');
     if(chair.holder_agent_id!==agentId)throw new Error('UNAUTHORIZED_EXECUTION_ATTEMPT');
-    chair.holder_agent_id=null;chair.status='VACANT';chair.acquired_at=null;chair.target_sha=null;chair.lease_id=null;chair.review_id=null;chair.scope=null;
-    const remaining=occupied(state).length;
-    state.repository_state=remaining===0?'IDLE':'ACTIVE';
-    state.idle_timestamp=remaining===0?now():null;
+    clearChairRecord(chair,state);
     state.last_revoke={chairId,agentId,reason:String(reason),at:now()};
     writeState(state);if(sessionId)sanitizeSessionContext({sessionId,taskId});
     return state;
