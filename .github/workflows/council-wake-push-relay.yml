@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   wake:
-    if: ${{ contains(github.event.head_commit.message, 'PRESIDENT WAKE') }}
+    if: ${{ contains(github.event.head_commit.message, 'PRESIDENT WAKE') && github.actor == 'github-actions[bot]' && github.event.sender.login == 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     steps:
       - name: Load trusted Council controller
