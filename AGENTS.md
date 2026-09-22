@@ -9,9 +9,9 @@ ADMIT → REGISTER SESSION → CAPTURE EXACT SHA → READ CONTROL PLANE → READ
 
 A role that has not admitted P00 is not execution-ready. P00 must remain consistent with the machine-enforced protocol registry, coordination plane, liveness controls and hard exit lock.
 
-# ✅ CANONICAL AGENT COUNCIL — PR #759
+# ✅ CANONICAL AGENT COUNCIL — active execution → main Council ingress (resolved live at runtime)
 
-Issue #761 is archived and MUST NOT be used as an activation source. Active Council ingress is PR #759 on `execution → main`.
+Issue #761 is archived and MUST NOT be used as an activation source. Active Council ingress is active execution → main Council ingress (resolved live at runtime) on `execution → main`.
 
 PRESIDENT=`assistantController`; DEPUTY=`verification`; INVESTIGATOR=`analysis`. These are coordination titles over existing machine roles and do not create mutation or certification authority.
 
@@ -186,7 +186,7 @@ The shared agent communication channel is the first operational dependency for e
 
 `NOTIFICATION → MASTER INBOX → EVENT-DRIVEN RELAY → READ → EXACT-SHA REVALIDATION → LOCK_SCOPE → TASK CLAIM → EXECUTE`
 
-The canonical communication runtime is `scripts/ci/agent-communication.mjs`, the event ingress is `.github/workflows/agent-communication-relay.yml`, the active Council ingress is PR #759, and Wake Dispatch is `.github/workflows/council-wake-dispatch.yml`. Issue #761 is archived and rejected.
+The canonical communication runtime is `scripts/ci/agent-communication.mjs`, the event ingress is `.github/workflows/agent-communication-relay.yml`, the active Council ingress is active execution → main Council ingress (resolved live at runtime), and Wake Dispatch is `.github/workflows/council-wake-dispatch.yml`. Issue #761 is archived and rejected.
 
 Every actionable message MUST carry a unique `messageId`/`idempotencyKey`, target `recipient`, `taskId`, declared `scope`, exact `entrySha`, risk, dependencies, expected evidence, stop conditions and proof obligations.
 

@@ -9,8 +9,6 @@ type PrivacyLocaleCopy = Readonly<{
   remoteDetail: (title: string) => string;
 }>;
 
-const REMOTE_TOOL_IDS = new Set(['ai-image-generator']);
-
 const definePrivacyCopy = (
   local: string,
   remote: string,
@@ -42,7 +40,9 @@ const PRIVACY_COPY: Record<string, PrivacyLocaleCopy> = {
 };
 
 export function getToolProcessingMode(toolId: string): ProcessingMode {
-  return REMOTE_TOOL_IDS.has(toolId) ? 'remote' : 'local';
+  const tool = getToolConfig(toolId);
+  if (!tool) return 'remote';
+  return tool.executionMode === 'LOCAL' ? 'local' : 'remote';
 }
 
 export function getToolPrivacyCopy(toolId: string, locale: string): {

@@ -344,7 +344,7 @@ execution → main → fresh verification on main
 
 ### Council
 
-مصدر الدخول التشغيلي الحالي هو PR #759. Issue #761 ليس activation source.
+مصدر الدخول التشغيلي الحالي هو active execution → main Council ingress (resolved live at runtime). Issue #761 ليس activation source.
 التخطيط عبر scripts/ci/council-wake-dispatch.mjs والـrelay عبر .github/workflows/agent-communication-relay.yml.
 
 ## Central Repair Protocol Invariant
@@ -541,7 +541,7 @@ NOTIFICATION
   → EXECUTE
 ```
 
-The canonical ingress is the active Council conversation at canonical PR #759. Issue #761 is archived and rejected as an activation source. The event-driven adapter is `.github/workflows/agent-communication-relay.yml`, and the President Wake dispatcher is integrated into `.github/workflows/agent-communication-relay.yml`, using `scripts/ci/council-wake-dispatch.mjs` as the deterministic planner. The machine-readable inbox lifecycle is implemented by `scripts/ci/agent-communication.mjs` and consumed by `scripts/ci/agent-session.mjs`.
+The canonical ingress is the active Council conversation at canonical active execution → main Council ingress (resolved live at runtime). Issue #761 is archived and rejected as an activation source. The event-driven adapter is `.github/workflows/agent-communication-relay.yml`, and the President Wake dispatcher is integrated into `.github/workflows/agent-communication-relay.yml`, using `scripts/ci/council-wake-dispatch.mjs` as the deterministic planner. The machine-readable inbox lifecycle is implemented by `scripts/ci/agent-communication.mjs` and consumed by `scripts/ci/agent-session.mjs`.
 
 Message states are:
 

@@ -156,7 +156,7 @@
   ],
   "communication": {
     "authority": "ASSISTANT_AGENT_COOPERATION_CONTRACT",
-    "ingress": "Canonical Council PR #759",
+    "ingress": "Canonical active execution → main Council ingress (live PR resolution)",
     "relay": ".github/workflows/agent-communication-relay.yml",
     "implementation": "scripts/ci/agent-communication.mjs",
     "sessionConsumer": "scripts/ci/agent-session.mjs",
