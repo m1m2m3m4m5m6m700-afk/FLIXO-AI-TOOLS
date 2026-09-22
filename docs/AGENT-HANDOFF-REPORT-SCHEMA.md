@@ -97,8 +97,13 @@ The report is a cloned communication envelope dedicated to `CHAIR_1_GUARD` and M
 - `publicationAuthority: CHAIR_1`
 - `editableBy: CHAIR_1`
 
-The guard report is a **receipt, integrity-validation, and forwarding surface only**. It does not grant mutation authority, merge authority, certification, or GREEN.
+The guard report is a **receipt and full-detail-request surface only**. It does not grant mutation authority, merge authority, certification, or GREEN.
 
-The guard MUST NOT reject, delete, discard, downgrade, or suppress any substantive change reported by a worker. Every worker contribution is preserved and forwarded to Chair 1.
-- The only guard transition after receipt/read is `FORWARDED_TO_CHAIR1`.
-- Chair 1 is the final filter and the only authority that can edit, integrate, combine, remove, upgrade, commit, publish, or decide whether a contribution reaches the canonical execution state.
+The guard MUST NOT reject, delete, discard, downgrade, suppress, or judge any substantive change reported by a worker. Every worker contribution is preserved exactly as received.
+
+The guard may only:
+- record receipt;
+- ask the originating agent for missing/full change details;
+- record the additional details supplied by that same agent.
+
+Once the required details are present, the complete report remains available to Chair 1. Chair 1 is the final and only filter and the only authority that can edit, integrate, combine, remove, upgrade, commit, publish, or decide what reaches canonical execution.
