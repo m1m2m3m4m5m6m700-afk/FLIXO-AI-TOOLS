@@ -244,6 +244,42 @@
         "enforcement": "scripts/ci/cell-lab-consensus.mjs + repair-protocol mutation admission + coordination/communication evidence",
         "canonicalArtifact": "diagnostics/agents/cell-lab/consensus/<taskId>.json"
       }
+    },
+    {
+      "id": "P21",
+      "name": "Shared Operational Memory for 200 Cell Bots",
+      "class": "LEARNING",
+      "status": "MANDATORY",
+      "enforcement": "docs/agents/CELL-BOT-REGISTRY.json + scripts/ci/cell-learning.mjs + scripts/ci/validate-agent-coordination.mjs + canonical shared memory index",
+      "invariant": "All 200 CELL bots share one canonical operational knowledge index. Validated, provenance-bound learning is published once to the canonical memory, assigned a memory version and made reusable by every bot; unproven learning is not published; memory never grants authority or replaces current Exact-SHA evidence.",
+      "canonicalSource": "docs/agents/SHARED-OPERATIONAL-MEMORY-CONTRACT.md",
+      "scope": [
+        "CELL-001",
+        "CELL-002",
+        "CELL-003",
+        "CELL-004",
+        "CELL-005",
+        "CELL-006",
+        "CELL-007",
+        "CELL-008",
+        "CELL-009",
+        "CELL-010",
+        "CELL-011",
+        "CELL-012",
+        "CELL-013",
+        "CELL-014",
+        "CELL-015",
+        "CELL-016",
+        "CELL-017",
+        "CELL-018",
+        "CELL-019",
+        "CELL-020",
+        "ALL_CELL_BOTS"
+      ],
+      "sharedMemory": "diagnostics/auto-repair/cell-knowledge/index.json",
+      "publishRule": "VALIDATED → MEMORY_COMMIT → PUBLISH → VERSION → CELL_MEMORY_UPDATED → SYNC",
+      "invalidationRule": "SOURCE_SHA_CHANGE or MEMORY_CHALLENGE invalidates immediate reuse until revalidation.",
+      "authorityBoundary": "Shared knowledge is reusable information; it never grants mutation, certification, permission, or command authority."
     }
   ]
 }
