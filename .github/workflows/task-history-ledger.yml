@@ -34,7 +34,7 @@ jobs:
 
       - name: Verify append-only invariant
         if: github.event_name != 'pull_request'
-        run: node scripts/ci/task-history-ledger.mjs verify --base=HEAD^ || true
+        run: node scripts/ci/task-history-ledger.mjs verify --base=HEAD^
 
       - name: Commit newly discovered history
         if: github.event_name == 'push' && github.ref == 'refs/heads/execution'
