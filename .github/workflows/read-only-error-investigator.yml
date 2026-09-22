@@ -51,6 +51,9 @@ jobs:
 
       - name: Validate investigator contract
         run: node scripts/ci/validate-read-only-error-investigator.mjs
+      run: node scripts/ci/test-read-only-power-profile.mjs
+      env:
+        FLIXO_READ_ONLY_POWER: '5X'
       
       - name: Validate deep reasoning contract
         run: node scripts/ci/validate-read-only-deep-reasoning.mjs
