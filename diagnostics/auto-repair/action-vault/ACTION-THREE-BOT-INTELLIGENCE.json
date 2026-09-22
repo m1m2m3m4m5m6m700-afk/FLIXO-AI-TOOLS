@@ -747,10 +747,19 @@
     },
     "mutationAuthorityUnchanged": true
   },
+  "supremeProtocol": {
+    "protocolId": "P00",
+    "promptId": "RPR-UNIFIED-EXECUTION-001",
+    "version": "4.0.0",
+    "sourcePath": "docs/agents/PROMPT-UNIFIED-EXECUTION.md",
+    "status": "SUPREME_MANDATORY",
+    "firstObligation": true,
+    "appliesTo": ["ACTION-REPAIR","ACTION-REPAIR-2","ACTION-HISTORIAN-3"]
+  },
   "promptBinding": {
     "schemaVersion": 1,
     "promptId": "RPR-UNIFIED-EXECUTION-001",
-    "promptVersion": "3.0.0",
+    "promptVersion": "4.0.0",
     "registryPath": "docs/agents/PROMPT-REGISTRY.json",
     "hashAlgorithm": "git-blob-sha",
     "enforcement": "LIVE_GIT_BLOB_SHA_MUST_MATCH_BEFORE_ACTION_VAULT_ADMISSION",
