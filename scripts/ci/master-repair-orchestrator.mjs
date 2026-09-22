@@ -50,7 +50,7 @@ function observedEvidence({ targetSha, runId, fp, failureLog, diagnosis, scout, 
     scout?.scannedSha,
     scout?.classification,
     scout?.summary,
-    ...(scout?.findings ?? []).slice?.(0, 3).map((x) => x?.message ?? x?.id)
+    ...(scout?.findings ?? []).slice(0, 3).map((x) => x?.message ?? x?.id)
   ]);
   push('DIAGNOSIS', 'INTERNAL_CONTRACT', diagnosis, [
     diagnosis?.rootCause,
