@@ -7,6 +7,7 @@ import {
   loadPromptRegistry, validatePromptRegistry, selectPromptCandidates, promptQualityGate,
 } from './prompt-intelligence.mjs';
 import { ingest } from './agent-communication.mjs';
+import { loadExecutionBotTraining, trainingSummary } from './prompt-execution-bot-training.mjs';
 
 const ROOT = process.cwd();
 const MAX_INPUT = Math.max(1000, Number(process.env.FLIXO_PROMPT_BOT_MAX_INPUT_CHARS ?? 12000));
@@ -37,6 +38,7 @@ const UNSAFE = [
   [/(?:expose|print|share|leak)\s+(?:secrets?|tokens?|credentials?)/iu, 'SECRET_EXFILTRATION'],
 ];
 const ACTIVE = /(OPEN|ACTIVE|IN_PROGRESS|VERIFYING|IMPLEMENTED \/ VERIFYING|IMPLEMENTED \/ CANONICAL-CI-VERIFICATION-PENDING|INCOMPLETE \/ PARTIAL)/iu;
+const CONFIDENCE_FLOOR = 0.65;
 
 function arg(name, fallback = '') {
   const token = process.argv.find((item) => item === `--${name}` || item.startsWith(`--${name}=`));
@@ -136,6 +138,8 @@ export function buildWorkPackage(prompt) {
   const actionList = actions(prompt);
   const intent = intentFor(prompt, actionList);
   const matchedTasks = taskCandidates(prompt, intent);
+  const constraintsValue = constraints(prompt);
+  const training = loadExecutionBotTraining({ prompt, intent, maxLessons: 16 });
   const failureClasses = intent === 'REPAIR_DIAGNOSE' ? ['ALL_REPAIRABLE', 'SOURCE', 'TEST_CONTRACT', 'CI_ORCHESTRATION', 'COORDINATION'] : intent === 'VERIFY' ? ['TEST_CONTRACT', 'RELEASE', 'SECURITY'] : ['ALL_EXECUTION', 'COORDINATION'];
   const rootCauses = intent === 'REPAIR_DIAGNOSE' ? ['ANY_CONFIRMED_RCA', 'stale-evidence', 'scope-conflict'] : ['stale-contract', 'duplicate-control-path'];
   const candidates = selectPromptCandidates(ctx.registry, { failureClasses, rootCauses, domain: 'unified-execution-and-runtime', agentRole: 'executive-repair-development-controller' });
@@ -155,7 +159,8 @@ export function buildWorkPackage(prompt) {
     dispatchable: status === 'READY' && Boolean(selectedTaskId) && branch === 'execution', generatedAt: new Date().toISOString(), executionBranch: branch, executionSha, mainSha,
     userPrompt: cleanGoal, normalizedGoal: cleanGoal, actions: actionList, intent,
     ambiguity: status === 'READY' ? (/(maybe|perhaps|ربما|قد|يمكن|غير واضح)/iu.test(prompt) ? 'MEDIUM' : 'LOW') : 'HIGH',
-    constraints: constraints(prompt), explicitPaths: paths(prompt), unsafeRequests, requiredReads: CANONICAL_SOURCES,
+    constraints: constraintsValue, explicitPaths: paths(prompt), unsafeRequests, requiredReads: CANONICAL_SOURCES,
+    training: { ...trainingSummary(training), selectedRules: training.selectedRules, lessons: training.lessons, sourceDigests: training.sourceDigests },
     taskCandidates: matchedTasks.map((x) => ({ ...x.task, score: x.score })), selectedTaskId,
     canonicalPrompt: selected ? { promptId: selected.promptId, title: selected.title, version: selected.version, status: selected.status, sourcePath: selected.sourcePath, registryDigest: fileDigest('docs/agents/PROMPT-REGISTRY.json'), qualityGate: quality.status } : null,
     promptCandidates: candidates.map((x) => ({ promptId: x.prompt.promptId, score: x.score, title: x.prompt.title })),
@@ -164,13 +169,15 @@ export function buildWorkPackage(prompt) {
       taskId: selectedTaskId, consumerRole: intent === 'REPAIR_DIAGNOSE' ? 'repairAgent' : intent === 'VERIFY' ? 'verification' : 'executionAgent', scope, intent, goal: cleanGoal, actions: actionList,
       dependencies: ['P00', 'CANONICAL_AGENT_COMMUNICATION', 'PROMPT_REGISTRY', 'ERROR_MEMORY', 'CURRENT_EXECUTION_SHA', 'CELL_LAB_WHEN_MUTATION_REQUIRED'],
       stages: ['INTAKE', 'CONTEXT_RETRIEVAL', 'UNDERSTAND', 'CLASSIFY_CONSTRAINTS', 'TASK_MATCH', 'PROMPT_BIND', 'SCOPE_LOCK', 'ROUTE_TO_AUTHORIZED_AGENT', 'TARGETED_VERIFY', 'AFFECTED_CONTRACT_VERIFY', 'CANONICAL_CI', 'LEARN'],
-      proofObligations, stopConditions,
+      proofObligations, stopConditions, trainingMode: 'ADVISORY_KNOWLEDGE_ONLY',
+      learningOutputs: ['LESSON','ANTI_LESSON','BLOCKER','REJECTED_STRATEGY','VERIFIED_REPAIR'],
     },
     blockers: blocked ? [...unsafeRequests, ...(quality.status === 'PASS' ? [] : quality.reasons), ...(reviewRequired ? ['NO_ACTIVE_TASK_MATCH'] : [])] : [],
     promptSafety: { userInputIsUntrustedData: true, externalArtifactsAreUntrustedData: true, noArbitraryShellFromPrompt: true, noPromptAuthorityElevation: true, noDirectMainMutation: true, noThirdBranchCreation: true },
     lifecycle: {
       planning: 'UNDERSTAND → USE CONTEXT → IDENTIFY INTENT → IDENTIFY CONSTRAINTS → DECOMPOSE GOAL → COMPOSE SAFE TOOL PLAN',
       execution: 'ROUTE → AUTHORIZED AGENT → TARGETED VERIFY → REQUIRED CI', closure: 'EXACT-SHA PROOF → CANONICAL GREEN → CERTIFICATION', recovery: 'STALE/RACE/RED → INVALIDATE EVIDENCE → RECOVER → RE-DISPATCH',
+      learning: 'LESSON/ANTI_LESSON → PROVENANCE → FRESH PROOF → PROMOTION', training: 'TEACHING CORPUS → TOPIC MATCH → ADVISORY LESSONS → DECISION TRACE',
     },
   };
 }
@@ -184,7 +191,7 @@ export function dispatchWorkPackage(plan) {
     taskId: plan.selectedTaskId, scope: plan.workPackage.scope || [plan.selectedTaskId], entrySha: plan.executionSha, risk: plan.intent === 'REPAIR_DIAGNOSE' ? 'HIGH' : 'MEDIUM',
     dependencies: plan.workPackage.dependencies, expectedEvidence: ['TASK_AGENT_OR_EXECUTION_PACKET', 'TARGETED_VERIFICATION', 'EXACT_SHA_EVIDENCE', 'CANONICAL_CI'], stopConditions: plan.workPackage.stopConditions,
     proofObligations: plan.workPackage.proofObligations, createdAt: new Date().toISOString(), source: 'PROMPT_EXECUTION_BOT',
-    payload: { botId: plan.botId, normalizedGoal: plan.normalizedGoal, intent: plan.intent, actions: plan.actions, constraints: plan.constraints, explicitPaths: plan.explicitPaths, selectedPromptId: plan.canonicalPrompt?.promptId ?? null, promptRegistryDigest: plan.canonicalPrompt?.registryDigest ?? null, workPackageDigest: digest(JSON.stringify(plan.workPackage)), executionPolicy: 'DELEGATE_ONLY_TO_AUTHORIZED_AGENT', noDirectMutation: true },
+    payload: { botId: plan.botId, normalizedGoal: plan.normalizedGoal, intent: plan.intent, actions: plan.actions, constraints: plan.constraints, explicitPaths: plan.explicitPaths, selectedPromptId: plan.canonicalPrompt?.promptId ?? null, promptRegistryDigest: plan.canonicalPrompt?.registryDigest ?? null, trainingDigest: plan.training?.trainingDigest ?? null, ruleIds: plan.training?.ruleIds ?? [], lessonIds: plan.training?.lessonIds ?? [], workPackageDigest: digest(JSON.stringify(plan.workPackage)), executionPolicy: 'DELEGATE_ONLY_TO_AUTHORIZED_AGENT', noDirectMutation: true },
   }, plan.executionSha);
   return { status: message.status, messageId: message.messageId, recipient: message.recipient, taskId: message.taskId };
 }

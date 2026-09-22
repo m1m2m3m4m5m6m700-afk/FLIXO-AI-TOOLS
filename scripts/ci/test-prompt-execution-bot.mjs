@@ -30,3 +30,12 @@ console.log('PROMPT_EXECUTION_BOT_TEST=PASS');
 console.log('PROMPT_EXECUTION_BOT_EXACT_SHA=PASS');
 console.log('PROMPT_EXECUTION_BOT_CANONICAL_PROMPT=PASS');
 console.log('PROMPT_EXECUTION_BOT_SAFETY=PASS');
+
+const trainingDriven = buildWorkPackage('أصلح خطأ CI الحالي، احترم Exact-SHA، تواصل عبر الوكيل المسؤول وتحقق من النتيجة.');
+assert.equal(trainingDriven.training.authority,'ADVISORY_ONLY');
+assert.equal(trainingDriven.training.proofAuthority,'CURRENT_EXACT_SHA_CI_ONLY');
+assert.ok(trainingDriven.training.ruleIds.includes('EBT-008'));
+assert.ok(trainingDriven.training.ruleIds.includes('EBT-010'));
+assert.ok(trainingDriven.training.ruleIds.includes('EBT-007'));
+assert.equal(trainingDriven.training.trainingDigest.length,64);
+console.log('PROMPT_EXECUTION_BOT_TRAINING=PASS');
