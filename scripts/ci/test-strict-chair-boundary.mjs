@@ -17,7 +17,11 @@ assert.match(gate,/central-chair-lease\.mjs/);
 assert.match(gate,/MUTATION_GATE_CENTRAL_CHAIR_CONTEXT_MISSING/);
 assert.match(chair,/verifyCentralChairForMutation/);
 assert.match(chair,/CENTRAL_CHAIR_REQUIRED_FOR_MUTATION/);
-assert.match(chair,/const centralChairStrict = \(\) => process\.env\.NODE_ENV === 'test' \? process\.env\.FLIXO_STRICT_CHAIR === 'true' : true;/u);
+assert.match(chair,/const centralChairStrict = \(\) => true;/u);
+assert.match(chair,/configureCentralChairTestTransport/);
+assert.match(chair,/CENTRAL_CHAIR_PROOF_INVALID/);
+assert.match(chair,/delegatedBy/);
+assert.match(chair,/releaseCentralChair/);
 assert.doesNotMatch(chair,/process\.env\.CI === 'true' \|\| process\.env\.GITHUB_ACTIONS === 'true'/u);
 
 // Production-mode adversarial regression: environment flags cannot disable Central Chair-1 custody.
@@ -74,7 +78,9 @@ assert.notEqual(probe.status, 0);
 assert.match(String(probe.stderr) + String(probe.stdout), /CENTRAL_CHAIR_REQUIRED_FOR_MUTATION/u);
 console.log('LOCAL_PRODUCTION_CHAIR_BYPASS=BLOCKED');
 
+assert.match(chair,/takeChair1[\s\S]*verifyCentralChairForMutation/);
 assert.match(chair,/authorizePublication[\s\S]*verifyCentralChairForMutation/);
+assert.match(chair,/release\([\s\S]*releaseCentralChair/);
 assert.match(daily,/SUPABASE_SERVICE_ROLE_KEY: \$\{\{ secrets\.SUPABASE_SERVICE_ROLE_KEY \}\}/);
 assert.match(daily,/central-chair-lease\.mjs delegate/);
 assert.match(daily,/inputs\[central_chair_lease_id\]/);
@@ -84,6 +90,13 @@ assert.match(auto,/central_chair_fencing_hash:/);
 assert.match(auto,/FLIXO_STRICT_CHAIR: 'true'/);
 assert.match(auto,/central-chair-lease\.mjs verify/);
 assert.doesNotMatch(sync,/git push origin execution/);
+
+const workers=read('scripts/ci/action-repair-five-workers.mjs');
+assert.doesNotMatch(workers,/git\\s+push\\s+origin\\s+execution/u);
+assert.match(workers,/ACTION-REPAIR/);
+assert.match(workers,/ACTION-INDEX/);
+assert.match(workers,/ACTION-WISE/);
+assert.match(workers,/ACTION-HISTORIAN-3/);
 assert.doesNotMatch(history,/git push origin execution/);
 assert.match(sync,/CHAIR_GUARD_BLOCKED: Execution Sync is proposal-only/);
 assert.match(history,/CHAIR_GUARD_BLOCKED: Historical index may not publish directly to execution/);
@@ -91,4 +104,7 @@ assert.match(migration,/create or replace function public\.flix_chair1_delegate/
 assert.match(migration,/create or replace function public\.flix_chair1_verify/);
 assert.match(migration,/create or replace function public\.flix_chair1_heartbeat/);
 assert.match(migration,/create or replace function public\.flix_chair1_release/);
+assert.match(migration,/delegated_by<>'assistantController'/);
+assert.match(migration,/delegated_by',r\.delegated_by/);
+assert.match(migration,/flix_chair1_delegated_by_ck/);
 console.log('STRICT_CHAIR_BOUNDARY=PASS');
