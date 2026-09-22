@@ -4,6 +4,7 @@ import { LOCALES, type Locale } from '@/lib/i18n/config.ts';
 import type { ComponentType, LazyExoticComponent } from 'react';
 
 export type ToolFamily = 'image' | 'video' | 'audio' | 'ai' | 'editor';
+export type ToolCategory = 'Images' | 'Video' | 'Audio' | 'AI' | 'Editor';
 export type ToolLifecycle = 'experimental' | 'beta' | 'ready' | 'deprecated';
 export type ToolExecution = 'browser-local' | 'browser-worker' | 'remote';
 export type ToolContractLevel = 'structural' | 'runtime' | 'artifact';
@@ -21,7 +22,8 @@ export type ToolSource = Readonly<{
   title: string;
   path: string;
   description: string;
-  category: 'Images';
+  family?: ToolFamily;
+  category: ToolCategory;
   isReady: boolean;
   aliases?: readonly string[];
   component: LazyExoticComponent<ComponentType>;
@@ -41,7 +43,8 @@ export type ToolDefinition = Readonly<{
   family: ToolFamily;
   title: string;
   description: string;
-  category: 'Images';
+  family: ToolFamily;
+  category: ToolCategory;
   isReady: boolean;
   path: string;
   routes: Readonly<Record<Locale, string>>;
@@ -168,7 +171,7 @@ export function toToolDefinition(tool: ToolConfig): ToolDefinition {
   const recovery: ToolRecoveryPolicy = Object.freeze({ maxAttempts: capabilityState === 'EXECUTABLE' ? 3 : 0, replanOnFailure: false });
   return Object.freeze({
     id: tool.id,
-    family: 'image',
+    family: tool.family ?? 'image',
     title: tool.title,
     description: tool.description,
     category: tool.category,
