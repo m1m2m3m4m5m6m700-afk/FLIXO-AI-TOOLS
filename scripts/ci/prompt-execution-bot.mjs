@@ -10,6 +10,7 @@ import { ingest } from './agent-communication.mjs';
 import { runAdversarialCorrectionLoop, assertAdversarialGate } from './prompt-execution-bot-adversary.mjs';
 import { loadExecutionBotTraining, trainingSummary } from './prompt-execution-bot-training.mjs';
 import { validateAdversarialBotCommandRegistry } from './adversarial-bot-commands.mjs';
+import { buildFiveXExecutionEnvelope, validateFiveXExecutionLayer } from './read-only-power-profile.mjs';
 
 const ROOT = process.cwd();
 const MAX_INPUT = Math.max(1000, Number(process.env.FLIXO_PROMPT_BOT_MAX_INPUT_CHARS ?? 12000));
@@ -76,6 +77,8 @@ function canonicalContext() {
   const cooperation = fs.readFileSync(path.resolve(ROOT, 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json'), 'utf8');
   const adversarialRegistry = JSON.parse(fs.readFileSync(path.resolve(ROOT, 'docs/agents/ADVERSARIAL-BOT-COMMANDS.json'), 'utf8'));
   const adversarialRegistryValidation = validateAdversarialBotCommandRegistry(adversarialRegistry);
+  const fiveXValidation = validateFiveXExecutionLayer();
+  if (!fiveXValidation.ok) throw new Error('PROMPT_EXECUTION_BOT_FIVE_X_PROFILE_INVALID=' + fiveXValidation.failures.join('|'));
   if (!adversary.includes("ACTION-REPAIR-2") || !adversary.includes("NO_MUTATION_NO_CERTIFICATION")) throw new Error('PROMPT_EXECUTION_BOT_ADVERSARY_CONTRACT_INVALID');
   if (!cooperation.includes('"ACTION-REPAIR-2"') || !cooperation.includes('"mutationAuthority": false')) throw new Error('PROMPT_EXECUTION_BOT_ADVERSARY_AUTHORITY_INVALID');
   if (!adversarialRegistryValidation.ok || adversarialRegistryValidation.botCount < 4) throw new Error('PROMPT_EXECUTION_BOT_ADVERSARIAL_COMMAND_REGISTRY_INVALID');
@@ -259,7 +262,25 @@ export function buildWorkPackage(prompt) {
     adversarialLoop, adversarialReview, adversarialFailureReport, scope,
     proofObligations, stopConditions,
   });
-  const status = blocked ? 'BLOCKED' : (reviewRequired || adversarialBlock || preExecution25.status !== 'PASS') ? 'REVIEW_REQUIRED' : 'READY';
+  const fiveXEnvelope = buildFiveXExecutionEnvelope({
+    exactSha: executionSha,
+    branch,
+    selectedTaskId,
+    hypothesisCount: Array.isArray(adversarialReview.alternativeHypotheses) ? adversarialReview.alternativeHypotheses.length : 0,
+    counterexampleChecks: Array.isArray(adversarialReview.falsificationChecks) ? adversarialReview.falsificationChecks.length : 0,
+    regressionDepth: 3,
+    independentEvidenceSources: 5,
+    learningOutputs: 5,
+    proofClasses: ['IDENTITY', 'CONSTRAINTS', 'CAUSALITY', 'FALSIFICATION', 'REGRESSION'],
+    preExecution25,
+    adversarialReview,
+    scopeConflict: false,
+  });
+  const status = blocked
+    ? 'BLOCKED'
+    : (reviewRequired || adversarialBlock || preExecution25.status !== 'PASS' || fiveXEnvelope.status !== 'READY_FOR_AUTHORIZED_EXECUTION')
+      ? 'REVIEW_REQUIRED'
+      : 'READY';
   const cleanGoal = prompt.replace(/\s+/gu, ' ').trim();
   return {
     schemaVersion: 1, authority: 'FLIXO_PROMPT_EXECUTION_BOT', botId: 'PROMPT-EXECUTION-BOT', mode: String(arg('mode', 'plan')).toLowerCase(), status,
@@ -267,6 +288,7 @@ export function buildWorkPackage(prompt) {
     userPrompt: cleanGoal, normalizedGoal: cleanGoal, actions: actionList, intent,
     adversarialFailureReport,
     preExecution25,
+    fiveX: fiveXEnvelope,
     ambiguity: status === 'READY' ? (/(maybe|perhaps|ربما|قد|يمكن|غير واضح)/iu.test(prompt) ? 'MEDIUM' : 'LOW') : 'HIGH',
     constraints: effectiveConstraints, explicitPaths: paths(prompt), unsafeRequests, requiredReads: CANONICAL_SOURCES,
     training: { ...trainingSummary(training), selectedRules: training.selectedRules, lessons: training.lessons, sourceDigests: training.sourceDigests },
@@ -278,7 +300,7 @@ export function buildWorkPackage(prompt) {
       taskId: selectedTaskId, consumerRole: intent === 'REPAIR_DIAGNOSE' ? 'repairAgent' : intent === 'VERIFY' ? 'verification' : 'executionAgent', scope, intent, goal: cleanGoal, actions: actionList,
       dependencies: ['P00', 'CANONICAL_AGENT_COMMUNICATION', 'PROMPT_REGISTRY', 'ERROR_MEMORY', 'CURRENT_EXECUTION_SHA', 'CELL_LAB_WHEN_MUTATION_REQUIRED'],
       stages: ['INTAKE', 'CONTEXT_RETRIEVAL', 'UNDERSTAND', 'CLASSIFY_CONSTRAINTS', 'TASK_MATCH', 'PROMPT_BIND', 'SCOPE_LOCK', 'ROUTE_TO_AUTHORIZED_AGENT', 'TARGETED_VERIFY', 'AFFECTED_CONTRACT_VERIFY', 'CANONICAL_CI', 'LEARN'],
-      proofObligations: effectiveProofObligations, stopConditions: effectiveStopConditions, adversarialReview, trainingMode: 'ADVISORY_KNOWLEDGE_ONLY',
+      proofObligations: effectiveProofObligations, stopConditions: effectiveStopConditions, adversarialReview, fiveX: fiveXEnvelope, trainingMode: 'ADVISORY_KNOWLEDGE_ONLY',
       learningOutputs: ['LESSON','ANTI_LESSON','BLOCKER','REJECTED_STRATEGY','VERIFIED_REPAIR'],
     },
     blockers: (blocked || reviewRequired || adversarialBlock) ? [...unsafeRequests, ...(quality.status === 'PASS' ? [] : quality.reasons), ...(reviewRequired ? ['NO_ACTIVE_TASK_MATCH'] : []), ...(adversarialBlock ? ['ADVERSARIAL_REVIEW_REQUIRED'] : []), ...(adversarialBlock && adversarialLoop.round >= 8 ? ['ADVERSARIAL_REPAIR_EXHAUSTED'] : [])] : [],
@@ -294,6 +316,7 @@ export function buildWorkPackage(prompt) {
 export function dispatchWorkPackage(plan) {
   if (plan.status !== 'READY' || !plan.dispatchable) throw new Error(`PROMPT_EXECUTION_BOT_DISPATCH_BLOCKED=${plan.blockers.join('|') || 'NOT_DISPATCHABLE'}`);
   if (plan.preExecution25?.status !== 'PASS' || plan.preExecution25.operationCount < 25) throw new Error('PROMPT_EXECUTION_BOT_PRE_EXECUTION_25_BLOCKED');
+  if (plan.fiveX?.status !== 'READY_FOR_AUTHORIZED_EXECUTION') throw new Error('PROMPT_EXECUTION_BOT_FIVE_X_BLOCKED=' + (plan.fiveX?.blockers?.join('|') || 'NO_ENVELOPE'));
   const currentBranch = git(['branch', '--show-current']);
   const currentExecutionSha = git(['rev-parse', 'HEAD']);
   if (currentBranch !== 'execution') throw new Error('PROMPT_EXECUTION_BOT_DISPATCH_REQUIRES_EXECUTION_BRANCH');
