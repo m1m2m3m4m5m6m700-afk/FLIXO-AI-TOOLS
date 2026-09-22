@@ -107,6 +107,8 @@ env:
   FLIXO_AUTO_REPAIR_ROLE: AUTO_REPAIR_BOT
   FLIXO_AUTO_REPAIR_CHAIR_AUDIT_REQUIRED: 'true'
   FLIXO_AUTO_REPAIR_SELF_APPROVAL: 'false'
+  FLIXO_CHAIR_SIGNING_KEY: ${{ github.token }}
+  FLIXO_HEAD_AUTHORITY_PROOF: /tmp/flixo-head-authority.json
   FLIXO_CHAIR1_PRIMARY_MISSION: CHAIR1_PRIMARY_TEST_CYCLE_REPAIR
   FLIXO_CHAIR1_MISSION_PATH: /tmp/flixo-chair1-repair-mission.json
 
@@ -343,8 +345,17 @@ jobs:
           if git merge-base --is-ancestor "$FAILED_SHA" HEAD; then
             echo "execution already contains failed SHA $FAILED_SHA"
           elif git merge-base --is-ancestor HEAD "$FAILED_SHA"; then
+            WORK_PACKAGE_ID="HEAD-REPAIR-SYNC:$GITHUB_RUN_ID"
+            TASK_ID="HEAD-REPAIR-SYNC:$GITHUB_RUN_ID"
+            EXECUTION_BASE_SHA="$EXECUTION_BASE_SHA"
+            node scripts/ci/chair-bound-execution.mjs init --sha="$EXECUTION_BASE_SHA"
+            node scripts/ci/chair-bound-execution.mjs acquire --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$EXECUTION_BASE_SHA" --repository-state=IDLE --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$(FLIXO_CHAIR_SIGNING_KEY="$FLIXO_CHAIR_SIGNING_KEY" node -e "const crypto=require('crypto');process.stdout.write(crypto.createHash('sha256').update('$WORK_PACKAGE_ID:$TASK_ID:$EXECUTION_BASE_SHA').digest('hex'))")" --scope="*" >/tmp/flixo-head-sync-chair.json
             git merge --ff-only "$FAILED_SHA"
+            CANDIDATE_SHA="$(git rev-parse HEAD)"
+            node scripts/ci/chair-bound-execution.mjs authorize-publication --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$EXECUTION_BASE_SHA" --permission=SOURCE_MUTATION --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$(jq -r '.chairs.chair_1.lease_id' /tmp/flixo-head-sync-chair.json)" --paths="*" >/tmp/flixo-head-sync-publication.json || true
+            node scripts/ci/execution-head-authority.mjs authorize --agent=AUTO_REPAIR_BOT --target-sha="$EXECUTION_BASE_SHA" --parent-sha="$EXECUTION_BASE_SHA" --candidate-sha="$CANDIDATE_SHA" --task-id="$TASK_ID" --work-package="$WORK_PACKAGE_ID" --output="$FLIXO_HEAD_AUTHORITY_PROOF"
             git push origin execution
+            node scripts/ci/chair-bound-execution.mjs release --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$EXECUTION_BASE_SHA" --successful=true >/tmp/flixo-head-sync-release.json
           else
             echo "execution and failed main SHA have diverged; refusing a third branch or destructive reset."
             exit 1
