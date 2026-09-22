@@ -13,6 +13,7 @@ const council=read('supabase/functions/flixo-council-runtime/index.ts');
 const sw=read('public/sw.js');
 const gate=read('scripts/ci/execution-mutation-gate.mjs');
 const registry=read('scripts/ci/control-plane-registry.mjs');
+const dbHardening=read('supabase/migrations/20260922220000_security_definer_execute_hardening.sql');
 
 assert.match(auto,/git worktree add --detach "\$TARGET_ROOT" "\$EXECUTION_SHA"/u);
 assert.doesNotMatch(auto,/git\s+(?:switch|checkout)\s+-c\s+execution/u);
@@ -45,5 +46,11 @@ assert.match(sw,/no-store\|private/u);
 
 assert.match(registry,/scripts\/security\/security-red-team-runner\.mjs/u);
 assert.match(registry,/docs\/agents\/SECURITY-RED-TEAM-BOTS\.json/u);
+assert.match(dbHardening,/revoke execute on function public\.enforce_council_dispatch_priority\(\) from public, anon, authenticated;/u);
+assert.match(dbHardening,/revoke execute on function public\.flixo_council_assistant_wake_notify\(\) from public, anon, authenticated;/u);
+assert.match(dbHardening,/revoke all on table public\.flixo_council_assistant_channel_tokens from anon, authenticated;/u);
+assert.match(dbHardening,/create policy flixo_council_assistant_channel_tokens_anon_deny/u);
+assert.match(dbHardening,/revoke all on table public\.flix_controller_push_queue from anon, authenticated;/u);
+
 
 console.log('SECURITY_REDTEAM_DEEP_REMEDIATION_CONTRACT=PASS');
