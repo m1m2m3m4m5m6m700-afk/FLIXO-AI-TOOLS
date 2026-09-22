@@ -1159,6 +1159,23 @@ jobs:
           printf '%s\n' "$ENGINE_OUTCOME" > /tmp/flixo-engine-outcome
           printf '%s\n' "$LEARNING_OUTCOME" > /tmp/flixo-learning-outcome
 
+      - name: Validate persisted 5X repair-cycle state
+        if: always() && steps.strategy.outcome == 'success'
+        run: |
+          set -euo pipefail
+          test -s /tmp/flixo-five-x-repair-cycle.json
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          jq -e --arg sha "$FAILED_SHA" --arg fp "$FLIXO_FAILURE_FINGERPRINT" '
+            .protocol == "FLIXO-FIVE-X-REPAIR-CYCLE-v1"
+            and .targetSha == $sha
+            and .failureFingerprint == $fp
+            and .staleEvidence == false
+            and .invalidatedPriorEvidence == false
+            and .state != "CLOSED_BY_CANONICAL_GREEN"
+          ' /tmp/flixo-five-x-repair-cycle.json >/dev/null
+          echo 'FIVE_X_CLOSED_LOOP_STATE=VALID'
+          echo 'FIVE_X_CLOSURE_AUTHORITY=CANONICAL_GREEN_AND_CERTIFICATION'
+
       - name: Promote verified repair learning state
         if: steps.verify.outputs.verified == 'true' && steps.chair1_audit.outcome == 'success'
         run: |
