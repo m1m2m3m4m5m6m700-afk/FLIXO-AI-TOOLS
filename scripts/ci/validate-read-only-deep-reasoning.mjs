@@ -24,6 +24,8 @@ for (const marker of [
   'causalDiscriminator',
   'metaCausalModel',
   'repairIntelligence',
+  'powerPasses',
+  "powerProfile: READ_ONLY_POWER_PROFILE.profile",
   "FLIXO-READ-ONLY-REPAIR-INTELLIGENCE-v1",
   "CAUSAL-DISCRIMINATOR-v1",
   "META-CAUSAL-MODEL-v1",
@@ -37,6 +39,7 @@ if (/git\s+(add|commit|push|reset|checkout)|update_file|create_file|delete_file|
 if (!/exactSha\(executionSha\)/u.test(source)) failures.push('EXACT_SHA_GUARD_MISSING');
 if (!source.includes('COUNTERFACTUAL_SUPPORTS_SINGLE_CAUSE')) failures.push('COUNTERFACTUAL_ANALYSIS_MISSING');
 if (!source.includes('SURVIVES_CURRENT_FALSIFICATION')) failures.push('FALSIFICATION_RESULT_MISSING');
+if (!source.includes('P1_RUNTIME_EVIDENCE_FANOUT') || !source.includes('P5_KNOWLEDGE_SYNTHESIS')) failures.push('FIVE_X_REASONING_PASSES_MISSING');
 if (!testSource.includes('INTERNAL_CONTRACT') || !testSource.includes('BLOCKED_EXTERNAL') || !testSource.includes('DOWNSTREAM_FAILURE')) {
   failures.push('CLASS_FIXTURES_MISSING');
 }
