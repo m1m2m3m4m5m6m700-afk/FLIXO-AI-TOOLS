@@ -11,6 +11,7 @@ import { AGENT_LIVENESS_PROTOCOL, assertActiveRepairWindow, checkHeartbeat, chec
 import { initialize as initializeChairState, heartbeat as heartbeatChair, reconcileDeadLeases, beginWork as beginChairWork, endWork as endChairWork, assertWorkAdmission, activeChairForAgent, preemptedContinuityForAgent } from './chair-bound-execution.mjs';
 import { createAgentWorkspace, captureAgentResult, assertWorkspaceIsolation, cleanupAgentWorkspace } from './agent-isolated-workspace.mjs';
 import { createChangeReport } from './guard-communication.mjs';
+import { buildSharedLearningContext, publishSharedBatch } from './shared-operational-memory.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -64,6 +65,7 @@ const assertLiveSession = (record) => {
   if (record.governanceFingerprint && record.governanceFingerprint !== currentGovernance) throw new Error('AGENT_SESSION_GOVERNANCE_DRIFT');
   if (!isWorkspaceOnlySession(record) && record.branch && record.branch !== gitBranch()) throw new Error('AGENT_SESSION_BRANCH_DRIFT');
 };
+const recordSourceBotForSession = ({agentId,role}={}) => agentId === 'actionRepairBot' ? 'ACTION-REPAIR' : agentId === 'actionRepairVerifier' ? 'ACTION-REPAIR-2' : role === 'reviewAgent' ? 'reviewAgent' : role === 'executionAgent' ? 'executionAgent' : (role === 'analysis' || role === 'errorAgent' || role === 'codeScout') ? 'READ-INVESTIGATOR' : 'executionAgent';
 const readCanonicalAdmissionSources = () => {
   const sources = requiredReads.map((file) => ({ path: file, sha256: admissionDigest(file) }));
   const protocolRegistry = JSON.parse(fs.readFileSync(path.resolve(ROOT, 'docs/PROTOCOL-REGISTRY.json'), 'utf8'));
@@ -76,8 +78,7 @@ const readCanonicalAdmissionSources = () => {
   const promptRegistry = loadPromptRegistry();
   const promptValidation = validatePromptRegistry(promptRegistry);
   if (!promptValidation.ok) throw new Error('AGENT_ADMISSION_PROMPT_REGISTRY_INVALID');
-  const recordSourceBotForSession = ({agentId,role}={}) => agentId === 'actionRepairBot' ? 'ACTION-REPAIR' : agentId === 'actionRepairVerifier' ? 'ACTION-REPAIR-2' : role === 'reviewAgent' ? 'reviewAgent' : role === 'executionAgent' ? 'executionAgent' : (role === 'analysis' || role === 'errorAgent' || role === 'codeScout') ? 'READ-INVESTIGATOR' : 'executionAgent';
-const memory = loadErrorMemory();
+  const memory = loadErrorMemory();
   if (!memory || !Array.isArray(memory.cases) || !Array.isArray(memory.lessons) || !Array.isArray(memory.antiLessons)) {
     throw new Error('AGENT_ADMISSION_MEMORY_INVALID');
   }
