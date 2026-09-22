@@ -99,7 +99,7 @@ jobs:
       - name: Ensure exact-SHA required CI is resident
         if: steps.capture.outputs.branch == 'execution'
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
