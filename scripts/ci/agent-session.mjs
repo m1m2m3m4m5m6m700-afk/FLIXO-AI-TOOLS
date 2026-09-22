@@ -76,7 +76,8 @@ const readCanonicalAdmissionSources = () => {
   const promptRegistry = loadPromptRegistry();
   const promptValidation = validatePromptRegistry(promptRegistry);
   if (!promptValidation.ok) throw new Error('AGENT_ADMISSION_PROMPT_REGISTRY_INVALID');
-  const memory = loadErrorMemory();
+  const recordSourceBotForSession = ({agentId,role}={}) => agentId === 'actionRepairBot' ? 'ACTION-REPAIR' : agentId === 'actionRepairVerifier' ? 'ACTION-REPAIR-2' : role === 'reviewAgent' ? 'reviewAgent' : role === 'executionAgent' ? 'executionAgent' : (role === 'analysis' || role === 'errorAgent' || role === 'codeScout') ? 'READ-INVESTIGATOR' : 'executionAgent';
+const memory = loadErrorMemory();
   if (!memory || !Array.isArray(memory.cases) || !Array.isArray(memory.lessons) || !Array.isArray(memory.antiLessons)) {
     throw new Error('AGENT_ADMISSION_MEMORY_INVALID');
   }
@@ -532,6 +533,7 @@ if (command === 'meeting-exit-approve') {
     chairId: null,
     chairLeaseId: null,
     chairBinding: { required: true, admission: 'CHAIR_REQUIRED_FOR_WORK', chairId: null, leaseId: null, targetSha: sha, taskId, workPackageId: taskId, acquiredAt: null, released: false },
+    sharedOperationalMemory: buildSharedLearningContext({botId: recordSourceBotForSession({ agentId, role }), limit: 64 }),
     bootstrap: !continuation,
     ...(continuation ?? {}),
     actions: [{ at: now(), action: 'LOGIN', sha, ...(continuation ? { fromSession } : {}) }],
