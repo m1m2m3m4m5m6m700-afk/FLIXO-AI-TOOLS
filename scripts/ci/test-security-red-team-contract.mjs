@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 const root = process.cwd();
 const registry = JSON.parse(fs.readFileSync(path.join(root,'docs/agents/SECURITY-RED-TEAM-BOTS.json'),'utf8'));
 const workflow = fs.readFileSync(path.join(root,'.github/workflows/security-red-team.yml'),'utf8');
+const pulse = fs.readFileSync(path.join(root,'.github/workflows/security-red-team-pulse.yml'),'utf8');
 
 assert.equal(registry.protocol,'FLIXO-SECURITY-RED-TEAM-TRIAD-v1');
 assert.equal(registry.branchPolicy.workingBranch,'execution');
@@ -29,6 +30,11 @@ assert.match(workflow,/scripts\/security\/record-security-findings\.mjs/u);
 assert.doesNotMatch(workflow,/git\s+push[^\n]*main/iu);
 assert.doesNotMatch(workflow,/git\s+switch\s+--create/iu);
 assert.doesNotMatch(workflow,/pull_request_target:/u);
+assert.match(pulse,/cron:\s*'\\*\\/5 \\* \\* \\* \\*'/u);
+assert.match(pulse,/actions:\s+write/u);
+assert.match(pulse,/gh workflow run security-red-team-pulse\\.yml/u);
+assert.match(pulse,/PEER_WAKE_TARGET/u);
+assert.match(pulse,/agent-liveness-protocol\\.mjs heartbeat/u);
 
 const runner = fs.readFileSync(path.join(root,'scripts/security/security-red-team-runner.mjs'),'utf8');
 const ledger = fs.readFileSync(path.join(root,'scripts/security/record-security-findings.mjs'),'utf8');
