@@ -35,6 +35,12 @@ const SHA_RE=/^[a-f0-9]{40}$/u;
 const HASH_RE=/^[a-f0-9]{64}$/u;
 const AGENT_RE=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u;
 export const CHAIR1_OWNER_AGENT='assistantController';
+export const PUSH_GATE_POLICY=Object.freeze({mode:'CLOSED_FOR_INCREMENTAL_PUSH',acceptedChangeType:'UNIFIED_ACCUMULATED_COMMIT',requiredCommitCount:1,authority:CHAIR1_OWNER_AGENT});
+function assertUnifiedPushGate(details){
+  if(String(details?.changeType??'').trim()!==PUSH_GATE_POLICY.acceptedChangeType)throw new Error('CHAIR_PUSH_GATE_CLOSED_INCREMENTAL_PUSH');
+  if(Number(details?.commitCount)!==PUSH_GATE_POLICY.requiredCommitCount)throw new Error('CHAIR_PUSH_GATE_SINGLE_COMMIT_REQUIRED');
+  if(!String(details?.aggregateId??'').trim())throw new Error('CHAIR_PUSH_GATE_AGGREGATE_ID_REQUIRED');
+}
 
 const positiveDuration=(value,fallback)=>{const n=Number(value);return Number.isFinite(n)&&n>0?Math.floor(n):fallback;};
 const HEARTBEAT_INTERVAL_MS=positiveDuration(process.env.FLIXO_CHAIR_HEARTBEAT_INTERVAL_MS,30_000);
@@ -592,6 +598,7 @@ export function proposePush({
   if(String(details.actorAgent)!==agentId)throw new Error('CHAIR_PUSH_DETAILS_ACTOR_MISMATCH');
   if(String(details.event)!=='PUSH')throw new Error('CHAIR_PUSH_DETAILS_EVENT_INVALID');
   if(!HASH_RE.test(String(patchSha256??'')))throw new Error('CHAIR_PUSH_PATCH_SHA_REQUIRED');
+  assertUnifiedPushGate(details);
   if(!HASH_RE.test(String(details.commitTreeSha)))throw new Error('CHAIR_PUSH_COMMIT_TREE_SHA_REQUIRED');
   const proposalId=hash(JSON.stringify({chairId,agentId,targetSha:t,candidateSha:candidate,parentSha:parent,paths:normalized,workPackageId:wp,taskId:task,patchSha256:String(patchSha256),pushDetails:details}));
   return withWriteLock(()=>{
@@ -614,6 +621,8 @@ export function proposePush({
       patchSha256:String(patchSha256),
       summary:String(summary??'').slice(0,4000),
       pushDetails:{
+       pushGateMode:PUSH_GATE_POLICY.mode,
+       aggregationStatus:'UNIFIED_COMMIT_ONLY',
         pushId:String(details.pushId),
         actorAgent:String(details.actorAgent),
         actorRole:String(details.actorRole),
@@ -626,6 +635,8 @@ export function proposePush({
         commitMessage:String(details.commitMessage).slice(0,4000),
         commitTreeSha:String(details.commitTreeSha),
         requestedAt:String(details.requestedAt),
+         commitCount:Number(details.commitCount),
+         aggregateId:String(details.aggregateId),
         expectedRemoteSha:t,
         candidateSha:candidate,
         parentSha:parent

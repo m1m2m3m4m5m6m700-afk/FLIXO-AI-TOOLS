@@ -42,11 +42,25 @@ assert.throws(
 );
 
 const guard=fs.readFileSync(path.join(root,'scripts/ci/chair-push-guard.mjs'),'utf8');
+assert.throws(
+  ()=>proposePush({
+    chairId:'chair_2',agentId:'strict-push-proposer',targetSha:exactSha,
+    candidateSha:'c'.repeat(40),parentSha:exactSha,paths:['src/example.ts'],
+    workPackageId:'WP-STRICT-PUSH',taskId:'TASK-STRICT-PUSH',patchSha256:'d'.repeat(64),
+    pushDetails:{pushId:'PUSH-STRICT-UNIFIED-NEGATIVE',actorAgent:'strict-push-proposer',actorRole:'chair_2',sessionId:'SESSION-STRICT',
+      event:'PUSH',reason:'negative gate test',changeType:'INCREMENTAL_PUSH',repository:'m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS',branch:'execution',
+      commitMessage:'negative test',commitTreeSha:'e'.repeat(64),requestedAt:new Date().toISOString(),commitCount:2,aggregateId:'AGG-NEGATIVE'}
+  }),
+  /CHAIR_PUSH_GATE_CLOSED_INCREMENTAL_PUSH/
+);
+
 assert.match(guard,/FLIXO-CHAIR-PUSH-PROPOSAL-v2/);
 assert.match(guard,/FLIXO-CHAIR-PUSH-VALIDATOR-v1/);
 assert.match(guard,/authority:'VALIDATION_ONLY'/);
 assert.match(guard,/decisionAuthority:'assistantController'/);
 assert.match(guard,/decision:null/);
+assert.match(guard,/CHAIR_GUARD_PUSH_GATE_CLOSED_INCREMENTAL_PUSH/);
+assert.match(guard,/UNIFIED_ACCUMULATED_COMMIT/);
 assert.doesNotMatch(guard,/decision:'ACCEPTED'/);
 assert.doesNotMatch(guard,/decision:'REJECTED'/);
 assert.doesNotMatch(guard,/READY_FOR_CHAIR_1/);

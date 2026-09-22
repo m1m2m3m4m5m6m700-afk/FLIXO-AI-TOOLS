@@ -9,6 +9,8 @@ const ROOT=process.cwd();
 const SHA_RE=/^[a-f0-9]{40}$/u;
 const HASH_RE=/^[0-9a-f]{64}$/u;
 const PATH_RE=/^(?!\/)(?!.*\.\.)[^\r\n]*$/u;
+const PUSH_GATE_CHANGE_TYPE='UNIFIED_ACCUMULATED_COMMIT';
+const PUSH_GATE_COMMIT_COUNT=1;
 const arg=(name,fallback='')=>{const p='--'+name+'=';const x=process.argv.find(v=>v.startsWith(p));return x?x.slice(p.length):fallback;};
 const git=(args)=>execFileSync('git',args,{cwd:ROOT,encoding:'utf8'}).trim();
 const sha=String(arg('sha')||git(['rev-parse','HEAD'])).trim();
@@ -82,6 +84,9 @@ try{
   if(!proposal){persist(report());process.exitCode=0;process.exit(0);}
   check('proposal.protocol',proposal.protocol==='FLIXO-CHAIR-PUSH-PROPOSAL-v2','CHAIR_GUARD_PROTOCOL_INVALID');
   check('proposal.proposerChair',['chair_2','chair_3'].includes(proposal.proposerChair),'CHAIR_GUARD_PROPOSER_SEAT_INVALID');
+  check('pushGate.changeType',proposal?.pushDetails?.changeType===PUSH_GATE_CHANGE_TYPE,'CHAIR_GUARD_PUSH_GATE_CLOSED_INCREMENTAL_PUSH');
+  check('pushGate.commitCount',Number(proposal?.pushDetails?.commitCount)===PUSH_GATE_COMMIT_COUNT,'CHAIR_GUARD_PUSH_GATE_SINGLE_COMMIT_REQUIRED');
+  check('pushGate.aggregateId',Boolean(String(proposal?.pushDetails?.aggregateId??'').trim()),'CHAIR_GUARD_PUSH_GATE_AGGREGATE_ID_REQUIRED');
   check('proposal.targetSha',SHA_RE.test(String(proposal.targetSha))&&proposal.targetSha===sha,'CHAIR_GUARD_STALE_PROPOSAL');
   check('proposal.parentSha',proposal.parentSha===sha,'CHAIR_GUARD_PARENT_NOT_CURRENT');
   check('proposal.candidateSha',SHA_RE.test(String(proposal.candidateSha))&&proposal.candidateSha!==sha,'CHAIR_GUARD_CANDIDATE_INVALID');
