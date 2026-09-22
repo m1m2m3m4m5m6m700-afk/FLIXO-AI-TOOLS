@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The Master Repair layer is a read-only supervisory gate that coordinates the existing FLIXO repair intelligence. It does not create a second mutation authority, a second GREEN authority, or a second branch.
+The Master Repair layer is a read-only supervisory gate operating at the canonical 10X reasoning depth that coordinates the existing FLIXO repair intelligence. It does not create a second mutation authority, a second GREEN authority, or a second branch.
 
 ## Canonical sequence
 
@@ -28,7 +28,7 @@ USER/RED SIGNAL
 
 ## Master Gate invariants
 
-The gate requires current exact-SHA identity, captured failure evidence, scout evidence, diagnosis, proven causal evidence, an In-Repo Repair V2 manifest with at least three alternative hypotheses, a bound repair strategy, at least five falsification checks, and knowledge arbitration that explicitly preserves Canonical CI as proof authority.
+The gate requires current exact-SHA identity, captured failure evidence, scout evidence, diagnosis, proven causal evidence, an In-Repo Repair V2 manifest with at least six alternative hypotheses, a bound repair strategy, at least ten falsification checks, and knowledge arbitration that explicitly preserves Canonical CI as proof authority.
 
 A blocked gate does not close the task. It creates a Master escalation/new-evidence requirement and preserves the packet as evidence.
 
