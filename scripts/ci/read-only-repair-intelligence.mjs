@@ -14,6 +14,7 @@ import { buildCausalDiscriminator } from './action-causal-discriminator.mjs';
 import { buildMetaCausalModel } from './meta-causal-model.mjs';
 import { buildMentorPacket } from './action-code-mentor.mjs';
 import { buildPrediction as buildActionVaultPrediction } from './action-historical-predictor.mjs';
+import { buildFusion as buildKnowledgeFusion } from './read-only-knowledge-fusion.mjs';
 
 const ROOT=process.cwd();
 const exactSha=(v)=>/^[a-f0-9]{40}$/u.test(String(v??''));
@@ -331,6 +332,13 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
     identity:{taskId:'READ_ONLY_REPAIR_INTELLIGENCE:'+fingerprint,fingerprint,targetSha,failedRunId:String(failedRunId)},
     proposedRepair:{mode:'OWNER_REVIEW_REQUIRED',confidence:0,notCertain:true}
   };
+  const knowledgeFusion=buildKnowledgeFusion({
+    failureLog:log,
+    diagnosis,
+    targetSha,
+    failedRunId:String(failedRunId),
+    prediction:actionVaultPrediction
+  });
   const adversarial=buildAdversarialMirror({
     log,targetSha,fingerprint,diagnosis,plan,selectedCandidate:selected,historicalKnowledge
   });
@@ -359,7 +367,8 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
       metaCausalModel,
       codeMentor:mentorPacket,
       actionVaultPrediction,
-      vaultKnowledge
+      vaultKnowledge,
+      knowledgeFusion
     },
     adversarial,
     deepInference,
@@ -374,6 +383,8 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
       programmerTwinMode:'READ_ONLY_MIRROR',
       vaultAdviceStatus:vaultKnowledge.status,
       vaultAdviceCount:vaultKnowledge.matchedAdvice.length,
+      knowledgeFusionDisposition:knowledgeFusion.synthesis.disposition,
+      knowledgeFusionConfidence:knowledgeFusion.synthesis.confidence,
       actionVaultPredictionStatus:actionVaultPrediction?.status??'UNKNOWN',
       actionVaultPredictionConfidence:Number(actionVaultPrediction?.proposedRepair?.confidence??0),
       mutationWouldBeAllowedByRepairStack:Boolean(errorOnly.repair?.mutationAllowed)&&Boolean(confidence.allowed)&&adversarial.counterexampleFound===false,
