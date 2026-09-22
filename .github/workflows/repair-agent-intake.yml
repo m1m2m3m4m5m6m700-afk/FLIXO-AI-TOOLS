@@ -77,19 +77,42 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          gh_retry() {
+            local attempt=1
+            local max_attempts=5
+            local delay=2
+            local output
+            while true; do
+              if output="$($@ 2>&1)"; then
+                printf '%s' "$output"
+                return 0
+              fi
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                printf '%s\n' "$output" >&2
+                return 1
+              fi
+              echo "TRANSIENT_GITHUB_API_FAILURE attempt=$attempt/$max_attempts; retrying in ${delay}s" >&2
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+
           RUN_ID="$EVENT_RUN_ID"
           if [ -n "$INPUT_RUN_ID" ]; then RUN_ID="$INPUT_RUN_ID"; fi
           if [ -z "$RUN_ID" ] && [ "${{ github.event_name }}" = "schedule" ]; then
             echo 'INTAKE_SCHEDULE_RESCUE_MODE=true'
-            RUN_ID="$(gh run list               --repo "$GITHUB_REPOSITORY"               --limit 100               --json databaseId,name,conclusion,headSha,headBranch,createdAt               | jq -r '
-                [ .[]
-                  | select(.headBranch == "execution" or .headBranch == "main")
-                  | select(.name != "FLIXO Repair Agent — Error Intake Gateway")
-                  | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required")
-                ]
-                | sort_by(.createdAt)
-                | last.databaseId // empty
-              ')"
+            RUN_LIST_JSON="$(gh_retry gh run list --repo "$GITHUB_REPOSITORY" --limit 100 --json databaseId,name,conclusion,headSha,headBranch,createdAt)"
+            RUN_ID="$(jq -r '
+              [ .[]
+                | select(.headBranch == "execution" or .headBranch == "main")
+                | select(.name != "FLIXO Repair Agent — Error Intake Gateway")
+                | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required")
+              ]
+              | sort_by(.createdAt)
+              | last.databaseId // empty
+            ' <<<"$RUN_LIST_JSON")"
             if [ -z "$RUN_ID" ]; then
               echo 'SCHEDULE_RESCUE_NO_ACTIONABLE_RUN=true'
               exit 0
@@ -97,7 +120,7 @@ jobs:
             echo "SCHEDULE_RESCUE_RUN_ID=$RUN_ID"
           fi
           test -n "$RUN_ID"
-          META="$(gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,name,conclusion,headSha,headBranch,status,updatedAt)"
+          META="$(gh_retry gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,name,conclusion,headSha,headBranch,status,updatedAt)"
           CONCLUSION="$(jq -r '.conclusion // empty' <<<"$META")"
           case "$CONCLUSION" in
             failure|timed_out|cancelled|action_required) ;;
@@ -106,7 +129,7 @@ jobs:
           FAILED_SHA="$(jq -r '.headSha' <<<"$META")"
           WORKFLOW="$(jq -r '.name' <<<"$META")"
           BRANCH="$(jq -r '.headBranch' <<<"$META")"
-          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
+          CURRENT_SHA="$(gh_retry gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
           printf '%s\n' "$RUN_ID" >/tmp/run-id
           printf '%s\n' "$FAILED_SHA" >/tmp/failed-sha
           printf '%s\n' "$WORKFLOW" >/tmp/workflow
