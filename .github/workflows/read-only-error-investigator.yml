@@ -50,11 +50,13 @@ jobs:
           persist-credentials: false
 
       - name: Validate investigator contract
+        env:
+          FLIXO_READ_ONLY_POWER: '5X'
         run: node scripts/ci/validate-read-only-error-investigator.mjs
-      run: node scripts/ci/test-read-only-power-profile.mjs
-      env:
-        FLIXO_READ_ONLY_POWER: '5X'
-      
+
+      - name: Test five-x read-only power profile
+        run: node scripts/ci/test-read-only-power-profile.mjs
+
       - name: Validate deep reasoning contract
         run: node scripts/ci/validate-read-only-deep-reasoning.mjs
       
@@ -72,7 +74,7 @@ jobs:
           INVESTIGATION_DIR: diagnostics/investigation
         run: |
           OBSERVED_SHA=$(git rev-parse HEAD)
-          node scripts/ci/read-only-error-investigator.mjs --branch="\${GITHUB_REF_NAME}" --sha="\${OBSERVED_SHA}" --max-logs=35 --limit=80
+          node scripts/ci/read-only-error-investigator.mjs --branch="\${GITHUB_REF_NAME}" --sha="\${OBSERVED_SHA}" --max-logs=175 --limit=400
 
       - name: Upload read-only intelligence report
         if: always()
