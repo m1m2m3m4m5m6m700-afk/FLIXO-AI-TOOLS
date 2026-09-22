@@ -18,7 +18,8 @@ assert.equal(report.primaryRepairIntelligence.vaultKnowledge.authority,'ADVISORY
 assert.equal(report.primaryRepairIntelligence.vaultKnowledge.mutationAuthority,false);
 assert.equal(report.primaryRepairIntelligence.vaultKnowledge.declaredCatalogCapacity,1000000);
 assert.ok(report.primaryRepairIntelligence.vaultKnowledge.routerRuleCount>=5000);
-assert.ok(report.primaryRepairIntelligence.vaultKnowledge.matchedAdvice.length>=0);
+assert.equal(report.primaryRepairIntelligence.vaultKnowledge.status,'CORPUS_MATCH_CANONICAL_INDEX_EMPTY');
+assert.ok(report.primaryRepairIntelligence.vaultKnowledge.matchedAdvice.length>0);
 assert.ok(report.adversarial);
 assert.equal(report.synthesis.readOnlyDecision,'REPORT_ONLY');
 assert.equal(report.primaryRepairIntelligence.selfCriticPreview.verdict,'REJECT');
