@@ -1,0 +1,30 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const fn=fs.readFileSync('supabase/functions/flixo-council-runtime/index.ts','utf8');
+const migration=fs.readFileSync('supabase/migrations/20260922140000_master3_direct_assistant_channel.sql','utf8');
+const registry=fs.readFileSync('docs/agents/COUNCIL-ACCOUNT-REGISTRY.md','utf8');
+
+assert.match(fn,/action === "assistant-channel"/);
+assert.match(fn,/purpose = "WAKE"\|\| "STATUS"/);
+assert.match(fn,/COUNCIL_ASSISTANT_NONCE_REJECTED/);
+assert.match(fn,/COUNCIL_ASSISTANT_EXACT_SHA_MISMATCH/);
+assert.match(fn,/consumed_at=is\.null/);
+assert.match(fn,/DIRECT_MASTER3_WAKE/);
+assert.match(fn,/"MASTER-3": \{ primary: "WORKER_B", fallback: "WORKER_A" \}/);
+assert.match(fn,/channel: "MASTER3_DIRECT_ASSISTANT"/);
+
+assert.match(migration,/create table if not exists public\.flix_council_assistant_channel_tokens/i);
+assert.match(migration,/purpose text not null check .*WAKE.*STATUS/is);
+assert.match(migration,/enable row level security/i);
+assert.match(migration,/token_hash text not null unique check .*64/is);
+assert.match(migration,/entry_sha text not null check .*40/is);
+assert.match(migration,/expires_at timestamptz not null/);
+assert.match(migration,/consumed_at timestamptz/);
+assert.match(registry,/MASTER-3.*WORKER_B/s);
+
+console.log('MASTER3_DIRECT_CHANNEL_CONTRACT=PASS');
+console.log('MASTER3_DIRECT_WAKE_NONCE=PASS');
+console.log('MASTER3_DIRECT_STATUS_CONTRACT=PASS');
+console.log('MASTER3_DIRECT_EXACT_SHA=PASS');

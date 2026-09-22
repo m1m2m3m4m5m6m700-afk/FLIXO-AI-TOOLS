@@ -145,7 +145,7 @@
     "test:agent-coordination": "node scripts/ci/test-agent-coordination.mjs",
     "agent:council-wake": "node scripts/ci/council-wake-dispatch.mjs",
     "test:council-wake": "node scripts/ci/test-council-wake-dispatch.mjs",
-    "test:council-external": "node --experimental-strip-types scripts/test-council-external-runtime.mjs && npm run test:council-runtime-route && npm run test:council-bridge && node scripts/test-advanced-agent-runtime.mjs && node scripts/test-action-agent-triad.mjs",
+    "test:council-external": "node --experimental-strip-types scripts/test-council-external-runtime.mjs && npm run test:council-runtime-route && npm run test:council-bridge && node scripts/test-advanced-agent-runtime.mjs && node scripts/test-action-agent-triad.mjs && npm run test:master3-direct-channel",
     "test:council-runtime-route": "node scripts/test-council-runtime-route.mjs",
     "council:bridge": "node scripts/council/external-gpt-bridge.mjs",
     "test:council-bridge": "node scripts/test-council-external-gpt-bridge.mjs",
@@ -219,7 +219,8 @@
     "test:chair-hardening": "node scripts/ci/test-chair-hardening.mjs",
     "test:chair-bound-coordination": "node scripts/ci/test-chair-bound-coordination-contract.mjs",
     "test:guard-communication": "node scripts/ci/test-guard-communication.mjs",
-    "test:canonical-governance": "node scripts/ci/test-canonical-governance.mjs"
+    "test:canonical-governance": "node scripts/ci/test-canonical-governance.mjs",
+    "test:master3-direct-channel": "node scripts/test-master3-direct-channel.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",

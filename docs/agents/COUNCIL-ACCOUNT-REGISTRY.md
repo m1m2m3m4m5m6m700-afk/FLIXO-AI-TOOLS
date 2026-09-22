@@ -78,3 +78,8 @@ Worker completion must provide:
 `finding + evidence + evidenceGrade + unknowns + lesson + antiLesson + skillCandidate + directBenefit + nextAction + decisionTrace`.
 
 Worker B must additionally return a `challenge`. Workers cannot self-approve or certify, and the bridge validates the result envelope before completion is accepted.
+
+
+### Assistant direct channel
+
+`MASTER-3` is the logical analysis identity routed through `WORKER_B`. The assistant may create a short-lived channel token and invoke the canonical Council endpoint with `purpose=WAKE` or `purpose=STATUS`. This is an ingress extension of the existing Council Runtime, not a second communication system.

@@ -493,6 +493,101 @@ Deno.serve(async (req) => {
       }, 200, requestId);
     }
 
+    if (action === "assistant-channel" && req.method === "GET") {
+      const nonce = String(url.searchParams.get("nonce") ?? "").trim();
+      const purpose = String(url.searchParams.get("purpose") ?? "").trim().toUpperCase();
+      const exactSha = sha(url.searchParams.get("entrySha"));
+      if (!/^[A-Za-z0-9_-]{32,256}$/.test(nonce)) throw new Error("COUNCIL_ASSISTANT_NONCE_INVALID");
+      if (!["WAKE", "STATUS"].includes(purpose)) throw new Error("COUNCIL_ASSISTANT_PURPOSE_INVALID");
+
+      const tokenHash = sha256Hex(nonce);
+      const nowIso = new Date().toISOString();
+      const rows = await db(
+        "/rest/v1/flix_council_assistant_channel_tokens?token_hash=eq." +
+        encodeURIComponent(tokenHash) +
+        "&purpose=eq." + encodeURIComponent(purpose) +
+        "&consumed_at=is.null&expires_at=gt." + encodeURIComponent(nowIso) +
+        "&select=*&limit=1"
+      ) as Array<Record<string, unknown>>;
+      const row = rows?.[0];
+      if (!row) throw new Error("COUNCIL_ASSISTANT_NONCE_REJECTED");
+      if (String(row.entry_sha) !== exactSha) throw new Error("COUNCIL_ASSISTANT_EXACT_SHA_MISMATCH");
+
+      const consumed = await db(
+        "/rest/v1/flix_council_assistant_channel_tokens?wake_id=eq." +
+        encodeURIComponent(String(row.wake_id)) +
+        "&consumed_at=is.null",
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json", prefer: "return=representation" },
+          body: JSON.stringify({ consumed_at: nowIso }),
+        }
+      ) as Array<Record<string, unknown>>;
+      if (!Array.isArray(consumed) || !consumed[0]) throw new Error("COUNCIL_ASSISTANT_NONCE_ALREADY_CONSUMED");
+
+      const recipientMaster = String(row.recipient_master ?? "").trim();
+      const route = MASTER_ACCOUNT_ROUTES[recipientMaster];
+      if (!route) throw new Error("COUNCIL_ASSISTANT_RECIPIENT_INVALID");
+
+      if (purpose === "STATUS") {
+        const runtime = await getAccountState(route.primary);
+        const assignments = await db(
+          "/rest/v1/flix_council_dispatches?recipient_account_id=eq." +
+          encodeURIComponent(route.primary) +
+          "&status=in.(LEASED,ACKED)&entry_sha=eq." + encodeURIComponent(exactSha) +
+          "&select=dispatch_id,message_id,task_id,work_package_id,entry_sha,status,session_id,lease_expires_at,attempts,created_at,updated_at&order=created_at.asc&limit=5"
+        ) as Array<Record<string, unknown>>;
+        return response({
+          ok: true,
+          channel: "MASTER3_DIRECT_ASSISTANT",
+          purpose,
+          recipientMaster,
+          accountId: route.primary,
+          identity: runtime.identity,
+          identityVerified: runtime.identityVerified,
+          accountState: {
+            active: runtime.row.active,
+            currentSessionId: runtime.row.current_session_id,
+            lastSeenAt: runtime.row.last_seen_at,
+          },
+          assignments: assignments ?? [],
+          exactSha,
+        }, 200, requestId);
+      }
+
+      const taskId = String(row.task_id ?? "").trim();
+      const workPackageId = String(row.work_package_id ?? "").trim();
+      const messageId = String(row.message_id ?? "").trim();
+      const payload = row.payload && typeof row.payload === "object" && !Array.isArray(row.payload)
+        ? row.payload as Record<string, unknown>
+        : {};
+      const result = await dispatchSingle({
+        body: { entrySha: exactSha, directiveVersion: COUNCIL_DIRECTIVE_VERSION },
+        primary: route.primary,
+        fallback: route.fallback,
+        messageId,
+        idempotencyKey: String(row.idempotency_key ?? (messageId + ":" + exactSha)),
+        taskId,
+        workPackageId,
+        payload: {
+          ...payload,
+          administrativeInstruction: true,
+          directAssistantWake: true,
+          recipientMaster,
+          exactSha,
+          deliveryMode: "DIRECT_MASTER3_WAKE",
+        },
+      });
+      return response({
+        ok: true,
+        channel: "MASTER3_DIRECT_ASSISTANT",
+        purpose,
+        recipientMaster,
+        exactSha,
+        dispatch: result,
+      }, 202, requestId);
+    }
+
     const body = await jsonBody(req);
 
     if (action === "dispatch" && req.method === "POST") {
