@@ -56,7 +56,7 @@ function verifyCentralChair({ownerAgent,targetSha,workPackageId,taskId}) {
   const raw=nodeExecFileSync('node',['scripts/ci/central-chair-lease.mjs','verify',
     '--holder='+holder,'--task='+String(taskId),'--work-package='+String(workPackageId),
     '--sha='+String(targetSha),'--lease-id='+leaseId,'--fencing-hash='+fence],{cwd:ROOT,encoding:'utf8'});
-  let result=null;
+  let result;
   try{result=JSON.parse(raw);}catch(error){throw new Error('MUTATION_GATE_CENTRAL_CHAIR_PROOF_INVALID',{cause:error});}
   if(result?.authorized!==true ||
      (result.ownerAgentId??result.owner_agent_id)!=='assistantController' ||
