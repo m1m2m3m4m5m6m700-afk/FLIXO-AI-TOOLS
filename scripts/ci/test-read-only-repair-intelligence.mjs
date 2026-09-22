@@ -32,6 +32,8 @@ assert.equal(report.primaryRepairIntelligence.actionVaultPrediction.mutationAuth
 assert.ok(report.primaryRepairIntelligence.knowledgeFusion);
 assert.equal(report.primaryRepairIntelligence.knowledgeFusion.protocol,'FLIXO-READ-ONLY-KNOWLEDGE-FUSION-v1');
 assert.equal(report.primaryRepairIntelligence.knowledgeFusion.mutationAuthority,false);
+assert.equal(report.primaryRepairIntelligence.sharedOperationalMemory.protocol,'FLIXO-SHARED-OPERATIONAL-MEMORY-v1');
+assert.equal(report.primaryRepairIntelligence.sharedOperationalMemory.mutationAuthority,false);
 assert.equal(report.primaryRepairIntelligence.knowledgeFusion.exactShaBound,true);
 assert.notEqual(report.primaryRepairIntelligence.knowledgeFusion.synthesis.disposition,'NO_ACTIONABLE_KNOWLEDGE');
 console.log(JSON.stringify({status:'PASS',checks:11,primary:report.synthesis.primaryCandidate,adversarial:report.adversarial.status},null,2));
