@@ -342,7 +342,7 @@ if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next',
 
 if (command === 'task-create') {
   const taskId = requireArg('task');
-  const tasksAuthorityFile = path.resolve(ROOT, 'المهام.md');
+  const tasksAuthorityFile = path.resolve(ROOT, process.env.FLIXO_TASK_AUTHORITY_FILE || 'المهام.md');
   if (!fs.existsSync(tasksAuthorityFile)) throw new Error('TASK_PERMANENT_LEDGER_MISSING');
   const ledgerText = fs.readFileSync(tasksAuthorityFile, 'utf8');
   if (!ledgerText.includes(taskId)) throw new Error('TASK_PERMANENT_LEDGER_ENTRY_REQUIRED=' + taskId);
