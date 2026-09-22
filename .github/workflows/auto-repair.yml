@@ -66,7 +66,7 @@ permissions:
 concurrency:
   # One writer lane per execution ref. Different failure fingerprints/target runs must not mutate concurrently.
   # The resident observer is isolated because it is non-mutating and long-lived.
-  group: flixo-execution-mutation-lane
+  group: flixo-${{ inputs.resident == 'true' && 'resident-monitor' || 'execution-mutation-lane' }}
   cancel-in-progress: false
 
 env:
@@ -115,13 +115,15 @@ env:
   FLIXO_HEAD_AUTHORITY_PROOF: /tmp/flixo-head-authority.json
   FLIXO_CHAIR1_PRIMARY_MISSION: CHAIR1_PRIMARY_TEST_CYCLE_REPAIR
   FLIXO_CHAIR1_MISSION_PATH: /tmp/flixo-chair1-repair-mission.json
+  FLIXO_HEARTBEAT_PATH: /tmp/flixo-agent-heartbeat.json
+  FLIXO_REPAIR_TASK_LEDGER_PATH: /tmp/flixo-repair-task-ledger.json
 
 jobs:
   resident:
     name: Resident Repair Bot monitor — never idle during an open repair session
     if: github.event_name == 'workflow_dispatch' && inputs.resident == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 345
+    timeout-minutes: 175
     steps:
       - name: Checkout trusted main bootstrap
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -150,7 +152,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          DEADLINE="$(( $(date +%s) + 19800 ))"
+          STARTED_AT="$(date +%s)"
+          DEADLINE="$(( STARTED_AT + 9900 ))"
+          LAST_SHA=""
+          LAST_FAILED=""
           while [ "$(date +%s)" -lt "$DEADLINE" ]; do
             EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
             GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --commit "$EXECUTION_SHA" --limit 50 --json databaseId,status,conclusion,headSha,createdAt --jq 'map(select(.headSha == "'"$EXECUTION_SHA"'" and .conclusion == "success")) | sort_by(.createdAt) | last.databaseId // empty')"
@@ -158,6 +163,11 @@ jobs:
             echo "RESIDENT_SHA=$EXECUTION_SHA"
             echo "RESIDENT_CANONICAL_GREEN=${GREEN:-none}"
             echo "RESIDENT_CURRENT_RED=${FAILED:-none}"
+            PROGRESS=false
+            if [ "$EXECUTION_SHA" != "$LAST_SHA" ] || [ "$FAILED" != "$LAST_FAILED" ]; then PROGRESS=true; fi
+            node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="RESIDENT:${GITHUB_RUN_ID}" --state=ACTIVE --sha="$EXECUTION_SHA" --progress="$PROGRESS" --file="$FLIXO_HEARTBEAT_PATH"
+            LAST_SHA="$EXECUTION_SHA"
+            LAST_FAILED="$FAILED"
             if [ -n "$GREEN" ]; then
               echo 'REPAIR_BOT_SESSION_TERMINATION=CANONICAL_GREEN'
               exit 0
@@ -166,7 +176,9 @@ jobs:
             sleep 60
           done
           echo 'REPAIR_BOT_RESIDENCY_WINDOW_EXPIRED=CONTROLLED_HANDOFF'
-          exit 1
+          echo 'RESIDENCY_RENEWAL_REQUIRED=true'
+          echo 'CANONICAL_WAKE_OWNER=DAILY_FLIXO_GREEN_GATE'
+          exit 0
 
   repair:
     name: Single-lane diagnose, execute, verify and learn on execution
@@ -194,6 +206,7 @@ jobs:
         run: node scripts/ci/test-council-directive.mjs
 
       - name: Resolve target workflow run
+        id: resolve_target
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -239,6 +252,13 @@ jobs:
           printf "%s\n" "$FAILED_BRANCH" > /tmp/flixo-failed-branch
           printf "%s\n" "$FAILED_NAME" > /tmp/flixo-failed-workflow
           printf '%s\n' "$FAILED_NAME" > /tmp/flixo-failed-workflow
+
+      - name: Start durable repair task ledger
+        if: steps.resolve_target.outcome == 'success'
+        run: |
+          set -euo pipefail
+          node scripts/ci/auto-repair-task-ledger.mjs start
+          node scripts/ci/auto-repair-task-ledger.mjs event --type=TARGET_RUN_BOUND
 
       - name: Enforce exact failed SHA before diagnosis
         run: |
@@ -319,6 +339,13 @@ jobs:
 
       - name: Validate immutable repair boundary before mutation
         run: node scripts/ci/validate-auto-repair-boundary.mjs --static-only
+
+      - name: Self-test Auto Repair Task Ledger
+        run: node scripts/ci/auto-repair-task-ledger.mjs contract
+
+      - name: Record repair pre-mutation evidence phase
+        if: always() && steps.resolve_target.outcome == 'success'
+        run: node scripts/ci/auto-repair-task-ledger.mjs event --type=PRE_MUTATION_VERIFICATION
 
       - name: Enforce strict red-to-repair policy
         run: |
@@ -1353,6 +1380,17 @@ jobs:
           FLIXO_REPAIR_EVIDENCE_PATH: /tmp/flixo-repair-evidence.json
         run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase2.mjs --release-handoff
 
+      - name: Finalize durable repair task ledger
+        if: always() && steps.resolve_target.outcome == 'success'
+        env:
+          TASK_LEDGER_VERIFIED: ${{ steps.verify.outputs.verified }}
+          TASK_LEDGER_CANDIDATE_VERIFICATION: ${{ steps.candidate_verification.outcome }}
+        run: |
+          set +e
+          node scripts/ci/auto-repair-task-ledger.mjs finish
+          cat "$FLIXO_REPAIR_TASK_LEDGER_PATH"
+          exit 0
+
       - name: Record durable repair lease outcome
         if: always()
         env:
@@ -1418,6 +1456,8 @@ jobs:
           name: flixo-repair-control-plane-${{ github.run_id }}
           path: |
             /tmp/flixo-repair-control-plane.json
+            /tmp/flixo-repair-task-ledger.json
+            /tmp/flixo-agent-heartbeat.json
             /tmp/flixo-lease-verification.json
             /tmp/flixo-repair-lease-outcome.json
             /tmp/flixo-postpatch-adversarial.json
@@ -1453,6 +1493,8 @@ jobs:
             /tmp/flixo-postpatch-adversarial.json
             /tmp/flixo-rca-manifest.json
             /tmp/flixo-historical-learning.json
+            /tmp/flixo-repair-task-ledger.json
+            /tmp/flixo-agent-heartbeat.json
             /tmp/flixo-intractable-errors.json
             diagnostics/auto-repair/memory.json
             diagnostics/auto-repair/intractable-errors.json
