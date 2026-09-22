@@ -65,7 +65,7 @@ export function captureWorkingTreeChange({
     protocol:'FLIXO-CHAIR1-CHANGE-ACCUMULATOR-v1',
     proposalId:digest({agentId,taskId,baseSha,executionSha,mainSha,changes:changes.map(x=>({path:x.path,operation:x.operation,candidateBlobSha:x.candidateBlobSha}))}),
     status:'PENDING_CHAIR1',
-    authority:'CHAIR_1_FINAL_PUBLICATION_ONLY',
+    authority:'CHAIR_1_DELEGATED_PUBLICATION_ONLY',
     mutationPolicy:'NO_AGENT_PUBLICATION',
     agentId:String(agentId),
     taskId:String(taskId),
