@@ -8,6 +8,7 @@ export const REPAIR_GATE_AUTOMATION = Object.freeze([
   'master-repair-governor.yml',
   'agent-communication-relay.yml',
   'ultra-investigator.yml',
+  'unified-execution-push-gate.yml',
 ]);
 
 export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
