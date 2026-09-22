@@ -37,6 +37,8 @@ jobs:
           node --check scripts/ci/agent-coordination.mjs
       - name: Run Chair fencing and push proposal regression tests
         run: node scripts/ci/test-chair-bound-execution.mjs
+      - name: Run end-to-end agent chair admission regression
+        run: node scripts/ci/test-agent-chair-lifecycle.mjs
       - name: Run execution mutation gate regression tests
         run: node scripts/ci/test-execution-mutation-gate.mjs
       - name: Validate the complete auto-repair mutation boundary
