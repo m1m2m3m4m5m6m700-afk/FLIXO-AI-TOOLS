@@ -12,7 +12,6 @@ const HASH_RE = /^[0-9a-f]{64}$/iu;
 const GUARD_ID = 'CHAIR_1_GUARD';
 const PROTOCOL = 'FLIXO-GUARD-CHANGE-REPORT-v1';
 const now = () => new Date().toISOString();
-const gitSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const hash = (value) => createHash('sha256').update(typeof value === 'string' ? value : JSON.stringify(value), 'utf8').digest('hex');
 const safeId = (value, label) => {
   const v = String(value ?? '').trim();
