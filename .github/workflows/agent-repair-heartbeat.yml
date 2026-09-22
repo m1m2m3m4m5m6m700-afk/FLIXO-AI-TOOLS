@@ -7,7 +7,7 @@ on:
     - cron: '*/5 * * * *'
 
 permissions:
-  actions: write
+  actions: read
   contents: read
 
 concurrency:
@@ -113,29 +113,6 @@ jobs:
             fi
           fi
 
-      - name: Start resident Repair Bot automatically when the repair session is open
-        if: steps.state.outputs.resident_wake == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/auto-repair.yml/dispatches" -f ref=execution -f "inputs[resident]=true"
-          echo 'AUTOMATIC_REPAIR_BOT_RESIDENCY_WAKE=true'
-          echo 'RESIDENT_MODE_IS_OBSERVATION_ONLY=true'
-          echo 'REPAIR_MUTATION_AUTHORITY_REMAINS_AUTO_REPAIR_CANONICAL_RUN=true'
-          echo 'MANUAL_WAKE_REQUIRED=false'
-      - name: Wake canonical Green Gate automatically
-        if: steps.state.outputs.wake == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/daily-flixo-green-gate.yml/dispatches" -f ref=main
-          echo 'AUTOMATIC_GREEN_GATE_WAKE=true'
-          echo 'HUMAN_MANUAL_REPAIR_LAUNCH=false'
-          echo 'REPAIR_DISPATCH_REMAINS_CANONICAL_GREEN_GATE_AUTHORITY=true'
       - name: Wake observer supervisor automatically
         if: steps.state.outputs.wake == 'true'
         env:

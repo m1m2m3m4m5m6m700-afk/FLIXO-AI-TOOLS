@@ -23,7 +23,7 @@ concurrency:
 jobs:
   receive:
     name: Immediate agent message receive
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.issue.number == 759 && github.event.comment.body != '' && (github.event.comment.user.login == 'github-actions[bot]' || github.event.comment.user.login == github.repository_owner)) }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.issue.pull_request != null && github.event.comment.body != '' && (github.event.comment.user.login == 'github-actions[bot]' || github.event.comment.user.login == github.repository_owner)) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout canonical communication implementation
@@ -47,11 +47,32 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SHA"
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve canonical Council ingress
+        id: council_ingress
+        if: github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "$ISSUE_NUMBER" ]; then
+            PR_JSON="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$ISSUE_NUMBER")"
+            test "$(printf '%s' "$PR_JSON" | jq -r '.state // empty')" = open
+            test "$(printf '%s' "$PR_JSON" | jq -r '.head.ref // empty')" = execution
+            test "$(printf '%s' "$PR_JSON" | jq -r '.base.ref // empty')" = main
+            echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ISSUE_NUMBER="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 1 --json number --jq '.[0].number // empty')"
+          test -n "$ISSUE_NUMBER"
+          echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
+
       - name: Extract President Wake when present
         id: president_wake
         if: >-
           github.event_name == 'issue_comment' &&
-          github.event.issue.number == 759 &&
+          github.event.issue.pull_request != null &&
           contains(github.event.comment.body || '', '<!-- FLIXO_AGENT_COUNCIL_WAKE -->')
         env:
           COMMENT_BODY: ${{ github.event.comment.body || '' }}
@@ -96,7 +117,7 @@ jobs:
         run: |
           set -euo pipefail
           RECEIPT="<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->"
-          if gh api "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
+          if gh api "repos/$GITHUB_REPOSITORY/issues/${{ steps.council_ingress.outputs.issue_number }}/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
             echo 'duplicate=true' >> "$GITHUB_OUTPUT"
           else
             echo 'duplicate=false' >> "$GITHUB_OUTPUT"
@@ -144,13 +165,13 @@ jobs:
         run: |
           set -euo pipefail
           BODY="$(printf '%s\n' "### PRESIDENT WAKE RECEIPT" "" "**Role:** $ROLE" "**Mode:** $MODE" "**Work Package:** $WORKPACKAGE" "**Exact SHA:** $ENTRY_SHA" "" "Wake accepted through the canonical communication relay. Workflow dispatch remains subject to exact-SHA and role controls." "" "<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->")"
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/${{ steps.council_ingress.outputs.issue_number }}/comments" --raw-field body="$BODY" >/dev/null
 
       - name: Detect P0 Council question / request
         id: council_question
         if: >-
           github.event_name == 'issue_comment' &&
-          github.event.issue.number == 759 &&
+          github.event.issue.pull_request != null &&
           (contains(github.event.comment.body || '', '### COUNCIL QUESTION') ||
            contains(github.event.comment.body || '', '<!-- FLIXO_COUNCIL_PRIORITY -->'))
         env:
@@ -260,7 +281,7 @@ jobs:
         run: |
           set -euo pipefail
           RECEIPT="<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->"
-          if gh api "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
+          if gh api "repos/$GITHUB_REPOSITORY/issues/${{ steps.council_ingress.outputs.issue_number }}/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
             echo 'duplicate=true' >> "$GITHUB_OUTPUT"
             echo 'DUPLICATE_AGENT_MESSAGE=NO_OP'
           else
@@ -370,7 +391,7 @@ jobs:
         run: |
           set -euo pipefail
           BODY="$(printf '%s\n' "### AGENT MESSAGE RECEIVED" "" "**Message:** $MESSAGE_ID" "**Status:** $MESSAGE_STATUS" "**Entry SHA:** $MESSAGE_SHA" "**Idempotency Key:** $MESSAGE_KEY" "**Invocation:** $INVOCATION_ID" "" "**Receipt:** IMMEDIATE_EVENT_RECEIPT" "**Target ref:** ${{ steps.target.outputs.target_ref }}" "" "The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute." "" "<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->")"
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/${{ steps.council_ingress.outputs.issue_number }}/comments" --raw-field body="$BODY" >/dev/null
 
       - name: Wake repair supervision for repair-class messages
         if: >-
