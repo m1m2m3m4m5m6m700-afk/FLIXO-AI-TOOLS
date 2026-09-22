@@ -410,3 +410,6 @@ Task completion or an authorized task release automatically clears the delegate 
 
 Controller-only reclaim requires an explicit direct-user command marker. Any other reclaim, preemption, ownership change, or delegation-policy mutation is `FAIL_CLOSED`.
 
+
+
+**CENTRAL LEASE ENFORCEMENT:** Chair-1 custody is authoritative in the central Control Plane, not in a runner-local file alone. A mutation-capable agent MUST have a controller-issued central lease bound to the exact execution SHA, task ID, work-package ID, lease ID and fencing proof. Local Chair state is a secondary enforcement/cache layer. A worker MUST NOT self-assign Chair-1 merely because a local runner reports it vacant. Missing, stale, expired, mismatched or unverifiable central lease = FAIL_CLOSED. Heartbeat loss does not release Chair-1; it revokes mutation ability until controller-mediated recovery/requalification. Publication remains forbidden until the same central lease and Exact-SHA proof are valid.
