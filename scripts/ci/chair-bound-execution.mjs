@@ -38,7 +38,7 @@ const DEAD_LEASE_AFTER_MS=Math.max(3*HEARTBEAT_INTERVAL_MS,positiveDuration(proc
 const SPECULATIVE_CACHE_ROOT=()=>path.resolve(ROOT,String(process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_PATH??'.flixo/cache/chair-readonly'));
 const SPECULATIVE_CACHE_TTL_MS=positiveDuration(process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_TTL_MS,15*60*1000);
 const SESSION_CONTEXT_ROOT=()=>path.resolve(ROOT,String(process.env.FLIXO_CHAIR_SESSION_CONTEXT_PATH??'.flixo/cache/chair-session'));
-const CHAIR_REF_PREFIX=()=>String(process.env.FLIXO_CHAIR_REF_PREFIX??'refs/flixo/chairs').replace(/\\/+$/u,'');
+const CHAIR_REF_PREFIX=()=>{let value=String(process.env.FLIXO_CHAIR_REF_PREFIX??'refs/flixo/chairs');while(value.endsWith('/')||value.endsWith('\\'))value=value.slice(0,-1);return value;};
 const storageKey=(value)=>hash(String(value));
 const refValue=(ref)=>{try{return git(['rev-parse','--verify',ref]);}catch{return null;}};
 export function atomicChairRefAudit({chairId,targetSha=sha(),expectedOldSha=null,event='UPDATE'}={}){
