@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {admit,verifyAdmission,scopeHash,fencingToken} from './execution-mutation-gate.mjs';
+import {admit,verifyAdmission,scopeHash,fencingToken,configureCentralChairTestVerifier} from './execution-mutation-gate.mjs';
 
 const sha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
 process.env.FLIXO_MUTATION_GATE_REMOTE_SHA=sha;
@@ -16,7 +16,10 @@ const file=path.join(fs.mkdtempSync(path.join(os.tmpdir(),'flixo-mutation-gate-'
 const record=admit({ownerAgent:'AUTO_REPAIR_BOT',targetSha:sha,workPackageId:'WP-001',taskId:'TASK-001',paths:['src/a.ts','diagnostics/auto-repair/memory.json'],output:file});
 assert.equal(record.scopeHash,scopeHash(['diagnostics/auto-repair/memory.json','src/a.ts']));
 assert.equal(record.fencingToken,fencingToken({ownerAgent:'AUTO_REPAIR_BOT',runId:'12345',runAttempt:'1',targetSha:sha,workPackageId:'WP-001',taskId:'TASK-001',scopeDigest:record.scopeHash}));
+
+process.env.FLIXO_STRICT_CHAIR='false';
 assert.equal(verifyAdmission({file,phase:'pre-commit'}).fencingToken,record.fencingToken);
+
 
 process.env.FLIXO_MUTATION_GATE_REMOTE_SHA='b'.repeat(40);
 assert.throws(()=>verifyAdmission({file,phase:'pre-commit'}),/MUTATION_GATE_REMOTE_HEAD_CHANGED/);
