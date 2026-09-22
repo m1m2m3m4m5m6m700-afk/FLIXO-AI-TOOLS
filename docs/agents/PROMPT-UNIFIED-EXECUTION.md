@@ -63,5 +63,8 @@ SUCCESS → lesson candidate | FAILURE → anti-lesson candidate | REVERTED → 
 ## Handoff
 كل handoff يحمل taskId وexact SHA وscope وRCA state وevidence وchanged files وremaining work وnext action. Handoff ليس certification.
 
+## HARD EXIT LOCK
+`logout` ليس قرارًا ذاتيًا. الإغلاق لا يُسمح به إلا عبر `scripts/ci/agent-exit-lock.mjs`: `VERIFIED` + `0 failedWork` + `0 remainingWork` + `0 openRcas` + canonical certification `PASS` + promotion evidence `CERTIFIABLE` + `LIVE_VERIFIED` + نفس exact SHA. عند الرفض تبقى الجلسة `RUNNING` ويسجل `EXIT_LOCK_BLOCKED` ثم تعود إلى recovery/continue.
+
 ## قاعدة الإغلاق
 لا GREEN/VERIFIED/CLOSED من Prompt confidence أو Memory أو diff أو test منفرد أو handoff أو historical run. الإغلاق يتطلب evidence canonical طازجًا على نفس exact SHA.
