@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "sessionId": "security-red-team-cell-20260922",
+  "taskId": "SECURITY-REDTEAM-TRIAD-001",
+  "entrySha": "fa04548d3994e7a2f1f894fbc17b675cdf2a9c22",
+  "branch": "execution",
+  "owner": "assistantController",
+  "scope": "Three-bot full-project security red team with immediate vulnerability ledger recording",
+  "active": true,
+  "exactShaRequired": true,
+  "handoffState": "OPEN"
+}
