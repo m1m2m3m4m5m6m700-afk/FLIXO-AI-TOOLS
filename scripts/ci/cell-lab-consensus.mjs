@@ -51,13 +51,20 @@ export function validateCellLabConsensus(packet, { taskId, exactSha, mutationOwn
     throw new Error('CELL_LAB_MUTATION_OWNER_MISSING');
   }
 
+  const communication = packet.communicationEvidence;
+  if (!communication || communication.channel !== 'CANONICAL_AGENT_COMMUNICATION') throw new Error('CELL_LAB_COMMUNICATION_EVIDENCE_REQUIRED');
+  arr(communication.messageIds ?? [], 'communication_message_ids');
   const discussions = arr(packet.discussions, 'discussions');
   const validKinds = new Set(['OPINION','QUESTION','CHALLENGE','DECISION']);
   for (const item of discussions) {
     if (!item || !validKinds.has(item.kind)) throw new Error('CELL_LAB_DISCUSSION_ITEM_INVALID');
     nonEmpty(String(item.actor ?? ''), 'discussion_actor');
     nonEmpty(String(item.text ?? ''), 'discussion_text');
+    nonEmpty(String(item.messageId ?? ''), 'discussion_message_id');
+    if (!communication.messageIds.includes(item.messageId)) throw new Error('CELL_LAB_DISCUSSION_MESSAGE_NOT_REGISTERED');
     arr(item.responses ?? [], 'responses');
+    arr(item.responseMessageIds ?? [], 'response_message_ids');
+    if (item.responseMessageIds.some((id) => !communication.messageIds.includes(id))) throw new Error('CELL_LAB_RESPONSE_MESSAGE_NOT_REGISTERED');
     nonEmpty(String(item.resolution ?? ''), 'resolution');
   }
 
