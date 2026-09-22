@@ -1,5 +1,5 @@
 import type { Locale } from './config';
-import type { ToolCategory } from '../../config/canonical-tool-definition';
+import type { ToolCategory } from '../../config/canonical-tool-definition.ts';
 
 export const CATEGORY_LABELS: Record<Locale, Partial<Record<ToolCategory, string>>> = {
   ar: { Images: 'الصور' }, en: { Images: 'Images' }, es: { Images: 'Imágenes' }, fr: { Images: 'Images' }, de: { Images: 'Bilder' }, hi: { Images: 'छवियाँ' }, id: { Images: 'Gambar' }, it: { Images: 'Immagini' }, ja: { Images: '画像' }, ko: { Images: '이미지' }, ms: { Images: 'Imej' }, nl: { Images: 'Afbeeldingen' }, pl: { Images: 'Obrazy' }, pt: { Images: 'Imagens' }, ru: { Images: 'Изображения' }, sv: { Images: 'Bilder' }, th: { Images: 'รูปภาพ' }, tr: { Images: 'Görseller' }, uk: { Images: 'Зображення' }, vi: { Images: 'Hình ảnh' },
