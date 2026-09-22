@@ -4,25 +4,12 @@ run-name: Daily·FLIXO Green Gate ${{ github.run_id }}
 
 on:
   # Privileged observer definitions must not execute from the mutable execution ref.
-  # Execution changes re-enter through workflow_run completions and the trusted 5-minute schedule.
+  # Execution changes are observed by the watchdog; this trusted controller remains push/schedule/manual only.
   push:
     branches: [main]
   workflow_dispatch:
   schedule:
     - cron: '*/5 * * * *'
-  workflow_run:
-    workflows:
-      # Canonical triggers: every required verification/security completion wakes the watcher.
-      # The watcher still inspects every required workflow/check on the exact SHA.
-      - FLIXO Test System
-      - FLIXO Auto Repair Bot
-      - FLIXO WP0 Trust Baseline
-      - FLIXO Test Impact
-      - FLIXO Test Impact Execution
-      - Repository Security Baseline
-      - Claude Security Review
-    types: [completed]
-    branches: [execution, main]
 
 permissions:
   actions: write
