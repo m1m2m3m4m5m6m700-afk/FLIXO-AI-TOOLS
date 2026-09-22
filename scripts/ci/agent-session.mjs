@@ -8,7 +8,7 @@ import { ingest as ingestAgentMessage, markRead as readAgentMessage, markConsume
 import { loadPromptRegistry, validatePromptRegistry, loadErrorMemory } from './prompt-registry.mjs';
 import { assertAgentExitGate } from './agent-exit-lock.mjs';
 import { AGENT_LIVENESS_PROTOCOL, assertActiveRepairWindow, checkHeartbeat, checkContinuousSessionWindow } from './agent-liveness-protocol.mjs';
-import { initialize as initializeChairState, heartbeat as heartbeatChair, reconcileDeadLeases, beginWork as beginChairWork, endWork as endChairWork, assertWorkAdmission } from './chair-bound-execution.mjs';
+import { initialize as initializeChairState, heartbeat as heartbeatChair, reconcileDeadLeases, beginWork as beginChairWork, endWork as endChairWork, assertWorkAdmission, activeChairForAgent } from './chair-bound-execution.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -110,6 +110,60 @@ const assertMeetingExitApproval = (record, currentSha) => {
   if (approval.sessionId !== record.sessionId) throw new Error('COUNCIL_MEETING_EXIT_APPROVAL_SESSION_MISMATCH');
   if (approval.approvalSha !== currentSha) throw new Error('COUNCIL_MEETING_EXIT_APPROVAL_STALE_SHA');
 };
+const ensureSessionWorkChair = (record) => {
+  const targetSha = gitSha();
+  const existing = activeChairForAgent({ agentId: record.agentId, targetSha });
+  if (existing) {
+    record.chairId = existing.chairId;
+    record.chairLeaseId = existing.leaseId;
+    record.chairBinding = {
+      ...(record.chairBinding ?? {}),
+      required: true,
+      admission: 'CHAIR_REQUIRED_FOR_WORK',
+      chairId: existing.chairId,
+      leaseId: existing.leaseId,
+      targetSha,
+      taskId: record.taskId,
+      workPackageId: record.chairBinding?.workPackageId ?? record.taskId,
+      acquiredAt: record.chairBinding?.acquiredAt ?? now(),
+      released: false,
+    };
+    return existing;
+  }
+  const chairSigningKey = String(process.env.FLIXO_CHAIR_SIGNING_KEY ?? process.env.GITHUB_TOKEN ?? '').trim();
+  if (!chairSigningKey) throw new Error('AGENT_SESSION_CHAIR_SIGNING_KEY_REQUIRED');
+  process.env.FLIXO_CHAIR_SIGNING_KEY = chairSigningKey;
+  initializeChairState({ targetSha });
+  const coordinationChair = readCoordinationChairBinding(record.sessionId, record.agentId, record.taskId);
+  const effectiveChairId = coordinationChair?.chairId ?? requestedChairId ?? 'chair_1';
+  const admission = beginChairWork({
+    agentId: record.agentId,
+    targetSha,
+    requestedChairId: effectiveChairId,
+    repositoryState: effectiveChairId !== 'chair_1' ? 'ACTIVE' : 'IDLE',
+    workPackageId: record.taskId,
+    taskId: record.taskId,
+    scope: record.scope,
+    reviewId: record.currentRca,
+  });
+  record.chairId = admission.chairId;
+  record.chairLeaseId = admission.leaseId;
+  record.chairBinding = {
+    ...(record.chairBinding ?? {}),
+    required: true,
+    admission: 'CHAIR_REQUIRED_FOR_WORK',
+    chairId: admission.chairId,
+    leaseId: admission.leaseId,
+    targetSha,
+    taskId: record.taskId,
+    workPackageId: admission.workPackageId ?? record.taskId,
+    acquiredAt: now(),
+    released: false,
+  };
+  appendEvent(record, { at: now(), action: 'CHAIR_AUTO_ADMISSION', sha: targetSha, chairId: admission.chairId, leaseId: admission.leaseId, reason: 'WORK_STARTED_WITHOUT_ACTIVE_CHAIR', defaultChair: admission.chairId === 'chair_1' });
+  return admission;
+};
+
 const writeVisibility = (record) => {
   fs.mkdirSync(visibilityDir, { recursive: true });
   fs.writeFileSync(visibilityPath(sessionId), `${JSON.stringify(record, null, 2)}\n`);
@@ -154,7 +208,8 @@ if (command === 'meeting-exit-approve') {
   if (record.taskId !== taskId) throw new Error('AGENT_EVENT_TASK_MISMATCH');
   if (record.status !== 'RUNNING') throw new Error('AGENT_EVENT_REQUIRES_ACTIVE_SESSION');
   assertLiveSession(record);
-  assertWorkAdmission({ agentId: record.agentId, targetSha: gitSha(), chairId: record.chairBinding?.chairId ?? null });
+  ensureSessionWorkChair(record);
+  assertWorkAdmission({ agentId: record.agentId, targetSha: gitSha(), chairId: record.chairBinding?.chairId ?? record.chairId ?? null });
   const eventSha = observeCurrentHead(record);
   const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.startedAt });
   if (!heartbeat.ok) {
@@ -205,7 +260,8 @@ if (command === 'meeting-exit-approve') {
   if (record.taskId !== taskId) throw new Error('AGENT_HEARTBEAT_TASK_MISMATCH');
   if (record.status !== 'RUNNING') throw new Error('AGENT_HEARTBEAT_REQUIRES_ACTIVE_SESSION');
   assertLiveSession(record);
-  assertWorkAdmission({ agentId: record.agentId, targetSha: gitSha(), chairId: record.chairBinding?.chairId ?? null });
+  ensureSessionWorkChair(record);
+  assertWorkAdmission({ agentId: record.agentId, targetSha: gitSha(), chairId: record.chairBinding?.chairId ?? record.chairId ?? null });
   const sha = observeCurrentHead(record);
   if (!record.chairId) record.chairId = record.chairBinding?.chairId ?? null;
   if (!record.chairLeaseId) record.chairLeaseId = record.chairBinding?.leaseId ?? null;
@@ -331,24 +387,6 @@ if (command === 'meeting-exit-approve') {
   if (inboundMessage && inboundMessage.status !== 'READ' && inboundMessage.status !== 'CONSUMED') {
     throw new Error('AGENT_MESSAGE_NOT_EXECUTION_READY=' + inboundMessage.status);
   }
-  let chairAdmission = null;
-  const chairSigningKey = String(process.env.FLIXO_CHAIR_SIGNING_KEY ?? process.env.GITHUB_TOKEN ?? '').trim();
-  if (!chairSigningKey) throw new Error('AGENT_SESSION_CHAIR_SIGNING_KEY_REQUIRED');
-  process.env.FLIXO_CHAIR_SIGNING_KEY = chairSigningKey;
-  initializeChairState({ targetSha: sha });
-  const coordinationChair = readCoordinationChairBinding(sessionId, agentId, taskId);
-  const effectiveChairId = coordinationChair?.chairId ?? requestedChairId ?? 'chair_1';
-  chairAdmission = beginChairWork({
-    agentId,
-    targetSha: sha,
-    requestedChairId: effectiveChairId,
-    repositoryState: effectiveChairId !== 'chair_1' ? 'ACTIVE' : 'IDLE',
-    workPackageId: taskId,
-    taskId,
-    scope,
-    reviewId: rca,
-  });
-
   const record = {
     schemaVersion: 3,
     repairProtocol: { ...assertProtocolDefinition(), compliance: 'VALIDATED_AT_ENTRY', admission: protocolAdmission },
@@ -395,9 +433,9 @@ if (command === 'meeting-exit-approve') {
     ...(meetingRequested ? { meetingLock: { locked: true, meetingId, enteredBy: agentId, enteredAt: now(), entrySha: sha, exitApproval: null } } : {}),
     ...(inboundMessage ? { messageId: inboundMessage.messageId, messageStatus: inboundMessage.status, messageEntrySha: inboundMessage.entrySha, messageReadBy: agentId, messagePriority: 'P0_COMMUNICATION_FIRST' } : {}),
     status: 'RUNNING',
-    chairId: chairAdmission.chairId,
-    chairLeaseId: chairAdmission.leaseId,
-    chairBinding: { required: true, admission: 'CHAIR_REQUIRED_FOR_WORK', chairId: chairAdmission.chairId, leaseId: chairAdmission.leaseId, targetSha: sha, taskId, workPackageId: chairAdmission.workPackageId ?? taskId, acquiredAt: now() },
+    chairId: null,
+    chairLeaseId: null,
+    chairBinding: { required: true, admission: 'CHAIR_REQUIRED_FOR_WORK', chairId: null, leaseId: null, targetSha: sha, taskId, workPackageId: taskId, acquiredAt: null, released: false },
     bootstrap: !continuation,
     ...(continuation ?? {}),
     actions: [{ at: now(), action: 'LOGIN', sha, ...(continuation ? { fromSession } : {}) }],
@@ -439,7 +477,9 @@ if (command === 'meeting-exit-approve') {
   const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.startedAt });
   if (!heartbeat.ok) throw new Error('AGENT_SESSION_HEARTBEAT_REQUIRED_BEFORE_CLOSE');
   assertMeetingExitApproval(record, sha);
-  assertWorkAdmission({ agentId: record.agentId, targetSha: sha, chairId: record.chairBinding?.chairId ?? null });
+  const activeBeforeClose = activeChairForAgent({ agentId: record.agentId, targetSha: sha });
+  if (activeBeforeClose) assertWorkAdmission({ agentId: record.agentId, targetSha: sha, chairId: record.chairBinding?.chairId ?? record.chairId ?? null });
+  else if (record.chairBinding?.released !== true) throw new Error('AGENT_SESSION_CHAIR_REQUIRED_OR_EXPLICITLY_RELEASED');
   const changedFiles = split(args.get('changed') ?? process.env.FLIXO_AGENT_CHANGED_FILES);
   const commands = split(args.get('commands') ?? process.env.FLIXO_AGENT_COMMANDS, '|');
   const evidence = split(args.get('evidence') ?? process.env.FLIXO_AGENT_EVIDENCE);
@@ -513,8 +553,11 @@ if (command === 'meeting-exit-approve') {
     // First session may bootstrap the chain, but its logout still establishes the handoff contract.
   }
 
-  const releasedChair = endChairWork({ agentId: record.agentId, targetSha: sha, successful: status === 'VERIFIED', sessionId: record.sessionId, taskId: record.taskId });
-  record.chairBinding = { ...record.chairBinding, released: true, releasedAt: now(), releasedChairId: releasedChair?.chairs?.[record.chairBinding?.chairId ?? 'chair_1']?.status === 'VACANT' ? (record.chairBinding?.chairId ?? null) : (record.chairBinding?.chairId ?? null), releaseReason: 'SESSION_TASK_COMPLETED' };
+  let releasedChair = null;
+  if (activeBeforeClose) {
+    releasedChair = endChairWork({ agentId: record.agentId, targetSha: sha, successful: status === 'VERIFIED', sessionId: record.sessionId, taskId: record.taskId });
+  }
+  record.chairBinding = { ...record.chairBinding, released: true, releasedAt: now(), releasedChairId: activeBeforeClose?.chairId ?? record.chairBinding?.chairId ?? null, releaseReason: activeBeforeClose ? 'SESSION_TASK_COMPLETED' : 'TASK_ALREADY_RELEASED' };
   record.status = status;
   record.exitSha = sha;
   record.finishedAt = now();
