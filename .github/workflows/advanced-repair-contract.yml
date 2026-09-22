@@ -74,6 +74,20 @@ jobs:
           node scripts/ci/test-repair-agent-cognitive-clone.mjs
           node --check scripts/ci/repair-adversarial-convergence.mjs
           node scripts/ci/test-repair-adversarial-convergence.mjs
+      - name: Validate Master Repair 20X Governor
+        run: |
+          set -euo pipefail
+          node --check scripts/ci/patch-truth-engine.mjs
+          node --check scripts/ci/master-repair-governor.mjs
+          node --check scripts/ci/master-repair-canary.mjs
+          node --check scripts/ci/master-repair-rollback-proof.mjs
+          node --check scripts/ci/master-repair-historical-replay.mjs
+          node --check scripts/ci/master-repair-negative-proof.mjs
+          node scripts/ci/test-patch-truth-engine.mjs
+          node scripts/ci/test-master-repair-governor.mjs
+          node scripts/ci/master-repair-negative-proof.mjs
+          test -s docs/agents/master-repair-20x-contract.json
+
       - name: Validate no direct push boundary
         run: node scripts/ci/validate-no-direct-push.mjs
       - name: Run 100-worker atomic lease race without GitHub write permission

@@ -1,0 +1,82 @@
+name: FLIXO Master Repair Governor
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: flixo-master-repair-governor-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  pull-requests: read
+
+jobs:
+  trust-gate:
+    name: trust-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Bind exact execution head
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$EXPECTED_BRANCH" = execution
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Validate Master Repair 20X contracts
+        run: |
+          set -euo pipefail
+          node --check scripts/ci/patch-truth-engine.mjs
+          node --check scripts/ci/master-repair-governor.mjs
+          node --check scripts/ci/master-repair-canary.mjs
+          node --check scripts/ci/master-repair-rollback-proof.mjs
+          node --check scripts/ci/master-repair-historical-replay.mjs
+          node --check scripts/ci/master-repair-negative-proof.mjs
+          node scripts/ci/test-patch-truth-engine.mjs
+          node scripts/ci/test-master-repair-governor.mjs
+          node scripts/ci/master-repair-negative-proof.mjs
+
+      - name: Verify canonical control-plane registration
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { REPAIR_GATE_AUTOMATION, TRUST_PERIMETER_PATHS } from './scripts/ci/control-plane-registry.mjs';
+          if (!REPAIR_GATE_AUTOMATION.includes('master-repair-governor.yml')) throw new Error('MASTER_GOVERNOR_NOT_CANONICAL');
+          for (const path of [
+            'scripts/ci/master-repair-governor.mjs',
+            'scripts/ci/patch-truth-engine.mjs',
+            'scripts/ci/verify-platform-publication-boundary.mjs'
+          ]) if (!TRUST_PERIMETER_PATHS.includes(path)) throw new Error('MASTER_GOVERNOR_TRUST_PERIMETER_MISSING:' + path);
+          console.log('MASTER_GOVERNOR_CANONICAL_REGISTRATION=PASS');
+          NODE
+
+      - name: Verify external GitHub publication enforcement
+        env:
+          FLIXO_PLATFORM_RECEIPT_PATH: /tmp/flixo-platform-publication-receipt.json
+        run: node scripts/ci/verify-platform-publication-boundary.mjs
+
+      - name: Enforce clean read-only governor workspace
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          echo 'MASTER_REPAIR_GOVERNOR_MUTATION=FORBIDDEN'
+          echo 'MASTER_REPAIR_GOVERNOR_GREEN_AUTHORITY=FORBIDDEN'
+          echo 'MASTER_REPAIR_GOVERNOR_CERTIFICATION_AUTHORITY=FORBIDDEN'
