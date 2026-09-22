@@ -26,10 +26,12 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event.issue.pull_request != null && github.event.comment.body != '' && (github.event.comment.author_association == 'OWNER' || github.event.comment.user.login == 'github-actions[bot]')) }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout canonical communication implementation
+      - name: Checkout trusted communication implementation
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: execution
+          # This workflow has actions:write and id-token:write. Execute only trusted controller code from main.
+          # The live execution SHA is evidence data, never executable source.
+          ref: main
           fetch-depth: 1
           persist-credentials: false
 
@@ -48,10 +50,10 @@ jobs:
           esac
           SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
-          git fetch --no-tags origin "refs/heads/execution:$SHA"
-          git checkout --detach "$SHA"
-          test "$(git rev-parse HEAD)" = "$SHA"
+          CONTROLLER_SHA="$(git rev-parse HEAD)"
+          [[ "$CONTROLLER_SHA" =~ ^[0-9a-f]{40}$ ]]
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "controller_sha=$CONTROLLER_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Resolve canonical Council ingress
         id: council_ingress
