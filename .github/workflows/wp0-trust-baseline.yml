@@ -8,10 +8,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Keep only the newest verification for the PR/branch.
+# Each exact commit SHA has its own execution slot; active verification is never cancelled by newer commits.
 # Exact-SHA checks below remain mandatory for the surviving run.
 concurrency:
-  group: flixo-wp0-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: flixo-wp0-${{ github.event.pull_request.head.repo.full_name || github.repository }}-\${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: false
 
 permissions:
