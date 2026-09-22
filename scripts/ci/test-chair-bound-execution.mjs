@@ -78,6 +78,35 @@ fs.writeFileSync(stateFile,JSON.stringify(stale,null,2)+'\n');
 const dead=reconcileDeadLeases({targetSha:realGitSha});
 assert.equal(dead.reclaimed.length,1);
 assert.equal(dead.reclaimed[0].reason,'DEAD_LEASE');
+acquire({
+  chairId:'chair_1',
+  agentId:'task-active-agent',
+  targetSha:realGitSha,
+  repositoryState:'IDLE',
+  taskId:'TASK-ACTIVE-NONRECLAIM',
+  workPackageId:'WP-ACTIVE-NONRECLAIM'
+});
+const stateWithActiveTask=JSON.parse(fs.readFileSync(stateFile,'utf8'));
+stateWithActiveTask.chairs.chair_1.heartbeat_at=new Date(Date.now()-120_000).toISOString();
+fs.writeFileSync(stateFile,JSON.stringify(stateWithActiveTask,null,2)+'\n');
+const blockedDead=reconcileDeadLeases({targetSha:realGitSha});
+assert.equal(blockedDead.reclaimed.length,0);
+assert.equal(blockedDead.blocked[0].reason,'TASK_ACTIVE_NONRECLAIMABLE');
+assert.equal(activeChairForAgent({agentId:'task-active-agent',targetSha:realGitSha}).chairId,'chair_1');
+assert.throws(()=>release({chairId:'chair_1',agentId:'task-active-agent',targetSha:realGitSha,successful:false}),/CHAIR1_TASK_ACTIVE_NONRELEASABLE/);
+assert.throws(
+  ()=>beginWork({
+    agentId:'MASTER-2',
+    role:'MASTER-2',
+    requestedChairId:'chair_1',
+    targetSha:realGitSha,
+    repositoryState:'IDLE',
+    taskId:'MASTER-2-PREEMPT-TRIAL',
+    workPackageId:'MASTER-2-PREEMPT-WP'
+  }),
+  /CHAIR1_TASK_ACTIVE_NONPREEMPTABLE/
+);
+release({chairId:'chair_1',agentId:'task-active-agent',targetSha:realGitSha,successful:true});
 acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE'});
 const speculative=writeSpeculativeContext({sessionId:'session-2',taskId:'TASK-2',chairId:'chair_2',role:'verification',targetSha:realGitSha,pendingDiff:'diff --git a/src/example.ts b/src/example.ts',testPlan:['lint','unit']});
 assert.equal(speculative.readOnly,true);
@@ -192,9 +221,13 @@ console.log('CHAIR_READ_ONLY_SPECULATION=PASS');
 console.log('CHAIR_CONTEXT_SANITIZATION=PASS');
 console.log('CHAIR_ATOMIC_REF_AUDIT_CAS=PASS');
 console.log('CHAIR_SINGLE_AGENT_MODE=PASS');
+console.log('CHAIR1_TASK_NONRECLAIMABLE=PASS');
+console.log('CHAIR1_TASK_NONPREEMPTABLE=PASS');
+console.log('CHAIR1_RELEASE_REQUIRES_COMPLETION=PASS');
 console.log('CHAIR_EXACT_SHA=PASS');
 console.log('CHAIR_SINGLE_WRITER=PASS');
 console.log('CHAIR_SCOPE_BOUNDARY=PASS');
 console.log('CHAIR_MERGE_SEPARATION=PASS');
 console.log('CHAIR2_BOUNDED_REPAIR=PASS');
+console.log('CHAIR3_ARCHITECTURE_SCOPE=PASS');
 console.log('CHAIR3_ARCHITECTURE_SCOPE=PASS');
