@@ -1,19 +1,10 @@
-import type { ToolCategory } from '../config/canonical-tool-definition';
+import type { ToolDefinition } from '../config/canonical-tool-definition';
+import type { ToolDefinition } from '../config/canonical-tool-definition';
 import type { ToolCard } from '../components/ar-home-tools-section';
-type ReadyTool = {
-  id: string;
-  title: string;
-  description: string;
-  category: ToolCategory;
-  path: string;
-};
-
-type LocalizableTool = Pick<ReadyTool, 'id' | 'title' | 'description' | 'category' | 'path'>;
-
 export function recommendImageTool(
   file: File,
-  readyTools: readonly ReadyTool[],
-  localize: (tool: LocalizableTool) => ToolCard,
+  readyTools: readonly ToolDefinition[],
+  localize: (tool: ToolDefinition) => ToolCard,
 ): ToolCard | null {
   if (!file.type.startsWith('image/')) return null;
 
