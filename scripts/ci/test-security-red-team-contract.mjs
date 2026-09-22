@@ -6,7 +6,6 @@ import assert from 'node:assert/strict';
 const root = process.cwd();
 const registry = JSON.parse(fs.readFileSync(path.join(root,'docs/agents/SECURITY-RED-TEAM-BOTS.json'),'utf8'));
 const workflow = fs.readFileSync(path.join(root,'.github/workflows/security-red-team.yml'),'utf8');
-const pulse = fs.readFileSync(path.join(root,'.github/workflows/security-red-team-pulse.yml'),'utf8');
 
 assert.equal(registry.protocol,'FLIXO-SECURITY-RED-TEAM-TRIAD-v1');
 assert.equal(registry.branchPolicy.workingBranch,'execution');
@@ -14,47 +13,53 @@ assert.equal(registry.branchPolicy.productionBranch,'main');
 assert.equal(registry.branchPolicy.thirdBranchAllowed,false);
 assert.equal(registry.execution.scanScope,'ALL_GIT_TRACKED_FILES');
 assert.equal(registry.execution.mutationAuthority,false);
+assert.equal(registry.execution.certificationAuthority,false);
+assert.equal(registry.execution.greenAuthority,false);
 assert.equal(registry.execution.evidenceOutput,'workflow-artifact');
 assert.equal(registry.execution.sourceLedgerMutation,false);
+assert.equal(registry.execution.isolation.mode,'EPHEMERAL_RUNNER_PER_BOT');
+assert.equal(registry.execution.isolation.workflowTrigger,'MANUAL_DISPATCH_ONLY');
+assert.equal(registry.execution.isolation.repositoryAccess,'CONTENTS_READ_ONLY');
+assert.equal(registry.execution.isolation.sourceMutation,false);
+assert.equal(registry.execution.isolation.ledgerMutation,false);
+assert.equal(registry.execution.isolation.peerWake,false);
+assert.equal(registry.execution.isolation.sharedWorkspace,false);
+assert.equal(registry.execution.isolation.evidence,'ARTIFACT_ONLY');
+
 assert.equal(Object.keys(registry.bots).length,3);
 for (const bot of Object.values(registry.bots)) assert.equal(bot.mutationAuthority,false);
 assert.equal(registry.repairIntelligence.entry,'scripts/ci/adversarial-repair-twin.mjs');
 assert.equal(registry.repairIntelligence.mutationAuthority,false);
 
-assert.match(workflow,/branches:\s*\[execution\]/u);
-assert.match(workflow,/paths-ignore:[\s\S]*الثغرات الامنيه\.md/u);
-assert.match(workflow,/expected_sha:/u);
-assert.match(workflow,/record-1:[\s\S]*?permissions:\s*\n\s*contents:\s+read/u);
-assert.doesNotMatch(workflow,/record-[123]:[\s\S]*?contents:\s+write/u);
-assert.match(workflow,/flixo-security-red-team-record-[123]-\$\{\{ env\.EXPECTED_SHA \}\}/u);
-assert.match(workflow,/scripts\/security\/record-security-findings\.mjs/u);
-assert.doesNotMatch(workflow,/git\s+push[^\n]*main/iu);
+assert.match(workflow,/workflow_dispatch:/u);
+assert.match(workflow,/expected_sha:[\s\S]*required:\s*true/u);
+assert.doesNotMatch(workflow,/push:\s*\n/u);
+assert.match(workflow,/permissions:\s*\n\s*contents:\s*read/u);
+assert.doesNotMatch(workflow,/actions:\s+write/u);
+assert.match(workflow,/strategy:[\s\S]*matrix:[\s\S]*SECURITY-REDTEAM-1[\s\S]*SECURITY-REDTEAM-2[\s\S]*SECURITY-REDTEAM-3/u);
+assert.match(workflow,/persist-credentials:\s*false/u);
+assert.match(workflow,/security-red-team-runner\.mjs/u);
+assert.match(workflow,/FLIXO_TWIN_READ_ONLY:\s*"true"/u);
+assert.match(workflow,/FLIXO_TWIN_DETACHED:\s*"true"/u);
+assert.match(workflow,/mutationAuthority\s*==\s*false/u);
+assert.match(workflow,/upload-artifact/u);
+assert.doesNotMatch(workflow,/record-[123]:/u);
+assert.doesNotMatch(workflow,/record-security-findings\.mjs/u);
+assert.doesNotMatch(workflow,/gh\s+(api|workflow\s+run)/u);
+assert.doesNotMatch(workflow,/PEER_WAKE/u);
+assert.doesNotMatch(workflow,/git\s+push/iu);
 assert.doesNotMatch(workflow,/git\s+switch\s+--create/iu);
 assert.doesNotMatch(workflow,/pull_request_target:/u);
-assert.match(pulse,/cron:\s*'\\*\\/5 \\* \\* \* \\*'/u);
-assert.match(pulse,/contents:\s+read/u);
-assert.match(pulse,/actions:\s+read/u);
-assert.doesNotMatch(pulse,/actions:\s+write/u);
-assert.match(pulse,/if:\s*github\.ref\s*==\s*'refs\/heads\/main'/u);
-assert.match(pulse,/ref:\s*main/u);
-assert.match(pulse,/node scripts\/ci\/agent-liveness-protocol\.mjs heartbeat/u);
-assert.doesNotMatch(pulse,/strategy:\s*\n\s*fail-fast:/u);
-assert.doesNotMatch(pulse,/matrix:/u);
-assert.match(pulse,/actions:\s+read/u);
-assert.match(pulse,/cancel-in-progress:\s+true/u);
-assert.doesNotMatch(pulse,/gh workflow run security-red-team-pulse\\.yml/u);
-assert.doesNotMatch(pulse,/PEER_WAKE_TARGET/u);
-assert.match(pulse,/agent-liveness-protocol\\.mjs heartbeat/u);
 
 const runner = fs.readFileSync(path.join(root,'scripts/security/security-red-team-runner.mjs'),'utf8');
-const ledger = fs.readFileSync(path.join(root,'scripts/security/record-security-findings.mjs'),'utf8');
 assert.match(runner,/git ls-files -z/u);
 assert.match(runner,/mutationAuthority:false/u);
 assert.match(runner,/adversarial-repair-twin\.mjs/u);
-assert.match(ledger,/FLIXO-SECURITY-REDTEAM-RECORD-v2/u);
-assert.match(ledger,/EVIDENCE_RECORDED_READ_ONLY/u);
-assert.match(ledger,/mutationAuthority !== false/u);
-assert.doesNotMatch(ledger,/method:\s*['"]PUT['"]/u);
-assert.doesNotMatch(ledger,/contents\/\$\{encodeURIComponent\(ledgerPath\)\}/u);
 
-console.log(JSON.stringify({status:'PASS',protocol:registry.protocol,bots:Object.keys(registry.bots),evidenceOutput:registry.execution.evidenceOutput},null,2));
+console.log(JSON.stringify({
+  status:'PASS',
+  protocol:registry.protocol,
+  bots:Object.keys(registry.bots),
+  isolation:registry.execution.isolation,
+  evidenceOutput:registry.execution.evidenceOutput
+},null,2));
