@@ -49,7 +49,7 @@ if(!source.includes('buildDeepInference')) failures.push('DEEP_REASONING_INTEGRA
 if(!fs.existsSync(sharedMemory) || !source.includes('buildSharedLearningContext')) failures.push('SHARED_SIX_BOT_MEMORY_NOT_BOUND');
 if(!fs.existsSync(powerProfile)) failures.push('FIVE_X_POWER_PROFILE_MISSING');
 if(!source.includes('READ_ONLY_POWER_PROFILE')) failures.push('FIVE_X_POWER_PROFILE_NOT_BOUND');
-if(!workflowSource.includes('--max-logs=175') || !workflowSource.includes('--limit=400')) failures.push('FIVE_X_COLLECTION_BUDGET_NOT_BOUND');
+if(!workflowSource.includes('--max-logs=350') || !workflowSource.includes('--limit=800')) failures.push('FIVE_X_COLLECTION_BUDGET_NOT_BOUND');
 
 const sha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
 const result={schemaVersion:1,authority:'READ_ONLY_ERROR_INVESTIGATOR_CONTRACT',status:failures.length?'FAIL':'PASS',checkedSha:sha,failures};
