@@ -54,7 +54,7 @@ assert.doesNotMatch(workflow,/git\s+switch\s+--create/iu);
 assert.doesNotMatch(workflow,/pull_request_target:/u);
 assert.match(registryText,/scripts\/security\/security-red-team-runner\.mjs/u);
 assert.match(registryText,/docs\/agents\/SECURITY-RED-TEAM-BOTS\.json/u);
-assert.match(registryText/`/\.github\/workflows\/security-red-team\.yml/u);
+assert.match(registryText,/\.github\/workflows\/security-red-team\.yml/u);
 
 const runner = fs.readFileSync(path.join(root,'scripts/security/security-red-team-runner.mjs'),'utf8');
 assert.match(runner,/git ls-files -z/u);
