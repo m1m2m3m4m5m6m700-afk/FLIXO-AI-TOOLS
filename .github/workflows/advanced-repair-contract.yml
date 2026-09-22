@@ -13,7 +13,7 @@ jobs:
   packet-contract:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
@@ -25,7 +25,7 @@ jobs:
           EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
           EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
         run: node scripts/ci/assert-current-commit.mjs
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 22.x
       - name: Bind validation workspace to canonical execution branch
