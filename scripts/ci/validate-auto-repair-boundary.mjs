@@ -90,9 +90,13 @@ export function validateStatic() {
   must(/FLIXO_STRICT_RED_REPAIR:\s*['"]true['"]/.test(auto), 'auto-repair-strict-red');
   must(/not a diagnosable failure/.test(auto), 'auto-repair-failure-only-policy');
   must(auto.includes('CURRENT_TARGET_SHA=') && auto.includes('FAIL CLOSED: repair target'), 'auto-repair-no-superseded-target');
-  must(auto.includes('execution advanced during repair; refusing stale publication'), 'auto-repair-no-stale-publication');
-  must(auto.includes('REMOTE_EXECUTION_SHA') && auto.includes('FAILED_SHA'), 'auto-repair-publication-exact-target');
-  must(!/git rebase "\$REMOTE_EXECUTION_SHA"/.test(auto), 'auto-repair-no-stale-rebase');
+  must(/BASE_SHA="\$\(git rev-parse HEAD\)/.test(auto), 'auto-repair-candidate-base-sha');
+  must(/test "\$BASE_SHA" = "\$FAILED_SHA"/.test(auto), 'auto-repair-candidate-binds-failed-sha');
+  must(/test "\$\(git rev-parse origin\/execution\)" = "\$FAILED_SHA"/.test(auto), 'auto-repair-candidate-remote-exact-target');
+  must(/CANDIDATE_SHA="\$\(git rev-parse HEAD\)/.test(auto), 'auto-repair-candidate-sha');
+  must(/PARENT_SHA="\$\(git rev-parse "\$CANDIDATE_SHA\^"\)/.test(auto), 'auto-repair-candidate-parent-sha');
+  must(/test "\$\(git rev-parse origin\/execution\)" = "\$PARENT_SHA"/.test(auto), 'auto-repair-publication-parent-integrity');
+  must(/git push origin "HEAD:execution"/.test(auto), 'auto-repair-execution-only-publication');
   must(auto.includes('EVIDENCE_CAPTURE=FAILED'), 'auto-repair-evidence-capture-fail-closed');
   must(handoffGate.includes('branches: [execution]'), 'handoff-gate-execution-trigger');
   must(/permissions:\s*[\s\S]*contents:\s+read[\s\S]*checks:\s+read/.test(supervisor) && !/actions:\s*write/.test(supervisor), 'supervisor-read-only');
