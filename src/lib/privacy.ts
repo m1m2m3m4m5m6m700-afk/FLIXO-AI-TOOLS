@@ -1,4 +1,4 @@
-import { getToolConfig } from '../config/tools';
+import { getToolDefinition } from '../config/canonical-tool-definition';
 
 export type ProcessingMode = 'local' | 'remote';
 
@@ -8,8 +8,6 @@ type PrivacyLocaleCopy = Readonly<{
   localDetail: (title: string) => string;
   remoteDetail: (title: string) => string;
 }>;
-
-const REMOTE_TOOL_IDS = new Set(['ai-image-generator']);
 
 const definePrivacyCopy = (
   local: string,
@@ -42,7 +40,12 @@ const PRIVACY_COPY: Record<string, PrivacyLocaleCopy> = {
 };
 
 export function getToolProcessingMode(toolId: string): ProcessingMode {
-  return REMOTE_TOOL_IDS.has(toolId) ? 'remote' : 'local';
+  const tool = getToolDefinition(toolId);
+  if (!tool) throw new Error(`Unknown tool id: ${toolId}`);
+  if ((tool.executionMode === 'CLOUD') !== tool.requirements.network) {
+    throw new Error(`Execution/privacy boundary mismatch for tool '${tool.id}'.`);
+  }
+  return tool.executionMode === 'CLOUD' || tool.requirements.network ? 'remote' : 'local';
 }
 
 export function getToolPrivacyCopy(toolId: string, locale: string): {
@@ -50,9 +53,10 @@ export function getToolPrivacyCopy(toolId: string, locale: string): {
   detail: string;
   mode: ProcessingMode;
 } {
+  const tool = getToolDefinition(toolId);
+  if (!tool) throw new Error(`Unknown tool id: ${toolId}`);
   const mode = getToolProcessingMode(toolId);
-  const tool = getToolConfig(toolId);
-  const title = tool?.title ?? toolId;
+  const title = tool.title;
   const copy = PRIVACY_COPY[locale] ?? PRIVACY_COPY.en;
 
   return mode === 'local'
