@@ -115,10 +115,12 @@ Any regression, provenance anomaly, stale proof, authority bypass, or security-g
 
 ## Security Red-Team Triad — SECURITY-REDTEAM-TRIAD-v1
 
-The repository now runs three independent, read-only security red-team bots on the exact `execution` SHA. All tracked repository files are scanned; each bot has a different security focus so a single analytical blind spot does not define the result.
+The repository contains three independent, read-only security red-team bots that run as **manual, isolated evidence jobs** against an explicitly supplied exact SHA. Each bot executes on its own ephemeral GitHub-hosted runner with repository access limited to \`contents: read\`.
 
-`SECURITY-REDTEAM-1` covers control-plane, GitHub Actions, OIDC, permissions, workflow supply-chain and exact-SHA/branch boundaries. `SECURITY-REDTEAM-2` covers application-code execution and injection surfaces, DOM sinks, browser storage, dynamic imports, install hooks and credential exposure. `SECURITY-REDTEAM-3` covers runtime/data boundaries such as network destination taint, CORS, credentialed requests, redirects, cookies, postMessage, uploads, SVG and SSR/client secret separation.
+\`SECURITY-REDTEAM-1\` covers control-plane, GitHub Actions, OIDC, permissions, workflow supply-chain and exact-SHA/branch boundaries. \`SECURITY-REDTEAM-2\` covers application-code execution and injection surfaces, DOM sinks, browser storage, dynamic imports, install hooks and credential exposure. \`SECURITY-REDTEAM-3\` covers runtime/data boundaries such as network destination taint, CORS, credentialed requests, redirects, cookies, postMessage, uploads, SVG and SSR/client secret separation.
 
-Every newly discovered finding is fingerprinted and appended to `الثغرات الامنيه.md` through a serialized optimistic-concurrency writer. Diverged execution heads fail closed rather than attaching stale evidence. The red-team bots have no source-mutation or certification authority.
+The triad has no source-mutation, ledger-mutation, certification, GREEN, or peer-wake authority. It does not run from repository pushes and does not dispatch or wake another bot. There is no shared workspace between bots.
 
-For HIGH/CRITICAL findings, the existing `scripts/ci/adversarial-repair-twin.mjs` is invoked in both A and B variants. Its output is advisory evidence only; a finding remains OPEN until the canonical repair, regression, exact-SHA verification and certification path closes it.
+Every result is published as an isolated workflow artifact bound to the supplied exact SHA. HIGH/CRITICAL findings may receive read-only A/B Repair Intelligence advisory evidence inside the same isolated runner. Findings are not automatically written to \`الثغرات الامنيه.md\`; promotion into the central security ledger requires a separate canonical workflow or human-controlled action.
+
+The red-team environment is isolated at the workflow/runner/credential boundary; it is not an air-gapped or network-denied sandbox.
