@@ -14,6 +14,7 @@ const git=(args)=>execFileSync('git',args,{cwd:ROOT,encoding:'utf8'}).trim();
 const sha=String(arg('sha')||git(['rev-parse','HEAD'])).trim();
 const proposalFile=arg('proposal');
 const output=arg('output','/tmp/flixo-chair-push-guard.json');
+const memoryOutput=arg('memory-output','');
 
 const checks=[];
 const failures=[];
@@ -54,6 +55,11 @@ function report(extra={}){
 function persist(result){
   fs.mkdirSync(path.dirname(output),{recursive:true});
   fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n');
+  if(memoryOutput && result.validationStatus==='FAIL'){
+    const memoryRecord={schemaVersion:2,protocol:'FLIXO-REJECTED-PUSH-MEMORY-v2',authority:'VALIDATION_ONLY',proposalId:result.proposalId??null,targetSha:result.targetSha??null,currentSha:result.currentSha??null,candidateSha:result.candidateSha??null,parentSha:result.parentSha??null,failedChecks:result.failedChecks??[],generatedAt:result.generatedAt};
+    fs.mkdirSync(path.dirname(memoryOutput),{recursive:true});
+    fs.appendFileSync(memoryOutput,JSON.stringify(memoryRecord)+'\n');
+  }
   console.log(JSON.stringify(result,null,2));
 }
 
