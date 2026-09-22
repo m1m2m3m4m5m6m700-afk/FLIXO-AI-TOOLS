@@ -29,7 +29,13 @@ The registry contains the approved mandatory protocols grouped into these famili
 
 The approved registry is the sole inventory for protocol identity, status, invariant, and enforcement boundary. P00 is the machine-registered root protocol and docs/agents/PROMPT-UNIFIED-EXECUTION.md is its canonical execution text. Any protocol not present in the registry is non-authoritative.
 
-### Machine-enforced Exit Lock
+### CELL-LAB / COLLABORATIVE DECISION GATE
+
+The shared cell is the repository's collaborative engineering laboratory. P00/P20 execution requires material decisions to pass through the Cell Lab before mutation: every material opinion, question, challenge and decision is recorded; affected Masters/Agents/Bots respond; disagreements are explicitly resolved; one integrated plan is produced; and the plan is bound to the current exact SHA. No consensus packet means no material mutation.
+
+Cell Lab is a P00/P20 enforcement extension, not a competing protocol. It uses `scripts/ci/cell-lab-consensus.mjs` and the consensus artifact under `diagnostics/agents/cell-lab/consensus/`.
+
+## Machine-enforced Exit Lock
 
 Session closure is a control-plane action, not an agent preference. `scripts/ci/agent-exit-lock.mjs` MUST prove canonical GREEN on the same exact SHA before `agent-session.mjs` can write a terminal session status. Missing/stale/failed certification evidence, any failed work, remaining work, or open RCA rejects logout; the session remains `RUNNING` and returns to recovery.
 
