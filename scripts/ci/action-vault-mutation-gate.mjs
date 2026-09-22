@@ -28,6 +28,7 @@ export function evaluateMutationGate({
   diagnosisKnowledgeReview=null,
   mutationScope={changedPaths:[],selectedFiles:[],testMutation:false,controlPlaneMutation:false,mainMutation:false,gateWeakening:false},
   branch='execution',
+  fiveXEnvelope=null,
 }={}){
   const failures=[];
   if (!preMutationProof || typeof preMutationProof !== 'object') failures.push('PRE_MUTATION_PROOF_MISSING');
@@ -73,6 +74,15 @@ export function evaluateMutationGate({
     NO_CONTROL_PLANE_MUTATION:mutationScope.controlPlaneMutation===false,
     NO_MAIN_MUTATION:mutationScope.mainMutation===false,
     NO_GATE_WEAKENING:mutationScope.gateWeakening===false,
+    FIVE_X_EXECUTION_READY:Boolean(
+      fiveXEnvelope?.status==='READY_FOR_AUTHORIZED_EXECUTION' &&
+      fiveXEnvelope?.exactSha===targetSha &&
+      fiveXEnvelope?.branch===branch &&
+      fiveXEnvelope?.mutationAuthority===false &&
+      fiveXEnvelope?.certificationAuthority===false &&
+      Array.isArray(fiveXEnvelope?.blockers) &&
+      fiveXEnvelope.blockers.length===0
+    ),
   };
   for(const [key,ok] of Object.entries(checks)) if(!ok) failures.push(key);
   let normalizedVerifier=null;
