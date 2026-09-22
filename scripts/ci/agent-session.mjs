@@ -44,9 +44,9 @@ const rca = String(args.get('rca') ?? process.env.FLIXO_AGENT_RCA ?? '').trim() 
 const scope = String(args.get('scope') ?? process.env.FLIXO_AGENT_SCOPE ?? '').split(',').map((v) => v.trim()).filter(Boolean);
 const fromSession = rawFromSession ? safeSessionId(rawFromSession, 'previous_session') : null;
 const taskId = String(args.get('task') ?? process.env.FLIXO_AGENT_TASK ?? '').trim();
-const sessionDir = path.resolve(ROOT, 'diagnostics/agents/sessions');
-const visibilityDir = path.resolve(ROOT, 'docs/agents/ledger');
-const handoffDir = path.resolve(ROOT, 'diagnostics/agents/handoffs');
+const sessionDir = path.resolve(ROOT, process.env.FLIXO_AGENT_SESSION_DIR ?? 'diagnostics/agents/sessions');
+const visibilityDir = path.resolve(ROOT, process.env.FLIXO_AGENT_VISIBILITY_DIR ?? 'docs/agents/ledger');
+const handoffDir = path.resolve(ROOT, process.env.FLIXO_AGENT_HANDOFF_DIR ?? 'diagnostics/agents/handoffs');
 const now = () => new Date().toISOString();
 const gitSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const gitMainSha = () => execFileSync('git', ['rev-parse', 'main'], { cwd: ROOT, encoding: 'utf8' }).trim();
