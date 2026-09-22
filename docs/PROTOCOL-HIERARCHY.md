@@ -13,7 +13,7 @@ A new protocol MUST NOT be introduced merely to document a preference. It requir
 When rules appear to conflict, precedence is:
 
 0. **Supreme Automation Residency / Agent Liveness Protocol.** It controls automation continuity, heartbeat, recovery, non-termination and wake behavior. Lower-level rules MUST NOT suspend, disable, override, or strand this protocol.
-1. Master execution and safety contract, including the Supreme Multi-Agent Cell Coordination Contract.
+1. Master execution and safety contract.
 2. Zero-False-Green and evidence integrity requirements.
 3. Root-Cause-First Repair Protocol.
 4. Product contract graph: G1, G2, G3, G4 and release gates.
@@ -28,16 +28,6 @@ A lower-level rule MUST NOT weaken or override a higher-level invariant. In part
 The registry contains exactly 20 approved mandatory protocols grouped into these families: GOVERNANCE, INTEGRITY, ROOT_CAUSE, TESTING, BROWSER, PRODUCT_CONTRACT, EVIDENCE, CI, and EXECUTION. Individual requirements SHOULD be implemented inside the owning family/protocol rather than by creating parallel protocols.
 
 The approved registry is the sole inventory for protocol identity, status, invariant, and enforcement boundary. Any protocol not present in the registry is non-authoritative.
-
-## Supreme Multi-Agent Cell Coordination
-
-The Master Execution Contract includes the mandatory multi-agent operating model. Every agent is part of one shared execution cell; agents declare scope, recognize peer scopes, coordinate across boundaries, perform explicit handoffs, and keep remaining work visible. Masters 1/2/3 maintain one shared workflow/plan/state view and report execution, verification counts, remaining work, blockers, and next action to the Supervisors Council through the existing canonical communication path.
-
-The cell objective is `0 ERRORS`. Finishing one agent's scope does not terminate the cell. RED, OPEN WORK, unresolved RCA, required unrun checks, contradictory evidence, or unverified execution keep the cell in recovery/coordination. Session, lease, workflow, timeout, or handoff completion cannot be treated as terminal success. GREEN remains certification-defined and requires fresh exact-SHA evidence. This extends existing ownership, continuity, communication, residency, and evidence controls and does not create a parallel protocol or channel.
-
-### Required cross-agent state
-
-Every material cycle MUST preserve `MY_SCOPE`, `OTHER_AGENT_SCOPE`, `DEPENDENCIES`, `COLLABORATORS`, `EXECUTED`, `CHECKS_EXECUTED`, `PASSED`, `FAILED`, `NOT_RUN`, `ERRORS_BEFORE`, `ERRORS_RESOLVED`, `ERRORS_REMAINING`, `REMAINING_WORK`, and `NEXT_ACTION`. Operational reports provide visibility and never substitute for certification evidence.
 
 ## Change-Scope Integrity
 

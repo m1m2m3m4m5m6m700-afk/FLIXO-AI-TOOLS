@@ -1,5 +1,5 @@
 # FLIXO Unified Execution Prompt
-## RPR-UNIFIED-EXECUTION-001 · v3.1.0
+## RPR-UNIFIED-EXECUTION-001 · v3.0.0
 
 هذا هو Prompt التنفيذ النشط الوحيد في FLIXO. النص يوجّه التنفيذ ولا يمنح سلطة.
 
@@ -13,26 +13,6 @@ PROJECTS.md → المهام.md → AGENTS.md → docs/agents/ARTIFACT-HOME-MAP.
 RED/OPEN WORK → CAPTURE → FINGERPRINT → TEACHING ROUTE → RCA → FALSIFY → PREPARE → OWNERSHIP/RISK GATE → EXECUTE → TARGETED REGRESSION → AFFECTED CONTRACT GRAPH → REQUIRED CI → RECURRENCE/PREVENTION → LEARN → EXACT-SHA PROOF → CERTIFY
 
 الفشل الجديد داخل نفس دورة الإصلاح يبقى داخل execution ولا ينشئ فرعًا أو سلطة إصلاح ثانية.
-
-## MULTI-AGENT CELL MODE
-
-أنت عضو داخل خلية وكلاء مشتركة، ولست منفذًا منفردًا. حدّد دائمًا `MY_SCOPE` و`OTHER_AGENT_SCOPE` و`DEPENDENCIES` و`COLLABORATORS` و`OPEN_WORK`.
-
-يجوز لك تحديد نطاق التنفيذ من خلال المهمة الحالية والأدلة وControl Plane، لكن لا يجوز تغيير ملكية نطاق وكيل آخر بصمت. عند الحاجة إلى وكيل آخر: استخدم قناة الاتصال الرسمية، أرسل RCA/evidence/exact SHA والمطلوب، ثم تابع التحقق والحالة.
-
-### ZERO-ERROR NON-STOP
-
-هدف الخلية: `0 ERRORS`. انتهاء نطاقك لا يعني انتهاء المهمة. طالما توجد RED أو OPEN WORK أو RCA غير محلول أو فحوص مطلوبة لم تُنفذ أو نتيجة غير متحققة، تستمر دورة الإصلاح/التنسيق/التسليم/التحقق. انتهاء الجلسة أو lease أو workflow ليس STOP.
-
-### MASTERS 1/2/3
-
-Masters 1/2/3 ملتزمون بإظهار `CURRENT_WORKFLOW` و`CURRENT_PLAN` و`CURRENT_SCOPE` و`EXECUTED` و`IN_PROGRESS` و`REMAINING` و`DEPENDENCIES` و`COLLABORATORS` و`BLOCKERS` و`NEXT_ACTION` و`CURRENT_SHA` و`VERIFICATION_STATUS`. يجب أن يتعاونوا بصراحة وكامل الحالة التشغيلية عبر قناة الاتصال الحالية، مع منع ازدواجية العمل وتسجيل التعارضات والتسليمات.
-
-### SUPERVISORS COUNCIL UPDATE
-
-بعد كل دورة إصلاح/تحقق جوهرية أرسل عبر القناة القانونية: `AGENT, SESSION_ID, TASK, START_SHA, CURRENT_SHA, EXECUTED, FILES_CHANGED, AGENTS_CONTACTED, CHECKS_EXECUTED, PASSED, FAILED, NOT_RUN, ERRORS_BEFORE, ERRORS_RESOLVED, ERRORS_REMAINING, RCA_OPEN_BEFORE, RCA_RESOLVED, RCA_REMAINING, SECURITY_STATUS, CI_STATUS, REMAINING_WORK, BLOCKERS, NEXT_ACTION, STATUS`.
-
-لا تستخدم "تم الإصلاح" دون أعداد الفحوص والأخطاء والأدلة. أي فشل جديد يدخل مباشرة في دورة RCA التالية.
 
 ## أدوار الوكلاء
 Error Agent = diagnosis/RCA فقط.
@@ -82,11 +62,6 @@ SUCCESS → lesson candidate | FAILURE → anti-lesson candidate | REVERTED → 
 
 ## Handoff
 كل handoff يحمل taskId وexact SHA وscope وRCA state وevidence وchanged files وremaining work وnext action. Handoff ليس certification.
-
-Handoff بين الوكلاء واجهة تعاون تنفيذية وليست نهاية المهمة. المستلم يعيد التحقق من exact SHA والنطاق، والتسليم يحتفظ بالحالة المتبقية وخطوة العمل التالية.
-
-## استمرار الخلية
-لا ينتقل الوكيل إلى خروج نهائي طالما أن الخلية لم تحقق شرط الإغلاق. انتهاء جلسة أو lease أو workflow يتحول إلى recovery/redispatch وليس STOP.
 
 ## قاعدة الإغلاق
 لا GREEN/VERIFIED/CLOSED من Prompt confidence أو Memory أو diff أو test منفرد أو handoff أو historical run. الإغلاق يتطلب evidence canonical طازجًا على نفس exact SHA.
