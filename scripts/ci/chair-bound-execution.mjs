@@ -8,8 +8,8 @@ export const CHAIR_DEFINITIONS = Object.freeze({
   chair_1:Object.freeze({
     mode:'SINGLE_AGENT_MODE',
     permissions:Object.freeze(['FULL_EXECUTIVE_WRITE','SOURCE_MUTATION','MERGE_PROPOSAL','SINGLE_AGENT_MODE']),
-    allowedPrefixes:Object.freeze(['src/','core/']),
-    protectedPrefixes:Object.freeze(['.github/','scripts/ci/','schemas/','core-contracts/','.flixo/','docs/'])
+    allowedPrefixes:Object.freeze(['']),
+    protectedPrefixes:Object.freeze(['.github/','scripts/ci/','schemas/','core-contracts/','.flixo/','docs/architecture/','docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json','AGENTS.md','المهام.md'])
   }),
   chair_2:Object.freeze({
     mode:'VERIFICATION_REPAIR_MODE',
@@ -150,6 +150,9 @@ const hmac=(v)=>{const k=key();if(!k)throw new Error('CHAIR_SIGNING_KEY_REQUIRED
 const statePath=()=>path.resolve(ROOT,String(process.env.FLIXO_CHAIR_STATE_PATH??DEFAULT_STATE));
 const assertSha=(v,label='SHA')=>{const x=String(v??'').trim();if(!SHA_RE.test(x))throw new Error('CHAIR_'+label+'_INVALID');return x;};
 const assertAgent=(v)=>{const x=String(v??'').trim();if(!AGENT_RE.test(x))throw new Error('CHAIR_AGENT_ID_INVALID');return x;};
+const assertContextId=(v,label)=>{const x=String(v??'').trim();if(!x||x.length>240)throw new Error(`CHAIR_${label}_INVALID`);return x;};
+const assertFence=(v)=>{const x=String(v??'').trim();if(!HASH_RE.test(x))throw new Error('CHAIR_FENCING_TOKEN_INVALID');return x;};
+const scopeDigest=(scope)=>Array.isArray(scope)&&scope.length?hash(JSON.stringify(scope.map(String).sort())):null;
 
 function withWriteLock(fn){
   fs.mkdirSync(path.dirname(LOCK_DIR),{recursive:true});
@@ -167,7 +170,7 @@ function baseState(targetSha){
     idle_timestamp:now(),
     target_sha:assertSha(targetSha,'TARGET_SHA'),
     chairs:Object.fromEntries(Object.entries(CHAIR_DEFINITIONS).map(([id,def])=>[id,{
-      holder_agent_id:null,status:'VACANT',permissions:[...def.permissions],acquired_at:null,target_sha:null,lease_id:null,review_id:null,scope:null,lease_started_at:null,heartbeat_at:null,heartbeat_count:0
+      holder_agent_id:null,status:'VACANT',permissions:[...def.permissions],acquired_at:null,target_sha:null,lease_id:null,review_id:null,scope:null,scope_hash:null,work_package_id:null,task_id:null,fencing_token:null,lease_started_at:null,heartbeat_at:null,heartbeat_count:0
     }]))
   };
 }
@@ -212,8 +215,8 @@ function validateState(state){
   return true;
 }
 function occupied(state){return Object.entries(state.chairs).filter(([,c])=>c.status==='OCCUPIED');}
-function canonicalLease({chairId,agentId,targetSha,permissions,reviewId,scope}){
-  return JSON.stringify({chairId,agentId,targetSha,permissions:[...permissions],reviewId:reviewId??null,scope:scope??null});
+function canonicalLease({chairId,agentId,targetSha,permissions,reviewId,scope,workPackageId=null,taskId=null,fencingToken=null}){
+  return JSON.stringify({chairId,agentId,targetSha,permissions:[...permissions],reviewId:reviewId??null,scope:scope??null,workPackageId:workPackageId??null,taskId:taskId??null,fencingToken:fencingToken??null});
 }
 export function leaseIdFor(input){return hash(canonicalLease(input));}
 function signLease(input){return hmac(canonicalLease(input));}
@@ -238,7 +241,7 @@ export function initialize({targetSha=sha()}={}){
     throw new Error('CHAIR_STATE_STALE_ACTIVE');
   });
 }
-export function acquire({chairId='chair_1',agentId,targetSha=sha(),repositoryState='IDLE',reviewId=null,scope=null}={}){
+export function acquire({chairId='chair_1',agentId,targetSha=sha(),repositoryState='IDLE',reviewId=null,scope=null,workPackageId=null,taskId=null,fencingToken=null}={}){
   assertAgent(agentId);const t=assertSha(targetSha,'TARGET_SHA');if(t!==sha())throw new Error('STALE_CONTEXT');
   if(!CHAIR_DEFINITIONS[chairId])throw new Error('CHAIR_UNKNOWN');
   return withWriteLock(()=>{
@@ -255,8 +258,12 @@ export function acquire({chairId='chair_1',agentId,targetSha=sha(),repositorySta
     const chair=state.chairs[chairId];
     if(chair.status!=='VACANT')throw new Error('CHAIR_NOT_VACANT');
     if((chairId==='chair_3')&&!reviewId)throw new Error('CHAIR3_ARCHITECTURE_REVIEW_ID_REQUIRED');
-    const leaseInput={chairId,agentId,targetSha:t,permissions:CHAIR_DEFINITIONS[chairId].permissions,reviewId,scope};
-    chair.holder_agent_id=agentId;chair.status='OCCUPIED';chair.acquired_at=now();chair.lease_started_at=chair.acquired_at;chair.heartbeat_at=chair.acquired_at;chair.heartbeat_count=0;chair.target_sha=t;chair.lease_id=signLease(leaseInput);chair.review_id=reviewId;chair.scope=scope;
+    const wp=workPackageId===null?null:assertContextId(workPackageId,'WORK_PACKAGE_ID');
+    const task=taskId===null?null:assertContextId(taskId,'TASK_ID');
+    const fence=fencingToken===null?null:assertFence(fencingToken);
+    if(chairId==='chair_1' && process.env.FLIXO_REQUIRE_FENCED_CHAIR==='true' && (!wp||!task||!fence))throw new Error('CHAIR1_MUTATION_CONTEXT_REQUIRED');
+    const leaseInput={chairId,agentId,targetSha:t,permissions:CHAIR_DEFINITIONS[chairId].permissions,reviewId,scope,workPackageId:wp,taskId:task,fencingToken:fence};
+    chair.holder_agent_id=agentId;chair.status='OCCUPIED';chair.acquired_at=now();chair.lease_started_at=chair.acquired_at;chair.heartbeat_at=chair.acquired_at;chair.heartbeat_count=0;chair.target_sha=t;chair.lease_id=signLease(leaseInput);chair.review_id=reviewId;chair.scope=scope;chair.scope_hash=scopeDigest(scope);chair.work_package_id=wp;chair.task_id=task;chair.fencing_token=fence;
     atomicChairRefAudit({chairId,targetSha:t,event:'ACQUIRE'});
     state.repository_state='ACTIVE';state.idle_timestamp=null;writeState(state);return state;
   });
@@ -267,24 +274,28 @@ function getChair(state,chairId){
   if(chair.status!=='OCCUPIED')throw new Error('CHAIR_NOT_OCCUPIED');
   return chair;
 }
-function verifyLease({state,chairId,agentId,targetSha}){
-  const t=assertSha(targetSha,'TARGET_SHA');if(t!==sha())throw new Error('STALE_CONTEXT');
+function verifyLease({state,chairId,agentId,targetSha,assertCurrentHead=true}){
+  const t=assertSha(targetSha,'TARGET_SHA');if(assertCurrentHead && t!==sha())throw new Error('STALE_CONTEXT');
   const chair=getChair(state,chairId);
   if(chair.holder_agent_id!==agentId)throw new Error('UNAUTHORIZED_EXECUTION_ATTEMPT');
   if(chair.target_sha!==t||state.target_sha!==t)throw new Error('STALE_CONTEXT');
-  const input={chairId,agentId,targetSha:t,permissions:CHAIR_DEFINITIONS[chairId].permissions,reviewId:chair.review_id,scope:chair.scope};
+  const input={chairId,agentId,targetSha:t,permissions:CHAIR_DEFINITIONS[chairId].permissions,reviewId:chair.review_id,scope:chair.scope,workPackageId:chair.work_package_id??null,taskId:chair.task_id??null,fencingToken:chair.fencing_token??null};
   const expected=signLease(input);
   const supplied=String(chair.lease_id??'');
   if(!HASH_RE.test(supplied)||!timingSafeEqual(Buffer.from(expected,'utf8'),Buffer.from(supplied,'utf8')))throw new Error('CHAIR_LEASE_SIGNATURE_INVALID');
   return chair;
 }
-export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permission='SOURCE_MUTATION',reviewId=null,boundedScope=null}={}){
+export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permission='SOURCE_MUTATION',reviewId=null,boundedScope=null,workPackageId=null,taskId=null,fencingToken=null}={}){
   if(!Array.isArray(paths)||paths.length===0)throw new Error('CHAIR_WRITE_PATHS_REQUIRED');
   const t=assertSha(targetSha,'TARGET_SHA');
   const state=readState();
   if(state.target_sha!==t)throw new Error('STALE_CONTEXT');
   const chair=verifyLease({state,chairId,agentId,targetSha:t});
   const def=CHAIR_DEFINITIONS[chairId];
+  if(chair.work_package_id!==null && chair.work_package_id!==String(workPackageId??''))throw new Error('CHAIR_WORK_PACKAGE_MISMATCH');
+  if(chair.task_id!==null && chair.task_id!==String(taskId??''))throw new Error('CHAIR_TASK_MISMATCH');
+  if(chair.fencing_token!==null && chair.fencing_token!==String(fencingToken??''))throw new Error('CHAIR_FENCING_TOKEN_MISMATCH');
+  if(chair.scope_hash!==null && chair.scope_hash!==scopeDigest(paths))throw new Error('CHAIR_SCOPE_HASH_MISMATCH');
   if(!def.permissions.includes(permission))throw new Error('CHAIR_PERMISSION_DENIED='+permission);
   if(chairId==='chair_1'&&permission==='MERGE_PROPOSAL')throw new Error('MERGE_PROPOSAL_IS_NOT_MERGE_AUTHORITY');
   if(['chair_2','chair_3'].includes(chairId)&&permission==='SOURCE_MUTATION'&&chairId==='chair_2'&&!boundedScope?.length)throw new Error('CHAIR2_BOUNDED_SCOPE_REQUIRED');
@@ -302,6 +313,27 @@ export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permiss
   }
   return Object.freeze({authorized:true,chairId,agentId,targetSha:t,permission,paths:normalized,mode:def.mode,singleAgentMode:chairId==='chair_1'&&occupied(state).length===1});
 }
+export function authorizePublication({chairId='chair_1',agentId,targetSha=sha(),paths=[],permission='SOURCE_MUTATION',workPackageId=null,taskId=null,fencingToken=null}={}) {
+  if(!Array.isArray(paths)||paths.length===0)throw new Error('CHAIR_WRITE_PATHS_REQUIRED');
+  const t=assertSha(targetSha,'TARGET_SHA');
+  const state=readState();
+  if(state.target_sha!==t)throw new Error('STALE_CONTEXT');
+  const chair=verifyLease({state,chairId,agentId,targetSha:t,assertCurrentHead:false});
+  const def=CHAIR_DEFINITIONS[chairId];
+  if(!def.permissions.includes(permission))throw new Error('CHAIR_PERMISSION_DENIED='+permission);
+  if(chair.work_package_id!==null && chair.work_package_id!==String(workPackageId??''))throw new Error('CHAIR_WORK_PACKAGE_MISMATCH');
+  if(chair.task_id!==null && chair.task_id!==String(taskId??''))throw new Error('CHAIR_TASK_MISMATCH');
+  if(chair.fencing_token!==null && chair.fencing_token!==String(fencingToken??''))throw new Error('CHAIR_FENCING_TOKEN_MISMATCH');
+  const normalized=paths.map(p=>String(p).replaceAll('\\','/').replace(/^\.\//,''));
+  for(const p of normalized){
+    if(p==='*')continue;
+    if(p.startsWith('/')||p.includes('..'))throw new Error('CHAIR_PATH_INVALID');
+    if(def.protectedPrefixes.some(prefix=>p===prefix||p.startsWith(prefix)))throw new Error('CHAIR_PROTECTED_PATH');
+    if(!def.allowedPrefixes.some(prefix=>p.startsWith(prefix)))throw new Error('CHAIR_SCOPE_DENIED='+p);
+  }
+  return Object.freeze({authorized:true,publicationOnly:true,chairId,agentId,targetSha:t,permission,paths:normalized});
+}
+
 export function authorizeMergeProposal({chairId,agentId,targetSha=sha()}={}){
   const state=readState();const chair=verifyLease({state,chairId,agentId,targetSha});
   if(!CHAIR_DEFINITIONS[chairId].permissions.includes('MERGE_PROPOSAL'))throw new Error('CHAIR_MERGE_PROPOSAL_PERMISSION_DENIED');
@@ -327,7 +359,7 @@ export function revoke({chairId='chair_1',agentId,reason='STALE_CONTEXT',session
 export function release({chairId,agentId,targetSha=sha(),successful=false,sessionId=null,taskId=null}={}){
   const t=assertSha(targetSha,'TARGET_SHA');
   return withWriteLock(()=>{
-    const state=readState();const chair=verifyLease({state,chairId,agentId,targetSha:t});
+    const state=readState();const chair=verifyLease({state,chairId,agentId,targetSha:t,assertCurrentHead:false});
     if(sessionId)sanitizeSessionContext({sessionId,taskId});
     clearChairRecord(chair,state);
     atomicChairRefAudit({chairId,targetSha:t,event:'RELEASE'});
@@ -335,9 +367,9 @@ export function release({chairId,agentId,targetSha=sha(),successful=false,sessio
     writeState(state);return state;
   });
 }
-export function validateCurrent({chairId,agentId,targetSha=sha(),paths=[],permission='SOURCE_MUTATION',reviewId=null,boundedScope=null}={}){
+export function validateCurrent({chairId,agentId,targetSha=sha(),paths=[],permission='SOURCE_MUTATION',reviewId=null,boundedScope=null,workPackageId=null,taskId=null,fencingToken=null}={}){
   const t=assertSha(targetSha,'TARGET_SHA');if(t!==sha())throw new Error('STALE_CONTEXT');
-  return authorizeWrite({chairId,agentId,targetSha:t,paths,permission,reviewId,boundedScope});
+  return authorizeWrite({chairId,agentId,targetSha:t,paths,permission,reviewId,boundedScope,workPackageId,taskId,fencingToken});
 }
 export function repositoryMode({targetSha=sha()}={}){
   const state=readState();const t=assertSha(targetSha,'TARGET_SHA');if(state.target_sha!==t)throw new Error('STALE_CONTEXT');
@@ -352,9 +384,10 @@ if(process.argv[1]?.endsWith('/chair-bound-execution.mjs')){
   const scope=arg('scope').split(',').map(v=>v.trim()).filter(Boolean);
   const target=arg('sha',sha());
   if(command==='init')console.log(JSON.stringify(initialize({targetSha:target}),null,2));
-  else if(command==='acquire')console.log(JSON.stringify(acquire({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,repositoryState:arg('repository-state','IDLE'),reviewId:arg('review-id')||null,scope:scope.length?scope:null}),null,2));
-  else if(command==='authorize-write')console.log(JSON.stringify(authorizeWrite({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,paths,permission:arg('permission','SOURCE_MUTATION'),reviewId:arg('review-id')||null,boundedScope:scope.length?scope:null}),null,2));
+  else if(command==='acquire')console.log(JSON.stringify(acquire({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,repositoryState:arg('repository-state','IDLE'),reviewId:arg('review-id')||null,scope:scope.length?scope:null,workPackageId:arg('work-package')||null,taskId:arg('task-id')||null,fencingToken:arg('fencing-token')||null}),null,2));
+  else if(command==='authorize-write')console.log(JSON.stringify(authorizeWrite({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,paths,permission:arg('permission','SOURCE_MUTATION'),reviewId:arg('review-id')||null,boundedScope:scope.length?scope:null,workPackageId:arg('work-package')||null,taskId:arg('task-id')||null,fencingToken:arg('fencing-token')||null}),null,2));
   else if(command==='merge-proposal')console.log(JSON.stringify(authorizeMergeProposal({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target}),null,2));
+  else if(command==='authorize-publication')console.log(JSON.stringify(authorizePublication({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,paths,permission:arg('permission','SOURCE_MUTATION'),workPackageId:arg('work-package')||null,taskId:arg('task-id')||null,fencingToken:arg('fencing-token')||null}),null,2));
   else if(command==='release')console.log(JSON.stringify(release({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,successful:arg('successful','false')==='true'}),null,2));
   else if(command==='mode')console.log(JSON.stringify(repositoryMode({targetSha:target}),null,2));
   else if(command==='validate')console.log(JSON.stringify(validateCurrent({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,paths,permission:arg('permission','SOURCE_MUTATION'),reviewId:arg('review-id')||null,boundedScope:scope.length?scope:null}),null,2));
