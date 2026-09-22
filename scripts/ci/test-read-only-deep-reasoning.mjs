@@ -65,6 +65,7 @@ const report = buildDeepInference({
   recurringPatterns: [{ recurringSignature: 'r1', occurrences: 2 }],
   downstreamFailures: [observed[2]],
   staleEvidence: [observed[4]],
+  fullRepairIntelligence: false,
 });
 
 assert.equal(report.protocol, 'FLIXO-DEEP-READ-ONLY-INFERENCE-v1');
@@ -75,6 +76,8 @@ assert.equal(report.evidenceDiversity.diversity > 0.5, true);
 assert.equal(report.causalDiscriminator.protocol,'CAUSAL-DISCRIMINATOR-v1');
 assert.equal(report.metaCausalModel.protocol,'META-CAUSAL-MODEL-v1');
 assert.equal(report.metaCausalModel.mutationAllowed,false);
+assert.equal(report.repairIntelligence.primaryRepairIntelligence.codeMentor.status,'SKIPPED_IN_UNIT_TEST');
+assert.equal(report.repairIntelligence.programmerTwin.status,'SKIPPED_IN_UNIT_TEST');
 assert.equal(report.hypotheses.some((h) => h.id === 'H-INTERNAL_CONTRACT'), true);
 assert.equal(report.falsification.length > 0, true);
 assert.equal(report.counterfactuals.length > 0, true);
