@@ -18,16 +18,16 @@
       "name": "Supreme Automation Residency / Agent Liveness",
       "class": "EXECUTION",
       "status": "SUPREME_MANDATORY",
-      "enforcement": "scripts/ci/agent-liveness-protocol.mjs + enforcement tests + 5-minute heartbeat + canonical Green Gate recovery",
-      "invariant": "The repair automation plane is permanently resident while work is open; heartbeat is mandatory every 5 minutes; sleep, idle, silent stop, abandonment, self-disable and self-abort are forbidden; run/session/lease termination triggers automatic recovery; manual wake is never required; GREEN does not suspend residency."
+      "enforcement": "scripts/ci/agent-liveness-protocol.mjs + enforcement tests + 5-minute heartbeat + canonical Green Gate recovery + scripts/ci/agent-exit-lock.mjs",
+      "invariant": "The repair automation plane is permanently resident while work is open; heartbeat is mandatory every 5 minutes; sleep, idle, silent stop, abandonment, self-disable and self-abort are forbidden; run/session/lease termination triggers automatic recovery; manual wake is never required; GREEN does not suspend residency. Session closure is forbidden before canonical GREEN; failed exit attempts remain recoverable and do not terminate open work."
     },
     {
       "id": "P01",
       "name": "Master Execution Contract",
       "class": "GOVERNANCE",
       "status": "MANDATORY",
-      "enforcement": "AGENTS.md + CI contract",
-      "invariant": "Execution remains non-terminal until required work, evidence, tests and root causes are closed."
+      "enforcement": "AGENTS.md + scripts/ci/agent-exit-lock.mjs + canonical communication/control plane + CI contract",
+      "invariant": "Execution remains non-terminal until required work, evidence, tests and root causes are closed. Session exit is machine-locked: only VERIFIED with zero failed/remaining work and zero open RCAs plus fresh canonical certification and promotion evidence for the same exact SHA may close the session; otherwise the session remains RUNNING."
     },
     {
       "id": "P02",
