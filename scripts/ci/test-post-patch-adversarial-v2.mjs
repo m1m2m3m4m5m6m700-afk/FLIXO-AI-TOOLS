@@ -35,6 +35,8 @@ assert.match(config,/max_repair_cycles:\s*3/);
 assert.match(config,/allow_multi_file_mutation:\s*false/);
 assert.match(config,/mode: CONVERGENCE_GUIDED/);
 assert.match(config,/require_pass_confirmed:\s*true/);
+assert.match(fs.readFileSync('schemas/in-repo-repair-v2.schema.json','utf8'),/previous_counterexample_addressed/);
+assert.match(fs.readFileSync('scripts/ci/in-repo-repair-v2.mjs','utf8'),/PRIOR_COUNTEREXAMPLE_NOT_ADDRESSED/);
 
 assert.match(mergeGate,/FLIXO_RCA_MANIFEST_PATH/);
 assert.match(mergeGate,/SOURCE_SHA="\$\(git rev-parse HEAD\^\)"/);
