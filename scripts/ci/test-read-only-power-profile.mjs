@@ -144,7 +144,7 @@ assert.equal(cycle5.state,'CLOSED_BY_CANONICAL_GREEN');
 assert.equal(cycle5.closureAuthority,'CANONICAL_GREEN_AND_CERTIFICATION');
 
 console.log('FIVE_X_REPAIR_CYCLE=PASS');
-assert.ok(blocked.blockers.includes('FIVE_X_HYPOTHESES_BLOCKED'));
+assert.ok(blocked.blockers.includes('TEN_X_HYPOTHESES_BLOCKED'));
 
 console.log('READ_ONLY_POWER_PROFILE_10X=PASS');
 console.log('TEN_X_EXECUTION_LAYER=PASS');
