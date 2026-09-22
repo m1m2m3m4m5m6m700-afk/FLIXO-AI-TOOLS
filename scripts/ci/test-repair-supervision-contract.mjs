@@ -28,7 +28,7 @@ assert.match(supersession, /gh run view "\$run_id" --repo "\$REPOSITORY" --json 
 assert.match(supersession, /STALE_RUN_ALREADY_COMPLETED run=\$run_id/);
 assert.match(supersession, /ERROR: cancellation failed for active run=\$run_id status=\$now_status/);
 assert.doesNotMatch(supersession, /gh run cancel "\$run_id" --repo "\$REPOSITORY"\s*\|\|\s*true/);
-assert.match(canonicalCi, /group: flixo-test-\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
+assert.match(canonicalCi, /group: flixo-test-\$\{\{ github\.event_name \}\}-\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
 assert.match(canonicalCi, /push:\s*\n\s*branches:\s*\[main, execution\]/);
 assert.match(canonicalCi, /cancel-in-progress:\s*true/);
 for (const workflow of [canonicalCi, impactExecution, impactPlan, wp0]) assert.match(workflow, /cancel-in-progress:\s*true/);
