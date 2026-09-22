@@ -28,11 +28,16 @@ export const READ_ONLY_POWER_PROFILE = Object.freeze({
     hypotheses: 120,
   }),
   layers: Object.freeze([
-    'RUNTIME_EVIDENCE_FANOUT',
-    'SOURCE_GRAPH_EXPANSION',
-    'HISTORICAL_DEPTH_EXPANSION',
-    'ADVERSARIAL_FALSIFICATION_EXPANSION',
-    'KNOWLEDGE_SYNTHESIS_EXPANSION',
+    'PROMPT_UNDERSTANDING_10X',
+    'CONSTRAINT_REASONING_10X',
+    'INTENT_AND_SCOPE_REASONING_10X',
+    'RCA_HYPOTHESIS_10X',
+    'CAUSAL_GRAPH_PROOF_10X',
+    'ADVERSARIAL_VERIFICATION_10X',
+    'REGRESSION_DEPTH_10X',
+    'SECURITY_AND_INTEGRITY_10X',
+    'COORDINATION_AND_HANDOFF_10X',
+    'LEARNING_CONTINUITY_10X',
   ]),
   safety: Object.freeze([
     'NO_SOURCE_MUTATION',
@@ -95,18 +100,18 @@ export const READ_ONLY_POWER_PROFILE = Object.freeze({
 
 export function validateTenXExecutionLayer(execution = READ_ONLY_POWER_PROFILE.execution) {
   const failures = [];
-  if (execution?.protocol !== 'FLIXO-TEN-X-EXECUTION-LAYER-v1') failures.push('FIVE_X_PROTOCOL_INVALID');
-  if (execution?.status !== 'ENFORCED_EXTENSION_OF_CANONICAL_POWER_PROFILE') failures.push('FIVE_X_STATUS_INVALID');
-  if (!Array.isArray(execution?.layers) || execution.layers.length !== 10) failures.push('FIVE_X_LAYERS_INVALID');
-  if (execution?.layerCount !== 10) failures.push('FIVE_X_LAYER_COUNT_INVALID');
-  if (!Array.isArray(execution?.requiredEvidenceClasses) || execution.requiredEvidenceClasses.length !== 10) failures.push('FIVE_X_EVIDENCE_CLASSES_INVALID');
-  if (execution?.requiredEvidenceClassCount !== 10) failures.push('FIVE_X_EVIDENCE_CLASS_COUNT_INVALID');
-  if (Number(execution?.minimumHypotheses) < 6 || Number(execution?.maximumHypotheses) < Number(execution?.minimumHypotheses)) failures.push('FIVE_X_HYPOTHESIS_RANGE_INVALID');
-  if (Number(execution?.minimumCounterexampleChecks) < 10) failures.push('FIVE_X_COUNTEREXAMPLE_DEPTH_INVALID');
-  if (Number(execution?.minimumRegressionDepth) < 5) failures.push('FIVE_X_REGRESSION_DEPTH_INVALID');
-  if (Number(execution?.minimumIndependentEvidenceSources) < 8) failures.push('FIVE_X_EVIDENCE_DIVERSITY_INVALID');
-  if (Number(execution?.minimumLearningOutputs) < 8) failures.push('FIVE_X_LEARNING_OUTPUT_INVALID');
-  if (!Array.isArray(execution?.dispatchRequirements) || execution.dispatchRequirements.length < 6) failures.push('FIVE_X_DISPATCH_REQUIREMENTS_INVALID');
+  if (execution?.protocol !== 'FLIXO-TEN-X-EXECUTION-LAYER-v1') failures.push('TEN_X_PROTOCOL_INVALID');
+  if (execution?.status !== 'ENFORCED_EXTENSION_OF_CANONICAL_POWER_PROFILE') failures.push('TEN_X_STATUS_INVALID');
+  if (!Array.isArray(execution?.layers) || execution.layers.length !== 10) failures.push('TEN_X_LAYERS_INVALID');
+  if (execution?.layerCount !== 10) failures.push('TEN_X_LAYER_COUNT_INVALID');
+  if (!Array.isArray(execution?.requiredEvidenceClasses) || execution.requiredEvidenceClasses.length !== 10) failures.push('TEN_X_EVIDENCE_CLASSES_INVALID');
+  if (execution?.requiredEvidenceClassCount !== 10) failures.push('TEN_X_EVIDENCE_CLASS_COUNT_INVALID');
+  if (Number(execution?.minimumHypotheses) < 6 || Number(execution?.maximumHypotheses) < Number(execution?.minimumHypotheses)) failures.push('TEN_X_HYPOTHESIS_RANGE_INVALID');
+  if (Number(execution?.minimumCounterexampleChecks) < 10) failures.push('TEN_X_COUNTEREXAMPLE_DEPTH_INVALID');
+  if (Number(execution?.minimumRegressionDepth) < 5) failures.push('TEN_X_REGRESSION_DEPTH_INVALID');
+  if (Number(execution?.minimumIndependentEvidenceSources) < 8) failures.push('TEN_X_EVIDENCE_DIVERSITY_INVALID');
+  if (Number(execution?.minimumLearningOutputs) < 8) failures.push('TEN_X_LEARNING_OUTPUT_INVALID');
+  if (!Array.isArray(execution?.dispatchRequirements) || execution.dispatchRequirements.length < 6) failures.push('TEN_X_DISPATCH_REQUIREMENTS_INVALID');
   return Object.freeze({ ok: failures.length === 0, failures });
 }
 
@@ -125,7 +130,7 @@ export function buildTenXExecutionEnvelope({
   scopeConflict = false,
 } = {}) {
   const execution = READ_ONLY_POWER_PROFILE.execution;
-  const validation = validateFiveXExecutionLayer(execution);
+  const validation = validateTenXExecutionLayer(execution);
   const shaValid = /^[a-f0-9]{40}$/iu.test(String(exactSha ?? ''));
   const proofSet = new Set((Array.isArray(proofClasses) ? proofClasses : []).map(String));
   const proofComplete = execution.requiredEvidenceClasses.every((item) => proofSet.has(item));
@@ -147,7 +152,7 @@ export function buildTenXExecutionEnvelope({
     adversarial: adversarialClean,
     scopeConflict: scopeConflict === false,
   });
-  const blockers = Object.entries(checks).filter(([,ok]) => !ok).map(([key]) => 'FIVE_X_' + key.toUpperCase() + '_BLOCKED');
+  const blockers = Object.entries(checks).filter(([,ok]) => !ok).map(([key]) => 'TEN_X_' + key.toUpperCase() + '_BLOCKED');
   return Object.freeze({
     protocol: execution.protocol,
     profile: READ_ONLY_POWER_PROFILE.profile,
