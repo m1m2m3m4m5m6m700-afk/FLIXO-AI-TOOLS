@@ -1232,7 +1232,9 @@ jobs:
           git fetch --no-tags origin execution
           test "$(git rev-parse origin/execution)" = "$PARENT_SHA"
           node scripts/ci/execution-mutation-gate.mjs verify --phase=pre-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA" --parent="$PARENT_SHA"
-          git push origin "HEAD:execution"
+          echo "CHAIR_GUARD_BLOCKED: direct execution publication is forbidden."
+          echo "HANDOFF_REQUIRED: Chair-1 must publish the verified candidate through the guarded PR path."
+          exit 1
           node scripts/ci/execution-mutation-gate.mjs verify --phase=post-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA"
           echo 'EXECUTION_PUBLICATION=BLOCKED_BY_CHAIR_GUARD'
           PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
