@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [execution]
+    branches: [main, execution]
   workflow_dispatch:
 
 # Keep only the newest test-impact execution for the same PR/branch.
