@@ -121,8 +121,6 @@ env:
   FLIXO_CHAIR1_PRIMARY_MISSION: CHAIR1_PRIMARY_TEST_CYCLE_REPAIR
   FLIXO_CHAIR1_MISSION_PATH: /tmp/flixo-chair1-repair-mission.json
   FLIXO_REPAIR_TASK_LEDGER_PATH: /tmp/flixo-repair-task-ledger.json
-  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
   FLIXO_CHAIR_LEASE_ID: ${{ inputs.central_chair_lease_id }}
   FLIXO_CHAIR_FENCING_HASH: ${{ inputs.central_chair_fencing_hash }}
   FLIXO_CHAIR_AGENT: AUTO_REPAIR_BOT
@@ -1311,12 +1309,15 @@ jobs:
       - name: Verify central Chair-1 lease before mutation
         id: central_chair
         if: steps.verify.outputs.verified == 'true'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
           WORK_PACKAGE_ID="REPAIR:$TARGET_RUN_ID:$FLIXO_FAILURE_FINGERPRINT"
           TASK_ID="ACTION-REPAIR:$TARGET_RUN_ID:$FLIXO_FAILURE_FINGERPRINT"
-          node scripts/ci/central-chair-lease.mjs verify \
+          node /tmp/flixo-repair-controller/scripts/ci/central-chair-lease.mjs verify \
             --holder=AUTO_REPAIR_BOT \
             --task="$TASK_ID" \
             --work-package="$WORK_PACKAGE_ID" \
