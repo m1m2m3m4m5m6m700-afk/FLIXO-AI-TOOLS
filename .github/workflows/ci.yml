@@ -72,6 +72,11 @@ jobs:
         run: npm run test:static
       - name: Build contracts
         run: npm run test:build
+      - name: Create immutable run proof before artifact hashing
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/ci/create-run-proof.mjs
+
       - name: Create canonical build artifact identity
         env:
           GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -90,6 +95,10 @@ jobs:
           mkdir -p "dist/__flixo/identity/$EXPECTED_SHA"
           printf '%s\n' "$EXPECTED_SHA" > "dist/__flixo/identity/$EXPECTED_SHA/index.txt"
           sha256sum package-lock.json > dist/flixo-package-lock.sha256
+      - name: Verify immutable run proof chain
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/ci/verify-run-proof.mjs
       - name: Verify static/build identity
         shell: bash
         run: |
@@ -195,6 +204,11 @@ jobs:
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/ci/verify-run-lock.mjs
+      - name: Verify exact run proof and artifact chain
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/ci/verify-run-proof.mjs
+
       - name: Verify immutable artifact
         shell: bash
         run: |
@@ -280,6 +294,11 @@ jobs:
         with:
           name: flixo-build-${{ github.run_id }}
           path: dist
+      - name: Verify exact run proof and artifact chain
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/ci/verify-run-proof.mjs
+
       - name: Verify immutable artifact
         shell: bash
         run: |
