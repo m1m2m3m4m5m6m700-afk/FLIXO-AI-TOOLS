@@ -71,8 +71,12 @@ const canonicalConcurrencyWorkflows = [
 ];
 for (const [file, source] of canonicalConcurrencyWorkflows) {
   const block = source.match(/concurrency:[\s\S]*?(?=\n\s*(?:permissions:|env:|jobs:|#|$))/)?.[0] ?? '';
-  if (!block || /\$\{\{\s*github\.event_name\s*\}\}/.test(block)) {
-    console.error('CI contract failed: ' + file + ' must converge push/pull_request observations into one concurrency lane per canonical branch/SHA.');
+  const eventScopedSha = /\$\{\{\s*github\.event_name\s*\}\}/.test(block) &&
+    /\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/.test(block);
+  const legacyBranchLane = /github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name/.test(block) ||
+    /github\.event\.pull_request\.number\s*\|\|\s*github\.ref/.test(block);
+  if (!block || (!eventScopedSha && !legacyBranchLane)) {
+    console.error('CI contract failed: ' + file + ' must bind concurrency to a canonical branch/PR or an event-scoped exact SHA.');
     process.exit(1);
   }
 }
@@ -103,8 +107,13 @@ for (const [file, source] of exactShaVerificationWorkflows) {
     console.error('CI contract failed: ' + file + ' must cancel superseded verification runs.');
     process.exit(1);
   }
-  if (!/github\.event\.pull_request\.number\s*\|\|\s*github\.ref/.test(source) && !/github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name/.test(source)) {
-    console.error('CI contract failed: ' + file + ' must isolate runs by PR or branch.');
+  const sourceUsesEventScopedSha =
+    /group:\s*[^\n]*github\.event_name[^\n]*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha/.test(source);
+  const sourceUsesPrOrBranch =
+    /github\.event\.pull_request\.number\s*\|\|\s*github\.ref/.test(source) ||
+    /github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name/.test(source);
+  if (!sourceUsesEventScopedSha && !sourceUsesPrOrBranch) {
+    console.error('CI contract failed: ' + file + ' must isolate runs by PR/branch or event-scoped exact SHA.');
     process.exit(1);
   }
   if (!/EXPECTED_SHA/.test(source)) {
