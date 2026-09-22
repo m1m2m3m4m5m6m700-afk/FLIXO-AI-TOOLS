@@ -975,9 +975,11 @@ jobs:
       - name: Verify Repair Agent repair before publication
         id: verify
         if: always() && steps.boundary.outcome == 'success'
+        env:
+          INTRACTABLE: ${{ steps.strategy.outputs.intractable }}
         run: |
           set -euo pipefail
-          if [ "${{ steps.strategy.outputs.intractable }}" = "true" ]; then
+          if [ "$INTRACTABLE" = "true" ]; then
             echo 'verified=false' >> "$GITHUB_OUTPUT"
             echo 'Case is INTRACTABLE; fail-closed escalation is required.'
             exit 0
@@ -1009,6 +1011,7 @@ jobs:
           FLIXO_DERIVED_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
           FLIXO_INTRACTABLE_ERRORS: /tmp/flixo-intractable-errors.json
           VERIFY_OUTCOME: ${{ steps.verify.outputs.verified == 'true' && 'success' || 'failure' }}
+          CANDIDATE_VERIFICATION_OUTCOME: ${{ steps.candidate_verification.outcome }}
           FLIXO_FAILED_SHA: ''
           FLIXO_RUN_ID: ${{ env.TARGET_RUN_ID }}
           FLIXO_TRUSTED_MEMORY_SHA: ${{ env.FLIXO_TRUSTED_MEMORY_SHA || '' }}
@@ -1031,7 +1034,7 @@ jobs:
             REVERTED_COMMIT=''
           fi
           fi
-          if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ] && [ "${{ steps.candidate_verification.outcome }}" = "success" ]; then
+          if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ] && [ "$CANDIDATE_VERIFICATION_OUTCOME" = "success" ]; then
             LEARNING_OUTCOME='reverted-repair'
           elif [ "$VERIFY_OUTCOME" = "success" ] && [ "$ENGINE_OUTCOME" = "verified-repair" ]; then
             LEARNING_OUTCOME='success'
@@ -1351,6 +1354,8 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
+          VERIFY_VERIFIED: ${{ steps.verify.outputs.verified }}
+          CANDIDATE_VERIFICATION_OUTCOME: ${{ steps.candidate_verification.outcome }}
         run: |
           set +e
           if [ ! -s /tmp/flixo-lease-verification.json ]; then
@@ -1366,7 +1371,7 @@ jobs:
           if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ]; then
             OUTCOME="VERIFIED_HISTORICAL_REVERT"
             VERIFICATION="verified-historical-revert"
-          elif [ "$ENGINE_OUTCOME" = "verified-repair" ] && [ "${{ steps.verify.outputs.verified }}" = "true" ] && [ "${{ steps.candidate_verification.outcome }}" = "success" ]; then
+          elif [ "$ENGINE_OUTCOME" = "verified-repair" ] && [ "$VERIFY_VERIFIED" = "true" ] && [ "$CANDIDATE_VERIFICATION_OUTCOME" = "success" ]; then
             OUTCOME="VERIFIED_REPAIR"
             VERIFICATION="verified-repair"
           elif [ "$ENGINE_OUTCOME" = "blocked-external" ]; then

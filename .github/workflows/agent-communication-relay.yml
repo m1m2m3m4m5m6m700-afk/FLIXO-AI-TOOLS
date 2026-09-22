@@ -115,10 +115,12 @@ jobs:
       - name: Check President Wake idempotency
         id: president_duplicate
         if: steps.president_wake.outputs.wake == 'true'
-env:
+        env:
           GH_TOKEN: ${{ github.token }}
           COMMENT_ID: ${{ github.event.comment.id }}
           COUNCIL_PR_NUMBER: ${{ steps.council_ingress.outputs.issue_number }}
+          TARGET_REF: ${{ steps.target.outputs.target_ref }}
+          TARGET_MESSAGE_SHA: ${{ steps.target.outputs.message_sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -422,8 +424,8 @@ env:
           case "$COUNCIL_PR_NUMBER" in
             ''|*[!0-9]*) echo 'FAIL CLOSED: invalid canonical PR number'; exit 1 ;;
           esac
-          BODY="$(printf '%s\n' "### AGENT MESSAGE RECEIVED" "" "**Message:** $MESSAGE_ID" "**Status:** $MESSAGE_STATUS" "**Entry SHA:** $MESSAGE_SHA" "**Idempotency Key:** $MESSAGE_KEY" "**Invocation:** $INVOCATION_ID" "" "**Receipt:** IMMEDIATE_EVENT_RECEIPT" "**Target ref:** ${{ steps.target.outputs.target_ref }}" "" "The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute." "" "<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->")"
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/${{ steps.council_ingress.outputs.issue_number }}/comments" --raw-field body="$BODY" >/dev/null
+          BODY="$(printf '%s\n' "### AGENT MESSAGE RECEIVED" "" "**Message:** $MESSAGE_ID" "**Status:** $MESSAGE_STATUS" "**Entry SHA:** $MESSAGE_SHA" "**Idempotency Key:** $MESSAGE_KEY" "**Invocation:** $INVOCATION_ID" "" "**Receipt:** IMMEDIATE_EVENT_RECEIPT" "**Target ref:** $TARGET_REF" "" "The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute." "" "<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->")"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments" --raw-field body="$BODY" >/dev/null
 
       - name: Wake repair supervision for repair-class messages
         if: >-
@@ -445,7 +447,7 @@ env:
         run: |
           set -euo pipefail
           printf '%s\n' 'MESSAGE_STALE=FAIL_CLOSED' > /tmp/flixo-agent-message-stale.txt
-          printf '%s\n' "ENTRY_SHA=${{ steps.target.outputs.message_sha }}" >> /tmp/flixo-agent-message-stale.txt
+          printf '%s\n' "ENTRY_SHA=$TARGET_MESSAGE_SHA" >> /tmp/flixo-agent-message-stale.txt
 
       - name: Preserve communication evidence
         if: always()

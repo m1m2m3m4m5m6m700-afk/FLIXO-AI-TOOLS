@@ -126,9 +126,10 @@ jobs:
         if: github.event_name == 'push' && github.ref_name == 'execution' && steps.source.outputs.stale != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          SOURCE_EXECUTION_SHA: ${{ steps.source.outputs.execution_sha }}
         run: |
           set -euo pipefail
-          EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"
+          EXECUTION_SHA="$SOURCE_EXECUTION_SHA"
           EXPECTED_PUSH_SHA="$GITHUB_SHA"
           test "$EXECUTION_SHA" = "$EXPECTED_PUSH_SHA"
           echo "CELL_WAKE_READY=true"
@@ -139,9 +140,10 @@ jobs:
         if: (github.event_name != 'schedule' || steps.scheduled_wake.outputs.wake == 'true') && steps.source.outputs.stale != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          SOURCE_EXECUTION_SHA: ${{ steps.source.outputs.execution_sha }}
         run: |
           set -euo pipefail
-          EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"
+          EXECUTION_SHA="$SOURCE_EXECUTION_SHA"
           test -n "$EXECUTION_SHA"
           echo "WATCHDOG_EXPECTED_TEST_SHA=$EXECUTION_SHA"
 
@@ -201,10 +203,11 @@ jobs:
         if: (github.event_name == 'push' || (github.event_name == 'schedule' && steps.scheduled_wake.outputs.wake == 'true')) && steps.source.outputs.stale != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          SOURCE_EXECUTION_SHA: ${{ steps.source.outputs.execution_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"
+          EXECUTION_SHA="$SOURCE_EXECUTION_SHA"
           test -n "$EXECUTION_SHA"
           if [ "${{ github.event_name }}" = "push" ]; then
             echo "WATCHDOG_GREEN_GATE_TRIGGER_EXPECTED=true"
