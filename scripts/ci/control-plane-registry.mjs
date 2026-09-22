@@ -44,6 +44,7 @@ export const HISTORICAL_REPAIR_WORKFLOWS = Object.freeze([
 export const TRUST_PERIMETER_PATHS = Object.freeze([
   '.github/workflows/auto-repair.yml',
   'scripts/ci/execution-mutation-gate.mjs',
+  'scripts/ci/test-chair1-change-accumulator.mjs',
   '.github/workflows/execution-sync.yml',
   '.github/workflows/wp0-trust-baseline.yml',
   'scripts/ci/control-plane-registry.mjs',
@@ -53,6 +54,7 @@ export const TRUST_PERIMETER_PATHS = Object.freeze([
   'scripts/ci/auto-repair-engine.mjs',
   'scripts/ci/auto-repair-chair1-audit.mjs',
   'scripts/ci/execution-head-authority.mjs',
+  'scripts/ci/chair1-change-accumulator.mjs',
   'scripts/ci/auto-repair-learning.mjs',
   'scripts/ci/auto-repair-proof.mjs',
   'scripts/ci/auto-repair/',
