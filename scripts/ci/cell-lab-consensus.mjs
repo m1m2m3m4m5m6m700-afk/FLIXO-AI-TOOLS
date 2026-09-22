@@ -37,6 +37,8 @@ export function validateCellLabConsensus(packet, { taskId, exactSha, mutationOwn
   nonEmpty(packet.objective, 'objective');
   nonEmpty(packet.integratedPlan, 'integrated_plan');
   nonEmpty(packet.planHash, 'plan_hash');
+  const expectedPlanHash = crypto.createHash('sha256').update(packet.integratedPlan, 'utf8').digest('hex');
+  if (packet.planHash !== expectedPlanHash) throw new Error('CELL_LAB_PLAN_HASH_MISMATCH');
   if (packet.status !== 'AGREED') throw new Error('CELL_LAB_CONSENSUS_NOT_AGREED');
   if (packet.executionReady !== true) throw new Error('CELL_LAB_EXECUTION_NOT_READY');
   if (packet.discussionClosed !== true) throw new Error('CELL_LAB_DISCUSSION_NOT_CLOSED');
