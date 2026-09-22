@@ -907,7 +907,7 @@ jobs:
             TARGET_SHA=''
             REVERTED_COMMIT=''
           fi
-          if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ] && [ "${{ steps.postpatch_adversarial.outcome }}" = "success" ]; then
+          if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ] && [ "${{ steps.candidate_verification.outcome }}" = "success" ]; then
             LEARNING_OUTCOME='reverted-repair'
           elif [ "$VERIFY_OUTCOME" = "success" ] && [ "$ENGINE_OUTCOME" = "verified-repair" ]; then
             LEARNING_OUTCOME='success'
@@ -1125,7 +1125,7 @@ jobs:
           if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ]; then
             OUTCOME="VERIFIED_HISTORICAL_REVERT"
             VERIFICATION="verified-historical-revert"
-          elif [ "$ENGINE_OUTCOME" = "verified-repair" ] && [ "${{ steps.verify.outputs.verified }}" = "true" ] && [ "${{ steps.postpatch_adversarial.outcome }}" = "success" ]; then
+          elif [ "$ENGINE_OUTCOME" = "verified-repair" ] && [ "${{ steps.verify.outputs.verified }}" = "true" ] && [ "${{ steps.candidate_verification.outcome }}" = "success" ]; then
             OUTCOME="VERIFIED_REPAIR"
             VERIFICATION="verified-repair"
           elif [ "$ENGINE_OUTCOME" = "blocked-external" ]; then
