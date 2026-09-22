@@ -13,7 +13,7 @@ export const CHAIR_DEFINITIONS = Object.freeze({
   }),
   chair_2:Object.freeze({
     mode:'VERIFICATION_REPAIR_MODE',
-    permissions:Object.freeze(['VERIFICATION_ONLY','FALSIFICATION','BOUNDED_REPAIR']),
+    permissions:Object.freeze(['VERIFICATION_ONLY','FALSIFICATION','BOUNDED_REPAIR','SOURCE_MUTATION']),
     allowedPrefixes:Object.freeze(['src/','core/','tests/']),
     protectedPrefixes:Object.freeze(['.github/','scripts/ci/','schemas/','core-contracts/','.flixo/'])
   }),
