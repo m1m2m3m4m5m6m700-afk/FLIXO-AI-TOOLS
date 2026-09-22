@@ -58,14 +58,8 @@ permissions:
   # the bot, but cannot use it to disable or reconfigure Actions.
   # It still cannot bypass the execution-only mutation boundary or write main.
   contents: read
-  # Read-only artifact/run observation is required for the independent twin result.
   actions: read
-  # No Actions-admin capability: peer agents cannot be controlled by the repair bot.
   checks: read
-  pull-requests: write
-  issues: write
-  statuses: write
-  security-events: write
 
 concurrency:
   # One writer lane per execution ref. Different failure fingerprints/target runs must not mutate concurrently.
@@ -394,9 +388,8 @@ jobs:
             ln -s "$GITHUB_WORKSPACE/node_modules" "$CONTROLLER_ROOT/node_modules"
           fi
           git worktree add --detach "$TARGET_ROOT" "$EXECUTION_SHA"
-          git -C "$TARGET_ROOT" switch -c execution "$EXECUTION_SHA"
           test "$(git -C "$TARGET_ROOT" rev-parse HEAD)" = "$EXECUTION_SHA"
-          test "$(git -C "$TARGET_ROOT" branch --show-current)" = execution
+          test -z "$(git -C "$TARGET_ROOT" branch --show-current)"
           REAL_NODE="$(command -v node)"
           test -x "$REAL_NODE"
           mkdir -p /tmp/flixo-node-wrapper
@@ -430,6 +423,7 @@ BASHENV
           echo "FLIXO_TRUSTED_REPAIR_MEMORY=/tmp/flixo-trusted-memory.json" >> "$GITHUB_ENV"
           echo "FLIXO_REPAIR_CONTROLLER=$CONTROLLER_ROOT" >> "$GITHUB_ENV"
           echo "FLIXO_REPAIR_TARGET_ROOT=$TARGET_ROOT" >> "$GITHUB_ENV"
+          echo "FLIXO_DETACHED_EXECUTION_TARGET=true" >> "$GITHUB_ENV"
           echo "FLIXO_EXECUTION_TARGET_SHA=$EXECUTION_SHA" >> "$GITHUB_ENV"
           echo "BASH_ENV=/tmp/flixo-repair-bash-env" >> "$GITHUB_ENV"
           echo "PATH=/tmp/flixo-node-wrapper:$PATH" >> "$GITHUB_ENV"
@@ -557,7 +551,6 @@ BASHENV
           TARGET_SHA="$(cat /tmp/flixo-execution-target-sha)"
           test "$(git -C "$FLIXO_REPAIR_CONTROLLER" rev-parse HEAD)" = "$TRUSTED_SHA"
           test "$(git rev-parse HEAD)" = "$TARGET_SHA"
-          test "$(git branch --show-current)" = execution
           test "$TARGET_SHA" = "$(git rev-parse origin/execution)"
           echo 'TRUSTED_CONTROLLER=PASS'
           echo 'EXECUTION_TARGET=PASS'
@@ -917,7 +910,7 @@ BASHENV
           set -euo pipefail
           SIGNATURE="$(node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8')); process.stdout.write(x.signature||'unknown')")"
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
-          test "$(git branch --show-current)" = execution
+          test "$(git rev-parse HEAD)" = "$FAILED_SHA"
           FLIXO_TASK_AGENT_OUTPUT_DIR=/tmp/flixo-task-agent node /tmp/flixo-repair-controller/scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$FLIXO_FAILURE_FINGERPRINT" --failure-evidence=/tmp/flixo-repair-summary.txt --execution-prompt="${FLIXO_EXECUTION_PROMPT_PATH:-}"
           test -s /tmp/flixo-task-agent/latest.json
 
@@ -1731,6 +1724,7 @@ BASHENV
           CANDIDATE_SHA="$(cat /tmp/flixo-candidate-sha)"
           EXECUTION_SHA="$CANDIDATE_SHA"
           PARENT_SHA="$(git rev-parse "$EXECUTION_SHA^")"
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
           test -f /tmp/flixo-repair-evidence.json
           test "$(git rev-parse HEAD)" = "$EXECUTION_SHA"
           SOURCE_SHA="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.targetSha||'')")"
