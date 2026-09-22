@@ -285,11 +285,17 @@ Agents MUST NOT weaken assertions, disable tests, add silent skips, relabel fail
 
 Every completed repair/verification cycle MUST emit `cycleLessons` containing the RCA lesson, strategy lesson or anti-lesson, verification state, affected scope when applicable, recurrence/prevention rule, and external-blocker anti-lesson when applicable. `cycleLessons` is learning/continuity evidence only; it never authorizes mutation or certification.
 
+## EXECUTIVE EXIT-LOCK ENFORCEMENT
+
+`scripts/ci/agent-exit-lock.mjs` is the machine-enforced closure gate. Logout is rejected unless the current exact SHA has zero failed work, zero remaining work, zero open RCAs, canonical certification `PASS`, promotion evidence `CERTIFIABLE`, and `LIVE_VERIFIED` runtime evidence. A rejected attempt records `EXIT_LOCK_BLOCKED`, leaves the session `RUNNING`, and returns the work to recovery. Process/lease/workflow termination never closes open work.
+
 ## HANDOFF / LOGOUT
 
-Every completed session MUST logout using:
+Every completed session MAY logout only through the hard exit lock:
 
-`node scripts/ci/agent-session.mjs logout --session=<id> --agent=<id> --status=VERIFIED|BLOCKED --final-summary=<final-outcome>`
+`node scripts/ci/agent-session.mjs logout --session=<id> --agent=<id> --task=<task-id> --status=VERIFIED --final-summary=<final-outcome>`
+
+`BLOCKED` is not a terminal session exit. Unresolved or externally blocked work remains `RUNNING` and must continue through recovery/coordination until canonical GREEN.
 
 A final summary is mandatory. Logout automatically writes:
 `diagnostics/agents/handoffs/<session-id>.json`
