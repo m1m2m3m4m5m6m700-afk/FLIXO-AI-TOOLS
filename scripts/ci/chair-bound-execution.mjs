@@ -13,13 +13,13 @@ export const CHAIR_DEFINITIONS = Object.freeze({
   }),
   chair_2:Object.freeze({
     mode:'VERIFICATION_REPAIR_MODE',
-    permissions:Object.freeze(['VERIFICATION_ONLY','FALSIFICATION','BOUNDED_REPAIR','SOURCE_MUTATION']),
+    permissions:Object.freeze(['VERIFICATION_ONLY','FALSIFICATION','BOUNDED_REPAIR','PUSH_PROPOSAL']),
     allowedPrefixes:Object.freeze(['src/','core/','tests/']),
     protectedPrefixes:Object.freeze(['.github/','scripts/ci/','schemas/','core-contracts/','.flixo/'])
   }),
   chair_3:Object.freeze({
     mode:'ARCHITECTURE_REVIEW_MODE',
-    permissions:Object.freeze(['ARCHITECTURE_REVIEW','SCHEMA_VALIDATION']),
+    permissions:Object.freeze(['ARCHITECTURE_REVIEW','SCHEMA_VALIDATION','PUSH_PROPOSAL']),
     allowedPrefixes:Object.freeze(['schemas/','core-contracts/','docs/architecture/']),
     protectedPrefixes:Object.freeze(['.github/','scripts/ci/','.flixo/'])
   })
@@ -169,6 +169,8 @@ function baseState(targetSha){
     repository_state:'IDLE',
     idle_timestamp:now(),
     target_sha:assertSha(targetSha,'TARGET_SHA'),
+    push_proposals:[],
+    rejected_push_memory:[],
     chairs:Object.fromEntries(Object.entries(CHAIR_DEFINITIONS).map(([id,def])=>[id,{
       holder_agent_id:null,status:'VACANT',permissions:[...def.permissions],acquired_at:null,target_sha:null,lease_id:null,review_id:null,scope:null,scope_hash:null,work_package_id:null,task_id:null,fencing_token:null,lease_started_at:null,heartbeat_at:null,heartbeat_count:0
     }]))
@@ -199,6 +201,8 @@ function validateState(state){
   if(state?.schemaVersion!==1||state?.authority!=='FLIXO_CHAIR_BOUND_EXECUTION')throw new Error('CHAIR_STATE_HEADER_INVALID');
   if(state.last_revoke!==undefined&&typeof state.last_revoke!=='object')throw new Error('CHAIR_LAST_REVOKE_INVALID');
   if(state.last_dead_lease!==undefined&&typeof state.last_dead_lease!=='object')throw new Error('CHAIR_LAST_DEAD_LEASE_INVALID');
+  if(state.push_proposals!==undefined&&!Array.isArray(state.push_proposals))throw new Error('CHAIR_PUSH_PROPOSALS_INVALID');
+  if(state.rejected_push_memory!==undefined&&!Array.isArray(state.rejected_push_memory))throw new Error('CHAIR_REJECTED_PUSH_MEMORY_INVALID');
   assertSha(state.target_sha,'STATE_TARGET_SHA');
   if(!['IDLE','ACTIVE','STALE','LOCKED'].includes(state.repository_state))throw new Error('CHAIR_REPOSITORY_STATE_INVALID');
   for(const id of Object.keys(CHAIR_DEFINITIONS)){
@@ -335,6 +339,68 @@ export function authorizePublication({chairId='chair_1',agentId,targetSha=sha(),
   return Object.freeze({authorized:true,publicationOnly:true,chairId,agentId,targetSha:t,permission,paths:normalized});
 }
 
+export function proposePush({
+  chairId,
+  agentId,
+  targetSha=sha(),
+  candidateSha,
+  parentSha,
+  paths=[],
+  workPackageId,
+  taskId,
+  patchSha256=null,
+  summary=''
+}={}){
+  if(!['chair_2','chair_3'].includes(chairId))throw new Error('CHAIR_PUSH_PROPOSAL_SEAT_REQUIRED');
+  const t=assertSha(targetSha,'TARGET_SHA');
+  const candidate=assertSha(candidateSha,'CANDIDATE_SHA');
+  const parent=assertSha(parentSha,'PARENT_SHA');
+  if(t!==sha())throw new Error('STALE_CONTEXT');
+  if(parent!==t)throw new Error('CHAIR_PUSH_PARENT_MISMATCH');
+  if(candidate===t)throw new Error('CHAIR_PUSH_EMPTY_CANDIDATE');
+  const state=readState();
+  const chair=verifyLease({state,chairId,agentId,targetSha:t});
+  const normalized=[...new Set(paths.map(p=>String(p).replaceAll('\\','/').replace(/^\.\//,'')))].sort();
+  if(!normalized.length)throw new Error('CHAIR_PUSH_PATHS_REQUIRED');
+  const def=CHAIR_DEFINITIONS[chairId];
+  for(const p of normalized){
+    if(p.startsWith('/')||p.includes('..'))throw new Error('CHAIR_PUSH_PATH_INVALID');
+    if(def.protectedPrefixes.some(prefix=>p===prefix||p.startsWith(prefix)))throw new Error('CHAIR_PUSH_PROTECTED_PATH');
+    if(!def.allowedPrefixes.some(prefix=>p.startsWith(prefix)))throw new Error('CHAIR_PUSH_SCOPE_DENIED='+p);
+  }
+  if(chair.scope_hash!==null && chair.scope_hash!==scopeDigest(normalized))throw new Error('CHAIR_PUSH_SCOPE_HASH_MISMATCH');
+  const wp=assertContextId(workPackageId,'WORK_PACKAGE_ID');
+  const task=assertContextId(taskId,'TASK_ID');
+  const proposalId=hash(JSON.stringify({chairId,agentId,targetSha:t,candidateSha:candidate,parentSha:parent,paths:normalized,workPackageId:wp,taskId:task,patchSha256:patchSha256??null}));
+  return withWriteLock(()=>{
+    const fresh=readState();
+    if(fresh.target_sha!==t)throw new Error('STALE_CONTEXT');
+    const proposal={
+      schemaVersion:1,
+      protocol:'FLIXO-CHAIR-PUSH-PROPOSAL-v1',
+      proposalId,
+      status:'PENDING_GUARD',
+      proposerChair:chairId,
+      proposerAgent:agentId,
+      targetSha:t,
+      parentSha:parent,
+      candidateSha:candidate,
+      workPackageId:wp,
+      taskId:task,
+      paths:normalized,
+      scopeHash:scopeDigest(normalized),
+      patchSha256:patchSha256&&HASH_RE.test(String(patchSha256))?String(patchSha256):null,
+      summary:String(summary??'').slice(0,4000),
+      createdAt:now(),
+      guardDecision:null
+    };
+    fresh.push_proposals=Array.isArray(fresh.push_proposals)?fresh.push_proposals.slice(-199):[];
+    fresh.push_proposals.push(proposal);
+    writeState(fresh);
+    return proposal;
+  });
+}
+
 export function authorizeMergeProposal({chairId,agentId,targetSha=sha()}={}){
   const state=readState();const chair=verifyLease({state,chairId,agentId,targetSha});
   if(!CHAIR_DEFINITIONS[chairId].permissions.includes('MERGE_PROPOSAL'))throw new Error('CHAIR_MERGE_PROPOSAL_PERMISSION_DENIED');
@@ -388,6 +454,7 @@ if(process.argv[1]?.endsWith('/chair-bound-execution.mjs')){
   else if(command==='acquire')console.log(JSON.stringify(acquire({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,repositoryState:arg('repository-state','IDLE'),reviewId:arg('review-id')||null,scope:scope.length?scope:null,workPackageId:arg('work-package')||null,taskId:arg('task-id')||null,fencingToken:arg('fencing-token')||null}),null,2));
   else if(command==='authorize-write')console.log(JSON.stringify(authorizeWrite({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,paths,permission:arg('permission','SOURCE_MUTATION'),reviewId:arg('review-id')||null,boundedScope:scope.length?scope:null,workPackageId:arg('work-package')||null,taskId:arg('task-id')||null,fencingToken:arg('fencing-token')||null}),null,2));
   else if(command==='merge-proposal')console.log(JSON.stringify(authorizeMergeProposal({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target}),null,2));
+  else if(command==='propose-push')console.log(JSON.stringify(proposePush({chairId:arg('chair'),agentId:arg('agent'),targetSha:target,candidateSha:arg('candidate'),parentSha:arg('parent'),paths,workPackageId:arg('work-package'),taskId:arg('task-id'),patchSha256:arg('patch-sha')||null,summary:arg('summary')||''}),null,2));
   else if(command==='authorize-publication')console.log(JSON.stringify(authorizePublication({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,paths,permission:arg('permission','SOURCE_MUTATION'),workPackageId:arg('work-package')||null,taskId:arg('task-id')||null,fencingToken:arg('fencing-token')||null}),null,2));
   else if(command==='release')console.log(JSON.stringify(release({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,successful:arg('successful','false')==='true'}),null,2));
   else if(command==='mode')console.log(JSON.stringify(repositoryMode({targetSha:target}),null,2));
