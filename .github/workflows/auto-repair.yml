@@ -117,19 +117,6 @@ env:
   FLIXO_CHAIR1_MISSION_PATH: /tmp/flixo-chair1-repair-mission.json
 
 jobs:
-  push_compatibility:
-    name: Push compatibility — no self-dispatch
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - name: Validate canonical execution push context
-        run: |
-          set -euo pipefail
-          test "$GITHUB_REF_NAME" = "execution"
-          echo 'AUTO_REPAIR_PUSH_COMPATIBILITY=PASS'
-          echo 'AUTO_REPAIR_SELF_DISPATCH=DISABLED'
-
   resident:
     name: Resident Repair Bot monitor — never idle during an open repair session
     if: github.event_name == 'workflow_dispatch' && inputs.resident == 'true'
