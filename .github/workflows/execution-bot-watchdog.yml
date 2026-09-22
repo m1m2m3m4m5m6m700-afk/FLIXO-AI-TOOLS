@@ -72,7 +72,14 @@ jobs:
           EVENT_BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          if [ "${{ github.event_name }}" = "push" ] && [ "$EVENT_BRANCH" = "execution" ]; then
+            EXECUTION_SHA="$EVENT_SHA"
+          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
+            EXECUTION_SHA="$SOURCE_RUN_SHA"
+            test -n "$EXECUTION_SHA"
+          else
+            EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          fi
           test -n "$EXECUTION_SHA"
           echo "execution_sha=$EXECUTION_SHA" >> "$GITHUB_OUTPUT"
           echo "event_sha=$EVENT_SHA" >> "$GITHUB_OUTPUT"
@@ -137,11 +144,11 @@ jobs:
           echo "WATCHDOG_EXPECTED_TEST_SHA=$EXECUTION_SHA"
 
           if [ "${{ github.event_name }}" = "push" ]; then
-            OPEN_PR_COUNT="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json number --jq 'length')"
-            if [ "$OPEN_PR_COUNT" -gt 0 ]; then
-              echo "WATCHDOG_PR_CANONICAL_PATH=true"
-              echo "WATCHDOG_PR_CANONICAL_PATH=EXACT_SHA_RECHECK_REQUIRED"
-            fi
+            echo "WATCHDOG_PUSH_CANONICAL_TEST_SYSTEM_EXPECTED=true"
+            echo "WATCHDOG_PUSH_CANONICAL_SHA=$EXECUTION_SHA"
+            echo "WATCHDOG_TEST_SYSTEM_DISPATCH=NOOP_PUSH_TRIGGER"
+            echo "WATCHDOG_CANONICAL_TEST_SYSTEM_STARTED=false"
+            exit 0
           fi
 
           RUN_STATE="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100" |
@@ -197,6 +204,10 @@ jobs:
           set -euo pipefail
           EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"
           test -n "$EXECUTION_SHA"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "WATCHDOG_GREEN_GATE_TRIGGER_EXPECTED=true"
+            exit 0
+          fi
           RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100")"
           ACTIVE="$(printf '%s' "$RUNS" | jq -r '[.workflow_runs[] | select(.path == ".github/workflows/daily-flixo-green-gate.yml" and .head_sha == $ENV_SHA and (.status == "queued" or .status == "in_progress"))] | length' --arg ENV_SHA "$EXECUTION_SHA")"
           GREEN="$(printf '%s' "$RUNS" | jq -r '[.workflow_runs[] | select(.path == ".github/workflows/daily-flixo-green-gate.yml" and .head_sha == $ENV_SHA and .status == "completed" and .conclusion == "success")] | length' --arg ENV_SHA "$EXECUTION_SHA")"
@@ -213,7 +224,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p diagnostics/watchdog
-          CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            CURRENT_EXECUTION_SHA="$GITHUB_SHA"
+          else
+            CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          fi
           SOURCE_RUN_ID="${{ github.event.workflow_run.id || '' }}"
           SOURCE_RUN_SHA="${{ github.event.workflow_run.head_sha || '' }}"
           jq -n \
