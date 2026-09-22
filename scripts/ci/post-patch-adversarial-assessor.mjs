@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { buildFalsifierVerdict, finiteInvariantProof, validateRcaManifest } from './in-repo-repair-v2.mjs';
 
 const root=process.env.FLIXO_TARGET_DIR||process.cwd();
 const expectedSha=String(process.env.FLIXO_EXPECTED_TARGET_SHA||'').trim();
@@ -12,6 +14,9 @@ const output=process.env.FLIXO_ADVERSARIAL_OUTPUT||'/tmp/flixo-postpatch-adversa
 function die(message){ throw new Error('POST_PATCH_ADVERSARIAL='+message); }
 function sha256(value){ return crypto.createHash('sha256').update(String(value),'utf8').digest('hex'); }
 function git(args){ return execFileSync('git',['-C',root,...args],{encoding:'utf8'}).trim(); }
+function readJson(file){
+  try { return JSON.parse(readFileSync(file,'utf8')); } catch { return null; }
+}
 function runNode(cwd,file){
   const args=file.endsWith('.ts')?['--experimental-strip-types',file]:[file];
   return spawnSync(process.execPath,args,{cwd,encoding:'utf8',timeout:120000,env:process.env});
@@ -67,6 +72,18 @@ function main(){
   if(!/^[a-f0-9]{40}$/.test(target)) die('TARGET_SHA_INVALID');
   if(expectedSha&&target!==expectedSha) die('TARGET_SHA_MISMATCH:'+target+':'+expectedSha);
   if(git(['status','--porcelain'])) die('WORKTREE_NOT_CLEAN');
+  const manifestPath=process.env.FLIXO_RCA_MANIFEST_PATH||'/tmp/flixo-rca-manifest.json';
+  const rcaManifest=readJson(manifestPath);
+  let rcaManifestStatus='MISSING';
+  let rcaManifestError=null;
+  try {
+    if(!rcaManifest) throw new Error('RCA_MANIFEST_MISSING');
+    validateRcaManifest(rcaManifest,{currentSha:target,requireMutationEligible:true});
+    rcaManifestStatus='PASS';
+  } catch(error) {
+    rcaManifestStatus='BLOCKED';
+    rcaManifestError=String(error?.message??error);
+  }
   const parent=baseSha||git(['rev-parse','HEAD^']);
   if(!/^[a-f0-9]{40}$/.test(parent)||parent===target) die('BASE_SHA_INVALID');
   const patch=git(['diff','--binary',parent,target]);
