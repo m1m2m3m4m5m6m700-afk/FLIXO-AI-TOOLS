@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { buildFusion, arbitrateKnowledge } from './read-only-knowledge-fusion.mjs';
 
 const report=buildFusion({
-  failureLog:'workflow concurrency stale sha exact target',
+  failureLog:'workflow concurrency stale sha exact target evidence-first exact-source-location',
   diagnosis:{errorClass:'stale-sha',stage:'ci-control',rootCause:'stale-sha evidence'},
   targetSha:'b'.repeat(40),
   failedRunId:'KNOWLEDGE-FUSION-TEST',
