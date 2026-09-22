@@ -3,6 +3,7 @@
   "authority": "FLIXO_PROTOCOL_REGISTRY",
   "policy": "No standalone protocol may be added unless the Protocol Addition Gate passes. Existing protocols must absorb compatible requirements instead of creating duplicates.",
   "precedence": [
+    "SUPREME_UNIVERSAL_AGENT_EXECUTION",
     "SUPREME_AUTOMATION_RESIDENCY",
     "MASTER_EXECUTION_AND_SAFETY",
     "ZERO_FALSE_GREEN_AND_EVIDENCE",
@@ -15,11 +16,26 @@
   "protocols": [
     {
       "id": "P00",
-      "name": "Supreme Automation Residency / Agent Liveness",
+      "name": "Supreme Universal Agent Execution + Automation Residency",
       "class": "EXECUTION",
       "status": "SUPREME_MANDATORY",
-      "enforcement": "scripts/ci/agent-liveness-protocol.mjs + enforcement tests + 5-minute heartbeat + canonical Green Gate recovery + scripts/ci/agent-exit-lock.mjs",
-      "invariant": "The repair automation plane is permanently resident while work is open; heartbeat is mandatory every 5 minutes; sleep, idle, silent stop, abandonment, self-disable and self-abort are forbidden; run/session/lease termination triggers automatic recovery; manual wake is never required; GREEN does not suspend residency. Session closure is forbidden before canonical GREEN; failed exit attempts remain recoverable and do not terminate open work."
+      "enforcement": "docs/agents/PROMPT-UNIFIED-EXECUTION.md + scripts/ci/agent-session.mjs + scripts/ci/agent-exit-lock.mjs + scripts/ci/agent-liveness-protocol.mjs + scripts/ci/validate-agent-coordination.mjs",
+      "invariant": "Every Master, Agent and Bot is bound first to the unified execution protocol: immediate session admission; shared-cell coordination; root-cause-first repair; zero-error non-terminal execution; Exact-SHA evidence; permanent residency; mandatory Council reporting; and hard circular exit lock. Open work, failed work, open RCAs or non-canonical evidence keep execution RUNNING/RECOVERING. Only fresh canonical GREEN and promotion evidence on the same exact SHA permit session closure.",
+      "canonicalSource": "docs/agents/PROMPT-UNIFIED-EXECUTION.md",
+      "version": "4.0.0",
+      "scope": [
+        "REPOSITORY",
+        "PROJECT",
+        "CELL",
+        "MASTER-1",
+        "MASTER-2",
+        "MASTER-3",
+        "ALL_AGENTS",
+        "ALL_BOTS",
+        "ACTION_VAULT",
+        "RUNTIME_ADAPTERS",
+        "WORKFLOWS"
+      ]
     },
     {
       "id": "P01",
