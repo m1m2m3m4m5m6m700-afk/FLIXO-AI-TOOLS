@@ -10,6 +10,7 @@ import { summarizeDiff, mutationAttribution } from './auto-repair/evidence.mjs';
 import { runRegression } from './auto-repair/regression.mjs';
 import { snapshot } from './auto-repair/rollback.mjs';
 import { runAstRepair } from './auto-repair/ast-repair.mjs';
+import { assertLongTermTeachingCorpus, retrieveLongTermTeaching } from './auto-repair/long-term-memory.mjs';
 import { buildRegressionSentinel, validateRepairProof, preventionRuleFor, escalationReason } from './auto-repair-proof.mjs';
 
 const workflow = fs.readFileSync('.github/workflows/auto-repair.yml', 'utf8');
@@ -83,6 +84,18 @@ assert.match(classifierSource, /code-read-only-scout\.mjs/);
 assert.match(classifierSource, /INVESTIGATION_DIR: investigationDir/);
 
 const sample = 'Run 35012345678 failed: src/lib/agent/execution-observability.ts:42:3 no-unused-vars';
+const longTermCorpus = assertLongTermTeachingCorpus();
+assert.equal(longTermCorpus.recordCount, 5000);
+assert.equal(longTermCorpus.firstId, 'T0001');
+assert.equal(longTermCorpus.lastId, 'T5000');
+assert.equal(longTermCorpus.authority, 'ADVISORY_ONLY');
+assert.equal(longTermCorpus.proofAuthority, 'CURRENT_EXACT_SHA_CI_ONLY');
+const longTermMatches = retrieveLongTermTeaching({ normalizedFailure: sample, rootCause: 'lint', features: ['lint'], limit: 24 });
+assert(longTermMatches.length > 0);
+assert(longTermMatches.length <= 24);
+assert(longTermMatches.some((item) => item.className === 'lint'));
+assert(longTermMatches.every((item) => item.authority === 'ADVISORY_ONLY'));
+
 const normalized = normalizeFailure(sample);
 assert(!normalized.includes('35012345678'));
 assert(!normalized.includes('abcdefabcdefabcdefabcdefabcdefabcdefabcd'));
@@ -263,6 +276,11 @@ assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), 
 assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /MAJOR_MAX_INSPECTED_FILES = 240/);
 assert.match(learningSource, /MEMORY_VERSION = 10/);
 assert.match(learningSource, /Math\.max\(parsed\.version, MEMORY_VERSION\)/);
+assert.match(learningSource, /maxActionHistory: 5000/);
+assert.match(learningSource, /longTermCorpus/);
+assert.match(learningSource, /longTermTeaching/);
+assert.match(learningSource, /loadActionBotMemory/);
+assert.match(learningSource, /actionRepairHistoryCount/);
 assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /NORMAL_MAX_REPAIR_CYCLES = 12/);
 assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /MAX_STALLED_REPAIR_CYCLES = 3/);
 assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /NORMAL_MAX_PREPARED_FILES = 12/);
@@ -297,6 +315,7 @@ assert.match(engineSource, /revertedRuleIds/);
 assert.match(classifierSource, /deriveReusableKnowledge/);
 assert.match(engineSource, /deriveReusableKnowledge/);
 assert.match(engineSource, /reusableKnowledge\.generalizedRules/);
+assert.match(engineSource, /longTermTeachingCount/);
 assert.match(taskAgentSource, /reusableKnowledge/);
 assert.match(learningSource, /promotionRequiresDistinctFingerprints: 2/);
 assert.match(learningSource, /successfulFingerprintSupport >= 2/);
