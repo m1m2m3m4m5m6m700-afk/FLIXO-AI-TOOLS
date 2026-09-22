@@ -336,6 +336,12 @@ assert.equal(afterFailureKnowledge.generalizedRules.some((item) => item.rule ===
 assert.equal(afterFailureKnowledge.rejectedRules.some((item) => item.rule === 'eslint-unused' && item.reason === 'low-success-rate'), false);
 
 const proposedBefore = memory.cases.find((item) => item.fingerprint === '__proposal_test__')?.attempts ?? 0;
+const proposalFailuresBefore = memory.cases.find((item) => item.fingerprint === '__proposal_test__')?.failures ?? 0;
+const proposalLessonsBefore = memory.lessons.filter((item) => item.fingerprint === '__proposal_test__').length;
+const proposalAntiLessonsBefore = memory.antiLessons.filter((item) => item.fingerprint === '__proposal_test__').length;
+const proposalHistoryBefore = memory.actionHistory.find((item) => item.fingerprint === '__proposal_test__');
+const proposalHistoryAttemptsBefore = proposalHistoryBefore?.attempts ?? 0;
+const proposalHistoryFailuresBefore = proposalHistoryBefore?.failures ?? 0;
 recordOutcome(memory, {
   fingerprint: '__proposal_test__',
   normalizedFailure: 'webkit DEEP_SEMANTIC_MISSING=webkit:DEEP:webkit:ja',
@@ -344,9 +350,14 @@ recordOutcome(memory, {
   outcome: 'proposed',
   verification: 'root-cause-evidence-insufficient',
 });
-const rejectedProposalCase = memory.cases.find((item) => item.fingerprint === '__proposal_test__');
-assert.equal(rejectedProposalCase?.attempts ?? 0, proposedBefore);
-assert(!memory.antiLessons.some((item) => item.fingerprint === '__proposal_test__'));
+const proposalCase = memory.cases.find((item) => item.fingerprint === '__proposal_test__');
+assert.equal(proposalCase?.attempts ?? 0, proposedBefore);
+assert.equal(proposalCase?.failures ?? 0, proposalFailuresBefore);
+assert.equal(memory.lessons.filter((item) => item.fingerprint === '__proposal_test__').length, proposalLessonsBefore);
+assert.equal(memory.antiLessons.filter((item) => item.fingerprint === '__proposal_test__').length, proposalAntiLessonsBefore);
+const proposalHistory = memory.actionHistory.find((item) => item.fingerprint === '__proposal_test__');
+assert.equal(proposalHistory?.attempts ?? 0, proposalHistoryAttemptsBefore);
+assert.equal(proposalHistory?.failures ?? 0, proposalHistoryFailuresBefore);
 
 const revertBefore = memory.cases.find((item) => item.fingerprint === '__revert_test__')?.reversions ?? 0;
 const attemptBeforeRevert = memory.cases.find((item) => item.fingerprint === '__revert_test__')?.attempts ?? 0;
