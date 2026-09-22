@@ -396,7 +396,14 @@ if (command === 'task-claim') {
       if (existingChair.chairId !== selectedChair) throw new Error('CHAIR_SESSION_ALREADY_BOUND_TO_OTHER_CHAIR');
       chairLease = { chairs: { [existingChair.chairId]: { lease_id: existingChair.leaseId, status: 'OCCUPIED' } }, repository_state: 'ACTIVE', reused: true };
     } else {
-      chairLease = acquireChair({ agentId, chairId: selectedChair, reviewId: optional('review-id') || null, scope: task.scope ?? null });
+      chairLease = acquireChair({
+        agentId,
+        chairId: selectedChair,
+        reviewId: optional('review-id') || null,
+        scope: task.scope ?? null,
+        workPackageId: task.workPackageId ?? taskId,
+        taskId
+      });
     }
     if (inboundMessage) inboundMessage = consumeAgentMessage(inboundMessage.messageId, agentId, sha(), true);
   } catch (error) {
