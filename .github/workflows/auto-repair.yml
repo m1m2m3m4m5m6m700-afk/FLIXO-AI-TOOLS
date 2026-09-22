@@ -397,9 +397,8 @@ jobs:
             echo 'CHAIR_GUARD_BLOCKED: Auto Repair cannot publish directly to execution.'
 
             echo 'HANDOFF_REQUIRED: package the verified candidate for Chair-1 review instead.'
-
-            exit 1
             node scripts/ci/chair-bound-execution.mjs release --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$EXECUTION_BASE_SHA" --successful=true >/tmp/flixo-head-sync-release.json
+            exit 1
           else
             echo "execution and failed main SHA have diverged; refusing a third branch or destructive reset."
             exit 1
@@ -1526,7 +1525,7 @@ jobs:
           test -s "$FLIXO_CHAIR_CONTEXT"
           test -s "$FLIXO_HEAD_AUTHORITY_PROOF"
           git fetch --no-tags origin execution
-          test "$(git rev-parse origin/execution)" = "$FLIXO_FAILED_SHA" || true
+          test "$(git rev-parse origin/execution)" = "$FLIXO_FAILED_SHA"
           node scripts/ci/execution-mutation-gate.mjs verify --phase=pre-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA" --parent="$PARENT_SHA"
           node scripts/ci/execution-head-authority.mjs verify --file="$FLIXO_HEAD_AUTHORITY_PROOF" --target-sha="$PARENT_SHA" --parent-sha="$PARENT_SHA" --candidate-sha="$CANDIDATE_SHA"
           git diff --name-only "$PARENT_SHA" "$CANDIDATE_SHA" > /tmp/flixo-chair-publication-paths
