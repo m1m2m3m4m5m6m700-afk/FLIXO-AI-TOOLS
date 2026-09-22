@@ -1,13 +1,21 @@
 /** Request-derived metadata helpers. */
+
+const trustedProxyHeaders = () =>
+  process.env.FLIXO_TRUST_PROXY_HEADERS === 'true'
+  || process.env.VERCEL === '1';
+
 export function getClientIp(request: Request): string | null {
+  if (!trustedProxyHeaders()) return null;
   const xff = request.headers.get('x-forwarded-for');
   if (xff) {
-    const first = xff.split(',')[0]?.trim();
+    const first = xff.split(',').map((value) => value.trim()).filter(Boolean)[0];
     if (first) return first;
   }
-  return request.headers.get('x-real-ip') || null;
+  const real = request.headers.get('x-real-ip');
+  return real?.trim() || null;
 }
 export function getCountry(request: Request): string | null {
+  if (!trustedProxyHeaders()) return null;
   const value = request.headers.get('x-vercel-ip-country');
   return value?.trim() || null;
 }
