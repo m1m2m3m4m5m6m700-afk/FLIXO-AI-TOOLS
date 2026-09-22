@@ -107,9 +107,18 @@ jobs:
             echo "PEER_WAKE_DISPATCHED=$peer"
           }
 
+          mkdir -p /tmp/security-red-team-pulse
+          : > "/tmp/security-red-team-pulse/$BOT_ID.jsonl"
+
           for TICK in 1 2 3 4 5 6 7; do
             SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-            emit_pulse "$TICK" "$SHA"
+            emit_pulse "$TICK" "$SHA" | tee -a "/tmp/security-red-team-pulse/$BOT_ID.jsonl"
+            node scripts/ci/agent-liveness-protocol.mjs heartbeat \
+              --task="SECURITY-REDTEAM-PULSE:$BOT_ID:$GITHUB_RUN_ID:$TICK" \
+              --state=ACTIVE \
+              --sha="$SHA" \
+              --progress=false \
+              --file="/tmp/security-red-team-pulse/$BOT_ID-heartbeat.json"
 
             for PEER in SECURITY-REDTEAM-1 SECURITY-REDTEAM-2 SECURITY-REDTEAM-3; do
               [ "$PEER" = "$BOT_ID" ] && continue
@@ -135,6 +144,6 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-security-red-team-pulse-${{ steps.scope.outputs.bot }}-${{ github.run_id }}
-          path: /tmp/does-not-exist
-          if-no-files-found: warn
+          path: /tmp/security-red-team-pulse/
+          if-no-files-found: error
           retention-days: 7
