@@ -28,9 +28,10 @@ const STRICT_MUTATION_OWNERS = new Set(['AUTO_REPAIR_BOT','repairAgent','executi
 function centralChairStrictRequired(ownerAgent='') {
   return process.env.FLIXO_STRICT_CHAIR === 'true' || STRICT_MUTATION_OWNERS.has(String(ownerAgent ?? '').trim());
 }
+const trustedLocalTestHarness=()=>process.env.NODE_ENV==='test' && process.env.GITHUB_ACTIONS!=='true' && process.env.FLIXO_MUTATION_GATE_TEST_MODE==='true';
 function verifyCentralChair({ownerAgent,targetSha,workPackageId,taskId}) {
   if (!centralChairStrictRequired(ownerAgent)) return { required:false, verified:false };
-  if (process.env.FLIXO_MUTATION_GATE_TEST_MODE === 'true' && process.env.FLIXO_ALLOW_TEST_CHAIR_BYPASS === 'true') return { required:true, verified:false, testBypass:true };
+  if (trustedLocalTestHarness() && process.env.FLIXO_ALLOW_TEST_CHAIR_BYPASS === 'true') return { required:true, verified:false, testBypass:true };
   const leaseId=String(process.env.FLIXO_CHAIR_LEASE_ID ?? '').trim();
   const fence=String(process.env.FLIXO_CHAIR_FENCING_HASH ?? '').trim();
   const holder=String(process.env.FLIXO_CHAIR_AGENT ?? ownerAgent ?? '').trim();
@@ -41,7 +42,7 @@ function verifyCentralChair({ownerAgent,targetSha,workPackageId,taskId}) {
   return { required:true, verified:true, leaseId, holder, targetSha };
 }
 function assertExecutionCheckout(){
-  if(process.env.FLIXO_MUTATION_GATE_TEST_MODE==='true')return;
+  if(trustedLocalTestHarness())return;
   if(git(['branch','--show-current'])!=='execution')throw new Error('MUTATION_GATE_NOT_ON_EXECUTION');
 }
 function context({ownerAgent,targetSha,workPackageId,taskId,paths}){
