@@ -319,6 +319,7 @@ if (command === 'meeting-exit-approve') {
   const record = JSON.parse(fs.readFileSync(file, 'utf8'));
   if (record.agentId !== agentId || record.taskId !== taskId || record.status !== 'RUNNING') throw new Error('MASTER_CHANNEL_SESSION_INVALID');
   assertLiveSession(record);
+  ensureSessionWorkChair(record);
   assertWorkAdmission({ agentId: record.agentId, targetSha: gitSha(), chairId: record.chairBinding?.chairId ?? record.chairId ?? null });
   const sha = observeCurrentHead(record);
   const to = String(args.get('to') ?? 'MASTERS').trim();
