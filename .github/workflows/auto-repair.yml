@@ -1010,6 +1010,7 @@ jobs:
           echo 'FLIXO_AGENT_ADVERSARIAL_EVIDENCE=/tmp/flixo-postpatch-adversarial.json' >> "$GITHUB_ENV"
           echo 'FLIXO_CANDIDATE_VERIFICATION=/tmp/flixo-candidate-verification.json' >> "$GITHUB_ENV"
       - name: Publish exact candidate commit only after post-patch adversarial validation
+        id: publish_candidate
         if: steps.candidate_verification.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -1024,21 +1025,21 @@ jobs:
           if [ -z "$PR_URL" ]; then PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head execution --title "fix(auto-repair): canonical execution repair" --body "Canonical execution repair with exact-SHA canonical CI and post-patch adversarial falsification.")"; fi
           echo "Canonical execution -> main PR: $PR_URL"
       - name: Record publication state in the Repair Control Plane
-        if: steps.verify.outputs.verified == 'true'
+        if: steps.publish_candidate.outcome == 'success'
         run: |
           set -euo pipefail
           node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=PUBLISHED_TO_EXECUTION --actor=AUTO_REPAIR_BOT --reason=VERIFIED_EXECUTION_SHA_PUSHED
           node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=CANONICAL_CI --actor=AUTO_REPAIR_BOT --reason=AWAITING_CANONICAL_CI
 
       - name: Enforce central Repair Protocol post-commit boundary
-        if: steps.verify.outputs.verified == 'true'
+        if: steps.publish_candidate.outcome == 'success'
         run: |
           set -euo pipefail
           test -f /tmp/flixo-repair-evidence.json
           node /tmp/flixo-repair-controller/scripts/ci/repair-protocol.mjs post-commit --evidence=/tmp/flixo-repair-evidence.json
 
       - name: Prepare exact post-commit repair handoff
-        if: steps.verify.outputs.verified == 'true'
+        if: steps.publish_candidate.outcome == 'success'
         run: |
           set -euo pipefail
           test "$(git branch --show-current)" = execution
@@ -1099,7 +1100,7 @@ jobs:
           test "${GITHUB_RUN_ID}" = "$(node -e "const h=require('/tmp/flixo-prepared-repair-handoff.json');process.stdout.write(h.repairRunId)")"
           test "$TARGET_RUN_ID" = "$(node -e "const h=require('/tmp/flixo-prepared-repair-handoff.json');process.stdout.write(h.targetFailureRunId)")"
       - name: Validate Phase 2 release integrity handoff
-        if: steps.verify.outputs.verified == 'true'
+        if: steps.publish_candidate.outcome == 'success'
         env:
           FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
           FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2.json
