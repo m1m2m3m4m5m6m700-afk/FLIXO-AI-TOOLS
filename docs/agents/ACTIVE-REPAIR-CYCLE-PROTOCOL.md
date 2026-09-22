@@ -97,6 +97,9 @@ While assigned work remains open:
 - abort requires explicit authority;
 - if evidence is insufficient, preserve the handoff and fail closed.
 
+### Active 45-minute repair residency
+Every unresolved repair cycle enters ACTIVE_REPAIR_45M. The session MUST remain continuously active for at least 45 minutes; SLEEP, IDLE, SILENT, ABANDONED, self-abort, self-disable, timeout-as-exit, and BLOCKED logout are forbidden. Heartbeat is mandatory and stale heartbeat triggers recovery rather than closure. Reaching 45 minutes is only a minimum residency condition; completion still requires zero remaining work/open RCA, Canonical GREEN, Exact-SHA certification, and the existing exit lock.
+
 ## Safety boundaries
 - `mainBranchMutation` is always `false) during repair.
 - Authorized execution may commit and push only to `execution`.
