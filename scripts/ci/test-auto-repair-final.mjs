@@ -114,7 +114,7 @@ assert.match(autoRepairWorkflow, /persist-credentials:\s*false/);
 assert.match(autoRepairWorkflow, /TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET/);
 assert.match(autoRepairWorkflow, /FLIXO_TRUSTED_CONTROLLER_SHA=\$CONTROLLER_SHA/);
 assert.match(dailyGateWorkflow, /actions\/workflows\/auto-repair\.yml\/dispatches/);
-assert.match(dailyGateWorkflow, /workflow_run:[\s\S]*workflows:\s*\n\s+- FLIXO Test System/);
+assert.doesNotMatch(dailyGateWorkflow, /workflow_run:/);
 assert.match(dailyGateWorkflow, /group:\s*flixo-continuous-error-watch-\$\{\{\s*github\.run_id\s*\}\}/);
 assert.match(dailyGateWorkflow, /cancel-in-progress:\s*false/);
 assert.match(dailyGateWorkflow, /const observedBranch = read\('\/tmp\/flixo-watch\/observed-branch'\)\.trim\(\);/);
