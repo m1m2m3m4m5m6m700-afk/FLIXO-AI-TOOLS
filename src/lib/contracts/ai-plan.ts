@@ -12,7 +12,7 @@ const executableToolId = z.string().trim().min(1).refine(
 export const ExecutionPlanSchema = z.object({
   workflowName: z.string().trim().min(1).max(160),
   confidence: z.number().finite().min(0).max(1),
-  catalogFingerprint: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  catalogFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
   steps: z.array(z.object({
     toolId: executableToolId,
     params: z.record(z.string().max(64), scalar).optional(),
@@ -23,7 +23,7 @@ export type ExecutionPlanContract = Omit<z.infer<typeof ExecutionPlanSchema>, 'c
 
 export function parseExecutionPlan(value: unknown): ExecutionPlanContract {
   const plan = ExecutionPlanSchema.parse(value);
-  const catalogFingerprint = plan.catalogFingerprint ?? TOOL_CATALOG.fingerprint;
+  const catalogFingerprint = plan.catalogFingerprint;
   if (catalogFingerprint !== TOOL_CATALOG.fingerprint) {
     throw new Error('Execution plan was created against a different canonical tool catalog.');
   }
