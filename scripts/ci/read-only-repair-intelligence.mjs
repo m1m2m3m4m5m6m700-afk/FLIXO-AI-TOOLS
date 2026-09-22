@@ -15,6 +15,7 @@ import { buildMetaCausalModel } from './meta-causal-model.mjs';
 import { buildMentorPacket } from './action-code-mentor.mjs';
 import { buildPrediction as buildActionVaultPrediction } from './action-historical-predictor.mjs';
 import { buildFusion as buildKnowledgeFusion } from './read-only-knowledge-fusion.mjs';
+import { buildSharedLearningContext, publishSharedMemory } from './shared-operational-memory.mjs';
 import { READ_ONLY_POWER_PROFILE, validateReadOnlyPowerProfile } from './read-only-power-profile.mjs';
 
 const ROOT=process.cwd();
@@ -335,6 +336,7 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
     identity:{taskId:'READ_ONLY_REPAIR_INTELLIGENCE:'+fingerprint,fingerprint,targetSha,failedRunId:String(failedRunId)},
     proposedRepair:{mode:'OWNER_REVIEW_REQUIRED',confidence:0,notCertain:true}
   };
+  const sharedLearning=buildSharedLearningContext({fingerprint,botId:'READ-ADVERSARY',limit:96});
   const knowledgeFusion=buildKnowledgeFusion({
     failureLog:log,
     diagnosis,
@@ -352,6 +354,7 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
     diagnosis,
     selected
   }) : { protocol:'INDEPENDENT_FALSIFICATION_REPORT-v1', status:'SKIPPED_IN_UNIT_TEST', authorityParity:'NO_MUTATION_AUTHORITY' };
+  try{publishSharedMemory({sourceBot:'READ-ADVERSARY',kind:adversarial?.counterexampleFound?'COUNTEREXAMPLE':'LESSON',taskId:'READ-REPAIR-INTELLIGENCE:'+fingerprint,targetSha,fingerprint,runId:String(failedRunId),claim:adversarial?.counterexampleFound?'Read-only adversarial analysis identified a counterexample against the current repair hypothesis.':'Read-only adversarial analysis found no validated counterexample but identified unresolved challenges.',content:JSON.stringify({adversarialStatus:adversarial.status,unresolvedChallenges:adversarial.unresolvedChallenges,sharedRecordCount:sharedLearning.recordCount}),evidenceRefs:adversarial.falsificationSearches?.slice(0,10).map(x=>x.id)??[],verification:'READ_ONLY_REPAIR_INTELLIGENCE',status:adversarial?.counterexampleFound?'BLOCKED':'OBSERVED'});}catch(error){console.warn('SHARED_MEMORY_PUBLISH_WARNING='+String(error?.message??error));}
   return {
     protocol:'FLIXO-READ-ONLY-REPAIR-INTELLIGENCE-v1',
     mode:'READ_AND_REASON_ONLY',
@@ -372,7 +375,8 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
       codeMentor:mentorPacket,
       actionVaultPrediction,
       vaultKnowledge,
-      knowledgeFusion
+      knowledgeFusion,
+      sharedOperationalMemory:sharedLearning
     },
     adversarial,
     deepInference,
