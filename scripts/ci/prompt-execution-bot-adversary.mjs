@@ -108,7 +108,16 @@ export function runAdversarialCorrectionLoop({ prompt, plan, maxRounds = 8 }) {
     const failureReport = buildAdversarialFailureReport(review);
     rounds.push({ round, challengeId: review.challengeId, status: review.status, clean: failureReport.clean, failureCount: failureReport.failureCount, reportDigest: failureReport.reportDigest, failures: failureReport.failures });
     if (failureReport.clean) return Object.freeze({ accepted: true, round, plan: candidate, review, failureReport, rounds });
-    candidate = selfCorrectPlan(candidate, failureReport);
+    const beforeDigest = digest(JSON.stringify(candidate));
+    const corrected = selfCorrectPlan(candidate, failureReport);
+    const afterDigest = digest(JSON.stringify(corrected));
+    if (beforeDigest === afterDigest) {
+      rounds[rounds.length - 1].progress = 'NONE';
+      rounds[rounds.length - 1].terminal = 'NO_SAFE_CORRECTION_PROGRESS';
+      return Object.freeze({ accepted: false, round, plan: candidate, review, failureReport, rounds, terminal: 'NO_SAFE_CORRECTION_PROGRESS' });
+    }
+    rounds[rounds.length - 1].progress = 'CHANGED';
+    candidate = corrected;
   }
   const finalReview = buildAdversarialReview({ prompt, plan: candidate });
   const finalReport = buildAdversarialFailureReport(finalReview);
