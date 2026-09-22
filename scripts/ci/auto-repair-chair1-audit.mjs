@@ -26,7 +26,7 @@ const readJson = (file, label) => {
 };
 const writeJson = (file, value) => {
   fs.mkdirSync(requireDir(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\\n');
+  fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\n');
 };
 const requireDir = (file) => file.includes('/') ? file.slice(0, file.lastIndexOf('/')) : '.';
 const normalizePaths = (paths) => [...new Set(paths.map((value) => {
