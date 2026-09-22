@@ -1,4 +1,4 @@
-import { getReadyToolConfigs, getToolConfig, TOOL_REGISTRY, type ToolConfig } from '../../config/tools';
+import { getReadyToolConfigs, getToolConfig, TOOLS_REGISTRY, type ToolConfig } from '../../config/tools';
 import type { ToolCategory } from '../../config/canonical-tool-definition.ts';
 import { IMAGE_COMPRESSOR_MANIFEST } from '../../tools/image-compressor/manifest';
 import { PIX_MANIFEST } from '../../tools/pix/manifest';
@@ -41,7 +41,7 @@ const FALLBACK_COPY: Record<string, Readonly<{ open: string; configure: string; 
 
 export const READY_TOOL_IDS = Object.freeze(getReadyToolConfigs().map((tool) => tool.id));
 export type { ToolCategory } from '../../config/canonical-tool-definition.ts';
-const TOOL_CATEGORIES = new Set<ToolCategory>(TOOL_REGISTRY.map((tool) => tool.category));
+const TOOL_CATEGORIES = new Set<ToolCategory>(TOOLS_REGISTRY.map((tool) => tool.category));
 export function assertToolCategory(value: string): ToolCategory { if (!TOOL_CATEGORIES.has(value as ToolCategory)) throw new Error(`Unsupported tool category: ${value}`); return value as ToolCategory; }
 export function getLocalizedToolTitle(localeInput: string, toolId: string, fallbackTitle: string): string { const locale = normalizeLocale(localeInput); const canonicalToolId = toolId === 'image-cropper' ? 'crop-resize' : toolId; const tool = getToolConfig(canonicalToolId); return tool ? getAuthoritativeToolSeoName(tool, locale) ?? fallbackTitle : fallbackTitle; }
 export function getLocalizedToolUrl(locale: Locale, toolId: string): string { const tool = getToolConfig(toolId); if (!tool) throw new Error(`Unknown tool id: ${toolId}`); return resolveLocalizedToolUrl(SITE_ORIGIN, tool, locale); }

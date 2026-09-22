@@ -43,7 +43,6 @@ export type ToolDefinition = Readonly<{
   family: ToolFamily;
   title: string;
   description: string;
-  family: ToolFamily;
   category: ToolCategory;
   isReady: boolean;
   path: string;

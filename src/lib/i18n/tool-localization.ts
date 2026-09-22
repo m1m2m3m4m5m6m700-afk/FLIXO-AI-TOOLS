@@ -1,6 +1,7 @@
 import type { Locale } from './config';
+import type { ToolCategory } from '../../config/canonical-tool-definition';
 
-export const CATEGORY_LABELS: Record<Locale, { Images: string }> = {
+export const CATEGORY_LABELS: Record<Locale, Partial<Record<ToolCategory, string>>> = {
   ar: { Images: 'الصور' }, en: { Images: 'Images' }, es: { Images: 'Imágenes' }, fr: { Images: 'Images' }, de: { Images: 'Bilder' }, hi: { Images: 'छवियाँ' }, id: { Images: 'Gambar' }, it: { Images: 'Immagini' }, ja: { Images: '画像' }, ko: { Images: '이미지' }, ms: { Images: 'Imej' }, nl: { Images: 'Afbeeldingen' }, pl: { Images: 'Obrazy' }, pt: { Images: 'Imagens' }, ru: { Images: 'Изображения' }, sv: { Images: 'Bilder' }, th: { Images: 'รูปภาพ' }, tr: { Images: 'Görseller' }, uk: { Images: 'Зображення' }, vi: { Images: 'Hình ảnh' },
 };
 
@@ -44,8 +45,8 @@ function tokenize(value: string): string[] {
   return value.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').split(/\s+/).filter(Boolean);
 }
 
-function fallbackTitle(locale: Locale, category: 'Images'): string {
-  const label = CATEGORY_LABELS[locale][category];
+function fallbackTitle(locale: Locale, category: ToolCategory): string {
+  const label = CATEGORY_LABELS[locale][category] ?? category;
   const templates: Record<Locale, string> = {
     ar: `أداة ${label}`, en: `Tool ${label}`, es: `Herramienta de ${label}`, fr: `Outil ${label}`, de: `${label}-Werkzeug`, hi: `${label} टूल`, id: `Alat ${label}`,
     it: `Strumento ${label}`, ja: `${label}ツール`, ko: `${label} 도구`, ms: `Alat ${label}`, nl: `${label}-tool`, pl: `Narzędzie ${label}`, pt: `Ferramenta de ${label}`,
@@ -54,11 +55,11 @@ function fallbackTitle(locale: Locale, category: 'Images'): string {
   return templates[locale];
 }
 
-export function localizeToolCategory(locale: Locale, category: 'Images'): string {
-  return CATEGORY_LABELS[locale][category];
+export function localizeToolCategory(locale: Locale, category: ToolCategory): string {
+  return CATEGORY_LABELS[locale][category] ?? category;
 }
 
-export function localizeToolTitle(locale: Locale, title: string, category: 'Images'): string {
+export function localizeToolTitle(locale: Locale, title: string, category: ToolCategory): string {
   if (locale === 'en') return title;
   const normalizedTitleKey = title.trim().toLowerCase();
   const override = TITLE_OVERRIDES[normalizedTitleKey];
@@ -76,7 +77,7 @@ export function localizeToolTitle(locale: Locale, title: string, category: 'Imag
   return result && result.toLowerCase() !== title.trim().toLowerCase() ? result : fallbackTitle(locale, category);
 }
 
-export function localizeToolDescription(locale: Locale, title: string, category: 'Images'): string {
+export function localizeToolDescription(locale: Locale, title: string, category: ToolCategory): string {
   const localizedTitle = localizeToolTitle(locale, title, category);
   const templates: Record<Locale, string> = {
     ar: `استخدم ${localizedTitle} من FLIXO مباشرة داخل المتصفح.`, en: `Use ${localizedTitle} in FLIXO directly in your browser.`, es: `Usa ${localizedTitle} de FLIXO directamente en tu navegador.`,

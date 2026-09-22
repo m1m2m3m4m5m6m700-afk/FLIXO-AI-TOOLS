@@ -1,8 +1,9 @@
+import type { ToolCategory } from '../config/canonical-tool-definition';
 type ReadyTool = {
   id: string;
   title: string;
   description: string;
-  category: 'Images' | 'AI' | 'Other';
+  category: ToolCategory;
   path: string;
 };
 
