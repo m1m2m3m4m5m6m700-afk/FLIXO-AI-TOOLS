@@ -121,6 +121,12 @@ const derivedMemoryPath = path.join(tempRoot, 'derived.json');
 fs.writeFileSync(trustedMemoryPath, JSON.stringify({ version: 10, cases: [{ fingerprint: '__trusted_case__', attempts: 0, successes: 0, failures: 0, outcomes: [] }], playbooks: [], lessons: [], antiLessons: [] }));
 fs.writeFileSync(derivedMemoryPath, JSON.stringify({ version: 10, cases: [{ fingerprint: '__derived_case__', attempts: 1, successes: 0, failures: 1, outcomes: [{ outcome: 'failure', verification: 'failed' }] }], playbooks: [], lessons: [], antiLessons: [] }));
 const previousTrustedMemory = process.env.FLIXO_TRUSTED_REPAIR_MEMORY;
+const previousTaskId = process.env.FLIXO_TASK_ID;
+const previousRepairChainId = process.env.FLIXO_REPAIR_CHAIN_ID;
+const previousRunId = process.env.FLIXO_RUN_ID;
+process.env.FLIXO_TASK_ID = 'TEST-TASK-LEDGER-001';
+process.env.FLIXO_REPAIR_CHAIN_ID = 'TEST-CHAIN-001';
+process.env.FLIXO_RUN_ID = '54321';
 const previousDerivedMemory = process.env.FLIXO_DERIVED_REPAIR_MEMORY;
 process.env.FLIXO_TRUSTED_REPAIR_MEMORY = trustedMemoryPath;
 process.env.FLIXO_DERIVED_REPAIR_MEMORY = derivedMemoryPath;
@@ -157,6 +163,10 @@ recordOutcome(memory, {
     { type: 'verified-by', target: 'run:12345', sourceSha: 'a'.repeat(40) },
   ],
 });
+const repairTask = memory.repairTasks.find((item) => item.taskId === 'TEST-TASK-LEDGER-001');
+assert(repairTask);
+assert.equal(repairTask.repairChainId, 'TEST-CHAIN-001');
+assert.equal(repairTask.failureRunId, '54321');
 const relationCase = memory.cases.find((item) => item.fingerprint === '__relation_case__');
 assert.equal(relationCase?.relations?.length, 2);
 assert.deepEqual(relationCase.relations.map((item) => item.type).sort(), ['caused-by', 'verified-by']);
@@ -210,6 +220,9 @@ assert.equal(mirroredRule.attempts, reusable.generalizedRules.find((item) => ite
 assert.equal(reusable.rejectedRules.some((item) => item.rule === 'eslint-unused'), false);
 assert(memory.lessons.some((item) => item.fingerprint === '__self_test__'));
 assert.equal(memory.actionHistory.find((item) => item.fingerprint === '__self_test__')?.attempts, 1);
+if (previousTaskId === undefined) delete process.env.FLIXO_TASK_ID; else process.env.FLIXO_TASK_ID = previousTaskId;
+if (previousRepairChainId === undefined) delete process.env.FLIXO_REPAIR_CHAIN_ID; else process.env.FLIXO_REPAIR_CHAIN_ID = previousRepairChainId;
+if (previousRunId === undefined) delete process.env.FLIXO_RUN_ID; else process.env.FLIXO_RUN_ID = previousRunId;
 
 const hydrated = hydrateActionHistory({
   version: 10,

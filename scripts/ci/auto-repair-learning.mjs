@@ -20,6 +20,7 @@ export const MEMORY_RETENTION = Object.freeze({
   maxIntractableEvidence: 100,
   maxRejectedApproaches: 100,
   maxGitMemorySnapshots: 256,
+  maxRepairTasks: 2000,
 });
 export const MEMORY_RELATION_TYPES = Object.freeze([
   'caused-by',
@@ -80,7 +81,7 @@ export function normalizeLearningOutcome(outcome, verification) {
   return outcome;
 }
 
-const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [], actionHistory: [] });
+const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [], actionHistory: [], repairTasks: [] });
 
 const historicalKnowledgePath = process.env.FLIXO_HISTORICAL_KNOWLEDGE ?? 'docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json';
 
@@ -112,7 +113,7 @@ export function loadMemory() {
       }
     }
     memory.version = Number.isInteger(parsed?.version) ? Math.max(parsed.version, MEMORY_VERSION) : MEMORY_VERSION;
-    for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(memory[key])) memory[key] = [];
+    for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons', 'repairTasks']) if (!Array.isArray(memory[key])) memory[key] = [];
     return memory;
   } catch {
     return emptyMemory();
@@ -268,6 +269,7 @@ export function mergeMemoryHistory(baseMemory, derivedMemory) {
     lessons: [...base.lessons],
     antiLessons: [...base.antiLessons],
     actionHistory: [...(base.actionHistory ?? [])],
+    repairTasks: [...(base.repairTasks ?? [])],
   };
 
   const mergeUnique = (left = [], right = [], keyFor = (item) => JSON.stringify(item)) => {
@@ -361,6 +363,13 @@ export function mergeMemoryHistory(baseMemory, derivedMemory) {
   }
   merged.actionHistory = [...actionHistoryMap.values()].slice(-MEMORY_RETENTION.maxActionHistory);
 
+  const repairTaskMap = new Map((merged.repairTasks ?? []).map((item) => [[item.taskId ?? '', item.repairChainId ?? '', item.failureRunId ?? '', item.fingerprint ?? ''].join('|'), item]));
+  for (const incoming of derived.repairTasks ?? []) {
+    const key = [incoming.taskId ?? '', incoming.repairChainId ?? '', incoming.failureRunId ?? '', incoming.fingerprint ?? ''].join('|');
+    repairTaskMap.set(key, { ...repairTaskMap.get(key), ...incoming });
+  }
+  merged.repairTasks = [...repairTaskMap.values()].slice(-MEMORY_RETENTION.maxRepairTasks);
+
   for (const collection of ['lessons', 'antiLessons']) {
     const map = new Map(merged[collection].map((item) => [item.id, item]));
     for (const incoming of derived[collection]) {
@@ -383,6 +392,36 @@ export function mergeMemoryHistory(baseMemory, derivedMemory) {
   }
 
   return normalizeMemoryCounters(merged);
+}
+
+
+function upsertRepairTask(memory, record) {
+  if (!record?.taskId && !record?.repairChainId && !record?.failureRunId) return;
+  const key = [record.taskId ?? '', record.repairChainId ?? '', record.failureRunId ?? '', record.fingerprint ?? ''].join('|');
+  const existingIndex = (memory.repairTasks ?? []).findIndex((item) => [item.taskId ?? '', item.repairChainId ?? '', item.failureRunId ?? '', item.fingerprint ?? ''].join('|') === key);
+  const normalized = {
+    taskId: record.taskId ?? null,
+    repairChainId: record.repairChainId ?? null,
+    failureRunId: record.failureRunId ?? null,
+    fingerprint: record.fingerprint ?? null,
+    rootCause: record.rootCause ?? null,
+    failedSha: record.failedSha ?? null,
+    targetSha: record.targetSha ?? null,
+    candidateSha: record.candidateSha ?? null,
+    strategyId: record.strategyId ?? null,
+    rule: record.rule ?? null,
+    outcome: record.outcome ?? null,
+    verification: record.verification ?? null,
+    changedPaths: [...new Set((Array.isArray(record.changedPaths) ? record.changedPaths : []).map(String).filter(Boolean))].slice(0, 64),
+    preventionRule: record.preventionRule ?? null,
+    exactShaVerified: Boolean(record.exactShaVerified),
+    canonicalGreen: Boolean(record.canonicalGreen),
+    status: Boolean(record.exactShaVerified && record.canonicalGreen) ? 'CLOSED' : record.outcome === 'blocked-external' ? 'BLOCKED_EXTERNAL' : 'RECOVERING',
+    recordedAt: record.recordedAt ?? new Date().toISOString(),
+  };
+  if (existingIndex >= 0) memory.repairTasks[existingIndex] = { ...memory.repairTasks[existingIndex], ...normalized };
+  else memory.repairTasks.push(normalized);
+  memory.repairTasks = memory.repairTasks.slice(-MEMORY_RETENTION.maxRepairTasks);
 }
 
 function findCase(memory, fingerprint) {
@@ -771,6 +810,24 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   }
   if (isHistoricalRevertFailure) entry.revertFailures = (entry.revertFailures ?? 0) + 1;
   const countsAsRepairAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
+  upsertRepairTask(memory, {
+    taskId,
+    repairChainId,
+    failureRunId: effectiveProvenance?.runId ?? process.env.FLIXO_RUN_ID ?? null,
+    fingerprint,
+    rootCause: entry.rootCause,
+    failedSha: effectiveProvenance?.failedSha ?? process.env.FLIXO_FAILED_SHA ?? null,
+    targetSha: effectiveProvenance?.targetSha ?? process.env.FLIXO_TARGET_SHA ?? null,
+    candidateSha: process.env.FLIXO_CANDIDATE_SHA ?? null,
+    strategyId,
+    rule,
+    outcome: normalizedOutcome,
+    verification,
+    changedPaths: effectiveDiagnosis?.affectedPaths ?? affectedPaths,
+    preventionRule: effectivePreventionRule,
+    exactShaVerified: verification === 'passed' || verification === 'exact-sha-proof',
+    canonicalGreen: process.env.FLIXO_CANONICAL_GREEN === 'true',
+  });
   if (countsAsRepairAttempt) {
     entry.attempts += 1;
     const persistedAttempts = priorRepairArtifactCount() + 1;
@@ -995,7 +1052,7 @@ export function writeMemory(memory) {
     normalized = mergeMemoryHistory(historical, normalized);
   }
   normalized.version = Number.isInteger(memory?.version) ? Math.max(memory.version, MEMORY_VERSION) : MEMORY_VERSION;
-  for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(normalized[key])) normalized[key] = [];
+  for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons', 'repairTasks']) if (!Array.isArray(normalized[key])) normalized[key] = [];
   fs.writeFileSync(memoryPath, `${JSON.stringify(normalized, null, 2)}\n`);
 }
 
