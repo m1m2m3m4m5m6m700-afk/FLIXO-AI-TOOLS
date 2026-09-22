@@ -42,6 +42,19 @@ const targetSha = git(['rev-parse', 'HEAD']).trim();
 const protocolBranch = git(['branch', '--show-current']);
 if (protocolBranch !== 'execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
 
+const centralChairTaskId = `ACTION-REPAIR:${String(process.env.TARGET_RUN_ID ?? '').trim() || repairChainId}:${fingerprint}`;
+const centralChairWorkPackageId = `REPAIR:${String(process.env.TARGET_RUN_ID ?? '').trim() || repairChainId}:${fingerprint}`;
+const centralChairLeaseId = String(process.env.FLIXO_CHAIR_LEASE_ID ?? '').trim();
+const centralChairFencingHash = String(process.env.FLIXO_CHAIR_FENCING_HASH ?? '').trim();
+const centralChairHolder = String(process.env.FLIXO_CHAIR_AGENT ?? '').trim() || 'AUTO_REPAIR_BOT';
+
+function bindRepairSessionToCentralChair(session) {
+  if (!['actionRepairBot','repairAgent','assistantRepairAgent','actionRepairVerifier'].includes(repairActor)) return session;
+  if (!centralChairLeaseId || !centralChairFencingHash) throw new Error('REPAIR_PROTOCOL_CENTRAL_CHAIR_CONTEXT_MISSING');
+  execFileSync('node',['scripts/ci/central-chair-lease.mjs','verify','--holder='+centralChairHolder,'--task='+centralChairTaskId,'--work-package='+centralChairWorkPackageId,'--sha='+targetSha,'--lease-id='+centralChairLeaseId,'--fencing-hash='+centralChairFencingHash],{cwd:targetDir,encoding:'utf8'});
+  return Object.freeze({...session,chairBinding:Object.freeze({required:true,chairId:'chair_1',leaseId:centralChairLeaseId,fencingHash:centralChairFencingHash,holderAgentId:centralChairHolder,taskId:centralChairTaskId,workPackageId:centralChairWorkPackageId,targetSha,centralVerified:true,released:false})});
+}
+
 const chair1MissionPath = process.env.FLIXO_CHAIR1_MISSION_PATH ?? '';
 let chair1Mission = null;
 if (process.env.FLIXO_CHAIR1_PRIMARY_MISSION === 'CHAIR1_PRIMARY_TEST_CYCLE_REPAIR') {
@@ -450,6 +463,7 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     process.exit(0);
   }
   repairProtocolSession = authorizeMutation(repairProtocolSession);
+  repairProtocolSession = bindRepairSessionToCentralChair(repairProtocolSession);
   assertAgentAdmission({ actor: repairActor, branch: protocolBranch, mutation: true, session: repairProtocolSession });
   const preparedVerification = prepareTargetedVerification(log, plan.features);
   evidence.reproductionSelection = preparedVerification.selection;

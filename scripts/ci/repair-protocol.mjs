@@ -61,29 +61,29 @@ export function assertProtocolDefinition(){
   if(JSON.stringify(REPAIR_PROTOCOL.actionVaultMissionRequires)!==JSON.stringify(['triadId','messageId','taskId','failureFingerprint','entrySha','targetSha','ownerAgent','proofObligations','stopConditions'])) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_MISSION_SCHEMA_DRIFT');
   return Object.freeze({protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH});
 }
-export function isCanonicalAutoRepairContext({ marker = process.env.FLIXO_AUTO_REPAIR_CONTEXT, argvPath = process.argv[1] } = {}) {
-  const normalized = String(argvPath ?? '').replaceAll('\\', '/');
-  return String(marker ?? '').trim() === 'true' && normalized.endsWith('/auto-repair-engine.mjs');
-}
-
 const assertChairBoundMutationSession = (actor, session) => {
   const binding = session?.chairBinding;
   if (!binding || binding.required !== true) throw new Error('REPAIR_PROTOCOL_CHAIR_REQUIRED');
-  if (!['chair_1','chair_2','chair_3'].includes(String(binding.chairId ?? ''))) throw new Error('REPAIR_PROTOCOL_CHAIR_INVALID');
-  if (!/^[a-f0-9]{64}$/u.test(String(binding.leaseId ?? ''))) throw new Error('REPAIR_PROTOCOL_CHAIR_LEASE_MISSING');
+  if (String(binding.chairId ?? '') !== 'chair_1') throw new Error('REPAIR_PROTOCOL_CHAIR_INVALID');
+  const lease = String(binding.leaseId ?? '');
+  const uuidLease = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(lease);
+  const hashLease = /^[a-f0-9]{64}$/u.test(lease);
+  if (!uuidLease && !hashLease) throw new Error('REPAIR_PROTOCOL_CHAIR_LEASE_MISSING');
+  if (!/^[a-f0-9]{64}$/u.test(String(binding.fencingHash ?? ''))) throw new Error('REPAIR_PROTOCOL_CHAIR_FENCING_MISSING');
+  if (binding.centralVerified !== true) throw new Error('REPAIR_PROTOCOL_CENTRAL_CHAIR_PROOF_REQUIRED');
+  if (!String(binding.holderAgentId ?? '').trim()) throw new Error('REPAIR_PROTOCOL_CHAIR_HOLDER_MISSING');
+  if (!String(binding.taskId ?? '').trim() || !String(binding.workPackageId ?? '').trim()) throw new Error('REPAIR_PROTOCOL_CHAIR_SCOPE_MISSING');
   if (binding.released === true) throw new Error('REPAIR_PROTOCOL_CHAIR_RELEASED');
   if (String(binding.targetSha ?? '') !== String(session.targetSHA ?? '')) throw new Error('REPAIR_PROTOCOL_CHAIR_SHA_MISMATCH');
   if (String(session.actor ?? actor) !== actor) throw new Error('REPAIR_PROTOCOL_CHAIR_ACTOR_MISMATCH');
-  return Object.freeze({actor, chairId:binding.chairId, leaseId:binding.leaseId, targetSha:binding.targetSha, admitted:true});
+  return Object.freeze({actor,chairId:binding.chairId,leaseId:binding.leaseId,fencingHash:binding.fencingHash,holderAgentId:binding.holderAgentId,taskId:binding.taskId,workPackageId:binding.workPackageId,targetSha:binding.targetSha,centralVerified:true,admitted:true});
 };
 
 export function assertAgentAdmission({actor,branch='execution',mutation=false,session=null}={}){
   const protocol=assertProtocolDefinition();
   if(!REPAIR_PROTOCOL.allAgents.includes(actor)) throw new Error('REPAIR_PROTOCOL_UNKNOWN_AGENT='+actor);
   if(mutation&&!REPAIR_PROTOCOL.mutationAgents.includes(actor)) throw new Error('REPAIR_PROTOCOL_MUTATION_ROLE_BLOCKED='+actor);
-  const autoRepairContext = isCanonicalAutoRepairContext();
-  if(mutation && !autoRepairContext) assertChairBoundMutationSession(actor, session);
-  if(mutation&&branch!=='execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
+  if (mutation) assertChairBoundMutationSession(actor, session);  if(mutation&&branch!=='execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
   if(mutation&&REPAIR_PROTOCOL.cellLabRequired){
     const sessionTaskId=String(session?.taskId??'').trim();
     const missionTaskId=String(session?.actionVaultMission?.taskId??'').trim();
