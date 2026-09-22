@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { captureWorkingTreeChange, comparePendingToCurrent, reconcilePendingChange, editReconciledChange, applyReconciliation } from './chair1-change-accumulator.mjs';
+import { captureWorkingTreeChange, comparePendingToCurrent, reconcilePendingChange, editReconciledChange, applyReconciliation, finalizeCandidateForChair1 } from './chair1-change-accumulator.mjs';
 
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-chair1-acc-'));
 const git=(args,opts={})=>execFileSync('git',args,{cwd:root,encoding:'utf8',...opts});
@@ -46,4 +46,37 @@ const edited=editReconciledChange(conflict,{path:'src/a.txt',content:'line-a\nli
 assert.equal(edited.status,'READY_TO_PUBLISH');
 applyReconciliation(conflictWork,edited);
 assert.equal(fs.readFileSync(path.join(conflictWork,'src/a.txt'),'utf8'),'line-a\nline-b-agent+latest\n');
+
+// Chair-1 finalizer: a candidate based on an older execution head is replayed
+// onto the current execution head without requiring the proposing agent to resolve the drift.
+const finalRoot=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-chair1-finalize-'));
+execFileSync('git',['clone','--quiet',root,finalRoot]);
+execFileSync('git',['checkout','--quiet','-b','candidate-lane'],{cwd:finalRoot});
+const finalParent=execFileSync('git',['rev-parse','HEAD'],{cwd:finalRoot,encoding:'utf8'}).trim();
+fs.writeFileSync(path.join(finalRoot,'src/final.txt'),'candidate\n');
+execFileSync('git',['add','.'],{cwd:finalRoot});
+execFileSync('git',['commit','--quiet','-m','candidate-final'],{cwd:finalRoot});
+const finalCandidate=execFileSync('git',['rev-parse','HEAD'],{cwd:finalRoot,encoding:'utf8'}).trim();
+
+execFileSync('git',['checkout','--quiet','-b','latest-lane',finalParent],{cwd:finalRoot});
+fs.writeFileSync(path.join(finalRoot,'src/latest.txt'),'latest\n');
+execFileSync('git',['add','.'],{cwd:finalRoot});
+execFileSync('git',['commit','--quiet','-m','latest-current'],{cwd:finalRoot});
+const latestExecution=execFileSync('git',['rev-parse','HEAD'],{cwd:finalRoot,encoding:'utf8'}).trim();
+
+execFileSync('git',['checkout','--quiet','candidate-lane'],{cwd:finalRoot});
+const finalized=finalizeCandidateForChair1({
+  repoRoot:finalRoot,
+  parentSha:finalParent,
+  candidateSha:finalCandidate,
+  currentExecutionSha:latestExecution,
+  currentMainSha:latestExecution,
+  agentId:'CHAIR_1',
+  taskId:'FINALIZE-TEST',
+});
+assert.equal(finalized.status,'READY_TO_PUBLISH');
+assert.equal(finalized.reconciled,true);
+assert.equal(finalized.parentSha,latestExecution);
+assert.notEqual(finalized.candidateSha,finalCandidate);
+
 console.log('CHAIR1_CHANGE_ACCUMULATOR=PASS');
