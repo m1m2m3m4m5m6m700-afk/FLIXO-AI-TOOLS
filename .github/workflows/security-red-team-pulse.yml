@@ -1,0 +1,111 @@
+name: FLIXO Security Red-Team Continuous Pulse
+
+on:
+  schedule:
+    - cron: '* * * * *'
+  workflow_dispatch:
+    inputs:
+      bot:
+        description: Red-Team bot to wake
+        required: false
+        type: choice
+        options:
+          - SECURITY-REDTEAM-1
+          - SECURITY-REDTEAM-2
+          - SECURITY-REDTEAM-3
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: flixo-security-red-team-pulse-${{ inputs.bot || 'ALL' }}
+  cancel-in-progress: false
+
+env:
+  PULSE_MS: 60000
+  STALE_MS: 150000
+
+jobs:
+  pulse:
+    name: Continuous pulse — ${{ inputs.bot || 'ALL' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        bot:
+          - SECURITY-REDTEAM-1
+          - SECURITY-REDTEAM-2
+          - SECURITY-REDTEAM-3
+    steps:
+      - name: Select exact bot scope
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          REQUESTED="${{ inputs.bot || '' }}"
+          BOT="${{ matrix.bot }}"
+          if [ -n "$REQUESTED" ] && [ "$REQUESTED" != "$BOT" ]; then
+            echo "active=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "active=true" >> "$GITHUB_OUTPUT"
+          echo "bot=$BOT" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout exact execution SHA
+        if: steps.scope.outputs.active == 'true'
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: execution
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Emit continuous heartbeat and peer-wake
+        if: steps.scope.outputs.active == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BOT_ID: ${{ steps.scope.outputs.bot }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for TICK in 1 2 3 4 5 6 7; do
+            SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+            NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "BOT=$BOT_ID"
+            echo "HEARTBEAT_TICK=$TICK"
+            echo "HEARTBEAT_AT=$NOW"
+            echo "HEARTBEAT_EXACT_SHA=$SHA"
+
+            for PEER in SECURITY-REDTEAM-1 SECURITY-REDTEAM-2 SECURITY-REDTEAM-3; do
+              if [ "$PEER" = "$BOT_ID" ]; then
+                continue
+              fi
+              LAST_RUN="$(
+                gh run list                   --repo "$GITHUB_REPOSITORY"                   --workflow security-red-team-pulse.yml                   --limit 30                   --json databaseId,status,conclusion,createdAt,headSha                   --jq --arg peer "$PEER"                     'map(select(.status == "in_progress" or .status == "completed") | select(.headSha == "'"$SHA"'")) |
+                     map(select(.databaseId != '"$GITHUB_RUN_ID"')) |
+                     .[]?' 2>/dev/null |
+                head -n 1 || true
+              )"
+
+              if [ -z "$LAST_RUN" ]; then
+                echo "PEER=$PEER STATUS=UNKNOWN"
+                gh workflow run security-red-team-pulse.yml                   --repo "$GITHUB_REPOSITORY"                   --ref execution                   -f "bot=$PEER" || echo "PEER_WAKE_DISPATCH_FAILED=$PEER"
+                continue
+              fi
+              echo "PEER=$PEER STATUS=OBSERVED"
+            done
+
+            if [ "$TICK" -lt 7 ]; then
+              sleep 60
+            fi
+          done
+
+      - name: Publish pulse evidence
+        if: always() && steps.scope.outputs.active == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-security-red-team-pulse-${{ steps.scope.outputs.bot }}-${{ github.run_id }}
+          path: /tmp/does-not-exist
+          if-no-files-found: warn
+          retention-days: 7
