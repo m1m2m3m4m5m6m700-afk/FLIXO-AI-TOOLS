@@ -1062,12 +1062,12 @@ BASHENV
         id: master_repair
         if: steps.strategy.outcome == 'success' && steps.root_cause_proof.outcome == 'success'
         env:
-          GH_TOKEN: \${{ github.token }}
-          FLIXO_EXPECTED_TARGET_SHA: \${{ env.FLIXO_EXPECTED_TARGET_SHA }}
-          FLIXO_CURRENT_TARGET_SHA: \${{ env.FLIXO_EXPECTED_TARGET_SHA }}
-          FLIXO_FAILURE_FINGERPRINT: \${{ env.FLIXO_FAILURE_FINGERPRINT }}
-          TARGET_RUN_ID: \${{ env.TARGET_RUN_ID }}
-          FLIXO_FAILURE_LOG: \${{ env.FLIXO_FAILURE_LOG }}
+          GH_TOKEN: ${{ github.token }}
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_CURRENT_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
+          TARGET_RUN_ID: ${{ env.TARGET_RUN_ID }}
+          FLIXO_FAILURE_LOG: ${{ env.FLIXO_FAILURE_LOG }}
           FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
           FLIXO_MASTER_REPAIR_PACKET: /tmp/flixo-master-repair-packet.json
         run: |
@@ -1178,7 +1178,7 @@ BASHENV
         if: always()
         uses: actions/upload-artifact@043fbf1d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: flixo-master-repair-dossier-\${{ github.run_id }}
+          name: flixo-master-repair-dossier-${{ github.run_id }}
           path: |
             /tmp/flixo-master-repair-packet.json
           if-no-files-found: warn
@@ -1186,9 +1186,9 @@ BASHENV
       - name: Escalate blocked Master Repair dossier to Master consult
         if: always() && steps.strategy.outcome == 'success' && steps.master_repair.outcome != 'success'
         env:
-          FLIXO_EXPECTED_TARGET_SHA: \${{ env.FLIXO_EXPECTED_TARGET_SHA }}
-          FLIXO_FAILURE_FINGERPRINT: \${{ env.FLIXO_FAILURE_FINGERPRINT }}
-          TARGET_RUN_ID: \${{ env.TARGET_RUN_ID }}
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
+          TARGET_RUN_ID: ${{ env.TARGET_RUN_ID }}
         run: |
           set -euo pipefail
           QUESTION="Master Repair Gate blocked; require new evidence or a changed strategy for the current exact SHA."
