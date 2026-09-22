@@ -170,6 +170,10 @@ scripts/ci/agent-session.mjs + scripts/ci/agent-liveness-protocol.mjs
 القاعدة:
 45 دقيقة = حد أدنى للإقامة، وليست مدة انتظار. كل دقيقة يجب أن تكون تنفيذًا أو تواصلًا أو تحققًا أو تعلمًا.
 
+**LONG-LIVED INTENSIVE RESIDENCY:** الحد الأقصى للقطاع النشط المتصل الواحد هو 3 ساعات لإجبار إعادة التأهيل والتقاط حالة جديدة؛ لا يوجد حد زمني إجمالي للمهمة المفتوحة. عند بلوغ 3 ساعات ينتقل المسار إلى `RESIDENCY_RENEWAL_REQUIRED` ثم `RECOVER_AND_CONTINUE` ويعود للنشاط بعد إعادة التحقق. لا يُسمح بـ`SLEEP` أو `IDLE` أو إنهاء المهمة بسبب انتهاء القطاع.
+
+**MASTER CELL CHANNEL:** قناة `MASTER_CELL_LAB` جزء من جلسة العمل نفسها. تحديث حالة الماسترز كل 5 دقائق وتذكير المهمات كل 10 دقائق، ويتضمن التحديث current exact SHA + liveness state + current RCA + open RCAs + remaining work + blockers + next action. تغيّر SHA يبطل الأدلة القديمة ويُلزم بإعادة التأهيل، لكنه لا يحوّل جلسة الإقامة إلى وضع sleep/idle.
+
 ## 12. HARD CIRCULAR EXIT LOCK
 
 لا يملك أي Agent/Master/Bot قرار الخروج.
