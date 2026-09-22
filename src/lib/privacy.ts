@@ -18,7 +18,7 @@ const definePrivacyCopy = (
 
 // Non-authoritative compatibility projection for legacy static contracts. Runtime privacy decisions do not read this set; ai-image-generator remains canonical data in TOOL_DEFINITIONS.
 export const REMOTE_TOOL_IDS = new Set(
-  TOOL_DEFINITIONS.filter((tool) => tool.executionMode === 'CLOUD').map((tool) => tool.id),
+  TOOL_DEFINITIONS.filter((tool) => tool.executionMode === 'CLOUD' || tool.requirements.network).map((tool) => tool.id),
 );
 
 const PRIVACY_COPY: Record<string, PrivacyLocaleCopy> = {
@@ -47,7 +47,10 @@ const PRIVACY_COPY: Record<string, PrivacyLocaleCopy> = {
 export function getToolProcessingMode(toolId: string): ProcessingMode {
   const tool = getToolDefinition(toolId);
   if (!tool) throw new Error(`Unknown tool id: ${toolId}`);
-  if ((tool.executionMode === 'CLOUD') !== tool.requirements.network) {
+  if (tool.executionMode === 'CLOUD' && !tool.requirements.network) {
+    throw new Error(`Execution/privacy boundary mismatch for tool '${tool.id}'.`);
+  }
+  if (tool.executionMode === 'LOCAL' && tool.requirements.network) {
     throw new Error(`Execution/privacy boundary mismatch for tool '${tool.id}'.`);
   }
   return tool.executionMode === 'CLOUD' || tool.requirements.network ? 'remote' : 'local';
