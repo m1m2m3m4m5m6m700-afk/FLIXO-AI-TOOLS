@@ -90,6 +90,7 @@ acquire({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,repositor
 assert.equal(authorizeWrite({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,paths:['src/fenced.ts'],permission:'SOURCE_MUTATION',workPackageId:'WP-FENCED',taskId:'TASK-FENCED',fencingToken:fencedToken}).authorized,true);
 assert.throws(()=>authorizeWrite({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,paths:['src/fenced.ts'],permission:'SOURCE_MUTATION',workPackageId:'WP-FENCED',taskId:'TASK-FENCED',fencingToken:'e'.repeat(64)}),/CHAIR_FENCING_TOKEN_MISMATCH/);
 release({chairId:'chair_1',agentId:'fenced-agent',targetSha:realGitSha,successful:true});
+acquire({chairId:'chair_1',agentId:'agent-chair1-active',targetSha:realGitSha,repositoryState:'IDLE'});
 const proposalFile=path.join(hardeningRoot,'push-proposal.json');
 const proposal=writeSpeculativeContext({
   sessionId:'push-proposal-session',
@@ -119,11 +120,12 @@ execFileSync(process.execPath,['scripts/ci/chair-push-guard.mjs','--proposal='+p
 });
 const guardReport=JSON.parse(fs.readFileSync(guardOut,'utf8'));
 assert.equal(guardReport.decision,'REJECTED');
-assert.equal(guardReport.reasonCode,'CANDIDATE_NOT_AVAILABLE_TO_GUARD');
+assert.equal(guardReport.reasonCode,'CHAIR1_ACTIVE_CONFLICT');
 assert.equal(fs.readFileSync(guardMem,'utf8').trim().length>0,true);
 const finalState=JSON.parse(fs.readFileSync(process.env.FLIXO_CHAIR_STATE_PATH,'utf8'));
 assert.equal(finalState.rejected_push_memory.at(-1).proposalId,pushProposal.proposalId);
 release({chairId:'chair_2',agentId:'agent-proposer',targetSha:realGitSha});
+release({chairId:'chair_1',agentId:'agent-chair1-active',targetSha:realGitSha,successful:true});
 sanitizeSessionContext({sessionId:'push-proposal-session',taskId:'PUSH-TASK-1'});
 console.log('CHAIR_PUSH_PROPOSAL_ONLY=PASS');
 console.log('CHAIR_PUSH_GUARD=PASS');
