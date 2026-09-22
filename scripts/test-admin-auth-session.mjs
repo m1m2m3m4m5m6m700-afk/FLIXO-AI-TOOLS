@@ -5,6 +5,7 @@ import { sessionCookieName } from '../api/admin/boundary.ts';
 process.env.SUPABASE_URL = 'https://example.supabase.co';
 process.env.SUPABASE_SECRET_KEY = 'test-secret';
 process.env.VERCEL_ENV = 'test';
+process.env.NODE_ENV = 'test';
 const sessions = new Map();
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (input, init = {}) => {
@@ -15,7 +16,7 @@ globalThis.fetch = async (input, init = {}) => {
   if (method === 'POST') {
     assert.match(body.token_hash, /^[0-9a-f]{64}$/i);
     assert.ok(!body.token_hash.includes(body.session_id));
-    sessions.set(body.session_id, { ...body, revoked_at: null });
+    sessions.set(body.session_id, { ...body, token_hash: body.token_hash, revoked_at: null });
     return new Response(JSON.stringify([{ ...body, revoked_at: null, created_at: body.issued_at }]), { status: 201 });
   }
   if (method === 'GET') {
@@ -80,6 +81,18 @@ const missingConfig = await invoke({ secret: null });
 assert.equal(missingConfig.status, 503);
 assert.equal(missingConfig.body.error.code, 'server_configuration_unavailable');
 
+process.env.NODE_ENV = 'production';
+delete process.env.ADMIN_PUBLIC_ORIGIN;
+const productionOriginMissing = await invoke({
+  method: 'POST',
+  body: { password: PASSWORD },
+  origin: 'https://example.com',
+});
+assert.equal(productionOriginMissing.status, 403);
+assert.equal(productionOriginMissing.body.error.code, 'csrf_origin_denied');
+process.env.NODE_ENV = 'test';
+process.env.ADMIN_PUBLIC_ORIGIN = 'http://localhost:3000';
+
 const wrongPassword = await invoke({ method: 'POST', body: { password: 'wrong' } });
 assert.equal(wrongPassword.status, 401);
 assert.equal(wrongPassword.body.error.code, 'invalid_credentials');
@@ -103,7 +116,7 @@ assert.equal(login.body.identity.subject, 'owner');
 assert.equal(login.body.identity.role, 'OWNER');
 assert.ok(String(login.headers['Set-Cookie']).startsWith(`${sessionCookieName}=`));
 assert.match(String(login.headers['Set-Cookie']), /HttpOnly/);
-assert.match(String(login.headers['Set-Cookie']), /SameSite=Lax/);
+assert.match(String(login.headers['Set-Cookie']), /SameSite=Strict/);
 
 const setCookie = String(login.headers['Set-Cookie']).split(';')[0];
 const cookie = setCookie;
@@ -115,6 +128,12 @@ assert.equal(session.body.identity.subject, 'owner');
 assert.equal(session.body.identity.role, 'OWNER');
 assert.equal(Array.isArray(session.body.capabilities), true);
 assert.equal(session.body.capabilities.includes('evidence.read'), true);
+
+const sessionId = session.body.provenance.sessionId;
+sessions.get(sessionId).token_hash = '0'.repeat(64);
+const tokenMismatch = await invoke({ cookie });
+assert.equal(tokenMismatch.status, 401);
+assert.equal(tokenMismatch.body.error.code, 'authentication_required');
 assert.equal(session.body.capabilities.includes('production.write'), false);
 assert.match(session.body.provenance.sessionId, /^[0-9a-f-]{36}$/i);
 assert.equal(session.body.provenance.environment, 'test');
