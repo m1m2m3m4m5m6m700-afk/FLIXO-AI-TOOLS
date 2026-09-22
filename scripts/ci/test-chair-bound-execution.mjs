@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {acquire,authorizeWrite,authorizeMergeProposal,release,repositoryMode,heartbeat,reconcileDeadLeases,writeSpeculativeContext,readSpeculativeContext,sanitizeSessionContext,atomicChairRefAudit,proposePush,beginWork,endWork,assertWorkAdmission,activeChairForAgent} from './chair-bound-execution.mjs';
+import {acquire,authorizeWrite,authorizeMergeProposal,release,repositoryMode,heartbeat,reconcileDeadLeases,writeSpeculativeContext,readSpeculativeContext,sanitizeSessionContext,atomicChairRefAudit,proposePush,beginWork,endWork,assertWorkAdmission,activeChairForAgent,preemptedContinuityForAgent} from './chair-bound-execution.mjs';
 
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-chair-test-'));
 process.env.FLIXO_CHAIR_STATE_PATH=path.join(temp,'locks','chairs.json');
@@ -147,14 +147,33 @@ const master2Admission=beginWork({
 assert.equal(master2Admission.chairId,'chair_1');
 assert.equal(master2Admission.preemptedAgentId,'AUTO_REPAIR_BOT');
 assert.equal(activeChairForAgent({agentId:'MASTER-2',targetSha:realGitSha}).chairId,'chair_1');
+const autoRepairContinuity=preemptedContinuityForAgent({agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha,taskId:'AUTO-REPAIR-TASK'});
+assert.equal(autoRepairContinuity.status,'CONTINUING_AFTER_PREEMPTION');
+assert.equal(autoRepairContinuity.canContinueTask,true);
+assert.equal(autoRepairContinuity.canMutateAfterPreemption,false);
+assert.equal(autoRepairContinuity.handoffTo,'CHAIR_1_GUARD');
+const autoRepairAdmissionAfterPreemption=beginWork({
+  agentId:'AUTO_REPAIR_BOT',
+  targetSha:realGitSha,
+  requestedChairId:'chair_1',
+  repositoryState:'ACTIVE',
+  taskId:'AUTO-REPAIR-TASK',
+  workPackageId:'AUTO-REPAIR-WP'
+});
+assert.equal(autoRepairAdmissionAfterPreemption.continuity,true);
+assert.equal(autoRepairAdmissionAfterPreemption.chairId,null);
 assert.throws(
-  ()=>assertWorkAdmission({agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha,chairId:'chair_1',taskId:'AUTO-REPAIR-TASK'}),
-  /AGENT_WORK_CHAIR_PREEMPTED/
+  ()=>authorizeWrite({chairId:'chair_1',agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION'}),
+  /CHAIR_NOT_OCCUPIED|UNAUTHORIZED_EXECUTION_ATTEMPT/
 );
+assert.deepEqual(assertWorkAdmission({agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha,chairId:'chair_1',taskId:'AUTO-REPAIR-TASK'}),autoRepairContinuity);
 assert.throws(
   ()=>beginWork({agentId:'MASTER-3',role:'MASTER-3',requestedChairId:'chair_1',targetSha:realGitSha,repositoryState:'IDLE',taskId:'MASTER-3-TASK',workPackageId:'MASTER-3-WP'}),
   /CHAIR1_HIGHER_MASTER_ACTIVE/
 );
+const master2Continuity=preemptedContinuityForAgent({agentId:'MASTER-2',targetSha:realGitSha,taskId:'MASTER-2-TASK'});
+assert.equal(master2Continuity.canContinueTask,true);
+assert.equal(master2Continuity.handoffTo,'CHAIR_1_GUARD');
 const master1Admission=beginWork({
   agentId:'MASTER-1',
   role:'MASTER-1',
@@ -166,6 +185,7 @@ const master1Admission=beginWork({
 });
 assert.equal(master1Admission.preemptedAgentId,'MASTER-2');
 assert.equal(activeChairForAgent({agentId:'MASTER-1',targetSha:realGitSha}).chairId,'chair_1');
+assert.deepEqual(assertWorkAdmission({agentId:'MASTER-2',targetSha:realGitSha,chairId:'chair_1',taskId:'MASTER-2-TASK'}),master2Continuity);
 release({chairId:'chair_1',agentId:'MASTER-1',targetSha:realGitSha,successful:true});
 
 process.env.FLIXO_REQUIRE_FENCED_CHAIR='true';
@@ -222,7 +242,9 @@ console.log('CHAIR_CONTEXT_SANITIZATION=PASS');
 console.log('CHAIR_ATOMIC_REF_AUDIT_CAS=PASS');
 console.log('CHAIR_SINGLE_AGENT_MODE=PASS');
 console.log('CHAIR1_TASK_NONRECLAIMABLE=PASS');
-console.log('CHAIR1_TASK_NONPREEMPTABLE=PASS');
+console.log('CHAIR1_TASK_PREEMPTION_CONTINUES=PASS');
+console.log('CHAIR1_PREEMPTED_MUTATION_REVOKED=PASS');
+console.log('CHAIR1_GUARD_HANDOFF=PASS');
 console.log('CHAIR1_RELEASE_REQUIRES_COMPLETION=PASS');
 console.log('CHAIR_EXACT_SHA=PASS');
 console.log('CHAIR_SINGLE_WRITER=PASS');
