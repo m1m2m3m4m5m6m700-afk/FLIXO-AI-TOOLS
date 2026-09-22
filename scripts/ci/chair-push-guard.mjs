@@ -28,6 +28,7 @@ function report(extra={}){
   return {
     schemaVersion:2,
     protocol:'FLIXO-CHAIR-PUSH-VALIDATOR-v1',
+    phase:'PROPOSAL_GUARD',
     authority:'VALIDATION_ONLY',
     decisionAuthority:'assistantController',
     proposalId:proposal?.proposalId??null,
