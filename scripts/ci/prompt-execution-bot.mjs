@@ -18,7 +18,8 @@ export const CANONICAL_SOURCES = Object.freeze([
   'docs/PROTOCOL-HIERARCHY.md', 'docs/PROTOCOL-REGISTRY.json',
   'docs/agents/PROMPT-REGISTRY.json', 'diagnostics/auto-repair/memory.json',
   'docs/agents/PROMPT-UNIFIED-EXECUTION.md', 'scripts/ci/prompt-execution-bot-adversary.mjs',
-  'docs/agents/PROMPT-EXECUTION-BOT-ADVERSARY.md',
+  'docs/agents/PROMPT-EXECUTION-BOT-ADVERSARY.md', 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json',
+  'docs/agents/ACTION-AGENT-TRIAD.md',
 ]);
 const ACTIONS = Object.freeze([
   ['REPAIR', /(repair|fix|heal|resolve|correct|restore|إصلاح|اصلح|أصلح|عالج|حل|تصحيح)/iu],
