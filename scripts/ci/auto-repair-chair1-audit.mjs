@@ -65,7 +65,7 @@ const testPath = /(^|\/)(?:tests?|__tests__)(?:\/|$)|(?:^|\/)test-[^/]+\.(?:mjs|
 
 requireCondition(CHAIR_DEFINITIONS.chair_1.permissions.includes('SOURCE_MUTATION'), 'CHAIR1_SOURCE_MUTATION_PERMISSION_MISSING', 'chair_1 must retain SOURCE_MUTATION authority');
 requireCondition(currentSha === candidateSha, 'CANDIDATE_NOT_HEAD', { currentSha, candidateSha });
-requireCondition(git(['rev-list', '--parents', '-n', '1', candidateSha]).split(/\\s+/u).slice(1).includes(parentSha), 'CANDIDATE_PARENT_MISMATCH', { candidateSha, parentSha });
+requireCondition(git(['rev-list', '--parents', '-n', '1', candidateSha]).split(/\s+/u).slice(1).includes(parentSha), 'CANDIDATE_PARENT_MISMATCH', { candidateSha, parentSha });
 requireCondition(evidence.protocol === 'AUTONOMOUS-REPAIR-PROTOCOL-v4', 'REPAIR_EVIDENCE_PROTOCOL_INVALID', evidence.protocol);
 requireCondition(evidence.targetSha === parentSha, 'REPAIR_TARGET_SHA_MISMATCH', { evidenceSha: evidence.targetSha, parentSha });
 requireCondition(['verified-repair', 'verified-historical-revert'].includes(evidence.outcome), 'REPAIR_OUTCOME_NOT_VERIFIED', evidence.outcome);
