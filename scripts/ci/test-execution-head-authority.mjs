@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-const { verifyExecutionHeadAuthority } = await import('./execution-head-authority.mjs');
+const { HEAD_AUTHORITY_PROTOCOL, verifyExecutionHeadAuthority } = await import('./execution-head-authority.mjs');
 
 
 const read=(file)=>fs.readFileSync(file,'utf8');
@@ -19,7 +19,7 @@ catch {
 }
 assert.notEqual(target,candidate);
 const proofCore={
-  protocol:'FLIXO-CHAIR1-EXECUTION-HEAD-AUTHORITY-v1',
+  protocol:HEAD_AUTHORITY_PROTOCOL,
   chairId:'chair_1',
   agentId:'chair-test',
   leaseId:'c'.repeat(64),
