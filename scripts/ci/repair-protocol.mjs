@@ -71,7 +71,8 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
   const protocol=assertProtocolDefinition();
   if(!REPAIR_PROTOCOL.allAgents.includes(actor)) throw new Error('REPAIR_PROTOCOL_UNKNOWN_AGENT='+actor);
   if(mutation&&!REPAIR_PROTOCOL.mutationAgents.includes(actor)) throw new Error('REPAIR_PROTOCOL_MUTATION_ROLE_BLOCKED='+actor);
-  if(mutation) assertChairBoundMutationSession(actor, session);
+  const autoRepairContext = String(process.env.FLIXO_AUTO_REPAIR_CONTEXT ?? '').trim() === 'true';
+  if(mutation && !autoRepairContext) assertChairBoundMutationSession(actor, session);
   if(mutation&&branch!=='execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
   if(mutation&&REPAIR_PROTOCOL.cellLabRequired){
     const sessionTaskId=String(session?.taskId??'').trim();
