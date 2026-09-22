@@ -1242,9 +1242,17 @@ jobs:
           test -s "$FLIXO_CHAIR_CONTEXT"
           git fetch --no-tags origin execution
           test "$(git rev-parse origin/execution)" = "$PARENT_SHA"
+          HEAD_WP="REPAIR-HEAD:$TARGET_RUN_ID:$FLIXO_FAILURE_FINGERPRINT"
+          HEAD_TASK="REPAIR-HEAD:$TARGET_RUN_ID:$FLIXO_FAILURE_FINGERPRINT"
+          node scripts/ci/chair-bound-execution.mjs init --sha="$PARENT_SHA"
+          HEAD_FENCE="$(printf '%s' "$HEAD_WP:$HEAD_TASK:$PARENT_SHA" | sha256sum | cut -d' ' -f1)"
+          node scripts/ci/chair-bound-execution.mjs acquire --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$PARENT_SHA" --repository-state=IDLE --work-package="$HEAD_WP" --task-id="$HEAD_TASK" --fencing-token="$HEAD_FENCE" --scope="*" >/tmp/flixo-final-head-chair.json
+          node scripts/ci/chair-bound-execution.mjs authorize-publication --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$PARENT_SHA" --permission=SOURCE_MUTATION --work-package="$HEAD_WP" --task-id="$HEAD_TASK" --fencing-token="$HEAD_FENCE" --paths="*" >/tmp/flixo-final-head-publication.json
+          node scripts/ci/execution-head-authority.mjs authorize --agent=AUTO_REPAIR_BOT --target-sha="$PARENT_SHA" --parent-sha="$PARENT_SHA" --candidate-sha="$CANDIDATE_SHA" --task-id="$HEAD_TASK" --work-package="$HEAD_WP" --output="$FLIXO_HEAD_AUTHORITY_PROOF" >/tmp/flixo-head-authority-log.json
           node scripts/ci/execution-mutation-gate.mjs verify --phase=pre-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA" --parent="$PARENT_SHA"
           git push origin "HEAD:execution"
           node scripts/ci/execution-mutation-gate.mjs verify --phase=post-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA"
+          node scripts/ci/chair-bound-execution.mjs release --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$PARENT_SHA" --successful=true >/tmp/flixo-final-head-release.json
           echo 'EXECUTION_PUBLICATION=PASS'
           PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
           if [ -z "$PR_URL" ]; then PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head execution --title "fix(auto-repair): canonical execution repair" --body "Canonical execution repair with exact-SHA canonical CI and post-patch adversarial falsification.")"; fi
