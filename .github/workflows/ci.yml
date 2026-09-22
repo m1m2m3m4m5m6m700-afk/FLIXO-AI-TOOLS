@@ -10,7 +10,7 @@ on:
 
 # One concurrency slot is isolated per exact commit SHA; a newer SHA does not wait behind an older SHA.
 concurrency:
-  group: flixo-test-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: flixo-test-${{ github.event.pull_request.head.sha || github.sha }}
   # Preserve an already-running test; GitHub replaces only the older pending run in this branch group.
   cancel-in-progress: true
 
