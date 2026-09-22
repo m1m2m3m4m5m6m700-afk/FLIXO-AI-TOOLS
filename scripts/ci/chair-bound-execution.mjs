@@ -111,8 +111,13 @@ export function acquire({chairId='chair_1',agentId,targetSha=sha(),repositorySta
   return withWriteLock(()=>{
     const state=readState();
     if(state.target_sha!==t)throw new Error('CHAIR_STATE_SHA_MISMATCH');
-    if(repositoryState!=='IDLE'||state.repository_state!=='IDLE')throw new Error('CHAIR_REPOSITORY_NOT_IDLE');
-    if(occupied(state).length)throw new Error('CHAIR_ALREADY_OCCUPIED');
+    const active=occupied(state);
+    if(chairId==='chair_1'){
+      if(repositoryState!=='IDLE'||state.repository_state!=='IDLE')throw new Error('CHAIR_REPOSITORY_NOT_IDLE');
+      if(active.length)throw new Error('CHAIR_ALREADY_OCCUPIED');
+    }else if(state.repository_state==='STALE'||state.repository_state==='LOCKED'){
+      throw new Error('CHAIR_REPOSITORY_NOT_AVAILABLE');
+    }
     const chair=state.chairs[chairId];
     if(chair.status!=='VACANT')throw new Error('CHAIR_NOT_VACANT');
     if((chairId==='chair_3')&&!reviewId)throw new Error('CHAIR3_ARCHITECTURE_REVIEW_ID_REQUIRED');
@@ -155,6 +160,7 @@ export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permiss
     if(def.protectedPrefixes.some(prefix=>p===prefix||p.startsWith(prefix)))throw new Error('CHAIR_PROTECTED_PATH');
     if(!def.allowedPrefixes.some(prefix=>p.startsWith(prefix)))throw new Error('CHAIR_SCOPE_DENIED='+p);
   }
+  if(chairId==='chair_2'&&permission==='SOURCE_MUTATION'&&occupied(state).some(([id])=>id==='chair_1'))throw new Error('CHAIR2_WRITE_BLOCKED_WHILE_CHAIR1_ACTIVE');
   if(chairId==='chair_2'&&permission==='SOURCE_MUTATION'){
     const scope=new Set((boundedScope??[]).map(p=>String(p).replace(/^\\.\\//,'').replace(/\\\\/g,'/')));
     if(normalized.some(p=>!scope.has(p)))throw new Error('CHAIR2_SCOPE_DRIFT');

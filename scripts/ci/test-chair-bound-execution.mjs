@@ -41,6 +41,23 @@ assert.equal(authorizeWrite({chairId:'chair_3',agentId:'agent-arch',targetSha:re
 assert.throws(()=>authorizeWrite({chairId:'chair_3',agentId:'agent-arch',targetSha:realGitSha,paths:['src/example.ts'],permission:'SCHEMA_VALIDATION',reviewId:'AR-001'}),/CHAIR_SCOPE_DENIED/);
 release({chairId:'chair_3',agentId:'agent-arch',targetSha:realGitSha});
 
+const chair1Again=acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE'});
+const chair3Parallel=acquire({chairId:'chair_3',agentId:'agent-arch-2',targetSha:realGitSha,repositoryState:'ACTIVE',reviewId:'AR-002'});
+assert.equal(authorizeWrite({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION'}).authorized,true);
+assert.equal(authorizeWrite({chairId:'chair_3',agentId:'agent-arch-2',targetSha:realGitSha,paths:['schemas/example.json'],permission:'SCHEMA_VALIDATION',reviewId:'AR-002'}).authorized,true);
+assert.equal(chair3Parallel.repository_state,'ACTIVE');
+assert.throws(()=>authorizeWrite({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION'}),/authorized|PASS/);
+
+release({chairId:'chair_3',agentId:'agent-arch-2',targetSha:realGitSha});
+
+const chair2Parallel=acquire({chairId:'chair_2',agentId:'agent-beta-2',targetSha:realGitSha,repositoryState:'ACTIVE'});
+assert.equal(chair2Parallel.chairs.chair_2.status,'OCCUPIED');
+assert.throws(()=>authorizeWrite({chairId:'chair_2',agentId:'agent-beta-2',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION',boundedScope:['src/example.ts']}),/CHAIR2_WRITE_BLOCKED_WHILE_CHAIR1_ACTIVE/);
+assert.equal(repositoryMode({targetSha:realGitSha}).singleAgentMode,false);
+release({chairId:'chair_2',agentId:'agent-beta-2',targetSha:realGitSha});
+
+release({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha});
+
 console.log('CHAIR_EXECUTION_CONTRACT=PASS');
 console.log('CHAIR_SINGLE_AGENT_MODE=PASS');
 console.log('CHAIR_EXACT_SHA=PASS');
