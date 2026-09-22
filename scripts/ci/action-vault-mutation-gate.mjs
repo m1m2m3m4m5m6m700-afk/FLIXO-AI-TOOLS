@@ -29,6 +29,7 @@ export function evaluateMutationGate({
   mutationScope={changedPaths:[],selectedFiles:[],testMutation:false,controlPlaneMutation:false,mainMutation:false,gateWeakening:false},
   branch='execution',
   fiveXEnvelope=null,
+  fiveXCycleState=null,
 }={}){
   const failures=[];
   if (!preMutationProof || typeof preMutationProof !== 'object') failures.push('PRE_MUTATION_PROOF_MISSING');
@@ -82,6 +83,15 @@ export function evaluateMutationGate({
       fiveXEnvelope?.certificationAuthority===false &&
       Array.isArray(fiveXEnvelope?.blockers) &&
       fiveXEnvelope.blockers.length===0
+    ),
+    FIVE_X_REPAIR_CYCLE_READY:Boolean(
+      fiveXCycleState?.protocol==='FLIXO-FIVE-X-REPAIR-CYCLE-v1' &&
+      fiveXCycleState?.targetSha===targetSha &&
+      fiveXCycleState?.currentSha===currentSha &&
+      fiveXCycleState?.mutationReady===true &&
+      fiveXCycleState?.staleEvidence===false &&
+      fiveXCycleState?.invalidatedPriorEvidence===false &&
+      fiveXCycleState?.counterexampleFound!==true
     ),
   };
   for(const [key,ok] of Object.entries(checks)) if(!ok) failures.push(key);
