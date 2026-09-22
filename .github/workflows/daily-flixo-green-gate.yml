@@ -147,7 +147,7 @@ jobs:
             WAITING=false
             FAILED=false
             for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
-              RUN_JSON="$(jq -c --arg name "$workflow" '[.workflow_runs[] | select(.name == $name and .head_sha == $ENV.EXECUTION_SHA and .conclusion != "cancelled")] | sort_by(.updated_at) | last // empty' /tmp/flixo-watch/workflow-runs.json)"
+              RUN_JSON="$(jq -c --arg name "$workflow" --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == $name and .head_sha == $sha and .conclusion != "cancelled")] | sort_by(.updated_at) | last // empty' /tmp/flixo-watch/workflow-runs.json)"
               if [ -z "$RUN_JSON" ]; then
                 echo "SETTLEMENT_WAITING poll=$poll workflow=$workflow state=MISSING"
                 WAITING=true
