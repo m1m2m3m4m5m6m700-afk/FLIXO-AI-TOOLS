@@ -113,7 +113,7 @@ assert.match(liveness, /NO_SLEEP_WHILE_WORK_ASSIGNED/);
 assert.match(liveness, /NO_IDLE_WHILE_WORK_ASSIGNED/);
 assert.match(liveness, /RECOVER_AND_CONTINUE/);
 assert.match(liveness, /maxNoProgressHeartbeats: 3/);
-assert.match(liveness, /heartbeatEveryMs: 5 \* 60 \* 1000/);
+assert.match(liveness, /heartbeatEveryMs: 60 \* 1000/);
 assert.match(lease, /commandHeartbeat/);
 assert.match(lease, /AGENT_LIVENESS_PROTOCOL/);
 assert.match(lease, /REPAIR_LEASE_HEARTBEAT_STALE_USE_RECOVERY/);
