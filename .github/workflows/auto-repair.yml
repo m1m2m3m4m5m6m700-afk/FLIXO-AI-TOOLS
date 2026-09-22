@@ -80,6 +80,7 @@ env:
   FLIXO_REPAIR_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
   FLIXO_CONVERGENCE_GUIDANCE_ARTIFACT_ID: ${{ inputs.convergence_guidance_artifact_id || '' }}
   FLIXO_MUTATION_ADMISSION: /tmp/flixo-mutation-admission.json
+  FLIXO_CHAIR_CONTEXT: /tmp/flixo-chair1-proposal.json
   FLIXO_REPAIR_BEHAVIOR_TRACE_PATH: /tmp/flixo-repair-behavior-trace.json
   FLIXO_HISTORICAL_SOLUTION_PATH: /tmp/flixo-historical-solution-index.json
   FLIXO_TWIN_A_PATH: /tmp/flixo-twin-a.json
