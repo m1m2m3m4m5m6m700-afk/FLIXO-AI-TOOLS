@@ -353,6 +353,25 @@ jobs:
           echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Maintain 24/7 Repair Bot resident pulse
+        if: steps.evaluate.outputs.status != 'GREEN' && steps.capture.outputs.branch == 'execution'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(cat /tmp/flixo-watch/execution-sha)"
+          RUNS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --branch execution --limit 50 --json databaseId,status,headSha)"
+          ACTIVE_AUTO_REPAIR="$(printf '%s' "$RUNS" | jq --arg sha "$EXECUTION_SHA" 'map(select((.status == "queued" or .status == "in_progress") and .headSha == $sha)) | length')"
+          if [ "$ACTIVE_AUTO_REPAIR" -gt 0 ]; then
+            echo "RESIDENT_PULSE=ALREADY_BACKED_BY_ACTIVE_AUTO_REPAIR"
+            exit 0
+          fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/auto-repair.yml/dispatches" \
+            -f ref=execution \
+            -f 'inputs[resident]=true'
+          echo "RESIDENT_PULSE=DISPATCHED"
+          echo "RESIDENT_PULSE_OWNER=DAILY_FLIXO_GREEN_GATE"
+          echo "RESIDENT_PULSE_INTERVAL=5m"
       - name: Generate comprehensive execution prompts from this visit
         id: generate_prompts
         if: steps.build_input.outcome == 'success'
