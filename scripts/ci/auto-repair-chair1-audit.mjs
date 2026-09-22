@@ -6,7 +6,6 @@ import { CHAIR_DEFINITIONS } from './chair-bound-execution.mjs';
 
 const ROOT = process.cwd();
 const SHA_RE = /^[a-f0-9]{40}$/u;
-const HASH_RE = /^[a-f0-9]{64}$/u;
 const arg = (name, fallback='') => {
   const prefix = '--' + name + '=';
   const token = process.argv.find((value) => value.startsWith(prefix));
@@ -45,7 +44,6 @@ const parentSha = assertSha(arg('parent', git(['rev-parse', `${candidateSha}^`])
 const currentSha = assertSha(git(['rev-parse', 'HEAD']), 'CURRENT_SHA');
 
 const failures = [];
-const checked = [];
 const reject = (code, detail) => { failures.push({ code, detail }); };
 const requireCondition = (condition, code, detail) => { if (!condition) reject(code, detail); };
 

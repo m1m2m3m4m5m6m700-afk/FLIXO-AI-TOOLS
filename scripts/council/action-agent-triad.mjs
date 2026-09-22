@@ -67,7 +67,7 @@ export function assertActionAgentDispatch({accountId,exactSha,taskId,workPackage
 
 export function validateActionAgentResult({accountId,dispatch,status,payload}={}) {
   const p=getActionAgentProfile(accountId);
-  if(status!=='DONE'&&status!=='FAILED')throw new Error('ACTION_AGENT_RESULT_TRANSPORT_STATUS_INVALID');
+  if(status!=='DONE'&&status!=='FAILED'&&status!=='CONTINUE')throw new Error('ACTION_AGENT_RESULT_TRANSPORT_STATUS_INVALID');
   const exactSha=String(dispatch?.entry_sha??dispatch?.entrySha??'');
   if(!SHA.test(exactSha))throw new Error('ACTION_AGENT_RESULT_DISPATCH_SHA_INVALID');
   const r=payload?.agentResult??payload;
@@ -85,7 +85,7 @@ export function validateActionAgentResult({accountId,dispatch,status,payload}={}
     validateFrontierAgentResult({envelope:frontier,result:r});
   }
   return Object.freeze({
-    valid:true,accountId:p.accountId,profileId:p.profileId,role:p.role,exactSha,
+    valid:true,accountId:p.accountId,profileId:p.profileId,role:p.role,exactSha,transportStatus:status,terminal:status!=='CONTINUE',
     evidenceGrade:String(r.evidenceGrade),reviewRequired:p.accountId!=='CHIEF',mutationMode:p.mutationMode,cognitionTier:p.cognitionTier
   });
 }
