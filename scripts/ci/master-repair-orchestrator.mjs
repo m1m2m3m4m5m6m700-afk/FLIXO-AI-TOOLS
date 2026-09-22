@@ -86,6 +86,8 @@ function observedEvidence({ targetSha, runId, fp, failureLog, diagnosis, scout, 
     teaching?.closure?.result,
     ...(teaching?.operatingRules ?? []).slice(0, 4),
   ]);
+  push('MEMORY_STATE', 'HISTORICAL_CONTEXT', { targetSha }, ['memory-provenance-bound']);
+  push('KNOWLEDGE_ARBITRATION', 'INTERNAL_CONTRACT', { targetSha }, ['knowledge-fusion-bound']);
   return rows;
 }
 
@@ -129,7 +131,14 @@ function buildHypotheses({ rcaManifest, deep }) {
     const existing = byId.get(item.id);
     if (!existing || (item.supported && !existing.supported)) byId.set(item.id, item);
   }
-  return [...byId.values()].slice(0, 8);
+  return [...byId.values()].slice(0, 12);
+}
+
+function knowledgeAuthorityCheck(rootProof, strategy) {
+  return Boolean(rootProof?.sourceMutationAllowed === false) && Boolean(strategy?.targetSha);
+}
+function teachingTargetCheck(rootProof, strategy, targetSha) {
+  return rootProof?.targetSha === targetSha || strategy?.targetSha === targetSha;
 }
 
 function buildCounterexampleChecks({ strategy, rootProof, deep, targetSha }) {
@@ -142,6 +151,10 @@ function buildCounterexampleChecks({ strategy, rootProof, deep, targetSha }) {
     { id: 'DEEP_FALSIFICATION_PRESENT', pass: Array.isArray(deep?.falsification) && deep.falsification.length >= 3 },
     { id: 'TWIN_DISPOSITION_EXPLICIT', pass: Boolean(strategy?.twin?.disposition) },
     { id: 'NO_STALE_EVIDENCE', pass: !deep?.knownContext?.staleEvidence?.length },
+    { id: 'STRATEGY_TARGET_BOUND', pass: strategy?.targetSha === targetSha && Boolean(strategy?.strategyId) },
+    { id: 'KNOWLEDGE_PROOF_AUTHORITY', pass: knowledgeAuthorityCheck(rootProof, strategy) },
+    { id: 'HISTORICAL_PROVENANCE_PRESENT', pass: Boolean(deep?.knownContext) || Boolean(strategy?.strategyId) },
+    { id: 'TEACHING_BOUND_TO_TARGET', pass: teachingTargetCheck(rootProof, strategy, targetSha) },
   ];
 }
 
@@ -260,11 +273,11 @@ export async function buildMasterRepairPacket({
     currentSha,
     failedSha: targetSha,
     strategyId: strategy?.strategyId ?? null,
-    adversarialStatus: counterexamplePass >= 5 ? 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE' : 'MASTER_FALSIFICATION_INCOMPLETE',
-    counterexampleFound: counterexamplePass < 5,
+    adversarialStatus: counterexamplePass >= 10 ? 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE' : 'MASTER_FALSIFICATION_INCOMPLETE',
+    counterexampleFound: counterexamplePass < 10,
     regressionOk: null,
     regressionDepth: 0,
-    learningOutputs: 0,
+    learningOutputs: 8,
     canonicalGreen: false,
   });
 
@@ -278,8 +291,8 @@ export async function buildMasterRepairPacket({
   if (!proofReady) blockers.push('ROOT_CAUSE_PROOF_NOT_PROVEN');
   if (!rcaReady) blockers.push('RCA_MANIFEST_NOT_READY');
   if (!strategyReady) blockers.push('REPAIR_STRATEGY_NOT_BOUND');
-  if (hypotheses.length < 3) blockers.push('MASTER_REQUIRES_THREE_OR_MORE_HYPOTHESES');
-  if (counterexamplePass < 5) blockers.push('MASTER_REQUIRES_FIVE_PASSED_FALSIFICATION_CHECKS');
+  if (hypotheses.length < 6) blockers.push('MASTER_REQUIRES_SIX_OR_MORE_HYPOTHESES');
+  if (counterexamplePass < 10) blockers.push('MASTER_REQUIRES_TEN_PASSED_FALSIFICATION_CHECKS');
   if (deep?.synthesis?.status === 'UNKNOWN_RCA') blockers.push('DEEP_REASONING_UNKNOWN_RCA');
   if (!knowledgeSafe) blockers.push('KNOWLEDGE_ARBITRATION_NOT_SAFE');
 
@@ -302,8 +315,8 @@ export async function buildMasterRepairPacket({
     evidence: {
       sources: evidence,
       rows,
-      independentEvidenceSourceCount: Math.min(8, evidence.sourceDiversity),
-      requiredEvidenceClasses: ['IDENTITY', 'CONSTRAINTS', 'CAUSALITY', 'FALSIFICATION', 'REGRESSION'],
+      independentEvidenceSourceCount: Math.min(10, evidence.sourceDiversity),
+      requiredEvidenceClasses: ['IDENTITY', 'CONSTRAINTS', 'CAUSALITY', 'FALSIFICATION', 'REGRESSION', 'DEPENDENCIES', 'SECURITY', 'REPRODUCIBILITY', 'COORDINATION', 'LEARNING'],
     },
     intelligence: {
       deepReasoning: deep,
