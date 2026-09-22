@@ -225,56 +225,24 @@ export function markRead(reportId, guardAgent=GUARD_ID) {
   return report;
 }
 
-export const REQUIRED_CHANGE_DETAILS = Object.freeze([
-  'whatChanged',
-  'whyChanged',
-  'filesChanged',
-  'beforeState',
-  'afterState',
-  'testsRun',
-  'testResults',
-  'evidence',
-  'patchSha256',
-  'entrySha',
-  'workspaceSha',
-  'remainingWork',
-  'blockers',
-  'nextActions',
-]);
-
-export function inspectChangeDetails(report) {
-  const details = report?.payload?.changeDetails ?? {};
-  const missing = REQUIRED_CHANGE_DETAILS.filter((field) => {
-    const value = details[field];
-    if (field === 'patchSha256') return !report?.patchSha256;
-    if (field === 'entrySha') return !report?.entrySha;
-    if (field === 'workspaceSha') return !report?.currentWorkspaceSha;
-    if (Array.isArray(value)) return value.length === 0;
-    return value === undefined || value === null || String(value).trim() === '';
-  });
-  return Object.freeze({
-    complete: missing.length === 0,
-    missing,
-    required: [...REQUIRED_CHANGE_DETAILS],
-  });
-}
-
-export function requestFullDetails(reportId, guardAgent=GUARD_ID) {
+export function acknowledgePendingPush(reportId, guardAgent=GUARD_ID) {
   const report = getChangeReport(reportId);
-  if (guardAgent !== GUARD_ID) throw new Error('GUARD_CHANGE_DETAILS_REQUEST_ONLY_GUARD');
-  const detailState = inspectChangeDetails(report);
-  report.detailsRequest = {
-    requestedAt: now(),
-    requestedBy: GUARD_ID,
-    state: detailState.complete ? 'DETAILS_COMPLETE' : 'DETAILS_REQUESTED',
-    missing: detailState.missing,
-    required: detailState.required,
-    instruction: detailState.complete
-      ? 'التفاصيل مكتملة. التقرير متاح لكرسي 1 دون أي حكم من الحارس.'
-      : 'يرجى إرسال التفاصيل الكاملة للتغيير والاحتفاظ بجميع التغييرات؛ الحارس لا يقبل أو يرفض التغيير.',
-  };
-  report.status = detailState.complete ? 'DETAILS_COMPLETE' : 'DETAILS_REQUESTED';
-  report.guardRole = 'REQUEST_DETAILS_ONLY';
+  if (guardAgent !== GUARD_ID) throw new Error('GUARD_CHANGE_ACK_ONLY_GUARD');
+
+  const detailPayload = report?.payload?.changeDetails ?? {};
+  const detailsPresent =
+    (Array.isArray(report.changedFiles) && report.changedFiles.length > 0) &&
+    (Array.isArray(report.changeDetails) && report.changeDetails.length > 0) &&
+    Object.keys(detailPayload).length > 0;
+
+  if (!detailsPresent) throw new Error('GUARD_CHANGE_DETAILS_NOT_PRESENT');
+
+  report.status = 'PUSH_PENDING';
+  report.pendingPush = true;
+  report.changeDetailsPresent = true;
+  report.pendingPushAt = report.pendingPushAt ?? now();
+  report.pendingPushBy = GUARD_ID;
+  report.guardRole = 'PUSH_PENDING_ACK_ONLY';
   report.guardVerdict = {
     contentDecision: 'NONE',
     deletionAuthority: false,
@@ -283,56 +251,14 @@ export function requestFullDetails(reportId, guardAgent=GUARD_ID) {
     publicationAuthority: 'CHAIR_1',
     greenGranted: false,
   };
-  writeJson(reportPath(reportId), report);
-  const index = loadIndex();
-  index.reports[reportId] = {
-    ...(index.reports[reportId] ?? {}),
-    status: report.status,
-    detailsState: report.detailsRequest.state,
-    missingDetails: report.detailsRequest.missing,
-    updatedAt: now(),
-  };
-  saveIndex(index);
-  return report;
-}
 
-export function recordFullDetails(reportId, detailPayload, agentId) {
-  const report = getChangeReport(reportId);
-  if (String(agentId) !== report.agentId) throw new Error('GUARD_CHANGE_DETAILS_AGENT_MISMATCH');
-  if (!detailPayload || typeof detailPayload !== 'object') throw new Error('GUARD_CHANGE_DETAILS_PAYLOAD_INVALID');
-  report.payload = {
-    ...(report.payload && typeof report.payload === 'object' ? report.payload : {}),
-    changeDetails: {
-      ...(report.payload?.changeDetails && typeof report.payload.changeDetails === 'object' ? report.payload.changeDetails : {}),
-      ...detailPayload,
-    },
-  };
-  const detailState = inspectChangeDetails(report);
-  report.detailsRequest = {
-    ...(report.detailsRequest ?? {}),
-    state: detailState.complete ? 'DETAILS_COMPLETE' : 'DETAILS_REQUESTED',
-    missing: detailState.missing,
-    required: detailState.required,
-    lastResponseAt: now(),
-    respondedBy: agentId,
-  };
-  report.status = detailState.complete ? 'DETAILS_COMPLETE' : 'DETAILS_REQUESTED';
-  report.guardRole = 'REQUEST_DETAILS_ONLY';
-  report.guardVerdict = {
-    contentDecision: 'NONE',
-    deletionAuthority: false,
-    rejectionAuthority: false,
-    mergeAuthority: false,
-    publicationAuthority: 'CHAIR_1',
-    greenGranted: false,
-  };
   writeJson(reportPath(reportId), report);
   const index = loadIndex();
   index.reports[reportId] = {
     ...(index.reports[reportId] ?? {}),
     status: report.status,
-    detailsState: report.detailsRequest.state,
-    missingDetails: report.detailsRequest.missing,
+    pendingPush: true,
+    changeDetailsPresent: true,
     updatedAt: now(),
   };
   saveIndex(index);
@@ -386,14 +312,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
     console.log(JSON.stringify(markRead(arg('report-id'), arg('guard-agent', GUARD_ID)), null, 2));
   } else if (command === 'list') {
     console.log(JSON.stringify(listChangeReports({ status: arg('status') || null, taskId: arg('task') || null, agentId: arg('agent') || null }), null, 2));
-  } else if (command === 'request-details') {
-    console.log(JSON.stringify(requestFullDetails(arg('report-id'), arg('guard-agent', GUARD_ID)), null, 2));
-  } else if (command === 'submit-details') {
-    const detailsText = arg('details', '{}');
-    let details;
-    try { details = JSON.parse(detailsText); } catch { throw new Error('GUARD_CHANGE_DETAILS_JSON_INVALID'); }
-    console.log(JSON.stringify(recordFullDetails(arg('report-id'), details, arg('agent')), null, 2));
+  } else if (command === 'ack-push') {
+    console.log(JSON.stringify(acknowledgePendingPush(arg('report-id'), arg('guard-agent', GUARD_ID)), null, 2));
   } else {
-    throw new Error('Usage: guard-communication.mjs send-change|read|list|request-details|submit-details');
+    throw new Error('Usage: guard-communication.mjs send-change|read|list|ack-push');
   }
 }
