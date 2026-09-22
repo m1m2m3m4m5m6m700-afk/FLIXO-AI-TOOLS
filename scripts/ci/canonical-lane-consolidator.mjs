@@ -96,18 +96,187 @@ function duplicateRelation(a, b) {
   return b.commits.some((commit) => aCommits.has(commit.sha));
 }
 
+const MAX_DIFF_CHARS = 1000000;
+const CONTEXT_RADIUS = 1;
+
+function parsePatchHunks(diffText) {
+  const text = clean(diffText);
+  if (!text) return { status: 'PATCH_UNAVAILABLE', files: {}, hunks: [] };
+  if (text.length > MAX_DIFF_CHARS) return { status: 'PATCH_TOO_LARGE', files: {}, hunks: [] };
+
+  const files = {};
+  const hunks = [];
+  let currentFile = null;
+  let currentHunk = null;
+
+  const finishHunk = () => {
+    if (!currentHunk) return;
+    currentHunk.contentDigest = digest(currentHunk.lines.join('\n'));
+    currentHunk.changedLineCount = currentHunk.lines.filter((line) => /^[+-][^+-]/u.test(line)).length;
+    hunks.push(Object.freeze({ ...currentHunk }));
+    currentHunk = null;
+  };
+
+  for (const line of text.split(/\r?\n/u)) {
+    if (line.startsWith('diff --git ')) {
+      finishHunk();
+      currentFile = null;
+      continue;
+    }
+    if (line.startsWith('+++ ')) {
+      finishHunk();
+      const value = line.slice(4).trim();
+      if (value === '/dev/null') {
+        currentFile = null;
+      } else {
+        currentFile = value.startsWith('b/') ? value.slice(2) : value;
+        files[currentFile] ??= [];
+      }
+      continue;
+    }
+    const match = line.match(/^@@ -([0-9]+)(?:,([0-9]+))? \+([0-9]+)(?:,([0-9]+))? @@/u);
+    if (match && currentFile) {
+      finishHunk();
+      const oldStart = Number(match[1]);
+      const oldCount = Number(match[2] ?? 1);
+      const newStart = Number(match[3]);
+      const newCount = Number(match[4] ?? 1);
+      currentHunk = {
+        file: currentFile,
+        oldStart,
+        oldCount,
+        newStart,
+        newCount,
+        rangeStart: Math.max(1, newStart - CONTEXT_RADIUS),
+        rangeEnd: newStart + Math.max(newCount, 1) + CONTEXT_RADIUS,
+        lines: [],
+      };
+      files[currentFile].push(currentHunk);
+      continue;
+    }
+    if (currentHunk) currentHunk.lines.push(line);
+  }
+  finishHunk();
+
+  const normalizedFiles = {};
+  for (const [file, fileHunks] of Object.entries(files)) {
+    normalizedFiles[file] = fileHunks.map((hunk) => ({
+      oldStart: hunk.oldStart,
+      oldCount: hunk.oldCount,
+      newStart: hunk.newStart,
+      newCount: hunk.newCount,
+      rangeStart: hunk.rangeStart,
+      rangeEnd: hunk.rangeEnd,
+      contentDigest: hunk.contentDigest,
+      changedLineCount: hunk.changedLineCount,
+    }));
+  }
+  return { status: hunks.length ? 'PARSED' : 'NO_HUNKS', files: normalizedFiles, hunks };
+}
+
+function packetPatch(packet, root = process.cwd()) {
+  if (packet.patchText != null) return parsePatchHunks(packet.patchText);
+  try {
+    const diff = execFileSync('git', ['diff', '--unified=3', packet.baseSha, packet.sourceSha], {
+      cwd: root,
+      encoding: 'utf8',
+      maxBuffer: MAX_DIFF_CHARS + 1024,
+    });
+    return parsePatchHunks(diff);
+  } catch {
+    return { status: 'PATCH_UNAVAILABLE', files: {}, hunks: [] };
+  }
+}
+
+function rangeOverlap(a, b) {
+  return Math.max(a.rangeStart, b.rangeStart) < Math.min(a.rangeEnd, b.rangeEnd);
+}
+
+function semanticFileReconciliation(aHunks, bHunks) {
+  if (!aHunks?.length || !bHunks?.length) {
+    return { status: 'PATCH_EVIDENCE_UNAVAILABLE', compatible: false, reason: 'PATCH_EVIDENCE_UNAVAILABLE' };
+  }
+  const pairs = [];
+  let conflict = false;
+  for (const a of aHunks) {
+    for (const b of bHunks) {
+      if (!rangeOverlap(a, b)) continue;
+      pairs.push({ aDigest: a.contentDigest, bDigest: b.contentDigest, rangeA: [a.rangeStart, a.rangeEnd], rangeB: [b.rangeStart, b.rangeEnd] });
+      if (a.contentDigest !== b.contentDigest) conflict = true;
+    }
+  }
+  if (conflict) {
+    return {
+      status: 'TRUE_HUNK_CONFLICT',
+      compatible: false,
+      reason: 'TRUE_HUNK_CONFLICT',
+      overlappingHunks: pairs,
+    };
+  }
+  if (pairs.length) {
+    return {
+      status: 'IDENTICAL_OVERLAPPING_HUNKS',
+      compatible: true,
+      reason: 'IDENTICAL_OVERLAPPING_HUNKS',
+      overlappingHunks: pairs,
+    };
+  }
+  return {
+    status: 'NON_OVERLAPPING_HUNKS',
+    compatible: true,
+    reason: 'NON_OVERLAPPING_HUNKS',
+    overlappingHunks: [],
+  };
+}
+
+function semanticReconcilePackets(a, b, root = process.cwd()) {
+  const commonFiles = overlap(a, b);
+  if (!commonFiles.length) {
+    return { status: 'DISJOINT_FILES', compatible: true, files: [], conflicts: [] };
+  }
+
+  const aPatch = packetPatch(a, root);
+  const bPatch = packetPatch(b, root);
+  const files = [];
+  const conflicts = [];
+
+  for (const file of commonFiles) {
+    const result = semanticFileReconciliation(aPatch.files[file], bPatch.files[file]);
+    files.push({ file, status: result.status, reason: result.reason, overlappingHunks: result.overlappingHunks ?? [] });
+    if (!result.compatible) conflicts.push({ file, reason: result.reason, overlappingHunks: result.overlappingHunks ?? [] });
+  }
+
+  const status = conflicts.length
+    ? 'TRUE_HUNK_CONFLICT'
+    : files.some((x) => x.status === 'PATCH_EVIDENCE_UNAVAILABLE')
+      ? 'SEMANTIC_EVIDENCE_UNAVAILABLE'
+      : files.some((x) => x.status === 'NON_OVERLAPPING_HUNKS' || x.status === 'IDENTICAL_OVERLAPPING_HUNKS')
+        ? 'SEMANTICALLY_RECONCILABLE'
+        : 'OVERLAP_WITHOUT_CLASSIFICATION';
+
+  return { status, compatible: conflicts.length === 0 && !files.some((x) => x.status === 'PATCH_EVIDENCE_UNAVAILABLE'), files, conflicts };
+}
+
 function overlap(a, b) {
   const aFiles = new Set(a.changedFiles);
   return b.changedFiles.filter((file) => aFiles.has(file));
 }
 
-function conflictReason(a, b, overlappingFiles) {
-  if (duplicateRelation(a, b)) return 'DUPLICATE_COMMIT_OR_PUSH';
-  if (overlappingFiles.length) return 'OVERLAPPING_FILE_SCOPE_REQUIRES_EXPLICIT_RECONCILIATION';
-  if (a.baseSha === b.baseSha) return null;
-  const relation = ancestryRelation(a, b);
-  if (relation === 'UNRESOLVED') return 'UNRESOLVED_BRANCH_DIVERGENCE';
-  return null;
+function conflictReason(a, b, overlappingFiles, root = process.cwd()) {
+  if (duplicateRelation(a, b)) return { reason: 'DUPLICATE_COMMIT_OR_PUSH', semantic: null };
+  if (!overlappingFiles.length) {
+    if (a.baseSha === b.baseSha) return { reason: null, semantic: { status: 'DISJOINT_FILES', compatible: true } };
+    const relation = ancestryRelation(a, b);
+    return {
+      reason: relation === 'UNRESOLVED' ? 'UNRESOLVED_BRANCH_DIVERGENCE' : null,
+      semantic: { status: 'DISJOINT_FILES', compatible: relation !== 'UNRESOLVED' },
+    };
+  }
+  const semantic = semanticReconcilePackets(a, b, root);
+  return {
+    reason: semantic.compatible ? null : semantic.status,
+    semantic,
+  };
 }
 
 function comparePackets(a, b) {
@@ -141,19 +310,29 @@ export function buildCanonicalLaneConsolidation({
   }
 
   const conflicts = [];
+  const reconciliation = [];
   for (let i = 0; i < deduped.length; i += 1) {
     for (let j = i + 1; j < deduped.length; j += 1) {
       const a = deduped[i];
       const b = deduped[j];
       const files = overlap(a, b);
-      const reason = conflictReason(a, b, files);
-      if (reason) {
+      const result = conflictReason(a, b, files, process.cwd());
+      reconciliation.push({
+        packetIds: [a.packetId, b.packetId],
+        agents: [a.agentId, b.agentId],
+        changedFiles: files,
+        relation: ancestryRelation(a, b),
+        semanticStatus: result.semantic?.status ?? (result.reason ? 'CONFLICT' : 'NO_OVERLAP'),
+        semanticFiles: result.semantic?.files ?? [],
+      });
+      if (result.reason) {
         conflicts.push({
-          type: reason,
+          type: result.reason,
           packetIds: [a.packetId, b.packetId],
           agents: [a.agentId, b.agentId],
           changedFiles: files,
           relation: ancestryRelation(a, b),
+          semantic: result.semantic ?? null,
         });
       }
     }
@@ -177,6 +356,8 @@ export function buildCanonicalLaneConsolidation({
     'COMMIT_IDENTITY',
     'DUPLICATE_DEDUPLICATION',
     'FILE_SCOPE_OVERLAP_ANALYSIS',
+    'SEMANTIC_HUNK_RECONCILIATION',
+    'PATCH_EVIDENCE_OR_FAIL_CLOSED',
     'ANCESTRY_AND_ORDER_ANALYSIS',
     'CONFLICT_ANALYSIS',
     'SINGLE_LANE_BINDING',
@@ -205,6 +386,7 @@ export function buildCanonicalLaneConsolidation({
       patchDigest: packet.patchDigest,
     })),
     conflicts,
+    semanticReconciliation: reconciliation,
     stalePackets: stalePackets.map((packet) => ({
       packetId: packet.packetId,
       agentId: packet.agentId,
@@ -214,6 +396,8 @@ export function buildCanonicalLaneConsolidation({
     integrationDecision: status === 'READY_FOR_CANONICAL_CONSOLIDATION'
       ? {
         mode: orderedPackets.length ? 'SEQUENTIAL_CANONICAL_LANE_APPLICATION' : 'NO_PENDING_PUSHES',
+        semanticReconciliationRequired: reconciliation.some((x) => x.semanticStatus === 'SEMANTICALLY_RECONCILABLE' || x.semanticStatus === 'IDENTICAL_OVERLAPPING_HUNKS'),
+        trueConflictsRejected: true,
         preservesUniquePackets: true,
         rejectsConflictingPackets: true,
         targetParent: head,
@@ -231,6 +415,7 @@ export function buildCanonicalLaneConsolidation({
       status,
       head,
       orderedPackets,
+      reconciliation,
       duplicatePacketIds,
       conflicts,
       stalePackets,
