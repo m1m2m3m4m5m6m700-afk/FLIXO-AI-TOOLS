@@ -34,9 +34,12 @@ const localization = read('src/lib/i18n/tool-localization.ts');
 assert.doesNotMatch(localization, /\bzh\s*:/, 'unsupported zh locale remains in localization data');
 assert.doesNotMatch(localization, /\bur\s*:/, 'unsupported ur locale remains in localization data');
 
+const taxonomy = read('src/config/canonical-tool-definition.ts');
+assert.match(taxonomy, /export type ToolCategory = /, 'canonical tool taxonomy is missing');
+assert.match(taxonomy, /'Images'/, 'current Images taxonomy disappeared');
 const seo = read('src/lib/seo/tool-seo.ts');
-assert.match(seo, /export type ToolCategory = /, 'SEO taxonomy is missing');
-assert.match(seo, /'Images'/, 'current Images taxonomy disappeared');
+assert.match(seo, /ToolCategory/, 'SEO layer is not bound to canonical tool taxonomy');
+assert.match(seo, /assertToolCategory/, 'SEO layer lacks canonical category validation');
 
 const env = read('.env.example');
 assert.doesNotMatch(env, /ADMIN_PASSWORD_HASH|ADMIN_SESSION_SECRET|DATABASE_URL|SMTP_HOST|SMTP_PORT|SMTP_USER|SMTP_PASS|NOTIFY_TO/, 'admin infrastructure environment surface remains');
