@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {acquire,authorizeWrite,authorizeMergeProposal,release,repositoryMode,heartbeat,reconcileDeadLeases,writeSpeculativeContext,readSpeculativeContext,sanitizeSessionContext,atomicChairRefAudit,proposePush,beginWork,endWork,assertWorkAdmission,activeChairForAgent,preemptedContinuityForAgent} from './chair-bound-execution.mjs';
+import {acquire,authorizeWrite,authorizeMergeProposal,release,repositoryMode,heartbeat,reconcileDeadLeases,writeSpeculativeContext,readSpeculativeContext,sanitizeSessionContext,atomicChairRefAudit,proposePush,beginWork,endWork,assertWorkAdmission,activeChairForAgent,preemptedContinuityForAgent,reclaimChair1} from './chair-bound-execution.mjs';
 
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-chair-test-'));
 process.env.FLIXO_CHAIR_STATE_PATH=path.join(temp,'locks','chairs.json');
@@ -27,7 +27,7 @@ assert.equal(activeChairForAgent({agentId:'agent-auto-chair',targetSha:realGitSh
 assert.equal(endWork({agentId:'agent-auto-chair',targetSha:realGitSha,successful:true,taskId:'TASK-AUTO-CHAIR'}).repository_state,'IDLE');
 assert.throws(()=>assertWorkAdmission({agentId:'agent-auto-chair',targetSha:realGitSha}),/AGENT_WORK_REQUIRES_CHAIR/);
 
-const one=acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE'});
+const one=acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE',taskId:'CHAIR1-ALPHA-TASK',workPackageId:'CHAIR1-ALPHA-WP'});
 assert.equal(one.chairs.chair_1.status,'OCCUPIED');
 assert.equal(repositoryMode({targetSha:realGitSha}).singleAgentMode,true);
 assert.equal(authorizeWrite({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION'}).authorized,true);
@@ -48,7 +48,7 @@ assert.equal(authorizeWrite({chairId:'chair_3',agentId:'agent-arch',targetSha:re
 assert.throws(()=>authorizeWrite({chairId:'chair_3',agentId:'agent-arch',targetSha:realGitSha,paths:['src/example.ts'],permission:'SCHEMA_VALIDATION',reviewId:'AR-001'}),/CHAIR_SCOPE_DENIED/);
 release({chairId:'chair_3',agentId:'agent-arch',targetSha:realGitSha});
 
-acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE'});
+acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE',taskId:'CHAIR1-ALPHA-TASK',workPackageId:'CHAIR1-ALPHA-WP'});
 const chair3Parallel=acquire({chairId:'chair_3',agentId:'agent-arch-2',targetSha:realGitSha,repositoryState:'ACTIVE',reviewId:'AR-002'});
 assert.equal(authorizeWrite({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION'}).authorized,true);
 assert.equal(authorizeWrite({chairId:'chair_3',agentId:'agent-arch-2',targetSha:realGitSha,paths:['schemas/example.json'],permission:'SCHEMA_VALIDATION',reviewId:'AR-002'}).authorized,true);
@@ -68,7 +68,7 @@ const hardeningRoot=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-chair-hardening-
 process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_PATH=path.join(hardeningRoot,'readonly');
 process.env.FLIXO_CHAIR_SESSION_CONTEXT_PATH=path.join(hardeningRoot,'session');
 process.env.FLIXO_CHAIR_REF_PREFIX=`refs/flixo/tests/chair-${process.pid}`;
-acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE'});
+acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE',taskId:'CHAIR1-ALPHA-TASK',workPackageId:'CHAIR1-ALPHA-WP'});
 const hb=heartbeat({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha});
 assert.equal(hb.heartbeatCount,1);
 const stateFile=process.env.FLIXO_CHAIR_STATE_PATH;
@@ -94,27 +94,39 @@ assert.equal(blockedDead.reclaimed.length,0);
 assert.equal(blockedDead.blocked[0].reason,'TASK_ACTIVE_NONRECLAIMABLE');
 assert.equal(activeChairForAgent({agentId:'task-active-agent',targetSha:realGitSha}).chairId,'chair_1');
 assert.throws(()=>release({chairId:'chair_1',agentId:'task-active-agent',targetSha:realGitSha,successful:false}),/CHAIR1_TASK_ACTIVE_NONRELEASABLE/);
-const master2Trial=beginWork({
-  agentId:'MASTER-2',
-  role:'MASTER-2',
-  requestedChairId:'chair_1',
-  targetSha:realGitSha,
-  repositoryState:'IDLE',
-  taskId:'MASTER-2-PREEMPT-TRIAL',
-  workPackageId:'MASTER-2-PREEMPT-WP'
-});
-assert.equal(master2Trial.preemptedAgentId,'task-active-agent');
-const continuedTask=preemptedContinuityForAgent({agentId:'task-active-agent',targetSha:realGitSha,taskId:'TASK-ACTIVE-NONRECLAIM'});
-assert.equal(continuedTask.status,'CONTINUING_AFTER_PREEMPTION');
-assert.equal(continuedTask.canContinueTask,true);
-assert.equal(continuedTask.canMutateAfterPreemption,false);
-assert.equal(continuedTask.handoffTo,'CHAIR_1_GUARD');
-assert.deepEqual(
-  assertWorkAdmission({agentId:'task-active-agent',targetSha:realGitSha,chairId:'chair_1',taskId:'TASK-ACTIVE-NONRECLAIM'}),
-  continuedTask
+assert.throws(
+  ()=>beginWork({
+    agentId:'MASTER-2',
+    role:'MASTER-2',
+    requestedChairId:'chair_1',
+    targetSha:realGitSha,
+    repositoryState:'IDLE',
+    taskId:'MASTER-2-PREEMPT-TRIAL',
+    workPackageId:'MASTER-2-PREEMPT-WP'
+  }),
+  /CHAIR1_ACTIVE_DELEGATION/
 );
-release({chairId:'chair_1',agentId:'MASTER-2',targetSha:realGitSha,successful:true});
-acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE'});
+const blockedPreemption=preemptedContinuityForAgent({agentId:'task-active-agent',targetSha:realGitSha,taskId:'TASK-ACTIVE-NONRECLAIM'});
+assert.equal(blockedPreemption,null);
+assert.throws(
+  ()=>reclaimChair1({agentId:'MASTER-2',targetSha:realGitSha,reason:'NOT_USER_DIRECT_COMMAND'}),
+  /CHAIR1_RECLAIM_CONTROLLER_ONLY/
+);
+const reclaimed=reclaimChair1({
+  agentId:'assistantController',
+  targetSha:realGitSha,
+  reason:'USER_DIRECT_COMMAND: reclaim Chair-1'
+});
+assert.equal(reclaimed.reclaimed,true);
+assert.equal(reclaimed.ownerAgentId,'assistantController');
+assert.equal(reclaimed.custodyStatus,'OWNER_CUSTODY');
+assert.equal(reclaimed.displaced.agentId,'task-active-agent');
+assert.throws(()=>activeChairForAgent({agentId:'task-active-agent',targetSha:realGitSha}),/AGENT_WORK_REQUIRES_CHAIR/);
+assert.throws(
+  ()=>acquire({chairId:'chair_1',agentId:'agent-without-task',targetSha:realGitSha,repositoryState:'IDLE'}),
+  /CHAIR1_TASK_DELEGATION_REQUIRED/
+);
+acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE',taskId:'CHAIR1-ALPHA-TASK',workPackageId:'CHAIR1-ALPHA-WP'});
 const speculative=writeSpeculativeContext({sessionId:'session-2',taskId:'TASK-2',chairId:'chair_2',role:'verification',targetSha:realGitSha,pendingDiff:'diff --git a/src/example.ts b/src/example.ts',testPlan:['lint','unit']});
 assert.equal(speculative.readOnly,true);
 assert.equal(readSpeculativeContext({sessionId:'session-2',targetSha:realGitSha}).taskId,'TASK-2');
@@ -142,33 +154,39 @@ const autoRepairAdmission=beginWork({
 assert.equal(autoRepairAdmission.chairId,'chair_1');
 assert.equal(activeChairForAgent({agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha}).chairId,'chair_1');
 
-const master2Admission=beginWork({
-  agentId:'MASTER-2',
-  role:'MASTER-2',
-  requestedChairId:'chair_1',
-  targetSha:realGitSha,
-  repositoryState:'IDLE',
-  taskId:'MASTER-2-TASK',
-  workPackageId:'MASTER-2-WP'
-});
-assert.equal(master2Admission.chairId,'chair_1');
-assert.equal(master2Admission.preemptedAgentId,'AUTO_REPAIR_BOT');
-assert.equal(activeChairForAgent({agentId:'MASTER-2',targetSha:realGitSha}).chairId,'chair_1');
-const autoRepairContinuity=preemptedContinuityForAgent({agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha,taskId:'AUTO-REPAIR-TASK'});
-assert.equal(autoRepairContinuity.status,'CONTINUING_AFTER_PREEMPTION');
-assert.equal(autoRepairContinuity.canContinueTask,true);
-assert.equal(autoRepairContinuity.canMutateAfterPreemption,false);
-assert.equal(autoRepairContinuity.handoffTo,'CHAIR_1_GUARD');
-const autoRepairAdmissionAfterPreemption=beginWork({
-  agentId:'AUTO_REPAIR_BOT',
-  targetSha:realGitSha,
-  requestedChairId:'chair_1',
-  repositoryState:'ACTIVE',
-  taskId:'AUTO-REPAIR-TASK',
-  workPackageId:'AUTO-REPAIR-WP'
-});
-assert.equal(autoRepairAdmissionAfterPreemption.continuity,true);
-assert.equal(autoRepairAdmissionAfterPreemption.chairId,null);
+assert.throws(
+  ()=>beginWork({
+    agentId:'MASTER-2',
+    role:'MASTER-2',
+    requestedChairId:'chair_1',
+    targetSha:realGitSha,
+    repositoryState:'IDLE',
+    taskId:'MASTER-2-TASK',
+    workPackageId:'MASTER-2-WP'
+  }),
+  /CHAIR1_ACTIVE_DELEGATION/
+);
+assert.equal(
+  activeChairForAgent({agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha}).chairId,
+  'chair_1'
+);
+assert.throws(
+  ()=>beginWork({
+    agentId:'AUTO_REPAIR_BOT',
+    targetSha:realGitSha,
+    requestedChairId:'chair_1',
+    repositoryState:'ACTIVE',
+    taskId:'AUTO-REPAIR-TASK-OTHER',
+    workPackageId:'AUTO-REPAIR-WP-OTHER'
+  }),
+  /CHAIR1_ACTIVE_DELEGATION/
+);
+release({chairId:'chair_1',agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha,successful:true,taskId:'AUTO-REPAIR-TASK',sessionId:null});
+const afterAutoReturn=repositoryMode({targetSha:realGitSha});
+assert.equal(afterAutoReturn.chair1Owner,'assistantController');
+assert.equal(afterAutoReturn.chair1CustodyStatus,'OWNER_CUSTODY');
+assert.equal(afterAutoReturn.chair1AutoReturn,true);
+assert.equal(afterAutoReturn.repositoryState,'IDLE');
 assert.throws(
   ()=>authorizeWrite({chairId:'chair_1',agentId:'AUTO_REPAIR_BOT',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION'}),
   /CHAIR_NOT_OCCUPIED|UNAUTHORIZED_EXECUTION_ATTEMPT/
@@ -292,6 +310,11 @@ console.log('CHAIR1_PREEMPTED_MUTATION_REVOKED=PASS');
 console.log('CHAIR1_GUARD_HANDOFF=PASS');
 console.log('CHAIR1_RELEASE_REQUIRES_COMPLETION=PASS');
 console.log('CHAIR_EXACT_SHA=PASS');
+console.log('CHAIR1_CENTRAL_OWNER=PASS');
+console.log('CHAIR1_TASK_DELEGATION_REQUIRED=PASS');
+console.log('CHAIR1_PREEMPTION_BLOCKED=PASS');
+console.log('CHAIR1_USER_ONLY_RECLAIM=PASS');
+console.log('CHAIR1_AUTO_RETURN=PASS');
 console.log('CHAIR_SINGLE_WRITER=PASS');
 console.log('CHAIR_SCOPE_BOUNDARY=PASS');
 console.log('CHAIR_MERGE_SEPARATION=PASS');
