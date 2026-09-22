@@ -192,7 +192,7 @@ const watchdogSourceFreshness = watchdogSourceFreshnessMarkers.every((marker) =>
   executionWatchdogWorkflow.includes(marker),
 );
 const watchdogConcurrency =
-  /concurrency:[\s\S]*group:\s*flixo-execution-watchdog-\$\{\{ github\.event_name \}\}-\$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}[\s\S]*cancel-in-progress:\s*true/.test(executionWatchdogWorkflow);
+  /concurrency:[\s\S]*group:\s*flixo-execution-watchdog-single-observer[\s\S]*cancel-in-progress:\s*true/.test(executionWatchdogWorkflow);
 if (!watchdogExactCheckout || !watchdogExactVerify || !watchdogSourceFreshness || !watchdogConcurrency) {
   console.error('CI contract failed: execution-bot-watchdog.yml must execute only trusted controller code from main, observe the exact execution SHA through GitHub APIs, and reject stale workflow_run events.');
   process.exit(1);
@@ -403,6 +403,20 @@ try {
 }
 
 const autoRepairGlobalEnv = autoRepairWorkflow.match(/^env:\s*\n[\s\S]*?(?=^jobs:)/m)?.[0] ?? '';
+const autoRepairProvenanceContract = [
+  /on:\s*\n\s*workflow_dispatch:/,
+  /name:\s*Repair dispatch provenance guard/,
+  /test "\$GITHUB_EVENT_NAME" = "workflow_dispatch"/,
+  /test "\$GITHUB_REF" = "refs\/heads\/main"/,
+  /GITHUB_WORKFLOW_REF/,
+  /refs\/heads\/main/,
+  /resident:\s*\n\s*needs:\s*\[provenance-guard\]/,
+  /repair:\s*\n\s*needs:\s*\[provenance-guard\]/,
+];
+if (!autoRepairProvenanceContract.every((pattern) => pattern.test(autoRepairWorkflow))) {
+  console.error('CI contract failed: Auto Repair provenance guard is missing or incomplete.');
+  process.exit(1);
+}
 const securityBoundaryContracts = [
   ['auto-repair-main-only', autoRepairWorkflow, /resident:[\s\S]*?if:\s*github\.ref\s*==\s*'refs\/heads\/main'/],
   ['auto-repair-isolated-target', autoRepairWorkflow, autoRepairWorkflow.includes('git worktree add --detach "$TARGET_ROOT" "$EXECUTION_SHA"') && autoRepairWorkflow.includes('BASH_ENV=/tmp/flixo-repair-bash-env') && autoRepairWorkflow.includes('TRUST_MODEL=MAIN_CONTROLLER_CODE_EXECUTION_TARGET_DATA') && !autoRepairWorkflow.includes('git switch --create execution "$EXECUTION_BASE_SHA"')],
