@@ -249,14 +249,16 @@ if (command === 'meeting-exit-approve') {
   if (record.taskId !== taskId) throw new Error('AGENT_EVENT_TASK_MISMATCH');
   if (record.status !== 'RUNNING') throw new Error('AGENT_EVENT_REQUIRES_ACTIVE_SESSION');
   assertLiveSession(record);
-  ensureSessionWorkChair(record);
-  assertWorkAdmission({ agentId: record.agentId, targetSha: gitSha(), chairId: record.chairBinding?.chairId ?? record.chairId ?? null });
+  if (!isWorkspaceOnlySession(record)) {
+    ensureSessionWorkChair(record);
+    assertWorkAdmission({ agentId: record.agentId, targetSha: gitSha(), chairId: record.chairBinding?.chairId ?? record.chairId ?? null });
+  }
   const eventSha = observeCurrentHead(record);
   const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.startedAt });
   if (!heartbeat.ok) {
     record.livenessState = 'RECOVERING';
     record.continuousActiveSince = now();
-    appendEvent(record, { at: now(), action: 'LIVENESS_RECOVERY_REQUIRED', sha: gitSha(), reason: heartbeat.reason ?? 'HEARTBEAT_STALE', recovery: 'RECOVER_AND_CONTINUE', continuousWindowReset: true });
+    appendEvent(record, { at: now(), action: 'LIVENESS_RECOVERY_REQUIRED', sha: eventSha, reason: heartbeat.reason ?? 'HEARTBEAT_STALE', recovery: 'RECOVER_AND_CONTINUE', continuousWindowReset: true });
   } else {
     record.livenessState = 'ACTIVE';
     record.continuousActiveSince = record.continuousActiveSince ?? record.startedAt;
@@ -513,7 +515,7 @@ if (command === 'meeting-exit-approve') {
 
   const status = String(args.get('status') ?? process.env.FLIXO_AGENT_STATUS ?? 'VERIFIED').toUpperCase();
   if (!['VERIFIED', 'BLOCKED'].includes(status)) throw new Error(`Logout status must be VERIFIED or BLOCKED; got ${status}`);
-  const sha = gitSha();
+  const sha = isWorkspaceOnlySession(record) ? record.workspaceIsolation.entrySha : gitSha();
   if (status === 'BLOCKED') {
     const event = { at: now(), action: 'SESSION_EXIT_BLOCKED', sha, reason: 'OPEN_WORK_MUST_REMAIN_IN_ACTIVE_45_MINUTE_REPAIR_SESSION', taskRemainsOpen: true, recovery: 'RECOVER_AND_CONTINUE', workEvent: false };
     appendEvent(record, event);
@@ -536,9 +538,9 @@ if (command === 'meeting-exit-approve') {
   const heartbeat = checkHeartbeat({ state: record.livenessState ?? 'ACTIVE', lastHeartbeatAt: record.lastHeartbeatAt ?? record.startedAt });
   if (!heartbeat.ok) throw new Error('AGENT_SESSION_HEARTBEAT_REQUIRED_BEFORE_CLOSE');
   assertMeetingExitApproval(record, sha);
-  const activeBeforeClose = activeChairForAgent({ agentId: record.agentId, targetSha: sha });
+  const activeBeforeClose = isWorkspaceOnlySession(record) ? null : activeChairForAgent({ agentId: record.agentId, targetSha: sha });
   if (activeBeforeClose) assertWorkAdmission({ agentId: record.agentId, targetSha: sha, chairId: record.chairBinding?.chairId ?? record.chairId ?? null });
-  else if (record.chairBinding?.released !== true) throw new Error('AGENT_SESSION_CHAIR_REQUIRED_OR_EXPLICITLY_RELEASED');
+  else if (!isWorkspaceOnlySession(record) && record.chairBinding?.released !== true) throw new Error('AGENT_SESSION_CHAIR_REQUIRED_OR_EXPLICITLY_RELEASED');
   let workspaceResult = null;
   if (isWorkspaceOnlySession(record)) {
     workspaceResult = captureAgentResult({
