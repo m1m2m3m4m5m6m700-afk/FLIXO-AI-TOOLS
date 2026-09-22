@@ -33,7 +33,6 @@
     "test:error-investigator": "node scripts/ci/test-read-only-error-investigator.mjs",
     "test:deep-reasoning": "node scripts/ci/test-read-only-deep-reasoning.mjs",
     "test:security-red-team": "node scripts/ci/test-security-red-team-contract.mjs",
-    "test:security-redteam-remediation": "node scripts/ci/test-securityredteam-remediation.mjs",
     "test:security-redteam-remediation": "node scripts/ci/test-security-redteam-remediation.mjs",
     "test:repair-intelligence": "node scripts/ci/test-read-only-repair-intelligence.mjs",
     "test:knowledge-fusion": "node scripts/ci/test-read-only-knowledge-fusion.mjs",
