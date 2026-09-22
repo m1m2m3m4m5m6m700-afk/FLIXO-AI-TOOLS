@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
+import { buildCausalDiscriminator } from './action-causal-discriminator.mjs';
+import { buildMetaCausalModel } from './meta-causal-model.mjs';
 
 const clamp = (value, min=0, max=1) => Math.max(min, Math.min(max, Number(value) || 0));
 const exactSha = (value) => /^[a-f0-9]{40}$/u.test(String(value ?? ''));
@@ -244,6 +246,35 @@ export function buildDeepInference({
 
   const timeline = buildTimeline(safeObserved);
   const diversity = buildEvidenceDiversity(safeObserved, historicalSignals, securityFindings);
+  const causalLog = safeObserved
+    .flatMap((item) => [
+      item.workflow,
+      item.classification,
+      item.reason,
+      ...(item.features ?? []),
+      ...(item.salientEvidence ?? []),
+    ].filter(Boolean))
+    .join('\n');
+  const firstCurrentRun = safeObserved.find((item) => item.headSha === executionSha && item.runId != null)?.runId ?? 'READ_ONLY';
+  const causalDiscriminator = buildCausalDiscriminator({
+    failureLog: causalLog,
+    exactCases: [],
+    doNotRepeat: [],
+    fingerprint: safeObserved.find((item) => item.fingerprint)?.fingerprint ?? '',
+    targetSha: executionSha,
+  });
+  const metaCausalModel = buildMetaCausalModel({
+    failureLog: causalLog,
+    targetSha: executionSha,
+    currentHeadSha: executionSha,
+    failedRunId: String(firstCurrentRun),
+    taskId: 'READ_ONLY_INVESTIGATION:' + executionSha,
+    branch: 'execution',
+    strictIdentity: true,
+    historicalKnowledge: historicalSignals.memoryLessons ?? [],
+    exactCases: [],
+    doNotRepeat: [],
+  });
   const classes = ROOT_CAUSE_CLASSES.map((className) => buildHypothesis(safeObserved, className, executionSha))
     .filter((item) => item.supportCount > 0 || item.className === 'UNKNOWN_RCA')
     .sort((a, b) => b.score - a.score || b.currentShaMatches - a.currentShaMatches);
@@ -282,6 +313,8 @@ export function buildDeepInference({
     },
     timeline,
     evidenceDiversity: diversity,
+    causalDiscriminator,
+    metaCausalModel,
     hypotheses: classes,
     falsification,
     counterfactuals,
