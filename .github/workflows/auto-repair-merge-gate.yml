@@ -97,7 +97,7 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ env.EXPECTED_SHA }}
-          fetch-depth: 1
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Reconfirm exact checkout SHA
