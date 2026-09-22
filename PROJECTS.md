@@ -1,9 +1,16 @@
+# P00 — SUPREME FIRST OBLIGATION
+
+Before any repository, project or cell action, every Master/Agent/Bot MUST admit:
+RPR-UNIFIED-EXECUTION-001 v4.0.0 → docs/agents/PROMPT-UNIFIED-EXECUTION.md.
+
+P00 is the first execution obligation for MASTER-1/2/3 and all agents/bots. It controls zero-error circular execution, shared-cell coordination, Exact-SHA evidence, root-cause repair, liveness and hard exit. The machine-enforced source is the protocol registry + control plane + validators + exit lock.
+
 ## UNIFIED PROMPT — CANONICAL EXECUTION SURFACE
 
-The repository has exactly one active execution prompt:
-RPR-UNIFIED-EXECUTION-001 → docs/agents/PROMPT-UNIFIED-EXECUTION.md.
+The repository has exactly one active execution protocol/prompt:
+RPR-UNIFIED-EXECUTION-001 v4.0.0 → docs/agents/PROMPT-UNIFIED-EXECUTION.md.
 
-It absorbs orchestration, causal repair, task preparation, contract-drift, external classification, product/platform implementation, Action Vault learning, Exact-SHA verification and GREEN-closure intent.
+It absorbs orchestration, causal repair, task preparation, contract-drift, external classification, product/platform implementation, Action Vault learning, Exact-SHA verification, Council coordination and circular GREEN-closure intent.
 
 The canonical prompt source is docs/agents/PROMPT-UNIFIED-EXECUTION.md. src/lib/agent/flixo-agent-master-prompt.ts is only the customer-runtime adapter and does not contain a second instruction source.
 
