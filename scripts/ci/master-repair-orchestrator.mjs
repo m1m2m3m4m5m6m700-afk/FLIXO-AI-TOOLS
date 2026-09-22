@@ -7,6 +7,7 @@ import { buildFusion } from './read-only-knowledge-fusion.mjs';
 import { buildTeachingPacket } from './repair-teaching-sessions.mjs';
 import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
 import { buildFiveXRepairCycleState } from './read-only-power-profile.mjs';
+import { buildCanonicalLaneConsolidation, parseAccumulatedPushPackets } from './canonical-lane-consolidator.mjs';
 
 const args = Object.fromEntries(
   process.argv.slice(2).filter((arg) => arg.startsWith('--')).map((arg) => {
@@ -28,7 +29,7 @@ function sha(value) { return /^[a-f0-9]{40}$/iu.test(String(value ?? '')); }
 function fingerprint(value) { return /^[a-f0-9]{64}$/iu.test(String(value ?? '')); }
 function digest(value) { return crypto.createHash('sha256').update(String(value)).digest('hex'); }
 
-function observedEvidence({ targetSha, runId, fp, failureLog, diagnosis, scout, strategy, rootProof, rcaManifest, historicalLearning, teaching }) {
+function observedEvidence({ targetSha, runId, fp, failureLog, diagnosis, scout, strategy, rootProof, rcaManifest, historicalLearning, teaching, consolidation }) {
   const rows = [];
   const push = (source, classification, payload, salientEvidence = []) => {
     const payloadSha = String(payload?.targetSha ?? payload?.target_sha ?? targetSha);
@@ -88,6 +89,14 @@ function observedEvidence({ targetSha, runId, fp, failureLog, diagnosis, scout, 
   ]);
   push('MEMORY_STATE', 'HISTORICAL_CONTEXT', { targetSha }, ['memory-provenance-bound']);
   push('KNOWLEDGE_ARBITRATION', 'INTERNAL_CONTRACT', { targetSha }, ['knowledge-fusion-bound']);
+  push('CANONICAL_LANE_CONSOLIDATION', 'COORDINATION', consolidation, [
+    consolidation?.status,
+    consolidation?.canonicalLane,
+    `packets=${consolidation?.packetCountReceived ?? 0}`,
+    `unique=${consolidation?.packetCountUnique ?? 0}`,
+    `conflicts=${consolidation?.conflicts?.length ?? 0}`,
+    `stale=${consolidation?.stalePackets?.length ?? 0}`,
+  ]);
   return rows;
 }
 
@@ -187,11 +196,28 @@ export async function buildMasterRepairPacket({
   const historicalLearning = readJson(historicalLearningPath);
   const teaching = readJson(teachingPath);
   const memory = readJson(memoryPath) ?? { cases: [], lessons: [], antiLessons: [], actionHistory: [] };
+  let consolidation;
+  try {
+    consolidation = buildCanonicalLaneConsolidation({
+      currentHead: currentSha,
+      targetBranch: 'execution',
+      packets: parseAccumulatedPushPackets(process.env.FLIXO_ACCUMULATED_PUSH_PACKETS ?? ''),
+      expectedParent: currentSha,
+    });
+  } catch (error) {
+    consolidation = {
+      protocol: 'FLIXO-CANONICAL-LANE-CONSOLIDATION-v1', status: 'BLOCKED_INPUT',
+      canonicalLane: 'execution', targetBranch: 'execution', currentHead: currentSha, expectedParent: currentSha,
+      packetCountReceived: 0, packetCountUnique: 0, duplicatePacketIds: [], orderedPackets: [],
+      conflicts: [{ type: 'INVALID_ACCUMULATED_PUSH_INPUT', message: String(error?.message ?? error) }], stalePackets: [], requiredEvidence: [],
+      consolidationDigest: digest(String(error?.message ?? error)),
+    };
+  }
 
   const rows = observedEvidence({
     targetSha, runId: String(runId), fp,
     failureLog, diagnosis, scout, strategy, rootProof, rcaManifest,
-    historicalLearning, teaching,
+    historicalLearning, teaching, consolidation,
   });
   const evidence = checkEvidence(rows, targetSha);
 
@@ -295,6 +321,7 @@ export async function buildMasterRepairPacket({
   if (counterexamplePass < 10) blockers.push('MASTER_REQUIRES_TEN_PASSED_FALSIFICATION_CHECKS');
   if (deep?.synthesis?.status === 'UNKNOWN_RCA') blockers.push('DEEP_REASONING_UNKNOWN_RCA');
   if (!knowledgeSafe) blockers.push('KNOWLEDGE_ARBITRATION_NOT_SAFE');
+  if (consolidation.status !== 'READY_FOR_CANONICAL_CONSOLIDATION') blockers.push('CANONICAL_LANE_CONSOLIDATION_BLOCKED:' + (consolidation.status ?? 'UNKNOWN'));
 
   const status = blockers.length === 0 ? 'MASTER_REPAIR_READY' : 'MASTER_ESCALATION_REQUIRED';
   const packet = {
@@ -316,9 +343,11 @@ export async function buildMasterRepairPacket({
       sources: evidence,
       rows,
       independentEvidenceSourceCount: Math.min(10, evidence.sourceDiversity),
+      canonicalLaneConsolidation: consolidation,
       requiredEvidenceClasses: ['IDENTITY', 'CONSTRAINTS', 'CAUSALITY', 'FALSIFICATION', 'REGRESSION', 'DEPENDENCIES', 'SECURITY', 'REPRODUCIBILITY', 'COORDINATION', 'LEARNING'],
     },
     intelligence: {
+      canonicalLaneConsolidation: consolidation,
       deepReasoning: deep,
       knowledgeFusion: knowledge,
       teaching: teachingPacket,
