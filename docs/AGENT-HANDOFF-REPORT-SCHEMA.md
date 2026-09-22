@@ -1,6 +1,6 @@
 # 🔁 Agent Session Handoff Report Contract v1
 
-Every completed agent session MUST produce a machine-readable handoff report for the next agent.
+Every completed worker session MUST produce a machine-readable handoff report for Chair 1. The report is a candidate-result handoff, not a branch publication.
 
 Canonical path:
 
@@ -41,3 +41,21 @@ Handoff reports are continuity evidence, not final certification evidence. They 
 
 ## Cycle lessons
 Every completed repair/verification cycle MUST include `cycleLessons`: an ordered list of the cycle's RCA lesson, strategy lesson or anti-lesson, verification lesson, affected-scope lesson when applicable, recurrence/prevention rule, and external-blocker anti-lesson when applicable. `cycleLessons` is continuity/learning evidence only and never authorizes mutation or certification.
+
+
+## Isolated workspace result
+
+Worker sessions operating under `FLIXO-AGENT-ISOLATED-WORKSPACE-v1` MUST include:
+
+- `workspaceResult`
+- `entrySha`
+- `mainShaAtEntry`
+- `executionShaAtEntry`
+- `changedFiles`
+- `patchSha256`
+- `editableBy: CHAIR_1`
+- `publicationAuthority: CHAIR_1`
+
+The worker's `exitSha` is the workspace entry snapshot, not a claim about the current execution head.
+
+A later movement of `execution` MUST NOT invalidate the worker's result. Chair 1 is responsible for reconciling the result against the newest execution/main state.
