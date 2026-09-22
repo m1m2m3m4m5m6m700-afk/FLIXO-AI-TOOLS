@@ -41,5 +41,7 @@ jobs:
         run: node scripts/ci/test-agent-chair-lifecycle.mjs
       - name: Run execution mutation gate regression tests
         run: node scripts/ci/test-execution-mutation-gate.mjs
+      - name: Run repair protocol chair-admission regression tests
+        run: node scripts/ci/test-repair-protocol.mjs
       - name: Validate the complete auto-repair mutation boundary
         run: node scripts/ci/validate-auto-repair-boundary.mjs
