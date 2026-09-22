@@ -228,13 +228,14 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body || '' }}
           EVENT_NAME: ${{ github.event_name }}
           RUN_SHA: ${{ github.sha }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login || '' }}
+          COMMENT_ID: ${{ github.event.comment.id || '' }}
           shell: bash
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const body = process.env.COMMENT_BODY || '';
-          const manual = process.env.MANUAL_MESSAGE_JSON || '';
           const marker = '<!-- FLIXO_AGENT_MESSAGE -->';
           const fence = '\`\`\`json';
           const start = body.indexOf(marker);
@@ -249,6 +250,17 @@ jobs:
             process.exit(0);
           }
           const message = JSON.parse(match);
+          const actor=String(message.actor??'').trim();
+          const privileged=/^MASTER-[1-3]$/u.test(actor) || message.administrativeInstruction===true || message.councilOperation===true || String(message.intent??'').startsWith('ADMIN_') || String(message.intent??'').startsWith('COUNCIL_') || message?.payload?.administrativeInstruction===true;
+          const author=String(process.env.COMMENT_AUTHOR??'').trim();
+          if(privileged && actor!=='assistantController' && author!=='github-actions[bot]') throw new Error('PRIVILEGED_MESSAGE_REQUIRES_TRUSTED_RELAY_AUTHOR');
+          message.transportIdentity={
+            provider:'github-actions',
+            actor:author,
+            repository:String(process.env.GITHUB_REPOSITORY??''),
+            runId:String(process.env.GITHUB_RUN_ID??''),
+            sourceCommentId:String(process.env.COMMENT_ID??'')
+          };
           fs.writeFileSync('message.json', JSON.stringify(message, null, 2) + '\\n');
           if (!message.messageId) throw new Error('AGENT_MESSAGE_ID_MISSING');
           process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
