@@ -159,6 +159,17 @@ const ensureSessionWorkChair = (record) => {
       mutationAuthorityRevoked: true,
     };
     record.preemptionContinuity = continuity;
+    appendEvent(record, {
+      at: now(),
+      action: 'CHAIR_PREEMPTION_CONTINUITY_ACTIVE',
+      sha: targetSha,
+      workEvent: false,
+      reason: 'CHAIR_TAKEN_BY_ANOTHER_AGENT_TASK_CONTINUES',
+      handoffToGuard: continuity.handoffTo,
+      mutationAuthorityRevoked: true,
+      canContinueTask: true,
+      canMutateAfterPreemption: false,
+    });
     return continuity;
   }
   const chairSigningKey = String(process.env.FLIXO_CHAIR_SIGNING_KEY ?? process.env.GITHUB_TOKEN ?? '').trim();
