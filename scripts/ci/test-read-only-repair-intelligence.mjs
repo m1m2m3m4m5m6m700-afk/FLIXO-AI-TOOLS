@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { buildRepairIntelligenceMirror } from './read-only-repair-intelligence.mjs';
 const sha='a'.repeat(40);
-const log='CI contract failed: validate-ci-contract.mjs; CAPIError: provider model is not supported';
+const log='workflow concurrency stale sha CI contract failed; CAPIError: provider model is not supported';
 const report=buildRepairIntelligenceMirror({failureLog:log,targetSha:sha,historicalSignals:{},full:false});
 assert.equal(report.protocol,'FLIXO-READ-ONLY-REPAIR-INTELLIGENCE-v1');
 assert.equal(report.mutationPolicy,'NO_SOURCE_MUTATION');
@@ -26,6 +26,11 @@ assert.equal(report.primaryRepairIntelligence.selfCriticPreview.verdict,'REJECT'
 assert.equal(report.adversarial.authorityParity,'NO_MUTATION_AUTHORITY');
 assert.equal(report.primaryRepairIntelligence.actionVaultPrediction.status,'SKIPPED_IN_UNIT_TEST');
 assert.equal(report.primaryRepairIntelligence.actionVaultPrediction.mutationAuthority,'NONE');
+assert.ok(report.primaryRepairIntelligence.knowledgeFusion);
+assert.equal(report.primaryRepairIntelligence.knowledgeFusion.protocol,'FLIXO-READ-ONLY-KNOWLEDGE-FUSION-v1');
+assert.equal(report.primaryRepairIntelligence.knowledgeFusion.mutationAuthority,false);
+assert.equal(report.primaryRepairIntelligence.knowledgeFusion.exactShaBound,true);
+assert.notEqual(report.primaryRepairIntelligence.knowledgeFusion.synthesis.disposition,'NO_ACTIONABLE_KNOWLEDGE');
 console.log(JSON.stringify({status:'PASS',checks:11,primary:report.synthesis.primaryCandidate,adversarial:report.adversarial.status},null,2));
 
 assert.equal(report.primaryRepairIntelligence.codeMentor.status,'SKIPPED_IN_UNIT_TEST');
