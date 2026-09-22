@@ -42,6 +42,7 @@ assert.equal(validateCellLabConsensus(base,{taskId:base.taskId,exactSha:sha,muta
 assert.throws(()=>validateCellLabConsensus({...base,status:'PROPOSED'},{taskId:base.taskId,exactSha:sha,mutationOwner:'repairAgent'}),/CELL_LAB_CONSENSUS_NOT_AGREED/);
 assert.throws(()=>validateCellLabConsensus({...base,exactSha:'c'.repeat(40)},{taskId:base.taskId,exactSha:sha,mutationOwner:'repairAgent'}),/CELL_LAB_EXACT_SHA_MISMATCH/);
 assert.throws(()=>validateCellLabConsensus({...base,remainingQuestions:['q']},{taskId:base.taskId,exactSha:sha,mutationOwner:'repairAgent'}),/CELL_LAB_REMAINING_QUESTIONS/);
+assert.throws(()=>validateCellLabConsensus({...base,planHash:'b'.repeat(64)},{taskId:base.taskId,exactSha:sha,mutationOwner:'repairAgent'}),/CELL_LAB_PLAN_HASH_MISMATCH/);
 assert.throws(()=>validateCellLabConsensus({...base,participants:base.participants.slice(1)},{taskId:base.taskId,exactSha:sha,mutationOwner:'repairAgent'}),/CELL_LAB_CORE_PARTICIPANT_MISSING=MASTER-1/);
 
 console.log('CELL_LAB_CONSENSUS_TEST=PASS');
@@ -49,3 +50,4 @@ console.log('CELL_LAB_REQUIRES_THREE_MASTERS=PASS');
 console.log('CELL_LAB_REQUIRES_DISCUSSION=PASS');
 console.log('CELL_LAB_REQUIRES_AGREEMENT=PASS');
 console.log('CELL_LAB_REQUIRES_EXACT_SHA=PASS');
+console.log('CELL_LAB_REQUIRES_PLAN_HASH=PASS');
