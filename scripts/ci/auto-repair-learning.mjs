@@ -707,7 +707,7 @@ export function buildCycleLessons({ fingerprint, rootCause, rule, outcome, verif
     lessons.push({
       type: 'lesson',
       category: 'FIVE_X_CYCLE',
-      text: '5X cycle state ' + String(provenance.fiveXCycle.state) + ' requires: ' + String(provenance.fiveXCycle.nextAction) + '.',
+      text: '10X cycle state ' + String(provenance.fiveXCycle.state) + ' requires: ' + String(provenance.fiveXCycle.nextAction) + '.',
     });
     if (provenance.fiveXCycle.strategyChangeRequired || provenance.fiveXCycle.staleEvidence) {
       lessons.push({
@@ -828,7 +828,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     counterexampleFound: provenance?.counterexampleFound ?? null,
     regressionOk: provenance?.regressionOk ?? null,
     regressionDepth: Number(provenance?.regressionDepth ?? 0),
-    learningOutputs: 5,
+    learningOutputs: 8,
     canonicalGreen: process.env.FLIXO_CANONICAL_GREEN === 'true',
   });
   const fiveXProvenance = { ...effectiveProvenance, fiveXCycle: effectiveFiveXCycle };
