@@ -9,7 +9,7 @@ import { loadPromptRegistry, validatePromptRegistry, loadErrorMemory } from './p
 import { assertAgentExitGate } from './agent-exit-lock.mjs';
 import { AGENT_LIVENESS_PROTOCOL, assertActiveRepairWindow, checkHeartbeat, checkContinuousSessionWindow } from './agent-liveness-protocol.mjs';
 import { initialize as initializeChairState, heartbeat as heartbeatChair, reconcileDeadLeases, beginWork as beginChairWork, endWork as endChairWork, assertWorkAdmission, activeChairForAgent } from './chair-bound-execution.mjs';
-import { createAgentWorkspace, captureAgentResult, assertWorkspaceIsolation } from './agent-isolated-workspace.mjs';
+import { createAgentWorkspace, captureAgentResult, assertWorkspaceIsolation, cleanupAgentWorkspace } from './agent-isolated-workspace.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -56,10 +56,12 @@ const admissionDigest = (file) => createHash('sha256').update(fs.readFileSync(pa
 const governanceFingerprint = (sources) => createHash('sha256').update(sources.map((item) => `${item.path}:${item.sha256}`).join('|'), 'utf8').digest('hex');
 const assertLiveSession = (record) => {
   const currentSha = gitSha();
-  if (record.entrySha && record.entrySha !== currentSha) throw new Error('AGENT_SESSION_STALE_ENTRY_SHA');
+  if (isWorkspaceOnlySession(record)) {
+    assertWorkspaceIsolation({ repoRoot: ROOT, workspace: record.workspaceIsolation.workspace, entrySha: record.workspaceIsolation.entrySha });
+  } else if (record.entrySha && record.entrySha !== currentSha) throw new Error('AGENT_SESSION_STALE_ENTRY_SHA');
   const currentGovernance = governanceFingerprint(requiredReads.map((file) => ({ path: file, sha256: admissionDigest(file) })));
   if (record.governanceFingerprint && record.governanceFingerprint !== currentGovernance) throw new Error('AGENT_SESSION_GOVERNANCE_DRIFT');
-  if (record.branch && record.branch !== gitBranch()) throw new Error('AGENT_SESSION_BRANCH_DRIFT');
+  if (!isWorkspaceOnlySession(record) && record.branch && record.branch !== gitBranch()) throw new Error('AGENT_SESSION_BRANCH_DRIFT');
 };
 const readCanonicalAdmissionSources = () => {
   const sources = requiredReads.map((file) => ({ path: file, sha256: admissionDigest(file) }));
@@ -183,7 +185,7 @@ const appendEvent = (record, event) => {
     ...event,
     workEvent: !administrative,
     workRecorded: !administrative,
-    exactSha: gitSha(),
+    exactSha: isWorkspaceOnlySession(record) ? record.currentSha : gitSha(),
     ...(chair ? { chairId: chair.chairId, chairLeaseId: chair.leaseId, chairTargetSha: chair.targetSha } : {}),
   };
   record.actions = Array.isArray(record.actions) ? [...record.actions, enriched] : [enriched];
