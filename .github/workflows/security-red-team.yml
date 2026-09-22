@@ -17,8 +17,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: flixo-security-red-team-${{ inputs.expected_sha || github.sha }}
-  cancel-in-progress: false
+  group: flixo-security-red-team-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
