@@ -166,3 +166,13 @@ Every lease is bound to the current exact SHA and authenticated with `FLIXO_CHAI
 The default execution seat is acquired at `task-claim`, after the canonical ownership/scope lock is obtained and before the message is consumed as executable work. The selected chair, lease ID and exact SHA are persisted in the active task/session record. If chair acquisition or message consumption fails, the ownership lock and any acquired chair are rolled back.
 
 Task completion/release releases the chair. Stale-session reconciliation revokes the chair lease when the entry SHA or governance fingerprint becomes stale. Chair state may resynchronize its target SHA only while the repository is `IDLE` and every chair is vacant; an active stale chair state is fail-closed.
+### Chair hardening and recovery refinements
+
+Chair leases carry a heartbeat timestamp and are reclaimed as DEAD_LEASE after three missed 30-second intervals (default 90 seconds). The existing agent-session heartbeat path renews the chair lease on the same 60-second liveness cadence; a stale lease is reclaimed fail-closed and the session is forced through recovery/resynchronization rather than continuing without a chair.
+
+Chair 2 and Chair 3 may maintain only read-only speculative caches containing bounded pending diffs and test plans. Every speculative record is exact-SHA bound, expires quickly, and cannot grant mutation authority. A source SHA change invalidates reuse.
+
+Task release/complete and stale-chair revocation sanitize persisted per-session/per-task chair context caches. This is storage sanitization; it does not claim to erase model/provider process memory.
+
+An optional local Git update-ref CAS journal records chair events for audit/debugging. It is deliberately audit-only: the authoritative ownership state remains the existing coordination/lease state, because a remote custom ref without a true compare-and-swap transaction API must not be presented as a universal distributed lock.
+
