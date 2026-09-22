@@ -33,6 +33,9 @@ assert.equal(result.primaryMayRevise,true);
 assert.equal(result.requiresRollback,true);
 assert.equal(result.nextStrategy,'alternate-hypothesis');
 
+result=decideAdversarialRound({engineEvidence:verified,adversarialReport:cleanTwin,targetSha:sha,currentSha:sha,adversaryExit:1});
+assert.equal(result.decision,'REPAIR_REQUIRED');
+
 result=decideAdversarialRound({engineEvidence:verified,adversarialReport:cleanTwin,targetSha:sha,currentSha:sha});
 assert.equal(result.decision,'CONVERGED_FOR_VERIFICATION');
 assert.equal(result.bothSidesStable,true);
