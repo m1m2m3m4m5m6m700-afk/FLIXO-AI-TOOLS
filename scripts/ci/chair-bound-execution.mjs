@@ -490,6 +490,60 @@ export function validateCurrent({chairId,agentId,targetSha=sha(),paths=[],permis
   const t=assertSha(targetSha,'TARGET_SHA');if(t!==sha())throw new Error('STALE_CONTEXT');
   return authorizeWrite({chairId,agentId,targetSha:t,paths,permission,reviewId,boundedScope,workPackageId,taskId,fencingToken});
 }
+export function activeChairForAgent({agentId,targetSha=sha()}={}){
+  assertAgent(agentId);
+  const t=assertSha(targetSha,'TARGET_SHA');
+  if(t!==sha())throw new Error('STALE_CONTEXT');
+  const state=readState();
+  if(state.target_sha!==t)throw new Error('CHAIR_STATE_SHA_MISMATCH');
+  const found=[];
+  for(const [chairId,chair] of Object.entries(state.chairs)){
+    if(chair.status==='OCCUPIED'&&chair.holder_agent_id===agentId){
+      verifyLease({state,chairId,agentId,targetSha:t});
+      found.push({chairId,leaseId:chair.lease_id,taskId:chair.task_id??null,workPackageId:chair.work_package_id??null,targetSha:t});
+    }
+  }
+  if(found.length>1)throw new Error('CHAIR_AGENT_MULTI_OCCUPANCY');
+  return found[0]??null;
+}
+
+export function assertWorkAdmission({agentId,targetSha=sha(),chairId=null}={}){
+  const active=activeChairForAgent({agentId,targetSha});
+  if(!active)throw new Error('AGENT_WORK_REQUIRES_CHAIR');
+  if(chairId&&active.chairId!==chairId)throw new Error('AGENT_WORK_CHAIR_MISMATCH');
+  return active;
+}
+
+export function beginWork({agentId,targetSha=sha(),requestedChairId=null,repositoryState='IDLE',workPackageId=null,taskId=null,fencingToken=null,scope=null,reviewId=null}={}){
+  assertAgent(agentId);
+  const t=assertSha(targetSha,'TARGET_SHA');
+  if(t!==sha())throw new Error('STALE_CONTEXT');
+  const existing=activeChairForAgent({agentId,targetSha:t});
+  if(existing)return Object.freeze({admitted:true,reused:true,...existing});
+  const chairId=String(requestedChairId??'chair_1').trim()||'chair_1';
+  const state=readState();
+  if(chairId!=='chair_1' && chairId!=='chair_2' && chairId!=='chair_3')throw new Error('CHAIR_UNKNOWN');
+  const acquired=acquire({
+    chairId,
+    agentId,
+    targetSha:t,
+    repositoryState,
+    reviewId,
+    scope,
+    workPackageId,
+    taskId,
+    fencingToken
+  });
+  const chair=acquired.chairs[chairId];
+  return Object.freeze({admitted:true,reused:false,chairId,leaseId:chair.lease_id,targetSha:t,taskId:chair.task_id??null,workPackageId:chair.work_package_id??null});
+}
+
+export function endWork({agentId,targetSha=sha(),successful=false,sessionId=null,taskId=null}={}){
+  const active=activeChairForAgent({agentId,targetSha});
+  if(!active)throw new Error('AGENT_WORK_CHAIR_MISSING_AT_END');
+  return release({chairId:active.chairId,agentId,targetSha,successful,sessionId,taskId});
+}
+
 export function repositoryMode({targetSha=sha()}={}){
   const state=readState();const t=assertSha(targetSha,'TARGET_SHA');if(state.target_sha!==t)throw new Error('STALE_CONTEXT');
   return {repositoryState:state.repository_state,activeChairs:occupied(state).map(([id,c])=>({chairId:id,holderAgentId:c.holder_agent_id,targetSha:c.target_sha,mode:CHAIR_DEFINITIONS[id].mode})),singleAgentMode:occupied(state).length===1&&occupied(state).some(([id])=>id==='chair_1')};
