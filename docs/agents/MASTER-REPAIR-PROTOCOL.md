@@ -45,3 +45,6 @@ An actionable RED remains open until fresh evidence produces a repair path and t
 ## Learning
 
 The packet is retained as a lesson/anti-lesson candidate. It is not promoted to trusted knowledge until exact-target verification and Canonical GREEN occur.
+
+## Canonical Push Consolidation
+Master Repair consumes the canonical lane consolidation receipt as a first-class coordination evidence source. The receipt represents accumulated agent push proposals on the single `execution` lane, with duplicate detection, dependency/ancestry ordering, overlap analysis, stale-packet detection and fail-closed conflict handling. A conflict or unjoined packet blocks the Master repair packet; it is never silently dropped or merged by preference. The receipt does not grant mutation, merge or certification authority.
