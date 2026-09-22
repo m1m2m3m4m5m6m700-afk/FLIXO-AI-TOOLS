@@ -229,6 +229,7 @@ export function buildFiveXRepairCycleState({
     state = 'CLOSED_BY_CANONICAL_GREEN';
     nextAction = 'NO_FURTHER_REPAIR_CYCLE';
   } else if (
+    outcome === 'success' ||
     outcome === 'verified-repair' ||
     outcome === 'verified-historical-revert' ||
     verification === 'exact-sha-proof'
@@ -240,9 +241,6 @@ export function buildFiveXRepairCycleState({
     'READY_TO_CONTINUE',
     'VERIFICATION_PENDING_CANONICAL_GREEN',
   ]).has(state);
-  const digest = globalThis?.crypto?.subtle
-    ? null
-    : null;
   return Object.freeze({
     protocol: 'FLIXO-FIVE-X-REPAIR-CYCLE-v1',
     phase: String(phase),
