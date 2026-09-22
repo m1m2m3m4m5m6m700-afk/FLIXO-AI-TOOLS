@@ -198,13 +198,11 @@ function assertChair1ReleaseAllowed(chair,{successful=false,reason=''}={}){
 }
 
 function baseState(targetSha){
-function baseState(targetSha){
   return {
     schemaVersion:1,
     authority:'FLIXO_CHAIR_BOUND_EXECUTION',
     repository_state:'IDLE',
     idle_timestamp:now(),
-    target_sha:assertSha(targetSha,'TARGET_SHA'),
     target_sha:assertSha(targetSha,'TARGET_SHA'),
     push_proposals:[],
     rejected_push_memory:[],
@@ -224,7 +222,6 @@ function writeJsonAtomic(file,value){
   fs.mkdirSync(path.dirname(file),{recursive:true});
   const tmp=file+'.tmp-'+process.pid+'-'+Date.now();
   fs.writeFileSync(tmp,JSON.stringify(value,null,2)+'\n');
-  fs.renameSync(tmp,file);
   fs.renameSync(tmp,file);
 }
 function writeState(state){
@@ -398,14 +395,12 @@ function verifyLease({state,chairId,agentId,targetSha,assertCurrentHead=true}){
   const chair=getChair(state,chairId);
   if(chair.holder_agent_id!==agentId)throw new Error('UNAUTHORIZED_EXECUTION_ATTEMPT');
   if(chair.target_sha!==t||state.target_sha!==t)throw new Error('STALE_CONTEXT');
-  if(chair.target_sha!==t||state.target_sha!==t)throw new Error('STALE_CONTEXT');
   const input={chairId,agentId,targetSha:t,permissions:CHAIR_DEFINITIONS[chairId].permissions,reviewId:chair.review_id,scope:chair.scope,workPackageId:chair.work_package_id??null,taskId:chair.task_id??null,fencingToken:chair.fencing_token??null};
   const expected=signLease(input);
   const supplied=String(chair.lease_id??'');
   if(!HASH_RE.test(supplied)||!timingSafeEqual(Buffer.from(expected,'utf8'),Buffer.from(supplied,'utf8')))throw new Error('CHAIR_LEASE_SIGNATURE_INVALID');
   return chair;
 }
-export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permission='SOURCE_MUTATION',reviewId=null,boundedScope=null,workPackageId=null,taskId=null,fencingToken=null}={}){
 export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permission='SOURCE_MUTATION',reviewId=null,boundedScope=null,workPackageId=null,taskId=null,fencingToken=null}={}){
   if(!Array.isArray(paths)||paths.length===0)throw new Error('CHAIR_WRITE_PATHS_REQUIRED');
   const t=assertSha(targetSha,'TARGET_SHA');
