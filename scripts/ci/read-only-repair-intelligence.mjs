@@ -11,6 +11,7 @@ import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
 import { buildErrorOnlyRepairModel } from './auto-repair/error-only-programmer.mjs';
 import { buildCausalDiscriminator } from './action-causal-discriminator.mjs';
 import { buildMetaCausalModel } from './meta-causal-model.mjs';
+import { buildMentorPacket } from './action-code-mentor.mjs';
 
 const ROOT=process.cwd();
 const exactSha=(v)=>/^[a-f0-9]{40}$/u.test(String(v??''));
@@ -99,7 +100,7 @@ function buildAdversarialMirror({log, targetSha, fingerprint, diagnosis, plan, s
   };
 }
 
-export function buildRepairIntelligenceMirror({failureLog='',targetSha='',historicalSignals={},deepInference=null,selectedCandidate=null}={}){
+export function buildRepairIntelligenceMirror({failureLog='',targetSha='',historicalSignals={},deepInference=null,selectedCandidate=null,failedRunId='READ_ONLY'}={}){
   if(!exactSha(targetSha)) throw new Error('REPAIR_INTELLIGENCE_MIRROR_EXACT_SHA_REQUIRED');
   const log=String(failureLog??'');
   const fingerprint=fingerprintFailure(log);
@@ -153,6 +154,16 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
     exactCases:[],
     doNotRepeat:[]
   });
+  const mentorPacket=buildMentorPacket({
+    taskId:'READ_ONLY_REPAIR_INTELLIGENCE:'+fingerprint,
+    fingerprint,
+    targetSha,
+    failedRunId:String(failedRunId),
+    sourceFiles:[...new Set([diagnosis?.location?.file,selected?.file].filter(Boolean))],
+    mode:'DEEP',
+    changedPaths:[],
+    deep:true
+  });
   const adversarial=buildAdversarialMirror({
     log,targetSha,fingerprint,diagnosis,plan,selectedCandidate:selected,historicalKnowledge
   });
@@ -171,7 +182,8 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
       selfCriticPreview:selfCritic,
       knowledgeGraph,
       causalDiscriminator,
-      metaCausalModel
+      metaCausalModel,
+      codeMentor:mentorPacket
     },
     adversarial,
     deepInference,
@@ -182,6 +194,7 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
       plannerBlockedReason:plan.blockedReason??null,
       externalBoundary:diagnosis?.decision==='BLOCK_EXTERNAL',
       adversarialStatus:adversarial.status,
+      programmerTwinMode:'READ_ONLY_MIRROR',
       mutationWouldBeAllowedByRepairStack:Boolean(errorOnly.repair?.mutationAllowed)&&Boolean(confidence.allowed)&&adversarial.counterexampleFound===false,
       readOnlyDecision:'REPORT_ONLY'
     },
