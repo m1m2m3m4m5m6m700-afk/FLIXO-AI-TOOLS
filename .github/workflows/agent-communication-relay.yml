@@ -128,6 +128,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           WORKFLOW: ${{ steps.president_plan.outputs.workflow }}
           ENTRY_SHA: ${{ steps.president_plan.outputs.entrySha }}
+          COMMENT_ID: ${{ github.event.comment.id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -135,8 +136,8 @@ jobs:
             council-priority-wake.yml)
               gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref execution \
                 -f "entry_sha=$ENTRY_SHA" \
-                -f "request_id=president-${{ github.event.comment.id }}" \
-                -f "source_comment_id=${{ github.event.comment.id }}" \
+                -f "request_id=president-$COMMENT_ID" \
+                -f "source_comment_id=$COMMENT_ID" \
                 -f "question=$COMMENT_BODY"
               ;;
             ultra-investigator.yml)
