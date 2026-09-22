@@ -232,7 +232,7 @@ export function validateStatic() {
     const startIndex = autoLines.findIndex((line, index) => index > jobsIndex && line.trimEnd() === marker);
     if (startIndex < 0) return '';
     const endIndex = autoLines.findIndex(
-      (line, index) => index > startIndex && /^  [A-Za-z0-9_-]+:\s*$/.test(line),
+      (line, index) => index > startIndex && /^[\x20]{2}[A-Za-z0-9_-]+:\s*$/.test(line),
     );
     return autoLines.slice(startIndex + 1, endIndex < 0 ? autoLines.length : endIndex).join('\n');
   };
