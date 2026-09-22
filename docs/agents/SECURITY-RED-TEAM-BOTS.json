@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "protocol": "FLIXO-SECURITY-RED-TEAM-TRIAD-v1",
+  "canonical": true,
+  "authority": "READ_ONLY_SECURITY_DISCOVERY",
+  "branchPolicy": {
+    "workingBranch": "execution",
+    "productionBranch": "main",
+    "thirdBranchAllowed": false,
+    "noMainMutation": true
+  },
+  "execution": {
+    "exactShaRequired": true,
+    "scanScope": "ALL_GIT_TRACKED_FILES",
+    "mutationAuthority": false,
+    "certificationAuthority": false,
+    "greenAuthority": false,
+    "autoCloseAuthority": false,
+    "immediateLedgerPath": "الثغرات الامنيه.md"
+  },
+  "repairIntelligence": {
+    "enabled": true,
+    "entry": "scripts/ci/adversarial-repair-twin.mjs",
+    "authority": "READ_ONLY_ADVISORY",
+    "mutationAuthority": false,
+    "variants": ["A", "B"],
+    "counterexampleBlocksAcceptance": true
+  },
+  "bots": {
+    "SECURITY-REDTEAM-1": {
+      "agentId": "securityRedTeamControlPlane",
+      "role": "SECURITY_CONTROL_PLANE_RED_TEAM",
+      "focus": ["GitHub Actions", "OIDC", "permissions", "workflow triggers", "supply-chain", "agent control plane", "exact-SHA", "branch safety"],
+      "mutationAuthority": false
+    },
+    "SECURITY-REDTEAM-2": {
+      "agentId": "securityRedTeamApplication",
+      "role": "APPLICATION_CODE_RED_TEAM",
+      "focus": ["injection", "DOM", "dynamic code", "network boundaries", "secrets", "storage", "external resources", "dependency execution"],
+      "mutationAuthority": false
+    },
+    "SECURITY-REDTEAM-3": {
+      "agentId": "securityRedTeamRuntime",
+      "role": "RUNTIME_DATA_BOUNDARY_RED_TEAM",
+      "focus": ["uploads", "redirects", "CORS", "cookies", "postMessage", "worker boundaries", "SSR/client secrets", "runtime trust boundaries", "privacy"],
+      "mutationAuthority": false
+    }
+  },
+  "commonRules": [
+    "SCAN_ALL_TRACKED_FILES",
+    "READ_EXACT_SHA_FIRST",
+    "NO_STALE_EVIDENCE",
+    "NO_MAIN_MUTATION",
+    "NO_THIRD_BRANCH",
+    "NO_GATE_WEAKENING",
+    "NO_SELF_CERTIFICATION",
+    "HIGH_OR_CRITICAL_FINDINGS_REQUIRE_REPAIR_INTELLIGENCE_ADVISORY",
+    "EVERY_NEW_FINDING_MUST_BE_DEDUPLICATED_BY_FINGERPRINT",
+    "EVERY_NEW_FINDING_MUST_BE_WRITTEN_TO_THE_SECURITY_LEDGER",
+    "LEDGER_WRITE_MUST_FAIL_CLOSED_ON_SHA_DIVERGENCE",
+    "REPAIR_INTELLIGENCE_IS_ADVISORY_ONLY"
+  ]
+}
