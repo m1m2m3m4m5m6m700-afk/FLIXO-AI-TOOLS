@@ -27,10 +27,13 @@ export function appendTaskEvent(ledger, { type, detail = {}, at = new Date().toI
 
 export function writeTaskLedger(path, ledger) {
   fs.mkdirSync(path.split('/').slice(0, -1).join('/') || '.', { recursive: true });
-  const body = JSON.stringify({ ...ledger, events: (ledger.events ?? []).slice(-MAX_EVENTS) }, null, 2) + '\n';
+  const unsigned = { ...ledger };
+  delete unsigned.integritySha256;
+  unsigned.events = (unsigned.events ?? []).slice(-MAX_EVENTS);
+  const body = JSON.stringify(unsigned, null, 2) + '\n';
   const integritySha256 = createHash('sha256').update(body).digest('hex');
-  fs.writeFileSync(path, JSON.stringify({ ...ledger, events: (ledger.events ?? []).slice(-MAX_EVENTS), integritySha256 }, null, 2) + '\n');
-  return ledger;
+  fs.writeFileSync(path, JSON.stringify({ ...unsigned, integritySha256 }, null, 2) + '\n');
+  return { ...unsigned, integritySha256 };
 }
 
 export function startTaskLedger({ path = env('FLIXO_REPAIR_TASK_LEDGER_PATH', '/tmp/flixo-repair-task-ledger.json'), taskId = env('FLIXO_TASK_ID'), repairChainId = env('FLIXO_REPAIR_CHAIN_ID'), failureRunId = env('TARGET_RUN_ID'), fingerprint = env('FLIXO_FAILURE_FINGERPRINT'), failedSha = env('FLIXO_FAILED_SHA') || null, targetSha = env('FLIXO_TARGET_SHA') || failedSha || null } = {}) {
@@ -43,6 +46,12 @@ export function startTaskLedger({ path = env('FLIXO_REPAIR_TASK_LEDGER_PATH', '/
 export function loadTaskLedger(path = env('FLIXO_REPAIR_TASK_LEDGER_PATH', '/tmp/flixo-repair-task-ledger.json')) {
   const ledger = readJson(path);
   if (!ledger || ledger.protocol !== 'FLIXO-AUTO-REPAIR-TASK-LEDGER-v1') throw new Error('AUTO_REPAIR_TASK_LEDGER_MISSING_OR_INVALID');
+  const unsigned = { ...ledger };
+  const integritySha256 = unsigned.integritySha256;
+  delete unsigned.integritySha256;
+  unsigned.events = (unsigned.events ?? []).slice(-MAX_EVENTS);
+  const expected = createHash('sha256').update(JSON.stringify(unsigned, null, 2) + '\n').digest('hex');
+  if (integritySha256 !== expected) throw new Error('AUTO_REPAIR_TASK_LEDGER_INTEGRITY_INVALID');
   return ledger;
 }
 
