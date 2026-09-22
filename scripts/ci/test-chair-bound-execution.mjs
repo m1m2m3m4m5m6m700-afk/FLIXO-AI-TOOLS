@@ -52,15 +52,16 @@ assert.equal(autoAdmission.admitted,true);
 assert.equal(process.env.FLIXO_STRICT_CHAIR,'false');
 assert.equal(autoAdmission.chairId,'chair_1');
 assert.equal(activeChairForAgent({agentId:'agent-auto-chair',targetSha:realGitSha}).chairId,'chair_1');
-assert.throws(() => {
-  centralDelegator='malicious-agent';
-  beginWork({agentId:'central-proof-attack',targetSha:realGitSha,repositoryState:'IDLE',taskId:'CENTRAL-PROOF-ATTACK',workPackageId:'CENTRAL-PROOF-ATTACK-WP'});
-}, /CENTRAL_CHAIR_PROOF_INVALID/);
-centralDelegator='assistantController';
-
 assert.equal(endWork({agentId:'agent-auto-chair',targetSha:realGitSha,successful:true,taskId:'TASK-AUTO-CHAIR'}).repository_state,'IDLE');
 assert.equal(centralReleaseCount >= 1,true);
 assert.throws(()=>assertWorkAdmission({agentId:'agent-auto-chair',targetSha:realGitSha}),/AGENT_WORK_REQUIRES_CHAIR/);
+
+centralDelegator='malicious-agent';
+assert.throws(
+  ()=>beginWork({agentId:'central-proof-attack',targetSha:realGitSha,repositoryState:'IDLE',taskId:'CENTRAL-PROOF-ATTACK',workPackageId:'CENTRAL-PROOF-ATTACK-WP'}),
+  /CENTRAL_CHAIR_PROOF_INVALID/
+);
+centralDelegator='assistantController';
 
 const one=acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE',taskId:'CHAIR1-ALPHA-TASK',workPackageId:'CHAIR1-ALPHA-WP'});
 assert.equal(one.chairs.chair_1.status,'OCCUPIED');
