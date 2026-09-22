@@ -75,7 +75,8 @@ for (const [file, source] of canonicalConcurrencyWorkflows) {
     /\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/.test(block);
   const legacyBranchLane = /github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name/.test(block) ||
     /github\.event\.pull_request\.number\s*\|\|\s*github\.ref/.test(block);
-  if (!block || (!eventScopedSha && !legacyBranchLane)) {
+  const exactShaLane = /github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha/.test(block);
+  if (!block || (!eventScopedSha && !legacyBranchLane && !exactShaLane)) {
     console.error('CI contract failed: ' + file + ' must bind concurrency to a canonical branch/PR or an event-scoped exact SHA.');
     process.exit(1);
   }
@@ -112,7 +113,8 @@ for (const [file, source] of exactShaVerificationWorkflows) {
   const sourceUsesPrOrBranch =
     /github\.event\.pull_request\.number\s*\|\|\s*github\.ref/.test(source) ||
     /github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name/.test(source);
-  if (!sourceUsesEventScopedSha && !sourceUsesPrOrBranch) {
+  const sourceUsesExactSha = /group:\s*[^\n]*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha/.test(source);
+  if (!sourceUsesEventScopedSha && !sourceUsesPrOrBranch && !sourceUsesExactSha) {
     console.error('CI contract failed: ' + file + ' must isolate runs by PR/branch or event-scoped exact SHA.');
     process.exit(1);
   }
