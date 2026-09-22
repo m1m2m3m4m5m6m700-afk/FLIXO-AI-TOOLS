@@ -17,6 +17,63 @@ assert.match(gate,/central-chair-lease\.mjs/);
 assert.match(gate,/MUTATION_GATE_CENTRAL_CHAIR_CONTEXT_MISSING/);
 assert.match(chair,/verifyCentralChairForMutation/);
 assert.match(chair,/CENTRAL_CHAIR_REQUIRED_FOR_MUTATION/);
+assert.match(chair,/const centralChairStrict = \(\) => process\.env\.NODE_ENV === 'test' \? process\.env\.FLIXO_STRICT_CHAIR === 'true' : true;/u);
+assert.doesNotMatch(chair,/process\.env\.CI === 'true' \|\| process\.env\.GITHUB_ACTIONS === 'true'/u);
+
+// Production-mode adversarial regression: environment flags cannot disable Central Chair-1 custody.
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync, spawnSync } from 'node:child_process';
+
+const probeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-chair-production-strict-'));
+fs.mkdirSync(path.join(probeRoot, 'scripts', 'ci'), { recursive: true });
+fs.copyFileSync('scripts/ci/chair-bound-execution.mjs', path.join(probeRoot, 'scripts', 'ci', 'chair-bound-execution.mjs'));
+fs.writeFileSync(path.join(probeRoot, 'scripts', 'ci', 'central-chair-lease.mjs'), 'process.exit(1);\n');
+execFileSync('git', ['init', '-q'], { cwd: probeRoot, encoding: 'utf8' });
+execFileSync('git', ['config', 'user.email', 'flixo-test@example.invalid'], { cwd: probeRoot, encoding: 'utf8' });
+execFileSync('git', ['config', 'user.name', 'FLIXO Strict Chair Test'], { cwd: probeRoot, encoding: 'utf8' });
+fs.writeFileSync(path.join(probeRoot, 'README.md'), 'probe\n');
+fs.mkdirSync(path.join(probeRoot, '.flixo', 'locks'), { recursive: true });
+execFileSync('git', ['add', '.'], { cwd: probeRoot, encoding: 'utf8' });
+execFileSync('git', ['commit', '-q', '-m', 'probe'], { cwd: probeRoot, encoding: 'utf8' });
+const probeSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: probeRoot, encoding: 'utf8' }).trim();
+const probeState = {
+  schemaVersion: 1,
+  authority: 'FLIXO_CHAIR_BOUND_EXECUTION',
+  repository_state: 'IDLE',
+  idle_timestamp: new Date().toISOString(),
+  target_sha: probeSha,
+  chairs: {
+    chair_1: { holder_agent_id: null, status: 'VACANT', permissions: [] },
+    chair_2: { holder_agent_id: null, status: 'VACANT', permissions: [] },
+    chair_3: { holder_agent_id: null, status: 'VACANT', permissions: [] }
+  }
+};
+const probeStatePath = path.join(probeRoot, '.flixo', 'locks', 'chairs.json');
+fs.writeFileSync(probeStatePath, JSON.stringify(probeState, null, 2) + '\n');
+const probe = spawnSync(
+  process.execPath,
+  ['--experimental-strip-types', 'scripts/ci/chair-bound-execution.mjs', 'acquire',
+    '--chair=chair_1', '--agent=EVIL_REPAIR_BOT', '--sha=' + probeSha,
+    '--repository-state=IDLE', '--task-id=STRICT-PROBE-TASK', '--work-package=STRICT-PROBE-WP'],
+  {
+    cwd: probeRoot,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      CI: 'false',
+      GITHUB_ACTIONS: 'false',
+      FLIXO_STRICT_CHAIR: 'false',
+      FLIXO_CHAIR_SIGNING_KEY: 'probe-key',
+      FLIXO_CHAIR_STATE_PATH: probeStatePath
+    }
+  }
+);
+assert.notEqual(probe.status, 0);
+assert.match(String(probe.stderr) + String(probe.stdout), /CENTRAL_CHAIR_REQUIRED_FOR_MUTATION/u);
+console.log('LOCAL_PRODUCTION_CHAIR_BYPASS=BLOCKED');
+
 assert.match(chair,/authorizePublication[\s\S]*verifyCentralChairForMutation/);
 assert.match(daily,/SUPABASE_SERVICE_ROLE_KEY: \$\{\{ secrets\.SUPABASE_SERVICE_ROLE_KEY \}\}/);
 assert.match(daily,/central-chair-lease\.mjs delegate/);
