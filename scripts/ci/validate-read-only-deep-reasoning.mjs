@@ -21,6 +21,10 @@ for (const marker of [
   'independentEvidenceSources',
   'requiresIndependentVerification: true',
   'noMutationAuthority: true',
+  'causalDiscriminator',
+  'metaCausalModel',
+  "CAUSAL-DISCRIMINATOR-v1",
+  "META-CAUSAL-MODEL-v1",
 ]) {
   if (!source.includes(marker)) failures.push('MISSING_MARKER=' + marker);
 }
