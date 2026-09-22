@@ -60,6 +60,7 @@ export function validateChangeReport(report) {
     reportId: String(report.reportId),
     idempotencyKey: String(report.idempotencyKey ?? report.reportId),
     agentId: String(report.agentId),
+    authority: String(report.authority),
     recipient: GUARD_ID,
     intent: String(report.intent ?? 'AGENT_CHANGE_REPORT'),
     taskId: String(report.taskId),
