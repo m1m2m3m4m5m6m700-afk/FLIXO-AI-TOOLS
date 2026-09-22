@@ -148,6 +148,15 @@ jobs:
           )
           MAX_POLLS=24
           POLL_SECONDS=15
+          declare -A REDISPATCHED=()
+          declare -A REQUIRED_FILES=(
+            ["FLIXO Test System"]="ci.yml"
+            ["FLIXO WP0 Trust Baseline"]="wp0-trust-baseline.yml"
+            ["FLIXO Test Impact"]="test-impact.yml"
+            ["FLIXO Test Impact Execution"]="test-impact-execution.yml"
+            ["Repository Security Baseline"]="repository-security-baseline.yml"
+            ["Claude Security Review"]="claude-security-review.yml"
+          )
           for ((poll=1; poll<=MAX_POLLS; poll++)); do
             gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100" > /tmp/flixo-watch/workflow-runs.json
             WAITING=false
@@ -155,7 +164,15 @@ jobs:
             for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
               RUN_JSON="$(jq -c --arg name "$workflow" --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == $name and .head_sha == $sha and .conclusion != "cancelled")] | sort_by(.updated_at) | last // empty' /tmp/flixo-watch/workflow-runs.json)"
               if [ -z "$RUN_JSON" ]; then
-                echo "SETTLEMENT_WAITING poll=$poll workflow=$workflow state=MISSING"
+                if [ "$poll" -gt 1 ] && [ -z "${REDISPATCHED[$workflow]+x}" ]; then
+                  FILE="${REQUIRED_FILES[$workflow]}"
+                  test -n "$FILE"
+                  echo "REQUIRED_CI_REDISPATCH workflow=$workflow file=$FILE sha=$EXECUTION_SHA reason=missing_or_cancelled"
+                  gh workflow run "$FILE" --repo "$GITHUB_REPOSITORY" --ref execution
+                  REDISPATCHED[$workflow]=1
+                else
+                  echo "SETTLEMENT_WAITING poll=$poll workflow=$workflow state=MISSING"
+                fi
                 WAITING=true
                 continue
               fi
