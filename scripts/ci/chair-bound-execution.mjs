@@ -206,6 +206,7 @@ function baseState(targetSha){
     target_sha:assertSha(targetSha,'TARGET_SHA'),
     push_proposals:[],
     rejected_push_memory:[],
+    preemption_history:[],
     chairs:Object.fromEntries(Object.entries(CHAIR_DEFINITIONS).map(([id,def])=>[id,{
       holder_agent_id:null,holder_role:null,status:'VACANT',permissions:[...def.permissions],acquired_at:null,target_sha:null,lease_id:null,review_id:null,scope:null,scope_hash:null,work_package_id:null,task_id:null,fencing_token:null,lease_started_at:null,heartbeat_at:null,heartbeat_count:0,primary_mission:chairPrimaryMission(id),mission_lock:id==='chair_1'?'UNTIL_TASK_COMPLETE':'UNSET',primary_mission:null,mission_lock:'UNSET'
     }]))
@@ -236,6 +237,7 @@ function validateState(state){
   if(state?.schemaVersion!==1||state?.authority!=='FLIXO_CHAIR_BOUND_EXECUTION')throw new Error('CHAIR_STATE_HEADER_INVALID');
   if(state.last_revoke!==undefined&&typeof state.last_revoke!=='object')throw new Error('CHAIR_LAST_REVOKE_INVALID');
   if(state.last_dead_lease!==undefined&&typeof state.last_dead_lease!=='object')throw new Error('CHAIR_LAST_DEAD_LEASE_INVALID');
+  if(state.preemption_history!==undefined&&!Array.isArray(state.preemption_history))throw new Error('CHAIR_PREEMPTION_HISTORY_INVALID');
   if(state.last_preemption!==undefined&&typeof state.last_preemption!=='object')throw new Error('CHAIR_LAST_PREEMPTION_INVALID');
   if(state.push_proposals!==undefined&&!Array.isArray(state.push_proposals))throw new Error('CHAIR_PUSH_PROPOSALS_INVALID');
   if(state.rejected_push_memory!==undefined&&!Array.isArray(state.rejected_push_memory))throw new Error('CHAIR_REJECTED_PUSH_MEMORY_INVALID');
@@ -325,7 +327,6 @@ export function preemptChair1ForMaster({agentId,targetSha=sha(),role=null,reposi
       return Object.freeze({admitted:true,reused:true,preempted:false,chairId:'chair_1',leaseId,targetSha:t,taskId:chair.task_id??null,workPackageId:chair.work_package_id??null});
     }
     if(chair.status==='OCCUPIED'){
-      if(chair.task_id!==null && chair.task_id!==undefined && String(chair.task_id).trim()!=='') throw new Error('CHAIR1_TASK_ACTIVE_NONPREEMPTABLE');
       const existingPriority=masterPriority(chair.holder_agent_id,chair.holder_role);
       if(existingPriority!==null&&existingPriority<=incomingPriority)throw new Error('CHAIR1_HIGHER_MASTER_ACTIVE');
       const displaced={
@@ -338,8 +339,11 @@ export function preemptChair1ForMaster({agentId,targetSha=sha(),role=null,reposi
       };
       clearChairRecord(chair,state);
       atomicChairRefAudit({chairId:'chair_1',targetSha:t,event:'MASTER_PREEMPT_REVOKE'});
-      state.last_preemption={
+      const continuity={
         schemaVersion:1,
+        status:'CONTINUING_AFTER_PREEMPTION',
+        mode:'HANDOFF_ONLY_AFTER_CHAIR_TRANSFER',
+        authority:'CHAIR_1_GUARD_CONTINUITY',
         reason:String(reason||'MASTER_CONNECTED'),
         masterAgentId:agentId,
         masterRole:String(role??agentId),
@@ -350,8 +354,15 @@ export function preemptChair1ForMaster({agentId,targetSha=sha(),role=null,reposi
         displacedWorkPackageId:displaced.workPackageId,
         displacedLeaseId:displaced.leaseId,
         targetSha:t,
-        at:now()
+        at:now(),
+        mutationAuthorityRevoked:true,
+        canContinueTask:true,
+        canMutateAfterPreemption:false,
+        mustHandoffTo:'CHAIR_1_GUARD'
       };
+      state.last_preemption=continuity;
+      state.preemption_history=Array.isArray(state.preemption_history)?state.preemption_history.slice(-99):[];
+      state.preemption_history.push(continuity);
     }
     const wp=workPackageId===null?null:assertContextId(workPackageId,'WORK_PACKAGE_ID');
     const task=taskId===null?null:assertContextId(taskId,'TASK_ID');
@@ -621,12 +632,35 @@ export function activeChairForAgent({agentId,targetSha=sha()}={}){
   return found[0]??null;
 }
 
+export function preemptedContinuityForAgent({agentId,targetSha=sha(),taskId=null}={}){
+  assertAgent(agentId);
+  const t=assertSha(targetSha,'TARGET_SHA');
+  if(t!==sha())throw new Error('STALE_CONTEXT');
+  const state=readState();
+  const preemption=state.last_preemption;
+  if(preemption?.targetSha!==t||preemption?.displacedAgentId!==agentId)return null;
+  if(taskId!==null && taskId!==undefined && String(preemption.displacedTaskId??'')!==String(taskId))return null;
+  if(preemption.status!=='CONTINUING_AFTER_PREEMPTION')return null;
+  return Object.freeze({
+    continuity:true,
+    status:preemption.status,
+    authority:preemption.authority,
+    agentId,
+    taskId:preemption.displacedTaskId??null,
+    workPackageId:preemption.displacedWorkPackageId??null,
+    targetSha:t,
+    mutationAuthorityRevoked:true,
+    canContinueTask:true,
+    canMutateAfterPreemption:false,
+    handoffTo:preemption.mustHandoffTo
+  });
+}
+
 export function assertWorkAdmission({agentId,targetSha=sha(),chairId=null,taskId=null}={}){
   const active=activeChairForAgent({agentId,targetSha});
   if(!active){
-    const state=readState();
-    const preemption=state.last_preemption;
-    if(preemption?.targetSha===String(targetSha)&&preemption?.displacedAgentId===agentId&&preemption?.displacedTaskId!==null&&String(preemption.displacedTaskId)===String(taskId??''))throw new Error('AGENT_WORK_CHAIR_PREEMPTED');
+    const continuity=preemptedContinuityForAgent({agentId,targetSha,taskId});
+    if(continuity)return continuity;
     throw new Error('AGENT_WORK_REQUIRES_CHAIR');
   }
   if(chairId&&active.chairId!==chairId)throw new Error('AGENT_WORK_CHAIR_MISMATCH');
@@ -639,8 +673,8 @@ export function beginWork({agentId,targetSha=sha(),requestedChairId=null,reposit
   if(t!==sha())throw new Error('STALE_CONTEXT');
   const existing=activeChairForAgent({agentId,targetSha:t});
   if(existing)return Object.freeze({admitted:true,reused:true,...existing});
-  const lastPreemption=readState().last_preemption;
-  if(lastPreemption?.targetSha===t&&lastPreemption.displacedAgentId===agentId&&lastPreemption.displacedTaskId!==null&&String(lastPreemption.displacedTaskId)===String(taskId??''))throw new Error('AGENT_WORK_CHAIR_PREEMPTED');
+  const continuity=preemptedContinuityForAgent({agentId,targetSha:t,taskId});
+  if(continuity)return Object.freeze({admitted:true,reused:false,continuity:true,chairId:null,leaseId:null,targetSha:t,taskId:continuity.taskId,workPackageId:continuity.workPackageId,authority:continuity.authority,mutationAuthorityRevoked:true,canContinueTask:true,canMutateAfterPreemption:false,handoffTo:continuity.handoffTo});
   const chairId=String(requestedChairId??'chair_1').trim()||'chair_1';
   if(chairId!=='chair_1' && chairId!=='chair_2' && chairId!=='chair_3')throw new Error('CHAIR_UNKNOWN');
   if(chairId!=='chair_1')throw new Error('CHAIR_AUTO_ADMISSION_MUST_USE_CHAIR_1');
