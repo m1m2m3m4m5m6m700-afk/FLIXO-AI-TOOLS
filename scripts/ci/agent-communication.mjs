@@ -58,7 +58,7 @@ export const MASTER_GROUP = 'MASTERS';
 const masterIds = new Set(MASTER_IDS);
 const validatePrivilegedTransportIdentity = (message) => {
   const actor=String(message?.actor??'').trim();
-  const privileged=masterIds.has(actor) || isAdministrativeInstruction(message);
+  const privileged=masterIds.has(actor);
   if(!privileged) return;
   const identity=message?.transportIdentity;
   if(process.env.NODE_ENV==='test' && identity?.testHarness===true) return;
