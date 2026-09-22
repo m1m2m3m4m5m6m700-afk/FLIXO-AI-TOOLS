@@ -103,6 +103,9 @@ env:
   # Independent Actions learning owner.
   FLIXO_ACTION_INDEX_BOT_ID: ACTION-INDEX
   FLIXO_ACTION_MASTER: repairAgent
+  FLIXO_AUTO_REPAIR_ROLE: AUTO_REPAIR_BOT
+  FLIXO_AUTO_REPAIR_CHAIR_AUDIT_REQUIRED: 'true'
+  FLIXO_AUTO_REPAIR_SELF_APPROVAL: 'false'
 
 jobs:
   resident:
@@ -1013,7 +1016,7 @@ jobs:
           printf '%s\n' "$LEARNING_OUTCOME" > /tmp/flixo-learning-outcome
 
       - name: Promote verified repair learning state
-        if: steps.verify.outputs.verified == 'true'
+        if: steps.verify.outputs.verified == 'true' && steps.chair1_audit.outcome == 'success'
         run: |
           set -euo pipefail
           test -s /tmp/flixo-repair-memory.json
@@ -1130,9 +1133,69 @@ jobs:
           echo 'TARGETED_REGRESSION_AND_ADVERSARIAL=PASS'
           echo 'FLIXO_AGENT_ADVERSARIAL_EVIDENCE=/tmp/flixo-postpatch-adversarial.json' >> "$GITHUB_ENV"
           echo 'FLIXO_CANDIDATE_VERIFICATION=/tmp/flixo-candidate-verification.json' >> "$GITHUB_ENV"
+      - name: Strict Chair-1 audit of every Auto Repair candidate
+        id: chair1_audit
+        if: steps.candidate_verification.outcome == 'success'
+        env:
+          FLIXO_REPAIR_EVIDENCE_PATH: /tmp/flixo-repair-evidence.json
+          FLIXO_CANDIDATE_VERIFICATION: /tmp/flixo-candidate-verification.json
+          FLIXO_ADVERSARIAL_EVIDENCE: /tmp/flixo-postpatch-adversarial.json
+          FLIXO_CHAIR1_PROPOSAL: /tmp/flixo-chair1-proposal.json
+          FLIXO_CHAIR1_AUDIT: /tmp/flixo-chair1-audit.json
+          FLIXO_CHAIR1_LESSON: /tmp/flixo-chair1-learning.json
+        run: |
+          set -euo pipefail
+          CANDIDATE_SHA="$(cat /tmp/flixo-candidate-sha)"
+          PARENT_SHA="$(git rev-parse "$CANDIDATE_SHA^")"
+          node scripts/ci/auto-repair-chair1-audit.mjs             --actor=AUTO_REPAIR_BOT             --required-reviewer=chair_1             --candidate="$CANDIDATE_SHA"             --parent="$PARENT_SHA"             --evidence="$FLIXO_REPAIR_EVIDENCE_PATH"             --verification="$FLIXO_CANDIDATE_VERIFICATION"             --adversarial="$FLIXO_ADVERSARIAL_EVIDENCE"             --proposal="$FLIXO_CHAIR1_PROPOSAL"             --output="$FLIXO_CHAIR1_AUDIT"             --lesson-output="$FLIXO_CHAIR1_LESSON"             --run-id="$GITHUB_RUN_ID"             --task-id="ACTION-REPAIR:$TARGET_RUN_ID:$FLIXO_FAILURE_FINGERPRINT"             --work-package="REPAIR:$TARGET_RUN_ID:$FLIXO_FAILURE_FINGERPRINT"
+          jq -e --arg candidate "$CANDIDATE_SHA"             '.protocol=="FLIXO-AUTO-REPAIR-CHAIR1-AUDIT-v1" and .chairId=="chair_1" and .proposerAgent=="AUTO_REPAIR_BOT" and .reviewerAgent=="CHAIR_1_AUDITOR" and .decision=="APPROVED" and .candidateSha==$candidate and .exactSha==true and (.reasonCodes|length)==0'             "$FLIXO_CHAIR1_AUDIT" >/dev/null
+          echo "FLIXO_CHAIR1_REVIEW_STATUS=APPROVED" >> "$GITHUB_ENV"
+          echo 'CHAIR1_AUDIT=APPROVED'
+          echo 'CHAIR1_REVIEW_AUTHORITY=STRICT_INDEPENDENT_AUDITOR'
+      - name: Feed rejected Chair-1 findings back into Repair Agent learning
+        if: always() && steps.chair1_audit.outcome == 'failure'
+        run: |
+          set -euo pipefail
+          test -s /tmp/flixo-chair1-learning.json
+          test -s /tmp/flixo-repair-memory.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const memoryPath = '/tmp/flixo-repair-memory.json';
+          const lesson = JSON.parse(fs.readFileSync('/tmp/flixo-chair1-learning.json','utf8'));
+          const memory = JSON.parse(fs.readFileSync(memoryPath,'utf8'));
+          memory.antiLessons = Array.isArray(memory.antiLessons) ? memory.antiLessons : [];
+          const fingerprint = String(lesson.failureFingerprint || 'chair1-rejection');
+          const id = 'CHAIR1:' + fingerprint + ':' + String(lesson.candidateSha || '').slice(0, 12) + ':' + String(lesson.failures?.[0]?.code || 'REJECTED');
+          if (!memory.antiLessons.some((item) => item.id === id)) {
+            memory.antiLessons.push({
+              id,
+              fingerprint,
+              rootCause: 'chair1-review',
+              rule: lesson.rule,
+              anti: true,
+              repairAgent: lesson.repairAgent,
+              repairWeakness: lesson.repairWeakness,
+              failures: lesson.failures,
+              preventionRules: ['REJECT_UNVERIFIED_AUTO_REPAIR', 'REQUIRE_EXACT_SHA_DIFF_PROOF', 'REQUIRE_ADVERSARIAL_PASS_BEFORE_PUBLICATION'],
+              evidence: lesson.evidence,
+              createdAt: lesson.createdAt,
+            });
+          }
+          fs.writeFileSync(memoryPath, JSON.stringify(memory, null, 2) + '\\n');
+          NODE
+          echo 'AUTO_REPAIR_TEACHING=CHAIR1_REJECTION_RECORDED'
+          echo 'CHAIR1_REVIEW_STATUS=REJECTED' >> "$GITHUB_ENV"
+      - name: Require Chair-1 approval before Auto Repair publication
+        if: steps.chair1_audit.outcome != 'success'
+        run: |
+          set -euo pipefail
+          echo 'FAIL CLOSED: Auto Repair candidate was not approved by the independent Chair-1 strict audit.'
+          echo 'AUTO_REPAIR_PUBLICATION=BLOCKED_BY_CHAIR1'
+          exit 1
+
       - name: Publish exact candidate commit only after post-patch adversarial validation
         id: publish_candidate
-        if: steps.candidate_verification.outcome == 'success'
+        if: steps.chair1_audit.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
