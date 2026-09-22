@@ -37,7 +37,8 @@ const parallel=fs.readFileSync('scripts/ci/candidate-verification-parallel.mjs',
 assert.match(parallel,/FLIXO-CANDIDATE-PARALLEL-VERIFICATION-v1/);
 assert.match(parallel,/targetedRegression/);
 assert.match(parallel,/adversarialNoCounterexample/);
-assert.match(parallel,/killGroup\(assessor.child\)/);
+assert.match(parallel,/falsifierVerdict==='PASS_CONFIRMED'/);
+assert.match(parallel,/finiteInvariantProof\?\.status==='PROVEN'/);
 assert.match(parallel,/killGroup\(regression.child\)/);
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-twin-test-'));
