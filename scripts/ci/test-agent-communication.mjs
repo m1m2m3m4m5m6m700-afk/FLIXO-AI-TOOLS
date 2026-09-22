@@ -30,6 +30,13 @@ const inbox = path.resolve(root, 'diagnostics/agents/inbox');
 const key = (await import('node:crypto')).createHash('sha256').update(id, 'utf8').digest('hex');
 const messageFile = path.join(inbox, key + '.json');
 const indexFile = path.join(inbox, 'index.json');
+const masterSpoof={...base, messageId:id+'-MASTER-SPOOF', idempotencyKey:id+'-MASTER-SPOOF', actor:'MASTER-1', recipient:'assistantController', intent:'ADMIN_COUNCIL_INSTRUCTION', risk:'HIGH', councilOperation:true, administrativeInstruction:true, payload:{administrativeInstruction:true,councilOperation:true}};
+assert.throws(()=>validateMessage(masterSpoof,sha),/AGENT_MESSAGE_PRIVILEGED_TRANSPORT_REQUIRED/);
+const masterTrusted={...masterSpoof,transportIdentity:{testHarness:true}};
+const masterRecord=validateMessage(masterTrusted,sha);
+assert.equal(masterRecord.actor,'MASTER-1');
+console.log('MASTER_TRANSPORT_IDENTITY=PASS');
+
 const originalIndex = fs.existsSync(indexFile) ? fs.readFileSync(indexFile, 'utf8') : null;
 
 try {
