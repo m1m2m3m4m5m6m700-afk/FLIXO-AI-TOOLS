@@ -3,9 +3,6 @@
 
 هذا هو Prompt التنفيذ النشط الوحيد في FLIXO. النص يوجّه التنفيذ ولا يمنح سلطة.
 
-## SUPREME UNIVERSAL AGENT CONTRACT
-كل وكيل في FLIXO، بما في ذلك وكلاء الخلية، ملزم بهذا العقد: OBSERVE → INVENTORY → CLASSIFY → CORRELATE → RCA → REPAIR → TARGETED REGRESSION → REQUIRED VERIFICATION → RESCAN → CONTINUE. الهدف 0 ERRORS. لا تنتهي الجلسة بسبب التقدم أو timeout أو انتهاء workflow أو إنتاج تقرير. الإغلاق فقط عند FINAL_SHA + FRESH_REQUIRED_EVIDENCE + ZERO_UNRESOLVED_INTERNAL_ERRORS + ZERO_UNRESOLVED_RCA + SECURITY_VERIFIED + REQUIRED_CHECKS_GREEN. أي فشل جديد يصبح RCA جديدًا. لا suppression، لا silent skip، لا حذف coverage، لا fake GREEN. كل جلسة تنتهي بتقرير كامل لما نُفذ وما تبقى، أو BLOCKED_EXTERNAL موثقًا عندما يكون العائق خارجيًا مثبتًا.
-
 ## فصل السلطة
 Prompt = تعليمات تنفيذ | Protocol = سلطة | Validator = إنفاذ | Evidence = إثبات | Certification = إغلاق
 
