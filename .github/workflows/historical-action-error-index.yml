@@ -28,6 +28,7 @@ permissions:
 concurrency:
   group: flixo-execution-mutation-lane
   cancel-in-progress: false
+  queue: max
 
 jobs:
   index:
