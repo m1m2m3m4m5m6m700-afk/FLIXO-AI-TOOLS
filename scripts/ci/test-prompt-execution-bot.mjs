@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { buildWorkPackage } from './prompt-execution-bot.mjs';
+import { buildAdversarialFailureReport, buildAdversarialReview, runAdversarialCorrectionLoop } from './prompt-execution-bot-adversary.mjs';
 
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 
@@ -58,3 +59,33 @@ assert.equal(loopPlan.adversarialFailureReport.reportDigest.length, 64);
 assert.ok(loopPlan.adversarialLoop.round >= 1);
 if (loopPlan.adversarialLoop.accepted) assert.equal(loopPlan.adversarialFailureReport.failureCount, 0);
 console.log('PROMPT_EXECUTION_BOT_ADVERSARIAL_LOOP=PASS');
+
+const loopPlan = buildWorkPackage('نفذ إصلاح CI مع Exact-SHA والتحقق الكامل ولا تغلق المهمة قبل إثبات الأدلة.');
+assert.ok(loopPlan.adversarialLoop);
+assert.ok(Array.isArray(loopPlan.adversarialLoop.rounds));
+assert.equal(typeof loopPlan.adversarialFailureReport.clean, 'boolean');
+assert.equal(loopPlan.adversarialFailureReport.targetSha, loopPlan.executionSha);
+assert.equal(loopPlan.adversarialFailureReport.reportDigest.length, 64);
+assert.ok(loopPlan.adversarialLoop.round >= 1);
+if (loopPlan.adversarialLoop.accepted) assert.equal(loopPlan.adversarialFailureReport.failureCount, 0);
+console.log('PROMPT_EXECUTION_BOT_ADVERSARIAL_LOOP=PASS');
+
+const weakened = {
+  ...loopPlan,
+  workPackage: {
+    ...loopPlan.workPackage,
+    proofObligations: ['CURRENT_EXACT_EXECUTION_SHA'],
+    dependencies: [],
+  },
+  promptSafety: { noDirectMainMutation: false },
+};
+const weakenedReview = buildAdversarialReview({ prompt: loopPlan.userPrompt, plan: weakened });
+const weakenedReport = buildAdversarialFailureReport(weakenedReview);
+assert.equal(weakenedReport.clean, false);
+assert.ok(weakenedReport.failureCount > 0);
+assert.ok(weakenedReport.failures.some((item) => item.severity === 'BLOCKING'));
+assert.equal(weakenedReview.authority, 'NO_MUTATION_NO_CERTIFICATION');
+const corrected = runAdversarialCorrectionLoop({ prompt: loopPlan.userPrompt, plan: weakened, maxRounds: 4 });
+assert.equal(corrected.accepted, false);
+assert.ok(corrected.failureReport.failureCount > 0);
+console.log('PROMPT_EXECUTION_BOT_ADVERSARIAL_NEGATIVE=PASS');
