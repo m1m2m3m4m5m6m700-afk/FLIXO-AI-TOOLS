@@ -72,11 +72,16 @@ jobs:
           EVENT_BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
+          [[ "$EVENT_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
+          case "$EVENT_BRANCH" in
+            main|execution) ;;
+            *) echo "FAIL CLOSED: unexpected watchdog event branch"; exit 1 ;;
+          esac
           if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$EVENT_BRANCH" = "execution" ]; then
             EXECUTION_SHA="$EVENT_SHA"
           elif [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
+            [[ "$SOURCE_RUN_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
             EXECUTION_SHA="$SOURCE_RUN_SHA"
-            test -n "$EXECUTION_SHA"
           else
             EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           fi
