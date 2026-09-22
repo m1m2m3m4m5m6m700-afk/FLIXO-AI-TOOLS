@@ -107,6 +107,7 @@ export function validateStatic() {
   must(/checks:\s*read/.test(auto), 'auto-repair-check-permission');
   must(/group:\s*flixo-execution-mutation-lane/.test(auto), 'auto-repair-global-mutation-lane');
   must(/cancel-in-progress:\s*false/.test(auto), 'auto-repair-single-lane');
+  must(/queue:\s*max/.test(auto), 'auto-repair-mutation-queue-max');
   must(/execution-mutation-gate\.mjs\s+admit/.test(auto) && /execution-mutation-gate\.mjs\s+verify/.test(auto), 'auto-repair-mutation-gate-wired');
   must(/chair-bound-execution\.mjs\s+acquire/.test(auto) && /chair-bound-execution\.mjs\s+authorize-write/.test(auto), 'auto-repair-chair-wired');
   must(/FLIXO_REQUIRE_FENCED_CHAIR:\s*['"]true['"]/.test(auto), 'auto-repair-fenced-chair-required');
