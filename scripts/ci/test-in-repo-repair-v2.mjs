@@ -93,7 +93,8 @@ const passVerdict = buildFalsifierVerdict({
   manifest,
   actualFailures: [],
   mutantCasesSurvived: 0,
-  targetSha: sha,
+  sourceSha: sha,
+  targetSha: candidateSha,
   patch: '',
   changedPaths: ['src/test.ts'],
 });
