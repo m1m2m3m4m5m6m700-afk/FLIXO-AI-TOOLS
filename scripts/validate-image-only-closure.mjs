@@ -25,7 +25,7 @@ assert.match(outputContract, /ToolOutputKind = /, 'output kind contract is missi
 assert.match(outputContract, /'image'/, 'image output kind disappeared');
 
 const fileSafety = read('src/lib/contracts/file-safety.ts');
-assert.ok(fileSafety.includes('ToolFileSafety'), 'file-safety contract is missing');
+assert.match(fileSafety, /export type FileSafetyInput|export type FileSafetyPolicy/, 'file-safety contract is missing');
 
 const g3 = read('scripts/test-g3-artifact-integrity.mjs');
 assert.match(g3, /g3-image-batch-package/, 'ZIP packaging coverage disappeared without an explicit contract decision');
