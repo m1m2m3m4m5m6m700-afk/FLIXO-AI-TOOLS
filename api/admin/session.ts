@@ -10,7 +10,7 @@ import {
 } from './boundary.ts';
 import { verifyAdminPassword } from './credentials.ts';
 import { activeCapabilitiesForRole } from '../../src/lib/admin/roles.ts';
-import { persistAdminSession, revokeAdminSession, isAdminSessionStoreConfigured, getAdminSessionRecord } from './session-store.ts';
+import { persistAdminSession, revokeAdminSession, isAdminSessionStoreConfigured, getAdminSessionState } from './session-store.ts';
 
 type AdminRequest = IncomingMessage & { body?: unknown };
 type BodyRecord = Record<string, unknown>;
@@ -18,6 +18,7 @@ type BodyRecord = Record<string, unknown>;
 const LOGIN_TTL_SECONDS = 60 * 60;
 const LOGIN_LIMIT = 10;
 const LOGIN_WINDOW_MS = 60_000;
+const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 const loginBuckets = new Map<string, { attempts: number; resetAt: number }>();
 
 const json = (res: ServerResponse, status: number, body: unknown, correlationId: string, extraHeaders: Record<string, string> = {}) => {
@@ -38,10 +39,15 @@ const correlationIdFor = (req: AdminRequest) => {
     : randomUUID();
 };
 
+const trustedProxyHeaders = () =>
+  process.env.FLIXO_TRUST_PROXY_HEADERS === 'true'
+  || process.env.VERCEL === '1';
+
 const clientIpFor = (req: AdminRequest) => {
+  if (!trustedProxyHeaders()) return 'unknown';
   const forwarded = headerValue(req.headers['x-forwarded-for']);
   if (forwarded) {
-    const first = forwarded.split(',')[0]?.trim();
+    const first = forwarded.split(',').map((value) => value.trim()).filter(Boolean)[0];
     if (first) return first;
   }
   const real = headerValue(req.headers['x-real-ip']);
@@ -76,6 +82,11 @@ const rateAllowed = (ip: string) => {
 };
 
 const parseBody = async (req: AdminRequest): Promise<BodyRecord | null> => {
+  const declaredLength = headerValue(req.headers['content-length']);
+  if (declaredLength !== undefined) {
+    const size = Number(declaredLength);
+    if (!Number.isFinite(size) || size < 0 || size > MAX_REQUEST_BODY_BYTES) return null;
+  }
   if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) return req.body as BodyRecord;
   if (typeof req.body === 'string' || Buffer.isBuffer(req.body)) {
     try {
@@ -87,8 +98,14 @@ const parseBody = async (req: AdminRequest): Promise<BodyRecord | null> => {
   }
 
   const chunks: Buffer[] = [];
+  let totalBytes = 0;
   try {
-    for await (const chunk of req as AsyncIterable<Buffer | string>) chunks.push(Buffer.from(chunk));
+    for await (const chunk of req as AsyncIterable<Buffer | string>) {
+      const buffer = Buffer.from(chunk);
+      totalBytes += buffer.byteLength;
+      if (totalBytes > MAX_REQUEST_BODY_BYTES) return null;
+      chunks.push(buffer);
+    }
   } catch {
     return null;
   }
@@ -123,8 +140,12 @@ export default async function adminSession(req: AdminRequest, res: ServerRespons
     if (!isAdminSessionStoreConfigured()) return fail(res, 503, 'session_store_unavailable', correlationId);
     let record: Awaited<ReturnType<typeof getAdminSessionRecord>>;
     try {
-      record = await getAdminSessionRecord(session.sessionId);
-      if (!record || record.revoked_at || Date.parse(record.expires_at) <= Date.now()) return fail(res, 401, 'authentication_required', correlationId);
+      const state = await getAdminSessionState(session.sessionId, {
+        token: readAdminSessionToken(req.headers.cookie) ?? undefined,
+        subject: session.subject,
+        role: session.role,
+      });
+      if (state !== 'ACTIVE') return fail(res, 401, 'authentication_required', correlationId);
     } catch {
       return fail(res, 503, 'session_store_unavailable', correlationId);
     }
