@@ -8,7 +8,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: flixo-execution-canonical-sync
+  group: flixo-execution-mutation-lane
   cancel-in-progress: false
 
 jobs:
@@ -26,6 +26,10 @@ jobs:
       - name: Reconcile current execution divergence without rewriting history
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          FLIXO_REQUIRE_FENCED_CHAIR: 'true'
+          FLIXO_CHAIR_SIGNING_KEY: ${{ github.token }}
+          FLIXO_MUTATION_ADMISSION: /tmp/flixo-mutation-admission.json
         run: |
           set -euo pipefail
           git fetch --no-tags origin main execution
@@ -86,35 +90,30 @@ jobs:
 
           # Execution sync is reconciliation-only: do not execute target-branch package scripts with write authority.
           # Canonical Test System remains the verifier for the resulting execution SHA.
-
-          # Reconcile concurrent execution writes before publishing. Any remote
-          # change incorporated after the verified merge is re-verified before push.
-          PUSHED=false
-          for attempt in 1 2 3 4 5; do
-            git fetch origin execution
-            PRE_PUBLISH_SHA="$(git rev-parse HEAD)"
-            if git merge-base --is-ancestor HEAD origin/execution; then
-              git merge --ff-only origin/execution
-            elif git merge-base --is-ancestor origin/execution HEAD; then
-              :
-            else
-              git merge --no-edit origin/execution
-            fi
-            test -z "$(git status --porcelain=v1 --untracked-files=all)"
-            git diff --check
-            if [ "$(git rev-parse HEAD)" != "$PRE_PUBLISH_SHA" ]; then
-              git diff --check
-            fi
-            if git push origin HEAD:execution; then
-              PUSHED=true
-              break
-            fi
-            sleep $((attempt * 2))
-          done
-          test "$PUSHED" = true
-          git fetch origin execution
-          NEW_SHA="$(git rev-parse origin/execution)"
-          test "$NEW_SHA" != "$EXEC_SHA"
+          # Never absorb a concurrent execution writer into this reconciliation candidate.
+          git fetch --no-tags origin execution
+          test "$(git rev-parse origin/execution)" = "$EXEC_SHA" || {
+            echo "FAIL CLOSED: execution advanced while canonical sync was preparing its candidate."
+            exit 1
+          }
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          git diff --check
+          MUTATION_PATHS="$(git diff --name-only "$EXEC_SHA" HEAD | paste -sd, -)"
+          test -n "$MUTATION_PATHS" || { echo 'No reconciliation diff remains; refusing empty execution mutation.'; exit 0; }
+          WORK_PACKAGE_ID="EXECUTION-SYNC:$GITHUB_RUN_ID"
+          TASK_ID="EXECUTION-SYNC:$GITHUB_RUN_ID"
+          node scripts/ci/execution-mutation-gate.mjs admit --owner=EXECUTION_SYNC --sha="$EXEC_SHA" --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --paths="$MUTATION_PATHS" --output="$FLIXO_MUTATION_ADMISSION"
+          FENCING_TOKEN="$(jq -r '.fencingToken' "$FLIXO_MUTATION_ADMISSION")"
+          node scripts/ci/chair-bound-execution.mjs init --sha="$EXEC_SHA"
+          node scripts/ci/chair-bound-execution.mjs acquire --chair=chair_1 --agent=EXECUTION_SYNC --sha="$EXEC_SHA" --repository-state=IDLE --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --scope="*" >/tmp/flixo-chair-acquire.json
+          node scripts/ci/chair-bound-execution.mjs authorize-write --chair=chair_1 --agent=EXECUTION_SYNC --sha="$EXEC_SHA" --permission=SOURCE_MUTATION --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --paths="*" >/tmp/flixo-chair-authorize.json
+          CANDIDATE_SHA="$(git rev-parse HEAD)"
+          node scripts/ci/execution-mutation-gate.mjs verify --phase=pre-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA" --parent="$EXEC_SHA"
+          node scripts/ci/chair-bound-execution.mjs authorize-publication --chair=chair_1 --agent=EXECUTION_SYNC --sha="$EXEC_SHA" --permission=SOURCE_MUTATION --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --paths="$MUTATION_PATHS" >/tmp/flixo-chair-publication.json
+          git push origin HEAD:execution
+          node scripts/ci/execution-mutation-gate.mjs verify --phase=post-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA"
+          NEW_SHA="$CANDIDATE_SHA"
+          node scripts/ci/chair-bound-execution.mjs release --chair=chair_1 --agent=EXECUTION_SYNC --sha="$EXEC_SHA" --successful=true >/tmp/flixo-chair-release.json
           PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
           if [ -n "$PR_URL" ]; then
             echo "Open execution → main PR detected: $PR_URL"
