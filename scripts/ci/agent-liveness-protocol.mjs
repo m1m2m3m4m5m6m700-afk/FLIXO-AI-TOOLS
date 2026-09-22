@@ -161,14 +161,14 @@ export function buildRecoveryDirective({ reason, currentState = 'ACTIVE', newEvi
 }
 
 
-export function assertActiveRepairWindow({ startedAt, now = Date.now() } = {}) {
-  const start = Date.parse(String(startedAt ?? ''));
+export function assertActiveRepairWindow({ startedAt, continuousStartedAt = startedAt, now = Date.now() } = {}) {
+  const start = Date.parse(String(continuousStartedAt ?? startedAt ?? ''));
   if (!Number.isFinite(start)) throw new Error('AGENT_LIVENESS_ACTIVE_WINDOW_START_REQUIRED');
   const elapsedMs = Math.max(0, Number(now) - start);
   if (elapsedMs < AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs) {
     throw new Error(`AGENT_LIVENESS_ACTIVE_WINDOW_NOT_COMPLETE=\${Math.ceil((AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs - elapsedMs) / 1000)}s`);
   }
-  return Object.freeze({ ok: true, elapsedMs, minimumMs: AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs });
+  return Object.freeze({ ok: true, elapsedMs, minimumMs: AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs, continuous: true });
 }
 
 export function sessionTerminationDirective({ canonicalGreen = false, activeRepairWindowReached = false, reason = 'SESSION_BUDGET_EXHAUSTED' } = {}) {
