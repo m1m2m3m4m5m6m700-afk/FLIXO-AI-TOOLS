@@ -54,6 +54,7 @@ export function decideAdversarialRound({
   adversarialReport,
   targetSha,
   currentSha,
+  adversaryExit = 0,
 } = {}) {
   if (!SHA_RE.test(String(targetSha ?? '')) || currentSha !== targetSha) {
     return Object.freeze({
@@ -95,9 +96,13 @@ export function decideAdversarialRound({
       counterexample: adversarialReport?.falsificationSearches?.filter((item) => item?.counterexampleStatus === 'COUNTEREXAMPLE_FOUND') ?? [],
     });
   }
-  if (adversarialReport?.status !== 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE'
+  if (adversaryExit !== 0
+      || adversarialReport?.status !== 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE'
       || adversarialReport?.falsificationComplete !== true
-      || adversarialReport?.counterexampleFound !== false) {
+      || adversarialReport?.counterexampleFound !== false
+      || !Array.isArray(adversarialReport?.falsificationSearches)
+      || adversarialReport.falsificationSearches.length < 10
+      || (Array.isArray(adversarialReport?.remainingRisks) && adversarialReport.remainingRisks.length > 0)) {
     return Object.freeze({
       decision: 'REPAIR_REQUIRED',
       bothSidesStable: false,
@@ -310,6 +315,7 @@ function main() {
     const decision = decideAdversarialRound({
       engineEvidence: evidence,
       adversarialReport,
+      adversaryExit: twinExit,
       targetSha: baseSha,
       currentSha: git(['rev-parse', 'HEAD']),
     });
