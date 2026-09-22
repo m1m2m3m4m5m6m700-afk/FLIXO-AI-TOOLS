@@ -62,6 +62,14 @@ export function buildAdversarialFailureReport(review) {
     failure: item.challenge,
     repairAction: { type: 'BOT_SELF_CORRECTION', instruction: 'Re-evaluate and correct ' + item.id + ' using current evidence; do not invent missing authority, task IDs, or repository facts.' },
   }));
+  for (const counterexample of review.counterexamples) {
+    failures.push({
+      checkId: counterexample,
+      evidence: 'Adversarial counterexample detected.',
+      failure: 'A blocking counterexample prevents acceptance.',
+      repairAction: { type: 'GUARD_BLOCK', instruction: 'Do not bypass this counterexample. Stop, preserve evidence, and route to the appropriate guard or authorized repair path.' },
+    });
+  }
   const clean = review.status === 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE' && failures.length === 0 && review.counterexamples.length === 0;
   return Object.freeze({ schemaVersion: 1, protocol: review.protocol, challengeId: review.challengeId, targetSha: review.targetSha, clean, failureCount: failures.length, failures, repairActions: failures.map((item) => item.repairAction), nextStep: clean ? 'ACCEPT_TASK_FOR_AUTHORIZED_EXECUTOR' : 'CORRECT_BOT_PLAN_AND_RERUN_ADVERSARY', reportDigest: digest(JSON.stringify({ targetSha: review.targetSha, challengeId: review.challengeId, failures })) });
 }
