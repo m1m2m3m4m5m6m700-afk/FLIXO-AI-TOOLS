@@ -304,14 +304,14 @@ export const buildFiveXRepairCycleState = buildTenXRepairCycleState;
 
 export function validateReadOnlyPowerProfile(profile = READ_ONLY_POWER_PROFILE) {
   const failures = [];
-  if (profile?.profile !== '10X') failures.push('PROFILE_NOT_5X');
-  if (profile?.multiplier !== 10) failures.push('MULTIPLIER_NOT_5');
+  if (profile?.profile !== '10X') failures.push('PROFILE_NOT_10X');
+  if (profile?.multiplier !== 10) failures.push('MULTIPLIER_NOT_10');
   if (profile?.authority !== 'READ_ONLY') failures.push('AUTHORITY_NOT_READ_ONLY');
   if (profile?.mutationAuthority !== false) failures.push('MUTATION_AUTHORITY_LEAK');
   if (profile?.exactShaRequired !== true) failures.push('EXACT_SHA_REQUIREMENT_MISSING');
   if (!Array.isArray(profile?.layers) || profile.layers.length !== 10) failures.push('TEN_LAYERS_REQUIRED');
   for (const [key, value] of Object.entries(profile?.dimensions ?? {})) {
-    if (value !== 10) failures.push('DIMENSION_NOT_5=' + key);
+    if (value !== 10) failures.push('DIMENSION_NOT_10=' + key);
   }
   for (const rule of profile?.safety ?? []) {
     if (!String(rule).startsWith('NO_') && rule !== 'EXACT_SHA_BOUND') failures.push('UNRECOGNIZED_SAFETY_RULE=' + rule);
