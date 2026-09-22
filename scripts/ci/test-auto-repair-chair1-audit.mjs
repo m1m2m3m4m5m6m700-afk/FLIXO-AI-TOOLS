@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const auditScript = path.join(repoRoot, 'scripts/ci/auto-repair-chair1-audit.mjs');
@@ -31,6 +32,27 @@ const adversarialPath = path.join(temp, 'adversarial.json');
 const proposalPath = path.join(temp, 'proposal.json');
 const auditPath = path.join(temp, 'audit.json');
 const lessonPath = path.join(temp, 'lesson.json');
+const approvalPath = path.join(temp, 'external-approval.json');
+const taskId = 'CHAIR1-AUDIT-TEST';
+const workPackageId = 'CHAIR1-AUDIT-WP';
+const approvalPayload = {
+  protocol: 'FLIXO-CHAIR1-EXTERNAL-APPROVAL-v1',
+  reviewerAgent: 'CHAIR_1_AUDITOR',
+  decision: 'APPROVED',
+  taskId,
+  workPackageId,
+  targetSha: parentSha,
+  parentSha,
+  candidateSha,
+};
+const approvalDigestPayload = JSON.stringify(approvalPayload);
+const approvalDigest = crypto.createHash('sha256').update(approvalDigestPayload, 'utf8').digest('hex');
+const approvalSignature = crypto.createHmac('sha256', 'test-chair1-approval-key').update(approvalDigestPayload, 'utf8').digest('hex');
+fs.writeFileSync(approvalPath, JSON.stringify({
+  ...approvalPayload,
+  approvalDigest,
+  signature: approvalSignature,
+}, null, 2));
 
 fs.writeFileSync(evidencePath, JSON.stringify({
   protocol: 'AUTONOMOUS-REPAIR-PROTOCOL-v4',
@@ -58,10 +80,19 @@ const approved = node([
   '--evidence='+evidencePath,
   '--verification='+verificationPath,
   '--adversarial='+adversarialPath,
+  '--approval='+approvalPath,
+  '--task-id='+taskId,
+  '--work-package='+workPackageId,
   '--proposal='+proposalPath,
   '--output='+auditPath,
   '--lesson-output='+lessonPath,
-]);
+], {
+  env: {
+    ...process.env,
+    NODE_ENV: 'test',
+    FLIXO_CHAIR1_APPROVAL_SIGNING_KEY: 'test-chair1-approval-key',
+  },
+});
 assert.equal(approved.status, 0, approved.stderr || approved.stdout);
 const approvedAudit = JSON.parse(fs.readFileSync(auditPath, 'utf8'));
 assert.equal(approvedAudit.decision, 'APPROVED');
