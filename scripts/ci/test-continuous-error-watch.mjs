@@ -481,11 +481,11 @@ assert.ok(dailyGateWorkflow.includes('updatedAt: (.updatedAt // .updated_at // .
 assert.ok(dailyGateWorkflow.includes('if type == "array" then . elif (.workflow_runs | type) == "array" then .workflow_runs else [] end'));
 assert.ok(dailyGateWorkflow.includes("jq -e 'type == \"array\" and all(.[];"));
 assert.ok(dailyGateWorkflow.includes('Ensure exact-SHA required CI is resident'));
-assert.ok(dailyGateWorkflow.includes('declare -A REDISPATCHED=()'));
+assert.ok(!dailyGateWorkflow.includes('declare -A REDISPATCHED=()'));
 assert.ok(dailyGateWorkflow.includes('["FLIXO Test System"]="ci.yml"'));
-assert.ok(dailyGateWorkflow.includes('reason=missing_or_cancelled'));
-assert.ok(dailyGateWorkflow.includes('REDISPATCHED[$workflow]=1'));
-assert.ok(dailyGateWorkflow.includes('gh workflow run "$FILE" --repo "$GITHUB_REPOSITORY" --ref execution'));
+assert.ok(dailyGateWorkflow.includes('SETTLEMENT_WAITING poll=$poll workflow=$workflow state=MISSING'));
+assert.ok(!dailyGateWorkflow.includes('REDISPATCHED[$workflow]=1'));
+assert.ok(!dailyGateWorkflow.includes('gh workflow run "$FILE" --repo "$GITHUB_REPOSITORY" --ref execution'));
 assert.ok(dailyGateWorkflow.includes('FILE="${REQUIRED_FILES[$WORKFLOW]}"'));
 assert.ok(!dailyGateWorkflow.includes('FILE="\\${REQUIRED_FILES[$WORKFLOW]}"'));
 assert.ok(dailyGateWorkflow.includes('| jq --arg sha "$EXECUTION_SHA"'));
