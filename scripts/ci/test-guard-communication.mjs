@@ -53,32 +53,19 @@ const listed = mod.listChangeReports({status:'RECEIVED',taskId:'GUARD-COMM-TEST'
 assert.equal(listed.length,1);
 const read = mod.markRead(sent.reportId,'CHAIR_1_GUARD');
 assert.equal(read.status,'READ');
-const requested = mod.requestFullDetails(sent.reportId,'CHAIR_1_GUARD');
-assert.equal(requested.status,'DETAILS_REQUESTED');
-assert.ok(requested.detailsRequest.missing.length > 0);
-assert.equal(requested.guardVerdict.contentDecision,'NONE');
-assert.equal(requested.guardVerdict.rejectionAuthority,false);
-assert.equal(requested.guardVerdict.deletionAuthority,false);
+const pending = mod.acknowledgePendingPush(sent.reportId,'CHAIR_1_GUARD');
+assert.equal(pending.status,'PUSH_PENDING');
+assert.equal(pending.pendingPush,true);
+assert.equal(pending.changeDetailsPresent,true);
+assert.equal(pending.guardRole,'PUSH_PENDING_ACK_ONLY');
+assert.equal(pending.guardVerdict.contentDecision,'NONE');
+assert.equal(pending.guardVerdict.rejectionAuthority,false);
+assert.equal(pending.guardVerdict.deletionAuthority,false);
+assert.equal(pending.guardVerdict.mergeAuthority,false);
+assert.equal(pending.guardVerdict.publicationAuthority,'CHAIR_1');
 
-const submitted = mod.recordFullDetails(sent.reportId,{
-  whatChanged:'Updated README content',
-  whyChanged:'Test change',
-  filesChanged:['README.md'],
-  beforeState:'base',
-  afterState:'changed',
-  testsRun:['diff-check'],
-  testResults:['PASS'],
-  evidence:['DIFF_CHECK_PASS'],
-  patchSha256:'a'.repeat(64),
-  entrySha,
-  workspaceSha,
-  remainingWork:['chair1-reconciliation'],
-  blockers:[],
-  nextActions:['chair1-review'],
-},'CELL-001');
-assert.equal(submitted.status,'DETAILS_COMPLETE');
-assert.equal(submitted.detailsRequest.missing.length,0);
-assert.equal(submitted.guardVerdict.contentDecision,'NONE');
+assert.equal(typeof mod.requestFullDetails,'undefined');
+assert.equal(typeof mod.recordFullDetails,'undefined');
 assert.throws(
   ()=>mod.createChangeReport({
     agentId:'CELL-001',taskId:'GUARD-COMM-TEST',entrySha:'bad',executionShaAtEntry:entrySha,mainShaAtEntry:mainShaAtEntry,
@@ -90,6 +77,6 @@ assert.throws(
 process.chdir(originalCwd);
 console.log('GUARD_CHANGE_COMMUNICATION=PASS');
 console.log('GUARD_CHANGE_READ_ACK=PASS');
-console.log('GUARD_CHANGE_DETAILS_REQUEST_ONLY=PASS');
+console.log('GUARD_CHANGE_PENDING_PUSH_ACK_ONLY=PASS');
 console.log('GUARD_CHANGE_NO_GREEN=PASS');
 console.log('GUARD_CHANGE_EXACT_SHA=PASS');
