@@ -1,4 +1,4 @@
-name: FLIXO Historical Action Error Index
+name: FLIXO Historical Action Error Index — Chair Proposal Only
 
 on:
   workflow_dispatch:
@@ -18,11 +18,9 @@ on:
         required: false
         default: '7'
         type: string
-  schedule:
-    - cron: '17 */2 * * *'
 
 permissions:
-  contents: write
+  contents: read
   actions: read
 
 concurrency:
