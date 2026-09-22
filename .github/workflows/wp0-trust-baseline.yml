@@ -56,11 +56,11 @@ jobs:
             test "$PR_BASE_REF" = "main"
             test "$PR_HEAD_REPOSITORY" = "$EXPECTED_REPOSITORY"
           else
-            case "${{ github.event_name }}" in
+            case "$EVENT_NAME" in
               push|workflow_dispatch) ;;
-              *) echo "Unsupported execution event: ${{ github.event_name }}"; exit 1 ;;
+              *) echo "Unsupported execution event: $EVENT_NAME"; exit 1 ;;
             esac
-            test "${{ github.ref_name }}" = "$TARGET_BRANCH"
+            test "$EVENT_REF_NAME" = "$TARGET_BRANCH"
           fi
           ACTUAL_SHA="$(git rev-parse HEAD)"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA"
