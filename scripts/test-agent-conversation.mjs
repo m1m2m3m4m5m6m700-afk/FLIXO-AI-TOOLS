@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { classifyConversation, contextualizeCommand, createConversationMemory } from '../src/lib/agent/conversation.ts';
+import { parseAgentDecision, parseAgentRequest } from '../src/lib/contracts/agent-gateway.ts';
 import { extractParameters } from '../src/lib/agent/intent/parameter-extractor.ts';
 import { planFromIntent } from '../src/lib/ai/planner.ts';
 
@@ -29,3 +30,20 @@ assert.deepEqual(chainedPlan?.steps.map((step) => step.toolId), [
 ]);
 
 console.log('Agent multi-turn conversation contract tests passed.');
+
+const request = parseAgentRequest({
+  locale: 'ar',
+  messages: [{ role: 'user', content: 'إزالة الخلفية' }],
+  file: { name: 'photo.png', type: 'image/png', size: 128 },
+  activePlan: null,
+  activeCommand: null,
+});
+assert.equal(request.messages?.length, 1);
+assert.equal(request.activePlan, null);
+assert.throws(() => parseAgentRequest({
+  messages: [{ role: 'user', content: 'إزالة الخلفية' }],
+  activePlan: { workflowName: 'bad', confidence: 2, steps: [] },
+}), /Invalid|greater|at least|positive/);
+const chatDecision = parseAgentDecision({ mode: 'chat', reply: 'ok', question: null, plan: null, confidence: 0.8 });
+assert.equal(chatDecision.mode, 'chat');
+assert.throws(() => parseAgentDecision({ mode: 'chat', reply: 'ok', question: null, plan: { malformed: true }, confidence: 0.8 }), /Non-plan AI decisions/);

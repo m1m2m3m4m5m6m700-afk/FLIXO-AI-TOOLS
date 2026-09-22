@@ -1,25 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { getCapability, getExecutableCapabilityIds } from '../src/lib/agent/capability-registry.ts';
-import { parseExecutionPlan, type ExecutionPlanContract } from '../src/lib/contracts/ai-plan.ts';
+import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from '../src/lib/contracts/agent-gateway.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
 import { buildFlixoAgentMasterPrompt } from '../src/lib/agent/flixo-agent-master-prompt.ts';
-
-type ChatMessage = { role: 'user' | 'assistant'; content: string };
-type RequestBody = {
-  locale?: string;
-  messages?: ChatMessage[];
-  file?: { name?: string; type?: string; size?: number } | null;
-  activePlan?: ExecutionPlanContract | null;
-  activeCommand?: string | null;
-};
-
-type AgentDecision = {
-  mode: 'chat' | 'clarify' | 'plan';
-  reply: string;
-  question: string | null;
-  plan: ExecutionPlanContract | null;
-  confidence: number;
-};
 
 const MAX_INPUT_CHARS = Math.max(2000, Number(process.env.FLIXO_AI_MAX_INPUT_CHARS ?? 12000));
 const MAX_MESSAGES = 24;
@@ -31,27 +14,13 @@ function json(res: ServerResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body));
 }
 
-async function readBody(req: IncomingMessage): Promise<RequestBody> {
+async function readBody(req: IncomingMessage): Promise<AgentRequestContract> {
   let raw = '';
   for await (const chunk of req) {
     raw += String(chunk);
     if (raw.length > 500_000) throw new Error('Request body is too large.');
   }
-  const value = JSON.parse(raw) as RequestBody;
-  if (!value || typeof value !== 'object') throw new Error('Invalid request.');
-  return value;
-}
-
-function normalizeMessages(messages: ChatMessage[] | undefined): ChatMessage[] {
-  if (!Array.isArray(messages)) return [];
-  return messages
-    .filter((message) => message && (message.role === 'user' || message.role === 'assistant') && typeof message.content === 'string')
-    .slice(-MAX_MESSAGES)
-    .map((message) => ({
-      role: message.role,
-      content: message.content.trim().slice(0, MAX_INPUT_CHARS),
-    }))
-    .filter((message) => message.content.length > 0);
+  return parseAgentRequest(JSON.parse(raw));
 }
 
 function executableCatalog(): Array<Record<string, unknown>> {
@@ -80,24 +49,6 @@ function parseJsonObject(text: string): unknown {
     if (start >= 0 && end > start) return JSON.parse(trimmed.slice(start, end + 1)) as unknown;
     throw new Error('AI response was not valid JSON.');
   }
-}
-
-function normalizeDecision(value: unknown): AgentDecision {
-  if (!value || typeof value !== 'object') throw new Error('AI decision is not an object.');
-  const raw = value as Record<string, unknown>;
-  const mode = raw.mode;
-  if (mode !== 'chat' && mode !== 'clarify' && mode !== 'plan') throw new Error('AI decision mode is invalid.');
-  const reply = typeof raw.reply === 'string' ? raw.reply.trim() : '';
-  if (!reply) throw new Error('AI reply is empty.');
-  const question = raw.question === null || raw.question === undefined ? null : String(raw.question).trim();
-  const confidence = typeof raw.confidence === 'number' && Number.isFinite(raw.confidence)
-    ? Math.min(1, Math.max(0, raw.confidence))
-    : 0.5;
-  if (mode === 'clarify' && !question) throw new Error('Clarification mode requires a question.');
-  if (mode !== 'plan') return { mode, reply, question, plan: null, confidence };
-
-  const plan = parseExecutionPlan(raw.plan);
-  return { mode: 'plan', reply, question: null, plan, confidence };
 }
 
 async function callOpenAI(
@@ -226,13 +177,13 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   }
   try {
     const body = await readBody(req);
-    const messages = normalizeMessages(body.messages);
+    const messages = [...(body.messages ?? [])].slice(-MAX_MESSAGES);
     const userMessage = messages[messages.length - 1]?.content;
     if (!userMessage) {
       json(res, 400, { error: 'At least one user message is required.' });
       return;
     }
-    const locale = typeof body.locale === 'string' ? body.locale.slice(0, 16) : 'en';
+    const locale = body.locale ?? 'en';
     const provider = (process.env.FLIXO_AI_PROVIDER || 'openai').toLocaleLowerCase();
     const promptMessages = [
       {
@@ -251,13 +202,13 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const started = Date.now();
     try {
       const raw = await callProvider(provider, promptMessages);
-      const decision = normalizeDecision(parseJsonObject(raw));
+      const decision = parseAgentDecision(parseJsonObject(raw));
       json(res, 200, { ...decision, latencyMs: Date.now() - started, provider });
     } catch (providerError) {
       if (process.env.FLIXO_AI_FALLBACK_PROVIDER && process.env.FLIXO_AI_FALLBACK_PROVIDER !== provider) {
         const fallbackProvider = process.env.FLIXO_AI_FALLBACK_PROVIDER.toLocaleLowerCase();
         const raw = await callProvider(fallbackProvider, promptMessages);
-        const decision = normalizeDecision(parseJsonObject(raw));
+        const decision = parseAgentDecision(parseJsonObject(raw));
         json(res, 200, { ...decision, latencyMs: Date.now() - started, provider: fallbackProvider, fallback: true });
         return;
       }
