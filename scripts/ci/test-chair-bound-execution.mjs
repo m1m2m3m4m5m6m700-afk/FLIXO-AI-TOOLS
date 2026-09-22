@@ -67,12 +67,12 @@ const hardeningRoot=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-chair-hardening-
 process.env.FLIXO_CHAIR_SPECULATIVE_CACHE_PATH=path.join(hardeningRoot,'readonly');
 process.env.FLIXO_CHAIR_SESSION_CONTEXT_PATH=path.join(hardeningRoot,'session');
 process.env.FLIXO_CHAIR_REF_PREFIX=`refs/flixo/tests/chair-${process.pid}`;
-acquire({chairId:'chair_1',agentId:'assistantController',targetSha:realGitSha,repositoryState:'IDLE'});
-const hb=heartbeat({chairId:'chair_1',agentId:'assistantController',targetSha:realGitSha});
+acquire({chairId:'chair_2',agentId:'agent-beta-stale',targetSha:realGitSha,repositoryState:'IDLE'});
+const hb=heartbeat({chairId:'chair_2',agentId:'agent-beta-stale',targetSha:realGitSha});
 assert.equal(hb.heartbeatCount,1);
 const stateFile=process.env.FLIXO_CHAIR_STATE_PATH;
 const stale=JSON.parse(fs.readFileSync(stateFile,'utf8'));
-stale.chairs.chair_1.heartbeat_at=new Date(Date.now()-120_000).toISOString();
+stale.chairs.chair_2.heartbeat_at=new Date(Date.now()-120_000).toISOString();
 fs.writeFileSync(stateFile,JSON.stringify(stale,null,2)+'\n');
 const dead=reconcileDeadLeases({targetSha:realGitSha});
 assert.equal(dead.reclaimed.length,1);
