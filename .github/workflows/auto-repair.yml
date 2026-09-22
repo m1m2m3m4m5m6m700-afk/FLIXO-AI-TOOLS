@@ -1528,7 +1528,7 @@ BASHENV
         run: |
           set -euo pipefail
           node scripts/ci/master-repair-rollback-proof.mjs || ROLLBACK_EXIT="$?"
-          ROLLBACK_EXIT="${{ ROLLBACK_EXIT:-0 }}"
+          ROLLBACK_EXIT="${ROLLBACK_EXIT:-0}"
           test -s /tmp/flixo-rollback-proof.json
           if [ "$ROLLBACK_EXIT" -ne 0 ]; then
             echo 'ROLLBACK_PROOF=UNPROVEN'
@@ -1542,7 +1542,7 @@ BASHENV
         run: |
           set -euo pipefail
           node scripts/ci/verify-platform-publication-boundary.mjs || PLATFORM_EXIT="$?"
-          PLATFORM_EXIT="${{ PLATFORM_EXIT:-0 }}"
+          PLATFORM_EXIT="${PLATFORM_EXIT:-0}"
           test -s /tmp/flixo-platform-publication-receipt.json
           if [ "$PLATFORM_EXIT" -ne 0 ]; then
             echo 'PLATFORM_PUBLICATION_BOUNDARY=UNTRUSTED'
