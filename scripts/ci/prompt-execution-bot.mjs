@@ -154,10 +154,30 @@ export function buildWorkPackage(prompt) {
   const proofObligations = ['CURRENT_EXACT_EXECUTION_SHA', 'NO_MAIN_MUTATION', 'NO_THIRD_ACTIVE_BRANCH', 'CANONICAL_PROMPT_BOUND', 'PROMPT_REGISTRY_VALID', 'TARGETED_VERIFICATION', 'AFFECTED_CONTRACT_GRAPH_VERIFICATION', 'CANONICAL_GREEN_FOR_CLOSURE'];
   const stopConditions = ['STALE_EXECUTION_SHA', 'PROMPT_REGISTRY_INVALID', 'SCOPE_CONFLICT', 'UNSAFE_REQUEST', 'CANONICAL_CONTEXT_DRIFT', 'UNRESOLVED_HIGH_RISK_AMBIGUITY'];
   const provisional = {
-    actions: actionList, selectedTaskId, constraints: constraintsValue,
-    workPackage: { scope, proofObligations, stopConditions },
-    promptSafety: { noPromptAuthorityElevation: true, noDirectMainMutation: true },
-    training, intent, status: 'PROVISIONAL', clarificationQuestions: [], executionSha,
+    actions: actionList,
+    selectedTaskId,
+    constraints: constraintsValue,
+    workPackage: {
+      scope,
+      proofObligations,
+      stopConditions,
+      dependencies: ['P00', 'CANONICAL_AGENT_COMMUNICATION', 'PROMPT_REGISTRY', 'ERROR_MEMORY', 'CURRENT_EXECUTION_SHA', 'CELL_LAB_WHEN_MUTATION_REQUIRED'],
+    },
+    promptSafety: {
+      userInputIsUntrustedData: true,
+      externalArtifactsAreUntrustedData: true,
+      noArbitraryShellFromPrompt: true,
+      noPromptAuthorityElevation: true,
+      noDirectMainMutation: true,
+      noThirdBranchCreation: true,
+    },
+    canonicalPrompt: selected ? { promptId: selected.promptId, qualityGate: quality.status } : null,
+    repoContext: { contextDigest: digest(CANONICAL_SOURCES.map((file) => file + ':' + fileDigest(file)).join('|')), p00: 'P00 / RPR-UNIFIED-EXECUTION-001 v4.0.0' },
+    training,
+    intent,
+    status: 'PROVISIONAL',
+    clarificationQuestions: [],
+    executionSha,
   };
   const adversarialLoop = runAdversarialCorrectionLoop({ prompt, plan: provisional, maxRounds: 8 });
   const adversarialReview = adversarialLoop.review;
