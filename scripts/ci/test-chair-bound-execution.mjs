@@ -94,19 +94,26 @@ assert.equal(blockedDead.reclaimed.length,0);
 assert.equal(blockedDead.blocked[0].reason,'TASK_ACTIVE_NONRECLAIMABLE');
 assert.equal(activeChairForAgent({agentId:'task-active-agent',targetSha:realGitSha}).chairId,'chair_1');
 assert.throws(()=>release({chairId:'chair_1',agentId:'task-active-agent',targetSha:realGitSha,successful:false}),/CHAIR1_TASK_ACTIVE_NONRELEASABLE/);
-assert.throws(
-  ()=>beginWork({
-    agentId:'MASTER-2',
-    role:'MASTER-2',
-    requestedChairId:'chair_1',
-    targetSha:realGitSha,
-    repositoryState:'IDLE',
-    taskId:'MASTER-2-PREEMPT-TRIAL',
-    workPackageId:'MASTER-2-PREEMPT-WP'
-  }),
-  /CHAIR1_TASK_ACTIVE_NONPREEMPTABLE/
+const master2Trial=beginWork({
+  agentId:'MASTER-2',
+  role:'MASTER-2',
+  requestedChairId:'chair_1',
+  targetSha:realGitSha,
+  repositoryState:'IDLE',
+  taskId:'MASTER-2-PREEMPT-TRIAL',
+  workPackageId:'MASTER-2-PREEMPT-WP'
+});
+assert.equal(master2Trial.preemptedAgentId,'task-active-agent');
+const continuedTask=preemptedContinuityForAgent({agentId:'task-active-agent',targetSha:realGitSha,taskId:'TASK-ACTIVE-NONRECLAIM'});
+assert.equal(continuedTask.status,'CONTINUING_AFTER_PREEMPTION');
+assert.equal(continuedTask.canContinueTask,true);
+assert.equal(continuedTask.canMutateAfterPreemption,false);
+assert.equal(continuedTask.handoffTo,'CHAIR_1_GUARD');
+assert.deepEqual(
+  assertWorkAdmission({agentId:'task-active-agent',targetSha:realGitSha,chairId:'chair_1',taskId:'TASK-ACTIVE-NONRECLAIM'}),
+  continuedTask
 );
-release({chairId:'chair_1',agentId:'task-active-agent',targetSha:realGitSha,successful:true});
+release({chairId:'chair_1',agentId:'MASTER-2',targetSha:realGitSha,successful:true});
 acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE'});
 const speculative=writeSpeculativeContext({sessionId:'session-2',taskId:'TASK-2',chairId:'chair_2',role:'verification',targetSha:realGitSha,pendingDiff:'diff --git a/src/example.ts b/src/example.ts',testPlan:['lint','unit']});
 assert.equal(speculative.readOnly,true);
