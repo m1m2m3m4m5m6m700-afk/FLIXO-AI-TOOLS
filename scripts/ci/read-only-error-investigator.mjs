@@ -89,6 +89,20 @@ function securitySignal(run, log) {
     securityPatterns.some((pattern) => pattern.test(String(log ?? '')));
 }
 
+function normalizeSecurityAlerts(alerts) {
+  return (Array.isArray(alerts) ? alerts : []).map((alert) => ({
+    number: alert.number ?? null,
+    state: alert.state ?? null,
+    rule: alert.rule?.id ?? alert.rule?.description ?? null,
+    severity: alert.rule?.security_severity_level ?? alert.rule?.severity ?? null,
+    tool: alert.tool?.name ?? null,
+    htmlUrl: alert.html_url ?? alert.url ?? null,
+    path: alert.most_recent_instance?.location?.path ?? alert.most_recent_instance?.location?.file ?? null,
+    startLine: alert.most_recent_instance?.location?.start_line ?? null,
+    message: alert.most_recent_instance?.message?.text ?? null,
+  }));
+}
+
 function normalizeWorkflowName(value) {
   return String(value ?? '').toLowerCase().replace(/[^a-z0-9]+/gu, ' ').trim();
 }
@@ -300,6 +314,7 @@ function analyzeSnapshot(input) {
   const staleEvidence = observed.filter((item) => item.classification === 'STALE_EVIDENCE' || item.classification === 'CANCELLED_SUPERSEDED');
   const downstreamFailures = observed.filter((item) => item.classification === 'DOWNSTREAM_FAILURE');
   const securitySignals = observed.filter((item) => item.security);
+  const securityFindings = normalizeSecurityAlerts(input.securityFindings);
   const historical = historicalSignals();
   const knownFingerprints = new Set(historical.memoryLessons.map((item) => item.fingerprint).filter(Boolean));
   const recurringKnown = recurringPatterns.map((item) => ({
@@ -334,6 +349,7 @@ function analyzeSnapshot(input) {
   if (runs.some((run) => run.status === 'completed' && run.conclusion === 'cancelled' && !cancellationClass(run, runs))) unknowns.push('UNRESOLVED_CANCELLATION');
   if (rootCauseCandidates.some((item) => item.rootCauseStatus === 'CANDIDATE_ROOT_CAUSE')) unknowns.push('CANDIDATE_ROOT_CAUSES_REQUIRE_INDEPENDENT_VERIFICATION');
   if (securitySignals.some((item) => item.classification === 'SECURITY_SIGNAL')) unknowns.push('SECURITY_SIGNAL_IS_NOT_A_VULNERABILITY_VERDICT');
+  if (securityFindings.length === 0) unknowns.push('NO_OPEN_CODE_SCANNING_ALERTS_IN_CAPTURED_SECURITY_SNAPSHOT');
 
   const summary = {
     observedRuns: runs.length,
@@ -343,6 +359,7 @@ function analyzeSnapshot(input) {
     staleOrSupersededEvidence: staleEvidence.length,
     downstreamFailures: downstreamFailures.length,
     securitySignals: securitySignals.length,
+    openCodeScanningAlerts: securityFindings.length,
     externalBlocks: observed.filter((item) => item.classification === 'BLOCKED_EXTERNAL').length,
     knownHistoricalFingerprints: observed.filter((item) => item.fingerprint && knownFingerprints.has(item.fingerprint)).length,
   };
@@ -366,6 +383,7 @@ function analyzeSnapshot(input) {
     downstreamFailures,
     staleEvidence,
     securitySignals,
+    securityFindings,
     historicalSignals: historical,
     unknowns,
     decisionPolicy: 'Evidence-backed analysis only. A recurring pattern is not proof of causality. A security signal is not a vulnerability verdict. No report authorizes mutation, certification, merge, push, or repair.',
@@ -411,12 +429,31 @@ function collectWithGh() {
       run.log = '';
     }
   }
+  let securityFindings = [];
+  try {
+    const rawAlerts = execFileSync('gh', [
+      'api',
+      '--repo', repository,
+      '--method', 'GET',
+      'repos/' + repository + '/code-scanning/alerts?ref=' + encodeURIComponent(executionSha) + '&state=open&per_page=100',
+    ], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    securityFindings = JSON.parse(rawAlerts);
+  } catch {
+    securityFindings = [];
+  }
+
   return {
     repository,
     observedBranch: branch,
     executionSha,
     mainSha: process.env.MAIN_SHA || null,
     runs,
+    securityFindings,
     capture: { requested: candidates.length, captured },
   };
 }
