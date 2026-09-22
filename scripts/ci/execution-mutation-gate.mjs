@@ -26,20 +26,43 @@ export function remoteExecutionSha(){
 }
 const STRICT_MUTATION_OWNERS = new Set(['AUTO_REPAIR_BOT','repairAgent','executionAgent','assistantRepairAgent','actionRepairBot']);
 function centralChairStrictRequired(ownerAgent='') {
-  return process.env.FLIXO_STRICT_CHAIR === 'true' || STRICT_MUTATION_OWNERS.has(String(ownerAgent ?? '').trim());
+  return Boolean(String(ownerAgent ?? '').trim());
 }
-const trustedLocalTestHarness=()=>process.env.NODE_ENV==='test' && process.env.GITHUB_ACTIONS!=='true' && process.env.FLIXO_MUTATION_GATE_TEST_MODE==='true';
+let centralChairTestVerifier = null;
+export function configureCentralChairTestVerifier(verifier){
+  if(process.env.NODE_ENV!=='test') throw new Error('MUTATION_GATE_TEST_VERIFIER_FORBIDDEN');
+  if(typeof verifier!=='function') throw new Error('MUTATION_GATE_TEST_VERIFIER_REQUIRED');
+  centralChairTestVerifier=verifier;
+}
 function verifyCentralChair({ownerAgent,targetSha,workPackageId,taskId}) {
-  if (!centralChairStrictRequired(ownerAgent)) return { required:false, verified:false };
-  if (trustedLocalTestHarness() && process.env.FLIXO_ALLOW_TEST_CHAIR_BYPASS === 'true') return { required:true, verified:false, testBypass:true };
+  if(!centralChairStrictRequired(ownerAgent)) throw new Error('MUTATION_GATE_OWNER_REQUIRED');
   const leaseId=String(process.env.FLIXO_CHAIR_LEASE_ID ?? '').trim();
   const fence=String(process.env.FLIXO_CHAIR_FENCING_HASH ?? '').trim();
   const holder=String(process.env.FLIXO_CHAIR_AGENT ?? ownerAgent ?? '').trim();
-  if(!leaseId||!fence||!holder) throw new Error('MUTATION_GATE_CENTRAL_CHAIR_CONTEXT_MISSING');
-  nodeExecFileSync('node',['scripts/ci/central-chair-lease.mjs','verify',
+  if(!leaseId||!fence||!holder||holder!==String(ownerAgent).trim()) throw new Error('MUTATION_GATE_CENTRAL_CHAIR_CONTEXT_MISSING');
+  if(centralChairTestVerifier){
+    const result=centralChairTestVerifier({ownerAgent:String(ownerAgent),holder,taskId:String(taskId),workPackageId:String(workPackageId),targetSha:String(targetSha),leaseId,fence});
+    if(result?.authorized!==true || result?.ownerAgentId!=='assistantController' || result?.holderAgentId!==holder ||
+       result?.delegatedBy!=='assistantController' || result?.taskId!==String(taskId) ||
+       result?.workPackageId!==String(workPackageId) || result?.exactSha!==String(targetSha) ||
+       result?.leaseId!==leaseId || result?.fencingTokenHash!==fence) throw new Error('MUTATION_GATE_CENTRAL_CHAIR_PROOF_INVALID');
+    return { required:true, verified:true, leaseId, holder, targetSha, delegatedBy:'assistantController',testTransport:true };
+  }
+  const raw=nodeExecFileSync('node',['scripts/ci/central-chair-lease.mjs','verify',
     '--holder='+holder,'--task='+String(taskId),'--work-package='+String(workPackageId),
     '--sha='+String(targetSha),'--lease-id='+leaseId,'--fencing-hash='+fence],{cwd:ROOT,encoding:'utf8'});
-  return { required:true, verified:true, leaseId, holder, targetSha };
+  let result=null;
+  try{result=JSON.parse(raw);}catch(error){throw new Error('MUTATION_GATE_CENTRAL_CHAIR_PROOF_INVALID',{cause:error});}
+  if(result?.authorized!==true ||
+     (result.ownerAgentId??result.owner_agent_id)!=='assistantController' ||
+     (result.holderAgentId??result.holder_agent_id)!==holder ||
+     (result.delegatedBy??result.delegated_by)!=='assistantController' ||
+     (result.taskId??result.task_id)!==String(taskId) ||
+     (result.workPackageId??result.work_package_id)!==String(workPackageId) ||
+     (result.exactSha??result.exact_sha)!==String(targetSha) ||
+     (result.leaseId??result.lease_id)!==leaseId ||
+     (result.fencingTokenHash??result.fencing_token_hash)!==fence) throw new Error('MUTATION_GATE_CENTRAL_CHAIR_PROOF_INVALID');
+  return { required:true, verified:true, leaseId, holder, targetSha, delegatedBy:'assistantController' };
 }
 function assertExecutionCheckout(expectedSha=null){
   if(trustedLocalTestHarness())return;
