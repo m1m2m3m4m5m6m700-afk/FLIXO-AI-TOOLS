@@ -461,9 +461,9 @@ assert.ok(dailyGateWorkflow.includes('Ensure exact-SHA required CI is resident')
 assert.ok(dailyGateWorkflow.includes('gh workflow run "$FILE" --repo "$GITHUB_REPOSITORY" --ref execution'));
 assert.ok(dailyGateWorkflow.includes('FILE="${REQUIRED_FILES[$WORKFLOW]}"'));
 assert.ok(!dailyGateWorkflow.includes('FILE="\\${REQUIRED_FILES[$WORKFLOW]}"'));
-assert.ok(dailyGateWorkflow.includes('--arg sha "$EXECUTION_SHA"'));
-assert.ok(dailyGateWorkflow.includes('.head_sha == $sha'));
-assert.ok(!dailyGateWorkflow.includes('.head_sha == $ENV.EXECUTION_SHA'));
+assert.ok(dailyGateWorkflow.includes('| jq --arg sha "$EXECUTION_SHA"'));
+assert.ok(dailyGateWorkflow.includes('.headSha == $sha'));
+assert.ok(!dailyGateWorkflow.includes('--jq --arg sha "$EXECUTION_SHA"'));
 for (const file of [
   'ci.yml',
   'wp0-trust-baseline.yml',
