@@ -653,6 +653,29 @@ if (command === 'meeting-exit-approve') {
       preemptionContinuity: record.preemptionContinuity ?? null,
       publicationAuthority: 'CHAIR_1',
       guardOnly: true,
+      changeDetails: {
+        whatChanged: changedFiles.map((file) => ({ file, details: completedWork.filter((item) => item.includes(file)) })),
+        whyChanged: record.currentRca || 'TASK_EXECUTION',
+        filesChanged: changedFiles,
+        beforeState: {
+          entrySha: record.entrySha,
+          executionShaAtEntry: record.workspaceIsolation?.executionSha ?? record.entrySha,
+          mainShaAtEntry: record.workspaceIsolation?.mainSha ?? gitMainSha(),
+        },
+        afterState: {
+          workspaceSha: workspaceResult?.currentWorkspaceSha ?? (isWorkspaceOnlySession(record) ? record.entrySha : sha()),
+          resultStatus: status,
+        },
+        testsRun: commands,
+        testResults: evidence,
+        evidence,
+        patchSha256: workspaceResult?.patchSha256 ?? null,
+        entrySha: record.entrySha,
+        workspaceSha: workspaceResult?.currentWorkspaceSha ?? (isWorkspaceOnlySession(record) ? record.entrySha : sha()),
+        remainingWork,
+        blockers,
+        nextActions: executionPlanNext,
+      },
     },
   });
   if (remainingWork.length === 0 && openRcas.length > 0) {
