@@ -405,7 +405,7 @@ function analyzeSnapshot(input) {
     }),
     unknowns,
     decisionPolicy: 'Evidence-backed analysis only. A recurring pattern is not proof of causality. A security signal is not a vulnerability verdict. No report authorizes mutation, certification, merge, push, or repair.',
-    writePolicy: 'The investigator may write only its own report path. It never mutates repository source, Git refs, CI configuration, task state, or control-plane state.',
+    writePolicy: 'The investigator may write only its own report path and the canonical shared operational learning memory. It never mutates repository source, Git refs, CI configuration, task state, or control-plane state.',
   };
   return { ...base, digest: hash(JSON.stringify(base)) };
 }
