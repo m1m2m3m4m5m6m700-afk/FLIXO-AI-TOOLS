@@ -23,7 +23,7 @@ concurrency:
 jobs:
   receive:
     name: Immediate agent message receive
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.issue.pull_request != null && github.event.comment.body != '' && (github.event.comment.user.login == 'github-actions[bot]' || github.event.comment.user.login == github.repository_owner)) }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.issue.pull_request != null && github.event.comment.body != '' && (github.event.comment.author_association == 'OWNER' || github.event.comment.user.login == 'github-actions[bot]')) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout canonical communication implementation
