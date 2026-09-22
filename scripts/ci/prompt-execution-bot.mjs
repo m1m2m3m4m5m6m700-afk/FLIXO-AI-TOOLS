@@ -10,7 +10,7 @@ import { ingest } from './agent-communication.mjs';
 import { runAdversarialCorrectionLoop, assertAdversarialGate } from './prompt-execution-bot-adversary.mjs';
 import { loadExecutionBotTraining, trainingSummary } from './prompt-execution-bot-training.mjs';
 import { validateAdversarialBotCommandRegistry } from './adversarial-bot-commands.mjs';
-import { buildFiveXExecutionEnvelope, validateFiveXExecutionLayer } from './read-only-power-profile.mjs';
+import { buildTenXExecutionEnvelope, validateTenXExecutionLayer } from './read-only-power-profile.mjs';
 
 const ROOT = process.cwd();
 const MAX_INPUT = Math.max(1000, Number(process.env.FLIXO_PROMPT_BOT_MAX_INPUT_CHARS ?? 12000));
@@ -77,8 +77,8 @@ function canonicalContext() {
   const cooperation = fs.readFileSync(path.resolve(ROOT, 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json'), 'utf8');
   const adversarialRegistry = JSON.parse(fs.readFileSync(path.resolve(ROOT, 'docs/agents/ADVERSARIAL-BOT-COMMANDS.json'), 'utf8'));
   const adversarialRegistryValidation = validateAdversarialBotCommandRegistry(adversarialRegistry);
-  const fiveXValidation = validateFiveXExecutionLayer();
-  if (!fiveXValidation.ok) throw new Error('PROMPT_EXECUTION_BOT_FIVE_X_PROFILE_INVALID=' + fiveXValidation.failures.join('|'));
+  const tenXValidation = validateTenXExecutionLayer();
+  if (!tenXValidation.ok) throw new Error('PROMPT_EXECUTION_BOT_TEN_X_PROFILE_INVALID=' + tenXValidation.failures.join('|'));
   if (!adversary.includes("ACTION-REPAIR-2") || !adversary.includes("NO_MUTATION_NO_CERTIFICATION")) throw new Error('PROMPT_EXECUTION_BOT_ADVERSARY_CONTRACT_INVALID');
   if (!cooperation.includes('"ACTION-REPAIR-2"') || !cooperation.includes('"mutationAuthority": false')) throw new Error('PROMPT_EXECUTION_BOT_ADVERSARY_AUTHORITY_INVALID');
   if (!adversarialRegistryValidation.ok || adversarialRegistryValidation.botCount < 4) throw new Error('PROMPT_EXECUTION_BOT_ADVERSARIAL_COMMAND_REGISTRY_INVALID');
@@ -186,12 +186,32 @@ export function buildPreExecution25Evidence({
     { id: 'SCOPE_SURFACE_COUNT', observation: scope.length },
     { id: 'PROOF_OBLIGATION_COUNT', observation: proofObligations.length },
     { id: 'STOP_CONDITION_COUNT', observation: stopConditions.length },
+    { id: 'GUARD_COMMUNICATION_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'scripts/ci/guard-communication.mjs')) },
+    { id: 'SHARED_MEMORY_CONTRACT_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'docs/agents/SHARED-OPERATIONAL-MEMORY-CONTRACT.md')) },
+    { id: 'AGENT_COMMUNICATION_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'scripts/ci/agent-communication.mjs')) },
+    { id: 'CHAIR_PROTOCOL_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'scripts/ci/central-chair-lease.mjs')) },
+    { id: 'ADVERSARIAL_REGISTRY_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'docs/agents/ADVERSARIAL-BOT-COMMANDS.json')) },
+    { id: 'MASTER_REPAIR_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'scripts/ci/master-repair-orchestrator.mjs')) },
+    { id: 'MASTER_REPAIR_PROTOCOL_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'docs/agents/MASTER-REPAIR-PROTOCOL.md')) },
+    { id: 'ACTION_VAULT_GATE_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'scripts/ci/action-vault-mutation-gate.mjs')) },
+    { id: 'CANONICAL_CI_PRESENT', observation: fs.existsSync(path.resolve(ROOT, '.github/workflows/ci.yml')) },
+    { id: 'GREEN_GATE_PRESENT', observation: fs.existsSync(path.resolve(ROOT, '.github/workflows/daily-flixo-green-gate.yml')) },
+    { id: 'ERROR_MEMORY_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'diagnostics/auto-repair/memory.json')) },
+    { id: 'PROTOCOL_REGISTRY_PRESENT', observation: fs.existsSync(path.resolve(ROOT, 'docs/PROTOCOL-REGISTRY.json')) },
+    { id: 'CANONICAL_SOURCE_COUNT', observation: CANONICAL_SOURCES.length },
+    { id: 'SCOPE_UNIQUENESS', observation: new Set(scope).size === scope.length },
+    { id: 'PROOF_OBLIGATION_COVERAGE', observation: proofObligations.length >= 8 },
+    { id: 'STOP_CONDITION_COVERAGE', observation: stopConditions.length >= 5 },
+    { id: 'EXECUTION_SHA_FORMAT', observation: /^[a-f0-9]{40}$/iu.test(executionSha) },
+    { id: 'MAIN_SHA_FORMAT', observation: !mainSha || /^[a-f0-9]{40}$/iu.test(mainSha) },
+    { id: 'SELECTED_TASK_STATUS', observation: selected?.status ?? 'NONE' },
+    { id: 'NO_DUPLICATE_CANDIDATES', observation: new Set(candidates.map((x) => x.prompt?.promptId)).size === candidates.length },
   ];
   const operationCount = operations.length;
   return Object.freeze({
     ruleId: 'PRE-EXECUTION-25',
-    status: executionSha && branch === 'execution' && operationCount >= 25 ? 'PASS' : 'BLOCKED',
-    minOperations: 25,
+    status: executionSha && branch === 'execution' && operationCount >= 50 ? 'PASS' : 'BLOCKED',
+    minOperations: 50,
     operationCount,
     operationDigest: digest(JSON.stringify({ executionSha, operations })),
     exactSha: executionSha,
@@ -231,7 +251,7 @@ export function buildWorkPackage(prompt) {
       scope,
       proofObligations,
       stopConditions,
-      dependencies: ['P00', 'CANONICAL_AGENT_COMMUNICATION', 'PROMPT_REGISTRY', 'ERROR_MEMORY', 'CURRENT_EXECUTION_SHA', 'CELL_LAB_WHEN_MUTATION_REQUIRED'],
+      dependencies: ['P00', 'CANONICAL_AGENT_COMMUNICATION', 'PROMPT_REGISTRY', 'ERROR_MEMORY', 'CURRENT_EXECUTION_SHA', 'CELL_LAB_WHEN_MUTATION_REQUIRED', 'MASTER_REPAIR_GATE', 'GUARD_COMMUNICATION', 'SHARED_OPERATIONAL_MEMORY'],
     },
     promptSafety: {
       userInputIsUntrustedData: true,
@@ -249,7 +269,7 @@ export function buildWorkPackage(prompt) {
     clarificationQuestions: [],
     executionSha,
   };
-  const adversarialLoop = runAdversarialCorrectionLoop({ prompt, plan: provisional, maxRounds: 8 });
+  const adversarialLoop = runAdversarialCorrectionLoop({ prompt, plan: provisional, maxRounds: 16 });
   const adversarialReview = adversarialLoop.review;
   const adversarialFailureReport = adversarialLoop.failureReport;
   const effectiveConstraints = adversarialLoop.plan.constraints ?? constraintsValue;
@@ -262,16 +282,16 @@ export function buildWorkPackage(prompt) {
     adversarialLoop, adversarialReview, adversarialFailureReport, scope,
     proofObligations, stopConditions,
   });
-  const fiveXEnvelope = buildFiveXExecutionEnvelope({
+  const fiveXEnvelope = buildTenXExecutionEnvelope({
     exactSha: executionSha,
     branch,
     selectedTaskId,
     hypothesisCount: Array.isArray(adversarialReview.alternativeHypotheses) ? adversarialReview.alternativeHypotheses.length : 0,
     counterexampleChecks: Array.isArray(adversarialReview.falsificationChecks) ? adversarialReview.falsificationChecks.length : 0,
-    regressionDepth: 3,
-    independentEvidenceSources: 5,
-    learningOutputs: 5,
-    proofClasses: ['IDENTITY', 'CONSTRAINTS', 'CAUSALITY', 'FALSIFICATION', 'REGRESSION'],
+    regressionDepth: 5,
+    independentEvidenceSources: 8,
+    learningOutputs: 8,
+    proofClasses: ['IDENTITY', 'CONSTRAINTS', 'CAUSALITY', 'FALSIFICATION', 'REGRESSION', 'DEPENDENCIES', 'SECURITY', 'REPRODUCIBILITY', 'COORDINATION', 'LEARNING'],
     preExecution25,
     adversarialReview,
     scopeConflict: false,
@@ -300,7 +320,7 @@ export function buildWorkPackage(prompt) {
       taskId: selectedTaskId, consumerRole: intent === 'REPAIR_DIAGNOSE' ? 'repairAgent' : intent === 'VERIFY' ? 'verification' : 'executionAgent', scope, intent, goal: cleanGoal, actions: actionList,
       dependencies: ['P00', 'CANONICAL_AGENT_COMMUNICATION', 'PROMPT_REGISTRY', 'ERROR_MEMORY', 'CURRENT_EXECUTION_SHA', 'CELL_LAB_WHEN_MUTATION_REQUIRED'],
       stages: ['INTAKE', 'CONTEXT_RETRIEVAL', 'UNDERSTAND', 'CLASSIFY_CONSTRAINTS', 'TASK_MATCH', 'PROMPT_BIND', 'SCOPE_LOCK', 'ROUTE_TO_AUTHORIZED_AGENT', 'TARGETED_VERIFY', 'AFFECTED_CONTRACT_VERIFY', 'CANONICAL_CI', 'LEARN'],
-      proofObligations: effectiveProofObligations, stopConditions: effectiveStopConditions, adversarialReview, fiveX: fiveXEnvelope, trainingMode: 'ADVISORY_KNOWLEDGE_ONLY',
+      proofObligations: effectiveProofObligations, stopConditions: effectiveStopConditions, adversarialReview, fiveX: fiveXEnvelope, tenX: fiveXEnvelope, trainingMode: 'ADVISORY_KNOWLEDGE_ONLY',
       learningOutputs: ['LESSON','ANTI_LESSON','BLOCKER','REJECTED_STRATEGY','VERIFIED_REPAIR'],
     },
     blockers: (blocked || reviewRequired || adversarialBlock) ? [...unsafeRequests, ...(quality.status === 'PASS' ? [] : quality.reasons), ...(reviewRequired ? ['NO_ACTIVE_TASK_MATCH'] : []), ...(adversarialBlock ? ['ADVERSARIAL_REVIEW_REQUIRED'] : []), ...(adversarialBlock && adversarialLoop.round >= 8 ? ['ADVERSARIAL_REPAIR_EXHAUSTED'] : [])] : [],
@@ -315,8 +335,8 @@ export function buildWorkPackage(prompt) {
 
 export function dispatchWorkPackage(plan) {
   if (plan.status !== 'READY' || !plan.dispatchable) throw new Error(`PROMPT_EXECUTION_BOT_DISPATCH_BLOCKED=${plan.blockers.join('|') || 'NOT_DISPATCHABLE'}`);
-  if (plan.preExecution25?.status !== 'PASS' || plan.preExecution25.operationCount < 25) throw new Error('PROMPT_EXECUTION_BOT_PRE_EXECUTION_25_BLOCKED');
-  if (plan.fiveX?.status !== 'READY_FOR_AUTHORIZED_EXECUTION') throw new Error('PROMPT_EXECUTION_BOT_FIVE_X_BLOCKED=' + (plan.fiveX?.blockers?.join('|') || 'NO_ENVELOPE'));
+  if (plan.preExecution25?.status !== 'PASS' || plan.preExecution25.operationCount < 50) throw new Error('PROMPT_EXECUTION_BOT_PRE_EXECUTION_25_BLOCKED');
+  if (plan.fiveX?.status !== 'READY_FOR_AUTHORIZED_EXECUTION') throw new Error('PROMPT_EXECUTION_BOT_TEN_X_BLOCKED=' + (plan.fiveX?.blockers?.join('|') || 'NO_ENVELOPE'));
   const currentBranch = git(['branch', '--show-current']);
   const currentExecutionSha = git(['rev-parse', 'HEAD']);
   if (currentBranch !== 'execution') throw new Error('PROMPT_EXECUTION_BOT_DISPATCH_REQUIRES_EXECUTION_BRANCH');
