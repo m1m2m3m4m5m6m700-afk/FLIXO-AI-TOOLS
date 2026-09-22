@@ -549,29 +549,17 @@ Deno.serve(async (req) => {
         }, 200, requestId);
       }
 
-      const taskId = String(row.task_id ?? "").trim();
-      const workPackageId = String(row.work_package_id ?? "").trim();
-      const messageId = String(row.message_id ?? "").trim();
-      const payload = row.payload && typeof row.payload === "object" && !Array.isArray(row.payload)
-        ? row.payload as Record<string, unknown>
-        : {};
-      const result = await dispatchSingle({
-        body: { entrySha: exactSha, directiveVersion: COUNCIL_DIRECTIVE_VERSION },
-        primary: route.primary,
-        fallback: route.fallback,
-        messageId,
-        idempotencyKey: String(row.idempotency_key ?? (messageId + ":" + exactSha)),
-        taskId,
-        workPackageId,
-        payload: {
-          ...payload,
-          administrativeInstruction: true,
-          directAssistantWake: true,
-          recipientMaster,
-          exactSha,
-          deliveryMode: "DIRECT_MASTER3_WAKE",
-        },
-      });
+      const wakeId = String(row.wakeId ?? row.wake_id ?? "").trim();
+      const dispatchResult = await db("/rest/v1/rpc/council_dispatch_assistant_wake", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ p_wake_id: wakeId, p_exact_sha: exactSha }),
+      }) as Record<string, unknown>;
+      if (dispatchResult?.accepted !== true) {
+        throw new Error(String(dispatchResult?.reason ?? "COUNCIL_ASSISTANT_WAKE_DISPATCH_REJECTED"));
+      }
+      const result = dispatchResult.dispatch as Record<string, unknown>;
+      if (!result || typeof result !== "object") throw new Error("COUNCIL_ASSISTANT_WAKE_DISPATCH_PAYLOAD_INVALID");
       return response({
         ok: true,
         channel: "MASTER3_DIRECT_ASSISTANT",
