@@ -22,8 +22,9 @@ assert.match(supersession, /CANCEL_STALE_RUN/u);
 assert.match(supersession, /KEEP_IN_PROGRESS_STALE_DURING_CANCEL/u);
 assert.match(ci, /github\.run_attempt\s*>\s*1[\s\S]*format\('-rerun-\{0\}',\s*github\.run_id\)/u);
 assert.match(supersession, /actions\/runs\?branch=\$BRANCH/u);
-assert.match(supersession, /flixo-latest-commit-supersession-\$\{\{ github\.repository \}\}/u);
-assert.match(supersession, /\*Repair\*\|\*repair\*/u);
+assert.match(supersession, /group:\s*flixo-latest-commit-supersession-\$\{\{\s*github\.event\.pull_request\.head\.repo\.full_name\s*\|\|\s*github\.repository\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name\s*\}\}/u);
+assert.doesNotMatch(supersession, /group:[^\n]*github\.event_name/u);
+assert.match(supersession, /\*Repair\*/u);
 
 assert.match(createIdentity, /LATEST_COMMIT_ONLY_RERUN_LOCK_V2/u);
 assert.match(createIdentity, /testDefinitionSha256/u);
