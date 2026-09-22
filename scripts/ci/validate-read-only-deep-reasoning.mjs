@@ -40,6 +40,7 @@ if (!/exactSha\(executionSha\)/u.test(source)) failures.push('EXACT_SHA_GUARD_MI
 if (!source.includes('COUNTERFACTUAL_SUPPORTS_SINGLE_CAUSE')) failures.push('COUNTERFACTUAL_ANALYSIS_MISSING');
 if (!source.includes('SURVIVES_CURRENT_FALSIFICATION')) failures.push('FALSIFICATION_RESULT_MISSING');
 if (!source.includes('P1_RUNTIME_EVIDENCE_FANOUT') || !source.includes('P5_KNOWLEDGE_SYNTHESIS')) failures.push('FIVE_X_REASONING_PASSES_MISSING');
+if (!source.includes('adaptiveInvestigation') || !source.includes('sharedOperationalMemory')) failures.push('SHARED_SIX_BOT_MEMORY_NOT_BOUND');
 if (!testSource.includes('INTERNAL_CONTRACT') || !testSource.includes('BLOCKED_EXTERNAL') || !testSource.includes('DOWNSTREAM_FAILURE')) {
   failures.push('CLASS_FIXTURES_MISSING');
 }
