@@ -103,7 +103,24 @@ export function leaseIdFor(input){return hash(canonicalLease(input));}
 function signLease(input){return hmac(canonicalLease(input));}
 export function initialize({targetSha=sha()}={}){
   const t=assertSha(targetSha,'TARGET_SHA');
-  return withWriteLock(()=>{if(fs.existsSync(statePath())){const existing=readState();if(existing.target_sha!==t)throw new Error('CHAIR_INIT_STALE_STATE');return existing;}const state=baseState(t);writeState(state);return state;});
+  if(t!==sha())throw new Error('STALE_CONTEXT');
+  return withWriteLock(()=>{
+    if(!fs.existsSync(statePath())){
+      const state=baseState(t);writeState(state);return state;
+    }
+    const existing=readState();
+    if(existing.target_sha===t)return existing;
+    const active=occupied(existing);
+    if(existing.repository_state==='IDLE'&&active.length===0&&Object.values(existing.chairs).every((ch)=>ch.status==='VACANT')){
+      existing.target_sha=t;
+      existing.idle_timestamp=now();
+      writeState(existing);
+      return existing;
+    }
+    existing.repository_state='STALE';
+    writeState(existing);
+    throw new Error('CHAIR_STATE_STALE_ACTIVE');
+  });
 }
 export function acquire({chairId='chair_1',agentId,targetSha=sha(),repositoryState='IDLE',reviewId=null,scope=null}={}){
   assertAgent(agentId);const t=assertSha(targetSha,'TARGET_SHA');if(t!==sha())throw new Error('STALE_CONTEXT');
@@ -172,6 +189,24 @@ export function authorizeMergeProposal({chairId,agentId,targetSha=sha()}={}){
   if(!CHAIR_DEFINITIONS[chairId].permissions.includes('MERGE_PROPOSAL'))throw new Error('CHAIR_MERGE_PROPOSAL_PERMISSION_DENIED');
   return Object.freeze({authorized:true,proposalOnly:true,requiresPromotionGate:true,chairId,agentId,targetSha:chair.target_sha});
 }
+export function revoke({chairId='chair_1',agentId,reason='STALE_CONTEXT'}={}){
+  assertAgent(agentId);
+  if(!CHAIR_DEFINITIONS[chairId])throw new Error('CHAIR_UNKNOWN');
+  return withWriteLock(()=>{
+    const state=readState();
+    const chair=state.chairs[chairId];
+    if(chair.status!=='OCCUPIED')throw new Error('CHAIR_NOT_OCCUPIED');
+    if(chair.holder_agent_id!==agentId)throw new Error('UNAUTHORIZED_EXECUTION_ATTEMPT');
+    chair.holder_agent_id=null;chair.status='VACANT';chair.acquired_at=null;chair.target_sha=null;chair.lease_id=null;chair.review_id=null;chair.scope=null;
+    const remaining=occupied(state).length;
+    state.repository_state=remaining===0?'IDLE':'ACTIVE';
+    state.idle_timestamp=remaining===0?now():null;
+    state.last_revoke={chairId,agentId,reason:String(reason),at:now()};
+    writeState(state);
+    return state;
+  });
+}
+
 export function release({chairId,agentId,targetSha=sha(),successful=false}={}){
   const t=assertSha(targetSha,'TARGET_SHA');
   return withWriteLock(()=>{
