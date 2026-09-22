@@ -125,6 +125,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
+      - name: Trust checked-out workspace for git identity
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Fail closed when this commit is superseded
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
