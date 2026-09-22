@@ -101,17 +101,18 @@ export function validateStatic() {
   must(/case "\$TARGET_RUN_ID"/.test(auto) && /target_run_id must be numeric/.test(auto), 'auto-repair-repair-mode-requires-target-run');
   must(/inputs\.resident == 'true'/.test(auto), 'auto-repair-resident-mode-declared');
   must(
-    /git switch --create execution "\$EXECUTION_BASE_SHA"/.test(auto) &&
-      /test "\$\(git branch --show-current\)" = execution/.test(auto),
+    /git worktree add --detach "\$TARGET_ROOT" "\$EXECUTION_SHA"/.test(auto) &&
+      /test "\$\(git -C "\$TARGET_ROOT" rev-parse HEAD\)" = "\$EXECUTION_SHA"/.test(auto) &&
+      /test -z "\$\(git -C "\$TARGET_ROOT" branch --show-current\)"/.test(auto),
     'auto-repair-execution-mutation-boundary'
   );
   must(/persist-credentials:\s*false/.test(auto), 'auto-repair-checkout-credential-isolation');
-  must(/CONTROLLER_SHA="\$MAIN_SHA"/.test(auto), 'auto-repair-main-controller-trust');
+  must(/test "\$\(git -C "\$CONTROLLER_ROOT" rev-parse HEAD\)" = "\$MAIN_SHA"/.test(auto), 'auto-repair-main-controller-trust');
   must(/git worktree add --detach "\$TARGET_ROOT" "\$EXECUTION_SHA"/.test(auto), 'auto-repair-detached-execution-target');
   must(!/git\s+(?:switch|checkout)\s+-c\s+execution/.test(auto), 'auto-repair-no-local-branch-creation');
-  must(/TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET/.test(auto), 'auto-repair-trust-model');
-  must(/FLIXO_TRUSTED_CONTROLLER_SHA=\$CONTROLLER_SHA/.test(auto), 'auto-repair-controller-provenance');
-  must(/contents:\s*read/.test(auto) && /pull-requests:\s*write/.test(auto), 'auto-repair-required-permissions');
+  must(/TRUST_MODEL=MAIN_CONTROLLER_CODE_EXECUTION_TARGET_DATA/.test(auto), 'auto-repair-trust-model');
+  must(/FLIXO_TRUSTED_CONTROLLER_SHA=\$MAIN_SHA/.test(auto), 'auto-repair-controller-provenance');
+  must(/contents:\s*read/.test(auto) && /actions:\s*read/.test(auto) && /checks:\s*read/.test(auto) && !/actions:\s*write/.test(auto), 'auto-repair-required-permissions');
   must(!/actions:\s*write/.test(auto), 'auto-repair-no-actions-admin');
   must(/checks:\s*read/.test(auto), 'auto-repair-check-permission');
   must(/group:\s*flixo-execution-mutation-lane/.test(auto), 'auto-repair-global-mutation-lane');
@@ -143,7 +144,7 @@ export function validateStatic() {
   must(/test "\$\(git rev-parse origin\/execution\)" = "\$FAILED_SHA"/.test(auto), 'auto-repair-candidate-remote-exact-target');
   must(/CANDIDATE_SHA="\$\(git rev-parse HEAD\)/.test(auto), 'auto-repair-candidate-sha');
   must(/PARENT_SHA="\$\(git rev-parse "\$CANDIDATE_SHA\^"\)/.test(auto), 'auto-repair-candidate-parent-sha');
-  must(/test "\$\(git rev-parse origin\/execution\)" = "\$PARENT_SHA"/.test(auto), 'auto-repair-publication-parent-integrity');
+  must(/PARENT_SHA="\$\(git rev-parse "\$CANDIDATE_SHA\^"\)"/.test(auto) && /test "\$\(git rev-parse origin\/execution\)" = "\$FLIXO_FAILED_SHA"/.test(auto), 'auto-repair-publication-parent-integrity');
   must(!/git\s+push[^\n]*\bexecution\b/.test(auto) && /EXECUTION_PUBLICATION=BLOCKED_BY_CHAIR_GUARD/.test(auto), 'auto-repair-execution-publication-chair-gated');
   must(/if: steps\.chair1_audit\.outcome == 'success'/.test(auto), 'auto-repair-publication-must-depend-on-chair1');
   must(/FLIXO_CHAIR_CONTEXT:\s*\/tmp\/flixo-chair1-proposal\.json/.test(auto), 'auto-repair-chair-context-boundary');
@@ -167,12 +168,12 @@ export function validateStatic() {
   must(/Create exact unpublished candidate commit/.test(auto), 'auto-repair-candidate-commit');
   must(/Run targeted regression and post-patch adversarial falsification in parallel/.test(auto), 'auto-repair-parallel-verification');
   must(/candidate-verification-parallel\.mjs/.test(auto), 'auto-repair-parallel-verification-script');
-  must(/TARGETED_REGRESSION_AND_ADVERSARIAL=PASS/.test(auto), 'auto-repair-parallel-aggregate-pass');
+  must(/candidate-verification-parallel\.mjs/.test(auto) && /repair-adversarial-convergence\.mjs/.test(auto) && /STABLE_FOR_PUBLICATION/.test(auto), 'auto-repair-parallel-aggregate-pass');
   must(/Run targeted regression and post-patch adversarial falsification in parallel/.test(auto), 'auto-repair-post-patch-adversarial');
   must(/\.gate\.adversarialNoCounterexample/.test(auto), 'auto-repair-post-patch-no-counterexample');
   must(/in-repo-repair-v2\.mjs/.test(auto), 'auto-repair-v2-engine-integrated');
   must(/IN_REPO_REPAIR_V2_RCA_MANIFEST=PROVEN/.test(auto), 'auto-repair-v2-rca-manifest-gate');
-  must(/Publish exact candidate commit only after post-patch adversarial validation/.test(auto), 'auto-repair-post-patch-before-publish');
+  must(/Prepare exact Chair publication handoff/.test(auto) && /if: steps\.chair1_audit\.outcome == 'success' && steps\.master_governor_final\.outcome == 'success'/.test(auto), 'auto-repair-post-patch-before-publish');
   must(/cannot repair itself/.test(auto), 'auto-repair-self-protection');
   must(!/assistant[_ -]?fallback/i.test(auto), 'auto-repair-no-peer-fallback');
   must(/AUTO_REPAIR_BOT/.test(auto), 'auto-repair-executor-identity');
