@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { verifyExecutionHeadAuthority } from './execution-head-authority.mjs';
 
 const ROOT=process.cwd();
 const SHA_RE=/^[a-f0-9]{40}$/u;
@@ -50,7 +51,7 @@ export function verifyAdmission({file='/tmp/flixo-mutation-admission.json',phase
   if(expected!==a.fencingToken||!HASH_RE.test(a.fencingToken))throw new Error('MUTATION_GATE_FENCING_TOKEN_INVALID');
   if(String(process.env.GITHUB_RUN_ID??'')!==a.runId||String(process.env.GITHUB_RUN_ATTEMPT??'1')!==a.runAttempt)throw new Error('MUTATION_GATE_RUN_CONTEXT_STALE');
   if(phase==='post-push'){
-    const c=assertSha(candidateSha??'','CANDIDATE_SHA');if(remoteExecutionSha()!==c)throw new Error('MUTATION_GATE_POST_PUSH_MISMATCH');return a;
+    const c=assertSha(candidateSha??'','CANDIDATE_SHA');if(remoteExecutionSha()!==c)throw new Error('MUTATION_GATE_POST_PUSH_MISMATCH');verifyExecutionHeadAuthority({file:process.env.FLIXO_HEAD_AUTHORITY_PROOF ?? '/tmp/flixo-head-authority.json',targetSha:a.targetSha,parentSha:a.targetSha,candidateSha:c});return a;
   }
   if(remoteExecutionSha()!==a.targetSha)throw new Error('MUTATION_GATE_REMOTE_HEAD_CHANGED');
   if(phase==='pre-commit'){
@@ -62,6 +63,7 @@ export function verifyAdmission({file='/tmp/flixo-mutation-admission.json',phase
     if(!parents.includes(a.targetSha))throw new Error('MUTATION_GATE_CANDIDATE_NOT_BOUND_TO_TARGET');
     if(p&&p!==a.targetSha)throw new Error('MUTATION_GATE_PARENT_MISMATCH');
     if(c===a.targetSha)throw new Error('MUTATION_GATE_EMPTY_CANDIDATE');
+    verifyExecutionHeadAuthority({file:process.env.FLIXO_HEAD_AUTHORITY_PROOF ?? '/tmp/flixo-head-authority.json',targetSha:a.targetSha,parentSha:a.targetSha,candidateSha:c});
   }else throw new Error('MUTATION_GATE_PHASE_INVALID');
   return a;
 }
