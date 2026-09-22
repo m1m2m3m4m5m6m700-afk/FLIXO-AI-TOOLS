@@ -22,7 +22,7 @@ const exactShaEvidenceFiles = new Set([
   '.github/workflows/test-impact-execution.yml',
   '.github/workflows/repository-security-baseline.yml',
   '.github/workflows/claude-security-review.yml',
-  '.github/workflows/auto-repair-merge-gate.yml',
+  // Auto Repair Merge Gate is a supersedable verification workflow, not a same-SHA evidence observer.
 ]);
 
 for (const file of files) {
