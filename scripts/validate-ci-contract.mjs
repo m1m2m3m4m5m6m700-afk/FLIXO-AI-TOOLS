@@ -213,7 +213,7 @@ const residentCiBlock =
   greenGateWorkflow.match(/name: Ensure exact-SHA required CI is resident[\s\S]*?(?=\n\s{6}- name:|$)/)?.[0] ?? '';
 const settlementBlock =
   greenGateWorkflow.match(/name: Await required internal CI settlement on exact SHA[\s\S]*?(?=\n\s{6}- name:|$)/)?.[0] ?? '';
-if (!/if: steps\.capture\.outputs\.branch == 'execution'/.test(residentCiBlock) ||
+if (!/if:\s*(?:>-\s*)?\n?\s*steps\.capture\.outputs\.branch == 'execution'/.test(residentCiBlock) ||
     /actions\/workflows\//.test(residentCiBlock) ||
     !/FAIL_CLOSED: required CI residency is incomplete for exact SHA(?: after [^\n]+)?/.test(residentCiBlock)) {
   console.error('CI contract failed: Green Gate must observe required execution-push CI residency and fail closed without redispatch.');
