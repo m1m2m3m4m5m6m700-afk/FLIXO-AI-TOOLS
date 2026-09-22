@@ -88,6 +88,9 @@ const authGitHubWorkflow = async (req: Request, allowedWorkflows: string[]) => {
   const jobWorkflowSha = String(claims.job_workflow_sha ?? "").trim().toLowerCase();
   if (jobWorkflowRef && !/^[0-9a-f]{40}$/u.test(jobWorkflowSha)) throw new Error("COUNCIL_GITHUB_OIDC_JOB_WORKFLOW_SHA_MISSING");
   if (jobWorkflowRef && !jobWorkflowSha) throw new Error("COUNCIL_GITHUB_OIDC_JOB_WORKFLOW_SHA_REQUIRED");
+  if (jobWorkflowRef && jobWorkflowSha !== trustedWorkflowSha(workflow)) {
+    throw new Error("COUNCIL_GITHUB_OIDC_JOB_WORKFLOW_SHA_REJECTED");
+  }
   const event = String(claims.event_name ?? "");
   const ref = String(claims.ref ?? "");
   const allowed = allowedWorkflows.some((workflow) => {
