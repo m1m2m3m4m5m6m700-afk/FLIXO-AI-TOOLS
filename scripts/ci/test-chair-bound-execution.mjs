@@ -255,7 +255,22 @@ const pushProposal=proposePush({
   paths:['src/example.ts'],
   workPackageId:'WP-PUSH-1',
   taskId:'TASK-PUSH-1',
-  summary:'Chair-2 proposed source push; guard must review before Chair-1 adoption.'
+  patchSha256:'d'.repeat(64),
+  summary:'Chair-2 proposed source push; guard must review before Chair-1 adoption.',
+  pushDetails:{
+    pushId:'PUSH-TEST-001',
+    actorAgent:'agent-proposer',
+    actorRole:'chair_2',
+    sessionId:'push-proposal-session',
+    event:'PUSH',
+    reason:'strict guard regression',
+    changeType:'SOURCE_MUTATION',
+    repository:'m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS',
+    branch:'execution',
+    commitMessage:'test push proposal',
+    commitTreeSha:'a'.repeat(64),
+    requestedAt:'2026-09-22T18:00:00Z'
+  }
 });
 fs.writeFileSync(proposalFile,JSON.stringify(pushProposal,null,2)+'\n');
 const guardOut=path.join(hardeningRoot,'guard.json');
