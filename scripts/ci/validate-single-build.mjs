@@ -19,9 +19,9 @@ const deep = section('browser_deep', ['certify']);
 const certify = section('certify', []);
 
 if (!verify.includes('name: Static + Build')) failures.push('CANONICAL_BUILD_OWNER_MISSING');
-if (!verify.includes('uses: actions/upload-artifact@v6') || !verify.includes('name: flixo-build-${{ github.run_id }}')) failures.push('CANONICAL_BUILD_ARTIFACT_MISSING');
+if (!/(?:uses: actions\/upload-artifact@v6|uses: actions\/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f\\s+# v6\\.0\\.0)/u.test(verify) || !verify.includes('name: flixo-build-${{ github.run_id }}')) failures.push('CANONICAL_BUILD_ARTIFACT_MISSING');
 for (const [name, text] of [['browser_fast', fast], ['browser_deep', deep], ['certify', certify]]) {
-  if (!text.includes('actions/download-artifact@v7')) failures.push(`${name}: BUILD_ARTIFACT_CONSUMPTION_MISSING`);
+  if (!/(?:actions\/download-artifact@v7|actions\/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131\\s+# v7\\.0\\.0)/u.test(text)) failures.push(`${name}: BUILD_ARTIFACT_CONSUMPTION_MISSING`);
   if (/npm\s+run\s+build(?!:runtime)/.test(text)) failures.push(`${name}: REBUILD_DETECTED`);
   if (/vite\s+build/.test(text)) failures.push(`${name}: DIRECT_BUILD_DETECTED`);
 }

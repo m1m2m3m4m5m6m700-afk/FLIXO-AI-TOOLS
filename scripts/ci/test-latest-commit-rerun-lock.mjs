@@ -10,7 +10,7 @@ const createProof = fs.readFileSync('scripts/ci/create-run-proof.mjs', 'utf8');
 const verifyProof = fs.readFileSync('scripts/ci/verify-run-proof.mjs', 'utf8');
 
 assert.match(ci, /github\.run_attempt\s*>\s*1/u);
-assert.match(ci, /flixo-test-rerun-\{0\}/u);
+assert.match(ci, /group:\s*flixo-test-\$\{\{\s*github\.event_name\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/u);
 assert.match(ci, /cancel-in-progress:\s*true/u);
 assert.match(ci, /REQUIRE_LIVE_HEAD_MATCH:\s*['"]true['"]/u);
 assert.match(ci, /verify-run-lock\.mjs/u);
@@ -20,10 +20,10 @@ assert.match(ci, /verify-run-proof\.mjs/u);
 assert.match(supersession, /gh api --paginate --slurp/u);
 assert.match(supersession, /CANCEL_STALE_RUN/u);
 assert.match(supersession, /KEEP_IN_PROGRESS_STALE_DURING_CANCEL/u);
-assert.match(supersession, /Repair/u);
+assert.match(ci, /github\.run_attempt\s*>\s*1[\s\S]*format\('-rerun-\{0\}',\s*github\.run_id\)/u);
 assert.match(supersession, /actions\/runs\?branch=\$BRANCH/u);
 assert.match(supersession, /flixo-latest-commit-supersession-\$\{\{ github\.repository \}\}/u);
-assert.doesNotMatch(supersession, /github\.event_name.*flixo-latest-commit-supersession/u);
+assert.match(supersession, /\*Repair\*\|\*repair\*/u);
 
 assert.match(createIdentity, /LATEST_COMMIT_ONLY_RERUN_LOCK_V2/u);
 assert.match(createIdentity, /testDefinitionSha256/u);

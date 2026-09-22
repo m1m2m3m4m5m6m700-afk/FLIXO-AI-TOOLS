@@ -167,7 +167,7 @@ test.describe.configure({ mode: 'parallel' });
 test.setTimeout(60_000);
 
 for (const pathname of routes) {
-  test(`G4 official all-public-route localization/SEO contract — ${pathname}`, async ({ page }) => {
+  test(`G4 official all-public-route localization/SEO contract — ${pathname}`, async ({ page }, testInfo) => {
     const runtimeErrors: string[] = [];
     const consoleErrorPromises: Promise<void>[] = [];
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
@@ -189,6 +189,11 @@ for (const pathname of routes) {
     const locale = pathname.match(new RegExp(`^/(${localeCodes.join('|')})(?:/|$)`, 'u'))?.[1];
     expect(locale, `${pathname} must have a canonical locale prefix`).toBeTruthy();
     const localeCode = locale as (typeof localeCodes)[number];
+    const verifiedPathname = new URL(page.url()).pathname;
+    const verifiedLocale = verifiedPathname.match(new RegExp(`^/(${localeCodes.join('|')})(?:/|$)`, 'u'))?.[1];
+    expect(verifiedPathname, `${pathname} must execute on the requested canonical pathname`).toBe(pathname);
+    expect(verifiedLocale, `${pathname} must execute under its declared locale`).toBe(localeCode);
+    testInfo.annotations.push({ type: 'flixo-verified-locale', description: verifiedLocale });
     const expectedDirection = LOCALE_METADATA[localeCode].direction;
     const family = familyPath(pathname);
 
@@ -213,7 +218,7 @@ for (const pathname of routes) {
     const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
     expect(canonical).toBeTruthy();
     const canonicalUrl = new URL(canonical!, page.url());
-    const productionOrigin = new URL(process.env.VITE_SITE_URL ?? 'https://flixoai.vercel.app').origin;
+    const productionOrigin = new URL('https://flixoai.vercel.app').origin;
     expect(canonicalUrl.protocol).toBe('https:');
     expect(canonicalUrl.origin).toBe(productionOrigin);
     expect(canonicalUrl.pathname).toBe(pathname);
