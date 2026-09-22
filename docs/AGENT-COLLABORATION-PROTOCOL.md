@@ -40,6 +40,14 @@ Cooperation never weakens repository policy, certification or human authority.
 
 Protocol → Validator → Evidence → Certification
 
+### Operational command chain
+
+`USER_FINAL_AUTHORITY → assistantController_OPERATIONAL_EXECUTION_LEAD → MASTER_COUNCIL_COLLABORATION → REGISTERED_AGENTS_AND_BOTS`
+
+`assistantController` is the operational execution lead for the cell: it assigns work, integrates the Masters' findings, arbitrates unresolved conflicts through evidence and existing validators, and controls execution sequencing. The user remains the final authority. MASTER-1, MASTER-2 and MASTER-3 must not create a competing command chain, parallel authority, alternate registry, or hidden communication path.
+
+For material work, every Master remains in `MASTER_CELL_LAB` and follows the active residency contract: minimum 45 minutes, maximum 3-hour continuous segment before revalidation, 1-minute heartbeat, 5-minute Master status update, 10-minute task reminder, no sleep/idle/silent exit, and continued work until the task is actually closed by the canonical exit gate.
+
 Prompt = execution instruction فقط ولا يمنح صلاحية.
 Protocol = السلطة التنفيذية.
 Validator = إنفاذ البروتوكول.
@@ -208,6 +216,8 @@ node scripts/ci/agent-coordination.mjs ingest-handoff
 ### Liveness and wake
 
 الجلسة المفتوحة لا تصبح SLEEP أو IDLE أو SILENT أو ABANDONED.
+
+For MASTER-1/2/3 specifically, lack of activity is a coordination failure: wake/recovery must restore the Master session, restore the shared task snapshot, and require a current `MASTER_CELL_LAB` update before the Master is considered participating again.
 
 جلسة الإصلاح ACTIVE_REPAIR_45M لها حد أدنى 45 دقيقة متواصلة؛ انتهاؤها أو timeout أو lease لا يساوي إغلاقًا. Heartbeat متواصل، وفقدانه يعيد الحالة إلى RECOVERING ويُبقي العمل مفتوحًا.
 إغلاق الجلسة بحالة BLOCKED ممنوع؛ العائق يسجل ويستمر مسار recovery/coordination داخل الخلية.
