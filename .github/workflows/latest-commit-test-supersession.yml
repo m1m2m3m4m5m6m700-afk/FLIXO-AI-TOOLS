@@ -172,7 +172,7 @@ jobs:
             printf '%s\n' "$RUNS_JSON" >&2
             exit 1
           fi
-          printf '%s' "$RUNS_JSON" | jq -s 'add' > /tmp/supersession-all-runs.json
+          printf '%s' "$RUNS_JSON" | jq 'add' > /tmp/supersession-all-runs.json
           while IFS=
             [ -n "$RUN_ID" ] || continue
             if [ "$HEAD_SHA" = "$CURRENT_SHA" ]; then
@@ -196,15 +196,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sleep 2
-          RUNS_JSON="$(gh api --paginate --slurp "repos/$REPOSITORY/actions/runs?branch=$BRANCH&per_page=100")"
-          printf '%s' "$RUNS_JSON" | jq -s 'add' > /tmp/supersession-final-runs.json
-          stale_active="$(jq -r --arg sha "$CURRENT_SHA" '[.workflow_runs[] | select(.status != "completed" and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession")] | length' /tmp/supersession-final-runs.json)"
-          if [ "$stale_active" -ne 0 ]; then
-            echo "FAIL CLOSED: $stale_active stale runs remain non-completed after supersession."
+          for poll in 1 2 3 4 5; do
+            RUNS_JSON="$(gh api --paginate --slurp "repos/$REPOSITORY/actions/runs?branch=$BRANCH&per_page=100")"
+            printf '%s' "$RUNS_JSON" | jq 'add' > /tmp/supersession-final-runs.json
+            stale_active="$(jq -r --arg sha "$CURRENT_SHA" '[.workflow_runs[] | select(.status != "completed" and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession")] | length' /tmp/supersession-final-runs.json)"
+            if [ "$stale_active" -eq 0 ]; then
+              echo 'STALE_ACTIVE_RUNS=0'
+              echo 'LATEST_COMMIT_ONLY_ENFORCED=true'
+              break
+            fi
+            echo "STALE_ACTIVE_RUNS=$stale_active poll=$poll"
             jq -r --arg sha "$CURRENT_SHA" '.workflow_runs[] | select(.status != "completed" and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession") | [.id,.name,.status,.head_sha] | @tsv' /tmp/supersession-final-runs.json
+            if [ "$poll" -lt 5 ]; then sleep 2; fi
+          done
+          test "$stale_active" -eq 0 || {
+            echo 'FAIL CLOSED: stale runs remain non-completed after supersession cancellation window.'
             exit 1
-          fi
+          }
           echo 'STALE_ACTIVE_RUNS=0'
           echo 'LATEST_COMMIT_ONLY_ENFORCED=true'
 
