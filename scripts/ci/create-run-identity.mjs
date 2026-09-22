@@ -6,6 +6,18 @@ import { resolve } from 'node:path';
 
 const root = process.cwd();
 const sha256 = (file) => createHash('sha256').update(readFileSync(resolve(root, file))).digest('hex');
+const testDefinitionFiles = [
+  '.github/workflows/ci.yml',
+  'scripts/ci/test-plan.json',
+  'scripts/ci/assertion-registry.json',
+  'package.json',
+  'package-lock.json',
+  '.nvmrc',
+  'playwright.config.ts',
+];
+const testDefinitionSha256 = createHash('sha256')
+  .update(testDefinitionFiles.map((file) => `${file}:${sha256(file)}`).join('\\n'), 'utf8')
+  .digest('hex');
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 const node = process.version;
 const npm = execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim();
@@ -20,8 +32,8 @@ if (expectedSha && sha !== expectedSha) {
 }
 
 const identity = {
-  schemaVersion: 3,
-  rerunContract: 'LATEST_COMMIT_ONLY_RERUN_LOCK_V1',
+  schemaVersion: 4,
+  rerunContract: 'LATEST_COMMIT_ONLY_RERUN_LOCK_V2',
   runAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
   evidenceClass: 'PRIMARY_EXECUTION',
   contractVersion,
@@ -32,6 +44,8 @@ const identity = {
   ref: process.env.GITHUB_REF ?? null,
   headRef: process.env.GITHUB_HEAD_REF ?? null,
   sourceEventSha: process.env.GITHUB_SHA ?? null,
+  testDefinitionFiles,
+  testDefinitionSha256,
   workflowSha256: sha256('.github/workflows/ci.yml'),
   testPlanSha256: sha256('scripts/ci/test-plan.json'),
   assertionRegistrySha256: sha256('scripts/ci/assertion-registry.json'),
