@@ -56,10 +56,22 @@ export function assertProtocolDefinition(){
   if(JSON.stringify(REPAIR_PROTOCOL.actionVaultMissionRequires)!==JSON.stringify(['triadId','messageId','taskId','failureFingerprint','entrySha','targetSha','ownerAgent','proofObligations','stopConditions'])) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_MISSION_SCHEMA_DRIFT');
   return Object.freeze({protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH});
 }
+const assertChairBoundMutationSession = (actor, session) => {
+  const binding = session?.chairBinding;
+  if (!binding || binding.required !== true) throw new Error('REPAIR_PROTOCOL_CHAIR_REQUIRED');
+  if (!['chair_1','chair_2','chair_3'].includes(String(binding.chairId ?? ''))) throw new Error('REPAIR_PROTOCOL_CHAIR_INVALID');
+  if (!/^[a-f0-9]{64}$/u.test(String(binding.leaseId ?? ''))) throw new Error('REPAIR_PROTOCOL_CHAIR_LEASE_MISSING');
+  if (binding.released === true) throw new Error('REPAIR_PROTOCOL_CHAIR_RELEASED');
+  if (String(binding.targetSha ?? '') !== String(session.targetSHA ?? '')) throw new Error('REPAIR_PROTOCOL_CHAIR_SHA_MISMATCH');
+  if (String(session.actor ?? actor) !== actor) throw new Error('REPAIR_PROTOCOL_CHAIR_ACTOR_MISMATCH');
+  return Object.freeze({actor, chairId:binding.chairId, leaseId:binding.leaseId, targetSha:binding.targetSha, admitted:true});
+};
+
 export function assertAgentAdmission({actor,branch='execution',mutation=false,session=null}={}){
   const protocol=assertProtocolDefinition();
   if(!REPAIR_PROTOCOL.allAgents.includes(actor)) throw new Error('REPAIR_PROTOCOL_UNKNOWN_AGENT='+actor);
   if(mutation&&!REPAIR_PROTOCOL.mutationAgents.includes(actor)) throw new Error('REPAIR_PROTOCOL_MUTATION_ROLE_BLOCKED='+actor);
+  if(mutation) assertChairBoundMutationSession(actor, session);
   if(mutation&&branch!=='execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
   if(mutation&&REPAIR_PROTOCOL.cellLabRequired){
     const sessionTaskId=String(session?.taskId??'').trim();
