@@ -102,9 +102,9 @@ jobs:
         run: |
           set -euo pipefail
           EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-          LATEST="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --commit "$EXECUTION_SHA" --limit 20 --json status,conclusion,headSha)"
-          ACTIVE="$(printf '%s' "$LATEST" | jq -r 'map(select(.status == "queued" or .status == "in_progress")) | length')"
-          GREEN="$(printf '%s' "$LATEST" | jq -r --arg sha "$EXECUTION_SHA" 'map(select(.headSha == $sha and .status == "completed" and .conclusion == "success")) | length')"
+          LATEST="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100")"
+          ACTIVE="$(printf '%s' "$LATEST" | jq -r '[.workflow_runs[] | select(.path == ".github/workflows/daily-flixo-green-gate.yml" and .head_sha == $ENV_SHA and (.status == "queued" or .status == "in_progress"))] | length' --arg ENV_SHA "$EXECUTION_SHA")"
+          GREEN="$(printf '%s' "$LATEST" | jq -r '[.workflow_runs[] | select(.path == ".github/workflows/daily-flixo-green-gate.yml" and .head_sha == $ENV_SHA and .status == "completed" and .conclusion == "success")] | length' --arg ENV_SHA "$EXECUTION_SHA")"
           if [ "$ACTIVE" -gt 0 ] || [ "$GREEN" -gt 0 ]; then
             echo 'WATCHDOG_SCHEDULED_WAKE_NOT_REQUIRED=true'
             echo 'wake=false' >> "$GITHUB_OUTPUT"
@@ -144,21 +144,16 @@ jobs:
             fi
           fi
 
-          RUN_STATE="$(gh run list \
-            --repo "$GITHUB_REPOSITORY" \
-            --workflow "FLIXO Test System" \
-            --commit "$EXECUTION_SHA" \
-            --limit 20 \
-            --json databaseId,status,conclusion,headSha \
-            | jq -r --arg sha "$EXECUTION_SHA" '
-                [ .[]
-                  | select(.headSha == $sha)
-                  | select(.status == "queued" or .status == "in_progress" or .status == "completed")
-                ]
-                | sort_by(.databaseId)
-                | last // {}
-                | [(.status // ""), (.conclusion // "")]
-                | @tsv'
+          RUN_STATE="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100" |
+            jq -r --arg sha "$EXECUTION_SHA" '
+              [ .workflow_runs[]
+                | select(.path == ".github/workflows/ci.yml" and .head_sha == $sha)
+                | select(.status == "queued" or .status == "in_progress" or .status == "completed")
+              ]
+              | sort_by(.id)
+              | last // {}
+              | [(.status // ""), (.conclusion // "")]
+              | @tsv'
           )"
           STATUS="$(printf '%s' "$RUN_STATE" | cut -f1)"
           CONCLUSION="$(printf '%s' "$RUN_STATE" | cut -f2)"
@@ -178,7 +173,8 @@ jobs:
           gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution
           FOUND="false"
           for attempt in $(seq 1 30); do
-            ACTIVE_COUNT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "FLIXO Test System" --branch execution --commit "$EXECUTION_SHA" --limit 20 --json status --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
+            ACTIVE_COUNT="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100" |
+              jq -r --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.path == ".github/workflows/ci.yml" and .head_sha == $sha and (.status == "queued" or .status == "in_progress"))] | length')"
             if [ "$ACTIVE_COUNT" -gt 0 ]; then
               FOUND="true"
               break
@@ -201,8 +197,9 @@ jobs:
           set -euo pipefail
           EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"
           test -n "$EXECUTION_SHA"
-          ACTIVE="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --commit "$EXECUTION_SHA" --limit 20 --json status --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
-          GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --commit "$EXECUTION_SHA" --limit 20 --json status,conclusion --jq '[.[] | select(.status == "completed" and .conclusion == "success")] | length')"
+          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100")"
+          ACTIVE="$(printf '%s' "$RUNS" | jq -r '[.workflow_runs[] | select(.path == ".github/workflows/daily-flixo-green-gate.yml" and .head_sha == $ENV_SHA and (.status == "queued" or .status == "in_progress"))] | length' --arg ENV_SHA "$EXECUTION_SHA")"
+          GREEN="$(printf '%s' "$RUNS" | jq -r '[.workflow_runs[] | select(.path == ".github/workflows/daily-flixo-green-gate.yml" and .head_sha == $ENV_SHA and .status == "completed" and .conclusion == "success")] | length' --arg ENV_SHA "$EXECUTION_SHA")"
           if [ "$ACTIVE" -gt 0 ] || [ "$GREEN" -gt 0 ]; then
             echo 'WATCHDOG_GREEN_GATE_DISPATCH=NOOP'
             exit 0
