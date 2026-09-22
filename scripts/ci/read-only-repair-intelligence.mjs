@@ -22,6 +22,85 @@ const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find
 const readJson=(file,fallback=null)=>{try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return fallback;}};
 const git=(args)=>execFileSync('git',args,{cwd:ROOT,encoding:'utf8'}).trim();
 
+const VAULT_INDEX_PATH=path.resolve(ROOT,'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json');
+const VAULT_ROUTER_PATH=path.resolve(ROOT,'docs/agents/ERROR-TEACHING-ROUTER.json');
+const TEACHING_DIR=path.resolve(ROOT,'docs/agents/teaching-sessions');
+const VAULT_CAPACITY=1_000_000;
+const textTokens=(value)=>[...new Set(String(value??'').toLowerCase().match(/[a-z][a-z0-9_-]{3,}|\bts\d{3,5}\b|\b(?:t|hae)-?\d{3,8}\b/gu)??[])];
+const loadVaultSources=()=>{
+  const files=new Set();
+  const add=(value)=>{
+    if(typeof value!=='string'||!value) return;
+    const absolute=path.resolve(ROOT,value);
+    if(fs.existsSync(absolute)&&fs.statSync(absolute).isFile()) files.add(absolute);
+  };
+  try{
+    const router=readJson(VAULT_ROUTER_PATH,{});
+    add(router.corpus?.base);
+    add(router.corpus?.additional);
+    for(const file of router.corpus?.expanded??[]) add(file);
+    for(const group of router.groups??[]) add(group.file);
+  }catch{}
+  try{
+    if(fs.existsSync(TEACHING_DIR)){
+      for(const file of fs.readdirSync(TEACHING_DIR).filter(file=>/\.md$/u.test(file))) add(path.join(TEACHING_DIR,file));
+    }
+  }catch{}
+  return [...files];
+};
+const retrieveVaultAdvice=({failureLog='',diagnosis=null,selected=null}={})=>{
+  const primary=readJson(VAULT_INDEX_PATH,null);
+  const router=readJson(VAULT_ROUTER_PATH,{});
+  const query=[failureLog,diagnosis?.rootCause,diagnosis?.errorClass,diagnosis?.errorType,diagnosis?.stage,diagnosis?.mechanism,diagnosis?.invariant,diagnosis?.explanation,diagnosis?.reason,diagnosis?.location?.file,diagnosis?.location?.symbol,selected?.id,selected?.file].filter(Boolean).join(' ');
+  const terms=textTokens(query).filter(term=>term.length>=4).slice(0,48);
+  const sourceFiles=loadVaultSources();
+  const matches=[];
+  const seen=new Set();
+  for(const file of sourceFiles){
+    let lines=[];
+    try{lines=fs.readFileSync(file,'utf8').split(/\r?\n/u);}catch{continue;}
+    for(let i=0;i<lines.length;i++){
+      const line=String(lines[i]??'').trim();
+      if(!line) continue;
+      const lower=line.toLowerCase();
+      const overlap=terms.filter(term=>lower.includes(term)).length;
+      if(overlap===0) continue;
+      const classHint=terms.some(term=>/^(workflow|concurrency|stale|sha|vercel|capi|typescript|eslint|playwright|browser|i18n|supabase|repair|memory|contract|liveness|heartbeat)$/u.test(term));
+      const score=overlap+(classHint?1:0);
+      const id=line.match(/\b(?:T|HAE-)\d{3,8}\b/iu)?.[0]??null;
+      const key=(id??'')+'|'+line.slice(0,500);
+      if(seen.has(key)) continue;
+      seen.add(key);
+      matches.push({score,id,source:path.relative(ROOT,file),line:i+1,text:line.slice(0,2400)});
+    }
+  }
+  matches.sort((a,b)=>b.score-a.score || String(a.id??'').localeCompare(String(b.id??'')));
+  const primaryRecordCount=Number(primary?.recordCount??(Array.isArray(primary?.records)?primary.records.length:0));
+  const routerFiles=[router.corpus?.base,router.corpus?.additional,...(router.corpus?.expanded??[]),...(router.groups??[]).map(group=>group.file)].filter(Boolean);
+  let status='NO_MATCH';
+  if(primaryRecordCount>0 && matches.length>0) status='INDEX_AND_CORPUS_MATCH';
+  else if(primaryRecordCount===0 && matches.length>0) status='CORPUS_MATCH_CANONICAL_INDEX_EMPTY';
+  else if(primaryRecordCount>0) status='INDEX_AVAILABLE_NO_DIRECT_MATCH';
+  return {
+    protocol:'ACTION-VAULT-READONLY-KNOWLEDGE-LOOKUP-v1',
+    authority:'ADVISORY_ONLY',
+    proofAuthority:'CURRENT_EXACT_SHA_CI_ONLY',
+    mutationAuthority:false,
+    declaredCatalogCapacity:VAULT_CAPACITY,
+    canonicalIndexPath:path.relative(ROOT,VAULT_INDEX_PATH),
+    canonicalIndexRecordCount:primaryRecordCount,
+    routerRuleCount:Number(router.corpus?.rules??0),
+    routerSourceCount:routerFiles.length,
+    teachingCorpusPath:path.relative(ROOT,TEACHING_DIR),
+    teachingSourceCount:sourceFiles.filter(file=>file.startsWith(TEACHING_DIR)).length,
+    queryTerms:terms.slice(0,24),
+    matchedAdvice:matches.slice(0,32),
+    status,
+    recommendation:'Retrieved advice is advisory context only; current exact-SHA evidence and CI remain authoritative.'
+  };
+};
+
+
 
 function runProgrammerTwinReadOnly({log,targetSha,fingerprint,diagnosis,selected}) {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-readonly-twin-'));
@@ -172,6 +251,7 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
     changedFiles:0,
     changedLines:0
   });
+  const vaultKnowledge=retrieveVaultAdvice({failureLog:log,diagnosis,selected});
   const selfCritic=critiqueRepair({
     diff:'',
     diffSummary:{files:[],lines:0},
@@ -291,6 +371,8 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
       adversarialStatus:adversarial.status,
       programmerTwinStatus:programmerTwin?.status??null,
       programmerTwinMode:'READ_ONLY_MIRROR',
+      vaultAdviceStatus:vaultKnowledge.status,
+      vaultAdviceCount:vaultKnowledge.matchedAdvice.length,
       actionVaultPredictionStatus:actionVaultPrediction?.status??'UNKNOWN',
       actionVaultPredictionConfidence:Number(actionVaultPrediction?.proposedRepair?.confidence??0),
       mutationWouldBeAllowedByRepairStack:Boolean(errorOnly.repair?.mutationAllowed)&&Boolean(confidence.allowed)&&adversarial.counterexampleFound===false,
