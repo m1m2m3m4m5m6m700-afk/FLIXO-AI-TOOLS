@@ -288,7 +288,8 @@ jobs:
             echo "MESSAGE_TARGET_SHA_STALE=$MESSAGE_SHA"
             echo 'status=STALE' >> "$GITHUB_OUTPUT"
           else
-            git checkout --detach "origin/$TARGET_REF"
+            # Never switch the privileged runner to event-controlled execution code.
+            # TARGET_REF is provenance metadata only; executable communication code remains from trusted main.
             echo "target_ref=$TARGET_REF" >> "$GITHUB_OUTPUT"
             echo "status=READY" >> "$GITHUB_OUTPUT"
           fi

@@ -36,10 +36,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Checkout exact execution SHA
+      - name: Checkout trusted Council controller source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: execution
+          # The workflow has id-token:write. Execute only trusted controller code from main.
+          # entry_sha is validated against the live execution ref as data, never as checked-out code.
+          ref: main
           fetch-depth: 1
           persist-credentials: false
 

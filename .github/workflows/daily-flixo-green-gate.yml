@@ -45,10 +45,12 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Checkout exact execution branch
+      - name: Checkout trusted Green Gate controller source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: execution
+          # This workflow has actions:write. Never execute code from the event-controlled execution branch.
+          # The current execution SHA is observed exclusively through immutable GitHub API state below.
+          ref: main
           fetch-depth: 1
           persist-credentials: false
 
