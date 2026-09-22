@@ -31,17 +31,17 @@ assert.throws(()=>authorizeWrite({chairId:'chair_1',agentId:'agent-alpha',target
 release({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,successful:true});
 assert.equal(repositoryMode({targetSha:realGitSha}).repositoryState,'IDLE');
 
-const two=acquire({chairId:'chair_2',agentId:'agent-beta',targetSha:realGitSha,repositoryState:'IDLE'});
+acquire({chairId:'chair_2',agentId:'agent-beta',targetSha:realGitSha,repositoryState:'IDLE'});
 assert.equal(authorizeWrite({chairId:'chair_2',agentId:'agent-beta',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION',boundedScope:['src/example.ts']}).authorized,true);
 assert.throws(()=>authorizeWrite({chairId:'chair_2',agentId:'agent-beta',targetSha:realGitSha,paths:['src/other.ts'],permission:'SOURCE_MUTATION',boundedScope:['src/example.ts']}),/CHAIR2_SCOPE_DRIFT/);
 release({chairId:'chair_2',agentId:'agent-beta',targetSha:realGitSha});
 
-const three=acquire({chairId:'chair_3',agentId:'agent-arch',targetSha:realGitSha,repositoryState:'IDLE',reviewId:'AR-001'});
+acquire({chairId:'chair_3',agentId:'agent-arch',targetSha:realGitSha,repositoryState:'IDLE',reviewId:'AR-001'});
 assert.equal(authorizeWrite({chairId:'chair_3',agentId:'agent-arch',targetSha:realGitSha,paths:['schemas/example.json'],permission:'SCHEMA_VALIDATION',reviewId:'AR-001'}).authorized,true);
 assert.throws(()=>authorizeWrite({chairId:'chair_3',agentId:'agent-arch',targetSha:realGitSha,paths:['src/example.ts'],permission:'SCHEMA_VALIDATION',reviewId:'AR-001'}),/CHAIR_SCOPE_DENIED/);
 release({chairId:'chair_3',agentId:'agent-arch',targetSha:realGitSha});
 
-const chair1Again=acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE'});
+acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE'});
 const chair3Parallel=acquire({chairId:'chair_3',agentId:'agent-arch-2',targetSha:realGitSha,repositoryState:'ACTIVE',reviewId:'AR-002'});
 assert.equal(authorizeWrite({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,paths:['src/example.ts'],permission:'SOURCE_MUTATION'}).authorized,true);
 assert.equal(authorizeWrite({chairId:'chair_3',agentId:'agent-arch-2',targetSha:realGitSha,paths:['schemas/example.json'],permission:'SCHEMA_VALIDATION',reviewId:'AR-002'}).authorized,true);
@@ -71,7 +71,7 @@ fs.writeFileSync(stateFile,JSON.stringify(stale,null,2)+'\n');
 const dead=reconcileDeadLeases({targetSha:realGitSha});
 assert.equal(dead.reclaimed.length,1);
 assert.equal(dead.reclaimed[0].reason,'DEAD_LEASE');
-const reacquire=acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE'});
+acquire({chairId:'chair_1',agentId:'agent-alpha',targetSha:realGitSha,repositoryState:'IDLE'});
 const speculative=writeSpeculativeContext({sessionId:'session-2',taskId:'TASK-2',chairId:'chair_2',role:'verification',targetSha:realGitSha,pendingDiff:'diff --git a/src/example.ts b/src/example.ts',testPlan:['lint','unit']});
 assert.equal(speculative.readOnly,true);
 assert.equal(readSpeculativeContext({sessionId:'session-2',targetSha:realGitSha}).taskId,'TASK-2');
