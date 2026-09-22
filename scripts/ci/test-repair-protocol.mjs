@@ -129,12 +129,12 @@ assert.throws(() => assertAgentAdmission({actor:'repairAgent',branch:'execution'
 assert.throws(()=>assertAgentAdmission({actor:'actionHistorian',branch:'execution',mutation:true,session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task-historian-fail',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,chairBinding,cellLabConsensus:cellLabConsensus('repair-test-task-historian-fail','actionHistorian')}}),/SUPERVISOR_MODE_REQUIRED/);
 assert.equal(assertAgentAdmission({
   actor:'actionRepairVerifier', branch:'execution', mutation:true,
-  session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,cellLabConsensus:cellLabConsensus('repair-test-task','actionRepairVerifier'),
+  session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,chairBinding,cellLabConsensus:cellLabConsensus('repair-test-task','actionRepairVerifier'),
     actionVaultMission:{role:'ACTION-REPAIR-2',mutationSeat:'ACTION-REPAIR-2',supervisorMode:'NORMAL_TRIAD',entrySha:targetSHA,targetSha:targetSHA,candidateRepairApproved:true}}
 }).admitted,true);
 assert.equal(assertAgentAdmission({
   actor:'actionHistorian', branch:'execution', mutation:true,
-  session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task-historian',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,cellLabConsensus:cellLabConsensus('repair-test-task-historian','actionHistorian'),
+  session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task-historian',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,chairBinding,cellLabConsensus:cellLabConsensus('repair-test-task-historian','actionHistorian'),
     actionVaultMission:{role:'ACTION-HISTORIAN-3',mutationSeat:'ACTION-HISTORIAN-3',supervisorMode:'SUPERVISOR_20',entrySha:targetSHA,targetSha:targetSHA,catalogReviewed:true,bothProgrammingProposalsReviewed:true,supervisorDecision:true}}
 }).admitted,true);
 const actionRepairSession=createRepairSession({repairSessionId:'action-repair-session',actor:'actionRepairBot',failureFingerprint:'action-repair-test',targetSHA,beforeState:{worktree:'clean'}});
@@ -204,7 +204,7 @@ assert.throws(()=>assertAgentAdmission({actor:'actionRepairBot',branch:'executio
 assert.equal(assertAgentAdmission({actor:'actionRepairBot',branch:'execution',mutation:false}).admitted,true);
 const actionCaptured={...captureFailure(actionRepairSession,{runId:'action-test-run'}),chairBinding};
 assert.equal(authorizeMutation(actionCaptured).state,'MUTATION_AUTHORIZED');
-const fallbackSession={protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,state:'FAILURE_CAPTURED',taskId:'fallback-task',targetSHA,cellLabConsensus:cellLabConsensus('fallback-task','assistantRepairAgent'),fallback:{actor:'assistantRepairAgent',primaryAgentsUnavailable:true,learnedRule:'known-rule',learnedRuleConfidence:0.95,learnedRuleSupport:2,targetSha:targetSHA}};
+const fallbackSession={protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,state:'FAILURE_CAPTURED',taskId:'fallback-task',targetSHA,chairBinding,cellLabConsensus:cellLabConsensus('fallback-task','assistantRepairAgent'),fallback:{actor:'assistantRepairAgent',primaryAgentsUnavailable:true,learnedRule:'known-rule',learnedRuleConfidence:0.95,learnedRuleSupport:2,targetSha:targetSHA}};
 assert.equal(assertAgentAdmission({actor:'assistantRepairAgent',branch:'execution',mutation:true,session:fallbackSession}).admitted,true);
 assert.throws(()=>assertAgentAdmission({actor:'assistantRepairAgent',branch:'execution',mutation:true,session:{...fallbackSession,fallback:{...fallbackSession.fallback,primaryAgentsUnavailable:false}}}),/FALLBACK_PRIMARY_AGENT_AVAILABLE/);
 assert.throws(()=>assertAgentAdmission({actor:'assistantRepairAgent',branch:'execution',mutation:true,session:{...fallbackSession,fallback:{...fallbackSession.fallback,learnedRuleConfidence:0.89}}}),/FALLBACK_LEARNING_THRESHOLD/);
