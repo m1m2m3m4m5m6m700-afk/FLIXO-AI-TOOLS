@@ -24,7 +24,8 @@ export const REPAIR_PROTOCOL = Object.freeze({
   mutationRequires: ['protocolVersion','protocolHash','repairSessionId','failureFingerprint','targetSHA','beforeState'],
   completionRequires: ['repairAttempts','retestResult','resumePoint','finalVerification','finalSHA'],
   protectedPaths: ['scripts/ci/repair-protocol.mjs','scripts/ci/control-plane-registry.mjs','scripts/ci/auto-repair-engine.mjs','scripts/ci/auto-repair-policy.mjs','scripts/ci/agent-execution-control.mjs','scripts/ci/execution-head-authority.mjs',
-  'scripts/ci/chair1-change-accumulator.mjs','scripts/ci/execution-mutation-gate.mjs','.github/workflows/auto-repair.yml','scripts/ci/validate-agent-protocol.mjs','scripts/ci/validate-agent-coordination.mjs','scripts/ci/chair-bound-execution.mjs','scripts/ci/chair-push-guard.mjs','scripts/ci/auto-repair-chair1-audit.mjs'],
+  'scripts/ci/chair1-change-accumulator.mjs',
+  'scripts/ci/agent-isolated-workspace.mjs','scripts/ci/execution-mutation-gate.mjs','.github/workflows/auto-repair.yml','scripts/ci/validate-agent-protocol.mjs','scripts/ci/validate-agent-coordination.mjs','scripts/ci/chair-bound-execution.mjs','scripts/ci/chair-push-guard.mjs','scripts/ci/auto-repair-chair1-audit.mjs'],
   mutationAgents: ['repairAgent','executionAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier','actionHistorian'],
   allAgents: ['assistantController','MASTER-1','MASTER-2','MASTER-3','analysis','implementation','verification','release','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','diagnosticAgent','actionRepairBot','actionRepairVerifier','actionHistorian'],
   actionVaultRoles: Object.freeze({
