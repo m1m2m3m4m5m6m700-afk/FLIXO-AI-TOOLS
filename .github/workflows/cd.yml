@@ -1,15 +1,12 @@
 name: FLIXO Continuous Delivery
 
 on:
-  workflow_dispatch:
-    inputs:
-      sha:
-        description: "Exact main commit SHA to promote"
-        required: true
-        type: string
+  pull_request:
+    types: [closed]
+    branches: [main]
 
 concurrency:
-  group: flixo-cd-${{ inputs.sha || github.run_id }}
+  group: flixo-cd-${{ github.event.pull_request.merge_commit_sha || github.run_id }}
   cancel-in-progress: false
 
 permissions:
@@ -22,22 +19,27 @@ env:
 
 jobs:
   promote:
-    name: Promote exact certified SHA
-    if: github.event_name == 'workflow_dispatch'
+    name: Promote exact certified SHA after merge to main
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.merge_commit_sha != ''
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
       name: production
       url: ${{ env.FLIXO_PRODUCTION_ORIGIN }}
     steps:
-      - name: Resolve promotion SHA
+      - name: Resolve merged main SHA
         id: sha
         shell: bash
         env:
-          MANUAL_SHA: ${{ inputs.sha }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
           set -euo pipefail
-          sha="$MANUAL_SHA"
+          sha="$MERGE_SHA"
           test -n "$sha"
           printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
 
@@ -81,7 +83,7 @@ jobs:
             '{status:$status,sha:$sha,currentMain:$currentMain,checkedOut:$checkedOut,reason:$reason,origin:$origin,stage:"CURRENT_MAIN_GUARD"}' \
             > production-deployment-evidence.json
 
-          echo "Manual promotion rejected: $reason"
+          echo "Merged-main promotion rejected: $reason"
           printf 'skip_deploy=false\n' >> "$GITHUB_OUTPUT"
           exit 1
 
