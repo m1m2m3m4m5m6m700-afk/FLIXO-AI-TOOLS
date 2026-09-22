@@ -84,19 +84,25 @@ export function reconcileDeadLeases({targetSha=sha(),atMs=Date.now()}={}){
     const state=readState();
     if(state.target_sha!==t)throw new Error('CHAIR_STATE_SHA_MISMATCH');
     const reclaimed=[];
+    const blocked=[];
     for(const [id,chair] of Object.entries(state.chairs)){
       if(chair.status!=='OCCUPIED'||!staleHeartbeat(chair,atMs))continue;
       const holder=chair.holder_agent_id;
       const leaseId=chair.lease_id;
+      if(chair.task_id!==null && chair.task_id!==undefined && String(chair.task_id).trim()!==''){
+        blocked.push({chairId:id,agentId:holder,leaseId,taskId:chair.task_id,reason:'TASK_ACTIVE_NONRECLAIMABLE'});
+        continue;
+      }
       clearChairRecord(chair,state);
       atomicChairRefAudit({chairId:id,targetSha:t,event:'DEAD_LEASE'});
       reclaimed.push({chairId:id,agentId:holder,leaseId,reason:'DEAD_LEASE'});
     }
-    if(reclaimed.length){
-      state.last_dead_lease={at:now(),atSha:t,reclaimed};
-      writeState(state);
+    if(reclaimed.length||blocked.length){
+      state.last_dead_lease={at:now(),atSha:t,reclaimed,blocked};
+      if(reclaimed.length) writeState(state);
+      else writeState(state);
     }
-    return {targetSha:t,deadLeaseAfterMs:DEAD_LEASE_AFTER_MS,reclaimed,state};
+    return {targetSha:t,deadLeaseAfterMs:DEAD_LEASE_AFTER_MS,reclaimed,blocked,state};
   });
 }
 export function heartbeat({chairId='chair_1',agentId,targetSha=sha()}={}){
@@ -197,6 +203,7 @@ function baseState(targetSha){
     authority:'FLIXO_CHAIR_BOUND_EXECUTION',
     repository_state:'IDLE',
     idle_timestamp:now(),
+    target_sha:assertSha(targetSha,'TARGET_SHA'),
     target_sha:assertSha(targetSha,'TARGET_SHA'),
     push_proposals:[],
     rejected_push_memory:[],
@@ -397,6 +404,7 @@ function verifyLease({state,chairId,agentId,targetSha,assertCurrentHead=true}){
   return chair;
 }
 export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permission='SOURCE_MUTATION',reviewId=null,boundedScope=null,workPackageId=null,taskId=null,fencingToken=null}={}){
+export function authorizeWrite({chairId,agentId,targetSha=sha(),paths=[],permission='SOURCE_MUTATION',reviewId=null,boundedScope=null,workPackageId=null,taskId=null,fencingToken=null}={}){
   if(!Array.isArray(paths)||paths.length===0)throw new Error('CHAIR_WRITE_PATHS_REQUIRED');
   const t=assertSha(targetSha,'TARGET_SHA');
   const state=readState();
@@ -595,6 +603,7 @@ export function release({chairId,agentId,targetSha=sha(),successful=false,sessio
     if(successful===true&&state.repository_state==='ACTIVE')state.repository_state='ACTIVE';
     writeState(state);return state;
   });
+}
 }
 export function validateCurrent({chairId,agentId,targetSha=sha(),paths=[],permission='SOURCE_MUTATION',reviewId=null,boundedScope=null,workPackageId=null,taskId=null,fencingToken=null}={}){
   const t=assertSha(targetSha,'TARGET_SHA');if(t!==sha())throw new Error('STALE_CONTEXT');
