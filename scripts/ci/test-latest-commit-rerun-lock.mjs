@@ -17,6 +17,14 @@ assert.match(ci, /verify-run-lock\.mjs/u);
 assert.match(ci, /create-run-proof\.mjs/u);
 assert.match(ci, /verify-run-proof\.mjs/u);
 
+const browserFastStart = ci.indexOf('  browser_fast:\n');
+const browserDeepStart = ci.indexOf('  browser_deep:\n');
+if (browserFastStart < 0 || browserDeepStart <= browserFastStart) throw new Error('BROWSER_FAST_SECTION_NOT_FOUND');
+const browserFast = ci.slice(browserFastStart, browserDeepStart);
+assert.match(browserFast, /name:\s*flixo-static-build-evidence-\$\{\{\s*github\.run_id\s*\}\}/u);
+assert.match(browserFast, /name:\s*flixo-static-build-evidence-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*path:\s*diagnostics[\s\S]*Verify immutable rerun lock/u);
+assert.match(ci, /flixo-static-build-evidence-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*path:\s*diagnostics\//u);
+
 assert.doesNotMatch(supersession, /gh api --paginate --slurp/u);
 assert.doesNotMatch(supersession, /--paginate\b/u);
 assert.doesNotMatch(supersession, /--slurp\b/u);

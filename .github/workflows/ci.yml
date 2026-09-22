@@ -209,6 +209,10 @@ jobs:
         with:
           name: flixo-build-${{ github.run_id }}
           path: dist
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: flixo-static-build-evidence-${{ github.run_id }}
+          path: diagnostics
       - name: Verify immutable rerun lock
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
