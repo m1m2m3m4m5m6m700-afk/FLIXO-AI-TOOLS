@@ -132,6 +132,10 @@ BLOCKED_EXTERNAL ليست GREEN وليست terminal success.
 يبقى blocker محفوظًا مع provenance، ويستمر العمل المستقل غير المتعلق به.
 لا يجوز تحويل فشل provider إلى نجاح التطبيق، ولا تعطيل القواعد الداخلية بسبب provider outage/rate-limit/API error.
 
+## 10. CELL EXECUTIVE GOVERNANCE — CELL-EXEC-GOV-001
+
+The 200 Cell Bots are mandatory `CELL_EXECUTIVE_AGENT` roles under MASTER-1/2/3. Repair is continuous while RED/open RCA exists; development/learning may run in parallel only on disjoint scope. Rank #1→#200 is verified performance only and never grants authority. Escalation is L0→L7. Canonical policy: `docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md`.
+
 ## 10. LEARNING / CONTINUITY
 
 كل دورة تسجل:

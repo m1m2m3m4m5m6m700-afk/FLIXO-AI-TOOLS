@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "authority": "FLIXO_PROTOCOL_REGISTRY",
-  "policy": "No standalone protocol may be added unless the Protocol Addition Gate passes. Existing protocols must absorb compatible requirements instead of creating duplicates.",
+  "policy": "No standalone protocol may be added unless the Protocol Addition Gate passes. Existing protocols must absorb compatible requirements instead of creating duplicates. CELL-EXEC-GOV-001 is absorbed by P20/P21 and may not create a parallel protocol.",
   "precedence": [
     "SUPREME_UNIVERSAL_AGENT_EXECUTION",
     "SUPREME_AUTOMATION_RESIDENCY",
@@ -243,7 +243,9 @@
         "mutationAuthority": "EXISTING_ROLE_AUTHORITY_ONLY",
         "enforcement": "scripts/ci/cell-lab-consensus.mjs + repair-protocol mutation admission + coordination/communication evidence",
         "canonicalArtifact": "diagnostics/agents/cell-lab/consensus/<taskId>.json"
-      }
+      },
+      "canonicalPolicy": "docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md",
+      "absorbedPolicyId": "CELL-EXEC-GOV-001"
     },
     {
       "id": "P21",
@@ -279,7 +281,9 @@
       "sharedMemory": "diagnostics/auto-repair/cell-knowledge/index.json",
       "publishRule": "VALIDATED → MEMORY_COMMIT → PUBLISH → VERSION → CELL_MEMORY_UPDATED → SYNC",
       "invalidationRule": "SOURCE_SHA_CHANGE or MEMORY_CHALLENGE invalidates immediate reuse until revalidation.",
-      "authorityBoundary": "Shared knowledge is reusable information; it never grants mutation, certification, permission, or command authority."
+      "authorityBoundary": "Shared knowledge is reusable information; it never grants mutation, certification, permission, or command authority.",
+      "canonicalPolicy": "docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md",
+      "absorbedPolicyId": "CELL-EXEC-GOV-001"
     }
   ]
 }

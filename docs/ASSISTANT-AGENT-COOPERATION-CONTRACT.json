@@ -841,5 +841,20 @@
       ],
       "boundary": "Rank elevation does not grant mutation, certification, or final decision authority."
     }
+  },
+  "cellExecutiveGovernance": {
+    "contractId": "CELL-EXEC-GOV-001",
+    "version": "1.0.0",
+    "status": "MANDATORY",
+    "canonicalPolicy": "docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md",
+    "appliesTo": [
+      "MASTER-1",
+      "MASTER-2",
+      "MASTER-3",
+      "CELL-001..CELL-200"
+    ],
+    "authorityBoundary": "Rank, memory and learning never grant mutation, certification, permission or command authority.",
+    "parallelLanes": "REPAIR continuous when RED; DEVELOPMENT_LEARNING continuous only on disjoint scope; shared conflict prioritizes repair.",
+    "escalation": "L0 BOT → L1 MASTER-3 → L2 MASTER-2 → L3 MASTER-1 → L4 JOINT → L5 CONTROL_PLANE → L6 SECURITY_CI_CERTIFICATION → L7 USER_FINAL_AUTHORITY"
   }
 }

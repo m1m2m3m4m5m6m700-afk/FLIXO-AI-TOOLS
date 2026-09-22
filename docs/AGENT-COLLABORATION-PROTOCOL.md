@@ -32,6 +32,10 @@ This protocol defines the operating system for the FLIXO agent team. The executi
 Cooperation never weakens repository policy, certification or human authority.
 
 
+## CELL EXECUTIVE GOVERNANCE — MANDATORY
+
+`CELL-EXEC-GOV-001` is the single operating policy for MASTER-1/2/3 and all 200 Bots. It is absorbed by P20/P21 and is not a parallel protocol. Repair is continuous while RED/open RCA exists; development/learning is parallel only on disjoint scope; shared-scope conflict prioritizes repair; Rank #1→#200 is performance only; escalation L0→L7 is mandatory. Canonical: `docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md`.
+
 ## Unified Agent Commands & Protocol Surface
 
 هذا القسم هو **فهرس تشغيلي موحّد** للقواعد والأوامر الموجودة في البروتوكولات المعتمدة. لا ينشئ Protocol أو Registry أو Certification Authority جديدة؛ عند التعارض تُطبّق أولوية docs/PROTOCOL-HIERARCHY.md والـmachine-readable validators.

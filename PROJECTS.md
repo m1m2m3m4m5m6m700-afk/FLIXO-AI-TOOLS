@@ -102,9 +102,25 @@ ADMIN PROVENANCE = production Vercel→Supabase binding not proven
 | BUILD-002 | CLOSED / VERIFIED | Preserve canonical artifact identity producer/consumer contract |
 | TEST-001 | CLOSED / VERIFIED | Preserve deterministic ownership registry and validator |
 | AGENT-PROTOCOL-003 | CLOSED / VERIFIED | Preserve proof-driven fail-closed repair lifecycle and learning/prevention contracts |
+| CELL-EXEC-GOV-001 | IMPLEMENTED / VERIFICATION PENDING | Run current governance regression, then certify current execution head as required |
 | AGENT-PROMPT-INTEL-001 | CONSOLIDATED / VERIFICATION PENDING | Shared Prompt Registry + causal deduplication + quality gate + Task Agent prompt provenance | Run current main canonical static/contract verification; reconcile execution exact-SHA before promotion |
 | DEBT-001 | BLOCKED_EXTERNAL | Deterministic validator delivered; required exact-head external security/Vercel gates are unresolved |
 | TOOL-EXPANSION | CANDIDATE | Activate only after a fresh deterministic scope is proven |
+
+## CELL-EXEC-GOV-001
+
+```text
+STATUS = IMPLEMENTED / VERIFICATION PENDING
+CANONICAL POLICY = docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md
+CONTRACT ID = CELL-EXEC-GOV-001
+ABSORBED PROTOCOLS = P20 + P21
+SCOPE = MASTER-1/2/3 + CELL-001..CELL-200
+REPAIR = CONTINUOUS_WHEN_RED
+DEVELOPMENT_LEARNING = CONTINUOUS_ON_DISJOINT_SCOPE
+RANK = #1..#200 VERIFIED PERFORMANCE ONLY
+ESCALATION = L0..L7
+NEXT EXIT = fresh exact-SHA governance regression + canonical CI evidence
+```
 
 ## DEBT-001
 

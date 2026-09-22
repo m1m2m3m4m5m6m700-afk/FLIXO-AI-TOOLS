@@ -32,6 +32,8 @@ const expected = {
   'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json': ['ASSISTANT_AGENT_COOPERATION_CONTRACT', 'assistantController', 'councilPresident', 'councilDeputy', 'councilInvestigator', 'codeScout', 'executionAgent', 'reviewAgent', 'testAgent', 'securityAgent', 'performanceAgent', 'certificationAuthority', 'actionRepairBot', 'actionRepairVerifier', 'actionHistorian', 'ACTION-REPAIR', 'ACTION-REPAIR-2', 'ACTION-HISTORIAN-3', 'action_vault_reasoning', 'messageEnvelope', 'no_implicit_authority', 'parallelism', 'arbitration', 'architecture', 'quality', 'efficiency', 'recovery', 'security', 'release', 'communication_first', 'event_driven_delivery', 'message_idempotency', 'message_freshness'],
   'docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md': ['READ', 'WRITE', 'FORBIDDEN', 'NO_SOURCE_MUTATION', 'code-scout-latest.json', 'execution agents'],
   'scripts/ci/test-shared-operational-memory-contract.mjs': ['SHARED_OPERATIONAL_MEMORY_CONTRACT_TEST=PASS','CELL-SHARED-OPERATIONAL-MEMORY-001','targetBotCount','botIdentityBinding'],
+  'docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md': ['CELL-EXEC-GOV-001','REPAIR LANE','DEVELOPMENT & LEARNING LANE','L0','L7','Exit Lock'],
+  'scripts/ci/test-cell-executive-governance.mjs': ['CELL_EXECUTIVE_GOVERNANCE_TEST=PASS','BOT_COUNT=PASS','RANKING=PASS','ESCALATION=PASS','PARALLEL_LANES=PASS'],
 };
 
 for (const [file, markers] of Object.entries(expected)) {
@@ -129,6 +131,20 @@ else {
   if (memory.publicationGate?.knowledgeDoesNotGrantAuthority !== true) failures.push('SHARED_MEMORY_AUTHORITY_BOUNDARY_INVALID');
 }
 
+const executiveGovernance = sharedMemoryRegistry?.executiveCellGovernance;
+const executivePolicy = exists('docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md') ? read('docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md') : '';
+if (executiveGovernance?.contractId !== 'CELL-EXEC-GOV-001' || executiveGovernance?.status !== 'MANDATORY') failures.push('CELL_EXECUTIVE_CONTRACT_INVALID');
+if (executiveGovernance?.canonicalPolicy !== 'docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md' || executiveGovernance?.targetBotCount !== 200) failures.push('CELL_EXECUTIVE_POLICY_BINDING_INVALID');
+if (!Array.isArray(sharedMemoryRegistry?.bots) || sharedMemoryRegistry.bots.length !== 200) failures.push('CELL_EXECUTIVE_BOT_COUNT_INVALID');
+if (JSON.stringify(executiveGovernance?.ranking?.range) !== JSON.stringify([1,200]) || executiveGovernance?.ranking?.authorityInheritance !== false) failures.push('CELL_EXECUTIVE_RANKING_INVALID');
+if (executiveGovernance?.continuousLanes?.repair !== 'CONTINUOUS_WHEN_RED' || executiveGovernance?.continuousLanes?.developmentLearning !== 'CONTINUOUS_ON_DISJOINT_SCOPE' || executiveGovernance?.continuousLanes?.sharedScopePriority !== 'REPAIR') failures.push('CELL_EXECUTIVE_PARALLEL_LANES_INVALID');
+for (const level of ['L0','L1','L2','L3','L4','L5','L6','L7']) if (!executiveGovernance?.escalation?.levels?.[level]) failures.push(`CELL_EXECUTIVE_ESCALATION_MISSING=${level}`);
+for (const [i,bot] of (sharedMemoryRegistry?.bots ?? []).entries()) {
+  const id=`CELL-${String(i+1).padStart(3,'0')}`;
+  if (bot.id!==id || bot.cellRole!=='EXECUTIVE_AGENT' || bot.cellGovernanceContract!=='CELL-EXEC-GOV-001' || bot.executionMode!=='ASSIGNED_SCOPE_ONLY' || !bot.performanceProfile) failures.push(`CELL_EXECUTIVE_BOT_BINDING_INVALID=${id}`);
+}
+if (!executivePolicy.includes('CELL-EXEC-GOV-001') || !executivePolicy.includes('REPAIR LANE') || !executivePolicy.includes('DEVELOPMENT & LEARNING LANE') || !executivePolicy.includes('L0 — BOT LOCAL') || !executivePolicy.includes('L7 — USER_FINAL_AUTHORITY')) failures.push('CELL_EXECUTIVE_POLICY_MARKERS_MISSING');
+
 const protocolRegistry = exists('docs/PROTOCOL-REGISTRY.json') ? JSON.parse(read('docs/PROTOCOL-REGISTRY.json')) : null;
 const supremePromptFile = exists('docs/agents/PROMPT-UNIFIED-EXECUTION.md') ? read('docs/agents/PROMPT-UNIFIED-EXECUTION.md') : '';
 if (!supremePromptFile.includes('CELL-LAB')) failures.push('CELL_LAB_CONTRACT_MISSING');
@@ -142,6 +158,9 @@ if (!protocolRegistry) failures.push('PROTOCOL_REGISTRY_MISSING');
 else {
   const p20 = protocolRegistry.protocols?.find((item) => item?.id === 'P20');
   for (const marker of ['decision provenance','independent verification','parallel work','conflicts','dependency edges','learning never grants authority']) if (!p20?.invariant?.includes(marker)) failures.push(`P20_COOPERATION_EXTENSION_MISSING=${marker}`);
+  if (p20?.absorbedPolicyId !== 'CELL-EXEC-GOV-001' || p20?.canonicalPolicy !== 'docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md') failures.push('P20_CELL_EXECUTIVE_POLICY_BINDING_INVALID');
+  const p21 = protocolRegistry.protocols?.find((item) => item?.id === 'P21');
+  if (p21?.absorbedPolicyId !== 'CELL-EXEC-GOV-001' || p21?.canonicalPolicy !== 'docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md') failures.push('P21_CELL_EXECUTIVE_POLICY_BINDING_INVALID');
 }
 
 const sessionSource = exists('scripts/ci/agent-session.mjs') ? read('scripts/ci/agent-session.mjs') : '';

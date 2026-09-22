@@ -39,7 +39,8 @@ Before any repository action, every agent MUST read, in this order:
 8. `docs/PROTOCOL-HIERARCHY.md`
 9. `docs/PROTOCOL-REGISTRY.json`
 10. `docs/agents/PROMPT-REGISTRY.json`
-11. `diagnostics/auto-repair/memory.json`
+11. `docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md`
+12. `diagnostics/auto-repair/memory.json`
 12. `scripts/ci/cell-lab-consensus.mjs`
 13. `docs/agents/CELL-CONTROL-HEADQUARTERS.md`
 14. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
@@ -48,6 +49,10 @@ Before any repository action, every agent MUST read, in this order:
 17. the current exact `main` SHA and current workflow state
 
 `PROJECTS.md` is the navigation/control layer; `المهام.md` is the open-task scope gate; the linked contract/plan remains authoritative for implementation semantics, and CI/evidence remains authoritative for completion.
+
+## CELL EXECUTIVE GOVERNANCE — MANDATORY
+
+`CELL-EXEC-GOV-001` applies to MASTER-1/2/3 and CELL-001..CELL-200. MASTER-1 commands/assigns, MASTER-2 independently verifies/requalifies, MASTER-3 owns RCA/learning/training, and every Bot executes only within assigned scope. Repair is continuous while RED/open RCA exists; development/learning is parallel only on disjoint ownership/dependency scope. Shared-scope conflict prioritizes repair and requires MASTER-1 arbitration. Rank #1..#200 is verified performance only and never grants authority. Escalation L0..L7 is mandatory. Canonical policy: `docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md`.
 
 ## TASK GATE
 
