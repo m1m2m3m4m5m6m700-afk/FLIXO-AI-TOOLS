@@ -51,4 +51,5 @@ PROJECT_STATUS.md
 
 # FLIXO local Chair state; never commit ephemeral leases or session caches
 .flixo/locks/
+!.flixo/locks/rejected-push-memory.jsonl
 .flixo/cache/
