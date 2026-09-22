@@ -20,6 +20,11 @@ export const CONTROL_PLANE_FILES = Object.freeze([
   'scripts/ci/validate-auto-repair-boundary.mjs',
   'scripts/ci/post-patch-adversarial-assessor.mjs',
   'scripts/ci/candidate-verification-parallel.mjs',
+  'scripts/ci/in-repo-repair-v2.mjs',
+  'scripts/ci/test-in-repo-repair-v2.mjs',
+  'scripts/ci/test-post-patch-adversarial-v2.mjs',
+  'schemas/in-repo-repair-v2.schema.json',
+  'configs/in-repo-repair-v2.yml',
   'scripts/ci/task-agent.mjs',
   'scripts/ci/agent-execution-control.mjs',
   'scripts/ci/repair-strategy.mjs',
@@ -117,6 +122,8 @@ export function validateStatic() {
   must(/TARGETED_REGRESSION_AND_ADVERSARIAL=PASS/.test(auto), 'auto-repair-parallel-aggregate-pass');
   must(/Run targeted regression and post-patch adversarial falsification in parallel/.test(auto), 'auto-repair-post-patch-adversarial');
   must(/\.gate\.adversarialNoCounterexample/.test(auto), 'auto-repair-post-patch-no-counterexample');
+  must(/in-repo-repair-v2\.mjs/.test(auto), 'auto-repair-v2-engine-integrated');
+  must(/IN_REPO_REPAIR_V2_RCA_MANIFEST=PROVEN/.test(auto), 'auto-repair-v2-rca-manifest-gate');
   must(/Publish exact candidate commit only after post-patch adversarial validation/.test(auto), 'auto-repair-post-patch-before-publish');
   must(/cannot repair itself/.test(auto), 'auto-repair-self-protection');
   must(!/assistant[_ -]?fallback/i.test(auto), 'auto-repair-no-peer-fallback');
