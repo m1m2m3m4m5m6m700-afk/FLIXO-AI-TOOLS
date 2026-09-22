@@ -34,6 +34,10 @@ on:
         required: false
         default: '1'
         type: string
+      convergence_guidance_artifact_id:
+        description: 'Prior Auto Repair artifact carrying the verified counterexample required for convergence cycles > 1'
+        required: false
+        type: string
       prompt_source_run_id:
         description: 'Daily Green Gate run that published the comprehensive repair prompt bundle'
         required: false
@@ -72,6 +76,7 @@ env:
   FLIXO_REPAIR_LEASE_REF: ${{ inputs.repair_lease_ref || '' }}
   FLIXO_REPAIR_LEASE_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
   FLIXO_REPAIR_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
+  FLIXO_CONVERGENCE_GUIDANCE_ARTIFACT_ID: ${{ inputs.convergence_guidance_artifact_id || '' }}
   FLIXO_REPAIR_BEHAVIOR_TRACE_PATH: /tmp/flixo-repair-behavior-trace.json
   FLIXO_HISTORICAL_SOLUTION_PATH: /tmp/flixo-historical-solution-index.json
   FLIXO_TWIN_A_PATH: /tmp/flixo-twin-a.json
@@ -230,6 +235,57 @@ jobs:
             exit 1
           }
           echo "EXACT_FAILED_SHA_REQUALIFICATION=PASS"
+
+      - name: Materialize prior counterexample guidance for convergence cycles
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ATTEMPT="$FLIXO_REPAIR_ATTEMPT"
+          case "$ATTEMPT" in
+            ''|*[!0-9]*|0) echo "FAIL CLOSED: invalid repair attempt=$ATTEMPT"; exit 1 ;;
+          esac
+          if [ "$ATTEMPT" -le 1 ]; then
+            echo 'CONVERGENCE_GUIDANCE=NOT_REQUIRED'
+            exit 0
+          fi
+          ARTIFACT_ID="$FLIXO_CONVERGENCE_GUIDANCE_ARTIFACT_ID"
+          case "$ARTIFACT_ID" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: convergence cycle >1 requires a prior Auto Repair artifact id.'; exit 1 ;;
+          esac
+          mkdir -p /tmp/flixo-convergence-guidance
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > /tmp/flixo-convergence-guidance.zip
+          unzip -o /tmp/flixo-convergence-guidance.zip -d /tmp/flixo-convergence-guidance >/dev/null
+          GUIDANCE_JSON="$(find /tmp/flixo-convergence-guidance -name flixo-postpatch-adversarial.json -type f -print -quit)"
+          test -s "$GUIDANCE_JSON" || { echo 'FAIL CLOSED: prior adversarial counterexample artifact is missing.'; exit 1; }
+          EXPECTED_FP="$FLIXO_FAILURE_FINGERPRINT"
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          jq -e --arg fp "$EXPECTED_FP" --arg sha "$FAILED_SHA" '
+            .schemaVersion == 2
+            and .protocol == "FLIXO-POST-PATCH-ADVERSARIAL-v2"
+            and .falsifierVerdict == "REJECTED_WITH_COUNTER_EXAMPLE"
+            and .passConfirmed == false
+            and .failureFingerprint == $fp
+            and .sourceSha == $sha
+            and (.convergenceDirective != null)
+            and (.falsificationEvidence != null)' "$GUIDANCE_JSON" >/dev/null || {
+              echo 'FAIL CLOSED: prior counterexample does not match the current failure identity/SHA.'
+              exit 1
+            }
+          jq '{
+            schemaVersion: 1,
+            protocol: "FLIXO-CONVERGENCE-GUIDANCE-v1",
+            priorSourceSha: .sourceSha,
+            failureFingerprint: .failureFingerprint,
+            falsifierVerdict: .falsifierVerdict,
+            convergenceDirective: .convergenceDirective,
+            falsificationEvidence: .falsificationEvidence,
+            priorTargetSha: .targetSha
+          }' "$GUIDANCE_JSON" > /tmp/flixo-convergence-guidance.json
+          test -s /tmp/flixo-convergence-guidance.json
+          echo 'FLIXO_CONVERGENCE_GUIDANCE_PATH=/tmp/flixo-convergence-guidance.json' >> "$GITHUB_ENV"
+          echo "CONVERGENCE_GUIDANCE=PROVEN artifact=$ARTIFACT_ID sourceSha=$FAILED_SHA"
+
       - name: Validate immutable repair boundary before mutation
         run: node scripts/ci/validate-auto-repair-boundary.mjs --static-only
 
