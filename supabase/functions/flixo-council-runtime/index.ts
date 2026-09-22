@@ -504,31 +504,22 @@ Deno.serve(async (req) => {
       if (!["WAKE", "STATUS"].includes(purpose)) throw new Error("COUNCIL_ASSISTANT_PURPOSE_INVALID");
 
       const tokenHash = suppliedHash || sha256Hex(nonce);
-      const nowIso = new Date().toISOString();
-      const rows = await db(
-        "/rest/v1/flix_council_assistant_channel_tokens?token_hash=eq." +
-        encodeURIComponent(tokenHash) +
-        "&purpose=eq." + encodeURIComponent(purpose) +
-        "&consumed_at=is.null&expires_at=gt." + encodeURIComponent(nowIso) +
-        "&select=*&limit=1"
-      ) as Array<Record<string, unknown>>;
-      const row = rows?.[0];
-      if (!row) throw new Error("COUNCIL_ASSISTANT_NONCE_REJECTED");
-      if (String(row.entry_sha) !== exactSha) throw new Error("COUNCIL_ASSISTANT_EXACT_SHA_MISMATCH");
+      const claimed = await db("/rest/v1/rpc/council_claim_assistant_wake", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          p_token_hash: tokenHash,
+          p_purpose: purpose,
+          p_exact_sha: exactSha,
+        }),
+      }) as Record<string, unknown>;
+      if (claimed?.accepted !== true) {
+        throw new Error(String(claimed?.reason ?? "COUNCIL_ASSISTANT_NONCE_REJECTED"));
+      }
+      const row = claimed.wake as Record<string, unknown>;
+      if (!row || typeof row !== "object") throw new Error("COUNCIL_ASSISTANT_WAKE_PAYLOAD_INVALID");
 
-      const consumed = await db(
-        "/rest/v1/flix_council_assistant_channel_tokens?wake_id=eq." +
-        encodeURIComponent(String(row.wake_id)) +
-        "&consumed_at=is.null",
-        {
-          method: "PATCH",
-          headers: { "content-type": "application/json", prefer: "return=representation" },
-          body: JSON.stringify({ consumed_at: nowIso }),
-        }
-      ) as Array<Record<string, unknown>>;
-      if (!Array.isArray(consumed) || !consumed[0]) throw new Error("COUNCIL_ASSISTANT_NONCE_ALREADY_CONSUMED");
-
-      const recipientMaster = String(row.recipient_master ?? "").trim();
+      const recipientMaster = String(row.recipientMaster ?? "").trim();
       const route = MASTER_ACCOUNT_ROUTES[recipientMaster];
       if (!route) throw new Error("COUNCIL_ASSISTANT_RECIPIENT_INVALID");
 
