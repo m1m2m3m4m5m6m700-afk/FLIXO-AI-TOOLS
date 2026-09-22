@@ -52,6 +52,11 @@ for (const marker of ['RPR-UNIFIED-EXECUTION-001 · v4.0.0 · PROTOCOL-ROOT','FI
 assert.ok(session.includes('admissionSources'));
 
 for (const role of ["'repairAgent'", "'executionAgent'", "'assistantRepairAgent'"]) assert.ok(repair.includes(role));
+for (const master of ['MASTER-1','MASTER-2','MASTER-3']) {
+  assert.ok(repair.includes(`'${master}'`), `repair protocol must admit ${master} as a governed session principal`);
+  assert.ok(session.includes(`'${master}'`), `agent session must recognize ${master}`);
+  assert.doesNotThrow(() => assertAgentAdmission({ actor: master, branch: 'execution', mutation: false }));
+}
 assert.ok(repair.includes('primaryAgentsUnavailable'));
 assert.ok(repair.includes('minConfidence: 0.90'));
 assert.ok(repair.includes('minSupport: 2'));
