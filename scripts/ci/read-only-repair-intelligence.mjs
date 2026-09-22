@@ -45,12 +45,12 @@ const loadVaultSources=()=>{
     add(router.corpus?.additional);
     for(const file of router.corpus?.expanded??[]) add(file);
     for(const group of router.groups??[]) add(group.file);
-  }catch{}
+  }catch{ /* optional router corpus unavailable; remain read-only */ }
   try{
     if(fs.existsSync(TEACHING_DIR)){
       for(const file of fs.readdirSync(TEACHING_DIR).filter(file=>/\.md$/u.test(file))) add(path.join(TEACHING_DIR,file));
     }
-  }catch{}
+  }catch{ /* optional teaching corpus unavailable; remain read-only */ }
   return [...files];
 };
 const retrieveVaultAdvice=({failureLog='',diagnosis=null,selected=null}={})=>{
@@ -153,12 +153,11 @@ function runProgrammerTwinReadOnly({log,targetSha,fingerprint,diagnosis,selected
       error: String(error?.message ?? error),
     };
   } finally {
-    try { fs.rmSync(tempRoot, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(tempRoot, { recursive: true, force: true }); } catch { /* best-effort temporary workspace cleanup */ }
   }
 }
 
 function buildAdversarialMirror({log, targetSha, fingerprint, diagnosis, plan, selectedCandidate, historicalKnowledge=[]}){
-  const alternatives=[];
   const root=String(diagnosis?.rootCause??'unknown');
   const features=extractFeatures(log);
   const candidates=Array.isArray(plan?.candidates)?plan.candidates:[];
