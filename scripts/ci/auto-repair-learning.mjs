@@ -417,6 +417,7 @@ function upsertRepairTask(memory, record) {
     preventionRule: record.preventionRule ?? null,
     exactShaVerified: Boolean(record.exactShaVerified),
     canonicalGreen: Boolean(record.canonicalGreen),
+    fiveXCycle: record.fiveXCycle ?? null,
     status: (record.exactShaVerified && record.canonicalGreen) ? 'CLOSED' : record.outcome === 'blocked-external' ? 'BLOCKED_EXTERNAL' : 'RECOVERING',
     recordedAt: record.recordedAt ?? new Date().toISOString(),
   };
@@ -887,7 +888,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     changedPaths: effectiveDiagnosis?.affectedPaths ?? affectedPaths,
     preventionRule: effectivePreventionRule,
     exactShaVerified: verification === 'passed' || verification === 'exact-sha-proof',
-    canonicalGreen: process.env.FLIXO_CANONICAL_GREEN === 'true',,
+    canonicalGreen: process.env.FLIXO_CANONICAL_GREEN === 'true',
     fiveXCycle: effectiveFiveXCycle
   });
   if (countsAsRepairAttempt) {
