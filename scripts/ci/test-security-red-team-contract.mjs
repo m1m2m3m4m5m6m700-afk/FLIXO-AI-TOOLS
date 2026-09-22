@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 const root = process.cwd();
 const registry = JSON.parse(fs.readFileSync(path.join(root,'docs/agents/SECURITY-RED-TEAM-BOTS.json'),'utf8'));
 const workflow = fs.readFileSync(path.join(root,'.github/workflows/security-red-team.yml'),'utf8');
+const registryText = fs.readFileSync(path.join(root,'scripts/ci/control-plane-registry.mjs'),'utf8');
+const runnerText = fs.readFileSync(path.join(root,'scripts/security/security-red-team-runner.mjs'),'utf8');
 
 assert.equal(registry.protocol,'FLIXO-SECURITY-RED-TEAM-TRIAD-v1');
 assert.equal(registry.branchPolicy.workingBranch,'execution');
@@ -50,9 +52,13 @@ assert.doesNotMatch(workflow,/PEER_WAKE/u);
 assert.doesNotMatch(workflow,/git\s+push/iu);
 assert.doesNotMatch(workflow,/git\s+switch\s+--create/iu);
 assert.doesNotMatch(workflow,/pull_request_target:/u);
+assert.match(registryText,/scripts\/security\/security-red-team-runner\.mjs/u);
+assert.match(registryText,/docs\/agents\/SECURITY-RED-TEAM-BOTS\.json/u);
+assert.match(registryText/`/\.github\/workflows\/security-red-team\.yml/u);
 
 const runner = fs.readFileSync(path.join(root,'scripts/security/security-red-team-runner.mjs'),'utf8');
 assert.match(runner,/git ls-files -z/u);
+assert.match(runner,/const appSourceFile = \(file\) => sourceFile\(file\) && !workflowFile\(file\);/u);
 assert.match(runner,/mutationAuthority:false/u);
 assert.match(runner,/adversarial-repair-twin\.mjs/u);
 
