@@ -24,9 +24,12 @@ export function remoteExecutionSha(){
   if(!repo)throw new Error('MUTATION_GATE_GITHUB_REPOSITORY_MISSING');
   return assertSha(execFileSync('gh',['api',`repos/${repo}/git/ref/heads/execution`,'--jq','.object.sha'],{cwd:ROOT,encoding:'utf8'}),'REMOTE_SHA');
 }
-function centralChairStrictRequired() { return process.env.FLIXO_STRICT_CHAIR === 'true'; }
+const STRICT_MUTATION_OWNERS = new Set(['AUTO_REPAIR_BOT','repairAgent','executionAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier']);
+function centralChairStrictRequired(ownerAgent='') {
+  return process.env.FLIXO_STRICT_CHAIR === 'true' || STRICT_MUTATION_OWNERS.has(String(ownerAgent ?? '').trim());
+}
 function verifyCentralChair({ownerAgent,targetSha,workPackageId,taskId}) {
-  if (!centralChairStrictRequired()) return { required:false, verified:false };
+  if (!centralChairStrictRequired(ownerAgent)) return { required:false, verified:false };
   if (process.env.FLIXO_MUTATION_GATE_TEST_MODE === 'true' && process.env.FLIXO_ALLOW_TEST_CHAIR_BYPASS === 'true') return { required:true, verified:false, testBypass:true };
   const leaseId=String(process.env.FLIXO_CHAIR_LEASE_ID ?? '').trim();
   const fence=String(process.env.FLIXO_CHAIR_FENCING_HASH ?? '').trim();
@@ -63,7 +66,7 @@ export function admit({ownerAgent,targetSha,workPackageId,taskId,paths,output='/
 function readAdmission(file){if(!fs.existsSync(file))throw new Error('MUTATION_GATE_ADMISSION_MISSING');const x=JSON.parse(fs.readFileSync(file,'utf8'));if(x?.schemaVersion!==1||x?.protocol!=='FLIXO-EXECUTION-MUTATION-GATE-v1')throw new Error('MUTATION_GATE_ADMISSION_INVALID');return x;}
 export function verifyAdmission({file='/tmp/flixo-mutation-admission.json',phase='pre-commit',candidateSha=null,parentSha=null}={}){
   const a=readAdmission(file);assertExecutionCheckout();
-  if (centralChairStrictRequired()) verifyCentralChair({ownerAgent:a.ownerAgent,targetSha:a.targetSha,workPackageId:a.workPackageId,taskId:a.taskId});
+  if (centralChairStrictRequired(a.ownerAgent)) verifyCentralChair({ownerAgent:a.ownerAgent,targetSha:a.targetSha,workPackageId:a.workPackageId,taskId:a.taskId});
   const expected=fencingToken({ownerAgent:a.ownerAgent,runId:a.runId,runAttempt:a.runAttempt,targetSha:a.targetSha,workPackageId:a.workPackageId,taskId:a.taskId,scopeDigest:a.scopeHash});
   if(expected!==a.fencingToken||!HASH_RE.test(a.fencingToken))throw new Error('MUTATION_GATE_FENCING_TOKEN_INVALID');
   if(String(process.env.GITHUB_RUN_ID??'')!==a.runId||String(process.env.GITHUB_RUN_ATTEMPT??'1')!==a.runAttempt)throw new Error('MUTATION_GATE_RUN_CONTEXT_STALE');
