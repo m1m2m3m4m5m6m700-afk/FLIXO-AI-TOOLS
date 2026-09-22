@@ -104,12 +104,9 @@ export const verifyAdminSessionToken = (token: string | null, secret = process.e
     if (payload.exp <= Math.floor(Date.now() / 1000)) return null;
     const capabilities = payload.cap.filter((value): value is string => typeof value === 'string');
     if (capabilities.length !== payload.cap.length || capabilities.some((value) => !ACTIVE_CAPABILITIES.has(value))) return null;
-    const canonicalCapabilities = [...activeCapabilitiesForRole(payload.role)].sort();
+    const canonicalCapabilities = new Set(activeCapabilitiesForRole(payload.role));
     const actualCapabilities = [...new Set(capabilities)].sort();
-    if (
-      actualCapabilities.length !== canonicalCapabilities.length
-      || actualCapabilities.some((capability, index) => capability !== canonicalCapabilities[index])
-    ) return null;
+    if (actualCapabilities.some((capability) => !canonicalCapabilities.has(capability))) return null;
     return { subject: payload.sub, sessionId: payload.sid, role: payload.role, expiresAt: payload.exp, capabilities: new Set(actualCapabilities) };
   } catch {
     return null;
