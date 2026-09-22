@@ -299,10 +299,18 @@ jobs:
           fi
           SOURCE_RUN_ID="$EVENT_SOURCE_RUN_ID"
           SOURCE_RUN_SHA="$EVENT_SOURCE_RUN_SHA"
+          FIRST_RED_WAKE=false
+          if [ "$GITHUB_EVENT_NAME" = "workflow_run" ] &&
+             [ "$SOURCE_RUN_SHA" = "$CURRENT_EXECUTION_SHA" ] &&
+             [ "${{ github.event.workflow_run.conclusion || '' }}" != "success" ] &&
+             [ "${{ steps.source.outputs.stale }}" = "false" ]; then
+            FIRST_RED_WAKE=true
+          fi
           jq -n \
             --arg executionSha "$CURRENT_EXECUTION_SHA" \
             --arg sourceRunId "$SOURCE_RUN_ID" \
             --arg sourceRunSha "$SOURCE_RUN_SHA" \
+            --argjson firstRedWake "$FIRST_RED_WAKE" \
             '{
               schemaVersion: 1,
               protocol: "FLIXO-EXECUTION-BOT-WATCHDOG-v1",
@@ -311,7 +319,7 @@ jobs:
               sourceRunSha: $sourceRunSha,
               action: "WAKE_CANONICAL_OBSERVER",
               repairDispatcher: "daily-flixo-green-gate.yml",
-              firstRedWake: "${{ github.event_name }}" == "workflow_run" && "${{ github.event.workflow_run.conclusion || '' }}" != "success" && "${{ steps.source.outputs.stale }}" == "false",
+              firstRedWake: $firstRedWake,
               directRepairDispatch: false
             }' > diagnostics/watchdog/evidence.json
           test -s diagnostics/watchdog/evidence.json
