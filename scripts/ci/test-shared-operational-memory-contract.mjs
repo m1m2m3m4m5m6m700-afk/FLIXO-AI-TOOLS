@@ -15,7 +15,9 @@ assert.equal(registry.lifecycle.automaticReprovisioning,false);
 const p21=protocol.protocols.find((p)=>p.id==='P21');
 assert.equal(p21?.status,'RETIRED');
 assert.equal(p21?.canonicalSource,'docs/agents/SHARED-OPERATIONAL-MEMORY-CONTRACT.md');
-assert.equal(p21?.scope.length,0);
+assert.ok(Array.isArray(p21?.scope));
+assert.ok(p21.scope.every((id)=>/^CELL-\d{3}$/u.test(id) || id==='ALL_CELL_BOTS'));
+assert.equal(p21?.sharedMemory,'diagnostics/auto-repair/cell-knowledge/index.json');
 
 const p22=protocol.protocols.find((p)=>p.id==='P22');
 assert.equal(p22?.status,'MANDATORY');

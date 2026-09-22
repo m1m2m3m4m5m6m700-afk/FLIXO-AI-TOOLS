@@ -122,7 +122,7 @@ const cellProtocolRegistry = exists('docs/PROTOCOL-REGISTRY.json') ? JSON.parse(
 if (sharedMemoryRegistry?.status !== 'RETIRED' || sharedMemoryRegistry?.bots?.length !== 0) failures.push('RETIRED_CELL_POOL_STATE_INVALID');
 const retiredP21 = cellProtocolRegistry?.protocols?.find((item) => item?.id === 'P21');
 const activeP22 = cellProtocolRegistry?.protocols?.find((item) => item?.id === 'P22');
-if (retiredP21?.status !== 'RETIRED' || retiredP21?.scope?.length !== 0) failures.push('P21_RETIRED_CONTRACT_INVALID');
+if (retiredP21?.status !== 'RETIRED' || !Array.isArray(retiredP21?.scope) || !retiredP21.scope.every((id) => /^CELL-\d{3}$/u.test(id) || id === 'ALL_CELL_BOTS')) failures.push('P21_RETIRED_CONTRACT_INVALID');
 if (activeP22?.status !== 'MANDATORY' || !Array.isArray(activeP22?.participants) || activeP22.participants.length !== 6) failures.push('P22_SHARED_MEMORY_CONTRACT_INVALID');
 if (!sixBotMemoryContract.includes('FLIXO-SHARED-OPERATIONAL-MEMORY-v1')) failures.push('SHARED_SIX_BOT_MEMORY_CONTRACT_MISSING');
 
