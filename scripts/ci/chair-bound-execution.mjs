@@ -505,7 +505,7 @@ export function proposePush({
     if(fresh.target_sha!==t)throw new Error('STALE_CONTEXT');
     const proposal={
       schemaVersion:1,
-      protocol:'FLIXO-CHAIR-PUSH-PROPOSAL-v1',
+      protocol:'FLIXO-CHAIR-PUSH-PROPOSAL-v2',
       proposalId,
       status:'PENDING_GUARD',
       proposerChair:chairId,
@@ -551,17 +551,19 @@ export function authorizeMergeProposal({chairId,agentId,targetSha=sha()}={}){
   if(!CHAIR_DEFINITIONS[chairId].permissions.includes('MERGE_PROPOSAL'))throw new Error('CHAIR_MERGE_PROPOSAL_PERMISSION_DENIED');
   return Object.freeze({authorized:true,proposalOnly:true,requiresPromotionGate:true,chairId,agentId,targetSha:chair.target_sha});
 }
-export function recordGuardDecision({
+export function recordControllerPushDecision({
   proposalId,
   decision,
   reasonCode,
-  guardAgent='CHAIR_PUSH_GUARD',
+  controllerAgent=CHAIR1_OWNER_AGENT,
   currentSha=sha(),
-  guardEvidence=null
+  validationEvidence=null
 }={}){
   const id=assertContextId(proposalId,'PROPOSAL_ID');
+  const actor=String(controllerAgent??'').trim();
+  if(actor!==CHAIR1_OWNER_AGENT)throw new Error('PUSH_DECISION_CONTROLLER_ONLY');
   const verdict=String(decision??'').trim().toUpperCase();
-  if(!['READY_FOR_CHAIR_1','REJECTED'].includes(verdict))throw new Error('CHAIR_GUARD_DECISION_INVALID');
+  if(!['ACCEPTED','REJECTED'].includes(verdict))throw new Error('PUSH_CONTROLLER_DECISION_INVALID');
   const t=assertSha(currentSha,'CURRENT_SHA');
   if(t!==sha())throw new Error('STALE_CONTEXT');
   const reason=assertContextId(reasonCode||'UNSPECIFIED','REASON_CODE');
@@ -571,14 +573,24 @@ export function recordGuardDecision({
     if(idx<0)throw new Error('CHAIR_PUSH_PROPOSAL_NOT_FOUND');
     const proposal=state.push_proposals[idx];
     if(proposal.targetSha!==t)throw new Error('CHAIR_PUSH_PROPOSAL_STALE');
-    const decisionRecord={decision:verdict,reasonCode:reason,guardAgent:String(guardAgent),currentSha:t,guardEvidence:guardEvidence??null,decidedAt:now()};
-    proposal.status=verdict;
-    proposal.guardDecision=decisionRecord;
+    const report=validationEvidence??null;
+    if(verdict==='ACCEPTED' && (report?.authority!=='VALIDATION_ONLY' || report?.validationStatus!=='PASS'))throw new Error('PUSH_CONTROLLER_ACCEPT_REQUIRES_VALIDATION_PASS');
+    const decisionRecord={
+      decision:verdict,
+      authority:CHAIR1_OWNER_AGENT,
+      reasonCode:reason,
+      currentSha:t,
+      validationEvidence:report,
+      decidedAt:now()
+    };
+    proposal.status=`CONTROLLER_${verdict}`;
+    proposal.controllerDecision=decisionRecord;
+    proposal.guardDecision=null;
     if(verdict==='REJECTED'){
       state.rejected_push_memory=Array.isArray(state.rejected_push_memory)?state.rejected_push_memory.slice(-499):[];
       state.rejected_push_memory.push({
         schemaVersion:1,
-        protocol:'FLIXO-REJECTED-PUSH-MEMORY-v1',
+        protocol:'FLIXO-REJECTED-PUSH-MEMORY-v2',
         memoryId:hash(JSON.stringify({proposalId:id,currentSha:t,reasonCode:reason})),
         proposalId:id,
         proposerChair:proposal.proposerChair,
@@ -592,16 +604,35 @@ export function recordGuardDecision({
         patchSha256:proposal.patchSha256,
         reasonCode:reason,
         summary:proposal.summary,
-        guardEvidence:guardEvidence??null,
-        reusableAfter:'CHAIR_1_REVALIDATES_CURRENT_SHA_AND_CONFLICT_STATE',
+        validationEvidence:report,
+        reusableAfter:'ASSISTANT_CONTROLLER_REQUIRES_CURRENT_EXACT_SHA_AND_NEW_DECISION',
         createdAt:proposal.createdAt,
         rejectedAt:now()
       });
     }
     writeState(state);
-    return Object.freeze({proposal,status:verdict,decision:decisionRecord,rejectedPushMemory:verdict==='REJECTED'?state.rejected_push_memory.at(-1):null});
+    return Object.freeze({
+      proposal,
+      status:proposal.status,
+      decision:decisionRecord,
+      controllerAgent:CHAIR1_OWNER_AGENT,
+      rejectedPushMemory:verdict==='REJECTED'?state.rejected_push_memory.at(-1):null
+    });
   });
 }
+
+export function recordGuardDecision(args={}){
+  if(String(args.guardAgent??'').trim()!==CHAIR1_OWNER_AGENT)throw new Error('PUSH_DECISION_CONTROLLER_ONLY');
+  return recordControllerPushDecision({
+    proposalId:args.proposalId,
+    decision:args.decision,
+    reasonCode:args.reasonCode,
+    controllerAgent:CHAIR1_OWNER_AGENT,
+    currentSha:args.currentSha,
+    validationEvidence:args.guardEvidence
+  });
+}
+
 
 export function revoke({chairId='chair_1',agentId,reason='STALE_CONTEXT',sessionId=null,taskId=null}={}){
   assertAgent(agentId);
@@ -769,7 +800,7 @@ if(process.argv[1]?.endsWith('/chair-bound-execution.mjs')){
   else if(command==='merge-proposal')console.log(JSON.stringify(authorizeMergeProposal({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target}),null,2));
   else if(command==='propose-push')console.log(JSON.stringify(proposePush({chairId:arg('chair'),agentId:arg('agent'),targetSha:target,candidateSha:arg('candidate'),parentSha:arg('parent'),paths,workPackageId:arg('work-package'),taskId:arg('task-id'),patchSha256:arg('patch-sha')||null,summary:arg('summary')||''}),null,2));
   else if(command==='authorize-publication')console.log(JSON.stringify(authorizePublication({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,paths,permission:arg('permission','SOURCE_MUTATION'),workPackageId:arg('work-package')||null,taskId:arg('task-id')||null,fencingToken:arg('fencing-token')||null}),null,2));
-  else if(command==='guard-decision')console.log(JSON.stringify(recordGuardDecision({proposalId:arg('proposal-id'),decision:arg('decision'),reasonCode:arg('reason'),guardAgent:arg('guard-agent','CHAIR_PUSH_GUARD'),currentSha:target,guardEvidence:arg('evidence')||null}),null,2));
+  else if(command==='controller-decision'){\n    const evidenceText=arg('evidence')||'';\n    let evidence=null;\n    if(evidenceText){try{evidence=JSON.parse(evidenceText);}catch{throw new Error('PUSH_CONTROLLER_VALIDATION_EVIDENCE_INVALID');}}\n    console.log(JSON.stringify(recordControllerPushDecision({proposalId:arg('proposal-id'),decision:arg('decision'),reasonCode:arg('reason'),controllerAgent:arg('controller','assistantController'),currentSha:target,validationEvidence:evidence}),null,2));\n  }\n  else if(command==='guard-decision')throw new Error('PUSH_DECISION_CONTROLLER_ONLY');
   else if(command==='release')console.log(JSON.stringify(release({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,successful:arg('successful','false')==='true'}),null,2));
   else if(command==='mode')console.log(JSON.stringify(repositoryMode({targetSha:target}),null,2));
   else if(command==='validate')console.log(JSON.stringify(validateCurrent({chairId:arg('chair','chair_1'),agentId:arg('agent'),targetSha:target,paths,permission:arg('permission','SOURCE_MUTATION'),reviewId:arg('review-id')||null,boundedScope:scope.length?scope:null}),null,2));

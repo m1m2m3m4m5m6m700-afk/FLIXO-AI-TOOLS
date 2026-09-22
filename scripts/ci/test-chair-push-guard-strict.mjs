@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { acquire, proposePush, release } from './chair-bound-execution.mjs';
+import { acquire, proposePush, release, CHAIR1_OWNER_AGENT } from './chair-bound-execution.mjs';
 
 const root=process.cwd();
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-push-guard-strict-'));
@@ -52,7 +52,14 @@ assert.throws(
 );
 
 const guard=fs.readFileSync(path.join(root,'scripts/ci/chair-push-guard.mjs'),'utf8');
-assert.match(guard,/FLIXO-CHAIR-PUSH-PROPOSAL-v2/);
+assert.match(guard,/FLIXO-CHAIR-PUSH-PROPOSAL-v2/);\nassert.match(guard,/FLIXO-CHAIR-PUSH-VALIDATOR-v1/);\nassert.match(guard,/authority:'VALIDATION_ONLY'/);\nassert.match(guard,/decisionAuthority:'assistantController'/);\nassert.match(guard,/decision:null/);\nassert.doesNotMatch(guard,/decision:'REJECTED'/);\nassert.doesNotMatch(guard,/decision:'READY_FOR_CHAIR_1'/);\nassert.doesNotMatch(guard,/READY_FOR_CHAIR_1/);\nassert.doesNotMatch(guard,/recordGuardDecision/);
+assert.match(guard,/authority:'VALIDATION_ONLY'/);
+assert.match(guard,/decisionAuthority:'assistantController'/);
+assert.match(guard,/decision:null/);
+assert.doesNotMatch(guard,/decision:'REJECTED'/);
+assert.doesNotMatch(guard,/decision:'READY_FOR_CHAIR_1'/);
+assert.doesNotMatch(guard,/nextAuthority:'CHAIR_1'/);
+assert.match(guard,/authority:'VALIDATION_ONLY'/);
 assert.match(guard,/requiredPushFields/);
 for (const field of ['pushId','actorAgent','actorRole','sessionId','event','reason','changeType','repository','branch','commitMessage','commitTreeSha','requestedAt','expectedRemoteSha','candidateSha','parentSha']) {
   assert.match(guard,new RegExp('(?:requiredPushFields|details).*'+field));
@@ -60,9 +67,14 @@ for (const field of ['pushId','actorAgent','actorRole','sessionId','event','reas
 assert.match(guard,/CHAIR_GUARD_CHANGED_PATHS_MISMATCH/);
 assert.match(guard,/CHAIR_GUARD_PATCH_DIGEST_MISMATCH/);
 assert.match(guard,/CHAIR_GUARD_COMMIT_MESSAGE_MISMATCH/);
-assert.match(guard,/CHAIR_GUARD_COMMIT_TREE_MISMATCH/);
+assert.match(guard,/CHAIR_GUARD_COMMIT_TREE_MISMATCH/);\nassert.match(guard,/CHAIR_GUARD_REMOTE_SHA_UNAVAILABLE/);\nassert.match(guard,/PUSH_DECISION_CONTROLLER_ONLY/);
+assert.match(guard,/CHAIR_GUARD_REMOTE_SHA_UNAVAILABLE/);
+assert.match(guard,/PUSH_DECISION_CONTROLLER_ONLY/);
+assert.match(guard,/CHAIR_GUARD_REMOTE_SHA_UNAVAILABLE/);
+assert.match(guard,/controllerAction/);
+assert.equal(CHAIR1_OWNER_AGENT,'assistantController');
 
 release({chairId:'chair_2',agentId:'strict-push-proposer',targetSha:exactSha,successful:false});
 console.log('STRICT_PUSH_DETAILS_REQUIRED=PASS');
-console.log('STRICT_PUSH_GUARD_V2=PASS');
+console.log('STRICT_PUSH_GUARD_V2_VALIDATION_ONLY=PASS');
 console.log('STRICT_PUSH_COMMIT_BINDING=PASS');
