@@ -25,7 +25,7 @@ permissions:
 # Each exact commit SHA has its own execution slot; active verification is never cancelled by newer commits.
 # The active run still validates its exact SHA.
 concurrency:
-  group: repository-security-baseline-${{ github.event.pull_request.head.repo.full_name || github.repository }}-\${{ github.event.pull_request.head.sha || github.sha }}
+  group: repository-security-baseline-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: false
 
 jobs:
