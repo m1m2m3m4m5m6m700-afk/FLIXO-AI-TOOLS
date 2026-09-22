@@ -49,6 +49,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Validate shared operational memory contract
+        run: node scripts/ci/validate-shared-operational-memory.mjs
+
+      - name: Test shared operational memory
+        run: node scripts/ci/test-shared-operational-memory-contract.mjs
+
       - name: Validate investigator contract
         env:
           FLIXO_READ_ONLY_POWER: '5X'
