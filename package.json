@@ -33,6 +33,7 @@
     "test:error-investigator": "node scripts/ci/test-read-only-error-investigator.mjs",
     "test:deep-reasoning": "node scripts/ci/test-read-only-deep-reasoning.mjs",
     "test:repair-intelligence": "node scripts/ci/test-read-only-repair-intelligence.mjs",
+    "test:knowledge-fusion": "node scripts/ci/test-read-only-knowledge-fusion.mjs",
     "agent:task": "node scripts/ci/task-agent.mjs",
     "agent:execution-control": "node scripts/ci/agent-execution-control.mjs",
     "validate:i18n": "node scripts/validate-i18n.mjs",
