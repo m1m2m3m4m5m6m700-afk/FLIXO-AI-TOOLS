@@ -30,7 +30,7 @@ assert.match(workflow, /actions:\s*read/u);
 assert.match(workflow, /checks:\s*read/u);
 assert.doesNotMatch(workflow, /(?:pull-requests|issues|statuses|security-events):\s*write/u);
 assert.match(workflow, /git worktree add --detach \"\$TARGET_ROOT\" \"\$EXECUTION_SHA\"/u);
-assert.doesNotMatch(workflow, /git\\s+(?:switch|checkout)\\s+-c\\s+execution/u);
+assert.doesNotMatch(workflow, /git\s+(?:switch|checkout)\s+-c\s+execution/u);
 assert.match(workflow, /FLIXO_DETACHED_EXECUTION_TARGET=true/u);
 assert.doesNotMatch(workflow, /actions:\s*write/u);
 console.log('AUTO_REPAIR_TEST_ORCHESTRATION_REPAIR_PERMISSION=PASS');
