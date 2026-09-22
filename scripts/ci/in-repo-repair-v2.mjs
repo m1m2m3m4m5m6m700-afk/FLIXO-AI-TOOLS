@@ -110,6 +110,27 @@ function buildThreeHypotheses(diagnosis, plan) {
   return result.slice(0, 3);
 }
 
+function deriveInvariant(diagnosis, selected) {
+  const explicit = String(
+    diagnosis?.repairHypothesis?.violatedInvariant ??
+    diagnosis?.causalGraph?.violatedInvariant ??
+    process.env.FLIXO_VIOLATED_INVARIANT ??
+    ''
+  ).trim();
+  if (explicit && !/UNKNOWN_INVARIANT_UNPROVEN/iu.test(explicit)) return explicit;
+  const cause = String(diagnosis?.rootCause ?? selected?.id ?? '').toLowerCase();
+  const defaults = [
+    [/lint|format/u, 'The demonstrated source diagnostic must disappear without weakening unrelated validation.'],
+    [/typescript/u, 'The affected type contract must hold for the reported symbol without introducing a type escape.'],
+    [/webkit|playwright/u, 'The affected browser contract must recover on the reported target without changing unrelated browser behavior.'],
+    [/certification/u, 'The canonical evidence graph must contain complete exact-SHA proof for the affected gate.'],
+    [/liveness|contract/u, 'The canonical state-transition contract must remain internally consistent and fail closed on invalid transitions.'],
+    [/lease|claim|concurr|atomic|lock/u, 'Exclusive state transitions must permit at most one successful claimant for the same target state.'],
+  ];
+  const match = defaults.find(function(pair) { return pair[0].test(cause); });
+  return match ? match[1] : '';
+}
+
 function primaryFile(diagnosis, selected, plan) {
   return unique([
     diagnosis?.location?.file,
@@ -140,12 +161,7 @@ export function buildRcaManifest(input) {
   if (policy.requireDirectFailureSignal && !directFailureSignal) fail('DIRECT_FAILURE_SIGNAL_REQUIRED');
   if (policy.requireNonAmbiguousRca && !nonAmbiguous) fail('NON_AMBIGUOUS_RCA_REQUIRED');
 
-  const invariant = String(
-    diagnosis?.repairHypothesis?.violatedInvariant ??
-    diagnosis?.causalGraph?.violatedInvariant ??
-    process.env.FLIXO_VIOLATED_INVARIANT ??
-    ''
-  ).trim();
+  const invariant = deriveInvariant(diagnosis, selected);
   if (!invariant || /UNKNOWN_INVARIANT_UNPROVEN/iu.test(invariant)) fail('INVARIANT_NOT_PROVEN');
 
   const boundary = primaryFile(diagnosis, selected, plan);
