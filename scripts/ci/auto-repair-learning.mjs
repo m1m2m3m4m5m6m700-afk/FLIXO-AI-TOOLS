@@ -960,7 +960,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   actionRecord.repairChainId = repairChainId;
   if (countsAsPlaybookAttempt) actionRecord.attempts = Number(actionRecord.attempts ?? 0) + 1;
   if (outcome === 'success') actionRecord.successes = Number(actionRecord.successes ?? 0) + 1;
-  if (['failure', 'unrepaired', 'blocked', 'proposed', 'reverted-repair', 'revert-failure'].includes(outcome)) actionRecord.failures = Number(actionRecord.failures ?? 0) + 1;
+  if (['failure', 'unrepaired', 'blocked', 'reverted-repair', 'revert-failure'].includes(outcome)) actionRecord.failures = Number(actionRecord.failures ?? 0) + 1;
   const observedStrategy = strategyId ?? provenance?.strategyId ?? null;
   if (observedStrategy) {
     actionRecord.strategies = [...new Set([...(actionRecord.strategies ?? []), observedStrategy])].slice(-20);
