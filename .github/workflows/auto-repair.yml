@@ -227,7 +227,7 @@ jobs:
       cancel-in-progress: false
     if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.resident != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 345
+    timeout-minutes: 45
     steps:
       - name: Checkout trusted main bootstrap
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
