@@ -227,7 +227,7 @@ const watchdogExactVerify =
 const watchdogSourceFreshnessMarkers = [
   'name: Capture exact execution state',
   "SOURCE_RUN_SHA: ${{ github.event.workflow_run.head_sha || '' }}",
-  'LIVE_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq \'.object.sha\')"',
+  'LIVE_EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk \'{print $1}\')"',
   'if [ "$LIVE_EXECUTION_SHA" != "$SOURCE_RUN_SHA" ]',
   'STALE_WATCHDOG_EVENT=true',
 ];
