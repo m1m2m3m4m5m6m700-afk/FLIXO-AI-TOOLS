@@ -97,7 +97,7 @@ jobs:
             ROTATION_OUTPUT="/tmp/flixo-heartbeat/five-bot-rotation-$TICK.json"
             (cd "$WORKTREE_PATH" && node scripts/ci/five-bot-rotation.mjs --sha="$SHA" --now="$NOW" --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output="$ROTATION_OUTPUT")
             (cd "$WORKTREE_PATH" && node scripts/ci/action-repair-five-workers.mjs --role=wake --status=RED_INTERNAL --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$GITHUB_RUN_ID-$TICK" --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output=/tmp/flixo-heartbeat/action-wake-$TICK.json)
-            jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .actionRepairSquadReady==true and .targetSha==$sha and .activeCohortSize==5 and (.activeBotIds|length)==5 and (.nextBotIds|length)==5 and (.nextCohortReady==true) and (.nextCohortReadyCount==5) and .fiveBotResidency.requiredBotCount==5 and .fiveBotResidency.postTaskCloseState=="READY_RESIDENT" and .fiveBotResidency.retainResidentUntilJourneyComplete==true and  .fiveBotResidency.journeyLogicalBotCount==120 and  .fiveBotResidency.journeyCohortCount==24 and .fiveBotResidency.journeyCohortSize==5 and .fiveBotResidency.sleep==false and .fiveBotResidency.idle==false and .fiveBotResidency.withdrawal==false' /tmp/flixo-heartbeat/action-wake-$TICK.json >/dev/null
+            jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .actionRepairSquadReady==true and .targetSha==$sha and .activeCohortSize==5 and (.activeBotIds|length)==5 and (.nextBotIds|length)==5 and (.nextCohortReadyCount==5) and .fiveBotResidency.requiredBotCount==5 and .fiveBotResidency.postTaskCloseState=="READY_RESIDENT" and .fiveBotResidency.retainResidentUntilJourneyComplete==true and  .fiveBotResidency.journeyLogicalBotCount==120 and  .fiveBotResidency.journeyCohortCount==24 and .fiveBotResidency.journeyCohortSize==5 and .fiveBotResidency.sleep==false and .fiveBotResidency.idle==false and .fiveBotResidency.withdrawal==false' /tmp/flixo-heartbeat/action-wake-$TICK.json >/dev/null
             if [ "$ELAPSED_SECONDS" -ge 3600 ]; then
               NEXT_COHORT_INDEX=$(( (CURRENT_COHORT_INDEX + 1) % 24 ))
               HANDOFF_OUTPUT="/tmp/flixo-heartbeat/handoff-$TICK.json"
@@ -111,6 +111,7 @@ jobs:
               else
                 echo 'ACTIVE_COHORT_HANDOFF=HANDOFF_PENDING'
                 echo 'ACTIVE_COHORT_RELEASE_BLOCKED=true'
+                echo 'CURRENT_FIVE_REMAIN_ACTIVE_UNTIL_FIVE_READY=true'
               fi
             else
               echo 'ACTIVE_COHORT_HANDOFF=COMMITMENT_ACTIVE'
