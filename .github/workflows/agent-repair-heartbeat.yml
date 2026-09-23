@@ -3,13 +3,10 @@ name: FLIXO Agent Repair Heartbeat
 run-name: FLIXO Agent Repair Heartbeat ${{ github.run_id }}
 
 on:
+  # Immediate ignition on every canonical execution update.
   push:
-    branches: [main]
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [main]
-  # The schedule is the permanent bootstrap/recovery floor. Scheduled runs execute from main,
-  # then dispatch the long-lived resident window on execution. A prior resident run is not required.
+    branches: [execution]
+  # Trusted recovery floor; scheduled runs execute from the default branch and bootstrap execution.
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
@@ -20,7 +17,7 @@ permissions:
 
 concurrency:
   # Bootstrap runs on main and resident runs on execution must not block one another.
-  group: flixo-agent-repair-heartbeat-${{ github.event_name }}-${{ github.ref_name }}
+  group: flixo-agent-repair-heartbeat-${{ github.ref_name }}
   # Started residency runs are never cancelled.
   cancel-in-progress: false
 
@@ -29,8 +26,6 @@ jobs:
     name: Bootstrap resident repair heartbeat automatically
     if: >-
       github.event_name == 'schedule' ||
-      (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'execution') ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -43,15 +38,7 @@ jobs:
           set -euo pipefail
           EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           [[ "$EXECUTION_SHA" =~ ^[0-9a-f]{40}$ ]]
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            PR_HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-            test "$PR_HEAD_SHA" = "$EXECUTION_SHA" || {
-              echo "FAIL CLOSED: stale pull-request wake expected=$PR_HEAD_SHA live=$EXECUTION_SHA"
-              exit 1
-            }
-            echo "PR_WAKE_EXACT_SHA=$EXECUTION_SHA"
-          fi
-          ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 20 --json databaseId,status,headBranch,headSha --jq --arg sha "$EXECUTION_SHA" 'map(select((.status == "queued" or .status == "in_progress") and .headBranch == "execution" and .headSha == $sha)) | length')"
+          ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 50 --json databaseId,status,headBranch --jq 'map(select((.status == "queued" or .status == "pending" or .status == "in_progress") and .headBranch == "execution")) | length')"
           echo "EXECUTION_SHA=$EXECUTION_SHA"
           echo "ACTIVE_RESIDENT=$ACTIVE_RESIDENT"
           if [ "$ACTIVE_RESIDENT" -eq 0 ]; then
@@ -64,7 +51,7 @@ jobs:
 
           if [ "$ACTIVE_RESIDENT" -eq 0 ]; then
             for ATTEMPT in 1 2 3 4 5 6; do
-              ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 20 --json databaseId,status,headBranch,headSha --jq --arg sha "$EXECUTION_SHA" 'map(select((.status == "queued" or .status == "in_progress") and .headBranch == "execution" and .headSha == $sha)) | length')"
+              ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 50 --json databaseId,status,headBranch --jq 'map(select((.status == "queued" or .status == "pending" or .status == "in_progress") and .headBranch == "execution")) | length')"
               if [ "$ACTIVE_RESIDENT" -gt 0 ]; then
                 echo 'RESIDENT_BOOTSTRAP_VERIFIED=true'
                 exit 0
@@ -84,7 +71,7 @@ jobs:
           echo 'MANUAL_WAKE_REQUIRED=false'
 
   resident-watch:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/execution'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/execution') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/execution')
     name: Keep the repair plane resident and wake canonical Green Gate
     runs-on: ubuntu-latest
     timeout-minutes: 345
@@ -209,9 +196,14 @@ jobs:
           CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           [[ "$CURRENT_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$GITHUB_REF" = "refs/heads/execution"
-          gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
-          echo "RESIDENCY_REARMED_FOR_SHA=$CURRENT_SHA"
-          echo 'RESIDENCY_REARM_EVENT=WORKFLOW_DISPATCH_EXECUTION'
+          OTHER_RESIDENTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 50 --json databaseId,status,headBranch --jq --arg current "$GITHUB_RUN_ID" 'map(select(.headBranch=="execution" and (.status=="queued" or .status=="pending" or .status=="in_progress") and (.databaseId|tostring)!=$current)) | length')"
+          if [ "$OTHER_RESIDENTS" -eq 0 ]; then
+            gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
+            echo "RESIDENCY_REARMED_FOR_SHA=$CURRENT_SHA"
+            echo 'RESIDENCY_REARM_EVENT=WORKFLOW_DISPATCH_EXECUTION'
+          else
+            echo "RESIDENCY_REARM_SKIPPED_OTHER_RESIDENTS=$OTHER_RESIDENTS"
+          fi
           echo 'RESIDENCY_REARM_ON_FAILURE=true'
           echo 'RESIDENCY_REARM_ON_GREEN=true'
       - name: Verify one-minute resident continuity compliance
