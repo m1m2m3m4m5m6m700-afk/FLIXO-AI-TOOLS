@@ -53,14 +53,16 @@ export function poisoningSafe(r:SwarmKnowledge,currentSha:string,conflictCount=0
 }
 
 export function compactMemory(records:readonly SwarmKnowledge[],caps:Partial<Record<MemoryLayer,number>>={}){
-  const merged=mergeCanonical(records).canonical.map(r=>decayKnowledge(r));
+  const layerGroups=new Map<string,SwarmKnowledge[]>();
+  for(const r of records){const key=`${r.layer}|${r.canonicalKey}`;layerGroups.set(key,[...(layerGroups.get(key)??[]),r]);}
+  const merged=[...layerGroups.values()].flatMap(group=>mergeCanonical(group).canonical).map(r=>decayKnowledge(r));
   const keep:SwarmKnowledge[]=[]; const archived:SwarmKnowledge[]=[]; const used=new Map<MemoryLayer,number>();
   const capacity=(l:MemoryLayer)=>caps[l]??({L0:64,L1:256,L2:500,L3:2000,L4:5000,L5:10000}[l]);
   for(const r of merged.sort((a,b)=>Number(b.layer.slice(1))-Number(a.layer.slice(1))||rank(b)-rank(a))){
     const preserve=r.layer==='L5'&&r.status==='VERIFIED'&&r.validity==='CURRENT'&&r.exactShaVerified;
     const n=used.get(r.layer)??0; if(preserve||n<capacity(r.layer)){keep.push(r);used.set(r.layer,n+1);}else archived.push(r);
   }
-  return {active:keep,archived,droppedDuplicates:records.length-mergeCanonical(records).canonical.length,rebuildDigest:hash(keep)};
+  return {active:keep,archived,droppedDuplicates:records.length-merged.length,rebuildDigest:hash(keep)};
 }
 
 export function rebuildMemory(records:readonly SwarmKnowledge[],manifest:{recordCount:number;digest:string;exactSha:string}){
