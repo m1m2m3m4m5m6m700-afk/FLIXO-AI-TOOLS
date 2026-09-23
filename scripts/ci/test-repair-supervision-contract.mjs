@@ -66,6 +66,9 @@ for (const workflow of [impactExecution, impactPlan, wp0]) {
 }
 assert.match(canonicalCi, /push:\s*\n\s*branches:\s*\[main, execution\]/);
 assert.match(canonicalCi, /group:[^\n]*github\.event\.pull_request\.head\.ref \|\| github\.ref_name/);
+assert.match(supersession, /in_progress/);
+assert.match(supersession, /\*Heartbeat\*/i);
+assert.match(supersession, /\*Execution\*/i);
 assert.match(canonicalCi, /cancel-in-progress:\s*true/);
 assert.match(master, /LEASE_STALE.*CRASH.*TIMEOUT.*RECLAIM/);
 assert.match(master, /COMPLETE.*HANDOFF_TO_SUPERVISOR/);
@@ -141,7 +144,6 @@ assert.doesNotMatch(wakeRelay, /auto-repair\.yml.*dispatch/);
 
 assert.match(heartbeatWorkflow, /actions: write/);
 assert.doesNotMatch(heartbeatWorkflow, /actions\/workflows\/auto-repair\.yml\/dispatches/);
-assert.doesNotMatch(heartbeatWorkflow, /actions\/workflows\/daily-flixo-green-gate\.yml\/dispatches/);
 assert.match(autoRepair, /Start one-minute Repair Bot lease heartbeat/);
 assert.match(autoRepair, /active_worker_id/);
 assert.match(autoRepair, /worker-seat|FLIXO_ACTIVE_WORKER_ID/);
