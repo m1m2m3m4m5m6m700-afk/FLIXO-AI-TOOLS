@@ -42,7 +42,7 @@ jobs:
       actions: write
       contents: read
     steps:
-      - name: Dispatch resident watchdog on execution
+      - name: Bootstrap resident heartbeat on execution
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -50,10 +50,10 @@ jobs:
           set -euo pipefail
           ACTIVE="$(gh run list             --repo "$GITHUB_REPOSITORY"             --workflow execution-bot-watchdog.yml             --branch execution             --limit 20             --json status             --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
           if [ "$ACTIVE" -eq 0 ]; then
-            gh workflow run execution-bot-watchdog.yml --repo "$GITHUB_REPOSITORY" --ref execution
-            echo 'RESIDENT_WATCHDOG_BOOTSTRAP=DISPATCHED'
+            gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
+            echo 'RESIDENT_HEARTBEAT_BOOTSTRAP=DISPATCHED'
           else
-            echo 'RESIDENT_WATCHDOG_BOOTSTRAP=ALREADY_ACTIVE'
+            echo 'RESIDENT_HEARTBEAT_BOOTSTRAP=ALREADY_ACTIVE'
           fi
 
   verify:
