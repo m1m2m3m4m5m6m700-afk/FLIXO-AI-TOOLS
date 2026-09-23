@@ -68,7 +68,9 @@ jobs:
           echo 'BOOTSTRAP_TARGET_REF=execution'
           echo 'MANUAL_WAKE_REQUIRED=false'
 
-  resident-watch:    name: Keep the repair plane resident and wake canonical Green Gate
+  resident-watch:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/execution'
+    name: Keep the repair plane resident and wake canonical Green Gate
     runs-on: ubuntu-latest
     timeout-minutes: 345
     steps:
