@@ -4,6 +4,7 @@ import type { Locale } from '@/lib/i18n';
 import { getHomeCopy } from '../data/home-locales';
 import { LOCALES } from '../lib/i18n';
 import { FlixoAIAgent } from './FlixoAIAgent';
+import { FlixoLogoImage } from './FlixoLogoImage';
 import { WhyFlixoDialog } from './WhyFlixoDialog';
 import './agent-first-home.css';
 
