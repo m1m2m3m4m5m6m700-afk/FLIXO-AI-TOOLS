@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "requiredInputs": [
+    "missionId",
+    "exactSha",
+    "taskSpec",
+    "taskInputHash",
+    "capabilityRequirements",
+    "memorySnapshotIds",
+    "selectedStrategy",
+    "environment",
+    "evidenceRefs",
+    "outputHash",
+    "oracle",
+    "failureInjections"
+  ],
+  "comparison": "Output changes are measurable learning only when an explicit oracle provides PASS/FAIL.",
+  "failureInjectionCatalog": [
+    "STALE_SHA",
+    "DUPLICATE_KNOWLEDGE",
+    "CONTRADICTORY_KNOWLEDGE",
+    "POISONED_PROVENANCE",
+    "EXPIRED_SKILL",
+    "LOW_CONFIDENCE_PROMOTION",
+    "MISSING_REPLAY_INPUT",
+    "EXTERNAL_ORACLE_UNKNOWN",
+    "PRODUCT_AGENT_HANDOFF_MISMATCH",
+    "FILTER_MASK_RUNTIME_DEPENDENCY_MISSING",
+    "CAMERA_RECORDER_EVIDENCE_GAP"
+  ],
+  "adaptiveTasks": [
+    "TASK-107",
+    "TASK-114",
+    "TASK-115",
+    "TASK-116",
+    "TASK-117",
+    "TASK-119"
+  ]
+}\n
