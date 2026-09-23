@@ -53,8 +53,7 @@ export function runTenXGate({
   const masterPacket = readJson(masterPacketPath);
   const liveSha = liveExecutionSha();
   const gate = evaluateTenXGate({ targetSha, liveSha, strategy, rootProof, rcaManifest, masterPacket });
-  fs.writeFileSync(output, JSON.stringify(gate, null, 2) + '
-');
+  fs.writeFileSync(output, JSON.stringify(gate, null, 2) + '\n');
   console.log(JSON.stringify({
     protocol: gate.protocol,
     targetSha: gate.targetSha,
