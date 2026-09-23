@@ -91,7 +91,7 @@ export function buildFullIntelligenceBootstrap({
   const sharedLearning = buildSharedLearningContext({
     botId: String(agentId).trim(),
     limit: FULL_RESOURCE_POLICY.sharedMemoryLimit,
-    currentSha: sha,
+    currentSha: null,
   });
 
   return Object.freeze({
