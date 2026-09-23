@@ -45,7 +45,7 @@ async function cancelRun(runId) {
     return {cancelled: true, racedCompleted: false};
   } catch (error) {
     const message = String(error?.message ?? error);
-    if (!/GitHub API 409[\\s\\S]*Cannot cancel a workflow run that is completed/u.test(message)) throw error;
+    if (!/GitHub API 409[\s\S]*Cannot cancel a workflow run that is completed/u.test(message)) throw error;
     const current = await github(`/repos/${repository}/actions/runs/${runId}`);
     if (String(current?.status ?? '') === 'completed') {
       console.log(`STALE_RUN_CANCEL_RACE_ALREADY_COMPLETED id=${runId}`);
