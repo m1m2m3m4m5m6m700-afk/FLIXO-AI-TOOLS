@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  EXPECTED_SHA: ${{ inputs.expected_sha }}
+  EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
 
 jobs:
   redteam:
