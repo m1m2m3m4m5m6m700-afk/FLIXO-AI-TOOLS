@@ -141,7 +141,7 @@ assert.doesNotMatch(wakeRelay, /auto-repair\.yml.*dispatch/);
 
 assert.match(heartbeatWorkflow, /actions: write/);
 assert.doesNotMatch(heartbeatWorkflow, /actions\/workflows\/auto-repair\.yml\/dispatches/);
-assert.match(heartbeatWorkflow, /actions\/workflows\/daily-flixo-green-gate\.yml\/dispatches/);
+assert.doesNotMatch(heartbeatWorkflow, /actions\/workflows\/daily-flixo-green-gate\.yml\/dispatches/);
 assert.match(autoRepair, /Start one-minute Repair Bot lease heartbeat/);
 assert.match(autoRepair, /active_worker_id/);
 assert.match(autoRepair, /worker-seat|FLIXO_ACTIVE_WORKER_ID/);
