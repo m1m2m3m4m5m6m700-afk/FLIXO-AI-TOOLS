@@ -95,18 +95,31 @@ jobs:
           set -euo pipefail
           [[ "$OBSERVED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'FAIL CLOSED: invalid observed SHA'; exit 1; }
           CODEQL_STATUS=''
-          for attempt in $(seq 1 60); do
+          CODEQL_RUN_ID=''
+          CODEQL_EXPECTED_ANNOTATIONS=0
+          for attempt in $(seq 1 90); do
             CODEQL_JSON="$(gh api "repos/$GITHUB_REPOSITORY/commits/$OBSERVED_SHA/check-runs?per_page=100")"
             CODEQL_STATUS="$(printf '%s' "$CODEQL_JSON" | jq -r '[.check_runs[] | select(.name == "CodeQL" and .head_sha == $sha)] | sort_by(.completed_at // .started_at // "") | last | .status // empty' --arg sha "$OBSERVED_SHA")"
             CODEQL_CONCLUSION="$(printf '%s' "$CODEQL_JSON" | jq -r '[.check_runs[] | select(.name == "CodeQL" and .head_sha == $sha)] | sort_by(.completed_at // .started_at // "") | last | .conclusion // empty' --arg sha "$OBSERVED_SHA")"
-            if [ "$CODEQL_STATUS" = "completed" ]; then
-              echo "CODEQL_EXACT_SHA_STATUS=completed"
-              echo "CODEQL_EXACT_SHA_CONCLUSION=$CODEQL_CONCLUSION"
-              break
+            CODEQL_RUN_ID="$(printf '%s' "$CODEQL_JSON" | jq -r '[.check_runs[] | select(.name == "CodeQL" and .head_sha == $sha)] | sort_by(.completed_at // .started_at // "") | last | .id // empty' --arg sha "$OBSERVED_SHA")"
+            CODEQL_EXPECTED_ANNOTATIONS="$(printf '%s' "$CODEQL_JSON" | jq -r '[.check_runs[] | select(.name == "CodeQL" and .head_sha == $sha)] | sort_by(.completed_at // .started_at // "") | last | .output.annotations_count // 0' --arg sha "$OBSERVED_SHA")"
+            if [ "$CODEQL_STATUS" = "completed" ] && [ -n "$CODEQL_RUN_ID" ]; then
+              ANNOTATION_JSON="$(gh api "repos/$GITHUB_REPOSITORY/check-runs/$CODEQL_RUN_ID/annotations?per_page=100")"
+              ANNOTATION_COUNT="$(printf '%s' "$ANNOTATION_JSON" | jq 'length')"
+              if [ "$ANNOTATION_COUNT" -ge "$CODEQL_EXPECTED_ANNOTATIONS" ]; then
+                echo "CODEQL_EXACT_SHA_STATUS=completed"
+                echo "CODEQL_EXACT_SHA_CONCLUSION=$CODEQL_CONCLUSION"
+                echo "CODEQL_CHECK_RUN_ID=$CODEQL_RUN_ID"
+                echo "CODEQL_EXPECTED_ANNOTATIONS=$CODEQL_EXPECTED_ANNOTATIONS"
+                echo "CODEQL_PUBLISHED_ANNOTATIONS=$ANNOTATION_COUNT"
+                break
+              fi
             fi
             sleep 5
           done
           test "$CODEQL_STATUS" = "completed" || { echo "FAIL CLOSED: CodeQL result did not complete for $OBSERVED_SHA"; exit 1; }
+          test -n "$CODEQL_RUN_ID" || { echo "FAIL CLOSED: CodeQL check run ID missing for $OBSERVED_SHA"; exit 1; }
+          test "$ANNOTATION_COUNT" -ge "$CODEQL_EXPECTED_ANNOTATIONS" || { echo "FAIL CLOSED: CodeQL annotations not published for $OBSERVED_SHA"; exit 1; }
 
       - name: Run read-only investigator
         env:
