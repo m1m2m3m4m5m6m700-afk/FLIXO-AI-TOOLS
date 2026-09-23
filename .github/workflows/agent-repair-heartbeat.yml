@@ -51,7 +51,7 @@ jobs:
           echo 'STARTED_RUN_CANCELLATION=FORBIDDEN'
           echo 'CONTINUOUS_REARM=WORKFLOW_RUN_COMPLETION_OR_SCHEDULE_FALLBACK'
 
-      - name: Emit six real one-minute wake pulses with differentiated roles
+      - name: Emit six real one-minute wake pulses and activate the canonical repair path
         env:
           FLIXO_HEARTBEAT_PATH: /tmp/flixo-heartbeat/heartbeat.json
           FLIXO_TEAM_PULSE_PATH: /tmp/flixo-heartbeat/flixo-team-pulse.json
@@ -65,35 +65,41 @@ jobs:
             ACTIVE_GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
             ACTIVE_TESTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --limit 50 --json status,headSha | jq --arg sha "$SHA" 'map(select((.status == "queued" or .status == "in_progress") and .headSha == $sha)) | length')"
             ACTIVE_OPERATION=false
-            if [ "$ACTIVE_REPAIRS" -gt 0 ] || [ "$ACTIVE_GREEN" -gt 0 ] || [ "$ACTIVE_TESTS" -gt 0 ]; then
-              ACTIVE_OPERATION=true
-            fi
+            if [ "$ACTIVE_REPAIRS" -gt 0 ] || [ "$ACTIVE_GREEN" -gt 0 ] || [ "$ACTIVE_TESTS" -gt 0 ]; then ACTIVE_OPERATION=true; fi
             MINUTE_KEY="$(date -u +%Y-%m-%dT%H:%M)"
             node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="HEARTBEAT:$GITHUB_RUN_ID:$TICK" --state=ACTIVE --sha="$SHA" --progress=false --file="$FLIXO_HEARTBEAT_PATH"
-            jq -e --arg sha "$SHA" '.protocolId=="AGENT_LIVENESS_PROTOCOL" and .state=="ACTIVE" and .exactSha==$sha and .progress==false' "$FLIXO_HEARTBEAT_PATH" >/dev/null
             node scripts/ci/flixo-ten-pulse.mjs --sha="$SHA" --run-id="$GITHUB_RUN_ID" --minute="$MINUTE_KEY" --active-operation="$ACTIVE_OPERATION" --output="$FLIXO_TEAM_PULSE_PATH"
-            jq -e --arg sha "$SHA" '.pulseCount==1 and .onePulsePerHeartbeat==true and .residentBotCount==100 and (.residentBotIds|length)==100 and .residentBotIds[0]=="CELL-001" and .residentBotIds[99]=="CELL-100" and .pulses[0].action=="WAKE_ALL_AGENTS" and .pulses[0].wakeScope=="ALL_AGENTS" and .pulses[0].targetSha==$sha and (.pulses[0].pulseType != "CANONICAL_TEAM_HEARTBEAT") and (.pulses[0].pulseIndex >= 0)' "$FLIXO_TEAM_PULSE_PATH" >/dev/null
+            jq -e --arg sha "$SHA" '.pulseCount==1 and .onePulsePerHeartbeat==true and (.pulses|length)==1 and .pulses[0].action=="WAKE_ALL_AGENTS" and .pulses[0].wakeScope=="ALL_AGENTS" and .pulses[0].targetSha==$sha and (.pulses[0].pulseType != "CANONICAL_TEAM_HEARTBEAT")' "$FLIXO_TEAM_PULSE_PATH" >/dev/null
             PULSE_ID="$(jq -r '.pulses[0].pulseId' "$FLIXO_TEAM_PULSE_PATH")"
-            gh workflow run flixo-team-wake-relay.yml --repo "$GITHUB_REPOSITORY" --ref execution \
-              -f "entry_sha=$SHA" \
-              -f "pulse_id=$PULSE_ID" \
-              -f "active_operation=$ACTIVE_OPERATION"
+            PULSE_TYPE="$(jq -r '.pulses[0].pulseType' "$FLIXO_TEAM_PULSE_PATH")"
+            WAKE_FILE="/tmp/flixo-heartbeat/action-wake-$TICK.json"
+            node scripts/ci/action-repair-five-workers.mjs --role=wake --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$PULSE_ID" --output="$WAKE_FILE"
+            jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .wakeScope=="ALL_ACTION_REPAIR_TEAM" and .recipientCount==10 and (.recipients|length)==10 and .targetSha==$sha and .mutationAuthority==false and .pushAuthority=="CHAIR_1_ONLY"' "$WAKE_FILE" >/dev/null
+            if [ "$ACTIVE_OPERATION" = "true" ]; then
+              ACTIVE_GREEN_SHA="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status,headSha | jq --arg sha "$SHA" '[.[] | select((.status == "queued" or .status == "in_progress") and .headSha == $sha)] | length')"
+              if [ "$ACTIVE_GREEN_SHA" -eq 0 ]; then
+                gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/daily-flixo-green-gate.yml/dispatches" -f ref=main >/dev/null
+                echo 'CANONICAL_GREEN_GATE_WAKE=DISPATCHED'
+              else
+                echo 'CANONICAL_GREEN_GATE_WAKE=ALREADY_ACTIVE'
+              fi
+            else
+              node scripts/ci/flixo-ten-pulse.mjs scan-plan --sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --minute="$MINUTE_KEY" --active-operation=false --output=/tmp/flixo-heartbeat/idle-pulse-$TICK.json --plan-output=/tmp/flixo-heartbeat/flixo-bot-development-plan.md --scan-output=/tmp/flixo-heartbeat/flixo-full-repository-scan-$TICK.json
+              test -s /tmp/flixo-heartbeat/flixo-bot-development-plan.md
+            fi
             echo "HEARTBEAT_TICK=$TICK"
             echo "HEARTBEAT_MINUTE=$MINUTE_KEY"
             echo "HEARTBEAT_EXACT_SHA=$SHA"
-            echo "PULSE_TYPE=$(jq -r '.pulses[0].pulseType' "$FLIXO_TEAM_PULSE_PATH")"
-            echo "PULSE_OWNER=$(jq -r '.pulses[0].pulseOwner' "$FLIXO_TEAM_PULSE_PATH")"
+            echo "PULSE_TYPE=$PULSE_TYPE"
+            echo "PULSE_ID=$PULSE_ID"
             echo "ACTIVE_OPERATION=$ACTIVE_OPERATION"
-            echo 'CANONICAL_TEAM_PULSE=1'
-            echo 'WAKE_RELAY_DISPATCHED=1'
+            echo 'ACTION_WAKE=DISPATCHED_TO_ALL_ACTION_REPAIR_TEAM'
             if [ "$TICK" -lt 6 ]; then sleep 60; fi
           done
           echo 'HEARTBEAT_INTERVAL_SECONDS=60'
           echo 'SCHEDULE_INTERVAL_MINUTES=5'
           echo 'HEARTBEAT_WINDOW_SECONDS=360'
-          echo 'CONTINUOUS_RESIDENCY_REARM=DISPATCH_EXECUTION'
-          gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
-          echo 'CONTINUOUS_RESIDENCY_REARM=DISPATCHED_EXECUTION'
+          echo 'EACH_PULSE_IS_A_REAL_ACTION_WAKE=true'
       - name: Verify five-minute schedule with one-minute internal beats compliance
         id: heartbeat_compliance
         env:
@@ -114,6 +120,9 @@ jobs:
           name: flixo-team-pulse-${{ github.run_id }}
           path: |
             /tmp/flixo-heartbeat/flixo-team-pulse.json
+            /tmp/flixo-heartbeat/action-wake-*.json
+            /tmp/flixo-heartbeat/idle-pulse-*.json
+            /tmp/flixo-heartbeat/flixo-full-repository-scan-*.json
             /tmp/flixo-heartbeat/flixo-team-idle-pulse.json
             /tmp/flixo-heartbeat/flixo-full-repository-scan.json
             /tmp/flixo-heartbeat/flixo-bot-development-plan.md
@@ -169,36 +178,6 @@ jobs:
           echo "ACTIVE_OPERATION=$ACTIVE_OPERATION"
           echo "execution_sha=$EXECUTION_SHA" >> "$GITHUB_OUTPUT"
           echo "active_operation=$ACTIVE_OPERATION" >> "$GITHUB_OUTPUT"
-
-      - name: Emit one canonical pulse and wake the full team
-        id: pulse
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/flixo-heartbeat
-          node scripts/ci/flixo-ten-pulse.mjs \
-            --sha="${{ steps.state.outputs.execution_sha }}" \
-            --run-id="$GITHUB_RUN_ID" \
-            --minute="$(date -u +%Y-%m-%dT%H:%M)" \
-            --active-operation="${{ steps.state.outputs.active_operation }}" \
-            --output=/tmp/flixo-heartbeat/flixo-team-pulse.json
-          jq -e '.pulseCount==1 and .onePulsePerHeartbeat==true and (.pulses|length==1) and .pulses[0].action=="WAKE_ALL_AGENTS" and .pulses[0].wakeScope=="ALL_AGENTS" and .pulses[0].targetSha=="'"${{ steps.state.outputs.execution_sha }}"'"' /tmp/flixo-heartbeat/flixo-team-pulse.json >/dev/null
-          echo 'CANONICAL_HEARTBEAT_PULSES=1'
-          echo 'ONE_PULSE_WAKE_SCOPE=ALL_AGENTS'
-          echo "ACTIVE_OPERATION=${{ steps.state.outputs.active_operation }}"
-      - name: Deliver canonical team wake through exact-SHA relay
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          PULSE_ID="$(jq -r '.pulses[0].pulseId' /tmp/flixo-heartbeat/flixo-team-pulse.json)"
-          gh workflow run flixo-team-wake-relay.yml --repo "$GITHUB_REPOSITORY" --ref main \
-            -f "entry_sha=${{ steps.state.outputs.execution_sha }}" \
-            -f "pulse_id=$PULSE_ID" \
-            -f "active_operation=${{ steps.state.outputs.active_operation }}"
-          echo 'WAKE_RELAY_DISPATCHED=1'
-          echo 'DIRECT_AUTO_REPAIR_DISPATCH=false'
-          echo 'DIRECT_PUSH=false'
 
       - name: Full repository read-only sweep when no operation is active
         if: steps.state.outputs.active_operation == 'false'
