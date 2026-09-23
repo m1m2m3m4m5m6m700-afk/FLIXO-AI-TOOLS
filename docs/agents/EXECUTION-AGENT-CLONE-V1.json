@@ -11,7 +11,8 @@
     "ui": "src/components/FlixoAIAgentStudio.tsx",
     "agent": "src/components/FlixoAIAgent.tsx",
     "conversation": "src/lib/agent/human-conversation.ts",
-    "cognitiveOrchestrator": "src/lib/agent/cognitive-orchestrator.ts"
+    "cognitiveOrchestrator": "src/lib/agent/cognitive-orchestrator.ts",
+    "learningPersistence": "src/server/agent/learning-persistence.ts"
   },
   "intelligence": {
     "version": "FLIXO-BOT-BRAIN-v1",
@@ -28,7 +29,8 @@
     "writeMode": "PUBLISHED_LESSON_OR_OPERATION_ONLY",
     "exactShaBound": true,
     "provenanceRequired": true,
-    "staleKnowledgePolicy": "REQUALIFY_BEFORE_REUSE"
+    "staleKnowledgePolicy": "REQUALIFY_BEFORE_REUSE",
+    "remoteMirrorPolicy": "Only exact-target-SHA candidates are admitted into the shared context; PROPOSED knowledge remains advisory until internal verification and canonical GREEN."
   },
   "bidirectionalSync": {
     "protocol": "FLIXO-BIDIRECTIONAL-COGNITIVE-MESH-v1",
@@ -45,7 +47,15 @@
     "syncModel": "LIVE_SHARED_MEMORY_BY_REFERENCE",
     "oneCanonicalBrain": true,
     "noLocalFork": true,
-    "noSecondRegistry": true
+    "noSecondRegistry": true,
+    "durableIngress": {
+      "enabled": true,
+      "persistenceTable": "public.flixo_agent_learning_events",
+      "apiSurface": "api/flixo-agent.ts",
+      "syncRuntime": "scripts/ci/sync-cognitive-learning-mesh.mjs",
+      "externalToInternal": "PROPOSED candidate → sync → SHARED-OPERATIONAL-MEMORY",
+      "internalToExternal": "VERIFIED/PROMOTED canonical memory → durable mirror → external UI context"
+    }
   },
   "authority": {
     "knowledgeDoesNotGrantAuthority": true,
