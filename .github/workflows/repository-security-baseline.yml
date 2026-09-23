@@ -25,7 +25,7 @@ permissions:
 # Superseded verification on the same canonical branch/event is replaceable.
 # Exact-SHA checkout and fail-closed validation remain the authority for each run.
 concurrency:
-  group: repository-security-baseline-${{ github.event_name }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: repository-security-baseline-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
