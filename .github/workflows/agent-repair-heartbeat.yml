@@ -3,7 +3,12 @@ name: FLIXO Agent Repair Heartbeat
 run-name: FLIXO Agent Repair Heartbeat ${{ github.run_id }}
 
 on:
-  # Direct execution push is the immediate ignition path.
+  # PR synchronization is the bootstrap ignition for the execution branch.
+  # After the first real run, workflow_dispatch can re-arm the same execution ref.
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  # Direct execution push remains a secondary ignition path.
   push:
     branches: [execution]
   # The trusted main controller remains the recovery observer.
@@ -31,7 +36,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$GITHUB_REF" = "refs/heads/execution"
+          SOURCE_BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          test "$SOURCE_BRANCH" = "execution"
           gh workflow run execution-bot-watchdog.yml --repo "$GITHUB_REPOSITORY" --ref main
           echo 'TRUSTED_WATCHDOG_WAKE=DISPATCHED'
           echo 'TRUSTED_WATCHDOG_REF=main'
@@ -139,9 +145,9 @@ jobs:
           CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           [[ "$CURRENT_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$GITHUB_REF" = "refs/heads/main"
-          gh workflow run execution-bot-watchdog.yml --repo "$GITHUB_REPOSITORY" --ref main
+          gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
           echo "RESIDENCY_REARMED_FOR_SHA=$CURRENT_SHA"
-          echo 'RESIDENCY_REARM_EVENT=TRUSTED_WATCHDOG_WAKE'
+          echo 'RESIDENCY_REARM_EVENT=WORKFLOW_DISPATCH_EXECUTION'
           echo 'RESIDENCY_REARM_ON_FAILURE=true'
           echo 'RESIDENCY_REARM_ON_GREEN=true'
       - name: Verify five-minute schedule with one-minute internal beats compliance
