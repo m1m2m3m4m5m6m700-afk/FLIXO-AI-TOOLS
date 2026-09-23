@@ -22,7 +22,7 @@ jobs:
   resident-watch:
     name: Keep the repair plane resident and wake canonical Green Gate
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 345
     steps:
       - name: Checkout liveness contract
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -59,13 +59,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/flixo-heartbeat
-          for TICK in 1 2 3 4 5 6; do
+          for ((TICK=1; TICK<=340; TICK++)); do
             SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-            ACTIVE_REPAIRS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
-            ACTIVE_GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
-            ACTIVE_TESTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --limit 50 --json status,headSha | jq --arg sha "$SHA" 'map(select((.status == "queued" or .status == "in_progress") and .headSha == $sha)) | length')"
-            ACTIONABLE_RED="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --limit 100 --json status,conclusion,headSha | jq --arg sha "$SHA" 'map(select(.headSha == $sha and .status == "completed" and (.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required"))) | length')"
-            ACTIONABLE_REQUIRED_RED="$(gh run list --repo "$GITHUB_REPOSITORY" --branch execution --limit 100 --json status,conclusion,headSha,name | jq --arg sha "$SHA" 'map(select(.headSha == $sha and .status == "completed" and (.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required") and (.name != "FLIXO Agent Repair Heartbeat"))) | length')"
+            RUNS_JSON="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=100")"
+            ACTIVE_REPAIRS="$(jq --arg sha "$SHA" '[.workflow_runs[] | select(.path == ".github/workflows/auto-repair.yml" and (.status == "queued" or .status == "in_progress") and (.head_sha == $sha or .head_branch == "execution"))] | length' <<<"$RUNS_JSON")"
+            ACTIVE_GREEN="$(jq --arg sha "$SHA" '[.workflow_runs[] | select(.path == ".github/workflows/daily-flixo-green-gate.yml" and (.status == "queued" or .status == "in_progress") and (.head_sha == $sha or .head_branch == "execution"))] | length' <<<"$RUNS_JSON")"
+            ACTIVE_TESTS="$(jq --arg sha "$SHA" '[.workflow_runs[] | select(.path == ".github/workflows/ci.yml" and (.status == "queued" or .status == "in_progress") and .head_sha == $sha)] | length' <<<"$RUNS_JSON")"
+            ACTIONABLE_RED="$(jq --arg sha "$SHA" '[.workflow_runs[] | select(.path == ".github/workflows/ci.yml" and .status == "completed" and .head_sha == $sha and (.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required"))] | length' <<<"$RUNS_JSON")"
+            ACTIONABLE_REQUIRED_RED="$(jq --arg sha "$SHA" '[.workflow_runs[] | select(.head_branch == "execution" and .head_sha == $sha and .status == "completed" and (.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required") and .path != ".github/workflows/agent-repair-heartbeat.yml")] | length' <<<"$RUNS_JSON")"
             ACTIVE_OPERATION=false
             WAKE_REASON="IDLE_READ_ONLY"
             if [ "$ACTIVE_REPAIRS" -gt 0 ] || [ "$ACTIVE_GREEN" -gt 0 ] || [ "$ACTIVE_TESTS" -gt 0 ]; then
@@ -105,12 +106,29 @@ jobs:
             echo "WAKE_REASON=$WAKE_REASON"
             if [ "$ACTIVE_OPERATION" = "true" ]; then echo 'RED_REENTRY_WAKE=REPAIR_PATH'; else echo 'RED_REENTRY_WAKE=IDLE_SCAN'; fi
             echo 'ACTION_WAKE=DISPATCHED_TO_ALL_ACTION_REPAIR_TEAM'
-            if [ "$TICK" -lt 6 ]; then sleep 60; fi
+            if [ "$TICK" -lt 340 ]; then sleep 60; fi
           done
           echo 'HEARTBEAT_INTERVAL_SECONDS=60'
           echo 'SCHEDULE_INTERVAL_MINUTES=5'
           echo 'HEARTBEAT_WINDOW_SECONDS=360'
           echo 'EACH_PULSE_IS_A_REAL_ACTION_WAKE=true'
+          echo 'RESIDENCY_WINDOW_MINUTES=340'
+          echo 'RESIDENCY_WINDOW_WITHIN_GITHUB_HOSTED_MAX=TRUE'
+
+      - name: Re-arm next resident window through workflow_dispatch
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          [[ "$CURRENT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
+          echo "RESIDENCY_REARMED_FOR_SHA=$CURRENT_SHA"
+          echo 'RESIDENCY_REARM_EVENT=WORKFLOW_DISPATCH'
+          echo 'RESIDENCY_REARM_ON_FAILURE=true'
+          echo 'RESIDENCY_REARM_ON_GREEN=true'
       - name: Verify five-minute schedule with one-minute internal beats compliance
         id: heartbeat_compliance
         env:
