@@ -1,12 +1,9 @@
 name: FLIXO — Ultra Deep Recovery
 
 on:
-  workflow_call:
-    inputs:
-      expected_sha:
-        description: Exact commit SHA being investigated.
-        required: true
-        type: string
+  # Read-only investigator is intentionally manually dispatched. A workflow_call caller cannot
+  # be proven from the repository graph, which would make an exact-SHA checkout look privileged
+  # to CodeQL. The relay already invokes this workflow through workflow_dispatch.
   workflow_dispatch:
     inputs:
       expected_sha:
