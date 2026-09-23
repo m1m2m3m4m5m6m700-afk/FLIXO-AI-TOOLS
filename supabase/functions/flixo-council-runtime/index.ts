@@ -226,6 +226,7 @@ const directGuardianRecovery = async () => {
               attempts,
               terminal: true,
               recoveryVersion: "guardian-v3",
+              recoveryState: "FAILED_TERMINAL",
             },
           }),
         });
@@ -246,7 +247,7 @@ const directGuardianRecovery = async () => {
             },
           }),
         });
-        repaired.push({ ...current, status: "FAILED", attempts, guardianAction: "TERMINAL_ESCALATION" });
+        repaired.push({ ...current, status: "FAILED", attempts, recoveryState: "FAILED_TERMINAL", guardianAction: "FAILED_TERMINAL" });
       }
       continue;
     }
@@ -286,10 +287,11 @@ const directGuardianRecovery = async () => {
               terminal: true,
               requiredAction: "SUPERVISOR_ESCALATION",
               recoveryVersion: "guardian-v3",
+              recoveryState: "BLOCKED",
             },
           }),
         });
-        repaired.push({ ...current, status: "FAILED", attempts, guardianAction: "NO_FRESH_RUNTIME" });
+        repaired.push({ ...current, status: "FAILED", attempts, recoveryState: "BLOCKED", guardianAction: "BLOCKED" });
       }
       continue;
     }
@@ -332,10 +334,11 @@ const directGuardianRecovery = async () => {
           automatic: true,
           recoveryVersion: "guardian-v3",
           previousAccountId: current.recipient_account_id,
+          recoveryState: "RECOVERED",
         },
       }),
     });
-    repaired.push({ ...recovered, guardianAction: "REASSIGNED_TO_FRESH_RUNTIME" });
+    repaired.push({ ...recovered, recoveryState: "RECOVERED", guardianAction: "RECOVERED" });
   }
   return repaired;
 };
