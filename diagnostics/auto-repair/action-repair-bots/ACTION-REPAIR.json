@@ -10,7 +10,7 @@
   },
   "authority": "ACTION_REPAIR_BOT_PERSONAL_MEMORY",
   "botId": "ACTION-REPAIR",
-  "displayName": "بوت إصلاح Actions",
+  "displayName": "FLIXO BOT",
   "copyable": true,
   "transferableKnowledgeOnly": true,
   "permanentIndependentAuthority": false,
