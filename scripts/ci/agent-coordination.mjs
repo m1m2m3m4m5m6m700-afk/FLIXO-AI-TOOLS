@@ -35,6 +35,9 @@ const assertChairRole = (chairId, role) => {
   if (!allowed.has(String(role))) throw new Error('CHAIR_ROLE_NOT_AUTHORIZED=' + chairId + ':' + String(role));
 };
 const COUNCIL_MACHINE_ROLES = new Set(['assistantController','verification','analysis','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier','actionHistorian']);
+const FLIXO10_IDS = Object.freeze(['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5','FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10']);
+const isFlixo10 = (agentId) => FLIXO10_IDS.includes(String(agentId ?? '').trim().toUpperCase());
+const pushSeatRecord = (taskId) => state.pushSeats[String(taskId)] ?? null;
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
   const token = process.argv[i];
@@ -263,11 +266,12 @@ const writeLocked = MUTATING_COMMANDS.has(command);
 assertMutationTopology();
 if (writeLocked) acquireWriteLock();
 process.on('exit', releaseWriteLock);
-const defaultState = () => ({ schemaVersion: 1, authority: 'AGENT_COORDINATION_CONTROL_PLANE', authoritativeSha: sha(), governanceFingerprint: governanceFingerprint(), revision: 0, transactionId: null, updatedAt: now(), tasks: {}, activeSessions: {}, staleSessions: {} });
+const defaultState = () => ({ schemaVersion: 1, authority: 'AGENT_COORDINATION_CONTROL_PLANE', authoritativeSha: sha(), governanceFingerprint: governanceFingerprint(), revision: 0, transactionId: null, updatedAt: now(), tasks: {}, activeSessions: {}, staleSessions: {}, pushSeats: {} });
 const defaultLocks = () => ({ schemaVersion: 1, authority: 'AGENT_SCOPE_LOCKS', governanceFingerprint: governanceFingerprint(), revision: 0, transactionId: null, locks: {} });
 const state = readJson(QUEUE_FILE, defaultState());
 const locks = readJson(LOCK_FILE, defaultLocks());
 state.staleSessions = state.staleSessions ?? {};
+state.pushSeats = state.pushSeats ?? {};
 const currentGovernanceFingerprint = governanceFingerprint();
 if (state.governanceFingerprint && state.governanceFingerprint !== currentGovernanceFingerprint) throw new Error('COORDINATION_GOVERNANCE_DRIFT');
 if (locks.governanceFingerprint && locks.governanceFingerprint !== currentGovernanceFingerprint) throw new Error('COORDINATION_GOVERNANCE_DRIFT');
@@ -431,6 +435,40 @@ if (command === 'task-claim') {
   task.status = 'RUNNING'; task.claimedBy = agentId; task.sessionId = sessionId; task.claimedAt = now(); task.entrySha = sha(); task.lockId = lockId; task.chairId = selectedChair;
   state.activeSessions[sessionId] = { sessionId, agentId, taskId, lockId, chairId: selectedChair, chairLeaseId: chairLease?.chairs?.[selectedChair]?.lease_id ?? null, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, protocolHash: assertProtocolDefinition().protocolHash, ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}), updatedAt: now() };
   const packetFile = packetPath(taskId); const packet = readJson(packetFile, task); packet.claim = { sessionId, agentId, lockId, claimedAt: now(), entrySha: sha(), ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}) }; writeJson(packetFile, packet); save(); console.log(JSON.stringify(task, null, 2));
+}
+
+if (command === 'push-seat-claim') {
+  const taskId = requireArg('task'); const sessionId = requireArg('session'); const agentId = requireArg('agent').toUpperCase();
+  if (!isFlixo10(agentId)) throw new Error('FLIXO10_PUSH_SEAT_AGENT_REQUIRED');
+  const task = state.tasks[taskId]; if (!task) throw new Error('Unknown task: ' + taskId);
+  if (task.sessionId !== sessionId || task.claimedBy !== agentId) throw new Error('FLIXO10_PUSH_SEAT_TASK_OWNER_MISMATCH');
+  if (task.entrySha !== sha()) throw new Error('FLIXO10_PUSH_SEAT_STALE_SHA');
+  const existing = pushSeatRecord(taskId);
+  if (existing) {
+    if (existing.agentId !== agentId || existing.sessionId !== sessionId || existing.targetSha !== sha()) throw new Error('FLIXO10_PUSH_SEAT_ALREADY_OWNED');
+    existing.lastSeenAt = now(); existing.heartbeatAt = now(); save();
+    console.log(JSON.stringify({status:'ALREADY_OWNER',pushSeat:existing}, null, 2)); process.exit(0);
+  }
+  const seat = {schemaVersion:1,protocol:'FLIXO10-PUSH-SEAT-v1',taskId,sessionId,agentId,targetSha:sha(),claimedAt:now(),lastSeenAt:now(),heartbeatAt:now(),state:'LOCKED',immutableOwner:true,takeoverAllowed:false,peerTakeoverAllowed:false,automaticReassignmentAllowed:false,abandonmentForbidden:true,mergeParallelProposals:true,publicationPath:'ASSISTANT_CONTROLLER_GUARDED_PUBLICATION',canonicalBranch:'execution'};
+  state.pushSeats[taskId] = seat;
+  task.pushSeat = {agentId,sessionId,targetSha:sha(),status:'LOCKED'};
+  save(); console.log(JSON.stringify({status:'CLAIMED',pushSeat:seat}, null, 2));
+}
+
+if (command === 'push-seat-heartbeat') {
+  const taskId = requireArg('task'); const sessionId = requireArg('session'); const agentId = requireArg('agent').toUpperCase();
+  const seat = pushSeatRecord(taskId); if (!seat) throw new Error('FLIXO10_PUSH_SEAT_NOT_CLAIMED');
+  if (seat.agentId !== agentId || seat.sessionId !== sessionId) throw new Error('FLIXO10_PUSH_SEAT_OWNER_MISMATCH');
+  if (seat.targetSha !== sha()) throw new Error('FLIXO10_PUSH_SEAT_STALE_SHA');
+  seat.lastSeenAt = now(); seat.heartbeatAt = now(); save();
+  console.log(JSON.stringify({status:'HEARTBEAT',pushSeat:seat}, null, 2));
+}
+
+if (command === 'push-seat-status') {
+  const taskId = requireArg('task'); const seat = pushSeatRecord(taskId);
+  if (!seat) { console.log(JSON.stringify({status:'UNCLAIMED',taskId,targetSha:sha()}, null, 2)); process.exit(0); }
+  if (seat.targetSha !== sha()) throw new Error('FLIXO10_PUSH_SEAT_STALE_SHA');
+  console.log(JSON.stringify({status:'LOCKED',pushSeat:seat}, null, 2));
 }
 
 if (command === 'task-release') {
