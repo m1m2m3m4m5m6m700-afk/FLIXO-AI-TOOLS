@@ -28,6 +28,7 @@ export const SENSITIVE_PERMISSION_ALLOWLISTS = Object.freeze({
     'daily-flixo-green-gate.yml',
     'execution-bot-watchdog.yml',
     'latest-commit-test-supersession.yml',
+    'latest-execution-head-cleanup.yml',
   ]),
   'id-token': Object.freeze([
     'agent-communication-relay.yml',
