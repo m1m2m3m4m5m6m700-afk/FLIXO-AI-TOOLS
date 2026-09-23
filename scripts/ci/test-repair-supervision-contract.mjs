@@ -141,7 +141,7 @@ const wakeRelay = read('.github/workflows/council-wake-push-relay.yml');
 
 assert.match(heartbeatWorkflow, /HEARTBEAT_24X7_MODE=true/);
 assert.match(heartbeatWorkflow, /HEARTBEAT_INTERVAL_SECONDS=60/);
-assert.match(heartbeatWorkflow, /for \\(\\(TICK=1; TICK<=300; TICK\\+\\+\\)\\);/);
+assert.match(heartbeatWorkflow, /for \(\(TICK=1; TICK<=300; TICK\+\+\)\);/);
 assert.match(heartbeatWorkflow, /sleep 60/);
 assert.match(heartbeatWorkflow, /RESIDENT_BOOTSTRAP_VERIFIED=true/);
 assert.match(heartbeatWorkflow, /MANUAL_WAKE_REQUIRED=false/);
@@ -149,6 +149,7 @@ assert.match(heartbeatWorkflow, /SCHEDULE_WAKE_FLOOR_MINUTES=5/);
 assert.match(heartbeatWorkflow, /schedule:\s*\n\s*- cron: '\*\/5 \* \* \* \*'/);
 assert.match(heartbeatWorkflow, /name: Bootstrap resident repair heartbeat automatically/);
 assert.match(heartbeatWorkflow, /github\.event_name == 'schedule'/);
+assert.match(heartbeatWorkflow, /github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
 assert.match(heartbeatWorkflow, /github\.event_name == 'workflow_dispatch' && github\.ref == 'refs\/heads\/main'/);
 assert.match(heartbeatWorkflow, /group: flixo-agent-repair-heartbeat-\$\{\{ github\.event_name \}\}-\$\{\{ github\.ref_name \}\}/);
 assert.match(heartbeatWorkflow, /gh workflow run agent-repair-heartbeat\.yml --repo "\$GITHUB_REPOSITORY" --ref execution/);
