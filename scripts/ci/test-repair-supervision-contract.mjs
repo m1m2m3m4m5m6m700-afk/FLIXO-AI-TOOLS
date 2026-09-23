@@ -161,6 +161,8 @@ assert.match(heartbeatWorkflow, /github\.event_name == 'workflow_dispatch' && gi
 assert.match(heartbeatWorkflow, /group: flixo-agent-repair-heartbeat-\$\{\{ github\.event_name \}\}-\$\{\{ github\.ref_name \}\}/);
 assert.match(heartbeatWorkflow, /gh workflow run agent-repair-heartbeat\.yml --repo "\$GITHUB_REPOSITORY" --ref execution/);
 assert.match(heartbeatWorkflow, /headSha == \$sha/);
+assert.match(heartbeatWorkflow, /ACTIVE_RESIDENT=.*headSha --jq --arg sha "\$EXECUTION_SHA"/);
+assert.match(heartbeatWorkflow, /OTHER_RESIDENTS=.*headSha --jq --arg current "\$GITHUB_RUN_ID" --arg sha "\$CURRENT_SHA"/);
 assert.match(heartbeatWorkflow, /--arg sha "\$EXECUTION_SHA"/);
 assert.match(canonicalCi, /workflow: agent-repair-heartbeat\.yml/);
 assert.match(canonicalCi, /headSha == \$sha/);
