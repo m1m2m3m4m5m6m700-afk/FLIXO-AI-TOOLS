@@ -42,6 +42,7 @@ const LANGUAGE_LABELS: Readonly<Record<Locale, string>> = {
 };
 
 type AgentUiCopy = Readonly<{
+  agentName: string;
   navigation: string;
   chat: string;
   history: string;
@@ -55,29 +56,31 @@ type AgentUiCopy = Readonly<{
   images: string;
   video: string;
   filters: string;
+  you: string;
+  openPreview: string;
 }>;
 
 const AGENT_UI_COPY: Readonly<Record<Locale, AgentUiCopy>> = {
-  en: { navigation: 'FLIXO agent navigation', chat: 'Chat', history: 'History', projects: 'Projects', admin: 'Admin', changeLanguage: 'Change language', tools: 'FLIXO tools', browseTools: 'Browse tools', searchTools: 'Search tools…', all: 'All', images: 'Images', video: 'Video', filters: 'Filters' },
-  ar: { navigation: 'تنقل وكيل فليكسو', chat: 'المحادثة', history: 'السجل', projects: 'المشاريع', admin: 'الإدارة', changeLanguage: 'تغيير اللغة', tools: 'أدوات FLIXO', browseTools: 'تصفح الأدوات', searchTools: 'ابحث عن أداة…', all: 'الكل', images: 'الصور', video: 'الفيديو', filters: 'الفلاتر' },
-  es: { navigation: 'Navegación del agente FLIXO', chat: 'Chat', history: 'Historial', projects: 'Proyectos', admin: 'Administración', changeLanguage: 'Cambiar idioma', tools: 'Herramientas de FLIXO', browseTools: 'Explorar herramientas', searchTools: 'Buscar herramientas…', all: 'Todo', images: 'Imágenes', video: 'Vídeo', filters: 'Filtros' },
-  fr: { navigation: 'Navigation de l’agent FLIXO', chat: 'Discussion', history: 'Historique', projects: 'Projets', admin: 'Administration', changeLanguage: 'Changer de langue', tools: 'Outils FLIXO', browseTools: 'Parcourir les outils', searchTools: 'Rechercher des outils…', all: 'Tous', images: 'Images', video: 'Vidéo', filters: 'Filtres' },
-  de: { navigation: 'FLIXO-Agent-Navigation', chat: 'Chat', history: 'Verlauf', projects: 'Projekte', admin: 'Administration', changeLanguage: 'Sprache ändern', tools: 'FLIXO-Tools', browseTools: 'Tools durchsuchen', searchTools: 'Tools suchen…', all: 'Alle', images: 'Bilder', video: 'Video', filters: 'Filter' },
-  hi: { navigation: 'FLIXO एजेंट नेविगेशन', chat: 'चैट', history: 'इतिहास', projects: 'प्रोजेक्ट', admin: 'प्रशासन', changeLanguage: 'भाषा बदलें', tools: 'FLIXO टूल', browseTools: 'टूल ब्राउज़ करें', searchTools: 'टूल खोजें…', all: 'सभी', images: 'छवियाँ', video: 'वीडियो', filters: 'फ़िल्टर' },
-  id: { navigation: 'Navigasi agen FLIXO', chat: 'Obrolan', history: 'Riwayat', projects: 'Proyek', admin: 'Admin', changeLanguage: 'Ganti bahasa', tools: 'Alat FLIXO', browseTools: 'Jelajahi alat', searchTools: 'Cari alat…', all: 'Semua', images: 'Gambar', video: 'Video', filters: 'Filter' },
-  it: { navigation: 'Navigazione agente FLIXO', chat: 'Chat', history: 'Cronologia', projects: 'Progetti', admin: 'Amministrazione', changeLanguage: 'Cambia lingua', tools: 'Strumenti FLIXO', browseTools: 'Sfoglia strumenti', searchTools: 'Cerca strumenti…', all: 'Tutti', images: 'Immagini', video: 'Video', filters: 'Filtri' },
-  ja: { navigation: 'FLIXOエージェントナビゲーション', chat: 'チャット', history: '履歴', projects: 'プロジェクト', admin: '管理', changeLanguage: '言語を変更', tools: 'FLIXOツール', browseTools: 'ツールを参照', searchTools: 'ツールを検索…', all: 'すべて', images: '画像', video: '動画', filters: 'フィルター' },
-  ko: { navigation: 'FLIXO 에이전트 탐색', chat: '채팅', history: '기록', projects: '프로젝트', admin: '관리', changeLanguage: '언어 변경', tools: 'FLIXO 도구', browseTools: '도구 찾아보기', searchTools: '도구 검색…', all: '전체', images: '이미지', video: '비디오', filters: '필터' },
-  ms: { navigation: 'Navigasi ejen FLIXO', chat: 'Sembang', history: 'Sejarah', projects: 'Projek', admin: 'Pentadbir', changeLanguage: 'Tukar bahasa', tools: 'Alat FLIXO', browseTools: 'Semak alat', searchTools: 'Cari alat…', all: 'Semua', images: 'Imej', video: 'Video', filters: 'Penapis' },
-  nl: { navigation: 'FLIXO-agentnavigatie', chat: 'Chat', history: 'Geschiedenis', projects: 'Projecten', admin: 'Beheer', changeLanguage: 'Taal wijzigen', tools: 'FLIXO-tools', browseTools: 'Tools bekijken', searchTools: 'Tools zoeken…', all: 'Alle', images: 'Afbeeldingen', video: 'Video', filters: 'Filters' },
-  pl: { navigation: 'Nawigacja agenta FLIXO', chat: 'Czat', history: 'Historia', projects: 'Projekty', admin: 'Administracja', changeLanguage: 'Zmień język', tools: 'Narzędzia FLIXO', browseTools: 'Przeglądaj narzędzia', searchTools: 'Szukaj narzędzi…', all: 'Wszystkie', images: 'Obrazy', video: 'Wideo', filters: 'Filtry' },
-  pt: { navigation: 'Navegação do agente FLIXO', chat: 'Chat', history: 'Histórico', projects: 'Projetos', admin: 'Administração', changeLanguage: 'Alterar idioma', tools: 'Ferramentas FLIXO', browseTools: 'Explorar ferramentas', searchTools: 'Pesquisar ferramentas…', all: 'Todos', images: 'Imagens', video: 'Vídeo', filters: 'Filtros' },
-  ru: { navigation: 'Навигация агента FLIXO', chat: 'Чат', history: 'История', projects: 'Проекты', admin: 'Администрирование', changeLanguage: 'Сменить язык', tools: 'Инструменты FLIXO', browseTools: 'Обзор инструментов', searchTools: 'Поиск инструментов…', all: 'Все', images: 'Изображения', video: 'Видео', filters: 'Фильтры' },
-  sv: { navigation: 'FLIXO-agentnavigering', chat: 'Chatt', history: 'Historik', projects: 'Projekt', admin: 'Administration', changeLanguage: 'Byt språk', tools: 'FLIXO-verktyg', browseTools: 'Bläddra bland verktyg', searchTools: 'Sök verktyg…', all: 'Alla', images: 'Bilder', video: 'Video', filters: 'Filter' },
-  th: { navigation: 'การนำทางเอเจนต์ FLIXO', chat: 'แชต', history: 'ประวัติ', projects: 'โปรเจกต์', admin: 'ผู้ดูแลระบบ', changeLanguage: 'เปลี่ยนภาษา', tools: 'เครื่องมือ FLIXO', browseTools: 'เรียกดูเครื่องมือ', searchTools: 'ค้นหาเครื่องมือ…', all: 'ทั้งหมด', images: 'รูปภาพ', video: 'วิดีโอ', filters: 'ฟิลเตอร์' },
-  tr: { navigation: 'FLIXO ajan gezinmesi', chat: 'Sohbet', history: 'Geçmiş', projects: 'Projeler', admin: 'Yönetim', changeLanguage: 'Dili değiştir', tools: 'FLIXO araçları', browseTools: 'Araçlara göz at', searchTools: 'Araçlarda ara…', all: 'Tümü', images: 'Görseller', video: 'Video', filters: 'Filtreler' },
-  uk: { navigation: 'Навігація агента FLIXO', chat: 'Чат', history: 'Історія', projects: 'Проєкти', admin: 'Адміністрування', changeLanguage: 'Змінити мову', tools: 'Інструменти FLIXO', browseTools: 'Переглянути інструменти', searchTools: 'Пошук інструментів…', all: 'Усі', images: 'Зображення', video: 'Відео', filters: 'Фільтри' },
-  vi: { navigation: 'Điều hướng tác vụ FLIXO', chat: 'Trò chuyện', history: 'Lịch sử', projects: 'Dự án', admin: 'Quản trị', changeLanguage: 'Đổi ngôn ngữ', tools: 'Công cụ FLIXO', browseTools: 'Duyệt công cụ', searchTools: 'Tìm kiếm công cụ…', all: 'Tất cả', images: 'Hình ảnh', video: 'Video', filters: 'Bộ lọc' },
+  en: { agentName: 'FLIXO Agent', navigation: 'FLIXO agent navigation', chat: 'Chat', history: 'History', projects: 'Projects', admin: 'Admin', changeLanguage: 'Change language', tools: 'FLIXO tools', browseTools: 'Browse tools', searchTools: 'Search tools…', all: 'All', images: 'Images', video: 'Video', filters: 'Filters', you: 'JIJ', openPreview: 'Voorbeeld openen', you: 'YOU', openPreview: 'Open preview' },
+  ar: { agentName: 'وكيل FLIXO', navigation: 'تنقل وكيل فليكسو', chat: 'المحادثة', history: 'السجل', projects: 'المشاريع', admin: 'الإدارة', changeLanguage: 'تغيير اللغة', tools: 'أدوات FLIXO', browseTools: 'تصفح الأدوات', searchTools: 'ابحث عن أداة…', all: 'الكل', images: 'الصور', video: 'الفيديو', filters: 'الفلاتر', you: 'أنت', openPreview: 'فتح المعاينة' },
+  es: { agentName: 'Agente FLIXO', navigation: 'Navegación del agente FLIXO', chat: 'Chat', history: 'Historial', projects: 'Proyectos', admin: 'Administración', changeLanguage: 'Cambiar idioma', tools: 'Herramientas de FLIXO', browseTools: 'Explorar herramientas', searchTools: 'Buscar herramientas…', all: 'Todo', images: 'Imágenes', video: 'Vídeo', filters: 'Filtros', you: 'VOCÊ', openPreview: 'Abrir pré-visualização', you: 'Tú', openPreview: 'Abrir vista previa' },
+  fr: { agentName: 'Agent FLIXO', navigation: 'Navigation de l’agent FLIXO', chat: 'Discussion', history: 'Historique', projects: 'Projets', admin: 'Administration', changeLanguage: 'Changer de langue', tools: 'Outils FLIXO', browseTools: 'Parcourir les outils', searchTools: 'Rechercher des outils…', all: 'Tous', images: 'Images', video: 'Vidéo', filters: 'Filtres', you: 'Vous', openPreview: 'Ouvrir l’aperçu' },
+  de: { agentName: 'FLIXO-Agent', navigation: 'FLIXO-Agent-Navigation', chat: 'Chat', history: 'Verlauf', projects: 'Projekte', admin: 'Administration', changeLanguage: 'Sprache ändern', tools: 'FLIXO-Tools', browseTools: 'Tools durchsuchen', searchTools: 'Tools suchen…', all: 'Alle', images: 'Bilder', video: 'Video', filters: 'Filter', you: 'DU', openPreview: 'Öppna förhandsvisning', you: 'ANDA', openPreview: 'Buka pratinjau', you: 'DU', openPreview: 'Vorschau öffnen' },
+  hi: { agentName: 'FLIXO एजेंट', navigation: 'FLIXO एजेंट नेविगेशन', chat: 'चैट', history: 'इतिहास', projects: 'प्रोजेक्ट', admin: 'प्रशासन', changeLanguage: 'भाषा बदलें', tools: 'FLIXO टूल', browseTools: 'टूल ब्राउज़ करें', searchTools: 'टूल खोजें…', all: 'सभी', images: 'छवियाँ', video: 'वीडियो', filters: 'फ़िल्टर', you: 'आप', openPreview: 'पूर्वावलोकन खोलें' },
+  id: { agentName: 'Agen FLIXO', navigation: 'Navigasi agen FLIXO', chat: 'Obrolan', history: 'Riwayat', projects: 'Proyek', admin: 'Admin', changeLanguage: 'Ganti bahasa', tools: 'Alat FLIXO', browseTools: 'Jelajahi alat', searchTools: 'Cari alat…', all: 'Semua', images: 'Gambar', video: 'Video', filters: 'Filter' },
+  it: { agentName: 'Agente FLIXO', navigation: 'Navigazione agente FLIXO', chat: 'Chat', history: 'Cronologia', projects: 'Progetti', admin: 'Amministrazione', changeLanguage: 'Cambia lingua', tools: 'Strumenti FLIXO', browseTools: 'Sfoglia strumenti', searchTools: 'Cerca strumenti…', all: 'Tutti', images: 'Immagini', video: 'Video', filters: 'Filtri', you: 'TU', openPreview: 'Apri anteprima' },
+  ja: { agentName: 'FLIXOエージェント', navigation: 'FLIXOエージェントナビゲーション', chat: 'チャット', history: '履歴', projects: 'プロジェクト', admin: '管理', changeLanguage: '言語を変更', tools: 'FLIXOツール', browseTools: 'ツールを参照', searchTools: 'ツールを検索…', all: 'すべて', images: '画像', video: '動画', filters: 'フィルター', you: 'あなた', openPreview: 'プレビューを開く' },
+  ko: { agentName: 'FLIXO 에이전트', navigation: 'FLIXO 에이전트 탐색', chat: '채팅', history: '기록', projects: '프로젝트', admin: '관리', changeLanguage: '언어 변경', tools: 'FLIXO 도구', browseTools: '도구 찾아보기', searchTools: '도구 검색…', all: '전체', images: '이미지', video: '비디오', filters: '필터', you: '당신', openPreview: '미리보기 열기' },
+  ms: { agentName: 'Ejen FLIXO', navigation: 'Navigasi ejen FLIXO', chat: 'Sembang', history: 'Sejarah', projects: 'Projek', admin: 'Pentadbir', changeLanguage: 'Tukar bahasa', tools: 'Alat FLIXO', browseTools: 'Semak alat', searchTools: 'Cari alat…', all: 'Semua', images: 'Imej', video: 'Video', filters: 'Penapis', you: 'ANDA', openPreview: 'Buka pratonton' },
+  nl: { agentName: 'FLIXO-agent', navigation: 'FLIXO-agentnavigatie', chat: 'Chat', history: 'Geschiedenis', projects: 'Projecten', admin: 'Beheer', changeLanguage: 'Taal wijzigen', tools: 'FLIXO-tools', browseTools: 'Tools bekijken', searchTools: 'Tools zoeken…', all: 'Alle', images: 'Afbeeldingen', video: 'Video', filters: 'Filters' },
+  pl: { agentName: 'Agent FLIXO', navigation: 'Nawigacja agenta FLIXO', chat: 'Czat', history: 'Historia', projects: 'Projekty', admin: 'Administracja', changeLanguage: 'Zmień język', tools: 'Narzędzia FLIXO', browseTools: 'Przeglądaj narzędzia', searchTools: 'Szukaj narzędzi…', all: 'Wszystkie', images: 'Obrazy', video: 'Wideo', filters: 'Filtry', you: 'TY', openPreview: 'Otwórz podgląd' },
+  pt: { agentName: 'Agente FLIXO', navigation: 'Navegação do agente FLIXO', chat: 'Chat', history: 'Histórico', projects: 'Projetos', admin: 'Administração', changeLanguage: 'Alterar idioma', tools: 'Ferramentas FLIXO', browseTools: 'Explorar ferramentas', searchTools: 'Pesquisar ferramentas…', all: 'Todos', images: 'Imagens', video: 'Vídeo', filters: 'Filtros' },
+  ru: { agentName: 'Агент FLIXO', navigation: 'Навигация агента FLIXO', chat: 'Чат', history: 'История', projects: 'Проекты', admin: 'Администрирование', changeLanguage: 'Сменить язык', tools: 'Инструменты FLIXO', browseTools: 'Обзор инструментов', searchTools: 'Поиск инструментов…', all: 'Все', images: 'Изображения', video: 'Видео', filters: 'Фильтры', you: 'ВЫ', openPreview: 'Открыть предпросмотр' },
+  sv: { agentName: 'FLIXO-agent', navigation: 'FLIXO-agentnavigering', chat: 'Chatt', history: 'Historik', projects: 'Projekt', admin: 'Administration', changeLanguage: 'Byt språk', tools: 'FLIXO-verktyg', browseTools: 'Bläddra bland verktyg', searchTools: 'Sök verktyg…', all: 'Alla', images: 'Bilder', video: 'Video', filters: 'Filter' },
+  th: { agentName: 'เอเจนต์ FLIXO', navigation: 'การนำทางเอเจนต์ FLIXO', chat: 'แชต', history: 'ประวัติ', projects: 'โปรเจกต์', admin: 'ผู้ดูแลระบบ', changeLanguage: 'เปลี่ยนภาษา', tools: 'เครื่องมือ FLIXO', browseTools: 'เรียกดูเครื่องมือ', searchTools: 'ค้นหาเครื่องมือ…', all: 'ทั้งหมด', images: 'รูปภาพ', video: 'วิดีโอ', filters: 'ฟิลเตอร์', you: 'คุณ', openPreview: 'เปิดตัวอย่าง' },
+  tr: { agentName: 'FLIXO ajanı', navigation: 'FLIXO ajan gezinmesi', chat: 'Sohbet', history: 'Geçmiş', projects: 'Projeler', admin: 'Yönetim', changeLanguage: 'Dili değiştir', tools: 'FLIXO araçları', browseTools: 'Araçlara göz at', searchTools: 'Araçlarda ara…', all: 'Tümü', images: 'Görseller', video: 'Video', filters: 'Filtreler', you: 'SİZ', openPreview: 'Önizlemeyi aç' },
+  uk: { agentName: 'Агент FLIXO', navigation: 'Навігація агента FLIXO', chat: 'Чат', history: 'Історія', projects: 'Проєкти', admin: 'Адміністрування', changeLanguage: 'Змінити мову', tools: 'Інструменти FLIXO', browseTools: 'Переглянути інструменти', searchTools: 'Пошук інструментів…', all: 'Усі', images: 'Зображення', video: 'Відео', filters: 'Фільтри', you: 'ВИ', openPreview: 'Відкрити попередній перегляд' },
+  vi: { agentName: 'Tác nhân FLIXO', navigation: 'Điều hướng tác vụ FLIXO', chat: 'Trò chuyện', history: 'Lịch sử', projects: 'Dự án', admin: 'Quản trị', changeLanguage: 'Đổi ngôn ngữ', tools: 'Công cụ FLIXO', browseTools: 'Duyệt công cụ', searchTools: 'Tìm kiếm công cụ…', all: 'Tất cả', images: 'Hình ảnh', video: 'Video', filters: 'Bộ lọc', you: 'BẠN', openPreview: 'Mở bản xem trước' },
 };
 
 const classifyTool = (tool: FlixoAgentStudioTool): 'image' | 'video' | 'filter' => {
@@ -155,8 +158,8 @@ export function FlixoAIAgentStudio({
             <img className="flixo-agent-chat-logo" src="/flixo-brand-mark.webp" alt="" width={28} height={28} />
             <span className="flixo-agent-status-dot" />
             <div>
-              <div className="flixo-agent-chat-title" id="flixo-agent-studio-title">وكيل FLIXO</div>
-              <div className="flixo-agent-chat-sub">{locale === 'ar' ? 'جاهز لفهم طلبك وتنفيذ أدوات FLIXO' : 'Ready to understand and execute FLIXO tools'}</div>
+              <div className="flixo-agent-chat-title" id="flixo-agent-studio-title">{ui.agentName}</div>
+              <div className="flixo-agent-chat-sub">{copy.title}</div>
             </div>
           </div>
           <div className="flixo-agent-chat-top-actions">
@@ -174,11 +177,11 @@ export function FlixoAIAgentStudio({
               </select>
             </label>
             <span className="flixo-agent-state-badge mono">
-              {state === 'running' ? (locale === 'ar' ? 'يعمل' : 'RUNNING')
-                : state === 'success' ? (locale === 'ar' ? 'تم' : 'DONE')
-                : state === 'ready' ? (locale === 'ar' ? 'بانتظار التأكيد' : 'READY')
-                : state === 'error' ? (locale === 'ar' ? 'يحتاج مراجعة' : 'CHECK')
-                : (locale === 'ar' ? 'جاهز' : 'READY')}
+              {state === 'running' ? copy.executing
+                : state === 'success' ? copy.completed
+                : state === 'ready' ? copy.planReady
+                : state === 'error' ? copy.needsAttention
+                : copy.badge}
             </span>
           </div>
         </header>
@@ -186,7 +189,7 @@ export function FlixoAIAgentStudio({
         <div className="flixo-agent-messages" aria-live="polite">
           {messages.map((message) => (
             <div key={message.id} className={`flixo-agent-msg ${message.role}`}>
-              <div className={`flixo-agent-avatar ${message.role}`}>{message.role === 'agent' ? <img src="/flixo-brand-mark.webp" alt="FLIXO" width={28} height={28} /> : (locale === 'ar' ? 'أنت' : 'YOU')}</div>
+              <div className={`flixo-agent-avatar ${message.role}`}>{message.role === 'agent' ? <img src="/flixo-brand-mark.webp" alt="FLIXO" width={28} height={28} /> : ui.you}</div>
               <div className="flixo-agent-bubble">
                 <p>{message.text}</p>
                 {message.role === 'user' && file && message.id === messages.filter((item) => item.role === 'user').at(-1)?.id && (
@@ -202,18 +205,18 @@ export function FlixoAIAgentStudio({
           {plan && state === 'ready' && (
             <div className="flixo-agent-inline-card" data-testid="flixo-agent-plan-ready">
               <div>
-                <strong>{locale === 'ar' ? 'الخطة جاهزة للتنفيذ' : 'Plan ready for execution'}</strong>
-                <span>{planned?.steps?.length ?? plan.steps.length} {locale === 'ar' ? 'خطوة' : 'steps'}</span>
+                <strong>{copy.planReady}</strong>
+                <span>{planned?.steps?.length ?? plan.steps.length} {copy.step}</span>
               </div>
-              <span>{file ? (locale === 'ar' ? 'اكتب «نفذ» للتشغيل' : 'Type “execute” to run') : copy.uploadThenExecute}</span>
+              <span>{file ? copy.execute : copy.uploadThenExecute}</span>
             </div>
           )}
 
           {filterHandoff && (
             <div className="flixo-agent-inline-card">
               <div>
-                <strong>Filter Mask</strong>
-                <span>{locale === 'ar' ? 'جاهز للمعاينة المباشرة' : 'Ready for live preview'}</span>
+                <strong>{copy.nearestTool} Filter Mask</strong>
+                <span>{copy.planReady}</span>
               </div>
               <Link
                 className="flixo-agent-inline-link"
@@ -228,16 +231,16 @@ export function FlixoAIAgentStudio({
                   captureQuality: filterHandoff.parameters.captureQuality,
                 }}
               >
-                {locale === 'ar' ? 'فتح المعاينة' : 'Open preview'}
+                {ui.openPreview}
               </Link>
             </div>
           )}
 
           {progress && (
             <div className="flixo-agent-inline-progress">
-              <span>{locale === 'ar' ? 'التقدم' : 'Progress'} {progress.currentStepIndex}/{progress.totalSteps}</span>
+              <span>{copy.step} {progress.currentStepIndex}/{progress.totalSteps}</span>
               <strong>{progress.currentToolId}</strong>
-              {progress.retry ? <small>{locale === 'ar' ? 'إعادة المحاولة' : 'Retry'} {progress.retry}</small> : null}
+              {progress.retry ? <small>{copy.retry} {progress.retry}</small> : null}
             </div>
           )}
 
@@ -247,7 +250,7 @@ export function FlixoAIAgentStudio({
             <div className="flixo-agent-success-card">
               <div>
                 <strong>{copy.success}</strong>
-                <span>{locale === 'ar' ? 'الناتج تم التحقق منه داخل مسار التنفيذ الحالي.' : 'The result completed the current execution path.'}</span>
+                <span>{copy.success}</span>
               </div>
               <button type="button" className="flixo-agent-primary" onClick={onDownload}>{copy.download}</button>
             </div>
@@ -295,7 +298,7 @@ export function FlixoAIAgentStudio({
             <button type="button" className="flixo-agent-ghost" onClick={() => void prepare()} disabled={!query.trim() || state === 'running'}>
               {copy.analyze}
             </button>
-            <span>{file ? file.name : (locale === 'ar' ? 'لم يتم إرفاق ملف' : 'No file attached')}</span>
+            <span>{file ? file.name : copy.needImage}</span>
           </div>
         </div>
       </section>
@@ -338,7 +341,7 @@ export function FlixoAIAgentStudio({
               </span>
             </button>
           )) : (
-            <div className="flixo-agent-empty">{locale === 'ar' ? 'لا توجد أدوات مطابقة لبحثك.' : 'No matching tools.'}</div>
+            <div className="flixo-agent-empty">{copy.empty}</div>
           )}
         </div>
       </aside>
