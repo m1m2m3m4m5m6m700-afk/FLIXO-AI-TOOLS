@@ -170,12 +170,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          SOURCE_EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"
+          [[ "$SOURCE_EXECUTION_SHA" =~ ^[0-9a-f]{40}$ ]]
           ACTIVE_HEARTBEAT="$(gh run list \
             --repo "$GITHUB_REPOSITORY" \
             --workflow agent-repair-heartbeat.yml \
             --limit 50 \
-            --json status,headBranch,event \
-            --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.headBranch == "execution" or .headBranch == "main"))] | length')"
+            --json status,headBranch,headSha,event \
+            --jq --arg sha "$SOURCE_EXECUTION_SHA" '[.[] | select((.status == "queued" or .status == "in_progress") and .headBranch == "execution" and .headSha == $sha)] | length')"
           if [ "$ACTIVE_HEARTBEAT" -gt 0 ]; then
             echo 'RESIDENT_HEARTBEAT=ALREADY_ACTIVE'
             echo "ACTIVE_HEARTBEAT_RUNS=$ACTIVE_HEARTBEAT"
@@ -183,6 +185,16 @@ jobs:
             gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
             echo 'RESIDENT_HEARTBEAT=DISPATCHED'
             echo 'RESIDENT_HEARTBEAT_REF=execution'
+            for ATTEMPT in 1 2 3 4 5 6; do
+              ACTIVE_HEARTBEAT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --limit 50 --json status,headBranch,headSha --jq --arg sha "$SOURCE_EXECUTION_SHA" '[.[] | select((.status == "queued" or .status == "in_progress") and .headBranch == "execution" and .headSha == $sha)] | length')"
+              if [ "$ACTIVE_HEARTBEAT" -gt 0 ]; then
+                echo 'RESIDENT_HEARTBEAT_DISPATCH_VERIFIED=true'
+                exit 0
+              fi
+              if [ "$ATTEMPT" -lt 6 ]; then sleep 5; fi
+            done
+            echo 'FAIL_CLOSED: resident heartbeat dispatch was accepted but did not become active for the exact execution SHA.'
+            exit 1
           fi
       - name: Record exact execution push wake
         if: github.event_name == 'push' && github.ref_name == 'execution' && steps.source.outputs.stale != 'true'
