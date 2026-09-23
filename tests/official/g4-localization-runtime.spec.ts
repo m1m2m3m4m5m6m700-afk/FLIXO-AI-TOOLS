@@ -10,6 +10,13 @@ const routes = [...new Set([...sitemap.matchAll(/<url>\s*<loc>([^<]+)<\/loc>[\s\
 const localeCodes = LOCALES;
 const languageTags = Object.fromEntries(LOCALES.map((locale) => [locale, LOCALE_METADATA[locale].languageTag])) as Record<(typeof localeCodes)[number], string>;
 const sharedTerms = new Set(['FLIXO', 'QuickFlow', 'OCR', 'PDF', 'English', 'العربية', 'Smart Intent', 'Ctrl K', 'WebP', 'PNG', 'JPEG', 'GIF', 'SVG', 'CSV', 'JSON', 'ZIP', 'MP3', 'MP4', 'Whisper', 'WebGPU', 'WASM', 'Photo', 'Zoom', 'Mono', 'Retro']);
+
+const getImageAccessibilityIssues = (
+  img: Pick<HTMLImageElement, 'getAttribute' | 'hasAttribute'>,
+): string[] => {
+  if (img.getAttribute('role') === 'presentation') return [];
+  return img.hasAttribute('alt') ? [] : ['visible image missing alt'];
+};
 const sharedPhrases = new Set(['FLIXO AI Tools', 'FLIXO home']);
 
 const technicalCapabilityPhrase = /^(?:WebGPU|WASM|CPU)(?:\s+(?:WebGPU|WASM|CPU))*$/u;
@@ -166,6 +173,18 @@ async function serializeConsoleError(message: ConsoleMessageLike): Promise<strin
 test.describe.configure({ mode: 'parallel' });
 test.setTimeout(60_000);
 
+test('G4 image accessibility predicate contract — empty alt is decorative, missing alt is not', () => {
+  const fakeImage = (attributes: Record<string, string>): Pick<HTMLImageElement, 'getAttribute' | 'hasAttribute'> => ({
+    getAttribute: (name) => Object.prototype.hasOwnProperty.call(attributes, name) ? attributes[name] : null,
+    hasAttribute: (name) => Object.prototype.hasOwnProperty.call(attributes, name),
+  });
+
+  expect(getImageAccessibilityIssues(fakeImage({ alt: '' }))).toEqual([]);
+  expect(getImageAccessibilityIssues(fakeImage({ alt: 'FLIXO' }))).toEqual([]);
+  expect(getImageAccessibilityIssues(fakeImage({ role: 'presentation' }))).toEqual([]);
+  expect(getImageAccessibilityIssues(fakeImage({}))).toEqual(['visible image missing alt']);
+});
+
 for (const pathname of routes) {
   test(`G4 official all-public-route localization/SEO contract — ${pathname}`, async ({ page }, testInfo) => {
     const runtimeErrors: string[] = [];
@@ -302,8 +321,7 @@ for (const pathname of routes) {
         const node = element as HTMLElement;
         if (node.tagName === 'IMG') {
           const img = node as HTMLImageElement;
-          if (img.getAttribute('role') === 'presentation') return [];
-          return img.alt.trim() ? [] : ['visible image missing alt'];
+          return getImageAccessibilityIssues(img);
         }
         const input = node as HTMLInputElement;
         const explicitLabel = input.id ? document.querySelector(`label[for="${CSS.escape(input.id)}"]`)?.textContent ?? '' : '';

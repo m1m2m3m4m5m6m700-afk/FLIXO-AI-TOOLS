@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "authority": "AGENT_REPAIR_CLAIM",
+  "claimId": "G4-ACCESSIBILITY-ALT-CONTRACT-001",
+  "taskId": "G4-ACCESSIBILITY-ALT-CONTRACT-001",
+  "agentId": "repairAgent-g4",
+  "role": "PRIMARY_OWNER",
+  "scope": "G4 localization-runtime accessibility predicate",
+  "files": [
+    "tests/official/g4-localization-runtime.spec.ts"
+  ],
+  "rootCause": "explicit empty alt incorrectly classified as missing alt",
+  "baseSha": "bbcf0d78c47d66f3f760910f687772b02d2f19c2",
+  "exactShaLocked": true,
+  "conflictStatus": "CLEAR",
+  "conflictChecks": {
+    "sameFile": false,
+    "sameFunction": false,
+    "sameTest": false,
+    "sameWorkflow": false,
+    "sameContract": false,
+    "sameRootCause": false,
+    "sameCommitScope": false
+  },
+  "status": "CLAIMED",
+  "registeredAt": "2026-09-23T16:00:00Z",
+  "note": "Claim and repair are published in one unified accumulated commit; no checkpoint commit."
+}
