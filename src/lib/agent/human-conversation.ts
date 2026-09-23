@@ -53,7 +53,7 @@ export const FLIXO_HUMAN_CONVERSATION_PROMPT = [
   'Return JSON only with exactly this shape:',
   '{"mode":"chat|clarify|plan","reply":"string","question":"string|null","plan":null_or_validated_execution_plan,"confidence":0_to_1,"reason":"optional string"}',
   'Do not wrap JSON in markdown fences.',
-].join('\\n');
+].join('\n');
 
 export function buildFlixoHumanConversationPrompt(context: HumanConversationPromptContext): string {
   return [
@@ -70,5 +70,5 @@ export function buildFlixoHumanConversationPrompt(context: HumanConversationProm
       catalogFingerprint: context.catalogFingerprint,
       executionRule: 'UNDERSTAND_WITH_THE_MODEL; VALIDATE_WITH_CANONICAL_CONTRACTS; EXECUTE_ONLY_AFTER_EXPLICIT_CONFIRMATION',
     }, null, 2),
-  ].join('\\n');
+  ].join('\n');
 }
