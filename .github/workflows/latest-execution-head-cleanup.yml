@@ -28,9 +28,12 @@ jobs:
           fetch-depth: 1
       - name: Verify exact cleanup source SHA
         shell: bash
+        env:
+          EXPECTED_CLEANUP_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_CLEANUP_SHA"
       - name: Run repository latest-execution-head cleanup
         env:
           GH_TOKEN: ${{ github.token }}
