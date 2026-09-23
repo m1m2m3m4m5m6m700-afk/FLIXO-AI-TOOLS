@@ -125,6 +125,8 @@ jobs:
             echo "HEARTBEAT_EMITTED=true"
             echo "HEARTBEAT_TICK=$TICK"
             echo "HEARTBEAT_EXACT_SHA=$SHA"
+            echo 'CANONICAL_TEAM_PULSE=1'
+            echo 'ONE_PULSE_WAKE_SCOPE=ALL_AGENTS'
             if [ "$TICK" -lt 10 ]; then sleep 60; fi
           done
           echo 'HEARTBEAT_INTERVAL_SECONDS=60'
