@@ -2,21 +2,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { AGENT_LIVENESS_PROTOCOL, buildDifferentiatedPulseDirective } from './agent-liveness-protocol.mjs';
 
-const IDS = Object.freeze(['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5','FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10']);
-const FOCUS = Object.freeze({
-  FLIXO1:'RCA_AND_ARCHITECTURE',
-  FLIXO2:'CODE_PATH_AND_RUNTIME',
-  FLIXO3:'TEST_CONTRACTS',
-  FLIXO4:'CI_AND_WORKFLOWS',
-  FLIXO5:'BROWSER_RUNTIME_AND_SECURITY',
-  FLIXO6:'INDEPENDENT_FALSIFICATION',
-  FLIXO7:'REPAIR_STRATEGY_AND_DEPENDENCIES',
-  FLIXO8:'IMPLEMENTATION_AND_REGRESSION',
-  FLIXO9:'EXACT_SHA_FALSE_GREEN_AND_SECURITY',
-  FLIXO10:'FINAL_VERIFICATION_AND_DEVELOPMENT_PLAN',
-});
-const nextBot=(id)=>{const i=IDS.indexOf(id);return IDS[(i+1)%IDS.length]};
+const IDS = AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds;
+const FOCUS = Object.freeze(Object.fromEntries(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((item)=>[item.botId,item.pulseType])));
+const nextBot=(id)=>IDS[(IDS.indexOf(id)+1)%IDS.length];
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):fallback};
 const sha=String(arg('sha',process.env.FLIXO_TARGET_SHA||'')).trim();
 if(!/^[a-f0-9]{40}$/u.test(sha)) throw new Error('FLIXO10_PULSE_EXACT_SHA_REQUIRED');
@@ -24,26 +14,7 @@ const minuteKey=arg('minute',new Date().toISOString().slice(0,16));
 const runId=arg('run-id',process.env.GITHUB_RUN_ID||'LOCAL');
 const activeOperation=arg('active-operation','false')==='true';
 const output=arg('output','/tmp/flixo-ten-pulse.json');
-const pulseWindow=IDS.map((bot,index)=>({
-  schemaVersion:1,
-  protocol:'FLIXO10-DIFFERENTIATED-PULSE-v1',
-  pulseId:bot+'-'+minuteKey.replace(/[^0-9]/gu,'')+'-'+runId,
-  botId:bot,
-  pulseOrdinal:index+1,
-  pulseFocus:FOCUS[bot],
-  adversaryBot:nextBot(bot),
-  cadence:'EVERY_MINUTE',
-  targetSha:sha,
-  activeOperation,
-  mode:activeOperation?'ACTIVE_REPAIR_OR_OPERATION':'FULL_REPOSITORY_READ_ONLY_SCAN',
-  action:'WAKE_ALL_AGENTS',
-  wakeScope:'ALL_AGENTS',
-  recipients:['ALL_AGENTS'],
-  mutationAuthority:false,
-  pushAuthority:'FIRST_CONNECTED_FLIXO10_GUARDED_ONLY',
-  exactShaRequired:true,
-  generatedAt:new Date().toISOString(),
-}));
+const pulseWindow=IDS.map((bot,index)=>{const directive=buildDifferentiatedPulseDirective({actor:bot,targetSha:sha,taskId:'HEARTBEAT:'+runId,activeOperation,reason:'MINUTE_PULSE:'+minuteKey});return {...directive,pulseId:bot+'-'+minuteKey.replace(/[^0-9]/gu,'')+'-'+runId,pulseOrdinal:index+1,pulseFocus:FOCUS[bot],cadence:'EVERY_MINUTE',generatedAt:new Date().toISOString()};});
 const result={
   schemaVersion:1,
   protocol:'FLIXO10-PULSE-CONTROLLER-v1',
@@ -54,6 +25,7 @@ const result={
   mode:activeOperation?'ACTIVE_OPERATION':'FULL_REPOSITORY_READ_ONLY_SCAN',
   pulseCount:pulseWindow.length,
   pulses:pulseWindow,
+  uniquePulseFocusCount:new Set(pulseWindow.map((pulse)=>pulse.pulseFocus)).size,
   allAgentsWakeCount:pulseWindow.length,
   readOnlyWhenIdle:true,
   sourceMutationAllowed:false,
