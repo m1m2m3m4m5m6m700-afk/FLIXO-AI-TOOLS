@@ -58,7 +58,54 @@ jobs:
             SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
             node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="HEARTBEAT:$GITHUB_RUN_ID:$TICK" --state=ACTIVE --sha="$SHA" --progress=false --file="$FLIXO_HEARTBEAT_PATH"
             jq -e --arg sha "$SHA" '.protocolId=="AGENT_LIVENESS_PROTOCOL" and .state=="ACTIVE" and .exactSha==$sha and .progress==false' "$FLIXO_HEARTBEAT_PATH" >/dev/null
-            node scripts/ci/flixo-ten-pulse.mjs --sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --minute="$(date -u +%Y-%m-%dT%H:%M)" --active-operation=true --output=/tmp/flixo-heartbeat/flixo-team-pulse.json
+            FLIXO_WAKE_SHA="$SHA" FLIXO_WAKE_RUN_ID="$GITHUB_RUN_ID" FLIXO_WAKE_TICK="$TICK" node --input-type=module <<'NODE'
+            import fs from 'node:fs';
+            import { AGENT_LIVENESS_PROTOCOL } from './scripts/ci/agent-liveness-protocol.mjs';
+            const sha=String(process.env.FLIXO_WAKE_SHA ?? '').trim();
+            const runId=String(process.env.FLIXO_WAKE_RUN_ID ?? '').trim();
+            const tick=Number(process.env.FLIXO_WAKE_TICK ?? 0);
+            if(!/^[a-f0-9]{40}$/u.test(sha)) throw new Error('FLIXO_TEAM_PULSE_EXACT_SHA_REQUIRED');
+            const profiles=Array.isArray(AGENT_LIVENESS_PROTOCOL.pulseProfiles) ? AGENT_LIVENESS_PROTOCOL.pulseProfiles : [];
+            const ids=profiles.map(x=>String(x.botId ?? '').trim()).filter(Boolean);
+            if(ids.length!==10) throw new Error('FLIXO_TEAM_PULSE_10_BOT_CONTRACT_INVALID');
+            const ordinal=((Math.floor(Date.now()/60000)%ids.length)+ids.length)%ids.length;
+            const profile=profiles[ordinal];
+            const pulse={
+              schemaVersion:2,
+              protocol:'FLIXO-TEAM-PULSE-CONTROLLER-v2',
+              runId,
+              targetSha:sha,
+              activeOperation:true,
+              mode:'ACTIVE_OPERATION',
+              pulseCount:1,
+              pulseIndex:ordinal,
+              pulseOwner:profile.botId,
+              pulseType:profile.pulseType,
+              pulses:[{
+                action:'WAKE_ALL_AGENTS',
+                wakeScope:'ALL_AGENTS',
+                targetSha:sha,
+                pulseOrdinal:1,
+                cadence:'EVERY_MINUTE',
+                pulseOwner:profile.botId,
+                pulseType:profile.pulseType
+              }],
+              allAgentsWakeCount:ids.length,
+              actionRepairWakeCount:ids.length,
+              residentWakeCount:ids.length,
+              teamMemberCount:ids.length,
+              residentBotCount:ids.length,
+              residentBotIds:ids,
+              residentState:'ACTIVE_OPERATION',
+              sleep:false,
+              idle:false,
+              readOnlyWhenResident:true,
+              sourceMutationAllowed:false,
+              onePulsePerHeartbeat:true,
+              tick
+            };
+            fs.writeFileSync('/tmp/flixo-heartbeat/flixo-team-pulse.json',JSON.stringify(pulse,null,2)+'\n');
+            NODE
             node scripts/ci/action-repair-five-workers.mjs --role=wake --status=ACTIVE_OPERATION --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$GITHUB_RUN_ID-$TICK" --output=/tmp/flixo-heartbeat/action-wake-$TICK.json
             jq -e --arg sha "$SHA" '.pulseCount==1 and (.pulses|length)==1 and .pulses[0].action=="WAKE_ALL_AGENTS" and .pulses[0].wakeScope=="ALL_AGENTS" and .pulses[0].targetSha==$sha and .sleep==false and .idle==false' /tmp/flixo-heartbeat/flixo-team-pulse.json >/dev/null
             jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .recipientCount==10 and .targetSha==$sha and .mutationAuthority==false and .sleep==false and .idle==false' /tmp/flixo-heartbeat/action-wake-$TICK.json >/dev/null
