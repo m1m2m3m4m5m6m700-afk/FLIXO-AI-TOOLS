@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: write
+  actions: read
   contents: read
 
 concurrency:
@@ -26,7 +26,7 @@ jobs:
       - name: Checkout liveness contract
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          # The heartbeat is now an actions:write guardian; execute only trusted controller code from main.
+          # The heartbeat is read-only; privileged recovery remains with trusted canonical observers.
           ref: main
           fetch-depth: 1
           persist-credentials: false
@@ -56,81 +56,39 @@ jobs:
           mkdir -p /tmp/flixo-heartbeat
           for TICK in 1 2 3 4 5 6 7 8 9 10; do
             SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
+            test -n "$SHA"
+            test "$SHA" = "$GITHUB_SHA" || { echo "FAIL CLOSED: heartbeat source SHA moved current=$SHA event=$GITHUB_SHA"; exit 1; }
             node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="HEARTBEAT:$GITHUB_RUN_ID:$TICK" --state=ACTIVE --sha="$SHA" --progress=false --file="$FLIXO_HEARTBEAT_PATH"
             jq -e --arg sha "$SHA" '.protocolId=="AGENT_LIVENESS_PROTOCOL" and .state=="ACTIVE" and .exactSha==$sha and .progress==false' "$FLIXO_HEARTBEAT_PATH" >/dev/null
-            FLIXO_WAKE_SHA="$SHA" FLIXO_WAKE_RUN_ID="$GITHUB_RUN_ID" FLIXO_WAKE_TICK="$TICK" node --input-type=module <<'NODE'
-            import fs from 'node:fs';
-            import { AGENT_LIVENESS_PROTOCOL } from './scripts/ci/agent-liveness-protocol.mjs';
-            const sha=String(process.env.FLIXO_WAKE_SHA ?? '').trim();
-            const runId=String(process.env.FLIXO_WAKE_RUN_ID ?? '').trim();
-            const tick=Number(process.env.FLIXO_WAKE_TICK ?? 0);
-            if(!/^[a-f0-9]{40}$/u.test(sha)) throw new Error('FLIXO_TEAM_PULSE_EXACT_SHA_REQUIRED');
-            const profiles=[
-              {botId:'FLIXO1',pulseType:'RCA_AND_ARCHITECTURE'},
-              {botId:'FLIXO2',pulseType:'CODE_PATH_AND_RUNTIME'},
-              {botId:'FLIXO3',pulseType:'TEST_CONTRACTS'},
-              {botId:'FLIXO4',pulseType:'CI_AND_WORKFLOWS'},
-              {botId:'FLIXO5',pulseType:'BROWSER_RUNTIME_AND_SECURITY'},
-              {botId:'FLIXO6',pulseType:'INDEPENDENT_FALSIFICATION'},
-              {botId:'FLIXO7',pulseType:'REPAIR_STRATEGY_AND_DEPENDENCIES'},
-              {botId:'FLIXO8',pulseType:'IMPLEMENTATION_AND_REGRESSION'},
-              {botId:'FLIXO9',pulseType:'EXACT_SHA_FALSE_GREEN_AND_SECURITY'},
-              {botId:'FLIXO10',pulseType:'FINAL_VERIFICATION_AND_DEVELOPMENT_PLAN'}
-            ];
-            const ids=profiles.map(x=>x.botId);
-            if(ids.length!==10) throw new Error('FLIXO_TEAM_PULSE_10_BOT_CONTRACT_INVALID');
-            const ordinal=((Math.floor(Date.now()/60000)%ids.length)+ids.length)%ids.length;
-            const profile=profiles[ordinal];
-            const pulse={
-              schemaVersion:2,
-              protocol:'FLIXO-TEAM-PULSE-CONTROLLER-v2',
-              runId,
-              targetSha:sha,
-              activeOperation:true,
-              mode:'ACTIVE_OPERATION',
-              pulseCount:1,
-              pulseIndex:ordinal,
-              pulseOwner:profile.botId,
-              pulseType:profile.pulseType,
-              pulses:[{
-                action:'WAKE_ALL_AGENTS',
-                wakeScope:'ALL_AGENTS',
-                targetSha:sha,
-                pulseOrdinal:1,
-                cadence:'EVERY_MINUTE',
-                pulseOwner:profile.botId,
-                pulseType:profile.pulseType
-              }],
-              allAgentsWakeCount:ids.length,
-              actionRepairWakeCount:ids.length,
-              residentWakeCount:ids.length,
-              teamMemberCount:ids.length,
-              residentBotCount:ids.length,
-              residentBotIds:ids,
-              residentState:'ACTIVE_OPERATION',
-              sleep:false,
-              idle:false,
-              readOnlyWhenResident:true,
-              sourceMutationAllowed:false,
-              onePulsePerHeartbeat:true,
-              tick
-            };
-            fs.writeFileSync('/tmp/flixo-heartbeat/flixo-team-pulse.json',JSON.stringify(pulse,null,2)+'\n');
-            NODE
             node scripts/ci/action-repair-five-workers.mjs --role=wake --status=ACTIVE_OPERATION --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$GITHUB_RUN_ID-$TICK" --output=/tmp/flixo-heartbeat/action-wake-$TICK.json
-            jq -e --arg sha "$SHA" '.pulseCount==1 and (.pulses|length)==1 and .pulses[0].action=="WAKE_ALL_AGENTS" and .pulses[0].wakeScope=="ALL_AGENTS" and .pulses[0].targetSha==$sha and .sleep==false and .idle==false' /tmp/flixo-heartbeat/flixo-team-pulse.json >/dev/null
+            PULSE_INDEX=$(( $(date -u +%s) / 60 % 10 ))
+            case "$PULSE_INDEX" in
+              0) PULSE_OWNER="FLIXO1"; PULSE_TYPE="RCA_AND_ARCHITECTURE" ;;
+              1) PULSE_OWNER="FLIXO2"; PULSE_TYPE="CODE_PATH_AND_RUNTIME" ;;
+              2) PULSE_OWNER="FLIXO3"; PULSE_TYPE="TEST_CONTRACTS" ;;
+              3) PULSE_OWNER="FLIXO4"; PULSE_TYPE="CI_AND_WORKFLOWS" ;;
+              4) PULSE_OWNER="FLIXO5"; PULSE_TYPE="BROWSER_RUNTIME_AND_SECURITY" ;;
+              5) PULSE_OWNER="FLIXO6"; PULSE_TYPE="INDEPENDENT_FALSIFICATION" ;;
+              6) PULSE_OWNER="FLIXO7"; PULSE_TYPE="REPAIR_STRATEGY_AND_DEPENDENCIES" ;;
+              7) PULSE_OWNER="FLIXO8"; PULSE_TYPE="IMPLEMENTATION_AND_REGRESSION" ;;
+              8) PULSE_OWNER="FLIXO9"; PULSE_TYPE="EXACT_SHA_FALSE_GREEN_AND_SECURITY" ;;
+              9) PULSE_OWNER="FLIXO10"; PULSE_TYPE="FINAL_VERIFICATION_AND_DEVELOPMENT_PLAN" ;;
+              *) echo "FAIL CLOSED: invalid pulse index"; exit 1 ;;
+            esac
+            jq -n --arg sha "$SHA" --arg runId "$GITHUB_RUN_ID" --arg owner "$PULSE_OWNER" --arg pulseType "$PULSE_TYPE" --argjson tick "$TICK" --argjson pulseIndex "$PULSE_INDEX" '{schemaVersion:2,protocol:"FLIXO-TEAM-PULSE-CONTROLLER-v2",runId:$runId,targetSha:$sha,activeOperation:true,mode:"ACTIVE_OPERATION",pulseCount:1,pulseIndex:$pulseIndex,pulseOwner:$owner,pulseType:$pulseType,pulses:[{action:"WAKE_ALL_AGENTS",wakeScope:"ALL_AGENTS",targetSha:$sha,pulseOrdinal:1,cadence:"EVERY_MINUTE",pulseOwner:$owner,pulseType:$pulseType}],allAgentsWakeCount:10,actionRepairWakeCount:10,residentWakeCount:10,teamMemberCount:10,residentBotCount:10,residentBotIds:["FLIXO1","FLIXO2","FLIXO3","FLIXO4","FLIXO5","FLIXO6","FLIXO7","FLIXO8","FLIXO9","FLIXO10"],residentState:"ACTIVE_OPERATION",sleep:false,idle:false,readOnlyWhenResident:true,sourceMutationAllowed:false,onePulsePerHeartbeat:true,tick:$tick}' > /tmp/flixo-heartbeat/flixo-team-pulse-$TICK.json
+            jq -e --arg sha "$SHA" '.pulseCount==1 and (.pulses|length)==1 and .pulses[0].action=="WAKE_ALL_AGENTS" and .pulses[0].wakeScope=="ALL_AGENTS" and .pulses[0].targetSha==$sha and .allAgentsWakeCount==10 and .sleep==false and .idle==false' /tmp/flixo-heartbeat/flixo-team-pulse-$TICK.json >/dev/null
             jq -e --arg sha "$SHA" '.action=="WAKE_ACTION_REPAIR_SQUAD" and .actionRepairSquadReady==true and .targetSha==$sha and .mutationAuthority==false and .directDispatch==false' /tmp/flixo-heartbeat/action-wake-$TICK.json >/dev/null
+            echo 'CANONICAL_TEAM_PULSE=1'
+            echo 'ONE_PULSE_WAKE_SCOPE=ALL_AGENTS'
             echo 'RESIDENT_SLEEP=false'
             echo 'RESIDENT_IDLE=false'
             echo "HEARTBEAT_EMITTED=true"
             echo "HEARTBEAT_TICK=$TICK"
             echo "HEARTBEAT_EXACT_SHA=$SHA"
-            echo 'CANONICAL_TEAM_PULSE=1'
-            echo 'ONE_PULSE_WAKE_SCOPE=ALL_AGENTS'
             if [ "$TICK" -lt 10 ]; then sleep 60; fi
           done
           echo 'HEARTBEAT_INTERVAL_SECONDS=60'
-          echo 'HEARTBEAT_WINDOW_SECONDS=360'
+          echo 'HEARTBEAT_WINDOW_SECONDS=600'
       - name: Verify five-minute heartbeat compliance
         id: heartbeat_compliance
         env:
