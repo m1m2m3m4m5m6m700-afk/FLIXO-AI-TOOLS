@@ -4,6 +4,8 @@ import fs from 'node:fs';
 
 const file = 'db/council-external-accounts.sql';
 const sql = fs.readFileSync(file, 'utf8');
+const runtimeFile = 'supabase/functions/flixo-council-runtime/index.ts';
+const runtime = fs.readFileSync(runtimeFile, 'utf8');
 
 for (const marker of [
   'create table if not exists public.flix_council_accounts',
@@ -39,5 +41,9 @@ for (const marker of [
 ]) assert.ok(sql.includes(marker), `Missing RPC contract marker: ${marker}`);
 
 assert.match(sql, /security definer[\s\S]*?set search_path = public, pg_catalog/iu);
+
+for (const marker of ['FLIXO_COUNCIL_WAKE_FALLBACK', 'WAKE_PUSH_FAILED', 'council_recover_expired_dispatches']) {
+  assert.ok(runtime.includes(marker), 'Missing runtime recovery/wake marker: ' + marker);
+}
 
 console.log('COUNCIL_RPC_CONTRACT=PASS');
