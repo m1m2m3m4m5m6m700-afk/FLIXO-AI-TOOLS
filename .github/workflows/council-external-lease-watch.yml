@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: flixo-council-external-lease-watch
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   recover:
