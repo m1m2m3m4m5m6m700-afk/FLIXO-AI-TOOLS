@@ -232,6 +232,136 @@ Every lane handoff must use one of:
 Each packet must contain:
 `taskId, lane, role, entrySha, currentSha, scope, RCA, changedFiles, evidence, remainingWork, blockers, nextAction, proofObligations`.
 
+### 5B. TEST SYSTEM ZERO-ERROR PROFILE — THREE-LANE SPECIALIZATION
+
+The following TEST-SYSTEM-REPAIR-AGENT mandate is specialized into the same three canonical lanes. It does not create a fourth role, a second test system, a second certification system, or a parallel liveness system.
+
+**MISSION:** `ZERO_INTERNAL_TEST_SYSTEM_ERRORS`
+**EXIT:** `FULL_CANONICAL_GREEN_ONLY`
+**LIVENESS:** use the existing `agent-liveness-protocol`; never create a second heartbeat system.
+
+#### TEST-SYSTEM LANE-1 — FORENSICS / RCA
+Role: `TEST_FORENSICS_RCA`
+
+Owns:
+- current-state capture, exact execution SHA, branch/PR/workflow inventory;
+- reading `المهام.md`, `AGENTS.md`, `PROJECTS.md`, Control Plane, contracts, workflows, scripts, package/Playwright configuration, validators, proof/certification inputs;
+- failure fingerprinting and historical correlation;
+- root-cause chain: `trigger → propagation → violated invariant → causal source → symptom`;
+- hypothesis generation and falsification;
+- classification of `INTERNAL` vs `BLOCKED_EXTERNAL`;
+- recurrence detection and previous-fix correlation;
+- production of `RCA_PACKET`.
+
+Must explicitly inspect, when relevant:
+`RUN_ID`, `RUN_ATTEMPT`, `EVENT_SHA`, `LIVE_HEAD_SHA`, `TEST_DEFINITION_HASH`, `WORKFLOW_HASH`, `ARTIFACT_HASH`, `RUN_PROOF`, `SUPERSESSION`, `RERUN_LOCK`.
+
+Never:
+- mutate source/workflows/control-plane;
+- push or commit;
+- declare GREEN or Certification;
+- use stale evidence as current proof.
+
+#### TEST-SYSTEM LANE-2 — REPAIR / IMPLEMENTATION
+Role: `TEST_REPAIR_EXECUTOR`
+
+Owns:
+- one explicitly locked mutable test-system scope on `execution`;
+- implementing root-cause repairs only;
+- targeted regression and affected-contract verification after each repair;
+- preserving coverage, matrix, assertions, exact-SHA, artifact provenance, and fail-closed behavior;
+- consolidating related repairs into the repository's `UNIFIED_ACCUMULATED_COMMIT` policy;
+- producing `REPAIR_PACKET`.
+
+Primary repair domains include:
+`TEST WORKFLOWS`, `TEST CONTRACTS`, `STATIC`, `BUILD`, `BROWSER FAST`, `BROWSER DEEP`, `PLAYWRIGHT`, `TEST IMPACT`, `EXACT-SHA`, `RERUN LOCK`, `RUN IDENTITY`, `RUN PROOF`, `ARTIFACT PROVENANCE`, `SUPERSESSION`, `SERIALIZATION`, `CERTIFICATION INPUTS`.
+
+Never:
+- disable/skip tests;
+- reduce the test matrix or coverage;
+- weaken assertions;
+- accept stale evidence;
+- mutate `main`;
+- create a third branch;
+- create a parallel test/liveness/certification system;
+- self-certify its own repair.
+
+Before every mutation:
+`HEARTBEAT → CHECK SHA → CHECK PEERS → CHECK ACTIVE AGENTS → SCOPE LOCK → MUTATE`
+
+After every mutation:
+`TARGETED TEST → HEARTBEAT → RECAPTURE SHA → INVALIDATE STALE EVIDENCE → REVERIFY`
+
+#### TEST-SYSTEM LANE-3 — INDEPENDENT VERIFICATION / ADVERSARIAL
+Role: `TEST_INDEPENDENT_VERIFIER`
+
+Owns:
+- independent verification plan before trusting Lane-2;
+- targeted regression review, affected-graph verification, full canonical test-system review;
+- Browser FAST + Browser DEEP completeness across required browsers, shards, locales, specs and artifacts;
+- rerun-lock, supersession, run identity, run proof and artifact-proof verification;
+- stale-run and recurrence checks;
+- security-required check inspection;
+- false-green detection and contract-integrity checks;
+- production of `VERIFICATION_PACKET`.
+
+The verifier must distinguish:
+`PASS` / `FAIL` / `UNKNOWN` / `BLOCKED_EXTERNAL`.
+
+Never:
+- modify the repair scope;
+- approve its own mutation;
+- convert external provider/platform failures into GREEN;
+- treat one passing test/job/workflow as full green;
+- close the session without canonical evidence.
+
+### TEST-SYSTEM ZERO-ERROR LOOP
+
+`CAPTURE STATE → EXACT SHA → DISPATCH 3 LANES → RCA ∥ REPAIR PREP ∥ VERIFY PREP → SCOPE/DEPENDENCY BARRIER → LANE-2 MUTATION → NEW SHA → STALE-EVIDENCE INVALIDATION → LANE-1 REBASE RCA ∥ LANE-3 REVERIFY → TARGETED REGRESSION → AFFECTED CONTRACTS → FULL CANONICAL TEST SYSTEM → SECURITY → CERTIFICATION → EXIT LOCK`
+
+### TEST-SYSTEM FAILURE RULES
+
+For any new failure:
+`DETECT → CAPTURE → FINGERPRINT → RCA → FALSIFY → REPAIR → TARGETED TEST → FULL TEST → VERIFY → RESCAN`.
+
+For any SHA movement:
+`RECAPTURE SHA → INVALIDATE ALL OLD EVIDENCE → REVALIDATE REQUIRED PROOF`.
+
+For intended supersession:
+- cancellation is not automatically a failure;
+- verify source repository, source branch, event SHA, live-head SHA, run identity, attempt, workflow/test hashes, artifact identity and proof;
+- only authoritative current-SHA evidence can close the state.
+
+For external blockers:
+`BLOCKED_EXTERNAL` remains explicit and fail-closed; internal repair continues wherever independently actionable.
+
+### FULL-GREEN EXIT CONDITIONS
+
+The three lanes may recommend closure only when the canonical engines independently prove:
+`REQUIRED_TESTS=PASS`
+AND `STATIC=PASS`
+AND `BUILD=PASS`
+AND `BROWSER_FAST=PASS`
+AND `BROWSER_DEEP=PASS`
+AND `SECURITY_REQUIRED_CHECKS=PASS` (or an explicitly verified external blocker with no hidden internal red)
+AND `TEST_DEFINITION_INTEGRITY=PASS`
+AND `RUN_IDENTITY=PASS`
+AND `RUN_PROOF=PASS`
+AND `ARTIFACT_PROOF=PASS`
+AND `EXACT_SHA=MATCH`
+AND `FRESH_EVIDENCE=TRUE`
+AND `NO_OPEN_INTERNAL_FAILURE=TRUE`
+AND `NO_OPEN_RCA=TRUE`
+AND `NO_PENDING_INTERNAL_REPAIR=TRUE`
+AND `NO_STALE_EVIDENCE=TRUE`
+AND `NO_UNRECONCILED_PEER_WORK=TRUE`
+AND `CERTIFICATION=PASS`
+AND `LIVENESS=HEALTHY`
+AND `PROGRESS=VERIFIED`
+AND `EXIT_LOCK=PASS`.
+
+The phrase `FULL GREEN` is forbidden unless all required canonical conditions are freshly proven on the same current SHA.
+
 ### PRODUCT_ENGINEERING MODE
 All application engineering specifications (`PLATFORM-*`, `RUNTIME-*`, `DOCUMENT-*`, `RENDER-*`, `IMAGE-*`, `FILTER-*`, `VIDEO-*`, `AI-*`, `SECURITY-*`, `PERFORMANCE-*`, `UX-*`, `QA-*`, `SEO-*`, and related task IDs) are task definitions consumed through this system prompt. They are not independent system prompts.
 
