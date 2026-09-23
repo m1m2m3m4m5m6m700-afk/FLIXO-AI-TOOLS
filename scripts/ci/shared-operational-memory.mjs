@@ -6,14 +6,9 @@ import { createHash } from 'node:crypto';
 const ROOT=process.cwd();
 export const SHARED_MEMORY_PATH=path.resolve(ROOT,process.env.FLIXO_SHARED_OPERATIONAL_MEMORY??'diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json');
 export const SHARED_MEMORY_PROTOCOL='FLIXO-SHARED-OPERATIONAL-MEMORY-v1';
-export const SHARED_BOTS=Object.freeze([
-  'ACTION-REPAIR',
-  'ACTION-REPAIR-2',
-  'READ-INVESTIGATOR',
-  'READ-ADVERSARY',
-  'executionAgent',
-  'reviewAgent',
-]);
+export const FLIXO_BOT_REGISTRY_PATH=path.resolve(ROOT,process.env.FLIXO_BOT_REGISTRY??'docs/agents/FLIXO-BOT.json');
+const loadFlixoBotAudience=()=>{try{const registry=JSON.parse(fs.readFileSync(FLIXO_BOT_REGISTRY_PATH,'utf8'));const audience=registry?.distribution?.learningConsumers;if(!Array.isArray(audience)||audience.length<7)throw new Error('INVALID_GLOBAL_AUDIENCE');return [...new Set(audience.map(x=>String(x).trim()).filter(Boolean))];}catch(error){if(process.env.NODE_ENV==='test'||process.env.FLIXO_ALLOW_LEGACY_SHARED_MEMORY_FALLBACK==='true')return ['ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent'];throw new Error('FLIXO_BOT_GLOBAL_MEMORY_AUDIENCE_UNAVAILABLE:'+error.message);}};
+export const SHARED_BOTS=Object.freeze(loadFlixoBotAudience());
 export const SHARED_KINDS=Object.freeze([
   'ERROR',
   'OPERATION',
@@ -33,7 +28,9 @@ const hash=(value)=>createHash('sha256').update(String(value),'utf8').digest('he
 const readJson=(file,fallback)=>{try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return fallback;}};
 
 const empty=()=>({
-  schemaVersion:1,
+  schemaVersion:2,
+  intelligenceRegistry:'docs/agents/FLIXO-BOT.json',
+  intelligenceVersion:'FLIXO-BOT-BRAIN-v1',
   protocol:SHARED_MEMORY_PROTOCOL,
   authority:'SHARED_KNOWLEDGE_ONLY',
   mutationAuthority:false,
@@ -120,6 +117,8 @@ function normalizeRecord(input={}){
     authenticatedSourceBot:String(input.authenticatedSourceBot??process.env.FLIXO_AUTHENTICATED_AGENT_ID??'')||null,
     antiLesson:Boolean(input.antiLesson===true||String(input.kind)==='ANTI_LESSON'),
     source:'SHARED_MEMORY_WRITE',
+    intelligenceRegistry:'docs/agents/FLIXO-BOT.json',
+    intelligenceVersion:'FLIXO-BOT-BRAIN-v1',
     exactShaBound:true,
     mutationAuthority:false,
     certificationAuthority:false,
@@ -255,7 +254,7 @@ export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48
     legacyContext:legacy,
     counterexamples:grouped.COUNTEREXAMPLE,
     verifications:grouped.VERIFICATION,
-    note:'Shared memory informs all six bots; it never proves GREEN or grants authority.'
+    note:'Shared memory informs every active FLIXO BOT consumer; it never proves GREEN or grants authority.'
   };
 }
 
@@ -266,7 +265,7 @@ export function buildSharedMemoryBootstrapSummary(){
     'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json',
     'docs/agents/ACTION-ERROR-HISTORY.md',
   ];
-  return Object.freeze({protocol:SHARED_MEMORY_PROTOCOL,canonical:true,legacyReadThrough:sources,mode:'CONTEXT_ONLY',targetBotCount:SHARED_BOTS.length});
+  return Object.freeze({protocol:SHARED_MEMORY_PROTOCOL,canonical:true,legacyReadThrough:sources,mode:'SYSTEM_WIDE_CONTEXT_ONLY',intelligenceRegistry:'docs/agents/FLIXO-BOT.json',intelligenceVersion:'FLIXO-BOT-BRAIN-v1',targetBotCount:SHARED_BOTS.length});
 }
 
 if(import.meta.url===new URL(process.argv[1]??'','file:').href){
