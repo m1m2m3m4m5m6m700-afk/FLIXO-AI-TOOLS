@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { ACTION_AGENT_TRIAD_VERSION, ACTION_AGENT_PROFILES, buildActionAgentCognitionEnvelope, validateActionAgentResult, scoreFrontierEvidence } from './council/action-agent-triad.mjs';
 
 const SHA='a'.repeat(40);
+const chief = ACTION_AGENT_PROFILES.CHIEF;
+assert.equal(chief.reasoningEffort, 'MAXIMUM');
+
 for (const id of ['WORKER_A','WORKER_B']) {
   const p=ACTION_AGENT_PROFILES[id];
   assert.equal(p.cognitionTier.startsWith('FRONTIER_'), true);
