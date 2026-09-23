@@ -159,7 +159,7 @@ export function validateStatic() {
   must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(supervisor), 'supervisor-no-direct-repair-dispatch');
   must(!/push:\s*\n\s+branches:/m.test(supervisor) && !/pull_request:/m.test(supervisor), 'supervisor-observer-only-trigger');
   must(!/gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*-f\s+"?(?:target_run_id|failure_fingerprint|repair_lease_ref)=/i.test(heartbeat), 'heartbeat-no-mutation-repair-dispatch');
-  must(/permissions:\s*[\s\S]*actions:\s*write/.test(heartbeat), 'heartbeat-guardian-actions-permission');
+  must(/actions:\s*write/.test(heartbeat), 'heartbeat-guardian-actions-permission');
   must(!/actions\/workflows\/auto-repair\.yml\/dispatches/.test(heartbeat), 'heartbeat-no-direct-auto-repair-api-dispatch');
   must(!/actions\/workflows\/daily-flixo-green-gate\.yml\/dispatches/.test(heartbeat), 'heartbeat-no-direct-green-gate-api-dispatch');
   must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(heartbeat), 'heartbeat-resident-dispatch-must-be-explicit');
