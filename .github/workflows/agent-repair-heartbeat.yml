@@ -65,8 +65,19 @@ jobs:
             const runId=String(process.env.FLIXO_WAKE_RUN_ID ?? '').trim();
             const tick=Number(process.env.FLIXO_WAKE_TICK ?? 0);
             if(!/^[a-f0-9]{40}$/u.test(sha)) throw new Error('FLIXO_TEAM_PULSE_EXACT_SHA_REQUIRED');
-            const profiles=Array.isArray(AGENT_LIVENESS_PROTOCOL.pulseProfiles) ? AGENT_LIVENESS_PROTOCOL.pulseProfiles : [];
-            const ids=profiles.map(x=>String(x.botId ?? '').trim()).filter(Boolean);
+            const profiles=[
+              {botId:'FLIXO1',pulseType:'RCA_AND_ARCHITECTURE'},
+              {botId:'FLIXO2',pulseType:'CODE_PATH_AND_RUNTIME'},
+              {botId:'FLIXO3',pulseType:'TEST_CONTRACTS'},
+              {botId:'FLIXO4',pulseType:'CI_AND_WORKFLOWS'},
+              {botId:'FLIXO5',pulseType:'BROWSER_RUNTIME_AND_SECURITY'},
+              {botId:'FLIXO6',pulseType:'INDEPENDENT_FALSIFICATION'},
+              {botId:'FLIXO7',pulseType:'REPAIR_STRATEGY_AND_DEPENDENCIES'},
+              {botId:'FLIXO8',pulseType:'IMPLEMENTATION_AND_REGRESSION'},
+              {botId:'FLIXO9',pulseType:'EXACT_SHA_FALSE_GREEN_AND_SECURITY'},
+              {botId:'FLIXO10',pulseType:'FINAL_VERIFICATION_AND_DEVELOPMENT_PLAN'}
+            ];
+            const ids=profiles.map(x=>x.botId);
             if(ids.length!==10) throw new Error('FLIXO_TEAM_PULSE_10_BOT_CONTRACT_INVALID');
             const ordinal=((Math.floor(Date.now()/60000)%ids.length)+ids.length)%ids.length;
             const profile=profiles[ordinal];
