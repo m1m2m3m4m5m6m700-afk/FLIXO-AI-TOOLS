@@ -137,6 +137,8 @@ assert.match(liveness, /heartbeatGraceMs: 30 \* 1000/);
 assert.match(liveness, /scheduleIntervalMs: 5 \* 60 \* 1000/);
 assert.match(liveness, /onePulsePerHeartbeat: true/);
 const heartbeatWorkflow = read('.github/workflows/agent-repair-heartbeat.yml');
+const wakeRelay = read('.github/workflows/flixo-team-wake-relay.yml');
+
 assert.match(heartbeatWorkflow, /HEARTBEAT_24X7_MODE=true/);
 assert.match(heartbeatWorkflow, /HEARTBEAT_INTERVAL_SECONDS=60/);
 assert.match(heartbeatWorkflow, /for TICK in 1 2 3 4 5 6/);
@@ -146,6 +148,12 @@ assert.match(heartbeatWorkflow, /cron: '\*\/5 \* \* \* \*'/);
 assert.doesNotMatch(heartbeatWorkflow, /cron: '\*\/1 \* \* \* \*'/);
 assert.match(heartbeatWorkflow, /CANONICAL_TEAM_PULSE=1/);
 assert.match(heartbeatWorkflow, /flixo-team-wake-relay\.yml/);
+assert.match(wakeRelay, /name: FLIXO Team Wake Relay/);
+assert.match(wakeRelay, /actions: write/);
+assert.match(wakeRelay, /EXACT_SHA_WAKE_GUARD=PASS/);
+assert.match(wakeRelay, /daily-flixo-green-gate\.yml/);
+assert.doesNotMatch(wakeRelay, /auto-repair\.yml.*dispatch/);
+
 assert.match(heartbeatWorkflow, /actions: write/);
 assert.doesNotMatch(heartbeatWorkflow, /actions\/workflows\/auto-repair\.yml\/dispatches/);
 assert.doesNotMatch(heartbeatWorkflow, /actions\/workflows\/daily-flixo-green-gate\.yml\/dispatches/);
