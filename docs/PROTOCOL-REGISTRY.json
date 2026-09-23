@@ -290,7 +290,7 @@
       "name": "System-Wide Shared Intelligence & Operational Memory",
       "class": "LEARNING",
       "status": "MANDATORY",
-      "enforcement": "scripts/ci/shared-operational-memory.mjs + scripts/ci/validate-shared-operational-memory.mjs + scripts/ci/execution-agent-cognitive-sync.mjs + docs/agents/FLIXO-BOT.json",
+      "enforcement": "scripts/ci/shared-operational-memory.mjs + scripts/ci/validate-shared-operational-memory.mjs + scripts/ci/execution-agent-cognitive-sync.mjs + scripts/ci/sync-cognitive-learning-mesh.mjs + docs/agents/FLIXO-BOT.json",
       "invariant": "Every active FLIXO BOT agent/bot consumes and publishes one exact-SHA-bound system-wide operational memory through the FLIXO BOT registry; the execution-agent-clone-v1 is an active cognitive clone preserving role executionAgent; shared learning is knowledge only and never grants authority.",
       "canonicalSource": "docs/agents/SHARED-SIX-BOT-OPERATIONAL-MEMORY-CONTRACT.md",
       "sharedMemory": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
@@ -325,8 +325,9 @@
         "executionAgent",
         "reviewAgent"
       ],
-      "learningRule": "ALL_ACTIVE_MEMBERS_CONSUME_THE_SAME_CORE_INTELLIGENCE_AND_CANONICAL_LEARNING_STREAM; EXECUTION_AGENT CLONE CONSUMES AND PUBLISHES THROUGH THE SAME SHARED MEMORY",
-      "syncProtocol": "FLIXO-BIDIRECTIONAL-COGNITIVE-MESH-v1"
+      "learningRule": "ALL_ACTIVE_MEMBERS_CONSUME_THE_SAME_CORE_INTELLIGENCE_AND_CANONICAL_LEARNING_STREAM; EXECUTION_AGENT CLONE MAY EMIT PROPOSED LEARNING AND CONSUMES VERIFIED/PROMOTED MIRRORED LEARNING",
+      "syncProtocol": "FLIXO-BIDIRECTIONAL-COGNITIVE-MESH-v1",
+      "durableExternalBridge": "public.flixo_agent_learning_events"
     }
   ]
 }
