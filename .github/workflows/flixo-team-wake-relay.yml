@@ -28,14 +28,14 @@ concurrency:
 jobs:
   wake:
     name: Deliver one canonical FLIXO team wake
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/execution'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
       - name: Checkout trusted relay controller
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: main
+          ref: execution
           fetch-depth: 1
           persist-credentials: false
 
