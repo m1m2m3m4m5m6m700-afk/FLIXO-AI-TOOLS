@@ -93,7 +93,7 @@ assert.match(heartbeatWorkflow, /HEARTBEAT_24X7_MODE=true/);
 assert.match(heartbeatWorkflow, /HEARTBEAT_INTERVAL_SECONDS=60/);
 assert.match(heartbeatWorkflow, /for TICK in \$\(seq 1 45\); do/);
 assert.match(heartbeatWorkflow, /sleep 60/);
-assert.match(heartbeatWorkflow, /permissions:\s*\n\s*actions: write/);
+assert.match(heartbeatWorkflow, /permissions:\s*\n\s*actions: read/);
 assert.match(heartbeatWorkflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);
 assert.match(heartbeatWorkflow, /SCHEDULE_WAKE_FLOOR_MINUTES=5/);
 assert.match(heartbeatWorkflow, /push:\s*\n\s*branches: \[execution\]/);
@@ -136,8 +136,8 @@ assert.match(wakeRelay, /EXACT_SHA_WAKE_GUARD=PASS/);
 assert.match(wakeRelay, /daily-flixo-green-gate\.yml/);
 assert.doesNotMatch(wakeRelay, /auto-repair\.yml.*dispatch/);
 
-assert.match(heartbeatWorkflow, /actions:\s*write/);
-assert.doesNotMatch(heartbeatWorkflow, /actions:\s*read/);
+assert.match(heartbeatWorkflow, /actions:\s*read/);
+
 assert.doesNotMatch(heartbeatWorkflow, /actions\/workflows\/auto-repair\.yml\/dispatches/);
 assert.match(autoRepair, /Start one-minute Repair Bot lease heartbeat/);
 assert.match(autoRepair, /active_worker_id/);
