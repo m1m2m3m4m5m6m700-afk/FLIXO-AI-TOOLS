@@ -172,9 +172,11 @@ assert.match(heartbeatWorkflow,/action-repair-five-workers\.mjs --role=fanout/u)
 assert.match(sessionSource,/SESSION_SHA_CHANGED/u);
 const watchdogWorkflow=fs.readFileSync(path.resolve(process.cwd(),'.github/workflows/execution-bot-watchdog.yml'),'utf8');
 assert.match(watchdogWorkflow,/workflow_dispatch:/u);
-assert.match(watchdogWorkflow,/schedule:\s*\n\s*- cron: '\*\/5 \* \* \* \*'/u);
-assert.match(watchdogWorkflow,/workflow_run:/u);
-assert.match(watchdogWorkflow,/push:\s*\n\s*branches: \[execution\]/u);
+assert.doesNotMatch(watchdogWorkflow,/schedule:/u);
+assert.doesNotMatch(watchdogWorkflow,/workflow_run:/u);
+assert.doesNotMatch(watchdogWorkflow,/push:\s*\n\s*branches: \[execution\]/u);
+assert.match(watchdogWorkflow,/cancel-in-progress:\s*true/u);
 
 assert.doesNotMatch(heartbeatWorkflow,/pull_request:/u);
+assert.match(heartbeatWorkflow,/The push event owns only the short bootstrap job; the resident window is workflow_dispatch/u);
 assert.match(heartbeatWorkflow,/resident-only workflow_dispatch/u);
