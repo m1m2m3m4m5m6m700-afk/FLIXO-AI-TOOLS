@@ -22,7 +22,17 @@
   "aliases": {
     "ACTION-REPAIR": "actionRepairBot",
     "ACTION-REPAIR-2": "actionRepairVerifier",
-    "ACTION-HISTORIAN-3": "actionHistorian"
+    "ACTION-HISTORIAN-3": "actionHistorian",
+    "FLIXO1": "ACTION-TWIN-1",
+    "FLIXO2": "ACTION-TWIN-2",
+    "FLIXO3": "ACTION-INDEX",
+    "FLIXO4": "ACTION-WISE",
+    "FLIXO5": "ACTION-RCA-3",
+    "FLIXO6": "ACTION-IMPACT-4",
+    "FLIXO7": "ACTION-SECURITY-5",
+    "FLIXO8": "ACTION-REGRESSION-6",
+    "FLIXO9": "ACTION-SHA-7",
+    "FLIXO10": "ACTION-CONVERGENCE-8"
   },
   "activeMembers": {
     "canonicalAgents": [
@@ -107,6 +117,18 @@
     ],
     "cognitiveClones": [
       "execution-agent-clone-v1"
+    ],
+    "flixo10": [
+      "FLIXO1",
+      "FLIXO2",
+      "FLIXO3",
+      "FLIXO4",
+      "FLIXO5",
+      "FLIXO6",
+      "FLIXO7",
+      "FLIXO8",
+      "FLIXO9",
+      "FLIXO10"
     ]
   },
   "mergedIntelligence": {
@@ -361,9 +383,19 @@
       "ACTION-SECURITY-5",
       "ACTION-REGRESSION-6",
       "ACTION-SHA-7",
-      "ACTION-CONVERGENCE-8"
+      "ACTION-CONVERGENCE-8",
+      "FLIXO1",
+      "FLIXO2",
+      "FLIXO3",
+      "FLIXO4",
+      "FLIXO5",
+      "FLIXO6",
+      "FLIXO7",
+      "FLIXO8",
+      "FLIXO9",
+      "FLIXO10"
     ],
-    "targetCount": 67,
+    "targetCount": 77,
     "syncModel": "LIVE_SHARED_MEMORY_BY_REFERENCE_BIDIRECTIONAL_COGNITIVE_MESH",
     "coreIntelligenceVersion": "FLIXO-BOT-BRAIN-v1",
     "deliveryRule": "EVERY_PUBLISHED_LESSON_AND_ANTI_LESSON_IS_VISIBLE_TO_ALL_ACTIVE_MEMBERS_INCLUDING_EXECUTION_AGENT_CLONE_V1",
@@ -459,5 +491,32 @@
     "sharedMemory": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
     "personalMemoryRequired": true,
     "noThirdBranch": true
+  },
+  "flixo10Team": {
+    "ids": [
+      "FLIXO1",
+      "FLIXO2",
+      "FLIXO3",
+      "FLIXO4",
+      "FLIXO5",
+      "FLIXO6",
+      "FLIXO7",
+      "FLIXO8",
+      "FLIXO9",
+      "FLIXO10"
+    ],
+    "protocol": "FLIXO10-FULL-SYSTEM-REPAIR-v1",
+    "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+    "systemScope": "FULL_REPOSITORY_AND_AUTOMATION_SYSTEM",
+    "everyBotWorkflow": "READ→DIAGNOSE→WRITE_PROPOSAL→CHALLENGE→HANDOFF",
+    "proposalMutationAuthority": false,
+    "dynamicPushSeat": true,
+    "firstConnectedWins": true,
+    "immutablePushOwnerUntilTaskCompletion": true,
+    "peerTakeover": false,
+    "abandonmentForbidden": true,
+    "mergeAllParallelProposals": true,
+    "guardedPublication": true,
+    "canonicalBranch": "execution"
   }
 }
