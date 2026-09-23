@@ -41,8 +41,9 @@ jobs:
       - name: Checkout trusted communication implementation
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          # issue_comment runs from the default branch; omit ref so privileged checkout
-          # uses the trusted event ref instead of an explicit reference.
+          # issue_comment is privileged; pin executable controller source to the immutable
+          # commit that triggered this run instead of a mutable branch reference.
+          ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
 
