@@ -14,9 +14,25 @@ const runs = [
   'FLIXO Test Impact Execution',
   'Repository Security Baseline',
   'Claude Security Review',
-].map((name) => ({ name, status: 'completed', conclusion: 'success', headSha: sha, updatedAt: '2026-09-20T00:00:00Z' }));
+].map((name, index) => ({
+  name,
+  databaseId: index === 0 ? 77 : index + 1,
+  status: 'completed',
+  conclusion: 'success',
+  headSha: sha,
+  updatedAt: '2026-09-20T00:00:00Z',
+}));
 const status = { statuses: [{ context: 'internal', state: 'success' }] };
-const checks = [{ check_runs: [{ name: 'Certification', status: 'completed', conclusion: 'success', completed_at: '2026-09-20T00:01:00Z' }] }];
+const checks = [{
+  check_runs: [{
+    name: 'Certification',
+    status: 'completed',
+    conclusion: 'success',
+    head_sha: sha,
+    details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/77/job/7700',
+    completed_at: '2026-09-20T00:01:00Z',
+  }],
+}];
 const write = (name, value) => {
   const file = path.join(dir, name);
   fs.writeFileSync(file, JSON.stringify(value));
@@ -59,4 +75,40 @@ p = spawnSync(process.execPath, [script], {
 assert.equal(p.status, 0, p.stdout + p.stderr);
 const evidence = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
 assert.equal(evidence.state, 'CERTIFIABLE');
+
+const spoofedChecks = [{
+  check_runs: [{
+    name: 'Certification',
+    status: 'completed',
+    conclusion: 'success',
+    head_sha: sha,
+    details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/999/job/9999',
+    completed_at: '2026-09-20T00:02:00Z',
+  }],
+}];
+const spoofedChecksPath = write('spoofed-checks.json', spoofedChecks);
+p = spawnSync(process.execPath, [script], {
+  env: { ...process.env, EXPECTED_SHA: sha, EXACT_RUNS_PATH: runsPath, EXACT_STATUS_PATH: statusPath, EXACT_CHECKS_PATH: spoofedChecksPath, LIVE_RUNTIME_EVIDENCE_PATH: livePath, EVIDENCE_OUTPUT_PATH: outputPath },
+  encoding: 'utf8',
+});
+assert.notEqual(p.status, 0);
+assert.match(p.stdout, /CERTIFICATION_MISSING_OR_NONCANONICAL/u);
+
+const missingLinkChecks = [{
+  check_runs: [{
+    name: 'Certification',
+    status: 'completed',
+    conclusion: 'success',
+    head_sha: sha,
+    completed_at: '2026-09-20T00:03:00Z',
+  }],
+}];
+const missingLinkChecksPath = write('missing-link-checks.json', missingLinkChecks);
+p = spawnSync(process.execPath, [script], {
+  env: { ...process.env, EXPECTED_SHA: sha, EXACT_RUNS_PATH: runsPath, EXACT_STATUS_PATH: statusPath, EXACT_CHECKS_PATH: missingLinkChecksPath, LIVE_RUNTIME_EVIDENCE_PATH: livePath, EVIDENCE_OUTPUT_PATH: outputPath },
+  encoding: 'utf8',
+});
+assert.notEqual(p.status, 0);
+assert.match(p.stdout, /CERTIFICATION_MISSING_OR_NONCANONICAL/u);
+
 console.log('PROMOTION_CLOSURE_TEST=PASS');
