@@ -27,6 +27,7 @@ create index if not exists flixo_agent_learning_events_status_idx
 alter table public.flixo_agent_learning_events enable row level security;
 
 revoke all on table public.flixo_agent_learning_events from anon, authenticated;
+revoke all on table public.flixo_agent_learning_events from public;
 grant select, insert, update on table public.flixo_agent_learning_events to service_role;
 
 drop policy if exists flixo_agent_learning_events_service_only on public.flixo_agent_learning_events;
