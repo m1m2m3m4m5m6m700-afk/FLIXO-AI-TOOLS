@@ -52,7 +52,7 @@ async function rpcProbe(functionName, payload, expectedMarker) {
   evidence.checks.push({ name: functionName, status: 'PASS', expectedMarker, httpStatus: result.response.status });
 }
 
-const accounts = await request('/rest/v1/flix_council_accounts?select=account_id,active,lease_seconds,last_seen_at,last_heartbeat_at,current_execution_sha,metadata&order=account_id.asc');
+const accounts = await request('/rest/v1/flix_council_accounts?select=account_id,active,lease_seconds,last_seen_at,metadata&order=account_id.asc');
 if (!accounts.response.ok) throw new Error('ACCOUNTS_READ_FAILED:' + accounts.response.status);
 const accountIds = Array.isArray(accounts.json) ? accounts.json.map((row) => row?.account_id).sort() : [];
 if (JSON.stringify(accountIds) !== JSON.stringify(['CHIEF','WORKER_A','WORKER_B'])) {
@@ -92,30 +92,39 @@ if (Array.isArray(expiredLeases.json) && expiredLeases.json.length > 0) {
 evidence.checks.push({ name: 'expired_open_leases', status: 'PASS', count: 0 });
 
 const residentAccounts = Array.isArray(accounts.json) ? accounts.json : [];
-const staleResidentAccounts = residentAccounts.filter((row) => {
+// SELF_PROOF_CONTRACT:v1
+// Live schema proof source: last_seen_at + flix_council_events.exact_sha for residencyRequired accounts.
+const residentAccounts = Array.isArray(accounts.json) ? accounts.json : [];
+const requiredResidents = residentAccounts.filter((row) => {
   const metadata = row?.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata) ? row.metadata : {};
-  if (metadata.residencyRequired !== true) return false;
-  const heartbeatAt = row?.last_heartbeat_at ?? row?.last_seen_at;
-  if (!heartbeatAt) return true;
-  const lastHeartbeat = Date.parse(String(heartbeatAt));
-  if (!Number.isFinite(lastHeartbeat)) return true;
+  return metadata.residencyRequired === true;
+});
+const eventEvidence = new Map();
+if (requiredResidents.length > 0) {
+  const residentIds = requiredResidents.map((row) => row.account_id).join(',');
+  const eventResult = await request('/rest/v1/flix_council_events?account_id=in.(' + encodeURIComponent(residentIds) + ')&select=account_id,event_type,exact_sha,created_at&order=created_at.desc&limit=200');
+  if (!eventResult.response.ok) throw new Error('RESIDENT_EVENT_READ_FAILED:' + eventResult.response.status);
+  for (const row of Array.isArray(eventResult.json) ? eventResult.json : []) {
+    if (!eventEvidence.has(row.account_id)) eventEvidence.set(row.account_id, row);
+  }
+}
+const staleResidentAccounts = requiredResidents.filter((row) => {
+  const lastSeenAt = row?.last_seen_at;
+  if (!lastSeenAt) return true;
+  const lastSeen = Date.parse(String(lastSeenAt));
+  if (!Number.isFinite(lastSeen)) return true;
   const leaseSeconds = Number(row.lease_seconds ?? 120);
   const freshnessMs = Math.max(120000, leaseSeconds * 2 * 1000);
-  if (nowMs - lastHeartbeat > freshnessMs) return true;
-  return String(row.current_execution_sha ?? '').toLowerCase() !== expectedSha;
-});
-if (staleResidentAccounts.length > 0) {
-  throw new Error('STALE_RESIDENT_ACCOUNTS:' + staleResidentAccounts.map((row) => row.account_id).join(','));
-}
-const heartbeatShaMismatch = residentAccounts.filter((row) => {
-  const metadata = row?.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata) ? row.metadata : {};
-  return metadata.residencyRequired === true && String(row.current_execution_sha ?? '').toLowerCase() !== expectedSha;
+  return nowMs - lastSeen > freshnessMs;
 }).map((row) => row.account_id);
-evidence.checks.push({ name: 'resident_heartbeat_exact_sha', status: heartbeatShaMismatch.length === 0 ? 'PASS' : 'FAIL', mismatches: heartbeatShaMismatch });
-if (staleResidentAccounts.length > 0) {
-  throw new Error('STALE_RESIDENT_ACCOUNTS:' + staleResidentAccounts.map((row) => row.account_id).join(','));
-}
-evidence.checks.push({ name: 'resident_heartbeat_freshness', status: 'PASS', count: residentAccounts.length });
+if (staleResidentAccounts.length > 0) throw new Error('STALE_RESIDENT_ACCOUNTS:' + staleResidentAccounts.join(','));
+const heartbeatShaMismatch = requiredResidents.filter((row) => {
+  const latest = eventEvidence.get(row.account_id);
+  return !latest || String(latest.exact_sha ?? '').toLowerCase() !== expectedSha;
+}).map((row) => row.account_id);
+if (heartbeatShaMismatch.length > 0) throw new Error('RESIDENT_EXACT_SHA_MISMATCH:' + heartbeatShaMismatch.join(','));
+evidence.checks.push({ name: 'resident_heartbeat_exact_sha', status: 'PASS', requiredResidentCount: requiredResidents.length, mismatches: [] });
+evidence.checks.push({ name: 'resident_heartbeat_freshness', status: 'PASS', count: requiredResidents.length });
 
 const watchdog = await request('/rest/v1/flix_automation_watchdog?select=state,last_tick_at,evidence&limit=1');
 if (!watchdog.response.ok) throw new Error('WATCHDOG_READ_FAILED:' + watchdog.response.status);
