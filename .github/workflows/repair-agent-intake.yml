@@ -55,8 +55,8 @@ permissions:
 concurrency:
   # Every completed source run gets an independent intake slot; one incident must never
   # cancel another incident merely because both came from the same canonical branch.
-  group: flixo-repair-agent-intake-${{ github.event.workflow_run.id || inputs.run_id || github.run_id }}
-  cancel-in-progress: false
+  group: flixo-repair-agent-intake-${{ github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   intake:
