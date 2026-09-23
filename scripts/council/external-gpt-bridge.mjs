@@ -2,6 +2,7 @@
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { ACTION_AGENT_TRIAD_VERSION, getActionAgentProfile, assertActionAgentDispatch, validateActionAgentResult, buildActionAgentCognitionEnvelope } from './action-agent-triad.mjs';
+import { buildFullIntelligenceBootstrap, assertFullIntelligenceBootstrap } from '../ci/full-intelligence-policy.mjs';
 
 const ACCOUNTS = Object.freeze({
   CHIEF: Object.freeze({
@@ -162,13 +163,18 @@ export const completeDispatch = async (config, dispatch, sessionId, status, evid
 
 export const executeExternalAgent = async (config, dispatch, sessionId, fetchImpl = globalThis.fetch) => {
   const endpoint = new URL(config.executorEndpoint);
+  const exactEntrySha = exactSha(dispatch.entry_sha ?? dispatch.entrySha);
+  const taskId = String(dispatch.task_id ?? dispatch.taskId ?? '');
+  const fullIntelligence = buildFullIntelligenceBootstrap({ agentId: config.accountId, role: getActionAgentProfile(config.accountId).role, request: dispatch.payload?.objective ?? taskId, exactSha: exactEntrySha, taskId });
+  assertFullIntelligenceBootstrap(fullIntelligence, config.accountId);
+
   const payload = {
     protocol: 'FLIXO_EXTERNAL_GPT_BRIDGE_V1',
     accountId: config.accountId,
     sessionId,
     dispatchId: String(dispatch.dispatch_id ?? dispatch.dispatchId),
     agentId: String(dispatch.identity?.agentId ?? dispatch.payload?.agentId ?? ''),
-    exactSha: exactSha(dispatch.entry_sha ?? dispatch.entrySha),
+    exactSha: exactEntrySha,
     taskId: String(dispatch.task_id ?? dispatch.taskId ?? ''),
     workPackageId: String(dispatch.work_package_id ?? dispatch.workPackageId ?? ''),
     actionAgentTriadVersion: ACTION_AGENT_TRIAD_VERSION,
@@ -176,6 +182,7 @@ export const executeExternalAgent = async (config, dispatch, sessionId, fetchImp
     modelProfile: config.modelProfile,
     reasoningEffort: config.reasoningEffort,
     capabilities: { toolCalling: true, structuredOutput: true, selfCritique: true, independentReview: config.accountId !== 'CHIEF', fullIntelligence: true, noComplexityDowngrade: true },
+    fullIntelligence,
     cognitionEnvelope: buildActionAgentCognitionEnvelope({
       accountId: config.accountId,
       dispatch,
