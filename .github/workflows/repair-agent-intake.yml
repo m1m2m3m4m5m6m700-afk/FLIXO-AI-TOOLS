@@ -53,8 +53,10 @@ permissions:
   issues: write
 
 concurrency:
-  group: flixo-repair-agent-intake-${{ github.event.workflow_run.head_branch || github.ref }}
-  cancel-in-progress: true
+  # Every completed source run gets an independent intake slot; one incident must never
+  # cancel another incident merely because both came from the same canonical branch.
+  group: flixo-repair-agent-intake-${{ github.event.workflow_run.id || inputs.run_id || github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   intake:
@@ -199,15 +201,28 @@ jobs:
           if [ "$(jq -r '.incident.staleTarget' /tmp/repair-agent-intake/output.json)" = "true" ]; then exit 0; fi
           INCIDENT_ID="$(jq -r '.incident.incidentId' /tmp/repair-agent-intake/output.json)"
           COUNCIL_PR_NUMBER="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 1 --json number --jq '.[0].number // empty')"
-          test -n "$COUNCIL_PR_NUMBER"
-                    RECEIPT="<!-- repair-agent-incident:$INCIDENT_ID -->"
-          if gh api "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
+          COUNCIL_TARGET_KIND="CANONICAL_EXECUTION_PR"
+          COUNCIL_TARGET_NUMBER="$COUNCIL_PR_NUMBER"
+          if [ -z "$COUNCIL_TARGET_NUMBER" ]; then
+            # After execution→main merge there may be no open integration PR. The
+            # incident must still reach the canonical Agent Council issue instead
+            # of turning successful error capture into a secondary intake failure.
+            COUNCIL_TARGET_KIND="AGENT_COUNCIL_ISSUE"
+            COUNCIL_TARGET_NUMBER="765"
+          fi
+          case "$COUNCIL_TARGET_NUMBER" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid Agent Council target.'; exit 1 ;;
+          esac
+          RECEIPT="<!-- repair-agent-incident:$INCIDENT_ID -->"
+          if gh api "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_TARGET_NUMBER/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
             echo "REPAIR_AGENT_INTAKE_DUPLICATE=NO_OP"
+            echo "REPAIR_AGENT_COUNCIL_TARGET=$COUNCIL_TARGET_KIND#$COUNCIL_TARGET_NUMBER"
             exit 0
           fi
           jq -r '.issueComment' /tmp/repair-agent-intake/output.json > /tmp/repair-agent-intake/comment.md
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments" --raw-field body="$(cat /tmp/repair-agent-intake/comment.md)" >/dev/null
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_TARGET_NUMBER/comments" --raw-field body="$(cat /tmp/repair-agent-intake/comment.md)" >/dev/null
           echo 'REPAIR_AGENT_ERROR_DELIVERED_TO_COUNCIL=true'
+          echo "REPAIR_AGENT_COUNCIL_TARGET=$COUNCIL_TARGET_KIND#$COUNCIL_TARGET_NUMBER"
           echo 'OTHER_AGENTS_LOG_POLLING_REQUIRED=false'
 
       - name: Preserve central intake evidence
