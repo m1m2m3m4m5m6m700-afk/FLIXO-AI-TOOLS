@@ -25,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Fail closed when PR head changes during review
+        if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
