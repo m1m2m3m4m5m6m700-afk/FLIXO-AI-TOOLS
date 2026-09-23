@@ -23,8 +23,8 @@ const expected={
  'ACTION-IMPACT-4':'ACTION_BLAST_RADIUS_REVIEW',
  'ACTION-SECURITY-5':'ACTION_SECURITY_BOUNDARY_REVIEW',
  'ACTION-REGRESSION-6':'ACTION_REGRESSION_PLANNER',
- 'ACTION-SHA-7':'ACTION_EXACT_SHA_VERIFIER',
- 'ACTION-CONVERGENCE-8':'ACTION_REPAIR_CONVERGENCE_CHALLENGER'
+ 'ACTION-SHA-7':'ACTION_CERTIFIER_ADVERSARY',
+ 'ACTION-CONVERGENCE-8':'ACTION_FINAL_CERTIFIER'
 };
 for(const [id,role] of Object.entries(expected)){
  const worker=registry.workers.find(x=>x.id===id);
@@ -61,7 +61,11 @@ const wake='/tmp/flixo-action-wake.json';
 execFileSync('node',[...base,'--role=wake','--status=RED_INTERNAL','--output='+wake],{stdio:'pipe'});
 const wakeResult=JSON.parse(fs.readFileSync(wake,'utf8'));
 assert.equal(wakeResult.botId,'ACTION-WAKE');
-assert.equal(wakeResult.action,'WAKE_ACTION_REPAIR_SQUAD');
+assert.equal(wakeResult.action,'WAKE_ALL_ACTION_REPAIR_TEAM');
+assert.equal(wakeResult.wakeScope,'ALL_ACTION_REPAIR_TEAM');
+assert.equal(wakeResult.wakePolicy,'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL');
+assert.equal(wakeResult.recipientCount,10);
+assert.deepEqual(wakeResult.recipients,report.workers.map(worker=>worker.workerId));
 const index='/tmp/flixo-action-index.json';
 execFileSync('node',[...base,'--role=index','--output='+index],{stdio:'pipe'});
 assert.equal(JSON.parse(fs.readFileSync(index,'utf8')).botId,'ACTION-INDEX');
