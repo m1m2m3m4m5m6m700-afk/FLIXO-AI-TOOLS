@@ -10,6 +10,22 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   heartbeatEveryMs: 60 * 1000,
   heartbeatGraceMs: 30 * 1000,
   wakeIntervalMs: 60 * 1000,
+  teamWakeIntervalMs: 60 * 1000,
+  teamWakePolicy: 'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL',
+  teamWakeScope: 'ALL_ACTION_REPAIR_TEAM',
+  actionRepairTeamSize: 10,
+  actionRepairTeamIds: Object.freeze([
+    'ACTION-TWIN-1',
+    'ACTION-TWIN-2',
+    'ACTION-INDEX',
+    'ACTION-WISE',
+    'ACTION-RCA-3',
+    'ACTION-IMPACT-4',
+    'ACTION-SECURITY-5',
+    'ACTION-REGRESSION-6',
+    'ACTION-SHA-7',
+    'ACTION-CONVERGENCE-8',
+  ]),
   activeRepairWindowMs: 45 * 60 * 1000,
   maxContinuousActiveSessionMs: 3 * 60 * 60 * 1000,
   masterStatusUpdateEveryMs: 5 * 60 * 1000,
@@ -89,6 +105,10 @@ export function assertLivenessDefinition() {
   if (!AGENT_LIVENESS_PROTOCOL.protocolVersion.startsWith('4.')) throw new Error('AGENT_LIVENESS_VERSION_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs <= 0 || AGENT_LIVENESS_PROTOCOL.leaseTtlMs <= AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs) throw new Error('AGENT_LIVENESS_TIMING_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.maxNoProgressHeartbeats < 1) throw new Error('AGENT_LIVENESS_PROGRESS_THRESHOLD_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.teamWakeIntervalMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_TEAM_WAKE_NOT_ONE_MINUTE');
+  if (AGENT_LIVENESS_PROTOCOL.teamWakePolicy !== 'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL') throw new Error('AGENT_LIVENESS_TEAM_WAKE_POLICY_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.teamWakeScope !== 'ALL_ACTION_REPAIR_TEAM') throw new Error('AGENT_LIVENESS_TEAM_WAKE_SCOPE_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.actionRepairTeamSize !== 10 || AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length !== 10) throw new Error('AGENT_LIVENESS_TEAM_SIZE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_HEARTBEAT_NOT_ONE_MINUTE');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatGraceMs !== 30 * 1000) throw new Error('AGENT_LIVENESS_HEARTBEAT_GRACE_NOT_THIRTY_SECONDS');
   if (AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs !== 45 * 60 * 1000) throw new Error('AGENT_LIVENESS_ACTIVE_WINDOW_NOT_FORTY_FIVE_MINUTES');
@@ -167,6 +187,31 @@ export function completionGate({ state, workAssigned = true, exactShaVerified, r
   if (workAssigned !== true) throw new Error('AGENT_LIVENESS_COMPLETION_WORK_FLAG_INVALID');
   validateCompletionEvidence({ exactShaVerified, requiredRedCount, regressionPassed, learningRecorded });
   return Object.freeze({ ok: true, state: 'COMPLETE', residentState: 'READY_RESIDENT' });
+}
+
+export function buildTeamWakeDirective({ actor, targetSha, taskId = null, failureFingerprint = null, reason = 'ACTIVE_BOT_WAKE' } = {}) {
+  assertLivenessDefinition();
+  const actorId = String(actor ?? '').trim();
+  const sha = String(targetSha ?? '').trim();
+  if (!AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.includes(actorId)) throw new Error('AGENT_LIVENESS_TEAM_WAKE_ACTOR_NOT_AUTHORIZED=' + actorId);
+  if (!/^[a-f0-9]{40}$/iu.test(sha)) throw new Error('AGENT_LIVENESS_TEAM_WAKE_EXACT_SHA_REQUIRED');
+  const fingerprint = String(failureFingerprint ?? '').trim() || `WAKE-${sha.slice(0, 12)}`;
+  return Object.freeze({
+    protocolId: AGENT_LIVENESS_PROTOCOL.protocolId,
+    action: 'WAKE_ALL_ACTION_REPAIR_TEAM',
+    policy: AGENT_LIVENESS_PROTOCOL.teamWakePolicy,
+    scope: AGENT_LIVENESS_PROTOCOL.teamWakeScope,
+    actor: actorId,
+    targetSha: sha,
+    taskId: taskId ? String(taskId) : null,
+    failureFingerprint: fingerprint,
+    reason: String(reason),
+    recipients: [...AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds],
+    recipientCount: AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length,
+    mutationAuthority: false,
+    pushAuthority: 'CHAIR_1_ONLY',
+    next: 'canonical_agent_repair_supervisor_and_existing_wake_dispatcher',
+  });
 }
 
 export function buildRecoveryDirective({ reason, currentState = 'ACTIVE', newEvidenceRequired = true } = {}) {
