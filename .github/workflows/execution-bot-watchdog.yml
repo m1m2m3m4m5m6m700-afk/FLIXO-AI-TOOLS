@@ -223,6 +223,27 @@ jobs:
             echo 'wake=true' >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Ensure resident heartbeat is awake
+        if: github.event_name == 'schedule' && steps.source.outputs.stale != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTIVE_HEARTBEAT="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow agent-repair-heartbeat.yml \
+            --limit 50 \
+            --json status,headBranch,event \
+            --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.headBranch == "execution" or .headBranch == "main"))] | length')"
+          if [ "$ACTIVE_HEARTBEAT" -gt 0 ]; then
+            echo 'RESIDENT_HEARTBEAT=ALREADY_ACTIVE'
+            echo "ACTIVE_HEARTBEAT_RUNS=$ACTIVE_HEARTBEAT"
+          else
+            gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
+            echo 'RESIDENT_HEARTBEAT=DISPATCHED'
+            echo 'RESIDENT_HEARTBEAT_REF=execution'
+          fi
       - name: Record exact execution push wake
         if: github.event_name == 'push' && github.ref_name == 'execution' && steps.source.outputs.stale != 'true'
         env:
