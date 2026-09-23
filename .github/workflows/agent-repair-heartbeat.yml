@@ -49,6 +49,7 @@ jobs:
 
       - name: Emit canonical one-minute repair heartbeat continuously
         env:
+          GH_TOKEN: ${{ github.token }}
           FLIXO_HEARTBEAT_PATH: /tmp/flixo-heartbeat/heartbeat.json
         run: |
           set -euo pipefail
