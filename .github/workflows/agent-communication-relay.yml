@@ -22,9 +22,8 @@ jobs:
       - name: Checkout trusted communication implementation
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          # This workflow has actions:write and id-token:write. Execute only trusted controller code from main.
-          # The live execution SHA is evidence data, never executable source.
-          ref: main
+          # issue_comment runs from the default branch; omit ref so privileged checkout
+          # uses the trusted event ref instead of an explicit reference.
           fetch-depth: 1
           persist-credentials: false
 
