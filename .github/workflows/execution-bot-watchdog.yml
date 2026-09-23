@@ -152,8 +152,8 @@ jobs:
           echo 'CANONICAL_GREEN_GATE_DISPATCHED=true'
           echo 'CANONICAL_REPAIR_DISPATCH=false'
           echo "RED_WAKE_TARGET_SHA=$EXECUTION_SHA"
-          echo "RED_WAKE_SOURCE_RUN_ID=${{ github.event.workflow_run.id }}"
-          echo "RED_WAKE_SOURCE_WORKFLOW=${{ github.event.workflow_run.name }}"
+          echo "RED_WAKE_SOURCE_RUN_ID=$EVENT_SOURCE_RUN_ID"
+          echo "RED_WAKE_SOURCE_WORKFLOW=$EVENT_SOURCE_WORKFLOW"
 
       - name: Decide scheduled wake from durable GREEN evidence
         id: scheduled_wake
@@ -388,6 +388,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EVENT_SOURCE_RUN_ID: ${{ github.event.workflow_run.id || '' }}
           EVENT_SOURCE_RUN_SHA: ${{ github.event.workflow_run.head_sha || '' }}
+          EVENT_SOURCE_STALE: ${{ steps.source.outputs.stale || '' }}
         run: |
           set -euo pipefail
           if [ -n "$EVENT_SOURCE_RUN_ID" ]; then
@@ -409,11 +410,12 @@ jobs:
           fi
           SOURCE_RUN_ID="$EVENT_SOURCE_RUN_ID"
           SOURCE_RUN_SHA="$EVENT_SOURCE_RUN_SHA"
+          EVENT_SOURCE_STALE="${EVENT_SOURCE_STALE:-}"
           FIRST_RED_WAKE=false
           if [ "$GITHUB_EVENT_NAME" = "workflow_run" ] &&
              [ "$SOURCE_RUN_SHA" = "$CURRENT_EXECUTION_SHA" ] &&
-             [ "${{ github.event.workflow_run.conclusion || '' }}" != "success" ] &&
-             [ "${{ steps.source.outputs.stale }}" = "false" ]; then
+             [ "$EVENT_SOURCE_RUN_CONCLUSION" != "success" ] &&
+             [ "$EVENT_SOURCE_STALE" = "false" ]; then
             FIRST_RED_WAKE=true
           fi
           jq -n \
