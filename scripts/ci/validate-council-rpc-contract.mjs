@@ -69,8 +69,7 @@ for (const functionName of [
   const count = (migration.match(new RegExp('create or replace function public\\.' + functionName + '\\b', 'g')) || []).length;
   assert.equal(count, 1, 'Migration must define exactly one ' + functionName);
 }
-assert.match(migration, /current_execution_sha ~ '\^\[0-9a-f\]\{40\}\
-/);
+assert.match(migration, /current_execution_sha\s*~\s*'\^\[0-9a-f\]\{40\}\$'/);
 assert.match(migration, /last_heartbeat_at/);
 assert.match(migration, /current_execution_sha = p_exact_sha/);
 assert.match(migration, /recoveryState.*RECOVERED/);
