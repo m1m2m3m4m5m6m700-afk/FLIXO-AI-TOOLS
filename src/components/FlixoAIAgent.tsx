@@ -23,6 +23,8 @@ import { type FilterMaskHandoff } from '@/tools/filter-mask/handoff';
 import { askConversationalAgent } from '@/lib/agent/conversational-agent';
 import { getLiveFilter } from '@/tools/filter-mask/registry';
 import { resolveFilterMaskSelection } from '@/lib/intent/resolver';
+import { FlixoAIAgentStudio } from './FlixoAIAgentStudio';
+import './FlixoAIAgentStudio.css';
 
 type AgentState = 'idle' | 'ready' | 'running' | 'success' | 'error';
 type Message = { id: number; role: 'user' | 'agent'; text: string };
@@ -413,68 +415,41 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   };
 
   return (
-    <section className="flixo-ai-agent" aria-labelledby="flixo-ai-agent-title">
-      <div className="flixo-ai-agent-glow" aria-hidden="true" />
-      <div className="flixo-ai-agent-header"><div><span className="image-tool-eyebrow">FLIXO AI AGENT</span><h2 id="flixo-ai-agent-title">{copy.title}</h2><p>{copy.lead}</p></div><span className="flixo-ai-agent-badge">{copy.badge}</span></div>
-      <div className="flixo-ai-agent-chat" aria-live="polite">{messages.map((message) => <div key={message.id} className={`flixo-ai-agent-message ${message.role}`}><span className="flixo-ai-agent-avatar">{message.role === 'agent' ? 'F' : 'U'}</span><div>{message.text}</div></div>)}</div>
-      <div className="flixo-ai-agent-grid">
-        <div className="flixo-ai-agent-inputs">
-          <label htmlFor="flixo-agent-command">{copy.commandLabel}</label>
-          <input id="flixo-agent-command" type="text" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void sendMessage(); } }} placeholder={copy.placeholder} autoComplete="off" />
-          <div className="flixo-ai-agent-examples" aria-label={copy.examplesLabel}>{copy.examples.map((example) => <button key={example} type="button" onClick={() => setQuery(example)}>{example}</button>)}</div>
-          <label htmlFor="flixo-agent-file">{copy.fileLabel}</label>
-          <input id="flixo-agent-file" type="file" accept="image/*" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setPlan(null); setPreparedExecution(null); setResult(null); setState('idle'); setError(null); }} />
-          <div className="flixo-ai-agent-actions"><button type="button" className="primary-button" onClick={() => void sendMessage()} disabled={!query.trim() || state === 'running'}>{copy.send}</button><button type="button" className="primary-button" onClick={prepare} disabled={!query.trim() || state === 'running'}>{copy.analyze}</button></div>
-        </div>
-        <div className="flixo-ai-agent-plan">
-          <div className="flixo-ai-agent-plan-topline"><strong>{copy.thinking}</strong><span>{state === 'running' ? copy.executing : state === 'success' ? copy.completed : state === 'error' ? copy.needsAttention : copy.planReady}</span></div>
-          {intent && <div className="flixo-ai-agent-intent">{copy.nearestTool} <strong>{intent.tool.title}</strong> · {intent.score}%</div>}
-          {filterHandoff && (
-            <div className="flixo-ai-agent-confirm" data-testid="filter-mask-handoff">
-              <strong>Filter Mask ready</strong>
-              <span> · ready for live preview</span>
-              <Link
-                className="primary-button"
-                to="/$locale/$tool"
-                params={{ locale, tool: 'filter-mask' }}
-                search={{
-                  canonicalId: filterHandoff.canonicalId,
-                  intensity: filterHandoff.parameters.intensity,
-                  zoom: filterHandoff.parameters.zoom,
-                  mirror: filterHandoff.parameters.mirror,
-                  aspectRatio: filterHandoff.parameters.aspectRatio,
-                  captureQuality: filterHandoff.parameters.captureQuality,
-                }}
-              >
-                {locale === 'ar' ? 'فتح المعاينة المباشرة' : 'Open live preview'}
-              </Link>
-            </div>
-          )}
-          {planned?.steps?.length ? <ol>{planned.steps.map((step, index) => <li key={`${step.toolId}-${index}`}><span>{index + 1}</span><div><strong>{step.toolId}</strong><small>{JSON.stringify(step.params ?? {})}</small></div></li>)}</ol> : <p className="flixo-ai-agent-empty">{copy.empty}</p>}
-          {progress && <div className="flixo-ai-agent-progress"><span>{copy.step} {progress.currentStepIndex}/{progress.totalSteps}</span><strong>{progress.currentToolId}</strong>{progress.retry ? <small>{copy.retry} {progress.retry}</small> : null}</div>}
-          {error && <div className="flixo-ai-agent-error" role="alert">{error}</div>}
-          {state === 'ready' && plan && <div className="flixo-ai-agent-confirm">{copy.planReady} <strong>{file ? copy.execute : copy.uploadThenExecute}</strong></div>}
-          {state === 'success' && result && (
-            <div className="flixo-ai-agent-success">
-              <strong>{copy.success}</strong>
-              <button
-                type="button"
-                className="primary-button"
-                onClick={() => {
-                  void saveResultToFile(result).catch((cause) => {
-                    const message = cause instanceof Error ? cause.message : 'Unable to save the result file.';
-                    setError(message);
-                    setState('error');
-                  });
-                }}
-              >
-                {copy.download}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-      <p className="flixo-ai-agent-note">{copy.safetyNote} <Link to="/admin">{copy.admin}</Link></p>
-    </section>
+    <FlixoAIAgentStudio
+      locale={locale}
+      copy={copy}
+      messages={messages}
+      query={query}
+      setQuery={setQuery}
+      file={file}
+      onFileChange={(nextFile) => {
+        setFile(nextFile);
+        setPlan(null);
+        setPreparedExecution(null);
+        setResult(null);
+        setState('idle');
+        setError(null);
+        setProgress(null);
+      }}
+      state={state}
+      sendMessage={sendMessage}
+      prepare={prepare}
+      intent={intent}
+      plan={plan}
+      planned={planned}
+      progress={progress}
+      error={error}
+      result={result}
+      filterHandoff={filterHandoff}
+      tools={getReadyToolConfigs()}
+      onDownload={() => {
+        if (!result) return;
+        void saveResultToFile(result).catch((cause) => {
+          const message = cause instanceof Error ? cause.message : 'Unable to save the result file.';
+          setError(message);
+          setState('error');
+        });
+      }}
+    />
   );
 }
