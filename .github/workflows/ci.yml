@@ -8,11 +8,11 @@ on:
   workflow_dispatch:
 
 # Every initial verification lane is bound to repository + branch + live head.
-# Branch-scoped concurrency cancels superseded verification runs; exact-SHA freshness guards reject stale evidence.
+# Supersession is handled by the trusted controller; started verification runs are preserved as immutable evidence.
 # Reruns retain immutable run identity and remain fail-closed.
 concurrency:
   group: flixo-test-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
