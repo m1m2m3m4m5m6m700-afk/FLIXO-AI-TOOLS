@@ -22,7 +22,6 @@ import { type FilterMaskHandoff } from '@/tools/filter-mask/handoff';
 import { askConversationalAgent } from '@/lib/agent/conversational-agent';
 import { getLiveFilter } from '@/tools/filter-mask/registry';
 import { resolveFilterMaskSelection } from '@/lib/intent/resolver';
-import './FlixoAIAgent.css';
 
 type AgentState = 'idle' | 'ready' | 'running' | 'success' | 'error';
 type Message = { id: number; role: 'user' | 'agent'; text: string };
