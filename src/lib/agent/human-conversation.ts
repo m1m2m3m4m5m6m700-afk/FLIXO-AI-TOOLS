@@ -5,6 +5,7 @@ export type HumanConversationPromptContext = Readonly<{
   activeCommand?: string | null;
   activePlan?: unknown | null;
   currentMessage?: string | null;
+  collectiveLearning?: unknown;
   file?: { name: string; type: string; size: number } | null;
   catalog: readonly Record<string, unknown>[];
   catalogFingerprint: string;
@@ -85,6 +86,7 @@ export function buildFlixoHumanConversationPrompt(context: HumanConversationProm
       currentMessage: context.currentMessage ?? null,
       activePlan: context.activePlan ?? null,
       collectiveIntelligence,
+      collectiveLearning: context.collectiveLearning ?? null,
       file: context.file ?? null,
       catalog: context.catalog,
       catalogFingerprint: context.catalogFingerprint,
