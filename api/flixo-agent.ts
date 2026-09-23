@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { getCapability, getExecutableCapabilityIds } from '../src/lib/agent/capability-registry.ts';
 import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from '../src/lib/contracts/agent-gateway.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
-import { buildFlixoAgentMasterPrompt } from '../src/lib/agent/flixo-agent-master-prompt.ts';
+import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
 
 const MAX_MESSAGES = 80;
 const MAX_REQUEST_BODY_BYTES = 512 * 1024;
@@ -245,21 +245,53 @@ async function callProvider(
   throw new Error('Unsupported AI provider.');
 }
 
-function fallbackDecision(message: string, file: AgentRequestContract['file']): ReturnType<typeof parseAgentDecision> {
-  const normalized = message.toLocaleLowerCase();
+function fallbackDecision(
+  message: string,
+  file: AgentRequestContract['file'],
+  locale: string,
+): ReturnType<typeof parseAgentDecision> {
+  const normalized = message.trim().toLocaleLowerCase();
+  const arabic = /[\\u0600-\\u06FF]/u.test(message) || locale.startsWith('ar');
+  if (/^(?:مرحبا|مرحبًا|اهلا|أهلا|السلام عليكم|هاي|هلا|hello|hi|hey)\\b/i.test(normalized)) {
+    return {
+      mode: 'chat',
+      reply: arabic ? 'أهلًا 👋 أنا FLIXO BOT. قل لي ما الذي تريد الوصول إليه، وسأفهمك خطوة بخطوة.' : 'Hi 👋 I’m FLIXO BOT. Tell me what you want to achieve and I’ll follow the conversation step by step.',
+      question: null,
+      plan: null,
+      confidence: 0.98,
+    };
+  }
+  if (/^(?:من انت|من أنت|مين انت|who are you)\\??$/i.test(normalized)) {
+    return {
+      mode: 'chat',
+      reply: arabic ? 'أنا FLIXO BOT، المساعد الذي يفهم طلبك الطبيعي ويحوله إلى خطوات آمنة داخل أدوات FLIXO.' : 'I’m FLIXO BOT, the assistant that understands natural requests and turns them into safe FLIXO tool steps.',
+      question: null,
+      plan: null,
+      confidence: 0.98,
+    };
+  }
+  if (/^(?:شكرا|شكرًا|thanks|thank you|تمام|ممتاز)\\b/i.test(normalized)) {
+    return {
+      mode: 'chat',
+      reply: arabic ? 'العفو. أكمل معي من حيث توقفت.' : 'You’re welcome. Continue from where we left off.',
+      question: null,
+      plan: null,
+      confidence: 0.97,
+    };
+  }
   if (!file && /(?:الصوره|الصورة|image|photo|صور)/i.test(normalized)) {
     return {
       mode: 'clarify',
-      reply: 'مفهوم. قبل التنفيذ أحتاج الصورة نفسها.',
-      question: 'ارفع الصورة التي تريد العمل عليها، ثم أخبرني بالنتيجة المطلوبة.',
+      reply: arabic ? 'مفهوم. أحتاج الصورة نفسها قبل أن نكمل.' : 'Understood. I need the image itself before we continue.',
+      question: arabic ? 'ارفع الصورة، ثم قل لي النتيجة التي تريد الوصول إليها.' : 'Upload the image, then tell me the result you want.',
       plan: null,
       confidence: 0.9,
     };
   }
   return {
     mode: 'clarify',
-    reply: 'أريد أن أتأكد من النتيجة التي تقصدها قبل اختيار الأداة.',
-    question: 'ما النتيجة النهائية التي تريدها بالضبط؟',
+    reply: arabic ? 'أفهم أنك تريد المساعدة. أحتاج تحديد النتيجة المطلوبة حتى أقدر أساعدك بدقة.' : 'I understand you want help. I need the desired result so I can guide you precisely.',
+    question: arabic ? 'ما النتيجة التي تريدها من الصورة؟' : 'What result do you want from the image?',
     plan: null,
     confidence: 0.55,
   };
@@ -282,10 +314,11 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const locale = body.locale ?? 'en';
     const runtime = configuredRuntime();
     const provider = runtime.provider;
+    const recentMessages = messages.slice(-24);
     const promptMessages = [
       {
         role: 'system' as const,
-        content: buildFlixoAgentMasterPrompt({
+        content: buildFlixoHumanConversationPrompt({
           locale,
           file: body.file ?? null,
           activeCommand: body.activeCommand ?? null,
@@ -294,7 +327,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           catalogFingerprint: TOOL_CATALOG.fingerprint,
         }),
       },
-      ...messages,
+      ...recentMessages,
     ];
     const started = Date.now();
     let providerCalls = 0;
@@ -328,7 +361,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           error: providerError instanceof Error ? providerError.name : 'unknown',
         });
       }
-      const decision = fallbackDecision(userMessage, body.file);
+      const decision = fallbackDecision(userMessage, body.file, locale);
       json(res, 200, { ...decision, fallback: true });
     }
   } catch (error) {
