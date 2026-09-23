@@ -37,22 +37,21 @@ jobs:
   wake:
     name: Exact-SHA observer wake
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
-      github.event_name == 'push' ||
-      (
-        github.event.workflow_run.conclusion != 'success' ||
-        github.event.workflow_run.name == 'FLIXO Auto Repair Bot'
-      )
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event_name == 'schedule' ||
+       github.event_name == 'push' ||
+       (
+         github.event.workflow_run.conclusion != 'success' ||
+         github.event.workflow_run.name == 'FLIXO Auto Repair Bot'
+       ))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout trusted watchdog source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          # Privileged workflow_run must never execute code from an event-controlled SHA.
-          # Observe execution through GitHub APIs; execute controller code only from protected main.
-          ref: main
+          # workflow_run executes the default-branch controller; execution is observation data only.
           fetch-depth: 1
           persist-credentials: false
       - name: Verify trusted watchdog checkout
