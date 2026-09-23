@@ -5,6 +5,7 @@ import { INTRACTABLE_THRESHOLD, fingerprintFailure } from './auto-repair-learnin
 import { reasonFailure } from './auto-repair/reasoning.mjs';
 import { buildCausalDiscriminator } from './action-causal-discriminator.mjs';
 import { loadAttemptLedger, isRepairRejected, rejectionReasons } from './repair-attempt-ledger.mjs';
+import { buildAdaptiveFailureMemory } from './repair-ten-x.mjs';
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
@@ -540,6 +541,14 @@ const index = forcedBehaviorIndex >= 0 && availableIndexes.includes(forcedBehavi
       ? intelligentIndex
       : (divergentIndexes[0] ?? availableIndexes[(Math.max(0, nextAttempt - 1)) % availableIndexes.length]);
 const [strategyId, strategy] = strategies[index];
+const adaptiveFailureMemory = buildAdaptiveFailureMemory({
+  attempt: nextAttempt,
+  priorStrategies,
+  selectedStrategy: strategyId,
+  allStrategiesExhausted,
+  teachingEscalation: record?.status === 'INTRACTABLE' || nextAttempt > INTRACTABLE_THRESHOLD || allStrategiesExhausted,
+  causalRootCause: causal.rootCause,
+});
 const fiveXProfile = buildFiveXRepairProfile({
   targetSha: process.env.FLIXO_EXPECTED_TARGET_SHA ?? process.env.FLIXO_TARGET_SHA ?? '',
   stableFingerprint: stableCaseFingerprint,
@@ -608,6 +617,7 @@ const teachingPacket = {
   exitCriteria: 'verified-repair-on-exact-target-sha-and-canonical-green',
   intelligence: {
     version: 'V13-BEHAVIORAL-TRAINING',
+    adaptiveFailureMemory,
     causal,
     strategyPortfolio: intelligentRanking.portfolio,
     falsificationPlan: buildFalsificationPlan(causal, intelligentRanking),
@@ -652,6 +662,7 @@ fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   },
   steering: steeringDirective,
   fiveXRepair: fiveXProfile,
+  adaptiveFailureMemory,
   trainingMode: training?.decision?.mode ?? 'MISSING',
   trainingDecision,
   nextEvidence,
