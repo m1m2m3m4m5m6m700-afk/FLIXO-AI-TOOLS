@@ -80,3 +80,16 @@ The clone consumes the same `FLIXO-BOT-BRAIN-v1` capability set and the same can
 **All → clone:** all published shared learning from active agents/bots is exposed to the clone through the system-wide shared learning context.
 
 Knowledge is shared; authority is not. Mutation, certification, merge, dispatch and chair ownership remain governed by the existing control plane and exact-SHA contracts.
+
+
+## External UI Agent Learning Bridge
+
+Protocol: `FLIXO-BIDIRECTIONAL-COGNITIVE-MESH-v1`
+
+The external FLIXO UI agent `execution-agent-clone-v1` is connected to the same canonical learning stream through the durable server-side table `public.flixo_agent_learning_events`.
+
+**Internal → external:** verified/promoted exact-SHA learning is mirrored into the durable table and is supplied to the external agent on subsequent conversations.
+
+**External → internal:** the external agent may emit a bounded `PROPOSED` learning candidate. CI sync imports only candidates bound to the current exact SHA into canonical shared operational memory. Proposed knowledge remains advisory until independently verified and promoted through the existing learning and GREEN gates.
+
+The browser never receives repository secrets and never writes the canonical repository memory directly.
