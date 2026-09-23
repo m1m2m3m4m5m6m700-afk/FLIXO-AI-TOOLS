@@ -368,7 +368,7 @@ export function ToolWorkbench<P>({
             <div className="flixo-tool-view-toggle" role="tablist" aria-label={t('Preview')}>
               {([
                 ['compare', t('Compare')],
-                ['before', locale.toLowerCase().startsWith('ar') ? 'قبل' : 'Before'],
+                ['before', t('Before')],
                 ['after', t('After')],
               ] as const).map(([mode, label]) => (
                 <button key={mode} type="button" className={`flixo-tool-view-btn ${viewMode === mode ? 'active' : ''}`} onClick={() => setViewMode(mode)}>{label}</button>
