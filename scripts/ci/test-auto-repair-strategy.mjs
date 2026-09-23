@@ -42,4 +42,6 @@ assert.match(source, /X4_LEARNING_MEMORY/u);
 assert.match(source, /X5_VERIFICATION_PLAN/u);
 assert.match(source, /readyForBoundedMutation/u);
 assert.match(source, /COLLECT_MORE_EVIDENCE/u);
+assert.match(source, /buildAdaptiveFailureMemory/u);
+assert.match(source, /adaptiveFailureMemory/u);
 console.log('FIVE_X_REPAIR_METHOD_CONTRACT=PASS');
