@@ -46,10 +46,11 @@ jobs:
           test -n "$sha"
           printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout trusted main deployment controller
+      - name: Checkout trusted default-branch deployment controller
         uses: actions/checkout@v5
         with:
-          ref: main
+          # workflow_run runs from the default branch; leaving ref unset avoids
+          # introducing an explicit checkout reference into a privileged workflow.
           fetch-depth: 1
           persist-credentials: false
 
