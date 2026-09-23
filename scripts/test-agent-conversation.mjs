@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { classifyConversation, contextualizeCommand, createConversationMemory } from '../src/lib/agent/conversation.ts';
+import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
 import { parseAgentDecision, parseAgentRequest } from '../src/lib/contracts/agent-gateway.ts';
 import { extractParameters } from '../src/lib/agent/intent/parameter-extractor.ts';
 import { planFromIntent } from '../src/lib/ai/planner.ts';
@@ -29,7 +30,22 @@ assert.deepEqual(chainedPlan?.steps.map((step) => step.toolId), [
   'image-converter',
 ]);
 
-console.log('Agent multi-turn conversation contract tests passed.');
+const humanPrompt = buildFlixoHumanConversationPrompt({
+  locale: 'ar',
+  activeCommand: 'قص الصورة',
+  activePlan: null,
+  file: { name: 'photo.png', type: 'image/png', size: 128 },
+  catalog: [{ id: 'image-cropper', title: 'Crop image' }],
+  catalogFingerprint: 'a'.repeat(64),
+});
+assert.match(humanPrompt, /Treat every turn as part of one ongoing conversation/);
+assert.match(humanPrompt, /Resolve short follow-ups and references/);
+assert.match(humanPrompt, /Arabic may be Egyptian colloquial/);
+assert.match(humanPrompt, /one focused question/);
+assert.match(humanPrompt, /Return JSON only/);
+assert.match(humanPrompt, /FLIXO BOT/);
+
+console.log('Agent multi-turn conversation + human understanding contract tests passed.');
 
 const request = parseAgentRequest({
   locale: 'ar',
