@@ -168,8 +168,9 @@ export function validateStatic() {
   must(heartbeat.includes('actions/workflows/agent-repair-supervisor.yml/dispatches'), 'heartbeat-observer-only-wakeup');
   must(/cron:\s*'\*\/1 \* \* \* \*'/.test(heartbeat), 'heartbeat-one-minute-schedule');
   must(/HEARTBEAT_INTERVAL_SECONDS=60/.test(heartbeat), 'heartbeat-one-minute-emission');
-  must(/action-repair-five-workers\.mjs[\s\S]*--role=wake/.test(heartbeat), 'heartbeat-team-wake-plan');
-  must(/ALL_ACTION_REPAIR_TEAM_WAKE=true/.test(heartbeat), 'heartbeat-team-wake-broadcast');
+  must(/flixo-ten-pulse\.mjs|flixo-team-pulse/.test(heartbeat), 'heartbeat-team-wake-plan');
+  must(/ONE_PULSE_WAKE_SCOPE=ALL_AGENTS|wakeScope.?ALL_AGENTS/.test(heartbeat), 'heartbeat-team-wake-broadcast');
+  must(!/pulseCount==10|DIFFERENTIATED_PULSES=10|ALL_AGENTS_WAKE_DIRECTIVES_EMITTED=10/.test(heartbeat), 'heartbeat-no-ten-pulse-competition');
 
   must(handoffGate.includes('CURRENT_EXECUTION_SHA=') && handoffGate.includes('HANDOFF_EXECUTION_SHA'), 'handoff-gate-current-head-check');
   must(/Create exact unpublished candidate commit/.test(auto), 'auto-repair-candidate-commit');
