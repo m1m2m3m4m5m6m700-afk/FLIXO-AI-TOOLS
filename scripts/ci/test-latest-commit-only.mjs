@@ -15,6 +15,7 @@ const files = [
 const staleGuard = /Fail closed when this commit is superseded[\s\S]*?run: node scripts\/ci\/assert-current-commit\.mjs/u;
 const nonCancellingEvidenceFiles = new Set([
   '.github/workflows/daily-flixo-green-gate.yml',
+  '.github/workflows/test-impact.yml',
   '.github/workflows/claude-security-review.yml',
 ]);
 
