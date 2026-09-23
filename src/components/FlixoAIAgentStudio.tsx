@@ -93,7 +93,7 @@ export function FlixoAIAgentStudio({
   return (
     <section className="flixo-ai-agent flixo-agent-studio" aria-labelledby="flixo-agent-studio-title" data-testid="flixo-agent-studio">
       <nav className="flixo-agent-rail" aria-label={locale === 'ar' ? 'تنقل وكيل فليكسو' : 'FLIXO agent navigation'}>
-        <div className="flixo-agent-rail-logo mono">FX</div>
+        <img className="flixo-agent-rail-logo" src="/flixo-brand-mark.webp" alt="FLIXO" width={34} height={34} />
         <button className="flixo-agent-rail-btn active" type="button" title={locale === 'ar' ? 'المحادثة' : 'Chat'} aria-label={locale === 'ar' ? 'المحادثة' : 'Chat'}>
           <span>◌</span>
         </button>
@@ -112,6 +112,7 @@ export function FlixoAIAgentStudio({
       <section className="flixo-agent-chat-col">
         <header className="flixo-agent-chat-top">
           <div className="flixo-agent-chat-top-left">
+            <img className="flixo-agent-chat-logo" src="/flixo-brand-mark.webp" alt="" width={28} height={28} />
             <span className="flixo-agent-status-dot" />
             <div>
               <div className="flixo-agent-chat-title" id="flixo-agent-studio-title">وكيل FLIXO</div>
@@ -145,7 +146,7 @@ export function FlixoAIAgentStudio({
         <div className="flixo-agent-messages" aria-live="polite">
           {messages.map((message) => (
             <div key={message.id} className={`flixo-agent-msg ${message.role}`}>
-              <div className={`flixo-agent-avatar ${message.role}`}>{message.role === 'agent' ? 'FX' : (locale === 'ar' ? 'أنت' : 'YOU')}</div>
+              <div className={`flixo-agent-avatar ${message.role}`}>{message.role === 'agent' ? <img src="/flixo-brand-mark.webp" alt="FLIXO" width={28} height={28} /> : (locale === 'ar' ? 'أنت' : 'YOU')}</div>
               <div className="flixo-agent-bubble">
                 <p>{message.text}</p>
                 {message.role === 'user' && file && message.id === messages.filter((item) => item.role === 'user').at(-1)?.id && (
