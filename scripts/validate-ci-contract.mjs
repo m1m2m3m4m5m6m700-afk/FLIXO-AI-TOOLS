@@ -23,6 +23,10 @@ const impactExecutionWorkflow = readFileSync('.github/workflows/test-impact-exec
 const securityBaselineWorkflow = readFileSync('.github/workflows/repository-security-baseline.yml', 'utf8');
 const claudeSecurityWorkflow = readFileSync('.github/workflows/claude-security-review.yml', 'utf8');
 const greenGateWorkflow = readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
+const autoRepairMergeGateWorkflow = readFileSync('.github/workflows/auto-repair-merge-gate.yml', 'utf8');
+const repairAgentIntakeWorkflow = readFileSync('.github/workflows/repair-agent-intake.yml', 'utf8');
+const agentMasterActivationWorkflow = readFileSync('.github/workflows/agent-master-activation.yml', 'utf8');
+const continuousWatchWorkflow = readFileSync('scripts/ci/continuous-error-watch.mjs', 'utf8');
 const currentCommitGuard = readFileSync('scripts/ci/assert-current-commit.mjs', 'utf8');
 const workflow = workflowSource.replace(/\\"/g, '"');
 const testEngine = readFileSync('scripts/test.mjs', 'utf8');
@@ -352,8 +356,34 @@ if (
   process.exit(1);
 }
 
-const autoRepairMergeGateWorkflow = workflowTexts.find(({ file }) => file === 'auto-repair-merge-gate.yml')?.text ?? '';
 const promotionClosureValidator = readFileSync('scripts/ci/validate-promotion-closure.mjs', 'utf8');
+const canonicalWorkflowSourceMarkers = [
+  ['watcher-path-map', continuousWatchWorkflow, 'REQUIRED_WORKFLOW_PATHS'],
+  ['watcher-path-filter', continuousWatchWorkflow, 'run.workflowName === name && (!expectedPath || String(run.workflowPath ?? run.path ?? \'\') === expectedPath)'],
+  ['merge-path-map', autoRepairMergeGateWorkflow, 'REQUIRED_WORKFLOW_PATHS'],
+  ['merge-path-filter', autoRepairMergeGateWorkflow, '.path == $path'],
+  ['merge-cancel-visible', autoRepairMergeGateWorkflow, 'conclusion == "cancelled"'],
+  ['daily-path-filter', greenGateWorkflow, '.path == (".github/workflows/" + $file)'],
+  ['intake-durable-run-gate', repairAgentIntakeWorkflow, "steps.resolve_run.outputs.has_run == 'true'"],
+  ['intake-source-path', repairAgentIntakeWorkflow, 'WORKFLOW_PATH'],
+  ['master-activation-source', agentMasterActivationWorkflow, '.github/workflows/ci.yml'],
+  ['master-activation-live-sha', agentMasterActivationWorkflow, 'git/ref/heads/execution'],
+  ['watchdog-source-path', executionWatchdogWorkflow, 'SOURCE_PATH'],
+];
+for (const [label, source, marker] of canonicalWorkflowSourceMarkers) {
+  if (!source.includes(marker)) {
+    console.error('CI contract failed: ' + label + ' is missing.');
+    process.exit(1);
+  }
+}
+if (repairAgentIntakeWorkflow.includes("hashFiles('/tmp/run-id')")) {
+  console.error('CI contract failed: repair-agent-intake cannot use hashFiles on /tmp.');
+  process.exit(1);
+}
+if (!greenGateWorkflow.includes('SETTLEMENT_FOUND_RED')) {
+  console.error('CI contract failed: Daily Green Gate must expose latest cancellation as RED evidence.');
+  process.exit(1);
+}
 const certificationSourceBindingMarkers = [
   'TEST_SYSTEM_RUN_ID=',
   'select(.name == "FLIXO Test System" and .headSha == $sha and .status == "completed" and .conclusion == "success")',

@@ -165,6 +165,42 @@ assert.equal(
   false,
 );
 
+const spoofedRequiredWorkflow = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns.map((item) =>
+    item.workflowName === 'FLIXO Test System'
+      ? { ...item, path: '.github/workflows/not-canonical.yml' }
+      : item,
+  ),
+  checkRuns: securityAndCertification,
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(spoofedRequiredWorkflow.ci.requiredWorkflows['FLIXO Test System'].status, 'MISSING');
+assert.equal(spoofedRequiredWorkflow.errors.some((item) => item.type === 'REQUIRED_WORKFLOW_MISSING' && item.workflow === 'FLIXO Test System'), true);
+assert.notEqual(spoofedRequiredWorkflow.status, 'GREEN');
+
+const latestCancelledWithOlderSuccess = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: [
+    ...requiredRuns.map((item) => item.workflowName === 'FLIXO Test Impact Execution'
+      ? { ...item, databaseId: 60, conclusion: 'success', updatedAt: '2026-09-19T00:00:00Z' }
+      : item),
+    { ...run('FLIXO Test Impact Execution', 61, 'cancelled'), updatedAt: '2026-09-19T00:02:00Z' },
+  ],
+  checkRuns: securityAndCertification,
+  logs: {
+    60: 'EVIDENCE_CAPTURE=AVAILABLE\nolder success',
+    61: 'EVIDENCE_CAPTURE=AVAILABLE\nlatest cancellation',
+  },
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(latestCancelledWithOlderSuccess.ci.requiredWorkflows['FLIXO Test Impact Execution'].status, 'cancelled');
+assert.equal(latestCancelledWithOlderSuccess.errors.some((item) => item.type === 'REQUIRED_WORKFLOW_RED' && item.workflow === 'FLIXO Test Impact Execution' && item.status === 'cancelled'), true);
+assert.notEqual(latestCancelledWithOlderSuccess.status, 'GREEN');
 const securityWorkflowEvidence = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
   workflowRuns: requiredRuns,
