@@ -375,21 +375,23 @@ function analyzeSnapshot(input) {
   if (securitySignals.some((item) => item.classification === 'SECURITY_SIGNAL')) unknowns.push('SECURITY_SIGNAL_IS_NOT_A_VULNERABILITY_VERDICT');
   if (securityFindings.length === 0 && securityAnnotations.length === 0) unknowns.push('NO_CODE_SCANNING_ALERTS_OR_CODEQL_ANNOTATIONS_IN_CAPTURED_SECURITY_SNAPSHOT');
 
+  const deepInference = buildDeepInference({
+    executionSha: currentSha,
+    observed,
+    historicalSignals: historical,
+    securityFindings,
+    recurringPatterns,
+    downstreamFailures,
+    staleEvidence,
+  });
+
   const readOnlyRepairBrain = buildReadOnlyRepairBrain({
     executionSha: currentSha,
     observed: [...observed, ...recurringPatterns.map(item => ({headSha:currentSha, recurringPatterns:[item], occurrences:item.occurrences, classification:item.classes?.[0], salientEvidence:item.representativeEvidence}))],
     historicalMemory: historical.memoryLessons,
     rootCauseCandidates,
     securitySignals,
-    deepInference: buildDeepInference({
-      executionSha: currentSha,
-      observed,
-      historicalSignals: historical,
-      securityFindings,
-      recurringPatterns,
-      downstreamFailures,
-      staleEvidence,
-    }),
+    deepInference,
   });
 
   const summary = {
@@ -431,7 +433,7 @@ function analyzeSnapshot(input) {
     securityEvidence,
     historicalSignals: historical,
     sharedOperationalMemory: sharedLearning,
-    deepInference: readOnlyRepairBrain ? readOnlyRepairBrain.deepInference ?? null : null,
+    deepInference,
     repairBrainMirror: readOnlyRepairBrain,
     unknowns,
     decisionPolicy: 'Evidence-backed analysis only. A recurring pattern is not proof of causality. A security signal is not a vulnerability verdict. No report authorizes mutation, certification, merge, push, or repair.',
