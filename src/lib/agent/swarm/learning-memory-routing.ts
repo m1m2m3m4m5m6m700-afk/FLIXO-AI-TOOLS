@@ -489,6 +489,132 @@ export function detectDrift(input: { previousContractDigest: string; currentCont
   });
 }
 
+export type MemoryHistoryEvent = Readonly<{
+  recordId: string; exactSha: string | null; sourceTimestamp: string; imported: true; historical: true; advisoryOnly: true; digest: string;
+}>;
+export type HistoricalBackfillResult = Readonly<{
+  records: readonly SwarmKnowledge[]; history: readonly MemoryHistoryEvent[]; importedCount: number; currentBoundCount: number; historicalOnlyCount: number; currentSha: string; authority: 'ADVISORY_ONLY'; digest: string;
+}>;
+export function importMemoryHistory(records: readonly KnowledgeRecord[], currentSha: string): HistoricalBackfillResult {
+  if (!SHA40.test(currentSha)) throw new Error('MEMORY_IMPORT_SHA_INVALID');
+  const validated = records.map(validateKnowledgeRecord);
+  const imported: SwarmKnowledge[] = []; const history: MemoryHistoryEvent[] = [];
+  for (const record of validated) {
+    const currentBound = record.provenance.some(value => value.includes(currentSha));
+    const importedRecord = makeKnowledge({
+      id: 'HIST-' + record.id, content: record.content, source: record.source, sourceType: record.sourceType, version: record.version,
+      scope: record.scope, confidence: record.confidence, provenance: [...record.provenance, 'historical:' + record.id],
+      validity: record.validity, status: record.status, layer: 'L1',
+      authority: currentBound && record.status === 'VERIFIED' && record.validity === 'CURRENT' ? 0.6 : 0.2,
+      exactSha: currentBound ? currentSha : null, exactShaVerified: currentBound, evidenceCount: record.provenance.length,
+      polarity: 'UNKNOWN', createdAt: record.timestamp, lastVerifiedAt: currentBound ? record.timestamp : null,
+      expiresAt: record.validity === 'CURRENT' ? null : record.timestamp,
+    });
+    imported.push(importedRecord);
+    history.push(Object.freeze({
+      recordId: importedRecord.id, exactSha: importedRecord.exactSha, sourceTimestamp: record.timestamp,
+      imported: true, historical: true, advisoryOnly: true,
+      digest: hash({record: record.id, fingerprint: record.fingerprint, exactSha: importedRecord.exactSha}),
+    }));
+  }
+  const digest = hash({currentSha, records: imported.map(record => [record.id, record.canonicalKey, record.exactSha, record.validity]), history: history.map(event => [event.recordId, event.digest])});
+  return Object.freeze({
+    records: Object.freeze(imported), history: Object.freeze(history), importedCount: imported.length,
+    currentBoundCount: imported.filter(record => record.exactShaVerified).length,
+    historicalOnlyCount: imported.filter(record => !record.exactShaVerified).length,
+    currentSha, authority: 'ADVISORY_ONLY', digest,
+  });
+}
+export function historicalBackfill(records: readonly KnowledgeRecord[], currentSha: string) {
+  const result = importMemoryHistory(records, currentSha);
+  return Object.freeze({...result, status: 'BACKFILL_COMPLETE' as const, promotionAllowed: false, certificationAllowed: false});
+}
+export type WeaknessObservation = Readonly<{
+  fingerprint: string; category: string; rootCause: string; skill?: string; capability?: string; exactSha: string;
+  outcome: MissionOutcome | 'SHADOW'; severity?: number; contextKey?: string;
+}>;
+export function buildWeaknessGenome(observations: readonly WeaknessObservation[], currentSha: string) {
+  if (!SHA40.test(currentSha)) throw new Error('WEAKNESS_GENOME_SHA_INVALID');
+  const groups = new Map<string, WeaknessObservation[]>();
+  for (const observation of observations) {
+    if (!SHA256.test(observation.fingerprint) || !SHA40.test(observation.exactSha)) throw new Error('WEAKNESS_GENOME_OBSERVATION_INVALID');
+    const key = [observation.fingerprint, normalize(observation.category), normalize(observation.rootCause)].join('|');
+    groups.set(key, [...(groups.get(key) ?? []), observation]);
+  }
+  const genes = [...groups.values()].map(group => {
+    const failureCount = group.filter(x => x.outcome === 'FAILURE').length;
+    const blockedCount = group.filter(x => x.outcome === 'BLOCKED_INTERNAL' || x.outcome === 'BLOCKED_EXTERNAL').length;
+    const severities = group.map(x => Math.max(0, Math.min(1, x.severity ?? (x.outcome === 'FAILURE' ? 1 : 0.5))));
+    return Object.freeze({
+      fingerprint: group[0].fingerprint, category: normalize(group[0].category), rootCause: normalize(group[0].rootCause),
+      recurrence: group.length, failureCount, blockedCount,
+      averageSeverity: severities.reduce((sum, value) => sum + value, 0) / severities.length,
+      contexts: new Set(group.map(x => x.contextKey ?? 'unknown')).size,
+      skills: Object.freeze([...new Set(group.map(x => x.skill).filter(Boolean) as string[])].sort()),
+      capabilities: Object.freeze([...new Set(group.map(x => x.capability).filter(Boolean) as string[])].sort()),
+      currentShaEvidence: group.filter(x => x.exactSha === currentSha).length,
+    });
+  }).sort((a, b) => b.recurrence - a.recurrence || b.averageSeverity - a.averageSeverity || a.fingerprint.localeCompare(b.fingerprint));
+  return Object.freeze({schemaVersion: 1, exactSha: currentSha, authoritative: false, genes: Object.freeze(genes), digest: hash(genes)});
+}
+export function validateSkillsContinuously(observations: readonly SkillObservation[], currentSha: string, minimumAttempts = 2, minimumSuccessRate = 0.75) {
+  if (!SHA40.test(currentSha)) throw new Error('CONTINUOUS_SKILL_VALIDATION_SHA_INVALID');
+  if (!Number.isInteger(minimumAttempts) || minimumAttempts < 1) throw new Error('CONTINUOUS_SKILL_MIN_ATTEMPTS_INVALID');
+  if (!Number.isFinite(minimumSuccessRate) || minimumSuccessRate < 0 || minimumSuccessRate > 1) throw new Error('CONTINUOUS_SKILL_THRESHOLD_INVALID');
+  const groups = new Map<string, SkillObservation[]>();
+  for (const observation of observations) {
+    if (!SHA40.test(observation.exactSha)) throw new Error('CONTINUOUS_SKILL_OBSERVATION_SHA_INVALID');
+    const key = [observation.skill, observation.capability].join('|'); groups.set(key, [...(groups.get(key) ?? []), observation]);
+  }
+  const skills = [...groups.values()].map(group => {
+    const current = group.filter(x => x.exactSha === currentSha);
+    const attempts = current.filter(x => x.outcome !== 'SHADOW').length;
+    const verifiedSuccesses = current.filter(x => x.outcome === 'SUCCESS' && x.verified).length;
+    const failures = current.filter(x => x.outcome === 'FAILURE').length;
+    const successRate = attempts ? verifiedSuccesses / attempts : 0;
+    const status = attempts < minimumAttempts ? 'INSUFFICIENT_EVIDENCE' : (successRate >= minimumSuccessRate && failures === 0 ? 'VALID' : 'DEGRADED');
+    return Object.freeze({skill: group[0].skill, capability: group[0].capability, attempts, verifiedSuccesses, failures, currentShaEvidence: current.length, successRate, status});
+  });
+  const status = skills.some(x => x.status === 'DEGRADED') ? 'DEGRADED' : (skills.some(x => x.status === 'INSUFFICIENT_EVIDENCE') ? 'INSUFFICIENT_EVIDENCE' : 'PASS');
+  return Object.freeze({exactSha: currentSha, status, skills: Object.freeze(skills), advisoryOnly: true as const});
+}
+export function runUpgradeEngine(input: {exactSha: string; genome: ReturnType<typeof buildWeaknessGenome>; skillValidation?: ReturnType<typeof validateSkillsContinuously>; maxProposals?: number}) {
+  if (!SHA40.test(input.exactSha)) throw new Error('UPGRADE_ENGINE_SHA_INVALID');
+  if (input.genome.exactSha !== input.exactSha) throw new Error('UPGRADE_ENGINE_STALE_GENOME');
+  const maxProposals = input.maxProposals ?? 8;
+  if (!Number.isInteger(maxProposals) || maxProposals < 1 || maxProposals > 32) throw new Error('UPGRADE_ENGINE_LIMIT_INVALID');
+  const proposals = input.genome.genes.slice(0, maxProposals).map(gene => Object.freeze({
+    upgradeId: 'UPG-' + gene.fingerprint.slice(0, 16), weaknessFingerprint: gene.fingerprint,
+    action: gene.skills.length ? 'validate-and-strengthen:' + gene.skills[0] : 'investigate:' + gene.category,
+    reason: gene.rootCause + ': recurrence=' + gene.recurrence + ', severity=' + gene.averageSeverity.toFixed(2),
+    priority: Math.min(1, gene.averageSeverity * 0.6 + Math.min(1, gene.recurrence / 5) * 0.4),
+    exactSha: input.exactSha, authority: 'ADVISORY_ONLY' as const,
+  }));
+  const skillDegradation = input.skillValidation?.skills.filter(x => x.status === 'DEGRADED') ?? [];
+  for (const skill of skillDegradation.slice(0, Math.max(0, maxProposals - proposals.length))) proposals.push(Object.freeze({
+    upgradeId: 'UPG-SKILL-' + hash(skill).slice(0, 12), weaknessFingerprint: hash(skill),
+    action: 'revalidate-skill:' + String(skill.skill),
+    reason: 'continuous skill validation degraded for capability ' + String(skill.capability),
+    priority: 0.85, exactSha: input.exactSha, authority: 'ADVISORY_ONLY' as const,
+  }));
+  return Object.freeze({exactSha: input.exactSha, proposals: Object.freeze(proposals), mutationAllowed: false, certificationAllowed: false, authoritative: false});
+}
+export function buildControllerLearningSignal(input: {
+  exactSha: string;
+  missionResults: readonly Pick<MissionResultContract, 'missionId' | 'outcome' | 'strategyId' | 'exactSha' | 'verified' | 'reverted'>[];
+  genome: ReturnType<typeof buildWeaknessGenome>;
+  upgrades: ReturnType<typeof runUpgradeEngine>;
+  skillValidation: ReturnType<typeof validateSkillsContinuously>;
+}) {
+  if (!SHA40.test(input.exactSha) || input.genome.exactSha !== input.exactSha || input.upgrades.exactSha !== input.exactSha || input.skillValidation.exactSha !== input.exactSha) throw new Error('CONTROLLER_LEARNING_CONTEXT_STALE');
+  if (input.missionResults.some(result => result.exactSha !== input.exactSha)) throw new Error('CONTROLLER_LEARNING_RESULT_STALE');
+  const failures = input.missionResults.filter(result => result.outcome === 'FAILURE' || result.outcome === 'BLOCKED_INTERNAL').length;
+  const externalBlocks = input.missionResults.filter(result => result.outcome === 'BLOCKED_EXTERNAL').length;
+  const rejected = input.missionResults.filter(result => result.outcome === 'REVERTED' || result.reverted).length;
+  const decision = externalBlocks > 0 ? 'ESCALATE_EXTERNAL' : (rejected > 0 ? 'ROLLBACK' : (failures > 0 ? 'REVIEW' : 'CONTINUE'));
+  return Object.freeze({exactSha: input.exactSha, decision, failureCount: failures, externalBlockCount: externalBlocks, rejectedStrategyCount: rejected, upgradeCount: input.upgrades.proposals.length, skillStatus: input.skillValidation.status, authority: 'ADVISORY_ONLY' as const, mutationAllowed: false, certificationAllowed: false});
+}
+
 export const FAILURE_INJECTION_CATALOG = Object.freeze([
   'STALE_SHA',
   'DUPLICATE_KNOWLEDGE',
@@ -502,6 +628,35 @@ export const FAILURE_INJECTION_CATALOG = Object.freeze([
   'FILTER_MASK_RUNTIME_DEPENDENCY_MISSING',
   'CAMERA_RECORDER_EVIDENCE_GAP',
 ]);
+
+export type FailureInjectionId = typeof FAILURE_INJECTION_CATALOG[number];
+
+export function injectFailureScenario(input: {injection: FailureInjectionId; exactSha: string; payload: Readonly<Record<string, unknown>>}) {
+  if (!SHA40.test(input.exactSha)) throw new Error('FAILURE_INJECTION_SHA_INVALID');
+  if (!FAILURE_INJECTION_CATALOG.includes(input.injection)) throw new Error('FAILURE_INJECTION_UNKNOWN');
+  const payload = {...input.payload};
+  switch (input.injection) {
+    case 'STALE_SHA': payload.exactSha = '0'.repeat(40); break;
+    case 'DUPLICATE_KNOWLEDGE': { const records = Array.isArray(payload.records) ? payload.records : []; payload.records = [...records, ...records]; break; }
+    case 'CONTRADICTORY_KNOWLEDGE': payload.polarity = 'REFUTES'; payload.contradictionInjected = true; break;
+    case 'POISONED_PROVENANCE': payload.provenance = ['GENERATED_UNTRUSTED']; break;
+    case 'EXPIRED_SKILL': payload.skillStatus = 'EXPIRED'; break;
+    case 'LOW_CONFIDENCE_PROMOTION': payload.confidence = 0; payload.promotionEligible = false; break;
+    case 'MISSING_REPLAY_INPUT': payload.memorySnapshotIds = []; payload.replayInputMissing = true; break;
+    case 'EXTERNAL_ORACLE_UNKNOWN': payload.oracle = 'UNKNOWN'; break;
+    case 'PRODUCT_AGENT_HANDOFF_MISMATCH': payload.capabilityId = ''; payload.evidenceRefs = []; break;
+    case 'FILTER_MASK_RUNTIME_DEPENDENCY_MISSING': payload.dependencies = []; payload.runtimeDependencyMissing = true; break;
+    case 'CAMERA_RECORDER_EVIDENCE_GAP': payload.evidenceRefs = []; payload.evidenceGap = true; break;
+    default: throw new Error('FAILURE_INJECTION_UNKNOWN');
+  }
+  const mutationDigest = hash({injection: input.injection, exactSha: input.exactSha, payload});
+  return Object.freeze({injection: input.injection, exactSha: input.exactSha, mutatedPayload: Object.freeze(payload), mutationDigest, authoritative: false, mutationAllowed: false, certificationAllowed: false});
+}
+export function validateFailureInjection(input: ReturnType<typeof injectFailureScenario>) {
+  if (!SHA40.test(input.exactSha) || !SHA256.test(input.mutationDigest)) throw new Error('FAILURE_INJECTION_EVIDENCE_INVALID');
+  if (input.authoritative || input.mutationAllowed || input.certificationAllowed) throw new Error('FAILURE_INJECTION_AUTHORITY_VIOLATION');
+  return true;
+}
 
 export function validateHandoff(input: { missionId: string; exactSha: string; capabilityId: string; evidenceRefs: readonly string[] }) {
   if (!input.missionId || !SHA40.test(input.exactSha) || !input.capabilityId || input.evidenceRefs.length === 0) throw new Error('PRODUCT_AGENT_HANDOFF_INVALID');
