@@ -1,8 +1,22 @@
 name: FLIXO Execution Bot Watchdog
 
 on:
-  # Dormant/manual observer only. Continuous residency is owned by agent-repair-heartbeat.
+  # Automatic guardian: schedule + execution push + RED workflow completion + manual recovery.
   workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+  push:
+    branches: [execution]
+  workflow_run:
+    workflows:
+      - FLIXO Test System
+      - FLIXO WP0 Trust Baseline
+      - FLIXO Test Impact
+      - FLIXO Test Impact Execution
+      - Repository Security Baseline
+      - Claude Security Review
+      - FLIXO Auto Repair Bot
+    types: [completed]
 
 permissions:
   # The watchdog may wake the trusted Daily·FLIXO Green Gate on the first RED.
@@ -20,14 +34,17 @@ jobs:
   wake:
     name: Exact-SHA observer wake
     if: >-
-      (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/execution')) &&
-      (github.event_name == 'workflow_dispatch' ||
-       github.event_name == 'schedule' ||
-       github.event_name == 'push' ||
-       (
-         github.event.workflow_run.conclusion != 'success' ||
-         github.event.workflow_run.name == 'FLIXO Auto Repair Bot'
-       ))
+      (
+        github.event_name == 'workflow_run' ||
+        github.event_name == 'schedule' ||
+        (github.event_name == 'push' && github.ref == 'refs/heads/execution') ||
+        (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/execution'))
+      ) &&
+      (
+        github.event_name != 'workflow_run' ||
+        github.event.workflow_run.conclusion != 'success' ||
+        github.event.workflow_run.name == 'FLIXO Auto Repair Bot'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 345
     steps:
@@ -163,8 +180,14 @@ jobs:
             echo 'wake=true' >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Ensure resident heartbeat is awake
-        if: github.event_name == 'schedule' && steps.source.outputs.stale != 'true'
+      - name: Ensure resident heartbeat is awake on every automatic recovery edge
+        if: >-
+          steps.source.outputs.stale != 'true' &&
+          (
+            github.event_name == 'schedule' ||
+            (github.event_name == 'push' && github.ref == 'refs/heads/execution') ||
+            github.event_name == 'workflow_run'
+          )
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
