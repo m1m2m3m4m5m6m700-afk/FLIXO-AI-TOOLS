@@ -12,6 +12,7 @@ import { initialize as initializeChairState, heartbeat as heartbeatChair, reconc
 import { createAgentWorkspace, captureAgentResult, assertWorkspaceIsolation, cleanupAgentWorkspace } from './agent-isolated-workspace.mjs';
 import { createChangeReport } from './guard-communication.mjs';
 import { buildSharedLearningContext, publishSharedBatch } from './shared-operational-memory.mjs';
+import { buildFullIntelligenceBootstrap, assertFullIntelligenceBootstrap } from './full-intelligence-policy.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -534,11 +535,13 @@ if (command === 'meeting-exit-approve') {
     chairId: null,
     chairLeaseId: null,
     chairBinding: { required: true, admission: 'CHAIR_REQUIRED_FOR_WORK', chairId: null, leaseId: null, targetSha: sha, taskId, workPackageId: taskId, acquiredAt: null, released: false },
-    sharedOperationalMemory: buildSharedLearningContext({botId: recordSourceBotForSession({ agentId, role }), limit: 64 }),
+    sharedOperationalMemory: buildSharedLearningContext({botId: recordSourceBotForSession({ agentId, role }), limit: 128, currentSha: sha}),
+    fullIntelligence: buildFullIntelligenceBootstrap({ agentId, role, request: rca ?? taskId, exactSha: sha, taskId }),
     bootstrap: !continuation,
     ...(continuation ?? {}),
     actions: [{ at: now(), action: 'LOGIN', sha, ...(continuation ? { fromSession } : {}) }],
   };
+  assertFullIntelligenceBootstrap(record.fullIntelligence, agentId);
   fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`, { flag: 'wx' });
   if (!workspaceOnly && isMaster(agentId)) {
     ensureSessionWorkChair(record);
