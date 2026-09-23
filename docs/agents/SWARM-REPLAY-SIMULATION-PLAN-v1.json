@@ -14,7 +14,9 @@
     "oracle",
     "failureInjections"
   ],
-  "comparison": "Output changes are measurable learning only when an explicit oracle provides PASS/FAIL.",\n  "missionResultContract": ["missionId", "taskId", "botId", "exactSha", "outcome", "evidenceRefs", "verified"],\n  "simulationAuthority": { "authoritative": false, "canCertify": false, "canPromote": false, "canMutate": false },
+  "comparison": "Output changes are measurable learning only when an explicit oracle provides PASS/FAIL.",
+  "missionResultContract": ["missionId", "taskId", "botId", "exactSha", "outcome", "evidenceRefs", "verified"],
+  "simulationAuthority": { "authoritative": false, "canCertify": false, "canPromote": false, "canMutate": false },
   "failureInjectionCatalog": [
     "STALE_SHA",
     "DUPLICATE_KNOWLEDGE",
@@ -36,4 +38,9 @@
     "TASK-117",
     "TASK-119"
   ]
-}\n
+  ,"historicalBackfill":"importMemoryHistory + historicalBackfill over canonical KnowledgeRecord history; advisory only"
+  ,"weaknessGenome":"buildWeaknessGenome exact-SHA-bound advisory synthesis"
+  ,"upgradeEngine":"runUpgradeEngine deterministic advisory proposals; mutationAllowed=false"
+  ,"controllerLearning":"buildControllerLearningSignal advisory decision interface"
+  ,"failureInjectionImplementation":"injectFailureScenario + validateFailureInjection deterministic non-authoritative simulation"
+}

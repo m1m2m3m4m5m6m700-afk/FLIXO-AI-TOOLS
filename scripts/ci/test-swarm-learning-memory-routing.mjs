@@ -39,6 +39,14 @@ import {
   expandSwarmSelection,
   buildRcaChain,
   evaluateShadowStrategy,
+  importMemoryHistory,
+  historicalBackfill,
+  buildWeaknessGenome,
+  validateSkillsContinuously,
+  runUpgradeEngine,
+  buildControllerLearningSignal,
+  injectFailureScenario,
+  validateFailureInjection,
 } from '../../src/lib/agent/swarm/learning-memory-routing.ts';
 
 const sha='a'.repeat(40);
@@ -195,5 +203,59 @@ assert.deepEqual(expanded,['CELL-001','CELL-002','CELL-003']);
 const rca=buildRcaChain({trigger:'test',propagation:'route',violatedInvariant:'exact-sha',causalSource:'router',symptom:'mismatch',exactSha:sha,evidenceRefs:['run:1']});
 assert.equal(rca.fingerprint.length,64);
 assert.equal(evaluateShadowStrategy({baseline:{oracle:'FAIL',outputHash:h},shadow:{oracle:'PASS',outputHash:c}}).authoritative,false);
+
+const historySource={
+  id:'K-HIST',
+  content:'Historical routing lesson.',
+  source:'historical-test',
+  sourceType:'TEST',
+  timestamp:'2026-09-01T00:00:00Z',
+  version:'1',
+  scope:'routing',
+  confidence:.8,
+  provenance:['historical-run:old-sha'],
+  validity:'STALE',
+  status:'PROBABLE',
+  fingerprint:h
+};
+const history=importMemoryHistory([historySource],sha);
+assert.equal(history.importedCount,1);
+assert.equal(history.historicalOnlyCount,1);
+assert.equal(history.authority,'ADVISORY_ONLY');
+assert.equal(historicalBackfill([historySource],sha).promotionAllowed,false);
+
+const genome=buildWeaknessGenome([
+  {fingerprint:h,category:'runtime',rootCause:'adapter',skill:'gpu',capability:'filter-mask',exactSha:sha,outcome:'FAILURE',severity:1,contextKey:'A'},
+  {fingerprint:h,category:'runtime',rootCause:'adapter',skill:'gpu',capability:'filter-mask',exactSha:sha,outcome:'FAILURE',severity:.8,contextKey:'B'}
+],sha);
+assert.equal(genome.genes.length,1);
+assert.equal(genome.genes[0].recurrence,2);
+
+const continuousSkill=validateSkillsContinuously([
+  {botId:'CELL-101',skill:'gpu',capability:'filter-mask',outcome:'SUCCESS',contextKey:'A',exactSha:sha,verified:true,timestamp:'2026-09-20T00:00:00Z'},
+  {botId:'CELL-101',skill:'gpu',capability:'filter-mask',outcome:'FAILURE',contextKey:'B',exactSha:sha,verified:true,timestamp:'2026-09-21T00:00:00Z'}
+],sha);
+assert.equal(continuousSkill.status,'DEGRADED');
+
+const upgrades=runUpgradeEngine({exactSha:sha,genome,skillValidation:continuousSkill,maxProposals:4});
+assert.equal(upgrades.authoritative,false);
+assert.equal(upgrades.mutationAllowed,false);
+
+const controllerSignal=buildControllerLearningSignal({
+  exactSha:sha,
+  missionResults:[{missionId:'M1',outcome:'FAILURE',strategyId:'S1',exactSha:sha,verified:true,reverted:false}],
+  genome,
+  upgrades,
+  skillValidation:continuousSkill
+});
+assert.equal(controllerSignal.decision,'REVIEW');
+assert.equal(controllerSignal.authority,'ADVISORY_ONLY');
+
+const injected=injectFailureScenario({injection:'STALE_SHA',exactSha:sha,payload:{value:'baseline'}});
+assert.equal(injected.mutatedPayload.exactSha,'0'.repeat(40));
+assert.equal(validateFailureInjection(injected),true);
+assert.equal(injected.certificationAllowed,false);
+
+console.log('LATEST_WAVE5_MISSING_CONTRACTS=PASS');
 
 console.log('SWARM_LEARNING_MEMORY_ROUTING=PASS');
