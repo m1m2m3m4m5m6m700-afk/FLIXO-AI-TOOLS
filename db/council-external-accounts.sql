@@ -118,6 +118,22 @@ begin
    where dispatch_id = v_dispatch.dispatch_id
   returning * into v_dispatch;
 
+  update public.flix_council_accounts
+     set current_session_id = v_session_id,
+         last_seen_at = now(),
+         updated_at = now()
+   where account_id = p_account_id;
+
+  insert into public.flix_council_events(
+    dispatch_id, account_id, event_type, exact_sha, payload
+  ) values (
+    v_dispatch.dispatch_id,
+    p_account_id,
+    'HEARTBEAT',
+    v_dispatch.entry_sha,
+    jsonb_build_object('source', 'COUNCIL_CLAIM', 'sessionId', v_session_id)
+  );
+
   return next v_dispatch;
 end;
 $$;
@@ -171,6 +187,12 @@ begin
          updated_at = now()
    where dispatch_id = p_dispatch_id
   returning * into v_dispatch;
+
+  update public.flix_council_accounts
+     set current_session_id = p_session_id,
+         last_seen_at = now(),
+         updated_at = now()
+   where account_id = p_account_id;
 
   insert into public.flix_council_events(
     dispatch_id, account_id, event_type, exact_sha, payload
@@ -241,6 +263,12 @@ begin
          updated_at = now()
    where dispatch_id = p_dispatch_id
   returning * into v_dispatch;
+
+  update public.flix_council_accounts
+     set current_session_id = p_session_id,
+         last_seen_at = now(),
+         updated_at = now()
+   where account_id = p_account_id;
 
   insert into public.flix_council_events(
     dispatch_id, account_id, event_type, exact_sha, payload
