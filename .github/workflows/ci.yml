@@ -58,7 +58,6 @@ jobs:
       - name: Verify immutable rerun lock
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          FLIXO_RUN_IDENTITY_PATH: dist/diagnostics/certification/run-identity.json
         run: node scripts/ci/verify-run-lock.mjs
       - name: Repair generated agent locale contract
         run: node scripts/ci/ensure-agent-locales.mjs
@@ -221,6 +220,7 @@ jobs:
       - name: Verify immutable rerun lock
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          FLIXO_RUN_IDENTITY_PATH: dist/diagnostics/certification/run-identity.json
         run: node scripts/ci/verify-run-lock.mjs
       - name: Verify exact run proof and artifact chain
         env:
