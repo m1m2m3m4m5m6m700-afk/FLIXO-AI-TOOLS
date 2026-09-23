@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 const sha = process.env.EXPECTED_SHA ?? '';
-const identityPath = 'diagnostics/certification/run-identity.json';
+const identityPath = process.env.FLIXO_RUN_IDENTITY_PATH ?? 'diagnostics/certification/run-identity.json';
 const identity = JSON.parse(readFileSync(identityPath, 'utf8'));
 const hash = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
 
@@ -17,6 +17,7 @@ const expectedFiles = [
   'package-lock.json',
   '.nvmrc',
   'playwright.config.ts',
+  'scripts/ci/verify-run-lock.mjs',
 ];
 if (JSON.stringify(identity.testDefinitionFiles ?? []) !== JSON.stringify(expectedFiles)) throw new Error('Test definition file set changed during rerun');
 const testDefinitionSha256 = createHash('sha256')

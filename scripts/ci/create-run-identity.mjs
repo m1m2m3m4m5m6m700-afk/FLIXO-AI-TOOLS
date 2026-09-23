@@ -14,6 +14,7 @@ const testDefinitionFiles = [
   'package-lock.json',
   '.nvmrc',
   'playwright.config.ts',
+  'scripts/ci/verify-run-lock.mjs',
 ];
 const testDefinitionSha256 = createHash('sha256')
   .update(testDefinitionFiles.map((file) => `${file}:${sha256(file)}`).join('\n'), 'utf8')

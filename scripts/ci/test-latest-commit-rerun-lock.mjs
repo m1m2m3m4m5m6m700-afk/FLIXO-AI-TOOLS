@@ -24,11 +24,12 @@ if (verifyStart < 0 || browserFastStart <= verifyStart || browserDeepStart <= br
 const verifySection = ci.slice(verifyStart, browserFastStart);
 const browserFast = ci.slice(browserFastStart, browserDeepStart);
 const browserDeep = ci.slice(browserDeepStart);
-assert.match(verifySection, /name:\s*flixo-build-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*path:\s*\|\n\s*dist\/\n\s*diagnostics\/certification\/run-identity\.json/u);
-assert.match(browserFast, /name:\s*flixo-build-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*path:\s*\./u);
+assert.match(verifySection, /name:\s*Propagate immutable run identity into browser build artifact[\s\S]*dist\/diagnostics\/certification\/run-identity\.json/u);
+assert.match(verifySection, /name:\s*flixo-build-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*path:\s*dist\//u);
+assert.match(browserFast, /name:\s*flixo-build-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*path:\s*dist/u);
 assert.doesNotMatch(browserFast, /flixo-static-build-evidence-\$\{\{\s*github\.run_id\s*\}\}/u);
-assert.match(browserFast, /name:\s*flixo-build-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*path:\s*\.[\s\S]*Verify immutable rerun lock/u);
-assert.match(browserDeep, /name:\s*flixo-build-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*path:\s*\./u);
+assert.match(browserFast, /name:\s*Verify immutable rerun lock[\s\S]*FLIXO_RUN_IDENTITY_PATH:\s*dist\/diagnostics\/certification\/run-identity\.json/u);
+assert.match(browserDeep, /name:\s*flixo-build-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*path:\s*dist/u);
 
 assert.doesNotMatch(supersession, /gh api --paginate --slurp/u);
 assert.doesNotMatch(supersession, /--paginate\b/u);
@@ -49,14 +50,17 @@ assert.match(supersession, /\*Repair\*/u);
 assert.match(createIdentity, /LATEST_COMMIT_ONLY_RERUN_LOCK_V2/u);
 assert.match(createIdentity, /testDefinitionSha256/u);
 assert.match(createIdentity, /playwright\.config\.ts/u);
+assert.match(createIdentity, /scripts\/ci\/verify-run-lock\.mjs/u);
 assert.match(createIdentity, /runId:/u);
 assert.match(createIdentity, /runAttempt:/u);
 assert.match(verifyLock, /LATEST_COMMIT_ONLY_RERUN_LOCK_V2/u);
-assert.match(verifyLock, /Test definition changed during run/u);
+assert.match(verifyLock, /FLIXO_RUN_IDENTITY_PATH/u);
+assert.match(verifyLock, /scripts\/ci\/verify-run-lock\.mjs/u);
 assert.match(createProof, /FLIXO-LATEST-COMMIT-RUN-PROOF-v1/u);
 assert.match(createProof, /runAttempt/u);
 assert.match(verifyProof, /RUN_PROOF_ARTIFACT_HASH_MISSING/u);
 assert.match(verifyProof, /RUN_PROOF_TEST_DEFINITION_MISMATCH/u);
+assert.match(verifyProof, /scripts\/ci\/verify-run-lock\.mjs/u);
 
 console.log('LATEST_COMMIT_ONLY=PASS');
 console.log('STALE_RUN_CANCELLATION=PASS');

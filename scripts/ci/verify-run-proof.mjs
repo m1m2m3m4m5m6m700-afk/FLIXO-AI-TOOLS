@@ -9,7 +9,7 @@ const hash = async (file) => createHash('sha256').update(await readFile(resolve(
 if (!/^[0-9a-f]{40}$/u.test(expectedSha)) throw new Error('RUN_PROOF_EXPECTED_SHA_INVALID');
 const proof = JSON.parse(await readFile(resolve(root, 'dist/__flixo/run-proof.json'), 'utf8'));
 const build = JSON.parse(await readFile(resolve(root, 'dist/__flixo/build-identity.json'), 'utf8'));
-const definitionFiles = ['.github/workflows/ci.yml','scripts/ci/test-plan.json','scripts/ci/assertion-registry.json','package.json','package-lock.json','.nvmrc','playwright.config.ts'];
+const definitionFiles = ['.github/workflows/ci.yml','scripts/ci/test-plan.json','scripts/ci/assertion-registry.json','package.json','package-lock.json','.nvmrc','playwright.config.ts','scripts/ci/verify-run-lock.mjs'];
 const parts = [];
 for (const file of definitionFiles) parts.push(file + ':' + await hash(file));
 const testDefinitionSha256 = createHash('sha256').update(parts.join('\n'), 'utf8').digest('hex');
