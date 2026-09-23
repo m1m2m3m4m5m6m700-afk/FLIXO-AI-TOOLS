@@ -190,7 +190,7 @@ const runCheck=(repoRoot,check)=>{
   if(v==='npm run lint') return execFileSync('npm',['run','lint'],{cwd:repoRoot,encoding:'utf8',timeout:300000});
   if(v==='npm run build') return execFileSync('npm',['run','build'],{cwd:repoRoot,encoding:'utf8',timeout:300000});
   if(/^npm run test:[A-Za-z0-9:_-]+$/u.test(v)) return execFileSync('npm',['run',v.slice(8)],{cwd:repoRoot,encoding:'utf8',timeout:300000});
-  if(/^node --check (?:scripts|diagnostics|src)\//u.test(v)) return execFileSync('node',['--check',v.slice(11)],{cwd:repoRoot,encoding:'utf8',timeout:120000});
+  if(/^node --check (?:scripts|diagnostics|src)\//u.test(v)) return execFileSync('node',['--check',v.slice('node --check '.length)],{cwd:repoRoot,encoding:'utf8',timeout:120000});
   throw new Error('MASTER_REPAIR_CHECK_NOT_ALLOWLISTED='+v);
 };
 
