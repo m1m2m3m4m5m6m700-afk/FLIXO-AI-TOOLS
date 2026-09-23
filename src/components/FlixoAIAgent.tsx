@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import type { ExecutionPlan } from '@/lib/ai/planner';
-import { buildIntentPlan, toExecutionPlan } from '@/lib/agent/intent/intent-plan';
+import { assessCognitiveRequest } from '@/lib/agent/cognitive-orchestrator';
 import type { PipelineProgress } from '@/lib/workflows/pipeline-runner';
 import { cancelPreparedExecution, confirmPreparedExecution, executePreparedExecution, prepareExecution, type PreparedExecution } from '@/lib/agent/execution-integrator';
 import { getReadyToolConfigs } from '@/config/tools';
@@ -130,8 +130,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const intent = useMemo(() => contextualQuery.trim() ? findToolIntent(contextualQuery, getReadyToolConfigs())[0] : null, [contextualQuery]);
   const planned = useMemo(() => {
     if (!contextualQuery.trim()) return null;
-    const intentPlan = buildIntentPlan(contextualQuery);
-    return intentPlan.status === 'READY' ? toExecutionPlan(intentPlan) : null;
+    return assessCognitiveRequest(contextualQuery).executionPlan;
   }, [contextualQuery]);
   const filterMaskMatch = intent?.tool.id === 'filter-mask';
 
@@ -169,9 +168,10 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const buildPlan = (command: string, responseCopy = copy): ExecutionPlan | null => {
     setError(null); setResult(null); setProgress(null);
     const contextualCommand = contextualizeCommand(command, memory);
-    const intentPlan = buildIntentPlan(contextualCommand);
-    if (intentPlan.status === 'NEEDS_INPUT') {
-      const missing = intentPlan.missing[0];
+    const cognitive = assessCognitiveRequest(contextualCommand);
+    if (cognitive.decision === 'NEEDS_INPUT') {
+      const missing = cognitive.intentPlan.missing[0];
+      const question = cognitive.clarificationQuestion?.question ?? missing?.question ?? null;
       setPreparedExecution(null);
       setPlan(null);
       setState('idle');
@@ -180,26 +180,19 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         command: contextualCommand,
         toolId: missing?.capability ?? current.activeToolId,
         pendingToolId: missing?.capability ?? null,
-        pendingQuestion: missing?.question ?? null,
+        pendingQuestion: question,
         planReady: false,
       }));
       return null;
     }
-    if (intentPlan.status !== 'READY') {
+    if (cognitive.decision !== 'EXECUTE_READY' || !cognitive.executionPlan) {
       setPreparedExecution(null);
       setPlan(null);
       setState('error');
-      setError(intentPlan.explanation || responseCopy.noSafePlan);
+      setError(cognitive.intentPlan.explanation || cognitive.semantic.reasons.join(', ') || responseCopy.noSafePlan);
       return null;
     }
-    const nextPlan = toExecutionPlan(intentPlan);
-    if (!nextPlan) {
-      setPreparedExecution(null);
-      setPlan(null);
-      setState('error');
-      setError(responseCopy.noSafePlan);
-      return null;
-    }
+    const nextPlan = cognitive.executionPlan;
     const firstStep = nextPlan.steps[0];
     setMemory((current) => setConversationTask(current, {
       command: contextualCommand,
