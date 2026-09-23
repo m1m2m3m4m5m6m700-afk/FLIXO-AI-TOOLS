@@ -9,7 +9,7 @@ on:
         required: true
         type: string
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/15 * * * *'
   workflow_run:
     workflows:
       - FLIXO Test System
@@ -23,27 +23,6 @@ on:
       - FLIXO Auto Repair Bot
       - FLIXO Auto Repair Chain
       - FLIXO Auto Repair Merge Gate
-      - FLIXO Agent Repair Supervisor
-      - FLIXO Agent Repair Heartbeat
-      - FLIXO Master Agent Activation Relay
-      - FLIXO Agent Communication Relay
-      - FLIXO Agent Repair Handoff Gate
-      - Agent Recovery Gate
-      - Admin 006 Persistence Roundtrip
-      - Bundle Boundary Contract
-      - CI SLO Report
-      - Dependency Health
-      - Dependency Usage Classification v2
-      - Deploy FLIXOAI
-      - Error Memory Root Cause
-      - Execution Bot Watchdog
-      - Execution Sync
-      - Phase3 Chain Compatibility
-      - Repair Lease Live Race
-      - Root Cause Diagnostics
-      - SEO Production Certification
-      - Test Matrix Contract
-      - Code Read-Only Scout
     types: [completed]
     branches: [execution, main]
 
