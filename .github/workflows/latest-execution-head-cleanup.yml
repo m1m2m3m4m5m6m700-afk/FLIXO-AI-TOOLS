@@ -1,8 +1,10 @@
 name: FLIXO Latest Execution HEAD Cleanup
 
 on:
+  push:
+    branches: [execution]
   schedule:
-    - cron: '17 3 * * 0'
+    - cron: '*/5 * * * *'
 
 concurrency:
   group: flixo-latest-execution-head-cleanup
