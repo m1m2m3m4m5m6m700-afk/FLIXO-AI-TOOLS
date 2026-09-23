@@ -73,10 +73,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: flixo-ten-pulse-${{ github.run_id }}
+          name: flixo-team-pulse-${{ github.run_id }}
           path: |
-            /tmp/flixo-heartbeat/flixo-ten-pulse.json
-            /tmp/flixo-heartbeat/flixo-ten-idle-pulse.json
+            /tmp/flixo-heartbeat/flixo-team-pulse.json
+            /tmp/flixo-heartbeat/flixo-team-idle-pulse.json
             /tmp/flixo-heartbeat/flixo-full-repository-scan.json
             /tmp/flixo-heartbeat/flixo-bot-development-plan.md
           if-no-files-found: warn
@@ -132,7 +132,7 @@ jobs:
           echo "execution_sha=$EXECUTION_SHA" >> "$GITHUB_OUTPUT"
           echo "active_operation=$ACTIVE_OPERATION" >> "$GITHUB_OUTPUT"
 
-      - name: Emit ten differentiated pulses and ALL_AGENTS wake directives
+      - name: Emit one canonical pulse and wake the full team
         id: pulse
         run: |
           set -euo pipefail
@@ -142,10 +142,10 @@ jobs:
             --run-id="$GITHUB_RUN_ID" \
             --minute="$(date -u +%Y-%m-%dT%H:%M)" \
             --active-operation="${{ steps.state.outputs.active_operation }}" \
-            --output=/tmp/flixo-heartbeat/flixo-ten-pulse.json
-          jq -e '.pulseCount==10 and .uniquePulseFocusCount==10 and (.pulses|all(.action=="WAKE_ALL_AGENTS" and .wakeScope=="ALL_AGENTS" and .targetSha=="'"${{ steps.state.outputs.execution_sha }}"'"))' /tmp/flixo-heartbeat/flixo-ten-pulse.json >/dev/null
-          echo 'DIFFERENTIATED_PULSES=10'
-          echo 'EVERY_PULSE_WAKE_SCOPE=ALL_AGENTS'
+            --output=/tmp/flixo-heartbeat/flixo-team-pulse.json
+          jq -e '.pulseCount==1 and .onePulsePerHeartbeat==true and (.pulses|length==1) and .pulses[0].action=="WAKE_ALL_AGENTS" and .pulses[0].wakeScope=="ALL_AGENTS" and .pulses[0].targetSha=="'"${{ steps.state.outputs.execution_sha }}"'"' /tmp/flixo-heartbeat/flixo-team-pulse.json >/dev/null
+          echo 'CANONICAL_HEARTBEAT_PULSES=1'
+          echo 'ONE_PULSE_WAKE_SCOPE=ALL_AGENTS'
           echo "ACTIVE_OPERATION=${{ steps.state.outputs.active_operation }}"
 
       - name: Full repository read-only sweep when no operation is active
@@ -158,7 +158,7 @@ jobs:
             --run-id="$GITHUB_RUN_ID" \
             --minute="$(date -u +%Y-%m-%dT%H:%M)" \
             --active-operation=false \
-            --output=/tmp/flixo-heartbeat/flixo-ten-idle-pulse.json \
+            --output=/tmp/flixo-heartbeat/flixo-team-idle-pulse.json \
             --plan-output=/tmp/flixo-heartbeat/flixo-bot-development-plan.md \
             --scan-output=/tmp/flixo-heartbeat/flixo-full-repository-scan.json
           test -s /tmp/flixo-heartbeat/flixo-bot-development-plan.md
@@ -191,6 +191,6 @@ jobs:
           set -euo pipefail
           gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/agent-repair-supervisor.yml/dispatches" -f ref=execution
           echo 'AUTOMATIC_REPAIR_SUPERVISOR_WAKE=true'
-          echo 'ALL_AGENTS_WAKE_DIRECTIVES_EMITTED=10'
+          echo 'ALL_AGENTS_WAKE_DIRECTIVES_EMITTED=1'
           echo 'SUPERVISOR_REMAINS_OBSERVER_ONLY=true'
           echo 'IDLE_SWEEP_REMAINS_READ_ONLY=true'
