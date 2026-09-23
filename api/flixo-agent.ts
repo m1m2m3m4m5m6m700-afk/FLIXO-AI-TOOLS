@@ -4,6 +4,7 @@ import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from
 import { TOOL_CATALOG } from '../src/config/registry.ts';
 import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
 import { buildSharedLearningContext } from '../scripts/ci/shared-operational-memory.mjs';
+import { createExternalAgentLearning, listExternalAgentLearning } from '../src/server/agent/learning-persistence.ts';
 
 const MAX_MESSAGES = 80;
 const MAX_REQUEST_BODY_BYTES = 512 * 1024;
@@ -128,6 +129,49 @@ function executableCatalog(): Array<Record<string, unknown>> {
       executionMode: capability.executionMode,
     };
   }).filter(Boolean) as Array<Record<string, unknown>>;
+}
+
+const exactSha = (): string | null => {
+  const candidates = [
+    process.env.VERCEL_GIT_COMMIT_SHA,
+    process.env.GITHUB_SHA,
+    process.env.FLIXO_TARGET_SHA,
+  ];
+  return candidates.find((value) => /^[a-f0-9]{40}$/u.test(String(value ?? '').trim()))?.trim() ?? null;
+};
+
+async function persistLearningCandidate(
+  decision: ReturnType<typeof parseAgentDecision>,
+  userMessage: string,
+  locale: string,
+  provider: string,
+): Promise<void> {
+  if (!decision.learning) return;
+  const targetSha = exactSha();
+  if (!targetSha) return;
+  try {
+    await createExternalAgentLearning({
+      sourceAgent: 'execution-agent-clone-v1',
+      sourceRole: 'executionAgent',
+      kind: decision.learning.kind,
+      taskId: `UI-LEARNING:${targetSha.slice(0, 12)}:${Date.now()}`,
+      targetSha,
+      claim: decision.learning.claim,
+      content: decision.learning.content,
+      evidenceRefs: decision.learning.evidenceRefs,
+      provenance: {
+        channel: 'external-ui-agent',
+        locale,
+        provider,
+        userMessage: userMessage.slice(0, 2000),
+        status: 'PROPOSED',
+      },
+    });
+  } catch (error) {
+    console.warn('[flixo-agent] learning persistence warning', {
+      error: error instanceof Error ? error.name : 'unknown',
+    });
+  }
 }
 
 function parseJsonObject(text: string): unknown {
@@ -317,6 +361,12 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const provider = runtime.provider;
     const recentMessages = messages.slice(-24);
     const sharedLearning = buildSharedLearningContext({ botId: 'executionAgent', limit: 48 });
+    const targetSha = exactSha();
+    const remoteLearning = targetSha ? await listExternalAgentLearning(targetSha, 48).catch(() => []) : [];
+    const remoteLessons = remoteLearning.filter((item) => item.kind === 'LESSON');
+    const remoteAntiLessons = remoteLearning.filter((item) => item.kind === 'ANTI_LESSON');
+    const remoteAdvice = remoteLearning.filter((item) => item.kind === 'ADVICE');
+    const remoteCounterexamples = remoteLearning.filter((item) => item.kind === 'COUNTEREXAMPLE');
     const promptMessages = [
       {
         role: 'system' as const,
@@ -327,12 +377,14 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
             authority: 'CONTEXT_ONLY',
             mutationAuthority: false,
             certificationAuthority: false,
-            lessons: sharedLearning.lessons,
-            antiLessons: sharedLearning.antiLessons,
+            lessons: [...remoteLessons, ...sharedLearning.lessons],
+            antiLessons: [...remoteAntiLessons, ...sharedLearning.antiLessons],
+            advice: [...remoteAdvice, ...sharedLearning.advice],
             errors: sharedLearning.errors,
             obligations: sharedLearning.obligations,
-            counterexamples: sharedLearning.counterexamples,
+            counterexamples: [...remoteCounterexamples, ...sharedLearning.counterexamples],
             verifications: sharedLearning.verifications,
+            externalLearningCandidates: remoteLearning.slice(0, 48),
           },
           file: body.file ?? null,
           activeCommand: body.activeCommand ?? null,
@@ -353,12 +405,14 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     try {
       const raw = await invoke(provider);
       const decision = parseAgentDecision(parseJsonObject(raw));
+      await persistLearningCandidate(decision, userMessage, locale, provider);
       json(res, 200, { ...decision, latencyMs: Date.now() - started, provider });
     } catch (providerError) {
       if (runtime.fallbackProvider) {
         try {
           const raw = await invoke(runtime.fallbackProvider);
           const decision = parseAgentDecision(parseJsonObject(raw));
+          await persistLearningCandidate(decision, userMessage, locale, runtime.fallbackProvider);
           json(res, 200, { ...decision, latencyMs: Date.now() - started, provider: runtime.fallbackProvider, fallback: true });
           return;
         } catch (fallbackError) {
