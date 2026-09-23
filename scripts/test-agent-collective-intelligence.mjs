@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { assessCognitiveRequest } from '../src/lib/agent/cognitive-orchestrator.ts';
+import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
 import {
   COLLECTIVE_ACTIVE_MEMBER_COUNT,
   COLLECTIVE_CAPABILITY_COUNT,
@@ -35,6 +37,24 @@ assert.ok(ci.selectedPerspectives.includes('securityAgent'));
 assert.ok(ci.reasoningSequence.indexOf('GENERATE_HYPOTHESES') < ci.reasoningSequence.indexOf('DISCRIMINATE_WITH_EVIDENCE'));
 assert.equal(ci.knowledgePolicy.exactShaBindingRequired, true);
 assert.equal(ci.knowledgePolicy.learningDoesNotGrantAuthority, true);
+
+const cognitive = assessCognitiveRequest('compress the image');
+assert.equal(cognitive.collectiveIntelligence.version, COLLECTIVE_INTELLIGENCE_VERSION);
+assert.equal(cognitive.collectiveIntelligence.authority, 'ADVISORY_ONLY');
+assert.ok(cognitive.collectiveIntelligence.selectedLenses.includes('HUMAN_INTENT_MODELING'));
+
+const prompt = buildFlixoHumanConversationPrompt({
+  locale: 'ar',
+  currentMessage: 'لماذا فشل الاختبار؟ اثبت السبب وأصلحه بأمان.',
+  activeCommand: null,
+  activePlan: null,
+  file: null,
+  catalog: [],
+  catalogFingerprint: 'a'.repeat(64),
+});
+assert.match(prompt, /FLIXO-BOT-BRAIN-v1/u);
+assert.match(prompt, /COLLECTIVE DEEP REASONING/u);
+assert.match(prompt, /ADVISORY_ONLY/u);
 
 const ar = buildCollectiveIntelligenceFrame('لماذا فشل الاختبار؟ نحتاج إثبات السبب وإعادة الاختبار.', []);
 assert.ok(ar.selectedLenses.includes('ROOT_CAUSE_ANALYSIS'));
