@@ -29,6 +29,15 @@
     "docs/agents/SWARM-REPLAY-SIMULATION-PLAN-v1.json",
     "docs/agents/SWARM-SKILL-DIFFICULTY-MAP-v1.json"
   ],
-  "currentRca": "WAVE5-CONTRACT-DRIFT-001: implementation claims L0-L5 and logical cell-pool retirement, while mission requires L0-L4 authority hierarchy plus fixed 200 identity memory model; several owned intelligence contracts are absent.",
-  "status": "ACTIVE"
+  "currentRca": "WAVE5-CONTRACT-DRIFT-001 resolved in implementation surface: L0-L4 advisory hierarchy, logical 200-identity memory model, capability-aware routing, mission-result learning states, RCA/fingerprint intelligence, knowledge graph, replay/simulation, drift detection, and exact-SHA evidence binding are implemented; canonical CI verification remains pending on the current head.",
+  "status": "VERIFICATION_PENDING",
+  "exitCondition": {
+    "implemented": true,
+    "contractValid": "PENDING_CANONICAL_CI",
+    "targetedTest": "PENDING_CANONICAL_CI",
+    "affectedTests": "PENDING",
+    "evidenceLinked": true,
+    "exactSha": "9d7247f6922cefc2b59b3b029ded1540a70286f3",
+    "canonicalVerification": "PENDING"
+  }
 }
