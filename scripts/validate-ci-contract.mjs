@@ -235,9 +235,9 @@ const watchdogSourceFreshness = watchdogSourceFreshnessMarkers.every((marker) =>
   executionWatchdogWorkflow.includes(marker),
 );
 const watchdogConcurrency =
-  /concurrency:[\s\S]*group:\s*flixo-execution-watchdog-\$\{\{\s*github\.event\.workflow_run\.head_sha\s*\|\|\s*github\.sha\s*\}\}[\s\S]*cancel-in-progress:\s*true/.test(executionWatchdogWorkflow);
+  /concurrency:[\s\S]*group:\s*flixo-execution-watchdog-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*cancel-in-progress:\s*false/.test(executionWatchdogWorkflow);
 if (!watchdogExactCheckout || !watchdogExactVerify || !watchdogSourceFreshness || !watchdogConcurrency) {
-  console.error('CI contract failed: execution-bot-watchdog.yml must execute only trusted controller code from main, observe the exact execution SHA through GitHub APIs, and reject stale workflow_run events.');
+  console.error('CI contract failed: execution-bot-watchdog.yml must execute only trusted controller code from main, observe the exact execution SHA through GitHub APIs, reject stale workflow_run events, and never self-cancel a concurrent recovery observer.');
   process.exit(1);
 }
 const watchdogStepBlock = (workflowText, stepName) => {
