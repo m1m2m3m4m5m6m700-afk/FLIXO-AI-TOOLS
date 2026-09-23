@@ -71,8 +71,9 @@ for(const worker of report.workers){
 const wake='/tmp/flixo-action-wake.json';
 execFileSync('node',[...base,'--role=wake','--status=RED_INTERNAL','--output='+wake],{stdio:'pipe'});
 const wakeResult=JSON.parse(fs.readFileSync(wake,'utf8'));
-assert.equal(wakeResult.botId,'ACTION-WAKE');
+assert.equal(wakeResult.botId,'FLIXO_HEARTBEAT_CONTROLLER');
 assert.equal(wakeResult.action,'WAKE_ALL_ACTION_REPAIR_TEAM');
+assert.equal(wakeResult.role,'CANONICAL_WAKE_CONTROLLER');
 assert.equal(wakeResult.wakeScope,'ALL_ACTION_REPAIR_TEAM');
 assert.equal(wakeResult.wakePolicy,'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL');
 assert.equal(wakeResult.recipientCount,10);
