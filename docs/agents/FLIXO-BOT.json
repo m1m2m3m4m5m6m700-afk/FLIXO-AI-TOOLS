@@ -511,7 +511,7 @@
     "workerPoolMode": "SINGLE_ACTIVE_ORDERED_FAILOVER",
     "activeWorkerCount": 1,
     "reserveWorkerCount": 9,
-    "everyBotWorkflow": "STANDBY→WAKE→RECEIVE_TASK→READ→DIAGNOSE→HANDOFF→WAIT",
+    "everyBotWorkflow": "WAKE_EVERY_MINUTE→RECEIVE_TASK_OR_DEVELOPMENT_SCAN→READ→DIAGNOSE→HANDOFF→CONTINUE",
     "activeWorkerWorkflow": "READ→DIAGNOSE→WRITE_PROPOSAL→EVIDENCE→HANDOFF",
     "proposalMutationAuthority": false,
     "dynamicPushSeat": false,
@@ -538,6 +538,9 @@
     "exactShaRequired": true,
     "immutableWorkerOwnerUntilTaskCompletion": true,
     "guardedPublication": true,
-    "canonicalBranch": "execution"
+    "canonicalBranch": "execution",
+    "standbyMeaning": "READY_RESERVE_ONLY;NEVER_SLEEP",
+    "minuteWakeExecution": "scripts/ci/flixo-ten-pulse.mjs",
+    "minuteWakeMode": "ALL_10_AWAKE_CONTEXTS_WITH_SINGLE_MUTATION_OWNER"
   }
 }
