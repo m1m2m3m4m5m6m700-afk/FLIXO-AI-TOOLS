@@ -18,16 +18,19 @@ permissions:
 concurrency:
   # Bootstrap runs on main and resident runs on execution must not block one another.
   group: ${{ github.ref_name == 'execution' && 'flixo-agent-repair-heartbeat-main' || 'flixo-agent-repair-heartbeat-bootstrap' }}
-  # Started residency runs are never cancelled.
-  # New execution heads supersede every older resident window.
-  cancel-in-progress: true
+  # Resident windows are never cancelled by a newer wake.
+  # Exact-SHA checks and re-arm/recovery handle head changes without putting bots to sleep.
+  cancel-in-progress: false
 
 jobs:
   bootstrap:
     name: Bootstrap resident repair heartbeat automatically
     if: >-
       github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      (github.event_name == 'push' && github.ref == 'refs/heads/execution') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'execution') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/execution'))
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -41,6 +44,7 @@ jobs:
           [[ "$EXECUTION_SHA" =~ ^[0-9a-f]{40}$ ]]
           ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 50 --json databaseId,status,headBranch,headSha --jq --arg sha "$EXECUTION_SHA" 'map(select((.status == "queued" or .status == "pending" or .status == "in_progress") and .headBranch == "execution" and .headSha == $sha)) | length')"
           echo "EXECUTION_SHA=$EXECUTION_SHA"
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF" = "refs/heads/execution" ]; then echo 'EXECUTION_PUSH_BOOTSTRAP=true'; fi
           echo "ACTIVE_RESIDENT=$ACTIVE_RESIDENT"
           if [ "$ACTIVE_RESIDENT" -eq 0 ]; then
             gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
