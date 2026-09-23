@@ -502,8 +502,8 @@ export function importMemoryHistory(records: readonly KnowledgeRecord[], current
   for (const record of validated) {
     const currentBound = record.provenance.some(value => value.includes(currentSha));
     const importedRecord = makeKnowledge({
-      id: 'HIST-' + record.id, content: record.content, source: record.source, sourceType: record.sourceType, version: record.version,
-      scope: record.scope, confidence: record.confidence, provenance: [...record.provenance, 'historical:' + record.id],
+      id: 'HIST-' + hash(record.id).slice(0, 48), content: record.content, source: record.source, sourceType: record.sourceType, version: record.version,
+      scope: record.scope, confidence: record.confidence, provenance: record.provenance.length < 32 ? [...record.provenance, 'historical:' + record.id] : [...record.provenance.slice(0, 31), 'historical:' + record.id],
       validity: record.validity, status: record.status, layer: 'L1',
       authority: currentBound && record.status === 'VERIFIED' && record.validity === 'CURRENT' ? 0.6 : 0.2,
       exactSha: currentBound ? currentSha : null, exactShaVerified: currentBound, evidenceCount: record.provenance.length,

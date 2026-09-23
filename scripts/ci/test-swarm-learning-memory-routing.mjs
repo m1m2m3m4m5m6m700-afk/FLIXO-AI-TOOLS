@@ -229,6 +229,14 @@ assert.equal(history.importedCount,1);
 assert.equal(history.historicalOnlyCount,1);
 assert.equal(history.authority,'ADVISORY_ONLY');
 assert.equal(historicalBackfill([historySource],sha).promotionAllowed,false);
+const boundedHistory=historicalBackfill([{
+  ...historySource,
+  id:'i'.repeat(256),
+  provenance:Array.from({length:32},(_,i)=>'p-'+i)
+}],sha);
+assert.equal(boundedHistory.records[0].id.length <= 256,true);
+assert.equal(boundedHistory.records[0].provenance.length,32);
+console.log('historical-backfill-provenance-bound=PASS');
 
 const genome=buildWeaknessGenome([
   {fingerprint:h,category:'runtime',rootCause:'adapter',skill:'gpu',capability:'filter-mask',exactSha:sha,outcome:'FAILURE',severity:1,contextKey:'A'},
