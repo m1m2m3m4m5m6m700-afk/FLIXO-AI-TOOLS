@@ -19,7 +19,7 @@ assert.equal(registry.execution.greenAuthority,false);
 assert.equal(registry.execution.evidenceOutput,'workflow-artifact');
 assert.equal(registry.execution.sourceLedgerMutation,false);
 assert.equal(registry.execution.isolation.mode,'EPHEMERAL_RUNNER_PER_BOT');
-assert.equal(registry.execution.isolation.workflowTrigger,'MANUAL_DISPATCH_ONLY');
+assert.equal(registry.execution.isolation.workflowTrigger,'AUTOMATIC_PUSH_AND_MANUAL_DISPATCH');
 assert.equal(registry.execution.isolation.repositoryAccess,'CONTENTS_READ_ONLY');
 assert.equal(registry.execution.isolation.sourceMutation,false);
 assert.equal(registry.execution.isolation.ledgerMutation,false);
@@ -34,7 +34,7 @@ assert.equal(registry.repairIntelligence.mutationAuthority,false);
 
 assert.match(workflow,/workflow_dispatch:/u);
 assert.match(workflow,/expected_sha:[\s\S]*required:\s*true/u);
-assert.doesNotMatch(workflow,/push:\s*\n/u);
+assert.match(workflow,/push:\s*\n\s*branches:\s*\[execution\]/u);
 assert.match(workflow,/permissions:\s*\n\s*contents:\s*read/u);
 assert.doesNotMatch(workflow,/actions:\s+write/u);
 assert.match(workflow,/strategy:[\s\S]*matrix:[\s\S]*SECURITY-REDTEAM-1[\s\S]*SECURITY-REDTEAM-2[\s\S]*SECURITY-REDTEAM-3/u);
