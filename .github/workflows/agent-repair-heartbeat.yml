@@ -17,9 +17,9 @@ permissions:
 
 concurrency:
   # Bootstrap runs on main and resident runs on execution must not block one another.
-  group: flixo-agent-repair-heartbeat-${{ github.ref_name }}
+  group: ${{ github.ref_name == 'execution' && 'flixo-agent-repair-heartbeat-main' || 'flixo-agent-repair-heartbeat-bootstrap' }}
   # Started residency runs are never cancelled.
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   bootstrap:
