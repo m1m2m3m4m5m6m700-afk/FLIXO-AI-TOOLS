@@ -31,6 +31,11 @@ export type CollectiveIntelligenceFrame = Readonly<{
   reasoningSequence: readonly string[];
   proofObligations: readonly string[];
   guardrails: readonly string[];
+  depthPolicy: Readonly<{
+    mode: 'FULL_ALWAYS';
+    noComplexityDowngrade: true;
+    reasoningEffort: 'MAXIMUM';
+  }>;
   knowledgePolicy: Readonly<{
     exactShaBindingRequired: true;
     staleKnowledgePolicy: 'REQUALIFY_BEFORE_REUSE';
@@ -132,10 +137,7 @@ export function buildCollectiveIntelligenceFrame(
   capabilityIds: readonly string[] = [],
 ): CollectiveIntelligenceFrame {
   const normalized = normalize(request);
-  const selected = new Set<string>(BASELINE_LENSES);
-  for (const lens of LENSES) {
-    if (matches(normalized, lens)) selected.add(lens.id);
-  }
+  const selected = new Set<string>(LENSES.map((lens) => lens.id));
   if (capabilityIds.length > 0) selected.add('DEPENDENCY_IMPACT_REASONING');
 
   return Object.freeze({
@@ -152,6 +154,7 @@ export function buildCollectiveIntelligenceFrame(
     reasoningSequence: REASONING_SEQUENCE,
     proofObligations: PROOF_OBLIGATIONS,
     guardrails: GUARDRAILS,
+    depthPolicy: Object.freeze({ mode: 'FULL_ALWAYS', noComplexityDowngrade: true, reasoningEffort: 'MAXIMUM' }),
     knowledgePolicy: Object.freeze({
       exactShaBindingRequired: true,
       staleKnowledgePolicy: 'REQUALIFY_BEFORE_REUSE',
