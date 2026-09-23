@@ -122,10 +122,14 @@ jobs:
           )
         env:
           GH_TOKEN: ${{ github.token }}
+          SOURCE_EXECUTION_SHA: ${{ steps.source.outputs.execution_sha }}
+          EVENT_SOURCE_RUN_ID: ${{ github.event.workflow_run.id || '' }}
+          EVENT_SOURCE_WORKFLOW: ${{ github.event.workflow_run.name || '' }}
         shell: bash
         run: |
           set -euo pipefail
-          EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"
+          EXECUTION_SHA="$SOURCE_EXECUTION_SHA"
+          [[ "$EXECUTION_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "FAIL CLOSED: invalid execution SHA"; exit 1; }
           test "$GITHUB_EVENT_NAME" = "workflow_run"
           test -n "$EXECUTION_SHA"
 
@@ -388,6 +392,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EVENT_SOURCE_RUN_ID: ${{ github.event.workflow_run.id || '' }}
           EVENT_SOURCE_RUN_SHA: ${{ github.event.workflow_run.head_sha || '' }}
+          EVENT_SOURCE_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion || '' }}
           EVENT_SOURCE_STALE: ${{ steps.source.outputs.stale || '' }}
         run: |
           set -euo pipefail
