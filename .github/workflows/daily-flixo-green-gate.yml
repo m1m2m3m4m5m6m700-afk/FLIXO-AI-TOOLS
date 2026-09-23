@@ -427,6 +427,7 @@ jobs:
 
           ATTEMPT=1
           DISPATCH=false
+          ACTIVE_WORKER_ID=""
 
           case "$CLAIM_STATUS" in
             ACQUIRED)
@@ -500,6 +501,15 @@ jobs:
           fi
 
           if [ "$DISPATCH" = true ]; then
+            WORKER_ASSIGNMENT_FILE="/tmp/flixo-watch/flixo-worker-assignment.json"
+            node scripts/ci/repair-lease.mjs worker-assign               --fingerprint="$FAILURE_FINGERPRINT"               --failedSha="$FAILED_SHA"               --targetRunId="$TARGET_RUN_ID"               --branch="execution"               --leaseOwner="DAILY_FLIXO_GREEN_GATE"               --repairRunId="$GITHUB_RUN_ID" > "$WORKER_ASSIGNMENT_FILE"
+            jq -e '.workerId != null and .action != null' "$WORKER_ASSIGNMENT_FILE" >/dev/null
+            ACTIVE_WORKER_ID="$(jq -r '.workerId' "$WORKER_ASSIGNMENT_FILE")"
+            case "$ACTIVE_WORKER_ID" in
+              FLIXO1|FLIXO2|FLIXO3|FLIXO4|FLIXO5|FLIXO6|FLIXO7|FLIXO8|FLIXO9|FLIXO10) ;;
+              *) echo "FAIL CLOSED: invalid FLIXO active worker=$ACTIVE_WORKER_ID"; exit 1 ;;
+            esac
+            echo "FLIXO_ACTIVE_WORKER=$ACTIVE_WORKER_ID"
             WORK_PACKAGE_ID="REPAIR:$TARGET_RUN_ID:$FAILURE_FINGERPRINT"
             TASK_ID="ACTION-REPAIR:$TARGET_RUN_ID:$FAILURE_FINGERPRINT"
             CENTRAL_SESSION_ID="GREEN-GATE:$GITHUB_RUN_ID:$TARGET_RUN_ID"
@@ -661,6 +671,7 @@ jobs:
             /tmp/flixo-watch/repair-control-plane.json
             /tmp/flixo-watch/lease-claim.json
             /tmp/flixo-watch/lease-recovery.json
+            /tmp/flixo-watch/flixo-worker-assignment.json
             /tmp/flixo-watch/final-exact-sha
             /tmp/flixo-watch/final-observed-branch
           if-no-files-found: warn
