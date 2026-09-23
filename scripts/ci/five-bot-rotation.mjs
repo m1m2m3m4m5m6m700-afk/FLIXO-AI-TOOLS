@@ -27,7 +27,7 @@ export function evaluateHandoff({fromCohortIndex,toCohortIndex,readyBotIds=[],el
   if(!Number.isInteger(from)||from<0||from>=COHORT_COUNT||!Number.isInteger(to)||to<0||to>=COHORT_COUNT) throw new Error('FIVE_BOT_HANDOFF_COHORT_INVALID');
   const expected=[...cohortMembers(to)].sort();
   const ready=[...new Set((Array.isArray(readyBotIds)?readyBotIds:[]).map(String))].sort();
-  if(Number(elapsedMs)<WINDOW_MS) return Object.freeze({status:'WAIT_COMMITMENT',reason:'ACTIVE_COHORT_15_MINUTES_NOT_ELAPSED',requiredReadyCount:COHORT_SIZE,readyCount:ready.length,fromCohortIndex:from,toCohortIndex:to,targetSha:String(targetSha)});
+  if(Number(elapsedMs)<WINDOW_MS) return Object.freeze({status:'WAIT_COMMITMENT',reason:'ACTIVE_COHORT_ONE_HOUR_NOT_ELAPSED',requiredReadyCount:COHORT_SIZE,readyCount:ready.length,fromCohortIndex:from,toCohortIndex:to,targetSha:String(targetSha)});
   if(ready.length!==COHORT_SIZE||ready.some((id,i)=>id!==expected[i])) return Object.freeze({status:'WAIT_NEXT_COHORT_READY',reason:'NEXT_FIVE_NOT_READY',requiredReadyCount:COHORT_SIZE,readyCount:ready.length,requiredReadyBotIds:expected,readyBotIds:ready,fromCohortIndex:from,toCohortIndex:to,targetSha:String(targetSha)});
   return Object.freeze({status:'HANDOFF_COMMITTED',reason:'NEXT_FIVE_READY',requiredReadyCount:COHORT_SIZE,readyCount:ready.length,requiredReadyBotIds:expected,readyBotIds:ready,fromCohortIndex:from,toCohortIndex:to,targetSha:String(targetSha)});
 }
