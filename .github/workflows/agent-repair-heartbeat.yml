@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: read
+  actions: write
   contents: read
 
 concurrency:
@@ -156,6 +156,20 @@ jobs:
           echo 'CANONICAL_HEARTBEAT_PULSES=1'
           echo 'ONE_PULSE_WAKE_SCOPE=ALL_AGENTS'
           echo "ACTIVE_OPERATION=${{ steps.state.outputs.active_operation }}"
+      - name: Deliver canonical team wake through exact-SHA relay
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PULSE_ID="$(jq -r '.pulses[0].pulseId' /tmp/flixo-heartbeat/flixo-team-pulse.json)"
+          gh workflow run flixo-team-wake-relay.yml --repo "$GITHUB_REPOSITORY" --ref main \
+            -f "entry_sha=${{ steps.state.outputs.execution_sha }}" \
+            -f "pulse_id=$PULSE_ID" \
+            -f "active_operation=${{ steps.state.outputs.active_operation }}"
+          echo 'WAKE_RELAY_DISPATCHED=1'
+          echo 'DIRECT_AUTO_REPAIR_DISPATCH=false'
+          echo 'DIRECT_PUSH=false'
 
       - name: Full repository read-only sweep when no operation is active
         if: steps.state.outputs.active_operation == 'false'
