@@ -120,7 +120,14 @@ assert.equal(validateRepairTarget({
 
 const securityAndCertification = [
   { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success' },
-  { id: 102, name: 'Certification', status: 'completed', conclusion: 'success', headSha: SHA_A },
+  {
+    id: 102,
+    name: 'Certification',
+    status: 'completed',
+    conclusion: 'success',
+    headSha: SHA_A,
+    details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/1/job/10002',
+  },
 ];
 
 
@@ -182,6 +189,9 @@ const green = evaluateGreen({
 assert.equal(green.status, 'GREEN');
 assert.equal(green.ci.certification.headSha, SHA_A);
 assert.equal(green.ci.certification.exactSha, true);
+assert.equal(green.ci.certification.runId, '1');
+assert.equal(green.ci.certification.canonicalRunId, '1');
+assert.equal(green.ci.certification.canonicalRun, true);
 
 for (const conclusion of ['failure', 'neutral', 'cancelled']) {
   const certificationRed = evaluateGreen({
@@ -231,6 +241,46 @@ const missingCertificationSha = evaluateGreen({
 assert.equal(missingCertificationSha.ci.certification.exactSha, false);
 assert.equal(missingCertificationSha.status, 'RED_INTERNAL');
 assert.equal(missingCertificationSha.errors.some((x) => x.type === 'CERTIFICATION_SHA_MISSING'), true);
+
+const nonCanonicalCertificationRun = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: [
+    { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success', headSha: SHA_A },
+    {
+      id: 102,
+      name: 'Certification',
+      status: 'completed',
+      conclusion: 'success',
+      headSha: SHA_A,
+      details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/999/job/9999',
+    },
+  ],
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(nonCanonicalCertificationRun.ci.certification.status, 'success');
+assert.equal(nonCanonicalCertificationRun.ci.certification.exactSha, true);
+assert.equal(nonCanonicalCertificationRun.ci.certification.runId, '999');
+assert.equal(nonCanonicalCertificationRun.ci.certification.canonicalRunId, '1');
+assert.equal(nonCanonicalCertificationRun.ci.certification.canonicalRun, false);
+assert.equal(nonCanonicalCertificationRun.status, 'RED_INTERNAL');
+assert.equal(nonCanonicalCertificationRun.errors.some((x) => x.type === 'NONCANONICAL_CERTIFICATION_RUN'), true);
+
+const missingCertificationRunLink = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: [
+    { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success', headSha: SHA_A },
+    { id: 102, name: 'Certification', status: 'completed', conclusion: 'success', headSha: SHA_A },
+  ],
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(missingCertificationRunLink.status, 'RED_INTERNAL');
+assert.equal(missingCertificationRunLink.errors.some((x) => x.type === 'CERTIFICATION_RUN_ID_MISSING'), true);
 
 const mainObservedGreen = evaluateGreen({
   executionSha: SHA_A,
