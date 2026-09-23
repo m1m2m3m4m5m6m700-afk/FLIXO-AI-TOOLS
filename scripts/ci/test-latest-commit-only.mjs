@@ -64,6 +64,7 @@ assert.match(greenGate, /cancel-in-progress:\s*false/u);
 const ci = fs.readFileSync('.github/workflows/ci.yml','utf8');
 assert.match(ci, /push:\s*\n\s*branches:\s*\[main, execution\]/u);
 assert.match(ci, /group:\s*flixo-test-/u);
+assert.match(ci, /group:\s*flixo-test-\$\{\{\s*github\.event\.pull_request\.head\.repo\.full_name\s*\|\|\s*github\.repository\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/u);
 assert.match(ci, /cancel-in-progress:\s*false/u);
 
 const workflowDir = '.github/workflows';
