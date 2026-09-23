@@ -164,10 +164,15 @@ const chooseRecoveryAccount = async (row: Record<string, unknown>) => {
       encodeURIComponent(queryIds) +
       ")&select=account_id,active,lease_seconds,last_seen_at,metadata"
   ) as Array<Record<string, unknown>>;
-  const fresh = rows.filter((item) => liveAccountFresh(item));
+  const active = rows.filter((item) => item.active === true);
+  const fresh = active.filter((item) => liveAccountFresh(item));
   const freshById = new Map(fresh.map((item) => [String(item.account_id), item]));
+  const activeById = new Map(active.map((item) => [String(item.account_id), item]));
   for (const candidate of candidates) {
     if (freshById.has(candidate)) return { account: candidate, row: freshById.get(candidate)! };
+  }
+  for (const candidate of candidates) {
+    if (activeById.has(candidate)) return { account: candidate, row: activeById.get(candidate)! };
   }
   return null;
 };
