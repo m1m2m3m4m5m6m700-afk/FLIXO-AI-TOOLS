@@ -35,6 +35,9 @@ import {
   detectDrift,
   validateHandoff,
   rootCauseMemoryLink,
+  expandSwarmSelection,
+  buildRcaChain,
+  evaluateShadowStrategy,
 } from '../../src/lib/agent/swarm/learning-memory-routing.ts';
 
 const sha='a'.repeat(40);
