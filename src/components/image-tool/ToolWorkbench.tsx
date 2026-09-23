@@ -238,43 +238,6 @@ export function ToolWorkbench<P>({
     }
   };
 
-  const selectNotebookFile = async (index: number) => {
-    if (busy || index === activeFileIndex || !files[index]) return;
-    setActiveFileIndex(index);
-    try {
-      await loadInputFile(files[index]);
-    } catch (cause) {
-      if (!mountedRef.current) return;
-      setError(cause instanceof Error ? cause.message : 'The selected file could not be accepted.');
-    }
-  };
-
-  const removeNotebookFile = async (index: number) => {
-    if (busy || !files[index]) return;
-    const nextFiles = files.filter((_, itemIndex) => itemIndex !== index);
-    let nextIndex = activeFileIndex;
-    if (index < activeFileIndex) nextIndex -= 1;
-    if (index === activeFileIndex) nextIndex = Math.min(activeFileIndex, Math.max(0, nextFiles.length - 1));
-    setFiles(nextFiles);
-    setActiveFileIndex(Math.max(0, nextIndex));
-    onFilesChange?.(nextFiles);
-    const nextFile = nextFiles[Math.max(0, nextIndex)];
-    if (!nextFile) {
-      assetStore.clear();
-      setInputAssetId(null);
-      setOutputAssetId(null);
-      setInputUrl('');
-      setOutputUrl('');
-      return;
-    }
-    try {
-      await loadInputFile(nextFile);
-    } catch (cause) {
-      if (!mountedRef.current) return;
-      setError(cause instanceof Error ? cause.message : 'The selected file could not be accepted.');
-    }
-  };
-
   const run = async () => {
     if (busy || !inputAssetId) return;
     setBusy(true);
