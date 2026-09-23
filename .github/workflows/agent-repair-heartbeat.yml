@@ -37,7 +37,14 @@ jobs:
         run: |
           set -euo pipefail
           SOURCE_BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            # GitHub scheduled workflows execute from the default branch (main).
+            # The resident controller always targets the execution lane.
+            SOURCE_BRANCH="execution"
+          fi
           test "$SOURCE_BRANCH" = "execution"
+          echo "HEARTBEAT_SOURCE_EVENT=$GITHUB_EVENT_NAME"
+          echo "HEARTBEAT_TARGET_REF=execution"
           gh workflow run execution-bot-watchdog.yml --repo "$GITHUB_REPOSITORY" --ref main
           echo 'TRUSTED_WATCHDOG_WAKE=DISPATCHED'
           echo 'TRUSTED_WATCHDOG_REF=main'
