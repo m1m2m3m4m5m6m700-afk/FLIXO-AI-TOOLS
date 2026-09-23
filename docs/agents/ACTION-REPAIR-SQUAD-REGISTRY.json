@@ -58,7 +58,14 @@
     "cloneModel": "ONE_SHARED_COGNITIVE_KERNEL_WITH_ROLE_OVERLAYS",
     "pushAuthority": "CHAIR_1_ONLY",
     "sourceMutationOwner": "ACTION-REPAIR",
-    "workerMutationAuthority": false
+    "workerMutationAuthority": false,
+    "heartbeatEveryMinutes": 1,
+    "wakePolicy": "ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL",
+    "wakeScope": "ALL_ACTION_REPAIR_TEAM",
+    "wakeDispatcher": "CANONICAL_AGENT_REPAIR_SUPERVISOR",
+    "wakeRequiresExactSha": true,
+    "wakeDoesNotGrantMutation": true,
+    "wakeDoesNotGrantPush": true
   },
   "workers": [
     {
@@ -351,9 +358,9 @@
       "kind": "ACTION_REPAIR_BOT",
       "status": "READY",
       "workerIndex": 11,
-      "role": "ACTION_EXACT_SHA_VERIFIER",
-      "mission": "Independent exact-SHA and provenance challenge; proposal-only.",
-      "weakness": "EXACT_SHA_AND_PROVENANCE",
+      "role": "ACTION_CERTIFIER_ADVERSARY",
+      "mission": "Independent adversary of the final certifier; attempts to falsify Exact-SHA, targeted-regression, required-CI and GREEN evidence; proposal-only.",
+      "weakness": "FINAL_CERTIFICATION_FALSIFICATION",
       "headquarters": "docs/agents/historical-action-errors",
       "sharedReferences": [
         "docs/AUTO_REPAIR_HISTORY.jsonl",
@@ -374,7 +381,9 @@
       "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
       "cognitiveParity": "EXACT_SHARED_BY_REFERENCE",
       "sourceMutationOwner": "ACTION-REPAIR",
-      "pushAuthority": "CHAIR_1_ONLY"
+      "pushAuthority": "CHAIR_1_ONLY",
+      "peerOf": "ACTION-CONVERGENCE-8",
+      "challengeRequired": true
     },
     {
       "id": "ACTION-CONVERGENCE-8",
@@ -382,9 +391,9 @@
       "kind": "ACTION_REPAIR_BOT",
       "status": "READY",
       "workerIndex": 12,
-      "role": "ACTION_REPAIR_CONVERGENCE_CHALLENGER",
-      "mission": "Independent repair-candidate falsification and convergence challenge; proposal-only.",
-      "weakness": "REPAIR_CONVERGENCE_AND_COUNTEREXAMPLES",
+      "role": "ACTION_FINAL_CERTIFIER",
+      "mission": "Final verification and Exact-SHA evidence assembly; cannot mutate source, tests, main, or publish/push.",
+      "weakness": "FINAL_EXACT_SHA_CERTIFICATION",
       "headquarters": "docs/agents/historical-action-errors",
       "sharedReferences": [
         "docs/AUTO_REPAIR_HISTORY.jsonl",
@@ -405,7 +414,11 @@
       "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
       "cognitiveParity": "EXACT_SHARED_BY_REFERENCE",
       "sourceMutationOwner": "ACTION-REPAIR",
-      "pushAuthority": "CHAIR_1_ONLY"
+      "pushAuthority": "CHAIR_1_ONLY",
+      "adversarialPeer": "ACTION-SHA-7",
+      "requiresAdversarialChallenge": true,
+      "canPush": false,
+      "canMutate": false
     }
   ],
   "sourceIndexSnapshot": {
@@ -1040,5 +1053,14 @@
     "guidanceArtifact": "/tmp/flixo-adversarial-convergence.json",
     "maxFiniteAttempts": false,
     "terminalCondition": "CANONICAL_GREEN_ONLY"
+  },
+  "lastSeatChallenge": {
+    "model": "FINAL_CERTIFIER_WITH_INDEPENDENT_ADVERSARY",
+    "certifier": "ACTION-CONVERGENCE-8",
+    "adversary": "ACTION-SHA-7",
+    "sameExactShaRequired": true,
+    "counterexampleBlocksCertification": true,
+    "certifierCannotPush": true,
+    "certifierCannotMutate": true
   }
 }
