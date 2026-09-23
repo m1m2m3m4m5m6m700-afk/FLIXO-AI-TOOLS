@@ -278,6 +278,488 @@ begin
 end;
 $function$;
 
+
+create or replace function public.council_ack_dispatch(
+  p_dispatch_id uuid,
+  p_account_id text,
+  p_session_id text,
+  p_exact_sha text
+)
+returns setof public.flix_council_dispatches
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $function$
+declare
+  v_dispatch public.flix_council_dispatches%rowtype;
+begin
+  if p_exact_sha !~ '^[0-9a-f]{40}
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $$
+declare
+  v_now timestamptz := clock_timestamp();
+  v_recovered integer := 0;
+  v_remaining_expired integer := 0;
+  v_stale_accounts integer := 0;
+  v_state text;
+  v_previous_state text;
+  v_error text := null;
+begin
+  if not pg_try_advisory_xact_lock(hashtextextended('FLIXO_AUTOMATION_WATCHDOG_V2', 0)) then
+    return jsonb_build_object('ok', true, 'status', 'ALREADY_RUNNING', 'at', v_now);
+  end if;
+
+  select state
+    into v_previous_state
+    from public.flixo_automation_watchdog
+   where id = 1
+   for update;
+
+  begin
+    select count(*)::integer
+      into v_recovered
+      from public.council_recover_expired_dispatches(25);
+
+    select count(*)::integer
+      into v_remaining_expired
+      from public.flix_council_dispatches
+     where status in ('LEASED','ACKED')
+       and lease_expires_at is not null
+       and lease_expires_at <= v_now;
+
+    select count(*)::integer
+      into v_stale_accounts
+      from public.flix_council_accounts
+     where active = true
+       and coalesce(metadata->>'residencyRequired', 'false') = 'true'
+       and (
+         last_seen_at is null
+         or last_seen_at < v_now - make_interval(secs => greatest(120, lease_seconds * 2))
+       );
+
+    v_state := case
+      when v_remaining_expired > 0 or v_stale_accounts > 0 then 'DEGRADED'
+      when v_recovered > 0 then 'RECOVERING'
+      else 'HEALTHY'
+    end;
+
+    update public.flixo_automation_watchdog
+       set state = v_state,
+           last_tick_at = v_now,
+           last_recovery_at = case when v_recovered > 0 then v_now else last_recovery_at end,
+           last_recovery_count = v_recovered,
+           consecutive_failures = 0,
+           last_error = null,
+           evidence = jsonb_build_object(
+             'protocol', 'FLIXO-AUTOMATION-WATCHDOG-v2',
+             'repository', repository,
+             'branch', branch,
+             'leaseRecoveryAuthority', 'public.council_recover_expired_dispatches',
+             'recoveredCount', v_recovered,
+             'remainingExpiredOpenLeases', v_remaining_expired,
+             'staleResidentAccounts', v_stale_accounts,
+             'checkedAt', v_now,
+             'healthyRequires', jsonb_build_array('zero expired open leases', 'zero stale resident accounts')
+           ),
+           updated_at = v_now
+     where id = 1;
+
+    insert into public.flixo_automation_watchdog_events(
+      watchdog_id,event_type,state,recovered_count,metadata
+    ) values (
+      1,
+      case
+        when v_recovered > 0 then 'LEASE_RECOVERY'
+        else 'TICK'
+      end,
+      v_state,
+      v_recovered,
+      jsonb_build_object(
+        'at', v_now,
+        'previousState', v_previous_state,
+        'remainingExpiredOpenLeases', v_remaining_expired,
+        'staleResidentAccounts', v_stale_accounts,
+        'recoveryMode', 'BOUNDED_RECOVERY_V2'
+      )
+    );
+
+    if v_previous_state is distinct from v_state then
+      insert into public.flixo_automation_watchdog_events(
+        watchdog_id,event_type,state,recovered_count,metadata
+      ) values (
+        1,'STATE_CHANGE',v_state,v_recovered,
+        jsonb_build_object(
+          'from',v_previous_state,
+          'to',v_state,
+          'at',v_now,
+          'remainingExpiredOpenLeases', v_remaining_expired,
+          'staleResidentAccounts', v_stale_accounts
+        )
+      );
+    end if;
+
+    return jsonb_build_object(
+      'ok', true,
+      'status', v_state,
+      'recoveredCount', v_recovered,
+      'remainingExpiredOpenLeases', v_remaining_expired,
+      'staleResidentAccounts', v_stale_accounts,
+      'at', v_now
+    );
+  exception when others then
+    v_error := sqlerrm;
+    update public.flixo_automation_watchdog
+       set state='DEGRADED',
+           last_tick_at=v_now,
+           consecutive_failures=consecutive_failures+1,
+           last_error=left(v_error,2000),
+           evidence=jsonb_build_object(
+             'protocol','FLIXO-AUTOMATION-WATCHDOG-v2',
+             'failure',v_error,
+             'at',v_now,
+             'recoveryAuthority','COUNCIL_RECOVERY_RPC'
+           ),
+           updated_at=v_now
+     where id=1;
+
+    insert into public.flixo_automation_watchdog_events(
+      watchdog_id,event_type,state,recovered_count,metadata
+    ) values (
+      1,'FAILURE','DEGRADED',0,jsonb_build_object(
+        'at',v_now,'error',left(v_error,2000)
+      )
+    );
+
+    return jsonb_build_object(
+      'ok',false,
+      'status','DEGRADED',
+      'error',v_error,
+      'at',v_now
+    );
+  end;
+end;
+$$;
+
+revoke all on function public.council_claim_dispatch(text) from public, anon, authenticated;
+revoke all on function public.council_recover_expired_dispatches(integer) from public, anon, authenticated;
+revoke all on function public.flixo_automation_watchdog_tick() from public, anon, authenticated;
+revoke all on function public.flixo_retry_pending_assistant_wakes() from public, anon, authenticated;
+revoke all on function public.flixo_auto_wake_stale_master3() from public, anon, authenticated;
+
+grant execute on function public.council_claim_dispatch(text) to service_role;
+grant execute on function public.council_recover_expired_dispatches(integer) to service_role;
+grant execute on function public.flixo_automation_watchdog_tick() to service_role;
+grant execute on function public.flixo_retry_pending_assistant_wakes() to service_role;
+grant execute on function public.flixo_auto_wake_stale_master3() to service_role;
+
+do $block$
+declare
+  jid bigint;
+begin
+  select jobid into jid
+    from cron.job
+   where jobname in ('flixo-council-lease-recovery','flixo-council-lease-recovery-v2')
+   order by case when jobname = 'flixo-council-lease-recovery-v2' then 0 else 1 end
+   limit 1;
+  if jid is not null then
+    perform cron.unschedule(jid);
+  end if;
+  perform cron.schedule(
+    'flixo-council-lease-recovery-v2',
+    '* * * * *',
+    $$select count(*) from public.council_recover_expired_dispatches(25);$$
+  );
+end;
+$block$;
+ then
+    raise exception 'COUNCIL_EXACT_SHA_INVALID';
+  end if;
+
+  select * into v_dispatch
+    from public.flix_council_dispatches
+   where dispatch_id = p_dispatch_id
+   for update;
+
+  if not found then raise exception 'COUNCIL_DISPATCH_NOT_FOUND'; end if;
+  if v_dispatch.recipient_account_id <> p_account_id then raise exception 'COUNCIL_ACCOUNT_MISMATCH'; end if;
+  if v_dispatch.entry_sha <> p_exact_sha then raise exception 'COUNCIL_EXACT_SHA_MISMATCH'; end if;
+  if v_dispatch.status <> 'LEASED' then raise exception 'COUNCIL_ACK_STATE_INVALID'; end if;
+  if v_dispatch.session_id is null or v_dispatch.session_id <> p_session_id then raise exception 'COUNCIL_SESSION_MISMATCH'; end if;
+  if v_dispatch.lease_expires_at is null or v_dispatch.lease_expires_at <= now() then raise exception 'COUNCIL_LEASE_EXPIRED'; end if;
+
+  update public.flix_council_dispatches
+     set status = 'ACKED',
+         acked_at = coalesce(acked_at, now()),
+         updated_at = now()
+   where dispatch_id = p_dispatch_id
+  returning * into v_dispatch;
+
+  update public.flix_council_accounts
+     set current_session_id = p_session_id,
+         last_seen_at = now(),
+         last_heartbeat_at = now(),
+         current_execution_sha = p_exact_sha,
+         updated_at = now()
+   where account_id = p_account_id;
+
+  insert into public.flix_council_events(
+    dispatch_id, account_id, event_type, exact_sha, payload
+  ) values (
+    v_dispatch.dispatch_id, p_account_id, 'ACKED', p_exact_sha,
+    jsonb_build_object('sessionId', p_session_id)
+  );
+
+  return next v_dispatch;
+end;
+$function$;
+
+create or replace function public.council_heartbeat_dispatch(
+  p_dispatch_id uuid,
+  p_account_id text,
+  p_session_id text,
+  p_exact_sha text
+)
+returns setof public.flix_council_dispatches
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $function$
+declare
+  v_dispatch public.flix_council_dispatches%rowtype;
+  v_lease_seconds integer;
+begin
+  if p_exact_sha !~ '^[0-9a-f]{40}
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $$
+declare
+  v_now timestamptz := clock_timestamp();
+  v_recovered integer := 0;
+  v_remaining_expired integer := 0;
+  v_stale_accounts integer := 0;
+  v_state text;
+  v_previous_state text;
+  v_error text := null;
+begin
+  if not pg_try_advisory_xact_lock(hashtextextended('FLIXO_AUTOMATION_WATCHDOG_V2', 0)) then
+    return jsonb_build_object('ok', true, 'status', 'ALREADY_RUNNING', 'at', v_now);
+  end if;
+
+  select state
+    into v_previous_state
+    from public.flixo_automation_watchdog
+   where id = 1
+   for update;
+
+  begin
+    select count(*)::integer
+      into v_recovered
+      from public.council_recover_expired_dispatches(25);
+
+    select count(*)::integer
+      into v_remaining_expired
+      from public.flix_council_dispatches
+     where status in ('LEASED','ACKED')
+       and lease_expires_at is not null
+       and lease_expires_at <= v_now;
+
+    select count(*)::integer
+      into v_stale_accounts
+      from public.flix_council_accounts
+     where active = true
+       and coalesce(metadata->>'residencyRequired', 'false') = 'true'
+       and (
+         last_seen_at is null
+         or last_seen_at < v_now - make_interval(secs => greatest(120, lease_seconds * 2))
+       );
+
+    v_state := case
+      when v_remaining_expired > 0 or v_stale_accounts > 0 then 'DEGRADED'
+      when v_recovered > 0 then 'RECOVERING'
+      else 'HEALTHY'
+    end;
+
+    update public.flixo_automation_watchdog
+       set state = v_state,
+           last_tick_at = v_now,
+           last_recovery_at = case when v_recovered > 0 then v_now else last_recovery_at end,
+           last_recovery_count = v_recovered,
+           consecutive_failures = 0,
+           last_error = null,
+           evidence = jsonb_build_object(
+             'protocol', 'FLIXO-AUTOMATION-WATCHDOG-v2',
+             'repository', repository,
+             'branch', branch,
+             'leaseRecoveryAuthority', 'public.council_recover_expired_dispatches',
+             'recoveredCount', v_recovered,
+             'remainingExpiredOpenLeases', v_remaining_expired,
+             'staleResidentAccounts', v_stale_accounts,
+             'checkedAt', v_now,
+             'healthyRequires', jsonb_build_array('zero expired open leases', 'zero stale resident accounts')
+           ),
+           updated_at = v_now
+     where id = 1;
+
+    insert into public.flixo_automation_watchdog_events(
+      watchdog_id,event_type,state,recovered_count,metadata
+    ) values (
+      1,
+      case
+        when v_recovered > 0 then 'LEASE_RECOVERY'
+        else 'TICK'
+      end,
+      v_state,
+      v_recovered,
+      jsonb_build_object(
+        'at', v_now,
+        'previousState', v_previous_state,
+        'remainingExpiredOpenLeases', v_remaining_expired,
+        'staleResidentAccounts', v_stale_accounts,
+        'recoveryMode', 'BOUNDED_RECOVERY_V2'
+      )
+    );
+
+    if v_previous_state is distinct from v_state then
+      insert into public.flixo_automation_watchdog_events(
+        watchdog_id,event_type,state,recovered_count,metadata
+      ) values (
+        1,'STATE_CHANGE',v_state,v_recovered,
+        jsonb_build_object(
+          'from',v_previous_state,
+          'to',v_state,
+          'at',v_now,
+          'remainingExpiredOpenLeases', v_remaining_expired,
+          'staleResidentAccounts', v_stale_accounts
+        )
+      );
+    end if;
+
+    return jsonb_build_object(
+      'ok', true,
+      'status', v_state,
+      'recoveredCount', v_recovered,
+      'remainingExpiredOpenLeases', v_remaining_expired,
+      'staleResidentAccounts', v_stale_accounts,
+      'at', v_now
+    );
+  exception when others then
+    v_error := sqlerrm;
+    update public.flixo_automation_watchdog
+       set state='DEGRADED',
+           last_tick_at=v_now,
+           consecutive_failures=consecutive_failures+1,
+           last_error=left(v_error,2000),
+           evidence=jsonb_build_object(
+             'protocol','FLIXO-AUTOMATION-WATCHDOG-v2',
+             'failure',v_error,
+             'at',v_now,
+             'recoveryAuthority','COUNCIL_RECOVERY_RPC'
+           ),
+           updated_at=v_now
+     where id=1;
+
+    insert into public.flixo_automation_watchdog_events(
+      watchdog_id,event_type,state,recovered_count,metadata
+    ) values (
+      1,'FAILURE','DEGRADED',0,jsonb_build_object(
+        'at',v_now,'error',left(v_error,2000)
+      )
+    );
+
+    return jsonb_build_object(
+      'ok',false,
+      'status','DEGRADED',
+      'error',v_error,
+      'at',v_now
+    );
+  end;
+end;
+$$;
+
+revoke all on function public.council_claim_dispatch(text) from public, anon, authenticated;
+revoke all on function public.council_recover_expired_dispatches(integer) from public, anon, authenticated;
+revoke all on function public.flixo_automation_watchdog_tick() from public, anon, authenticated;
+revoke all on function public.flixo_retry_pending_assistant_wakes() from public, anon, authenticated;
+revoke all on function public.flixo_auto_wake_stale_master3() from public, anon, authenticated;
+
+grant execute on function public.council_claim_dispatch(text) to service_role;
+grant execute on function public.council_recover_expired_dispatches(integer) to service_role;
+grant execute on function public.flixo_automation_watchdog_tick() to service_role;
+grant execute on function public.flixo_retry_pending_assistant_wakes() to service_role;
+grant execute on function public.flixo_auto_wake_stale_master3() to service_role;
+
+do $block$
+declare
+  jid bigint;
+begin
+  select jobid into jid
+    from cron.job
+   where jobname in ('flixo-council-lease-recovery','flixo-council-lease-recovery-v2')
+   order by case when jobname = 'flixo-council-lease-recovery-v2' then 0 else 1 end
+   limit 1;
+  if jid is not null then
+    perform cron.unschedule(jid);
+  end if;
+  perform cron.schedule(
+    'flixo-council-lease-recovery-v2',
+    '* * * * *',
+    $$select count(*) from public.council_recover_expired_dispatches(25);$$
+  );
+end;
+$block$;
+ then
+    raise exception 'COUNCIL_EXACT_SHA_INVALID';
+  end if;
+
+  select * into v_dispatch
+    from public.flix_council_dispatches
+   where dispatch_id = p_dispatch_id
+   for update;
+
+  if not found then raise exception 'COUNCIL_DISPATCH_NOT_FOUND'; end if;
+  if v_dispatch.recipient_account_id <> p_account_id then raise exception 'COUNCIL_ACCOUNT_MISMATCH'; end if;
+  if v_dispatch.entry_sha <> p_exact_sha then raise exception 'COUNCIL_EXACT_SHA_MISMATCH'; end if;
+  if v_dispatch.status <> 'ACKED' then raise exception 'COUNCIL_HEARTBEAT_STATE_INVALID'; end if;
+  if v_dispatch.session_id is null or v_dispatch.session_id <> p_session_id then raise exception 'COUNCIL_SESSION_MISMATCH'; end if;
+
+  select lease_seconds into v_lease_seconds
+    from public.flix_council_accounts
+   where account_id = p_account_id
+     and active = true
+   for update;
+
+  if not found then raise exception 'COUNCIL_ACCOUNT_INACTIVE'; end if;
+
+  update public.flix_council_dispatches
+     set lease_expires_at = now() + make_interval(secs => v_lease_seconds),
+         updated_at = now()
+   where dispatch_id = p_dispatch_id
+  returning * into v_dispatch;
+
+  update public.flix_council_accounts
+     set current_session_id = p_session_id,
+         last_seen_at = now(),
+         last_heartbeat_at = now(),
+         current_execution_sha = p_exact_sha,
+         updated_at = now()
+   where account_id = p_account_id;
+
+  insert into public.flix_council_events(
+    dispatch_id, account_id, event_type, exact_sha, payload
+  ) values (
+    v_dispatch.dispatch_id, p_account_id, 'HEARTBEAT', p_exact_sha,
+    jsonb_build_object('leaseExpiresAt', v_dispatch.lease_expires_at)
+  );
+
+  return next v_dispatch;
+end;
+$function$;
+
 create or replace function public.flixo_automation_watchdog_tick()
 returns jsonb
 language plpgsql
