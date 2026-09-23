@@ -2,8 +2,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const ROOT=process.cwd();
 import { buildFullIntelligenceBootstrap, assertFullIntelligenceBootstrap } from './full-intelligence-policy.mjs';
+
+const ROOT=process.cwd();
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):String(fallback)};
 const mode=arg('mode','worker');
 const workerId=arg('worker-id',process.env.ACTION_COUNCIL_WORKER_ID||'ACTION-COUNCIL-01');
@@ -26,9 +27,9 @@ if(!council || council.id!=='ACTION-COUNCIL-20' || council.workerCount!==20) thr
 if(mode==='worker'){
  const worker=council.workers.find(w=>w.id===workerId);
  if(!worker) throw new Error('ACTION_COUNCIL_WORKER_INVALID');
- const fullIntelligence=buildFullIntelligenceBootstrap({agentId:workerId,role:'ACTION_COUNCIL_WORKER',request:specialization??worker.specialization,exactSha:targetSha,taskId:`${runId}:${workerId}`});
- assertFullIntelligenceBootstrap(fullIntelligence,workerId);
  const specialization=worker.specialization;
+ const fullIntelligence=buildFullIntelligenceBootstrap({agentId:workerId,role:'ACTION_COUNCIL_WORKER',request:specialization,exactSha:targetSha,taskId:`${runId}:${workerId}`});
+ assertFullIntelligenceBootstrap(fullIntelligence,workerId);
  const corpus=memory.valuableKnowledge??{};
  const rules=Array.isArray(corpus.provenRules)?corpus.provenRules:[];
  const anti=Array.isArray(corpus.antiLessons)?corpus.antiLessons:[];
