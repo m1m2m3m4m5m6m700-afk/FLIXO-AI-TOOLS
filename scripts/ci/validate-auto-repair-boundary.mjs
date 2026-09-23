@@ -165,8 +165,8 @@ export function validateStatic() {
       !/gh\s+workflow\s+run\s+auto-repair\.yml/.test(heartbeat),
     'heartbeat-resident-mode-observer-only'
   );
-  must(heartbeat.includes('actions/workflows/agent-repair-supervisor.yml/dispatches'), 'heartbeat-observer-only-wakeup');
-  must(/cron:\s*'\*\/1 \* \* \* \*'/.test(heartbeat), 'heartbeat-one-minute-schedule');
+  must(!/actions\/workflows\/agent-repair-supervisor\.yml\/dispatches/.test(heartbeat), 'heartbeat-no-direct-supervisor-dispatch');
+  must(/cron:\s*'\*\/5 \* \* \* \*'/.test(heartbeat), 'heartbeat-five-minute-schedule');
   must(/HEARTBEAT_INTERVAL_SECONDS=60/.test(heartbeat), 'heartbeat-one-minute-emission');
   must(/flixo-ten-pulse\.mjs|flixo-team-pulse/.test(heartbeat), 'heartbeat-team-wake-plan');
   must(/ONE_PULSE_WAKE_SCOPE=ALL_AGENTS|wakeScope.?ALL_AGENTS/.test(heartbeat), 'heartbeat-team-wake-broadcast');
