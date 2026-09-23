@@ -184,6 +184,7 @@ jobs:
             exit 1
           fi
           printf '%s' "$RUNS_JSON" | jq '.' > /tmp/supersession-all-runs.json
+          jq -r '.workflow_runs[] | select(.status == "queued" or .status == "pending" or .status == "in_progress") | [.id,.head_sha,.status,.name,.event,.head_repository.full_name // ""] | @tsv' /tmp/supersession-all-runs.json > /tmp/supersession-active-runs.tsv
           while IFS=$'\t' read -r RUN_ID HEAD_SHA STATUS NAME EVENT HEAD_REPOSITORY; do
             [ -n "$RUN_ID" ] || continue
             if [ "$HEAD_SHA" = "$CURRENT_SHA" ]; then
@@ -198,9 +199,7 @@ jobs:
               fi
               cancel_stale_run "$RUN_ID" "$HEAD_SHA" "$STATUS" "$NAME" "$EVENT"
             fi
-          done < <(
-            jq -r '.workflow_runs[] | select(.status == "queued" or .status == "pending" or .status == "in_progress") | [.id,.head_sha,.status,.name,.event,.head_repository.full_name // ""] | @tsv' /tmp/supersession-all-runs.json
-          )
+          done < /tmp/supersession-active-runs.tsv
 
       - name: Assert no non-authoritative run remains active
         if: steps.head.outputs.stale_event != 'true'
