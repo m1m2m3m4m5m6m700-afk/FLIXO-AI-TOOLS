@@ -103,8 +103,19 @@ jobs:
         run: |
           set -euo pipefail
 
-          is_supersedable_run() {
+          is_resident_protected_run() {
             case "$1" in
+              "FLIXO Agent Repair Heartbeat"|"FLIXO Execution Bot Watchdog"|"FLIXO Agent Repair Supervisor"|"FLIXO Master Agent Activation Relay"|"FLIXO Master Repair Governor")
+                return 0
+                ;;
+              *) return 1 ;;
+            esac
+          }
+
+          is_supersedable_run() {
+            local name="$1"
+            if is_resident_protected_run "$name"; then return 1; fi
+            case "$name" in
               "FLIXO Latest Commit Test Supersession") return 1 ;;
               *Test*|*test*|*Repair*|*repair*|*Verification*|*verification*|*Contract*|*contract*|*Security*|*security*|*Baseline*|*baseline*|*Certification*|*certification*|*Impact*|*impact*|*Code*Scanning*|*CodeQL*|*Diagnostic*|*diagnostic*|*Proof*|*proof*|*Scan*|*scan*) return 0 ;;
               *) return 1 ;;
@@ -209,14 +220,14 @@ jobs:
               exit 1
             fi
             printf '%s' "$RUNS_JSON" | jq '.' > /tmp/supersession-final-runs.json
-            stale_active="$(jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" '[.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession" and (.head_repository.full_name // "") == $sourceRepo and (.name | test("Test|test|Repair|repair|Verification|verification|Contract|contract|Security|security|Baseline|baseline|Certification|certification|Impact|impact|Code Scanning|CodeQL|Diagnostic|diagnostic|Proof|proof|Scan|scan")))] | length' /tmp/supersession-final-runs.json)"
+            stale_active="$(jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" '[.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession" and (.head_repository.full_name // "") == $sourceRepo and (.name | test("Test|test|Repair|repair|Verification|verification|Contract|contract|Security|security|Baseline|baseline|Certification|certification|Impact|impact|Code Scanning|CodeQL|Diagnostic|diagnostic|Proof|proof|Scan|scan")) and (.name != "FLIXO Agent Repair Heartbeat" and .name != "FLIXO Agent Repair Supervisor" and .name != "FLIXO Master Agent Activation Relay" and .name != "FLIXO Master Repair Governor")))] | length' /tmp/supersession-final-runs.json)"
             echo "STALE_ACTIVE_RUNS=$stale_active poll=$poll"
             if [ "$stale_active" -eq 0 ]; then break; fi
             if [ "$poll" -lt "$SETTLE_MAX_POLLS" ]; then sleep "$SETTLE_POLL_SECONDS"; fi
           done
           if [ "$stale_active" -ne 0 ]; then
             echo 'FAIL CLOSED: stale runs remain non-completed after supersession cancellation window.'
-            jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" '.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession") | select(.head_repository.full_name == $sourceRepo) | select(.name | test("Test|test|Verification|verification|Contract|contract|Security|security|Baseline|baseline|Certification|certification|Impact|impact|Code Scanning|CodeQL|Diagnostic|diagnostic|Proof|proof|Scan|scan")) | [.id,.name,.status,.head_sha] | @tsv' /tmp/supersession-final-runs.json
+            jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" '.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession") | select(.head_repository.full_name == $sourceRepo) | select(.name | test("Test|test|Verification|verification|Contract|contract|Security|security|Baseline|baseline|Certification|certification|Impact|impact|Code Scanning|CodeQL|Diagnostic|diagnostic|Proof|proof|Scan|scan")) | select(.name != "FLIXO Agent Repair Heartbeat" and .name != "FLIXO Agent Repair Supervisor" and .name != "FLIXO Master Agent Activation Relay" and .name != "FLIXO Master Repair Governor") | [.id,.name,.status,.head_sha] | @tsv' /tmp/supersession-final-runs.json
             exit 1
           fi
           echo 'STALE_ACTIVE_RUNS=0'
