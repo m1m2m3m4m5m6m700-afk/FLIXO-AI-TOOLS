@@ -39,7 +39,7 @@ jobs:
           set -euo pipefail
           EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           [[ "$EXECUTION_SHA" =~ ^[0-9a-f]{40}$ ]]
-          ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 20 --json databaseId,status,headBranch,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headBranch == "execution")) | length')"
+          ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 20 --json databaseId,status,headBranch,headSha --jq --arg sha "$EXECUTION_SHA" 'map(select((.status == "queued" or .status == "in_progress") and .headBranch == "execution" and .headSha == $sha)) | length')"
           echo "EXECUTION_SHA=$EXECUTION_SHA"
           echo "ACTIVE_RESIDENT=$ACTIVE_RESIDENT"
           if [ "$ACTIVE_RESIDENT" -eq 0 ]; then
@@ -52,7 +52,7 @@ jobs:
 
           if [ "$ACTIVE_RESIDENT" -eq 0 ]; then
             for ATTEMPT in 1 2 3 4 5 6; do
-              ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 20 --json databaseId,status,headBranch,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headBranch == "execution")) | length')"
+              ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 20 --json databaseId,status,headBranch,headSha --jq --arg sha "$EXECUTION_SHA" 'map(select((.status == "queued" or .status == "in_progress") and .headBranch == "execution" and .headSha == $sha)) | length')"
               if [ "$ACTIVE_RESIDENT" -gt 0 ]; then
                 echo 'RESIDENT_BOOTSTRAP_VERIFIED=true'
                 exit 0
