@@ -50,7 +50,7 @@ jobs:
             select(
               (.status=="in_progress" and .headSha != $sha) or
               ((.status=="queued" or .status=="pending") and
-               .headSha != $sha)
+               (.headSha != $sha or (((.createdAt|fromdateiso8601) + 120) < $now)))
             ) | .databaseId
           ' "$RUNS_FILE")"
           for RUN_ID in $STALE_RUN_IDS; do
