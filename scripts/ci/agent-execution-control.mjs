@@ -34,6 +34,15 @@ const sha = git(['rev-parse','HEAD']);
 const branch = git(['branch','--show-current']);
 const repairProtocolAdmission = assertAgentAdmission({ actor: 'assistantController', branch, mutation: false });
 const fingerprint = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex').slice(0, 16);
+try {
+  execFileSync(process.execPath, [path.resolve(ROOT, 'scripts/ci/sync-cognitive-learning-mesh.mjs')], {
+    cwd: ROOT,
+    stdio: 'inherit',
+    env: { ...process.env, FLIXO_TARGET_SHA: sha },
+  });
+} catch (error) {
+  console.warn('COGNITIVE_MESH_SYNC_WARNING=' + String(error?.message ?? error));
+}
 const sharedLearning = buildSharedLearningContext({ botId:'executionAgent', limit:96 });
 
 function readJson(file) { return JSON.parse(fs.readFileSync(file, 'utf8')); }
