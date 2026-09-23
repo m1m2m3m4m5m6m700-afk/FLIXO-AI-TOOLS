@@ -55,6 +55,10 @@ const report=JSON.parse(fs.readFileSync(out,'utf8'));
 assert.equal(report.workerCount,10);
 assert.equal(report.cloneModel,'ONE_SHARED_COGNITIVE_KERNEL_WITH_ROLE_OVERLAYS');
 assert.equal(report.pushAuthority,'CHAIR_1_ONLY');
+assert.equal(report.roleOrder.length,10);
+assert.deepEqual(report.workers.map(x=>x.workerId),['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5','FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10']);
+assert.ok(report.workers.every(x=>x.systemScope==='FULL_REPOSITORY_AND_AUTOMATION_SYSTEM'));
+assert.ok(report.workers.every(x=>x.workflow==='READ→DIAGNOSE→WRITE_PROPOSAL→CHALLENGE→HANDOFF'));
 assert.deepEqual(report.roleOrder,Object.values(expected));
 for(const worker of report.workers){
  assert.equal(worker.mutationAuthority,false);
@@ -72,6 +76,7 @@ assert.equal(wakeResult.action,'WAKE_ALL_ACTION_REPAIR_TEAM');
 assert.equal(wakeResult.wakeScope,'ALL_ACTION_REPAIR_TEAM');
 assert.equal(wakeResult.wakePolicy,'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL');
 assert.equal(wakeResult.recipientCount,10);
+assert.deepEqual(wakeResult.recipients,['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5','FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10']);
 assert.deepEqual(wakeResult.recipients,report.workers.map(worker=>worker.workerId));
 const index='/tmp/flixo-action-index.json';
 execFileSync('node',[...base,'--role=index','--output='+index],{stdio:'pipe'});
