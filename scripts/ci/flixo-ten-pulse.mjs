@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { AGENT_LIVENESS_PROTOCOL, buildTeamPulseDirective } from './agent-liveness-protocol.mjs';
+import { buildFiveBotRotation } from './five-bot-rotation.mjs';
 
 const IDS = AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds;
 const RESIDENT_IDS = AGENT_LIVENESS_PROTOCOL.residentRuntimeIds;
@@ -14,10 +15,9 @@ const runId=arg('run-id',process.env.GITHUB_RUN_ID||'LOCAL');
 const activeOperation=arg('active-operation','false')==='true';
 const activeWorker=arg('active-worker',process.env.FLIXO_ACTIVE_WORKER||'').trim() || null;
 const output=arg('output','/tmp/flixo-team-pulse.json');
-const pulseMinuteOrdinal=(() => {
-  const parsed=Date.parse(String(minuteKey)+':00Z');
-  return Number.isFinite(parsed) ? Math.floor(parsed / 60000) : 0;
-})();
+const pulseMinuteOrdinal=(() => { const parsed=Date.parse(String(minuteKey)); if(Number.isFinite(parsed)) return Math.floor(parsed/60000); const fallback=Date.parse(String(minuteKey).slice(0,16)+':00Z'); return Number.isFinite(fallback)?Math.floor(fallback/60000):0; })();
+const pulseTimestamp=Number.isFinite(Date.parse(String(minuteKey))) ? new Date(Date.parse(String(minuteKey))).toISOString() : new Date(pulseMinuteOrdinal*60000).toISOString();
+const rotation=buildFiveBotRotation({targetSha:sha,now:pulseTimestamp});
 const pulseProfileIndex=((pulseMinuteOrdinal % AGENT_LIVENESS_PROTOCOL.pulseProfiles.length)+AGENT_LIVENESS_PROTOCOL.pulseProfiles.length)%AGENT_LIVENESS_PROTOCOL.pulseProfiles.length;
 const pulseProfile=AGENT_LIVENESS_PROTOCOL.pulseProfiles[pulseProfileIndex];
 const pulseDomain=AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains[pulseProfileIndex % AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains.length];
@@ -33,10 +33,10 @@ const differentiatedPulse={
   wakeScope:'ALL_AGENTS',
   residentWakeCount:RESIDENT_IDS.length,
 };
-const result={schemaVersion:2,protocol:'FLIXO-TEAM-PULSE-CONTROLLER-v2',minuteKey,runId,targetSha:sha,activeOperation,activeWorker,mode:activeOperation?'ACTIVE_OPERATION':'READY_RESIDENT',pulseCount:1,pulses:[{...differentiatedPulse,pulseId:'TEAM-'+minuteKey.replace(/[^0-9]/gu,'')+'-'+runId,pulseOrdinal:1,cadence:'EVERY_MINUTE',generatedAt:new Date().toISOString()}],allAgentsWakeCount:RESIDENT_IDS.length,residentWakeCount:RESIDENT_IDS.length,teamMemberCount:IDS.length,logicalBotCount:AGENT_LIVENESS_PROTOCOL.logicalBotCount,actionRepairWakeCount:IDS.length,logicalBotIds:[...RESIDENT_IDS],developmentProfiles:DEVELOPMENT_PROFILES,residentState:activeOperation?'ACTIVE_OPERATION':'READY_RESIDENT',sleep:false,idle:false,readOnlyWhenResident:true,sourceMutationAllowed:false,onePulsePerHeartbeat:true};
+const result={schemaVersion:2,protocol:'FLIXO-TEAM-PULSE-CONTROLLER-v2',minuteKey,runId,targetSha:sha,activeOperation,activeWorker,mode:activeOperation?'ACTIVE_OPERATION':'READY_RESIDENT',pulseCount:1,pulses:[{...differentiatedPulse,pulseId:'TEAM-'+minuteKey.replace(/[^0-9]/gu,'')+'-'+runId,pulseOrdinal:1,cadence:'EVERY_MINUTE',generatedAt:new Date().toISOString()}],allAgentsWakeCount:RESIDENT_IDS.length,residentWakeCount:RESIDENT_IDS.length,teamMemberCount:IDS.length,logicalBotCount:AGENT_LIVENESS_PROTOCOL.logicalBotCount,actionRepairWakeCount:IDS.length,logicalBotIds:[...AGENT_LIVENESS_PROTOCOL.logicalBotIds],developmentProfiles:DEVELOPMENT_PROFILES,residentState:activeOperation?'ACTIVE_OPERATION':'READY_RESIDENT',activeBotCount:rotation.activeBotCount,activeBotIds:rotation.activeBotIds,stagedBotCount:rotation.stagedBotCount,stagedBotIds:rotation.stagedBotIds,nextBotIds:rotation.nextBotIds,cohortCount:rotation.cohortCount,cohortIndex:rotation.cohortIndex,cohortNumber:rotation.cohortNumber,cycleNumber:rotation.cycleNumber,commitmentWindowMs:rotation.commitmentWindowMs,activeRuntimeCount:rotation.activeRuntimeCount,activeRuntimeIds:rotation.activeRuntimeIds,stagedRuntimeCount:rotation.stagedRuntimeCount,stagedRuntimeIds:rotation.stagedRuntimeIds,activeRuntimeAssignments:rotation.assignments,nextCohortReady:rotation.handoff.nextReady,nextCohortReadyCount:rotation.handoff.requiredReadyCount,handoffPolicy:rotation.handoff.policy,handoffStatus:rotation.handoff.status,sleep:false,idle:false,readOnlyWhenResident:true,sourceMutationAllowed:false,onePulsePerHeartbeat:true};
 fs.mkdirSync(path.dirname(output),{recursive:true});
 fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n');
-console.log(JSON.stringify({status:'PASS',pulseCount:1,teamMemberCount:IDS.length,mode:result.mode,output},null,2));
+console.log(JSON.stringify({status:'PASS',pulseCount:1,teamMemberCount:IDS.length,logicalBotCount:result.logicalBotCount,activeBotCount:result.activeBotCount,activeBotIds:result.activeBotIds,nextBotIds:result.nextBotIds,cohortIndex:result.cohortIndex,cycleNumber:result.cycleNumber,mode:result.mode,output},null,2));
 if(process.argv[2]==='scan-plan'){
   // Scan mode is intentionally read-only over source code and repository metadata.
   const root=process.cwd();

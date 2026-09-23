@@ -49,6 +49,15 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   logicalBotDevelopmentDomains: RESIDENT_DEVELOPMENT_DOMAINS,
   logicalBotDevelopmentProfiles: LOGICAL_BOT_DEVELOPMENT_PROFILES,
   logicalBotPolicy: 'FIXED_100_LOGICAL_PROFILES',
+  activeCohortSize: 5,
+  activeCohortCount: 20,
+  activeCohortCommitmentMs: 15 * 60 * 1000,
+  activeCohortRotationPolicy: 'FIFO_5_OF_100_WITH_CYCLE_WRAP',
+  activeCohortHandoffPolicy: 'NEXT_5_READY_BEFORE_RELEASE',
+  activeRuntimeCount: 5,
+  activeRuntimeIds: Object.freeze(RESIDENT_RUNTIME_IDS.slice(0, 5)),
+  stagedRuntimeCount: 5,
+  stagedRuntimeIds: Object.freeze(RESIDENT_RUNTIME_IDS.slice(5)),
   residentRuntimeCount: 10,
   residentRuntimeIds: RESIDENT_RUNTIME_IDS,
   residentRuntimePolicy: 'ONLY_VERIFIED_LIVE_RUNTIME_IDS_COUNT_AS_RESIDENT',
@@ -141,6 +150,11 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
     'SELF_DISABLE_FORBIDDEN',
     'SELF_ABORT_FORBIDDEN',
     'LIVENESS_FAILURE_MUST_REENTER_CANONICAL_WAKE_PATH',
+    'ACTIVE_COHORT_EXACTLY_FIVE',
+    'ACTIVE_COHORT_COMMITMENT_15_MINUTES',
+    'NEXT_COHORT_READY_BEFORE_RELEASE',
+    'TWENTY_COHORTS_COMPLETE_ONE_100_BOT_CYCLE',
+    'CYCLE_WRAP_100_TO_1',
   ]),
 });
 
@@ -164,6 +178,8 @@ export function assertLivenessDefinition() {
   if (AGENT_LIVENESS_PROTOCOL.pulseEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_PULSE_NOT_ONE_MINUTE');
   if (AGENT_LIVENESS_PROTOCOL.logicalBotCount !== 100 || AGENT_LIVENESS_PROTOCOL.logicalBotIds.length !== 100 || AGENT_LIVENESS_PROTOCOL.logicalBotIds[0] !== 'CELL-001' || AGENT_LIVENESS_PROTOCOL.logicalBotIds[99] !== 'CELL-100' || new Set(AGENT_LIVENESS_PROTOCOL.logicalBotIds).size !== 100) throw new Error('AGENT_LIVENESS_100_LOGICAL_BOT_ROSTER_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains.length !== 10 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.length !== 100 || new Set(AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.map((x) => x.botId)).size !== 100 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.some((x) => x.mutationAuthority !== false || x.certificationAuthority !== false || !x.skills.length)) throw new Error('AGENT_LIVENESS_LOGICAL_BOT_DEVELOPMENT_PROFILE_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.activeCohortSize !== 5 || AGENT_LIVENESS_PROTOCOL.activeCohortCount !== 20 || AGENT_LIVENESS_PROTOCOL.activeCohortCommitmentMs !== 15 * 60 * 1000 || AGENT_LIVENESS_PROTOCOL.activeCohortRotationPolicy !== 'FIFO_5_OF_100_WITH_CYCLE_WRAP' || AGENT_LIVENESS_PROTOCOL.activeCohortHandoffPolicy !== 'NEXT_5_READY_BEFORE_RELEASE') throw new Error('AGENT_LIVENESS_FIVE_BOT_ROTATION_POLICY_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.activeRuntimeCount !== 5 || AGENT_LIVENESS_PROTOCOL.activeRuntimeIds.length !== 5 || AGENT_LIVENESS_PROTOCOL.stagedRuntimeCount !== 5 || AGENT_LIVENESS_PROTOCOL.stagedRuntimeIds.length !== 5) throw new Error('AGENT_LIVENESS_ACTIVE_RUNTIME_CAPACITY_INVALID');
   for (const domain of AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains) if (AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.filter((x) => x.domainId === domain.id).length !== 10) throw new Error('AGENT_LIVENESS_BOT_DOMAIN_DISTRIBUTION_INVALID=' + domain.id);
   if (AGENT_LIVENESS_PROTOCOL.pulseProfiles.length !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.botId)).size !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.pulseType)).size !== 10) throw new Error('AGENT_LIVENESS_PULSE_PROFILE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.idleSweepMode !== 'FULL_REPOSITORY_READ_ONLY_SCAN' || AGENT_LIVENESS_PROTOCOL.idleSweepPlanLedger !== 'المهام.md') throw new Error('AGENT_LIVENESS_IDLE_SWEEP_POLICY_INVALID');

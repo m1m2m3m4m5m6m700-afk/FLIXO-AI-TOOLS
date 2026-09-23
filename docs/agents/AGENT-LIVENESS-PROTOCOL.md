@@ -61,6 +61,21 @@
 
 `ACTION-SHA-7` هو الخصم المستقل لـ`ACTION-CONVERGENCE-8` أثناء التصديق النهائي؛ أي counterexample صالح يمنع التصديق.
 
+## Fixed five-bot active cohort
+
+- **5 بوتات Active فقط** في أي لحظة تشغيلية.
+- كل مجموعة تلتزم **15 دقيقة** قبل السماح بتسليمها.
+- الـ100 هم **Logical Bot Profiles** مرتبة إلى **20 مجموعة × 5**.
+- يوجد 10 Runtime Seats حاليًا، لكن 5 فقط Active والخمسة الأخرى Staged/Ready.
+- انتهاء الـ15 دقيقة وحده لا يسمح بتحرير المجموعة؛ يجب أن تكون المجموعة التالية READY للخمسة جميعًا.
+- نقص الجاهزية يمنع الخروج ويحوّل handoff إلى انتظار/Recovery بدل SLEEP/IDLE.
+- بعد `CELL-096..CELL-100` يعود الدور إلى `CELL-001..CELL-005`.
+- المهمة المفتوحة نفسها لا تنتهي بالـ15 دقيقة؛ تستمر حتى Exact-SHA + zero RED + regression + learning + GREEN.
+
+المرجع البرمجي: `scripts/ci/five-bot-rotation.mjs`
+
+`5 ACTIVE → 15m COMMITMENT → NEXT 5 READY → HANDOFF → ... → CELL-100 → CELL-001`
+
 ## Green-gated sleep
 
 SLEEP وIDLE ليسا حالات انتقال حرة.

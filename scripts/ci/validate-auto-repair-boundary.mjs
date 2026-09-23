@@ -177,6 +177,10 @@ export function validateStatic() {
   must(/flixo-ten-pulse\.mjs|flixo-team-pulse/.test(heartbeat), 'heartbeat-team-wake-plan');
   must(/ONE_PULSE_WAKE_SCOPE=ALL_AGENTS|wakeScope.*ALL_AGENTS/.test(heartbeat), 'heartbeat-team-wake-broadcast');
   must(!/pulseCount==10|DIFFERENTIATED_PULSES=10|ALL_AGENTS_WAKE_DIRECTIVES_EMITTED=10/.test(heartbeat), 'heartbeat-no-ten-pulse-competition');
+  must(/five-bot-rotation\.mjs/.test(heartbeat), 'heartbeat-five-bot-rotation-controller');
+  must(/ACTIVE_BOT_COUNT=5/.test(heartbeat) && /ACTIVE_BOT_COMMITMENT_MINUTES=15/.test(heartbeat), 'heartbeat-five-active-15-minute-commitment');
+  must(/ACTIVE_BOT_COHORT_COUNT=20/.test(heartbeat) && /LOGICAL_BOT_CYCLE=100_TO_1/.test(heartbeat), 'heartbeat-100-bot-cycle');
+  must(/NEXT_COHORT_READY_REQUIRED=true/.test(heartbeat) && /ACTIVE_COHORT_HANDOFF=NEXT_5_READY_BEFORE_RELEASE/.test(heartbeat), 'heartbeat-next-five-ready-handoff');
 
   must(handoffGate.includes('CURRENT_EXECUTION_SHA=') && handoffGate.includes('HANDOFF_EXECUTION_SHA'), 'handoff-gate-current-head-check');
   must(/Create exact unpublished candidate commit/.test(auto), 'auto-repair-candidate-commit');
