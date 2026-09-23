@@ -3,6 +3,8 @@ name: FLIXO Agent Repair Heartbeat
 run-name: FLIXO Agent Repair Heartbeat ${{ github.run_id }}
 
 on:
+  push:
+    branches: [execution]
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
