@@ -1,0 +1,41 @@
+name: FLIXO Latest Execution HEAD Cleanup
+
+on:
+  schedule:
+    - cron: '17 3 * * 0'
+
+concurrency:
+  group: flixo-latest-execution-head-cleanup
+  cancel-in-progress: true
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    name: Delete stale execution-head runs and artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run repository latest-execution-head cleanup
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FLIXO_STALE_EXECUTION_GRACE_DAYS: '14'
+        run: node scripts/ci/latest-execution-head-cleanup.mjs
+
+      - name: Publish cleanup evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-latest-execution-head-cleanup-${{ github.run_id }}
+          path: /tmp/latest-execution-head-cleanup-summary.json
+          if-no-files-found: ignore
+          retention-days: 7

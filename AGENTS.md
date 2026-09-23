@@ -1,3 +1,10 @@
+
+## REPOSITORY-WIDE LATEST-EXECUTION-HEAD-ONLY-001
+
+The live `execution` branch HEAD is the only authoritative current execution SHA. Older execution workflow invocations are STALE and cannot certify current state. Active stale verification runs are superseded/cancelled, and completed stale workflow runs/artifacts are periodically deleted after the configured 14-day grace period by `.github/workflows/latest-execution-head-cleanup.yml`. The cleanup runs only from trusted `main`, never deletes the current `execution` HEAD, never deletes `main`, and never mutates tracked task/memory/history files.
+
+Canonical policy: `docs/REPOSITORY-LATEST-EXECUTION-HEAD-ONLY.md`.
+
 # 🚨 SUPREME FIRST OBLIGATION — P00
 All repository/project/cell execution is governed first by:
 docs/agents/PROMPT-UNIFIED-EXECUTION.md — RPR-UNIFIED-EXECUTION-001 v4.0.0.
