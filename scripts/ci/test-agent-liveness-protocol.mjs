@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, buildTeamWakeDirective, buildDifferentiatedPulseDirective, assertActiveRepairWindow, checkContinuousSessionWindow, sessionTerminationDirective, idleAdmission, sleepAdmission, selfDisableAdmission, selfAbortAdmission, runEndAdmission } from './agent-liveness-protocol.mjs';
+import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, buildTeamWakeDirective, buildTeamPulseDirective, buildDifferentiatedPulseDirective, assertActiveRepairWindow, checkContinuousSessionWindow, sessionTerminationDirective, idleAdmission, sleepAdmission, selfDisableAdmission, selfAbortAdmission, runEndAdmission } from './agent-liveness-protocol.mjs';
 
 assert.equal(assertLivenessDefinition(), true);
 assert.deepEqual([...AGENT_LIVENESS_PROTOCOL.forbiddenStates].sort(), ['ABANDONED','IDLE','SILENT','SLEEP'].sort());
@@ -11,7 +11,7 @@ assert.equal(AGENT_LIVENESS_PROTOCOL.wakeIntervalMs, 60 * 1000);
 assert.equal(AGENT_LIVENESS_PROTOCOL.teamWakeIntervalMs, 60 * 1000);
 assert.equal(AGENT_LIVENESS_PROTOCOL.teamWakePolicy, 'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL');
 assert.equal(AGENT_LIVENESS_PROTOCOL.teamWakeScope, 'ALL_ACTION_REPAIR_TEAM');
-assert.equal(AGENT_LIVENESS_PROTOCOL.heartbeatWakePolicy, 'EVERY_FLIXO10_PULSE_WAKES_ALL_AGENTS');
+assert.equal(AGENT_LIVENESS_PROTOCOL.heartbeatWakePolicy, 'ONE_MINUTE_HEARTBEAT_WAKES_ALL_AGENTS');
 assert.equal(AGENT_LIVENESS_PROTOCOL.heartbeatWakeScope, 'ALL_AGENTS');
 assert.equal(AGENT_LIVENESS_PROTOCOL.pulseEveryMs, 60 * 1000);
 assert.equal(AGENT_LIVENESS_PROTOCOL.pulseProfiles.length, 10);
@@ -72,15 +72,18 @@ assert.equal(teamWake.pushAuthority,'CHAIR_1_ONLY');
 assert.deepEqual(teamWake.recipients,AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds);
 assert.throws(() => buildTeamWakeDirective({actor:'UNKNOWN-BOT',targetSha:'a'.repeat(40)}), /TEAM_WAKE_ACTOR_NOT_AUTHORIZED/u);
 
-for (const bot of AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds) {
-  const pulse=buildDifferentiatedPulseDirective({actor:bot,targetSha:'a'.repeat(40),taskId:'TASK-PULSE',activeOperation:false});
-  assert.equal(pulse.action,'WAKE_ALL_AGENTS');
-  assert.equal(pulse.wakeScope,'ALL_AGENTS');
-  assert.deepEqual(pulse.recipients,['ALL_AGENTS']);
-  assert.equal(pulse.mode,'FULL_REPOSITORY_READ_ONLY_SCAN');
-  assert.equal(pulse.adversaryBot,AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds[(AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.indexOf(bot)+1)%10]);
-}
-assert.throws(()=>buildDifferentiatedPulseDirective({actor:'UNKNOWN-BOT',targetSha:'a'.repeat(40)}),/PULSE_ACTOR_NOT_AUTHORIZED/u);
+const teamPulse=buildTeamPulseDirective({targetSha:'a'.repeat(40),taskId:'TASK-PULSE',activeOperation:false,activeWorker:'FLIXO1'});
+assert.equal(teamPulse.action,'WAKE_ALL_AGENTS');
+assert.equal(teamPulse.wakeScope,'ALL_AGENTS');
+assert.deepEqual(teamPulse.recipients,['ALL_AGENTS']);
+assert.equal(teamPulse.recipientCount,1);
+assert.equal(teamPulse.teamMemberCount,10);
+assert.equal(teamPulse.mode,'FULL_REPOSITORY_READ_ONLY_SCAN');
+assert.equal(teamPulse.onePulsePerHeartbeat,true);
+assert.equal(teamPulse.pushAuthority,'CHAIR_1_ONLY');
+assert.equal(buildDifferentiatedPulseDirective({actor:'FLIXO2',targetSha:'a'.repeat(40)}).pulseType,'CANONICAL_TEAM_HEARTBEAT');
+assert.throws(()=>buildTeamPulseDirective({targetSha:'bad'}),/PULSE_EXACT_SHA_REQUIRED/u);
+assert.throws(()=>buildTeamPulseDirective({targetSha:'a'.repeat(40),activeWorker:'UNKNOWN-BOT'}),/ACTIVE_WORKER_NOT_AUTHORIZED/u);
 
 const recovery=buildRecoveryDirective({reason:'HEARTBEAT_STALE',currentState:'ACTIVE'});
 assert.equal(recovery.action,'RECOVER_AND_CONTINUE');
