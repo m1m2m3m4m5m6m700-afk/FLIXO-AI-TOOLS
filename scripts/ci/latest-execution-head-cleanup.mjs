@@ -75,8 +75,17 @@ for (const run of runs) {
   const status = String(run?.status ?? '');
   const updatedAt = Date.parse(String(run?.updated_at ?? ''));
   const name = String(run?.name ?? '');
+  const event = String(run?.event ?? '');
+  const disallowedHeartbeatEvent = name.startsWith('FLIXO Agent Repair Heartbeat') && event === 'pull_request';
 
   if (!Number.isInteger(runId) || headBranch !== branch || headRepository !== repository) continue;
+  if (disallowedHeartbeatEvent && status !== 'completed') {
+    await github(`/repos/${repository}/actions/runs/${runId}/cancel`, {method: 'POST'});
+    cancelled += 1;
+    summary.cancelledRuns.push({id: runId, sha: headSha, name, reason: 'DISALLOWED_HEARTBEAT_EVENT_PULL_REQUEST'});
+    console.log(`DISALLOWED_HEARTBEAT_EVENT_CANCELLED id=${runId} sha=${headSha} event=${event}`);
+    continue;
+  }
   if (headSha === latestSha) continue;
 
   if (status !== 'completed') {
