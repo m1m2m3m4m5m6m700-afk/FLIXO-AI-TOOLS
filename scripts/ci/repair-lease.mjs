@@ -181,6 +181,11 @@ async function readWorkflowRun(runId) {
   return { status: result.status, data: result.data };
 }
 
+async function cancelWorkflowRun(runId) {
+  const result = await api('POST', `/repos/${repo}/actions/runs/${encodeURIComponent(String(runId))}/cancel`);
+  return { runId, status: result.status, ok: result.ok, decision: result.ok ? 'CANCEL_REQUESTED' : result.status === 404 ? 'ALREADY_GONE' : result.status === 409 ? 'ALREADY_COMPLETED' : 'CANCEL_FAILED' };
+}
+
 const crashConclusions = new Set(['failure', 'timed_out', 'cancelled']);
 const FLIXO_WORKER_HEARTBEAT_MAX_AGE_MS = 90 * 1000;
 function flixoWorkerIndex(workerId) {
@@ -201,8 +206,9 @@ function latestFlixoWorkerState(events) {
   const activeWorker = String(latest.workerId).toUpperCase();
   const heartbeatAt = ordered.find((item) => item.eventType === 'FLIXO_WORKER_HEARTBEAT' && String(item.workerId ?? '').toUpperCase() === activeWorker)?.heartbeatAt ?? null;
   const heartbeatMs = Date.parse(String(heartbeatAt ?? ''));
-  const stale = !Number.isFinite(heartbeatMs) || (Date.now() - heartbeatMs) > FLIXO_WORKER_HEARTBEAT_MAX_AGE_MS;
-  return { activeWorker, lastHeartbeatAt: heartbeatAt, stale, nextWorker: stale ? nextFlixoWorker(activeWorker) : activeWorker, lastEvent: latest };
+  const heartbeatMissing = !Number.isFinite(heartbeatMs);
+  const stale = !heartbeatMissing && (Date.now() - heartbeatMs) > FLIXO_WORKER_HEARTBEAT_MAX_AGE_MS;
+  return { activeWorker, lastHeartbeatAt: heartbeatAt, heartbeatMissing, stale, nextWorker: (stale || heartbeatMissing) ? nextFlixoWorker(activeWorker) : activeWorker, lastEvent: latest };
 }
 function requireFlixoWorker(value) {
   const id = String(value ?? '').trim().toUpperCase();
@@ -348,12 +354,18 @@ async function commandWorkerAssign() {
   const identity = identityFromArgs();
   const failedSha = getArg('failedSha');
   const requested = getArg('workerId', '');
+  const attempt = Number(getArg('attempt', '1'));
   const events = await listEventMetadata(identity);
   const state = latestFlixoWorkerState(events);
   let workerId = requested ? requireFlixoWorker(requested) : null;
   let action = 'INITIAL_ASSIGNMENT';
   let previousWorker = state.activeWorker;
-  if (state.activeWorker && !state.stale) {
+  if (state.activeWorker && attempt > 1) {
+    const expected = nextFlixoWorker(state.activeWorker);
+    if (workerId && workerId !== expected) throw new Error('FLIXO_FAILOVER_ORDER_BLOCKED=' + expected);
+    workerId = expected;
+    action = state.stale ? 'FAILOVER_AFTER_STALE_HEARTBEAT' : 'FAILOVER_AFTER_PREVIOUS_ATTEMPT';
+  } else if (state.activeWorker && !state.stale && !state.heartbeatMissing) {
     if (workerId && workerId !== state.activeWorker) throw new Error('FLIXO_ACTIVE_WORKER_COMPETITION_BLOCKED=' + state.activeWorker);
     workerId = state.activeWorker;
     action = 'REUSE_ACTIVE_WORKER';
@@ -713,7 +725,48 @@ async function commandRecover() {
     }
   }
 
-  const active = await activeRepairRuns(identity, failedSha);
+  let active = await activeRepairRuns(identity, failedSha);
+  const workerState = latestFlixoWorkerState(events);
+  const activeRepairRunId = latestActiveState?.repairRunId ? String(latestActiveState.repairRunId) : '';
+  let workerFailoverReason = null;
+  let workerCancellation = [];
+  let staleWorkerHeartbeat = Boolean(workerState.activeWorker && workerState.stale);
+  let stalledBeforeFirstHeartbeat = false;
+  if (workerState.activeWorker && workerState.heartbeatMissing && activeRepairRunId) {
+    const runEvidence = await readWorkflowRun(activeRepairRunId);
+    const startedMs = Date.parse(String(runEvidence.data?.run_started_at ?? runEvidence.data?.created_at ?? ''));
+    stalledBeforeFirstHeartbeat = runEvidence.status === 200
+      && runEvidence.data?.status !== 'completed'
+      && Number.isFinite(startedMs)
+      && (Date.now() - startedMs) > FLIXO_WORKER_HEARTBEAT_MAX_AGE_MS;
+  }
+  if ((staleWorkerHeartbeat || stalledBeforeFirstHeartbeat) && active.length > 0) {
+    workerFailoverReason = staleWorkerHeartbeat ? 'ACTIVE_WORKER_HEARTBEAT_STALE' : 'ACTIVE_WORKER_STARTED_WITHOUT_HEARTBEAT';
+    for (const run of active) {
+      const cancelled = await cancelWorkflowRun(run.databaseId);
+      workerCancellation.push(cancelled);
+      if (!['CANCEL_REQUESTED','ALREADY_GONE','ALREADY_COMPLETED'].includes(cancelled.decision)) {
+        console.log(JSON.stringify({status:'FAIL_CLOSED',reason:'FLIXO_WORKER_FAILOVER_CANCELLATION_FAILED',workerState,workerCancellation:[...workerCancellation]},null,2));
+        process.exitCode = 1;
+        return;
+      }
+    }
+    active = [];
+    await emitEvent(identity, 'WORKER_FAILOVER', `failover-${process.env.GITHUB_RUN_ID || Date.now()}`, {
+      repairKey:identity.claimKey,
+      leaseRef:identity.leaseRef,
+      failedSha,
+      targetRunId:getArg('targetRunId'),
+      repairRunId:activeRepairRunId || process.env.GITHUB_RUN_ID || null,
+      previousWorker:workerState.activeWorker,
+      nextWorker:nextFlixoWorker(workerState.activeWorker),
+      reason:workerFailoverReason,
+      cancellation:workerCancellation,
+      previousHeartbeatAt:workerState.lastHeartbeatAt,
+      state:'FLIXO_WORKER_FAILOVER_READY',
+      at:new Date().toISOString(),
+    });
+  }
   const currentRef = await readRef('refs/heads/execution');
   const currentExecutionSha = String(currentRef?.data?.object?.sha ?? '');
   const leaseAgeMs = Math.max(0, Date.now() - Date.parse(String(meta.metadata?.createdAt ?? '')));
@@ -726,6 +779,7 @@ async function commandRecover() {
     !latestActiveState?.repairRunId &&
     String(meta.metadata?.leaseOwner ?? '') === 'DAILY_FLIXO_GREEN_GATE' &&
     leaseAgeMs >= 2 * 60 * 1000;
+  const immediateFlixoFailover = Boolean(workerFailoverReason);
   const decision = staleRecoveryDecision({
     leaseCreatedAt: meta.metadata?.createdAt,
     staleAfterMs: Number(getArg('staleAfterMs', String(DEFAULT_STALE_AFTER_MS))),
@@ -734,8 +788,8 @@ async function commandRecover() {
     activeRuns: active,
     outcomes,
     repairKey: identity.claimKey,
-    terminalRepairFailure,
-    orphanedDispatch,
+    terminalRepairFailure: terminalRepairFailure || immediateFlixoFailover,
+    orphanedDispatch: orphanedDispatch || immediateFlixoFailover,
   });
   if (active.some((item) => item.status === 'UNKNOWN')) {
     console.log(JSON.stringify({ status: 'FAIL_CLOSED', reason: 'ACTIVE_SESSION_EVIDENCE_UNAVAILABLE', active, decision }, null, 2));
@@ -812,6 +866,10 @@ async function commandRecover() {
     attempt: nextAttempt,
     repairChainId: identity.repairChainId,
     decision,
+    workerFailoverReason,
+    workerCancellation,
+    previousWorker:workerState.activeWorker,
+    nextWorker:workerState.nextWorker,
   }, null, 2));
   if (!['ACQUIRED', 'ALREADY_CLAIMED'].includes(ref.decision)) process.exitCode = 1;
 }
