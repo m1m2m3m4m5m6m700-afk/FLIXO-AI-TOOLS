@@ -10,10 +10,12 @@
   "systemScope": "FULL_REPOSITORY_AND_AUTOMATION_SYSTEM",
   "lens": "WHOLE_SYSTEM_BROWSER_AND_CLIENT_RUNTIME",
   "workflow": [
+    "TASK_RECEIPT",
     "READ",
     "DIAGNOSE",
     "WRITE_PROPOSAL",
-    "CHALLENGE",
+    "CHALLENGE_NEXT_BOT",
+    "EVIDENCE",
     "HANDOFF"
   ],
   "proposalMutationAuthority": false,
@@ -37,5 +39,18 @@
   },
   "knowledge": [],
   "lessons": [],
-  "antiLessons": []
+  "antiLessons": [],
+  "dynamicTaskRole": {
+    "protocol": "FLIXO10-DYNAMIC-RING-v1",
+    "taskReceiptRole": "PROPOSER_AND_RING_MEMBER",
+    "adversaryBotOnTaskReceipt": "FLIXO7",
+    "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY",
+    "ringPosition": 6,
+    "ringDirection": "NEXT_BOT",
+    "sameTaskRequired": true,
+    "sameExactShaRequired": true,
+    "counterexampleBlocksPush": true,
+    "pushSeatEligible": true,
+    "pushSeatPolicy": "FIRST_CONNECTED_FLIXO10_WINS_IMMUTABLE_UNTIL_TASK_COMPLETION"
+  }
 }
