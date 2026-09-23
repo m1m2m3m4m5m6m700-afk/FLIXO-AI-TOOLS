@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, buildTeamWakeDirective, buildTeamPulseDirective, buildDifferentiatedPulseDirective, assertActiveRepairWindow, checkContinuousSessionWindow, sessionTerminationDirective, idleAdmission, sleepAdmission, selfDisableAdmission, selfAbortAdmission, runEndAdmission } from './agent-liveness-protocol.mjs';
+import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, buildTeamWakeDirective, buildTeamPulseDirective, buildDifferentiatedPulseDirective, assertActiveRepairWindow, checkContinuousSessionWindow, sessionTerminationDirective, assertFiveBotResidencyCommitment, idleAdmission, sleepAdmission, selfDisableAdmission, selfAbortAdmission, runEndAdmission } from './agent-liveness-protocol.mjs';
 import { buildFiveBotRotation, cohortMembers, cohortIndexAt, evaluateHandoff } from './five-bot-rotation.mjs';
 
 assert.equal(assertLivenessDefinition(), true);
@@ -82,6 +82,16 @@ assert.throws(() => idleAdmission(), /IDLE_FORBIDDEN_PERMANENT_RESIDENCY/u);
 assert.throws(() => selfDisableAdmission(), /SELF_DISABLE_FORBIDDEN_PERMANENT_RESIDENCY/u);
 assert.throws(() => selfAbortAdmission(), /SELF_ABORT_FORBIDDEN_PERMANENT_RESIDENCY/u);
 assert.throws(() => runEndAdmission(), /RUN_END_DOES_NOT_END_TASK/u);
+const residency=assertFiveBotResidencyCommitment({botIds:['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5'],states:['ACTIVE','ACTIVE','ACTIVE','ACTIVE','ACTIVE'],taskClosed:false,journeyComplete:false});
+assert.equal(residency.ok,true);
+assert.equal(residency.requiredBotCount,5);
+assert.equal(residency.postTaskState,'READY_RESIDENT');
+assert.equal(residency.retainResidentUntilJourneyComplete,true);
+const closedResidency=assertFiveBotResidencyCommitment({botIds:['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5'],states:['READY_RESIDENT','READY_RESIDENT','READY_RESIDENT','READY_RESIDENT','READY_RESIDENT'],taskClosed:true,journeyComplete:false});
+assert.equal(closedResidency.ok,true);
+assert.equal(closedResidency.journeyComplete,false);
+assert.throws(()=>assertFiveBotResidencyCommitment({botIds:['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5'],states:['READY_RESIDENT','READY_RESIDENT','SLEEP','READY_RESIDENT','READY_RESIDENT'],taskClosed:true}),/FORBIDDEN_STATE/u);
+assert.throws(()=>assertFiveBotResidencyCommitment({botIds:['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5'],states:['ACTIVE','ACTIVE','ACTIVE','ACTIVE','ACTIVE'],taskClosed:true}),/MUST_REMAIN_READY_RESIDENT/u);
 const teamWake=buildTeamWakeDirective({
   actor:'ACTION-TWIN-1',
   targetSha:'a'.repeat(40),
