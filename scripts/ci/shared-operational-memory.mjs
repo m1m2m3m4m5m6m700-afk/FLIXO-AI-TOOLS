@@ -7,8 +7,11 @@ const ROOT=process.cwd();
 export const SHARED_MEMORY_PATH=path.resolve(ROOT,process.env.FLIXO_SHARED_OPERATIONAL_MEMORY??'diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json');
 export const SHARED_MEMORY_PROTOCOL='FLIXO-SHARED-OPERATIONAL-MEMORY-v1';
 export const FLIXO_BOT_REGISTRY_PATH=path.resolve(ROOT,process.env.FLIXO_BOT_REGISTRY??'docs/agents/FLIXO-BOT.json');
-const loadFlixoBotAudience=()=>{try{const registry=JSON.parse(fs.readFileSync(FLIXO_BOT_REGISTRY_PATH,'utf8'));const audience=registry?.distribution?.learningConsumers;if(!Array.isArray(audience)||audience.length<7)throw new Error('INVALID_GLOBAL_AUDIENCE');return [...new Set(audience.map(x=>String(x).trim()).filter(Boolean))];}catch(error){if(process.env.NODE_ENV==='test'||process.env.FLIXO_ALLOW_LEGACY_SHARED_MEMORY_FALLBACK==='true')return ['ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent'];throw new Error('FLIXO_BOT_GLOBAL_MEMORY_AUDIENCE_UNAVAILABLE:'+error.message,{cause:error});}};
+const loadFlixoBotAudience=()=>{try{const registry=JSON.parse(fs.readFileSync(FLIXO_BOT_REGISTRY_PATH,'utf8'));const audience=registry?.distribution?.learningConsumers;const cognitiveIds=registry?.distribution?.cognitiveBotIds;if(!Array.isArray(cognitiveIds)||cognitiveIds.length!==200)throw new Error('INVALID_COGNITIVE_AUDIENCE');if(!Array.isArray(audience)||audience.length!==200||JSON.stringify(audience)!==JSON.stringify(cognitiveIds))throw new Error('INVALID_GLOBAL_AUDIENCE');return [...new Set(audience.map(x=>String(x).trim()).filter(Boolean))];}catch(error){if(process.env.NODE_ENV==='test'||process.env.FLIXO_ALLOW_LEGACY_SHARED_MEMORY_FALLBACK==='true')return ['ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent'];throw new Error('FLIXO_BOT_GLOBAL_MEMORY_AUDIENCE_UNAVAILABLE:'+error.message,{cause:error});}};
 export const SHARED_BOTS=Object.freeze(loadFlixoBotAudience());
+const loadFlixoBotAliases=()=>{try{const registry=JSON.parse(fs.readFileSync(FLIXO_BOT_REGISTRY_PATH,'utf8'));return Object.freeze({...registry?.distribution?.botAliasMap});}catch(error){if(process.env.NODE_ENV==='test'||process.env.FLIXO_ALLOW_LEGACY_SHARED_MEMORY_FALLBACK==='true')return Object.freeze({});throw new Error('FLIXO_BOT_ALIAS_MAP_UNAVAILABLE:'+error.message,{cause:error});}};
+export const FLIXO_BOT_ALIASES=loadFlixoBotAliases();
+export function resolveSharedMemoryBotId(botId){const id=String(botId??'').trim();const canonical=SHARED_BOTS.includes(id)?id:FLIXO_BOT_ALIASES[id];if(!canonical||!SHARED_BOTS.includes(canonical))throw new Error('SHARED_MEMORY_BOT_INVALID='+id);return canonical;}
 export const SHARED_KINDS=Object.freeze([
   'ERROR',
   'OPERATION',
@@ -105,7 +108,7 @@ function ensureParent(){
 export function validateSharedMemoryRecord(input={}){
   const failures=[];
   const sourceBot=String(input.sourceBot??'').trim();
-  if(!SHARED_BOTS.includes(sourceBot)) failures.push('SOURCE_BOT_INVALID');
+  try { resolveSharedMemoryBotId(sourceBot); } catch { failures.push('SOURCE_BOT_INVALID'); }
   if(!SHARED_KINDS.includes(String(input.kind??''))) failures.push('KIND_INVALID');
   if(!validSha(input.targetSha)) failures.push('EXACT_TARGET_SHA_REQUIRED');
   if(!String(input.taskId??'').trim()) failures.push('TASK_ID_REQUIRED');
@@ -134,7 +137,8 @@ function normalizeRecord(input={}){
   return {
     id,
     protocol:SHARED_MEMORY_PROTOCOL,
-    sourceBot:String(input.sourceBot),
+    sourceBot:resolveSharedMemoryBotId(input.sourceBot),
+    sourceBotAlias:String(input.sourceBot??'').trim() || null,
     audience:[...SHARED_BOTS],
     kind:String(input.kind),
     status,
@@ -227,9 +231,10 @@ export function publishSharedBatch(records=[]){
 export function readSharedMemory({fingerprint=null,botId=null,kinds=null,limit=80}={}){
   const memory=loadSharedMemory();
   const allowedKinds=Array.isArray(kinds)?new Set(kinds.filter(kind=>SHARED_KINDS.includes(kind))):null;
+  const canonicalBotId=botId?resolveSharedMemoryBotId(botId):null;
   const rows=memory.records.filter(record=>
     (!fingerprint||record.fingerprint===fingerprint) &&
-    (!botId||record.audience.includes(botId)) &&
+    (!canonicalBotId||record.audience.includes(canonicalBotId)) &&
     (!allowedKinds||allowedKinds.has(record.kind))
   ).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
   return rows.slice(0,Math.max(1,Number(limit)||80));
