@@ -618,6 +618,7 @@ async function commandOutcome() {
   const metadata = {
     repairKey: identity.claimKey,
     leaseRef: identity.leaseRef,
+    workerId: requireFlixoWorker(getArg('workerId')),
     leaseOwner: getArg('leaseOwner', 'AUTO_REPAIR_BOT'),
     repairRunId,
     targetRunId: getArg('targetRunId'),
