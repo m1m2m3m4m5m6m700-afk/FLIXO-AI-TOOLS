@@ -62,8 +62,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ACTIVE_REPAIRS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$ENTRY_SHA"'")) | length')"
-          ACTIVE_GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$ENTRY_SHA"'")) | length')"
+          ACTIVE_REPAIRS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
+          ACTIVE_GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
           ACTIVE_TESTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --limit 50 --json status,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$ENTRY_SHA"'")) | length')"
           ACTIVE_OPERATION=false
           if [ "$ACTIVE_REPAIRS" -gt 0 ] || [ "$ACTIVE_GREEN" -gt 0 ] || [ "$ACTIVE_TESTS" -gt 0 ]; then ACTIVE_OPERATION=true; fi
