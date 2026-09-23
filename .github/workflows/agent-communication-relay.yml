@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Validate comment is not newer than the current PR head
+        id: comment_freshness
         env:
           GH_TOKEN: ${{ github.token }}
           COMMENT_AT: ${{ github.event.comment.created_at || '' }}
@@ -37,7 +38,15 @@ jobs:
           test -n "$COMMIT_AT"
           COMMENT_EPOCH="$(date -u -d "$COMMENT_AT" +%s)"
           HEAD_EPOCH="$(date -u -d "$COMMIT_AT" +%s)"
-          test "$HEAD_EPOCH" -le "$COMMENT_EPOCH"
+          if [ "$HEAD_EPOCH" -gt "$COMMENT_EPOCH" ]; then
+            echo "MESSAGE_COMMENT_STALE=FAIL_CLOSED"
+            echo "COMMENT_SHA=$HEAD_SHA"
+            echo "COMMENT_EPOCH=$COMMENT_EPOCH"
+            echo "HEAD_EPOCH=$HEAD_EPOCH"
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "stale=false" >> "$GITHUB_OUTPUT"
       - name: Checkout trusted communication implementation
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
@@ -46,7 +55,9 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
+        if: steps.comment_freshness.outputs.stale != 'true'
 
+        if: steps.comment_freshness.outputs.stale != 'true'
       - name: Bind relay to current exact execution SHA
         id: relay_head
         env:
@@ -68,6 +79,7 @@ jobs:
           [[ "$CONTROLLER_SHA" =~ ^[0-9a-f]{40}$ ]]
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "controller_sha=$CONTROLLER_SHA" >> "$GITHUB_OUTPUT"
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Resolve canonical Council ingress
         id: council_ingress
@@ -88,6 +100,7 @@ jobs:
           ISSUE_NUMBER="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 1 --json number --jq '.[0].number // empty')"
           test -n "$ISSUE_NUMBER"
           echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Extract President Wake when present
         id: president_wake
@@ -102,6 +115,7 @@ jobs:
           set -euo pipefail
           printf '%s\n' "$COMMENT_BODY" > /tmp/council-wake-comment.md
           echo 'wake=true' >> "$GITHUB_OUTPUT"
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Resolve current execution SHA for President Wake
         id: president_head
@@ -114,6 +128,7 @@ jobs:
           SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Build President Wake plan
         id: president_plan
@@ -127,6 +142,7 @@ jobs:
           test "$RELAY_SHA" = "$CURRENT_SHA"
           node scripts/ci/council-wake-dispatch.mjs             --comment-file=/tmp/council-wake-comment.md             --current-execution-sha="$CURRENT_SHA"             --repository="$GITHUB_REPOSITORY" > /tmp/council-wake-plan.json
           jq -r '"mode=" + .mode + "\nrole=" + .role + "\nworkflow=" + (.workflow // "") + "\nworkPackage=" + .workPackageId + "\nentrySha=" + .entrySha' /tmp/council-wake-plan.json >> "$GITHUB_OUTPUT"
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Check President Wake idempotency
         id: president_duplicate
@@ -152,6 +168,7 @@ jobs:
           else
             echo 'duplicate=false' >> "$GITHUB_OUTPUT"
           fi
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Dispatch President Wake workflow
         if: steps.president_wake.outputs.wake == 'true' && steps.president_duplicate.outputs.duplicate != 'true' && steps.president_plan.outputs.mode == 'WORKFLOW_DISPATCH'
@@ -183,6 +200,7 @@ jobs:
               exit 1
               ;;
           esac
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Acknowledge President Wake
         if: steps.president_wake.outputs.wake == 'true' && steps.president_duplicate.outputs.duplicate != 'true'
@@ -205,6 +223,7 @@ jobs:
           esac
           BODY="$(printf '%s\n' "### PRESIDENT WAKE RECEIPT" "" "**Role:** $ROLE" "**Mode:** $MODE" "**Work Package:** $WORKPACKAGE" "**Exact SHA:** $ENTRY_SHA" "" "Wake accepted through the canonical communication relay. Workflow dispatch remains subject to exact-SHA and role controls." "" "<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->")"
           gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments" --raw-field body="$BODY" >/dev/null
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Detect P0 Council question / request
         id: council_question
@@ -225,6 +244,7 @@ jobs:
             printf '%s\n' "$COMMENT_BODY"
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Dispatch P0 Council question immediately
         if: steps.council_question.outcome == 'success'
@@ -234,6 +254,7 @@ jobs:
           QUESTION: ${{ steps.council_question.outputs.question }}
           COUNCIL_PR_NUMBER: ${{ steps.council_ingress.outputs.issue_number }}
         shell: bash
+        if: steps.comment_freshness.outputs.stale != 'true'
         run: |
           set -euo pipefail
           SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
@@ -288,6 +309,7 @@ jobs:
           process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
           fs.appendFileSync(process.env.GITHUB_OUTPUT, 'MESSAGE_ID=' + message.messageId + '\\n');
           NODE
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Resolve message branch by exact SHA
         id: target
@@ -313,6 +335,7 @@ jobs:
             echo "status=READY" >> "$GITHUB_OUTPUT"
           fi
           echo "message_sha=$MESSAGE_SHA" >> "$GITHUB_OUTPUT"
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Check durable master-inbox idempotency
         id: duplicate
@@ -333,10 +356,12 @@ jobs:
           esac
           if gh api "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
             echo 'duplicate=true' >> "$GITHUB_OUTPUT"
+        if: steps.comment_freshness.outputs.stale != 'true'
             echo 'DUPLICATE_AGENT_MESSAGE=NO_OP'
           else
             echo 'duplicate=false' >> "$GITHUB_OUTPUT"
           fi
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Ingest incoming message immediately
         id: ingest
@@ -346,6 +371,7 @@ jobs:
           node scripts/ci/agent-communication.mjs validate --message-file=message.json
           node scripts/ci/agent-communication.mjs ingest --message-file=message.json | tee /tmp/flixo-agent-message-receipt.json
           jq -r '"MESSAGE_STATUS=" + .status + "\\nMESSAGE_ID=" + .messageId + "\\nMESSAGE_ENTRY_SHA=" + .entrySha + "\\nMESSAGE_IDEMPOTENCY_KEY=" + .idempotencyKey' /tmp/flixo-agent-message-receipt.json >> "$GITHUB_OUTPUT"
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Build canonical invocation envelope
         id: invocation
@@ -414,6 +440,7 @@ jobs:
             DELIVERY_KEY="${MESSAGE_KEY}:${DELIVERY_MASTER}"
             DELIVERY_TASK_ID="${TASK_ID}:${DELIVERY_MASTER}"
             WORK_PACKAGE="ADMIN-COMMUNICATION-${MESSAGE_ID}-${DELIVERY_MASTER}"
+        if: steps.comment_freshness.outputs.stale != 'true'
 
             jq -n               --arg messageId "$DELIVERY_ID"               --arg idempotencyKey "$DELIVERY_KEY"               --arg taskId "$DELIVERY_TASK_ID"               --arg workPackageId "$WORK_PACKAGE"               --arg entrySha "$ENTRY_SHA"               --arg invocationId "$INVOCATION_ID"               --arg failureFingerprint "$FAILURE_FINGERPRINT"               --arg attempt "$ATTEMPT"               --arg leaseEpoch "$LEASE_EPOCH"               --arg primary "$PRIMARY_ACCOUNT"               --arg fallback "$FALLBACK_ACCOUNT"               --arg deliveryMaster "$DELIVERY_MASTER"               --arg canonicalRecipientMaster "$RECIPIENT_MASTER"               --slurpfile message message.json               '{messageId:$messageId,idempotencyKey:$idempotencyKey,taskId:$taskId,workPackageId:$workPackageId,entrySha:$entrySha,requestedByAccountId:"SYSTEM",primaryAccountId:$primary,fallbackAccountId:$fallback,source:"agent-communication-relay",payload:{administrativeInstruction:true,administrativeBroadcast:(($message[0].payload.masterPeerMessage // $message[0].payload.peerMessage // false)|not),canonicalMessageId:($message[0].messageId // $messageId),canonicalRecipientMaster:$canonicalRecipientMaster,exactSha:$entrySha,actor:($message[0].actor // null),recipient:($message[0].recipient // null),intent:($message[0].intent // null),priority:($message[0].priority // null),councilOperation:($message[0].councilOperation // false),masterPeerMessage:($message[0].payload.peerMessage // false),automaticDelivery:($message[0].payload.automaticDelivery // false),conversationId:($message[0].payload.conversationId // null),replyToMessageId:($message[0].payload.replyToMessageId // null),senderMaster:($message[0].payload.senderMaster // null),recipientMaster:$deliveryMaster,messageText:($message[0].payload.messageText // null),invocation:{invocationId:$invocationId,failureFingerprint:$failureFingerprint,attempt:($attempt|tonumber),leaseEpoch:($leaseEpoch|tonumber),targetSha:$entrySha,state:"DISPATCHED"}}' > /tmp/council-runtime-dispatch.json
 
@@ -430,7 +457,9 @@ jobs:
           cat /tmp/council-runtime-dispatches.jsonl >> /tmp/council-runtime-dispatch-response.json
 
       - name: Publish immediate receipt to master inbox
-        if: steps.ingest.outcome == 'success'
+        if: >-
+          steps.comment_freshness.outputs.stale != 'true' &&
+          steps.ingest.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           MESSAGE_ID: ${{ steps.ingest.outputs.MESSAGE_ID }}
@@ -446,6 +475,7 @@ jobs:
           esac
           BODY="$(printf '%s\n' "### AGENT MESSAGE RECEIVED" "" "**Message:** $MESSAGE_ID" "**Status:** $MESSAGE_STATUS" "**Entry SHA:** $MESSAGE_SHA" "**Idempotency Key:** $MESSAGE_KEY" "**Invocation:** $INVOCATION_ID" "" "**Receipt:** IMMEDIATE_EVENT_RECEIPT" "**Target ref:** $TARGET_REF" "" "The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute." "" "<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->")"
           gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments" --raw-field body="$BODY" >/dev/null
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Wake repair supervision for repair-class messages
         if: >-
@@ -455,6 +485,7 @@ jobs:
             contains(toJSON(github.event.comment.body || ''), 'FAILURE') ||
             contains(toJSON(github.event.comment.body || ''), 'RED')
           )
+        if: steps.comment_freshness.outputs.stale != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -463,7 +494,12 @@ jobs:
           echo 'AGENT_MESSAGE_REPAIR_WAKE=DISPATCHED'
 
       - name: Record stale-message evidence
-        if: steps.target.outputs.status == 'STALE'
+        if: >-
+          always() &&
+          (
+            steps.comment_freshness.outputs.stale == 'true' ||
+            steps.target.outputs.status == 'STALE'
+          )
         run: |
           set -euo pipefail
           printf '%s\n' 'MESSAGE_STALE=FAIL_CLOSED' > /tmp/flixo-agent-message-stale.txt
