@@ -287,19 +287,44 @@
     },
     {
       "id": "P22",
-      "name": "Shared Six-Bot Repair Read Execution Memory",
+      "name": "System-Wide Shared Intelligence & Operational Memory",
       "class": "LEARNING",
       "status": "MANDATORY",
-      "enforcement": "scripts/ci/shared-operational-memory.mjs + scripts/ci/validate-shared-operational-memory.mjs + six-bot integration points",
-      "invariant": "ACTION-REPAIR, ACTION-REPAIR-2, READ-INVESTIGATOR, READ-ADVERSARY, executionAgent and reviewAgent publish and consume one exact-SHA-bound operational memory; learning is shared knowledge only and never grants authority.",
+      "enforcement": "scripts/ci/shared-operational-memory.mjs + scripts/ci/validate-shared-operational-memory.mjs + docs/agents/FLIXO-BOT.json",
+      "invariant": "Every active FLIXO BOT agent/bot consumes and publishes one exact-SHA-bound system-wide operational memory through the FLIXO BOT registry; shared learning is knowledge only and never grants authority.",
       "canonicalSource": "docs/agents/SHARED-SIX-BOT-OPERATIONAL-MEMORY-CONTRACT.md",
       "sharedMemory": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
-      "participants": ["ACTION-REPAIR","ACTION-REPAIR-2","READ-INVESTIGATOR","READ-ADVERSARY","executionAgent","reviewAgent"],
-      "memoryKinds": ["ERROR","OPERATION","ADVICE","OBLIGATION","LESSON","ANTI_LESSON","COUNTEREXAMPLE","VERIFICATION"],
-      "publishRule": "EXACT_SHA + PROVENANCE → SHARED_MEMORY → BROADCAST_TO_SIX",
-      "authorityBoundary": "Shared memory never grants mutation, certification, permission or command authority.",
-      "canonicalPolicy": "docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md"
+      "participants": [
+        "ACTION-REPAIR",
+        "ACTION-REPAIR-2",
+        "READ-INVESTIGATOR",
+        "READ-ADVERSARY",
+        "executionAgent",
+        "reviewAgent"
+      ],
+      "memoryKinds": [
+        "ERROR",
+        "OPERATION",
+        "ADVICE",
+        "OBLIGATION",
+        "LESSON",
+        "ANTI_LESSON",
+        "COUNTEREXAMPLE",
+        "VERIFICATION"
+      ],
+      "publishRule": "EXACT_SHA + PROVENANCE + SOURCE_AUTHENTICATION → SHARED_MEMORY → SYSTEM_WIDE_DISTRIBUTION",
+      "authorityBoundary": "Shared intelligence never grants mutation, certification, permission, command or merge authority.",
+      "canonicalPolicy": "docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md",
+      "participantsSource": "docs/agents/FLIXO-BOT.json#/distribution/learningConsumers",
+      "legacyParticipants": [
+        "ACTION-REPAIR",
+        "ACTION-REPAIR-2",
+        "READ-INVESTIGATOR",
+        "READ-ADVERSARY",
+        "executionAgent",
+        "reviewAgent"
+      ],
+      "learningRule": "ALL_ACTIVE_MEMBERS_CONSUME_THE_SAME_CORE_INTELLIGENCE_AND_CANONICAL_LEARNING_STREAM"
     }
-
   ]
 }
