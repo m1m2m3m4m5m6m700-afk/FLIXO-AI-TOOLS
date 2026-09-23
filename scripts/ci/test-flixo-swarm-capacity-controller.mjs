@@ -14,9 +14,15 @@ assert.equal(FLIXO_SWARM_CAPACITY_POLICY.governance.failClosedOnGovernanceDrift,
 assert.equal(FLIXO_SWARM_CAPACITY_POLICY.minimumActiveRuntimeCount,5);
 assert.equal(FLIXO_SWARM_CAPACITY_POLICY.maximumActiveRuntimeCount,500);
 assert.equal(FLIXO_SWARM_CAPACITY_POLICY.neverFabricateLiveBots,true);
+assert.equal(FLIXO_SWARM_CAPACITY_POLICY.minimumVerifiedResidentRuntimeCount,10);
+assert.equal(FLIXO_SWARM_CAPACITY_POLICY.requiredSurplusRuntimeCount,5);
 
 const sha='a'.repeat(40);
 assert.equal(decideCapacity({activeRuntimeCount:5,provisionedRuntimeCount:10,queuedTasks:0,exactSha:sha}).action,'HOLD');
+const noSurplus=decideCapacity({activeRuntimeCount:5,provisionedRuntimeCount:5,queuedTasks:0,liveBots:5,exactSha:sha});
+assert.equal(noSurplus.action,'REQUEST_PROVISIONING');
+assert.equal(noSurplus.reason,'SURPLUS_FIVE_RUNTIME_SEATS_REQUIRED');
+assert.equal(noSurplus.failClosed,true);
 assert.equal(decideCapacity({activeRuntimeCount:4,provisionedRuntimeCount:10,liveBots:4,exactSha:sha}).action,'RECOVER_TO_FLOOR');
 assert.equal(decideCapacity({activeRuntimeCount:5,provisionedRuntimeCount:10,queuedTasks:30,liveBots:5,exactSha:sha}).action,'SCALE_UP');
 assert.equal(decideCapacity({activeRuntimeCount:5,provisionedRuntimeCount:10,unresponsiveActiveRuntimeCount:1,liveBots:5,exactSha:sha}).action,'REPLACE_UNRESPONSIVE');
