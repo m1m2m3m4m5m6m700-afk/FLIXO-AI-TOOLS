@@ -16,7 +16,9 @@ Canonical store:
 
 `executionAgent` ↔ `reviewAgent`
 
-Every published record is visible to every active FLIXO BOT learning consumer and remains exact-SHA-bound to its provenance. The historical six-bot set remains a compatibility subset.
+`execution-agent-clone-v1` is an active cognitive clone with preserved role `executionAgent`.
+
+Every published record is visible to every active FLIXO BOT learning consumer, including `execution-agent-clone-v1`, and remains exact-SHA-bound to its provenance. The historical six-bot set remains a compatibility subset.
 
 ## Memory classes
 
@@ -61,3 +63,20 @@ No third branch is created for memory synchronization. Knowledge is shared by re
 ## FLIXO BOT invariant
 
 All active consumers listed in `docs/agents/FLIXO-BOT.json` use the same core intelligence and canonical learning stream. Role, mutation, certification, security and transport permissions remain separate.
+
+
+## Execution Agent Cognitive Clone
+
+Protocol: `FLIXO-BIDIRECTIONAL-COGNITIVE-MESH-v1`
+
+Clone: `execution-agent-clone-v1`
+
+Preserved role: `executionAgent`
+
+The clone consumes the same `FLIXO-BOT-BRAIN-v1` capability set and the same canonical shared operational memory as every active agent/bot. It is synchronized by reference, not by duplicated local memory files.
+
+**Clone → all:** eligible lessons, anti-lessons, counterexamples, verification and operational findings published by the clone enter the canonical shared memory and become visible to every active learning consumer.
+
+**All → clone:** all published shared learning from active agents/bots is exposed to the clone through the system-wide shared learning context.
+
+Knowledge is shared; authority is not. Mutation, certification, merge, dispatch and chair ownership remain governed by the existing control plane and exact-SHA contracts.
