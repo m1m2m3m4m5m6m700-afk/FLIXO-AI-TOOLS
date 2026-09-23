@@ -139,6 +139,7 @@ jobs:
           WORKFLOW: ${{ steps.president_plan.outputs.workflow }}
           ENTRY_SHA: ${{ steps.president_plan.outputs.entrySha }}
           COMMENT_ID: ${{ github.event.comment.id }}
+          COMMENT_BODY: ${{ github.event.comment.body || '' }}
         shell: bash
         run: |
           set -euo pipefail
