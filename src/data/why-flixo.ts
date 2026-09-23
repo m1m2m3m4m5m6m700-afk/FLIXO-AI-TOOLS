@@ -3,7 +3,7 @@ export type WhyFlixoSection = Readonly<{
   title: string;
   body?: readonly string[];
   bullets?: readonly string[];
-  table?: ReadonlyArray<readonly [string, string]>;
+  table?: readonly (readonly string[])[];
 }>;
 
 type WhyFlixoCopy = Readonly<{
