@@ -4,6 +4,9 @@ import assert from 'node:assert/strict';
 import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, buildTeamWakeDirective, buildTeamPulseDirective, buildDifferentiatedPulseDirective, assertActiveRepairWindow, checkContinuousSessionWindow, sessionTerminationDirective, idleAdmission, sleepAdmission, selfDisableAdmission, selfAbortAdmission, runEndAdmission } from './agent-liveness-protocol.mjs';
 
 assert.equal(assertLivenessDefinition(), true);
+assert.equal(AGENT_LIVENESS_PROTOCOL.scheduleIntervalMs, 5 * 60 * 1000);
+assert.equal(AGENT_LIVENESS_PROTOCOL.internalHeartbeatEveryMs, 60 * 1000);
+assert.equal(AGENT_LIVENESS_PROTOCOL.onePulsePerHeartbeat, true);
 assert.deepEqual([...AGENT_LIVENESS_PROTOCOL.forbiddenStates].sort(), ['ABANDONED','IDLE','SILENT','SLEEP'].sort());
 assert.equal(AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs, 60 * 1000);
 assert.equal(AGENT_LIVENESS_PROTOCOL.heartbeatGraceMs, 30 * 1000);
