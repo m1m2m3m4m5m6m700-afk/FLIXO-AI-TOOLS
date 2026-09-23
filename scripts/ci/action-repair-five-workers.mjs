@@ -27,8 +27,8 @@ const ROLE_MAP=Object.freeze({
   'ACTION-IMPACT-4':'ACTION_BLAST_RADIUS_REVIEW',
   'ACTION-SECURITY-5':'ACTION_SECURITY_BOUNDARY_REVIEW',
   'ACTION-REGRESSION-6':'ACTION_REGRESSION_PLANNER',
-  'ACTION-SHA-7':'ACTION_EXACT_SHA_VERIFIER',
-  'ACTION-CONVERGENCE-8':'ACTION_REPAIR_CONVERGENCE_CHALLENGER'
+  'ACTION-SHA-7':'ACTION_CERTIFIER_ADVERSARY',
+  'ACTION-CONVERGENCE-8':'ACTION_FINAL_CERTIFIER'
 });
 const sha=v=>/^[a-f0-9]{40}$/iu.test(String(v??''));
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):String(fallback)};
@@ -42,6 +42,7 @@ const out=arg('output',process.env.FLIXO_TEN_ACTION_REPAIR_OUTPUT||'/tmp/flixo-t
 const normalize=s=>String(s??'').replace(new RegExp(String.fromCharCode(27)+'\\[[0-?]*[ -/]*[@-~]','gu'),'').replace(/\\s+/gu,' ').trim();
 const digest=s=>crypto.createHash('sha256').update(String(s),'utf8').digest('hex');
 const requireIdentity=()=>{if(!sha(targetSha))throw new Error('TEN_ACTION_REPAIR_TARGET_SHA_INVALID');if(!runId)throw new Error('TEN_ACTION_REPAIR_RUN_ID_REQUIRED');if(!fingerprint)throw new Error('TEN_ACTION_REPAIR_FINGERPRINT_REQUIRED')};
+const requireWakeIdentity=()=>{if(!sha(targetSha))throw new Error('TEN_ACTION_REPAIR_TARGET_SHA_INVALID');if(!runId)throw new Error('TEN_ACTION_REPAIR_RUN_ID_REQUIRED')};
 const registry=readJson(REGISTRY);
 const registryWorkerIds=Array.isArray(registry.workers)?registry.workers.map(worker=>worker.id):[];
 const workerIds=registry.workers
@@ -104,13 +105,15 @@ function selectBest({historical=[],twinA=null,twinB=null}){
  };
 }
 if(role==='wake'){
- requireIdentity();
+ requireWakeIdentity();
  const status=arg('status',process.env.FLIXO_WATCH_STATUS||'RED_INTERNAL');
+ const wakeFingerprint=fingerprint||('WAKE-'+targetSha.slice(0,12)+'-'+runId);
  const branch=arg('branch','execution');
  if(branch!=='execution')throw new Error('ACTION_WAKE_BRANCH_BLOCKED');
  if(!['PUSH_READY','RED_INTERNAL','BLOCKED_EXTERNAL','FAIL_CLOSED'].includes(status))throw new Error('ACTION_WAKE_STATUS_NOT_ACTIONABLE');
- const result={schemaVersion:1,botId:'ACTION-WAKE',role:ROLE_MAP['ACTION-WAKE'],action:'WAKE_ACTION_REPAIR_SQUAD',dispatcher:'FLIXO Execution Bot Watchdog',targetRunId:runId,targetSha,failureFingerprint:fingerprint,status,mutationAuthority:false,directDispatch:false,actionRepairSquadReady:true,sharedReferences:SHARED_REFS,canonicalNextStep:status==='PUSH_READY'?'DAILY_FLIXO_GREEN_GATE':'EXISTING_CANONICAL_DISPATCHER'};
- appendActionCenterEvent({type:'WAKE',taskId:'ACTION-WAKE:'+runId+':'+fingerprint,fingerprint,runId,targetSha,actor:'ACTION-WAKE',payload:{status,dispatcher:result.dispatcher,canonicalNextStep:result.canonicalNextStep}});
+ const teamIds=workerIds;
+ const result={schemaVersion:2,botId:'ACTION-WAKE',role:ROLE_MAP['ACTION-WAKE'],action:'WAKE_ALL_ACTION_REPAIR_TEAM',wakeScope:'ALL_ACTION_REPAIR_TEAM',wakePolicy:'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL',dispatcher:'CANONICAL_AGENT_REPAIR_SUPERVISOR',targetRunId:runId,targetSha,failureFingerprint:wakeFingerprint,status,mutationAuthority:false,directDispatch:false,actionRepairSquadReady:true,recipientCount:teamIds.length,recipients:teamIds,sourceMutationOwner:'ACTION-REPAIR',pushAuthority:'CHAIR_1_ONLY',sharedReferences:SHARED_REFS,canonicalNextStep:status==='PUSH_READY'?'DAILY_FLIXO_GREEN_GATE':'EXISTING_CANONICAL_WAKE_DISPATCHER'};
+ appendActionCenterEvent({type:'WAKE',taskId:'ACTION-WAKE:'+runId+':'+wakeFingerprint,fingerprint:wakeFingerprint,runId,targetSha,actor:'ACTION-WAKE',payload:{status,dispatcher:result.dispatcher,wakeScope:result.wakeScope,recipientCount:result.recipientCount,recipients:result.recipients,canonicalNextStep:result.canonicalNextStep}});
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));process.exit(0);
 }
 if(role==='repair-search'){
