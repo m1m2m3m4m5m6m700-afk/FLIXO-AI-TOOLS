@@ -54,6 +54,18 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   activeCohortCommitmentMs: 15 * 60 * 1000,
   activeCohortRotationPolicy: 'FIFO_5_OF_100_WITH_CYCLE_WRAP',
   activeCohortHandoffPolicy: 'NEXT_5_READY_BEFORE_RELEASE',
+  fiveBotResidencyCommitment: Object.freeze({
+    requiredBotCount: 5,
+    postTaskState: 'READY_RESIDENT',
+    journeyLogicalBotCount: 100,
+    journeyCohortCount: 20,
+    journeyCohortSize: 5,
+    retainResidentAfterTaskClose: true,
+    retainResidentUntilJourneyComplete: true,
+    sleepDuringJourney: false,
+    idleDuringJourney: false,
+    withdrawalDuringJourney: false,
+  }),
   activeRuntimeCount: 5,
   activeRuntimeIds: Object.freeze(RESIDENT_RUNTIME_IDS.slice(0, 5)),
   stagedRuntimeCount: 5,
@@ -155,6 +167,8 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
     'NEXT_COHORT_READY_BEFORE_RELEASE',
     'TWENTY_COHORTS_COMPLETE_ONE_100_BOT_CYCLE',
     'CYCLE_WRAP_100_TO_1',
+    'FIVE_BOT_POST_CLOSE_READY_RESIDENT',
+    'FIVE_BOT_REMAIN_READY_UNTIL_100_JOURNEY_COMPLETE',
   ]),
 });
 
@@ -179,6 +193,8 @@ export function assertLivenessDefinition() {
   if (AGENT_LIVENESS_PROTOCOL.logicalBotCount !== 100 || AGENT_LIVENESS_PROTOCOL.logicalBotIds.length !== 100 || AGENT_LIVENESS_PROTOCOL.logicalBotIds[0] !== 'CELL-001' || AGENT_LIVENESS_PROTOCOL.logicalBotIds[99] !== 'CELL-100' || new Set(AGENT_LIVENESS_PROTOCOL.logicalBotIds).size !== 100) throw new Error('AGENT_LIVENESS_100_LOGICAL_BOT_ROSTER_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains.length !== 10 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.length !== 100 || new Set(AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.map((x) => x.botId)).size !== 100 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.some((x) => x.mutationAuthority !== false || x.certificationAuthority !== false || !x.skills.length)) throw new Error('AGENT_LIVENESS_LOGICAL_BOT_DEVELOPMENT_PROFILE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.activeCohortSize !== 5 || AGENT_LIVENESS_PROTOCOL.activeCohortCount !== 20 || AGENT_LIVENESS_PROTOCOL.activeCohortCommitmentMs !== 15 * 60 * 1000 || AGENT_LIVENESS_PROTOCOL.activeCohortRotationPolicy !== 'FIFO_5_OF_100_WITH_CYCLE_WRAP' || AGENT_LIVENESS_PROTOCOL.activeCohortHandoffPolicy !== 'NEXT_5_READY_BEFORE_RELEASE') throw new Error('AGENT_LIVENESS_FIVE_BOT_ROTATION_POLICY_INVALID');
+  const residency=AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment;
+  if (!residency || residency.requiredBotCount !== 5 || residency.postTaskState !== 'READY_RESIDENT' || residency.journeyLogicalBotCount !== 100 || residency.journeyCohortCount !== 20 || residency.journeyCohortSize !== 5 || residency.retainResidentAfterTaskClose !== true || residency.retainResidentUntilJourneyComplete !== true || residency.sleepDuringJourney !== false || residency.idleDuringJourney !== false || residency.withdrawalDuringJourney !== false) throw new Error('AGENT_LIVENESS_FIVE_BOT_RESIDENCY_COMMITMENT_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.activeRuntimeCount !== 5 || AGENT_LIVENESS_PROTOCOL.activeRuntimeIds.length !== 5 || AGENT_LIVENESS_PROTOCOL.stagedRuntimeCount !== 5 || AGENT_LIVENESS_PROTOCOL.stagedRuntimeIds.length !== 5) throw new Error('AGENT_LIVENESS_ACTIVE_RUNTIME_CAPACITY_INVALID');
   for (const domain of AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains) if (AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.filter((x) => x.domainId === domain.id).length !== 10) throw new Error('AGENT_LIVENESS_BOT_DOMAIN_DISTRIBUTION_INVALID=' + domain.id);
   if (AGENT_LIVENESS_PROTOCOL.pulseProfiles.length !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.botId)).size !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.pulseType)).size !== 10) throw new Error('AGENT_LIVENESS_PULSE_PROFILE_INVALID');
@@ -329,6 +345,27 @@ export function buildTeamPulseDirective({ targetSha, taskId = null, activeOperat
 export function buildDifferentiatedPulseDirective({ actor, targetSha, taskId = null, activeOperation = true, reason = 'MINUTE_PULSE' } = {}) {
   return buildTeamPulseDirective({ targetSha, taskId, activeOperation, activeWorker: actor, reason: 'LEGACY_COMPATIBILITY_' + reason });
 }
+export function assertFiveBotResidencyCommitment({ botIds, states = [], taskClosed = false, journeyComplete = false } = {}) {
+  assertLivenessDefinition();
+  const expected=[...AGENT_LIVENESS_PROTOCOL.activeRuntimeIds].sort();
+  const actual=[...new Set((Array.isArray(botIds)?botIds:[]).map(String))].sort();
+  if(actual.length!==5 || actual.some((id,index)=>id!==expected[index])) throw new Error('AGENT_LIVENESS_FIVE_BOT_RESIDENT_ROSTER_INVALID');
+  if(states.length && states.length!==5) throw new Error('AGENT_LIVENESS_FIVE_BOT_RESIDENT_STATE_COUNT_INVALID');
+  if(states.some((state)=>AGENT_LIVENESS_PROTOCOL.forbiddenStates.includes(String(state)))) throw new Error('AGENT_LIVENESS_FIVE_BOT_RESIDENT_FORBIDDEN_STATE');
+  if(taskClosed && states.length && states.some((state)=>String(state)!=='READY_RESIDENT')) throw new Error('AGENT_LIVENESS_FIVE_BOT_CLOSE_MUST_REMAIN_READY_RESIDENT');
+  return Object.freeze({
+    ok:true,
+    botIds:expected,
+    requiredBotCount:5,
+    postTaskState:'READY_RESIDENT',
+    taskClosed:Boolean(taskClosed),
+    journeyComplete:Boolean(journeyComplete),
+    retainResidentUntilJourneyComplete:AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment.retainResidentUntilJourneyComplete,
+    sleep:false,
+    idle:false,
+  });
+}
+
 export function buildRecoveryDirective({ reason, currentState = 'ACTIVE', newEvidenceRequired = true } = {}) {
   assertState(currentState, { workAssigned: true });
   return Object.freeze({
@@ -363,9 +400,10 @@ export function assertActiveRepairWindow({ startedAt, continuousStartedAt = star
 }
 
 export function sessionTerminationDirective({ canonicalGreen = false, activeRepairWindowReached = false, reason = 'SESSION_BUDGET_EXHAUSTED' } = {}) {
-  if (canonicalGreen === true && activeRepairWindowReached === true) return Object.freeze({ action: 'CLOSE_ALLOWED', taskRemainsOpen: false, residentState: 'READY_RESIDENT', reason: 'CANONICAL_GREEN_PROVEN' });
-  if (canonicalGreen === true && activeRepairWindowReached !== true) return Object.freeze({ action: 'RECOVER_AND_CONTINUE', taskRemainsOpen: true, residentState: 'ACTIVE_OR_RECOVERING', reason: 'ACTIVE_45_MIN_WINDOW_REQUIRED', next: 'maintain_heartbeat_until_minimum_window_then_reverify' });
-  return Object.freeze({ action: 'RECOVER_AND_REDISPATCH', taskRemainsOpen: true, residentState: 'ACTIVE_OR_RECOVERING', reason: String(reason), next: 'renew_lease -> capture_state -> new_evidence_or_strategy -> continue_until_verified' });
+  const residentCommitment={postTaskState:'READY_RESIDENT',retainResidentUntilJourneyComplete:true,journeyLogicalBotCount:100,journeyCohortCount:20,sleep:false,idle:false,withdrawal:false};
+  if (canonicalGreen === true && activeRepairWindowReached === true) return Object.freeze({ action: 'CLOSE_ALLOWED', taskRemainsOpen: false, residentState: 'READY_RESIDENT', reason: 'CANONICAL_GREEN_PROVEN', fiveBotResidency:residentCommitment });
+  if (canonicalGreen === true && activeRepairWindowReached !== true) return Object.freeze({ action: 'RECOVER_AND_CONTINUE', taskRemainsOpen: true, residentState: 'ACTIVE_OR_RECOVERING', reason: 'ACTIVE_45_MIN_WINDOW_REQUIRED', next: 'maintain_heartbeat_until_minimum_window_then_reverify', fiveBotResidency:residentCommitment });
+  return Object.freeze({ action: 'RECOVER_AND_REDISPATCH', taskRemainsOpen: true, residentState: 'ACTIVE_OR_RECOVERING', reason: String(reason), next: 'renew_lease -> capture_state -> new_evidence_or_strategy -> continue_until_verified', fiveBotResidency:residentCommitment });
 }
 
 // Legacy admission APIs remain as hard blockers so older callers cannot suspend a resident agent.
