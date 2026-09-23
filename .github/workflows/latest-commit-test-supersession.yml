@@ -105,7 +105,7 @@ jobs:
 
           is_resident_protected_run() {
             case "$1" in
-              "FLIXO Latest Commit Test Supersession"|"Daily·FLIXO Green Gate"|"FLIXO Auto Repair Bot"|"FLIXO Agent Repair Heartbeat"|"FLIXO Execution Bot Watchdog"|"FLIXO Agent Repair Supervisor"|"FLIXO Master Agent Activation Relay"|"FLIXO Master Repair Governor"|"Claude Security Review")
+              "FLIXO Latest Commit Test Supersession"|"Daily·FLIXO Green Gate"|"FLIXO Auto Repair Bot"|"FLIXO Execution Bot Watchdog"|"FLIXO Agent Repair Supervisor"|"FLIXO Master Agent Activation Relay"|"FLIXO Master Repair Governor"|"Claude Security Review")
                 return 0
                 ;;
               *) return 1 ;;
