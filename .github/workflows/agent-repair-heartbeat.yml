@@ -8,12 +8,6 @@ on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
-  workflow_run:
-    workflows:
-      - FLIXO Agent Repair Heartbeat
-    types: [completed]
-    branches: [main]
-
 permissions:
   actions: write
   contents: read
@@ -36,23 +30,6 @@ jobs:
           ref: execution
           fetch-depth: 1
           persist-credentials: false
-
-      - name: Re-arm continuous residency after every completed heartbeat
-        if: github.event_name == 'workflow_run'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-          SOURCE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-        run: |
-          set -euo pipefail
-          ACTIVE_OTHER="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch main --limit 20 --json databaseId,status --jq '[.[] | select((.status == "queued" or .status == "in_progress") and .databaseId != (env.SOURCE_RUN_ID|tonumber))] | length')"
-          if [ "$ACTIVE_OTHER" -gt 0 ]; then
-            echo "CONTINUOUS_RESIDENCY_REARM=DEFERRED_ACTIVE_RUNS=$ACTIVE_OTHER"
-            exit 0
-          fi
-          echo "CONTINUOUS_RESIDENCY_REARM=DISPATCH_AFTER=$SOURCE_CONCLUSION"
-          gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref main
-          echo 'CONTINUOUS_RESIDENCY_REARM=DISPATCHED'
 
       - name: Validate permanent-residency liveness contract
         run: |
@@ -97,7 +74,7 @@ jobs:
             node scripts/ci/flixo-ten-pulse.mjs --sha="$SHA" --run-id="$GITHUB_RUN_ID" --minute="$MINUTE_KEY" --active-operation="$ACTIVE_OPERATION" --output="$FLIXO_TEAM_PULSE_PATH"
             jq -e --arg sha "$SHA" '.pulseCount==1 and .onePulsePerHeartbeat==true and .residentBotCount==100 and (.residentBotIds|length)==100 and .residentBotIds[0]=="CELL-001" and .residentBotIds[99]=="CELL-100" and .pulses[0].action=="WAKE_ALL_AGENTS" and .pulses[0].wakeScope=="ALL_AGENTS" and .pulses[0].targetSha==$sha and (.pulses[0].pulseType != "CANONICAL_TEAM_HEARTBEAT") and (.pulses[0].pulseIndex >= 0)' "$FLIXO_TEAM_PULSE_PATH" >/dev/null
             PULSE_ID="$(jq -r '.pulses[0].pulseId' "$FLIXO_TEAM_PULSE_PATH")"
-            gh workflow run flixo-team-wake-relay.yml --repo "$GITHUB_REPOSITORY" --ref main \
+            gh workflow run flixo-team-wake-relay.yml --repo "$GITHUB_REPOSITORY" --ref execution \
               -f "entry_sha=$SHA" \
               -f "pulse_id=$PULSE_ID" \
               -f "active_operation=$ACTIVE_OPERATION"
@@ -114,6 +91,9 @@ jobs:
           echo 'HEARTBEAT_INTERVAL_SECONDS=60'
           echo 'SCHEDULE_INTERVAL_MINUTES=5'
           echo 'HEARTBEAT_WINDOW_SECONDS=360'
+          echo 'CONTINUOUS_RESIDENCY_REARM=DISPATCH_EXECUTION'
+          gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
+          echo 'CONTINUOUS_RESIDENCY_REARM=DISPATCHED_EXECUTION'
       - name: Verify five-minute schedule with one-minute internal beats compliance
         id: heartbeat_compliance
         env:
