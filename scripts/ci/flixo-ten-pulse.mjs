@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import { AGENT_LIVENESS_PROTOCOL, buildTeamPulseDirective } from './agent-liveness-protocol.mjs';
 
 const IDS = AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds;
@@ -36,12 +35,12 @@ if(process.argv[2]==='scan-plan'){
       const ext=path.extname(rel).toLowerCase();
       counts[ext]=(counts[ext]||0)+1;
       if(!textExt.test(rel)) continue;
-      let text='';
-      try{text=fs.readFileSync(full,'utf8');}catch{continue}
-      if(/\bTODO\b|\bFIXME\b|\bXXX\b|\bHACK\b/iu.test(text)) findings.push({type:'FOLLOW_UP_MARKER',path:rel});
-      if(/continue-on-error:\s*true/iu.test(text)) findings.push({type:'CONTINUE_ON_ERROR',path:rel});
-      if(/\|\|\s*true/iu.test(text)) findings.push({type:'MASKED_SUCCESS_PATTERN',path:rel});
-      if(/git\s+push/iu.test(text) && /execution/iu.test(text)) findings.push({type:'EXECUTION_PUSH_PATH',path:rel});
+      const fileText=(() => { try { return fs.readFileSync(full,'utf8'); } catch { return null; } })();
+      if(fileText === null) continue;
+      if(/\bTODO\b|\bFIXME\b|\bXXX\b|\bHACK\b/iu.test(fileText)) findings.push({type:'FOLLOW_UP_MARKER',path:rel});
+      if(/continue-on-error:\s*true/iu.test(fileText)) findings.push({type:'CONTINUE_ON_ERROR',path:rel});
+      if(/\|\|\s*true/iu.test(fileText)) findings.push({type:'MASKED_SUCCESS_PATTERN',path:rel});
+      if(/git\s+push/iu.test(fileText) && /execution/iu.test(fileText)) findings.push({type:'EXECUTION_PUSH_PATH',path:rel});
     }
   };
   walk(root);
