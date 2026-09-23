@@ -3,15 +3,12 @@ name: FLIXO Agent Repair Heartbeat
 run-name: FLIXO Agent Repair Heartbeat ${{ github.run_id }}
 
 on:
-  # Immediate ignition on every canonical execution update.
+  # Automatic bootstrap on every execution update plus a 5-minute recovery floor.
+  # The push event owns only the short bootstrap job; the resident window is workflow_dispatch.
   push:
-    branches: [execution]
-  # Trusted recovery floor; scheduled runs execute from the default branch and bootstrap execution.
+    branches: [execution, main]
   schedule:
     - cron: '*/5 * * * *'
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -19,21 +16,17 @@ permissions:
   contents: read
 
 concurrency:
-  # Bootstrap runs on main and resident runs on execution must not block one another.
-  group: ${{ github.ref_name == 'execution' && 'flixo-agent-repair-heartbeat-main' || 'flixo-agent-repair-heartbeat-bootstrap' }}
-  # Resident windows are never cancelled by a newer wake.
-  # Exact-SHA checks and re-arm/recovery handle head changes without putting bots to sleep.
-  cancel-in-progress: false
+  # Bootstrap and resident windows use separate lanes; only resident windows supersede one another.
+  group: ${{ github.event_name == 'workflow_dispatch' && github.ref_name == 'execution' && 'flixo-agent-repair-resident' || 'flixo-agent-repair-bootstrap' }}
+  cancel-in-progress: true
 
 jobs:
   bootstrap:
     name: Bootstrap resident repair heartbeat automatically
     if: >-
       github.event_name == 'schedule' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/execution') ||
-      (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'execution') ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/execution'))
+      (github.event_name == 'push' && (github.ref == 'refs/heads/execution' || github.ref == 'refs/heads/main')) ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -79,7 +72,7 @@ jobs:
           echo 'MANUAL_WAKE_REQUIRED=false'
 
   resident-watch:
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/execution') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/execution')
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/execution'
     name: Keep the repair plane resident and wake canonical supervisor
     runs-on: ubuntu-latest
     timeout-minutes: 345
