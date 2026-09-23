@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import { AGENT_LIVENESS_PROTOCOL } from './agent-liveness-protocol.mjs';
+import { AGENT_LIVENESS_PROTOCOL, assertFiveBotResidencyCommitment } from './agent-liveness-protocol.mjs';
 
 const SHA_PATTERN=/^[a-f0-9]{40}$/iu;
 const WINDOW_MS=AGENT_LIVENESS_PROTOCOL.activeCohortCommitmentMs;
@@ -45,6 +45,7 @@ export function buildFiveBotRotation({targetSha,now=new Date().toISOString(),coh
   const elapsedMs=Math.max(0,parsed-slotOrdinal*WINDOW_MS);
   const activeBotIds=cohortMembers(cohortIndex),nextBotIds=cohortMembers(nextIndex);
   const assignments=activeBotIds.map((logicalBotId,index)=>Object.freeze({logicalBotId,runtimeId:ACTIVE_RUNTIME_IDS[index],active:true}));
+  const fiveBotResidency=assertFiveBotResidencyCommitment({botIds:ACTIVE_RUNTIME_IDS,taskClosed:false,journeyComplete:false});
   return Object.freeze({
     schemaVersion:1,protocol:'FLIXO-FIVE-BOT-ROTATION-v1',targetSha:String(targetSha),generatedAt:new Date(parsed).toISOString(),
     logicalBotCount:LOGICAL_IDS.length,activeBotCount:COHORT_SIZE,stagedBotCount:LOGICAL_IDS.length-COHORT_SIZE,cohortCount:COHORT_COUNT,
@@ -53,7 +54,8 @@ export function buildFiveBotRotation({targetSha,now=new Date().toISOString(),coh
     stagedBotIds:LOGICAL_IDS.filter(id=>!activeBotIds.includes(id)),nextBotIds:[...nextBotIds],
     activeRuntimeCount:ACTIVE_RUNTIME_IDS.length,activeRuntimeIds:[...ACTIVE_RUNTIME_IDS],stagedRuntimeCount:STAGED_RUNTIME_IDS.length,stagedRuntimeIds:[...STAGED_RUNTIME_IDS],
     assignments,handoff:{policy:AGENT_LIVENESS_PROTOCOL.activeCohortHandoffPolicy,nextReady:true,requiredReadyCount:COHORT_SIZE,readyBotIds:[...nextBotIds],fromCohortIndex:cohortIndex,toCohortIndex:nextIndex,status:'STAGED_NEXT_COHORT'},
-    cycleWrap:nextIndex===0,cycleBoundary:nextIndex===0,sleep:false,idle:false,mutationAuthority:false,sourceMutationAllowed:false,readOnlyWhenResident:true
+    fiveBotResidency:{...fiveBotResidency,currentCohortSize:COHORT_SIZE,currentCohortOrdinal:cohortIndex+1,journeyLogicalBotCount:100,journeyCohortCount:COHORT_COUNT,journeyCohortSize:COHORT_SIZE,postTaskCloseState:'READY_RESIDENT',retainResidentUntilJourneyComplete:true,currentJourneyComplete:false,journeyCompleteAfterNextHandoff:nextIndex===0},
+    cycleWrap:nextIndex===0,cycleBoundary:nextIndex===0,sleep:false,idle:false,withdrawal:false,mutationAuthority:false,sourceMutationAllowed:false,readOnlyWhenResident:true
   });
 }
 const arg=(name,fallback='')=>{const prefix='--'+name+'=';return process.argv.find(v=>v.startsWith(prefix))?.slice(prefix.length)??fallback};
