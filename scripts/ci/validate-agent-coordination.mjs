@@ -31,7 +31,7 @@ const expected = {
   'docs/agents/ledger/README.md': ['Agent Visibility Ledger', 'docs/agents/ledger/<sessionId>.json', 'taskId', 'finalStatus', 'finalSummary', 'visibilityState'],
   'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json': ['ASSISTANT_AGENT_COOPERATION_CONTRACT', 'assistantController', 'councilPresident', 'councilDeputy', 'councilInvestigator', 'codeScout', 'executionAgent', 'reviewAgent', 'testAgent', 'securityAgent', 'performanceAgent', 'certificationAuthority', 'actionRepairBot', 'actionRepairVerifier', 'actionHistorian', 'ACTION-REPAIR', 'ACTION-REPAIR-2', 'ACTION-HISTORIAN-3', 'action_vault_reasoning', 'messageEnvelope', 'no_implicit_authority', 'parallelism', 'arbitration', 'architecture', 'quality', 'efficiency', 'recovery', 'security', 'release', 'communication_first', 'event_driven_delivery', 'message_idempotency', 'message_freshness'],
   'docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md': ['READ', 'WRITE', 'FORBIDDEN', 'NO_SOURCE_MUTATION', 'code-scout-latest.json', 'execution agents'],
-  'scripts/ci/test-shared-operational-memory-contract.mjs': ['SHARED_OPERATIONAL_MEMORY_CONTRACT_TEST=PASS','RETIRED_CELL_POOL_CONTRACT=PASS','P21_RETIRED=PASS','P22_SHARED_MEMORY=PASS'],
+  'scripts/ci/test-shared-operational-memory-contract.mjs': ['SHARED_OPERATIONAL_MEMORY_CONTRACT_TEST=PASS','RETIRED_CELL_POOL_CONTRACT=PASS','P21_RETIRED=PASS','P22_SHARED_MEMORY_SYSTEM_WIDE=PASS'],
   'docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md': ['CELL-EXEC-RETIRED','retired','No CELL-001..CELL-200 bot is active or assignable','Any attempt to provision, assign, wake, or recreate'],
   'scripts/ci/test-cell-executive-governance.mjs': ['CELL_EXECUTIVE_GOVERNANCE_TEST=PASS','BOT_COUNT=PASS','RANKING=PASS','ESCALATION=PASS','PARALLEL_LANES=PASS'],
 };
@@ -181,7 +181,7 @@ if (exists(relayPath)) {
 
 const sha = execFileSync('git', ['rev-parse','HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 for (const marker of ['FLIXO-SHARED-OPERATIONAL-MEMORY-v1','ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent','ERROR','OPERATION','ADVICE','OBLIGATION','LESSON','ANTI_LESSON','COUNTEREXAMPLE','VERIFICATION']) if (!sharedMemorySource.includes(marker)) failures.push('SHARED_MEMORY_MARKER_MISSING='+marker);
-if (!sharedMemoryContract.includes('Every published record is visible to all six participants')) failures.push('SHARED_MEMORY_CONTRACT_BINDING_MISSING');
+if (!sharedMemoryContract.includes('Every published record is visible to every active FLIXO BOT learning consumer')) failures.push('SHARED_MEMORY_CONTRACT_BINDING_MISSING');
 
 const result = { schemaVersion: 7, authority: 'AGENT_COORDINATION_GUARD', status: failures.length ? 'FAIL' : 'PASS', checkedSha: sha, controlPlane: 'scripts/ci/agent-coordination.mjs', sessionTool: 'scripts/ci/agent-session.mjs', cooperationContract: 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json', scoutProtocol: 'docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md', scout: 'scripts/ci/code-read-only-scout.mjs', protocolRegistry: 'docs/PROTOCOL-REGISTRY.json#P20', runtimeStatePolicy: 'generated-and-ignored', atomicCoordination: 'WRITE_LOCK_PLUS_OPTIMISTIC_REVISION_AND_ATOMIC_RENAME', failures };
 fs.mkdirSync(path.resolve(root,'diagnostics/agents'), { recursive:true });

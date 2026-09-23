@@ -7,7 +7,7 @@ const ROOT=process.cwd();
 export const SHARED_MEMORY_PATH=path.resolve(ROOT,process.env.FLIXO_SHARED_OPERATIONAL_MEMORY??'diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json');
 export const SHARED_MEMORY_PROTOCOL='FLIXO-SHARED-OPERATIONAL-MEMORY-v1';
 export const FLIXO_BOT_REGISTRY_PATH=path.resolve(ROOT,process.env.FLIXO_BOT_REGISTRY??'docs/agents/FLIXO-BOT.json');
-const loadFlixoBotAudience=()=>{try{const registry=JSON.parse(fs.readFileSync(FLIXO_BOT_REGISTRY_PATH,'utf8'));const audience=registry?.distribution?.learningConsumers;if(!Array.isArray(audience)||audience.length<7)throw new Error('INVALID_GLOBAL_AUDIENCE');return [...new Set(audience.map(x=>String(x).trim()).filter(Boolean))];}catch(error){if(process.env.NODE_ENV==='test'||process.env.FLIXO_ALLOW_LEGACY_SHARED_MEMORY_FALLBACK==='true')return ['ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent'];throw new Error('FLIXO_BOT_GLOBAL_MEMORY_AUDIENCE_UNAVAILABLE:'+error.message);}};
+const loadFlixoBotAudience=()=>{try{const registry=JSON.parse(fs.readFileSync(FLIXO_BOT_REGISTRY_PATH,'utf8'));const audience=registry?.distribution?.learningConsumers;if(!Array.isArray(audience)||audience.length<7)throw new Error('INVALID_GLOBAL_AUDIENCE');return [...new Set(audience.map(x=>String(x).trim()).filter(Boolean))];}catch(error){if(process.env.NODE_ENV==='test'||process.env.FLIXO_ALLOW_LEGACY_SHARED_MEMORY_FALLBACK==='true')return ['ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent'];throw new Error('FLIXO_BOT_GLOBAL_MEMORY_AUDIENCE_UNAVAILABLE:'+error.message,{cause:error});}};
 export const SHARED_BOTS=Object.freeze(loadFlixoBotAudience());
 export const SHARED_KINDS=Object.freeze([
   'ERROR',
