@@ -132,6 +132,19 @@ async function expectAnonRpcDenied(functionName) {
 await expectAnonRpcDenied('flixo_retry_pending_assistant_wakes');
 await expectAnonRpcDenied('flixo_auto_wake_stale_master3');
 
+const assistantQueryCredential = await fetch(
+  baseUrl + '/functions/v1/flixo-council-runtime?action=assistant-channel&purpose=STATUS&entrySha=' +
+    encodeURIComponent(expectedSha) + '&nonce=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  {
+    method: 'GET',
+    headers: { apikey: anonKey, Authorization: 'Bearer ' + anonKey },
+  },
+);
+const assistantQueryBody = await assistantQueryCredential.text();
+if (assistantQueryCredential.ok || !assistantQueryBody.includes('COUNCIL_ASSISTANT_QUERY_CREDENTIAL_FORBIDDEN')) {
+  throw new Error('ASSISTANT_QUERY_CREDENTIAL_NOT_REJECTED');
+}
+evidence.checks.push({ name: 'assistant_query_credential_rejected', status: 'PASS', httpStatus: assistantQueryCredential.status });
 
 const anon = await fetch(baseUrl + '/rest/v1/flix_council_accounts?select=account_id', {
   headers: { apikey: anonKey, Authorization: 'Bearer ' + anonKey },
