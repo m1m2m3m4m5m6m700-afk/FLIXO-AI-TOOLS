@@ -7,7 +7,7 @@ import {
   REPAIR_OUTCOMES,
   BROTHER_IDS,
 } from './repair-control-plane.mjs';
-import { assertState, checkHeartbeat, AGENT_LIVENESS_PROTOCOL } from './agent-liveness-protocol.mjs';
+import { assertState, checkHeartbeat } from './agent-liveness-protocol.mjs';
 import { FLIXO_WORKER_IDS } from './flixo-active-worker-guard.mjs';
 
 const API_VERSION = '2022-11-28';
