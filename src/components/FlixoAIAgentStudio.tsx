@@ -6,6 +6,8 @@ import type { PipelineProgress } from '@/lib/workflows/pipeline-runner';
 import { LOCALES, type Locale } from '@/lib/i18n';
 import type { FilterMaskHandoff } from '@/tools/filter-mask/handoff';
 import type { AGENT_I18N } from '@/data/agent-locales';
+import { getAuthoritativeToolSeoName } from '@/config/tool-seo-name-resolver';
+import { localizeToolCategory, localizeToolDescription } from '@/lib/i18n/tool-localization';
 
 export type FlixoAgentStudioMessage = Readonly<{ id: number; role: 'user' | 'agent'; text: string }>;
 export type FlixoAgentStudioTool = Readonly<{ id: string; title: string; description: string; category?: string }>;
@@ -117,8 +119,24 @@ export function FlixoAIAgentStudio({
   const normalizedSearch = toolSearch.trim().toLowerCase();
   const ui = AGENT_UI_COPY[locale];
 
+  const localizedTools = useMemo(
+    () => tools.map((tool) => {
+      if (locale === 'en') return tool;
+      const category = tool.category === 'Images' || tool.category === 'Video' || tool.category === 'Audio' || tool.category === 'AI' || tool.category === 'Editor'
+        ? tool.category
+        : 'Images';
+      return {
+        ...tool,
+        title: getAuthoritativeToolSeoName({ id: tool.id, title: tool.title }, locale) ?? tool.title,
+        description: localizeToolDescription(locale, getAuthoritativeToolSeoName({ id: tool.id, title: tool.title }, locale) ?? tool.title, category),
+        category: localizeToolCategory(locale, category),
+      };
+    }),
+    [locale, tools],
+  );
+
   const filteredTools = useMemo(
-    () => tools.filter((tool) => {
+    () => localizedTools.filter((tool) => {
       const category = classifyTool(tool);
       const categoryMatch = activeCategory === 'all' || category === activeCategory;
       const haystack = `${tool.id} ${tool.title} ${tool.description}`.toLowerCase();
