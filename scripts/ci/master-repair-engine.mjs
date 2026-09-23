@@ -207,6 +207,8 @@ const assertWriteScope=({repoRoot,file,allowedPaths,allowCreate})=>{
 export function applyWriteTransaction({repoRoot=ROOT,plan}={}) {
   if(!plan||typeof plan!=='object') throw new Error('MASTER_REPAIR_PLAN_REQUIRED');
   const {taskId,fingerprint,runId,targetSha,allowedPaths=[],writes=[],checks=[],maxFiles=8,maxChangedLines=800}=plan;
+  if(plan.admission?.chair1 !== true) throw new Error('MASTER_REPAIR_CHAIR1_ADMISSION_REQUIRED');
+  if(plan.admission?.independentVerification !== true) throw new Error('MASTER_REPAIR_INDEPENDENT_VERIFICATION_REQUIRED');
   assertExactExecutionHead(repoRoot,targetSha);
   const decision=buildNoRepairDecision({targetSha,currentSha:targetSha,taskId,fingerprint,runId,failureText:plan.failureText??'',evidence:plan.evidence??{}});
   if(!decision.repairable) throw new Error('MASTER_REPAIR_NO_REPAIR='+decision.reasons.join(','));
