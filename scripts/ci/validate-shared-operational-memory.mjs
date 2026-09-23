@@ -12,7 +12,7 @@ for(const marker of [
  'READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent','execution-agent-clone-v1',
  'ERROR','OPERATION','ADVICE','OBLIGATION','LESSON','ANTI_LESSON','COUNTEREXAMPLE','VERIFICATION',
  'exactShaBound:true','mutationAuthority:false','certificationAuthority:false',
- 'publishSharedMemory','buildSharedLearningContext','FLIXO_BOT_REGISTRY_PATH','docs/agents/FLIXO-BOT.json','SYSTEM_WIDE','FLIXO-BIDIRECTIONAL-COGNITIVE-MESH-v1','execution-agent-clone-v1'
+ 'publishSharedMemory','buildSharedLearningContext','FLIXO_BOT_REGISTRY_PATH','docs/agents/FLIXO-BOT.json','SYSTEM_WIDE','FLIXO-BIDIRECTIONAL-COGNITIVE-MESH-v1','execution-agent-clone-v1','flixo_agent_learning_events','scripts/ci/sync-cognitive-learning-mesh.mjs'
 ]) if(!source.includes(marker)) failures.push('MISSING_MARKER='+marker);
 if(/git\s+(add|commit|push|reset|checkout)|mergePullRequest|create_pull_request/u.test(source)) failures.push('GIT_MUTATION_FORBIDDEN');
 if(!test.includes('SHARED_OPERATIONAL_MEMORY_CONTRACT_TEST=PASS')) failures.push('TEST_MARKER_MISSING');
