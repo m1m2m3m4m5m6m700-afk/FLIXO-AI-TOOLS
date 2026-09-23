@@ -1,4 +1,4 @@
-# Master Repair 20X Trust Contract
+# FLIXO BOT — Master Repair 20X Trust Contract
 
 The default state is UNTRUSTED. Master Repair cannot grant trust, GREEN, certification, or publication authority to itself.
 
