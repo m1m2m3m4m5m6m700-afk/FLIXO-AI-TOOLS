@@ -31,7 +31,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Fail closed when PR head changes during review
+      - name: Fail closed when this commit is superseded
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}

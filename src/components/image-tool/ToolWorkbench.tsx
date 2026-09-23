@@ -161,7 +161,6 @@ export function ToolWorkbench<P>({
   runLabel,
   processingLabel,
   resetLabel,
-  inputLabel,
   beforeLabel,
   afterLabel,
   noResultLabel,

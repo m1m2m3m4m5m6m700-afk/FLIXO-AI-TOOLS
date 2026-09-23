@@ -60,7 +60,6 @@ export function FlixoAIAgentStudio({
   state,
   sendMessage,
   prepare,
-  intent,
   plan,
   planned,
   progress,
