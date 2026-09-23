@@ -203,6 +203,8 @@
     "selfCritique": true,
     "independentReview": true,
     "structuredOutput": true,
+    "fullIntelligence": true,
+    "noComplexityDowngrade": true,
     "failClosed": true,
     "noSelfApproval": true,
     "roleMission": "MASTER_REPAIR_PROGRAMMING_AND_PROOF",
