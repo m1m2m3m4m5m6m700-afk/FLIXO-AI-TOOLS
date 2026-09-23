@@ -29,7 +29,7 @@
     "docs/agents/SWARM-REPLAY-SIMULATION-PLAN-v1.json",
     "docs/agents/SWARM-SKILL-DIFFICULTY-MAP-v1.json"
   ],
-  "currentRca": "WAVE5-CONTRACT-DRIFT-001 resolved in implementation surface: L0-L4 advisory hierarchy, logical 200-identity memory model, capability-aware routing, mission-result learning states, RCA/fingerprint intelligence, knowledge graph, replay/simulation, drift detection, and exact-SHA evidence binding are implemented; canonical CI verification remains pending on the current head.",
+  "currentRca": "WAVE5-CONTRACT-DRIFT-001 is implemented. Historical import/backfill, weakness genome, advisory upgrade engine, controller learning interface, continuous skill validation, memory history, deterministic failure injection, and exact-SHA targeted regression are now present. Canonical CI on the newest execution SHA remains the exit authority.",
   "status": "VERIFICATION_PENDING",
   "exitCondition": {
     "implemented": true,
@@ -37,7 +37,17 @@
     "targetedTest": "PENDING_CANONICAL_CI",
     "affectedTests": "PENDING",
     "evidenceLinked": true,
-    "exactSha": "9d7247f6922cefc2b59b3b029ded1540a70286f3",
+    "exactSha": "a200eb7c9275da2fc191f497f5a44bc475cdd204",
     "canonicalVerification": "PENDING"
-  }
+  },
+  "implementationSha": "a200eb7c9275da2fc191f497f5a44bc475cdd204",
+  "missingContractsClosed": [
+    "HISTORICAL_BACKFILL",
+    "WEAKNESS_GENOME",
+    "UPGRADE_ENGINE",
+    "CONTROLLER_LEARNING_INTERFACE",
+    "CONTINUOUS_SKILL_VALIDATION",
+    "MEMORY_IMPORT_HISTORY",
+    "FAILURE_INJECTION_IMPLEMENTATION"
+  ]
 }
