@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { isAdminSessionStoreConfigured, getAdminSessionState } from './session-store.ts';
+import { isAdminSessionStoreConfigured, getAdminSessionState } from '../../src/server/admin/session-store.ts';
 import { ADMIN_CAPABILITIES } from '../../src/lib/admin/control-plane.ts';
 import { activeCapabilitiesForRole, isAdminRole } from '../../src/lib/admin/roles.ts';
 

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { integritySha256 } from '../api/admin/canonical.ts';
+import { integritySha256 } from '../src/server/admin/canonical.ts';
 
 process.env.SUPABASE_SECRET_KEY = 'contract-test-secret';
 process.env.SUPABASE_URL = 'https://example.supabase.co';
 
-const persistence = await import('../api/admin/persistence.ts');
+const persistence = await import('../src/server/admin/persistence.ts');
 
 const evidenceId = '22222222-2222-4222-8222-222222222222';
 const auditId = '33333333-3333-4333-8333-333333333333';

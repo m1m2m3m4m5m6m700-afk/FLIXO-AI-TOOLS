@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import {
   evaluateAdminExecution,
   isWriteExecutionClass,
-} from '../api/admin/execution-policy.ts';
-import { createAdminExecutionPlan } from '../api/admin/execution-plan.ts';
+} from '../src/server/admin/execution-policy.ts';
+import { createAdminExecutionPlan } from '../src/server/admin/execution-plan.ts';
 
 const base = {
   subject: 'operator-1',

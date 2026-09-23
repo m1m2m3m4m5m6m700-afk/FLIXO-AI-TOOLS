@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-const canonical = await import('../api/admin/canonical.ts');
+const canonical = await import('../src/server/admin/canonical.ts');
 
 const input = { b: 1, a: { d: 2, c: [{ z: 3, a: 4 }] } };
 const reordered = { a: { c: [{ a: 4, z: 3 }], d: 2 }, b: 1 };

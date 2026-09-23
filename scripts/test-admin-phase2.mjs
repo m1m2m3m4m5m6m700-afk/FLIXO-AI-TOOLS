@@ -14,7 +14,7 @@ assert.equal(roles.activeCapabilitiesForRole('AUDITOR').includes('production.wri
 
 
 const boundary = await import('../api/admin/boundary.ts');
-const sessionStore = await import('../api/admin/session-store.ts');
+const sessionStore = await import('../src/server/admin/session-store.ts');
 const sessionId = randomUUID();
 const token = boundary.signAdminSession({
   subject: 'phase2-owner',
@@ -80,8 +80,8 @@ const revoked = await sessionStore.revokeAdminSession(sessionId, now);
 assert.equal(revoked.session_id, sessionId);
 assert.ok(revoked.revoked_at);
 
-const persistence = await import('../api/admin/persistence.ts');
-const canonical = await import('../api/admin/canonical.ts');
+const persistence = await import('../src/server/admin/persistence.ts');
+const canonical = await import('../src/server/admin/canonical.ts');
 const now = new Date().toISOString();
 const evidence = {
   evidence_id: '44444444-4444-4444-8444-444444444444',
