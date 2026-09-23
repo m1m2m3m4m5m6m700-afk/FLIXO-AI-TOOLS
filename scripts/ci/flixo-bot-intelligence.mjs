@@ -13,16 +13,28 @@ export function loadFlixoBotRegistry(){
   const registry=readJson(FLIXO_BOT_REGISTRY_PATH,null);
   if(!registry||registry.id!=='FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE') throw new Error('FLIXO_BOT_REGISTRY_MISSING_OR_INVALID');
   const consumers=registry?.distribution?.learningConsumers;
-  if(!Array.isArray(consumers)||consumers.length<7) throw new Error('FLIXO_BOT_GLOBAL_AUDIENCE_INVALID');
-  if(new Set(consumers).size!==consumers.length) throw new Error('FLIXO_BOT_GLOBAL_AUDIENCE_DUPLICATE');
+  const cognitiveIds=registry?.distribution?.cognitiveBotIds;
+  if(!Array.isArray(cognitiveIds)||cognitiveIds.length!==200) throw new Error('FLIXO_BOT_COGNITIVE_AUDIENCE_INVALID');
+  if(new Set(cognitiveIds).size!==200) throw new Error('FLIXO_BOT_COGNITIVE_AUDIENCE_DUPLICATE');
+  if(!Array.isArray(consumers)||consumers.length!==200||JSON.stringify(consumers)!==JSON.stringify(cognitiveIds)) throw new Error('FLIXO_BOT_GLOBAL_AUDIENCE_INVALID');
+  if(registry?.distribution?.targetCount!==200) throw new Error('FLIXO_BOT_TARGET_COUNT_INVALID');
+  if(!registry?.distribution?.botAliasMap||typeof registry.distribution.botAliasMap!=='object') throw new Error('FLIXO_BOT_ALIAS_MAP_INVALID');
   return registry;
+}
+
+export function resolveFlixoBotConsumer(botId){
+  const registry=loadFlixoBotRegistry();
+  const id=String(botId??'').trim();
+  const canonical=registry.distribution.learningConsumers.includes(id) ? id : registry.distribution.botAliasMap?.[id];
+  if(!canonical||!registry.distribution.learningConsumers.includes(canonical)) throw new Error('FLIXO_BOT_CONSUMER_NOT_REGISTERED='+id);
+  return canonical;
 }
 
 export function assertFlixoBotConsumer(botId){
   const registry=loadFlixoBotRegistry();
   const id=String(botId??'').trim();
-  if(!registry.distribution.learningConsumers.includes(id)) throw new Error('FLIXO_BOT_CONSUMER_NOT_REGISTERED='+id);
-  return Object.freeze({botId:id,intelligenceVersion:registry.intelligenceVersion,coreIntelligence:registry.architecture.mode,authorityUnchanged:true});
+  const canonical=resolveFlixoBotConsumer(id);
+  return Object.freeze({botId:id,canonicalBotId:canonical,intelligenceVersion:registry.intelligenceVersion,coreIntelligence:registry.architecture.mode,authorityUnchanged:true});
 }
 
 export function buildFlixoBotIntelligenceContext({botId=null,fingerprint=null,limit=48}={}){
