@@ -838,6 +838,9 @@ Deno.serve(async (req) => {
     }
 
     if (action === "assistant-channel" && (req.method === "GET" || req.method === "POST")) {
+      if (req.method === "GET" && (url.searchParams.has("nonce") || url.searchParams.has("tokenHash"))) {
+        throw new Error("COUNCIL_ASSISTANT_QUERY_CREDENTIAL_FORBIDDEN");
+      }
       const bodyForAssistant = req.method === "POST" ? await jsonBody(req) : {};
       const nonce = String(req.headers.get("x-council-assistant-nonce") ?? bodyForAssistant.nonce ?? "").trim();
       const suppliedHash = String(req.headers.get("x-council-assistant-token-hash") ?? bodyForAssistant.tokenHash ?? "").trim().toLowerCase();
@@ -1000,6 +1003,58 @@ Deno.serve(async (req) => {
     }
 
     const body = await jsonBody(req);
+
+    if (action === "resident-heartbeat" && req.method === "POST") {
+      const hb = body;
+      const account = accountFrom(hb.accountId);
+      authAccount(req, account);
+      const runtime = await getAccountState(account);
+      const declaredAgentId = String(hb.agentId ?? "").trim();
+      const exactSha = sha(hb.entrySha);
+      if (!runtime.identityVerified || declaredAgentId !== runtime.identity?.agentId) {
+        throw new Error("COUNCIL_AGENT_IDENTITY_REJECTED");
+      }
+      const runtimeSessionId = String(hb.runtimeSessionId ?? hb.sessionId ?? runtime.row.current_session_id ?? "").trim();
+      if (!runtimeSessionId) throw new Error("COUNCIL_RESIDENT_SESSION_REQUIRED");
+      const now = new Date().toISOString();
+      const updated = await db(
+        "/rest/v1/flix_council_accounts?account_id=eq." + encodeURIComponent(account),
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json", prefer: "return=representation" },
+          body: JSON.stringify({
+            current_session_id: runtimeSessionId,
+            last_seen_at: now,
+            updated_at: now,
+          }),
+        }
+      ) as Array<Record<string, unknown>>;
+      if (!updated.length) throw new Error("COUNCIL_ACCOUNT_STATE_UPDATE_FAILED");
+      await db("/rest/v1/flix_council_events", {
+        method: "POST",
+        headers: { "content-type": "application/json", prefer: "return=minimal" },
+        body: JSON.stringify({
+          account_id: account,
+          event_type: "HEARTBEAT",
+          exact_sha: exactSha,
+          payload: {
+            source: "RESIDENT_RUNTIME_HEARTBEAT",
+            runtimeSessionId,
+            agentId: declaredAgentId,
+            exactSha,
+          },
+        }),
+      });
+      return response({
+        ok: true,
+        accountId: account,
+        agentId: declaredAgentId,
+        runtimeSessionId,
+        exactSha,
+        lastSeenAt: now,
+        state: "ACTIVE",
+      }, 200, requestId);
+    }
 
     if (action === "dispatch" && req.method === "POST") {
       const requester = String(body.requestedByAccountId ?? "SYSTEM");
