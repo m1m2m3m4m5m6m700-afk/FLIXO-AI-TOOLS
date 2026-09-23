@@ -41,8 +41,8 @@ jobs:
           echo 'HEARTBEAT_INTERVAL_SECONDS=60'
           echo 'ACTIVE_BOT_COUNT=5'
           echo 'ACTIVE_BOT_COMMITMENT_MINUTES=60'
-          echo 'ACTIVE_BOT_COHORT_COUNT=24'
-          echo 'LOGICAL_BOT_CYCLE=120_TO_1'
+          echo 'ACTIVE_BOT_COHORT_COUNT=40'
+          echo 'LOGICAL_BOT_CYCLE=200_TO_1'
           echo 'NEXT_COHORT_READY_REQUIRED=true'
           echo 'ACTIVE_RUNTIME_CAPACITY=5'
           echo 'HEARTBEAT_24X7_MODE=true'
@@ -97,7 +97,7 @@ jobs:
             ROTATION_OUTPUT="/tmp/flixo-heartbeat/five-bot-rotation-$TICK.json"
             (cd "$WORKTREE_PATH" && node scripts/ci/five-bot-rotation.mjs --sha="$SHA" --now="$NOW" --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output="$ROTATION_OUTPUT")
             (cd "$WORKTREE_PATH" && node scripts/ci/action-repair-five-workers.mjs --role=wake --status=RED_INTERNAL --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$GITHUB_RUN_ID-$TICK" --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output=/tmp/flixo-heartbeat/action-wake-$TICK.json)
-            jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .actionRepairSquadReady==true and .targetSha==$sha and .activeCohortSize==5 and (.activeBotIds|length)==5 and (.nextBotIds|length)==5 and (.nextCohortReadyCount==5) and .fiveBotResidency.requiredBotCount==5 and .fiveBotResidency.postTaskCloseState=="READY_RESIDENT" and .fiveBotResidency.retainResidentUntilJourneyComplete==true and  .fiveBotResidency.journeyLogicalBotCount==120 and  .fiveBotResidency.journeyCohortCount==24 and .fiveBotResidency.journeyCohortSize==5 and .fiveBotResidency.sleep==false and .fiveBotResidency.idle==false and .fiveBotResidency.withdrawal==false' /tmp/flixo-heartbeat/action-wake-$TICK.json >/dev/null
+            jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .actionRepairSquadReady==true and .targetSha==$sha and .activeCohortSize==5 and (.activeBotIds|length)==5 and (.nextBotIds|length)==5 and (.nextCohortReadyCount==5) and .fiveBotResidency.requiredBotCount==5 and .fiveBotResidency.postTaskCloseState=="READY_RESIDENT" and .fiveBotResidency.retainResidentUntilJourneyComplete==true and  .fiveBotResidency.journeyLogicalBotCount==200 and  .fiveBotResidency.journeyCohortCount==40 and .fiveBotResidency.journeyCohortSize==5 and .fiveBotResidency.sleep==false and .fiveBotResidency.idle==false and .fiveBotResidency.withdrawal==false' /tmp/flixo-heartbeat/action-wake-$TICK.json >/dev/null
             if [ "$ELAPSED_SECONDS" -ge 3600 ]; then
               NEXT_COHORT_INDEX=$(( (CURRENT_COHORT_INDEX + 1) % 24 ))
               HANDOFF_OUTPUT="/tmp/flixo-heartbeat/handoff-$TICK.json"
@@ -121,7 +121,7 @@ jobs:
             jq -e --arg sha "$SHA" '.protocolId=="AGENT_LIVENESS_PROTOCOL" and .state=="ACTIVE" and .exactSha==$sha and .progress==false' "$FLIXO_HEARTBEAT_PATH" >/dev/null
             PULSE_OUTPUT="/tmp/flixo-heartbeat/flixo-team-pulse-$TICK.json"
             (cd "$WORKTREE_PATH" && node scripts/ci/flixo-ten-pulse.mjs --sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --minute="$NOW" --active-operation=true --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output="$PULSE_OUTPUT")
-            jq -e --arg sha "$SHA" '.protocol=="FLIXO-TEAM-PULSE-CONTROLLER-v3" and .targetSha==$sha and .pulseCount==1 and ( .logicalBotIds|length)==120 and .activeBotCount==5 and (.activeBotIds|length)==5 and (.nextBotIds|length)==5 and .allAgentsWakeCount==10 and .sleep==false and .idle==false and .fiveBotResidency.requiredBotCount==5 and .fiveBotResidency.postTaskCloseState=="READY_RESIDENT" and .fiveBotResidency.retainResidentUntilJourneyComplete==true and  .fiveBotResidency.journeyLogicalBotCount==120 and  .fiveBotResidency.journeyCohortCount==24' "$PULSE_OUTPUT" >/dev/null
+            jq -e --arg sha "$SHA" '.protocol=="FLIXO-TEAM-PULSE-CONTROLLER-v3" and .targetSha==$sha and .pulseCount==1 and ( .logicalBotIds|length)==120 and .activeBotCount==5 and (.activeBotIds|length)==5 and (.nextBotIds|length)==5 and .allAgentsWakeCount==10 and .sleep==false and .idle==false and .fiveBotResidency.requiredBotCount==5 and .fiveBotResidency.postTaskCloseState=="READY_RESIDENT" and .fiveBotResidency.retainResidentUntilJourneyComplete==true and  .fiveBotResidency.journeyLogicalBotCount==200 and  .fiveBotResidency.journeyCohortCount==40' "$PULSE_OUTPUT" >/dev/null
             echo 'CANONICAL_TEAM_PULSE=1'
             echo 'ONE_PULSE_WAKE_SCOPE=ALL_AGENTS'
             echo 'RESIDENT_SLEEP=false'
@@ -136,13 +136,13 @@ jobs:
           echo 'HEARTBEAT_MINIMUM_ACTIVE_WINDOW_SECONDS=3600'
           echo 'ACTIVE_COHORT_COMMITMENT_SECONDS=3600'
           echo 'ACTIVE_COHORT_HANDOFF=NEXT_5_READY_BEFORE_RELEASE'
-          echo 'ACTIVE_COHORTS_PER_120_BOT_CYCLE=24'
+          echo 'ACTIVE_COHORTS_PER_200_BOT_CYCLE=40'
           echo 'ACTIVE_COHORT_HANDOFF_GATE=FIVE_READY_EXACT_SHA'
           echo 'ACTIVE_COHORT_RELEASE_BLOCKED_UNTIL_READY=true'
           echo 'FIVE_BOT_POST_CLOSE_STATE=READY_RESIDENT'
-          echo 'FIVE_BOT_REMAIN_RESIDENT_UNTIL_120_JOURNEY_COMPLETE=true'
-          echo 'FIVE_BOT_SLEEP_DURING_120_JOURNEY=false'
-          echo 'FIVE_BOT_IDLE_DURING_120_JOURNEY=false'
+          echo 'FIVE_BOT_REMAIN_RESIDENT_UNTIL_200_JOURNEY_COMPLETE=true'
+          echo 'FIVE_BOT_SLEEP_DURING_200_JOURNEY=false'
+          echo 'FIVE_BOT_IDLE_DURING_200_JOURNEY=false'
           if [ -e "$WORKTREE_PATH/.git" ]; then git worktree remove --force "$WORKTREE_PATH"; fi
       - name: Verify five-minute heartbeat compliance
         id: heartbeat_compliance
