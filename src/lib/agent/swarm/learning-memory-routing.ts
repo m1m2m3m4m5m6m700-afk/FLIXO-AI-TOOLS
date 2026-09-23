@@ -316,7 +316,8 @@ export type MissionResultContract = Readonly<{
 
 export function validateMissionResult(input: MissionResultContract) {
   if (!input.missionId || !input.taskId || !input.botId || !SHA40.test(input.exactSha)) throw new Error('MISSION_RESULT_IDENTITY_INVALID');
-  if (!Object.values({ SUCCESS: 1, FAILURE: 1, BLOCKED_EXTERNAL: 1, BLOCKED_INTERNAL: 1, PROPOSED: 1, REVERTED: 1 }).includes(input.outcome)) throw new Error('MISSION_RESULT_OUTCOME_INVALID');
+  const outcomes: readonly MissionOutcome[] = ['SUCCESS', 'FAILURE', 'BLOCKED_EXTERNAL', 'BLOCKED_INTERNAL', 'PROPOSED', 'REVERTED'];
+  if (!outcomes.includes(input.outcome)) throw new Error('MISSION_RESULT_OUTCOME_INVALID');
   if (input.evidenceRefs.length === 0) throw new Error('MISSION_RESULT_EVIDENCE_REQUIRED');
   if (input.outcome !== 'FAILURE' && input.outcome !== 'BLOCKED_INTERNAL' && input.outcome !== 'BLOCKED_EXTERNAL' && input.failureFingerprint !== null) throw new Error('MISSION_RESULT_FAILURE_METADATA_INVALID');
   if (input.outcome === 'FAILURE' && (!input.failureFingerprint || !SHA256.test(input.failureFingerprint))) throw new Error('MISSION_RESULT_FINGERPRINT_REQUIRED');
@@ -488,3 +489,59 @@ export function rootCauseMemoryLink(input: { productFailureId: string; rootCause
 }
 
 export const SWARM_CONTRACT_VERSION = 'WAVE5-ROUTING-MEMORY-LEARNING-INTELLIGENCE-v2';
+
+export function expandSwarmSelection(currentIds: readonly string[], availableIds: readonly string[], targetSize: number) {
+  const current = validateActiveBotSet(currentIds);
+  const available = validateActiveBotSet(availableIds);
+  if (!Number.isInteger(targetSize) || targetSize < current.length || targetSize > Math.min(50, REGISTERED_BOT_COUNT)) {
+    throw new Error('SWARM_EXPANSION_TARGET_INVALID');
+  }
+  const additions = available.filter(id => !current.includes(id)).slice(0, targetSize - current.length);
+  return Object.freeze([...current, ...additions]);
+}
+
+export function buildRcaChain(input: {
+  trigger: string;
+  propagation: string;
+  violatedInvariant: string;
+  causalSource: string;
+  symptom: string;
+  exactSha: string;
+  evidenceRefs: readonly string[];
+}) {
+  if (!SHA40.test(input.exactSha) || input.evidenceRefs.length === 0) throw new Error('RCA_CHAIN_EVIDENCE_INVALID');
+  return Object.freeze({
+    trigger: normalize(input.trigger),
+    propagation: normalize(input.propagation),
+    violatedInvariant: normalize(input.violatedInvariant),
+    causalSource: normalize(input.causalSource),
+    symptom: normalize(input.symptom),
+    exactSha: input.exactSha,
+    evidenceRefs: Object.freeze([...input.evidenceRefs]),
+    fingerprint: fingerprintFailure({
+      category: input.violatedInvariant,
+      normalizedMessage: input.symptom,
+      violatedInvariant: input.violatedInvariant,
+      causalSource: input.causalSource,
+      affectedScope: input.causalSource,
+    }),
+  });
+}
+
+export function evaluateShadowStrategy(input: {
+  baseline: { oracle: 'PASS' | 'FAIL' | 'UNKNOWN'; outputHash: string };
+  shadow: { oracle: 'PASS' | 'FAIL' | 'UNKNOWN'; outputHash: string };
+}) {
+  const comparison = compareReplay({
+    historicalOracle: input.baseline.oracle,
+    currentOracle: input.shadow.oracle,
+    historicalOutputHash: input.baseline.outputHash,
+    currentOutputHash: input.shadow.outputHash,
+  });
+  return Object.freeze({
+    ...comparison,
+    sideEffectFree: true,
+    authoritative: false,
+    promotionRequired: true,
+  });
+}
