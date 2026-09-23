@@ -58,7 +58,7 @@ export const buildConfig = (account, env = process.env) => {
   const executorEndpoint = envValue(env, spec.executorEndpointEnv);
   const executorToken = envValue(env, spec.executorTokenEnv);
   const modelProfile = envValue(env, spec.modelProfileEnv, false) || 'FRONTIER_REASONING';
-  const reasoningEffort = envValue(env, spec.reasoningEffortEnv, false) || 'HIGH';
+  const reasoningEffort = envValue(env, spec.reasoningEffortEnv, false) || 'MAXIMUM';
   const portRaw = envValue(env, spec.wakePortEnv, false) || '8781';
   const port = Number(portRaw);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('COUNCIL_BRIDGE_PORT_INVALID');
@@ -175,7 +175,7 @@ export const executeExternalAgent = async (config, dispatch, sessionId, fetchImp
     actionAgentProfileId: getActionAgentProfile(config.accountId).profileId,
     modelProfile: config.modelProfile,
     reasoningEffort: config.reasoningEffort,
-    capabilities: { toolCalling: true, structuredOutput: true, selfCritique: true, independentReview: config.accountId !== 'CHIEF' },
+    capabilities: { toolCalling: true, structuredOutput: true, selfCritique: true, independentReview: config.accountId !== 'CHIEF', fullIntelligence: true, noComplexityDowngrade: true },
     cognitionEnvelope: buildActionAgentCognitionEnvelope({
       accountId: config.accountId,
       dispatch,
