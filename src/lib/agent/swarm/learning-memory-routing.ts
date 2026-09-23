@@ -27,7 +27,7 @@ export function makeKnowledge(input:Omit<SwarmKnowledge,'canonicalKey'|'id'> & {
   return Object.freeze({...input,id,canonicalKey:canonicalKey(input.scope,input.content)});
 }
 
-const rank=(r:SwarmKnowledge)=>(r.exactShaVerified?.25:0)+(r.status==='VERIFIED'?.35:r.status==='PROBABLE'?.18:0)+r.confidence*.25+r.authority*.1+Math.min(.05,r.evidenceCount/40);
+const rank=(r:SwarmKnowledge)=>(r.exactShaVerified ? .25 : 0)+(r.status==='VERIFIED'?.35:r.status==='PROBABLE'?.18:0)+r.confidence*.25+r.authority*.1+Math.min(.05,r.evidenceCount/40);
 
 export function mergeCanonical(records:readonly SwarmKnowledge[]){
   const groups=new Map<string,SwarmKnowledge[]>();

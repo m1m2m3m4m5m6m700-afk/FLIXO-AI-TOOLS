@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {makeKnowledge,mergeCanonical,decayKnowledge,poisoningSafe,compactMemory,rebuildMemory,classifyDifficulty,skillReputation,adaptiveSwarmSize,promotionTrial,canaryDecision,compareReplay,validateHandoff,rootCauseMemoryLink} from '../../src/lib/agent/swarm/learning-memory-routing.ts';
 const sha='a'.repeat(40), h='b'.repeat(64);
 const make=(id,extra={})=>makeKnowledge({id,scope:'routing',content:'Bind routing evidence to exact SHA.',source:'test',sourceType:'TEST',version:'1',layer:'L5',status:'VERIFIED',validity:'CURRENT',confidence:.96,authority:.98,provenance:['test'],exactSha:sha,exactShaVerified:true,evidenceCount:3,polarity:'SUPPORTS',createdAt:'2026-09-01T00:00:00Z',lastVerifiedAt:'2026-09-20T00:00:00Z',expiresAt:null,...extra});
-const merged=mergeCanonical([make('A'),make('B'),make('C',{polarity:'REFUTES')]); assert.equal(merged.canonical.length,1); assert.equal(merged.duplicates.length,1); assert.equal(merged.contradictions.length,1);
+const merged=mergeCanonical([make('A'),make('B'),make('C',{polarity:'REFUTES'})]); assert.equal(merged.canonical.length,1); assert.equal(merged.duplicates.length,1); assert.equal(merged.contradictions.length,1);
 assert.equal(decayKnowledge(make('D'),Date.parse('2026-10-21T00:00:00Z'),30).validity,'STALE');
 assert.equal(poisoningSafe(make('E'),sha),true); assert.equal(poisoningSafe(make('F',{sourceType:'GENERATED'}),sha),false);
 assert.equal(compactMemory([make('G'),make('H',{layer:'L4',status:'PROBABLE',confidence:.8})]).active.length,2);
