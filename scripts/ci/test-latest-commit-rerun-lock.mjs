@@ -48,8 +48,9 @@ assert.doesNotMatch(supersession, new RegExp(['gh','run','view','$run_id','--rep
 assert.match(supersession, /head_repository\.full_name/u);
 assert.match(ci, /github\.run_attempt\s*>\s*1[\s\S]*format\('-rerun-\{0\}',\s*github\.run_id\)/u);
 assert.match(supersession, /actions\/runs\?branch=\$BRANCH/u);
-assert.match(supersession, /SETTLE_MAX_POLLS=20/u);
+assert.match(supersession, /SETTLE_MAX_POLLS=45/u);
 assert.match(supersession, /SETTLE_POLL_SECONDS=3/u);
+assert.match(supersession, /CANCEL_LATE_STALE_RUN/u);
 assert.match(supersession, /SUPERSESSION_SETTLE_MAX_POLLS=/u);
 assert.match(supersession, /group:\s*flixo-latest-commit-supersession-\$\{\{\s*github\.event\.pull_request\.head\.repo\.full_name\s*\|\|\s*github\.repository\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name\s*\}\}/u);
 assert.doesNotMatch(supersession, /gh\s+run\s+view\s+"\$run_id"/u);
