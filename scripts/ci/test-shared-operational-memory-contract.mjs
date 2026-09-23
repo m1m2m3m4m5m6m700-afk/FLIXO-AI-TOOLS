@@ -24,10 +24,18 @@ const p22=protocol.protocols.find((p)=>p.id==='P22');
 assert.equal(p22?.status,'MANDATORY');
 assert.equal(p22?.sharedMemory,'diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json');
 assert.equal(p22?.participantsSource,'docs/agents/FLIXO-BOT.json#/distribution/learningConsumers');
+assert.ok(Array.isArray(flixoBot?.distribution?.cognitiveBotIds));
 assert.ok(Array.isArray(flixoBot?.distribution?.learningConsumers));
-assert.ok(flixoBot.distribution.learningConsumers.length>6);
-assert.equal(new Set(flixoBot.distribution.learningConsumers).size,flixoBot.distribution.learningConsumers.length);
-for(const required of ['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','ACTION-ARBITER','ACTION-COUNCIL-20','SECURITY-REDTEAM-3','assistantController','MASTER-1','MASTER-2','MASTER-3','executionAgent','reviewAgent','execution-agent-clone-v1','CHIEF','WORKER_A','WORKER_B']) assert(flixoBot.distribution.learningConsumers.includes(required));
+assert.equal(flixoBot.distribution.cognitiveBotIds.length,200);
+assert.equal(flixoBot.distribution.learningConsumers.length,200);
+assert.equal(flixoBot.distribution.targetCount,200);
+assert.equal(flixoBot.distribution.cognitiveBotCount,200);
+assert.equal(flixoBot.distribution.identityModel,'200_CANONICAL_COGNITIVE_IDENTITIES');
+assert.equal(JSON.stringify(flixoBot.distribution.learningConsumers),JSON.stringify(flixoBot.distribution.cognitiveBotIds));
+assert.equal(new Set(flixoBot.distribution.cognitiveBotIds).size,200);
+assert(flixoBot.distribution.cognitiveBotIds.every((id)=>/^FLIXO-BOT-\d{3}$/u.test(id)));
+assert.equal(Object.keys(flixoBot.distribution.botAliasMap??{}).length,77);
+for(const required of ['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','ACTION-ARBITER','ACTION-COUNCIL-20','SECURITY-REDTEAM-3','assistantController','MASTER-1','MASTER-2','MASTER-3','executionAgent','reviewAgent','execution-agent-clone-v1','CHIEF','WORKER_A','WORKER_B']) { const canonical=flixoBot.distribution.botAliasMap?.[required]; assert.match(String(canonical),/^FLIXO-BOT-\d{3}$/u.test(canonical)?/^FLIXO-BOT-\d{3}$/u:/^$/u); assert(flixoBot.distribution.cognitiveBotIds.includes(canonical)); }
 assert(!flixoBot.distribution.learningConsumers.includes('ACTION-WAKE'));
 assert(!flixoBot.distribution.learningConsumers.some((id)=>/^CELL-\\d{3}$/u.test(id)));
 
@@ -38,3 +46,5 @@ console.log('RETIRED_CELL_POOL_CONTRACT=PASS');
 console.log('P21_RETIRED=PASS');
 console.log('P22_SHARED_MEMORY_SYSTEM_WIDE=PASS');
 console.log('FLIXO_BOT_GLOBAL_INTELLIGENCE_CONTRACT=PASS');
+console.log('FLIXO_BOT_200_CANONICAL_IDENTITIES=PASS');
+console.log('FLIXO_BOT_LEGACY_ALIASES=PASS');
