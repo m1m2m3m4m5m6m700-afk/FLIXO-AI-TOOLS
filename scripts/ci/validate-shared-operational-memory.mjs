@@ -4,6 +4,8 @@ import { execFileSync } from 'node:child_process';
 
 const source=fs.readFileSync('scripts/ci/shared-operational-memory.mjs','utf8');
 const test=fs.readFileSync('scripts/ci/test-shared-operational-memory-contract.mjs','utf8');
+const contract=fs.readFileSync('docs/agents/SHARED-SIX-BOT-OPERATIONAL-MEMORY-CONTRACT.md','utf8');
+const meshSync=fs.readFileSync('scripts/ci/sync-cognitive-learning-mesh.mjs','utf8');
 const registry=JSON.parse(fs.readFileSync('docs/agents/FLIXO-BOT.json','utf8'));
 const expectedBots=registry?.distribution?.learningConsumers??[];
 const failures=[];
@@ -12,8 +14,11 @@ for(const marker of [
  'READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent','execution-agent-clone-v1',
  'ERROR','OPERATION','ADVICE','OBLIGATION','LESSON','ANTI_LESSON','COUNTEREXAMPLE','VERIFICATION',
  'exactShaBound:true','mutationAuthority:false','certificationAuthority:false',
- 'publishSharedMemory','buildSharedLearningContext','FLIXO_BOT_REGISTRY_PATH','docs/agents/FLIXO-BOT.json','SYSTEM_WIDE','FLIXO-BIDIRECTIONAL-COGNITIVE-MESH-v1','execution-agent-clone-v1','flixo_agent_learning_events','scripts/ci/sync-cognitive-learning-mesh.mjs'
+ 'publishSharedMemory','buildSharedLearningContext','FLIXO_BOT_REGISTRY_PATH','docs/agents/FLIXO-BOT.json','SYSTEM_WIDE'
 ]) if(!source.includes(marker)) failures.push('MISSING_MARKER='+marker);
+for(const marker of ['FLIXO-BIDIRECTIONAL-COGNITIVE-MESH-v1']) if(!contract.includes(marker)) failures.push('MISSING_CONTRACT_MARKER='+marker);
+for(const marker of ['FLIXO-BIDIRECTIONAL-COGNITIVE-MESH-v1','flixo_agent_learning_events']) if(!meshSync.includes(marker)) failures.push('MISSING_SYNC_MARKER='+marker);
+if(!fs.existsSync('scripts/ci/sync-cognitive-learning-mesh.mjs')) failures.push('SYNC_SCRIPT_MISSING');
 if(/git\s+(add|commit|push|reset|checkout)|mergePullRequest|create_pull_request/u.test(source)) failures.push('GIT_MUTATION_FORBIDDEN');
 if(!test.includes('SHARED_OPERATIONAL_MEMORY_CONTRACT_TEST=PASS')) failures.push('TEST_MARKER_MISSING');
 const sha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
