@@ -13,8 +13,8 @@ permissions:
 concurrency:
   # One observer lane only. Every wake is read-only and re-evaluates the current execution SHA,
   # so cancelling an older observer cannot lose repair authority; it removes duplicate wake pressure.
-  group: flixo-execution-watchdog-observer
-  cancel-in-progress: false
+  group: flixo-execution-watchdog-${{ github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   wake:
