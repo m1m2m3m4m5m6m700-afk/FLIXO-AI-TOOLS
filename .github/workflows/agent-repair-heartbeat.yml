@@ -118,13 +118,13 @@ jobs:
           for ((TICK=1; TICK<=300; TICK++)); do
             SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
             RUNS_JSON="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=100")"
-            ACTIVE_REPAIRS="$(jq --arg sha "$SHA" '[.workflow_runs[] | select(.path == ".github/workflows/auto-repair.yml" and (.status == "queued" or .status == "in_progress") and (.head_sha == $sha or .head_branch == "execution"))] | length' <<<"$RUNS_JSON")"
-            ACTIVE_GREEN="$(jq --arg sha "$SHA" '[.workflow_runs[] | select(.path == ".github/workflows/daily-flixo-green-gate.yml" and (.status == "queued" or .status == "in_progress") and (.head_sha == $sha or .head_branch == "execution"))] | length' <<<"$RUNS_JSON")"
+            ACTIVE_REPAIRS="$(jq --arg sha "$SHA" '[.workflow_runs[] | select(.path == ".github/workflows/auto-repair.yml" and (.status == "queued" or .status == "in_progress") and .head_sha == $sha)] | length' <<<"$RUNS_JSON")"
+            ACTIVE_GREEN="$(jq --arg sha "$SHA" '[.workflow_runs[] | select(.path == ".github/workflows/daily-flixo-green-gate.yml" and (.status == "queued" or .status == "in_progress") and .head_sha == $sha)] | length' <<<"$RUNS_JSON")"
             ACTIVE_TESTS="$(jq --arg sha "$SHA" '[.workflow_runs[] | select(.path == ".github/workflows/ci.yml" and (.status == "queued" or .status == "in_progress") and .head_sha == $sha)] | length' <<<"$RUNS_JSON")"
             ACTIONABLE_RED="$(jq --arg sha "$SHA" '[.workflow_runs[] | select(.path == ".github/workflows/ci.yml" and .status == "completed" and .head_sha == $sha and (.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required"))] | length' <<<"$RUNS_JSON")"
             ACTIONABLE_REQUIRED_RED="$(jq --arg sha "$SHA" '[.workflow_runs[] | select(.head_branch == "execution" and .head_sha == $sha and .status == "completed" and (.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required") and .path != ".github/workflows/agent-repair-heartbeat.yml")] | length' <<<"$RUNS_JSON")"
             ACTIVE_OPERATION=false
-            WAKE_REASON="IDLE_READ_ONLY"
+            WAKE_REASON="RESIDENT_DEVELOPMENT_SCAN"
             if [ "$ACTIVE_REPAIRS" -gt 0 ] || [ "$ACTIVE_GREEN" -gt 0 ] || [ "$ACTIVE_TESTS" -gt 0 ]; then
               ACTIVE_OPERATION=true
               WAKE_REASON="ACTIVE_OPERATION"
@@ -162,7 +162,7 @@ jobs:
             echo "PULSE_ID=$PULSE_ID"
             echo "ACTIVE_OPERATION=$ACTIVE_OPERATION"
             echo "WAKE_REASON=$WAKE_REASON"
-            if [ "$ACTIVE_OPERATION" = "true" ]; then echo 'RED_REENTRY_WAKE=REPAIR_PATH'; else echo 'RED_REENTRY_WAKE=IDLE_SCAN'; fi
+            if [ "$ACTIVE_OPERATION" = "true" ]; then echo 'RED_REENTRY_WAKE=REPAIR_PATH'; else echo 'RED_REENTRY_WAKE=RESIDENT_DEVELOPMENT_SCAN'; fi
             echo 'ACTION_WAKE=DISPATCHED_TO_ALL_ACTION_REPAIR_TEAM'
             if [ "$TICK" -lt 300 ]; then sleep 60; fi
           done
@@ -253,8 +253,8 @@ jobs:
         run: |
           set -euo pipefail
           EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-          ACTIVE_REPAIRS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
-          ACTIVE_GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
+          ACTIVE_REPAIRS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status,headSha --jq --arg sha "$EXECUTION_SHA" 'map(select((.status == "queued" or .status == "in_progress") and .headSha == $sha)) | length')"
+          ACTIVE_GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status,headSha --jq --arg sha "$EXECUTION_SHA" 'map(select((.status == "queued" or .status == "in_progress") and .headSha == $sha)) | length')"
           ACTIVE_TESTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --limit 50 --json status,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'")) | length')"
           ACTIVE_OPERATION=false
           if [ "$ACTIVE_REPAIRS" -gt 0 ] || [ "$ACTIVE_GREEN" -gt 0 ] || [ "$ACTIVE_TESTS" -gt 0 ]; then
@@ -283,6 +283,6 @@ jobs:
             --scan-output=/tmp/flixo-heartbeat/flixo-full-repository-scan.json
           test -s /tmp/flixo-heartbeat/flixo-bot-development-plan.md
           test -s /tmp/flixo-heartbeat/flixo-full-repository-scan.json
-          echo 'IDLE_MODE=FULL_REPOSITORY_READ_ONLY_SCAN'
+          echo 'RESIDENT_MODE=FULL_REPOSITORY_READ_ONLY_SCAN'
           echo 'PLAN_TARGET=المهام.md'
 
