@@ -59,12 +59,37 @@ if (status?.statuses) {
 
 const checks = readJson(checksPath, 'CHECK_RUNS');
 const checkRuns = Array.isArray(checks) ? checks.flatMap((page) => page?.check_runs ?? []) : [];
+const canonicalTestRun = Array.isArray(runs)
+  ? runs
+    .filter((run) =>
+      run?.name === 'FLIXO Test System' &&
+      run?.headSha === expectedSha &&
+      run?.status === 'completed' &&
+      run?.conclusion === 'success'
+    )
+    .sort((a, b) => String(a?.updatedAt ?? '').localeCompare(String(b?.updatedAt ?? '')))
+    .at(-1) ?? null
+  : null;
+if (!canonicalTestRun) failures.push('CANONICAL_TEST_SYSTEM_RUN_MISSING');
+
+const actionRunIdOfCheck = (check) => {
+  const detailsUrl = String(check?.details_url ?? '');
+  const match = detailsUrl.match(/\/actions\/runs\/(\d+)(?:\/job\/\d+)?(?:[/?#]|$)/u);
+  return match?.[1] ?? null;
+};
 const certification = checkRuns
-  .filter((run) => run?.name === 'Certification')
+  .filter((run) =>
+    run?.name === 'Certification' &&
+    run?.status === 'completed' &&
+    run?.conclusion === 'success' &&
+    run?.head_sha === expectedSha &&
+    actionRunIdOfCheck(run) !== null &&
+    canonicalTestRun?.databaseId != null &&
+    actionRunIdOfCheck(run) === String(canonicalTestRun.databaseId)
+  )
   .sort((a, b) => String(a?.completed_at ?? a?.started_at ?? '').localeCompare(String(b?.completed_at ?? b?.started_at ?? '')))
   .at(-1);
-if (!certification) failures.push('CERTIFICATION_MISSING');
-else if (certification.status !== 'completed' || certification.conclusion !== 'success') failures.push('CERTIFICATION_NOT_GREEN');
+if (!certification) failures.push('CERTIFICATION_MISSING_OR_NONCANONICAL');
 
 const live = readJson(livePath, 'LIVE_RUNTIME_EVIDENCE');
 if (!live) {
