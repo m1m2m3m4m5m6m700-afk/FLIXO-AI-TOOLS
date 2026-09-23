@@ -52,6 +52,15 @@ const handoffDir = path.resolve(ROOT, process.env.FLIXO_AGENT_HANDOFF_DIR ?? 'di
 const now = () => new Date().toISOString();
 const gitSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const gitMainSha = () => execFileSync('git', ['rev-parse', 'main'], { cwd: ROOT, encoding: 'utf8' }).trim();
+try {
+  execFileSync(process.execPath, [path.resolve(ROOT, 'scripts/ci/sync-cognitive-learning-mesh.mjs')], {
+    cwd: ROOT,
+    stdio: 'ignore',
+    env: { ...process.env, FLIXO_TARGET_SHA: gitSha() },
+  });
+} catch (error) {
+  console.warn('COGNITIVE_MESH_SYNC_WARNING=' + String(error?.message ?? error));
+}
 const requiredReads = ['docs/agents/PROMPT-UNIFIED-EXECUTION.md', 'scripts/ci/cell-lab-consensus.mjs', 'docs/agents/CELL-CONTROL-HEADQUARTERS.md', 'PROJECTS.md', 'المهام.md', 'AGENTS.md', 'docs/EXECUTION-BRANCH-PROTOCOL.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md', 'docs/AGENT-COORDINATION-CONTROL-PLANE.md', 'docs/PROTOCOL-HIERARCHY.md', 'docs/PROTOCOL-REGISTRY.json', 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json', 'docs/agents/PROMPT-REGISTRY.json', 'diagnostics/auto-repair/memory.json', 'diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json', 'scripts/ci/agent-communication.mjs', 'docs/MINIMAL-CI-FINAL-ARCHITECTURE.md', 'scripts/ci/test-plan.json', 'scripts/ci/assertion-registry.json'];
 const split = (value, separator = ',') => String(value ?? '').split(separator).map((v) => v.trim()).filter(Boolean);
 const storageKey = (id) => createHash('sha256').update(id).digest('hex');
