@@ -91,6 +91,7 @@ export function decideCapacity({
   queuedTasks = 0,
   blockedTasks = 0,
   staleHeartbeats = 0,
+  unresponsiveActiveRuntimeCount = 0,
   liveBots = activeRuntimeCount,
   exactSha = null,
 } = {}) {
@@ -107,6 +108,37 @@ export function decideCapacity({
   const p=FLIXO_SWARM_CAPACITY_POLICY;
   if (liveBots !== activeRuntimeCount) {
     return Object.freeze({action:'BLOCK',reason:'LIVE_COUNT_MISMATCH'});
+  }
+  const missingSeats=Math.max(Number(unresponsiveActiveRuntimeCount),0);
+  if (missingSeats > 0) {
+    const availableReplacementSeats=Math.max(Number(provisionedRuntimeCount)-Number(activeRuntimeCount),0);
+    if (availableReplacementSeats < missingSeats) {
+      return Object.freeze({
+        action:'REQUEST_PROVISIONING',
+        reason:'LAZY_OR_MISSING_BOTS_AND_NO_REPLACEMENT_CAPACITY',
+        desiredActiveRuntimeCount:activeRuntimeCount,
+        requiredVerifiedRuntimeCount:activeRuntimeCount+missingSeats,
+        currentVerifiedRuntimeCount:provisionedRuntimeCount,
+        lazyBotDetected:true,
+        replacementRequired:true,
+        failClosed:true,
+        governancePreserved:true,
+        scaleDoesNotGrantAuthority:true,
+      });
+    }
+    return Object.freeze({
+      action:'REPLACE_UNRESPONSIVE',
+      reason:'LAZY_OR_MISSING_BOT_HEARTBEAT',
+      desiredActiveRuntimeCount:activeRuntimeCount,
+      missingSeatCount:missingSeats,
+      replacementSeatCount:missingSeats,
+      verifiedProvisionedRuntimeCount:provisionedRuntimeCount,
+      lazyBotDetected:true,
+      replacementRequired:true,
+      failClosed:true,
+      governancePreserved:true,
+      scaleDoesNotGrantAuthority:true,
+    });
   }
   if (activeRuntimeCount < p.minimumActiveRuntimeCount) {
     const desired=Math.min(provisionedRuntimeCount,p.minimumActiveRuntimeCount);
