@@ -1167,6 +1167,143 @@
       "run targeted regression and required proof before guarded publication",
       "retain ownership until canonical task completion",
       "never abandon, self-release, or transfer the push seat to a peer"
-    ]
+    ],
+    "pairs": [
+      {
+        "pairId": "PAIR-01",
+        "proposalBot": "FLIXO2",
+        "adversaryBot": "FLIXO1",
+        "proposalRole": "CODE_PATH_PROPOSAL",
+        "adversaryRole": "RCA_FALSIFIER"
+      },
+      {
+        "pairId": "PAIR-02",
+        "proposalBot": "FLIXO4",
+        "adversaryBot": "FLIXO3",
+        "proposalRole": "CI_WORKFLOW_PROPOSAL",
+        "adversaryRole": "TEST_CONTRACT_FALSIFIER"
+      },
+      {
+        "pairId": "PAIR-03",
+        "proposalBot": "FLIXO6",
+        "adversaryBot": "FLIXO5",
+        "proposalRole": "RUNTIME_BROWSER_PROPOSAL",
+        "adversaryRole": "SECURITY_CONTROL_PLANE_FALSIFIER"
+      },
+      {
+        "pairId": "PAIR-04",
+        "proposalBot": "FLIXO8",
+        "adversaryBot": "FLIXO7",
+        "proposalRole": "IMPLEMENTATION_REPAIR_PROPOSAL",
+        "adversaryRole": "DEPENDENCY_BUILD_PERFORMANCE_FALSIFIER"
+      },
+      {
+        "pairId": "PAIR-05",
+        "proposalBot": "FLIXO10",
+        "adversaryBot": "FLIXO9",
+        "proposalRole": "FINAL_EXACT_SHA_VERIFICATION",
+        "adversaryRole": "FALSE_GREEN_EXACT_SHA_FALSIFIER"
+      }
+    ],
+    "pairPolicy": {
+      "sequence": "PARALLEL_READ_DIAGNOSE_WRITE_PROPOSAL_THEN_INDEPENDENT_FALSIFICATION",
+      "requiredPairs": 5,
+      "allPairsRequired": true,
+      "sameTaskRequired": true,
+      "sameFailureFingerprintRequired": true,
+      "sameExactShaRequired": true,
+      "adversaryMustBeIndependent": true,
+      "counterexampleBlocksPush": true,
+      "pairFailureBlocksPush": true,
+      "noLastWriterWins": true,
+      "noSilentOverwrite": true
+    },
+    "pushAdmissionPolicy": {
+      "logicalPushSeat": "FIRST_CONNECTED_FLIXO10",
+      "firstSuccessfulClaimWins": true,
+      "ownerCannotAbandon": true,
+      "peerTakeoverForbidden": true,
+      "proposalAggregation": "MERGE_ALL_COMPATIBLE_PARALLEL_PROPOSALS",
+      "conflicts": "FAIL_CLOSED_RECONCILE_CURRENT_SHA",
+      "requiresPairGate": "PASS",
+      "requiresRequiredRedCount": 0,
+      "requiresTargetedRegression": true,
+      "requiresExactSha": true,
+      "requiresRequiredCi": true,
+      "canonicalPublicationAuthority": "assistantController",
+      "directGitPushByBot": false
+    },
+    "seatAssignments": {
+      "FLIXO1": {
+        "lens": "RCA_OWNER_FALSIFICATION",
+        "phase": "READ→DIAGNOSE→CHALLENGE→HANDOFF",
+        "pairRole": "ADVERSARY",
+        "pair": "PAIR-01",
+        "pairedWith": "FLIXO2"
+      },
+      "FLIXO2": {
+        "lens": "CODE_PATH_AND_EXECUTION_PROPOSAL",
+        "phase": "READ→DIAGNOSE→WRITE_PROPOSAL→HANDOFF",
+        "pairRole": "PROPOSER",
+        "pair": "PAIR-01",
+        "pairedWith": "FLIXO1"
+      },
+      "FLIXO3": {
+        "lens": "TEST_CONTRACT_FALSIFICATION",
+        "phase": "READ→DIAGNOSE→CHALLENGE→HANDOFF",
+        "pairRole": "ADVERSARY",
+        "pair": "PAIR-02",
+        "pairedWith": "FLIXO4"
+      },
+      "FLIXO4": {
+        "lens": "CI_WORKFLOW_PROPOSAL",
+        "phase": "READ→DIAGNOSE→WRITE_PROPOSAL→HANDOFF",
+        "pairRole": "PROPOSER",
+        "pair": "PAIR-02",
+        "pairedWith": "FLIXO3"
+      },
+      "FLIXO5": {
+        "lens": "SECURITY_CONTROL_PLANE_FALSIFICATION",
+        "phase": "READ→DIAGNOSE→CHALLENGE→HANDOFF",
+        "pairRole": "ADVERSARY",
+        "pair": "PAIR-03",
+        "pairedWith": "FLIXO6"
+      },
+      "FLIXO6": {
+        "lens": "RUNTIME_BROWSER_PROPOSAL",
+        "phase": "READ→DIAGNOSE→WRITE_PROPOSAL→HANDOFF",
+        "pairRole": "PROPOSER",
+        "pair": "PAIR-03",
+        "pairedWith": "FLIXO5"
+      },
+      "FLIXO7": {
+        "lens": "DEPENDENCY_BUILD_PERFORMANCE_FALSIFICATION",
+        "phase": "READ→DIAGNOSE→CHALLENGE→HANDOFF",
+        "pairRole": "ADVERSARY",
+        "pair": "PAIR-04",
+        "pairedWith": "FLIXO8"
+      },
+      "FLIXO8": {
+        "lens": "IMPLEMENTATION_REPAIR_PROPOSAL",
+        "phase": "READ→DIAGNOSE→WRITE_PROPOSAL→HANDOFF",
+        "pairRole": "PROPOSER",
+        "pair": "PAIR-04",
+        "pairedWith": "FLIXO7"
+      },
+      "FLIXO9": {
+        "lens": "FALSE_GREEN_EXACT_SHA_FALSIFICATION",
+        "phase": "READ→DIAGNOSE→CHALLENGE→HANDOFF",
+        "pairRole": "ADVERSARY",
+        "pair": "PAIR-05",
+        "pairedWith": "FLIXO10"
+      },
+      "FLIXO10": {
+        "lens": "FINAL_EXACT_SHA_VERIFICATION",
+        "phase": "READ→DIAGNOSE→VERIFY→HANDOFF",
+        "pairRole": "PROPOSER_CERTIFIER",
+        "pair": "PAIR-05",
+        "pairedWith": "FLIXO9"
+      }
+    }
   }
 }
