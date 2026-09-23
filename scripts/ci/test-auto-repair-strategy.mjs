@@ -31,3 +31,15 @@ assert.match(source, /TRAINING_CONFIDENCE_BELOW_THRESHOLD/);
 assert.match(source, /evidenceFirstIds/);
 assert.match(source, /trainingDecision/);
 console.log('AUTO_REPAIR_STRATEGY_CONTRACT_SELF_TEST=PASS');
+
+
+assert.match(source, /FIVE-X-REPAIR-METHOD-v1/u);
+assert.match(source, /amplificationFactor:\s*5/u);
+assert.match(source, /X1_EXACT_SHA/u);
+assert.match(source, /X2_CAUSAL_PROOF/u);
+assert.match(source, /X3_ADVERSARIAL_CHALLENGE/u);
+assert.match(source, /X4_LEARNING_MEMORY/u);
+assert.match(source, /X5_VERIFICATION_PLAN/u);
+assert.match(source, /readyForBoundedMutation/u);
+assert.match(source, /COLLECT_MORE_EVIDENCE/u);
+console.log('FIVE_X_REPAIR_METHOD_CONTRACT=PASS');

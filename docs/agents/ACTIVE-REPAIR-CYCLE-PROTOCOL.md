@@ -144,3 +144,18 @@ Any exhausted budget requires review/redispatch rather than silent truncation.
 `CLOSED / VERIFIED` is permitted only after Canonical CI is green on the exact `execution` SHA, with zero required red checks, fresh evidence, no unprocessed actionable failure, and canonical certification evidence.
 
 Promotion to `main` must use only the canonical `execution → main` path.
+
+
+## FIVE-X-REPAIR-METHOD-v1
+
+The Repair Bot uses one canonical repair lane, not five repeated mutation attempts.
+
+Before bounded mutation, the strategy engine evaluates five independent evidence passes:
+
+1. X1 Exact SHA — failure and repair target are bound to the live execution SHA.
+2. X2 Causal Proof — ambiguity is controlled and causal confidence is sufficient.
+3. X3 Adversarial Challenge — an independent alternative hypothesis, twin, or falsification path is present.
+4. X4 Learning & Memory — verified history, anti-lessons, or eligible training informs the decision without granting authority.
+5. X5 Verification Plan — the selected repair has a concrete regression and canonical-GREEN closure route.
+
+A score below 5 routes the bot to COLLECT_MORE_EVIDENCE; 5/5 permits the existing bounded repair path. The method does not increase mutation retries, bypass the control plane, mutate main, or grant certification authority.
