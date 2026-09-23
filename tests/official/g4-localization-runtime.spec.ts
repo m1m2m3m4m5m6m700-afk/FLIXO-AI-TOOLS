@@ -321,7 +321,8 @@ for (const pathname of routes) {
         const node = element as HTMLElement;
         if (node.tagName === 'IMG') {
           const img = node as HTMLImageElement;
-          return getImageAccessibilityIssues(img);
+          if (img.getAttribute('role') === 'presentation') return [];
+          return img.hasAttribute('alt') ? [] : ['visible image missing alt'];
         }
         const input = node as HTMLInputElement;
         const explicitLabel = input.id ? document.querySelector(`label[for="${CSS.escape(input.id)}"]`)?.textContent ?? '' : '';
