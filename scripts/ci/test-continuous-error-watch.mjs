@@ -120,7 +120,7 @@ assert.equal(validateRepairTarget({
 
 const securityAndCertification = [
   { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success' },
-  { id: 102, name: 'Certification', status: 'completed', conclusion: 'success' },
+  { id: 102, name: 'Certification', status: 'completed', conclusion: 'success', headSha: SHA_A },
 ];
 
 
@@ -163,7 +163,7 @@ const securityWorkflowEvidence = evaluateGreen({
   workflowRuns: requiredRuns,
   checkRuns: [
     { id: 109, name: 'Workflow trust baseline', status: 'completed', conclusion: 'success' },
-    { id: 110, name: 'Certification', status: 'completed', conclusion: 'success' },
+    { id: 110, name: 'Certification', status: 'completed', conclusion: 'success', headSha: SHA_A },
   ],
   compare: { ahead_by: 1, behind_by: 0 },
 });
@@ -180,6 +180,57 @@ const green = evaluateGreen({
   compare: { ahead_by: 1, behind_by: 0 },
 });
 assert.equal(green.status, 'GREEN');
+assert.equal(green.ci.certification.headSha, SHA_A);
+assert.equal(green.ci.certification.exactSha, true);
+
+for (const conclusion of ['failure', 'neutral', 'cancelled']) {
+  const certificationRed = evaluateGreen({
+    executionSha: SHA_A,
+    mainSha: SHA_B,
+    openPr,
+    workflowRuns: requiredRuns,
+    checkRuns: [
+      { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success', headSha: SHA_A },
+      { id: 102, name: 'Certification', status: 'completed', conclusion, headSha: SHA_A },
+    ],
+    compare: { ahead_by: 1, behind_by: 0 },
+  });
+  assert.equal(certificationRed.ci.certification.status, conclusion);
+  assert.equal(certificationRed.status, 'RED_INTERNAL');
+  assert.equal(certificationRed.errors.some((x) => x.type === 'CERTIFICATION_CHECK_RED'), true);
+}
+
+const staleCertification = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: [
+    { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success', headSha: SHA_A },
+    { id: 102, name: 'Certification', status: 'completed', conclusion: 'success', head_sha: SHA_B },
+  ],
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(staleCertification.ci.certification.status, 'success');
+assert.equal(staleCertification.ci.certification.headSha, SHA_B);
+assert.equal(staleCertification.ci.certification.exactSha, false);
+assert.equal(staleCertification.status, 'RED_INTERNAL');
+assert.equal(staleCertification.errors.some((x) => x.type === 'STALE_CERTIFICATION_EVIDENCE'), true);
+
+const missingCertificationSha = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: [
+    { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success', headSha: SHA_A },
+    { id: 102, name: 'Certification', status: 'completed', conclusion: 'success' },
+  ],
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(missingCertificationSha.ci.certification.exactSha, false);
+assert.equal(missingCertificationSha.status, 'RED_INTERNAL');
+assert.equal(missingCertificationSha.errors.some((x) => x.type === 'CERTIFICATION_SHA_MISSING'), true);
 
 const mainObservedGreen = evaluateGreen({
   executionSha: SHA_A,
@@ -313,7 +364,7 @@ const codeqlSecurityEvidence = evaluateGreen({
   ],
   checkRuns: [
     { id: 201, name: 'Analyze (javascript-typescript)', status: 'completed', conclusion: 'success', updatedAt: '2026-09-19T00:02:00Z' },
-    { id: 202, name: 'Certification', status: 'completed', conclusion: 'success', updatedAt: '2026-09-19T00:02:00Z' },
+    { id: 202, name: 'Certification', status: 'completed', conclusion: 'success', headSha: SHA_A, updatedAt: '2026-09-19T00:02:00Z' },
     { id: 203, name: 'Deploy exact SHA to Cloudflare flixoai', status: 'completed', conclusion: 'failure', updatedAt: '2026-09-19T00:01:00Z' },
     { id: 204, name: 'Deploy exact SHA to Cloudflare flixoai', status: 'completed', conclusion: 'skipped', updatedAt: '2026-09-19T00:03:00Z' },
     { id: 205, name: 'Observe, classify, repair-or-block, prove, continue', status: 'completed', conclusion: 'failure', updatedAt: '2026-09-19T00:04:00Z' },
@@ -332,7 +383,7 @@ const securityProvider = evaluateGreen({
   workflowRuns: requiredRuns,
   checkRuns: [
     { id: 104, name: 'github-advanced-security', status: 'completed', conclusion: 'failure', details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/35452323662' },
-    { id: 102, name: 'Certification', status: 'completed', conclusion: 'success' },
+    { id: 102, name: 'Certification', status: 'completed', conclusion: 'success', headSha: SHA_A },
   ],
   logs: { 35452323662: 'CAPIError: 400 The requested model is not supported' },
   compare: { ahead_by: 1, behind_by: 0 },
@@ -345,7 +396,7 @@ const securityMissingEvidence = evaluateGreen({
   workflowRuns: requiredRuns,
   checkRuns: [
     { id: 105, name: 'github-advanced-security', status: 'completed', conclusion: 'failure', details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/35452323663' },
-    { id: 102, name: 'Certification', status: 'completed', conclusion: 'success' },
+    { id: 102, name: 'Certification', status: 'completed', conclusion: 'success', headSha: SHA_A },
   ],
   logs: {},
   compare: { ahead_by: 1, behind_by: 0 },
@@ -361,7 +412,7 @@ const securityAggregation = evaluateGreen({
   checkRuns: [
     { id: 301, name: 'github-advanced-security', status: 'completed', conclusion: 'failure', updatedAt: '2026-09-19T00:04:00Z', details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/301' },
     { id: 302, name: 'CodeQL', status: 'completed', conclusion: 'success', updatedAt: '2026-09-19T00:05:00Z' },
-    { id: 303, name: 'Certification', status: 'completed', conclusion: 'success', updatedAt: '2026-09-19T00:05:00Z' },
+    { id: 303, name: 'Certification', status: 'completed', conclusion: 'success', headSha: SHA_A, updatedAt: '2026-09-19T00:05:00Z' },
   ],
   logs: { 301: 'CAPIError: 400 The requested model is not supported' },
   compare: { ahead_by: 1, behind_by: 0 },

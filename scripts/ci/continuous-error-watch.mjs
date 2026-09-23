@@ -93,6 +93,11 @@ const latestWorkflow = (runs, name) => {
 };
 const latestCheck = (checks, patterns) => latestBy(checks, (check) => patterns.some((pattern) => pattern.test(String(check.name ?? ''))));
 const stateOf = (item) => !item ? 'MISSING' : item.status === 'completed' ? (item.conclusion ?? 'unknown') : (item.status ?? 'unknown');
+const exactShaOfCheck = (check) => {
+  if (!check) return null;
+  const value = check.headSha ?? check.head_sha ?? null;
+  return typeof value === 'string' && /^[0-9a-f]{40}$/iu.test(value) ? value : null;
+};
 const providerFailure = (log) => PROVIDER_FAILURE_PATTERNS.some((pattern) => pattern.test(String(log ?? '')));
 
 export function classifyCancelledRun(run, runs = []) {
@@ -355,13 +360,37 @@ export function evaluateGreen({
   if (!securityChecks.length) report.errors.push({ type: 'SECURITY_EVIDENCE_MISSING' });
 
   const certificationCheck = latestCheck(checkRuns, CERTIFICATION_CHECK_PATTERNS);
+  const certificationStatus = stateOf(certificationCheck);
+  const certificationHeadSha = exactShaOfCheck(certificationCheck);
   report.ci.certification = {
     present: Boolean(certificationCheck),
-    status: stateOf(certificationCheck),
+    status: certificationStatus,
     name: certificationCheck?.name ?? null,
     checkId: certificationCheck?.id ?? null,
+    headSha: certificationHeadSha,
+    exactSha: certificationHeadSha === executionSha,
   };
-  if (!certificationCheck) report.errors.push({ type: 'CERTIFICATION_EVIDENCE_MISSING' });
+  if (!certificationCheck) {
+    report.errors.push({ type: 'CERTIFICATION_EVIDENCE_MISSING' });
+  } else if (certificationStatus !== 'success') {
+    report.errors.push({
+      type: 'CERTIFICATION_CHECK_RED',
+      status: certificationStatus,
+      checkId: certificationCheck.id ?? null,
+    });
+  } else if (!certificationHeadSha) {
+    report.errors.push({
+      type: 'CERTIFICATION_SHA_MISSING',
+      checkId: certificationCheck.id ?? null,
+    });
+  } else if (certificationHeadSha !== executionSha) {
+    report.errors.push({
+      type: 'STALE_CERTIFICATION_EVIDENCE',
+      checkId: certificationCheck.id ?? null,
+      certificationSha: certificationHeadSha,
+      executionSha,
+    });
+  }
 
   const externalCandidates = latestChecks.map((check) => externalCheckBlock(check, logForCheck(check, logs))).filter(Boolean);
   const externalStatusCandidates = statuses
