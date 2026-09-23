@@ -373,10 +373,13 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
   const before = snapshot(targetDir);
   const plannedChangedPaths = preMutationProof.sandboxSimulation?.changedFiles ?? [];
   const candidateDiff = preMutationProof.sandboxSimulation?.candidateDiff ?? '';
+  const isTestPath = (file) =>
+    /(^|\/)(?:tests?|__tests__)\//u.test(String(file)) ||
+    /^scripts\/ci\/test-[^/]+\.(?:mjs|cjs|js|ts|tsx)$/u.test(String(file));
   const mutationScope = {
     changedPaths: plannedChangedPaths,
     selectedFiles: fileSelection?.selectedFiles?.map((item) => item.path).filter(Boolean) ?? [],
-    testMutation: plannedChangedPaths.some((file) => /(^|\/)(?:tests?|__tests__)\//u.test(file)),
+    testMutation: plannedChangedPaths.some(isTestPath),
     controlPlaneMutation: plannedChangedPaths.some((file) => /^scripts\/ci\/|^\\.github\/workflows\//u.test(file)),
     mainMutation: false,
     gateWeakening: /continue-on-error|test\\.(?:skip|only)|describe\\.(?:skip|only)|eslint-disable|@ts-(?:ignore|nocheck)/iu.test(candidateDiff),
