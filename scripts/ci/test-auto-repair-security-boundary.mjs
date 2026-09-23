@@ -24,6 +24,7 @@ assert.match(worker, /canonicalMutationOwner:'repairAgent'/);
 console.log('AUTO_REPAIR_SECURITY_BOUNDARY=PASS');
 const boundary = fs.readFileSync('scripts/ci/validate-auto-repair-boundary.mjs', 'utf8');
 assert.match(boundary, /required-evidence-workflow-must-cancel-stale/u);
+assert.match(boundary, /const nonCancellingEvidence = new Set\(\['canonical-test', 'test-impact'\]\)/u);
 assert.doesNotMatch(boundary, /required-evidence-workflow-must-not-cancel/u);
 assert.match(workflow, /contents:\s*read/u);
 assert.match(workflow, /actions:\s*read/u);

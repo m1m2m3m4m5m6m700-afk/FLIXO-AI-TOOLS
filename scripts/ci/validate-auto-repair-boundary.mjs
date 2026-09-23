@@ -210,7 +210,9 @@ export function validateStatic() {
   for (const [id, workflow] of exactShaEvidenceWorkflows) {
     must(/github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha/.test(workflow), 'required-evidence-workflow-must-bind-exact-sha:' + id);
   }
-  const nonCancellingEvidence = new Set(['test-impact']);
+  // Canonical Test System preserves started runs; the central supersession controller
+  // cancels only queued/pending stale verification runs.
+  const nonCancellingEvidence = new Set(['canonical-test', 'test-impact']);
   for (const [id, workflow] of exactShaEvidenceWorkflows.filter(([id]) => id !== 'claude-security')) {
     const requiresCancellation = !nonCancellingEvidence.has(id);
     must(
