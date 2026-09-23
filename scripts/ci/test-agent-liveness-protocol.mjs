@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, buildTeamWakeDirective, buildTeamPulseDirective, buildDifferentiatedPulseDirective, assertActiveRepairWindow, checkContinuousSessionWindow, sessionTerminationDirective, assertFiveBotResidencyCommitment, idleAdmission, sleepAdmission, selfDisableAdmission, selfAbortAdmission, runEndAdmission } from './agent-liveness-protocol.mjs';
+import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, buildTeamWakeDirective, buildTeamPulseDirective, buildDifferentiatedPulseDirective, assessFiveSeatContinuity, assertActiveRepairWindow, checkContinuousSessionWindow, sessionTerminationDirective, assertFiveBotResidencyCommitment, idleAdmission, sleepAdmission, selfDisableAdmission, selfAbortAdmission, runEndAdmission } from './agent-liveness-protocol.mjs';
 import { buildFiveBotRotation, cohortMembers, cohortIndexAt, evaluateHandoff } from './five-bot-rotation.mjs';
 
 assert.equal(assertLivenessDefinition(), true);
@@ -42,6 +42,9 @@ assert.equal(AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment.journeyLogicalBo
 assert.equal(AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment.journeyCohortCount, 24);
 assert.equal(AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment.journeyCohortSize, 5);
 assert.equal(AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment.retainResidentUntilJourneyComplete, true);
+assert.equal(AGENT_LIVENESS_PROTOCOL.seatContinuityContract.minimumConnectedSeats,5);
+assert.equal(AGENT_LIVENESS_PROTOCOL.seatContinuityContract.heartbeatAckRequired,true);
+assert.equal(AGENT_LIVENESS_PROTOCOL.seatContinuityContract.generatedWakeIsNotAttendanceProof,true);
 assert.equal(AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs, 60 * 60 * 1000);
 assert.equal(AGENT_LIVENESS_PROTOCOL.maxContinuousActiveSessionMs, 3 * 60 * 60 * 1000);
 assert.equal(AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs, 5 * 60 * 1000);
@@ -82,6 +85,38 @@ assert.throws(() => idleAdmission(), /IDLE_FORBIDDEN_PERMANENT_RESIDENCY/u);
 assert.throws(() => selfDisableAdmission(), /SELF_DISABLE_FORBIDDEN_PERMANENT_RESIDENCY/u);
 assert.throws(() => selfAbortAdmission(), /SELF_ABORT_FORBIDDEN_PERMANENT_RESIDENCY/u);
 assert.throws(() => runEndAdmission(), /RUN_END_DOES_NOT_END_TASK/u);
+const seatContinuity=assessFiveSeatContinuity({
+  activeRuntimeIds:['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5'],
+  stagedRuntimeIds:['FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10'],
+  heartbeatAcks:[
+    {runtimeId:'FLIXO1',targetSha:'a'.repeat(40),state:'ACTIVE',heartbeatAck:true,at:new Date().toISOString()},
+    {runtimeId:'FLIXO2',targetSha:'a'.repeat(40),state:'ACTIVE',heartbeatAck:true,at:new Date().toISOString()},
+    {runtimeId:'FLIXO3',targetSha:'a'.repeat(40),state:'ACTIVE',heartbeatAck:true,at:new Date().toISOString()},
+    {runtimeId:'FLIXO4',targetSha:'a'.repeat(40),state:'ACTIVE',heartbeatAck:true,at:new Date().toISOString()},
+    {runtimeId:'FLIXO5',targetSha:'a'.repeat(40),state:'ACTIVE',heartbeatAck:true,at:new Date().toISOString()},
+  ],
+  targetSha:'a'.repeat(40),
+});
+assert.equal(seatContinuity.ok,true);
+assert.equal(seatContinuity.activeSeatCount,5);
+assert.equal(seatContinuity.replacementRequired,false);
+const lazySeatContinuity=assessFiveSeatContinuity({
+  activeRuntimeIds:['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5'],
+  stagedRuntimeIds:['FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10'],
+  heartbeatAcks:[
+    {runtimeId:'FLIXO1',targetSha:'a'.repeat(40),state:'ACTIVE',heartbeatAck:true,at:new Date().toISOString()},
+    {runtimeId:'FLIXO2',targetSha:'a'.repeat(40),state:'ACTIVE',heartbeatAck:true,at:new Date().toISOString()},
+    {runtimeId:'FLIXO3',targetSha:'a'.repeat(40),state:'ACTIVE',heartbeatAck:true,at:new Date().toISOString()},
+    {runtimeId:'FLIXO4',targetSha:'a'.repeat(40),state:'ACTIVE',heartbeatAck:true,at:new Date().toISOString()},
+    {runtimeId:'FLIXO5',targetSha:'a'.repeat(40),state:'ACTIVE',heartbeatAck:false,at:new Date().toISOString()},
+  ],
+  targetSha:'a'.repeat(40),
+});
+assert.equal(lazySeatContinuity.ok,false);
+assert.equal(lazySeatContinuity.lazyBotDetected,true);
+assert.equal(lazySeatContinuity.replacementRequired,true);
+assert.equal(lazySeatContinuity.replacementCount,1);
+assert.equal(lazySeatContinuity.action,'FAIL_CLOSED_AND_REPLACE');
 const residency=assertFiveBotResidencyCommitment({botIds:['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5'],states:['ACTIVE','ACTIVE','ACTIVE','ACTIVE','ACTIVE'],taskClosed:false,journeyComplete:false});
 assert.equal(residency.ok,true);
 assert.equal(residency.requiredBotCount,5);
