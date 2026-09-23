@@ -1,24 +1,3 @@
-name: FLIXO Agent Communication Relay
-
-on:
-  issue_comment:
-    types: [created]
-permissions:
-  contents: read
-  issues: write
-  actions: write
-  id-token: write
-
-concurrency:
-  group: flixo-agent-communication-${{ github.run_id }}
-  cancel-in-progress: false
-
-jobs:
-  receive:
-    name: Immediate agent message receive
-    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'issue_comment' && github.event.issue.pull_request != null && github.event.comment.body != '' && (github.event.comment.author_association == 'OWNER' || github.event.comment.user.login == 'github-actions[bot]') }}
-    runs-on: ubuntu-latest
-    steps:
       - name: Validate comment is not newer than the current PR head
         id: comment_freshness
         env:
@@ -57,7 +36,6 @@ jobs:
           persist-credentials: false
         if: steps.comment_freshness.outputs.stale != 'true'
 
-        if: steps.comment_freshness.outputs.stale != 'true'
       - name: Bind relay to current exact execution SHA
         id: relay_head
         env:
@@ -108,6 +86,7 @@ jobs:
           github.event_name == 'issue_comment' &&
           github.event.issue.pull_request != null &&
           contains(github.event.comment.body || '', '<!-- FLIXO_AGENT_COUNCIL_WAKE -->')
+          steps.comment_freshness.outputs.stale != 'true'
         env:
           COMMENT_BODY: ${{ github.event.comment.body || '' }}
         shell: bash
@@ -115,7 +94,6 @@ jobs:
           set -euo pipefail
           printf '%s\n' "$COMMENT_BODY" > /tmp/council-wake-comment.md
           echo 'wake=true' >> "$GITHUB_OUTPUT"
-        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Resolve current execution SHA for President Wake
         id: president_head
@@ -128,7 +106,6 @@ jobs:
           SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Build President Wake plan
         id: president_plan
@@ -142,7 +119,6 @@ jobs:
           test "$RELAY_SHA" = "$CURRENT_SHA"
           node scripts/ci/council-wake-dispatch.mjs             --comment-file=/tmp/council-wake-comment.md             --current-execution-sha="$CURRENT_SHA"             --repository="$GITHUB_REPOSITORY" > /tmp/council-wake-plan.json
           jq -r '"mode=" + .mode + "\nrole=" + .role + "\nworkflow=" + (.workflow // "") + "\nworkPackage=" + .workPackageId + "\nentrySha=" + .entrySha' /tmp/council-wake-plan.json >> "$GITHUB_OUTPUT"
-        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Check President Wake idempotency
         id: president_duplicate
@@ -168,7 +144,6 @@ jobs:
           else
             echo 'duplicate=false' >> "$GITHUB_OUTPUT"
           fi
-        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Dispatch President Wake workflow
         if: steps.president_wake.outputs.wake == 'true' && steps.president_duplicate.outputs.duplicate != 'true' && steps.president_plan.outputs.mode == 'WORKFLOW_DISPATCH'
@@ -200,7 +175,6 @@ jobs:
               exit 1
               ;;
           esac
-        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Acknowledge President Wake
         if: steps.president_wake.outputs.wake == 'true' && steps.president_duplicate.outputs.duplicate != 'true'
@@ -223,7 +197,6 @@ jobs:
           esac
           BODY="$(printf '%s\n' "### PRESIDENT WAKE RECEIPT" "" "**Role:** $ROLE" "**Mode:** $MODE" "**Work Package:** $WORKPACKAGE" "**Exact SHA:** $ENTRY_SHA" "" "Wake accepted through the canonical communication relay. Workflow dispatch remains subject to exact-SHA and role controls." "" "<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->")"
           gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments" --raw-field body="$BODY" >/dev/null
-        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Detect P0 Council question / request
         id: council_question
@@ -232,6 +205,7 @@ jobs:
           github.event.issue.pull_request != null &&
           (contains(github.event.comment.body || '', '### COUNCIL QUESTION') ||
            contains(github.event.comment.body || '', '<!-- FLIXO_COUNCIL_PRIORITY -->'))
+          steps.comment_freshness.outputs.stale != 'true'
         env:
           COMMENT_BODY: ${{ github.event.comment.body || '' }}
         shell: bash
@@ -244,7 +218,6 @@ jobs:
             printf '%s\n' "$COMMENT_BODY"
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
-        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Dispatch P0 Council question immediately
         if: steps.council_question.outcome == 'success'
@@ -254,7 +227,6 @@ jobs:
           QUESTION: ${{ steps.council_question.outputs.question }}
           COUNCIL_PR_NUMBER: ${{ steps.council_ingress.outputs.issue_number }}
         shell: bash
-        if: steps.comment_freshness.outputs.stale != 'true'
         run: |
           set -euo pipefail
           SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
@@ -335,7 +307,6 @@ jobs:
             echo "status=READY" >> "$GITHUB_OUTPUT"
           fi
           echo "message_sha=$MESSAGE_SHA" >> "$GITHUB_OUTPUT"
-        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Check durable master-inbox idempotency
         id: duplicate
@@ -356,12 +327,10 @@ jobs:
           esac
           if gh api "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
             echo 'duplicate=true' >> "$GITHUB_OUTPUT"
-        if: steps.comment_freshness.outputs.stale != 'true'
             echo 'DUPLICATE_AGENT_MESSAGE=NO_OP'
           else
             echo 'duplicate=false' >> "$GITHUB_OUTPUT"
           fi
-        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Ingest incoming message immediately
         id: ingest
@@ -371,7 +340,6 @@ jobs:
           node scripts/ci/agent-communication.mjs validate --message-file=message.json
           node scripts/ci/agent-communication.mjs ingest --message-file=message.json | tee /tmp/flixo-agent-message-receipt.json
           jq -r '"MESSAGE_STATUS=" + .status + "\\nMESSAGE_ID=" + .messageId + "\\nMESSAGE_ENTRY_SHA=" + .entrySha + "\\nMESSAGE_IDEMPOTENCY_KEY=" + .idempotencyKey' /tmp/flixo-agent-message-receipt.json >> "$GITHUB_OUTPUT"
-        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Build canonical invocation envelope
         id: invocation
@@ -440,7 +408,6 @@ jobs:
             DELIVERY_KEY="${MESSAGE_KEY}:${DELIVERY_MASTER}"
             DELIVERY_TASK_ID="${TASK_ID}:${DELIVERY_MASTER}"
             WORK_PACKAGE="ADMIN-COMMUNICATION-${MESSAGE_ID}-${DELIVERY_MASTER}"
-        if: steps.comment_freshness.outputs.stale != 'true'
 
             jq -n               --arg messageId "$DELIVERY_ID"               --arg idempotencyKey "$DELIVERY_KEY"               --arg taskId "$DELIVERY_TASK_ID"               --arg workPackageId "$WORK_PACKAGE"               --arg entrySha "$ENTRY_SHA"               --arg invocationId "$INVOCATION_ID"               --arg failureFingerprint "$FAILURE_FINGERPRINT"               --arg attempt "$ATTEMPT"               --arg leaseEpoch "$LEASE_EPOCH"               --arg primary "$PRIMARY_ACCOUNT"               --arg fallback "$FALLBACK_ACCOUNT"               --arg deliveryMaster "$DELIVERY_MASTER"               --arg canonicalRecipientMaster "$RECIPIENT_MASTER"               --slurpfile message message.json               '{messageId:$messageId,idempotencyKey:$idempotencyKey,taskId:$taskId,workPackageId:$workPackageId,entrySha:$entrySha,requestedByAccountId:"SYSTEM",primaryAccountId:$primary,fallbackAccountId:$fallback,source:"agent-communication-relay",payload:{administrativeInstruction:true,administrativeBroadcast:(($message[0].payload.masterPeerMessage // $message[0].payload.peerMessage // false)|not),canonicalMessageId:($message[0].messageId // $messageId),canonicalRecipientMaster:$canonicalRecipientMaster,exactSha:$entrySha,actor:($message[0].actor // null),recipient:($message[0].recipient // null),intent:($message[0].intent // null),priority:($message[0].priority // null),councilOperation:($message[0].councilOperation // false),masterPeerMessage:($message[0].payload.peerMessage // false),automaticDelivery:($message[0].payload.automaticDelivery // false),conversationId:($message[0].payload.conversationId // null),replyToMessageId:($message[0].payload.replyToMessageId // null),senderMaster:($message[0].payload.senderMaster // null),recipientMaster:$deliveryMaster,messageText:($message[0].payload.messageText // null),invocation:{invocationId:$invocationId,failureFingerprint:$failureFingerprint,attempt:($attempt|tonumber),leaseEpoch:($leaseEpoch|tonumber),targetSha:$entrySha,state:"DISPATCHED"}}' > /tmp/council-runtime-dispatch.json
 
@@ -475,7 +442,6 @@ jobs:
           esac
           BODY="$(printf '%s\n' "### AGENT MESSAGE RECEIVED" "" "**Message:** $MESSAGE_ID" "**Status:** $MESSAGE_STATUS" "**Entry SHA:** $MESSAGE_SHA" "**Idempotency Key:** $MESSAGE_KEY" "**Invocation:** $INVOCATION_ID" "" "**Receipt:** IMMEDIATE_EVENT_RECEIPT" "**Target ref:** $TARGET_REF" "" "The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute." "" "<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->")"
           gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments" --raw-field body="$BODY" >/dev/null
-        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Wake repair supervision for repair-class messages
         if: >-
@@ -485,7 +451,6 @@ jobs:
             contains(toJSON(github.event.comment.body || ''), 'FAILURE') ||
             contains(toJSON(github.event.comment.body || ''), 'RED')
           )
-        if: steps.comment_freshness.outputs.stale != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

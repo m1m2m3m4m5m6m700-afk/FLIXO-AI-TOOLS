@@ -167,6 +167,18 @@ for (const marker of ['candidateCheckResults','executionEvidence','DIFFERENTIAL_
 for (const marker of ['ACTION-VAULT-INTELLIGENCE-BENCHMARK-v1','GATE_INTEGRITY_ADVERSARIAL','score','blockedCases']) if (!actionVaultBenchmarkSource.includes(marker)) failures.push('ACTION_VAULT_BENCHMARK_MARKER_MISSING='+marker);
 const repairSource = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';
 for (const marker of ['ACTION-SYSTEM-COGNITIVE-AWARENESS-v1','ACTION_PRIMARY_CORRECTNESS_PROOF','ADVERSARIAL_PROGRAMMER_FALSIFIER','ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','NO_BLIND_RETRY','ACTION_VAULT_SHA_MISMATCH','ACTION_VAULT_TRIAD_INCOMPLETE','ACTION_VAULT_VERIFIER_PROOF_REQUIRED','ACTION_VAULT_ALTERNATIVES_MISSING','ACTION_VAULT_FALSIFICATION_CHECKS_MISSING','ACTION_VAULT_ADVERSARIAL_FALSIFICATION_FAILED','CELL_LAB_CONSENSUS_REQUIRED','CELL_LAB_EXACT_SHA_MISMATCH','CELL_LAB_PLAN_HASH_MISMATCH','ACTION_VAULT_COGNITIVE_AWARENESS_INVALID','ACTION_VAULT_SANDBOX_PROOF_REQUIRED','ACTION_VAULT_DIFFERENTIAL_PROOF_REQUIRED','ACTION_VAULT_PATCH_CORRECTNESS_PROOF_REQUIRED']) if (!repairSource.includes(marker)) failures.push(`ACTION_VAULT_REPAIR_MARKER_MISSING=${marker}`);
+// Canonical relay YAML guard: duplicate step-level if keys are invalid and can prevent any job from starting.
+const relayPath = '.github/workflows/agent-communication-relay.yml';
+if (exists(relayPath)) {
+  const relayText = read(relayPath);
+  const relayStepChunks = relayText.split(/^      - name:\s*/m).slice(1);
+  for (const chunk of relayStepChunks) {
+    const stepName = chunk.split(/\r?\n/, 1)[0].trim();
+    const ifKeys = chunk.match(/^        if:\s*/gm) ?? [];
+    if (ifKeys.length > 1) failures.push('AGENT_RELAY_DUPLICATE_IF_KEY=' + stepName);
+  }
+}
+
 const sha = execFileSync('git', ['rev-parse','HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 for (const marker of ['FLIXO-SHARED-OPERATIONAL-MEMORY-v1','ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent','ERROR','OPERATION','ADVICE','OBLIGATION','LESSON','ANTI_LESSON','COUNTEREXAMPLE','VERIFICATION']) if (!sharedMemorySource.includes(marker)) failures.push('SHARED_MEMORY_MARKER_MISSING='+marker);
 if (!sharedMemoryContract.includes('Every published record is visible to all six participants')) failures.push('SHARED_MEMORY_CONTRACT_BINDING_MISSING');
