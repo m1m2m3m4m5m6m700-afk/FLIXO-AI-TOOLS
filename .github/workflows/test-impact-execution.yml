@@ -4,7 +4,7 @@ on:
   # One canonical push-triggered verification is sufficient for each exact execution SHA.
   # PRs consume the same check-runs from that head commit; avoid duplicate heavy execution.
   push:
-    branches: [main, execution]
+    branches: [execution]
   workflow_dispatch:
 
 # Each exact commit SHA has its own execution slot; active runs are never cancelled by newer commits.

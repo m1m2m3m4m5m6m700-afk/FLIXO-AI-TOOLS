@@ -246,7 +246,9 @@ export function evaluateGreen({
     report.errors.push({ type: 'STALE_HEAD', message: 'open PR head does not match execution SHA' });
   }
 
-  if (observedBranch === 'execution' && Number(compare.behind_by ?? 0) > 0) {
+  // After a canonical merge, execution may legitimately lag main until the next execution cycle.
+  // Treat divergence as actionable only while an execution→main PR is open.
+  if (observedBranch === 'execution' && openPr && Number(compare.behind_by ?? 0) > 0) {
     report.errors.push({
       type: 'MAIN_DIVERGENCE',
       message: `execution is behind canonical main by ${compare.behind_by}`,
