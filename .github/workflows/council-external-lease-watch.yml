@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: flixo-council-external-lease-watch
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   recover:
@@ -30,4 +30,10 @@ jobs:
           OIDC_RESPONSE="$(curl -fsS --max-time 10 -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$COUNCIL_RUNTIME_URL")"
           OIDC_TOKEN="$(printf '%s' "$OIDC_RESPONSE" | jq -r '.value')"
           test -n "$OIDC_TOKEN"
-          curl -fsS --max-time 15             -X POST             -H "Authorization: Bearer $OIDC_TOKEN"             -H "Content-Type: application/json"             --data '{"limit":10}'             "${COUNCIL_RUNTIME_URL%/}?action=recover"
+          curl -fsS --max-time 20 -X POST \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{"limit":25}' \
+            "${COUNCIL_RUNTIME_URL%/}?action=recover" | tee /tmp/council-recovery.json
+          jq -e '.guardian == "EXTERNAL_COUNCIL_GUARDIAN_V3" and .health.state == "HEALTHY" and (.health.remainingExpiredOpenLeases | tonumber) == 0 and (.health.staleResidentAccounts | length) == 0' /tmp/council-recovery.json >/dev/null
+          echo 'EXTERNAL_GUARDIAN_HEALTH=HEALTHY'
