@@ -352,6 +352,32 @@ if (
   process.exit(1);
 }
 
+const autoRepairMergeGateWorkflow = workflowTexts.find(({ file }) => file === 'auto-repair-merge-gate.yml')?.text ?? '';
+const promotionClosureValidator = readFileSync('scripts/ci/validate-promotion-closure.mjs', 'utf8');
+const certificationSourceBindingMarkers = [
+  'TEST_SYSTEM_RUN_ID=',
+  'select(.name == "FLIXO Test System" and .headSha == $sha and .status == "completed" and .conclusion == "success")',
+  'select(.name == "Certification")',
+  'select(.head_sha == $sha)',
+  'test("/actions/runs/[0-9]+(?:/job/[0-9]+)?(?:[/?#]|$)")',
+  'canonical Certification check missing or not linked to the canonical FLIXO Test System run',
+];
+if (!autoRepairMergeGateWorkflow || !certificationSourceBindingMarkers.every((marker) => autoRepairMergeGateWorkflow.includes(marker))) {
+  console.error('CI contract failed: Auto Repair Merge Gate certification must be bound to the canonical exact-SHA FLIXO Test System run.');
+  process.exit(1);
+}
+for (const marker of [
+  'CANONICAL_TEST_SYSTEM_RUN_MISSING',
+  'CERTIFICATION_MISSING_OR_NONCANONICAL',
+  'actionRunIdOfCheck',
+  'run?.head_sha === expectedSha',
+]) {
+  if (!promotionClosureValidator.includes(marker)) {
+    console.error('CI contract failed: promotion closure certification source binding is incomplete: ' + marker);
+    process.exit(1);
+  }
+}
+
 const protectedLiveRuntime = workflowTexts.find(({ file }) => file === 'council-live-runtime-verification.yml');
 if (!protectedLiveRuntime ||
     !/^\s{2}verify:\s*$/m.test(protectedLiveRuntime.text) ||
