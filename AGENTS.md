@@ -77,6 +77,18 @@ The active execution queue in `المهام.md` is the only default planned scop
 
 Agents MUST NOT write into `المهام.md` runtime RCA, heartbeat/liveness updates, CI/run results, job logs, failure evidence, Exact-SHA proof records, handoff reports, or repair-session history. Operational evidence belongs in the repository's diagnostics/evidence surfaces. Changes to the task plan itself (add/remove/reprioritize/retire a planned task) may update `المهام.md`; execution telemetry does not.
 
+## LOCAL REPOSITORY RULE #2 — SINGLE WORK BRANCH / SINGLE WORK PATH
+
+**Rule #2 is repository-local and mandatory for all agents, bots, Actions, tests, repairs, diagnostics, and automation.**
+
+- **Work Branch #1 = `execution`.**
+- **Work Path #1 = `execution`.**
+- All active implementation, repair, testing, diagnostics, learning, verification preparation, and integration work MUST remain on Work Branch/Path #1.
+- **No second work path is permitted:** do not create or use any feature, fix, chore, repair, bot, agent, test, diagnostic, temporary, experimental, preview, backup, per-run, per-error, or per-task branch/path as an active execution route.
+- `main` is **not** an alternate work path; it is the protected production/source-of-truth destination reached only through the canonical `execution → main` promotion flow.
+- Any attempt to open, switch to, create, or continue work on a second branch/path is **FAIL_CLOSED** and MUST return to Work Branch/Path #1.
+- This rule is additive to P00 and the repository two-branch policy; it does not create a new protocol or authority layer.
+
 ## TWO-BRANCH EXECUTION POLICY
 
 The repository has exactly two active branch paths:
