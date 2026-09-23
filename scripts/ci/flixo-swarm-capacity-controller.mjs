@@ -9,7 +9,7 @@ export const FLIXO_SWARM_CAPACITY_POLICY = Object.freeze({
   scaleStep: 5,
   currentVerifiedRuntimeCount: 10,
   currentVerifiedActiveRuntimeCount: 5,
-  logicalJourneyDefault: 100,
+  logicalJourneyDefault: 120,
   logicalJourneyMaximum: 500,
   scaleSignals: Object.freeze({
     queuedTasksPerActiveBot: 4,
@@ -77,7 +77,7 @@ export function validateCapacityPolicy() {
   assert.equal(p.scaleStep,5);
   assert.equal(p.currentVerifiedRuntimeCount >= p.currentVerifiedActiveRuntimeCount,true);
   assert.equal(p.currentVerifiedActiveRuntimeCount,5);
-  assert.equal(p.logicalJourneyDefault,100);
+  assert.equal(p.logicalJourneyDefault,120);
   assert.equal(p.logicalJourneyMaximum,500);
   assert.equal(p.requireVerifiedRuntimeProvisioning,true);
   assert.equal(p.neverFabricateLiveBots,true);
