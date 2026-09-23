@@ -64,3 +64,25 @@ The learning channel remains non-authoritative:
 - memory cannot grant execution, mutation, merge, or certification authority.
 
 The execution-agent clone reaches the same brain through the cognitive orchestrator, so the clone and the original execution path share the reasoning substrate without sharing mutation ownership.
+
+
+## Full-intelligence rule
+
+All active learning consumers use `FLIXO-FULL-INTELLIGENCE-v1` in `FULL_ALWAYS` mode.
+
+A task being simple is **not** a reason to reduce the cognitive substrate. Every consumer receives the same full reasoning lens set, shared learning context, Exact-SHA binding, adversarial review posture, verification obligations, and anti-lesson context. Resource ceilings remain role-bound; permissions and mutation authority are never increased by this policy.
+
+Enforcement:
+
+- `scripts/ci/full-intelligence-policy.mjs`
+- `scripts/ci/agent-session.mjs`
+- `scripts/council/advanced-agent-runtime.mjs`
+- `scripts/council/frontier-specialist-runtime.mjs`
+- `scripts/council/action-agent-triad.mjs`
+- `scripts/council/external-gpt-bridge.mjs`
+- `scripts/ci/action-agent-runtime.mjs`
+- `scripts/ci/action-repair-council-20.mjs`
+- `scripts/security/security-red-team-runner.mjs`
+- `scripts/ci/auto-repair/reasoning.mjs`
+
+The contract test iterates over the complete `distribution.learningConsumers` audience and rejects missing or downgraded cognitive bootstraps.
