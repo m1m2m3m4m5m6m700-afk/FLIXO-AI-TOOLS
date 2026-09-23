@@ -154,6 +154,8 @@ const heartbeatWorkflow=fs.readFileSync(path.resolve(process.cwd(),'.github/work
 assert.match(heartbeatWorkflow,/workflow_dispatch:/u);
 assert.match(heartbeatWorkflow,/FLIXO Agent Repair Heartbeat/u);
 assert.match(heartbeatWorkflow,/cancel-in-progress:\s*false/u);
+assert.match(heartbeatWorkflow,/STALE_RUN_CANCELLATION=FAIL_CLOSED/u);
+assert.doesNotMatch(heartbeatWorkflow,/gh run cancel .*\|\| true/u);
 assert.match(heartbeatWorkflow,/RESIDENT_READY_STATE=READY_RESIDENT/u);
 assert.match(heartbeatWorkflow,/RESIDENT_SLEEP=false/u);
 assert.match(heartbeatWorkflow,/RESIDENT_IDLE=false/u);
@@ -177,6 +179,6 @@ assert.doesNotMatch(watchdogWorkflow,/workflow_run:/u);
 assert.doesNotMatch(watchdogWorkflow,/push:\s*\n\s*branches: \[execution\]/u);
 assert.match(watchdogWorkflow,/cancel-in-progress:\s*true/u);
 
-assert.match(heartbeatWorkflow,/pull_request:/u);
+assert.doesNotMatch(heartbeatWorkflow,/pull_request:/u);
 assert.match(heartbeatWorkflow,/The push event owns only the short bootstrap job; the resident window is workflow_dispatch/u);
 assert.match(heartbeatWorkflow,/resident-only workflow_dispatch/u);
