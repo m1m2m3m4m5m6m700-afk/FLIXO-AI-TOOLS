@@ -24,6 +24,8 @@ const brain=buildReadOnlyRepairBrain({
   deepInference:{falsification:[{id:'F1'}]},
 });
 assert.equal(brain.protocol,'FLIXO-READ-ONLY-REPAIR-BRAIN-v1');
+assert.equal(brain.runtimeProtocol,'FLIXO-UNIFIED-BOT-RUNTIME-v1');
+assert.equal(brain.botId,'READ-INVESTIGATOR');
 assert.equal(brain.mutationAuthority,false);
 assert.equal(brain.certificationAuthority,false);
 assert.equal(brain.tenXAnalyticProfile.requiredPasses,10);
