@@ -1170,45 +1170,80 @@
     ],
     "pairs": [
       {
-        "pairId": "PAIR-01",
+        "pairId": "RING-01",
+        "proposalBot": "FLIXO1",
+        "adversaryBot": "FLIXO2",
+        "proposalRole": "TASK_RECEIPT_PROPOSER",
+        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
+      },
+      {
+        "pairId": "RING-02",
         "proposalBot": "FLIXO2",
-        "adversaryBot": "FLIXO1",
-        "proposalRole": "CODE_PATH_PROPOSAL",
-        "adversaryRole": "RCA_FALSIFIER"
-      },
-      {
-        "pairId": "PAIR-02",
-        "proposalBot": "FLIXO4",
         "adversaryBot": "FLIXO3",
-        "proposalRole": "CI_WORKFLOW_PROPOSAL",
-        "adversaryRole": "TEST_CONTRACT_FALSIFIER"
+        "proposalRole": "TASK_RECEIPT_PROPOSER",
+        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
       },
       {
-        "pairId": "PAIR-03",
-        "proposalBot": "FLIXO6",
+        "pairId": "RING-03",
+        "proposalBot": "FLIXO3",
+        "adversaryBot": "FLIXO4",
+        "proposalRole": "TASK_RECEIPT_PROPOSER",
+        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
+      },
+      {
+        "pairId": "RING-04",
+        "proposalBot": "FLIXO4",
         "adversaryBot": "FLIXO5",
-        "proposalRole": "RUNTIME_BROWSER_PROPOSAL",
-        "adversaryRole": "SECURITY_CONTROL_PLANE_FALSIFIER"
+        "proposalRole": "TASK_RECEIPT_PROPOSER",
+        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
       },
       {
-        "pairId": "PAIR-04",
-        "proposalBot": "FLIXO8",
+        "pairId": "RING-05",
+        "proposalBot": "FLIXO5",
+        "adversaryBot": "FLIXO6",
+        "proposalRole": "TASK_RECEIPT_PROPOSER",
+        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
+      },
+      {
+        "pairId": "RING-06",
+        "proposalBot": "FLIXO6",
         "adversaryBot": "FLIXO7",
-        "proposalRole": "IMPLEMENTATION_REPAIR_PROPOSAL",
-        "adversaryRole": "DEPENDENCY_BUILD_PERFORMANCE_FALSIFIER"
+        "proposalRole": "TASK_RECEIPT_PROPOSER",
+        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
       },
       {
-        "pairId": "PAIR-05",
-        "proposalBot": "FLIXO10",
+        "pairId": "RING-07",
+        "proposalBot": "FLIXO7",
+        "adversaryBot": "FLIXO8",
+        "proposalRole": "TASK_RECEIPT_PROPOSER",
+        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
+      },
+      {
+        "pairId": "RING-08",
+        "proposalBot": "FLIXO8",
         "adversaryBot": "FLIXO9",
-        "proposalRole": "FINAL_EXACT_SHA_VERIFICATION",
-        "adversaryRole": "FALSE_GREEN_EXACT_SHA_FALSIFIER"
+        "proposalRole": "TASK_RECEIPT_PROPOSER",
+        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
+      },
+      {
+        "pairId": "RING-09",
+        "proposalBot": "FLIXO9",
+        "adversaryBot": "FLIXO10",
+        "proposalRole": "TASK_RECEIPT_PROPOSER",
+        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
+      },
+      {
+        "pairId": "RING-10",
+        "proposalBot": "FLIXO10",
+        "adversaryBot": "FLIXO1",
+        "proposalRole": "TASK_RECEIPT_PROPOSER",
+        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
       }
     ],
     "pairPolicy": {
-      "sequence": "PARALLEL_READ_DIAGNOSE_WRITE_PROPOSAL_THEN_INDEPENDENT_FALSIFICATION",
-      "requiredPairs": 5,
-      "allPairsRequired": true,
+      "sequence": "TASK_RECEIPT→READ→DIAGNOSE→WRITE_PROPOSAL→NEXT_BOT_CHALLENGE→EVIDENCE",
+      "requiredEdges": 10,
+      "allEdgesRequired": true,
       "sameTaskRequired": true,
       "sameFailureFingerprintRequired": true,
       "sameExactShaRequired": true,
@@ -1304,6 +1339,29 @@
         "pair": "PAIR-05",
         "pairedWith": "FLIXO9"
       }
+    },
+    "ring": {
+      "type": "DYNAMIC_ADVERSARIAL_RING",
+      "assignmentOnTaskReceipt": true,
+      "direction": "NEXT_BOT",
+      "cycle": [
+        "FLIXO1",
+        "FLIXO2",
+        "FLIXO3",
+        "FLIXO4",
+        "FLIXO5",
+        "FLIXO6",
+        "FLIXO7",
+        "FLIXO8",
+        "FLIXO9",
+        "FLIXO10",
+        "FLIXO1"
+      ],
+      "rule": "Each FLIXO bot's opponent is the next FLIXO bot; FLIXO10 is opposed by FLIXO1.",
+      "roleTransition": "ON_TASK_RECEIPT",
+      "proposerAndAdversaryAreIndependent": true,
+      "sameExactShaRequired": true,
+      "counterexampleBlocksPush": true
     }
   }
 }
