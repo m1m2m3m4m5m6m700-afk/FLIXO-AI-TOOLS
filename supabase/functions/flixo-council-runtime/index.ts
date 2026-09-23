@@ -434,7 +434,7 @@ const accountFromBearer = (req: Request): Account => {
 };
 
 const getAccountState = async (account: Account) => {
-  const rows = await db("/rest/v1/flix_council_accounts?account_id=eq." + encodeURIComponent(account) + "&select=account_id,role,active,current_session_id,last_seen_at,metadata&limit=1") as Array<Record<string, unknown>>;
+  const rows = await db("/rest/v1/flix_council_accounts?account_id=eq." + encodeURIComponent(account) + "&select=account_id,role,active,current_session_id,last_seen_at,last_heartbeat_at,current_execution_sha,metadata&limit=1") as Array<Record<string, unknown>>;
   const row = rows?.[0];
   if (!row) throw new Error("COUNCIL_ACCOUNT_STATE_MISSING");
   const metadata = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
@@ -1062,6 +1062,8 @@ Deno.serve(async (req) => {
         runtimeSessionId,
         exactSha,
         lastSeenAt: now,
+        lastHeartbeatAt: now,
+        currentExecutionSha: exactSha,
         state: "ACTIVE",
       }, 200, requestId);
     }
