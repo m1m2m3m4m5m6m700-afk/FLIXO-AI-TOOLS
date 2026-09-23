@@ -2,38 +2,22 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { AGENT_LIVENESS_PROTOCOL, buildDifferentiatedPulseDirective } from './agent-liveness-protocol.mjs';
+import { AGENT_LIVENESS_PROTOCOL, buildTeamPulseDirective } from './agent-liveness-protocol.mjs';
 
 const IDS = AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds;
-const FOCUS = Object.freeze(Object.fromEntries(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((item)=>[item.botId,item.pulseType])));
-const nextBot=(id)=>IDS[(IDS.indexOf(id)+1)%IDS.length];
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):fallback};
 const sha=String(arg('sha',process.env.FLIXO_TARGET_SHA||'')).trim();
-if(!/^[a-f0-9]{40}$/u.test(sha)) throw new Error('FLIXO10_PULSE_EXACT_SHA_REQUIRED');
+if(!/^[a-f0-9]{40}$/u.test(sha)) throw new Error('FLIXO_TEAM_PULSE_EXACT_SHA_REQUIRED');
 const minuteKey=arg('minute',new Date().toISOString().slice(0,16));
 const runId=arg('run-id',process.env.GITHUB_RUN_ID||'LOCAL');
 const activeOperation=arg('active-operation','false')==='true';
-const output=arg('output','/tmp/flixo-ten-pulse.json');
-const pulseWindow=IDS.map((bot,index)=>{const directive=buildDifferentiatedPulseDirective({actor:bot,targetSha:sha,taskId:'HEARTBEAT:'+runId,activeOperation,reason:'MINUTE_PULSE:'+minuteKey});return {...directive,pulseId:bot+'-'+minuteKey.replace(/[^0-9]/gu,'')+'-'+runId,pulseOrdinal:index+1,pulseFocus:FOCUS[bot],cadence:'EVERY_MINUTE',generatedAt:new Date().toISOString()};});
-const result={
-  schemaVersion:1,
-  protocol:'FLIXO10-PULSE-CONTROLLER-v1',
-  minuteKey,
-  runId,
-  targetSha:sha,
-  activeOperation,
-  mode:activeOperation?'ACTIVE_OPERATION':'FULL_REPOSITORY_READ_ONLY_SCAN',
-  pulseCount:pulseWindow.length,
-  pulses:pulseWindow,
-  uniquePulseFocusCount:new Set(pulseWindow.map((pulse)=>pulse.pulseFocus)).size,
-  allAgentsWakeCount:pulseWindow.length,
-  readOnlyWhenIdle:true,
-  sourceMutationAllowed:false,
-};
+const activeWorker=arg('active-worker',process.env.FLIXO_ACTIVE_WORKER||'').trim() || null;
+const output=arg('output','/tmp/flixo-team-pulse.json');
+const pulse=buildTeamPulseDirective({targetSha:sha,taskId:'HEARTBEAT:'+runId,activeOperation,activeWorker,reason:'ONE_MINUTE_TEAM_HEARTBEAT:'+minuteKey});
+const result={schemaVersion:2,protocol:'FLIXO-TEAM-PULSE-CONTROLLER-v2',minuteKey,runId,targetSha:sha,activeOperation,activeWorker,mode:activeOperation?'ACTIVE_OPERATION':'FULL_REPOSITORY_READ_ONLY_SCAN',pulseCount:1,pulses:[{...pulse,pulseId:'TEAM-'+minuteKey.replace(/[^0-9]/gu,'')+'-'+runId,pulseOrdinal:1,cadence:'EVERY_MINUTE',generatedAt:new Date().toISOString()}],allAgentsWakeCount:1,teamMemberCount:IDS.length,readOnlyWhenIdle:true,sourceMutationAllowed:false,onePulsePerHeartbeat:true};
 fs.mkdirSync(path.dirname(output),{recursive:true});
 fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n');
-console.log(JSON.stringify({status:'PASS',pulseCount:10,mode:result.mode,output},null,2));
-
+console.log(JSON.stringify({status:'PASS',pulseCount:1,teamMemberCount:IDS.length,mode:result.mode,output},null,2));
 if(process.argv[2]==='scan-plan'){
   // Scan mode is intentionally read-only over source code and repository metadata.
   const root=process.cwd();
