@@ -113,6 +113,36 @@ if (exists('docs/agents/ledger/README.md')) {
   }
 }
 
+
+const sessionDir = path.resolve(root, 'diagnostics/agents/sessions');
+if (fs.existsSync(sessionDir) && fs.existsSync(ledgerDir)) {
+  const sessionFiles = fs.readdirSync(sessionDir).filter((name) => name.endsWith('.json'));
+  for (const entry of sessionFiles) {
+    try {
+      const session = JSON.parse(fs.readFileSync(path.join(sessionDir, entry), 'utf8'));
+      const sessionId = String(session.sessionId ?? '').trim();
+      if (!sessionId) {
+        failures.push(`AGENT_SESSION_ID_MISSING=${entry}`);
+        continue;
+      }
+      const visibilityPath = path.join(ledgerDir, sessionId + '.json');
+      if (!fs.existsSync(visibilityPath)) {
+        failures.push(`VISIBILITY_LEDGER_SESSION_MISSING=${sessionId}`);
+        continue;
+      }
+      const visibility = JSON.parse(fs.readFileSync(visibilityPath, 'utf8'));
+      if (visibility.sessionId !== sessionId) failures.push(`VISIBILITY_LEDGER_SESSION_ID_MISMATCH=${sessionId}`);
+      if (visibility.taskId !== session.taskId && session.taskId) failures.push(`VISIBILITY_LEDGER_TASK_ID_MISMATCH=${sessionId}`);
+      if (!String(visibility.visibilityState ?? '').trim()) failures.push(`VISIBILITY_LEDGER_STATE_MISSING=${sessionId}`);
+      if (visibility.visibilityState === 'CLOSED' && visibility.finalStatus === 'VERIFIED' && String(visibility.exitSha ?? '') !== String(session.exitSha ?? '')) {
+        failures.push(`VISIBILITY_LEDGER_EXIT_SHA_MISMATCH=${sessionId}`);
+      }
+    } catch {
+      failures.push(`AGENT_SESSION_INVALID_JSON=${entry}`);
+    }
+  }
+}
+
 const packageJson = exists('package.json') ? JSON.parse(read('package.json')) : { scripts: {} };
 for (const key of ['validate:agent-coordination','agent:coordination','agent:communication','test:agent-communication','validate:code-scout','agent:code-scout','test:council-wake','agent:council-wake']) if (typeof packageJson.scripts?.[key] !== 'string') failures.push(`PACKAGE_SCRIPT_MISSING=${key}`);
 
