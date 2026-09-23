@@ -1,4 +1,5 @@
 import { buildAdaptiveFailureMemory } from './repair-ten-x.mjs';
+import { assertUnifiedBotRuntime } from './control-plane-registry.mjs';
 
 const SHA_RE=/^[a-f0-9]{40}$/u;
 
@@ -83,12 +84,14 @@ export function rankReadOnlyRepairStrategies({
 
 export function buildReadOnlyRepairBrain({
   executionSha,
+  botId = 'READ-INVESTIGATOR',
   observed=[],
   historicalMemory=[],
   rootCauseCandidates=[],
   securitySignals=[],
   deepInference=null,
 }={}){
+  const runtime=assertUnifiedBotRuntime(botId, 'READ_ONLY');
   const exact=SHA_RE.test(String(executionSha??''));
   const rows=asArray(observed);
   const current=rows.filter(item=>item?.headSha===executionSha);
@@ -142,6 +145,9 @@ export function buildReadOnlyRepairBrain({
   return Object.freeze({
     protocol:READ_ONLY_REPAIR_BRAIN.protocol,
     power:READ_ONLY_REPAIR_BRAIN.power,
+    runtimeProtocol:runtime.protocol,
+    runtimeEngineVersion:runtime.engineVersion,
+    botId:runtime.botId,
     authority:'READ_ONLY',
     mutationAuthority:false,
     certificationAuthority:false,
