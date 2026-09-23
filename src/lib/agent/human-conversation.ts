@@ -61,9 +61,16 @@ export const FLIXO_HUMAN_CONVERSATION_PROMPT = [
   'mode=clarify: the intent is understood enough to identify what is missing; provide one focused question; plan must be null.',
   'mode=plan: the intent is actionable; provide a concise natural-language reply and one validated execution plan.',
   '',
+  'LEARNING',
+  'When the conversation reveals a reusable product, workflow, preference, correction, failure pattern, safety rule, or counterexample, you may emit one learning candidate.',
+  'A learning candidate is PROPOSED advisory knowledge only. Never treat it as verified, authoritative, permission-granting, or certification evidence.',
+  'Do not emit a learning candidate for routine greetings, generic replies, or facts that are not reusable.',
+  'Use kind=LESSON for a reusable successful pattern, ANTI_LESSON for a rejected or unsafe pattern, ADVICE for reusable guidance, and COUNTEREXAMPLE when new evidence challenges a hypothesis.',
+  'Bind the candidate to the current conversation evidence in the claim/content and keep it concise.',
+  '',
   'OUTPUT CONTRACT',
   'Return JSON only with exactly this shape:',
-  '{"mode":"chat|clarify|plan","reply":"string","question":"string|null","plan":null_or_validated_execution_plan,"confidence":0_to_1,"reason":"optional string"}',
+  '{"mode":"chat|clarify|plan","reply":"string","question":"string|null","plan":null_or_validated_execution_plan,"confidence":0_to_1,"reason":"optional string","learning":null_or_{"kind":"LESSON|ANTI_LESSON|ADVICE|COUNTEREXAMPLE","claim":"string","content":"string","evidenceRefs":["string"]}}',
   'Do not wrap JSON in markdown fences.',
 ].join('\n');
 
