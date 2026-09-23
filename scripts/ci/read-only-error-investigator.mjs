@@ -448,18 +448,44 @@ function collectWithGh() {
   }
   const securityFindings = (() => {
     try {
+      const canonicalPr = execFileSync('gh', [
+        'pr',
+        'list',
+        '--repo', repository,
+        '--head', branch,
+        '--base', 'main',
+        '--state', 'open',
+        '--json', 'number',
+        '--jq', '.[0].number // empty',
+      ], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        maxBuffer: 1024 * 1024,
+      }).trim();
+
+      const query = canonicalPr
+        ? 'repos/' + repository + '/code-scanning/alerts?pr=' + encodeURIComponent(canonicalPr) + '&state=open&per_page=100'
+        : 'repos/' + repository + '/code-scanning/alerts?ref=' + encodeURIComponent(executionSha) + '&state=open&per_page=100';
+
       const rawAlerts = execFileSync('gh', [
-      'api',
-      '--repo', repository,
-      '--method', 'GET',
-      'repos/' + repository + '/code-scanning/alerts?ref=' + encodeURIComponent(executionSha) + '&state=open&per_page=100',
-    ], {
-      cwd: ROOT,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      maxBuffer: 8 * 1024 * 1024,
-    });
-      return JSON.parse(rawAlerts);
+        'api',
+        '--repo', repository,
+        '--method', 'GET',
+        query,
+      ], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        maxBuffer: 8 * 1024 * 1024,
+      });
+
+      const alerts = JSON.parse(rawAlerts);
+      if (!Array.isArray(alerts)) return [];
+      return alerts.map((alert) => ({
+        ...alert,
+        observed_ref: canonicalPr ? 'PR:' + canonicalPr : 'SHA:' + executionSha,
+      }));
     } catch {
       return [];
     }
