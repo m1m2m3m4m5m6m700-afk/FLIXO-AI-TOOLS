@@ -73,3 +73,5 @@ console.log('STALE_RUN_CANCELLATION=PASS');
 console.log('STARTED_RUN_PRESERVATION=PASS');
 console.log('RERUN_LOCK=PASS');
 console.log('TEST_DEFINITION_LOCK=PASS');
+
+assert.match(supersession, /stale_active[\s\S]*\.status == "queued" or \.status == "pending"[\s\S]*\.head_sha != \$sha/u);

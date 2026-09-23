@@ -209,7 +209,7 @@ jobs:
               exit 1
             fi
             printf '%s' "$RUNS_JSON" | jq '.' > /tmp/supersession-final-runs.json
-            stale_active="$(jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" '[.workflow_runs[] | select(.status != "completed" and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession" and (.head_repository.full_name // "") == $sourceRepo and (.name | test("Test|test|Repair|repair|Verification|verification|Contract|contract|Security|security|Baseline|baseline|Certification|certification|Impact|impact|Code Scanning|CodeQL|Diagnostic|diagnostic|Proof|proof|Scan|scan")))] | length' /tmp/supersession-final-runs.json)"
+            stale_active="$(jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" '[.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession" and (.head_repository.full_name // "") == $sourceRepo and (.name | test("Test|test|Repair|repair|Verification|verification|Contract|contract|Security|security|Baseline|baseline|Certification|certification|Impact|impact|Code Scanning|CodeQL|Diagnostic|diagnostic|Proof|proof|Scan|scan")))] | length' /tmp/supersession-final-runs.json)"
             echo "STALE_ACTIVE_RUNS=$stale_active poll=$poll"
             if [ "$stale_active" -eq 0 ]; then break; fi
             if [ "$poll" -lt "$SETTLE_MAX_POLLS" ]; then sleep "$SETTLE_POLL_SECONDS"; fi
