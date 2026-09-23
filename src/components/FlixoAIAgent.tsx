@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import { buildIntentPlan, toExecutionPlan } from '@/lib/agent/intent/intent-plan';
-import { runWorkflowPipeline, type PipelineProgress } from '@/lib/workflows/pipeline-runner';
+import type { PipelineProgress } from '@/lib/workflows/pipeline-runner';
+import { cancelPreparedExecution, confirmPreparedExecution, executePreparedExecution, prepareExecution, type PreparedExecution } from '@/lib/agent/execution-integrator';
 import { getReadyToolConfigs } from '@/config/tools';
 import { findToolIntent } from '@/lib/intent-router';
 import { detectAgentLocale } from '@/lib/agent/language-detector';
-import { confirmTask, createTaskContext, transitionTask, type TaskContext } from '@/lib/agent/task-state';
+
 import {
   classifyConversation,
   contextualizeCommand,
@@ -110,6 +111,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const [file, setFile] = useState<File | null>(null);
   const [state, setState] = useState<AgentState>('idle');
   const [plan, setPlan] = useState<ExecutionPlan | null>(null);
+  const [preparedExecution, setPreparedExecution] = useState<PreparedExecution | null>(null);
   const [progress, setProgress] = useState<PipelineProgress | null>(null);
   const [result, setResult] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -200,7 +202,10 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       pendingQuestion: null,
       planReady: true,
     }));
-    setPlan(nextPlan); setState('ready'); return nextPlan;
+    const prepared = prepareExecution(nextPlan);
+    setPlan(prepared.plan);
+    setPreparedExecution(prepared);
+    setState('ready'); return prepared.plan;
   };
 
   const runConversationalTurn = async (command: string, responseCopy = copy): Promise<boolean> => {
@@ -231,7 +236,9 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         const contextualCommand = contextualizeCommand(command, memory);
         const conversationalPlan = decision.plan as ExecutionPlan;
 
-        setPlan(conversationalPlan);
+        const prepared = prepareExecution(conversationalPlan);
+        setPlan(prepared.plan);
+        setPreparedExecution(prepared);
         setState('ready');
         setError(null);
         setFilterHandoff(null);
@@ -280,29 +287,23 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     }
   };
 
-  const execute = async (nextPlan = plan, responseCopy = copy) => {
-    if (!file || !nextPlan) return;
+  const execute = async (prepared = preparedExecution, responseCopy = copy) => {
+    if (!file || !prepared) return;
     setState('running'); setError(null);
     setMemory((current) => setConversationTask(current, { command: current.activeCommand ?? '', planReady: false }));
-    pushMessage('agent', `${responseCopy.success} ${nextPlan.steps.length} ${responseCopy.step}.`);
-    let task: TaskContext = createTaskContext();
+    pushMessage('agent', `${responseCopy.success} ${prepared.plan.steps.length} ${responseCopy.step}.`);
+    const confirmed = confirmPreparedExecution(prepared);
+    setPreparedExecution(confirmed);
     try {
-      task = transitionTask(task, 'PLANNED');
-      task = transitionTask(task, 'AWAITING_CONFIRMATION');
-      task = confirmTask(task);
-      const output = await runWorkflowPipeline(file, nextPlan, task, setProgress);
-      task = transitionTask(task, 'VERIFYING');
-      task = transitionTask(task, 'COMPLETED');
-      setResult(output); setState('success'); pushMessage('agent', responseCopy.success);
+      const result = await executePreparedExecution(confirmed, file, setProgress);
+      setResult(result.output); setState('success');
+      pushMessage('agent', responseCopy.success);
     } catch (cause) {
-      if (task.state === 'EXECUTING' || task.state === 'VERIFYING' || task.state === 'RECOVERING') {
-        try { task = transitionTask(task, 'FAILED'); } catch { /* preserve the original execution error */ }
-      }
       const message = cause instanceof Error ? cause.message : 'Execution failed.';
-      setError(message); setState('error'); pushMessage('agent', `${responseCopy.stopped} ${message}`);
+      setError(message); setState('error');
+      pushMessage('agent', `${responseCopy.stopped} ${message}`);
     }
   };
-
   const sendMessage = async () => {
     const command = query.trim();
     if (!command || state === 'running') return;
@@ -312,18 +313,22 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     pushMessage('user', command);
     setQuery('');
 
-    if (CONFIRMATIONS.test(command) && plan) {
+    if (CONFIRMATIONS.test(command) && preparedExecution) {
       if (!file) {
         setError(responseCopy.needImage);
         pushMessage('agent', responseCopy.planReadyNoFile);
         setState('error');
         return;
       }
-      await execute(plan, responseCopy);
+      await execute(preparedExecution, responseCopy);
       return;
     }
 
     if (CANCELLATIONS.test(command)) {
+      if (preparedExecution) {
+        try { cancelPreparedExecution(preparedExecution); } catch { /* keep cancellation fail-closed */ }
+      }
+      setPreparedExecution(null);
       setPlan(null);
       setState('idle');
       setError(null);
@@ -341,6 +346,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     const naturalReply = conversationalReply(conversationKind, responseCopy);
     if (naturalReply) {
       setPlan(null);
+      setPreparedExecution(null);
       setState('idle');
       setError(null);
       pushMessage('agent', naturalReply);
@@ -358,6 +364,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         planReady: false,
       }));
       setPlan(null);
+      setPreparedExecution(null);
       setState('idle');
       setError(null);
       pushMessage('agent', detectedLocale === 'ar'
@@ -411,7 +418,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           <input id="flixo-agent-command" type="text" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void sendMessage(); } }} placeholder={copy.placeholder} autoComplete="off" />
           <div className="flixo-ai-agent-examples" aria-label={copy.examplesLabel}>{copy.examples.map((example) => <button key={example} type="button" onClick={() => setQuery(example)}>{example}</button>)}</div>
           <label htmlFor="flixo-agent-file">{copy.fileLabel}</label>
-          <input id="flixo-agent-file" type="file" accept="image/*" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setResult(null); setState('idle'); setError(null); }} />
+          <input id="flixo-agent-file" type="file" accept="image/*" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setPlan(null); setPreparedExecution(null); setResult(null); setState('idle'); setError(null); }} />
           <div className="flixo-ai-agent-actions"><button type="button" className="primary-button" onClick={() => void sendMessage()} disabled={!query.trim() || state === 'running'}>{copy.send}</button><button type="button" className="primary-button" onClick={prepare} disabled={!query.trim() || state === 'running'}>{copy.analyze}</button></div>
         </div>
         <div className="flixo-ai-agent-plan">
