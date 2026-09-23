@@ -5,6 +5,20 @@ import os from 'node:os';
 import path from 'node:path';
 
 const root=process.cwd();
+const intakeWorkflow=fs.readFileSync(path.join(root,'.github/workflows/repair-agent-intake.yml'),'utf8');
+assert.match(
+  intakeWorkflow,
+  /group:\s*flixo-repair-agent-intake-\$\{\{\s*github\.event\.workflow_run\.id\s*\|\|\s*inputs\.run_id\s*\|\|\s*github\.run_id\s*\}\}/u,
+  'Repair Agent Intake must isolate concurrency by source run identity',
+);
+assert.match(intakeWorkflow,/cancel-in-progress:\s*false/u);
+assert.doesNotMatch(
+  intakeWorkflow,
+  /group:\s*flixo-repair-agent-intake-\$\{\{\s*github\.event\.workflow_run\.head_branch\s*\|\|/u,
+  'Branch-only intake concurrency would drop concurrent incidents',
+);
+assert.match(intakeWorkflow,/COUNCIL_TARGET_KIND="AGENT_COUNCIL_ISSUE"/u);
+assert.match(intakeWorkflow,/COUNCIL_TARGET_NUMBER="765"/u);
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-repair-intake-'));
 const log=path.join(temp,'failure.log');
 const evidence=path.join(temp,'incident.json');

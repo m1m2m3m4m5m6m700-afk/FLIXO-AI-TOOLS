@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "authority": "FLIXO_SWARM_CANONICAL_LEARNING",
+  "status": "ADVISORY_UNTIL_CANONICAL_GREEN",
+  "lessons": [
+    {
+      "id": "L001",
+      "rule": "Exact-SHA is required before knowledge reuse",
+      "tasks": [
+        "041",
+        "042",
+        "046",
+        "047",
+        "048",
+        "093",
+        "100"
+      ]
+    },
+    {
+      "id": "L002",
+      "rule": "Merge duplicate claims before publication",
+      "tasks": [
+        "044",
+        "050"
+      ]
+    },
+    {
+      "id": "L003",
+      "rule": "Current contradictions quarantine promotion",
+      "tasks": [
+        "045",
+        "119"
+      ]
+    },
+    {
+      "id": "L004",
+      "rule": "Confidence decays and skills require revalidation",
+      "tasks": [
+        "047",
+        "048",
+        "086"
+      ]
+    },
+    {
+      "id": "L005",
+      "rule": "Provenance is part of the lesson, not metadata afterthought",
+      "tasks": [
+        "046",
+        "097",
+        "098"
+      ]
+    },
+    {
+      "id": "L006",
+      "rule": "Personal memory transfers knowledge only, never authority or permissions",
+      "tasks": [
+        "043",
+        "049"
+      ]
+    },
+    {
+      "id": "L007",
+      "rule": "Promotion requires trials, independent challenge and rollback path",
+      "tasks": [
+        "087",
+        "088",
+        "115",
+        "116",
+        "117"
+      ]
+    },
+    {
+      "id": "L008",
+      "rule": "Replay must capture exact SHA, input, strategy, memory snapshot, environment and oracle",
+      "tasks": [
+        "091",
+        "092",
+        "093"
+      ]
+    },
+    {
+      "id": "L009",
+      "rule": "External/device evidence remains an explicit oracle boundary",
+      "tasks": [
+        "096",
+        "097",
+        "098"
+      ]
+    },
+    {
+      "id": "L010",
+      "rule": "Product failures must create root-cause memory links",
+      "tasks": [
+        "095",
+        "096",
+        "099",
+        "100"
+      ]
+    }
+  ],
+  "antiLessons": [
+    {
+      "id": "A001",
+      "rule": "Do not promote from repair-applied text alone"
+    },
+    {
+      "id": "A002",
+      "rule": "Do not use stale skills as permanent truth"
+    },
+    {
+      "id": "A003",
+      "rule": "Do not resolve contradictions by confidence score alone"
+    },
+    {
+      "id": "A004",
+      "rule": "Do not import authority through memory bundles"
+    },
+    {
+      "id": "A005",
+      "rule": "Do not infer real-device PASS from software PASS"
+    },
+    {
+      "id": "A006",
+      "rule": "Do not recreate the retired 200-bot pool as a routing shortcut"
+    }
+  ]
+}\n

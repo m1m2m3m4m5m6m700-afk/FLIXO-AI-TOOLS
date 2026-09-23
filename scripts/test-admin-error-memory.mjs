@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 process.env.SUPABASE_SECRET_KEY = 'test-secret';
 process.env.SUPABASE_URL = 'https://example.supabase.co';
 
-const module = await import('../api/admin/error-memory.ts');
+const module = await import('../src/server/admin/error-memory.ts');
 const errors = [
   { id: '11111111-1111-4111-8111-111111111111', event_type: 'execution_error', occurred_at: '2026-09-15T10:00:00.000Z', error_code: 'IMAGE_DECODE_FAILED' },
   { id: '22222222-2222-4222-8222-222222222222', event_type: 'execution_error', occurred_at: '2026-09-15T09:00:00.000Z', error_code: 'MODEL_TIMEOUT' },

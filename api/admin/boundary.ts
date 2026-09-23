@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { isAdminSessionStoreConfigured, getAdminSessionState } from './session-store.ts';
+import { isAdminSessionStoreConfigured, getAdminSessionState } from '../../src/server/admin/session-store.ts';
 import { ADMIN_CAPABILITIES } from '../../src/lib/admin/control-plane.ts';
 import { activeCapabilitiesForRole, isAdminRole } from '../../src/lib/admin/roles.ts';
 
@@ -68,7 +68,7 @@ export const signAdminSession = ({ subject, capabilities, role, sessionId, ttlSe
   if (!isAdminRole(role)) throw new Error('invalid session role');
   if (!sessionId || !/^[0-9a-f-]{36}$/i.test(sessionId)) throw new Error('invalid session id');
 
-  const canonicalCapabilities = new Set(activeCapabilitiesForRole(role));
+  const canonicalCapabilities = new Set<string>(activeCapabilitiesForRole(role));
   const requestedCapabilities = [...new Set(capabilities)].sort();
   if (requestedCapabilities.some((capability) => !canonicalCapabilities.has(capability))) {
     throw new Error('session capabilities do not match role');
@@ -104,7 +104,7 @@ export const verifyAdminSessionToken = (token: string | null, secret = process.e
     if (payload.exp <= Math.floor(Date.now() / 1000)) return null;
     const capabilities = payload.cap.filter((value): value is string => typeof value === 'string');
     if (capabilities.length !== payload.cap.length || capabilities.some((value) => !ACTIVE_CAPABILITIES.has(value))) return null;
-    const canonicalCapabilities = new Set(activeCapabilitiesForRole(payload.role));
+    const canonicalCapabilities = new Set<string>(activeCapabilitiesForRole(payload.role));
     const actualCapabilities = [...new Set(capabilities)].sort();
     if (actualCapabilities.some((capability) => !canonicalCapabilities.has(capability))) return null;
     return { subject: payload.sub, sessionId: payload.sid, role: payload.role, expiresAt: payload.exp, capabilities: new Set(actualCapabilities) };

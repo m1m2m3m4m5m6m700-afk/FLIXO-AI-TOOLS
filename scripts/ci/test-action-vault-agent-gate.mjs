@@ -33,7 +33,7 @@ assert.equal(intelligence.agentRuntime.requirements.differentialVerification, tr
 
 const valid = {
   botId: 'ACTION-REPAIR',
-  role: 'PROGRAMMER_DEFENSE_SEAT',
+  role: 'MASTER_REPAIR_PROGRAMMER_SEAT',
   permanentIndependentAuthority: false,
   transferableKnowledgeOnly: true,
   intelligenceProfileRef: 'diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json',
@@ -54,7 +54,7 @@ tampered.permanentIndependentAuthority = true;
 assert.ok(validateBotProfile(tampered).some((error) => error.startsWith('INDEPENDENT_AUTHORITY_NOT_DISABLED=')));
 
 const boundaries = validateExecutionBoundaries([
-  { ...valid, role: 'PROGRAMMER_DEFENSE_SEAT', botId: 'ACTION-REPAIR', executionBoundary: { singleActiveRepairOwner: true, canMutateWhenOwner: true, canMutateTests: false, canMutateMain: false, canonicalGreen: 'DAILY_FLIXO_GREEN_GATE' }, executionContract: { mutationBranch: 'execution', mutationScope: 'ERROR_ONLY', exactShaRequired: true, reproduceBeforeMutation: true, targetedRegressionRequired: true, canonicalGreenRequired: true } },
+  { ...valid, role: 'MASTER_REPAIR_PROGRAMMER_SEAT', botId: 'ACTION-REPAIR', executionBoundary: { singleActiveRepairOwner: true, canMutateWhenOwner: true, canMutateTests: false, canMutateMain: false, canonicalGreen: 'DAILY_FLIXO_GREEN_GATE' }, executionContract: { mutationBranch: 'execution', mutationScope: 'ERROR_ONLY', exactShaRequired: true, reproduceBeforeMutation: true, targetedRegressionRequired: true, canonicalGreenRequired: true } },
   { botId: 'ACTION-REPAIR-2', mutationAuthority:'ADMITTED_SEAT', executionAuthority:'MUTATE_WHEN_ADMITTED', rules: { requireOwnerReviewBeforeMutation: true, producePredictionPacket: true, searchHistoricalIndexBeforeProposal: true }, executionBoundary: { canMutateWhenOwner: true, canMutateTests: false, canMutateMain: false, canonicalGreen: 'DAILY_FLIXO_GREEN_GATE' } },
   { botId: 'ACTION-HISTORIAN-3', mutationAuthority: 'SUPERVISOR_20_ONLY', canMutateSource: 'SUPERVISOR_20_ONLY', canDispatchRepair: false, executionAuthority: 'MUTATE_WHEN_SUPERVISOR_20', repositoryWriteScope: 'EXECUTION_SOURCE_AFTER_SUPERVISOR_20', executionBoundary: { sourceMutation: 'SUPERVISOR_20_ONLY', testMutation: false } },
 ]);

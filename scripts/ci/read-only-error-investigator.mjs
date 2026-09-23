@@ -7,6 +7,7 @@ import { fingerprintFailure, normalizeFailure, extractFeatures } from './auto-re
 import { buildDeepInference } from './read-only-deep-reasoning.mjs';
 import { READ_ONLY_POWER_PROFILE, validateReadOnlyPowerProfile } from './read-only-power-profile.mjs';
 import { buildSharedLearningContext, publishSharedMemory } from './shared-operational-memory.mjs';
+import { buildReadOnlyRepairBrain } from './read-only-repair-brain.mjs';
 
 const POWER_PROFILE_VALIDATION = validateReadOnlyPowerProfile();
 if (!POWER_PROFILE_VALIDATION.ok) throw new Error('READ_ONLY_POWER_PROFILE_INVALID=' + POWER_PROFILE_VALIDATION.failures.join(','));
@@ -374,6 +375,25 @@ function analyzeSnapshot(input) {
   if (securitySignals.some((item) => item.classification === 'SECURITY_SIGNAL')) unknowns.push('SECURITY_SIGNAL_IS_NOT_A_VULNERABILITY_VERDICT');
   if (securityFindings.length === 0 && securityAnnotations.length === 0) unknowns.push('NO_CODE_SCANNING_ALERTS_OR_CODEQL_ANNOTATIONS_IN_CAPTURED_SECURITY_SNAPSHOT');
 
+  const deepInference = buildDeepInference({
+    executionSha: currentSha,
+    observed,
+    historicalSignals: historical,
+    securityFindings,
+    recurringPatterns,
+    downstreamFailures,
+    staleEvidence,
+  });
+
+  const readOnlyRepairBrain = buildReadOnlyRepairBrain({
+    executionSha: currentSha,
+    observed: [...observed, ...recurringPatterns.map(item => ({headSha:currentSha, recurringPatterns:[item], occurrences:item.occurrences, classification:item.classes?.[0], salientEvidence:item.representativeEvidence}))],
+    historicalMemory: historical.memoryLessons,
+    rootCauseCandidates,
+    securitySignals,
+    deepInference,
+  });
+
   const summary = {
     observedRuns: runs.length,
     failureObservations: observed.length,
@@ -413,15 +433,8 @@ function analyzeSnapshot(input) {
     securityEvidence,
     historicalSignals: historical,
     sharedOperationalMemory: sharedLearning,
-    deepInference: buildDeepInference({
-      executionSha: currentSha,
-      observed,
-      historicalSignals: historical,
-      securityFindings,
-      recurringPatterns,
-      downstreamFailures,
-      staleEvidence,
-    }),
+    deepInference,
+    repairBrainMirror: readOnlyRepairBrain,
     unknowns,
     decisionPolicy: 'Evidence-backed analysis only. A recurring pattern is not proof of causality. A security signal is not a vulnerability verdict. No report authorizes mutation, certification, merge, push, or repair.',
     writePolicy: 'The investigator may write only its own report path and the canonical shared operational learning memory. It never mutates repository source, Git refs, CI configuration, task state, or control-plane state.',

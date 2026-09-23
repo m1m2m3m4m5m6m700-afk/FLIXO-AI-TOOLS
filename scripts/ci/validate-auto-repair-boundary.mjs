@@ -210,8 +210,17 @@ export function validateStatic() {
   for (const [id, workflow] of exactShaEvidenceWorkflows) {
     must(/github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha/.test(workflow), 'required-evidence-workflow-must-bind-exact-sha:' + id);
   }
+  const nonCancellingEvidence = new Set(['test-impact']);
   for (const [id, workflow] of exactShaEvidenceWorkflows.filter(([id]) => id !== 'claude-security')) {
-    must(/cancel-in-progress:\s*true/.test(workflow), 'required-evidence-workflow-must-cancel-stale:' + id);
+    const requiresCancellation = !nonCancellingEvidence.has(id);
+    must(
+      requiresCancellation
+        ? /cancel-in-progress:\s*true/.test(workflow)
+        : /cancel-in-progress:\s*false/.test(workflow),
+      requiresCancellation
+        ? 'required-evidence-workflow-must-cancel-stale:' + id
+        : 'required-evidence-workflow-must-preserve-started-run:' + id
+    );
   }
   must(/cancel-in-progress:\s*false/.test(claudeSecurity), 'advisory-security-review-must-preserve-started-run');
   must(/Repository Security Baseline/.test(mergeGate), 'merge-gate-security-required');

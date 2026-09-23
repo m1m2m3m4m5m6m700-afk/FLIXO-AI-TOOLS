@@ -7,7 +7,7 @@ Contract: `docs/contracts/ADMIN-006-PHASE-2-PERSISTENCE-EVIDENCE-CONTRACT.md` v1
 
 ## Current repository proof
 
-The repository contains a server-side Supabase REST persistence adapter at `api/admin/persistence.ts`, targeted round-trip coverage at `scripts/test-admin-persistence.mjs`, and the version-controlled ADMIN-006 persistence migration at `supabase/migrations/20260914040000_admin_006_persistence_evidence.sql`.
+The repository contains a server-side Supabase REST persistence adapter at `src/server/admin/persistence.ts`, targeted round-trip coverage at `scripts/test-admin-persistence.mjs`, and the version-controlled ADMIN-006 persistence migration at `supabase/migrations/20260914040000_admin_006_persistence_evidence.sql`.
 
 Observed repository facts:
 - No database/ORM dependency is present in `package.json`.

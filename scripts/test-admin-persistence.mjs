@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 process.env.SUPABASE_SECRET_KEY = 'test-secret';
 process.env.SUPABASE_URL = 'https://example.supabase.co';
 
-const module = await import('../api/admin/persistence.ts');
-const canonical = await import('../api/admin/canonical.ts');
+const module = await import('../src/server/admin/persistence.ts');
+const canonical = await import('../src/server/admin/canonical.ts');
 assert.equal(module.isPersistenceConfigured(), true);
 
 const sha256 = canonical.integritySha256;

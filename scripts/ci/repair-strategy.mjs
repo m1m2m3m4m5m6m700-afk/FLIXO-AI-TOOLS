@@ -5,6 +5,7 @@ import { INTRACTABLE_THRESHOLD, fingerprintFailure } from './auto-repair-learnin
 import { reasonFailure } from './auto-repair/reasoning.mjs';
 import { buildCausalDiscriminator } from './action-causal-discriminator.mjs';
 import { loadAttemptLedger, isRepairRejected, rejectionReasons } from './repair-attempt-ledger.mjs';
+import { buildAdaptiveFailureMemory } from './repair-ten-x.mjs';
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
@@ -250,7 +251,7 @@ function causalIntelligence(log, memory, stableCaseFingerprint, targetDir) {
   });
 }
 
-function rankIntelligentStrategies({ memory, causal, rejected, priorStrategies, twinPreferredStrategy, training }) {
+function rankIntelligentStrategies({ memory, causal, rejected, priorStrategies, twinPreferredStrategy, training, fiveXProfile = null }) {
   const ranked = strategies.map(([id, description], order) => {
     const stats = strategyOutcomeStats(memory, id, causal.rootCause);
     const trainingStats = strategyTrainingStats(training, id, causal.rootCause);
@@ -263,7 +264,8 @@ function rankIntelligentStrategies({ memory, causal, rejected, priorStrategies, 
     const twinSignal = twinPreferredStrategy === id ? 1 : 0;
     const evidenceSignal = causal.rootCause !== 'unknown' ? familyMatch : id === 'supervising-escalation' ? 1 : 0;
     const trainingSignal = Math.min(1, trainingStats.successRate * Math.min(1, trainingStats.observations / 4) * Math.max(0.35, trainingStats.confidence));
-    const score = evidenceSignal * 0.28 + contextualSignal * 0.16 + successRate * 0.16 + empiricalSignal * 0.08 + trainingSignal * 0.16 + twinSignal * 0.08 - Math.min(0.24, repeatCount * 0.06) - rejectionPenalty * 0.70;
+    const fiveXSignal = fiveXProfile ? fiveXProfile.completedPasses / fiveXProfile.requiredPasses : 0;
+    const score = evidenceSignal * 0.28 + contextualSignal * 0.16 + successRate * 0.16 + empiricalSignal * 0.08 + trainingSignal * 0.16 + twinSignal * 0.08 + fiveXSignal * 0.06 - Math.min(0.24, repeatCount * 0.06) - rejectionPenalty * 0.70;
     return {
       id, description, order, score: Number(score.toFixed(5)), rootCause: causal.rootCause,
       familyMatch: Boolean(familyMatch), twinPreferred: twinSignal === 1,
@@ -331,6 +333,53 @@ const STRATEGY_FOCUS = Object.freeze({
   'supervising-escalation': 'ESCALATE_WITH_NEW_EVIDENCE_AND_TEACHING_PACKET',
 });
 
+export const FIVE_X_REPAIR_METHOD = Object.freeze({
+  version: 'FIVE-X-REPAIR-METHOD-v1',
+  amplificationFactor: 5,
+  principle: 'Five independent evidence passes improve repair quality without multiplying mutation attempts.',
+  passes: Object.freeze([
+    Object.freeze({id: 'X1_EXACT_SHA', purpose: 'bind failure, target and live execution SHA'}),
+    Object.freeze({id: 'X2_CAUSAL_PROOF', purpose: 'require causal confidence and hypothesis clarity'}),
+    Object.freeze({id: 'X3_ADVERSARIAL_CHALLENGE', purpose: 'compare an independent alternative before mutation'}),
+    Object.freeze({id: 'X4_LEARNING_MEMORY', purpose: 'use verified history, anti-lessons and training without granting authority'}),
+    Object.freeze({id: 'X5_VERIFICATION_PLAN', purpose: 'require targeted regression plus canonical GREEN as closure'}),
+  ]),
+});
+
+export function buildFiveXRepairProfile({
+  targetSha,
+  stableFingerprint,
+  causal,
+  training,
+  twinPreferredStrategy,
+  priorStrategies = [],
+  strategyId = null,
+}) {
+  const exactShaPass = /^[a-f0-9]{40}$/u.test(String(targetSha ?? ''));
+  const causalPass = Boolean(causal) && causal.ambiguity !== true && Number(causal.confidence ?? 0) >= 0.75;
+  const adversarialPass = Boolean(twinPreferredStrategy) || Number(causal?.topHypotheses?.length ?? 0) >= 2 || Boolean(causal?.falsification?.length);
+  const learningPass = Boolean(training?.decision?.eligibleToInfluenceRouting === true || training?.mastery?.competence || priorStrategies.length > 0);
+  const verificationPass = Boolean(stableFingerprint) && Boolean(strategyId) && Boolean(causal?.rootCause) && Array.isArray(causal?.rootMethods) && causal.rootMethods.length > 0;
+  const passes = Object.freeze([
+    Object.freeze({id: 'X1_EXACT_SHA', passed: exactShaPass}),
+    Object.freeze({id: 'X2_CAUSAL_PROOF', passed: causalPass}),
+    Object.freeze({id: 'X3_ADVERSARIAL_CHALLENGE', passed: adversarialPass}),
+    Object.freeze({id: 'X4_LEARNING_MEMORY', passed: learningPass}),
+    Object.freeze({id: 'X5_VERIFICATION_PLAN', passed: verificationPass}),
+  ]);
+  const completedPasses = passes.filter((item) => item.passed).length;
+  return Object.freeze({
+    method: FIVE_X_REPAIR_METHOD.version,
+    amplificationFactor: FIVE_X_REPAIR_METHOD.amplificationFactor,
+    targetSha: targetSha || null,
+    failureFingerprint: stableFingerprint || null,
+    passes,
+    completedPasses,
+    requiredPasses: 5,
+    readyForBoundedMutation: completedPasses === 5,
+    route: completedPasses === 5 ? 'BOUNDED_REPAIR' : 'COLLECT_MORE_EVIDENCE',
+  });
+}
 function buildSteeringDirective({ causal, strategyId, ranking, targetSha, fingerprint: failureFingerprint }) {
   const mutationAllowed = causal.decision === 'ALLOW_BOUNDED_MUTATION'
     && causal.mutationAllowed === true
@@ -437,11 +486,19 @@ const rejected = new Set([
   ...(rejectionReasons(attemptLedger, { chainId, caseFingerprint: stableCaseFingerprint }).map((item) => item?.strategyId)),
 ].filter(Boolean).map(String));
 const causal = causalIntelligence(log, memory, stableCaseFingerprint, process.cwd());
+const preSelectionFiveX = buildFiveXRepairProfile({
+  targetSha: process.env.FLIXO_EXPECTED_TARGET_SHA ?? process.env.FLIXO_TARGET_SHA ?? '',
+  stableFingerprint: stableCaseFingerprint,
+  causal,
+  training,
+  twinPreferredStrategy,
+  priorStrategies,
+});
 const securityFindings = canonicalSecuritySurface(process.cwd());
 const behavioralPreviousStrategy = priorStrategies.at(-1) ?? 'START';
 const stateActionRecommendation = stateActionTrainingRecommendation(training, causal.rootCause, causal.features, Math.max(0, nextAttempt - 1), behavioralPreviousStrategy, [...rejected]);
 const behavioralRecommendation = behavioralTrainingRecommendation(training, causal.rootCause, behavioralPreviousStrategy, [...rejected]);
-const intelligentRanking = rankIntelligentStrategies({ memory, causal, rejected, priorStrategies, twinPreferredStrategy, training });
+const intelligentRanking = rankIntelligentStrategies({ memory, causal, rejected, priorStrategies, twinPreferredStrategy, training, fiveXProfile: preSelectionFiveX });
 const unusedIndexes = strategies.map((_, i) => i).filter((i) => !priorStrategies.includes(strategies[i][0])).filter((i) => !rejected.has(strategies[i][0]));
 const ledgerAvailableIndexes = unusedIndexes.filter((i) => !isRepairRejected(attemptLedger, { chainId, caseFingerprint: stableCaseFingerprint, strategyId: strategies[i][0] }));
 const divergentIndexes = ledgerAvailableIndexes.filter((i) => strategies[i][0] !== twinPreferredStrategy);
@@ -484,6 +541,23 @@ const index = forcedBehaviorIndex >= 0 && availableIndexes.includes(forcedBehavi
       ? intelligentIndex
       : (divergentIndexes[0] ?? availableIndexes[(Math.max(0, nextAttempt - 1)) % availableIndexes.length]);
 const [strategyId, strategy] = strategies[index];
+const adaptiveFailureMemory = buildAdaptiveFailureMemory({
+  attempt: nextAttempt,
+  priorStrategies,
+  selectedStrategy: strategyId,
+  allStrategiesExhausted,
+  teachingEscalation: record?.status === 'INTRACTABLE' || nextAttempt > INTRACTABLE_THRESHOLD || allStrategiesExhausted,
+  causalRootCause: causal.rootCause,
+});
+const fiveXProfile = buildFiveXRepairProfile({
+  targetSha: process.env.FLIXO_EXPECTED_TARGET_SHA ?? process.env.FLIXO_TARGET_SHA ?? '',
+  stableFingerprint: stableCaseFingerprint,
+  causal,
+  training,
+  twinPreferredStrategy,
+  priorStrategies,
+  strategyId,
+});
 const threshold = INTRACTABLE_THRESHOLD;
 const teachingEscalation = record?.status === 'INTRACTABLE' || nextAttempt > threshold || allStrategiesExhausted;
 const sameStrategyRepeated = priorStrategies.filter((value) => value === strategyId).length > 0;
@@ -543,6 +617,7 @@ const teachingPacket = {
   exitCriteria: 'verified-repair-on-exact-target-sha-and-canonical-green',
   intelligence: {
     version: 'V13-BEHAVIORAL-TRAINING',
+    adaptiveFailureMemory,
     causal,
     strategyPortfolio: intelligentRanking.portfolio,
     falsificationPlan: buildFalsificationPlan(causal, intelligentRanking),
@@ -586,6 +661,8 @@ fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
     trainingAuthority: 'TRAINING_ONLY',
   },
   steering: steeringDirective,
+  fiveXRepair: fiveXProfile,
+  adaptiveFailureMemory,
   trainingMode: training?.decision?.mode ?? 'MISSING',
   trainingDecision,
   nextEvidence,

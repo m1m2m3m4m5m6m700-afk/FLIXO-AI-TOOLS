@@ -1,3 +1,10 @@
+
+## REPOSITORY-WIDE LATEST-EXECUTION-HEAD-ONLY-001
+
+The live `execution` branch HEAD is the only authoritative current execution SHA. Older execution workflow invocations are STALE and cannot certify current state. Active stale verification runs are superseded/cancelled, and completed stale workflow runs/artifacts are periodically deleted after the configured 14-day grace period by `.github/workflows/latest-execution-head-cleanup.yml`. The cleanup runs only from trusted `main`, never deletes the current `execution` HEAD, never deletes `main`, and never mutates tracked task/memory/history files.
+
+Canonical policy: `docs/REPOSITORY-LATEST-EXECUTION-HEAD-ONLY.md`.
+
 # 🚨 SUPREME FIRST OBLIGATION — P00
 All repository/project/cell execution is governed first by:
 docs/agents/PROMPT-UNIFIED-EXECUTION.md — RPR-UNIFIED-EXECUTION-001 v4.0.0.
@@ -69,6 +76,18 @@ The agent MUST NOT:
 The active execution queue in `المهام.md` is the only default planned scope. `المهام.md` is a project-plan/task-queue document only: it MUST contain planned executable work items and their plan-level disposition, and MUST NOT be used as an operational log.
 
 Agents MUST NOT write into `المهام.md` runtime RCA, heartbeat/liveness updates, CI/run results, job logs, failure evidence, Exact-SHA proof records, handoff reports, or repair-session history. Operational evidence belongs in the repository's diagnostics/evidence surfaces. Changes to the task plan itself (add/remove/reprioritize/retire a planned task) may update `المهام.md`; execution telemetry does not.
+
+## LOCAL REPOSITORY RULE #2 — SINGLE WORK BRANCH / SINGLE WORK PATH
+
+**Rule #2 is repository-local and mandatory for all agents, bots, Actions, tests, repairs, diagnostics, and automation.**
+
+- **Work Branch #1 = `execution`.**
+- **Work Path #1 = `execution`.**
+- All active implementation, repair, testing, diagnostics, learning, verification preparation, and integration work MUST remain on Work Branch/Path #1.
+- **No second work path is permitted:** do not create or use any feature, fix, chore, repair, bot, agent, test, diagnostic, temporary, experimental, preview, backup, per-run, per-error, or per-task branch/path as an active execution route.
+- `main` is **not** an alternate work path; it is the protected production/source-of-truth destination reached only through the canonical `execution → main` promotion flow.
+- Any attempt to open, switch to, create, or continue work on a second branch/path is **FAIL_CLOSED** and MUST return to Work Branch/Path #1.
+- This rule is additive to P00 and the repository two-branch policy; it does not create a new protocol or authority layer.
 
 ## TWO-BRANCH EXECUTION POLICY
 

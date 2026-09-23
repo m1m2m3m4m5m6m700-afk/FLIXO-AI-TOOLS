@@ -469,3 +469,22 @@ REPAIR_INTELLIGENCE = scripts/ci/adversarial-repair-twin.mjs (A+B, read-only adv
 WORKFLOW = .github/workflows/security-red-team.yml
 ISOLATION = contents:read / no source mutation / no ledger mutation / no peer wake / no shared workspace.
 NEXT = Run the isolated triad against a chosen exact SHA and inspect its three evidence artifacts.
+
+## WAVE5 — ROUTING / MEMORY / LEARNING / ERROR INTELLIGENCE / KNOWLEDGE / SIMULATION
+STATUS = IMPLEMENTED / CANONICAL-CI-VERIFICATION-PENDING
+OWNER = AGENT-3
+BRANCH = execution
+SCOPE = CELL-041..050
+CURRENT_EXECUTION_HEAD = 6ed30b1352bc0869959286142d962a44abda58f7
+IMPLEMENTATION = src/lib/agent/swarm/learning-memory-routing.ts
+TARGETED_TEST = scripts/ci/test-swarm-learning-memory-routing.mjs
+CANONICAL_MEMORY_BASE = src/lib/agent/knowledge/types.ts + existing knowledge/memory surfaces
+MEMORY_AUTHORITY = L0 CONSTITUTION → L1 CANONICAL_PROJECT_MEMORY → L2 SHARED_SKILL_KNOWLEDGE → L3 CELL_PERSONAL_MEMORY → L4 CURRENT_MISSION_MEMORY
+IDENTITY_MODEL = 200 fixed logical identities; ACTIVE 0..200; centralized authority; no operational provisioning/reactivation
+ROUTING = capability map + D1–D5 + skill reputation + adaptive selection + role assignment + strategy transfer
+LEARNING = Mission Result Contract + provisional/verified/anti-lesson/blocking/reversion states + promotion/canary/shadow
+ERROR INTELLIGENCE = failure fingerprinting + RCA chain + synthesis + hypothesis + prediction
+SIMULATION = replay + failure injection + drift + non-authoritative evidence
+EVIDENCE = every knowledge/observation/RCA/simulation record binds to exact SHA; memory advisory only
+CURRENT_VERIFICATION = canonical CI still pending/active on the latest execution head; no GREEN/certification claim
+HANDOFF_BOUNDARY = Agent-1 for authority/governance/CI/certification; Agent-2 for runtime/features/tests/repair executor

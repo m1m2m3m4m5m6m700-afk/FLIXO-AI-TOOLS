@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { authorizeAdminRequestWithDurableSession } from './boundary.ts';
-import { createAdminExecutionPlan } from './execution-plan.ts';
-import type { AdminExecutionClass } from './execution-policy.ts';
+import { createAdminExecutionPlan } from '../../src/server/admin/execution-plan.ts';
+import type { AdminExecutionClass } from '../../src/server/admin/execution-policy.ts';
 
 type AdminRequest = IncomingMessage & {
   method?: string;

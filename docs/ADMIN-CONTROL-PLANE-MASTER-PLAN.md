@@ -141,7 +141,7 @@ Current implementation status: the server boundary provides HMAC-signed session 
 
 The canonical Admin Control Plane remains the current architecture. The latest execution work adds the real credential/session entry path without restoring the retired Admin graph:
 
-- `api/admin/credentials.ts` verifies the configured `ADMIN_PASSWORD_HASH` server-side using the existing scrypt contract.
+- `src/server/admin/credentials.ts` verifies the configured `ADMIN_PASSWORD_HASH` server-side using the existing scrypt contract.
 - `api/admin/session.ts` provides GET/POST/DELETE session operations with fail-closed configuration, Origin protection, rate limiting, HttpOnly session cookies, and correlation IDs.
 - `src/routes/admin-control-plane-login.tsx` exposes `/admin/login` without reusing the retired `src/routes/admin-login.tsx` filename.
 - `src/routes/admin-control-plane.tsx` now consumes the session boundary and provides logout.

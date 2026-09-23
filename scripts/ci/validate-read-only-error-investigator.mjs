@@ -17,6 +17,8 @@ const deepContract=path.resolve(root,'scripts/ci/validate-read-only-deep-reasoni
 const sharedMemory=path.resolve(root,'scripts/ci/shared-operational-memory.mjs');
 const repairIntelligence=path.resolve(root,'scripts/ci/read-only-repair-intelligence.mjs');
 const powerProfile=path.resolve(root,'scripts/ci/read-only-power-profile.mjs');
+const repairBrain=path.resolve(root,'scripts/ci/read-only-repair-brain.mjs');
+const repairBrainTest=path.resolve(root,'scripts/ci/test-read-only-repair-brain.mjs');
 
 const required=[
  "authority: 'READ_ONLY_ERROR_INVESTIGATOR'",
@@ -30,7 +32,7 @@ const required=[
  "staleEvidence",
  "securitySignals",
  "historicalSignals",
- "deepInference: buildDeepInference",
+ "buildDeepInference(",
 ];
 
 for(const marker of required) if(!source.includes(marker)) failures.push('MISSING_MARKER='+marker);
@@ -53,6 +55,8 @@ if(!fs.existsSync(deepReasoning) || !fs.existsSync(deepTest) || !fs.existsSync(d
 if(!source.includes('buildDeepInference')) failures.push('DEEP_REASONING_INTEGRATION_MARKER_MISSING');
 if(!fs.existsSync(sharedMemory) || !source.includes('buildSharedLearningContext')) failures.push('SHARED_SIX_BOT_MEMORY_NOT_BOUND');
 if(!fs.existsSync(powerProfile)) failures.push('FIVE_X_POWER_PROFILE_MISSING');
+if(!fs.existsSync(repairBrain) || !fs.existsSync(repairBrainTest)) failures.push('REPAIR_BRAIN_MIRROR_MISSING');
+if(!source.includes('buildReadOnlyRepairBrain')) failures.push('REPAIR_BRAIN_NOT_BOUND_TO_INVESTIGATOR');
 if(!source.includes('READ_ONLY_POWER_PROFILE')) failures.push('FIVE_X_POWER_PROFILE_NOT_BOUND');
 if(!workflowSource.includes('--max-logs=100') || !workflowSource.includes('--limit=100')) failures.push('HUNDRED_ERROR_COLLECTION_BUDGET_NOT_BOUND');
 

@@ -8,9 +8,9 @@ import {
   signAdminSession,
   verifyAdminSessionToken,
 } from './boundary.ts';
-import { verifyAdminPassword } from './credentials.ts';
+import { verifyAdminPassword } from '../../src/server/admin/credentials.ts';
 import { activeCapabilitiesForRole } from '../../src/lib/admin/roles.ts';
-import { persistAdminSession, revokeAdminSession, isAdminSessionStoreConfigured, getAdminSessionState, getAdminSessionRecord } from './session-store.ts';
+import { persistAdminSession, revokeAdminSession, isAdminSessionStoreConfigured, getAdminSessionState, getAdminSessionRecord } from '../../src/server/admin/session-store.ts';
 
 type AdminRequest = IncomingMessage & { body?: unknown };
 type BodyRecord = Record<string, unknown>;
