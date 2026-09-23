@@ -58,7 +58,12 @@ assert.equal(report.pushAuthority,'CHAIR_1_ONLY');
 assert.equal(report.roleOrder.length,10);
 assert.deepEqual(report.workers.map(x=>x.workerId),['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5','FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10']);
 assert.ok(report.workers.every(x=>x.systemScope==='FULL_REPOSITORY_AND_AUTOMATION_SYSTEM'));
-assert.ok(report.workers.every(x=>x.workflow==='READ→DIAGNOSE→WRITE_PROPOSAL→CHALLENGE→HANDOFF'));
+assert.ok(report.workers.every(x=>x.workflow==='READ→DIAGNOSE→WRITE_PROPOSAL→RING_CHALLENGE→HANDOFF'));
+assert.equal(report.schemaVersion,3);
+assert.equal(report.lifecycle,'AWAKE_RESIDENT');
+assert.equal(report.wakeSource,'FLIXO_AGENT_REPAIR_HEARTBEAT');
+assert.equal(report.residentWorkerCount,10);
+assert.ok(report.workers.every(x=>x.lifecycle==='AWAKE_RESIDENT' && x.resident===true && x.wakeSource==='FLIXO_AGENT_REPAIR_HEARTBEAT'));
 assert.deepEqual(report.roleOrder,['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5','FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10']);
 for(const worker of report.workers){
  assert.equal(worker.mutationAuthority,false);
