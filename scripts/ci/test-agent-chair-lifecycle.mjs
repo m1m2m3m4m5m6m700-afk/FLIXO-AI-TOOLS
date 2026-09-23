@@ -20,7 +20,7 @@ const env = {
   FLIXO_CHAIR_REF_PREFIX: 'refs/flixo/tests/agent-chair-' + process.pid,
 };
 const session = 'agent-chair-smoke-' + process.pid;
-const agent = 'agent-chair-smoke';
+const agent = 'executionAgent';
 const task = 'TASK-CHAIR-SMOKE';
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const run = (args) => execFileSync(process.execPath, ['scripts/ci/agent-session.mjs', ...args], { cwd: ROOT, env: { ...env, FLIXO_AGENT_SESSION: session, FLIXO_AGENT_ID: agent, FLIXO_AGENT_TASK: task }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
