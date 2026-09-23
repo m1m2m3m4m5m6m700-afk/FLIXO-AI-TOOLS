@@ -87,7 +87,7 @@ assert.equal(stale.route, 'ESCALATE_OR_COLLECT_MORE_EVIDENCE');
 const repeated = buildAdaptiveFailureMemory({
   attempt: 5,
   priorStrategies: ['reproduce-exact', 'reproduce-exact', 'diff-forensics', 'historical-analogy'],
-  selectedStrategy: 'historical-analogy',
+  selectedStrategy: 'alternate-hypothesis',
   allStrategiesExhausted: false,
   teachingEscalation: false,
   causalRootCause: 'build',
