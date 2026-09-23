@@ -35,15 +35,15 @@ export function buildAdvancedAgentEnvelope({
   objective,
   requiredCapabilities=[],
   evidenceGradeMinimum='E3',
-  toolBudget=12,
-  maxReasoningLoops=3,
+  toolBudget=32,
+  maxReasoningLoops=7,
 }={}){
   for(const [v,n] of [[accountId,'account_id'],[profileId,'profile_id'],[missionId,'mission_id'],[workPackageId,'work_package_id'],[taskId,'task_id'],[role,'role'],[objective,'objective']])required(v,n);
   if(!SHA.test(String(exactSha??'')))throw new Error('ADVANCED_AGENT_EXACT_SHA_INVALID');
   if(!Array.isArray(requiredCapabilities))throw new Error('ADVANCED_AGENT_CAPABILITIES_INVALID');
   if(!Object.hasOwn(GRADE_SCORE, evidenceGradeMinimum))throw new Error('ADVANCED_AGENT_EVIDENCE_GRADE_INVALID');
-  if(!Number.isInteger(toolBudget)||toolBudget<1||toolBudget>100)throw new Error('ADVANCED_AGENT_TOOL_BUDGET_INVALID');
-  if(!Number.isInteger(maxReasoningLoops)||maxReasoningLoops<1||maxReasoningLoops>7)throw new Error('ADVANCED_AGENT_REASONING_LOOPS_INVALID');
+  if(!Number.isInteger(toolBudget)||toolBudget<32||toolBudget>100)throw new Error('ADVANCED_AGENT_TOOL_BUDGET_INVALID');
+  if(!Number.isInteger(maxReasoningLoops)||maxReasoningLoops!==7)throw new Error('ADVANCED_AGENT_REASONING_LOOPS_MUST_USE_FULL_DEPTH');
   return Object.freeze({
     protocol:'FLIXO_ADVANCED_AGENT_RUNTIME_V1',
     runtimeVersion:ADVANCED_AGENT_RUNTIME_VERSION,
@@ -63,6 +63,9 @@ export function buildAdvancedAgentEnvelope({
       noCertificationClaim:true,
       failClosedOnUnknowns:true,
       conciseDecisionTraceOnly:true,
+      fullIntelligence:true,
+      noComplexityDowngrade:true,
+      reasoningEffort:'MAXIMUM',
     },
   });
 }
