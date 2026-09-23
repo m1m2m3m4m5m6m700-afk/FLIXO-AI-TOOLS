@@ -11,6 +11,7 @@ on:
 
 permissions:
   # Heartbeat emits only liveness/wake evidence. Privileged renewal stays in trusted Watchdog.
+  # Single guardian lane: trusted Watchdog owns privileged renewal; Heartbeat remains read-only observation/wake evidence.
   actions: read
   contents: read
 
