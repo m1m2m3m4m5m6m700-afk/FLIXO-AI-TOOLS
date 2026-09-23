@@ -7,6 +7,7 @@ import {
   buildFixedBotIdentities,
   validateActiveBotSet,
   makeKnowledge,
+  canonicalKey,
   mergeCanonical,
   decayKnowledge,
   memoryAdvisoryDecision,
@@ -45,6 +46,7 @@ const h='b'.repeat(64);
 const c='c'.repeat(64);
 
 assert.deepEqual(Object.keys(MEMORY_LAYERS),['L0','L1','L2','L3','L4']);
+assert.equal(canonicalKey('Routing','Bind   routing evidence.'),canonicalKey(' routing ','Bind routing evidence.'));
 assert.equal(MEMORY_LAYERS.L0,'CONSTITUTION');
 assert.equal(MEMORY_LAYERS.L4,'CURRENT_MISSION_MEMORY');
 
