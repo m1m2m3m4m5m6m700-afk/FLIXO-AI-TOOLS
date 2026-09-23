@@ -1,9 +1,6 @@
 name: FLIXOAI Cloudflare Deployment
 
 on:
-  workflow_run:
-    workflows: ["FLIXO Test System"]
-    types: [completed]
   workflow_dispatch:
     inputs:
       sha:
