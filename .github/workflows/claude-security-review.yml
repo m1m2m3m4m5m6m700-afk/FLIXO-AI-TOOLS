@@ -24,6 +24,13 @@ jobs:
     name: Claude Security Review (Advisory)
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout trusted security-review revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
       - name: Fail closed when PR head changes during review
         if: github.event_name == 'pull_request'
         env:
