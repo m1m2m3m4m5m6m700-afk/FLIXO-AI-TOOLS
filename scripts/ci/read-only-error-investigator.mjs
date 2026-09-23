@@ -479,7 +479,6 @@ function collectWithGh() {
       try {
         const raw = execFileSync('gh', [
           'api',
-          '--repo', repository,
           '--method', 'GET',
           apiPath,
         ], {
