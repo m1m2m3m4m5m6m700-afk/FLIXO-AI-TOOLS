@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "protocol": "FLIXO10-FULL-SYSTEM-REPAIR-v1",
+  "authority": "FLIXO10_PERSONAL_OPERATIONAL_MEMORY",
+  "botId": "FLIXO1",
+  "displayName": "FLIXO 1",
+  "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
+  "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+  "legacySeat": "ACTION-TWIN-1",
+  "systemScope": "FULL_REPOSITORY_AND_AUTOMATION_SYSTEM",
+  "lens": "WHOLE_SYSTEM_RCA_AND_ARCHITECTURE",
+  "workflow": [
+    "READ",
+    "DIAGNOSE",
+    "WRITE_PROPOSAL",
+    "CHALLENGE",
+    "HANDOFF"
+  ],
+  "proposalMutationAuthority": false,
+  "repositoryWriteMode": "ISOLATED_PROPOSAL_ONLY",
+  "pushSeatEligible": true,
+  "pushSeatPolicy": "FIRST_CONNECTED_FLIXO10_WINS",
+  "pushSeatClaim": "push-seat-claim",
+  "pushSeatHeartbeat": "push-seat-heartbeat",
+  "peerTakeover": false,
+  "automaticReassignment": false,
+  "abandonmentForbidden": true,
+  "mergeParallelProposalsWhenOwner": true,
+  "exactShaRequired": true,
+  "staleEvidenceRejected": true,
+  "branch": "execution",
+  "state": {
+    "status": "READY",
+    "taskCount": 0,
+    "lastTaskId": null,
+    "lastUpdatedAt": null
+  },
+  "knowledge": [],
+  "lessons": [],
+  "antiLessons": []
+}
