@@ -1,6 +1,8 @@
 name: FLIXO Security Red-Team Triad (Isolated)
 
 on:
+  push:
+    branches: [execution]
   workflow_dispatch:
     inputs:
       expected_sha:
