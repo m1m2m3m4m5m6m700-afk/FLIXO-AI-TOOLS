@@ -1,9 +1,25 @@
 name: FLIXO Execution Bot Watchdog
 
 on:
-  # Automatic wake is owned by the resident heartbeat.
-  # This workflow is manual/forensic observer only.
+  workflow_run:
+    workflows:
+      - FLIXO Test System
+      - FLIXO WP0 Trust Baseline
+      - FLIXO Test Impact
+      - FLIXO Test Impact Execution
+      - FLIXO Auto Repair Bot
+      - Repository Security Baseline
+      - Claude Security Review
+    types: [completed]
+    branches: [execution]
+  # Independent periodic wake: if the repair chain vanishes, the observer recreates the wake.
+  schedule:
+    - cron: '*/5 * * * *'
   workflow_dispatch:
+  # Privileged watchdog runs only from trusted/default-branch scheduling and workflow_run events.
+  # Mutable execution pushes are observed through completed canonical checks, not by executing their workflow definition.
+  push:
+    branches: [main]
 
 permissions:
   # The watchdog may wake the trusted Daily·FLIXO Green Gate on the first RED.
@@ -12,15 +28,25 @@ permissions:
   contents: read
 
 concurrency:
-  group: flixo-execution-watchdog-manual
+  # One observer lane only. Every wake is read-only and re-evaluates the current execution SHA,
+  # so cancelling an older observer cannot lose repair authority; it removes duplicate wake pressure.
+  group: flixo-execution-watchdog-single-observer
   cancel-in-progress: true
 
 jobs:
   wake:
     name: Exact-SHA observer wake
-    if: github.event_name == 'workflow_dispatch'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event_name == 'schedule' ||
+       github.event_name == 'push' ||
+       (
+         github.event.workflow_run.conclusion != 'success' ||
+         github.event.workflow_run.name == 'FLIXO Auto Repair Bot'
+       ))
     runs-on: ubuntu-latest
-    timeout-minutes: 345
+    timeout-minutes: 5
     steps:
       - name: Checkout trusted watchdog source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -28,21 +54,18 @@ jobs:
           # workflow_run executes the default-branch controller; execution is observation data only.
           fetch-depth: 1
           persist-credentials: false
-      - name: Verify observer checkout
+      - name: Verify trusted watchdog checkout
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          ACTUAL_SHA="$(git rev-parse HEAD)"
-          if [ "$GITHUB_REF" = "refs/heads/execution" ]; then
-            LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-            test "$ACTUAL_SHA" = "$LIVE_SHA"
-            echo "WATCHDOG_CHECKOUT_MODE=EXECUTION"
-          else
-            LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
-            test "$ACTUAL_SHA" = "$LIVE_SHA"
-            echo "WATCHDOG_CHECKOUT_MODE=MAIN"
-          fi
+          ACTUAL_WATCHDOG_SHA="$(git rev-parse HEAD)"
+          TRUSTED_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          test -n "$ACTUAL_WATCHDOG_SHA"
+          test -n "$TRUSTED_MAIN_SHA"
+          test "$ACTUAL_WATCHDOG_SHA" = "$TRUSTED_MAIN_SHA"
+          echo "WATCHDOG_CHECKOUT_MODE=TRUSTED_MAIN"
+          echo "WATCHDOG_TRUSTED_SOURCE_SHA=$TRUSTED_MAIN_SHA"
       - name: Capture exact execution state
         id: source
         env:
@@ -154,45 +177,6 @@ jobs:
             echo 'wake=true' >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Ensure resident heartbeat is awake on every automatic recovery edge
-        if: >-
-          steps.source.outputs.stale != 'true' &&
-          (
-            github.event_name == 'schedule' ||
-            (github.event_name == 'push' && github.ref == 'refs/heads/execution') ||
-            github.event_name == 'workflow_run'
-          )
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          SOURCE_EXECUTION_SHA="${{ steps.source.outputs.execution_sha }}"
-          [[ "$SOURCE_EXECUTION_SHA" =~ ^[0-9a-f]{40}$ ]]
-          ACTIVE_HEARTBEAT="$(gh run list \
-            --repo "$GITHUB_REPOSITORY" \
-            --workflow agent-repair-heartbeat.yml \
-            --limit 50 \
-            --json status,headBranch,headSha,event \
-            --jq --arg sha "$SOURCE_EXECUTION_SHA" '[.[] | select((.status == "queued" or .status == "in_progress") and .headBranch == "execution" and .headSha == $sha)] | length')"
-          if [ "$ACTIVE_HEARTBEAT" -gt 0 ]; then
-            echo 'RESIDENT_HEARTBEAT=ALREADY_ACTIVE'
-            echo "ACTIVE_HEARTBEAT_RUNS=$ACTIVE_HEARTBEAT"
-          else
-            gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
-            echo 'RESIDENT_HEARTBEAT=DISPATCHED'
-            echo 'RESIDENT_HEARTBEAT_REF=execution'
-            for ATTEMPT in 1 2 3 4 5 6; do
-              ACTIVE_HEARTBEAT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --limit 50 --json status,headBranch,headSha --jq --arg sha "$SOURCE_EXECUTION_SHA" '[.[] | select((.status == "queued" or .status == "in_progress") and .headBranch == "execution" and .headSha == $sha)] | length')"
-              if [ "$ACTIVE_HEARTBEAT" -gt 0 ]; then
-                echo 'RESIDENT_HEARTBEAT_DISPATCH_VERIFIED=true'
-                exit 0
-              fi
-              if [ "$ATTEMPT" -lt 6 ]; then sleep 5; fi
-            done
-            echo 'FAIL_CLOSED: resident heartbeat dispatch was accepted but did not become active for the exact execution SHA.'
-            exit 1
-          fi
       - name: Record exact execution push wake
         if: github.event_name == 'push' && github.ref_name == 'execution' && steps.source.outputs.stale != 'true'
         env:
