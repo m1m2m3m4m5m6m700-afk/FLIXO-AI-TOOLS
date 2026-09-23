@@ -48,7 +48,7 @@ assert.match(supersession, /repos\/\$GITHUB_REPOSITORY\/pulls\/\$PR_NUMBER/u);
 assert.match(supersession, /is_supersedable_run\(\)/u);
 assert.match(supersession, /head_repository\.full_name == \$sourceRepo/u);
 assert.match(supersession, /CANCEL_STALE_RUN/u);
-assert.match(supersession, /\.status == \"queued\" or \.status == \"pending\"/u);
+assert.match(supersession, //\.status == "queued" or \.status == "pending"/g/u);
 assert.match(supersession, /KEEP_STARTED_STALE_RUN/u);
 assert.match(supersession, /LATEST_COMMIT_SUPERSESSION=PASS/u);
 assert.match(supersession, /SUPERSESSION_EXTERNAL_BLOCKER=GITHUB_ACTIONS_API_RATE_LIMIT/u);
