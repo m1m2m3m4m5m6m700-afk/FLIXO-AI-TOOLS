@@ -6,7 +6,7 @@ const expectedSha = process.env.EXPECTED_SHA || '';
 const runsPath = process.env.EXACT_RUNS_PATH || '/tmp/exact-runs.json';
 const statusPath = process.env.EXACT_STATUS_PATH || '/tmp/exact-status.json';
 const checksPath = process.env.EXACT_CHECKS_PATH || '/tmp/exact-check-runs.json';
-const livePath = process.env.LIVE_RUNTIME_EVIDENCE_PATH || 'docs/runtime/council-live-runtime-evidence.json';
+const livePath = process.env.LIVE_RUNTIME_EVIDENCE_PATH || 'docs/runtime/council-live-runtime-evidence.json';\nconst vercelPath = process.env.VERCEL_DEPLOYMENT_EVIDENCE_PATH || 'docs/runtime/vercel-deployment-evidence.json';
 const outputPath = process.env.EVIDENCE_OUTPUT_PATH || '/tmp/flixo-promotion-evidence.json';
 
 const requiredWorkflows = [
@@ -101,6 +101,17 @@ if (!live) {
   if (!String(live.verifier ?? '').trim()) failures.push('LIVE_RUNTIME_VERIFIER_MISSING');
   if (Number.isNaN(Date.parse(String(live.verifiedAt ?? '')))) failures.push('LIVE_RUNTIME_VERIFIED_AT_INVALID');
   if (!String(live.provider ?? '').trim()) failures.push('LIVE_RUNTIME_PROVIDER_MISSING');
+}
+
+const vercel = readJson(vercelPath, 'VERCEL_DEPLOYMENT_EVIDENCE');
+if (!vercel) {
+  failures.push('VERCEL_DEPLOYMENT_EVIDENCE_MISSING');
+} else {
+  if (vercel.provider !== 'vercel') failures.push(`VERCEL_DEPLOYMENT_PROVIDER_INVALID=${vercel.provider}`);
+  if (vercel.state !== 'LIVE_VERIFIED') failures.push(`VERCEL_DEPLOYMENT_STATE=${vercel.state}`);
+  if (vercel.gitSha !== expectedSha) failures.push(`VERCEL_DEPLOYMENT_SHA_DRIFT=${vercel.gitSha}`);
+  if (!String(vercel.url ?? '').trim()) failures.push('VERCEL_DEPLOYMENT_URL_MISSING');
+  if (Number.isNaN(Date.parse(String(vercel.verifiedAt ?? '')))) failures.push('VERCEL_DEPLOYMENT_VERIFIED_AT_INVALID');
 }
 
 const evidence = {
