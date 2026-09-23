@@ -152,7 +152,7 @@ export function validateStatic() {
   must(/FLIXO_CHAIR_CONTEXT:\s*\/tmp\/flixo-chair1-proposal\.json/.test(auto), 'auto-repair-chair-context-boundary');
   must(/active_worker_id/.test(auto) && /INPUT_ACTIVE_WORKER_ID/.test(auto), 'auto-repair-active-flixo-worker-input');
   must(/repair-lease\.mjs worker-state/.test(auto), 'auto-repair-durable-flixo-worker-state');
-  must(/repair-lease\.mjs heartbeat[\s\S]*--workerId=\"\$FLIXO_ACTIVE_WORKER_ID\"/.test(auto), 'auto-repair-worker-heartbeat-bound-to-seat');
+  must(/repair-lease\.mjs heartbeat[\s\S]*--workerId="\$FLIXO_ACTIVE_WORKER_ID"/.test(auto), 'auto-repair-worker-heartbeat-bound-to-seat');
   must(auto.includes('EVIDENCE_CAPTURE=FAILED'), 'auto-repair-evidence-capture-fail-closed');
   must(handoffGate.includes('branches: [execution]'), 'handoff-gate-execution-trigger');
   must(/permissions:\s*[\s\S]*contents:\s+read[\s\S]*checks:\s+read/.test(supervisor) && !/actions:\s*write/.test(supervisor), 'supervisor-read-only');
