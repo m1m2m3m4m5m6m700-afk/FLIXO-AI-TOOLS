@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: read
+  actions: write
   contents: read
 
 concurrency:
@@ -26,7 +26,8 @@ jobs:
       - name: Checkout liveness contract
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: execution
+          # The heartbeat is now an actions:write guardian; execute only trusted controller code from main.
+          ref: main
           fetch-depth: 1
           persist-credentials: false
 
@@ -143,3 +144,51 @@ jobs:
             fi
           fi
 
+      - name: Wake canonical watchdog through the single guardian lane
+        id: watchdog_wake
+        if: steps.state.outputs.wake == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          [[ "$EXECUTION_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
+
+          ACTIVE_GREEN_GATES="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow daily-flixo-green-gate.yml \
+            --branch main \
+            --limit 50 \
+            --json status,headSha,displayTitle \
+            --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.displayTitle | startswith("Daily·FLIXO Green Gate")))] | length')"
+
+          ACTIVE_WATCHDOGS="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow execution-bot-watchdog.yml \
+            --branch main \
+            --limit 50 \
+            --json status \
+            --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
+
+          echo "HEARTBEAT_GUARD_TARGET_SHA=$EXECUTION_SHA"
+          echo "HEARTBEAT_ACTIVE_GREEN_GATES=$ACTIVE_GREEN_GATES"
+          echo "HEARTBEAT_ACTIVE_WATCHDOGS=$ACTIVE_WATCHDOGS"
+
+          if [ "$ACTIVE_GREEN_GATES" -gt 0 ]; then
+            echo 'HEARTBEAT_GUARD_ACTION=NOOP_GREEN_GATE_ALREADY_ACTIVE'
+            exit 0
+          fi
+
+          if [ "$ACTIVE_WATCHDOGS" -gt 0 ]; then
+            echo 'HEARTBEAT_GUARD_ACTION=NOOP_WATCHDOG_ALREADY_ACTIVE'
+            exit 0
+          fi
+
+          gh api --method POST \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/execution-bot-watchdog.yml/dispatches" \
+            -f ref=main
+
+          echo 'HEARTBEAT_GUARD_ACTION=WAKE_CANONICAL_WATCHDOG'
+          echo 'HEARTBEAT_GUARD_DIRECT_GREEN_GATE_DISPATCH=false'
+          echo "HEARTBEAT_GUARD_TARGET_SHA=$EXECUTION_SHA"
