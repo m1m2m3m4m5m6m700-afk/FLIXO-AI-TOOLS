@@ -237,6 +237,19 @@
       "src/components/FlixoAIAgent.tsx"
     ]
   },
+  "runtimeBridge": {
+    "protocol": "FLIXO-COLLECTIVE-INTELLIGENCE-RUNTIME-v1",
+    "source": "src/lib/agent/collective-intelligence.ts",
+    "cognitiveOrchestrator": "src/lib/agent/cognitive-orchestrator.ts",
+    "humanPromptBridge": "src/lib/agent/human-conversation.ts",
+    "serverLearningBridge": "api/flixo-agent.ts",
+    "authority": "ADVISORY_ONLY",
+    "mutationAuthority": false,
+    "certificationAuthority": false,
+    "exactShaAware": true,
+    "deepReasoning": true,
+    "sharedLearning": true
+  },
   "knowledgeSources": [
     "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
     "diagnostics/auto-repair/memory.json",
