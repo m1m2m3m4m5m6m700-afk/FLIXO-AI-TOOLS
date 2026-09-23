@@ -14,7 +14,6 @@ const supersession = read('.github/workflows/latest-commit-test-supersession.yml
 const liveness = read('scripts/ci/agent-liveness-protocol.mjs');
 const lease = read('scripts/ci/repair-lease.mjs');
 const intake = read('.github/workflows/repair-agent-intake.yml');
-const masterActivation = read('.github/workflows/agent-master-activation.yml');
 const autoRepair = read('.github/workflows/auto-repair.yml');
 const actionWake = read('scripts/ci/action-repair-five-workers.mjs');
 const master = read('AI_AGENT_MASTER_PROMPT.md');

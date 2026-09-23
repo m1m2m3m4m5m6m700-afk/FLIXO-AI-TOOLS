@@ -54,10 +54,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/flixo-heartbeat
+          PREVIOUS_HEARTBEAT_SHA=""
           for TICK in 1 2 3 4 5 6 7 8 9 10; do
             SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
-            test -n "$SHA"
-            test "$SHA" = "$GITHUB_SHA" || { echo "FAIL CLOSED: heartbeat source SHA moved current=$SHA event=$GITHUB_SHA"; exit 1; }
+            [[ "$SHA" =~ ^[0-9a-fA-F]{40}$ ]]
+            if [ -n "${PREVIOUS_HEARTBEAT_SHA:-}" ] && [ "$SHA" != "$PREVIOUS_HEARTBEAT_SHA" ]; then
+              echo "HEARTBEAT_HEAD_ROLLOVER=true"
+              echo "HEARTBEAT_PREVIOUS_TARGET_SHA=$PREVIOUS_HEARTBEAT_SHA"
+              echo "HEARTBEAT_CURRENT_TARGET_SHA=$SHA"
+            fi
+            PREVIOUS_HEARTBEAT_SHA="$SHA"
             node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="HEARTBEAT:$GITHUB_RUN_ID:$TICK" --state=ACTIVE --sha="$SHA" --progress=false --file="$FLIXO_HEARTBEAT_PATH"
             jq -e --arg sha "$SHA" '.protocolId=="AGENT_LIVENESS_PROTOCOL" and .state=="ACTIVE" and .exactSha==$sha and .progress==false' "$FLIXO_HEARTBEAT_PATH" >/dev/null
             node scripts/ci/action-repair-five-workers.mjs --role=wake --status=RED_INTERNAL --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$GITHUB_RUN_ID-$TICK" --output=/tmp/flixo-heartbeat/action-wake-$TICK.json

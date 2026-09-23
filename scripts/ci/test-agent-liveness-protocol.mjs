@@ -132,6 +132,7 @@ const green=sessionTerminationDirective({canonicalGreen:true,activeRepairWindowR
 assert.equal(green.action,'CLOSE_ALLOWED');
 assert.equal(green.residentState,'READY_RESIDENT');
 
+const sha='a'.repeat(40);
 const pulseOutput=execFileSync(process.execPath,[path.resolve(process.cwd(),'scripts/ci/flixo-ten-pulse.mjs'),`--sha=${sha}`,'--run-id=TEST-100-RESIDENCY','--minute=2026-09-23T22:00','--active-operation=true'],{encoding:'utf8'});
 const pulseReport=JSON.parse(pulseOutput);
 assert.equal(pulseReport.residentBotCount,100);
