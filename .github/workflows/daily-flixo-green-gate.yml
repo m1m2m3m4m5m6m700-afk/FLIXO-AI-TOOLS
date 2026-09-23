@@ -166,7 +166,7 @@ jobs:
             MISSING=0
             for WORKFLOW in "FLIXO Test System" "FLIXO WP0 Trust Baseline" "FLIXO Test Impact" "FLIXO Test Impact Execution" "Repository Security Baseline" "Claude Security Review"; do
               FILE="${REQUIRED_FILES[$WORKFLOW]}"
-              RUN_COUNT="$(jq --arg name "$WORKFLOW" --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == $name and .head_sha == $sha and (.status == "queued" or .status == "in_progress" or .conclusion == "success" or .conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required"))] | length' /tmp/flixo-watch/workflow-runs.json)"
+              RUN_COUNT="$(jq --arg name "$WORKFLOW" --arg file "$FILE" --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == $name and .path == (".github/workflows/" + $file) and .head_sha == $sha)] | length' /tmp/flixo-watch/workflow-runs.json)"
               if [ "$RUN_COUNT" -eq 0 ]; then
                 echo "REQUIRED_CI_MISSING workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA poll=$poll"
                 MISSING=1
@@ -218,7 +218,8 @@ jobs:
             WAITING=false
             FAILED=false
             for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
-              RUN_JSON="$(jq -c --arg name "$workflow" --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == $name and .head_sha == $sha and .conclusion != "cancelled")] | sort_by(.updated_at) | last // empty' /tmp/flixo-watch/workflow-runs.json)"
+              FILE="${REQUIRED_FILES[$workflow]}"
+              RUN_JSON="$(jq -c --arg name "$workflow" --arg path ".github/workflows/$FILE" --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == $name and .path == $path and .head_sha == $sha)] | sort_by(.updated_at) | last // empty' /tmp/flixo-watch/workflow-runs.json)"
               if [ -z "$RUN_JSON" ]; then
                 echo "SETTLEMENT_WAITING poll=$poll workflow=$workflow state=MISSING"
                 WAITING=true

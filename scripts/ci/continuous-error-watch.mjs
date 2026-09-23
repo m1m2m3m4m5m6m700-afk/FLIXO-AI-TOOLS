@@ -20,6 +20,15 @@ export const REQUIRED_WORKFLOWS_BY_BRANCH = Object.freeze({
   ]),
 });
 
+const REQUIRED_WORKFLOW_PATHS = Object.freeze({
+  'FLIXO Test System': '.github/workflows/ci.yml',
+  'FLIXO WP0 Trust Baseline': '.github/workflows/wp0-trust-baseline.yml',
+  'FLIXO Test Impact': '.github/workflows/test-impact.yml',
+  'FLIXO Test Impact Execution': '.github/workflows/test-impact-execution.yml',
+  'Repository Security Baseline': '.github/workflows/repository-security-baseline.yml',
+  'Claude Security Review': '.github/workflows/claude-security-review.yml',
+});
+
 const requiredWorkflowsForBranch = (branch) =>
   REQUIRED_WORKFLOWS_BY_BRANCH[branch] ?? REQUIRED_WORKFLOWS_BY_BRANCH.execution;
 
@@ -80,8 +89,9 @@ const latestBy = (items, predicate) => items
   .sort((a, b) => String(b.updatedAt ?? b.completed_at ?? b.started_at ?? '').localeCompare(String(a.updatedAt ?? a.completed_at ?? a.started_at ?? '')))[0] ?? null;
 
 const latestWorkflow = (runs, name) => {
+  const expectedPath = REQUIRED_WORKFLOW_PATHS[name] ?? null;
   const candidates = runs
-    .filter((run) => run.workflowName === name)
+    .filter((run) => run.workflowName === name && (!expectedPath || String(run.workflowPath ?? run.path ?? '') === expectedPath))
     .sort((a, b) => String(b.updatedAt ?? b.completed_at ?? b.started_at ?? '')
       .localeCompare(String(a.updatedAt ?? a.completed_at ?? a.started_at ?? '')));
   for (const candidate of candidates) {

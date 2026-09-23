@@ -209,6 +209,15 @@ jobs:
             "Claude Security Review"
             "FLIXO Unified Execution Push Gate"
           )
+          declare -A REQUIRED_WORKFLOW_PATHS=(
+            ["FLIXO Test System"]=".github/workflows/ci.yml"
+            ["FLIXO WP0 Trust Baseline"]=".github/workflows/wp0-trust-baseline.yml"
+            ["FLIXO Test Impact"]=".github/workflows/test-impact.yml"
+            ["FLIXO Test Impact Execution"]=".github/workflows/test-impact-execution.yml"
+            ["Repository Security Baseline"]=".github/workflows/repository-security-baseline.yml"
+            ["Claude Security Review"]=".github/workflows/claude-security-review.yml"
+            ["FLIXO Unified Execution Push Gate"]=".github/workflows/unified-execution-push-gate.yml"
+          )
           MAX_POLLS=40
           POLL_SECONDS=15
           ALL_GREEN=false
@@ -231,7 +240,8 @@ jobs:
             WAITING=false
 
             for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
-              RUN_JSON="$(jq -c --arg name "$workflow" '[.[] | select(.name == $name and .conclusion != "cancelled")] | sort_by(.updatedAt) | last // empty' /tmp/exact-runs.json)"
+              EXPECTED_WORKFLOW_PATH="${REQUIRED_WORKFLOW_PATHS[$workflow]}"
+              RUN_JSON="$(jq -c --arg name "$workflow" --arg path "$EXPECTED_WORKFLOW_PATH" '[.[] | select(.name == $name and .path == $path)] | sort_by(.updatedAt) | last // empty' /tmp/exact-runs.json)"
               if [ -z "$RUN_JSON" ]; then
                 echo "EXACT_SHA_GATE_WAITING poll=$poll workflow=$workflow state=MISSING"
                 WAITING=true
@@ -308,7 +318,7 @@ jobs:
           }
           gh_with_backoff api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_SHA/check-runs?per_page=100" > /tmp/exact-check-pages.json
           jq -s 'add' /tmp/exact-check-pages.json > /tmp/exact-check-runs.json
-          TEST_SYSTEM_RUN_ID="$(jq -r '[.[] | select(.name == "FLIXO Test System" and .headSha == $sha and .status == "completed" and .conclusion == "success")] | sort_by(.updatedAt) | last | .databaseId // empty' --arg sha "$EXPECTED_SHA" /tmp/exact-runs.json)"
+          TEST_SYSTEM_RUN_ID="$(jq -r '[.[] | select(.name == "FLIXO Test System" and .path == ".github/workflows/ci.yml" and .headSha == $sha and .status == "completed" and .conclusion == "success")] | sort_by(.updatedAt) | last | .databaseId // empty' --arg sha "$EXPECTED_SHA" /tmp/exact-runs.json)"
           test -n "$TEST_SYSTEM_RUN_ID" || { echo "FAIL CLOSED: canonical FLIXO Test System run missing for exact SHA."; exit 1; }
           CERT="$(jq -c --arg sha "$EXPECTED_SHA" --arg runId "$TEST_SYSTEM_RUN_ID" '
             [.[].check_runs[]

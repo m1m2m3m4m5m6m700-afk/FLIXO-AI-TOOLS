@@ -25,6 +25,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Revalidate canonical Test System source and live execution SHA
+        env:
+          GH_TOKEN: \${{ github.token }}
+          RUN_ID: \${{ github.event.workflow_run.id }}
+          EVENT_SHA: \${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          META="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID")"
+          test "$(printf '%s' "$META" | jq -r '.name')" = "FLIXO Test System"
+          test "$(printf '%s' "$META" | jq -r '.path')" = ".github/workflows/ci.yml"
+          test "$(printf '%s' "$META" | jq -r '.head_branch')" = "execution"
+          test "$(printf '%s' "$META" | jq -r '.head_sha')" = "$EVENT_SHA"
+          test "$(printf '%s' "$META" | jq -r '.conclusion')" = "failure"
+          LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$LIVE_SHA" = "$EVENT_SHA"
+          echo "MASTER_ACTIVATION_SOURCE=CANONICAL_TEST_SYSTEM"
+          echo "MASTER_ACTIVATION_EXACT_SHA=$EVENT_SHA"
+
       - name: Deduplicated RED activation
         env:
           GH_TOKEN: ${{ github.token }}
