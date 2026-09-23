@@ -31,13 +31,13 @@ concurrency:
   # One observer lane only. Every wake is read-only and re-evaluates the current execution SHA,
   # so cancelling an older observer cannot lose repair authority; it removes duplicate wake pressure.
   group: flixo-execution-watchdog-${{ github.event.workflow_run.head_sha || github.sha }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   wake:
     name: Exact-SHA observer wake
     if: >-
-      github.ref == 'refs/heads/main' &&
+      (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/execution')) &&
       (github.event_name == 'workflow_dispatch' ||
        github.event_name == 'schedule' ||
        github.event_name == 'push' ||
@@ -46,7 +46,7 @@ jobs:
          github.event.workflow_run.name == 'FLIXO Auto Repair Bot'
        ))
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 345
     steps:
       - name: Checkout trusted watchdog source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
