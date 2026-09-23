@@ -816,7 +816,7 @@
     "turnSelection": "ODD_ATTEMPT_PRIMARY_EVEN_ATTEMPT_ASSISTANT",
     "firstAttemptIsAlwaysPrimary": true,
     "failoverAfter": "FAILED_REPAIR_OR_UNREPAIRED",
-    "resumeFromSleep": "PRIMARY_RETAKES_NEXT_ODD_TURN",
+    "resumeFromSleep": "FORBIDDEN_NO_SLEEP_STATE",
     "terminalCondition": "ZERO_ACTIONABLE_RED_OR_BLOCKED_EXTERNAL",
     "noIdleWithoutTask": true,
     "noMonitoringBot": true
