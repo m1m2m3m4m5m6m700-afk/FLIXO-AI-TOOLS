@@ -19,7 +19,7 @@ permissions:
 # The controller re-reads the live execution SHA after admission, so cancellation cannot substitute stale evidence.
 concurrency:
   group: flixo-continuous-error-watch-${{ github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   watch:
