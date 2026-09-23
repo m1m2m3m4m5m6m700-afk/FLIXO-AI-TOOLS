@@ -39,19 +39,31 @@ jobs:
           EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           [[ "$EXECUTION_SHA" =~ ^[0-9a-f]{40}$ ]]
           RUNS_FILE="/tmp/flixo-heartbeat/resident-runs.json"
-          RECONCILE_FILE="/tmp/flixo-heartbeat/resident-reconciliation.json"
           gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 100 --json databaseId,status,headBranch,headSha,createdAt > "$RUNS_FILE"
-          node scripts/ci/resident-wake-reconciliation.mjs assess --input="$RUNS_FILE" --sha="$EXECUTION_SHA" --now="$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$RECONCILE_FILE"
-          jq -e '.exactShaRequired==true and .queuedRunIsNotResident==true and .sleep==false and .idle==false and .staleShaCannotBlockWake==true' "$RECONCILE_FILE" >/dev/null
-          for RUN_ID in $(jq -r '.staleRunIds[]' "$RECONCILE_FILE"); do
+          NOW_EPOCH="$(date -u +%s)"
+          STALE_RUN_IDS="$(jq -r --arg sha "$EXECUTION_SHA" --argjson now "$NOW_EPOCH" '
+            .[] | select(.headBranch=="execution") |
+            select(
+              (.status=="in_progress" and .headSha != $sha) or
+              ((.status=="queued" or .status=="pending") and
+               (.headSha != $sha or (((.createdAt|fromdateiso8601) + 120) < $now)))
+            ) | .databaseId
+          ' "$RUNS_FILE")"
+          for RUN_ID in $STALE_RUN_IDS; do
             gh run cancel "$RUN_ID" --repo "$GITHUB_REPOSITORY" || true
             echo "STALE_RESIDENT_RUN_CANCELLED=$RUN_ID"
           done
-          if jq -e '.shouldDispatch == true' "$RECONCILE_FILE" >/dev/null; then
+          ACTIVE_CURRENT="$(jq -r --arg sha "$EXECUTION_SHA" '[.[] | select(.headBranch=="execution" and .headSha==$sha and .status=="in_progress")] | length' "$RUNS_FILE")"
+          FRESH_CURRENT_QUEUE="$(jq -r --arg sha "$EXECUTION_SHA" --argjson now "$NOW_EPOCH" '[.[] | select(.headBranch=="execution" and .headSha==$sha and (.status=="queued" or .status=="pending") and (((.createdAt|fromdateiso8601) + 120) >= $now))] | length' "$RUNS_FILE")"
+          echo "EXECUTION_SHA=$EXECUTION_SHA"
+          echo "ACTIVE_CURRENT=$ACTIVE_CURRENT"
+          echo "FRESH_CURRENT_QUEUE=$FRESH_CURRENT_QUEUE"
+          if [ "$ACTIVE_CURRENT" -eq 0 ] && [ "$FRESH_CURRENT_QUEUE" -eq 0 ]; then
             gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
             echo 'RESIDENT_BOOTSTRAP_DISPATCHED=true'
           else
-            echo "RESIDENT_BOOTSTRAP_DISPATCHED=false reason=$(jq -r '.reason' "$RECONCILE_FILE")"
+            echo 'RESIDENT_BOOTSTRAP_DISPATCHED=false'
+            echo 'RESIDENT_ALREADY_ACTIVE=true'
           fi
           echo 'RESIDENT_BOOTSTRAP_VERIFIED=true'
                 exit 0
@@ -199,20 +211,28 @@ jobs:
           [[ "$CURRENT_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$GITHUB_REF" = "refs/heads/execution"
           RUNS_FILE="/tmp/flixo-heartbeat/rearm-resident-runs.json"
-          RECONCILE_FILE="/tmp/flixo-heartbeat/rearm-resident-reconciliation.json"
           gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 100 --json databaseId,status,headBranch,headSha,createdAt > "$RUNS_FILE"
-          node scripts/ci/resident-wake-reconciliation.mjs assess --input="$RUNS_FILE" --sha="$CURRENT_SHA" --current-run="$GITHUB_RUN_ID" --now="$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$RECONCILE_FILE"
-          jq -e '.exactShaRequired==true and .queuedRunIsNotResident==true and .sleep==false and .idle==false and .staleShaCannotBlockWake==true' "$RECONCILE_FILE" >/dev/null
-          for RUN_ID in $(jq -r '.staleRunIds[]' "$RECONCILE_FILE"); do
+          NOW_EPOCH="$(date -u +%s)"
+          STALE_RUN_IDS="$(jq -r --arg sha "$CURRENT_SHA" --arg current "$GITHUB_RUN_ID" --argjson now "$NOW_EPOCH" '
+            .[] | select(.headBranch=="execution" and (.databaseId|tostring)!=$current) |
+            select(
+              (.status=="in_progress" and .headSha != $sha) or
+              ((.status=="queued" or .status=="pending") and
+               (.headSha != $sha or (((.createdAt|fromdateiso8601) + 120) < $now)))
+            ) | .databaseId
+          ' "$RUNS_FILE")"
+          for RUN_ID in $STALE_RUN_IDS; do
             gh run cancel "$RUN_ID" --repo "$GITHUB_REPOSITORY" || true
             echo "STALE_RESIDENT_RUN_CANCELLED=$RUN_ID"
           done
-          if jq -e '.shouldDispatch == true' "$RECONCILE_FILE" >/dev/null; then
+          ACTIVE_CURRENT="$(jq -r --arg sha "$CURRENT_SHA" --arg current "$GITHUB_RUN_ID" '[.[] | select(.headBranch=="execution" and (.databaseId|tostring)!=$current and .headSha==$sha and .status=="in_progress")] | length' "$RUNS_FILE")"
+          FRESH_CURRENT_QUEUE="$(jq -r --arg sha "$CURRENT_SHA" --arg current "$GITHUB_RUN_ID" --argjson now "$NOW_EPOCH" '[.[] | select(.headBranch=="execution" and (.databaseId|tostring)!=$current and .headSha==$sha and (.status=="queued" or .status=="pending") and (((.createdAt|fromdateiso8601) + 120) >= $now))] | length' "$RUNS_FILE")"
+          if [ "$ACTIVE_CURRENT" -eq 0 ] && [ "$FRESH_CURRENT_QUEUE" -eq 0 ]; then
             gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
             echo "RESIDENCY_REARMED_FOR_SHA=$CURRENT_SHA"
             echo 'RESIDENCY_REARM_EVENT=WORKFLOW_DISPATCH_EXECUTION'
           else
-            echo "RESIDENCY_REARM_SKIPPED reason=$(jq -r '.reason' "$RECONCILE_FILE")"
+            echo "RESIDENCY_REARM_SKIPPED active_current=$ACTIVE_CURRENT fresh_queue=$FRESH_CURRENT_QUEUE"
           fi
           echo 'RESIDENCY_REARM_ON_FAILURE=true'
           echo 'RESIDENCY_REARM_ON_GREEN=true'
