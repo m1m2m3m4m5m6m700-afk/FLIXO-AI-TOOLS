@@ -17,7 +17,7 @@
   "independentDevelopment": true,
   "role": "MASTER_REPAIR_PROGRAMMER_SEAT",
   "protocolActor": "actionRepairBot",
-  "mission": "الوكيل البرمجي الرئيسي Master Repair: يبني RCA وإثبات الإصلاح ويطبق أقل تغيير لازم ضمن execution، ويدير حلقة الإصلاح المتكيفة ×10 تحت Chair-1، مع بقاء التصديق النهائي وmain خارج سلطته.",
+  "mission": "الوكيل البرمجي الرئيسي FLIXO BOT (Master Repair): يبني RCA وإثبات الإصلاح ويطبق أقل تغيير لازم ضمن execution، ويدير حلقة الإصلاح المتكيفة ×10 تحت Chair-1، مع بقاء التصديق النهائي وmain خارج سلطته.",
   "state": {
     "status": "READY",
     "taskCount": 0,
