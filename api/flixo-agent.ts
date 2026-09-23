@@ -251,8 +251,8 @@ function fallbackDecision(
   locale: string,
 ): ReturnType<typeof parseAgentDecision> {
   const normalized = message.trim().toLocaleLowerCase();
-  const arabic = /[\\u0600-\\u06FF]/u.test(message) || locale.startsWith('ar');
-  if (/^(?:مرحبا|مرحبًا|اهلا|أهلا|السلام عليكم|هاي|هلا|hello|hi|hey)\\b/i.test(normalized)) {
+  const arabic = /[\u0600-\u06FF]/u.test(message) || locale.startsWith('ar');
+  if (/^(?:مرحبا|مرحبًا|اهلا|أهلا|السلام عليكم|هاي|هلا|hello|hi|hey)\b/i.test(normalized)) {
     return {
       mode: 'chat',
       reply: arabic ? 'أهلًا 👋 أنا FLIXO BOT. قل لي ما الذي تريد الوصول إليه، وسأفهمك خطوة بخطوة.' : 'Hi 👋 I’m FLIXO BOT. Tell me what you want to achieve and I’ll follow the conversation step by step.',
@@ -261,7 +261,7 @@ function fallbackDecision(
       confidence: 0.98,
     };
   }
-  if (/^(?:من انت|من أنت|مين انت|who are you)\\??$/i.test(normalized)) {
+  if (/^(?:من انت|من أنت|مين انت|who are you)\??$/i.test(normalized)) {
     return {
       mode: 'chat',
       reply: arabic ? 'أنا FLIXO BOT، المساعد الذي يفهم طلبك الطبيعي ويحوله إلى خطوات آمنة داخل أدوات FLIXO.' : 'I’m FLIXO BOT, the assistant that understands natural requests and turns them into safe FLIXO tool steps.',
@@ -270,7 +270,7 @@ function fallbackDecision(
       confidence: 0.98,
     };
   }
-  if (/^(?:شكرا|شكرًا|thanks|thank you|تمام|ممتاز)\\b/i.test(normalized)) {
+  if (/^(?:شكرا|شكرًا|thanks|thank you|تمام|ممتاز)\b/i.test(normalized)) {
     return {
       mode: 'chat',
       reply: arabic ? 'العفو. أكمل معي من حيث توقفت.' : 'You’re welcome. Continue from where we left off.',
