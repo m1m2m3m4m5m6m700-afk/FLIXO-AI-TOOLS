@@ -166,6 +166,11 @@ export function validateStatic() {
     'heartbeat-resident-mode-observer-only'
   );
   must(heartbeat.includes('actions/workflows/agent-repair-supervisor.yml/dispatches'), 'heartbeat-observer-only-wakeup');
+  must(/cron:\s*'\*\/1 \* \* \* \*'/.test(heartbeat), 'heartbeat-one-minute-schedule');
+  must(/HEARTBEAT_INTERVAL_SECONDS=60/.test(heartbeat), 'heartbeat-one-minute-emission');
+  must(/action-repair-five-workers\.mjs[\s\S]*--role=wake/.test(heartbeat), 'heartbeat-team-wake-plan');
+  must(/ALL_ACTION_REPAIR_TEAM_WAKE=true/.test(heartbeat), 'heartbeat-team-wake-broadcast');
+
   must(handoffGate.includes('CURRENT_EXECUTION_SHA=') && handoffGate.includes('HANDOFF_EXECUTION_SHA'), 'handoff-gate-current-head-check');
   must(/Create exact unpublished candidate commit/.test(auto), 'auto-repair-candidate-commit');
   must(/Run targeted regression and post-patch adversarial falsification in parallel/.test(auto), 'auto-repair-parallel-verification');
