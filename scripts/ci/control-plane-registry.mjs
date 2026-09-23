@@ -136,3 +136,122 @@ export const TRUST_PERIMETER_PATHS = Object.freeze([
   'docs/agents/SECURITY-RED-TEAM-BOTS.json',
   '.github/workflows/security-red-team.yml',
 ]);
+
+
+export const BOT_RUNTIME_PROTOCOL = 'FLIXO-UNIFIED-BOT-RUNTIME-v1';
+export const BOT_RUNTIME_ENGINE_VERSION = 'UNIFIED-BOT-ENGINE-v1';
+export const BOT_RUNTIME_SHARED_CAPABILITIES = Object.freeze([
+  'PROMPT_UNDERSTANDING',
+  'CONSTRAINT_REASONING',
+  'EXACT_SHA_BINDING',
+  'FAILURE_FINGERPRINTING',
+  'ROOT_CAUSE_ANALYSIS',
+  'ADVERSARIAL_CHALLENGE',
+  'HISTORICAL_LEARNING',
+  'KNOWLEDGE_SYNTHESIS',
+  'DEPENDENCY_TRACE',
+  'REGRESSION_PLANNING',
+  'HANDOFF_PROVENANCE',
+  'STALE_EVIDENCE_REJECTION',
+]);
+
+export const BOT_RUNTIME_ROLES = Object.freeze({
+  READ_ONLY: Object.freeze({
+    mutationAuthority: false,
+    certificationAuthority: false,
+    reportOnly: true,
+    capabilities: BOT_RUNTIME_SHARED_CAPABILITIES,
+  }),
+  REPAIR: Object.freeze({
+    mutationAuthority: true,
+    certificationAuthority: false,
+    reportOnly: false,
+    capabilities: BOT_RUNTIME_SHARED_CAPABILITIES,
+  }),
+  ADVERSARIAL: Object.freeze({
+    mutationAuthority: false,
+    certificationAuthority: false,
+    reportOnly: true,
+    capabilities: Object.freeze([...BOT_RUNTIME_SHARED_CAPABILITIES, 'COUNTEREXAMPLE_HUNT']),
+  }),
+  HISTORIAN: Object.freeze({
+    mutationAuthority: false,
+    certificationAuthority: false,
+    reportOnly: true,
+    capabilities: Object.freeze([...BOT_RUNTIME_SHARED_CAPABILITIES, 'KNOWLEDGE_CUSTODY']),
+  }),
+  MASTER_GATE: Object.freeze({
+    mutationAuthority: false,
+    certificationAuthority: false,
+    reportOnly: true,
+    capabilities: Object.freeze([...BOT_RUNTIME_SHARED_CAPABILITIES, 'INDEPENDENT_JUDGMENT', 'PROOF_ARBITRATION']),
+  }),
+});
+
+const BOT_RUNTIME_IDS = Object.freeze({
+  'ACTION-REPAIR': 'REPAIR',
+  'ACTION-REPAIR-2': 'ADVERSARIAL',
+  'ACTION-HISTORIAN-3': 'HISTORIAN',
+  'ACTION-TWIN-1': 'ADVERSARIAL',
+  'ACTION-TWIN-2': 'ADVERSARIAL',
+  'ACTION-INDEX': 'HISTORIAN',
+  'ACTION-WISE': 'READ_ONLY',
+  'ACTION-WAKE': 'READ_ONLY',
+  'ACTION-MASTER': 'MASTER_GATE',
+  'AUTO_REPAIR_BOT': 'REPAIR',
+  'PROGRAMMER-TWIN-A': 'ADVERSARIAL',
+  'PROGRAMMER-TWIN-B': 'ADVERSARIAL',
+  'READ-INVESTIGATOR': 'READ_ONLY',
+  'READ-ADVERSARY': 'ADVERSARIAL',
+  'CODE-SCOUT': 'READ_ONLY',
+  'ERROR-INVESTIGATOR': 'READ_ONLY',
+  'REPAIR-INTELLIGENCE': 'READ_ONLY',
+  'MASTER-REPAIR-GATE': 'MASTER_GATE',
+});
+
+function normalizeBotId(value) {
+  return String(value ?? '').trim().toUpperCase().replace(/\\s+/gu, '_');
+}
+
+export function getUnifiedBotRuntime(botId) {
+  const id = normalizeBotId(botId);
+  const roleName = BOT_RUNTIME_IDS[id];
+  if (!roleName) throw new Error('BOT_RUNTIME_ID_UNREGISTERED=' + id);
+  const role = BOT_RUNTIME_ROLES[roleName];
+  return Object.freeze({
+    protocol: BOT_RUNTIME_PROTOCOL,
+    engineVersion: BOT_RUNTIME_ENGINE_VERSION,
+    botId: id,
+    role: roleName,
+    sharedCapabilities: BOT_RUNTIME_SHARED_CAPABILITIES,
+    capabilities: role.capabilities,
+    mutationAuthority: role.mutationAuthority,
+    certificationAuthority: role.certificationAuthority,
+    reportOnly: role.reportOnly,
+    exactShaRequired: true,
+    staleEvidenceRejected: true,
+  });
+}
+
+export function assertUnifiedBotRuntime(botId, expectedRole = null) {
+  const runtime = getUnifiedBotRuntime(botId);
+  if (expectedRole && runtime.role !== expectedRole) throw new Error('BOT_RUNTIME_ROLE_MISMATCH=' + runtime.botId + ':' + expectedRole + ':actual=' + runtime.role);
+  return runtime;
+}
+
+export function validateUnifiedBotRuntimeRegistry() {
+  const failures = [];
+  if (BOT_RUNTIME_PROTOCOL !== 'FLIXO-UNIFIED-BOT-RUNTIME-v1') failures.push('PROTOCOL_INVALID');
+  if (BOT_RUNTIME_ENGINE_VERSION !== 'UNIFIED-BOT-ENGINE-v1') failures.push('ENGINE_VERSION_INVALID');
+  if (BOT_RUNTIME_SHARED_CAPABILITIES.length < 10) failures.push('SHARED_CAPABILITIES_TOO_SMALL');
+  for (const [id, role] of Object.entries(BOT_RUNTIME_IDS)) {
+    if (!BOT_RUNTIME_ROLES[role]) failures.push('ROLE_UNRESOLVED=' + id);
+    else {
+      const runtime = getUnifiedBotRuntime(id);
+      if (runtime.mutationAuthority && role !== 'REPAIR') failures.push('UNAUTHORIZED_MUTATION_ROLE=' + id);
+      if (runtime.certificationAuthority) failures.push('BOT_CERTIFICATION_AUTHORITY_LEAK=' + id);
+      if (!runtime.exactShaRequired || !runtime.staleEvidenceRejected) failures.push('IDENTITY_GUARD_MISSING=' + id);
+    }
+  }
+  return Object.freeze({ ok: failures.length === 0, failures });
+}
