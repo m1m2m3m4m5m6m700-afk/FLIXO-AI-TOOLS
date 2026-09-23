@@ -117,13 +117,17 @@ const packageJson = exists('package.json') ? JSON.parse(read('package.json')) : 
 for (const key of ['validate:agent-coordination','agent:coordination','agent:communication','test:agent-communication','validate:code-scout','agent:code-scout','test:council-wake','agent:council-wake']) if (typeof packageJson.scripts?.[key] !== 'string') failures.push(`PACKAGE_SCRIPT_MISSING=${key}`);
 
 const sharedMemoryRegistry = exists('docs/agents/CELL-BOT-REGISTRY.json') ? JSON.parse(read('docs/agents/CELL-BOT-REGISTRY.json')) : null;
+const flixoBotRegistry = exists('docs/agents/FLIXO-BOT.json') ? JSON.parse(read('docs/agents/FLIXO-BOT.json')) : null;
 const sixBotMemoryContract = exists('docs/agents/SHARED-SIX-BOT-OPERATIONAL-MEMORY-CONTRACT.md') ? read('docs/agents/SHARED-SIX-BOT-OPERATIONAL-MEMORY-CONTRACT.md') : '';
 const cellProtocolRegistry = exists('docs/PROTOCOL-REGISTRY.json') ? JSON.parse(read('docs/PROTOCOL-REGISTRY.json')) : null;
 if (sharedMemoryRegistry?.status !== 'RETIRED' || sharedMemoryRegistry?.bots?.length !== 0) failures.push('RETIRED_CELL_POOL_STATE_INVALID');
 const retiredP21 = cellProtocolRegistry?.protocols?.find((item) => item?.id === 'P21');
 const activeP22 = cellProtocolRegistry?.protocols?.find((item) => item?.id === 'P22');
 if (retiredP21?.status !== 'RETIRED' || !Array.isArray(retiredP21?.scope) || !retiredP21.scope.every((id) => /^CELL-\d{3}$/u.test(id) || id === 'ALL_CELL_BOTS')) failures.push('P21_RETIRED_CONTRACT_INVALID');
-if (activeP22?.status !== 'MANDATORY' || !Array.isArray(activeP22?.participants) || activeP22.participants.length !== 6) failures.push('P22_SHARED_MEMORY_CONTRACT_INVALID');
+const p22CoreParticipants = ['ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent','execution-agent-clone-v1'];
+const canonicalLearningConsumers = Array.isArray(flixoBotRegistry?.distribution?.learningConsumers) ? new Set(flixoBotRegistry.distribution.learningConsumers) : null;
+if (activeP22?.status !== 'MANDATORY' || !Array.isArray(activeP22?.participants)) failures.push('P22_SHARED_MEMORY_CONTRACT_INVALID');
+else if (p22CoreParticipants.some((id) => !activeP22.participants.includes(id)) || !canonicalLearningConsumers || p22CoreParticipants.some((id) => !canonicalLearningConsumers.has(id)) || activeP22.participants.some((id) => !canonicalLearningConsumers.has(id)) || activeP22?.participantsSource !== 'docs/agents/FLIXO-BOT.json#/distribution/learningConsumers') failures.push('P22_SHARED_MEMORY_CONTRACT_INVALID');
 if (!sixBotMemoryContract.includes('FLIXO-SHARED-OPERATIONAL-MEMORY-v1')) failures.push('SHARED_SIX_BOT_MEMORY_CONTRACT_MISSING');
 
 const executiveGovernance = sharedMemoryRegistry?.executiveCellGovernance;

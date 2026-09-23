@@ -274,7 +274,7 @@ function legacyReadThroughContext(limit=48){
   return {lessons:legacyLessons,antiLessons:legacyAnti,errors:legacyErrors,sourceCount:2,authority:'CONTEXT_ONLY'};
 }
 
-export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48,currentSha=null}={}){
+export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48}={}){
   const records=readSharedMemory({fingerprint,botId,limit});
   const grouped=Object.fromEntries(SHARED_KINDS.map(kind=>[kind,records.filter(r=>r.kind===kind)]));
   const legacy=legacyReadThroughContext(limit);
@@ -303,7 +303,7 @@ export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48
 }
 
 export async function buildAsyncSharedLearningContext({fingerprint=null,botId=null,limit=48,currentSha=null}={}){
-  const context=buildSharedLearningContext({fingerprint,botId,limit,currentSha});
+  const context=buildSharedLearningContext({fingerprint,botId,limit});
   const targetSha=validSha(currentSha)?String(currentSha):null;
   const externalCandidates=targetSha?await readRemoteExternalLearning(targetSha,limit):[];
   const proposedLessons=externalCandidates.filter(item=>item.kind==='LESSON');
