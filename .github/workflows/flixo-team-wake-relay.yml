@@ -22,8 +22,8 @@ permissions:
   checks: read
 
 concurrency:
-  group: flixo-team-wake-relay-${{ inputs.entry_sha }}
-  cancel-in-progress: true
+  group: flixo-team-wake-relay-${{ inputs.entry_sha }}-${{ inputs.pulse_id }}
+  cancel-in-progress: false
 
 jobs:
   wake:
