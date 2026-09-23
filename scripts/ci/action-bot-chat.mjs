@@ -6,7 +6,7 @@ import { runGate } from './action-vault-agent-gate.mjs';
 const ROOT=process.cwd();
 const VAULT=path.resolve(ROOT,'diagnostics/auto-repair/action-vault');
 const MEMORY=path.resolve(ROOT,'diagnostics/auto-repair/action-repair-bots');
-const BOTS=new Set(['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','ACTION-TWIN-1','ACTION-TWIN-2','ACTION-INDEX','ACTION-WISE','ACTION-MASTER']);
+const BOTS=new Set(['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','ACTION-TWIN-1','ACTION-TWIN-2','ACTION-INDEX','ACTION-WISE','ACTION-RCA-3','ACTION-IMPACT-4','ACTION-SECURITY-5','ACTION-REGRESSION-6','ACTION-SHA-7','ACTION-CONVERGENCE-8','ACTION-MASTER']);
 const CORE_BOTS=new Set(['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3']);
 const enforceCoreVaultAdmission=()=>{const actors=[from,to,arg('bot')].filter(Boolean);if(!actors.some((id)=>CORE_BOTS.has(id)))return;const result=runGate(ROOT);if(result.status!=='PASS')throw new Error('ACTION_CHAT_CORE_VAULT_ADMISSION_FAILED:'+JSON.stringify(result.errors));};
 const arg=(n,f='')=>{const p='--'+n+'=';const x=process.argv.find(v=>v.startsWith(p));return x?x.slice(p.length):f};
