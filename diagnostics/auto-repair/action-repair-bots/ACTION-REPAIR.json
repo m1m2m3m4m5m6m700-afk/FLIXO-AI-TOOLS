@@ -359,5 +359,41 @@
     "requiredBeforeRepairSearch": true,
     "refreshOnCanonicalIndexChange": true,
     "mutationAuthority": false
+  },
+  "masterRepairEngine": {
+    "protocol": "FLIXO-MASTER-REPAIR-ENGINE-v2",
+    "runtime": "scripts/ci/master-repair-engine.mjs",
+    "version": "MASTER-REPAIR-ENGINE-v2",
+    "read": {
+      "enabled": true,
+      "exactShaRequired": true,
+      "operations": [
+        "READ_FILE",
+        "REPOSITORY_SCAN",
+        "DEPENDENCY_GRAPH",
+        "BLAST_RADIUS"
+      ]
+    },
+    "write": {
+      "enabled": true,
+      "branch": "execution",
+      "exactShaRequired": true,
+      "bounded": true,
+      "transactional": true,
+      "automaticRollbackOnFailure": true,
+      "allowedScope": "DECLARED_EXECUTION_SOURCE_ONLY",
+      "testMutation": false,
+      "mainMutation": false,
+      "controlPlaneMutation": false,
+      "gateWeakening": false,
+      "canonicalGreenRequired": true
+    },
+    "simulation": {
+      "enabled": true,
+      "planner": "scripts/ci/action-repair-engineering.mjs",
+      "sandbox": "scripts/ci/action-repair-sandbox.mjs"
+    },
+    "certification": false,
+    "greenAuthority": false
   }
 }
