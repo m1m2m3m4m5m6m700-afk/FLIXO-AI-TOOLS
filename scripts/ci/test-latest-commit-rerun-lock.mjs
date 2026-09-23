@@ -40,7 +40,7 @@ assert.doesNotMatch(supersession, /gh api "repos\/\$GITHUB_REPOSITORY\/pulls\/\$
 assert.match(supersession, /CANCEL_STALE_RUN/u);
 assert.match(supersession, /\.status == "queued" or \.status == "pending"/u);
 assert.match(supersession, /KEEP_STARTED_(?:RUN|STALE_RUN)/u);
-assert.doesNotMatch(supersession, /"FLIXO Agent Repair Heartbeat").*return 0/);
+assert.doesNotMatch(supersession, /"FLIXO Agent Repair Heartbeat"\)\s*[\r\n]+\s*return 0/u);
 assert.match(supersession, /FLIXO Agent Repair Heartbeat/u);
 assert.match(supersession, /queued.*pending/u);
 assert.match(supersession, /Heartbeat.*supersedable|supersedable.*Heartbeat/u);
