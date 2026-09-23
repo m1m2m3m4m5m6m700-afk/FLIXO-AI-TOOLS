@@ -289,6 +289,7 @@ export function ToolWorkbench<P>({
     <div lang={locale} dir={locale.toLowerCase().startsWith('ar') ? 'rtl' : 'ltr'} className="flixo-tool-page" data-tool-id={toolId} data-flixo-i18n-root>
       <header className="flixo-tool-topbar">
         <div className="flixo-tool-topbar-group">
+          <img className="flixo-tool-brand-mark" src="/flixo-brand-mark.webp" alt="FLIXO" width={34} height={34} />
           <button type="button" className="flixo-tool-back" title={locale.toLowerCase().startsWith('ar') ? 'عودة' : 'Back'} onClick={() => window.history.back()}>‹</button>
           <div className="flixo-tool-id">
             <strong>{title}</strong>
