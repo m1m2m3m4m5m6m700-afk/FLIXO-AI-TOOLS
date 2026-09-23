@@ -65,7 +65,13 @@
     "wakeDispatcher": "CANONICAL_AGENT_REPAIR_SUPERVISOR",
     "wakeRequiresExactSha": true,
     "wakeDoesNotGrantMutation": true,
-    "wakeDoesNotGrantPush": true
+    "wakeDoesNotGrantPush": true,
+    "flixo10SystemScope": "FULL_REPOSITORY_AND_AUTOMATION_SYSTEM",
+    "pushSeatPolicy": "FIRST_CONNECTED_FLIXO10_WINS_IMMUTABLE_UNTIL_TASK_COMPLETION",
+    "pushSeatClaim": "CANONICAL_COORDINATION_CONTROL_PLANE",
+    "pushSeatTakeover": "FORBIDDEN",
+    "pushSeatAbandonment": "FORBIDDEN",
+    "parallelProposalMerge": "SINGLE_PUSH_INTEGRATOR"
   },
   "workers": [
     {
@@ -1062,5 +1068,105 @@
     "counterexampleBlocksCertification": true,
     "certifierCannotPush": true,
     "certifierCannotMutate": true
+  },
+  "flixo10Team": {
+    "protocol": "FLIXO10-FULL-SYSTEM-REPAIR-v1",
+    "count": 10,
+    "ids": [
+      "FLIXO1",
+      "FLIXO2",
+      "FLIXO3",
+      "FLIXO4",
+      "FLIXO5",
+      "FLIXO6",
+      "FLIXO7",
+      "FLIXO8",
+      "FLIXO9",
+      "FLIXO10"
+    ],
+    "architecture": "ONE_SHARED_COGNITIVE_KERNEL_WITH_ROLE_LENSES",
+    "systemScope": "FULL_REPOSITORY_AND_AUTOMATION_SYSTEM",
+    "workflow": "READ→DIAGNOSE→WRITE_PROPOSAL→CHALLENGE→HANDOFF",
+    "proposalPolicy": "ALL_TEN_MAY_WRITE_PROPOSAL_ONLY",
+    "proposalMutationAuthority": false,
+    "pushSeat": {
+      "type": "DYNAMIC_FIRST_CONNECTED",
+      "claimCommand": "push-seat-claim",
+      "heartbeatCommand": "push-seat-heartbeat",
+      "statusCommand": "push-seat-status",
+      "sameTaskOnly": true,
+      "sameExactShaRequired": true,
+      "firstSuccessfulClaimWins": true,
+      "immutableOwnerUntilTaskCompletion": true,
+      "peerTakeover": false,
+      "automaticReassignment": false,
+      "abandonmentForbidden": true,
+      "mergeParallelProposals": true,
+      "conflictPolicy": "FAIL_CLOSED_RECONCILE_ON_CURRENT_EXACT_SHA",
+      "publicationPath": "ASSISTANT_CONTROLLER_GUARDED_PUBLICATION",
+      "branch": "execution"
+    },
+    "seats": [
+      {
+        "id": "FLIXO1",
+        "legacyRole": "ACTION-TWIN-1",
+        "systemLens": "WHOLE_SYSTEM_RCA_AND_ARCHITECTURE"
+      },
+      {
+        "id": "FLIXO2",
+        "legacyRole": "ACTION-TWIN-2",
+        "systemLens": "WHOLE_SYSTEM_CODE_AND_RUNTIME"
+      },
+      {
+        "id": "FLIXO3",
+        "legacyRole": "ACTION-INDEX",
+        "systemLens": "WHOLE_SYSTEM_TEST_AND_CONTRACT"
+      },
+      {
+        "id": "FLIXO4",
+        "legacyRole": "ACTION-WISE",
+        "systemLens": "WHOLE_SYSTEM_CI_AND_WORKFLOW"
+      },
+      {
+        "id": "FLIXO5",
+        "legacyRole": "ACTION-RCA-3",
+        "systemLens": "WHOLE_SYSTEM_SECURITY_AND_CONTROL_PLANE"
+      },
+      {
+        "id": "FLIXO6",
+        "legacyRole": "ACTION-IMPACT-4",
+        "systemLens": "WHOLE_SYSTEM_BROWSER_AND_CLIENT_RUNTIME"
+      },
+      {
+        "id": "FLIXO7",
+        "legacyRole": "ACTION-SECURITY-5",
+        "systemLens": "WHOLE_SYSTEM_DEPENDENCY_BUILD_AND_PERFORMANCE"
+      },
+      {
+        "id": "FLIXO8",
+        "legacyRole": "ACTION-REGRESSION-6",
+        "systemLens": "WHOLE_SYSTEM_REPAIR_SYNTHESIS_AND_REGRESSION"
+      },
+      {
+        "id": "FLIXO9",
+        "legacyRole": "ACTION-SHA-7",
+        "systemLens": "WHOLE_SYSTEM_ADVERSARIAL_FALSE_GREEN_FALSIFICATION"
+      },
+      {
+        "id": "FLIXO10",
+        "legacyRole": "ACTION-CONVERGENCE-8",
+        "systemLens": "WHOLE_SYSTEM_FINAL_EVIDENCE_AND_CERTIFICATION_CHALLENGE"
+      }
+    ],
+    "pushOwnerResponsibilities": [
+      "claim first connected push seat atomically through canonical coordination control plane",
+      "collect all parallel proposals bound to same task and exact SHA",
+      "re-read current exact execution SHA before integration",
+      "merge compatible proposals into one candidate without silent overwrite",
+      "block and reconcile conflicting proposals instead of choosing by last-writer-wins",
+      "run targeted regression and required proof before guarded publication",
+      "retain ownership until canonical task completion",
+      "never abandon, self-release, or transfer the push seat to a peer"
+    ]
   }
 }
