@@ -19,6 +19,13 @@ const sha='a'.repeat(40);
 assert.equal(decideCapacity({activeRuntimeCount:5,provisionedRuntimeCount:10,queuedTasks:0,exactSha:sha}).action,'HOLD');
 assert.equal(decideCapacity({activeRuntimeCount:4,provisionedRuntimeCount:10,liveBots:4,exactSha:sha}).action,'RECOVER_TO_FLOOR');
 assert.equal(decideCapacity({activeRuntimeCount:5,provisionedRuntimeCount:10,queuedTasks:30,liveBots:5,exactSha:sha}).action,'SCALE_UP');
+assert.equal(decideCapacity({activeRuntimeCount:5,provisionedRuntimeCount:10,unresponsiveActiveRuntimeCount:1,liveBots:5,exactSha:sha}).action,'REPLACE_UNRESPONSIVE');
+const lazy=decideCapacity({activeRuntimeCount:10,provisionedRuntimeCount:10,unresponsiveActiveRuntimeCount:1,liveBots:10,exactSha:sha});
+assert.equal(lazy.action,'REQUEST_PROVISIONING');
+assert.equal(lazy.lazyBotDetected,true);
+assert.equal(lazy.replacementRequired,true);
+assert.equal(lazy.failClosed,true);
+
 assert.equal(decideCapacity({activeRuntimeCount:10,provisionedRuntimeCount:10,queuedTasks:50,liveBots:10,exactSha:sha}).action,'REQUEST_PROVISIONING');
 assert.equal(decideCapacity({activeRuntimeCount:500,provisionedRuntimeCount:500,queuedTasks:5000,liveBots:500,exactSha:sha}).desiredActiveRuntimeCount,500);
 const scale=decideCapacity({activeRuntimeCount:5,provisionedRuntimeCount:500,queuedTasks:20,liveBots:5,exactSha:sha});
