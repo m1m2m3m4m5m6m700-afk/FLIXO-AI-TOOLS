@@ -379,16 +379,53 @@ begin
       jsonb_build_object(
         'previousStatus', v_dispatch.status,
         'previousSessionId', v_dispatch.session_id,
-        'attempt', v_dispatch.attempts
+        'attempt', v_dispatch.attempts,
+        'recoveryVersion', 'v2'
       )
     );
 
     if v_dispatch.attempts >= 20 then
       update public.flix_council_dispatches
          set status = 'FAILED',
+             session_id = null,
+             lease_expires_at = null,
              last_error = 'LEASE_RECOVERY_ATTEMPTS_EXHAUSTED',
+             completed_at = now(),
              updated_at = now()
-       where dispatch_id = v_dispatch.dispatch_id;
+       where dispatch_id = v_dispatch.dispatch_id
+      returning * into v_dispatch;
+
+      insert into public.flix_council_events(
+        dispatch_id, account_id, event_type, exact_sha, payload
+      ) values (
+        v_dispatch.dispatch_id,
+        v_dispatch.recipient_account_id,
+        'FAILED',
+        v_dispatch.entry_sha,
+        jsonb_build_object(
+          'reason', 'LEASE_RECOVERY_ATTEMPTS_EXHAUSTED',
+          'attempts', v_dispatch.attempts,
+          'terminal', true
+        )
+      );
+
+      insert into public.flix_council_events(
+        dispatch_id, account_id, event_type, exact_sha, payload
+      ) values (
+        v_dispatch.dispatch_id,
+        v_dispatch.handoff_account_id,
+        'HANDOFF_READY',
+        v_dispatch.entry_sha,
+        jsonb_build_object(
+          'reason', 'LEASE_RECOVERY_ATTEMPTS_EXHAUSTED',
+          'sourceAccountId', v_dispatch.recipient_account_id,
+          'attempts', v_dispatch.attempts,
+          'terminal', true,
+          'requiredAction', 'SUPERVISOR_ESCALATION'
+        )
+      );
+
+      return next v_dispatch;
       continue;
     end if;
 
@@ -409,9 +446,29 @@ begin
     if not found then
       update public.flix_council_dispatches
          set status = 'FAILED',
+             session_id = null,
+             lease_expires_at = null,
              last_error = 'FALLBACK_ACCOUNT_INACTIVE',
+             completed_at = now(),
              updated_at = now()
-       where dispatch_id = v_dispatch.dispatch_id;
+       where dispatch_id = v_dispatch.dispatch_id
+      returning * into v_dispatch;
+
+      insert into public.flix_council_events(
+        dispatch_id, account_id, event_type, exact_sha, payload
+      ) values (
+        v_dispatch.dispatch_id,
+        v_dispatch.handoff_account_id,
+        'HANDOFF_READY',
+        v_dispatch.entry_sha,
+        jsonb_build_object(
+          'reason', 'FALLBACK_ACCOUNT_INACTIVE',
+          'terminal', true,
+          'requiredAction', 'SUPERVISOR_ESCALATION'
+        )
+      );
+
+      return next v_dispatch;
       continue;
     end if;
 
@@ -425,6 +482,21 @@ begin
            updated_at = now()
      where dispatch_id = v_dispatch.dispatch_id
     returning * into v_dispatch;
+
+    insert into public.flix_council_events(
+      dispatch_id, account_id, event_type, exact_sha, payload
+    ) values (
+      v_dispatch.dispatch_id,
+      v_dispatch.recipient_account_id,
+      'DISPATCHED',
+      v_dispatch.entry_sha,
+      jsonb_build_object(
+        'attempt', v_dispatch.attempts,
+        'fallback', true,
+        'automatic', true,
+        'recoveryVersion', 'v2'
+      )
+    );
 
     return next v_dispatch;
   end loop;
