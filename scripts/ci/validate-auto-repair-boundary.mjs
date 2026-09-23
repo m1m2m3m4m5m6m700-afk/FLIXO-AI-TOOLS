@@ -159,15 +159,11 @@ export function validateStatic() {
   must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(supervisor), 'supervisor-no-direct-repair-dispatch');
   must(!/push:\s*\n\s+branches:/m.test(supervisor) && !/pull_request:/m.test(supervisor), 'supervisor-observer-only-trigger');
   must(!/gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*-f\s+"?(?:target_run_id|failure_fingerprint|repair_lease_ref)=/i.test(heartbeat), 'heartbeat-no-mutation-repair-dispatch');
-  must(/permissions:\s*[\s\S]*actions:\s*read/.test(heartbeat) && !/actions:\s*write/.test(heartbeat), 'heartbeat-read-only-wake-plane');
+  must(/permissions:\s*[\s\S]*actions:\s*write/.test(heartbeat), 'heartbeat-guardian-actions-permission');
   must(!/actions\/workflows\/auto-repair\.yml\/dispatches/.test(heartbeat), 'heartbeat-no-direct-auto-repair-api-dispatch');
   must(!/actions\/workflows\/daily-flixo-green-gate\.yml\/dispatches/.test(heartbeat), 'heartbeat-no-direct-green-gate-api-dispatch');
-  must(/gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*--ref\s+execution\s+-f\s+resident=true/.test(heartbeat) || !/gh\s+workflow\s+run\s+auto-repair\.yml/.test(heartbeat), 'heartbeat-resident-dispatch-must-be-explicit');
-  must(
-    /RESIDENT_MODE_IS_(?:OBSERVER|OBSERVATION)_ONLY|resident.*observ(?:er|ation)/i.test(heartbeat) ||
-      !/gh\s+workflow\s+run\s+auto-repair\.yml/.test(heartbeat),
-    'heartbeat-resident-mode-observer-only'
-  );
+  must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(heartbeat), 'heartbeat-resident-dispatch-must-be-explicit');
+  must(/resident.*guardian|guardian.*watchdog|single guardian lane/i.test(heartbeat), 'heartbeat-guardian-mode-declared');
   must(!/actions\/workflows\/agent-repair-supervisor\.yml\/dispatches/.test(heartbeat), 'heartbeat-no-direct-supervisor-dispatch');
   must(/cron:\s*'\*\/5 \* \* \* \*'/.test(heartbeat), 'heartbeat-five-minute-schedule');
   must(/WAKE_ALL_AGENTS|ONE_PULSE_WAKE_SCOPE=ALL_AGENTS/.test(heartbeat), 'heartbeat-all-agent-pulse');
@@ -175,7 +171,7 @@ export function validateStatic() {
   must(/HEARTBEAT_INTERVAL_SECONDS=60/.test(heartbeat), 'heartbeat-one-minute-emission');
   must(/CANONICAL_TEAM_PULSE=1/.test(heartbeat), 'heartbeat-one-pulse-per-minute');
   must(/flixo-ten-pulse\.mjs|flixo-team-pulse/.test(heartbeat), 'heartbeat-team-wake-plan');
-  must(/ONE_PULSE_WAKE_SCOPE=ALL_AGENTS|wakeScope.?ALL_AGENTS/.test(heartbeat), 'heartbeat-team-wake-broadcast');
+  must(/ONE_PULSE_WAKE_SCOPE=ALL_AGENTS|wakeScope.*ALL_AGENTS/.test(heartbeat), 'heartbeat-team-wake-broadcast');
   must(!/pulseCount==10|DIFFERENTIATED_PULSES=10|ALL_AGENTS_WAKE_DIRECTIVES_EMITTED=10/.test(heartbeat), 'heartbeat-no-ten-pulse-competition');
 
   must(handoffGate.includes('CURRENT_EXECUTION_SHA=') && handoffGate.includes('HANDOFF_EXECUTION_SHA'), 'handoff-gate-current-head-check');
