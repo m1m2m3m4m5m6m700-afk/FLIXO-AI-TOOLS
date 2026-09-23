@@ -40,6 +40,7 @@ assert.equal(AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment.requiredBotCount
 assert.equal(AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment.postTaskState, 'READY_RESIDENT');
 assert.equal(AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment.journeyLogicalBotCount, 120);
 assert.equal(AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment.journeyCohortCount, 24);
+assert.equal(AGENT_LIVENESS_PROTOCOL.activeCohortCount,24);
 assert.equal(AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment.journeyCohortSize, 5);
 assert.equal(AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment.retainResidentUntilJourneyComplete, true);
 assert.equal(AGENT_LIVENESS_PROTOCOL.seatContinuityContract.minimumConnectedSeats,5);
@@ -174,7 +175,8 @@ assert.equal(sessionEnd.action,'RECOVER_AND_REDISPATCH');
 assert.equal(sessionEnd.taskRemainsOpen,true);
 assert.equal(sessionEnd.residentState,'ACTIVE_OR_RECOVERING');
 assert.throws(() => assertActiveRepairWindow({startedAt:new Date(Date.now()-44*60*1000).toISOString()}), /ACTIVE_WINDOW_NOT_COMPLETE/u);
-assert.throws(() => assertActiveRepairWindow({startedAt:new Date(Date.now()-61*60*1000).toISOString(), continuousStartedAt:new Date(Date.now()-60*60*1000+1000).toISOString()}), /ACTIVE_WINDOW_NOT_COMPLETE/u);\nassert.doesNotThrow(() => assertActiveRepairWindow({startedAt:new Date(Date.now()-70*60*1000).toISOString(), continuousStartedAt:new Date(Date.now()-60*60*1000-1000).toISOString()}));
+assert.throws(() => assertActiveRepairWindow({startedAt:new Date(Date.now()-61*60*1000).toISOString(), continuousStartedAt:new Date(Date.now()-60*60*1000+1000).toISOString()}), /ACTIVE_WINDOW_NOT_COMPLETE/u);
+assert.doesNotThrow(() => assertActiveRepairWindow({startedAt:new Date(Date.now()-70*60*1000).toISOString(), continuousStartedAt:new Date(Date.now()-60*60*1000-1000).toISOString()}));
 assert.throws(() => assertActiveRepairWindow({startedAt:new Date(Date.now()-60*60*1000).toISOString(), continuousStartedAt:new Date(Date.now()-44*60*1000).toISOString()}), /ACTIVE_WINDOW_NOT_COMPLETE/u);
 const greenEarly=sessionTerminationDirective({canonicalGreen:true,activeRepairWindowReached:false});
 assert.equal(greenEarly.action,'RECOVER_AND_CONTINUE');
