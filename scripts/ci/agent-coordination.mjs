@@ -391,7 +391,24 @@ if (command === 'task-create') {
 
 if (command === 'task-claim') {
   const taskId = requireArg('task'); const sessionId = requireArg('session'); const agentId = requireArg('agent');
-  const task = state.tasks[taskId]; if (!task) throw new Error(`Unknown task: ${taskId}`); if (!['READY', 'QUEUED'].includes(task.status)) throw new Error(`Task not claimable: ${task.status}`);
+  const task = state.tasks[taskId]; if (!task) throw new Error(`Unknown task: ${taskId}`);
+  const requestedFlixoAgent = String(agentId).trim().toUpperCase();
+  const activeWorkerAdmission = isFlixo10(requestedFlixoAgent)
+    ? evaluateWorkerClaim({
+      seat: activeWorkerSeatRecord(),
+      requestedAgent: requestedFlixoAgent,
+      taskId,
+      sessionId,
+      targetSha: sha(),
+    })
+    : null;
+  const failoverClaim = activeWorkerAdmission?.action === 'FAILOVER_CLAIM';
+  const claimableFreshTask = ['READY', 'QUEUED'].includes(task.status);
+  const claimableStaleWorkerTask = task.status === 'RUNNING' && failoverClaim;
+  if (!claimableFreshTask && !claimableStaleWorkerTask) {
+    if (task.status === 'RUNNING' && isFlixo10(requestedFlixoAgent)) throw new Error('FLIXO_ACTIVE_WORKER_GUARD_RUNNING_TASK_REQUIRES_STALE_FAILOVER');
+    throw new Error(`Task not claimable: ${task.status}`);
+  }
   if (!isCouncilPriorityTask(task) && hasPendingCouncilPriorityTask()) throw new Error('COORDINATION_COUNCIL_PRIORITY_BLOCK');
   for (const dep of task.dependsOn ?? []) if (state.tasks[dep]?.status !== 'DONE') throw new Error(`DEPENDENCY_BLOCK=${dep}`);
   assertOpenVisibility(task, sessionId, agentId);
@@ -408,16 +425,11 @@ if (command === 'task-claim') {
     if (inboundMessage.taskId !== taskId) throw new Error('COORDINATION_MESSAGE_TASK_MISMATCH');
     if (!overlap(task.scope ?? [], new Set(inboundMessage.scope ?? []))) throw new Error('COORDINATION_MESSAGE_SCOPE_MISMATCH');
   }
-  const requestedFlixoAgent = String(agentId).trim().toUpperCase();
-  const activeWorkerAdmission = FLIXO10_IDS.includes(requestedFlixoAgent)
-    ? evaluateWorkerClaim({
-      seat: activeWorkerSeatRecord(),
-      requestedAgent: requestedFlixoAgent,
-      taskId,
-      sessionId,
-      targetSha: sha(),
-    })
-    : null;
+  if (failoverClaim) {
+    const previousSessionId = activeWorkerSeatRecord()?.sessionId ?? null;
+    const previousSession = previousSessionId ? state.activeSessions[previousSessionId] : null;
+    if (previousSession) staleSessionRecord(previousSessionId, previousSession, 'ACTIVE_WORKER_HEARTBEAT_STALE_FAILOVER');
+  }
   initializeChairState({targetSha:sha()});
   reconcileDeadLeases({targetSha:sha()});
   let lockId = lock(sessionId, agentId, task.rca, task.scope);
