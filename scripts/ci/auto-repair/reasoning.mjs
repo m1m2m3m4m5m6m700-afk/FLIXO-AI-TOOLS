@@ -277,9 +277,14 @@ function blastRadius(features = [], rootCause = 'unknown') {
 }
 
 function adaptiveBudget({ attempts = 0, ambiguity = false, alternatives = 0, features = [] } = {}) {
-  const complexity = (ambiguity ? 2 : 0) + Math.min(3, alternatives) + Math.min(3, features.length);
-  const budget = Math.max(3, Math.min(12, 3 + attempts + complexity));
-  return { budget, failClosed: attempts >= 12, reason: { attempts, ambiguity, alternatives, features: features.length } };
+  const budget = 12;
+  return {
+    budget,
+    failClosed: attempts >= 12,
+    mode: 'FULL_ALWAYS',
+    noComplexityDowngrade: true,
+    reason: { attempts, ambiguity, alternatives, features: features.length, complexityIgnoredForDepth: true },
+  };
 }
 
 function selectTop(hypotheses) {
