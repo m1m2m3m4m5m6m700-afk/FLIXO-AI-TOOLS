@@ -57,7 +57,7 @@ export function ArHomePage() {
           copy={{
             badge: HOME_AR.badge,
             eyebrow: HOME_AR.eyebrow,
-            title: HOME_AR.heroTitle.replace(/<[^>]+>/g, ''),
+            title: HOME_AR.heroTitle.replaceAll('<', '').replaceAll('>', ''),
             lead: HOME_AR.heroLead,
             describe: HOME_AR.describe,
             workspace: 'مساحة عمل FLIXO الأساسية',

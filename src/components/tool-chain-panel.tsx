@@ -17,6 +17,7 @@ export function ToolChainPanel({ currentToolId }: { currentToolId?: string | nul
   const tools = useMemo(() => getReadyToolConfigs(), []);
   const selected = chain.map((step) => ({ step, tool: tools.find((tool) => tool.id === step.id) })).filter((item): item is { step: typeof chain[number]; tool: (typeof tools)[number] } => Boolean(item.tool));
   const copy = getToolUiCopy();
+  const safeDownloadName = result?.fileName.replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 128) || 'flixo-result';
 
   useEffect(() => () => { if (resultUrl) URL.revokeObjectURL(resultUrl); }, [resultUrl]);
 
@@ -109,7 +110,7 @@ export function ToolChainPanel({ currentToolId }: { currentToolId?: string | nul
             {result && resultUrl && (
               <div className="flixo-chain-panel__result">
                 <span>{copy.outputReady}: {result.fileName}</span>
-                <a href={resultUrl} download={result.fileName}>{copy.downloadResult}</a>
+                <a href={resultUrl} download={safeDownloadName}>{copy.downloadResult}</a>
               </div>
             )}
           </div>
