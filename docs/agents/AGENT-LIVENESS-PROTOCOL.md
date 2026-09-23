@@ -31,7 +31,7 @@
 
 ## المهل الحالية
 
-- Heartbeat: كل 5 دقائق.
+- Heartbeat: كل دقيقة واحدة.
 - Grace: دقيقتان.
 - Lease TTL: 15 دقيقة.
 - Progress window: 10 دقائق.
@@ -51,6 +51,12 @@
 اختبار العقد:
 `scripts/ci/test-agent-liveness-protocol.mjs`
 
+
+### Wake all-team rule
+
+أي بوت من فريق Actions وهو في حالة `ACTIVE` يملك **Wake signal** يمكنه إيقاظ الفريق كاملًا على نفس `taskId + failureFingerprint + exact target SHA`. الاستيقاظ يمر عبر `CANONICAL_AGENT_REPAIR_SUPERVISOR` ولا يمنح أي صلاحية mutation أو push. فقدان الـheartbeat يعيد الوكيل إلى `RECOVERING` ويعيد تشغيل نفس مسار Wake بدل إنشاء مسار إشراف ثانٍ.
+
+`ACTION-SHA-7` هو الخصم المستقل لـ`ACTION-CONVERGENCE-8` أثناء التصديق النهائي؛ أي counterexample صالح يمنع التصديق.
 
 ## Green-gated sleep
 
