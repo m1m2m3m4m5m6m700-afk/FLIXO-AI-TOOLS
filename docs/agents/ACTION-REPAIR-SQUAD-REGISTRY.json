@@ -62,14 +62,14 @@
     "heartbeatEveryMinutes": 1,
     "wakePolicy": "ONE_MINUTE_HEARTBEAT_WAKES_ALL_AGENTS",
     "wakeScope": "ALL_AGENTS",
-    "wakeDispatcher": "CANONICAL_AGENT_REPAIR_SUPERVISOR",
+    "wakeDispatcher": "CANONICAL_GREEN_GATE_AND_DURABLE_REPAIR_LEASE",
     "wakeRequiresExactSha": true,
     "wakeDoesNotGrantMutation": true,
     "wakeDoesNotGrantPush": true,
     "flixo10SystemScope": "FULL_REPOSITORY_AND_AUTOMATION_SYSTEM",
-    "pushSeatPolicy": "FIRST_CONNECTED_FLIXO10_WINS_IMMUTABLE_UNTIL_TASK_COMPLETION",
-    "pushSeatClaim": "CANONICAL_COORDINATION_CONTROL_PLANE",
-    "pushSeatTakeover": "FORBIDDEN",
+    "pushSeatPolicy": "ACTIVE_WORKER_ONLY_DURABLE_LEASE_UNTIL_TASK_COMPLETION",
+    "pushSeatClaim": "DURABLE_REPAIR_LEASE_FLIXO_WORKER_ASSIGNMENT",
+    "pushSeatTakeover": "ONLY_NEXT_FLIXO_AFTER_STALE_WORKER_HEARTBEAT",
     "pushSeatAbandonment": "FORBIDDEN",
     "parallelProposalMerge": "SINGLE_PUSH_INTEGRATOR",
     "pulseCountPerHeartbeat": 1,
@@ -99,7 +99,7 @@
       "failoverIntoSameTask": true,
       "workerSeatIsNotAProposalRace": true
     },
-    "workerPoolPurpose": "CONTINUITY_RESERVE_NOT_PARALLEL_EXECUTION"
+    "workerPoolPurpose": "TEN_IDENTITIES_FOR_CONTINUITY_ONE_ACTIVE_WORKER"
   },
   "workers": [
     {
