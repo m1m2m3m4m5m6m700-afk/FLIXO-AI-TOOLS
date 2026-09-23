@@ -55,11 +55,12 @@ export async function executePreparedExecution(
   if (inputFile.size <= 0) throw new Error('Execution is blocked because the input file is empty.');
 
   // Keep the canonical gate authoritative. The pipeline itself also performs per-step authorization.
-  for (const step of prepared.plan.steps) {
+  const firstStep = prepared.plan.steps[0];
+  if (firstStep) {
     await authorizeExecution({
       task: prepared.task,
-      capabilityId: step.toolId,
-      parameters: step.params ?? {},
+      capabilityId: firstStep.toolId,
+      parameters: firstStep.params ?? {},
       inputBlob: inputFile,
     });
   }
