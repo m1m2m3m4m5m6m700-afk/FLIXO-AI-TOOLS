@@ -1106,6 +1106,34 @@ jobs:
           echo "FLIXO_MASTER_REPAIR_PACKET=$FLIXO_MASTER_REPAIR_PACKET" >> "$GITHUB_ENV"
           echo 'MASTER_REPAIR_GATE=PASS'
 
+      - name: Enforce Repair Bot ×10 proof-carrying pre-mutation gate
+        id: ten_x_gate
+        if: steps.master_repair.outcome == 'success' && steps.strategy.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
+          FLIXO_REPAIR_STRATEGY_JSON: /tmp/flixo-repair-strategy.json
+          FLIXO_ROOT_PROOF_PATH: /tmp/action-root-cause-proof.json
+          FLIXO_RCA_MANIFEST_PATH: /tmp/flixo-rca-manifest.json
+          FLIXO_MASTER_REPAIR_PACKET: /tmp/flixo-master-repair-packet.json
+          FLIXO_TEN_X_GATE_PATH: /tmp/flixo-ten-x-repair-gate.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-ten-x-gate.mjs
+          test -s /tmp/flixo-ten-x-repair-gate.json
+          jq -e --arg sha "$FLIXO_EXPECTED_TARGET_SHA" '
+            .protocol=="FLIXO-TEN-X-REPAIR-GATE-v1"
+            and .authority=="PRE_MUTATION_PROOF_GATE_ONLY"
+            and .targetSha==$sha
+            and .readyForMutation==true
+            and .route=="BOUNDED_REPAIR"
+            and (.passes | length)==10
+            and (.completedPasses)==10
+          ' /tmp/flixo-ten-x-repair-gate.json >/dev/null
+          echo 'FLIXO_TEN_X_GATE=PASS'
+          echo "FLIXO_TEN_X_GATE_PATH=/tmp/flixo-ten-x-repair-gate.json" >> "$GITHUB_ENV"
       - name: Enforce divergent twin decision before mutation
         if: steps.strategy.outcome == 'success'
         run: |
@@ -1154,7 +1182,7 @@ jobs:
 
       - name: Execute adversarial repair convergence until both sides stabilize
         id: execute_repair
-        if: steps.master_repair.outcome == 'success' && steps.strategy.outcome == 'success' && steps.repair_v2.outcome == 'success'
+        if: steps.master_repair.outcome == 'success' && steps.ten_x_gate.outcome == 'success' && steps.strategy.outcome == 'success' && steps.repair_v2.outcome == 'success'
         env:
           FLIXO_TARGET_DIR: ${{ github.workspace }}
           FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
