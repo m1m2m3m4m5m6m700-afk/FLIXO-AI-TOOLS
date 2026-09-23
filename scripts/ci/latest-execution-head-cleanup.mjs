@@ -39,6 +39,22 @@ async function github(path, options = {}) {
   return body;
 }
 
+async function cancelRun(runId) {
+  try {
+    await github(`/repos/${repository}/actions/runs/${runId}/cancel`, {method: 'POST'});
+    return {cancelled: true, racedCompleted: false};
+  } catch (error) {
+    const message = String(error?.message ?? error);
+    if (!/GitHub API 409[\\s\\S]*Cannot cancel a workflow run that is completed/u.test(message)) throw error;
+    const current = await github(`/repos/${repository}/actions/runs/${runId}`);
+    if (String(current?.status ?? '') === 'completed') {
+      console.log(`STALE_RUN_CANCEL_RACE_ALREADY_COMPLETED id=${runId}`);
+      return {cancelled: false, racedCompleted: true};
+    }
+    throw error;
+  }
+}
+
 async function listAll(path, key) {
   const rows = [];
   for (let page = 1; page <= 100; page += 1) {
@@ -80,18 +96,18 @@ for (const run of runs) {
 
   if (!Number.isInteger(runId) || headBranch !== branch || headRepository !== repository) continue;
   if (disallowedHeartbeatEvent && status !== 'completed') {
-    await github(`/repos/${repository}/actions/runs/${runId}/cancel`, {method: 'POST'});
-    cancelled += 1;
-    summary.cancelledRuns.push({id: runId, sha: headSha, name, reason: 'DISALLOWED_HEARTBEAT_EVENT_PULL_REQUEST'});
+    const result = await cancelRun(runId);
+    if (result.cancelled) cancelled += 1;
+    summary.cancelledRuns.push({id: runId, sha: headSha, name, reason: 'DISALLOWED_HEARTBEAT_EVENT_PULL_REQUEST', racedCompleted: result.racedCompleted});
     console.log(`DISALLOWED_HEARTBEAT_EVENT_CANCELLED id=${runId} sha=${headSha} event=${event}`);
     continue;
   }
   if (headSha === latestSha) continue;
 
   if (status !== 'completed') {
-    await github(`/repos/${repository}/actions/runs/${runId}/cancel`, {method: 'POST'});
-    cancelled += 1;
-    summary.cancelledRuns.push({id: runId, sha: headSha, name});
+    const result = await cancelRun(runId);
+    if (result.cancelled) cancelled += 1;
+    summary.cancelledRuns.push({id: runId, sha: headSha, name, racedCompleted: result.racedCompleted});
     console.log(`STALE_RUN_CANCELLED id=${runId} sha=${headSha} name=${name}`);
     continue;
   }
