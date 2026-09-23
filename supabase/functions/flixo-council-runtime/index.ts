@@ -861,17 +861,72 @@ Deno.serve(async (req) => {
       const rows = await db("/rest/v1/rpc/council_recover_expired_dispatches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ p_limit: 10 }),
+        body: JSON.stringify({ p_limit: 25 }),
       }) as Array<Record<string, unknown>>;
-      return response({
-        ok: true,
-        recovered: (rows ?? []).map((row) => ({
+
+      const recovered = [];
+      for (const row of rows ?? []) {
+        const account = accountFrom(row.recipient_account_id);
+        const endpointEnv = accounts[account].endpointEnv;
+        const endpoint = endpointEnv ? (Deno.env.get(endpointEnv)?.trim() ?? "") : "";
+        const token = Deno.env.get(accounts[account].tokenEnv)?.trim() ?? "";
+
+        let push = { attempted: false, ok: false, reason: "POLL_ONLY" };
+        if (endpoint && token) {
+          push = { attempted: true, ok: false, reason: "UNSET" };
+          try {
+            const r = await fetch(endpoint, {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                authorization: "Bearer " + token,
+              },
+              body: JSON.stringify({
+                wakeType: "FLIXO_COUNCIL_WAKE_FALLBACK",
+                dispatchId: row.dispatch_id,
+                accountId: account,
+                exactSha: row.entry_sha,
+                taskId: row.task_id,
+                workPackageId: row.work_package_id,
+                attempts: row.attempts,
+                payload: row.payload ?? {},
+              }),
+              signal: AbortSignal.timeout(8000),
+            });
+            push.ok = r.ok;
+            push.reason = r.ok ? "DELIVERED" : "HTTP_" + r.status;
+          } catch (error) {
+            push.reason = error instanceof Error ? error.message : String(error);
+          }
+
+          if (!push.ok) {
+            await db("/rest/v1/flix_council_events", {
+              method: "POST",
+              headers: { "content-type": "application/json", prefer: "return=minimal" },
+              body: JSON.stringify({
+                dispatch_id: row.dispatch_id,
+                account_id: account,
+                event_type: "WAKE_PUSH_FAILED",
+                exact_sha: row.entry_sha,
+                payload: { reason: push.reason, source: "external-lease-recovery" },
+              }),
+            }).catch(() => null);
+          }
+        }
+
+        recovered.push({
           dispatchId: row.dispatch_id,
-          recipientAccountId: row.recipient_account_id,
+          recipientAccountId: account,
           attempts: row.attempts,
           entrySha: row.entry_sha,
           workPackageId: row.work_package_id,
-        })),
+          push,
+        });
+      }
+
+      return response({
+        ok: true,
+        recovered,
       }, 200, requestId);
     }
 
