@@ -237,6 +237,20 @@
       "src/components/FlixoAIAgent.tsx"
     ]
   },
+  "fullIntelligencePolicy": {
+    "protocol": "FLIXO-FULL-INTELLIGENCE-v1",
+    "mode": "FULL_ALWAYS",
+    "reasoningEffort": "MAXIMUM",
+    "noComplexityDowngrade": true,
+    "allReasoningLensesRequired": true,
+    "sharedLearningRequired": true,
+    "exactShaRequired": true,
+    "freshEvidenceRequired": true,
+    "failClosedOnUnknowns": true,
+    "resourceCeilingsRemainRoleBound": true,
+    "bootstrap": "scripts/ci/full-intelligence-policy.mjs",
+    "contractTest": "scripts/ci/test-full-intelligence-policy.mjs"
+  },
   "runtimeBridge": {
     "protocol": "FLIXO-COLLECTIVE-INTELLIGENCE-RUNTIME-v1",
     "source": "src/lib/agent/collective-intelligence.ts",
