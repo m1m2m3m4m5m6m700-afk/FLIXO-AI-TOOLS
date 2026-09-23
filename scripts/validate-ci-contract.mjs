@@ -97,7 +97,13 @@ const exactShaVerificationWorkflows = [
   ['test-impact-execution.yml', impactExecutionWorkflow],
   ['repository-security-baseline.yml', securityBaselineWorkflow],
 ];
-const nonCancellingExactShaEvidence = new Set(['ci.yml', 'test-impact.yml']);
+const nonCancellingExactShaEvidence = new Set([
+  'ci.yml',
+  'wp0-trust-baseline.yml',
+  'test-impact.yml',
+  'test-impact-execution.yml',
+  'repository-security-baseline.yml',
+]);
 
 if (!/EXPECTED_SHA/.test(currentCommitGuard) ||
     !/EXPECTED_BRANCH/.test(currentCommitGuard) ||
