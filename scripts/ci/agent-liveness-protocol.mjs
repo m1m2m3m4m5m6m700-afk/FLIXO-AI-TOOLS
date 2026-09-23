@@ -56,6 +56,8 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   activeCohortHandoffPolicy: 'NEXT_5_READY_BEFORE_RELEASE',
   seatContinuityContract: Object.freeze({
     minimumConnectedSeats: 5,
+    minimumVerifiedResidentRuntimeSeats: 10,
+    requiredSurplusSeats: 5,
     heartbeatEveryMs: 60 * 1000,
     heartbeatGraceMs: 30 * 1000,
     staleAfterMs: 90 * 1000,
@@ -204,7 +206,7 @@ export function assertLivenessDefinition() {
   if (AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains.length !== 10 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.length !== 120 || new Set(AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.map((x) => x.botId)).size !== 120 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.some((x) => x.mutationAuthority !== false || x.certificationAuthority !== false || !x.skills.length)) throw new Error('AGENT_LIVENESS_LOGICAL_BOT_DEVELOPMENT_PROFILE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.activeCohortSize !== 5 || AGENT_LIVENESS_PROTOCOL.activeCohortCount !== 24 || AGENT_LIVENESS_PROTOCOL.activeCohortCommitmentMs !== 60 * 60 * 1000 || AGENT_LIVENESS_PROTOCOL.activeCohortRotationPolicy !== 'FIFO_5_OF_120_WITH_CYCLE_WRAP' || AGENT_LIVENESS_PROTOCOL.activeCohortHandoffPolicy !== 'NEXT_5_READY_BEFORE_RELEASE') throw new Error('AGENT_LIVENESS_FIVE_BOT_ROTATION_POLICY_INVALID');
   const continuity=AGENT_LIVENESS_PROTOCOL.seatContinuityContract;
-  if (!continuity || continuity.minimumConnectedSeats !== 5 || continuity.heartbeatEveryMs !== 60 * 1000 || continuity.heartbeatGraceMs !== 30 * 1000 || continuity.staleAfterMs !== 90 * 1000 || continuity.lazyBotAction !== 'IMMEDIATE_REPLACE_FROM_STAGED_OR_VERIFIED_PROVISIONED_RUNTIME' || continuity.seatDropBelowMinimumAction !== 'FAIL_CLOSED_AND_REPLACE' || continuity.heartbeatAckRequired !== true || continuity.generatedWakeIsNotAttendanceProof !== true) throw new Error('AGENT_LIVENESS_SEAT_CONTINUITY_CONTRACT_INVALID');
+  if (!continuity || continuity.minimumConnectedSeats !== 5 || continuity.minimumVerifiedResidentRuntimeSeats !== 10 || continuity.requiredSurplusSeats !== 5 || continuity.heartbeatEveryMs !== 60 * 1000 || continuity.heartbeatGraceMs !== 30 * 1000 || continuity.staleAfterMs !== 90 * 1000 || continuity.lazyBotAction !== 'IMMEDIATE_REPLACE_FROM_STAGED_OR_VERIFIED_PROVISIONED_RUNTIME' || continuity.seatDropBelowMinimumAction !== 'FAIL_CLOSED_AND_REPLACE' || continuity.heartbeatAckRequired !== true || continuity.generatedWakeIsNotAttendanceProof !== true) throw new Error('AGENT_LIVENESS_SEAT_CONTINUITY_CONTRACT_INVALID');
   const residency=AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment;
   if (!residency || residency.requiredBotCount !== 5 || residency.postTaskState !== 'READY_RESIDENT' || residency.journeyLogicalBotCount !== 120 || residency.journeyCohortCount !== 24 || residency.journeyCohortSize !== 5 || residency.retainResidentAfterTaskClose !== true || residency.retainResidentUntilJourneyComplete !== true || residency.sleepDuringJourney !== false || residency.idleDuringJourney !== false || residency.withdrawalDuringJourney !== false) throw new Error('AGENT_LIVENESS_FIVE_BOT_RESIDENCY_COMMITMENT_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.activeRuntimeCount !== 5 || AGENT_LIVENESS_PROTOCOL.activeRuntimeIds.length !== 5 || AGENT_LIVENESS_PROTOCOL.stagedRuntimeCount !== 5 || AGENT_LIVENESS_PROTOCOL.stagedRuntimeIds.length !== 5) throw new Error('AGENT_LIVENESS_ACTIVE_RUNTIME_CAPACITY_INVALID');
