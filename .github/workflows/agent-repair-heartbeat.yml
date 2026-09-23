@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: flixo-agent-repair-heartbeat-resident-main
+  group: flixo-agent-repair-heartbeat-${{ github.ref_name }}
   # Started residency runs are never cancelled. Completion re-arms the next run;
   # the five-minute schedule remains the independent fallback wake.
   cancel-in-progress: false
