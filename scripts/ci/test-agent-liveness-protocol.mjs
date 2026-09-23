@@ -159,7 +159,7 @@ assert.match(heartbeatWorkflow,/RESIDENT_SLEEP=false/u);
 assert.match(heartbeatWorkflow,/RESIDENT_IDLE=false/u);
 assert.match(heartbeatWorkflow,/CONTINUOUS_REARM=WORKFLOW_DISPATCH_ON_EXECUTION/u);
 assert.match(heartbeatWorkflow,/group: \$\{\{ github\.ref_name == 'execution'/u);
-assert.match(heartbeatWorkflow,/cancel-in-progress:\s*true/u);
+assert.match(heartbeatWorkflow,/cancel-in-progress:\s*false/u);
 assert.match(heartbeatWorkflow,/headSha --jq --arg sha "\$EXECUTION_SHA"/u);
 assert.match(heartbeatWorkflow,/OTHER_RESIDENTS=.*headSha --jq --arg current "\$GITHUB_RUN_ID" --arg sha "\$CURRENT_SHA"/u);
 assert.match(heartbeatWorkflow,/refs\/heads\/execution/u);
