@@ -14,7 +14,7 @@ const AgentFileSchema = z.object({
 
 export const AgentRequestSchema = z.object({
   locale: z.string().trim().min(2).max(16).optional(),
-  messages: z.array(ChatMessageSchema).max(24).optional(),
+  messages: z.array(ChatMessageSchema).max(120).optional(),
   file: AgentFileSchema.nullable().optional(),
   activePlan: z.unknown().nullable().optional(),
   activeCommand: z.string().trim().max(2_000).nullable().optional(),
