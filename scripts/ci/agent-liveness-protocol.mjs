@@ -25,7 +25,7 @@ const LOGICAL_BOT_DEVELOPMENT_PROFILES = Object.freeze(LOGICAL_BOT_IDS.map((botI
   });
 }));
 export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
-  schemaVersion: 4,
+  schemaVersion: 5,
   contractRank: 'SUPREME_AUTOMATION_RESIDENCY',
   authorityScope: 'ENTIRE_REPAIR_AUTOMATION_PLANE',
   protocolId: 'AGENT_LIVENESS_PROTOCOL',
@@ -163,8 +163,8 @@ export function assertLivenessDefinition() {
   if (AGENT_LIVENESS_PROTOCOL.heartbeatWakeScope !== 'ALL_AGENTS') throw new Error('AGENT_LIVENESS_HEARTBEAT_WAKE_SCOPE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.pulseEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_PULSE_NOT_ONE_MINUTE');
   if (AGENT_LIVENESS_PROTOCOL.logicalBotCount !== 100 || AGENT_LIVENESS_PROTOCOL.logicalBotIds.length !== 100 || AGENT_LIVENESS_PROTOCOL.logicalBotIds[0] !== 'CELL-001' || AGENT_LIVENESS_PROTOCOL.logicalBotIds[99] !== 'CELL-100' || new Set(AGENT_LIVENESS_PROTOCOL.logicalBotIds).size !== 100) throw new Error('AGENT_LIVENESS_100_LOGICAL_BOT_ROSTER_INVALID');
-  if (AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains.length !== 10 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.length !== 100 || new Set(AGENT_LIVENESS_PROTOCOL.residentBotDevelopmentProfiles.map((x) => x.botId)).size !== 100 || AGENT_LIVENESS_PROTOCOL.residentBotDevelopmentProfiles.some((x) => x.mutationAuthority !== false || x.certificationAuthority !== false || !x.skills.length)) throw new Error('AGENT_LIVENESS_LOGICAL_BOT_DEVELOPMENT_PROFILE_INVALID');
-  for (const domain of AGENT_LIVENESS_PROTOCOL.residentBotDevelopmentDomains) if (AGENT_LIVENESS_PROTOCOL.residentBotDevelopmentProfiles.filter((x) => x.domainId === domain.id).length !== 10) throw new Error('AGENT_LIVENESS_BOT_DOMAIN_DISTRIBUTION_INVALID=' + domain.id);
+  if (AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains.length !== 10 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.length !== 100 || new Set(AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.map((x) => x.botId)).size !== 100 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.some((x) => x.mutationAuthority !== false || x.certificationAuthority !== false || !x.skills.length)) throw new Error('AGENT_LIVENESS_LOGICAL_BOT_DEVELOPMENT_PROFILE_INVALID');
+  for (const domain of AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains) if (AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.filter((x) => x.domainId === domain.id).length !== 10) throw new Error('AGENT_LIVENESS_BOT_DOMAIN_DISTRIBUTION_INVALID=' + domain.id);
   if (AGENT_LIVENESS_PROTOCOL.pulseProfiles.length !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.botId)).size !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.pulseType)).size !== 10) throw new Error('AGENT_LIVENESS_PULSE_PROFILE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.idleSweepMode !== 'FULL_REPOSITORY_READ_ONLY_SCAN' || AGENT_LIVENESS_PROTOCOL.idleSweepPlanLedger !== 'المهام.md') throw new Error('AGENT_LIVENESS_IDLE_SWEEP_POLICY_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.actionRepairTeamSize !== 10 || AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length !== 10) throw new Error('AGENT_LIVENESS_TEAM_SIZE_INVALID');
