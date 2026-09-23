@@ -10,8 +10,11 @@ const threshold=Number(env('FLIXO_WP_BURST_THRESHOLD','8'));
 const bursts=[]; let b=[];
 for(const row of rows){if(!b.length||row.time-b[b.length-1].time<=windowMs)b.push(row);else{if(b.length>=threshold)bursts.push(b);b=[row];}}
 if(b.length>=threshold)bursts.push(b);
-const marker=/(?:\[WP:WP-[A-Za-z0-9][A-Za-z0-9._-]*\]|(?:^|\s)WP-[A-Za-z0-9][A-Za-z0-9._-]*(?:\s|$))/;
-const bad=bursts.filter(x=>x.some(c=>!marker.test(c.subject)));
-const out={schemaVersion:1,policy:'ONE_WORK_PACKAGE_PER_REPAIR_BURST',baseSha:base,headSha:head,commitCount:rows.length,burstThreshold:threshold,burstCount:bursts.length,bursts:bursts.map(x=>({count:x.length,firstSha:x[0].sha,lastSha:x.at(-1).sha,allTagged:x.every(c=>marker.test(c.subject))})),violations:bad.length,status:bad.length?'FAIL':'PASS'};
+const markerSingle=/(?:\\[WP:(WP-[A-Za-z0-9][A-Za-z0-9._-]*)\\]|(?:^|\\s)(WP-[A-Za-z0-9][A-Za-z0-9._-]*)(?:\\s|$))/;
+const markerGlobal=/(?:\\[WP:(WP-[A-Za-z0-9][A-Za-z0-9._-]*)\\]|(?:^|\\s)(WP-[A-Za-z0-9][A-Za-z0-9._-]*)(?=\\s|$))/g;
+const extractWorkPackages=subject=>[...String(subject).matchAll(markerGlobal)].map(m=>m[1]||m[2]).filter(Boolean);
+const burstWorkPackages=burst=>[...new Set(burst.flatMap(c=>extractWorkPackages(c.subject)))];
+const bad=bursts.filter(x=>burstWorkPackages(x).length!==1);
+const out={schemaVersion:1,policy:'ONE_WORK_PACKAGE_PER_REPAIR_BURST',baseSha:base,headSha:head,commitCount:rows.length,burstThreshold:threshold,burstCount:bursts.length,bursts:bursts.map(x=>({count:x.length,firstSha:x[0].sha,lastSha:x.at(-1).sha,workPackageIds:burstWorkPackages(x),allTagged:x.every(c=>markerSingle.test(c.subject))})),violations:bad.length,status:bad.length?'FAIL':'PASS'};
 console.log(JSON.stringify(out,null,2));
-if(bad.length)throw new Error('WORK_PACKAGE_COMMIT_BURST_REQUIRES_WP_TAG');
+if(bad.length)throw new Error('WORK_PACKAGE_BURST_REQUIRES_EXACTLY_ONE_WP_TAG');
