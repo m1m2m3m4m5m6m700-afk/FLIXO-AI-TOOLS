@@ -27,10 +27,11 @@ jobs:
   deploy:
     name: Deploy exact SHA to Cloudflare flixoai
     if: >-
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main' &&
-       github.event.workflow_run.event == 'push')
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch') ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.event == 'push'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
