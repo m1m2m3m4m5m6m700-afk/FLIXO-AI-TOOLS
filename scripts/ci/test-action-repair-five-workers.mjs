@@ -14,6 +14,13 @@ assert.equal(registry.repairExecutor.protocolActor,'actionRepairBot');
 assert.equal(registry.repairExecutor.mutationAuthority,true);
 assert.equal(registry.repairExecutor.executionAuthority,'SOURCE_MUTATION_VIA_REPAIR_PROTOCOL');
 assert.equal(registry.repairExecutor.maxAttemptsPerFingerprint,1000000);
+assert.equal(registry.lastSeatChallenge.certifier,'ACTION-CONVERGENCE-8');
+assert.equal(registry.lastSeatChallenge.adversary,'ACTION-SHA-7');
+assert.equal(registry.lastSeatChallenge.counterexampleBlocksCertification,true);
+assert.equal(registry.workers.find(x=>x.id==='ACTION-SHA-7').role,'ACTION_CERTIFIER_ADVERSARY');
+assert.equal(registry.workers.find(x=>x.id==='ACTION-CONVERGENCE-8').role,'ACTION_FINAL_CERTIFIER');
+assert.equal(registry.workers.find(x=>x.id==='ACTION-SHA-7').peerOf,'ACTION-CONVERGENCE-8');
+assert.equal(registry.workers.find(x=>x.id==='ACTION-CONVERGENCE-8').adversarialPeer,'ACTION-SHA-7');
 const expected={
  'ACTION-TWIN-1':'ACTION_REPAIR_TWIN_A',
  'ACTION-TWIN-2':'ACTION_REPAIR_TWIN_B',
@@ -79,4 +86,4 @@ execFileSync('node',[...base,'--role=select','--historical='+historical,'--twin-
 const chosen=JSON.parse(fs.readFileSync(select,'utf8'));
 assert.equal(chosen.botId,'ACTION-WISE');
 assert.equal(chosen.selection.disposition,'SELECTED');
-console.log('TEN_ACTION_REPAIR_CLONE_SQUAD=PASS');
+console.log('TEN_ACTION_REPAIR_CLONE_SQUAD_WITH_FINAL_CERTIFIER_ADVERSARY=PASS');
