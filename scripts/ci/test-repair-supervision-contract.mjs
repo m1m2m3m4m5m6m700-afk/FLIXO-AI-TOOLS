@@ -162,6 +162,14 @@ assert.match(heartbeatWorkflow, /if: github\.event_name == 'workflow_dispatch' &
 assert.doesNotMatch(heartbeatWorkflow, /cron: '\*\/1 \* \* \* \*'/);
 assert.match(heartbeatWorkflow, /flixo-ten-pulse\.mjs/);
 assert.match(heartbeatWorkflow, /action-repair-five-workers\.mjs --role=wake/);
+assert.match(heartbeatWorkflow, /\.head_sha == \$sha/);
+assert.doesNotMatch(heartbeatWorkflow, /\.head_branch == \"execution\"\)\]/);
+assert.doesNotMatch(heartbeatWorkflow, /IDLE_MODE=FULL_REPOSITORY_READ_ONLY_SCAN/);
+assert.match(heartbeatWorkflow, /RESIDENT_MODE=FULL_REPOSITORY_READ_ONLY_SCAN/);
+assert.match(watchdog, /SOURCE_EXECUTION_SHA.*steps\.source\.outputs\.execution_sha/);
+assert.match(watchdog, /\.headSha == \$sha/);
+assert.match(watchdog, /RESIDENT_HEARTBEAT_DISPATCH_VERIFIED=true/);
+assert.match(dailyGate, /concurrency:[\\s\\S]*cancel-in-progress:\s*false/);
 assert.match(heartbeatWorkflow, /daily-flixo-green-gate\.yml/);
 assert.match(wakeRelay, /name: FLIXO Council Wake Push Relay/);
 assert.match(wakeRelay, /actions: write/);
