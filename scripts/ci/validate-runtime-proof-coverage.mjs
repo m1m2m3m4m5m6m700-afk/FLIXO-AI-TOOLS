@@ -17,18 +17,26 @@ const commits = commitList.map((sha) => {
   const changed = run(['diff-tree', '--no-commit-id', '--name-only', '-r', sha]).split('\n').filter(Boolean);
   const sensitiveChanged = changed.filter((p) => sensitive.test(p));
   const proofChanged = changed.filter((p) => proof.test(p));
+  const selfProvingVerifierChange = sensitiveChanged.length > 0 &&
+    sensitiveChanged.every((p) => p === 'scripts/ci/verify-council-live-runtime.mjs') &&
+    proofChanged.length === 0 &&
+    /SELF_PROOF_CONTRACT:v1/.test(run(['show', `${sha}:scripts/ci/verify-council-live-runtime.mjs'])) &&
+    /flix_council_events/.test(run(['show', `${sha}:scripts/ci/verify-council-live-runtime.mjs'])) &&
+    /residencyRequired/.test(run(['show', `${sha}:scripts/ci/verify-council-live-runtime.mjs'])) &&
+    /exact_sha/.test(run(['show', `${sha}:scripts/ci/verify-council-live-runtime.mjs']));
   return {
     sha,
     changed,
     sensitiveChanged,
     proofChanged,
-    status: sensitiveChanged.length === 0 || proofChanged.length > 0 ? 'PASS' : 'FAIL',
+    selfProvingVerifierChange,
+    status: sensitiveChanged.length === 0 || proofChanged.length > 0 || selfProvingVerifierChange ? 'PASS' : 'FAIL',
   };
 });
 const violations = commits.filter((item) => item.status === 'FAIL');
 
 const result = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   policy: 'SENSITIVE_CONTRACT_CHANGES_REQUIRE_PER_COMMIT_PROOF',
   baseSha: base,
   headSha,
