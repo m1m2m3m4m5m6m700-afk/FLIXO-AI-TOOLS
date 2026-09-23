@@ -84,14 +84,20 @@
   ],
   "monitoring": {
     "canonicalWakeWorkflow": ".github/workflows/daily-flixo-green-gate.yml",
-    "wakeEveryMinutes": 5,
-    "cron": "*/5 * * * *",
+    "wakeEveryMinutes": 1,
+    "cron": "*/1 * * * *",
     "action": "OBSERVE_STATE_DETECT_RED_WAKE_OR_CONTINUE_REPAIR",
     "exactShaBound": true,
     "noPassiveSleep": true,
     "heartbeatWorkflow": ".github/workflows/agent-repair-heartbeat.yml",
     "wakeComplianceScript": "scripts/ci/wake-compliance.mjs",
     "wakeComplianceTest": "scripts/ci/test-wake-compliance.mjs",
-    "allowedGapMs": 420000
+    "allowedGapMs": 90000,
+    "heartbeatEveryMinutes": 1,
+    "wakePolicy": "ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL",
+    "wakeScope": "ALL_ACTION_REPAIR_TEAM",
+    "wakeDispatcher": "CANONICAL_AGENT_REPAIR_SUPERVISOR",
+    "wakeDoesNotGrantMutation": true,
+    "wakeDoesNotGrantPush": true
   }
 }
