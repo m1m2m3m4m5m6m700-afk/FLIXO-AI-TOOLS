@@ -95,7 +95,7 @@ jobs:
           done
           echo 'HEARTBEAT_INTERVAL_SECONDS=60'
           echo 'HEARTBEAT_WINDOW_SECONDS=2700'
-echo 'HEARTBEAT_MINIMUM_ACTIVE_WINDOW_SECONDS=2700'
+          echo 'HEARTBEAT_MINIMUM_ACTIVE_WINDOW_SECONDS=2700'
       - name: Verify five-minute heartbeat compliance
         id: heartbeat_compliance
         env:
