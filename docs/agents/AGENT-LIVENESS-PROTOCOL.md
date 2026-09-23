@@ -29,6 +29,9 @@
 - انتهاء Workflow أو timeout أو crash أو provider failure لا يُعتبر إغلاقًا؛ يؤدي إلى Wake/Recovery/Re-Claim.
 - بعد `COMPLETE` المثبت يستمر Supervisor/Heartbeat كطبقة جاهزة للعمل التالي؛ إتمام Task لا يعني توقف منظومة الوكيل.
 
+## قاعدة إيقاظ مرتبطة بالمهمة
+وجود مهمة غير مغلقة في `المهام.md` أو Mission Continuity مفتوحة يمنع التحول إلى `IDLE_READ_ONLY_SCAN`. عند غياب Run نشط مع وجود عمل مفتوح، يجب أن تكون الحالة `ACTIVE` وتُصدر المنظومة Wake جديدًا، ثم تُنشئ FLIXO10 resident fanout على نفس Exact-SHA. حالة الطابور `queued/pending` لا تُعامل كدليل على النوم، لكنها أيضًا لا تُعتبر نشاطًا كافيًا لإغلاق المهمة؛ يجب استمرار الـbootstrap/reclaim حتى يظهر تنفيذ فعلي أو `BLOCKED_EXTERNAL` موثق.
+
 ## المهل الحالية
 
 - Heartbeat: كل دقيقة واحدة.
