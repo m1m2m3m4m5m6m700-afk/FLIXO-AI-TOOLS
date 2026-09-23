@@ -9,6 +9,9 @@ on:
   # Trusted recovery floor; scheduled runs execute from the default branch and bootstrap execution.
   schedule:
     - cron: '*/5 * * * *'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
