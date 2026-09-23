@@ -33,7 +33,7 @@ const differentiatedPulse={
   wakeScope:'ALL_AGENTS',
   residentWakeCount:RESIDENT_IDS.length,
 };
-const result={schemaVersion:2,protocol:'FLIXO-TEAM-PULSE-CONTROLLER-v2',minuteKey,runId,targetSha:sha,activeOperation,activeWorker,mode:activeOperation?'ACTIVE_OPERATION':'FULL_REPOSITORY_READ_ONLY_SCAN',pulseCount:1,pulses:[{...differentiatedPulse,pulseId:'TEAM-'+minuteKey.replace(/[^0-9]/gu,'')+'-'+runId,pulseOrdinal:1,cadence:'EVERY_MINUTE',generatedAt:new Date().toISOString()}],allAgentsWakeCount:RESIDENT_IDS.length + IDS.length,residentWakeCount:RESIDENT_IDS.length,teamMemberCount:IDS.length,residentBotCount:RESIDENT_IDS.length,actionRepairWakeCount:IDS.length,residentBotIds:[...RESIDENT_IDS],developmentProfiles:DEVELOPMENT_PROFILES,readOnlyWhenIdle:true,sourceMutationAllowed:false,onePulsePerHeartbeat:true};
+const result={schemaVersion:2,protocol:'FLIXO-TEAM-PULSE-CONTROLLER-v2',minuteKey,runId,targetSha:sha,activeOperation,activeWorker,mode:activeOperation?'ACTIVE_OPERATION':'READY_RESIDENT',pulseCount:1,pulses:[{...differentiatedPulse,pulseId:'TEAM-'+minuteKey.replace(/[^0-9]/gu,'')+'-'+runId,pulseOrdinal:1,cadence:'EVERY_MINUTE',generatedAt:new Date().toISOString()}],allAgentsWakeCount:RESIDENT_IDS.length + IDS.length,residentWakeCount:RESIDENT_IDS.length,teamMemberCount:IDS.length,residentBotCount:RESIDENT_IDS.length,actionRepairWakeCount:IDS.length,residentBotIds:[...RESIDENT_IDS],developmentProfiles:DEVELOPMENT_PROFILES,residentState:activeOperation?'ACTIVE_OPERATION':'READY_RESIDENT',sleep:false,idle:false,readOnlyWhenResident:true,sourceMutationAllowed:false,onePulsePerHeartbeat:true};
 fs.mkdirSync(path.dirname(output),{recursive:true});
 fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n');
 console.log(JSON.stringify({status:'PASS',pulseCount:1,teamMemberCount:IDS.length,mode:result.mode,output},null,2));
@@ -82,7 +82,7 @@ if(process.argv[2]==='scan-plan'){
   const planText=[
     '# FLIXO BOT — AUTONOMOUS FULL-REPOSITORY DEVELOPMENT PLAN',
     '',
-    'MODE: READ_ONLY_SWEEP_WHEN_NO_ACTIVE_OPERATION',
+    'MODE: RESIDENT_READ_ONLY_SWEEP_WHEN_NO_ACTIVE_OPERATION',
     'AUTHORITY: FLIXO-BOT-BRAIN-v1 / CANONICAL CONTROL PLANE',
     'SOURCE_SHA: '+sha,
     'GENERATED_AT: '+new Date().toISOString(),
@@ -104,7 +104,7 @@ if(process.argv[2]==='scan-plan'){
     findings.length>80?'- … '+(findings.length-80)+' additional findings recorded in the sweep artifact.':[],
     '',
     '## Execution rule',
-    'This plan is advisory until a canonical task is admitted through the task ledger. No idle sweep may mutate application source, tests, workflows, main, or protected control-plane state.',
+    'This plan is advisory until a canonical task is admitted through the task ledger. No resident read-only sweep may mutate application source, tests, workflows, main, or protected control-plane state.',
     '',
   ].join('\n');
   const planOut=arg('plan-output','/tmp/flixo-full-repository-development-plan.md');
