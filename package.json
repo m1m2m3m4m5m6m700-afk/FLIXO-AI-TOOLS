@@ -254,7 +254,9 @@
     "test:agent-cognitive-closed-loop": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-cognitive-closed-loop.mjs",
     "test:agent-execution-agent-clone": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-execution-agent-clone.mjs",
     "test:agent-collective-intelligence": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-collective-intelligence.mjs",
-    "test:full-intelligence-policy": "node scripts/ci/test-full-intelligence-policy.mjs"
+    "test:full-intelligence-policy": "node scripts/ci/test-full-intelligence-policy.mjs",
+    "test:action-repair-ten": "node scripts/ci/test-action-repair-five-workers.mjs",
+    "action-repair:ten": "node scripts/ci/action-repair-five-workers.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
