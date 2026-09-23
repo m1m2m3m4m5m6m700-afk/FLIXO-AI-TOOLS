@@ -1,12 +1,27 @@
 export type WhyFlixoSection = Readonly<{
   id: string;
   title: string;
-  body: string[];
-  bullets?: string[];
+  body?: readonly string[];
+  bullets?: readonly string[];
   table?: ReadonlyArray<readonly [string, string]>;
 }>;
 
-export const WHY_FLIXO = Object.freeze({
+type WhyFlixoCopy = Readonly<{
+  button: string;
+  eyebrow: string;
+  title: string;
+  lead: string;
+  close: string;
+  verify: string;
+  sections: readonly WhyFlixoSection[];
+}>;
+
+type WhyFlixoContent = Readonly<{
+  ar: WhyFlixoCopy;
+  en: WhyFlixoCopy;
+}>;
+
+export const WHY_FLIXO: WhyFlixoContent = Object.freeze({
   ar: Object.freeze({
     button: 'لماذا FLIXO؟',
     eyebrow: 'THE PRIVACY-FIRST EDITOR MANIFESTO',
