@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "sessionId": "AGENT-3-WAVE5-20260923-0749Z",
+  "agentId": "AGENT-3",
+  "role": "ROUTING_MEMORY_LEARNING_ERROR_INTELLIGENCE_KNOWLEDGE_SIMULATION",
+  "entrySha": "daae5da6324ed87f8ed6bf59ede4ecb2746111d1",
+  "baseSha": "b6c80129405f4361a9fa94166771d3db95af1ac4",
+  "startedAt": "2026-09-23T07:49:00Z",
+  "scope": [
+    "WAVE-5",
+    "CELL-041..CELL-050",
+    "routing",
+    "memory",
+    "learning",
+    "error-intelligence",
+    "knowledge",
+    "simulation"
+  ],
+  "readFiles": [
+    "PROJECTS.md",
+    "المهام.md",
+    "AGENTS.md",
+    "docs/agents/PROMPT-REGISTRY.json",
+    "diagnostics/auto-repair/memory.json",
+    "src/lib/agent/swarm/learning-memory-routing.ts",
+    "scripts/ci/test-swarm-learning-memory-routing.mjs",
+    "docs/agents/SWARM-CANONICAL-LESSONS-v1.json",
+    "docs/agents/SWARM-MEMORY-COMPACTION-ARCHIVE-PLAN-v1.md",
+    "docs/agents/SWARM-REPLAY-SIMULATION-PLAN-v1.json",
+    "docs/agents/SWARM-SKILL-DIFFICULTY-MAP-v1.json"
+  ],
+  "currentRca": "WAVE5-CONTRACT-DRIFT-001: implementation claims L0-L5 and logical cell-pool retirement, while mission requires L0-L4 authority hierarchy plus fixed 200 identity memory model; several owned intelligence contracts are absent.",
+  "status": "ACTIVE"
+}
