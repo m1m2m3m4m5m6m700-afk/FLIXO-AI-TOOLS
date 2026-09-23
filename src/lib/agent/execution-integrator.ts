@@ -1,6 +1,7 @@
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import { parseExecutionPlan, type ExecutionPlanContract } from '@/lib/contracts/ai-plan';
 import { authorizeExecution } from './execution-gate';
+import { classifyExecutionFailure, deriveRecoveryMetadata } from './execution-observability';
 import { getCapability } from './capability-registry';
 import { createTaskContext, transitionTask, confirmTask, cancelTask, assertExecutionAllowed, type TaskContext } from './task-state';
 import { getToolById } from '@/config/registry';
@@ -10,6 +11,23 @@ import { runWorkflowPipeline, type PipelineProgress } from '@/lib/workflows/pipe
 
 export type PreparedExecution = Readonly<{ plan: ExecutionPlanContract; task: TaskContext }>;
 export type ExecutionIntegrationResult = Readonly<{ output: Blob; task: TaskContext }>;
+
+export class ExecutionIntegrationError extends Error {
+  readonly task: TaskContext;
+  readonly errorClass: ReturnType<typeof classifyExecutionFailure>;
+  readonly capabilityId: string | undefined;
+  readonly recovery: ReturnType<typeof deriveRecoveryMetadata> | undefined;
+
+  constructor(message: string, options: Readonly<{ task: TaskContext; cause?: unknown; capabilityId?: string }>) {
+    super(message);
+    this.name = 'ExecutionIntegrationError';
+    this.task = options.task;
+    this.errorClass = classifyExecutionFailure(options.cause ?? message);
+    this.capabilityId = options.capabilityId;
+    const tool = options.capabilityId ? getToolById(options.capabilityId) : undefined;
+    this.recovery = tool ? deriveRecoveryMetadata(tool) : undefined;
+  }
+}
 
 function assertPlanGuard(plan: ExecutionPlanContract): void {
   if (plan.steps.length < 1 || plan.steps.length > 4) {
@@ -65,8 +83,19 @@ export async function executePreparedExecution(
     });
   }
 
-  const output = await runWorkflowPipeline(inputFile, prepared.plan as ExecutionPlan, prepared.task, onProgress);
-  const verifying = transitionTask(prepared.task, 'VERIFYING');
-  const completed = transitionTask(verifying, 'COMPLETED');
-  return Object.freeze({ output, task: completed });
+  try {
+    const output = await runWorkflowPipeline(inputFile, prepared.plan as ExecutionPlan, prepared.task, onProgress);
+    const verifying = transitionTask(prepared.task, 'VERIFYING');
+    const completed = transitionTask(verifying, 'COMPLETED');
+    return Object.freeze({ output, task: completed });
+  } catch (cause) {
+    let failedTask = prepared.task;
+    if (failedTask.state === 'EXECUTING' || failedTask.state === 'VERIFYING' || failedTask.state === 'RECOVERING') {
+      try { failedTask = transitionTask(failedTask, 'FAILED'); } catch { /* preserve original failure */ }
+    }
+    throw new ExecutionIntegrationError(
+      cause instanceof Error ? cause.message : 'FLIXO execution failed.',
+      { task: failedTask, cause, capabilityId: prepared.plan.steps[0]?.toolId },
+    );
+  }
 }
