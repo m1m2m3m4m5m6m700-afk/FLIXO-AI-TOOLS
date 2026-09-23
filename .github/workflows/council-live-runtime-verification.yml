@@ -51,6 +51,21 @@ jobs:
           TRUSTED_MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
           test "$CONTROLLER_SHA" = "$TRUSTED_MAIN_SHA"
           echo "TRUSTED_CONTROLLER_SOURCE_SHA=$TRUSTED_MAIN_SHA"
+      - name: Fail closed on verifier source drift
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          TRUSTED_VERIFIER_BLOB_SHA="$(git rev-parse HEAD:scripts/ci/verify-council-live-runtime.mjs)"
+          CANDIDATE_VERIFIER_BLOB_SHA="$(gh api "repos/$GITHUB_REPOSITORY/contents/scripts/ci/verify-council-live-runtime.mjs?ref=$EXPECTED_SHA" --jq '.sha')"
+          test "$TRUSTED_VERIFIER_BLOB_SHA" = "$CANDIDATE_VERIFIER_BLOB_SHA" || {
+            echo "FAIL CLOSED: live verifier source drift detected."
+            echo "TRUSTED_MAIN_VERIFIER_BLOB_SHA=$TRUSTED_VERIFIER_BLOB_SHA"
+            echo "CANDIDATE_EXECUTION_VERIFIER_BLOB_SHA=$CANDIDATE_VERIFIER_BLOB_SHA"
+            exit 1
+          }
+
       - name: Run read-only live runtime verification
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
