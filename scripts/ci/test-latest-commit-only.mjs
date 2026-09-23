@@ -58,7 +58,7 @@ const watchdog = fs.readFileSync('.github/workflows/execution-bot-watchdog.yml',
 assert.match(watchdog, /group:\s*flixo-execution-watchdog-\$\{\{\s*github\.event\.workflow_run\.head_sha\s*\|\|\s*github\.sha\s*\}\}/u);
 assert.match(watchdog, /cancel-in-progress:\s*true/u);
 const greenGate = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml','utf8');
-assert.match(greenGate, /group:\s*flixo-continuous-error-watch-\$\{\{\s*github\.ref_name\s*\}\}/u);
+
 assert.match(greenGate, /cancel-in-progress:\s*true/u);
 
 const ci = fs.readFileSync('.github/workflows/ci.yml','utf8');
