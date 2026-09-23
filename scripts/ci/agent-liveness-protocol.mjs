@@ -13,6 +13,24 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   teamWakeIntervalMs: 60 * 1000,
   teamWakePolicy: 'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL',
   teamWakeScope: 'ALL_ACTION_REPAIR_TEAM',
+  heartbeatWakePolicy: 'EVERY_FLIXO10_PULSE_WAKES_ALL_AGENTS',
+  heartbeatWakeScope: 'ALL_AGENTS',
+  pulseEveryMs: 60 * 1000,
+  pulseProfiles: Object.freeze([
+    Object.freeze({ botId:'FLIXO1', pulseType:'RCA_AND_ARCHITECTURE' }),
+    Object.freeze({ botId:'FLIXO2', pulseType:'CODE_PATH_AND_RUNTIME' }),
+    Object.freeze({ botId:'FLIXO3', pulseType:'TEST_CONTRACTS' }),
+    Object.freeze({ botId:'FLIXO4', pulseType:'CI_AND_WORKFLOWS' }),
+    Object.freeze({ botId:'FLIXO5', pulseType:'BROWSER_RUNTIME_AND_SECURITY' }),
+    Object.freeze({ botId:'FLIXO6', pulseType:'INDEPENDENT_FALSIFICATION' }),
+    Object.freeze({ botId:'FLIXO7', pulseType:'REPAIR_STRATEGY_AND_DEPENDENCIES' }),
+    Object.freeze({ botId:'FLIXO8', pulseType:'IMPLEMENTATION_AND_REGRESSION' }),
+    Object.freeze({ botId:'FLIXO9', pulseType:'EXACT_SHA_FALSE_GREEN_AND_SECURITY' }),
+    Object.freeze({ botId:'FLIXO10', pulseType:'FINAL_VERIFICATION_AND_DEVELOPMENT_PLAN' }),
+  ]),
+  idleSweepMode: 'FULL_REPOSITORY_READ_ONLY_SCAN',
+  idleSweepPlanLedger: 'المهام.md',
+  idleSweepPlanSection: 'FLIXO BOT — AUTONOMOUS FULL-REPOSITORY DEVELOPMENT PLAN',
   actionRepairTeamSize: 10,
   actionRepairTeamIds: Object.freeze([
     'FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5',
@@ -100,6 +118,11 @@ export function assertLivenessDefinition() {
   if (AGENT_LIVENESS_PROTOCOL.teamWakeIntervalMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_TEAM_WAKE_NOT_ONE_MINUTE');
   if (AGENT_LIVENESS_PROTOCOL.teamWakePolicy !== 'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL') throw new Error('AGENT_LIVENESS_TEAM_WAKE_POLICY_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.teamWakeScope !== 'ALL_ACTION_REPAIR_TEAM') throw new Error('AGENT_LIVENESS_TEAM_WAKE_SCOPE_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.heartbeatWakePolicy !== 'EVERY_FLIXO10_PULSE_WAKES_ALL_AGENTS') throw new Error('AGENT_LIVENESS_HEARTBEAT_WAKE_POLICY_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.heartbeatWakeScope !== 'ALL_AGENTS') throw new Error('AGENT_LIVENESS_HEARTBEAT_WAKE_SCOPE_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.pulseEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_PULSE_NOT_ONE_MINUTE');
+  if (AGENT_LIVENESS_PROTOCOL.pulseProfiles.length !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.botId)).size !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.pulseType)).size !== 10) throw new Error('AGENT_LIVENESS_PULSE_PROFILE_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.idleSweepMode !== 'FULL_REPOSITORY_READ_ONLY_SCAN' || AGENT_LIVENESS_PROTOCOL.idleSweepPlanLedger !== 'المهام.md') throw new Error('AGENT_LIVENESS_IDLE_SWEEP_POLICY_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.actionRepairTeamSize !== 10 || AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length !== 10) throw new Error('AGENT_LIVENESS_TEAM_SIZE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_HEARTBEAT_NOT_ONE_MINUTE');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatGraceMs !== 30 * 1000) throw new Error('AGENT_LIVENESS_HEARTBEAT_GRACE_NOT_THIRTY_SECONDS');
@@ -203,6 +226,35 @@ export function buildTeamWakeDirective({ actor, targetSha, taskId = null, failur
     mutationAuthority: false,
     pushAuthority: 'CHAIR_1_ONLY',
     next: 'canonical_agent_repair_supervisor_and_existing_wake_dispatcher',
+  });
+}
+
+export function buildDifferentiatedPulseDirective({ actor, targetSha, taskId = null, activeOperation = true, reason = 'MINUTE_PULSE' } = {}) {
+  assertLivenessDefinition();
+  const actorId = String(actor ?? '').trim();
+  const profile = AGENT_LIVENESS_PROTOCOL.pulseProfiles.find((item) => item.botId === actorId);
+  if (!profile) throw new Error('AGENT_LIVENESS_PULSE_ACTOR_NOT_AUTHORIZED=' + actorId);
+  const sha = String(targetSha ?? '').trim();
+  if (!/^[a-f0-9]{40}$/iu.test(sha)) throw new Error('AGENT_LIVENESS_PULSE_EXACT_SHA_REQUIRED');
+  const adversary = AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds[(AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.indexOf(actorId) + 1) % AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length];
+  return Object.freeze({
+    protocolId: AGENT_LIVENESS_PROTOCOL.protocolId,
+    action: 'WAKE_ALL_AGENTS',
+    pulseType: profile.pulseType,
+    actor: actorId,
+    adversaryBot: adversary,
+    targetSha: sha,
+    taskId: taskId ? String(taskId) : null,
+    activeOperation: Boolean(activeOperation),
+    mode: activeOperation ? 'ACTIVE_OPERATION' : AGENT_LIVENESS_PROTOCOL.idleSweepMode,
+    reason: String(reason),
+    wakeScope: AGENT_LIVENESS_PROTOCOL.heartbeatWakeScope,
+    recipients: ['ALL_AGENTS'],
+    recipientCount: 1,
+    mutationAuthority: false,
+    pushAuthority: 'FIRST_CONNECTED_FLIXO10_GUARDED_ONLY',
+    exactShaRequired: true,
+    readOnlyWhenIdle: true,
   });
 }
 
