@@ -13,28 +13,19 @@ const files = [
   '.github/workflows/auto-repair-merge-gate.yml',
 ];
 const staleGuard = /Fail closed when this commit is superseded[\s\S]*?run: node scripts\/ci\/assert-current-commit\.mjs/u;
-const evidenceObservationFiles = new Set([
+const nonCancellingEvidenceFiles = new Set([
   '.github/workflows/daily-flixo-green-gate.yml',
-]);
-const exactShaEvidenceFiles = new Set([
-  '.github/workflows/wp0-trust-baseline.yml',
-  '.github/workflows/test-impact.yml',
-  '.github/workflows/test-impact-execution.yml',
-  '.github/workflows/repository-security-baseline.yml',
   '.github/workflows/claude-security-review.yml',
-  // Auto Repair Merge Gate is a supersedable verification workflow, not a same-SHA evidence observer.
 ]);
 
 for (const file of files) {
   assert.ok(fs.existsSync(file), `missing workflow: ${file}`);
   const source = fs.readFileSync(file, 'utf8');
   assert.match(source, /concurrency:/u, `${file}: concurrency contract missing`);
-  if (evidenceObservationFiles.has(file)) {
-    assert.match(source, /cancel-in-progress:\s*false/u, file + ': evidence observation runs must not cancel each other');
-  } else if (exactShaEvidenceFiles.has(file)) {
-    assert.match(source, /cancel-in-progress:\s*false/u, file + ': same-SHA evidence must not be cancelled');
+  if (nonCancellingEvidenceFiles.has(file)) {
+    assert.match(source, /cancel-in-progress:\s*false/u, file + ': non-cancelling evidence workflow must preserve started runs');
   } else {
-    assert.match(source, /cancel-in-progress:\s*true/u, file + ': stale run cancellation disabled');
+    assert.match(source, /cancel-in-progress:\s*true/u, file + ': required verification workflow must cancel stale runs');
   }
   assert.match(source, /github\.event\.pull_request\.head\.repo\.full_name \|\| github\.repository/u, `${file}: head repository is not part of concurrency identity`);
   assert.match(source, /github\.event\.pull_request\.head\.ref \|\| github\.ref_name/u, file + ': head branch is not part of concurrency identity');
@@ -82,10 +73,8 @@ for (const file of currentWorkflows) {
   const workflowName = nameMatch?.[1]?.trim() ?? file;
   if (!latestOnlyName.test(workflowName)) continue;
   assert.match(source, /concurrency:/u, `${file}: latest-only workflow must define concurrency`);
-  if (evidenceObservationFiles.has('.github/workflows/' + file)) {
-    assert.match(source, /cancel-in-progress:\s*false/u, file + ': evidence observation workflow must retain same-SHA runs');
-  } else if (exactShaEvidenceFiles.has('.github/workflows/' + file)) {
-    assert.match(source, /cancel-in-progress:\s*false/u, file + ': evidence workflow must retain same-SHA runs');
+  if (nonCancellingEvidenceFiles.has('.github/workflows/' + file)) {
+    assert.match(source, /cancel-in-progress:\s*false/u, file + ': non-cancelling evidence workflow must retain started runs');
   } else {
     assert.match(source, /cancel-in-progress:\s*true/u, file + ': latest-only workflow must cancel superseded runs');
   }
