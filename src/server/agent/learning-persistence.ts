@@ -109,7 +109,7 @@ export async function createExternalAgentLearning(input: ExternalLearningCandida
   };
   const body = await request('/rest/v1/flixo_agent_learning_events?on_conflict=fingerprint', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Prefer: 'return=representation,resolution=merge-duplicates' },
+    headers: { 'Content-Type': 'application/json', Prefer: 'return=representation,resolution=ignore-duplicates' },
     body: JSON.stringify(payload),
   });
   const row = Array.isArray(body) ? body[0] : null;
