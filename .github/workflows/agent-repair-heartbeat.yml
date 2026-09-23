@@ -3,8 +3,8 @@ name: FLIXO Agent Repair Heartbeat
 run-name: FLIXO Agent Repair Heartbeat ${{ github.run_id }}
 
 on:
-  push:
-    branches: [execution]
+  # Durable residency controller lives on the trusted default branch.
+  # It observes and executes the repair pulse against the live execution ref.
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: flixo-agent-repair-heartbeat-${{ github.ref_name }}
+  group: flixo-agent-repair-heartbeat-main
   # Started residency runs are never cancelled. Completion re-arms the next run;
   # the five-minute schedule remains the independent fallback wake.
   cancel-in-progress: false
@@ -49,7 +49,9 @@ jobs:
           echo 'RESIDENT_LOGICAL_BOTS=100'
           echo 'RESIDENT_ROSTER=CELL-001..CELL-100'
           echo 'STARTED_RUN_CANCELLATION=FORBIDDEN'
-          echo 'CONTINUOUS_REARM=WORKFLOW_RUN_COMPLETION_OR_SCHEDULE_FALLBACK'
+          echo 'CONTINUOUS_REARM=WORKFLOW_DISPATCH_ON_MAIN_OR_SCHEDULE_FALLBACK'
+          echo 'CONTROLLER_REF=main'
+          echo 'TARGET_REF=execution'
 
       - name: Emit six real one-minute wake pulses and activate the canonical repair path
         env:
@@ -124,7 +126,8 @@ jobs:
           set -euo pipefail
           CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           [[ "$CURRENT_SHA" =~ ^[0-9a-f]{40}$ ]]
-          gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
+          test "$GITHUB_REF" = "refs/heads/main"
+          gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref main
           echo "RESIDENCY_REARMED_FOR_SHA=$CURRENT_SHA"
           echo 'RESIDENCY_REARM_EVENT=WORKFLOW_DISPATCH'
           echo 'RESIDENCY_REARM_ON_FAILURE=true'
@@ -136,7 +139,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/flixo-heartbeat
-          gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 50 --json databaseId,status,conclusion,createdAt,updatedAt,startedAt,headSha,event > /tmp/flixo-heartbeat/scheduled-wakes.json
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch main --limit 50 --json databaseId,status,conclusion,createdAt,updatedAt,startedAt,headSha,event > /tmp/flixo-heartbeat/scheduled-wakes.json
           gh run view "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,status,conclusion,createdAt,updatedAt,startedAt,headSha,event > /tmp/flixo-heartbeat/current-wake.json
           jq -s 'map(if type == "array" then . else [.] end) | add' /tmp/flixo-heartbeat/scheduled-wakes.json /tmp/flixo-heartbeat/current-wake.json > /tmp/flixo-heartbeat/wake-runs.json
           node scripts/ci/wake-compliance.mjs /tmp/flixo-heartbeat/wake-runs.json /tmp/flixo-heartbeat/wake-compliance.json
