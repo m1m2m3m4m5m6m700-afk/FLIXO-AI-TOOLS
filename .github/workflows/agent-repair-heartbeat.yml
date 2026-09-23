@@ -3,8 +3,10 @@ name: FLIXO Agent Repair Heartbeat
 run-name: FLIXO Agent Repair Heartbeat ${{ github.run_id }}
 
 on:
-  # Durable residency controller lives on the trusted default branch.
-  # It observes and executes the repair pulse against the live execution ref.
+  # Direct execution push is the immediate ignition path.
+  push:
+    branches: [execution]
+  # The trusted main controller remains the recovery observer.
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
@@ -24,6 +26,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 345
     steps:
+      - name: Ignite trusted watchdog on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/execution"
+          gh workflow run execution-bot-watchdog.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo 'TRUSTED_WATCHDOG_WAKE=DISPATCHED'
+          echo 'TRUSTED_WATCHDOG_REF=main'
+
       - name: Checkout liveness contract
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
@@ -127,9 +139,9 @@ jobs:
           CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           [[ "$CURRENT_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$GITHUB_REF" = "refs/heads/main"
-          gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref main
+          gh workflow run execution-bot-watchdog.yml --repo "$GITHUB_REPOSITORY" --ref main
           echo "RESIDENCY_REARMED_FOR_SHA=$CURRENT_SHA"
-          echo 'RESIDENCY_REARM_EVENT=WORKFLOW_DISPATCH'
+          echo 'RESIDENCY_REARM_EVENT=TRUSTED_WATCHDOG_WAKE'
           echo 'RESIDENCY_REARM_ON_FAILURE=true'
           echo 'RESIDENCY_REARM_ON_GREEN=true'
       - name: Verify five-minute schedule with one-minute internal beats compliance
