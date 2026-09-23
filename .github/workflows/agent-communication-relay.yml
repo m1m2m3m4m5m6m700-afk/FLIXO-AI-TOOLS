@@ -51,6 +51,8 @@ jobs:
         id: relay_head
         env:
           GH_TOKEN: ${{ github.token }}
+          COMMENT_ID: ${{ github.event.comment.id || '' }}
+          COUNCIL_PR_NUMBER: ${{ github.event.issue.number || '' }}
         shell: bash
         run: |
           set -euo pipefail
