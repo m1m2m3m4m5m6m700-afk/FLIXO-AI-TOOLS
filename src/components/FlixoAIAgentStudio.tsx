@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { Link } from '@tanstack/react-router';
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import type { PipelineProgress } from '@/lib/workflows/pipeline-runner';
-import type { Locale } from '@/lib/i18n';
+import { LOCALES, type Locale } from '@/lib/i18n';
 import type { FilterMaskHandoff } from '@/tools/filter-mask/handoff';
 import type { AGENT_I18N } from '@/data/agent-locales';
 
@@ -33,6 +34,13 @@ type Props = Readonly<{
   tools: readonly FlixoAgentStudioTool[];
 }>;
 
+const LANGUAGE_LABELS: Readonly<Record<Locale, string>> = {
+  ar: 'العربية', en: 'English', es: 'Español', fr: 'Français', de: 'Deutsch', hi: 'हिन्दी',
+  id: 'Bahasa Indonesia', it: 'Italiano', ja: '日本語', ko: '한국어', ms: 'Bahasa Melayu',
+  nl: 'Nederlands', pl: 'Polski', pt: 'Português', ru: 'Русский', sv: 'Svenska',
+  th: 'ไทย', tr: 'Türkçe', uk: 'Українська', vi: 'Tiếng Việt',
+};
+
 const classifyTool = (tool: FlixoAgentStudioTool): 'image' | 'video' | 'filter' => {
   const id = tool.id.toLowerCase();
   const title = tool.title.toLowerCase();
@@ -62,6 +70,7 @@ export function FlixoAIAgentStudio({
   filterHandoff,
   tools,
 }: Props) {
+  const navigate = useNavigate();
   const [toolSearch, setToolSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | 'image' | 'video' | 'filter'>('all');
   const normalizedSearch = toolSearch.trim().toLowerCase();
@@ -110,13 +119,28 @@ export function FlixoAIAgentStudio({
               <div className="flixo-agent-chat-sub">{locale === 'ar' ? 'جاهز لفهم طلبك وتنفيذ أدوات FLIXO' : 'Ready to understand and execute FLIXO tools'}</div>
             </div>
           </div>
-          <span className="flixo-agent-state-badge mono">
-            {state === 'running' ? (locale === 'ar' ? 'يعمل' : 'RUNNING')
-              : state === 'success' ? (locale === 'ar' ? 'تم' : 'DONE')
-              : state === 'ready' ? (locale === 'ar' ? 'بانتظار التأكيد' : 'READY')
-              : state === 'error' ? (locale === 'ar' ? 'يحتاج مراجعة' : 'CHECK')
-              : (locale === 'ar' ? 'جاهز' : 'READY')}
-          </span>
+          <div className="flixo-agent-chat-top-actions">
+            <label className="flixo-language-switch" title={locale === 'ar' ? 'تغيير اللغة' : 'Change language'}>
+              <span aria-hidden="true">🌐</span>
+              <select
+                value={locale}
+                aria-label={locale === 'ar' ? 'تغيير اللغة' : 'Change language'}
+                onChange={(event) => {
+                  const next = event.target.value as Locale;
+                  void navigate(next === 'en' ? { to: '/' } : { to: '/$locale', params: { locale: next } });
+                }}
+              >
+                {LOCALES.map((code) => <option key={code} value={code}>{LANGUAGE_LABELS[code]}</option>)}
+              </select>
+            </label>
+            <span className="flixo-agent-state-badge mono">
+              {state === 'running' ? (locale === 'ar' ? 'يعمل' : 'RUNNING')
+                : state === 'success' ? (locale === 'ar' ? 'تم' : 'DONE')
+                : state === 'ready' ? (locale === 'ar' ? 'بانتظار التأكيد' : 'READY')
+                : state === 'error' ? (locale === 'ar' ? 'يحتاج مراجعة' : 'CHECK')
+                : (locale === 'ar' ? 'جاهز' : 'READY')}
+            </span>
+          </div>
         </header>
 
         <div className="flixo-agent-messages" aria-live="polite">
