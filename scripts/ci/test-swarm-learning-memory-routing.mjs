@@ -17,6 +17,9 @@ import {
   classifyDifficulty,
   skillReputation,
   buildCapabilityMap,
+  CAPABILITY_MAP,
+  FAILURE_INJECTION_CATALOG,
+  SWARM_CONTRACT_VERSION,
   adaptiveSwarmSize,
   selectAdaptiveSwarm,
   assignAdaptiveRoles,
@@ -114,6 +117,9 @@ const reps=skillReputation([
 ]);
 assert.equal(reps[0].successRate,1);
 assert.equal(buildCapabilityMap(['filter-mask','unknown-capability'])[1].known,false);
+assert.equal(Array.isArray(CAPABILITY_MAP['filter-mask'].requiredSkills),true);
+assert.equal(FAILURE_INJECTION_CATALOG.length >= 11,true);
+assert.match(SWARM_CONTRACT_VERSION,/^WAVE5-ROUTING-MEMORY-LEARNING-INTELLIGENCE-/u);
 assert.equal(adaptiveSwarmSize('D5',6,1,1)<=50,true);
 const selected=selectAdaptiveSwarm({
   currentSha:sha,
