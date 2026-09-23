@@ -171,10 +171,10 @@ for (const marker of ['ACTION-SYSTEM-COGNITIVE-AWARENESS-v1','ACTION_PRIMARY_COR
 const relayPath = '.github/workflows/agent-communication-relay.yml';
 if (exists(relayPath)) {
   const relayText = read(relayPath);
-  const relayStepChunks = relayText.split(/^      - name:\s*/m).slice(1);
+  const relayStepChunks = relayText.split(/^\x20{6}- name:\s*/m).slice(1);
   for (const chunk of relayStepChunks) {
     const stepName = chunk.split(/\r?\n/, 1)[0].trim();
-    const ifKeys = chunk.match(/^        if:\s*/gm) ?? [];
+    const ifKeys = chunk.match(/^\x20{8}if:\s*/gm) ?? [];
     if (ifKeys.length > 1) failures.push('AGENT_RELAY_DUPLICATE_IF_KEY=' + stepName);
   }
 }
