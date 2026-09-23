@@ -86,6 +86,28 @@ jobs:
       - name: Test knowledge fusion
         run: npm run test:knowledge-fusion
 
+      - name: Wait for CodeQL result on exact observed SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OBSERVED_SHA: ${{ steps.observed.outputs.observed_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$OBSERVED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'FAIL CLOSED: invalid observed SHA'; exit 1; }
+          CODEQL_STATUS=''
+          for attempt in $(seq 1 60); do
+            CODEQL_JSON="$(gh api "repos/$GITHUB_REPOSITORY/commits/$OBSERVED_SHA/check-runs?per_page=100")"
+            CODEQL_STATUS="$(printf '%s' "$CODEQL_JSON" | jq -r '[.check_runs[] | select(.name == "CodeQL" and .head_sha == $sha)] | sort_by(.completed_at // .started_at // "") | last | .status // empty' --arg sha "$OBSERVED_SHA")"
+            CODEQL_CONCLUSION="$(printf '%s' "$CODEQL_JSON" | jq -r '[.check_runs[] | select(.name == "CodeQL" and .head_sha == $sha)] | sort_by(.completed_at // .started_at // "") | last | .conclusion // empty' --arg sha "$OBSERVED_SHA")"
+            if [ "$CODEQL_STATUS" = "completed" ]; then
+              echo "CODEQL_EXACT_SHA_STATUS=completed"
+              echo "CODEQL_EXACT_SHA_CONCLUSION=$CODEQL_CONCLUSION"
+              break
+            fi
+            sleep 5
+          done
+          test "$CODEQL_STATUS" = "completed" || { echo "FAIL CLOSED: CodeQL result did not complete for $OBSERVED_SHA"; exit 1; }
+
       - name: Run read-only investigator
         env:
           GH_TOKEN: ${{ github.token }}
