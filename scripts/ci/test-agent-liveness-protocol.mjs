@@ -1,13 +1,18 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, assertActiveRepairWindow, checkContinuousSessionWindow, sessionTerminationDirective, idleAdmission, sleepAdmission, selfDisableAdmission, selfAbortAdmission, runEndAdmission } from './agent-liveness-protocol.mjs';
+import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, buildTeamWakeDirective, assertActiveRepairWindow, checkContinuousSessionWindow, sessionTerminationDirective, idleAdmission, sleepAdmission, selfDisableAdmission, selfAbortAdmission, runEndAdmission } from './agent-liveness-protocol.mjs';
 
 assert.equal(assertLivenessDefinition(), true);
 assert.deepEqual([...AGENT_LIVENESS_PROTOCOL.forbiddenStates].sort(), ['ABANDONED','IDLE','SILENT','SLEEP'].sort());
 assert.equal(AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs, 60 * 1000);
 assert.equal(AGENT_LIVENESS_PROTOCOL.heartbeatGraceMs, 30 * 1000);
 assert.equal(AGENT_LIVENESS_PROTOCOL.wakeIntervalMs, 60 * 1000);
+assert.equal(AGENT_LIVENESS_PROTOCOL.teamWakeIntervalMs, 60 * 1000);
+assert.equal(AGENT_LIVENESS_PROTOCOL.teamWakePolicy, 'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL');
+assert.equal(AGENT_LIVENESS_PROTOCOL.teamWakeScope, 'ALL_ACTION_REPAIR_TEAM');
+assert.equal(AGENT_LIVENESS_PROTOCOL.actionRepairTeamSize, 10);
+assert.equal(AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length, 10);
 assert.equal(AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs, 45 * 60 * 1000);
 assert.equal(AGENT_LIVENESS_PROTOCOL.maxContinuousActiveSessionMs, 3 * 60 * 60 * 1000);
 assert.equal(AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs, 5 * 60 * 1000);
@@ -47,6 +52,19 @@ assert.throws(() => idleAdmission(), /IDLE_FORBIDDEN_PERMANENT_RESIDENCY/u);
 assert.throws(() => selfDisableAdmission(), /SELF_DISABLE_FORBIDDEN_PERMANENT_RESIDENCY/u);
 assert.throws(() => selfAbortAdmission(), /SELF_ABORT_FORBIDDEN_PERMANENT_RESIDENCY/u);
 assert.throws(() => runEndAdmission(), /RUN_END_DOES_NOT_END_TASK/u);
+const teamWake=buildTeamWakeDirective({
+  actor:'ACTION-TWIN-1',
+  targetSha:'a'.repeat(40),
+  taskId:'TASK-HEARTBEAT',
+  failureFingerprint:'fp-team-wake',
+});
+assert.equal(teamWake.action,'WAKE_ALL_ACTION_REPAIR_TEAM');
+assert.equal(teamWake.recipientCount,10);
+assert.equal(teamWake.mutationAuthority,false);
+assert.equal(teamWake.pushAuthority,'CHAIR_1_ONLY');
+assert.deepEqual(teamWake.recipients,AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds);
+assert.throws(() => buildTeamWakeDirective({actor:'UNKNOWN-BOT',targetSha:'a'.repeat(40)}), /TEAM_WAKE_ACTOR_NOT_AUTHORIZED/u);
+
 const recovery=buildRecoveryDirective({reason:'HEARTBEAT_STALE',currentState:'ACTIVE'});
 assert.equal(recovery.action,'RECOVER_AND_CONTINUE');
 assert.equal(recovery.to,'RECOVERING');
