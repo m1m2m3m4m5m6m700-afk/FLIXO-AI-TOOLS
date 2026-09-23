@@ -155,7 +155,6 @@ assert.match(heartbeatWorkflow, /group: flixo-agent-repair-heartbeat-\$\{\{ gith
 assert.match(heartbeatWorkflow, /gh workflow run agent-repair-heartbeat\.yml --repo "\$GITHUB_REPOSITORY" --ref execution/);
 assert.match(heartbeatWorkflow, /headSha == \$sha/);
 assert.match(heartbeatWorkflow, /--arg sha "\$EXECUTION_SHA"/);
-const canonicalCi = read('.github/workflows/ci.yml');
 assert.match(canonicalCi, /workflow: agent-repair-heartbeat\.yml/);
 assert.match(canonicalCi, /headSha == \$sha/);
 assert.match(canonicalCi, /EXECUTION_SHA=.*git\/ref\/heads\/execution/);
