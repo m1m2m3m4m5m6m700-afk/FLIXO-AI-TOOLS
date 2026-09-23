@@ -60,8 +60,8 @@
     "sourceMutationOwner": "ACTION-REPAIR",
     "workerMutationAuthority": false,
     "heartbeatEveryMinutes": 1,
-    "wakePolicy": "ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL",
-    "wakeScope": "ALL_ACTION_REPAIR_TEAM",
+    "wakePolicy": "ONE_MINUTE_HEARTBEAT_WAKES_ALL_AGENTS",
+    "wakeScope": "ALL_AGENTS",
     "wakeDispatcher": "CANONICAL_AGENT_REPAIR_SUPERVISOR",
     "wakeRequiresExactSha": true,
     "wakeDoesNotGrantMutation": true,
@@ -71,7 +71,18 @@
     "pushSeatClaim": "CANONICAL_COORDINATION_CONTROL_PLANE",
     "pushSeatTakeover": "FORBIDDEN",
     "pushSeatAbandonment": "FORBIDDEN",
-    "parallelProposalMerge": "SINGLE_PUSH_INTEGRATOR"
+    "parallelProposalMerge": "SINGLE_PUSH_INTEGRATOR",
+    "pulseCountPerHeartbeat": 1,
+    "activeWorkerPolicy": {
+      "guard": "scripts/ci/flixo-active-worker-guard.mjs",
+      "simultaneousActiveWorkers": 1,
+      "initialWorker": "FLIXO1",
+      "heartbeatMaxAgeSeconds": 90,
+      "takeoverPolicy": "NEXT_WORKER_ONLY_AFTER_HEARTBEAT_STALE",
+      "peerCompetition": "FORBIDDEN",
+      "taskRemainsOpenOnWorkerFailure": true,
+      "failoverIntoSameTask": true
+    }
   },
   "workers": [
     {
