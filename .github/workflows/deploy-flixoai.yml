@@ -46,10 +46,12 @@ jobs:
           test -n "$sha"
           printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v5
+      - name: Checkout trusted main deployment controller
+        uses: actions/checkout@v5
         with:
-          ref: ${{ steps.sha.outputs.sha }}
+          ref: main
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Check deployment SHA is still current main
         id: freshness
