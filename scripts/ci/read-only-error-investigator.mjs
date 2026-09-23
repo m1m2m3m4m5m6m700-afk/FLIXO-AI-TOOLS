@@ -109,6 +109,20 @@ function normalizeSecurityAlerts(alerts) {
   }));
 }
 
+function normalizeCheckRunAnnotations(annotations) {
+  return (Array.isArray(annotations) ? annotations : []).map((annotation) => ({
+    path: annotation.path ?? null,
+    startLine: annotation.start_line ?? null,
+    endLine: annotation.end_line ?? null,
+    startColumn: annotation.start_column ?? null,
+    endColumn: annotation.end_column ?? null,
+    level: annotation.annotation_level ?? null,
+    title: annotation.title ?? null,
+    message: annotation.message ?? null,
+    rawDetails: annotation.raw_details ?? null,
+  }));
+}
+
 function normalizeWorkflowName(value) {
   return String(value ?? '').toLowerCase().replace(/[^a-z0-9]+/gu, ' ').trim();
 }
@@ -356,7 +370,7 @@ function analyzeSnapshot(input) {
   if (runs.some((run) => run.status === 'completed' && run.conclusion === 'cancelled' && !cancellationClass(run, runs))) unknowns.push('UNRESOLVED_CANCELLATION');
   if (rootCauseCandidates.some((item) => item.rootCauseStatus === 'CANDIDATE_ROOT_CAUSE')) unknowns.push('CANDIDATE_ROOT_CAUSES_REQUIRE_INDEPENDENT_VERIFICATION');
   if (securitySignals.some((item) => item.classification === 'SECURITY_SIGNAL')) unknowns.push('SECURITY_SIGNAL_IS_NOT_A_VULNERABILITY_VERDICT');
-  if (securityFindings.length === 0) unknowns.push('NO_OPEN_CODE_SCANNING_ALERTS_IN_CAPTURED_SECURITY_SNAPSHOT');
+  if (securityFindings.length === 0 && securityAnnotations.length === 0) unknowns.push('NO_CODE_SCANNING_ALERTS_OR_CODEQL_ANNOTATIONS_IN_CAPTURED_SECURITY_SNAPSHOT');
 
   const summary = {
     observedRuns: runs.length,
@@ -367,6 +381,7 @@ function analyzeSnapshot(input) {
     downstreamFailures: downstreamFailures.length,
     securitySignals: securitySignals.length,
     openCodeScanningAlerts: securityFindings.length,
+    codeqlCheckRunAnnotations: securityAnnotations.length,
     externalBlocks: observed.filter((item) => item.classification === 'BLOCKED_EXTERNAL').length,
     knownHistoricalFingerprints: observed.filter((item) => item.fingerprint && knownFingerprints.has(item.fingerprint)).length,
   };
@@ -392,6 +407,8 @@ function analyzeSnapshot(input) {
     staleEvidence,
     securitySignals,
     securityFindings,
+    securityAnnotations,
+    securityEvidence,
     historicalSignals: historical,
     sharedOperationalMemory: sharedLearning,
     deepInference: buildDeepInference({
@@ -446,9 +463,43 @@ function collectWithGh() {
       run.log = '';
     }
   }
-  const securityFindings = (() => {
+  const securityEvidence = (() => {
+    const evidence = {
+      canonicalPr: null,
+      codeScanningQueries: [],
+      alerts: [],
+      codeqlCheckRun: null,
+      checkRunAnnotations: [],
+      errors: [],
+    };
+
+    const runGhJson = (label, apiPath) => {
+      try {
+        const raw = execFileSync('gh', [
+          'api',
+          '--repo', repository,
+          '--method', 'GET',
+          apiPath,
+        ], {
+          cwd: ROOT,
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+          maxBuffer: 8 * 1024 * 1024,
+        });
+        const value = JSON.parse(raw);
+        return { ok: true, value };
+      } catch (error) {
+        const stderr = Buffer.isBuffer(error?.stderr)
+          ? error.stderr.toString('utf8')
+          : String(error?.stderr ?? error?.message ?? 'unknown gh api error');
+        const compact = stderr.replace(/\\s+/gu, ' ').trim().slice(0, 1200);
+        evidence.errors.push({ label, message: compact });
+        return { ok: false, value: null };
+      }
+    };
+
     try {
-      const canonicalPr = execFileSync('gh', [
+      const rawPr = execFileSync('gh', [
         'pr',
         'list',
         '--repo', repository,
@@ -463,33 +514,76 @@ function collectWithGh() {
         stdio: ['ignore', 'pipe', 'pipe'],
         maxBuffer: 1024 * 1024,
       }).trim();
-
-      const query = canonicalPr
-        ? 'repos/' + repository + '/code-scanning/alerts?pr=' + encodeURIComponent(canonicalPr) + '&state=open&per_page=100'
-        : 'repos/' + repository + '/code-scanning/alerts?ref=' + encodeURIComponent(executionSha) + '&state=open&per_page=100';
-
-      const rawAlerts = execFileSync('gh', [
-        'api',
-        '--repo', repository,
-        '--method', 'GET',
-        query,
-      ], {
-        cwd: ROOT,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-        maxBuffer: 8 * 1024 * 1024,
+      evidence.canonicalPr = rawPr || null;
+    } catch (error) {
+      const stderr = Buffer.isBuffer(error?.stderr)
+        ? error.stderr.toString('utf8')
+        : String(error?.stderr ?? error?.message ?? 'unknown gh pr list error');
+      evidence.errors.push({
+        label: 'canonical-pr-resolution',
+        message: stderr.replace(/\\s+/gu, ' ').trim().slice(0, 1200),
       });
-
-      const alerts = JSON.parse(rawAlerts);
-      if (!Array.isArray(alerts)) return [];
-      return alerts.map((alert) => ({
-        ...alert,
-        observed_ref: canonicalPr ? 'PR:' + canonicalPr : 'SHA:' + executionSha,
-      }));
-    } catch {
-      return [];
     }
+
+    const alertQueries = evidence.canonicalPr
+      ? [
+          ['pr', 'repos/' + repository + '/code-scanning/alerts?pr=' + encodeURIComponent(evidence.canonicalPr) + '&state=open&per_page=100'],
+          ['pr-no-state', 'repos/' + repository + '/code-scanning/alerts?pr=' + encodeURIComponent(evidence.canonicalPr) + '&per_page=100'],
+          ['pr-head', 'repos/' + repository + '/code-scanning/alerts?ref=refs/pull/' + evidence.canonicalPr + '/head&state=open&per_page=100'],
+          ['pr-merge', 'repos/' + repository + '/code-scanning/alerts?ref=refs/pull/' + evidence.canonicalPr + '/merge&state=open&per_page=100'],
+        ]
+      : [
+          ['sha', 'repos/' + repository + '/code-scanning/alerts?ref=' + encodeURIComponent(executionSha) + '&state=open&per_page=100'],
+        ];
+
+    for (const [label, apiPath] of alertQueries) {
+      const result = runGhJson('code-scanning-' + label, apiPath);
+      const values = Array.isArray(result.value) ? result.value : [];
+      evidence.codeScanningQueries.push({
+        label,
+        query: apiPath,
+        ok: result.ok,
+        resultCount: values.length,
+      });
+      if (values.length) evidence.alerts.push(...values);
+    }
+
+    const checkRuns = runGhJson(
+      'codeql-check-runs',
+      'repos/' + repository + '/commits/' + executionSha + '/check-runs?per_page=100',
+    );
+    const codeqlRuns = Array.isArray(checkRuns.value?.check_runs)
+      ? checkRuns.value.check_runs.filter((run) => run?.name === 'CodeQL' && run?.head_sha === executionSha)
+      : [];
+    const codeql = [...codeqlRuns].sort((a, b) =>
+      String(b.completed_at ?? b.started_at ?? '').localeCompare(String(a.completed_at ?? a.started_at ?? '')),
+    )[0] ?? null;
+    if (codeql) {
+      evidence.codeqlCheckRun = {
+        id: codeql.id ?? null,
+        name: codeql.name ?? null,
+        headSha: codeql.head_sha ?? null,
+        status: codeql.status ?? null,
+        conclusion: codeql.conclusion ?? null,
+        title: codeql.output?.title ?? null,
+        summary: codeql.output?.summary ?? null,
+        annotationsCount: codeql.output?.annotations_count ?? null,
+      };
+
+      if (codeql.id) {
+        const annotations = runGhJson(
+          'codeql-check-run-annotations',
+          'repos/' + repository + '/check-runs/' + codeql.id + '/annotations?per_page=100',
+        );
+        evidence.checkRunAnnotations = normalizeCheckRunAnnotations(annotations.value);
+      }
+    }
+
+    return evidence;
   })();
+
+  const securityFindings = normalizeSecurityAlerts(securityEvidence.alerts);
+  const securityAnnotations = securityEvidence.checkRunAnnotations;
 
   return {
     repository,
