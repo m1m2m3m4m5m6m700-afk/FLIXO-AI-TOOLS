@@ -75,14 +75,31 @@
     "pulseCountPerHeartbeat": 1,
     "activeWorkerPolicy": {
       "guard": "scripts/ci/flixo-active-worker-guard.mjs",
+      "mode": "SINGLE_ACTIVE_ORDERED_FAILOVER",
       "simultaneousActiveWorkers": 1,
+      "reserveCount": 10,
       "initialWorker": "FLIXO1",
+      "failoverOrder": [
+        "FLIXO1",
+        "FLIXO2",
+        "FLIXO3",
+        "FLIXO4",
+        "FLIXO5",
+        "FLIXO6",
+        "FLIXO7",
+        "FLIXO8",
+        "FLIXO9",
+        "FLIXO10"
+      ],
       "heartbeatMaxAgeSeconds": 90,
       "takeoverPolicy": "NEXT_WORKER_ONLY_AFTER_HEARTBEAT_STALE",
       "peerCompetition": "FORBIDDEN",
+      "parallelMutation": "FORBIDDEN",
       "taskRemainsOpenOnWorkerFailure": true,
-      "failoverIntoSameTask": true
-    }
+      "failoverIntoSameTask": true,
+      "workerSeatIsNotAProposalRace": true
+    },
+    "workerPoolPurpose": "CONTINUITY_RESERVE_NOT_PARALLEL_EXECUTION"
   },
   "workers": [
     {
@@ -1095,27 +1112,41 @@
       "FLIXO9",
       "FLIXO10"
     ],
-    "architecture": "ONE_SHARED_COGNITIVE_KERNEL_WITH_ROLE_LENSES",
+    "architecture": "SINGLE_ACTIVE_WORKER_WITH_NINE_STANDBY_RESERVES",
     "systemScope": "FULL_REPOSITORY_AND_AUTOMATION_SYSTEM",
-    "workflow": "READ→DIAGNOSE→WRITE_PROPOSAL→CHALLENGE→HANDOFF",
-    "proposalPolicy": "ALL_TEN_MAY_WRITE_PROPOSAL_ONLY",
+    "workflow": "ACTIVE_WORKER:READ→DIAGNOSE→WRITE_PROPOSAL→EVIDENCE→HANDOFF",
+    "proposalPolicy": "ACTIVE_WORKER_ONLY",
     "proposalMutationAuthority": false,
     "pushSeat": {
-      "type": "DYNAMIC_FIRST_CONNECTED",
-      "claimCommand": "push-seat-claim",
-      "heartbeatCommand": "push-seat-heartbeat",
-      "statusCommand": "push-seat-status",
+      "type": "SINGLE_ACTIVE_WORKER_SEAT",
+      "claimCommand": "worker-seat-claim-via-task-claim",
+      "heartbeatCommand": "worker-seat-heartbeat",
+      "statusCommand": "worker-seat-status",
       "sameTaskOnly": true,
       "sameExactShaRequired": true,
-      "firstSuccessfulClaimWins": true,
+      "firstSuccessfulClaimWins": false,
       "immutableOwnerUntilTaskCompletion": true,
       "peerTakeover": false,
-      "automaticReassignment": false,
+      "automaticReassignment": true,
       "abandonmentForbidden": true,
       "mergeParallelProposals": true,
       "conflictPolicy": "FAIL_CLOSED_RECONCILE_ON_CURRENT_EXACT_SHA",
       "publicationPath": "ASSISTANT_CONTROLLER_GUARDED_PUBLICATION",
-      "branch": "execution"
+      "branch": "execution",
+      "ownership": "ACTIVE_WORKER_ONLY",
+      "failover": "NEXT_WORKER_AFTER_STALE_HEARTBEAT",
+      "reassignmentOrder": [
+        "FLIXO1",
+        "FLIXO2",
+        "FLIXO3",
+        "FLIXO4",
+        "FLIXO5",
+        "FLIXO6",
+        "FLIXO7",
+        "FLIXO8",
+        "FLIXO9",
+        "FLIXO10"
+      ]
     },
     "seats": [
       {
@@ -1179,99 +1210,29 @@
       "retain ownership until canonical task completion",
       "never abandon, self-release, or transfer the push seat to a peer"
     ],
-    "pairs": [
-      {
-        "pairId": "RING-01",
-        "proposalBot": "FLIXO1",
-        "adversaryBot": "FLIXO2",
-        "proposalRole": "TASK_RECEIPT_PROPOSER",
-        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
-      },
-      {
-        "pairId": "RING-02",
-        "proposalBot": "FLIXO2",
-        "adversaryBot": "FLIXO3",
-        "proposalRole": "TASK_RECEIPT_PROPOSER",
-        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
-      },
-      {
-        "pairId": "RING-03",
-        "proposalBot": "FLIXO3",
-        "adversaryBot": "FLIXO4",
-        "proposalRole": "TASK_RECEIPT_PROPOSER",
-        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
-      },
-      {
-        "pairId": "RING-04",
-        "proposalBot": "FLIXO4",
-        "adversaryBot": "FLIXO5",
-        "proposalRole": "TASK_RECEIPT_PROPOSER",
-        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
-      },
-      {
-        "pairId": "RING-05",
-        "proposalBot": "FLIXO5",
-        "adversaryBot": "FLIXO6",
-        "proposalRole": "TASK_RECEIPT_PROPOSER",
-        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
-      },
-      {
-        "pairId": "RING-06",
-        "proposalBot": "FLIXO6",
-        "adversaryBot": "FLIXO7",
-        "proposalRole": "TASK_RECEIPT_PROPOSER",
-        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
-      },
-      {
-        "pairId": "RING-07",
-        "proposalBot": "FLIXO7",
-        "adversaryBot": "FLIXO8",
-        "proposalRole": "TASK_RECEIPT_PROPOSER",
-        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
-      },
-      {
-        "pairId": "RING-08",
-        "proposalBot": "FLIXO8",
-        "adversaryBot": "FLIXO9",
-        "proposalRole": "TASK_RECEIPT_PROPOSER",
-        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
-      },
-      {
-        "pairId": "RING-09",
-        "proposalBot": "FLIXO9",
-        "adversaryBot": "FLIXO10",
-        "proposalRole": "TASK_RECEIPT_PROPOSER",
-        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
-      },
-      {
-        "pairId": "RING-10",
-        "proposalBot": "FLIXO10",
-        "adversaryBot": "FLIXO1",
-        "proposalRole": "TASK_RECEIPT_PROPOSER",
-        "adversaryRole": "DYNAMIC_TASK_RECEIPT_ADVERSARY"
-      }
-    ],
+    "pairs": [],
     "pairPolicy": {
-      "sequence": "TASK_RECEIPT→READ→DIAGNOSE→WRITE_PROPOSAL→NEXT_BOT_CHALLENGE→EVIDENCE",
-      "requiredEdges": 10,
-      "allEdgesRequired": true,
+      "sequence": "ACTIVE_WORKER_READ→DIAGNOSE→EVIDENCE→HANDOFF",
+      "requiredEdges": 0,
+      "allEdgesRequired": false,
       "sameTaskRequired": true,
       "sameFailureFingerprintRequired": true,
       "sameExactShaRequired": true,
-      "adversaryMustBeIndependent": true,
-      "counterexampleBlocksPush": true,
-      "pairFailureBlocksPush": true,
+      "concurrentAdversarialRing": false,
+      "counterexampleStillRequiredBeforePublication": true,
       "noLastWriterWins": true,
       "noSilentOverwrite": true
     },
     "pushAdmissionPolicy": {
-      "logicalPushSeat": "FIRST_CONNECTED_FLIXO10",
-      "firstSuccessfulClaimWins": true,
+      "logicalPushSeat": "ACTIVE_FLIXO_WORKER",
+      "simultaneousActiveWorkers": 1,
       "ownerCannotAbandon": true,
       "peerTakeoverForbidden": true,
-      "proposalAggregation": "MERGE_ALL_COMPATIBLE_PARALLEL_PROPOSALS",
+      "failoverOnlyAfterStaleHeartbeat": true,
+      "proposalAggregation": "SINGLE_ACTIVE_WORKER_HANDOFF",
       "conflicts": "FAIL_CLOSED_RECONCILE_CURRENT_SHA",
-      "requiresPairGate": "PASS",
+      "requiresPairGate": "NOT_APPLICABLE",
+      "requiresCounterexampleProof": true,
       "requiresRequiredRedCount": 0,
       "requiresTargetedRegression": true,
       "requiresExactSha": true,
@@ -1281,81 +1242,102 @@
     },
     "seatAssignments": {
       "FLIXO1": {
-        "lens": "RCA_OWNER_FALSIFICATION",
-        "phase": "READ→DIAGNOSE→CHALLENGE→HANDOFF",
-        "pairRole": "ADVERSARY",
-        "pair": "PAIR-01",
-        "pairedWith": "FLIXO2"
+        "lens": "WHOLE_SYSTEM_RCA_AND_ARCHITECTURE",
+        "phase": "ACTIVE_BY_DEFAULT",
+        "activation": "ONLY_AFTER_PREVIOUS_ACTIVE_WORKER_HEARTBEAT_STALE",
+        "reserveOrder": 1,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
       },
       "FLIXO2": {
-        "lens": "CODE_PATH_AND_EXECUTION_PROPOSAL",
-        "phase": "READ→DIAGNOSE→WRITE_PROPOSAL→HANDOFF",
-        "pairRole": "PROPOSER",
-        "pair": "PAIR-01",
-        "pairedWith": "FLIXO1"
+        "lens": "WHOLE_SYSTEM_CODE_AND_RUNTIME",
+        "phase": "STANDBY_RESERVE",
+        "activation": "ONLY_AFTER_PREVIOUS_ACTIVE_WORKER_HEARTBEAT_STALE",
+        "reserveOrder": 2,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
       },
       "FLIXO3": {
-        "lens": "TEST_CONTRACT_FALSIFICATION",
-        "phase": "READ→DIAGNOSE→CHALLENGE→HANDOFF",
-        "pairRole": "ADVERSARY",
-        "pair": "PAIR-02",
-        "pairedWith": "FLIXO4"
+        "lens": "WHOLE_SYSTEM_TEST_AND_CONTRACT",
+        "phase": "STANDBY_RESERVE",
+        "activation": "ONLY_AFTER_PREVIOUS_ACTIVE_WORKER_HEARTBEAT_STALE",
+        "reserveOrder": 3,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
       },
       "FLIXO4": {
-        "lens": "CI_WORKFLOW_PROPOSAL",
-        "phase": "READ→DIAGNOSE→WRITE_PROPOSAL→HANDOFF",
-        "pairRole": "PROPOSER",
-        "pair": "PAIR-02",
-        "pairedWith": "FLIXO3"
+        "lens": "WHOLE_SYSTEM_CI_AND_WORKFLOW",
+        "phase": "STANDBY_RESERVE",
+        "activation": "ONLY_AFTER_PREVIOUS_ACTIVE_WORKER_HEARTBEAT_STALE",
+        "reserveOrder": 4,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
       },
       "FLIXO5": {
-        "lens": "SECURITY_CONTROL_PLANE_FALSIFICATION",
-        "phase": "READ→DIAGNOSE→CHALLENGE→HANDOFF",
-        "pairRole": "ADVERSARY",
-        "pair": "PAIR-03",
-        "pairedWith": "FLIXO6"
+        "lens": "WHOLE_SYSTEM_SECURITY_AND_CONTROL_PLANE",
+        "phase": "STANDBY_RESERVE",
+        "activation": "ONLY_AFTER_PREVIOUS_ACTIVE_WORKER_HEARTBEAT_STALE",
+        "reserveOrder": 5,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
       },
       "FLIXO6": {
-        "lens": "RUNTIME_BROWSER_PROPOSAL",
-        "phase": "READ→DIAGNOSE→WRITE_PROPOSAL→HANDOFF",
-        "pairRole": "PROPOSER",
-        "pair": "PAIR-03",
-        "pairedWith": "FLIXO5"
+        "lens": "WHOLE_SYSTEM_BROWSER_AND_CLIENT_RUNTIME",
+        "phase": "STANDBY_RESERVE",
+        "activation": "ONLY_AFTER_PREVIOUS_ACTIVE_WORKER_HEARTBEAT_STALE",
+        "reserveOrder": 6,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
       },
       "FLIXO7": {
-        "lens": "DEPENDENCY_BUILD_PERFORMANCE_FALSIFICATION",
-        "phase": "READ→DIAGNOSE→CHALLENGE→HANDOFF",
-        "pairRole": "ADVERSARY",
-        "pair": "PAIR-04",
-        "pairedWith": "FLIXO8"
+        "lens": "WHOLE_SYSTEM_DEPENDENCY_BUILD_AND_PERFORMANCE",
+        "phase": "STANDBY_RESERVE",
+        "activation": "ONLY_AFTER_PREVIOUS_ACTIVE_WORKER_HEARTBEAT_STALE",
+        "reserveOrder": 7,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
       },
       "FLIXO8": {
-        "lens": "IMPLEMENTATION_REPAIR_PROPOSAL",
-        "phase": "READ→DIAGNOSE→WRITE_PROPOSAL→HANDOFF",
-        "pairRole": "PROPOSER",
-        "pair": "PAIR-04",
-        "pairedWith": "FLIXO7"
+        "lens": "WHOLE_SYSTEM_REPAIR_SYNTHESIS_AND_REGRESSION",
+        "phase": "STANDBY_RESERVE",
+        "activation": "ONLY_AFTER_PREVIOUS_ACTIVE_WORKER_HEARTBEAT_STALE",
+        "reserveOrder": 8,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
       },
       "FLIXO9": {
-        "lens": "FALSE_GREEN_EXACT_SHA_FALSIFICATION",
-        "phase": "READ→DIAGNOSE→CHALLENGE→HANDOFF",
-        "pairRole": "ADVERSARY",
-        "pair": "PAIR-05",
-        "pairedWith": "FLIXO10"
+        "lens": "WHOLE_SYSTEM_ADVERSARIAL_FALSE_GREEN_FALSIFICATION",
+        "phase": "STANDBY_RESERVE",
+        "activation": "ONLY_AFTER_PREVIOUS_ACTIVE_WORKER_HEARTBEAT_STALE",
+        "reserveOrder": 9,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
       },
       "FLIXO10": {
-        "lens": "FINAL_EXACT_SHA_VERIFICATION",
-        "phase": "READ→DIAGNOSE→VERIFY→HANDOFF",
-        "pairRole": "PROPOSER_CERTIFIER",
-        "pair": "PAIR-05",
-        "pairedWith": "FLIXO9"
+        "lens": "WHOLE_SYSTEM_FINAL_EVIDENCE_AND_CERTIFICATION_CHALLENGE",
+        "phase": "STANDBY_RESERVE",
+        "activation": "ONLY_AFTER_PREVIOUS_ACTIVE_WORKER_HEARTBEAT_STALE",
+        "reserveOrder": 10,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
       }
     },
     "ring": {
-      "type": "DYNAMIC_ADVERSARIAL_RING",
-      "assignmentOnTaskReceipt": true,
-      "direction": "NEXT_BOT",
-      "cycle": [
+      "type": "DISABLED",
+      "reason": "TEN_IDENTITIES_EXIST FOR CONTINUITY; ONLY ONE WORKER MAY EXECUTE",
+      "assignmentOnTaskReceipt": false,
+      "concurrentAdversarialRing": false,
+      "failoverOrder": [
         "FLIXO1",
         "FLIXO2",
         "FLIXO3",
@@ -1365,14 +1347,9 @@
         "FLIXO7",
         "FLIXO8",
         "FLIXO9",
-        "FLIXO10",
-        "FLIXO1"
+        "FLIXO10"
       ],
-      "rule": "Each FLIXO bot's opponent is the next FLIXO bot; FLIXO10 is opposed by FLIXO1.",
-      "roleTransition": "ON_TASK_RECEIPT",
-      "proposerAndAdversaryAreIndependent": true,
-      "sameExactShaRequired": true,
-      "counterexampleBlocksPush": true
+      "activeWorkerCount": 1
     }
   }
 }
