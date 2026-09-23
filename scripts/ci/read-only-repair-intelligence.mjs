@@ -18,6 +18,7 @@ import { buildPrediction as buildActionVaultPrediction } from './action-historic
 import { buildFusion as buildKnowledgeFusion } from './read-only-knowledge-fusion.mjs';
 import { buildSharedLearningContext, publishSharedMemory } from './shared-operational-memory.mjs';
 import { READ_ONLY_POWER_PROFILE, validateReadOnlyPowerProfile } from './read-only-power-profile.mjs';
+import { buildReadOnlyRepairBrain } from './read-only-repair-brain.mjs';
 
 const ROOT=process.cwd();
 const exactSha=(v)=>/^[a-f0-9]{40}$/u.test(String(v??''));
@@ -336,6 +337,17 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
     identity:{taskId:'READ_ONLY_REPAIR_INTELLIGENCE:'+fingerprint,fingerprint,targetSha,failedRunId:String(failedRunId)},
     proposedRepair:{mode:'OWNER_REVIEW_REQUIRED',confidence:0,notCertain:true}
   };
+  const readOnlyRepairBrain=buildReadOnlyRepairBrain({
+    executionSha:targetSha,
+    observed:[{
+      headSha:targetSha,
+      classification:diagnosis?.classification ?? diagnosis?.errorClass ?? 'INTERNAL_UNKNOWN',
+      salientEvidence:(log.match(/(?:ERROR|Error:|FAIL|FATAL|CAPIError|SessionModelError|CI contract failed|TS\\d+|TypeError|ReferenceError|SyntaxError)[^\\n]*/giu)??[]).slice(0,20),
+    }],
+    historicalMemory:historicalKnowledge,
+    rootCauseCandidates:diagnosis?.rootCause ? [{classification:diagnosis.classification ?? diagnosis.errorClass ?? 'INTERNAL_UNKNOWN',reason:diagnosis.rootCause}] : [],
+    deepInference,
+  });
   const sharedLearning=buildSharedLearningContext({fingerprint,botId:'READ-ADVERSARY',limit:96});
   const knowledgeFusion=buildKnowledgeFusion({
     failureLog:log,
@@ -380,6 +392,7 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
     },
     adversarial,
     deepInference,
+    readOnlyRepairBrain,
     synthesis:{
       primaryCandidate:selected?.id??null,
       rootCause:diagnosis?.rootCause??null,
@@ -397,7 +410,11 @@ export function buildRepairIntelligenceMirror({failureLog='',targetSha='',histor
       actionVaultPredictionStatus:actionVaultPrediction?.status??'UNKNOWN',
       actionVaultPredictionConfidence:Number(actionVaultPrediction?.proposedRepair?.confidence??0),
       mutationWouldBeAllowedByRepairStack:Boolean(errorOnly.repair?.mutationAllowed)&&Boolean(confidence.allowed)&&adversarial.counterexampleFound===false,
-      readOnlyDecision:'REPORT_ONLY'
+      readOnlyDecision:'REPORT_ONLY',
+      repairBrainPower:readOnlyRepairBrain.power,
+      repairBrainSelectedStrategy:readOnlyRepairBrain.selectedStrategy,
+      repairBrainAnalyticPasses:readOnlyRepairBrain.tenXAnalyticProfile.completedPasses,
+      repairBrainMutationReady:false
     },
     learningContext:{
       memoryCaseCount:(memory.cases??[]).length,
