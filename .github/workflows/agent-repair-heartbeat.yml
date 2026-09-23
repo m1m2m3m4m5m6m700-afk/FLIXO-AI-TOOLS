@@ -60,7 +60,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/flixo-heartbeat
-          for ((TICK=1; TICK<=340; TICK++)); do
+          for ((TICK=1; TICK<=300; TICK++)); do
             SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
             RUNS_JSON="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=100")"
             ACTIVE_REPAIRS="$(jq --arg sha "$SHA" '[.workflow_runs[] | select(.path == ".github/workflows/auto-repair.yml" and (.status == "queued" or .status == "in_progress") and (.head_sha == $sha or .head_branch == "execution"))] | length' <<<"$RUNS_JSON")"
@@ -107,14 +107,15 @@ jobs:
             echo "WAKE_REASON=$WAKE_REASON"
             if [ "$ACTIVE_OPERATION" = "true" ]; then echo 'RED_REENTRY_WAKE=REPAIR_PATH'; else echo 'RED_REENTRY_WAKE=IDLE_SCAN'; fi
             echo 'ACTION_WAKE=DISPATCHED_TO_ALL_ACTION_REPAIR_TEAM'
-            if [ "$TICK" -lt 340 ]; then sleep 60; fi
+            if [ "$TICK" -lt 300 ]; then sleep 60; fi
           done
           echo 'HEARTBEAT_INTERVAL_SECONDS=60'
           echo 'SCHEDULE_INTERVAL_MINUTES=5'
           echo 'HEARTBEAT_WINDOW_SECONDS=360'
           echo 'EACH_PULSE_IS_A_REAL_ACTION_WAKE=true'
-          echo 'RESIDENCY_WINDOW_MINUTES=340'
+          echo 'RESIDENCY_WINDOW_MINUTES=300'
           echo 'RESIDENCY_WINDOW_WITHIN_GITHUB_HOSTED_MAX=TRUE'
+          echo 'RESIDENCY_WINDOW_OVERHEAD_BUFFER_MINUTES=45'
 
       - name: Re-arm next resident window through workflow_dispatch
         if: always()
