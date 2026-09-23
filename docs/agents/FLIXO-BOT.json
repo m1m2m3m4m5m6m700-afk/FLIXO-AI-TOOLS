@@ -58,7 +58,13 @@
       "ACTION-TWIN-2",
       "ACTION-INDEX",
       "ACTION-WISE",
-      "ACTION-ARBITER"
+      "ACTION-ARBITER",
+      "ACTION-RCA-3",
+      "ACTION-IMPACT-4",
+      "ACTION-SECURITY-5",
+      "ACTION-REGRESSION-6",
+      "ACTION-SHA-7",
+      "ACTION-CONVERGENCE-8"
     ],
     "actionCouncil": [
       "ACTION-COUNCIL-01",
@@ -349,9 +355,15 @@
       "WORKER_A",
       "WORKER_B",
       "ACTION-CODE-MENTOR",
-      "execution-agent-clone-v1"
+      "execution-agent-clone-v1",
+      "ACTION-RCA-3",
+      "ACTION-IMPACT-4",
+      "ACTION-SECURITY-5",
+      "ACTION-REGRESSION-6",
+      "ACTION-SHA-7",
+      "ACTION-CONVERGENCE-8"
     ],
-    "targetCount": 61,
+    "targetCount": 67,
     "syncModel": "LIVE_SHARED_MEMORY_BY_REFERENCE_BIDIRECTIONAL_COGNITIVE_MESH",
     "coreIntelligenceVersion": "FLIXO-BOT-BRAIN-v1",
     "deliveryRule": "EVERY_PUBLISHED_LESSON_AND_ANTI_LESSON_IS_VISIBLE_TO_ALL_ACTIVE_MEMBERS_INCLUDING_EXECUTION_AGENT_CLONE_V1",
@@ -431,5 +443,21 @@
       "mergeAuthority": false,
       "singleMutableOwnerPerTask": true
     }
+  },
+  "actionRepairCohort": {
+    "id": "ACTION-REPAIR-FLIXO-BOT-10",
+    "count": 10,
+    "sourceBot": "ACTION-REPAIR",
+    "sourceIntelligence": "FLIXO-BOT-BRAIN-v1",
+    "cloneModel": "ONE_SHARED_COGNITIVE_KERNEL_WITH_ROLE_OVERLAYS",
+    "mutationAuthority": false,
+    "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+    "sourceMutationOwner": "ACTION-REPAIR",
+    "pushAuthority": "CHAIR_1_ONLY",
+    "exactShaBound": true,
+    "staleEvidenceRejected": true,
+    "sharedMemory": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
+    "personalMemoryRequired": true,
+    "noThirdBranch": true
   }
 }
