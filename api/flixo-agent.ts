@@ -4,7 +4,7 @@ import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from
 import { TOOL_CATALOG } from '../src/config/registry.ts';
 import { buildFlixoAgentMasterPrompt } from '../src/lib/agent/flixo-agent-master-prompt.ts';
 
-const MAX_MESSAGES = 24;
+const MAX_MESSAGES = 80;
 const MAX_REQUEST_BODY_BYTES = 512 * 1024;
 const MAX_PROVIDER_CALLS = 2;
 const DEFAULT_TIMEOUT_MS = 15_000;
