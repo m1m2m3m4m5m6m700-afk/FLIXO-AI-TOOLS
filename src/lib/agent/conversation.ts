@@ -16,16 +16,18 @@ export type ConversationMemory = {
 const MAX_MEMORY_TURNS = 80;
 const STORAGE_KEY = 'flixo-agent-conversation-v1';
 
-const normalize = (value: string): string =>
+export const normalizeAgentText = (value: string): string =>
   value
     .trim()
     .toLocaleLowerCase()
     .normalize('NFKC')
-    .replace(/[\u064B-\u065F\u0670]/g, '')
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
     .replace(/[إأآٱ]/g, 'ا')
     .replace(/ى/g, 'ي')
     .replace(/ة/g, 'ه')
     .replace(/\s+/g, ' ');
+
+const normalize = normalizeAgentText;
 
 const hasAny = (text: string, patterns: readonly RegExp[]) => patterns.some((pattern) => pattern.test(text));
 
@@ -186,3 +188,10 @@ export function clearConversationTask(memory: ConversationMemory): ConversationM
   return next;
 }
 
+
+
+export function isQuestion(text: string): boolean {
+  const normalized = normalizeAgentText(text);
+  return /(?:\?|؟)$/.test(normalized)
+    || /^(?:هل|ماذا|ما|كيف|ليه|لماذا|فين|اين|أين|متى|what|why|how|where|when|can|do|does|is|are)\b/iu.test(normalized);
+}

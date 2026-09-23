@@ -7,6 +7,8 @@ import { extractParameters, type ExtractedOperation, type ExtractionResult } fro
 import { TOOLS_REGISTRY } from '@/config/tools';
 import { TOOL_CATALOG } from '@/config/registry';
 import type { ExecutionPlan } from '@/lib/ai/planner';
+import { buildWorldModel, WorldModelSchema, type WorldModel } from '@/lib/agent/world-model';
+import { selectClarificationQuestion } from '@/lib/agent/question-engine';
 
 export const INTENT_PLAN_VERSION = 1 as const;
 export const INTENT_PLAN_MAX_STEPS = 4;
@@ -53,6 +55,12 @@ export const IntentPlanSchema = z.object({
   explanation: z.string().trim().min(1),
   taskId: z.string().nullable(),
   traceId: z.string().nullable(),
+  worldModel: WorldModelSchema.optional(),
+  clarificationQuestion: z.object({
+    id: z.string().trim().min(1),
+    question: z.string().trim().min(1),
+    score: z.number().finite().min(0).max(1),
+  }).strict().nullable().optional(),
 }).strict();
 
 export type IntentPlan = z.infer<typeof IntentPlanSchema>;
@@ -179,6 +187,15 @@ function buildBasePlan(
   explanation: string,
   identity?: { taskId?: string | null; traceId?: string | null },
 ): IntentPlan {
+  const worldModel: WorldModel = buildWorldModel(
+    input,
+    { kind: intent.kind, id: intent.id, confidence: intent.confidence },
+    operations,
+    missing,
+    { activeCommand: input, activePlan: steps.length > 0 ? { stepCount: steps.length } : null },
+  );
+  const clarification = selectClarificationQuestion(missing, worldModel);
+
   return IntentPlanSchema.parse({
     version: INTENT_PLAN_VERSION,
     status,
@@ -203,6 +220,10 @@ function buildBasePlan(
     explanation,
     taskId: identity?.taskId ?? null,
     traceId: identity?.traceId ?? null,
+    worldModel,
+    clarificationQuestion: clarification
+      ? { id: clarification.id, question: clarification.question, score: clarification.score }
+      : null,
   });
 }
 
