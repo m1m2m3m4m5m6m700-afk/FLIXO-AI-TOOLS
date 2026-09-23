@@ -763,7 +763,7 @@
   "promptBinding": {
     "schemaVersion": 1,
     "promptId": "RPR-UNIFIED-EXECUTION-001",
-    "promptVersion": "4.0.0",
+    "promptVersion": "4.1.0",
     "registryPath": "docs/agents/PROMPT-REGISTRY.json",
     "hashAlgorithm": "git-blob-sha",
     "enforcement": "LIVE_GIT_BLOB_SHA_MUST_MATCH_BEFORE_ACTION_VAULT_ADMISSION",
@@ -774,7 +774,7 @@
       "docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md"
     ],
     "documents": {
-      "docs/agents/PROMPT-UNIFIED-EXECUTION.md": "12c3af5da96bd1e93af66232c433423af53cb0f3",
+      "docs/agents/PROMPT-UNIFIED-EXECUTION.md": "0b18521b1694dd6f3e2e8f6c5045c9d0899e633f",
       "docs/agents/ACTION-AGENT-RUNTIME-PROTOCOL.md": "63265769daede5c16f99b31ae925764093a2513b",
       "docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md": "8716ebd538c923d892b033cb07018d5fea833afb"
     }
