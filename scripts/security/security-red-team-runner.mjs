@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { buildFullIntelligenceBootstrap, assertFullIntelligenceBootstrap } from '../ci/full-intelligence-policy.mjs';
 
 const ROOT = process.cwd();
 const REGISTRY = JSON.parse(fs.readFileSync(path.resolve(ROOT, 'docs/agents/SECURITY-RED-TEAM-BOTS.json'), 'utf8'));
@@ -12,6 +13,8 @@ const OUTPUT = path.resolve(ROOT, String(process.argv.find(v => v.startsWith('--
 
 if (!REGISTRY.bots?.[BOT_ID]) throw new Error('SECURITY_RED_TEAM_BOT_NOT_REGISTERED');
 if (!/^[0-9a-f]{40}$/u.test(EXPECTED_SHA)) throw new Error('SECURITY_RED_TEAM_EXACT_SHA_REQUIRED');
+const fullIntelligence = buildFullIntelligenceBootstrap({ agentId: BOT_ID, role: REGISTRY.bots[BOT_ID].role, request: 'security review', exactSha: EXPECTED_SHA, taskId: `SECURITY-REDTEAM:${BOT_ID}:${EXPECTED_SHA}` });
+assertFullIntelligenceBootstrap(fullIntelligence, BOT_ID);
 
 const git = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
 const actualSha = git(['rev-parse', 'HEAD']);
@@ -214,6 +217,7 @@ const report = {
     twinA:twin.A ? { disposition:twin.A.challenge?.disposition ?? null, preferredStrategy:twin.A.challenge?.preferredAlternativeStrategy ?? null, preferredRepair:twin.A.challenge?.preferredAlternativeRepair ?? null, dissentStrength:twin.A.challenge?.dissentStrength ?? 0 } : null,
     twinB:twin.B ? { disposition:twin.B.challenge?.disposition ?? null, preferredStrategy:twin.B.challenge?.preferredAlternativeStrategy ?? null, preferredRepair:twin.B.challenge?.preferredAlternativeRepair ?? null, dissentStrength:twin.B.challenge?.dissentStrength ?? 0 } : null
   },
+  fullIntelligence,
   generatedAt:new Date().toISOString()
 };
 
