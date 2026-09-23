@@ -137,7 +137,7 @@ assert.match(liveness, /heartbeatGraceMs: 30 \* 1000/);
 assert.match(liveness, /scheduleIntervalMs: 5 \* 60 \* 1000/);
 assert.match(liveness, /onePulsePerHeartbeat: true/);
 const heartbeatWorkflow = read('.github/workflows/agent-repair-heartbeat.yml');
-const wakeRelay = read('.github/workflows/flixo-team-wake-relay.yml');
+const wakeRelay = read('.github/workflows/council-wake-push-relay.yml');
 
 assert.match(heartbeatWorkflow, /HEARTBEAT_24X7_MODE=true/);
 assert.match(heartbeatWorkflow, /HEARTBEAT_INTERVAL_SECONDS=60/);
@@ -154,9 +154,10 @@ assert.match(heartbeatWorkflow, /group: flixo-agent-repair-heartbeat-\$\{\{ gith
 assert.match(heartbeatWorkflow, /gh workflow run agent-repair-heartbeat\.yml --repo "\$GITHUB_REPOSITORY" --ref execution/);
 assert.match(heartbeatWorkflow, /if: github\.event_name == 'workflow_dispatch' && github\.ref == 'refs\/heads\/execution'/);
 assert.doesNotMatch(heartbeatWorkflow, /cron: '\*\/1 \* \* \* \*'/);
-assert.match(heartbeatWorkflow, /CANONICAL_TEAM_PULSE=1/);
-assert.match(heartbeatWorkflow, /flixo-team-wake-relay\.yml/);
-assert.match(wakeRelay, /name: FLIXO Team Wake Relay/);
+assert.match(heartbeatWorkflow, /flixo-ten-pulse\.mjs/);
+assert.match(heartbeatWorkflow, /action-repair-five-workers\.mjs --role=wake/);
+assert.match(heartbeatWorkflow, /daily-flixo-green-gate\.yml/);
+assert.match(wakeRelay, /name: FLIXO Council Wake Push Relay/);
 assert.match(wakeRelay, /actions: write/);
 assert.match(wakeRelay, /EXACT_SHA_WAKE_GUARD=PASS/);
 assert.match(wakeRelay, /daily-flixo-green-gate\.yml/);
@@ -164,7 +165,7 @@ assert.doesNotMatch(wakeRelay, /auto-repair\.yml.*dispatch/);
 
 assert.match(heartbeatWorkflow, /actions: write/);
 assert.doesNotMatch(heartbeatWorkflow, /actions\/workflows\/auto-repair\.yml\/dispatches/);
-assert.doesNotMatch(heartbeatWorkflow, /actions\/workflows\/daily-flixo-green-gate\.yml\/dispatches/);
+assert.match(heartbeatWorkflow, /actions\/workflows\/daily-flixo-green-gate\.yml\/dispatches/);
 assert.match(autoRepair, /Start one-minute Repair Bot lease heartbeat/);
 assert.match(autoRepair, /active_worker_id/);
 assert.match(autoRepair, /worker-seat|FLIXO_ACTIVE_WORKER_ID/);
