@@ -3,6 +3,7 @@ import { getCapability, getExecutableCapabilityIds } from '../src/lib/agent/capa
 import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from '../src/lib/contracts/agent-gateway.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
 import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
+import { buildSharedLearningContext } from '../scripts/ci/shared-operational-memory.mjs';
 
 const MAX_MESSAGES = 80;
 const MAX_REQUEST_BODY_BYTES = 512 * 1024;
@@ -315,12 +316,24 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const runtime = configuredRuntime();
     const provider = runtime.provider;
     const recentMessages = messages.slice(-24);
+    const sharedLearning = buildSharedLearningContext({ botId: 'executionAgent', limit: 48 });
     const promptMessages = [
       {
         role: 'system' as const,
         content: buildFlixoHumanConversationPrompt({
           locale,
           currentMessage: userMessage,
+          collectiveLearning: {
+            authority: 'CONTEXT_ONLY',
+            mutationAuthority: false,
+            certificationAuthority: false,
+            lessons: sharedLearning.lessons,
+            antiLessons: sharedLearning.antiLessons,
+            errors: sharedLearning.errors,
+            obligations: sharedLearning.obligations,
+            counterexamples: sharedLearning.counterexamples,
+            verifications: sharedLearning.verifications,
+          },
           file: body.file ?? null,
           activeCommand: body.activeCommand ?? null,
           activePlan: body.activePlan ?? null,
