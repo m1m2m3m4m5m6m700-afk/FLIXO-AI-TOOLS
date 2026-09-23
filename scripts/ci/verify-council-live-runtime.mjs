@@ -52,7 +52,7 @@ async function rpcProbe(functionName, payload, expectedMarker) {
   evidence.checks.push({ name: functionName, status: 'PASS', expectedMarker, httpStatus: result.response.status });
 }
 
-const accounts = await request('/rest/v1/flix_council_accounts?select=account_id,active,lease_seconds,last_seen_at,metadata&order=account_id.asc');
+const accounts = await request('/rest/v1/flix_council_accounts?select=account_id,active,lease_seconds,last_seen_at,last_heartbeat_at,current_execution_sha,metadata&order=account_id.asc');
 if (!accounts.response.ok) throw new Error('ACCOUNTS_READ_FAILED:' + accounts.response.status);
 const accountIds = Array.isArray(accounts.json) ? accounts.json.map((row) => row?.account_id).sort() : [];
 if (JSON.stringify(accountIds) !== JSON.stringify(['CHIEF','WORKER_A','WORKER_B'])) {
@@ -95,13 +95,23 @@ const residentAccounts = Array.isArray(accounts.json) ? accounts.json : [];
 const staleResidentAccounts = residentAccounts.filter((row) => {
   const metadata = row?.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata) ? row.metadata : {};
   if (metadata.residencyRequired !== true) return false;
-  if (!row?.last_seen_at) return true;
-  const lastSeen = Date.parse(String(row.last_seen_at));
-  if (!Number.isFinite(lastSeen)) return true;
+  const heartbeatAt = row?.last_heartbeat_at ?? row?.last_seen_at;
+  if (!heartbeatAt) return true;
+  const lastHeartbeat = Date.parse(String(heartbeatAt));
+  if (!Number.isFinite(lastHeartbeat)) return true;
   const leaseSeconds = Number(row.lease_seconds ?? 120);
   const freshnessMs = Math.max(120000, leaseSeconds * 2 * 1000);
-  return nowMs - lastSeen > freshnessMs;
+  if (nowMs - lastHeartbeat > freshnessMs) return true;
+  return String(row.current_execution_sha ?? '').toLowerCase() !== expectedSha;
 });
+if (staleResidentAccounts.length > 0) {
+  throw new Error('STALE_RESIDENT_ACCOUNTS:' + staleResidentAccounts.map((row) => row.account_id).join(','));
+}
+const heartbeatShaMismatch = residentAccounts.filter((row) => {
+  const metadata = row?.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata) ? row.metadata : {};
+  return metadata.residencyRequired === true && String(row.current_execution_sha ?? '').toLowerCase() !== expectedSha;
+}).map((row) => row.account_id);
+evidence.checks.push({ name: 'resident_heartbeat_exact_sha', status: heartbeatShaMismatch.length === 0 ? 'PASS' : 'FAIL', mismatches: heartbeatShaMismatch });
 if (staleResidentAccounts.length > 0) {
   throw new Error('STALE_RESIDENT_ACCOUNTS:' + staleResidentAccounts.map((row) => row.account_id).join(','));
 }
