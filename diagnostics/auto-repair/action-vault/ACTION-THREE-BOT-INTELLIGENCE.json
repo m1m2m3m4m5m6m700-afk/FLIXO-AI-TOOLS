@@ -148,7 +148,7 @@
   "members": [
     {
       "id": "ACTION-REPAIR",
-      "role": "PROGRAMMER_DEFENSE_SEAT",
+      "role": "MASTER_REPAIR_PROGRAMMER_SEAT",
       "executionAuthority": "MUTATE_WHEN_ADMITTED",
       "repairWriteAuthority": "ADD_AND_MODIFY_WITHIN_BOUNDED_REPAIR_SCOPE"
     },
