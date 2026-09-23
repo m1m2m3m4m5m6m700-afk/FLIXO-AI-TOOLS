@@ -46,8 +46,8 @@ assert.ok(session.includes('AGENT_ADMISSION_P00_SUPREME_PROTOCOL_INVALID'));
 assert.ok(session.includes('AGENT_ADMISSION_SUPREME_PROMPT_INVALID'));
 assert.equal(protocolRegistry.protocols.find((item) => item.id === 'P00')?.status, 'SUPREME_MANDATORY');
 assert.equal(protocolRegistry.protocols.find((item) => item.id === 'P00')?.canonicalSource, 'docs/agents/PROMPT-UNIFIED-EXECUTION.md');
-assert.equal(protocolRegistry.protocols.find((item) => item.id === 'P00')?.version, '4.0.0');
-for (const marker of ['RPR-UNIFIED-EXECUTION-001 · v4.0.0 · PROTOCOL-ROOT','FIRST OBLIGATION','ZERO-ERROR / NON-STOP','SHARED CELL / MULTI-AGENT COORDINATION','HARD CIRCULAR EXIT LOCK','DIRECTIVE']) assert.ok(supremePrompt.includes(marker));
+assert.equal(protocolRegistry.protocols.find((item) => item.id === 'P00')?.version, '4.1.0');
+for (const marker of ['RPR-UNIFIED-EXECUTION-001 · v4.1.0 · PROTOCOL-ROOT','FIRST OBLIGATION','ZERO-ERROR / NON-STOP','SHARED CELL / MULTI-AGENT COORDINATION','HARD CIRCULAR EXIT LOCK','DIRECTIVE']) assert.ok(supremePrompt.includes(marker));
 
 assert.ok(session.includes('admissionSources'));
 
@@ -104,7 +104,7 @@ assert.ok(safeExecution.includes('Task Agent is explicitly not a mutation role')
 const unifiedPrompt = prompts.prompts.find((item) => item.promptId === 'RPR-UNIFIED-EXECUTION-001');
 assert.ok(unifiedPrompt);
 assert.equal(unifiedPrompt.status, 'ACTIVE');
-assert.equal(unifiedPrompt.version, '4.0.0');
+assert.equal(unifiedPrompt.version, '4.1.0');
 assert.ok(unifiedPrompt.provenance?.replacedFamilies?.includes('Task Agent preparation'));
 assert.ok(unifiedPrompt.provenance?.replacedFamilies?.includes('Safe Task Agent execution'));
 assert.equal(prompts.prompts.filter((item) => item.status === 'ACTIVE').length, 1);
