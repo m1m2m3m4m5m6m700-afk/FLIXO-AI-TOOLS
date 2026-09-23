@@ -98,6 +98,9 @@
     ],
     "mentors": [
       "ACTION-CODE-MENTOR"
+    ],
+    "cognitiveClones": [
+      "execution-agent-clone-v1"
     ]
   },
   "mergedIntelligence": {
@@ -228,7 +231,11 @@
       "RUNTIME_UPLOAD_CORS_COOKIE_POSTMESSAGE_REVIEW",
       "SSR_CLIENT_SECRET_BOUNDARY_ANALYSIS"
     ],
-    "conversationSource": "src/lib/agent/human-conversation.ts"
+    "conversationSource": "src/lib/agent/human-conversation.ts",
+    "presentationSources": [
+      "src/components/FlixoAIAgentStudio.tsx",
+      "src/components/FlixoAIAgent.tsx"
+    ]
   },
   "knowledgeSources": [
     "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
@@ -314,19 +321,32 @@
       "CHIEF",
       "WORKER_A",
       "WORKER_B",
-      "ACTION-CODE-MENTOR"
+      "ACTION-CODE-MENTOR",
+      "execution-agent-clone-v1"
     ],
-    "targetCount": 60,
-    "syncModel": "LIVE_SHARED_MEMORY_BY_REFERENCE",
+    "targetCount": 61,
+    "syncModel": "LIVE_SHARED_MEMORY_BY_REFERENCE_BIDIRECTIONAL_COGNITIVE_MESH",
     "coreIntelligenceVersion": "FLIXO-BOT-BRAIN-v1",
-    "deliveryRule": "EVERY_PUBLISHED_LESSON_AND_ANTI_LESSON_IS_VISIBLE_TO_ALL_ACTIVE_MEMBERS",
+    "deliveryRule": "EVERY_PUBLISHED_LESSON_AND_ANTI_LESSON_IS_VISIBLE_TO_ALL_ACTIVE_MEMBERS_INCLUDING_EXECUTION_AGENT_CLONE_V1",
     "exactShaBindingRequired": true,
     "provenanceRequired": true,
     "staleKnowledgePolicy": "REQUALIFY_BEFORE_REUSE",
     "conflictPolicy": "PRESERVE_AND_BLOCK_UNTIL_FRESH_EXACT_SHA_RESOLVES",
     "localMemoryRule": "LOCAL_MEMORY_IS_CACHE_OR_SCRATCH_ONLY; CANONICAL_LEARNING_LIVES_IN_SHARED_MEMORY",
     "promotionRule": "VERIFIED_OR_PROMOTED_ONLY_AFTER_CANONICAL_GREEN",
-    "noAuthorityTransfer": true
+    "noAuthorityTransfer": true,
+    "bidirectionalIntelligence": {
+      "protocol": "FLIXO-BIDIRECTIONAL-COGNITIVE-MESH-v1",
+      "cloneToAllActiveMembers": "publishSharedMemory → every active learning consumer",
+      "allActiveMembersToClone": "buildSharedLearningContext(system-wide) → execution-agent-clone-v1",
+      "sameBrainVersion": "FLIXO-BOT-BRAIN-v1",
+      "sameCapabilitySet": true,
+      "sameCanonicalMemory": true,
+      "knowledgeOnly": true,
+      "noAuthorityTransfer": true,
+      "exactShaRequired": true,
+      "provenanceRequired": true
+    }
   },
   "learning": {
     "onEveryMeaningfulFinding": "PUBLISH_TO_SHARED_MEMORY",
@@ -338,7 +358,8 @@
     "onRequiredProof": "OBLIGATION",
     "onObservedFailure": "ERROR",
     "allMembersConsumeSameRecord": true,
-    "noSilentLocalOnlyLearning": true
+    "noSilentLocalOnlyLearning": true,
+    "cloneRule": "execution-agent-clone-v1 consumes all shared learning and publishes eligible clone findings back to the same canonical shared memory; intelligence is shared by reference and authority remains role-bound."
   },
   "retired": {
     "identities": [
@@ -346,7 +367,8 @@
     ],
     "cellPool": "CELL-001..CELL-200",
     "activeCellCount": 0,
-    "automaticReprovisioning": false
+    "automaticReprovisioning": false,
+    "cognitiveCloneNote": "execution-agent-clone-v1 is active; retired CELL-001..CELL-200 identities remain retired and are not recreated."
   },
   "compatibility": {
     "legacySixBotIds": [
@@ -359,5 +381,28 @@
     ],
     "legacySixRemainSubset": true,
     "canonicalSharedMemory": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json"
+  },
+  "cognitiveClones": {
+    "execution-agent-clone-v1": {
+      "id": "execution-agent-clone-v1",
+      "role": "executionAgent",
+      "rolePreserved": true,
+      "sourceRuntime": [
+        "src/components/FlixoAIAgentStudio.tsx",
+        "src/components/FlixoAIAgent.tsx",
+        "src/lib/agent/human-conversation.ts",
+        "src/lib/agent/cognitive-orchestrator.ts"
+      ],
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+      "capabilityParity": "EXACT_SHARED_BY_REFERENCE",
+      "learningParity": "BIDIRECTIONAL",
+      "sharedMemory": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
+      "syncRuntime": "scripts/ci/execution-agent-cognitive-sync.mjs",
+      "directPermissionGrant": false,
+      "mutationAuthority": "EXISTING_EXECUTION_AGENT_ADMISSION_ONLY",
+      "certificationAuthority": false,
+      "mergeAuthority": false,
+      "singleMutableOwnerPerTask": true
+    }
   }
 }
