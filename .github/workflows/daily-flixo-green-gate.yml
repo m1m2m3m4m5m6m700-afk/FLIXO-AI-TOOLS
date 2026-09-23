@@ -106,6 +106,38 @@ jobs:
           printf '%s\n' "$WATCH_BRANCH" > /tmp/flixo-watch/observed-branch
           printf 'branch=%s\n' "$WATCH_BRANCH" >> "$GITHUB_OUTPUT"
 
+      - name: Require recent external agent guardian health
+        if: steps.capture.outputs.branch == 'execution'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          GUARDIAN_RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/council-external-lease-watch.yml/runs?branch=main&per_page=20")"
+          LATEST="$(printf '%s' "$GUARDIAN_RUNS" | jq -c '[.workflow_runs[] | select(.status == "completed")] | sort_by(.updated_at) | last // empty')"
+          if [ -z "$LATEST" ]; then
+            echo 'FAIL CLOSED: no completed external agent guardian evidence exists.'
+            exit 1
+          fi
+          STATUS="$(printf '%s' "$LATEST" | jq -r '.status')"
+          CONCLUSION="$(printf '%s' "$LATEST" | jq -r '.conclusion // ""')"
+          UPDATED_AT="$(printf '%s' "$LATEST" | jq -r '.updated_at')"
+          UPDATED_EPOCH="$(date -d "$UPDATED_AT" +%s)"
+          NOW_EPOCH="$(date -u +%s)"
+          AGE="$((NOW_EPOCH - UPDATED_EPOCH))"
+          echo "AGENT_GUARDIAN_STATUS=$STATUS"
+          echo "AGENT_GUARDIAN_CONCLUSION=$CONCLUSION"
+          echo "AGENT_GUARDIAN_AGE_SECONDS=$AGE"
+          if [ "$STATUS" != "completed" ] || [ "$CONCLUSION" != "success" ]; then
+            echo 'FAIL CLOSED: external agent guardian is not GREEN.'
+            exit 1
+          fi
+          if [ "$AGE" -gt 600 ]; then
+            echo 'FAIL CLOSED: external agent guardian evidence is older than 10 minutes.'
+            exit 1
+          fi
+          echo 'AGENT_PLANE_GREEN_PROOF=PASS'
+
       - name: Ensure exact-SHA required CI is resident
         if: >-
           steps.capture.outputs.branch == 'execution' &&
