@@ -69,6 +69,18 @@ jobs:
           node scripts/ci/wake-compliance.mjs /tmp/flixo-heartbeat/wake-runs.json /tmp/flixo-heartbeat/wake-compliance.json
           jq -e '.status == "PASS" or .status == "BASELINE_REQUIRED"' /tmp/flixo-heartbeat/wake-compliance.json >/dev/null
 
+      - name: Publish differentiated pulses and idle-sweep evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-ten-pulse-${{ github.run_id }}
+          path: |
+            /tmp/flixo-heartbeat/flixo-ten-pulse.json
+            /tmp/flixo-heartbeat/flixo-ten-idle-pulse.json
+            /tmp/flixo-heartbeat/flixo-full-repository-scan.json
+            /tmp/flixo-heartbeat/flixo-bot-development-plan.md
+          if-no-files-found: warn
+          retention-days: 30
       - name: Publish heartbeat compliance evidence
         if: always() && steps.heartbeat_compliance.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -97,7 +109,7 @@ jobs:
           path: /tmp/flixo-repair-behavior-trace.json
           if-no-files-found: error
           retention-days: 30
-      - name: Determine whether canonical repair work is already resident
+      - name: Determine whether canonical work is resident
         id: state
         env:
           GH_TOKEN: ${{ github.token }}
@@ -105,31 +117,54 @@ jobs:
         run: |
           set -euo pipefail
           EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-          ACTIVE_GREEN_GATES="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'")) | length')"
           ACTIVE_REPAIRS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'")) | length')"
-          ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status,headSha,displayTitle --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'" and .displayTitle == "FLIXO Auto Repair Chain  NO_FINGERPRINT")) | length')"
-          GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --commit "$EXECUTION_SHA" --limit 50 --json databaseId,status,conclusion,headSha,createdAt --jq 'map(select(.headSha == "'"$EXECUTION_SHA"'" and .conclusion == "success")) | sort_by(.createdAt) | last.databaseId // empty')"
-
-          echo "EXECUTION_SHA=$EXECUTION_SHA"
-          echo "ACTIVE_GREEN_GATES=$ACTIVE_GREEN_GATES"
-          echo "ACTIVE_REPAIRS=$ACTIVE_REPAIRS"
-          echo "ACTIVE_RESIDENT=$ACTIVE_RESIDENT"
-          echo "LAST_GREEN_GATE=${GREEN:-none}"
-
-          if [ -n "$GREEN" ]; then
-            echo 'CANONICAL_GREEN_ALREADY_PROVEN=true'
-            echo 'wake=false' >> "$GITHUB_OUTPUT"
-            echo 'resident_wake=false' >> "$GITHUB_OUTPUT"
-          else
-            echo 'CANONICAL_GREEN_NOT_PROVEN=true'
-            echo 'wake=true' >> "$GITHUB_OUTPUT"
-            if [ "$ACTIVE_RESIDENT" -eq 0 ]; then
-              echo 'resident_wake=true' >> "$GITHUB_OUTPUT"
-            else
-              echo 'resident_wake=false' >> "$GITHUB_OUTPUT"
-            fi
+          ACTIVE_GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'")) | length')"
+          ACTIVE_TESTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --limit 50 --json status,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'")) | length')"
+          ACTIVE_OPERATION=false
+          if [ "$ACTIVE_REPAIRS" -gt 0 ] || [ "$ACTIVE_GREEN" -gt 0 ] || [ "$ACTIVE_TESTS" -gt 0 ]; then
+            ACTIVE_OPERATION=true
           fi
+          echo "EXECUTION_SHA=$EXECUTION_SHA"
+          echo "ACTIVE_REPAIRS=$ACTIVE_REPAIRS"
+          echo "ACTIVE_GREEN=$ACTIVE_GREEN"
+          echo "ACTIVE_TESTS=$ACTIVE_TESTS"
+          echo "ACTIVE_OPERATION=$ACTIVE_OPERATION"
+          echo "execution_sha=$EXECUTION_SHA" >> "$GITHUB_OUTPUT"
+          echo "active_operation=$ACTIVE_OPERATION" >> "$GITHUB_OUTPUT"
 
+      - name: Emit ten differentiated pulses and ALL_AGENTS wake directives
+        id: pulse
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-heartbeat
+          node scripts/ci/flixo-ten-pulse.mjs \
+            --sha="${{ steps.state.outputs.execution_sha }}" \
+            --run-id="$GITHUB_RUN_ID" \
+            --minute="$(date -u +%Y-%m-%dT%H:%M)" \
+            --active-operation="${{ steps.state.outputs.active_operation }}" \
+            --output=/tmp/flixo-heartbeat/flixo-ten-pulse.json
+          jq -e '.pulseCount==10 and .uniquePulseFocusCount==10 and (.pulses|all(.action=="WAKE_ALL_AGENTS" and .wakeScope=="ALL_AGENTS" and .targetSha=="'"${{ steps.state.outputs.execution_sha }}"'"))' /tmp/flixo-heartbeat/flixo-ten-pulse.json >/dev/null
+          echo 'DIFFERENTIATED_PULSES=10'
+          echo 'EVERY_PULSE_WAKE_SCOPE=ALL_AGENTS'
+          echo "ACTIVE_OPERATION=${{ steps.state.outputs.active_operation }}"
+
+      - name: Full repository read-only sweep when no operation is active
+        if: steps.state.outputs.active_operation == 'false'
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-heartbeat
+          node scripts/ci/flixo-ten-pulse.mjs scan-plan \
+            --sha="${{ steps.state.outputs.execution_sha }}" \
+            --run-id="$GITHUB_RUN_ID" \
+            --minute="$(date -u +%Y-%m-%dT%H:%M)" \
+            --active-operation=false \
+            --output=/tmp/flixo-heartbeat/flixo-ten-idle-pulse.json \
+            --plan-output=/tmp/flixo-heartbeat/flixo-bot-development-plan.md \
+            --scan-output=/tmp/flixo-heartbeat/flixo-full-repository-scan.json
+          test -s /tmp/flixo-heartbeat/flixo-bot-development-plan.md
+          test -s /tmp/flixo-heartbeat/flixo-full-repository-scan.json
+          echo 'IDLE_MODE=FULL_REPOSITORY_READ_ONLY_SCAN'
+          echo 'PLAN_TARGET=المهام.md'
       - name: Build canonical all-team wake plan
         if: steps.state.outputs.wake == 'true'
         env:
@@ -147,8 +182,8 @@ jobs:
           jq -e '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .recipientCount==10 and .scope=="ALL_ACTION_REPAIR_TEAM"' /tmp/flixo-heartbeat/team-wake.json >/dev/null
           echo 'ALL_ACTION_REPAIR_TEAM_WAKE_PLAN=READY'
 
-      - name: Wake observer supervisor automatically
-        if: steps.state.outputs.wake == 'true'
+      - name: Wake canonical observer supervisor for every pulse window
+        if: always() && steps.state.outputs.execution_sha != ''
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -156,5 +191,6 @@ jobs:
           set -euo pipefail
           gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/agent-repair-supervisor.yml/dispatches" -f ref=execution
           echo 'AUTOMATIC_REPAIR_SUPERVISOR_WAKE=true'
-          echo 'ALL_ACTION_REPAIR_TEAM_WAKE=true'
+          echo 'ALL_AGENTS_WAKE_DIRECTIVES_EMITTED=10'
           echo 'SUPERVISOR_REMAINS_OBSERVER_ONLY=true'
+          echo 'IDLE_SWEEP_REMAINS_READ_ONLY=true'
