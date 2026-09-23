@@ -13,8 +13,8 @@ if(!Array.isArray(report.nextBotIds)||report.nextBotIds.length!==5) throw new Er
 const commitment=report.fiveBotResidency;
 if(!commitment || commitment.requiredBotCount!==5 || commitment.postTaskCloseState!=='READY_RESIDENT' || commitment.journeyLogicalBotCount!==120 || commitment.journeyCohortCount!==24 || commitment.journeyCohortSize!==5 || commitment.retainResidentUntilJourneyComplete!==true || commitment.sleep!==false || commitment.idle!==false || commitment.withdrawal!==false) throw new Error('FIVE_BOT_HANDOFF_RESIDENCY_COMMITMENT_INVALID');
 const expectedIds=[...report.nextBotIds].sort();
-const readyIds=[...new Set((report.workers??[]).filter(w=>w?.active===false&&w?.cohortRole==='NEXT_COHORT_READY'&&w?.readySignal===true&&w?.readyExactSha===targetSha&&report.nextBotIds.includes(w.logicalBotId)).map(w=>w.logicalBotId))].sort();
-if(readyIds.length!==5||readyIds.some((id,i)=>id!==expectedIds[i])) throw new Error('FIVE_BOT_HANDOFF_READY_FIVE_INVALID');
+const readyIds=[...new Set((report.workers??[]).filter(w=>w?.active===false&&w?.cohortRole==='NEXT_COHORT_READY'&&w?.readySignal===true&&w?.readyExactSha===targetSha&&w?.heartbeatAck===true&&w?.attendanceStatus==='READY'&&report.nextBotIds.includes(w.logicalBotId)).map(w=>w.logicalBotId))].sort();
+if(readyIds.length!==5||readyIds.some((id,i)=>id!==expectedIds[i])) throw new Error('FIVE_BOT_HANDOFF_READY_FIVE_LIVE_ACK_INVALID');
 const result={schemaVersion:2,protocol:'FLIXO-FIVE-BOT-HANDOFF-v2',targetSha,sourceCohortIndex:Number(report.cohortIndex),targetCohortIndex:expected,requiredReadyCount:5,readyCount:5,readyBotIds:readyIds,status:'HANDOFF_COMMITTED',fiveBotResidency:{requiredBotCount:5,postTaskCloseState:'READY_RESIDENT',retainResidentUntilJourneyComplete:true,journeyLogicalBotCount:120,journeyCohortCount:24,journeyCohortSize:5,sourceCohortRemainsResident:true,targetCohortReadyBeforeRelease:true,journeyCompleteAfterThisHandoff:expected===0},sleep:false,idle:false,withdrawal:false,sourceMutationAllowed:false};
 const out=arg('output','/tmp/flixo-five-bot-handoff.json');
 fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n'); console.log(JSON.stringify(result,null,2));
