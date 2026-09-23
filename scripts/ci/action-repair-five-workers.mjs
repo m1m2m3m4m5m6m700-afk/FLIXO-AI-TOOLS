@@ -31,6 +31,13 @@ const ROLE_MAP=Object.freeze({
   'ACTION-CONVERGENCE-8':'ACTION_FINAL_CERTIFIER'
 });
 const FLIXO10_IDS=Object.freeze(['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5','FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10']);
+const FLIXO10_PAIRS=Object.freeze([
+  Object.freeze({proposal:'FLIXO2',adversary:'FLIXO1'}),
+  Object.freeze({proposal:'FLIXO4',adversary:'FLIXO3'}),
+  Object.freeze({proposal:'FLIXO6',adversary:'FLIXO5'}),
+  Object.freeze({proposal:'FLIXO8',adversary:'FLIXO7'}),
+  Object.freeze({proposal:'FLIXO10',adversary:'FLIXO9'}),
+]);
 const sha=v=>/^[a-f0-9]{40}$/iu.test(String(v??''));
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):String(fallback)};
 const readJson=f=>JSON.parse(fs.readFileSync(f,'utf8'));
@@ -104,6 +111,38 @@ function selectBest({historical=[],twinA=null,twinB=null}){
    tieCount:ranked.filter(x=>x.score===best.score).length,
    historicalSupport:historical.length
  };
+}
+if(role==='pair-gate'){
+ requireIdentity();
+ const evidencePath=arg('pair-evidence',process.env.FLIXO10_PAIR_EVIDENCE_PATH);
+ if(!evidencePath || !fs.existsSync(evidencePath)) throw new Error('FLIXO10_PAIR_EVIDENCE_REQUIRED');
+ const evidence=readJson(evidencePath);
+ const pairs=Array.isArray(evidence.pairs)?evidence.pairs:[];
+ const byKey=new Map(pairs.map(pair=>[(pair.proposal||'')+'|'+(pair.adversary||''),pair]));
+ const failures=[];
+ for(const pair of FLIXO10_PAIRS){
+   const key=pair.proposal+'|'+pair.adversary;
+   const item=byKey.get(key);
+   if(!item) { failures.push({pair,reason:'PAIR_EVIDENCE_MISSING'}); continue; }
+   if(item.targetSha!==targetSha) failures.push({pair,reason:'PAIR_SHA_MISMATCH'});
+   if(item.status!=='PASS') failures.push({pair,reason:'PAIR_NOT_PASS'});
+   if(item.counterexampleFound===true) failures.push({pair,reason:'COUNTEREXAMPLE_FOUND'});
+   if(item.adversaryIndependent!==true) failures.push({pair,reason:'ADVERSARY_NOT_INDEPENDENT'});
+   if(item.readComplete!==true || item.diagnosisComplete!==true || item.proposalWritten!==true) failures.push({pair,reason:'PAIR_WORKFLOW_INCOMPLETE'});
+ }
+ const result={schemaVersion:1,protocol:'FLIXO10-PAIR-GATE-v1',taskId:'ACTION-REPAIR:'+runId+':'+fingerprint,targetSha,failureFingerprint:fingerprint,pairCount:FLIXO10_PAIRS.length,pairs:FLIXO10_PAIRS,failures,status:failures.length?'BLOCKED':'PASS',publicationAdmit:failures.length===0,mutationAuthority:false,pushAuthority:failures.length===0?'FIRST_CONNECTED_FLIXO10_GUARDED_ONLY':'BLOCKED',next:failures.length?'RETURN_TO_PAIR_REPAIR':'ALLOW_PUSH_OWNER_TO_MERGE_PROPOSALS_AND_REQUEST_GUARDED_PUBLICATION'};
+ fs.mkdirSync(path.dirname(out),{recursive:true}); fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n'); console.log(JSON.stringify(result,null,2)); process.exit(failures.length?2:0);
+}
+if(role==='push-admit'){
+ requireIdentity();
+ const pairGatePath=arg('pair-gate',process.env.FLIXO10_PAIR_GATE_PATH);
+ if(!pairGatePath || !fs.existsSync(pairGatePath)) throw new Error('FLIXO10_PAIR_GATE_REQUIRED');
+ const pairGate=readJson(pairGatePath);
+ if(pairGate.targetSha!==targetSha || pairGate.status!=='PASS' || pairGate.publicationAdmit!==true) throw new Error('FLIXO10_PUSH_ADMISSION_PAIR_GATE_FAILED');
+ const owner=arg('owner').toUpperCase();
+ if(!FLIXO10_IDS.includes(owner)) throw new Error('FLIXO10_PUSH_OWNER_REQUIRED');
+ const result={schemaVersion:1,protocol:'FLIXO10-PUSH-ADMISSION-v1',targetSha,runId,failureFingerprint:fingerprint,owner,pairGate:'PASS',allPairsPassed:true,publicationAdmit:true,mergeParallelProposals:true,pushRoute:'ASSISTANT_CONTROLLER_GUARDED_PUBLICATION',directGitPush:false,mainMutation:false};
+ fs.mkdirSync(path.dirname(out),{recursive:true}); fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n'); console.log(JSON.stringify(result,null,2)); process.exit(0);
 }
 if(role==='wake'){
  requireWakeIdentity();
