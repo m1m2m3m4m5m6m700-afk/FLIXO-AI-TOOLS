@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { FLIXO_WORKER_IDS, FLIXO_ACTIVE_WORKER_GUARD, assertActiveWorkerGuardDefinition, nextFlixoWorker, evaluateWorkerClaim, buildActiveWorkerSeat } from './flixo-active-worker-guard.mjs';
 
 assertActiveWorkerGuardDefinition();
+assert.equal(FLIXO_ACTIVE_WORKER_GUARD.simultaneousActiveWorkers, 1);
+assert.equal(FLIXO_ACTIVE_WORKER_GUARD.peerCompetition, 'FORBIDDEN');
 assert.equal(FLIXO_WORKER_IDS.length, 10);
 assert.equal(nextFlixoWorker('FLIXO1'), 'FLIXO2');
 assert.equal(nextFlixoWorker('FLIXO10'), 'FLIXO1');
