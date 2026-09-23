@@ -100,7 +100,13 @@ const authGitHubWorkflow = async (req: Request, allowedWorkflows: string[]) => {
     if (jobWorkflowRef && jobWorkflowSha !== configuredWorkflowSha) {
       throw new Error("COUNCIL_GITHUB_OIDC_JOB_WORKFLOW_SHA_REJECTED");
     }
-  } else if (workflow !== externalLeaseWatcherWorkflow) {
+  } else if (workflow === externalLeaseWatcherWorkflow) {
+    const mainRef = `${GITHUB_REPOSITORY}/.github/workflows/council-external-lease-watch.yml@refs/heads/main`;
+    if (jobWorkflowRef !== mainRef) throw new Error("COUNCIL_EXTERNAL_WATCHER_MAIN_REF_REJECTED");
+    if (!jobWorkflowSha || jobWorkflowSha !== workflowSha) {
+      throw new Error("COUNCIL_EXTERNAL_WATCHER_WORKFLOW_SHA_MISMATCH");
+    }
+  } else {
     throw new Error("COUNCIL_TRUSTED_WORKFLOW_SHA_MISSING=" + workflow);
   }
   const event = String(claims.event_name ?? "");
@@ -1250,6 +1256,7 @@ Deno.serve(async (req) => {
       /UNAUTHORIZED|OIDC_MISSING/u.test(errorCode) ? 401 :
       /REJECTED|FORBIDDEN/u.test(errorCode) ? 403 :
       /INVALID|REQUIRED|TOO_LARGE|UNKNOWN/u.test(errorCode) ? 400 :
+      /TRUSTED_WORKFLOW_SHA_MISSING|WORKFLOW_SHA_MISMATCH|CONFIG_MISSING/u.test(errorCode) ? 503 :
       500;
     return response({ ok: false, error: errorCode, requestId }, status, requestId);
   }
