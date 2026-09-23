@@ -159,3 +159,32 @@ Before bounded mutation, the strategy engine evaluates five independent evidence
 5. X5 Verification Plan — the selected repair has a concrete regression and canonical-GREEN closure route.
 
 A score below 5 routes the bot to COLLECT_MORE_EVIDENCE; 5/5 permits the existing bounded repair path. The method does not increase mutation retries, bypass the control plane, mutate main, or grant certification authority.
+
+
+## TEN-X-PROOF-CARRYING-REPAIR-v1
+
+The FIVE-X method is extended to a ten-pass pre-mutation evidence gate. The additional passes are proof layers, not extra mutation retries:
+
+6. **X6 Patch Simulation Contract** — require a bounded surgical patch proposal and pre-mutation deterministic proof.
+7. **X7 Counterexample Hunter** — require adversarial falsification evidence and no unresolved counterexample.
+8. **X8 Patch Correctness Proof** — bind the proposed change to the exact SHA, failure signal, causal location, mechanism, and challenged alternatives.
+9. **X9 Independent Repair Judge** — require the read-only Master Repair Gate to independently declare the dossier ready while retaining zero mutation/certification authority.
+10. **X10 Adaptive Repair Portfolio** — compare multiple repair strategies and require strategy change or explicit supervisory escalation when recurrence makes the previous strategy unsafe to repeat.
+
+The gate emits `FLIXO-TEN-X-REPAIR-GATE-v1`. Only a complete 10/10 profile reaches the existing bounded mutation path. The gate never grants mutation authority, never mutates `main`, and never replaces Canonical GREEN or certification.
+
+### Adaptive failure memory
+
+Every repeated failure is classified into an adaptive phase:
+
+```text
+FIRST_OBSERVATION
+  ↓
+REPEAT_REQUIRES_FALSIFICATION
+  ↓
+MULTI_ATTEMPT_REQUIRES_STRATEGY_CHANGE
+  ↓
+HIGH_RECURRENCE_REQUIRES_SUPERVISORY_ESCALATION
+```
+
+A previously rejected strategy is not reused silently. Once the available portfolio is exhausted, escalation is required instead of blind repetition.
