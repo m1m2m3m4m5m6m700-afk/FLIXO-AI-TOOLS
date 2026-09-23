@@ -191,6 +191,12 @@ export const BOT_RUNTIME_ROLES = Object.freeze({
     certificationAuthority: false,
     reportOnly: false,
     boundedMutationOnly: true,
+    canReadRepository: true,
+    canWriteExecutionSource: true,
+    canWriteTests: false,
+    canWriteMain: false,
+    canWriteControlPlane: false,
+    transactionalWrites: true,
     requiresChair1: true,
     requiresIndependentVerification: true,
     capabilities: Object.freeze([
@@ -202,6 +208,14 @@ export const BOT_RUNTIME_ROLES = Object.freeze({
       'PATCH_CORRECTNESS_PROOF',
       'ADAPTIVE_REPAIR_PORTFOLIO',
       'TEN_X_REPAIR',
+      'REPOSITORY_READ',
+      'REPOSITORY_INTELLIGENCE_GRAPH',
+      'DEPENDENCY_IMPACT_ANALYSIS',
+      'NO_REPAIR_DECISION',
+      'BOUNDED_SOURCE_WRITE',
+      'PATCH_TRANSACTION',
+      'ROLLBACK_EXECUTION',
+      'PERSISTENT_REPAIR_RECEIPT',
     ]),
   }),
 });
@@ -248,6 +262,12 @@ export function getUnifiedBotRuntime(botId) {
     reportOnly: role.reportOnly,
     exactShaRequired: true,
     staleEvidenceRejected: true,
+    canReadRepository: role.canReadRepository === true,
+    canWriteExecutionSource: role.canWriteExecutionSource === true,
+    canWriteTests: role.canWriteTests === true,
+    canWriteMain: role.canWriteMain === true,
+    canWriteControlPlane: role.canWriteControlPlane === true,
+    transactionalWrites: role.transactionalWrites === true,
   });
 }
 
@@ -267,6 +287,10 @@ export function validateUnifiedBotRuntimeRegistry() {
     else {
       const runtime = getUnifiedBotRuntime(id);
       if (runtime.mutationAuthority && !['REPAIR','MASTER_REPAIR'].includes(role)) failures.push('UNAUTHORIZED_MUTATION_ROLE=' + id);
+      if (role === 'MASTER_REPAIR') {
+        if (!runtime.canReadRepository || !runtime.canWriteExecutionSource || !runtime.transactionalWrites) failures.push('MASTER_REPAIR_IO_CAPABILITY_MISSING=' + id);
+        if (runtime.canWriteTests || runtime.canWriteMain || runtime.canWriteControlPlane) failures.push('MASTER_REPAIR_BOUNDARY_BREACH=' + id);
+      }
       if (runtime.certificationAuthority) failures.push('BOT_CERTIFICATION_AUTHORITY_LEAK=' + id);
       if (!runtime.exactShaRequired || !runtime.staleEvidenceRejected) failures.push('IDENTITY_GUARD_MISSING=' + id);
     }
