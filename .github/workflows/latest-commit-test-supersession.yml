@@ -235,6 +235,8 @@ jobs:
 
             # Re-scan inside the settle window because late dependent workflows can be
             # queued after an older in-progress run completes. Started runs remain immutable.
+            jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" --arg pattern 'Test|Repair|Verification|Contract|Security|Baseline|Certification|Impact|Code Scanning|CodeQL|Diagnostic|Proof|Scan|Heartbeat|Wake|Watchdog|Execution' '.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession" and (.head_repository.full_name // "") == $sourceRepo and (.name | test($pattern))) | select(.name != "FLIXO Agent Repair Supervisor" and .name != "FLIXO Master Agent Activation Relay" and .name != "FLIXO Master Repair Governor" and .name != "Daily·FLIXO Green Gate" and .name != "FLIXO Auto Repair Bot" and .name != "FLIXO Execution Bot Watchdog") | .id' /tmp/supersession-final-runs.json > /tmp/supersession-late-stale-ids.txt
+            echo "SUPERSESSION_LATE_STALE_ID_FILE=/tmp/supersession-late-stale-ids.txt"
             while read -r LATE_RUN_ID; do
               [ -n "$LATE_RUN_ID" ] || continue
               echo "CANCEL_LATE_STALE_RUN run=$LATE_RUN_ID"
@@ -254,9 +256,7 @@ jobs:
                 fi
                 sleep 1
               done
-            done < <(
-              jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" --arg pattern 'Test|Repair|Verification|Contract|Security|Baseline|Certification|Impact|Code Scanning|CodeQL|Diagnostic|Proof|Scan|Heartbeat|Wake|Watchdog|Execution' '.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession" and (.head_repository.full_name // "") == $sourceRepo and (.name | test($pattern))) | select(.name != "FLIXO Agent Repair Supervisor" and .name != "FLIXO Master Agent Activation Relay" and .name != "FLIXO Master Repair Governor" and .name != "Daily·FLIXO Green Gate" and .name != "FLIXO Auto Repair Bot" and .name != "FLIXO Execution Bot Watchdog") | .id' /tmp/supersession-final-runs.json
-            )
+            done < /tmp/supersession-late-stale-ids.txt
             if [ "$poll" -lt "$SETTLE_MAX_POLLS" ]; then sleep "$SETTLE_POLL_SECONDS"; fi
           done
           if [ "$stale_active" -ne 0 ]; then
