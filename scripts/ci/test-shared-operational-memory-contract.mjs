@@ -27,11 +27,11 @@ assert.equal(p22?.participantsSource,'docs/agents/FLIXO-BOT.json#/distribution/l
 assert.ok(Array.isArray(flixoBot?.distribution?.learningConsumers));
 assert.ok(flixoBot.distribution.learningConsumers.length>6);
 assert.equal(new Set(flixoBot.distribution.learningConsumers).size,flixoBot.distribution.learningConsumers.length);
-for(const required of ['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','ACTION-ARBITER','ACTION-COUNCIL-20','SECURITY-REDTEAM-3','assistantController','MASTER-1','MASTER-2','MASTER-3','executionAgent','reviewAgent','CHIEF','WORKER_A','WORKER_B']) assert(flixoBot.distribution.learningConsumers.includes(required));
+for(const required of ['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','ACTION-ARBITER','ACTION-COUNCIL-20','SECURITY-REDTEAM-3','assistantController','MASTER-1','MASTER-2','MASTER-3','executionAgent','reviewAgent','execution-agent-clone-v1','CHIEF','WORKER_A','WORKER_B']) assert(flixoBot.distribution.learningConsumers.includes(required));
 assert(!flixoBot.distribution.learningConsumers.includes('ACTION-WAKE'));
 assert(!flixoBot.distribution.learningConsumers.some((id)=>/^CELL-\\d{3}$/u.test(id)));
 
-for(const marker of ['FLIXO-SHARED-OPERATIONAL-MEMORY-v1','Every published record is visible to every active FLIXO BOT learning consumer','exact-SHA-bound','learning','authority']) assert(contract.toLowerCase().includes(marker.toLowerCase()));
+for(const marker of ['FLIXO-SHARED-OPERATIONAL-MEMORY-v1','Every published record is visible to every active FLIXO BOT learning consumer','exact-SHA-bound','learning','authority','execution-agent-clone-v1','FLIXO-BIDIRECTIONAL-COGNITIVE-MESH-v1']) assert(contract.toLowerCase().includes(marker.toLowerCase()));
 
 console.log('SHARED_OPERATIONAL_MEMORY_CONTRACT_TEST=PASS');
 console.log('RETIRED_CELL_POOL_CONTRACT=PASS');
