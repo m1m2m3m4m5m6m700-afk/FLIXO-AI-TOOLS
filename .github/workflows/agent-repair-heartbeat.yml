@@ -60,7 +60,7 @@ jobs:
             test "$SHA" = "$GITHUB_SHA" || { echo "FAIL CLOSED: heartbeat source SHA moved current=$SHA event=$GITHUB_SHA"; exit 1; }
             node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="HEARTBEAT:$GITHUB_RUN_ID:$TICK" --state=ACTIVE --sha="$SHA" --progress=false --file="$FLIXO_HEARTBEAT_PATH"
             jq -e --arg sha "$SHA" '.protocolId=="AGENT_LIVENESS_PROTOCOL" and .state=="ACTIVE" and .exactSha==$sha and .progress==false' "$FLIXO_HEARTBEAT_PATH" >/dev/null
-            node scripts/ci/action-repair-five-workers.mjs --role=wake --status=ACTIVE_OPERATION --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$GITHUB_RUN_ID-$TICK" --output=/tmp/flixo-heartbeat/action-wake-$TICK.json
+            node scripts/ci/action-repair-five-workers.mjs --role=wake --status=RED_INTERNAL --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$GITHUB_RUN_ID-$TICK" --output=/tmp/flixo-heartbeat/action-wake-$TICK.json
             PULSE_INDEX=$(( $(date -u +%s) / 60 % 10 ))
             case "$PULSE_INDEX" in
               0) PULSE_OWNER="FLIXO1"; PULSE_TYPE="RCA_AND_ARCHITECTURE" ;;
