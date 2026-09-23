@@ -181,7 +181,6 @@ export function ToolWorkbench<P>({
   const [error, setError] = useState('');
   const [viewMode, setViewMode] = useState<'compare' | 'before' | 'after'>('compare');
   const [zoom, setZoom] = useState(1);
-  const [activeFileIndex, setActiveFileIndex] = useState(0);
   const [adjustmentsOpen, setAdjustmentsOpen] = useState(true);
   const [preset, setPreset] = useState<'default' | 'clean' | 'warm'>('default');
   const mountedRef = useRef(true);
@@ -218,7 +217,6 @@ export function ToolWorkbench<P>({
   const handleFiles = async (nextFiles: File[], nextActiveIndex = 0) => {
     if (busy) return;
     setFiles(nextFiles);
-    setActiveFileIndex(Math.max(0, Math.min(nextActiveIndex, Math.max(0, nextFiles.length - 1))));
     setError('');
     onFilesChange?.(nextFiles);
     const file = nextFiles[Math.max(0, Math.min(nextActiveIndex, Math.max(0, nextFiles.length - 1)))];
@@ -269,7 +267,6 @@ export function ToolWorkbench<P>({
     if (busy) return;
     assetStore.clear();
     setFiles([]);
-    setActiveFileIndex(0);
     setPreset('default');
     setInputAssetId(null);
     setOutputAssetId(null);

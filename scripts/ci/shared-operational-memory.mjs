@@ -278,7 +278,6 @@ export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48
   const records=readSharedMemory({fingerprint,botId,limit});
   const grouped=Object.fromEntries(SHARED_KINDS.map(kind=>[kind,records.filter(r=>r.kind===kind)]));
   const legacy=legacyReadThroughContext(limit);
-  const targetSha=validSha(currentSha)?String(currentSha):null;
   // Synchronous consumers use canonical in-repo memory. Remote external candidates are merged by buildAsyncSharedLearningContext or the API bridge.
   return {
     protocol:SHARED_MEMORY_PROTOCOL,

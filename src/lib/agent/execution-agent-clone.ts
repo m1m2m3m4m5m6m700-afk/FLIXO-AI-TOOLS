@@ -32,8 +32,15 @@ export type ExecutionAgentCloneSession = Readonly<{
   prepared: PreparedExecution | null;
 }>;
 
+function hasControlCharacter(value: string): boolean {
+  return [...value].some((character) => {
+    const code = character.charCodeAt(0);
+    return code <= 0x1f || code === 0x7f;
+  });
+}
+
 function assertIdentity(value: string, label: string): void {
-  if (!value.trim() || value.length > 256 || /[\u0000-\u001F\u007F]/u.test(value)) {
+  if (!value.trim() || value.length > 256 || hasControlCharacter(value)) {
     throw new Error('EXECUTION_AGENT_CLONE_' + label.toUpperCase() + '_INVALID');
   }
 }
