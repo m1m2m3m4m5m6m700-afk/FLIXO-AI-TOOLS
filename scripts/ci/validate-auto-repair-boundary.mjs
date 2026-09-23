@@ -150,6 +150,9 @@ export function validateStatic() {
   must(!/git\s+push[^\n]*\bexecution\b/.test(auto) && /EXECUTION_PUBLICATION=BLOCKED_BY_CHAIR_GUARD/.test(auto), 'auto-repair-execution-publication-chair-gated');
   must(/if: steps\.chair1_audit\.outcome == 'success'/.test(auto), 'auto-repair-publication-must-depend-on-chair1');
   must(/FLIXO_CHAIR_CONTEXT:\s*\/tmp\/flixo-chair1-proposal\.json/.test(auto), 'auto-repair-chair-context-boundary');
+  must(/active_worker_id/.test(auto) && /INPUT_ACTIVE_WORKER_ID/.test(auto), 'auto-repair-active-flixo-worker-input');
+  must(/repair-lease\.mjs worker-state/.test(auto), 'auto-repair-durable-flixo-worker-state');
+  must(/repair-lease\.mjs heartbeat[\s\S]*--workerId=\"\$FLIXO_ACTIVE_WORKER_ID\"/.test(auto), 'auto-repair-worker-heartbeat-bound-to-seat');
   must(auto.includes('EVIDENCE_CAPTURE=FAILED'), 'auto-repair-evidence-capture-fail-closed');
   must(handoffGate.includes('branches: [execution]'), 'handoff-gate-execution-trigger');
   must(/permissions:\s*[\s\S]*contents:\s+read[\s\S]*checks:\s+read/.test(supervisor) && !/actions:\s*write/.test(supervisor), 'supervisor-read-only');
@@ -168,6 +171,7 @@ export function validateStatic() {
   must(!/actions\/workflows\/agent-repair-supervisor\.yml\/dispatches/.test(heartbeat), 'heartbeat-no-direct-supervisor-dispatch');
   must(/cron:\s*'\*\/5 \* \* \* \*'/.test(heartbeat), 'heartbeat-five-minute-schedule');
   must(/HEARTBEAT_INTERVAL_SECONDS=60/.test(heartbeat), 'heartbeat-one-minute-emission');
+  must(/CANONICAL_TEAM_PULSE=1/.test(heartbeat), 'heartbeat-one-pulse-per-minute');
   must(/flixo-ten-pulse\.mjs|flixo-team-pulse/.test(heartbeat), 'heartbeat-team-wake-plan');
   must(/ONE_PULSE_WAKE_SCOPE=ALL_AGENTS|wakeScope.?ALL_AGENTS/.test(heartbeat), 'heartbeat-team-wake-broadcast');
   must(!/pulseCount==10|DIFFERENTIATED_PULSES=10|ALL_AGENTS_WAKE_DIRECTIVES_EMITTED=10/.test(heartbeat), 'heartbeat-no-ten-pulse-competition');
