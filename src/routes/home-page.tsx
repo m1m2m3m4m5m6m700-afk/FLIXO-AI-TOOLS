@@ -2,7 +2,6 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { TOOLS_REGISTRY } from '../config/tools';
 import { FlixoLogoImage } from '../components/FlixoLogoImage';
-import '../components/FlixoAIAgent.css';
 import { getBestToolIntent } from '@/lib/intent-router';
 import { loadHomeCopy } from '@/lib/i18n/home-loader';
 import { getAuthoritativeToolSeoName } from '@/config/tool-seo-name-resolver';

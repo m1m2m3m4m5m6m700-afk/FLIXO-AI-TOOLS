@@ -4,6 +4,7 @@ const config = readFileSync('src/lib/i18n/config.ts', 'utf8');
 const source = readFileSync('src/data/home-locales.ts', 'utf8');
 const overrides = readFileSync('src/lib/i18n/locale-quality-overrides.ts', 'utf8');
 const homePage = readFileSync('src/routes/home-page.tsx', 'utf8');
+const mainEntry = readFileSync('src/main.tsx', 'utf8');
 const translations = readFileSync('src/lib/i18n/translations.ts', 'utf8');
 const expected = config.match(/export const LOCALES = \[([\s\S]*?)\] as const/)?.[1]?.match(/'([a-z]{2})'/g)?.map((v) => v.slice(1, -1)) ?? [];
 const required = ['language','dir','badge','eyebrow','heroTitle','heroLead','describe','searchLabel','searchPlaceholder','smartPalette','suggested','openDirectly','popular','quickDrop','quickDropTitle','quickDropLead','dropChoose','dropSupport','suggestedTool','openTool','toolbox','toolboxTitle','ready','empty','builtForFocus','finalTitle','finalLead','trySmart','all','browserMeta','ariaHome','ariaPrimary','ariaFindTool','ariaTrust','ariaCategories','quickTags'];
@@ -31,6 +32,15 @@ if (!source.includes("dir:'rtl'") && !overrides.includes("dir: 'rtl'")) {
 const runtimeHomeImport = /(^|\n)\s*import\s+(?!type\b)[^;]*from\s+['"][^'"]*home-locales['"]/m;
 if (runtimeHomeImport.test(homePage)) {
   console.error('HomePage must not runtime-import home-locales.ts; use the lazy home loader.');
+  process.exit(1);
+}
+const flixoAgentCssImport = "import './components/FlixoAIAgent.css';";
+if (!mainEntry.includes(flixoAgentCssImport)) {
+  console.error('FlixoAIAgent.css must be owned by the app entry so locale navigation cannot race a route-scoped CSS preload.');
+  process.exit(1);
+}
+if (homePage.includes('FlixoAIAgent.css')) {
+  console.error('HomePage must not route-scope FlixoAIAgent.css; the agent CSS belongs to the app entry.');
   process.exit(1);
 }
 if (!source.includes('HOME_I18N')) {
