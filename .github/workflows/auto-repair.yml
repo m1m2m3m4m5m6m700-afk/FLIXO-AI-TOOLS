@@ -51,6 +51,11 @@ on:
         description: 'Central Chair-1 fencing proof bound to task/work-package/exact SHA'
         required: true
         type: string
+      active_worker_id:
+        description: 'Canonical FLIXO active worker identity assigned by the durable Repair Lease'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   # Sole source-mutation authority for the repair plane.
@@ -118,6 +123,7 @@ env:
   FLIXO_REPAIR_TASK_LEDGER_PATH: /tmp/flixo-repair-task-ledger.json
   FLIXO_CHAIR_LEASE_ID: ${{ inputs.central_chair_lease_id }}
   FLIXO_CHAIR_FENCING_HASH: ${{ inputs.central_chair_fencing_hash }}
+  FLIXO_ACTIVE_WORKER_ID: ${{ inputs.active_worker_id || '' }}
   FLIXO_CHAIR_AGENT: AUTO_REPAIR_BOT
   FLIXO_STRICT_CHAIR: 'true'
 
@@ -133,6 +139,7 @@ jobs:
       INPUT_CHAIN_ID: ${{ inputs.chain_id || '' }}
       INPUT_CHAIR_LEASE_ID: ${{ inputs.central_chair_lease_id || '' }}
       INPUT_CHAIR_FENCING_HASH: ${{ inputs.central_chair_fencing_hash || '' }}
+      INPUT_ACTIVE_WORKER_ID: ${{ inputs.active_worker_id || '' }}
     steps:
       - name: Enforce canonical dispatch provenance
         shell: bash
@@ -157,6 +164,10 @@ jobs:
           test -n "$INPUT_CHAIR_LEASE_ID"
           test -n "$INPUT_CHAIR_FENCING_HASH"
           if [ "$INPUT_RESIDENT" != "true" ]; then
+            case "$INPUT_ACTIVE_WORKER_ID" in
+              FLIXO1|FLIXO2|FLIXO3|FLIXO4|FLIXO5|FLIXO6|FLIXO7|FLIXO8|FLIXO9|FLIXO10) ;;
+              *) echo 'FAIL CLOSED: active FLIXO worker identity is required for repair mode.'; exit 1 ;;
+            esac
             case "$INPUT_TARGET_RUN_ID" in ''|*[!0-9]*) echo 'FAIL CLOSED: target_run_id required for repair mode.'; exit 1 ;; esac
             case "$INPUT_FAILURE_FINGERPRINT" in ''|*[!a-fA-F0-9]*) echo 'FAIL CLOSED: failure fingerprint required for repair mode.'; exit 1 ;; esac
             test -n "$INPUT_CHAIN_ID" || { echo 'FAIL CLOSED: repair chain identity missing.'; exit 1; }
@@ -525,6 +536,14 @@ jobs:
             --leaseOwner="AUTO_REPAIR_BOT" \
             --repairRunId="$GITHUB_RUN_ID" > /tmp/flixo-lease-verification.json
           test "$(jq -r '.status' /tmp/flixo-lease-verification.json)" = "LEASE_ACTIVE"
+          WORKER_STATE="$(node scripts/ci/repair-lease.mjs worker-state \
+            --fingerprint="$FAILURE_FINGERPRINT" \
+            --failedSha="$FAILED_SHA" \
+            --targetRunId="$TARGET_RUN_ID" \
+            --branch="execution")"
+          test "$(printf '%s' "$WORKER_STATE" | jq -r '.activeWorker')" = "$FLIXO_ACTIVE_WORKER_ID"
+          test "$(printf '%s' "$WORKER_STATE" | jq -r '.stale')" = "false"
+          echo "FLIXO_ACTIVE_WORKER_VERIFIED=$FLIXO_ACTIVE_WORKER_ID"
           echo "GLOBAL_REPAIR_LEASE_VERIFIED=$FLIXO_REPAIR_LEASE_REF"
           echo "GLOBAL_REPAIR_LEASE_ATTEMPT=$FLIXO_REPAIR_LEASE_ATTEMPT"
 
@@ -568,6 +587,7 @@ jobs:
                 --branch=execution \
                 --attempt="$ATTEMPT" \
                 --repairRunId="$GITHUB_RUN_ID" \
+                --workerId="$FLIXO_ACTIVE_WORKER_ID" \
                 --leaseOwner=AUTO_REPAIR_BOT \
                 --livenessState=ACTIVE \
                 --progress=false \
@@ -1939,6 +1959,7 @@ jobs:
           STRATEGY_ID="$(node -e "const fs=require('fs');try{const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-strategy.json','utf8'));process.stdout.write(x.strategyId||'unknown')}catch{process.stdout.write('unavailable')}" 2>/dev/null || printf '%s' 'unavailable')"
 
           node scripts/ci/repair-lease.mjs outcome \
+            --workerId="$FLIXO_ACTIVE_WORKER_ID" \
             --fingerprint="$FLIXO_FAILURE_FINGERPRINT" \
             --failedSha="$FAILED_SHA" \
             --targetRunId="$TARGET_RUN_ID" \
