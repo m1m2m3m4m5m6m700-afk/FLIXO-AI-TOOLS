@@ -35,6 +35,8 @@
     "test:security-red-team": "node scripts/ci/test-security-red-team-contract.mjs",
     "test:security-redteam-remediation": "node scripts/ci/test-security-redteam-remediation.mjs",
     "test:repair-intelligence": "node scripts/ci/test-read-only-repair-intelligence.mjs",
+    "master-repair:engine": "node scripts/ci/master-repair-engine.mjs",
+    "test:master-repair-engine": "node scripts/ci/test-master-repair-engine.mjs",
     "test:knowledge-fusion": "node scripts/ci/test-read-only-knowledge-fusion.mjs",
     "agent:task": "node scripts/ci/task-agent.mjs",
     "agent:execution-control": "node scripts/ci/agent-execution-control.mjs",
