@@ -244,6 +244,7 @@ const directGuardianRecovery = async () => {
               terminal: true,
               requiredAction: "SUPERVISOR_ESCALATION",
               recoveryVersion: "guardian-v3",
+              recoveryState: "FAILED_TERMINAL",
             },
           }),
         });
