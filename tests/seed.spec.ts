@@ -197,7 +197,7 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
     await page.keyboard.up('Space');
   });
 
-  test('enters and exits fullscreen on the actual Seed stage when the browser exposes the API', async ({ page }) => {
+  test('enters and exits fullscreen on the actual Seed stage when the browser exposes the API', async ({ page }, testInfo) => {
     const fullscreenEnabled = await page.evaluate(() => Boolean(document.fullscreenEnabled && document.documentElement.requestFullscreen));
     test.skip(!fullscreenEnabled, 'Fullscreen API is unavailable in this browser environment.');
     await loadSeed(page, testInfo);
