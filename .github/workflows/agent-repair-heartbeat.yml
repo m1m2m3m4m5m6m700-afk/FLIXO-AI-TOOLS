@@ -19,7 +19,8 @@ concurrency:
   # Bootstrap runs on main and resident runs on execution must not block one another.
   group: ${{ github.ref_name == 'execution' && 'flixo-agent-repair-heartbeat-main' || 'flixo-agent-repair-heartbeat-bootstrap' }}
   # Started residency runs are never cancelled.
-  cancel-in-progress: false
+  # New execution heads supersede every older resident window.
+  cancel-in-progress: true
 
 jobs:
   bootstrap:
@@ -38,7 +39,7 @@ jobs:
           set -euo pipefail
           EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           [[ "$EXECUTION_SHA" =~ ^[0-9a-f]{40}$ ]]
-          ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 50 --json databaseId,status,headBranch --jq 'map(select((.status == "queued" or .status == "pending" or .status == "in_progress") and .headBranch == "execution")) | length')"
+          ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 50 --json databaseId,status,headBranch,headSha --jq --arg sha "$EXECUTION_SHA" 'map(select((.status == "queued" or .status == "pending" or .status == "in_progress") and .headBranch == "execution" and .headSha == $sha)) | length')"
           echo "EXECUTION_SHA=$EXECUTION_SHA"
           echo "ACTIVE_RESIDENT=$ACTIVE_RESIDENT"
           if [ "$ACTIVE_RESIDENT" -eq 0 ]; then
@@ -51,7 +52,7 @@ jobs:
 
           if [ "$ACTIVE_RESIDENT" -eq 0 ]; then
             for ATTEMPT in 1 2 3 4 5 6; do
-              ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 50 --json databaseId,status,headBranch --jq 'map(select((.status == "queued" or .status == "pending" or .status == "in_progress") and .headBranch == "execution")) | length')"
+              ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 50 --json databaseId,status,headBranch,headSha --jq --arg sha "$EXECUTION_SHA" 'map(select((.status == "queued" or .status == "pending" or .status == "in_progress") and .headBranch == "execution" and .headSha == $sha)) | length')"
               if [ "$ACTIVE_RESIDENT" -gt 0 ]; then
                 echo 'RESIDENT_BOOTSTRAP_VERIFIED=true'
                 exit 0
@@ -198,7 +199,7 @@ jobs:
           CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           [[ "$CURRENT_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$GITHUB_REF" = "refs/heads/execution"
-          OTHER_RESIDENTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 50 --json databaseId,status,headBranch --jq --arg current "$GITHUB_RUN_ID" 'map(select(.headBranch=="execution" and (.status=="queued" or .status=="pending" or .status=="in_progress") and (.databaseId|tostring)!=$current)) | length')"
+          OTHER_RESIDENTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 50 --json databaseId,status,headBranch,headSha --jq --arg current "$GITHUB_RUN_ID" --arg sha "$CURRENT_SHA" 'map(select(.headBranch=="execution" and .headSha == $sha and (.status=="queued" or .status=="pending" or .status=="in_progress") and (.databaseId|tostring)!=$current)) | length')"
           if [ "$OTHER_RESIDENTS" -eq 0 ]; then
             gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
             echo "RESIDENCY_REARMED_FOR_SHA=$CURRENT_SHA"
