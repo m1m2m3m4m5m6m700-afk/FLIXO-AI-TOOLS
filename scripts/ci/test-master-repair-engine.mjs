@@ -48,7 +48,7 @@ try {
 
   const plan={
     taskId:'TASK-1',fingerprint:'a'.repeat(64),runId:'RUN-1',targetSha:sha,
-    evidence:{currentFailureLog:true},allowedPaths:['src/demo.mjs'],
+    evidence:{currentFailureLog:true},admission:{chair1:true,independentVerification:true},allowedPaths:['src/demo.mjs'],
     writes:[{path:'src/demo.mjs',kind:'replace',search:'value = 1',replace:'value = 2'}],
     checks:['node --check src/demo.mjs']
   };
