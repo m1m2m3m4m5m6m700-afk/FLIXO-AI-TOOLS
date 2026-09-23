@@ -9,6 +9,8 @@ export const FLIXO_SWARM_CAPACITY_POLICY = Object.freeze({
   scaleStep: 5,
   currentVerifiedRuntimeCount: 10,
   currentVerifiedActiveRuntimeCount: 5,
+  minimumVerifiedResidentRuntimeCount: 10,
+  requiredSurplusRuntimeCount: 5,
   logicalJourneyDefault: 120,
   logicalJourneyMaximum: 500,
   scaleSignals: Object.freeze({
@@ -77,6 +79,9 @@ export function validateCapacityPolicy() {
   assert.equal(p.scaleStep,5);
   assert.equal(p.currentVerifiedRuntimeCount >= p.currentVerifiedActiveRuntimeCount,true);
   assert.equal(p.currentVerifiedActiveRuntimeCount,5);
+  assert.equal(p.minimumVerifiedResidentRuntimeCount,10);
+  assert.equal(p.requiredSurplusRuntimeCount,5);
+  assert.equal(p.currentVerifiedRuntimeCount >= p.minimumVerifiedResidentRuntimeCount,true);
   assert.equal(p.logicalJourneyDefault,120);
   assert.equal(p.logicalJourneyMaximum,500);
   assert.equal(p.requireVerifiedRuntimeProvisioning,true);
@@ -108,6 +113,20 @@ export function decideCapacity({
   const p=FLIXO_SWARM_CAPACITY_POLICY;
   if (liveBots !== activeRuntimeCount) {
     return Object.freeze({action:'BLOCK',reason:'LIVE_COUNT_MISMATCH'});
+  }
+  if (provisionedRuntimeCount < p.minimumVerifiedResidentRuntimeCount) {
+    return Object.freeze({
+      action:'REQUEST_PROVISIONING',
+      reason:'SURPLUS_FIVE_RUNTIME_SEATS_REQUIRED',
+      desiredActiveRuntimeCount:activeRuntimeCount,
+      requiredVerifiedRuntimeCount:p.minimumVerifiedResidentRuntimeCount,
+      currentVerifiedRuntimeCount:provisionedRuntimeCount,
+      requiredSurplusRuntimeCount:p.requiredSurplusRuntimeCount,
+      failClosed:true,
+      neverFabricateLiveBots:true,
+      governancePreserved:true,
+      scaleDoesNotGrantAuthority:true,
+    });
   }
   const missingSeats=Math.max(Number(unresponsiveActiveRuntimeCount),0);
   if (missingSeats > 0) {
