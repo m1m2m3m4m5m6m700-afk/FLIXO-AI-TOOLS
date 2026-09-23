@@ -308,10 +308,23 @@ jobs:
           }
           gh_with_backoff api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_SHA/check-runs?per_page=100" > /tmp/exact-check-pages.json
           jq -s 'add' /tmp/exact-check-pages.json > /tmp/exact-check-runs.json
-          CERT="$(jq -c '[.[].check_runs[] | select(.name == "Certification")] | sort_by(.completed_at // .started_at // "") | last // empty' /tmp/exact-check-runs.json)"
-          test -n "$CERT" || { echo "FAIL CLOSED: Certification check missing."; exit 1; }
+          TEST_SYSTEM_RUN_ID="$(jq -r '[.[] | select(.name == "FLIXO Test System" and .headSha == $sha and .status == "completed" and .conclusion == "success")] | sort_by(.updatedAt) | last | .databaseId // empty' --arg sha "$EXPECTED_SHA" /tmp/exact-runs.json)"
+          test -n "$TEST_SYSTEM_RUN_ID" || { echo "FAIL CLOSED: canonical FLIXO Test System run missing for exact SHA."; exit 1; }
+          CERT="$(jq -c --arg sha "$EXPECTED_SHA" --arg runId "$TEST_SYSTEM_RUN_ID" '
+            [.[].check_runs[]
+              | select(.name == "Certification")
+              | select(.head_sha == $sha)
+              | select(.status == "completed" and .conclusion == "success")
+              | select((.details_url // "") | test("/actions/runs/[0-9]+(?:/job/[0-9]+)?(?:[/?#]|$)"))
+              | select(((.details_url // "") | capture("/actions/runs/(?<runId>[0-9]+)").runId) == $runId)
+            ]
+            | sort_by(.completed_at // .started_at // "")
+            | last // empty
+          ' /tmp/exact-check-runs.json)"
+          test -n "$CERT" || { echo "FAIL CLOSED: canonical Certification check missing or not linked to the canonical FLIXO Test System run."; exit 1; }
           test "$(printf '%s' "$CERT" | jq -r '.status')" = "completed"
           test "$(printf '%s' "$CERT" | jq -r '.conclusion')" = "success"
+          test "$(printf '%s' "$CERT" | jq -r '.head_sha')" = "$EXPECTED_SHA"
           # The required workflow set above already proves the canonical internal security
           # workflows. Do not match their display names to check-run names, because GitHub
           # may expose a workflow job as e.g. "Claude Security Review (Advisory)".
