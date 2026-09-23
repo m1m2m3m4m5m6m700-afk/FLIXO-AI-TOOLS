@@ -224,24 +224,20 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       if (decision.fallback) return false;
 
       if (decision.mode === 'plan' && decision.plan) {
-        // The model may propose intent, but it is never the execution authority.
-        // Rebuild the executable plan through the deterministic canonical planner so
-        // registry state, parameter schemas and capability status remain authoritative.
+        // The model is allowed to understand natural conversation and propose a plan,
+        // but the parsed decision has already crossed the canonical execution-plan
+        // contract: registered executable tools, valid parameters and current catalog
+        // fingerprint. It still cannot execute; explicit user confirmation is required.
         const contextualCommand = contextualizeCommand(command, memory);
-        const canonicalIntentPlan = buildIntentPlan(contextualCommand);
-        const canonicalPlan = canonicalIntentPlan.status === 'READY'
-          ? toExecutionPlan(canonicalIntentPlan)
-          : null;
+        const conversationalPlan = decision.plan as ExecutionPlan;
 
-        if (!canonicalPlan) return false;
-
-        setPlan(canonicalPlan);
+        setPlan(conversationalPlan);
         setState('ready');
         setError(null);
         setFilterHandoff(null);
         setMemory((current) => setConversationTask(current, {
           command: contextualCommand,
-          toolId: canonicalPlan.steps[0]?.toolId ?? null,
+          toolId: conversationalPlan.steps[0]?.toolId ?? null,
           planReady: true,
         }));
         pushMessage(
