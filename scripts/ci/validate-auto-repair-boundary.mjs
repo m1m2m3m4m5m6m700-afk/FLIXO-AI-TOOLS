@@ -129,7 +129,7 @@ export function validateStatic() {
   must(/verify-platform-publication-boundary\.mjs/.test(auto), 'platform-publication-boundary-required');
   must(/FLIXO-MASTER-REPAIR-GOVERNOR-v1/.test(masterGovernor), 'master-repair-governor-protocol-required');
   must(/PATCH_TEXT_IS_NEVER_AUTHORITATIVE/.test(patchTruth), 'patch-truth-non-authoritative-input-rule');
-  must(/FLIXO-PLATFORM-PUBLICATION-BOUNDARY-v1/.test(platformBoundary), 'external-platform-attestation-required');
+  must(/FLIXO-PLATFORM-PUBLICATION-BOUNDARY-v2/.test(platformBoundary), 'external-platform-attestation-required');
   must(/FLIXO_AUTO_REPAIR_SELF_APPROVAL:\s*['"]false['"]/.test(auto), 'auto-repair-self-approval-forbidden');
   must(/FLIXO_AUTO_REPAIR_ROLE:\s*AUTO_REPAIR_BOT/.test(auto), 'auto-repair-chair-identity-required');
   must(!/auto-repair-chair-policy-exempt/.test(auto), 'auto-repair-chair-exemption-removed');
