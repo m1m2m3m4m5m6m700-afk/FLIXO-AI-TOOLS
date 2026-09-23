@@ -40,6 +40,10 @@ assert.doesNotMatch(supersession, /gh api "repos\/\$GITHUB_REPOSITORY\/pulls\/\$
 assert.match(supersession, /CANCEL_STALE_RUN/u);
 assert.match(supersession, /\.status == "queued" or \.status == "pending"/u);
 assert.match(supersession, /KEEP_STARTED_(?:RUN|STALE_RUN)/u);
+assert.doesNotMatch(supersession, /"FLIXO Agent Repair Heartbeat").*return 0/);
+assert.match(supersession, /FLIXO Agent Repair Heartbeat/u);
+assert.match(supersession, /queued.*pending/u);
+assert.match(supersession, /Heartbeat.*supersedable|supersedable.*Heartbeat/u);
 assert.doesNotMatch(supersession, new RegExp(['gh','run','view','$run_id','--repo','$REPOSITORY','--json','status'].join(' ')));
 assert.match(supersession, /head_repository\.full_name/u);
 assert.match(ci, /github\.run_attempt\s*>\s*1[\s\S]*format\('-rerun-\{0\}',\s*github\.run_id\)/u);
@@ -51,6 +55,7 @@ assert.match(supersession, /group:\s*flixo-latest-commit-supersession-\$\{\{\s*g
 assert.doesNotMatch(supersession, /gh\s+run\s+view\s+"\$run_id"/u);
 assert.match(supersession, /SOURCE_REPOSITORY:\s*\$\{\{\s*steps\.head\.outputs\.source_repository\s*\}\}/u);
 assert.match(supersession, /LATEST_COMMIT_ONLY_ENFORCED=true/u);
+assert.match(supersession, /STALE_ACTIVE_RUNS=0/u);
 assert.match(supersession, /\*Repair\*/u);
 
 assert.match(createIdentity, /LATEST_COMMIT_ONLY_RERUN_LOCK_V2/u);

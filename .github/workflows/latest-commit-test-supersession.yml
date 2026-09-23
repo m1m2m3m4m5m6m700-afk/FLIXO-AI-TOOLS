@@ -108,6 +108,11 @@ jobs:
               "FLIXO Latest Commit Test Supersession"|"Daily·FLIXO Green Gate"|"FLIXO Auto Repair Bot"|"FLIXO Execution Bot Watchdog"|"FLIXO Agent Repair Supervisor"|"FLIXO Master Agent Activation Relay"|"FLIXO Master Repair Governor"|"Claude Security Review")
                 return 0
                 ;;
+              # Heartbeat protection is status-sensitive: queued/pending stale Heartbeats
+              # are supersedable, while started Heartbeats remain immutable evidence.
+              "FLIXO Agent Repair Heartbeat")
+                return 1
+                ;;
               *) return 1 ;;
             esac
           }
@@ -224,14 +229,14 @@ jobs:
               exit 1
             fi
             printf '%s' "$RUNS_JSON" | jq '.' > /tmp/supersession-final-runs.json
-            stale_active="$(jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" --arg pattern 'Test|Repair|Verification|Contract|Security|Baseline|Certification|Impact|Code Scanning|CodeQL|Diagnostic|Proof|Scan' '[.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession" and (.head_repository.full_name // "") == $sourceRepo and (.name | test($pattern)) and (.name != "FLIXO Agent Repair Heartbeat" and .name != "FLIXO Agent Repair Supervisor" and .name != "FLIXO Master Agent Activation Relay" and .name != "FLIXO Master Repair Governor" and .name != "Daily·FLIXO Green Gate" and .name != "FLIXO Auto Repair Bot"))] | length' /tmp/supersession-final-runs.json)"
+            stale_active="$(jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" --arg pattern 'Test|Repair|Verification|Contract|Security|Baseline|Certification|Impact|Code Scanning|CodeQL|Diagnostic|Proof|Scan|Heartbeat' '[.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession" and (.head_repository.full_name // "") == $sourceRepo and (.name | test($pattern)) and (.name != "FLIXO Agent Repair Supervisor" and .name != "FLIXO Master Agent Activation Relay" and .name != "FLIXO Master Repair Governor" and .name != "Daily·FLIXO Green Gate" and .name != "FLIXO Auto Repair Bot" and .name != "FLIXO Execution Bot Watchdog"))] | length' /tmp/supersession-final-runs.json)"
             echo "STALE_ACTIVE_RUNS=$stale_active poll=$poll"
             if [ "$stale_active" -eq 0 ]; then break; fi
             if [ "$poll" -lt "$SETTLE_MAX_POLLS" ]; then sleep "$SETTLE_POLL_SECONDS"; fi
           done
           if [ "$stale_active" -ne 0 ]; then
             echo 'FAIL CLOSED: stale runs remain non-completed after supersession cancellation window.'
-            jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" --arg pattern 'Test|Verification|Contract|Security|Baseline|Certification|Impact|Code Scanning|CodeQL|Diagnostic|Proof|Scan' '.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession") | select(.head_repository.full_name == $sourceRepo) | select(.name | test($pattern)) | select(.name != "FLIXO Agent Repair Heartbeat" and .name != "FLIXO Agent Repair Supervisor" and .name != "FLIXO Master Agent Activation Relay" and .name != "FLIXO Master Repair Governor") | [.id,.name,.status,.head_sha] | @tsv' /tmp/supersession-final-runs.json
+            jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" --arg pattern 'Test|Verification|Contract|Security|Baseline|Certification|Impact|Code Scanning|CodeQL|Diagnostic|Proof|Scan|Heartbeat' '.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession") | select(.head_repository.full_name == $sourceRepo) | select(.name | test($pattern)) | select(.name != "FLIXO Agent Repair Supervisor" and .name != "FLIXO Master Agent Activation Relay" and .name != "FLIXO Master Repair Governor" and .name != "Daily·FLIXO Green Gate" and .name != "FLIXO Auto Repair Bot" and .name != "FLIXO Execution Bot Watchdog") | [.id,.name,.status,.head_sha] | @tsv' /tmp/supersession-final-runs.json)
             exit 1
           fi
           echo 'STALE_ACTIVE_RUNS=0'

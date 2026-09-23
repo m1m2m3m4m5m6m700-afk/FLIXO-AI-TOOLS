@@ -5,8 +5,8 @@ run-name: FLIXO Agent Repair Heartbeat ${{ github.run_id }}
 on:
   push:
     branches: [execution]
-  schedule:
-    - cron: '*/5 * * * *'
+  # Scheduled resident bootstrap is owned exclusively by the trusted Watchdog.
+  # This prevents one resident window from being multiplied every five minutes.
   workflow_dispatch:
 
 permissions:

@@ -165,7 +165,11 @@ export function validateStatic() {
   must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(heartbeat), 'heartbeat-resident-dispatch-must-be-explicit');
   must(/resident.*guardian|guardian.*watchdog|single guardian lane/i.test(heartbeat), 'heartbeat-guardian-mode-declared');
   must(!/actions\/workflows\/agent-repair-supervisor\.yml\/dispatches/.test(heartbeat), 'heartbeat-no-direct-supervisor-dispatch');
-  must(/cron:\s*'\*\/5 \* \* \* \*'/.test(heartbeat), 'heartbeat-five-minute-schedule');
+  must(/cron:\s*'\*\/5 \* \* \* \*'/.test(watchdog), 'watchdog-five-minute-scheduled-bootstrap');
+  must(/actions\/workflows\/agent-repair-heartbeat\.yml\/dispatches/.test(watchdog), 'watchdog-heartbeat-bootstrap-dispatch');
+  must(/ACTIVE_HEARTBEATS=.*headSha/.test(watchdog), 'watchdog-single-resident-heartbeat-gate');
+  must(/RESIDENT_HEARTBEAT_DISPATCH=NOOP_ACTIVE/.test(watchdog), 'watchdog-no-duplicate-resident-window');
+  must(!/schedule:\s*\n\s*- cron:\s*'\*\/5 \* \* \* \*'/.test(heartbeat), 'heartbeat-no-independent-five-minute-bootstrap');
   must(/WAKE_ALL_AGENTS|ONE_PULSE_WAKE_SCOPE=ALL_AGENTS/.test(heartbeat), 'heartbeat-all-agent-pulse');
   must(/RESIDENT_SLEEP=false/.test(heartbeat) && /RESIDENT_IDLE=false/.test(heartbeat), 'heartbeat-no-sleep-no-idle');
   must(/HEARTBEAT_INTERVAL_SECONDS=60/.test(heartbeat), 'heartbeat-one-minute-emission');

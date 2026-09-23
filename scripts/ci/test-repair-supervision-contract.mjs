@@ -67,6 +67,9 @@ assert.match(canonicalCi, /push:\s*\n\s*branches:\s*\[main, execution\]/);
 assert.match(canonicalCi, /group:[^\n]*github\.event\.pull_request\.head\.ref \|\| github\.ref_name/);
 assert.match(supersession, /in_progress/);
 assert.match(supersession, /\*Heartbeat\*/i);
+assert.doesNotMatch(supersession, /is_resident_protected_run[\s\S]*"FLIXO Agent Repair Heartbeat"\)\s*\n\s*return 0/i);
+assert.match(supersession, /status == "queued" or status == "pending/);
+
 assert.match(supersession, /Daily·FLIXO Green Gate/);
 assert.match(supersession, /FLIXO Auto Repair Bot/);
 assert.match(supersession, /\*Execution\*/i);
