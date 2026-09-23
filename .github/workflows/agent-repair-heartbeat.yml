@@ -99,6 +99,9 @@ jobs:
           echo 'SELF_DISABLE_ALLOWED=false'
           echo 'SELF_ABORT_ALLOWED=false'
           echo 'RUN_END_DOES_NOT_END_TASK=true'
+          echo 'RESIDENT_READY_STATE=READY_RESIDENT'
+          echo 'RESIDENT_SLEEP=false'
+          echo 'RESIDENT_IDLE=false'
           echo 'RESIDENT_LOGICAL_BOTS=100'
           echo 'RESIDENT_ROSTER=CELL-001..CELL-100'
           echo 'STARTED_RUN_CANCELLATION=FORBIDDEN'
@@ -140,16 +143,16 @@ jobs:
             MINUTE_KEY="$(date -u +%Y-%m-%dT%H:%M)"
             node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="HEARTBEAT:$GITHUB_RUN_ID:$TICK" --state=ACTIVE --sha="$SHA" --progress=false --file="$FLIXO_HEARTBEAT_PATH"
             node scripts/ci/flixo-ten-pulse.mjs --sha="$SHA" --run-id="$GITHUB_RUN_ID" --minute="$MINUTE_KEY" --active-operation="$ACTIVE_OPERATION" --output="$FLIXO_TEAM_PULSE_PATH"
-            jq -e --arg sha "$SHA" '.pulseCount==1 and .onePulsePerHeartbeat==true and (.pulses|length)==1 and .pulses[0].action=="WAKE_ALL_AGENTS" and .pulses[0].wakeScope=="ALL_AGENTS" and .pulses[0].targetSha==$sha and (.pulses[0].pulseType != "CANONICAL_TEAM_HEARTBEAT")' "$FLIXO_TEAM_PULSE_PATH" >/dev/null
+            jq -e --arg sha "$SHA" '.pulseCount==1 and .onePulsePerHeartbeat==true and (.pulses|length)==1 and .pulses[0].action=="WAKE_ALL_AGENTS" and .pulses[0].wakeScope=="ALL_AGENTS" and .pulses[0].targetSha==$sha and (.pulses[0].pulseType != "CANONICAL_TEAM_HEARTBEAT") and .sleep==false and .idle==false and (.residentState=="ACTIVE_OPERATION" or .residentState=="READY_RESIDENT")' "$FLIXO_TEAM_PULSE_PATH" >/dev/null
             PULSE_ID="$(jq -r '.pulses[0].pulseId' "$FLIXO_TEAM_PULSE_PATH")"
             PULSE_TYPE="$(jq -r '.pulses[0].pulseType' "$FLIXO_TEAM_PULSE_PATH")"
             WAKE_FILE="/tmp/flixo-heartbeat/action-wake-$TICK.json"
             FANOUT_FILE="/tmp/flixo-heartbeat/flixo10-fanout-$TICK.json"
-            WAKE_STATUS="RESIDENT_HEARTBEAT"
+            WAKE_STATUS="RESIDENT_READY"
             if [ "$ACTIONABLE_RED" -gt 0 ] || [ "$ACTIONABLE_REQUIRED_RED" -gt 0 ]; then WAKE_STATUS="ACTIONABLE_RED_REENTRY"; elif [ "$ACTIVE_OPERATION" = "true" ]; then WAKE_STATUS="ACTIVE_OPERATION"; fi
             node scripts/ci/action-repair-five-workers.mjs --role=wake --status="$WAKE_STATUS" --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$PULSE_ID" --output="$WAKE_FILE"
             node scripts/ci/action-repair-five-workers.mjs --role=fanout --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$PULSE_ID" --output="$FANOUT_FILE"
-            jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .wakeScope=="ALL_ACTION_REPAIR_TEAM" and .recipientCount==10 and (.recipients|length)==10 and .targetSha==$sha and .mutationAuthority==false and .pushAuthority=="CHAIR_1_ONLY"' "$WAKE_FILE" >/dev/null
+            jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .wakeScope=="ALL_ACTION_REPAIR_TEAM" and .recipientCount==10 and (.recipients|length)==10 and .targetSha==$sha and .mutationAuthority==false and .pushAuthority=="CHAIR_1_ONLY" and .sleep==false and .idle==false' "$WAKE_FILE" >/dev/null
             jq -e --arg sha "$SHA" '.workerCount==10 and (.workers|length)==10 and .targetSha==$sha and (.workers|map(.workerId)|sort)==["FLIXO1","FLIXO10","FLIXO2","FLIXO3","FLIXO4","FLIXO5","FLIXO6","FLIXO7","FLIXO8","FLIXO9"]' "$FANOUT_FILE" >/dev/null
             if [ "$ACTIVE_OPERATION" = "true" ]; then
               ACTIVE_GREEN_SHA="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status,headSha | jq --arg sha "$SHA" '[.[] | select((.status == "queued" or .status == "in_progress") and .headSha == $sha)] | length')"
@@ -160,7 +163,7 @@ jobs:
                 echo 'CANONICAL_GREEN_GATE_WAKE=ALREADY_ACTIVE'
               fi
             else
-              node scripts/ci/flixo-ten-pulse.mjs scan-plan --sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --minute="$MINUTE_KEY" --active-operation=false --output=/tmp/flixo-heartbeat/idle-pulse-$TICK.json --plan-output=/tmp/flixo-heartbeat/flixo-bot-development-plan.md --scan-output=/tmp/flixo-heartbeat/flixo-full-repository-scan-$TICK.json
+              node scripts/ci/flixo-ten-pulse.mjs scan-plan --sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --minute="$MINUTE_KEY" --active-operation=false --output=/tmp/flixo-heartbeat/resident-pulse-$TICK.json --plan-output=/tmp/flixo-heartbeat/flixo-bot-development-plan.md --scan-output=/tmp/flixo-heartbeat/flixo-full-repository-scan-$TICK.json
               test -s /tmp/flixo-heartbeat/flixo-bot-development-plan.md
             fi
             echo "HEARTBEAT_TICK=$TICK"
@@ -220,9 +223,9 @@ jobs:
           path: |
             /tmp/flixo-heartbeat/flixo-team-pulse.json
             /tmp/flixo-heartbeat/action-wake-*.json
-            /tmp/flixo-heartbeat/idle-pulse-*.json
+            /tmp/flixo-heartbeat/resident-pulse-*.json
             /tmp/flixo-heartbeat/flixo-full-repository-scan-*.json
-            /tmp/flixo-heartbeat/flixo-team-idle-pulse.json
+            /tmp/flixo-heartbeat/flixo-team-resident-pulse.json
             /tmp/flixo-heartbeat/flixo-full-repository-scan.json
             /tmp/flixo-heartbeat/flixo-bot-development-plan.md
           if-no-files-found: warn
@@ -288,11 +291,14 @@ jobs:
             --run-id="$GITHUB_RUN_ID" \
             --minute="$(date -u +%Y-%m-%dT%H:%M)" \
             --active-operation=false \
-            --output=/tmp/flixo-heartbeat/flixo-team-idle-pulse.json \
+            --output=/tmp/flixo-heartbeat/flixo-team-resident-pulse.json \
             --plan-output=/tmp/flixo-heartbeat/flixo-bot-development-plan.md \
             --scan-output=/tmp/flixo-heartbeat/flixo-full-repository-scan.json
           test -s /tmp/flixo-heartbeat/flixo-bot-development-plan.md
           test -s /tmp/flixo-heartbeat/flixo-full-repository-scan.json
-          echo 'RESIDENT_MODE=FULL_REPOSITORY_READ_ONLY_SCAN'
+          echo 'RESIDENT_MODE=RESIDENT_READ_ONLY_SCAN'
+          echo 'RESIDENT_STATE=READY_RESIDENT'
+          echo 'RESIDENT_SLEEP=false'
+          echo 'RESIDENT_IDLE=false'
           echo 'PLAN_TARGET=المهام.md'
 
