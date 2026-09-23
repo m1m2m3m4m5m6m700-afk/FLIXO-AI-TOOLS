@@ -113,11 +113,14 @@ assert.match(master, /NON-STOP EXECUTION \/ CONTINUITY CONTRACT/);
 assert.match(master, /OPEN_WORK.*NEVER_SELF_STOP/);
 assert.match(master, /FAILURE.*RECOVER_AND_CONTINUE/);
 assert.match(master, /WAITING_EXTERNAL.*HEARTBEAT_AND_RECHECK/);
-for (const workflow of [canonicalCi, impactExecution, impactPlan, wp0]) {
+for (const workflow of [impactExecution, impactPlan, wp0]) {
   assert.match(workflow, /push:\s*\n\s*branches:\s*\[main, execution\]/);
   assert.match(workflow, /group:[^\n]*github\.event_name[^\n]*github\.event\.pull_request\.head\.sha \|\| github\.sha/);
   assert.match(workflow, /cancel-in-progress:\s*true/);
 }
+assert.match(canonicalCi, /push:\s*\n\s*branches:\s*\[main, execution\]/);
+assert.match(canonicalCi, /group:[^\n]*github\.event_name[^\n]*github\.event\.pull_request\.head\.sha \|\| github\.sha/);
+assert.match(canonicalCi, /cancel-in-progress:\s*false/);
 assert.match(master, /LEASE_STALE.*CRASH.*TIMEOUT.*RECLAIM/);
 assert.match(master, /COMPLETE.*HANDOFF_TO_SUPERVISOR/);
 assert.match(master, /ABORTED.*السلطة الصريحة/);
