@@ -33,31 +33,6 @@ env:
   GH_TOKEN: ${{ github.token }}
 
 jobs:
-  bot_residency_bootstrap:
-    name: Wake resident FLIXO bot controller
-    if: github.ref == 'refs/heads/execution'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      actions: write
-      contents: read
-    steps:
-      - name: Bootstrap resident heartbeat on execution
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq ".object.sha")"
-          [[ "$EXECUTION_SHA" =~ ^[0-9a-f]{40}$ ]]
-          ACTIVE="$(gh run list             --repo "$GITHUB_REPOSITORY"             --workflow agent-repair-heartbeat.yml             --branch execution             --limit 20             --json status,headSha             --jq --arg sha "$EXECUTION_SHA" '[.[] | select((.status == "queued" or .status == "in_progress") and .headSha == $sha)] | length')"
-          if [ "$ACTIVE" -eq 0 ]; then
-            gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
-            echo "RESIDENT_HEARTBEAT_BOOTSTRAP=DISPATCHED SHA=$EXECUTION_SHA"
-          else
-            echo "RESIDENT_HEARTBEAT_BOOTSTRAP=ALREADY_ACTIVE SHA=$EXECUTION_SHA"
-          fi
-
   verify:
     name: Static + Build
     runs-on: ubuntu-latest
