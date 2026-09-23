@@ -114,6 +114,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
         <div className="agent-first-chat"><FlixoAIAgent locale={locale} /></div>
         <p className="agent-first-hint">{copy.hint}</p>
       </section>
+      <WhyFlixoDialog locale={locale === 'ar' ? 'ar' : 'en'} open={showWhyFlixo} onClose={() => setShowWhyFlixo(false)} />
     </main>
   );
 }
