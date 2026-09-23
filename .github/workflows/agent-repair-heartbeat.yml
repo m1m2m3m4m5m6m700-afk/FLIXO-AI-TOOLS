@@ -6,14 +6,21 @@ on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
+  workflow_run:
+    workflows:
+      - FLIXO Agent Repair Heartbeat
+    types: [completed]
+    branches: [main]
 
 permissions:
   actions: write
   contents: read
 
 concurrency:
-  group: flixo-agent-repair-heartbeat-${{ github.ref }}
-  cancel-in-progress: true
+  group: flixo-agent-repair-heartbeat-resident-main
+  # Started residency runs are never cancelled. Completion re-arms the next run;
+  # the five-minute schedule remains the independent fallback wake.
+  cancel-in-progress: false
 
 jobs:
   resident-watch:
@@ -24,9 +31,26 @@ jobs:
       - name: Checkout liveness contract
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: execution
+          ref: main
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Re-arm continuous residency after every completed heartbeat
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          set -euo pipefail
+          ACTIVE_OTHER="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch main --limit 20 --json databaseId,status --jq '[.[] | select((.status == "queued" or .status == "in_progress") and .databaseId != (env.SOURCE_RUN_ID|tonumber))] | length')"
+          if [ "$ACTIVE_OTHER" -gt 0 ]; then
+            echo "CONTINUOUS_RESIDENCY_REARM=DEFERRED_ACTIVE_RUNS=$ACTIVE_OTHER"
+            exit 0
+          fi
+          echo "CONTINUOUS_RESIDENCY_REARM=DISPATCH_AFTER=$SOURCE_CONCLUSION"
+          gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo 'CONTINUOUS_RESIDENCY_REARM=DISPATCHED'
 
       - name: Validate permanent-residency liveness contract
         run: |
@@ -43,6 +67,10 @@ jobs:
           echo 'SELF_DISABLE_ALLOWED=false'
           echo 'SELF_ABORT_ALLOWED=false'
           echo 'RUN_END_DOES_NOT_END_TASK=true'
+          echo 'RESIDENT_LOGICAL_BOTS=100'
+          echo 'RESIDENT_ROSTER=CELL-001..CELL-100'
+          echo 'STARTED_RUN_CANCELLATION=FORBIDDEN'
+          echo 'CONTINUOUS_REARM=WORKFLOW_RUN_COMPLETION_OR_SCHEDULE_FALLBACK'
 
       - name: Emit six one-minute beats and one canonical ALL_AGENTS pulse per beat
         env:
@@ -56,7 +84,7 @@ jobs:
             node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="HEARTBEAT:$GITHUB_RUN_ID:$TICK" --state=ACTIVE --sha="$SHA" --progress=false --file="$FLIXO_HEARTBEAT_PATH"
             jq -e --arg sha "$SHA" '.protocolId=="AGENT_LIVENESS_PROTOCOL" and .state=="ACTIVE" and .exactSha==$sha and .progress==false' "$FLIXO_HEARTBEAT_PATH" >/dev/null
             node scripts/ci/flixo-ten-pulse.mjs --sha="$SHA" --run-id="$GITHUB_RUN_ID" --minute="$(date -u +%Y-%m-%dT%H:%M):$TICK" --active-operation=true --output="$FLIXO_TEAM_PULSE_PATH"
-            jq -e --arg sha "$SHA" '.pulseCount==1 and .onePulsePerHeartbeat==true and .pulses[0].action=="WAKE_ALL_AGENTS" and .pulses[0].wakeScope=="ALL_AGENTS" and .pulses[0].targetSha==$sha' "$FLIXO_TEAM_PULSE_PATH" >/dev/null
+            jq -e --arg sha "$SHA" '.pulseCount==1 and .onePulsePerHeartbeat==true and .residentBotCount==100 and (.residentBotIds|length)==100 and .residentBotIds[0]=="CELL-001" and .residentBotIds[99]=="CELL-100" and .pulses[0].action=="WAKE_ALL_AGENTS" and .pulses[0].wakeScope=="ALL_AGENTS" and .pulses[0].targetSha==$sha' "$FLIXO_TEAM_PULSE_PATH" >/dev/null
             echo "HEARTBEAT_TICK=$TICK"
             echo "HEARTBEAT_EXACT_SHA=$SHA"
             echo 'CANONICAL_TEAM_PULSE=1'

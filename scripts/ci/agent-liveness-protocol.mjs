@@ -18,6 +18,11 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   heartbeatWakePolicy: 'ONE_MINUTE_HEARTBEAT_WAKES_ALL_AGENTS',
   heartbeatWakeScope: 'ALL_AGENTS',
   pulseEveryMs: 60 * 1000,
+  residentBotCount: 100,
+  residentBotIdPrefix: 'CELL-',
+  residentBotIdWidth: 3,
+  residentBotIds: Object.freeze(Array.from({ length: 100 }, (_, index) => `CELL-${String(index + 1).padStart(3, '0')}`)),
+  residentBotPolicy: 'FIXED_100_LOGICAL_RESIDENTS',
   onePulsePerHeartbeat: true,
   pulseProfiles: Object.freeze([
     Object.freeze({ botId:'FLIXO1', pulseType:'RCA_AND_ARCHITECTURE' }),
@@ -128,6 +133,7 @@ export function assertLivenessDefinition() {
   if (AGENT_LIVENESS_PROTOCOL.heartbeatWakePolicy !== 'ONE_MINUTE_HEARTBEAT_WAKES_ALL_AGENTS') throw new Error('AGENT_LIVENESS_HEARTBEAT_WAKE_POLICY_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatWakeScope !== 'ALL_AGENTS') throw new Error('AGENT_LIVENESS_HEARTBEAT_WAKE_SCOPE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.pulseEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_PULSE_NOT_ONE_MINUTE');
+  if (AGENT_LIVENESS_PROTOCOL.residentBotCount !== 100 || AGENT_LIVENESS_PROTOCOL.residentBotIds.length !== 100 || AGENT_LIVENESS_PROTOCOL.residentBotIds[0] !== 'CELL-001' || AGENT_LIVENESS_PROTOCOL.residentBotIds[99] !== 'CELL-100' || new Set(AGENT_LIVENESS_PROTOCOL.residentBotIds).size !== 100) throw new Error('AGENT_LIVENESS_100_RESIDENT_BOT_ROSTER_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.pulseProfiles.length !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.botId)).size !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.pulseType)).size !== 10) throw new Error('AGENT_LIVENESS_PULSE_PROFILE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.idleSweepMode !== 'FULL_REPOSITORY_READ_ONLY_SCAN' || AGENT_LIVENESS_PROTOCOL.idleSweepPlanLedger !== 'المهام.md') throw new Error('AGENT_LIVENESS_IDLE_SWEEP_POLICY_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.actionRepairTeamSize !== 10 || AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length !== 10) throw new Error('AGENT_LIVENESS_TEAM_SIZE_INVALID');
@@ -257,6 +263,8 @@ export function buildTeamPulseDirective({ targetSha, taskId = null, activeOperat
     recipients: ['ALL_AGENTS'],
     recipientCount: 1,
     teamMemberCount: AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length,
+    residentBotCount: AGENT_LIVENESS_PROTOCOL.residentBotCount,
+    residentBotIds: [...AGENT_LIVENESS_PROTOCOL.residentBotIds],
     mutationAuthority: false,
     pushAuthority: 'CHAIR_1_ONLY',
     exactShaRequired: true,
