@@ -21,7 +21,7 @@ jobs:
   resident-watch:
     name: Keep the repair plane resident and wake canonical Green Gate
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 50
     steps:
       - name: Checkout liveness contract
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -55,7 +55,7 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/flixo-heartbeat
           PREVIOUS_HEARTBEAT_SHA=""
-          for TICK in 1 2 3 4 5 6 7 8 9 10; do
+          for TICK in $(seq 1 45); do
             SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
             [[ "$SHA" =~ ^[0-9a-fA-F]{40}$ ]]
             if [ -n "${PREVIOUS_HEARTBEAT_SHA:-}" ] && [ "$SHA" != "$PREVIOUS_HEARTBEAT_SHA" ]; then
@@ -91,10 +91,11 @@ jobs:
             echo "HEARTBEAT_EMITTED=true"
             echo "HEARTBEAT_TICK=$TICK"
             echo "HEARTBEAT_EXACT_SHA=$SHA"
-            if [ "$TICK" -lt 10 ]; then sleep 60; fi
+            if [ "$TICK" -lt 45 ]; then sleep 60; fi
           done
           echo 'HEARTBEAT_INTERVAL_SECONDS=60'
-          echo 'HEARTBEAT_WINDOW_SECONDS=600'
+          echo 'HEARTBEAT_WINDOW_SECONDS=2700'
+echo 'HEARTBEAT_MINIMUM_ACTIVE_WINDOW_SECONDS=2700'
       - name: Verify five-minute heartbeat compliance
         id: heartbeat_compliance
         env:
