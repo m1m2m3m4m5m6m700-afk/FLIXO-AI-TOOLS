@@ -30,6 +30,7 @@ const ROLE_MAP=Object.freeze({
   'ACTION-SHA-7':'ACTION_CERTIFIER_ADVERSARY',
   'ACTION-CONVERGENCE-8':'ACTION_FINAL_CERTIFIER'
 });
+const FLIXO10_IDS=Object.freeze(['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5','FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10']);
 const sha=v=>/^[a-f0-9]{40}$/iu.test(String(v??''));
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):String(fallback)};
 const readJson=f=>JSON.parse(fs.readFileSync(f,'utf8'));
@@ -111,7 +112,7 @@ if(role==='wake'){
  const branch=arg('branch','execution');
  if(branch!=='execution')throw new Error('ACTION_WAKE_BRANCH_BLOCKED');
  if(!['PUSH_READY','RED_INTERNAL','BLOCKED_EXTERNAL','FAIL_CLOSED'].includes(status))throw new Error('ACTION_WAKE_STATUS_NOT_ACTIONABLE');
- const teamIds=workerIds;
+ const teamIds=FLIXO10_IDS;
  const result={schemaVersion:2,botId:'ACTION-WAKE',role:ROLE_MAP['ACTION-WAKE'],action:'WAKE_ALL_ACTION_REPAIR_TEAM',wakeScope:'ALL_ACTION_REPAIR_TEAM',wakePolicy:'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL',dispatcher:'CANONICAL_AGENT_REPAIR_SUPERVISOR',targetRunId:runId,targetSha,failureFingerprint:wakeFingerprint,status,mutationAuthority:false,directDispatch:false,actionRepairSquadReady:true,recipientCount:teamIds.length,recipients:teamIds,sourceMutationOwner:'ACTION-REPAIR',pushAuthority:'CHAIR_1_ONLY',sharedReferences:SHARED_REFS,canonicalNextStep:status==='PUSH_READY'?'DAILY_FLIXO_GREEN_GATE':'EXISTING_CANONICAL_WAKE_DISPATCHER'};
  appendActionCenterEvent({type:'WAKE',taskId:'ACTION-WAKE:'+runId+':'+wakeFingerprint,fingerprint:wakeFingerprint,runId,targetSha,actor:'ACTION-WAKE',payload:{status,dispatcher:result.dispatcher,wakeScope:result.wakeScope,recipientCount:result.recipientCount,recipients:result.recipients,canonicalNextStep:result.canonicalNextStep}});
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));process.exit(0);
@@ -169,6 +170,6 @@ if(role==='select'){
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));process.exit(selection.disposition==='SELECTED'?0:2);
 }
 const logExists=Boolean(logPath&&fs.existsSync(logPath));
-const packets=workerIds.map((id,i)=>({schemaVersion:1,workerId:id,workerIndex:i+1,role:ROLE_MAP[id],cloneSource:'FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE',intelligenceVersion:'FLIXO-BOT-BRAIN-v1',cognitiveParity:'EXACT_SHARED_BY_REFERENCE',taskId:'ACTION-REPAIR:'+runId+':'+fingerprint,target:{runId,failedSha:targetSha,failureFingerprint:fingerprint,logDigest},sharedReferences:SHARED_REFS,sameIncidentContext:true,mutationAuthority:false,canonicalMutationOwner:'ACTION-REPAIR',pushAuthority:'CHAIR_1_ONLY',proofRule:'CURRENT_EXACT_SHA_CI_ONLY'}));
+const packets=FLIXO10_IDS.map((id,i)=>({schemaVersion:1,workerId:id,workerIndex:i+1,role:'FLIXO_TEAM',legacyRole:Object.entries(ROLE_MAP).find(([,value])=>value===['ACTION_REPAIR_TWIN_A','ACTION_REPAIR_TWIN_B','ACTION_SOLUTION_INDEXER_SUPPORT','ACTION_BEST_OPTION_SELECTOR','ACTION_RCA_EVIDENCE_REVIEW','ACTION_BLAST_RADIUS_REVIEW','ACTION_SECURITY_BOUNDARY_REVIEW','ACTION_REGRESSION_PLANNER','ACTION_CERTIFIER_ADVERSARY','ACTION_FINAL_CERTIFIER'][i])?.[0]??null,systemScope:'FULL_REPOSITORY_AND_AUTOMATION_SYSTEM',workflow:'READ→DIAGNOSE→WRITE_PROPOSAL→CHALLENGE→HANDOFF',cloneSource:'FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE',intelligenceVersion:'FLIXO-BOT-BRAIN-v1',cognitiveParity:'EXACT_SHARED_BY_REFERENCE',taskId:'ACTION-REPAIR:'+runId+':'+fingerprint,target:{runId,failedSha:targetSha,failureFingerprint:fingerprint,logDigest},sharedReferences:SHARED_REFS,sameIncidentContext:true,mutationAuthority:false,canonicalMutationOwner:'DYNAMIC_FLIXO10_PUSH_SEAT',pushSeatEligible:true,pushAuthority:'FIRST_CONNECTED_FLIXO10_ONLY',proofRule:'CURRENT_EXACT_SHA_CI_ONLY'}));
 const report={schemaVersion:2,authority:'ACTION_REPAIR_SQUAD_FANOUT',workerCount:10,workers:packets,sharedReferences:SHARED_REFS,sameReferencesForAll:true,anyActionFailureAdmitted:true,roleOrder:workerIds.map(id=>ROLE_MAP[id]),mutationModel:'TEN_CLONED_FLIXO_BOT_ROLES_ONE_CANONICAL_MUTATION_LANE',wakeModel:'EXISTING_CANONICAL_DISPATCHER_ONLY',selectionModel:'TEN_WORKER_EVIDENCE_TO_ACTION-REPAIR',cloneModel:'ONE_SHARED_COGNITIVE_KERNEL_WITH_ROLE_OVERLAYS',pushAuthority:'CHAIR_1_ONLY',sourceMutationOwner:'ACTION-REPAIR',logEvidencePresent:logExists,generatedAt:new Date().toISOString()};
 fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({status:'PASS',workerCount:10,roles:report.roleOrder,targetSha,runId,fingerprint,output:out},null,2));
