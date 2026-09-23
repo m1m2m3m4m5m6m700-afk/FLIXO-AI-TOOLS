@@ -118,7 +118,7 @@
       "Conflicts remain visible until exact-SHA evidence resolves them."
     ],
     "capabilityModel": "EXPLICIT_UNION_OF_REPAIR_COGNITION_ACTION_VAULT_AND_SECURITY_REASONING",
-    "capabilityCount": 92,
+    "capabilityCount": 97,
     "capabilities": [
       "CURRENT_ACTION_LOG_ANALYSIS",
       "EXACT_SHA_PROVENANCE_ANALYSIS",
@@ -211,7 +211,12 @@
       "APPLICATION_INJECTION_AND_DOM_ANALYSIS",
       "SECRETS_AND_DEPENDENCY_RISK_ANALYSIS",
       "RUNTIME_UPLOAD_CORS_COOKIE_POSTMESSAGE_REVIEW",
-      "SSR_CLIENT_SECRET_BOUNDARY_ANALYSIS"
+      "SSR_CLIENT_SECRET_BOUNDARY_ANALYSIS",
+      "HUMAN_CONVERSATION_UNDERSTANDING",
+      "MULTI_TURN_CONTEXT_RESOLUTION",
+      "CONVERSATIONAL_REFERENCE_RESOLUTION",
+      "DIALECT_AND_CODE_SWITCHING",
+      "NATURAL_CLARIFICATION"
     ],
     "distributionInvariant": "EVERY_ACTIVE_CONSUMER_RECEIVES_THE_SAME_CAPABILITY_SET; SPECIALIZATION_IS_A_ROLE_OVERLAY",
     "securityAugmentations": [
@@ -222,7 +227,8 @@
       "SECRETS_AND_DEPENDENCY_RISK_ANALYSIS",
       "RUNTIME_UPLOAD_CORS_COOKIE_POSTMESSAGE_REVIEW",
       "SSR_CLIENT_SECRET_BOUNDARY_ANALYSIS"
-    ]
+    ],
+    "conversationSource": "src/lib/agent/human-conversation.ts"
   },
   "knowledgeSources": [
     "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
@@ -242,7 +248,10 @@
     "diagnostics/auto-repair/action-vault/failure-ledger.ndjson",
     "docs/agents/PROMPT-UNIFIED-EXECUTION.md",
     "docs/AGENT-COLLABORATION-PROTOCOL.md",
-    "docs/PROTOCOL-REGISTRY.json"
+    "docs/PROTOCOL-REGISTRY.json",
+    "src/lib/agent/human-conversation.ts",
+    "src/lib/agent/conversation.ts",
+    "src/lib/agent/language-detector.ts"
   ],
   "distribution": {
     "learningConsumers": [
