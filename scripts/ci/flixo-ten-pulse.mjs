@@ -14,8 +14,26 @@ const runId=arg('run-id',process.env.GITHUB_RUN_ID||'LOCAL');
 const activeOperation=arg('active-operation','false')==='true';
 const activeWorker=arg('active-worker',process.env.FLIXO_ACTIVE_WORKER||'').trim() || null;
 const output=arg('output','/tmp/flixo-team-pulse.json');
+const pulseMinuteOrdinal=(() => {
+  const parsed=Date.parse(String(minuteKey)+':00Z');
+  return Number.isFinite(parsed) ? Math.floor(parsed / 60000) : 0;
+})();
+const pulseProfileIndex=((pulseMinuteOrdinal % AGENT_LIVENESS_PROTOCOL.pulseProfiles.length)+AGENT_LIVENESS_PROTOCOL.pulseProfiles.length)%AGENT_LIVENESS_PROTOCOL.pulseProfiles.length;
+const pulseProfile=AGENT_LIVENESS_PROTOCOL.pulseProfiles[pulseProfileIndex];
+const pulseDomain=AGENT_LIVENESS_PROTOCOL.residentBotDevelopmentDomains[pulseProfileIndex % AGENT_LIVENESS_PROTOCOL.residentBotDevelopmentDomains.length];
 const pulse=buildTeamPulseDirective({targetSha:sha,taskId:'HEARTBEAT:'+runId,activeOperation,activeWorker,reason:'ONE_MINUTE_TEAM_HEARTBEAT:'+minuteKey});
-const result={schemaVersion:2,protocol:'FLIXO-TEAM-PULSE-CONTROLLER-v2',minuteKey,runId,targetSha:sha,activeOperation,activeWorker,mode:activeOperation?'ACTIVE_OPERATION':'FULL_REPOSITORY_READ_ONLY_SCAN',pulseCount:1,pulses:[{...pulse,pulseId:'TEAM-'+minuteKey.replace(/[^0-9]/gu,'')+'-'+runId,pulseOrdinal:1,cadence:'EVERY_MINUTE',generatedAt:new Date().toISOString()}],allAgentsWakeCount:1,teamMemberCount:IDS.length,residentBotCount:RESIDENT_IDS.length,residentBotIds:[...RESIDENT_IDS],developmentProfiles:DEVELOPMENT_PROFILES,readOnlyWhenIdle:true,sourceMutationAllowed:false,onePulsePerHeartbeat:true};
+const differentiatedPulse={
+  ...pulse,
+  pulseType:pulseProfile.pulseType,
+  pulseOwner:pulseProfile.botId,
+  pulseDomainId:pulseDomain.id,
+  pulseSkills:[...pulseDomain.skills],
+  pulseIndex:pulseProfileIndex,
+  rotationCycleSize:AGENT_LIVENESS_PROTOCOL.pulseProfiles.length,
+  wakeScope:'ALL_AGENTS',
+  residentWakeCount:RESIDENT_IDS.length,
+};
+const result={schemaVersion:2,protocol:'FLIXO-TEAM-PULSE-CONTROLLER-v2',minuteKey,runId,targetSha:sha,activeOperation,activeWorker,mode:activeOperation?'ACTIVE_OPERATION':'FULL_REPOSITORY_READ_ONLY_SCAN',pulseCount:1,pulses:[{...differentiatedPulse,pulseId:'TEAM-'+minuteKey.replace(/[^0-9]/gu,'')+'-'+runId,pulseOrdinal:1,cadence:'EVERY_MINUTE',generatedAt:new Date().toISOString()}],allAgentsWakeCount:1,residentWakeCount:RESIDENT_IDS.length,teamMemberCount:IDS.length,residentBotCount:RESIDENT_IDS.length,residentBotIds:[...RESIDENT_IDS],developmentProfiles:DEVELOPMENT_PROFILES,readOnlyWhenIdle:true,sourceMutationAllowed:false,onePulsePerHeartbeat:true};
 fs.mkdirSync(path.dirname(output),{recursive:true});
 fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n');
 console.log(JSON.stringify({status:'PASS',pulseCount:1,teamMemberCount:IDS.length,mode:result.mode,output},null,2));
