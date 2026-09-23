@@ -13,7 +13,7 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   teamWakeIntervalMs: 60 * 1000,
   teamWakePolicy: 'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL',
   teamWakeScope: 'ALL_ACTION_REPAIR_TEAM',
-  heartbeatWakePolicy: 'EVERY_FLIXO10_PULSE_WAKES_ALL_AGENTS',
+  heartbeatWakePolicy: 'ONE_MINUTE_HEARTBEAT_WAKES_ALL_AGENTS',
   heartbeatWakeScope: 'ALL_AGENTS',
   pulseEveryMs: 60 * 1000,
   pulseProfiles: Object.freeze([
@@ -118,7 +118,7 @@ export function assertLivenessDefinition() {
   if (AGENT_LIVENESS_PROTOCOL.teamWakeIntervalMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_TEAM_WAKE_NOT_ONE_MINUTE');
   if (AGENT_LIVENESS_PROTOCOL.teamWakePolicy !== 'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL') throw new Error('AGENT_LIVENESS_TEAM_WAKE_POLICY_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.teamWakeScope !== 'ALL_ACTION_REPAIR_TEAM') throw new Error('AGENT_LIVENESS_TEAM_WAKE_SCOPE_INVALID');
-  if (AGENT_LIVENESS_PROTOCOL.heartbeatWakePolicy !== 'EVERY_FLIXO10_PULSE_WAKES_ALL_AGENTS') throw new Error('AGENT_LIVENESS_HEARTBEAT_WAKE_POLICY_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.heartbeatWakePolicy !== 'ONE_MINUTE_HEARTBEAT_WAKES_ALL_AGENTS') throw new Error('AGENT_LIVENESS_HEARTBEAT_WAKE_POLICY_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatWakeScope !== 'ALL_AGENTS') throw new Error('AGENT_LIVENESS_HEARTBEAT_WAKE_SCOPE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.pulseEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_PULSE_NOT_ONE_MINUTE');
   if (AGENT_LIVENESS_PROTOCOL.pulseProfiles.length !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.botId)).size !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.pulseType)).size !== 10) throw new Error('AGENT_LIVENESS_PULSE_PROFILE_INVALID');
@@ -229,20 +229,18 @@ export function buildTeamWakeDirective({ actor, targetSha, taskId = null, failur
   });
 }
 
-export function buildDifferentiatedPulseDirective({ actor, targetSha, taskId = null, activeOperation = true, reason = 'MINUTE_PULSE' } = {}) {
+export function buildTeamPulseDirective({ targetSha, taskId = null, activeOperation = true, activeWorker = null, reason = 'MINUTE_HEARTBEAT' } = {}) {
   assertLivenessDefinition();
-  const actorId = String(actor ?? '').trim();
-  const profile = AGENT_LIVENESS_PROTOCOL.pulseProfiles.find((item) => item.botId === actorId);
-  if (!profile) throw new Error('AGENT_LIVENESS_PULSE_ACTOR_NOT_AUTHORIZED=' + actorId);
   const sha = String(targetSha ?? '').trim();
   if (!/^[a-f0-9]{40}$/iu.test(sha)) throw new Error('AGENT_LIVENESS_PULSE_EXACT_SHA_REQUIRED');
-  const adversary = AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds[(AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.indexOf(actorId) + 1) % AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length];
+  const worker = activeWorker == null ? null : String(activeWorker).trim();
+  if (worker && !AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.includes(worker)) throw new Error('AGENT_LIVENESS_ACTIVE_WORKER_NOT_AUTHORIZED=' + worker);
   return Object.freeze({
     protocolId: AGENT_LIVENESS_PROTOCOL.protocolId,
     action: 'WAKE_ALL_AGENTS',
-    pulseType: profile.pulseType,
-    actor: actorId,
-    adversaryBot: adversary,
+    pulseType: 'CANONICAL_TEAM_HEARTBEAT',
+    actor: 'FLIXO_HEARTBEAT_CONTROLLER',
+    activeWorker: worker,
     targetSha: sha,
     taskId: taskId ? String(taskId) : null,
     activeOperation: Boolean(activeOperation),
@@ -251,13 +249,18 @@ export function buildDifferentiatedPulseDirective({ actor, targetSha, taskId = n
     wakeScope: AGENT_LIVENESS_PROTOCOL.heartbeatWakeScope,
     recipients: ['ALL_AGENTS'],
     recipientCount: 1,
+    teamMemberCount: AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length,
     mutationAuthority: false,
-    pushAuthority: 'FIRST_CONNECTED_FLIXO10_GUARDED_ONLY',
+    pushAuthority: 'CHAIR_1_ONLY',
     exactShaRequired: true,
     readOnlyWhenIdle: true,
+    onePulsePerHeartbeat: true,
   });
 }
 
+export function buildDifferentiatedPulseDirective({ actor, targetSha, taskId = null, activeOperation = true, reason = 'MINUTE_PULSE' } = {}) {
+  return buildTeamPulseDirective({ targetSha, taskId, activeOperation, activeWorker: actor, reason: 'LEGACY_COMPATIBILITY_' + reason });
+}
 export function buildRecoveryDirective({ reason, currentState = 'ACTIVE', newEvidenceRequired = true } = {}) {
   assertState(currentState, { workAssigned: true });
   return Object.freeze({
