@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { validateKnowledgeRecord } from '../knowledge/types';
+import type { KnowledgeRecord } from '../knowledge/types';
 
 export const MEMORY_LAYERS = Object.freeze({
   L0: 'CONSTITUTION',
@@ -58,19 +60,9 @@ export function validateActiveBotSet(ids: readonly string[]) {
   return Object.freeze([...normalized].sort());
 }
 
-export type SwarmKnowledge = Readonly<{
-  id: string;
-  scope: string;
-  content: string;
-  source: string;
-  sourceType: 'FLIXO_DOC' | 'REPOSITORY' | 'TEST' | 'INTERNAL_EVIDENCE' | 'TRUSTED_EXTERNAL' | 'WEB' | 'GENERATED';
-  version: string;
+export type SwarmKnowledge = Readonly<KnowledgeRecord & {
   layer: MemoryLayer;
-  status: 'VERIFIED' | 'PROBABLE' | 'INFERRED' | 'UNKNOWN' | 'CONFLICTED';
-  validity: 'CURRENT' | 'STALE' | 'REVOKED';
-  confidence: number;
   authority: number;
-  provenance: readonly string[];
   exactSha: string | null;
   exactShaVerified: boolean;
   evidenceCount: number;
@@ -86,13 +78,38 @@ export const canonicalKey = (scope: string, content: string) => hash({
   content: normalize(content),
 });
 
-export function makeKnowledge(input: Omit<SwarmKnowledge, 'canonicalKey' | 'id'> & { id?: string }): SwarmKnowledge {
-  const id = input.id ?? `SK-${canonicalKey(input.scope, input.content).slice(0, 24)}`;
+export function makeKnowledge(input: Omit<SwarmKnowledge, 'canonicalKey' | 'fingerprint' | 'id' | 'timestamp'> & { id?: string }): SwarmKnowledge {
+  const canonical = canonicalKey(input.scope, input.content);
+  const id = input.id ?? `SK-${canonical.slice(0, 24)}`;
   if (input.exactSha !== null && !SHA40.test(input.exactSha)) throw new Error('SWARM_EXACT_SHA_INVALID');
-  if (input.provenance.length < 1) throw new Error('SWARM_PROVENANCE_REQUIRED');
-  if (input.confidence < 0 || input.confidence > 1) throw new Error('SWARM_CONFIDENCE_INVALID');
   if (input.authority < 0 || input.authority > 1) throw new Error('SWARM_AUTHORITY_INVALID');
-  return Object.freeze({ ...input, id, canonicalKey: canonicalKey(input.scope, input.content) });
+  const base = validateKnowledgeRecord({
+    id,
+    content: input.content,
+    source: input.source,
+    sourceType: input.sourceType,
+    timestamp: input.createdAt,
+    version: input.version,
+    scope: input.scope,
+    confidence: input.confidence,
+    provenance: [...input.provenance],
+    validity: input.validity,
+    status: input.status,
+    fingerprint: canonical,
+  });
+  return Object.freeze({
+    ...base,
+    layer: input.layer,
+    authority: input.authority,
+    exactSha: input.exactSha,
+    exactShaVerified: input.exactShaVerified,
+    evidenceCount: input.evidenceCount,
+    polarity: input.polarity,
+    canonicalKey: canonical,
+    createdAt: input.createdAt,
+    lastVerifiedAt: input.lastVerifiedAt,
+    expiresAt: input.expiresAt,
+  });
 }
 
 const rank = (r: SwarmKnowledge) =>
@@ -286,12 +303,14 @@ export function selectAdaptiveSwarm(input: AdaptiveSelectionInput) {
   const candidates = validateActiveBotSet(input.candidateIds ?? []).length > 0
     ? validateActiveBotSet(input.candidateIds ?? [])
     : buildFixedBotIdentities().map(identity => identity.botId);
-  const requiredSkills = buildCapabilityMap(input.requiredCapabilities).flatMap(entry => [...entry.requiredSkills]);
+  const requiredSkills = new Set(buildCapabilityMap(input.requiredCapabilities).flatMap(entry => [...entry.requiredSkills]));
   const reputation = skillReputation(input.observations.filter(observation => observation.exactSha === input.currentSha));
   const byBot = new Map<string, number>();
   for (const botId of candidates) byBot.set(botId, 0);
   for (const item of reputation) if (byBot.has(item.botId)) {
-    byBot.set(item.botId, (byBot.get(item.botId) ?? 0) + item.decayedScore + item.successRate);
+    const skillMatch = requiredSkills.size === 0 || requiredSkills.has(item.skill);
+    const score = skillMatch ? item.decayedScore + item.successRate : item.decayedScore * 0.25;
+    byBot.set(item.botId, (byBot.get(item.botId) ?? 0) + score);
   }
   const target = adaptiveSwarmSize(input.difficulty, input.requiredCapabilities.length, 0.5, 0.5);
   return Object.freeze([...candidates]
