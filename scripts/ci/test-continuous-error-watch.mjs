@@ -553,8 +553,7 @@ for (const file of [
   '.github/workflows/test-impact-execution.yml',
 ]) {
   const workflow = fs.readFileSync(file, 'utf8');
-  assert.ok(workflow.includes('branches: [execution]'), 'canonical workflow must run from execution: ' + file);
-  assert.ok(!workflow.includes('branches: [main, execution]'), 'main must not run execution-only workflow: ' + file);
+  assert.ok(workflow.includes('branches: [main, execution]'), 'canonical workflow trigger contract drifted: ' + file);
 }
 const dailyGateWorkflow = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
 assert.ok(dailyGateWorkflow.includes('Normalize settled workflow-run evidence shape'));
@@ -568,6 +567,14 @@ assert.ok(dailyGateWorkflow.includes("jq -e 'type == \"array\" and all(.[];"));
 assert.ok(dailyGateWorkflow.includes('Ensure exact-SHA required CI is resident'));
 assert.ok(!dailyGateWorkflow.includes('/actions/workflows/$FILE/dispatches'));
 assert.ok(!dailyGateWorkflow.includes('Maintain 24/7 Repair Bot resident pulse'));
+assert.match(
+  fs.readFileSync('.github/workflows/ci.yml', 'utf8'),
+  /name: Canonical Governance and Collaboration Green Gate\s+if: github\.ref == 'refs\/heads\/execution'/u,
+);
+assert.match(
+  fs.readFileSync('.github/workflows/wp0-trust-baseline.yml', 'utf8'),
+  /if \[ "\$GITHUB_REF_NAME" = "execution" \]; then[\s\S]*npm run test:agent-execution-control/u,
+);
 const settlementBlock = dailyGateWorkflow.match(/name: Await required internal CI settlement on exact SHA[\s\S]*?(?=\n\s{6}- name:|$)/)?.[0] ?? '';
 assert.ok(dailyGateWorkflow.includes('REQUIRED_CI_MISSING workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA poll=$poll'));
 assert.ok(!settlementBlock.includes('/dispatches'));

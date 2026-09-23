@@ -4,7 +4,7 @@ on:
   # Canonical execution source is one push-triggered run per exact SHA.
   # PRs consume the same commit check-runs; this avoids a duplicate heavy Test System run.
   push:
-    branches: [execution]
+    branches: [main, execution]
   workflow_dispatch:
 
 # Every initial verification lane is bound to repository + branch + exact head SHA.
@@ -68,6 +68,7 @@ jobs:
       - name: Chair-Bound Execution Contract
         run: npm run test:chair-bound-execution
       - name: Canonical Governance and Collaboration Green Gate
+        if: github.ref == 'refs/heads/execution'
         run: npm run test:canonical-governance
       - name: Static contracts
         run: npm run test:static
