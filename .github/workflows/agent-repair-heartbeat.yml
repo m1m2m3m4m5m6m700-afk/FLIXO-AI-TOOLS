@@ -19,7 +19,7 @@ concurrency:
   # Bootstrap runs on main and resident runs on execution must not block one another.
   group: ${{ github.ref_name == 'execution' && 'flixo-agent-repair-heartbeat-main' || 'flixo-agent-repair-heartbeat-bootstrap' }}
   # Started residency runs are never cancelled.
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   bootstrap:
@@ -154,14 +154,14 @@ jobs:
             jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .wakeScope=="ALL_ACTION_REPAIR_TEAM" and .recipientCount==10 and (.recipients|length)==10 and .targetSha==$sha and .mutationAuthority==false and .pushAuthority=="CHAIR_1_ONLY" and .sleep==false and .idle==false' "$WAKE_FILE" >/dev/null
             jq -e --arg sha "$SHA" '.workerCount==10 and (.workers|length)==10 and .targetSha==$sha and (.workers|map(.workerId)|sort)==["FLIXO1","FLIXO10","FLIXO2","FLIXO3","FLIXO4","FLIXO5","FLIXO6","FLIXO7","FLIXO8","FLIXO9"]' "$FANOUT_FILE" >/dev/null
             if [ "$ACTIVE_OPERATION" = "true" ]; then
-              ACTIVE_SUPERVISOR="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-supervisor.yml --branch execution --limit 50 --json status,headSha | jq --arg sha "$SHA" '[.[] | select((.status == "queued" or .status == "in_progress") and .headSha == $sha)] | length')"
-              if [ "$ACTIVE_SUPERVISOR" -eq 0 ]; then
-                gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/agent-repair-supervisor.yml/dispatches" -f ref=execution >/dev/null
-                echo 'CANONICAL_SUPERVISOR_WAKE=DISPATCHED'
+              ACTIVE_GREEN_GATE="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch main --limit 50 --json status,headSha,createdAt | jq --arg sha "$SHA" '[.[] | select((.status == "queued" or .status == "in_progress") and .headSha == $sha)] | length')"
+              RECENT_GREEN_GATE="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch main --limit 50 --json status,headSha,createdAt | jq --arg sha "$SHA" '[.[] | select(.headSha == $sha and (.status == "completed" or .status == "in_progress" or .status == "queued")) | select((fromdateiso8601? // 0) > 0)] | length')"
+              if [ "$ACTIVE_GREEN_GATE" -eq 0 ]; then
+                gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/daily-flixo-green-gate.yml/dispatches" -f ref=main >/dev/null
+                echo 'CANONICAL_GREEN_GATE_WAKE=DISPATCHED'
               else
-                echo 'CANONICAL_SUPERVISOR_WAKE=ALREADY_ACTIVE'
+                echo 'CANONICAL_GREEN_GATE_WAKE=ALREADY_ACTIVE'
               fi
-              echo 'GREEN_GATE_WAKE_DEFERRED_TO_CANONICAL_SCHEDULE=true'
             else
               node scripts/ci/flixo-ten-pulse.mjs scan-plan --sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --minute="$MINUTE_KEY" --active-operation=false --output=/tmp/flixo-heartbeat/resident-pulse-$TICK.json --plan-output=/tmp/flixo-heartbeat/flixo-bot-development-plan.md --scan-output=/tmp/flixo-heartbeat/flixo-full-repository-scan-$TICK.json
               test -s /tmp/flixo-heartbeat/flixo-bot-development-plan.md
@@ -176,14 +176,14 @@ jobs:
             echo "TASK_BACKLOG_OPEN=$TASK_BACKLOG_OPEN"
             echo "MISSION_OPEN=$MISSION_OPEN"
             if [ "$ACTIVE_OPERATION" = "true" ]; then echo 'RED_REENTRY_WAKE=REPAIR_PATH'; else echo 'RED_REENTRY_WAKE=RESIDENT_DEVELOPMENT_SCAN'; fi
-            echo 'ACTION_WAKE=QUEUED_TO_CANONICAL_SUPERVISOR'
+            echo 'ACTION_WAKE=FANOUT_EXECUTED'
             if [ "$TICK" -lt 300 ]; then sleep 60; fi
           done
           echo 'HEARTBEAT_INTERVAL_SECONDS=60'
           echo 'SCHEDULE_INTERVAL_MINUTES=5'
           echo 'HEARTBEAT_WINDOW_SECONDS=360'
           echo 'EACH_PULSE_IS_A_REAL_ACTION_WAKE=true'
-          echo 'ACTION_WAKE_TRANSPORT=SUPERVISOR_DISPATCH'
+          echo 'ACTION_WAKE_TRANSPORT=IN_PROCESS_FLIXO10_FANOUT'
           echo 'RESIDENCY_WINDOW_MINUTES=300'
           echo 'RESIDENCY_WINDOW_WITHIN_GITHUB_HOSTED_MAX=TRUE'
           echo 'RESIDENCY_WINDOW_OVERHEAD_BUFFER_MINUTES=45'
