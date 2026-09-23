@@ -33,6 +33,29 @@ env:
   GH_TOKEN: ${{ github.token }}
 
 jobs:
+  bot_residency_bootstrap:
+    name: Wake resident FLIXO bot controller
+    if: github.ref == 'refs/heads/execution'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Dispatch resident watchdog on execution
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTIVE="$(gh run list             --repo "$GITHUB_REPOSITORY"             --workflow execution-bot-watchdog.yml             --branch execution             --limit 20             --json status             --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
+          if [ "$ACTIVE" -eq 0 ]; then
+            gh workflow run execution-bot-watchdog.yml --repo "$GITHUB_REPOSITORY" --ref execution
+            echo 'RESIDENT_WATCHDOG_BOOTSTRAP=DISPATCHED'
+          else
+            echo 'RESIDENT_WATCHDOG_BOOTSTRAP=ALREADY_ACTIVE'
+          fi
+
   verify:
     name: Static + Build
     runs-on: ubuntu-latest
