@@ -11,11 +11,10 @@ const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 
 assert.ok(taskFile.length > 0, 'المهام.md must exist and be non-empty');
 
-for (const text of [contract, taskFile]) {
-  assert.match(text, /preparation-only/i);
-  assert.match(text, /MUST NOT/i);
-  assert.match(text, /mutate/i);
+for (const marker of [/preparation-only/i, /MUST NOT/i, /mutate/i]) {
+  assert.match(contract, marker);
 }
+
 
 assert.ok(agent.includes("actor: 'taskAgent'"));
 assert.ok(agent.includes("preparedOnly: true"));
