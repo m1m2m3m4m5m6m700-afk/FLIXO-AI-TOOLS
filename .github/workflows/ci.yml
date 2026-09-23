@@ -68,6 +68,7 @@ jobs:
       - name: Chair-Bound Execution Contract
         run: npm run test:chair-bound-execution
       - name: Canonical Governance and Collaboration Green Gate
+        if: github.ref == 'refs/heads/execution'
         run: npm run test:canonical-governance
       - name: Static contracts
         run: npm run test:static

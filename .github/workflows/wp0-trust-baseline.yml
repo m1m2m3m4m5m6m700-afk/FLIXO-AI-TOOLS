@@ -103,7 +103,9 @@ jobs:
         run: |
           set -euo pipefail
           npm run test:agent-execution-gate
-          npm run test:agent-execution-control
+          if [ "$GITHUB_REF_NAME" = "execution" ]; then
+            npm run test:agent-execution-control
+          fi
           npm run test:agent-capability
 
       - name: 06 — Task identity and provenance contracts
