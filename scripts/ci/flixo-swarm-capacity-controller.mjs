@@ -21,11 +21,55 @@ export const FLIXO_SWARM_CAPACITY_POLICY = Object.freeze({
   neverFabricateLiveBots: true,
   oneCanonicalMutationOwner: true,
   exactShaRequired: true,
+  governance: Object.freeze({
+    immutableAuthorityModel: true,
+    authorityOwner: 'CANONICAL_CONTROL_PLANE',
+    mutationOwner: 'ACTION-REPAIR',
+    publicationAuthority: 'CHAIR_1_ONLY',
+    certificationAuthority: 'DAILY_FLIXO_GREEN_GATE',
+    scaleAuthority: 'CANONICAL_CAPACITY_CONTROLLER_ONLY',
+    provisioningRequiresHumanOrCanonicalControlPlane: true,
+    scaleNeverGrantsMutationAuthority: true,
+    scaleNeverCreatesCertificationAuthority: true,
+    scaleNeverCreatesNewGovernancePlane: true,
+    workersCannotChangeTheirOwnRole: true,
+    workersCannotChangeTheirOwnCapacityLimit: true,
+    workersCannotDisableLiveness: true,
+    workersCannotSelfPromote: true,
+    workersCannotSelfAssignAuthority: true,
+    workersCannotCreateCompetingRegistry: true,
+    exactShaRequiredForEveryScaleDecision: true,
+    failClosedOnGovernanceDrift: true,
+  }),
 });
 
 function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
 
+export function validateGovernancePolicy() {
+  const g=FLIXO_SWARM_CAPACITY_POLICY.governance;
+  assert.equal(g.immutableAuthorityModel,true);
+  assert.equal(g.authorityOwner,'CANONICAL_CONTROL_PLANE');
+  assert.equal(g.mutationOwner,'ACTION-REPAIR');
+  assert.equal(g.publicationAuthority,'CHAIR_1_ONLY');
+  assert.equal(g.certificationAuthority,'DAILY_FLIXO_GREEN_GATE');
+  assert.equal(g.scaleAuthority,'CANONICAL_CAPACITY_CONTROLLER_ONLY');
+  assert.equal(g.provisioningRequiresHumanOrCanonicalControlPlane,true);
+  assert.equal(g.scaleNeverGrantsMutationAuthority,true);
+  assert.equal(g.scaleNeverCreatesCertificationAuthority,true);
+  assert.equal(g.scaleNeverCreatesNewGovernancePlane,true);
+  assert.equal(g.workersCannotChangeTheirOwnRole,true);
+  assert.equal(g.workersCannotChangeTheirOwnCapacityLimit,true);
+  assert.equal(g.workersCannotDisableLiveness,true);
+  assert.equal(g.workersCannotSelfPromote,true);
+  assert.equal(g.workersCannotSelfAssignAuthority,true);
+  assert.equal(g.workersCannotCreateCompetingRegistry,true);
+  assert.equal(g.exactShaRequiredForEveryScaleDecision,true);
+  assert.equal(g.failClosedOnGovernanceDrift,true);
+  return true;
+}
+
 export function validateCapacityPolicy() {
+  validateGovernancePolicy();
   const p=FLIXO_SWARM_CAPACITY_POLICY;
   assert.equal(p.minimumActiveRuntimeCount,5);
   assert.equal(p.defaultActiveRuntimeCount,5);
@@ -51,6 +95,7 @@ export function decideCapacity({
   exactSha = null,
 } = {}) {
   validateCapacityPolicy();
+  validateGovernancePolicy();
   if (!/^[a-f0-9]{40}$/iu.test(String(exactSha ?? ''))) {
     return Object.freeze({
       action:'BLOCK',
@@ -79,6 +124,8 @@ export function decideCapacity({
       reason:'CAPACITY_SUFFICIENT',
       desiredActiveRuntimeCount:clamp(activeRuntimeCount,p.minimumActiveRuntimeCount,p.maximumActiveRuntimeCount),
       verifiedProvisionedRuntimeCount:provisionedRuntimeCount,
+      governancePreserved:true,
+      scaleDoesNotGrantAuthority:true,
     });
   }
   const requested=Math.min(p.maximumActiveRuntimeCount,activeRuntimeCount+p.scaleStep);
@@ -97,6 +144,8 @@ export function decideCapacity({
     reason:'CAPACITY_PRESSURE',
     desiredActiveRuntimeCount:requested,
     verifiedProvisionedRuntimeCount:provisionedRuntimeCount,
+    governancePreserved:true,
+    scaleDoesNotGrantAuthority:true,
   });
 }
 
