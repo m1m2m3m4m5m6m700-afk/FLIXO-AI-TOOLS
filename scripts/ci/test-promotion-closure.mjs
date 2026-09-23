@@ -70,7 +70,7 @@ live.evidenceRef = 'runtime-readback:example';
 fs.writeFileSync(livePath, JSON.stringify(live));
 
 p = spawnSync(process.execPath, [script], {
-  env: { ...process.env, EXPECTED_SHA: sha, EXACT_RUNS_PATH: runsPath, EXACT_STATUS_PATH: statusPath, EXACT_CHECKS_PATH: checksPath, LIVE_RUNTIME_EVIDENCE_PATH: livePath, EVIDENCE_OUTPUT_PATH: outputPath },
+  env: { ...process.env, EXPECTED_SHA: sha, EXACT_RUNS_PATH: runsPath, EXACT_STATUS_PATH: statusPath, EXACT_CHECKS_PATH: checksPath, LIVE_RUNTIME_EVIDENCE_PATH: livePath, VERCEL_DEPLOYMENT_EVIDENCE_PATH: vercelPath, EVIDENCE_OUTPUT_PATH: outputPath },
   encoding: 'utf8',
 });
 assert.equal(p.status, 0, p.stdout + p.stderr);
@@ -93,7 +93,7 @@ p = spawnSync(process.execPath, [script], {
   encoding: 'utf8',
 });
 assert.notEqual(p.status, 0);
-assert.match(p.stdout, /CERTIFICATION_MISSING_OR_NONCANONICAL/u);
+assert.match(p.stdout, /CERTIFICATION_MISSING/u);
 
 const missingLinkChecks = [{
   check_runs: [{
@@ -110,6 +110,6 @@ p = spawnSync(process.execPath, [script], {
   encoding: 'utf8',
 });
 assert.notEqual(p.status, 0);
-assert.match(p.stdout, /CERTIFICATION_MISSING_OR_NONCANONICAL/u);
+assert.match(p.stdout, /CERTIFICATION_MISSING/u);
 
 console.log('PROMOTION_CLOSURE_TEST=PASS');
