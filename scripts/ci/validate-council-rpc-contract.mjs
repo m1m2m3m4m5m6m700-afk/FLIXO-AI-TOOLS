@@ -42,8 +42,17 @@ for (const marker of [
 
 assert.match(sql, /security definer[\s\S]*?set search_path = public, pg_catalog/iu);
 
-for (const marker of ['FLIXO_COUNCIL_WAKE_FALLBACK', 'WAKE_PUSH_FAILED', 'council_recover_expired_dispatches']) {
-  assert.ok(runtime.includes(marker), 'Missing runtime recovery/wake marker: ' + marker);
+for (const marker of [
+  'FLIXO_COUNCIL_WAKE_FALLBACK',
+  'WAKE_PUSH_FAILED',
+  'council_recover_expired_dispatches',
+  'EXTERNAL_COUNCIL_GUARDIAN_V3',
+  'LEASE_EXPIRED_GUARDIAN_RECOVERY',
+  'NO_FRESH_RECOVERY_RUNTIME',
+  'resident-heartbeat',
+  'COUNCIL_ASSISTANT_QUERY_CREDENTIAL_FORBIDDEN',
+]) {
+  assert.ok(runtime.includes(marker), 'Missing runtime recovery/wake/security marker: ' + marker);
 }
 
 console.log('COUNCIL_RPC_CONTRACT=PASS');
