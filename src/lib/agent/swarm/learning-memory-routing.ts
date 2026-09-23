@@ -54,7 +54,7 @@ export function buildFixedBotIdentities(count = REGISTERED_BOT_COUNT): readonly 
 export function validateActiveBotSet(ids: readonly string[]) {
   const normalized = ids.map(id => String(id).toUpperCase());
   if (normalized.length > REGISTERED_BOT_COUNT || new Set(normalized).size !== normalized.length) throw new Error('SWARM_ACTIVE_BOT_SET_INVALID');
-  if (normalized.some(id => !/^CELL-\\d{3}$/u.test(id) || Number(id.slice(-3)) < 1 || Number(id.slice(-3)) > REGISTERED_BOT_COUNT)) {
+  if (normalized.some(id => !/^CELL-\d{3}$/u.test(id) || Number(id.slice(-3)) < 1 || Number(id.slice(-3)) > REGISTERED_BOT_COUNT)) {
     throw new Error('SWARM_ACTIVE_BOT_ID_INVALID');
   }
   return Object.freeze([...normalized].sort());
