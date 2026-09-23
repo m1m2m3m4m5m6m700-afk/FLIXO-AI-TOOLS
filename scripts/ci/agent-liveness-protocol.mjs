@@ -54,6 +54,16 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   activeCohortCommitmentMs: 60 * 60 * 1000,
   activeCohortRotationPolicy: 'FIFO_5_OF_120_WITH_CYCLE_WRAP',
   activeCohortHandoffPolicy: 'NEXT_5_READY_BEFORE_RELEASE',
+  seatContinuityContract: Object.freeze({
+    minimumConnectedSeats: 5,
+    heartbeatEveryMs: 60 * 1000,
+    heartbeatGraceMs: 30 * 1000,
+    staleAfterMs: 90 * 1000,
+    lazyBotAction: 'IMMEDIATE_REPLACE_FROM_STAGED_OR_VERIFIED_PROVISIONED_RUNTIME',
+    seatDropBelowMinimumAction: 'FAIL_CLOSED_AND_REPLACE',
+    heartbeatAckRequired: true,
+    generatedWakeIsNotAttendanceProof: true,
+  }),
   fiveBotResidencyCommitment: Object.freeze({
     requiredBotCount: 5,
     postTaskState: 'READY_RESIDENT',
@@ -193,6 +203,8 @@ export function assertLivenessDefinition() {
   if (AGENT_LIVENESS_PROTOCOL.logicalBotCount !== 120 || AGENT_LIVENESS_PROTOCOL.logicalBotIds.length !== 120 || AGENT_LIVENESS_PROTOCOL.logicalBotIds[0] !== 'CELL-001' || AGENT_LIVENESS_PROTOCOL.logicalBotIds[119] !== 'CELL-120' || new Set(AGENT_LIVENESS_PROTOCOL.logicalBotIds).size !== 120) throw new Error('AGENT_LIVENESS_120_LOGICAL_BOT_ROSTER_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains.length !== 10 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.length !== 120 || new Set(AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.map((x) => x.botId)).size !== 120 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.some((x) => x.mutationAuthority !== false || x.certificationAuthority !== false || !x.skills.length)) throw new Error('AGENT_LIVENESS_LOGICAL_BOT_DEVELOPMENT_PROFILE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.activeCohortSize !== 5 || AGENT_LIVENESS_PROTOCOL.activeCohortCount !== 24 || AGENT_LIVENESS_PROTOCOL.activeCohortCommitmentMs !== 60 * 60 * 1000 || AGENT_LIVENESS_PROTOCOL.activeCohortRotationPolicy !== 'FIFO_5_OF_120_WITH_CYCLE_WRAP' || AGENT_LIVENESS_PROTOCOL.activeCohortHandoffPolicy !== 'NEXT_5_READY_BEFORE_RELEASE') throw new Error('AGENT_LIVENESS_FIVE_BOT_ROTATION_POLICY_INVALID');
+  const continuity=AGENT_LIVENESS_PROTOCOL.seatContinuityContract;
+  if (!continuity || continuity.minimumConnectedSeats !== 5 || continuity.heartbeatEveryMs !== 60 * 1000 || continuity.heartbeatGraceMs !== 30 * 1000 || continuity.staleAfterMs !== 90 * 1000 || continuity.lazyBotAction !== 'IMMEDIATE_REPLACE_FROM_STAGED_OR_VERIFIED_PROVISIONED_RUNTIME' || continuity.seatDropBelowMinimumAction !== 'FAIL_CLOSED_AND_REPLACE' || continuity.heartbeatAckRequired !== true || continuity.generatedWakeIsNotAttendanceProof !== true) throw new Error('AGENT_LIVENESS_SEAT_CONTINUITY_CONTRACT_INVALID');
   const residency=AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment;
   if (!residency || residency.requiredBotCount !== 5 || residency.postTaskState !== 'READY_RESIDENT' || residency.journeyLogicalBotCount !== 120 || residency.journeyCohortCount !== 24 || residency.journeyCohortSize !== 5 || residency.retainResidentAfterTaskClose !== true || residency.retainResidentUntilJourneyComplete !== true || residency.sleepDuringJourney !== false || residency.idleDuringJourney !== false || residency.withdrawalDuringJourney !== false) throw new Error('AGENT_LIVENESS_FIVE_BOT_RESIDENCY_COMMITMENT_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.activeRuntimeCount !== 5 || AGENT_LIVENESS_PROTOCOL.activeRuntimeIds.length !== 5 || AGENT_LIVENESS_PROTOCOL.stagedRuntimeCount !== 5 || AGENT_LIVENESS_PROTOCOL.stagedRuntimeIds.length !== 5) throw new Error('AGENT_LIVENESS_ACTIVE_RUNTIME_CAPACITY_INVALID');
@@ -345,6 +357,37 @@ export function buildTeamPulseDirective({ targetSha, taskId = null, activeOperat
 export function buildDifferentiatedPulseDirective({ actor, targetSha, taskId = null, activeOperation = true, reason = 'MINUTE_PULSE' } = {}) {
   return buildTeamPulseDirective({ targetSha, taskId, activeOperation, activeWorker: actor, reason: 'LEGACY_COMPATIBILITY_' + reason });
 }
+export function assessFiveSeatContinuity({ activeRuntimeIds, stagedRuntimeIds = AGENT_LIVENESS_PROTOCOL.stagedRuntimeIds, heartbeatAcks = [], targetSha, now = Date.now() } = {}) {
+  assertLivenessDefinition();
+  if (!/^[a-f0-9]{40}$/iu.test(String(targetSha ?? ''))) throw new Error('AGENT_LIVENESS_SEAT_CONTINUITY_EXACT_SHA_REQUIRED');
+  const expectedActive = new Set(AGENT_LIVENESS_PROTOCOL.activeRuntimeIds);
+  const active = [...new Set((Array.isArray(activeRuntimeIds) ? activeRuntimeIds : []).map(String))];
+  if (active.length !== 5 || active.some(id => !expectedActive.has(id))) throw new Error('AGENT_LIVENESS_SEAT_CONTINUITY_ACTIVE_ROSTER_INVALID');
+  const staged = [...new Set((Array.isArray(stagedRuntimeIds) ? stagedRuntimeIds : []).map(String))];
+  const cutoff = Number(now) - AGENT_LIVENESS_PROTOCOL.seatContinuityContract.staleAfterMs;
+  const fresh = new Set();
+  for (const ack of Array.isArray(heartbeatAcks) ? heartbeatAcks : []) {
+    if (!ack || !expectedActive.has(String(ack.runtimeId)) || String(ack.targetSha) !== String(targetSha)) continue;
+    const at = Date.parse(String(ack.at ?? ''));
+    if (Number.isFinite(at) && at >= cutoff && ack.state === 'ACTIVE' && ack.heartbeatAck === true) fresh.add(String(ack.runtimeId));
+  }
+  const missing = active.filter(id => !fresh.has(id));
+  const replacementCount = missing.length;
+  return Object.freeze({
+    ok: missing.length === 0,
+    minimumConnectedSeats: 5,
+    activeSeatCount: fresh.size,
+    missingRuntimeIds: missing,
+    replacementRequired: replacementCount > 0,
+    replacementCount,
+    availableStagedReplacementCount: staged.length,
+    failClosed: replacementCount > 0,
+    action: replacementCount > 0 ? 'FAIL_CLOSED_AND_REPLACE' : 'CONTINUE',
+    lazyBotDetected: replacementCount > 0,
+    targetSha: String(targetSha),
+  });
+}
+
 export function assertFiveBotResidencyCommitment({ botIds, states = [], taskClosed = false, journeyComplete = false } = {}) {
   assertLivenessDefinition();
   const expected=[...AGENT_LIVENESS_PROTOCOL.activeRuntimeIds].sort();
