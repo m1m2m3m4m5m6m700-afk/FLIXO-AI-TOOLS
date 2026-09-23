@@ -22,11 +22,11 @@ on:
 permissions:
   contents: read
 
-# Each exact commit SHA has its own execution slot; duplicate events for the same SHA
-# must not cancel an active verification. Exact-SHA validation remains the authority.
+# Superseded verification on the same canonical branch/event is replaceable.
+# Exact-SHA checkout and fail-closed validation remain the authority for each run.
 concurrency:
-  group: repository-security-baseline-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: false
+  group: repository-security-baseline-${{ github.event_name }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   baseline:
