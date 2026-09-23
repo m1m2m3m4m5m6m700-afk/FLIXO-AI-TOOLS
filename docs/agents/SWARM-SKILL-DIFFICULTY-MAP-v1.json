@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "authority": "FLIXO_SWARM_SKILL_DIFFICULTY_MAP",
-  "cellPoolState": "RETIRED",
+  "cellPoolState": "RETIRED",\n  "identityModel": { "registered": 200, "activeRange": [0, 200], "authority": "CENTRALIZED", "operationalProvisioning": false, "missionSwarmMax": 50 },
   "difficulty": {
     "D1": {
       "signals": "single bounded capability",
