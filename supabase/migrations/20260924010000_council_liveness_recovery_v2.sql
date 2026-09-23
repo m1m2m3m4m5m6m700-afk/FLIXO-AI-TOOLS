@@ -295,7 +295,7 @@ begin
       into v_stale_accounts
       from public.flix_council_accounts
      where active = true
-       and coalesce((metadata->>'residencyRequired')::boolean, false) = true
+       and coalesce(metadata->>'residencyRequired', 'false') = 'true'
        and (
          last_seen_at is null
          or last_seen_at < v_now - make_interval(secs => greatest(120, lease_seconds * 2))
