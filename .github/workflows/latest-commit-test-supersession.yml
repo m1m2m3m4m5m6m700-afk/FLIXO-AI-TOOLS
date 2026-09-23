@@ -105,7 +105,7 @@ jobs:
 
           is_resident_protected_run() {
             case "$1" in
-              "FLIXO Agent Repair Heartbeat"|"FLIXO Execution Bot Watchdog"|"FLIXO Agent Repair Supervisor"|"FLIXO Master Agent Activation Relay"|"FLIXO Master Repair Governor")
+              "FLIXO Latest Commit Test Supersession")
                 return 0
                 ;;
               *) return 1 ;;
@@ -117,7 +117,7 @@ jobs:
             if is_resident_protected_run "$name"; then return 1; fi
             case "$name" in
               "FLIXO Latest Commit Test Supersession") return 1 ;;
-              *Test*|*test*|*Repair*|*repair*|*Verification*|*verification*|*Contract*|*contract*|*Security*|*security*|*Baseline*|*baseline*|*Certification*|*certification*|*Impact*|*impact*|*Code*Scanning*|*CodeQL*|*Diagnostic*|*diagnostic*|*Proof*|*proof*|*Scan*|*scan*) return 0 ;;
+              *Test*|*test*|*Repair*|*repair*|*Verification*|*verification*|*Contract*|*contract*|*Security*|*security*|*Baseline*|*baseline*|*Certification*|*certification*|*Impact*|*impact*|*Code*Scanning*|*CodeQL*|*Diagnostic*|*diagnostic*|*Proof*|*proof*|*Scan*|*scan*|*Execution*|*execution*|*Wake*|*wake*|*Watchdog*|*watchdog*|*Heartbeat*|*heartbeat*) return 0 ;;
               *) return 1 ;;
             esac
           }
@@ -130,12 +130,12 @@ jobs:
             local event="$5"
             echo "CANDIDATE stale run=$run_id sha=$head_sha name=$name event=$event listed_status=$status"
 
-            # Only queued/pending stale runs are supersedable. Started in-progress runs must complete;
-            # their evidence is later rejected by the exact-SHA guard if the branch has advanced.
+            # Every stale SHA is invalidated, including already-started runs.
+            # Only the current exact SHA is allowed to remain active.
             case "$status" in
-              queued|pending) ;;
+              queued|pending|in_progress) ;;
               *)
-                echo "KEEP_STARTED_STALE_RUN run=$run_id status=$status"
+                echo "STALE_RUN_NOT_ACTIONABLE run=$run_id status=$status"
                 return 0
                 ;;
             esac
@@ -190,7 +190,7 @@ jobs:
               cancel_stale_run "$RUN_ID" "$HEAD_SHA" "$STATUS" "$NAME" "$EVENT"
             fi
           done < <(
-            jq -r '.workflow_runs[] | select(.status == "queued" or .status == "pending") | [.id,.head_sha,.status,.name,.event,.head_repository.full_name // ""] | @tsv' /tmp/supersession-all-runs.json
+            jq -r '.workflow_runs[] | select(.status == "queued" or .status == "pending" or .status == "in_progress") | [.id,.head_sha,.status,.name,.event,.head_repository.full_name // ""] | @tsv' /tmp/supersession-all-runs.json
           )
 
       - name: Assert no non-authoritative run remains active
