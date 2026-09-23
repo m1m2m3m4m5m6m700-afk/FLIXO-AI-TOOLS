@@ -29,7 +29,7 @@
     "docs/agents/SWARM-REPLAY-SIMULATION-PLAN-v1.json",
     "docs/agents/SWARM-SKILL-DIFFICULTY-MAP-v1.json"
   ],
-  "currentRca": "WAVE5-CONTRACT-DRIFT-001 is implemented. Historical import/backfill, weakness genome, advisory upgrade engine, controller learning interface, continuous skill validation, memory history, deterministic failure injection, and exact-SHA targeted regression are now present. Canonical CI on the newest execution SHA remains the exit authority.",
+  "currentRca": "WAVE5-CONTRACT-DRIFT-001 implementation gaps are closed in the WAVE-5 surface: historical backfill/import, weakness genome, advisory upgrade engine, controller learning interface, continuous skill validation, memory history, deterministic failure injection, exact-SHA guards, and targeted coverage. Canonical CI remains the sole exit authority.",
   "status": "VERIFICATION_PENDING",
   "exitCondition": {
     "implemented": true,
@@ -37,10 +37,10 @@
     "targetedTest": "PENDING_CANONICAL_CI",
     "affectedTests": "PENDING",
     "evidenceLinked": true,
-    "exactSha": "a200eb7c9275da2fc191f497f5a44bc475cdd204",
+    "exactSha": "46a25066f094d2b1d88f594b0946e111adbf3164",
     "canonicalVerification": "PENDING"
   },
-  "implementationSha": "a200eb7c9275da2fc191f497f5a44bc475cdd204",
+  "implementationSha": "46a25066f094d2b1d88f594b0946e111adbf3164",
   "missingContractsClosed": [
     "HISTORICAL_BACKFILL",
     "WEAKNESS_GENOME",
@@ -49,5 +49,6 @@
     "CONTINUOUS_SKILL_VALIDATION",
     "MEMORY_IMPORT_HISTORY",
     "FAILURE_INJECTION_IMPLEMENTATION"
-  ]
+  ],
+  "verificationTargetSha": "46a25066f094d2b1d88f594b0946e111adbf3164"
 }
