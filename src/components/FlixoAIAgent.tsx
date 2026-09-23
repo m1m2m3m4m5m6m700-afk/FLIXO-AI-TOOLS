@@ -215,6 +215,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           })),
           { role: 'user' as const, content: command },
         ],
+        file: file ? { name: file.name, type: file.type, size: file.size } : null,
         activePlan: plan,
         activeCommand: memory.activeCommand,
       });
