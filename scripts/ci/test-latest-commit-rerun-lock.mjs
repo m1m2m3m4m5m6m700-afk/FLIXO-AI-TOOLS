@@ -38,7 +38,7 @@ assert.doesNotMatch(supersession, /--slurp\b/u);
 assert.match(supersession, /git ls-remote.*refs\/heads\/\$TARGET_BRANCH/u);
 assert.doesNotMatch(supersession, /gh api "repos\/\$GITHUB_REPOSITORY\/pulls\/\$PR_NUMBER"/u);
 assert.match(supersession, /CANCEL_STALE_RUN/u);
-assert.match(supersession, //\.status == "queued" or \.status == "pending"/g/u);
+assert.match(supersession, /\.status == "queued" or \.status == "pending"/u);
 assert.match(supersession, /KEEP_STARTED_STALE_RUN/u);
 assert.doesNotMatch(supersession, new RegExp(['gh','run','view','$run_id','--repo','$REPOSITORY','--json','status'].join(' ')));
 assert.match(supersession, /head_repository\.full_name/u);
