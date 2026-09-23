@@ -68,13 +68,126 @@
     "WORKER_B",
     "ACTION-CODE-MENTOR"
   ],
-  "recordCount": 0,
-  "updatedAt": null,
-  "records": [],
+  "recordCount": 1,
+  "updatedAt": "2026-09-23T11:08:00.326Z",
+  "records": [
+    {
+      "id": "SM-EVERRCA-LIFECYCLE-6D10041",
+      "protocol": "FLIXO-SHARED-OPERATIONAL-MEMORY-v1",
+      "sourceBot": "verification",
+      "audience": [
+        "assistantController",
+        "MASTER-1",
+        "MASTER-2",
+        "MASTER-3",
+        "analysis",
+        "implementation",
+        "verification",
+        "release",
+        "codeScout",
+        "executionAgent",
+        "reviewAgent",
+        "testAgent",
+        "securityAgent",
+        "performanceAgent",
+        "certificationAuthority",
+        "taskAgent",
+        "errorAgent",
+        "repairAgent",
+        "assistantRepairAgent",
+        "diagnosticAgent",
+        "actionRepairBot",
+        "actionRepairVerifier",
+        "actionHistorian",
+        "ACTION-REPAIR",
+        "ACTION-REPAIR-2",
+        "ACTION-HISTORIAN-3",
+        "ACTION-TWIN-1",
+        "ACTION-TWIN-2",
+        "ACTION-INDEX",
+        "ACTION-WISE",
+        "ACTION-ARBITER",
+        "ACTION-COUNCIL-01",
+        "ACTION-COUNCIL-02",
+        "ACTION-COUNCIL-03",
+        "ACTION-COUNCIL-04",
+        "ACTION-COUNCIL-05",
+        "ACTION-COUNCIL-06",
+        "ACTION-COUNCIL-07",
+        "ACTION-COUNCIL-08",
+        "ACTION-COUNCIL-09",
+        "ACTION-COUNCIL-10",
+        "ACTION-COUNCIL-11",
+        "ACTION-COUNCIL-12",
+        "ACTION-COUNCIL-13",
+        "ACTION-COUNCIL-14",
+        "ACTION-COUNCIL-15",
+        "ACTION-COUNCIL-16",
+        "ACTION-COUNCIL-17",
+        "ACTION-COUNCIL-18",
+        "ACTION-COUNCIL-19",
+        "ACTION-COUNCIL-20",
+        "SECURITY-REDTEAM-1",
+        "SECURITY-REDTEAM-2",
+        "SECURITY-REDTEAM-3",
+        "READ-INVESTIGATOR",
+        "READ-ADVERSARY",
+        "CHIEF",
+        "WORKER_A",
+        "WORKER_B",
+        "ACTION-CODE-MENTOR"
+      ],
+      "kind": "ERROR",
+      "status": "OBSERVED",
+      "taskId": "WP4-EXECUTE-VERIFY-RECOVER-001",
+      "fingerprint": "EXECUTION_INTEGRATOR_AUTHORIZATION_OUTSIDE_TRY",
+      "runId": null,
+      "targetSha": "6d10041ed7df9be7eda13fe11132db14a2f1abea",
+      "failedSha": null,
+      "rootCause": "authorizeExecution() is invoked outside the execution lifecycle try/catch in executePreparedExecution().",
+      "operation": "execution lifecycle failure capture",
+      "rule": "FAIL -> FINGERPRINT -> CLASSIFY -> EVIDENCE -> RCA -> REPAIR STRATEGY -> REPLAN/EXECUTE -> VERIFY",
+      "claim": "Execution lifecycle gap: authorizeExecution() is outside the try/catch in executePreparedExecution(), so authorization failures can bypass ExecutionIntegrationError wrapping, FAILED task transition, errorClass classification, and recovery metadata evidence.",
+      "content": "Observed proof-side RCA candidate on exact SHA 6d10041ed7df9be7eda13fe11132db14a2f1abea. Trigger: canonical authorization failure before pipeline entry. Propagation: exception escapes executePreparedExecution try/catch. Violated invariant: every execution failure must produce causal lifecycle evidence and FAILED state without masking provider/permission/output failures. Causal source: src/lib/agent/execution-integrator.ts authorizeExecution call is before try. Symptom: failure lacks unified ExecutionIntegrationError lifecycle envelope. This is OBSERVED evidence only; no certification, mutation, dispatch, or GREEN authority is granted.",
+      "advice": "Move authorization-failure handling under the same lifecycle evidence boundary or otherwise guarantee equivalent FAILED-state and RCA evidence for authorization failures; preserve provider/platform failures and do not weaken authorization.",
+      "obligation": "Every failure path in executePreparedExecution must emit unified causal evidence and preserve failed task lifecycle state.",
+      "evidenceRefs": [
+        "commit:6d10041ed7df9be7eda13fe11132db14a2f1abea",
+        "src/lib/agent/execution-integrator.ts"
+      ],
+      "changedPaths": [
+        "src/lib/agent/execution-integrator.ts"
+      ],
+      "verification": "Static exact-SHA review found the authorization call before the try/catch; runtime proof remains required after repair.",
+      "canonicalGreen": false,
+      "greenRunId": null,
+      "authenticatedSourceBot": null,
+      "antiLesson": false,
+      "source": "SHARED_MEMORY_WRITE",
+      "intelligenceRegistry": "docs/agents/FLIXO-BOT.json",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+      "exactShaBound": true,
+      "mutationAuthority": false,
+      "certificationAuthority": false,
+      "createdAt": "2026-09-23T11:08:00.322Z"
+    }
+  ],
   "indexes": {
-    "byFingerprint": {},
-    "byBot": {},
-    "byKind": {}
+    "byFingerprint": {
+      "EXECUTION_INTEGRATOR_AUTHORIZATION_OUTSIDE_TRY": [
+        "SM-EVERRCA-LIFECYCLE-6D10041"
+      ]
+    },
+    "byBot": {
+      "verification": [
+        "SM-EVERRCA-LIFECYCLE-6D10041"
+      ]
+    },
+    "byKind": {
+      "ERROR": [
+        "SM-EVERRCA-LIFECYCLE-6D10041"
+      ]
+    }
   },
   "legacyReadThrough": {
     "enabled": true,
