@@ -121,7 +121,7 @@
   "agentRuntime": {
     "protocol": "ACTION-AGENT-RUNTIME-v2",
     "modelProfile": "ACTION_FAILURE_HISTORIAN_V2",
-    "reasoningEffort": "HIGH",
+    "reasoningEffort": "MAXIMUM",
     "cognitiveLoop": [
       "INTAKE",
       "CONTEXT_RETRIEVAL",
@@ -142,6 +142,8 @@
     "selfCritique": true,
     "independentReview": true,
     "structuredOutput": true,
+    "fullIntelligence": true,
+    "noComplexityDowngrade": true,
     "failClosed": true,
     "noSelfApproval": true,
     "roleMission": "RECORD_EVERY_FAILURE_AND_BUILD_LEARNING_MEMORY",
