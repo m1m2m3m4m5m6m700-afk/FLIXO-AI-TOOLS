@@ -145,6 +145,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     if (!nextHandoff) return false;
     const selected = getLiveFilter(nextHandoff.canonicalId);
     setFilterHandoff(nextHandoff);
+    setPreparedExecution(null);
     setPlan(null);
     setState('ready');
     setError(null);
@@ -169,6 +170,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     const intentPlan = buildIntentPlan(contextualCommand);
     if (intentPlan.status === 'NEEDS_INPUT') {
       const missing = intentPlan.missing[0];
+      setPreparedExecution(null);
       setPlan(null);
       setState('idle');
       setError(null);
@@ -182,6 +184,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       return null;
     }
     if (intentPlan.status !== 'READY') {
+      setPreparedExecution(null);
       setPlan(null);
       setState('error');
       setError(intentPlan.explanation || responseCopy.noSafePlan);
@@ -189,6 +192,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     }
     const nextPlan = toExecutionPlan(intentPlan);
     if (!nextPlan) {
+      setPreparedExecution(null);
       setPlan(null);
       setState('error');
       setError(responseCopy.noSafePlan);
@@ -256,6 +260,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         return true;
       }
 
+      setPreparedExecution(null);
       setPlan(null);
       setError(null);
       setState('idle');
