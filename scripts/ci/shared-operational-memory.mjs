@@ -26,6 +26,47 @@ const LEGACY_CELL_INDEX_PATH=path.resolve(ROOT,'diagnostics/auto-repair/cell-kno
 const now=()=>new Date().toISOString();
 const hash=(value)=>createHash('sha256').update(String(value),'utf8').digest('hex');
 const readJson=(file,fallback)=>{try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return fallback;}};
+const remoteLearningConfig=()=>({
+  url:String(process.env.SUPABASE_URL??'').trim().replace(/\/$/u,''),
+  key:String(process.env.SUPABASE_SECRET_KEY??process.env.SUPABASE_SERVICE_ROLE_KEY??'').trim(),
+});
+async function readRemoteExternalLearning(targetSha,limit=48){
+  const cfg=remoteLearningConfig();
+  if(!cfg.url||!cfg.key||!validSha(targetSha)) return [];
+  const bounded=Math.min(128,Math.max(1,Number(limit)||48));
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),1500);
+  try{
+    const url=`${cfg.url}/rest/v1/flixo_agent_learning_events?target_sha=eq.${encodeURIComponent(targetSha)}&status=neq.BLOCKED&select=*&order=created_at.desc&limit=${bounded}`;
+    const response=await fetch(url,{
+      method:'GET',
+      headers:{apikey:cfg.key,Authorization:`Bearer ${cfg.key}`,Accept:'application/json'},
+      signal:controller.signal,
+    });
+    if(!response.ok) return [];
+    const body=await response.json();
+    if(!Array.isArray(body)) return [];
+    return body.filter(item=>item&&typeof item==='object'&&validSha(item.target_sha)&&item.target_sha===targetSha&&SHA.test(String(item.fingerprint??''))).map(item=>({
+      id:String(item.learning_id??item.fingerprint),
+      kind:String(item.kind),
+      status:String(item.status??'PROPOSED'),
+      claim:String(item.claim??''),
+      content:String(item.content??''),
+      fingerprint:String(item.fingerprint),
+      targetSha:String(item.target_sha),
+      sourceBot:String(item.source_agent??'execution-agent-clone-v1'),
+      sourceRole:String(item.source_role??'executionAgent'),
+      evidenceRefs:Array.isArray(item.evidence_refs)?item.evidence_refs.slice(0,32):[],
+      provenance:item.provenance&&typeof item.provenance==='object'?item.provenance:{},
+      createdAt:String(item.created_at??''),
+      canonicalGreen:item.canonical_green===true,
+    })).filter(item=>item.claim||item.content);
+  }catch{
+    return [];
+  }finally{
+    clearTimeout(timer);
+  }
+}
 
 const empty=()=>({
   schemaVersion:2,
@@ -233,10 +274,13 @@ function legacyReadThroughContext(limit=48){
   return {lessons:legacyLessons,antiLessons:legacyAnti,errors:legacyErrors,sourceCount:2,authority:'CONTEXT_ONLY'};
 }
 
-export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48}={}){
+export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48,currentSha=null}={}){
   const records=readSharedMemory({fingerprint,botId,limit});
   const grouped=Object.fromEntries(SHARED_KINDS.map(kind=>[kind,records.filter(r=>r.kind===kind)]));
   const legacy=legacyReadThroughContext(limit);
+  const targetSha=validSha(currentSha)?String(currentSha):null;
+  const externalPromise=targetSha?readRemoteExternalLearning(targetSha,limit):Promise.resolve([]);
+  // Synchronous consumers cannot await. The remote candidates are attached by buildAsyncSharedLearningContext below.
   return {
     protocol:SHARED_MEMORY_PROTOCOL,
     authority:'CONTEXT_ONLY',
@@ -254,7 +298,28 @@ export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48
     legacyContext:legacy,
     counterexamples:grouped.COUNTEREXAMPLE,
     verifications:grouped.VERIFICATION,
+    externalCandidates:[],
+    remoteLearningPending:Boolean(externalPromise),
     note:'Shared memory informs every active FLIXO BOT consumer; it never proves GREEN or grants authority.'
+  };
+}
+
+export async function buildAsyncSharedLearningContext({fingerprint=null,botId=null,limit=48,currentSha=null}={}){
+  const context=buildSharedLearningContext({fingerprint,botId,limit,currentSha});
+  const targetSha=validSha(currentSha)?String(currentSha):null;
+  const externalCandidates=targetSha?await readRemoteExternalLearning(targetSha,limit):[];
+  const proposedLessons=externalCandidates.filter(item=>item.kind==='LESSON');
+  const proposedAntiLessons=externalCandidates.filter(item=>item.kind==='ANTI_LESSON');
+  const proposedAdvice=externalCandidates.filter(item=>item.kind==='ADVICE');
+  const proposedCounterexamples=externalCandidates.filter(item=>item.kind==='COUNTEREXAMPLE');
+  return {
+    ...context,
+    advice:[...proposedAdvice,...context.advice].slice(0,limit),
+    lessons:[...proposedLessons,...context.lessons].slice(0,limit),
+    antiLessons:[...proposedAntiLessons,...context.antiLessons].slice(0,limit),
+    counterexamples:[...proposedCounterexamples,...context.counterexamples].slice(0,limit),
+    externalCandidates,
+    remoteLearningPending:false,
   };
 }
 
