@@ -66,6 +66,52 @@ jobs:
           test "$ACTUAL_WATCHDOG_SHA" = "$TRUSTED_MAIN_SHA"
           echo "WATCHDOG_CHECKOUT_MODE=TRUSTED_MAIN"
           echo "WATCHDOG_TRUSTED_SOURCE_SHA=$TRUSTED_MAIN_SHA"
+      - name: Setup Node for resident bot pulse engine
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/execution'
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+
+      - name: Resident FLIXO10 one-minute pulse engine
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/execution'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-resident
+          for ((TICK=1; TICK<=340; TICK++)); do
+            SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+            MINUTE_KEY="$(date -u +%Y-%m-%dT%H:%M)"
+            ACTIVE_GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --limit 50 --json status,headSha --jq '[.[] | select((.status == "queued" or .status == "in_progress") and .headSha == "'"'$SHA'"'")] | length')"
+            ACTIVE_REPAIR="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --branch main --limit 50 --json status --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
+            ACTIVE_OPERATION=false
+            if [ "$ACTIVE_GREEN" -gt 0 ] || [ "$ACTIVE_REPAIR" -gt 0 ]; then ACTIVE_OPERATION=true; fi
+            node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="RESIDENT-HEARTBEAT:$GITHUB_RUN_ID:$TICK" --state=ACTIVE --sha="$SHA" --progress=false --file=/tmp/flixo-resident/heartbeat.json
+            node scripts/ci/flixo-ten-pulse.mjs --sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --minute="$MINUTE_KEY" --active-operation="$ACTIVE_OPERATION" --output=/tmp/flixo-resident/flixo-team-pulse.json
+            node scripts/ci/action-repair-five-workers.mjs --role=wake --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="RESIDENT-$TICK-$SHA" --output=/tmp/flixo-resident/action-wake-$TICK.json
+            if [ "$ACTIVE_OPERATION" = "true" ]; then
+              gh workflow run daily-flixo-green-gate.yml --repo "$GITHUB_REPOSITORY" --ref main
+            else
+              node scripts/ci/flixo-ten-pulse.mjs scan-plan --sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --minute="$MINUTE_KEY" --active-operation=false --output=/tmp/flixo-resident/idle-pulse-$TICK.json --plan-output=/tmp/flixo-resident/flixo-bot-development-plan.md --scan-output=/tmp/flixo-resident/flixo-full-repository-scan-$TICK.json
+            fi
+            echo "RESIDENT_TICK=$TICK"
+            echo "RESIDENT_SHA=$SHA"
+            echo "RESIDENT_ALL_AGENTS_WAKE=true"
+            echo "RESIDENT_FLIXO10_WAKE=true"
+            if [ "$TICK" -lt 340 ]; then sleep 60; fi
+          done
+
+      - name: Re-arm resident watchdog on execution
+        if: always() && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/execution'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          gh workflow run execution-bot-watchdog.yml --repo "$GITHUB_REPOSITORY" --ref execution
+          echo "RESIDENT_REARMED_SHA=$CURRENT_SHA"
       - name: Capture exact execution state
         id: source
         env:
