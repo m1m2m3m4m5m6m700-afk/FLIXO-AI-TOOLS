@@ -21,8 +21,8 @@ const master = read('AI_AGENT_MASTER_PROMPT.md');
 const livenessDoc = read('docs/agents/AGENT-LIVENESS-PROTOCOL.md');
 
 assert.match(watchdog, /workflow_dispatch:/);
-assert.match(watchdog, /group:\s*flixo-execution-watchdog-\$\{\{\s*github\.event\.workflow_run\.head_sha\s*\|\|\s*github\.sha\s*\}\}/);
-assert.match(watchdog, /cancel-in-progress:\s*true/);
+assert.match(watchdog, /group:\s*flixo-execution-watchdog-\$\{\{\s*github\.run_id\s*\}\}/);
+assert.match(watchdog, /cancel-in-progress:\s*false/);
 assert.match(watchdog, /name: Exact-SHA observer wake/);
 assert.match(watchdog, /schedule:\s*\n\s*- cron: '\*\/5 \* \* \* \*'/);
 assert.match(watchdog, /workflow_run:/);
