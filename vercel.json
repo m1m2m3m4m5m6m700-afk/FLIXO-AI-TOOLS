@@ -6,7 +6,7 @@
   "devCommand": "npm run dev",
   "cleanUrls": true,
   "git": {
-    "deploymentEnabled": true
+    "deploymentEnabled": false
   },
   "headers": [
     {
