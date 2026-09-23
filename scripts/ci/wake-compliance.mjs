@@ -10,8 +10,8 @@ if(!Number.isFinite(now)) throw new Error('WAKE_COMPLIANCE_NOW_INVALID');
 const raw=fs.readFileSync(inputPath,'utf8');
 const parsed=JSON.parse(raw);
 const runs=Array.isArray(parsed) ? parsed : (parsed.workflow_runs ?? []);
-const expectedMs=60*1000;
-const graceMs=30*1000;
+const expectedMs=5*60*1000;
+const graceMs=3*60*1000;
 const maxGapMs=expectedMs+graceMs;
 
 const scheduleRuns=runs
@@ -69,7 +69,7 @@ const report={
   latestAgeMinutes:latestAgeMs===null?null:Number((latestAgeMs/60000).toFixed(3)),
   gaps,
   status:sampleState,
-  exactScheduleRequired:'*/1 * * * *',
+  exactScheduleRequired:'*/5 * * * *',
   action:sampleState==='WAKE_GAP_RED'?'OPEN_WAKE_GAP_AND_RECOVER':'CONTINUE_OBSERVATION',
 };
 
