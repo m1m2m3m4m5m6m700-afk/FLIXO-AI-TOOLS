@@ -48,7 +48,7 @@ export function MasterRepairChat(){
     <div className='mr-chat-context'><span>السياق: {rows.length-1} رسالة</span><span>{provider?`المحرك: ${provider}`:'المحرك: تلقائي'}</span><span>{plan?`خطة: ${plan.steps.length} خطوات`:'لا توجد خطة معلقة'}</span></div>
     {plan&&<div className='mr-chat-plan'><strong>خطة مقترحة</strong>{plan.steps.map((step,index)=><div key={`${step.toolId}-${index}`}><b>{index+1}.</b> {step.toolId}</div>)}</div>}
     {error&&<div className='mr-chat-error'>{error}</div>}
-    <div className='mr-chat-input'><textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();void send();}}} placeholder='تحدث مع MASTER REPAIR…' rows={2} disabled={busy}/><button type='button' onClick={()=>void send()} disabled={!input.trim()||busy}>{busy?'…':'إرسال'}</button></div>
+    <div className='mr-chat-input'><textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();void send();}}} placeholder='تحدث مع FLIXO BOT…' rows={2} disabled={busy}/><button type='button' onClick={()=>void send()} disabled={!input.trim()||busy}>{busy?'…':'إرسال'}</button></div>
   </section>;
 }
 
