@@ -76,7 +76,8 @@ begin
           'reason', 'LEASE_RECOVERY_ATTEMPTS_EXHAUSTED',
           'attempts', v_dispatch.attempts,
           'terminal', true,
-          'recoveryVersion', 'v2'
+          'recoveryVersion', 'v2',
+          'recoveryState', 'FAILED_TERMINAL'
         )
       );
 
@@ -92,7 +93,8 @@ begin
           'sourceAccountId', v_dispatch.recipient_account_id,
           'attempts', v_dispatch.attempts,
           'terminal', true,
-          'requiredAction', 'SUPERVISOR_ESCALATION'
+          'requiredAction', 'SUPERVISOR_ESCALATION',
+          'recoveryState', 'FAILED_TERMINAL'
         )
       );
 
@@ -135,7 +137,8 @@ begin
         jsonb_build_object(
           'reason', 'FALLBACK_ACCOUNT_INACTIVE',
           'terminal', true,
-          'requiredAction', 'SUPERVISOR_ESCALATION'
+          'requiredAction', 'SUPERVISOR_ESCALATION',
+          'recoveryState', 'BLOCKED'
         )
       );
 
@@ -166,7 +169,8 @@ begin
         'fallback', true,
         'automatic', true,
         'recoveryVersion', 'v2',
-        'previousAccountId', v_dispatch.primary_account_id
+        'previousAccountId', v_dispatch.primary_account_id,
+        'recoveryState', 'RECOVERED'
       )
     );
 
