@@ -48,12 +48,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ACTIVE="$(gh run list             --repo "$GITHUB_REPOSITORY"             --workflow agent-repair-heartbeat.yml             --branch execution             --limit 20             --json status             --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
+          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq ".object.sha")"
+          [[ "$EXECUTION_SHA" =~ ^[0-9a-f]{40}$ ]]
+          ACTIVE="$(gh run list             --repo "$GITHUB_REPOSITORY"             --workflow agent-repair-heartbeat.yml             --branch execution             --limit 20             --json status,headSha             --jq --arg sha "$EXECUTION_SHA" '[.[] | select((.status == "queued" or .status == "in_progress") and .headSha == $sha)] | length')"
           if [ "$ACTIVE" -eq 0 ]; then
             gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
-            echo 'RESIDENT_HEARTBEAT_BOOTSTRAP=DISPATCHED'
+            echo "RESIDENT_HEARTBEAT_BOOTSTRAP=DISPATCHED SHA=$EXECUTION_SHA"
           else
-            echo 'RESIDENT_HEARTBEAT_BOOTSTRAP=ALREADY_ACTIVE'
+            echo "RESIDENT_HEARTBEAT_BOOTSTRAP=ALREADY_ACTIVE SHA=$EXECUTION_SHA"
           fi
 
   verify:
