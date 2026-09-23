@@ -1,6 +1,13 @@
 {
   "schemaVersion": 4,
-  "supremeProtocol": {"protocolId":"P00","promptId":"RPR-UNIFIED-EXECUTION-001","version":"4.0.0","sourcePath":"docs/agents/PROMPT-UNIFIED-EXECUTION.md","status":"SUPREME_MANDATORY","firstObligation":true},
+  "supremeProtocol": {
+    "protocolId": "P00",
+    "promptId": "RPR-UNIFIED-EXECUTION-001",
+    "version": "4.0.0",
+    "sourcePath": "docs/agents/PROMPT-UNIFIED-EXECUTION.md",
+    "status": "SUPREME_MANDATORY",
+    "firstObligation": true
+  },
   "authority": "ACTION_REPAIR_BOT_PERSONAL_MEMORY",
   "botId": "ACTION-REPAIR",
   "displayName": "بوت إصلاح Actions",
@@ -8,9 +15,9 @@
   "transferableKnowledgeOnly": true,
   "permanentIndependentAuthority": false,
   "independentDevelopment": true,
-  "role": "PROGRAMMER_DEFENSE_SEAT",
+  "role": "MASTER_REPAIR_PROGRAMMER_SEAT",
   "protocolActor": "actionRepairBot",
-  "mission": "الوكيل البرمجي الرئيسي: يفكر كمبرمج، يقرأ الكود ويحلل السبب الجذري ويصوغ ويطبق أصغر إصلاح مصدر لازم، ثم يمرر كل شيء إلى Canonical CI.",
+  "mission": "الوكيل البرمجي الرئيسي Master Repair: يبني RCA وإثبات الإصلاح ويطبق أقل تغيير لازم ضمن execution، ويدير حلقة الإصلاح المتكيفة ×10 تحت Chair-1، مع بقاء التصديق النهائي وmain خارج سلطته.",
   "state": {
     "status": "READY",
     "taskCount": 0,
@@ -112,9 +119,9 @@
   ],
   "note": "هذه ذاكرة تشغيلية/تعلمية وليست سلطة إثبات. لا تُعتبر أي قاعدة صحيحة للحالة الحالية إلا بعد exact-SHA reproduction + targeted regression + Canonical CI.",
   "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
-  "cooperationRole": "PRIMARY_PROGRAMMING_REPAIR_OWNER",
+  "cooperationRole": "MASTER_REPAIR_OWNER",
   "cooperationMode": "MANDATORY_SHARED_MISSION_ON_RED",
-  "sharedCapabilities": "ACTION-THREE-BOT-INTELLIGENCE",
+  "sharedCapabilities": "UNIFIED-MASTER-REPAIR-INTELLIGENCE",
   "requiredCollaborators": [
     "ACTION-REPAIR-2",
     "ACTION-HISTORIAN-3"
@@ -132,19 +139,23 @@
     "canMutateTests": false,
     "canMutateMain": false,
     "canonicalGreen": "DAILY_FLIXO_GREEN_GATE",
-    "sourceMutation": "WHEN_SELECTED_OWNER"
+    "sourceMutation": "WHEN_SELECTED_OWNER",
+    "requiresChair1": true,
+    "requiresIndependentVerification": true,
+    "masterRepair": true
   },
   "agentGrade": {
     "lifecycle": "READY",
     "shortName": "ACTR",
-    "upgradeNumber": 6,
-    "upgradePriority": 95,
+    "upgradeNumber": 7,
+    "upgradePriority": 100,
     "nextUpgrade": {
-      "id": "ACTR-U5",
-      "weakness": "SYSTEMIC_CAUSAL_OBSERVABILITY_AND_META_ROOT_DETECTION",
-      "mission": "النزول تحت السبب الجذري إلى جذور النظام: هوية الدليل، الزمن، السلطة، حدود التأثير، ثبات حلقة التعلم، وترتيب السببية؛ وإيقاف الطفرة عندما تنهار قابلية المراقبة السببية",
-      "promotionProof": "META_CAUSAL_OBSERVABILITY_PLUS_SYSTEMIC_ROOT_DETECTION_PLUS_CAUSAL_DISCRIMINATOR_PLUS_EXACT_SHA_PLUS_CANONICAL_CI"
-    }
+      "id": "MASTER-REPAIR-U1",
+      "weakness": "CANONICAL_GREEN_PROOF_MARGIN_AND_CROSS-CHECK_DEPTH",
+      "mission": "زيادة عمق الإثبات مع عدم توسيع سلطة التصديق",
+      "promotionProof": "TEN_X_REPAIR_PLUS_INDEPENDENT_VERIFIER_PLUS_EXACT_SHA_PLUS_CANONICAL_CI"
+    },
+    "promotionState": "USER_DIRECTED_MASTER_REPAIR"
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
   "residencyState": "RESIDENT_ALWAYS",
@@ -169,8 +180,8 @@
     "sameSha": true
   },
   "agentRuntime": {
-    "protocol": "ACTION-AGENT-RUNTIME-v2",
-    "modelProfile": "ACTION_FRONTIER_REPAIR_V2",
+    "protocol": "UNIFIED-MASTER-REPAIR-RUNTIME-v1",
+    "modelProfile": "MASTER_REPAIR_FRONTIER_V1",
     "reasoningEffort": "MAXIMUM",
     "cognitiveLoop": [
       "INTAKE",
@@ -194,7 +205,7 @@
     "structuredOutput": true,
     "failClosed": true,
     "noSelfApproval": true,
-    "roleMission": "PROGRAMMER_THINKING_AND_SOURCE_REPAIR",
+    "roleMission": "MASTER_REPAIR_PROGRAMMING_AND_PROOF",
     "reasoningModes": [
       "CODE_REASONING",
       "AST_REVIEW",
@@ -217,7 +228,8 @@
       "CAUSAL_DISCRIMINATION",
       "HYPOTHESIS_SEPARATION",
       "EVIDENCE_MARGIN_SELECTION"
-    ]
+    ],
+    "masterRepair": true
   },
   "subAgents": {
     "codeMentor": {
