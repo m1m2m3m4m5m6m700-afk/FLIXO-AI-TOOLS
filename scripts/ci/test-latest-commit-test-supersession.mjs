@@ -19,6 +19,9 @@ assert.doesNotMatch(workflow, /gh run view "\$run_id"/);
 assert.doesNotMatch(workflow, /gh run cancel "\$run_id" --repo "\$REPOSITORY"\s*\|\|\s*true/);
 assert.doesNotMatch(workflow, /gh api --paginate --slurp/);
 assert.match(workflow, /STALE_ACTIVE_RUNS=\$stale_active/);
+assert.match(workflow, /queued\|pending\|in_progress/);
+assert.match(workflow, /\*Heartbeat\*/i);
+assert.match(workflow, /\*Execution\*/i);
 assert.match(workflow, /LATEST_COMMIT_ONLY_ENFORCED=true/);
 assert.match(workflow, /SUPERSESSION_HEAD_MOVED old=\$EXPECTED_SHA new=\$CURRENT_SHA/);
 
