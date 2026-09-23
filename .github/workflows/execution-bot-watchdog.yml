@@ -1,21 +1,9 @@
 name: FLIXO Execution Bot Watchdog
 
 on:
+  # Automatic wake is owned exclusively by agent-repair-heartbeat.yml.
+  # This watchdog remains an explicit observer for forensic/manual recovery.
   workflow_dispatch:
-  schedule:
-    - cron: '*/5 * * * *'
-  push:
-    branches: [execution]
-  workflow_run:
-    workflows:
-      - FLIXO Test System
-      - FLIXO WP0 Trust Baseline
-      - FLIXO Test Impact
-      - FLIXO Test Impact Execution
-      - Repository Security Baseline
-      - Claude Security Review
-      - FLIXO Auto Repair Bot
-    types: [completed]
 
 permissions:
   # The watchdog may wake the trusted Daily·FLIXO Green Gate on the first RED.
@@ -24,19 +12,13 @@ permissions:
   contents: read
 
 concurrency:
-  # One observer lane only. Every wake is read-only and re-evaluates the current execution SHA,
-  # so cancelling an older observer cannot lose repair authority; it removes duplicate wake pressure.
   group: flixo-execution-watchdog-manual
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   wake:
     name: Exact-SHA observer wake
-    if: >-
-      github.event_name == 'schedule' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/execution') ||
-      github.event_name == 'workflow_run' ||
-      github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 345
     steps:
