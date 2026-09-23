@@ -1,115 +1,490 @@
 import { createHash } from 'node:crypto';
 
-export const MEMORY_LAYERS = Object.freeze({ L0:'WORKING', L1:'SESSION', L2:'PERSONAL', L3:'EPISODIC', L4:'SEMANTIC', L5:'CANONICAL' });
-export type MemoryLayer=keyof typeof MEMORY_LAYERS;
-export type Difficulty='D1'|'D2'|'D3'|'D4'|'D5';
-export type Polarity='SUPPORTS'|'REFUTES'|'UNKNOWN';
+export const MEMORY_LAYERS = Object.freeze({
+  L0: 'CONSTITUTION',
+  L1: 'CANONICAL_PROJECT_MEMORY',
+  L2: 'SHARED_SKILL_KNOWLEDGE',
+  L3: 'CELL_PERSONAL_MEMORY',
+  L4: 'CURRENT_MISSION_MEMORY',
+});
+export type MemoryLayer = keyof typeof MEMORY_LAYERS;
+export type Difficulty = 'D1' | 'D2' | 'D3' | 'D4' | 'D5';
+export type Polarity = 'SUPPORTS' | 'REFUTES' | 'UNKNOWN';
+export type MissionOutcome = 'SUCCESS' | 'FAILURE' | 'BLOCKED_EXTERNAL' | 'BLOCKED_INTERNAL' | 'PROPOSED' | 'REVERTED';
+export type LearningDecision = 'PROVISIONAL_LESSON' | 'VERIFIED_KNOWLEDGE' | 'ANTI_LESSON' | 'BLOCKED_EXTERNAL' | 'BLOCKED_INTERNAL' | 'NO_CONFIDENCE_CHANGE' | 'STRATEGY_REJECTED';
 
-const SHA40=/^[a-f0-9]{40}$/u;
-const SHA256=/^[a-f0-9]{64}$/u;
-const hash=(v:unknown)=>createHash('sha256').update(JSON.stringify(v),'utf8').digest('hex');
-const normalize=(v:string)=>String(v??'').toLocaleLowerCase().replace(/\\s+/gu,' ').replace(/[^\\p{L}\\p{N}_:./ -]/gu,'').trim();
+const SHA40 = /^[a-f0-9]{40}$/u;
+const SHA256 = /^[a-f0-9]{64}$/u;
+const hash = (v: unknown) => createHash('sha256').update(JSON.stringify(v), 'utf8').digest('hex');
+const normalize = (v: unknown) => String(v ?? '').toLocaleLowerCase().replace(/\\s+/gu, ' ').replace(/[^\\p{L}\\p{N}_:./ -]/gu, '').trim();
+const fixedId = (n: number) => `CELL-${String(n).padStart(3, '0')}`;
 
-export type SwarmKnowledge=Readonly<{
-  id:string; scope:string; content:string; source:string; sourceType:'FLIXO_DOC'|'REPOSITORY'|'TEST'|'INTERNAL_EVIDENCE'|'TRUSTED_EXTERNAL'|'WEB'|'GENERATED';
-  version:string; layer:MemoryLayer; status:'VERIFIED'|'PROBABLE'|'INFERRED'|'UNKNOWN'|'CONFLICTED'; validity:'CURRENT'|'STALE'|'REVOKED';
-  confidence:number; authority:number; provenance:readonly string[]; exactSha:string|null; exactShaVerified:boolean; evidenceCount:number; polarity:Polarity;
-  canonicalKey:string; createdAt:string; lastVerifiedAt:string|null; expiresAt:string|null;
+export const REGISTERED_BOT_COUNT = 200;
+
+export type BotIdentity = Readonly<{
+  botId: string;
+  ordinal: number;
+  role: string | null;
+  skills: readonly string[];
+  memoryKey: string;
+  authority: 'CENTRALIZED';
+  active: boolean;
+  missionId: string | null;
 }>;
 
-export const canonicalKey=(scope:string,content:string)=>hash({scope:normalize(scope),content:normalize(content)});
-
-export function makeKnowledge(input:Omit<SwarmKnowledge,'canonicalKey'|'id'> & {id?:string}):SwarmKnowledge{
-  const id=input.id??'SK-'+canonicalKey(input.scope,input.content).slice(0,24);
-  if(input.exactSha!==null&&!SHA40.test(input.exactSha))throw new Error('SWARM_EXACT_SHA_INVALID');
-  if(input.provenance.length<1)throw new Error('SWARM_PROVENANCE_REQUIRED');
-  if(input.confidence<0||input.confidence>1)throw new Error('SWARM_CONFIDENCE_INVALID');
-  return Object.freeze({...input,id,canonicalKey:canonicalKey(input.scope,input.content)});
+/**
+ * Logical identity memory only. It never provisions, wakes, assigns or grants authority.
+ */
+export function buildFixedBotIdentities(count = REGISTERED_BOT_COUNT): readonly BotIdentity[] {
+  if (!Number.isInteger(count) || count !== REGISTERED_BOT_COUNT) throw new Error('SWARM_FIXED_BOT_COUNT_INVALID');
+  return Object.freeze(Array.from({ length: REGISTERED_BOT_COUNT }, (_, index) => Object.freeze({
+    botId: fixedId(index + 1),
+    ordinal: index + 1,
+    role: null,
+    skills: Object.freeze([] as string[]),
+    memoryKey: `cell-memory:${fixedId(index + 1)}`,
+    authority: 'CENTRALIZED' as const,
+    active: false,
+    missionId: null,
+  })));
 }
 
-const rank=(r:SwarmKnowledge)=>(r.exactShaVerified ? .25 : 0)+(r.status==='VERIFIED'?.35:r.status==='PROBABLE'?.18:0)+r.confidence*.25+r.authority*.1+Math.min(.05,r.evidenceCount/40);
-
-export function mergeCanonical(records:readonly SwarmKnowledge[]){
-  const groups=new Map<string,SwarmKnowledge[]>();
-  for(const r of records)groups.set(r.canonicalKey,[...(groups.get(r.canonicalKey)??[]),r]);
-  const canonical:SwarmKnowledge[]=[]; const duplicates:{key:string;ids:string[]}[]=[]; const contradictions:{scope:string;key:string;ids:string[]}[]=[];
-  for(const [key,group] of groups){
-    canonical.push([...group].sort((a,b)=>rank(b)-rank(a)||a.id.localeCompare(b.id))[0]);
-    if(group.length>1)duplicates.push({key,ids:group.map(r=>r.id).sort()});
-    const polarities=new Set(group.map(r=>r.polarity));
-    if(polarities.has('SUPPORTS')&&polarities.has('REFUTES'))contradictions.push({scope:group[0].scope,key,ids:group.map(r=>r.id).sort()});
+export function validateActiveBotSet(ids: readonly string[]) {
+  const normalized = ids.map(id => String(id).toUpperCase());
+  if (normalized.length > REGISTERED_BOT_COUNT || new Set(normalized).size !== normalized.length) throw new Error('SWARM_ACTIVE_BOT_SET_INVALID');
+  if (normalized.some(id => !/^CELL-\\d{3}$/u.test(id) || Number(id.slice(-3)) < 1 || Number(id.slice(-3)) > REGISTERED_BOT_COUNT)) {
+    throw new Error('SWARM_ACTIVE_BOT_ID_INVALID');
   }
-  return {canonical,duplicates,contradictions};
+  return Object.freeze([...normalized].sort());
 }
 
-export function decayKnowledge(r:SwarmKnowledge,now=Date.now(),halfLifeDays=30):SwarmKnowledge{
-  const anchor=r.lastVerifiedAt??r.createdAt; const age=Math.max(0,(now-new Date(anchor).getTime())/86400000); const c=Number((r.confidence*2**(-age/halfLifeDays)).toFixed(6));
-  const stale=r.expiresAt?new Date(r.expiresAt).getTime()<=now:age>=30;
-  return Object.freeze({...r,confidence:c,status:stale&&r.status==='VERIFIED'?'PROBABLE':r.status,validity:stale&&r.validity==='CURRENT'?'STALE':r.validity});
+export type SwarmKnowledge = Readonly<{
+  id: string;
+  scope: string;
+  content: string;
+  source: string;
+  sourceType: 'FLIXO_DOC' | 'REPOSITORY' | 'TEST' | 'INTERNAL_EVIDENCE' | 'TRUSTED_EXTERNAL' | 'WEB' | 'GENERATED';
+  version: string;
+  layer: MemoryLayer;
+  status: 'VERIFIED' | 'PROBABLE' | 'INFERRED' | 'UNKNOWN' | 'CONFLICTED';
+  validity: 'CURRENT' | 'STALE' | 'REVOKED';
+  confidence: number;
+  authority: number;
+  provenance: readonly string[];
+  exactSha: string | null;
+  exactShaVerified: boolean;
+  evidenceCount: number;
+  polarity: Polarity;
+  canonicalKey: string;
+  createdAt: string;
+  lastVerifiedAt: string | null;
+  expiresAt: string | null;
+}>;
+
+export const canonicalKey = (scope: string, content: string) => hash({
+  scope: normalize(scope),
+  content: normalize(content),
+});
+
+export function makeKnowledge(input: Omit<SwarmKnowledge, 'canonicalKey' | 'id'> & { id?: string }): SwarmKnowledge {
+  const id = input.id ?? `SK-${canonicalKey(input.scope, input.content).slice(0, 24)}`;
+  if (input.exactSha !== null && !SHA40.test(input.exactSha)) throw new Error('SWARM_EXACT_SHA_INVALID');
+  if (input.provenance.length < 1) throw new Error('SWARM_PROVENANCE_REQUIRED');
+  if (input.confidence < 0 || input.confidence > 1) throw new Error('SWARM_CONFIDENCE_INVALID');
+  if (input.authority < 0 || input.authority > 1) throw new Error('SWARM_AUTHORITY_INVALID');
+  return Object.freeze({ ...input, id, canonicalKey: canonicalKey(input.scope, input.content) });
 }
 
-export function poisoningSafe(r:SwarmKnowledge,currentSha:string,conflictCount=0){
-  return SHA40.test(currentSha)&&conflictCount===0&&r.validity==='CURRENT'&&r.status==='VERIFIED'&&r.confidence>=.9&&r.exactShaVerified&&r.exactSha===currentSha&&r.evidenceCount>=2&&r.provenance.length>0&&!['GENERATED','WEB'].includes(r.sourceType);
-}
+const rank = (r: SwarmKnowledge) =>
+  (r.exactShaVerified ? 0.25 : 0) +
+  (r.status === 'VERIFIED' ? 0.35 : r.status === 'PROBABLE' ? 0.18 : 0) +
+  r.confidence * 0.25 +
+  r.authority * 0.1 +
+  Math.min(0.05, r.evidenceCount / 40);
 
-export function compactMemory(records:readonly SwarmKnowledge[],caps:Partial<Record<MemoryLayer,number>>={}){
-  const layerGroups=new Map<string,SwarmKnowledge[]>();
-  for(const r of records){const key=`${r.layer}|${r.canonicalKey}`;layerGroups.set(key,[...(layerGroups.get(key)??[]),r]);}
-  const merged=[...layerGroups.values()].flatMap(group=>mergeCanonical(group).canonical).map(r=>decayKnowledge(r));
-  const keep:SwarmKnowledge[]=[]; const archived:SwarmKnowledge[]=[]; const used=new Map<MemoryLayer,number>();
-  const capacity=(l:MemoryLayer)=>caps[l]??({L0:64,L1:256,L2:500,L3:2000,L4:5000,L5:10000}[l]);
-  for(const r of merged.sort((a,b)=>Number(b.layer.slice(1))-Number(a.layer.slice(1))||rank(b)-rank(a))){
-    const preserve=r.layer==='L5'&&r.status==='VERIFIED'&&r.validity==='CURRENT'&&r.exactShaVerified;
-    const n=used.get(r.layer)??0; if(preserve||n<capacity(r.layer)){keep.push(r);used.set(r.layer,n+1);}else archived.push(r);
+export function mergeCanonical(records: readonly SwarmKnowledge[]) {
+  const groups = new Map<string, SwarmKnowledge[]>();
+  for (const record of records) groups.set(record.canonicalKey, [...(groups.get(record.canonicalKey) ?? []), record]);
+  const canonical: SwarmKnowledge[] = [];
+  const duplicates: { key: string; ids: string[] }[] = [];
+  const contradictions: { scope: string; key: string; ids: string[] }[] = [];
+  for (const [key, group] of groups) {
+    canonical.push([...group].sort((a, b) => rank(b) - rank(a) || a.id.localeCompare(b.id))[0]);
+    if (group.length > 1) duplicates.push({ key, ids: group.map(record => record.id).sort() });
+    const polarities = new Set(group.map(record => record.polarity));
+    if (polarities.has('SUPPORTS') && polarities.has('REFUTES')) {
+      contradictions.push({ scope: group[0].scope, key, ids: group.map(record => record.id).sort() });
+    }
   }
-  return {active:keep,archived,droppedDuplicates:records.length-merged.length,rebuildDigest:hash(keep)};
+  return { canonical, duplicates, contradictions };
 }
 
-export function rebuildMemory(records:readonly SwarmKnowledge[],manifest:{recordCount:number;digest:string;exactSha:string}){
-  if(!SHA40.test(manifest.exactSha)||records.length!==manifest.recordCount)throw new Error('SWARM_REBUILD_IDENTITY_INVALID');
-  const digest=hash([...records].sort((a,b)=>a.id.localeCompare(b.id))); if(digest!==manifest.digest)throw new Error('SWARM_REBUILD_DIGEST_MISMATCH');
-  return Object.freeze([...records].sort((a,b)=>a.id.localeCompare(b.id)));
+export function decayKnowledge(record: SwarmKnowledge, now = Date.now(), halfLifeDays = 30): SwarmKnowledge {
+  const anchor = record.lastVerifiedAt ?? record.createdAt;
+  const age = Math.max(0, (now - new Date(anchor).getTime()) / 86400000);
+  const confidence = Number((record.confidence * 2 ** (-age / halfLifeDays)).toFixed(6));
+  const stale = record.expiresAt ? new Date(record.expiresAt).getTime() <= now : age >= 30;
+  return Object.freeze({
+    ...record,
+    confidence,
+    status: stale && record.status === 'VERIFIED' ? 'PROBABLE' : record.status,
+    validity: stale && record.validity === 'CURRENT' ? 'STALE' : record.validity,
+  });
 }
 
-export function classifyDifficulty(input:{ambiguity:number;novelty:number;dependencyCount:number;risk:number;uncertainty:number;capabilityCount:number}):Difficulty{
-  const s=input.ambiguity*.2+input.novelty*.2+Math.min(1,input.dependencyCount/8)*.15+input.risk*.2+input.uncertainty*.15+Math.min(1,input.capabilityCount/6)*.1;
-  return s<.2?'D1':s<.4?'D2':s<.6?'D3':s<.8?'D4':'D5';
+/** Memory is advisory; this helper deliberately never returns authority. */
+export function memoryAdvisoryDecision(record: SwarmKnowledge, currentSha: string) {
+  const exactFresh = SHA40.test(currentSha) && record.exactSha === currentSha && record.exactShaVerified && record.validity === 'CURRENT';
+  return Object.freeze({
+    usableAsAdvisory: record.validity === 'CURRENT' && record.status !== 'CONFLICTED',
+    exactShaMatch: exactFresh,
+    requiresFreshEvidence: !exactFresh,
+    authorityGranted: false,
+  });
 }
 
-export type SkillObservation=Readonly<{botId:string;skill:string;capability:string;outcome:'SUCCESS'|'FAILURE'|'BLOCKED_EXTERNAL'|'SHADOW';contextKey:string;verified:boolean;timestamp:string}>;
-export function skillReputation(observations:readonly SkillObservation[],now=Date.now(),halfLifeDays=45){
-  const map=new Map<string,SkillObservation[]>(); for(const o of observations){const k=[o.botId,o.skill,o.capability].join('|');map.set(k,[...(map.get(k)??[]),o]);}
-  return [...map.values()].map(group=>{const ok=group.filter(o=>o.outcome==='SUCCESS'&&o.verified).length;const bad=group.filter(o=>o.outcome==='FAILURE').length;const attempts=ok+bad;
-    const score=group.reduce((s,o)=>{const age=Math.max(0,(now-new Date(o.timestamp).getTime())/86400000);const w=2**(-age/halfLifeDays);return s+(o.outcome==='SUCCESS'&&o.verified?w:o.outcome==='FAILURE'?0:w*.25);},0);
-    const weight=group.reduce((s,o)=>{const age=Math.max(0,(now-new Date(o.timestamp).getTime())/86400000);return s+2**(-age/halfLifeDays);},0);
-    return {botId:group[0].botId,skill:group[0].skill,capability:group[0].capability,attempts,successes:ok,failures:bad,successRate:attempts?ok/attempts:0,decayedScore:weight?score/weight:0,distinctContexts:new Set(group.map(o=>o.contextKey)).size};
-  }).sort((a,b)=>b.decayedScore-a.decayedScore||b.successRate-a.successRate||a.botId.localeCompare(b.botId));
+export function poisoningSafe(record: SwarmKnowledge, currentSha: string, conflictCount = 0) {
+  return SHA40.test(currentSha) &&
+    conflictCount === 0 &&
+    record.validity === 'CURRENT' &&
+    record.status === 'VERIFIED' &&
+    record.confidence >= 0.9 &&
+    record.exactShaVerified &&
+    record.exactSha === currentSha &&
+    record.evidenceCount >= 2 &&
+    record.provenance.length > 0 &&
+    !['GENERATED', 'WEB'].includes(record.sourceType);
 }
 
-export function adaptiveSwarmSize(d:Difficulty,capabilityCount:number,novelty:number,risk:number){
-  const base={D1:3,D2:4,D3:6,D4:10,D5:15}[d]; return Math.min(50,Math.max(3,base+Math.ceil(Math.max(0,capabilityCount-2)*1.5)+Math.ceil(novelty*10)+Math.ceil(risk*8)));
+export function compactMemory(records: readonly SwarmKnowledge[], caps: Partial<Record<MemoryLayer, number>> = {}) {
+  const merged = mergeCanonical(records).canonical.map(record => decayKnowledge(record));
+  const keep: SwarmKnowledge[] = [];
+  const archived: SwarmKnowledge[] = [];
+  const used = new Map<MemoryLayer, number>();
+  const capacity = (layer: MemoryLayer) => caps[layer] ?? ({ L0: 64, L1: 256, L2: 500, L3: 2000, L4: 5000 }[layer]);
+  for (const record of merged.sort((a, b) => Number(a.layer.slice(1)) - Number(b.layer.slice(1)) || rank(b) - rank(a))) {
+    const preserve = (record.layer === 'L0' || record.layer === 'L1') && record.validity === 'CURRENT' && record.status === 'VERIFIED';
+    const n = used.get(record.layer) ?? 0;
+    if (preserve || n < capacity(record.layer)) {
+      keep.push(record);
+      used.set(record.layer, n + 1);
+    } else {
+      archived.push(record);
+    }
+  }
+  return { active: keep, archived, droppedDuplicates: records.length - mergeCanonical(records).canonical.length, rebuildDigest: hash(keep) };
 }
 
-export function promotionTrial(x:{attempts:number;successes:number;distinctContexts:number;independentChallenges:number;contradictions:number}){
-  const reasons:string[]=[];const rate=x.attempts?x.successes/x.attempts:0;
-  if(x.attempts<3)reasons.push('MIN_TRIALS'); if(rate<.8)reasons.push('SUCCESS_RATE'); if(x.distinctContexts<2)reasons.push('CONTEXT_DIVERSITY'); if(x.independentChallenges<1)reasons.push('INDEPENDENT_CHALLENGE'); if(x.contradictions>0)reasons.push('CONTRADICTION');
-  return {eligible:reasons.length===0,reasons};
+export function rebuildMemory(records: readonly SwarmKnowledge[], manifest: { recordCount: number; digest: string; exactSha: string }) {
+  if (!SHA40.test(manifest.exactSha) || records.length !== manifest.recordCount) throw new Error('SWARM_REBUILD_IDENTITY_INVALID');
+  const digest = hash([...records].sort((a, b) => a.id.localeCompare(b.id)));
+  if (digest !== manifest.digest) throw new Error('SWARM_REBUILD_DIGEST_MISMATCH');
+  return Object.freeze([...records].sort((a, b) => a.id.localeCompare(b.id)));
 }
 
-export function canaryDecision(x:{baselineFailureRate:number;canaryFailureRate:number;allowedRegression:number;trials:number}){
-  if(x.trials<3)return 'HOLD' as const; if(x.canaryFailureRate>x.baselineFailureRate+x.allowedRegression)return 'ROLLBACK' as const; if(x.canaryFailureRate<=x.baselineFailureRate)return 'PROMOTE' as const; return 'HOLD' as const;
+export function classifyDifficulty(input: { ambiguity: number; novelty: number; dependencyCount: number; risk: number; uncertainty: number; capabilityCount: number }): Difficulty {
+  const s =
+    input.ambiguity * 0.2 +
+    input.novelty * 0.2 +
+    Math.min(1, input.dependencyCount / 8) * 0.15 +
+    input.risk * 0.2 +
+    input.uncertainty * 0.15 +
+    Math.min(1, input.capabilityCount / 6) * 0.1;
+  return s < 0.2 ? 'D1' : s < 0.4 ? 'D2' : s < 0.6 ? 'D3' : s < 0.8 ? 'D4' : 'D5';
 }
 
-export function compareReplay(x:{historicalOracle:'PASS'|'FAIL'|'UNKNOWN';currentOracle:'PASS'|'FAIL'|'UNKNOWN';historicalOutputHash:string;currentOutputHash:string}){
-  if(!SHA256.test(x.historicalOutputHash)||!SHA256.test(x.currentOutputHash))throw new Error('REPLAY_OUTPUT_HASH_INVALID');
-  if(x.historicalOracle==='FAIL'&&x.currentOracle==='PASS')return {changed:true,signal:'IMPROVED' as const};
-  if(x.historicalOracle==='PASS'&&x.currentOracle==='FAIL')return {changed:true,signal:'REGRESSED' as const};
-  if(x.historicalOracle==='UNKNOWN'||x.currentOracle==='UNKNOWN')return {changed:x.historicalOutputHash!==x.currentOutputHash,signal:'UNMEASURABLE' as const};
-  return {changed:x.historicalOutputHash!==x.currentOutputHash,signal:'NO_CHANGE' as const};
+export type SkillObservation = Readonly<{
+  botId: string;
+  skill: string;
+  capability: string;
+  outcome: 'SUCCESS' | 'FAILURE' | 'BLOCKED_EXTERNAL' | 'SHADOW';
+  contextKey: string;
+  exactSha: string;
+  verified: boolean;
+  timestamp: string;
+}>;
+
+export function skillReputation(observations: readonly SkillObservation[], now = Date.now(), halfLifeDays = 45) {
+  const map = new Map<string, SkillObservation[]>();
+  for (const observation of observations) {
+    if (!SHA40.test(observation.exactSha)) throw new Error('SWARM_SKILL_OBSERVATION_SHA_INVALID');
+    const key = [observation.botId, observation.skill, observation.capability].join('|');
+    map.set(key, [...(map.get(key) ?? []), observation]);
+  }
+  return [...map.values()].map(group => {
+    const ok = group.filter(observation => observation.outcome === 'SUCCESS' && observation.verified).length;
+    const bad = group.filter(observation => observation.outcome === 'FAILURE').length;
+    const attempts = ok + bad;
+    const score = group.reduce((sum, observation) => {
+      const age = Math.max(0, (now - new Date(observation.timestamp).getTime()) / 86400000);
+      const weight = 2 ** (-age / halfLifeDays);
+      return sum + (observation.outcome === 'SUCCESS' && observation.verified ? weight : observation.outcome === 'FAILURE' ? 0 : weight * 0.25);
+    }, 0);
+    const weight = group.reduce((sum, observation) => {
+      const age = Math.max(0, (now - new Date(observation.timestamp).getTime()) / 86400000);
+      return sum + 2 ** (-age / halfLifeDays);
+    }, 0);
+    return {
+      botId: group[0].botId,
+      skill: group[0].skill,
+      capability: group[0].capability,
+      attempts,
+      successes: ok,
+      failures: bad,
+      successRate: attempts ? ok / attempts : 0,
+      decayedScore: weight ? score / weight : 0,
+      distinctContexts: new Set(group.map(observation => observation.contextKey)).size,
+      exactShaCount: new Set(group.map(observation => observation.exactSha)).size,
+    };
+  }).sort((a, b) => b.decayedScore - a.decayedScore || b.successRate - a.successRate || a.botId.localeCompare(b.botId));
 }
 
-export const FAILURE_INJECTION_CATALOG=Object.freeze(['STALE_SHA','DUPLICATE_KNOWLEDGE','CONTRADICTORY_KNOWLEDGE','POISONED_PROVENANCE','EXPIRED_SKILL','LOW_CONFIDENCE_PROMOTION','MISSING_REPLAY_INPUT','EXTERNAL_ORACLE_UNKNOWN','PRODUCT_AGENT_HANDOFF_MISMATCH','FILTER_MASK_RUNTIME_DEPENDENCY_MISSING','CAMERA_RECORDER_EVIDENCE_GAP']);
+export const CAPABILITY_MAP = Object.freeze({
+  'filter-mask': Object.freeze({ requiredSkills: Object.freeze(['image-runtime', 'gpu', 'verification']), roles: Object.freeze(['runtime', 'verifier']) }),
+  'local-image-tools': Object.freeze({ requiredSkills: Object.freeze(['image-processing', 'file-safety', 'output-contract']), roles: Object.freeze(['processor', 'safety']) }),
+  'editorial-tools': Object.freeze({ requiredSkills: Object.freeze(['composition', 'layout', 'history', 'export']), roles: Object.freeze(['editor', 'verifier']) }),
+  'ai/cloud-tools': Object.freeze({ requiredSkills: Object.freeze(['provider-routing', 'schema-validation', 'external-oracle']), roles: Object.freeze(['router', 'oracle']) }),
+  'replay/simulation': Object.freeze({ requiredSkills: Object.freeze(['snapshotting', 'oracle-analysis', 'failure-injection', 'regression']), roles: Object.freeze(['simulator', 'verifier']) }),
+} as const);
 
-export function validateHandoff(input:{missionId:string;exactSha:string;capabilityId:string;evidenceRefs:readonly string[]}){if(!input.missionId||!SHA40.test(input.exactSha)||!input.capabilityId||input.evidenceRefs.length===0)throw new Error('PRODUCT_AGENT_HANDOFF_INVALID');}
+export type CapabilityId = keyof typeof CAPABILITY_MAP;
 
-export function rootCauseMemoryLink(input:{productFailureId:string;rootCause:string;exactSha:string;failureFingerprint:string;evidenceRefs:readonly string[]}){if(!input.productFailureId||!input.rootCause||!SHA40.test(input.exactSha)||!SHA256.test(input.failureFingerprint)||input.evidenceRefs.length===0)throw new Error('ROOT_CAUSE_MEMORY_LINK_INVALID');return Object.freeze({id:'RC-'+hash(input).slice(0,24),layer:'L3',status:'OBSERVED'});}
+export function buildCapabilityMap(required: readonly string[]) {
+  return Object.freeze(required.map(capability => {
+    const entry = CAPABILITY_MAP[capability as CapabilityId];
+    return Object.freeze({
+      capability,
+      requiredSkills: entry?.requiredSkills ?? Object.freeze([] as string[]),
+      roles: entry?.roles ?? Object.freeze(['generalist'] as string[]),
+      known: Boolean(entry),
+    });
+  }));
+}
+
+export function adaptiveSwarmSize(difficulty: Difficulty, capabilityCount: number, novelty: number, risk: number) {
+  const base = { D1: 3, D2: 4, D3: 6, D4: 10, D5: 15 }[difficulty];
+  return Math.min(50, Math.max(3, base + Math.ceil(Math.max(0, capabilityCount - 2) * 1.5) + Math.ceil(novelty * 10) + Math.ceil(risk * 8)));
+}
+
+export type AdaptiveSelectionInput = Readonly<{
+  currentSha: string;
+  difficulty: Difficulty;
+  requiredCapabilities: readonly string[];
+  observations: readonly SkillObservation[];
+  candidateIds?: readonly string[];
+}>;
+
+export function selectAdaptiveSwarm(input: AdaptiveSelectionInput) {
+  if (!SHA40.test(input.currentSha)) throw new Error('SWARM_ROUTER_SHA_INVALID');
+  const candidates = validateActiveBotSet(input.candidateIds ?? []).length > 0
+    ? validateActiveBotSet(input.candidateIds ?? [])
+    : buildFixedBotIdentities().map(identity => identity.botId);
+  const requiredSkills = buildCapabilityMap(input.requiredCapabilities).flatMap(entry => [...entry.requiredSkills]);
+  const reputation = skillReputation(input.observations.filter(observation => observation.exactSha === input.currentSha));
+  const byBot = new Map<string, number>();
+  for (const botId of candidates) byBot.set(botId, 0);
+  for (const item of reputation) if (byBot.has(item.botId)) {
+    byBot.set(item.botId, (byBot.get(item.botId) ?? 0) + item.decayedScore + item.successRate);
+  }
+  const target = adaptiveSwarmSize(input.difficulty, input.requiredCapabilities.length, 0.5, 0.5);
+  return Object.freeze([...candidates]
+    .sort((a, b) => (byBot.get(b) ?? 0) - (byBot.get(a) ?? 0) || a.localeCompare(b))
+    .slice(0, Math.min(target, candidates.length)));
+}
+
+export function assignAdaptiveRoles(botIds: readonly string[], requiredCapabilities: readonly string[]) {
+  const roles = requiredCapabilities.flatMap(capability => [...(CAPABILITY_MAP[capability as CapabilityId]?.roles ?? ['generalist'])]);
+  return Object.freeze(botIds.map((botId, index) => Object.freeze({
+    botId,
+    role: roles[index % Math.max(roles.length, 1)] ?? 'generalist',
+  })));
+}
+
+export type MissionResultContract = Readonly<{
+  missionId: string;
+  taskId: string;
+  botId: string;
+  exactSha: string;
+  outcome: MissionOutcome;
+  strategyId: string | null;
+  failureFingerprint: string | null;
+  rootCause: string | null;
+  evidenceRefs: readonly string[];
+  verified: boolean;
+  reverted: boolean;
+}>;
+
+export function validateMissionResult(input: MissionResultContract) {
+  if (!input.missionId || !input.taskId || !input.botId || !SHA40.test(input.exactSha)) throw new Error('MISSION_RESULT_IDENTITY_INVALID');
+  if (!Object.values({ SUCCESS: 1, FAILURE: 1, BLOCKED_EXTERNAL: 1, BLOCKED_INTERNAL: 1, PROPOSED: 1, REVERTED: 1 }).includes(input.outcome)) throw new Error('MISSION_RESULT_OUTCOME_INVALID');
+  if (input.evidenceRefs.length === 0) throw new Error('MISSION_RESULT_EVIDENCE_REQUIRED');
+  if (input.outcome !== 'FAILURE' && input.outcome !== 'BLOCKED_INTERNAL' && input.outcome !== 'BLOCKED_EXTERNAL' && input.failureFingerprint !== null) throw new Error('MISSION_RESULT_FAILURE_METADATA_INVALID');
+  if (input.outcome === 'FAILURE' && (!input.failureFingerprint || !SHA256.test(input.failureFingerprint))) throw new Error('MISSION_RESULT_FINGERPRINT_REQUIRED');
+  if (input.verified && (!SHA40.test(input.exactSha) || input.evidenceRefs.length < 1)) throw new Error('MISSION_RESULT_VERIFICATION_INVALID');
+  return true;
+}
+
+export function learningDecision(input: MissionResultContract & { validationPassed: boolean; currentSha: string; contradictions: number }): LearningDecision {
+  validateMissionResult(input);
+  if (input.outcome === 'PROPOSED') return 'NO_CONFIDENCE_CHANGE';
+  if (input.outcome === 'REVERTED' || input.reverted) return 'STRATEGY_REJECTED';
+  if (input.outcome === 'BLOCKED_EXTERNAL') return 'BLOCKED_EXTERNAL';
+  if (input.outcome === 'BLOCKED_INTERNAL') return 'BLOCKED_INTERNAL';
+  if (input.outcome === 'FAILURE') return 'ANTI_LESSON';
+  if (!input.validationPassed || !input.verified || input.currentSha !== input.exactSha || input.contradictions > 0) return 'PROVISIONAL_LESSON';
+  return 'VERIFIED_KNOWLEDGE';
+}
+
+export function promotionTrial(input: { attempts: number; successes: number; distinctContexts: number; independentChallenges: number; contradictions: number }) {
+  const reasons: string[] = [];
+  const rate = input.attempts ? input.successes / input.attempts : 0;
+  if (input.attempts < 3) reasons.push('MIN_TRIALS');
+  if (rate < 0.8) reasons.push('SUCCESS_RATE');
+  if (input.distinctContexts < 2) reasons.push('CONTEXT_DIVERSITY');
+  if (input.independentChallenges < 1) reasons.push('INDEPENDENT_CHALLENGE');
+  if (input.contradictions > 0) reasons.push('CONTRADICTION');
+  return { eligible: reasons.length === 0, reasons };
+}
+
+export function canaryDecision(input: { baselineFailureRate: number; canaryFailureRate: number; allowedRegression: number; trials: number }) {
+  if (input.trials < 3) return 'HOLD' as const;
+  if (input.canaryFailureRate > input.baselineFailureRate + input.allowedRegression) return 'ROLLBACK' as const;
+  if (input.canaryFailureRate <= input.baselineFailureRate) return 'PROMOTE' as const;
+  return 'HOLD' as const;
+}
+
+export function fingerprintFailure(input: { category: string; normalizedMessage: string; violatedInvariant: string; causalSource: string; affectedScope: string }) {
+  return hash({
+    category: normalize(input.category),
+    normalizedMessage: normalize(input.normalizedMessage),
+    violatedInvariant: normalize(input.violatedInvariant),
+    causalSource: normalize(input.causalSource),
+    affectedScope: normalize(input.affectedScope),
+  });
+}
+
+export function inferFallback(primary: { status: 'AVAILABLE' | 'FAILED'; strategyId: string }, fallback: { strategyId: string }) {
+  return primary.status === 'AVAILABLE'
+    ? Object.freeze({ strategyId: primary.strategyId, source: 'PRIMARY' as const })
+    : Object.freeze({ strategyId: fallback.strategyId, source: 'FALLBACK' as const });
+}
+
+export function transferStrategy(input: {
+  sourceFingerprint: string;
+  targetFailureClass: string;
+  strategyId: string;
+  verifiedContexts: number;
+  exactShaEvidence: readonly string[];
+}) {
+  if (!SHA256.test(input.sourceFingerprint) || input.verifiedContexts < 2 || input.exactShaEvidence.length < 1) {
+    return Object.freeze({ eligible: false, reason: 'INSUFFICIENT_EVIDENCE' as const });
+  }
+  return Object.freeze({ eligible: true, sourceFingerprint: input.sourceFingerprint, targetFailureClass: normalize(input.targetFailureClass), strategyId: input.strategyId });
+}
+
+export function synthesizeCases(cases: readonly { fingerprint: string; rootCause: string; strategyId: string | null; outcome: MissionOutcome }[]) {
+  const roots = new Map<string, number>();
+  const strategies = new Map<string, number>();
+  for (const item of cases) {
+    roots.set(item.rootCause, (roots.get(item.rootCause) ?? 0) + 1);
+    if (item.strategyId) strategies.set(item.strategyId, (strategies.get(item.strategyId) ?? 0) + 1);
+  }
+  return Object.freeze({
+    recurringRootCauses: [...roots.entries()].filter(([, count]) => count > 1).sort((a, b) => b[1] - a[1]),
+    recurringStrategies: [...strategies.entries()].filter(([, count]) => count > 1).sort((a, b) => b[1] - a[1]),
+    observedCount: cases.length,
+  });
+}
+
+export function generateHypotheses(input: { failures: readonly { fingerprint: string; rootCause: string }[]; max: number }) {
+  return Object.freeze([...new Set(input.failures.map(item => `${item.rootCause}:${item.fingerprint.slice(0, 12)}`))].slice(0, Math.max(0, input.max)));
+}
+
+export function failurePrediction(input: { fingerprint: string; historical: readonly { fingerprint: string; outcome: MissionOutcome }[] }) {
+  if (!SHA256.test(input.fingerprint)) throw new Error('SWARM_PREDICTION_FINGERPRINT_INVALID');
+  const hits = input.historical.filter(item => item.fingerprint === input.fingerprint);
+  const failures = hits.filter(item => item.outcome === 'FAILURE').length;
+  return Object.freeze({ samples: hits.length, failureRate: hits.length ? failures / hits.length : 0, evidenceBound: hits.length > 0 });
+}
+
+export type KnowledgeGraphNode = Readonly<{ id: string; canonicalKey: string; exactSha: string | null }>;
+export type KnowledgeGraphEdge = Readonly<{ from: string; to: string; relation: 'DERIVED_FROM' | 'SUPPORTS' | 'REFUTES' | 'TRANSFERRED' }>;
+
+export function buildKnowledgeGraph(records: readonly SwarmKnowledge[]) {
+  const { canonical, contradictions } = mergeCanonical(records);
+  const nodes = canonical.map(record => Object.freeze({ id: record.id, canonicalKey: record.canonicalKey, exactSha: record.exactSha }));
+  const edges: KnowledgeGraphEdge[] = [];
+  for (const record of canonical) for (const provenance of record.provenance) edges.push(Object.freeze({ from: record.id, to: provenance, relation: 'DERIVED_FROM' as const }));
+  for (const contradiction of contradictions) if (contradiction.ids.length >= 2) edges.push(Object.freeze({ from: contradiction.ids[0], to: contradiction.ids[1], relation: 'REFUTES' as const }));
+  return Object.freeze({ nodes, edges, contradictions, digest: hash({ nodes, edges }) });
+}
+
+export function compareReplay(input: { historicalOracle: 'PASS' | 'FAIL' | 'UNKNOWN'; currentOracle: 'PASS' | 'FAIL' | 'UNKNOWN'; historicalOutputHash: string; currentOutputHash: string }) {
+  if (!SHA256.test(input.historicalOutputHash) || !SHA256.test(input.currentOutputHash)) throw new Error('REPLAY_OUTPUT_HASH_INVALID');
+  if (input.historicalOracle === 'FAIL' && input.currentOracle === 'PASS') return { changed: true, signal: 'IMPROVED' as const };
+  if (input.historicalOracle === 'PASS' && input.currentOracle === 'FAIL') return { changed: true, signal: 'REGRESSED' as const };
+  if (input.historicalOracle === 'UNKNOWN' || input.currentOracle === 'UNKNOWN') {
+    return { changed: input.historicalOutputHash !== input.currentOutputHash, signal: 'UNMEASURABLE' as const };
+  }
+  return { changed: input.historicalOutputHash !== input.currentOutputHash, signal: 'NO_CHANGE' as const };
+}
+
+export function buildSimulationEvidence(input: {
+  missionId: string;
+  exactSha: string;
+  taskInputHash: string;
+  memorySnapshotIds: readonly string[];
+  strategyId: string;
+  outputHash: string;
+  oracle: 'PASS' | 'FAIL' | 'UNKNOWN';
+  failureInjection: string | null;
+}) {
+  if (!input.missionId || !SHA40.test(input.exactSha) || !SHA256.test(input.taskInputHash) || !SHA256.test(input.outputHash)) {
+    throw new Error('SIMULATION_EVIDENCE_INVALID');
+  }
+  return Object.freeze({
+    simulationId: `SIM-${hash(input).slice(0, 24)}`,
+    exactSha: input.exactSha,
+    authoritative: false,
+    mutationAllowed: false,
+    certificationAllowed: false,
+    inputs: Object.freeze(input),
+    evidenceDigest: hash(input),
+  });
+}
+
+export function detectDrift(input: { previousContractDigest: string; currentContractDigest: string; previousSchemaVersion: number; currentSchemaVersion: number; exactSha: string }) {
+  if (!SHA40.test(input.exactSha)) throw new Error('DRIFT_SHA_INVALID');
+  return Object.freeze({
+    drifted: input.previousContractDigest !== input.currentContractDigest || input.previousSchemaVersion !== input.currentSchemaVersion,
+    requiresReevaluation: input.previousContractDigest !== input.currentContractDigest || input.previousSchemaVersion !== input.currentSchemaVersion,
+    exactSha: input.exactSha,
+  });
+}
+
+export const FAILURE_INJECTION_CATALOG = Object.freeze([
+  'STALE_SHA',
+  'DUPLICATE_KNOWLEDGE',
+  'CONTRADICTORY_KNOWLEDGE',
+  'POISONED_PROVENANCE',
+  'EXPIRED_SKILL',
+  'LOW_CONFIDENCE_PROMOTION',
+  'MISSING_REPLAY_INPUT',
+  'EXTERNAL_ORACLE_UNKNOWN',
+  'PRODUCT_AGENT_HANDOFF_MISMATCH',
+  'FILTER_MASK_RUNTIME_DEPENDENCY_MISSING',
+  'CAMERA_RECORDER_EVIDENCE_GAP',
+]);
+
+export function validateHandoff(input: { missionId: string; exactSha: string; capabilityId: string; evidenceRefs: readonly string[] }) {
+  if (!input.missionId || !SHA40.test(input.exactSha) || !input.capabilityId || input.evidenceRefs.length === 0) throw new Error('PRODUCT_AGENT_HANDOFF_INVALID');
+}
+
+export function rootCauseMemoryLink(input: { productFailureId: string; rootCause: string; exactSha: string; failureFingerprint: string; evidenceRefs: readonly string[] }) {
+  if (!input.productFailureId || !input.rootCause || !SHA40.test(input.exactSha) || !SHA256.test(input.failureFingerprint) || input.evidenceRefs.length === 0) {
+    throw new Error('ROOT_CAUSE_MEMORY_LINK_INVALID');
+  }
+  return Object.freeze({ id: `RC-${hash(input).slice(0, 24)}`, layer: 'L3' as const, status: 'OBSERVED' as const, exactSha: input.exactSha, failureFingerprint: input.failureFingerprint });
+}
+
+export const SWARM_CONTRACT_VERSION = 'WAVE5-ROUTING-MEMORY-LEARNING-INTELLIGENCE-v2';
