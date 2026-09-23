@@ -119,7 +119,7 @@ jobs:
             NODE
             node scripts/ci/action-repair-five-workers.mjs --role=wake --status=ACTIVE_OPERATION --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$GITHUB_RUN_ID-$TICK" --output=/tmp/flixo-heartbeat/action-wake-$TICK.json
             jq -e --arg sha "$SHA" '.pulseCount==1 and (.pulses|length)==1 and .pulses[0].action=="WAKE_ALL_AGENTS" and .pulses[0].wakeScope=="ALL_AGENTS" and .pulses[0].targetSha==$sha and .sleep==false and .idle==false' /tmp/flixo-heartbeat/flixo-team-pulse.json >/dev/null
-            jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .recipientCount==10 and .targetSha==$sha and .mutationAuthority==false and .sleep==false and .idle==false' /tmp/flixo-heartbeat/action-wake-$TICK.json >/dev/null
+            jq -e --arg sha "$SHA" '.action=="WAKE_ACTION_REPAIR_SQUAD" and .actionRepairSquadReady==true and .targetSha==$sha and .mutationAuthority==false and .directDispatch==false' /tmp/flixo-heartbeat/action-wake-$TICK.json >/dev/null
             echo 'RESIDENT_SLEEP=false'
             echo 'RESIDENT_IDLE=false'
             echo "HEARTBEAT_EMITTED=true"
