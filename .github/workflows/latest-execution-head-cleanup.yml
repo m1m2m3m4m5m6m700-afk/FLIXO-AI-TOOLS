@@ -31,9 +31,6 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
-          fetch-depth: 1
-          persist-credentials: false
-
       - name: Run repository latest-execution-head cleanup
         env:
           GH_TOKEN: ${{ github.token }}
