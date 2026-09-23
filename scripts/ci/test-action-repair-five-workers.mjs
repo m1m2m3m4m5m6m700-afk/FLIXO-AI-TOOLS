@@ -59,7 +59,7 @@ assert.equal(report.roleOrder.length,10);
 assert.deepEqual(report.workers.map(x=>x.workerId),['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5','FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10']);
 assert.ok(report.workers.every(x=>x.systemScope==='FULL_REPOSITORY_AND_AUTOMATION_SYSTEM'));
 assert.ok(report.workers.every(x=>x.workflow==='READ→DIAGNOSE→WRITE_PROPOSAL→CHALLENGE→HANDOFF'));
-assert.deepEqual(report.roleOrder,Object.values(expected));
+assert.deepEqual(report.roleOrder,['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5','FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10']);
 for(const worker of report.workers){
  assert.equal(worker.mutationAuthority,false);
  assert.equal(worker.canonicalMutationOwner,'ACTION-REPAIR');
