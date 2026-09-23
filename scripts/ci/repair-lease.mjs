@@ -12,7 +12,6 @@ import { FLIXO_WORKER_IDS } from './flixo-active-worker-guard.mjs';
 
 const API_VERSION = '2022-11-28';
 const DEFAULT_STALE_AFTER_MS = 60 * 60 * 1000;
-const DEFAULT_HEARTBEAT_TTL_MS = AGENT_LIVENESS_PROTOCOL.leaseTtlMs;
 
 const args = Object.fromEntries(process.argv.slice(2).filter((arg) => arg.startsWith('--')).map((arg) => {
   const [key, ...rest] = arg.slice(2).split('=');
