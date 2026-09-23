@@ -42,12 +42,23 @@ jobs:
             *) echo "FAIL CLOSED: branch is not canonical: ${TARGET_BRANCH}"; exit 1 ;;
           esac
 
-      - name: Checkout observed branch
-        uses: actions/checkout@v5
+      - name: Checkout trusted workflow revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: ${{ github.event.inputs.branch || 'execution' }}
+          # The observation target is data only; executable code always comes from the trusted workflow revision.
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Resolve observed branch SHA as data only
+        id: observed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_BRANCH: ${{ github.event.inputs.branch || 'execution' }}
+        run: |
+          set -euo pipefail
+          OBSERVED_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha // empty')"
+          [[ "$OBSERVED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          echo "observed_sha=$OBSERVED_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Install read-only analysis dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
@@ -78,16 +89,15 @@ jobs:
       - name: Run read-only investigator
         env:
           GH_TOKEN: ${{ github.token }}
-          EXPECTED_SHA: ${{ github.event.inputs.branch == 'execution' && github.event.workflow_run.head_sha || github.sha }}
+          OBSERVED_SHA: ${{ steps.observed.outputs.observed_sha }}
           GITHUB_REF_NAME: ${{ github.event.inputs.branch || 'execution' }}
           INVESTIGATION_DIR: diagnostics/investigation
         run: |
-          OBSERVED_SHA=$(git rev-parse HEAD)
           node scripts/ci/read-only-error-investigator.mjs --branch="${GITHUB_REF_NAME}" --sha="${OBSERVED_SHA}" --max-logs=100 --limit=100
 
       - name: Upload read-only intelligence report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: error-intelligence-${{ github.run_id }}
           path: |
