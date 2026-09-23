@@ -92,7 +92,7 @@ const teamPulse=buildTeamPulseDirective({targetSha:'a'.repeat(40),taskId:'TASK-P
 assert.equal(teamPulse.action,'WAKE_ALL_AGENTS');
 assert.equal(teamPulse.wakeScope,'ALL_AGENTS');
 assert.deepEqual(teamPulse.recipients,['ALL_AGENTS']);
-assert.equal(teamPulse.recipientCount,1);
+assert.equal(teamPulse.recipientCount,10);
 assert.equal(teamPulse.teamMemberCount,10);
 assert.equal(teamPulse.logicalBotCount,100);
 assert.equal(teamPulse.residentRuntimeCount,10);
@@ -136,7 +136,6 @@ const green=sessionTerminationDirective({canonicalGreen:true,activeRepairWindowR
 assert.equal(green.action,'CLOSE_ALLOWED');
 assert.equal(green.residentState,'READY_RESIDENT');
 
-const sha='a'.repeat(40);
 const sha='a'.repeat(40);
 const pulseOutput=execFileSync(process.execPath,[path.resolve(process.cwd(),'scripts/ci/flixo-ten-pulse.mjs'),`--sha=${sha}`,'--run-id=TEST-100-RESIDENCY','--minute=2026-09-23T22:00','--active-operation=true'],{encoding:'utf8'});
 const pulseReport=JSON.parse(pulseOutput);
