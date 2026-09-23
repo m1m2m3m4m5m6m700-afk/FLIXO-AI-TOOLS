@@ -98,6 +98,11 @@ const exactShaOfCheck = (check) => {
   const value = check.headSha ?? check.head_sha ?? null;
   return typeof value === 'string' && /^[0-9a-f]{40}$/iu.test(value) ? value : null;
 };
+const actionRunIdOfCheck = (check) => {
+  const detailsUrl = String(check?.details_url ?? '');
+  const match = detailsUrl.match(/\/actions\/runs\/(\d+)(?:\/job\/\d+)?(?:[/?#]|$)/u);
+  return match?.[1] ?? null;
+};
 const providerFailure = (log) => PROVIDER_FAILURE_PATTERNS.some((pattern) => pattern.test(String(log ?? '')));
 
 export function classifyCancelledRun(run, runs = []) {
@@ -362,6 +367,10 @@ export function evaluateGreen({
   const certificationCheck = latestCheck(checkRuns, CERTIFICATION_CHECK_PATTERNS);
   const certificationStatus = stateOf(certificationCheck);
   const certificationHeadSha = exactShaOfCheck(certificationCheck);
+  const certificationRunId = actionRunIdOfCheck(certificationCheck);
+  const canonicalTestRunId = report.ci.requiredWorkflows['FLIXO Test System']?.runId != null
+    ? String(report.ci.requiredWorkflows['FLIXO Test System'].runId)
+    : null;
   report.ci.certification = {
     present: Boolean(certificationCheck),
     status: certificationStatus,
@@ -369,6 +378,9 @@ export function evaluateGreen({
     checkId: certificationCheck?.id ?? null,
     headSha: certificationHeadSha,
     exactSha: certificationHeadSha === executionSha,
+    runId: certificationRunId,
+    canonicalRunId: canonicalTestRunId,
+    canonicalRun: certificationRunId !== null && canonicalTestRunId !== null && certificationRunId === canonicalTestRunId,
   };
   if (!certificationCheck) {
     report.errors.push({ type: 'CERTIFICATION_EVIDENCE_MISSING' });
@@ -389,6 +401,23 @@ export function evaluateGreen({
       checkId: certificationCheck.id ?? null,
       certificationSha: certificationHeadSha,
       executionSha,
+    });
+  } else if (!certificationRunId) {
+    report.errors.push({
+      type: 'CERTIFICATION_RUN_ID_MISSING',
+      checkId: certificationCheck.id ?? null,
+    });
+  } else if (!canonicalTestRunId) {
+    report.errors.push({
+      type: 'CANONICAL_TEST_RUN_ID_MISSING',
+      checkId: certificationCheck.id ?? null,
+    });
+  } else if (certificationRunId !== canonicalTestRunId) {
+    report.errors.push({
+      type: 'NONCANONICAL_CERTIFICATION_RUN',
+      checkId: certificationCheck.id ?? null,
+      certificationRunId,
+      canonicalTestRunId,
     });
   }
 
