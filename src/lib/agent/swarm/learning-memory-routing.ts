@@ -18,7 +18,7 @@ export type LearningDecision = 'PROVISIONAL_LESSON' | 'VERIFIED_KNOWLEDGE' | 'AN
 const SHA40 = /^[a-f0-9]{40}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
 const hash = (v: unknown) => createHash('sha256').update(JSON.stringify(v), 'utf8').digest('hex');
-const normalize = (v: unknown) => String(v ?? '').toLocaleLowerCase().replace(/\\s+/gu, ' ').replace(/[^\\p{L}\\p{N}_:./ -]/gu, '').trim();
+const normalize = (v: unknown) => String(v ?? '').toLocaleLowerCase().replace(/\s+/gu, ' ').replace(/[^\p{L}\p{N}_:./ -]/gu, '').trim();
 const fixedId = (n: number) => `CELL-${String(n).padStart(3, '0')}`;
 
 export const REGISTERED_BOT_COUNT = 200;
