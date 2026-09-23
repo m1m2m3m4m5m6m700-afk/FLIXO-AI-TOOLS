@@ -202,7 +202,7 @@ export function assertLivenessDefinition() {
   if (AGENT_LIVENESS_PROTOCOL.actionRepairTeamSize !== 10 || AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length !== 10) throw new Error('AGENT_LIVENESS_TEAM_SIZE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_HEARTBEAT_NOT_ONE_MINUTE');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatGraceMs !== 30 * 1000) throw new Error('AGENT_LIVENESS_HEARTBEAT_GRACE_NOT_THIRTY_SECONDS');
-  if (AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs !== 60 * 60 * 1000) throw new Error('AGENT_LIVENESS_ACTIVE_WINDOW_NOT_FORTY_FIVE_MINUTES');
+  if (AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs !== 60 * 60 * 1000) throw new Error('AGENT_LIVENESS_ACTIVE_WINDOW_NOT_ONE_HOUR');
   if (AGENT_LIVENESS_PROTOCOL.maxContinuousActiveSessionMs !== 3 * 60 * 60 * 1000) throw new Error('AGENT_LIVENESS_MAX_CONTINUOUS_SEGMENT_NOT_THREE_HOURS');
   if (AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs !== 5 * 60 * 1000 || AGENT_LIVENESS_PROTOCOL.taskReminderEveryMs !== 10 * 60 * 1000) throw new Error('AGENT_LIVENESS_COORDINATION_CADENCE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.sessionPolicy.maxContinuousActiveSessionMs !== AGENT_LIVENESS_PROTOCOL.maxContinuousActiveSessionMs || AGENT_LIVENESS_PROTOCOL.sessionPolicy.maxContinuousSegmentEnforced !== true || AGENT_LIVENESS_PROTOCOL.sessionPolicy.totalTaskDurationUnlimitedWhileOpen !== true) throw new Error('AGENT_LIVENESS_LONG_SESSION_POLICY_INVALID');
