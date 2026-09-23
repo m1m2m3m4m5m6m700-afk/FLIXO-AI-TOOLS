@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import type { ZodType } from 'zod';
 import { ImageAssetStore, type StoredImageAsset } from '../../image-core/asset-store';
 import { getToolDefinition } from '../../config/canonical-tool-definition';
+import { LOCALES, type Locale } from '../../lib/i18n';
 import './ToolWorkbench.css';
 import { ImageJob } from '../../image-core/job';
 import { validateFileSafety, type FileSafetyPolicy } from '../../lib/contracts/file-safety';
@@ -86,6 +88,13 @@ async function decodeDimensions(file: File): Promise<Dimensions> {
   }
 }
 
+const LANGUAGE_LABELS: Readonly<Record<Locale, string>> = {
+  ar: 'العربية', en: 'English', es: 'Español', fr: 'Français', de: 'Deutsch', hi: 'हिन्दी',
+  id: 'Bahasa Indonesia', it: 'Italiano', ja: '日本語', ko: '한국어', ms: 'Bahasa Melayu',
+  nl: 'Nederlands', pl: 'Polski', pt: 'Português', ru: 'Русский', sv: 'Svenska',
+  th: 'ไทย', tr: 'Türkçe', uk: 'Українська', vi: 'Tiếng Việt',
+};
+
 function defaultLabels(locale: string) {
   if (locale.toLowerCase().startsWith('ar')) {
     return {
@@ -159,6 +168,7 @@ export function ToolWorkbench<P>({
   downloadLabel,
   downloadRole = 'button',
 }: ImageWorkbenchProps<P>) {
+  const navigate = useNavigate();
   const labels = defaultLabels(locale);
   const definition = getToolDefinition(toolId);
   const toolCategory = definition?.category ?? 'Images';
@@ -277,9 +287,27 @@ export function ToolWorkbench<P>({
             <button type="button" className="flixo-tool-icon-btn" title={locale.toLowerCase().startsWith('ar') ? 'تراجع' : 'Undo'} disabled>↶</button>
             <button type="button" className="flixo-tool-icon-btn" title={locale.toLowerCase().startsWith('ar') ? 'إعادة' : 'Redo'} disabled>↷</button>
           </div>
-          <button type="button" className="flixo-tool-export" disabled={!outputUrl} onClick={() => { if (outputUrl) window.open(outputUrl, '_blank', 'noopener,noreferrer'); }}>
-            {locale.toLowerCase().startsWith('ar') ? 'تصدير النتيجة' : 'Export result'}
-          </button>
+          <div className="flixo-tool-topbar-actions">
+            <label className="flixo-tool-language-switch" title={locale.toLowerCase().startsWith('ar') ? 'تغيير اللغة' : 'Change language'}>
+              <span aria-hidden="true">🌐</span>
+              <select
+                value={locale as Locale}
+                aria-label={locale.toLowerCase().startsWith('ar') ? 'تغيير اللغة' : 'Change language'}
+                onChange={(event) => {
+                  const next = event.target.value as Locale;
+                  void navigate({
+                    to: '/$locale/$tool',
+                    params: { locale: next, tool: toolId },
+                  });
+                }}
+              >
+                {LOCALES.map((code) => <option key={code} value={code}>{LANGUAGE_LABELS[code]}</option>)}
+              </select>
+            </label>
+            <button type="button" className="flixo-tool-export" disabled={!outputUrl} onClick={() => { if (outputUrl) window.open(outputUrl, '_blank', 'noopener,noreferrer'); }}>
+              {locale.toLowerCase().startsWith('ar') ? 'تصدير النتيجة' : 'Export result'}
+            </button>
+          </div>
         </div>
       </header>
 
