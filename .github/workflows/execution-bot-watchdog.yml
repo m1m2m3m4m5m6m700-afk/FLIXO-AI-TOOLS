@@ -1,25 +1,8 @@
 name: FLIXO Execution Bot Watchdog
 
 on:
-  workflow_run:
-    workflows:
-      - FLIXO Test System
-      - FLIXO WP0 Trust Baseline
-      - FLIXO Test Impact
-      - FLIXO Test Impact Execution
-      - FLIXO Auto Repair Bot
-      - Repository Security Baseline
-      - Claude Security Review
-    types: [completed]
-    branches: [execution]
-  # Independent periodic wake: if the repair chain vanishes, the observer recreates the wake.
-  schedule:
-    - cron: '*/5 * * * *'
+  # Dormant/manual observer only. Continuous residency is owned by agent-repair-heartbeat.
   workflow_dispatch:
-  # Privileged watchdog runs only from trusted/default-branch scheduling and workflow_run events.
-  # Mutable execution pushes are observed through completed canonical checks, not by executing their workflow definition.
-  push:
-    branches: [main]
 
 permissions:
   # The watchdog may wake the trusted Daily·FLIXO Green Gate on the first RED.
@@ -30,7 +13,7 @@ permissions:
 concurrency:
   # One observer lane only. Every wake is read-only and re-evaluates the current execution SHA,
   # so cancelling an older observer cannot lose repair authority; it removes duplicate wake pressure.
-  group: flixo-execution-watchdog-${{ github.event.workflow_run.head_sha || github.sha }}
+  group: flixo-execution-watchdog-observer
   cancel-in-progress: false
 
 jobs:
@@ -54,18 +37,21 @@ jobs:
           # workflow_run executes the default-branch controller; execution is observation data only.
           fetch-depth: 1
           persist-credentials: false
-      - name: Verify trusted watchdog checkout
+      - name: Verify observer checkout
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          ACTUAL_WATCHDOG_SHA="$(git rev-parse HEAD)"
-          TRUSTED_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
-          test -n "$ACTUAL_WATCHDOG_SHA"
-          test -n "$TRUSTED_MAIN_SHA"
-          test "$ACTUAL_WATCHDOG_SHA" = "$TRUSTED_MAIN_SHA"
-          echo "WATCHDOG_CHECKOUT_MODE=TRUSTED_MAIN"
-          echo "WATCHDOG_TRUSTED_SOURCE_SHA=$TRUSTED_MAIN_SHA"
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          if [ "$GITHUB_REF" = "refs/heads/execution" ]; then
+            LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+            test "$ACTUAL_SHA" = "$LIVE_SHA"
+            echo "WATCHDOG_CHECKOUT_MODE=EXECUTION"
+          else
+            LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+            test "$ACTUAL_SHA" = "$LIVE_SHA"
+            echo "WATCHDOG_CHECKOUT_MODE=MAIN"
+          fi
       - name: Setup Node for resident bot pulse engine
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/execution'
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
