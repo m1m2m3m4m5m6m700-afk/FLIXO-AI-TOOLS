@@ -1,6 +1,8 @@
-# FLIXO — SHARED SIX-BOT OPERATIONAL MEMORY
+# FLIXO BOT — SYSTEM-WIDE SHARED INTELLIGENCE & OPERATIONAL MEMORY
 
 Protocol: `FLIXO-SHARED-OPERATIONAL-MEMORY-v1`
+
+Canonical brain registry: `docs/agents/FLIXO-BOT.json`
 
 Canonical store:
 
@@ -14,7 +16,7 @@ Canonical store:
 
 `executionAgent` ↔ `reviewAgent`
 
-Every published record is visible to all six participants and remains exact-SHA-bound to its provenance.
+Every published record is visible to every active FLIXO BOT learning consumer and remains exact-SHA-bound to its provenance. The historical six-bot set remains a compatibility subset.
 
 ## Memory classes
 
@@ -44,14 +46,18 @@ Shared memory cannot grant mutation, certification, merge, dispatch, or permissi
 
 A memory record marked VERIFIED does not by itself certify GREEN; current Exact-SHA canonical CI remains authoritative.
 
-New learning is published once and becomes available to all six bots.
+New learning is published once and becomes available to all active FLIXO BOT agents/bots.
 
 Repair failures and counterexamples are retained so execution can avoid repeating them.
 
-Read-side findings are fed back so repair and execution can avoid incorrect analysis and selection.
+Read-side findings are fed back so repair, execution, security and review can avoid incorrect analysis and selection.
 
-Execution/review findings are fed back so reading and repair can avoid recurrence.
+Execution/review/security/runtime findings are fed back so every role can avoid recurrence.
 
 Legacy Action/Cell memories remain context-only read-through sources during migration and do not become a second authority for new learning.
 
-No third branch is created for memory synchronization.
+No third branch is created for memory synchronization. Knowledge is shared by reference; authority is never cloned.
+
+## FLIXO BOT invariant
+
+All active consumers listed in `docs/agents/FLIXO-BOT.json` use the same core intelligence and canonical learning stream. Role, mutation, certification, security and transport permissions remain separate.
