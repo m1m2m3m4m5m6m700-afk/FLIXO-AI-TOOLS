@@ -60,8 +60,8 @@ assert.match(master, /FAILURE.*RECOVER_AND_CONTINUE/);
 assert.match(master, /WAITING_EXTERNAL.*HEARTBEAT_AND_RECHECK/);
 for (const workflow of [impactExecution, impactPlan, wp0]) {
   assert.match(workflow, /push:\s*\n\s*branches:\s*\[main, execution\]/);
-  assert.match(workflow, /group:[^\n]*github\.ref_name/);
-  assert.match(workflow, /cancel-in-progress:\s*true/);
+  assert.match(workflow, /group:[^\n]*github\.event\.name/);
+  assert.match(workflow, /cancel-in-progress:\s*false/);
 }
 assert.match(canonicalCi, /push:\s*\n\s*branches:\s*\[main, execution\]/);
 assert.match(canonicalCi, /group:[^\n]*github\.event\.pull_request\.head\.ref \|\| github\.ref_name/);
@@ -117,9 +117,9 @@ assert.match(watchdog, /SOURCE_EXECUTION_SHA.*steps\.source\.outputs\.execution_
 assert.match(watchdog, /\.headSha == \$sha/);
 assert.match(watchdog, /RESIDENT_HEARTBEAT_DISPATCH_VERIFIED=true/);
 assert.match(wakeRelay, /name: FLIXO Council Wake Push Relay/);
-assert.match(wakeRelay, /actions: write/);
-assert.match(wakeRelay, /EXACT_SHA_WAKE_GUARD=PASS/);
-assert.match(wakeRelay, /daily-flixo-green-gate\.yml/);
+assert.match(wakeRelay, /id-token:\s*write/);
+assert.match(wakeRelay, /Verify exact execution SHA/);
+assert.doesNotMatch(wakeRelay, /daily-flixo-green-gate\.yml.*dispatch/);
 assert.doesNotMatch(wakeRelay, /auto-repair\.yml.*dispatch/);
 assert.match(actionWake, /RESIDENT_READY/);
 assert.doesNotMatch(actionWake, /RESIDENT_HEARTBEAT/);

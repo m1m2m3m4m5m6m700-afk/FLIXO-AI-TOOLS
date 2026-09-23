@@ -8,6 +8,7 @@ on:
       - FLIXO Test Impact
       - FLIXO Test Impact Execution
       - FLIXO Auto Repair Bot
+      - FLIXO Agent Repair Heartbeat
       - Repository Security Baseline
       - Claude Security Review
     types: [completed]
@@ -209,6 +210,29 @@ jobs:
           }
           echo "WATCHDOG_EXPECTED_TEST_SHA=$EXECUTION_SHA"
           echo "WATCHDOG_CANONICAL_TEST_SYSTEM_RUNS=$RUN_COUNT"
+      - name: Ensure resident Heartbeat window exists
+        id: resident_heartbeat
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
+          [[ "$EXECUTION_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
+          ACTIVE_HEARTBEATS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 50 --json status,headSha --jq '[.[] | select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'")] | length')"
+          echo "WATCHDOG_RESIDENT_HEARTBEAT_TARGET_SHA=$EXECUTION_SHA"
+          echo "WATCHDOG_ACTIVE_RESIDENT_HEARTBEATS=$ACTIVE_HEARTBEATS"
+          if [ "$ACTIVE_HEARTBEATS" -gt 0 ]; then
+            echo 'RESIDENT_HEARTBEAT_DISPATCH=NOOP_ACTIVE'
+            echo 'RESIDENT_HEARTBEAT_DISPATCH_VERIFIED=true'
+            exit 0
+          fi
+          gh api --method POST \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/agent-repair-heartbeat.yml/dispatches" \
+            -f ref=execution
+          echo 'RESIDENT_HEARTBEAT_DISPATCH=WORKFLOW_DISPATCH'
+          echo 'RESIDENT_HEARTBEAT_DISPATCH_VERIFIED=true'
       - name: Validate mission continuity contract
         if: steps.source.outputs.stale != 'true'
         shell: bash

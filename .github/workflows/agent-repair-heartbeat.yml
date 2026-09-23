@@ -10,7 +10,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: write
+  # Heartbeat emits only liveness/wake evidence. Privileged renewal stays in trusted Watchdog.
+  actions: read
   contents: read
 
 concurrency:
@@ -137,84 +138,3 @@ jobs:
           path: /tmp/flixo-repair-behavior-trace.json
           if-no-files-found: error
           retention-days: 30
-      - name: Determine whether canonical repair work is already resident
-        id: state
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
-          ACTIVE_GREEN_GATES="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'")) | length')"
-          ACTIVE_REPAIRS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'")) | length')"
-          ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status,headSha,displayTitle --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'" and .displayTitle == "FLIXO Auto Repair Chain  NO_FINGERPRINT")) | length')"
-          GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --commit "$EXECUTION_SHA" --limit 50 --json databaseId,status,conclusion,headSha,createdAt --jq 'map(select(.headSha == "'"$EXECUTION_SHA"'" and .conclusion == "success")) | sort_by(.createdAt) | last.databaseId // empty')"
-
-          echo "EXECUTION_SHA=$EXECUTION_SHA"
-          echo "ACTIVE_GREEN_GATES=$ACTIVE_GREEN_GATES"
-          echo "ACTIVE_REPAIRS=$ACTIVE_REPAIRS"
-          echo "ACTIVE_RESIDENT=$ACTIVE_RESIDENT"
-          echo "LAST_GREEN_GATE=${GREEN:-none}"
-
-          if [ -n "$GREEN" ]; then
-            echo 'CANONICAL_GREEN_ALREADY_PROVEN=true'
-            echo 'wake=false' >> "$GITHUB_OUTPUT"
-            echo 'resident_wake=false' >> "$GITHUB_OUTPUT"
-          else
-            echo 'CANONICAL_GREEN_NOT_PROVEN=true'
-            echo 'wake=true' >> "$GITHUB_OUTPUT"
-            if [ "$ACTIVE_RESIDENT" -eq 0 ]; then
-              echo 'resident_wake=true' >> "$GITHUB_OUTPUT"
-            else
-              echo 'resident_wake=false' >> "$GITHUB_OUTPUT"
-            fi
-          fi
-
-      - name: Wake canonical watchdog through the single guardian lane
-        id: watchdog_wake
-        if: steps.state.outputs.wake == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
-          [[ "$EXECUTION_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
-
-          ACTIVE_GREEN_GATES="$(gh run list \
-            --repo "$GITHUB_REPOSITORY" \
-            --workflow daily-flixo-green-gate.yml \
-            --branch main \
-            --limit 50 \
-            --json status,headSha,displayTitle \
-            --jq '[.[] | select((.status == "queued" or .status == "in_progress") and (.displayTitle | startswith("Daily·FLIXO Green Gate")))] | length')"
-
-          ACTIVE_WATCHDOGS="$(gh run list \
-            --repo "$GITHUB_REPOSITORY" \
-            --workflow execution-bot-watchdog.yml \
-            --branch main \
-            --limit 50 \
-            --json status \
-            --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
-
-          echo "HEARTBEAT_GUARD_TARGET_SHA=$EXECUTION_SHA"
-          echo "HEARTBEAT_ACTIVE_GREEN_GATES=$ACTIVE_GREEN_GATES"
-          echo "HEARTBEAT_ACTIVE_WATCHDOGS=$ACTIVE_WATCHDOGS"
-
-          if [ "$ACTIVE_GREEN_GATES" -gt 0 ]; then
-            echo 'HEARTBEAT_GUARD_ACTION=NOOP_GREEN_GATE_ALREADY_ACTIVE'
-            exit 0
-          fi
-
-          if [ "$ACTIVE_WATCHDOGS" -gt 0 ]; then
-            echo 'HEARTBEAT_GUARD_ACTION=NOOP_WATCHDOG_ALREADY_ACTIVE'
-            exit 0
-          fi
-
-          gh api --method POST \
-            "repos/$GITHUB_REPOSITORY/actions/workflows/execution-bot-watchdog.yml/dispatches" \
-            -f ref=main
-
-          echo 'HEARTBEAT_GUARD_ACTION=WAKE_CANONICAL_WATCHDOG'
-          echo 'HEARTBEAT_GUARD_DIRECT_GREEN_GATE_DISPATCH=false'
-          echo "HEARTBEAT_GUARD_TARGET_SHA=$EXECUTION_SHA"
