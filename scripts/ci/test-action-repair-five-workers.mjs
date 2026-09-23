@@ -7,7 +7,7 @@ const registry=JSON.parse(fs.readFileSync('docs/agents/ACTION-REPAIR-SQUAD-REGIS
 assert.equal(registry.separation.separateFromCell,true);
 assert.equal(registry.separation.cellBotCount,200);
 assert.equal(registry.separation.includedInCellCount,false);
-assert.deepEqual(registry.workers.filter(x=>x.id!=='ACTION-HISTORIAN-3').map(x=>x.id),['ACTION-TWIN-1','ACTION-TWIN-2','ACTION-INDEX','ACTION-WISE','ACTION-WAKE']);
+assert.deepEqual(registry.workers.filter(x=>x.kind==='ACTION_REPAIR_BOT'&&x.status==='READY').map(x=>x.id),['ACTION-TWIN-1','ACTION-TWIN-2','ACTION-INDEX','ACTION-WISE','ACTION-RCA-3','ACTION-IMPACT-4','ACTION-SECURITY-5','ACTION-REGRESSION-6','ACTION-SHA-7','ACTION-CONVERGENCE-8']);
 assert.equal(registry.workers.filter(x=>x.id==='ACTION-HISTORIAN-3').length,1);
 assert.equal(registry.repairExecutor.id,'ACTION-REPAIR');
 assert.equal(registry.repairExecutor.protocolActor,'actionRepairBot');
@@ -19,7 +19,12 @@ const expected={
  'ACTION-TWIN-2':'ACTION_REPAIR_TWIN_B',
  'ACTION-INDEX':'ACTION_SOLUTION_INDEXER_SUPPORT',
  'ACTION-WISE':'ACTION_BEST_OPTION_SELECTOR',
- 'ACTION-WAKE':'ACTION_SYSTEM_WAKE_COORDINATOR'
+ 'ACTION-RCA-3':'ACTION_RCA_EVIDENCE_REVIEW',
+ 'ACTION-IMPACT-4':'ACTION_BLAST_RADIUS_REVIEW',
+ 'ACTION-SECURITY-5':'ACTION_SECURITY_BOUNDARY_REVIEW',
+ 'ACTION-REGRESSION-6':'ACTION_REGRESSION_PLANNER',
+ 'ACTION-SHA-7':'ACTION_EXACT_SHA_VERIFIER',
+ 'ACTION-CONVERGENCE-8':'ACTION_REPAIR_CONVERGENCE_CHALLENGER'
 };
 for(const [id,role] of Object.entries(expected)){
  const worker=registry.workers.find(x=>x.id===id);
@@ -36,15 +41,20 @@ assert.equal(Object.prototype.hasOwnProperty.call(cell,'actionRepairCohort'),fal
 
 const sha='0123456789abcdef0123456789abcdef01234567';
 const fp='test-action-fingerprint';
-const base=['scripts/ci/action-repair-five-workers.mjs',`--target-sha=${sha}`,'--run-id=TEST-RUN-5',`--fingerprint=${fp}`];
-const out='/tmp/flixo-five-action-repair-workers-test.json';
+const base=['scripts/ci/action-repair-five-workers.mjs',`--target-sha=${sha}`,'--run-id=TEST-RUN-10',`--fingerprint=${fp}`];
+const out='/tmp/flixo-ten-action-repair-workers-test.json';
 execFileSync('node',[...base,'--output='+out],{stdio:'pipe'});
 const report=JSON.parse(fs.readFileSync(out,'utf8'));
-assert.equal(report.workerCount,5);
+assert.equal(report.workerCount,10);
+assert.equal(report.cloneModel,'ONE_SHARED_COGNITIVE_KERNEL_WITH_ROLE_OVERLAYS');
+assert.equal(report.pushAuthority,'CHAIR_1_ONLY');
 assert.deepEqual(report.roleOrder,Object.values(expected));
 for(const worker of report.workers){
  assert.equal(worker.mutationAuthority,false);
- assert.equal(worker.canonicalMutationOwner,'repairAgent');
+ assert.equal(worker.canonicalMutationOwner,'ACTION-REPAIR');
+ assert.equal(worker.pushAuthority,'CHAIR_1_ONLY');
+ assert.equal(worker.cloneSource,'FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE');
+ assert.equal(worker.intelligenceVersion,'FLIXO-BOT-BRAIN-v1');
  assert.equal(worker.sameIncidentContext,true);
 }
 const wake='/tmp/flixo-action-wake.json';
@@ -65,4 +75,4 @@ execFileSync('node',[...base,'--role=select','--historical='+historical,'--twin-
 const chosen=JSON.parse(fs.readFileSync(select,'utf8'));
 assert.equal(chosen.botId,'ACTION-WISE');
 assert.equal(chosen.selection.disposition,'SELECTED');
-console.log('FIVE_ACTION_REPAIR_SQUAD=PASS');
+console.log('TEN_ACTION_REPAIR_CLONE_SQUAD=PASS');
