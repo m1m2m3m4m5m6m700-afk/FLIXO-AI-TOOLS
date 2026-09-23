@@ -8,7 +8,7 @@
 
 export const COLLECTIVE_INTELLIGENCE_VERSION = 'FLIXO-BOT-BRAIN-v1' as const;
 export const COLLECTIVE_INTELLIGENCE_SOURCE = 'docs/agents/FLIXO-BOT.json' as const;
-export const COLLECTIVE_ACTIVE_MEMBER_COUNT = 60 as const;
+export const COLLECTIVE_ACTIVE_MEMBER_COUNT = 61 as const;
 export const COLLECTIVE_CAPABILITY_COUNT = 97 as const;
 
 export type CollectiveReasoningLens = Readonly<{
@@ -75,7 +75,6 @@ const ROLE_PERSPECTIVES: Readonly<Record<string, readonly string[]>> = Object.fr
   actionHistorian: ['LEARNING_AND_ANTI_LESSON', 'TEMPORAL_STATE_REASONING'],
   actionRepairBot: ['ROOT_CAUSE_ANALYSIS', 'MINIMAL_CHANGE_SELECTION', 'RECOVERY_REASONING'],
   actionRepairVerifier: ['ADVERSARIAL_FALSIFICATION', 'REGRESSION_REASONING', 'EVIDENCE_PROVENANCE'],
-  actionHistorian: ['LEARNING_AND_ANTI_LESSON', 'TEMPORAL_STATE_REASONING'],
   'ACTION-CODE-MENTOR': ['DEPENDENCY_IMPACT_REASONING', 'MINIMAL_CHANGE_SELECTION'],
 });
 
