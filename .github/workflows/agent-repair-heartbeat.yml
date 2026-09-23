@@ -3,6 +3,8 @@ name: FLIXO Agent Repair Heartbeat
 run-name: FLIXO Agent Repair Heartbeat ${{ github.run_id }}
 
 on:
+  push:
+    branches: [main]
   # The schedule is the permanent bootstrap/recovery floor. Scheduled runs execute from main,
   # then dispatch the long-lived resident window on execution. A prior resident run is not required.
   schedule:
@@ -24,6 +26,7 @@ jobs:
     name: Bootstrap resident repair heartbeat automatically
     if: >-
       github.event_name == 'schedule' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 3
