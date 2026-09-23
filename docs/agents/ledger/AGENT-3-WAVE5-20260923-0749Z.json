@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 2,
+  "authority": "AGENT_VISIBILITY_LEDGER",
+  "visibilityState": "CLOSED",
+  "taskId": "RECONCILED-AGENT-3-WAVE5-20260923-0749Z",
+  "sessionId": "AGENT-3-WAVE5-20260923-0749Z",
+  "agentId": "AGENT-3",
+  "role": "ROUTING_MEMORY_LEARNING_ERROR_INTELLIGENCE_KNOWLEDGE_SIMULATION",
+  "workPackageId": "WP-RECONCILED-AGENT-3-WAVE5-20260923-0749Z",
+  "entrySha": "daae5da6324ed87f8ed6bf59ede4ecb2746111d1",
+  "exitSha": "daae5da6324ed87f8ed6bf59ede4ecb2746111d1",
+  "status": "BLOCKED",
+  "finalStatus": "BLOCKED",
+  "finalSummary": "Historical session reconciled as blocked because its source session record is stale and lacked a current exact-SHA closure proof.",
+  "visibilityStateReason": "STALE_HISTORICAL_SESSION_RECONCILED",
+  "reconciledFromStatus": "VERIFICATION_PENDING",
+  "reconciledAt": "2026-09-24",
+  "exactShaProofRequired": true
+}
