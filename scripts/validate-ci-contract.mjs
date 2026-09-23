@@ -203,8 +203,15 @@ if (!/permissions:\s*\n\s*contents:\s*read\s*\n\s*actions:\s*read/.test(cellMast
   console.error('CI contract failed: cell-master-consult.yml must declare explicit read-only token permissions.');
   process.exit(1);
 }
+const watchdogCheckoutStep =
+  executionWatchdogWorkflow.match(
+    /name: Checkout trusted watchdog source[\s\S]*?(?=\n\s+- name: Verify trusted watchdog checkout)/,
+  )?.[0] ?? '';
 const watchdogExactCheckout =
-  /name: Checkout trusted watchdog source[\s\S]*actions\/checkout@[^\n]+[\s\S]*ref: main/.test(executionWatchdogWorkflow);
+  /actions\/checkout@[^\n]+/.test(watchdogCheckoutStep) &&
+  /fetch-depth:\s*1/.test(watchdogCheckoutStep) &&
+  /persist-credentials:\s*false/.test(watchdogCheckoutStep) &&
+  !/\bref:\s*/.test(watchdogCheckoutStep);
 const watchdogExactVerify =
   /name: Verify trusted watchdog checkout[\s\S]*git rev-parse HEAD[\s\S]*test "\$ACTUAL_WATCHDOG_SHA" = "\$TRUSTED_MAIN_SHA"[\s\S]*WATCHDOG_CHECKOUT_MODE=TRUSTED_MAIN/.test(executionWatchdogWorkflow);
 const watchdogSourceFreshnessMarkers = [
