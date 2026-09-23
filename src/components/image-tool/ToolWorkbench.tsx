@@ -336,7 +336,7 @@ export function ToolWorkbench<P>({
               <label className="flixo-tool-drop" htmlFor={inputId}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 16V4M12 4 7 9M12 4l5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
                 <div>{t('Drop a file here or ')}<strong>{t('browse your device')}</strong></div>
-                <small>{accept.split(',').map((value) => value.replace(/^image\//, '').toUpperCase()).join(' · ')}{multiple ? ' · MULTI' : ''}</small>
+                <small>{accept.split(',').map((value) => value.replace(/^image\//, '').toUpperCase()).join(' · ')}{multiple ? ` · ${t('MULTI')}` : ''}</small>
                 {files[0] && <div className="flixo-tool-file-name">{files[0].name}</div>}
               </label>
               <input id={inputId} className="flixo-tool-file" type="file" accept={accept} multiple={multiple} onChange={(event) => void handleFiles(Array.from(event.target.files ?? []))} />
@@ -399,7 +399,7 @@ export function ToolWorkbench<P>({
                   <div className="flixo-tool-preview-pane">
                     {viewMode === 'before' && inputUrl ? <img src={inputUrl} alt={beforeLabel ?? labels.before} style={{ transform: `scale(${zoom})` }} /> : null}
                     {viewMode === 'after' && outputUrl ? <img src={outputUrl} alt={afterLabel ?? labels.after} style={{ transform: `scale(${zoom})` }} /> : null}
-                    {((viewMode === 'before' && !inputUrl) || (viewMode === 'after' && !outputUrl)) && <div className="flixo-tool-preview-placeholder">◩<div>{viewMode === 'before' ? (locale.toLowerCase().startsWith('ar') ? 'لا يوجد ملف بعد' : 'No input yet') : (noResultLabel ?? labels.noResult)}</div></div>}
+                    {((viewMode === 'before' && !inputUrl) || (viewMode === 'after' && !outputUrl)) && <div className="flixo-tool-preview-placeholder">◩<div>{viewMode === 'before' ? t('No input yet') : (noResultLabel ?? labels.noResult)}</div></div>}
                     <span className="flixo-tool-preview-label mono">{viewMode === 'before' ? (beforeLabel ?? labels.before) : (afterLabel ?? labels.after)}</span>
                   </div>
                 </div>
