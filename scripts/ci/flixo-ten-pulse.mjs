@@ -5,6 +5,7 @@ import { AGENT_LIVENESS_PROTOCOL, buildTeamPulseDirective } from './agent-livene
 
 const IDS = AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds;
 const RESIDENT_IDS = AGENT_LIVENESS_PROTOCOL.residentBotIds;
+const DEVELOPMENT_PROFILES = AGENT_LIVENESS_PROTOCOL.residentBotDevelopmentProfiles;
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):fallback};
 const sha=String(arg('sha',process.env.FLIXO_TARGET_SHA||'')).trim();
 if(!/^[a-f0-9]{40}$/u.test(sha)) throw new Error('FLIXO_TEAM_PULSE_EXACT_SHA_REQUIRED');
@@ -14,7 +15,7 @@ const activeOperation=arg('active-operation','false')==='true';
 const activeWorker=arg('active-worker',process.env.FLIXO_ACTIVE_WORKER||'').trim() || null;
 const output=arg('output','/tmp/flixo-team-pulse.json');
 const pulse=buildTeamPulseDirective({targetSha:sha,taskId:'HEARTBEAT:'+runId,activeOperation,activeWorker,reason:'ONE_MINUTE_TEAM_HEARTBEAT:'+minuteKey});
-const result={schemaVersion:2,protocol:'FLIXO-TEAM-PULSE-CONTROLLER-v2',minuteKey,runId,targetSha:sha,activeOperation,activeWorker,mode:activeOperation?'ACTIVE_OPERATION':'FULL_REPOSITORY_READ_ONLY_SCAN',pulseCount:1,pulses:[{...pulse,pulseId:'TEAM-'+minuteKey.replace(/[^0-9]/gu,'')+'-'+runId,pulseOrdinal:1,cadence:'EVERY_MINUTE',generatedAt:new Date().toISOString()}],allAgentsWakeCount:1,teamMemberCount:IDS.length,residentBotCount:RESIDENT_IDS.length,residentBotIds:[...RESIDENT_IDS],readOnlyWhenIdle:true,sourceMutationAllowed:false,onePulsePerHeartbeat:true};
+const result={schemaVersion:2,protocol:'FLIXO-TEAM-PULSE-CONTROLLER-v2',minuteKey,runId,targetSha:sha,activeOperation,activeWorker,mode:activeOperation?'ACTIVE_OPERATION':'FULL_REPOSITORY_READ_ONLY_SCAN',pulseCount:1,pulses:[{...pulse,pulseId:'TEAM-'+minuteKey.replace(/[^0-9]/gu,'')+'-'+runId,pulseOrdinal:1,cadence:'EVERY_MINUTE',generatedAt:new Date().toISOString()}],allAgentsWakeCount:1,teamMemberCount:IDS.length,residentBotCount:RESIDENT_IDS.length,residentBotIds:[...RESIDENT_IDS],developmentProfiles:DEVELOPMENT_PROFILES,readOnlyWhenIdle:true,sourceMutationAllowed:false,onePulsePerHeartbeat:true};
 fs.mkdirSync(path.dirname(output),{recursive:true});
 fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n');
 console.log(JSON.stringify({status:'PASS',pulseCount:1,teamMemberCount:IDS.length,mode:result.mode,output},null,2));
@@ -91,6 +92,6 @@ if(process.argv[2]==='scan-plan'){
   const planOut=arg('plan-output','/tmp/flixo-full-repository-development-plan.md');
   fs.writeFileSync(planOut,planText);
   const jsonOut=arg('scan-output','/tmp/flixo-full-repository-readonly-scan.json');
-  fs.writeFileSync(jsonOut,JSON.stringify({schemaVersion:1,protocol:'FLIXO10-FULL-REPOSITORY-READONLY-SWEEP-v1',targetSha:sha,readOnly:true,residentBotCount:RESIDENT_IDS.length,residentBotIds:[...RESIDENT_IDS],fileCount:files.length,sourceFiles,workflowFiles,testFiles,topLevel,counts,findings,planOutput:planOut,generatedAt:new Date().toISOString()},null,2)+'\n');
+  fs.writeFileSync(jsonOut,JSON.stringify({schemaVersion:1,protocol:'FLIXO10-FULL-REPOSITORY-READONLY-SWEEP-v1',targetSha:sha,readOnly:true,residentBotCount:RESIDENT_IDS.length,residentBotIds:[...RESIDENT_IDS],developmentProfiles:DEVELOPMENT_PROFILES,fileCount:files.length,sourceFiles,workflowFiles,testFiles,topLevel,counts,findings,planOutput:planOut,generatedAt:new Date().toISOString()},null,2)+'\n');
   console.log(JSON.stringify({status:'PASS',mode:'FULL_REPOSITORY_READ_ONLY_SCAN',filesScanned:files.length,findings:findings.length,planOutput:planOut,scanOutput:jsonOut},null,2));
 }

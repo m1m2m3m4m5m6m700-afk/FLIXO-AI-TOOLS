@@ -1,5 +1,28 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+const RESIDENT_BOT_IDS = Object.freeze(Array.from({ length: 100 }, (_, index) => `CELL-${String(index + 1).padStart(3, '0')}`));
+const RESIDENT_DEVELOPMENT_DOMAINS = Object.freeze([
+  Object.freeze({ id:'RCA_ARCH', role:'RCA_AND_ARCHITECTURE', skills:['root-cause','architecture','dependency-analysis'] }),
+  Object.freeze({ id:'CODE_RUNTIME', role:'CODE_PATH_AND_RUNTIME', skills:['typescript','react','runtime-debugging'] }),
+  Object.freeze({ id:'TEST_CONTRACTS', role:'TEST_CONTRACTS_AND_REGRESSION', skills:['unit-tests','contract-tests','regression'] }),
+  Object.freeze({ id:'CI_WORKFLOWS', role:'CI_AND_WORKFLOW_ENGINEERING', skills:['github-actions','concurrency','workflow-contracts'] }),
+  Object.freeze({ id:'BROWSER_SECURITY', role:'BROWSER_RUNTIME_AND_SECURITY', skills:['playwright','browser-runtime','security'] }),
+  Object.freeze({ id:'ADVERSARIAL', role:'INDEPENDENT_FALSIFICATION', skills:['counterexamples','red-team','false-green-detection'] }),
+  Object.freeze({ id:'REPAIR_STRATEGY', role:'REPAIR_STRATEGY_AND_DEPENDENCIES', skills:['repair-strategy','dependency-graph','recurrence-prevention'] }),
+  Object.freeze({ id:'IMPLEMENTATION', role:'IMPLEMENTATION_AND_REGRESSION', skills:['bounded-implementation','targeted-regression','integration'] }),
+  Object.freeze({ id:'EXACT_SHA', role:'EXACT_SHA_AND_PROOF', skills:['exact-sha','provenance','certification-evidence'] }),
+  Object.freeze({ id:'FINAL_VERIFY', role:'FINAL_VERIFICATION_AND_PLAN', skills:['verification','roadmap','learning'] }),
+]);
+const RESIDENT_BOT_DEVELOPMENT_PROFILES = Object.freeze(RESIDENT_BOT_IDS.map((botId, index) => {
+  const domain = RESIDENT_DEVELOPMENT_DOMAINS[index % RESIDENT_DEVELOPMENT_DOMAINS.length];
+  return Object.freeze({
+    botId, seat: (index % 10) + 1, squadOrdinal: Math.floor(index / 10) + 1,
+    domainId: domain.id, role: domain.role, skills: Object.freeze([...domain.skills]),
+    developmentMode: 'EVIDENCE_DRIVEN_SPECIALIZATION',
+    mutationAuthority: false, certificationAuthority: false,
+    sourceOfTruth: 'RPR-UNIFIED-EXECUTION-001',
+  });
+}));
 export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   schemaVersion: 4,
   contractRank: 'SUPREME_AUTOMATION_RESIDENCY',
@@ -21,7 +44,9 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   residentBotCount: 100,
   residentBotIdPrefix: 'CELL-',
   residentBotIdWidth: 3,
-  residentBotIds: Object.freeze(Array.from({ length: 100 }, (_, index) => `CELL-${String(index + 1).padStart(3, '0')}`)),
+  residentBotIds: RESIDENT_BOT_IDS,
+  residentBotDevelopmentDomains: RESIDENT_DEVELOPMENT_DOMAINS,
+  residentBotDevelopmentProfiles: RESIDENT_BOT_DEVELOPMENT_PROFILES,
   residentBotPolicy: 'FIXED_100_LOGICAL_RESIDENTS',
   onePulsePerHeartbeat: true,
   pulseProfiles: Object.freeze([
@@ -134,6 +159,8 @@ export function assertLivenessDefinition() {
   if (AGENT_LIVENESS_PROTOCOL.heartbeatWakeScope !== 'ALL_AGENTS') throw new Error('AGENT_LIVENESS_HEARTBEAT_WAKE_SCOPE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.pulseEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_PULSE_NOT_ONE_MINUTE');
   if (AGENT_LIVENESS_PROTOCOL.residentBotCount !== 100 || AGENT_LIVENESS_PROTOCOL.residentBotIds.length !== 100 || AGENT_LIVENESS_PROTOCOL.residentBotIds[0] !== 'CELL-001' || AGENT_LIVENESS_PROTOCOL.residentBotIds[99] !== 'CELL-100' || new Set(AGENT_LIVENESS_PROTOCOL.residentBotIds).size !== 100) throw new Error('AGENT_LIVENESS_100_RESIDENT_BOT_ROSTER_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.residentBotDevelopmentDomains.length !== 10 || AGENT_LIVENESS_PROTOCOL.residentBotDevelopmentProfiles.length !== 100 || new Set(AGENT_LIVENESS_PROTOCOL.residentBotDevelopmentProfiles.map((x) => x.botId)).size !== 100 || AGENT_LIVENESS_PROTOCOL.residentBotDevelopmentProfiles.some((x) => x.mutationAuthority !== false || x.certificationAuthority !== false || !x.skills.length)) throw new Error('AGENT_LIVENESS_BOT_DEVELOPMENT_PROFILE_INVALID');
+  for (const domain of AGENT_LIVENESS_PROTOCOL.residentBotDevelopmentDomains) if (AGENT_LIVENESS_PROTOCOL.residentBotDevelopmentProfiles.filter((x) => x.domainId === domain.id).length !== 10) throw new Error('AGENT_LIVENESS_BOT_DOMAIN_DISTRIBUTION_INVALID=' + domain.id);
   if (AGENT_LIVENESS_PROTOCOL.pulseProfiles.length !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.botId)).size !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.pulseType)).size !== 10) throw new Error('AGENT_LIVENESS_PULSE_PROFILE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.idleSweepMode !== 'FULL_REPOSITORY_READ_ONLY_SCAN' || AGENT_LIVENESS_PROTOCOL.idleSweepPlanLedger !== 'المهام.md') throw new Error('AGENT_LIVENESS_IDLE_SWEEP_POLICY_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.actionRepairTeamSize !== 10 || AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length !== 10) throw new Error('AGENT_LIVENESS_TEAM_SIZE_INVALID');
@@ -265,6 +292,7 @@ export function buildTeamPulseDirective({ targetSha, taskId = null, activeOperat
     teamMemberCount: AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length,
     residentBotCount: AGENT_LIVENESS_PROTOCOL.residentBotCount,
     residentBotIds: [...AGENT_LIVENESS_PROTOCOL.residentBotIds],
+    developmentProfiles: AGENT_LIVENESS_PROTOCOL.residentBotDevelopmentProfiles,
     mutationAuthority: false,
     pushAuthority: 'CHAIR_1_ONLY',
     exactShaRequired: true,
