@@ -3,6 +3,7 @@ import type { ExecutionPlan } from '@/lib/ai/planner';
 import { getCapability } from '@/lib/agent/capability-registry';
 import { getToolDefinition } from '@/config/canonical-tool-definition';
 import { deriveRecoveryMetadata, type RecoveryMetadata } from '@/lib/agent/execution-observability';
+import { buildCollectiveIntelligenceFrame, type CollectiveIntelligenceFrame } from '@/lib/agent/collective-intelligence';
 
 export type CognitiveDecision = 'EXECUTE_READY' | 'NEEDS_INPUT' | 'UNSUPPORTED' | 'UNSAFE';
 
@@ -20,6 +21,7 @@ export type CognitiveAssessment = Readonly<{
   executionPlan: ExecutionPlan | null;
   semantic: SemanticPlanCheck;
   clarificationQuestion: IntentPlan['clarificationQuestion'];
+  collectiveIntelligence: CollectiveIntelligenceFrame;
 }>;
 
 export type RecoveryDecision =
@@ -97,6 +99,7 @@ export function assessCognitiveRequest(
   identity?: { taskId?: string | null; traceId?: string | null },
 ): CognitiveAssessment {
   const intentPlan = buildIntentPlan(input, identity);
+  const baseCollectiveIntelligence = buildCollectiveIntelligenceFrame(input);
 
   if (intentPlan.status !== 'READY') {
     const decision: CognitiveDecision =
@@ -115,6 +118,7 @@ export function assessCognitiveRequest(
         localFirstSatisfied: true,
       }),
       clarificationQuestion: intentPlan.clarificationQuestion ?? null,
+      collectiveIntelligence: baseCollectiveIntelligence,
     });
   }
 
@@ -132,9 +136,14 @@ export function assessCognitiveRequest(
         localFirstSatisfied: true,
       }),
       clarificationQuestion: intentPlan.clarificationQuestion ?? null,
+      collectiveIntelligence: baseCollectiveIntelligence,
     });
   }
 
+  const collectiveIntelligence = buildCollectiveIntelligenceFrame(
+    input,
+    executionPlan.steps.map((step) => step.toolId),
+  );
   const semantic = verifyExecutionPlanSemantics(intentPlan, executionPlan);
   return Object.freeze({
     decision: semantic.ok ? 'EXECUTE_READY' : 'UNSAFE',
@@ -142,6 +151,7 @@ export function assessCognitiveRequest(
     executionPlan: semantic.ok ? executionPlan : null,
     semantic,
     clarificationQuestion: intentPlan.clarificationQuestion ?? null,
+    collectiveIntelligence,
   });
 }
 
