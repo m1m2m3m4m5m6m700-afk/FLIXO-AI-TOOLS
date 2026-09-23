@@ -246,7 +246,7 @@ export function applyWriteTransaction({repoRoot=ROOT,plan}={}) {
     const checkResults=[];
     for(const check of checks){
       try{const output=runCheck(repoRoot,check);checkResults.push({check,status:'PASS',outputDigest:sha256(output)});}
-      catch(error){checkResults.push({check,status:'FAIL',error:String(error?.stderr??error?.message??error).slice(-6000)});throw new Error('MASTER_REPAIR_POST_WRITE_CHECK_FAILED='+String(check));}
+      catch(error){checkResults.push({check,status:'FAIL',error:String(error?.stderr??error?.message??error).slice(-6000)});throw new Error('MASTER_REPAIR_POST_WRITE_CHECK_FAILED='+String(check),{cause:error});}
       assertExactExecutionHead(repoRoot,targetSha);
     }
     return {
