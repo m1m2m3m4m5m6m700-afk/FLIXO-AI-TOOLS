@@ -6,7 +6,6 @@ import type { PipelineProgress } from '@/lib/workflows/pipeline-runner';
 import { LOCALES, type Locale } from '@/lib/i18n';
 import type { FilterMaskHandoff } from '@/tools/filter-mask/handoff';
 import type { AGENT_I18N } from '@/data/agent-locales';
-import { localizeToolUiValue } from '@/lib/i18n/tool-ui-runtime-completeness';
 
 export type FlixoAgentStudioMessage = Readonly<{ id: number; role: 'user' | 'agent'; text: string }>;
 export type FlixoAgentStudioTool = Readonly<{ id: string; title: string; description: string; category?: string }>;
