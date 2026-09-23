@@ -18,8 +18,9 @@ permissions:
 # Exactly one trusted Green Gate observer is active at a time; the newest invocation supersedes an older observer.
 # The controller re-reads the live execution SHA after admission, so cancellation cannot substitute stale evidence.
 concurrency:
+  # Green Gate is a recovery controller; an active observation must never be cancelled by the next 5-minute tick.
   group: flixo-continuous-error-watch-${{ github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   watch:
