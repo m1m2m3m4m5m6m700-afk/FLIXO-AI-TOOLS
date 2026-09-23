@@ -413,7 +413,7 @@ export function ToolWorkbench<P>({
             <div className="flixo-tool-progress-bar"><div className="flixo-tool-progress-fill" /></div>
             <span className="flixo-tool-progress-value mono">{busy ? 'RUN' : outputAsset ? '100%' : '0%'}</span>
           </div>
-        </main>
+        </div>
 
         <aside className="flixo-tool-side right" id="flixo-tool-right-panel">
           <div className="flixo-tool-panel-scroll">
