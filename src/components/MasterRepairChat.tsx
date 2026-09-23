@@ -6,7 +6,7 @@ type ChatRow={id:number;role:'user'|'assistant';content:string};
 
 const STORAGE='flixo-master-repair-chat-v1';
 const MAX=120;
-const starter:ChatRow={id:1,role:'assistant',content:'أنا MASTER REPAIR. أستطيع مناقشة المشكلة معك، الاحتفاظ بسياق الجلسة، وتحويل ما نتفق عليه إلى خطة إصلاح مقيدة.'};
+const starter:ChatRow={id:1,role:'assistant',content:'أنا FLIXO BOT. أستطيع مناقشة المشكلة معك، الاحتفاظ بسياق الجلسة، وتحويل ما نتفق عليه إلى خطة إصلاح مقيدة.'};
 
 function load():ChatRow[]{
   if(typeof window==='undefined')return [starter];
