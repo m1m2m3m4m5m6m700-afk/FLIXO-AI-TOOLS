@@ -279,8 +279,7 @@ export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48
   const grouped=Object.fromEntries(SHARED_KINDS.map(kind=>[kind,records.filter(r=>r.kind===kind)]));
   const legacy=legacyReadThroughContext(limit);
   const targetSha=validSha(currentSha)?String(currentSha):null;
-  const externalPromise=targetSha?readRemoteExternalLearning(targetSha,limit):Promise.resolve([]);
-  // Synchronous consumers cannot await. The remote candidates are attached by buildAsyncSharedLearningContext below.
+  // Synchronous consumers use canonical in-repo memory. Remote external candidates are merged by buildAsyncSharedLearningContext or the API bridge.
   return {
     protocol:SHARED_MEMORY_PROTOCOL,
     authority:'CONTEXT_ONLY',
@@ -299,7 +298,7 @@ export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48
     counterexamples:grouped.COUNTEREXAMPLE,
     verifications:grouped.VERIFICATION,
     externalCandidates:[],
-    remoteLearningPending:Boolean(externalPromise),
+    remoteLearningPending:false,
     note:'Shared memory informs every active FLIXO BOT consumer; it never proves GREEN or grants authority.'
   };
 }
