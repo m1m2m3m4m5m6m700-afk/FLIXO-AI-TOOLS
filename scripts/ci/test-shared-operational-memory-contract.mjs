@@ -30,12 +30,12 @@ assert.equal(flixoBot.distribution.cognitiveBotIds.length,200);
 assert.equal(flixoBot.distribution.learningConsumers.length,200);
 assert.equal(flixoBot.distribution.targetCount,200);
 assert.equal(flixoBot.distribution.cognitiveBotCount,200);
-assert.equal(flixoBot.distribution.identityModel,'200_CANONICAL_COGNITIVE_IDENTITIES');
+assert.equal(flixoBot.distribution.identityModel,'200_CANONICAL_COGNITIVE_BOTS_WITH_ROLE_OVERLAYS');
 assert.equal(JSON.stringify(flixoBot.distribution.learningConsumers),JSON.stringify(flixoBot.distribution.cognitiveBotIds));
 assert.equal(new Set(flixoBot.distribution.cognitiveBotIds).size,200);
 assert(flixoBot.distribution.cognitiveBotIds.every((id)=>/^FLIXO-BOT-\d{3}$/u.test(id)));
 assert.equal(Object.keys(flixoBot.distribution.botAliasMap??{}).length,77);
-for(const required of ['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','ACTION-ARBITER','ACTION-COUNCIL-20','SECURITY-REDTEAM-3','assistantController','MASTER-1','MASTER-2','MASTER-3','executionAgent','reviewAgent','execution-agent-clone-v1','CHIEF','WORKER_A','WORKER_B']) { const canonical=flixoBot.distribution.botAliasMap?.[required]; assert.match(String(canonical),/^FLIXO-BOT-\d{3}$/u.test(canonical)?/^FLIXO-BOT-\d{3}$/u:/^$/u); assert(flixoBot.distribution.cognitiveBotIds.includes(canonical)); }
+for(const required of ['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','ACTION-ARBITER','ACTION-COUNCIL-20','SECURITY-REDTEAM-3','assistantController','MASTER-1','MASTER-2','MASTER-3','executionAgent','reviewAgent','execution-agent-clone-v1','CHIEF','WORKER_A','WORKER_B']) { const canonical=flixoBot.distribution.botAliasMap?.[required]; assert.match(String(canonical),/^FLIXO-BOT-\d{3}$/u); assert(flixoBot.distribution.cognitiveBotIds.includes(canonical)); }
 assert(!flixoBot.distribution.learningConsumers.includes('ACTION-WAKE'));
 assert(!flixoBot.distribution.learningConsumers.some((id)=>/^CELL-\\d{3}$/u.test(id)));
 
