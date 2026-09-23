@@ -153,6 +153,12 @@ assert.match(heartbeatWorkflow, /github\.event_name == 'push' && github\.ref == 
 assert.match(heartbeatWorkflow, /github\.event_name == 'workflow_dispatch' && github\.ref == 'refs\/heads\/main'/);
 assert.match(heartbeatWorkflow, /group: flixo-agent-repair-heartbeat-\$\{\{ github\.event_name \}\}-\$\{\{ github\.ref_name \}\}/);
 assert.match(heartbeatWorkflow, /gh workflow run agent-repair-heartbeat\.yml --repo "\$GITHUB_REPOSITORY" --ref execution/);
+assert.match(heartbeatWorkflow, /headSha == \$sha/);
+assert.match(heartbeatWorkflow, /--arg sha "\$EXECUTION_SHA"/);
+const canonicalCi = read('.github/workflows/ci.yml');
+assert.match(canonicalCi, /workflow: agent-repair-heartbeat\.yml/);
+assert.match(canonicalCi, /headSha == \$sha/);
+assert.match(canonicalCi, /EXECUTION_SHA=.*git\/ref\/heads\/execution/);
 assert.match(heartbeatWorkflow, /if: github\.event_name == 'workflow_dispatch' && github\.ref == 'refs\/heads\/execution'/);
 assert.doesNotMatch(heartbeatWorkflow, /cron: '\*\/1 \* \* \* \*'/);
 assert.match(heartbeatWorkflow, /flixo-ten-pulse\.mjs/);
