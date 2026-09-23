@@ -55,8 +55,9 @@ try {
   const receipt=applyWriteTransaction({repoRoot,plan});
   assert.equal(receipt.status,'WRITTEN_PENDING_CANONICAL_GREEN');
   assert.match(fs.readFileSync(path.join(repoRoot,'src/demo.mjs'),'utf8'),/value = 2/u);
+  git(['checkout','--','src/demo.mjs']);
 
-  const bad={...plan,writes:[{path:'src/demo.mjs',kind:'replace',search:'value = 2',replace:'value = {'}]};
+  const bad={...plan,writes:[{path:'src/demo.mjs',kind:'replace',search:'value = 1',replace:'value = {'}]};
   assert.throws(()=>applyWriteTransaction({repoRoot,plan:bad}));
   assert.match(fs.readFileSync(path.join(repoRoot,'src/demo.mjs'),'utf8'),/value = 2/u);
 
