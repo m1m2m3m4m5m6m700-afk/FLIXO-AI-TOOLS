@@ -8,11 +8,12 @@ on:
   workflow_dispatch:
 
 # Every initial verification lane is bound to repository + branch + exact head SHA.
-# The dedicated Latest Commit Supersession controller cancels older-SHA verification runs.
-# Reruns retain an immutable run-specific lane and cannot cancel a different commit.
+# Native CI concurrency never cancels a started run; the dedicated Latest Commit Supersession controller
+# cancels only queued/pending stale runs. Reruns retain an immutable run-specific lane and cannot
+# cancel a different commit.
 concurrency:
   group: flixo-test-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}${{ github.run_attempt > 1 && format('-rerun-{0}', github.run_id) || '' }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read

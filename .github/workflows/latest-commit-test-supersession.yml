@@ -119,8 +119,15 @@ jobs:
             local event="$5"
             echo "CANDIDATE stale run=$run_id sha=$head_sha name=$name event=$event listed_status=$status"
 
-            # Every non-completed stale run is invalid. Request cancellation from the authoritative
-            # run inventory only; exact-SHA guards reject any late completion race without a per-run status lookup.
+            # Only queued/pending stale runs are supersedable. Started in-progress runs must complete;
+            # their evidence is later rejected by the exact-SHA guard if the branch has advanced.
+            case "$status" in
+              queued|pending) ;;
+              *)
+                echo "KEEP_STARTED_STALE_RUN run=$run_id status=$status"
+                return 0
+                ;;
+            esac
             echo "CANCEL_STALE_RUN run=$run_id status=$status"
             local cancel_output=""
             local attempt=1
@@ -172,7 +179,7 @@ jobs:
               cancel_stale_run "$RUN_ID" "$HEAD_SHA" "$STATUS" "$NAME" "$EVENT"
             fi
           done < <(
-            jq -r '.workflow_runs[] | select(.status != "completed") | [.id,.head_sha,.status,.name,.event,.head_repository.full_name // ""] | @tsv' /tmp/supersession-all-runs.json
+            jq -r '.workflow_runs[] | select(.status == "queued" or .status == "pending") | [.id,.head_sha,.status,.name,.event,.head_repository.full_name // ""] | @tsv' /tmp/supersession-all-runs.json
           )
 
       - name: Assert no non-authoritative run remains active
@@ -209,7 +216,7 @@ jobs:
           done
           if [ "$stale_active" -ne 0 ]; then
             echo 'FAIL CLOSED: stale runs remain non-completed after supersession cancellation window.'
-            jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" '.workflow_runs[] | select(.status != "completed" and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession") | select(.head_repository.full_name == $sourceRepo) | select(.name | test("Test|test|Verification|verification|Contract|contract|Security|security|Baseline|baseline|Certification|certification|Impact|impact|Code Scanning|CodeQL|Diagnostic|diagnostic|Proof|proof|Scan|scan")) | [.id,.name,.status,.head_sha] | @tsv' /tmp/supersession-final-runs.json
+            jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" '.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession") | select(.head_repository.full_name == $sourceRepo) | select(.name | test("Test|test|Verification|verification|Contract|contract|Security|security|Baseline|baseline|Certification|certification|Impact|impact|Code Scanning|CodeQL|Diagnostic|diagnostic|Proof|proof|Scan|scan")) | [.id,.name,.status,.head_sha] | @tsv' /tmp/supersession-final-runs.json
             exit 1
           fi
           echo 'STALE_ACTIVE_RUNS=0'
@@ -231,6 +238,7 @@ jobs:
             echo "SUPERSESSION_HEAD_MOVED old=$EXPECTED_SHA new=$CURRENT_SHA"
             exit 0
           fi
+          echo 'STARTED_RUNS_PRESERVED=true'
           echo 'LATEST_COMMIT_SUPERSESSION=PASS'
           echo "LATEST_COMMIT_SHA=$EXPECTED_SHA"
           echo "LATEST_COMMIT_BRANCH=$EXPECTED_BRANCH"

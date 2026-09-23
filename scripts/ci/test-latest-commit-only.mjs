@@ -17,6 +17,7 @@ const nonCancellingEvidenceFiles = new Set([
   '.github/workflows/daily-flixo-green-gate.yml',
   '.github/workflows/test-impact.yml',
   '.github/workflows/claude-security-review.yml',
+  '.github/workflows/ci.yml',
 ]);
 
 for (const file of files) {
@@ -47,6 +48,8 @@ assert.match(supersession, /repos\/\$GITHUB_REPOSITORY\/pulls\/\$PR_NUMBER/u);
 assert.match(supersession, /is_supersedable_run\(\)/u);
 assert.match(supersession, /head_repository\.full_name == \$sourceRepo/u);
 assert.match(supersession, /CANCEL_STALE_RUN/u);
+assert.match(supersession, /\.status == \"queued\" or \.status == \"pending\"/u);
+assert.match(supersession, /KEEP_STARTED_STALE_RUN/u);
 assert.match(supersession, /LATEST_COMMIT_SUPERSESSION=PASS/u);
 assert.match(supersession, /SUPERSESSION_EXTERNAL_BLOCKER=GITHUB_ACTIONS_API_RATE_LIMIT/u);
 assert.match(supersession, /BLOCKED_EXTERNAL: GitHub Actions API rate limit/u);
@@ -61,7 +64,7 @@ assert.match(greenGate, /cancel-in-progress:\s*false/u);
 const ci = fs.readFileSync('.github/workflows/ci.yml','utf8');
 assert.match(ci, /push:\s*\n\s*branches:\s*\[main, execution\]/u);
 assert.match(ci, /group:\s*flixo-test-/u);
-assert.match(ci, /cancel-in-progress:\s*true/u);
+assert.match(ci, /cancel-in-progress:\s*false/u);
 
 const workflowDir = '.github/workflows';
 const currentWorkflows = fs.readdirSync(workflowDir).filter((file) => /\.ya?ml$/u.test(file)).sort();
@@ -89,6 +92,7 @@ console.log('LATEST_COMMIT_ONLY_TESTS=PASS');
 console.log('STALE_TEST_CANCELLATION=PASS');
 console.log('EXACT_SHA_STALE_GUARD=PASS');
 console.log('EXECUTION_PUSH_TEST_TRIGGER=PASS');
+console.log('STARTED_TEST_RUNS_PRESERVED=PASS');
 
 const cleanupWorkflow = fs.readFileSync('.github/workflows/latest-execution-head-cleanup.yml', 'utf8');
 assert.match(cleanupWorkflow, /name:\s*FLIXO Latest Execution HEAD Cleanup/u);
