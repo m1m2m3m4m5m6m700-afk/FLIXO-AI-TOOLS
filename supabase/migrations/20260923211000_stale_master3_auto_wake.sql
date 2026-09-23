@@ -1,7 +1,5 @@
 -- Auto-rewake a stale MASTER-3 runtime only while a real Council task is leased.
 -- This is a recovery floor, not a task generator: no active lease => no wake.
-create extension if not exists pg_cron with schema pg_catalog;
-
 create or replace function public.flixo_auto_wake_stale_master3()
 returns integer
 language plpgsql
