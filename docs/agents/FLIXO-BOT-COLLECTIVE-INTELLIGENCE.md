@@ -50,3 +50,17 @@ The contract test is:
 `scripts/test-agent-collective-intelligence.mjs`
 
 It verifies that the runtime bridge stays synchronized with `docs/agents/FLIXO-BOT.json` and that English/Arabic failure and repair requests activate the expected reasoning lenses.
+
+
+## Shared operational learning
+
+The server-side conversation gateway also reads the canonical shared operational memory for the `executionAgent` identity and supplies bounded advisory context containing lessons, anti-lessons, observed errors, proof obligations, counterexamples, and verification records.
+
+The learning channel remains non-authoritative:
+
+- shared memory is context, not certification;
+- stale or historical knowledge must be requalified against the current exact SHA;
+- contradictions remain visible until current evidence resolves them;
+- memory cannot grant execution, mutation, merge, or certification authority.
+
+The execution-agent clone reaches the same brain through the cognitive orchestrator, so the clone and the original execution path share the reasoning substrate without sharing mutation ownership.
