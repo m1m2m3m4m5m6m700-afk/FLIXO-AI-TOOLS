@@ -50,7 +50,7 @@ begin
         'previousStatus', v_dispatch.status,
         'previousSessionId', v_dispatch.session_id,
         'attempt', v_dispatch.attempts,
-        'recoveryVersion', 'v2'
+        'recoveryVersion', 'v2', 'recoveryState', 'EXPIRED'
       )
     );
 
