@@ -1,16 +1,16 @@
 name: FLIXO WP0 Trust Baseline
 
 on:
-  pull_request:
-    branches: [main]
+  # One canonical push-triggered verification is sufficient for each exact execution SHA.
+  # PRs consume the same check-runs from that head commit; avoid duplicate heavy execution.
   push:
-    branches: [execution]
+    branches: [main, execution]
   workflow_dispatch:
 
-# Keep only the newest verification for the PR/branch.
+# Each exact commit SHA has its own execution slot; active verification is never cancelled by newer commits.
 # Exact-SHA checks below remain mandatory for the surviving run.
 concurrency:
-  group: flixo-wp0-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: flixo-wp0-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 permissions:
@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: 01 — Checkout exact execution SHA
+      - name: 01 — Checkout exact source SHA
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -39,32 +39,54 @@ jobs:
           EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
         run: node scripts/ci/assert-current-commit.mjs
 
-      - name: 02 — Verify exact execution checkout identity and bind agent to execution
+      - name: 02 — Verify exact source checkout identity and bind agent to source branch
         shell: bash
         env:
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref || '' }}
           PR_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
           PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || '' }}
           EXPECTED_REPOSITORY: ${{ github.repository }}
+          TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          EVENT_REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
+          case "$TARGET_BRANCH" in
+            main|execution) ;;
+            *) echo "FAIL CLOSED: invalid canonical target branch"; exit 1 ;;
+          esac
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             test "$PR_HEAD_REF" = "execution"
             test "$PR_BASE_REF" = "main"
             test "$PR_HEAD_REPOSITORY" = "$EXPECTED_REPOSITORY"
+            test "$TARGET_BRANCH" = "execution"
           else
-            case "${{ github.event_name }}" in
+            case "$GITHUB_EVENT_NAME" in
               push|workflow_dispatch) ;;
-              *) echo "Unsupported execution event: ${{ github.event_name }}"; exit 1 ;;
+              *) echo "Unsupported execution event: $GITHUB_EVENT_NAME"; exit 1 ;;
             esac
-            test "${{ github.ref }}" = "refs/heads/execution"
+            test "$EVENT_REF_NAME" = "$TARGET_BRANCH"
           fi
           ACTUAL_SHA="$(git rev-parse HEAD)"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA"
-          git fetch --no-tags --depth=1 origin refs/heads/execution:refs/remotes/origin/execution
-          test "$(git rev-parse origin/execution)" = "$EXPECTED_SHA"
-          git switch -C execution "$EXPECTED_SHA"
-          test "$(git branch --show-current)" = "execution"
+          case "$TARGET_BRANCH" in
+            execution)
+              git fetch --no-tags --depth=1 origin refs/heads/execution:refs/remotes/origin/execution
+              test "$(git rev-parse origin/execution)" = "$EXPECTED_SHA"
+              git switch -C execution "$EXPECTED_SHA"
+              test "$(git branch --show-current)" = execution
+              ;;
+            main)
+              git fetch --no-tags --depth=1 origin refs/heads/main:refs/remotes/origin/main
+              test "$(git rev-parse origin/main)" = "$EXPECTED_SHA"
+              git switch -C main "$EXPECTED_SHA"
+              test "$(git branch --show-current)" = main
+              ;;
+            *)
+              echo "FAIL CLOSED: invalid canonical target branch"
+              exit 1
+              ;;
+          esac
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           printf '%s\n' "$ACTUAL_SHA" > flixo-wp0-head-sha.txt
 

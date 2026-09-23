@@ -5,6 +5,7 @@ export type ToolOutputVariant = {
   readonly outputMimeTypes: readonly string[];
   readonly allowedExtensions: readonly string[];
   readonly signatures?: readonly string[];
+  readonly compoundSignatures?: readonly { readonly offset: number; readonly signature: string; readonly mimeTypes?: readonly string[] }[];
   readonly downloadRequired: boolean;
   readonly minOutputBytes?: number;
   readonly maxOutputBytes?: number;
@@ -38,9 +39,12 @@ function safeFilename(filename?: string): boolean {
   return Boolean(filename && filename === filename.trim() && filename !== '.' && filename !== '..' && !(/[\\/\0]/u.test(filename)));
 }
 
-function signatureMatches(bytes: Uint8Array, signature: string): boolean {
+function signatureMatches(bytes: Uint8Array, signature: string, offset = 0): boolean {
   const expected = signature.replace(/\s+/g, '').toLowerCase();
-  const actual = Array.from(bytes.slice(0, expected.length / 2), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  if (!Number.isInteger(offset) || offset < 0 || expected.length % 2 !== 0) return false;
+  const end = offset + expected.length / 2;
+  if (end > bytes.length) return false;
+  const actual = Array.from(bytes.slice(offset, end), (byte) => byte.toString(16).padStart(2, '0')).join('');
   return actual === expected;
 }
 
@@ -54,7 +58,12 @@ function assertVariant(variant: ToolOutputVariant, result: ToolOutputResult): vo
   if (variant.signatures?.length) {
     if (!result.bytes || !variant.signatures.some((signature) => signatureMatches(result.bytes!, signature))) throw new Error(`Invalid signature for ${variant.kind}`);
   }
-  if (variant.validateDimensions && result.dimensions) {
+  for (const compound of variant.compoundSignatures ?? []) {
+    if (compound.mimeTypes?.length && !compound.mimeTypes.includes(result.mimeType)) continue;
+    if (!result.bytes || !signatureMatches(result.bytes, compound.signature, compound.offset)) throw new Error(`Invalid compound signature for ${variant.kind}`);
+  }
+  if (variant.validateDimensions) {
+    if (!result.dimensions) throw new Error(`Dimensions are required for ${variant.kind}`);
     const { width, height } = result.dimensions;
     if (!Number.isInteger(width) || width < 1 || !Number.isInteger(height) || height < 1) throw new Error(`Invalid dimensions for ${variant.kind}`);
     if (variant.maxPixels !== undefined && width * height > variant.maxPixels) throw new Error(`Pixel budget exceeded for ${variant.kind}`);

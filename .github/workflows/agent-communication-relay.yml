@@ -3,13 +3,6 @@ name: FLIXO Agent Communication Relay
 on:
   issue_comment:
     types: [created]
-  workflow_dispatch:
-    inputs:
-      message_json:
-        description: 'Canonical agent message JSON for controlled manual delivery testing'
-        required: true
-        type: string
-
 permissions:
   contents: read
   issues: write
@@ -23,13 +16,34 @@ concurrency:
 jobs:
   receive:
     name: Immediate agent message receive
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.issue.number == 759 && github.event.comment.body != '' && (github.event.comment.user.login == 'github-actions[bot]' || github.event.comment.user.login == github.repository_owner)) }}
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'issue_comment' && github.event.issue.pull_request != null && github.event.comment.body != '' && (github.event.comment.author_association == 'OWNER' || github.event.comment.user.login == 'github-actions[bot]') }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout canonical communication implementation
+      - name: Validate comment is not newer than the current PR head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMENT_AT: ${{ github.event.comment.created_at || '' }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$COMMENT_AT"
+          case "$ISSUE_NUMBER" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid PR number'; exit 1 ;;
+          esac
+          HEAD_SHA="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$ISSUE_NUMBER" --jq '.head.sha // empty')"
+          COMMIT_AT="$(gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA" --jq '.commit.committer.date // .commit.author.date // empty')"
+          test -n "$HEAD_SHA"
+          test -n "$COMMIT_AT"
+          COMMENT_EPOCH="$(date -u -d "$COMMENT_AT" +%s)"
+          HEAD_EPOCH="$(date -u -d "$COMMIT_AT" +%s)"
+          test "$HEAD_EPOCH" -le "$COMMENT_EPOCH"
+      - name: Checkout trusted communication implementation
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: execution
+          # issue_comment is privileged; pin executable controller source to the immutable
+          # commit that triggered this run instead of a mutable branch reference.
+          ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
 
@@ -40,18 +54,44 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          case "$COMMENT_ID" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid comment id'; exit 1 ;;
+          esac
+          case "$COUNCIL_PR_NUMBER" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid canonical PR number'; exit 1 ;;
+          esac
           SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
-          git fetch --no-tags origin "refs/heads/execution:$SHA"
-          git checkout --detach "$SHA"
-          test "$(git rev-parse HEAD)" = "$SHA"
+          CONTROLLER_SHA="$(git rev-parse HEAD)"
+          [[ "$CONTROLLER_SHA" =~ ^[0-9a-f]{40}$ ]]
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "controller_sha=$CONTROLLER_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve canonical Council ingress
+        id: council_ingress
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "$ISSUE_NUMBER" ]; then
+            PR_JSON="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$ISSUE_NUMBER")"
+            test "$(printf '%s' "$PR_JSON" | jq -r '.state // empty')" = open
+            test "$(printf '%s' "$PR_JSON" | jq -r '.head.ref // empty')" = execution
+            test "$(printf '%s' "$PR_JSON" | jq -r '.base.ref // empty')" = main
+            echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ISSUE_NUMBER="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 1 --json number --jq '.[0].number // empty')"
+          test -n "$ISSUE_NUMBER"
+          echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
 
       - name: Extract President Wake when present
         id: president_wake
         if: >-
           github.event_name == 'issue_comment' &&
-          github.event.issue.number == 759 &&
+          github.event.issue.pull_request != null &&
           contains(github.event.comment.body || '', '<!-- FLIXO_AGENT_COUNCIL_WAKE -->')
         env:
           COMMENT_BODY: ${{ github.event.comment.body || '' }}
@@ -92,11 +132,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           COMMENT_ID: ${{ github.event.comment.id }}
+          COUNCIL_PR_NUMBER: ${{ steps.council_ingress.outputs.issue_number }}
+          TARGET_REF: ${{ steps.target.outputs.target_ref }}
+          TARGET_MESSAGE_SHA: ${{ steps.target.outputs.message_sha }}
         shell: bash
         run: |
           set -euo pipefail
+          case "$COMMENT_ID" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid comment id'; exit 1 ;;
+          esac
+          case "$COUNCIL_PR_NUMBER" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid canonical PR number'; exit 1 ;;
+          esac
           RECEIPT="<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->"
-          if gh api "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
+          if gh api "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
             echo 'duplicate=true' >> "$GITHUB_OUTPUT"
           else
             echo 'duplicate=false' >> "$GITHUB_OUTPUT"
@@ -108,6 +157,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           WORKFLOW: ${{ steps.president_plan.outputs.workflow }}
           ENTRY_SHA: ${{ steps.president_plan.outputs.entrySha }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          COMMENT_BODY: ${{ github.event.comment.body || '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -115,8 +166,8 @@ jobs:
             council-priority-wake.yml)
               gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref execution \
                 -f "entry_sha=$ENTRY_SHA" \
-                -f "request_id=president-${{ github.event.comment.id }}" \
-                -f "source_comment_id=${{ github.event.comment.id }}" \
+                -f "request_id=president-$COMMENT_ID" \
+                -f "source_comment_id=$COMMENT_ID" \
                 -f "question=$COMMENT_BODY"
               ;;
             ultra-investigator.yml)
@@ -140,17 +191,24 @@ jobs:
           WORKPACKAGE: ${{ steps.president_plan.outputs.workPackage }}
           ENTRY_SHA: ${{ steps.president_plan.outputs.entrySha }}
           COMMENT_ID: ${{ github.event.comment.id }}
+          COUNCIL_PR_NUMBER: ${{ steps.council_ingress.outputs.issue_number }}
         shell: bash
         run: |
           set -euo pipefail
+          case "$COMMENT_ID" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid comment id'; exit 1 ;;
+          esac
+          case "$COUNCIL_PR_NUMBER" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid canonical PR number'; exit 1 ;;
+          esac
           BODY="$(printf '%s\n' "### PRESIDENT WAKE RECEIPT" "" "**Role:** $ROLE" "**Mode:** $MODE" "**Work Package:** $WORKPACKAGE" "**Exact SHA:** $ENTRY_SHA" "" "Wake accepted through the canonical communication relay. Workflow dispatch remains subject to exact-SHA and role controls." "" "<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->")"
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments" --raw-field body="$BODY" >/dev/null
 
       - name: Detect P0 Council question / request
         id: council_question
         if: >-
           github.event_name == 'issue_comment' &&
-          github.event.issue.number == 759 &&
+          github.event.issue.pull_request != null &&
           (contains(github.event.comment.body || '', '### COUNCIL QUESTION') ||
            contains(github.event.comment.body || '', '<!-- FLIXO_COUNCIL_PRIORITY -->'))
         env:
@@ -172,6 +230,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           COMMENT_ID: ${{ github.event.comment.id }}
           QUESTION: ${{ steps.council_question.outputs.question }}
+          COUNCIL_PR_NUMBER: ${{ steps.council_ingress.outputs.issue_number }}
         shell: bash
         run: |
           set -euo pipefail
@@ -189,14 +248,14 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body || '' }}
           EVENT_NAME: ${{ github.event_name }}
           RUN_SHA: ${{ github.sha }}
-          MANUAL_MESSAGE_JSON: ${{ github.event.inputs.message_json || '' }}
-        shell: bash
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login || '' }}
+          COMMENT_ID: ${{ github.event.comment.id || '' }}
+          shell: bash
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const body = process.env.COMMENT_BODY || '';
-          const manual = process.env.MANUAL_MESSAGE_JSON || '';
           const marker = '<!-- FLIXO_AGENT_MESSAGE -->';
           const fence = '\`\`\`json';
           const start = body.indexOf(marker);
@@ -206,20 +265,22 @@ jobs:
           const match = payloadStart >= 0 && fenceEnd >= 0
             ? body.slice(payloadStart, fenceEnd).trim()
             : null;
-          if (!match && process.env.EVENT_NAME === 'workflow_dispatch') {
-            if (!manual) throw new Error('MANUAL_MESSAGE_PAYLOAD_REQUIRED');
-            const message = JSON.parse(manual);
-            fs.writeFileSync('message.json', JSON.stringify(message, null, 2) + '\\n');
-            if (!message.messageId) throw new Error('AGENT_MESSAGE_ID_MISSING');
-            process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'MESSAGE_ID=' + message.messageId + '\\n');
-            process.exit(0);
-          }
           if (!match) {
             fs.writeFileSync('/tmp/flixo-agent-message-skip', 'NO_CANONICAL_AGENT_MESSAGE\\n');
             process.exit(0);
           }
           const message = JSON.parse(match);
+          const actor=String(message.actor??'').trim();
+          const privileged=/^MASTER-[1-3]$/u.test(actor) || message.administrativeInstruction===true || message.councilOperation===true || String(message.intent??'').startsWith('ADMIN_') || String(message.intent??'').startsWith('COUNCIL_') || message?.payload?.administrativeInstruction===true;
+          const author=String(process.env.COMMENT_AUTHOR??'').trim();
+          if(privileged && actor!=='assistantController' && author!=='github-actions[bot]') throw new Error('PRIVILEGED_MESSAGE_REQUIRES_TRUSTED_RELAY_AUTHOR');
+          message.transportIdentity={
+            provider:'github-actions',
+            actor:author,
+            repository:String(process.env.GITHUB_REPOSITORY??''),
+            runId:String(process.env.GITHUB_RUN_ID??''),
+            sourceCommentId:String(process.env.COMMENT_ID??'')
+          };
           fs.writeFileSync('message.json', JSON.stringify(message, null, 2) + '\\n');
           if (!message.messageId) throw new Error('AGENT_MESSAGE_ID_MISSING');
           process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
@@ -244,7 +305,8 @@ jobs:
             echo "MESSAGE_TARGET_SHA_STALE=$MESSAGE_SHA"
             echo 'status=STALE' >> "$GITHUB_OUTPUT"
           else
-            git checkout --detach "origin/$TARGET_REF"
+            # Never switch the privileged runner to event-controlled execution code.
+            # TARGET_REF is provenance metadata only; executable communication code remains from trusted main.
             echo "target_ref=$TARGET_REF" >> "$GITHUB_OUTPUT"
             echo "status=READY" >> "$GITHUB_OUTPUT"
           fi
@@ -256,11 +318,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           MESSAGE_ID: ${{ steps.message.outputs.MESSAGE_ID }}
+          COUNCIL_PR_NUMBER: ${{ steps.council_ingress.outputs.issue_number }}
         shell: bash
         run: |
           set -euo pipefail
+          case "$COUNCIL_PR_NUMBER" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid canonical PR number'; exit 1 ;;
+          esac
           RECEIPT="<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->"
-          if gh api "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
+          case "$COUNCIL_PR_NUMBER" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid canonical PR number'; exit 1 ;;
+          esac
+          if gh api "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
             echo 'duplicate=true' >> "$GITHUB_OUTPUT"
             echo 'DUPLICATE_AGENT_MESSAGE=NO_OP'
           else
@@ -367,10 +436,14 @@ jobs:
           MESSAGE_SHA: ${{ steps.ingest.outputs.MESSAGE_ENTRY_SHA }}
           MESSAGE_KEY: ${{ steps.ingest.outputs.MESSAGE_IDEMPOTENCY_KEY }}
           INVOCATION_ID: ${{ steps.invocation.outputs.INVOCATION_ID }}
+          COUNCIL_PR_NUMBER: ${{ steps.council_ingress.outputs.issue_number }}
         run: |
           set -euo pipefail
-          BODY="$(printf '%s\n' "### AGENT MESSAGE RECEIVED" "" "**Message:** $MESSAGE_ID" "**Status:** $MESSAGE_STATUS" "**Entry SHA:** $MESSAGE_SHA" "**Idempotency Key:** $MESSAGE_KEY" "**Invocation:** $INVOCATION_ID" "" "**Receipt:** IMMEDIATE_EVENT_RECEIPT" "**Target ref:** ${{ steps.target.outputs.target_ref }}" "" "The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute." "" "<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->")"
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
+          case "$COUNCIL_PR_NUMBER" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid canonical PR number'; exit 1 ;;
+          esac
+          BODY="$(printf '%s\n' "### AGENT MESSAGE RECEIVED" "" "**Message:** $MESSAGE_ID" "**Status:** $MESSAGE_STATUS" "**Entry SHA:** $MESSAGE_SHA" "**Idempotency Key:** $MESSAGE_KEY" "**Invocation:** $INVOCATION_ID" "" "**Receipt:** IMMEDIATE_EVENT_RECEIPT" "**Target ref:** $TARGET_REF" "" "The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute." "" "<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->")"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$COUNCIL_PR_NUMBER/comments" --raw-field body="$BODY" >/dev/null
 
       - name: Wake repair supervision for repair-class messages
         if: >-
@@ -392,11 +465,11 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s\n' 'MESSAGE_STALE=FAIL_CLOSED' > /tmp/flixo-agent-message-stale.txt
-          printf '%s\n' "ENTRY_SHA=${{ steps.target.outputs.message_sha }}" >> /tmp/flixo-agent-message-stale.txt
+          printf '%s\n' "ENTRY_SHA=$TARGET_MESSAGE_SHA" >> /tmp/flixo-agent-message-stale.txt
 
       - name: Preserve communication evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: flixo-agent-message-${{ github.run_id }}
           path: |

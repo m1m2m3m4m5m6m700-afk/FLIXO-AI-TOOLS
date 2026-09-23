@@ -1,21 +1,27 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import {deriveDifficulty,chooseSwarmSize,planMission,adaptAfterResults} from './swarm-controller.mjs';
-const SHA='a'.repeat(40);
-assert.equal(deriveDifficulty({risk:'LOW',uncertainty:0,evidenceGap:0,conflict:0,historicalDifficulty:0}),'D1');
-assert.equal(deriveDifficulty({risk:'CRITICAL',uncertainty:4,evidenceGap:4,conflict:4,historicalDifficulty:4}),'D5');
-assert.equal(chooseSwarmSize({difficulty:'D1',requestedSize:3}),3);
-assert.equal(chooseSwarmSize({difficulty:'D5',requestedSize:200}),200);
-const plan=planMission({taskId:'SWARM-TEST-001',missionId:'M-001',objective:'validate dynamic swarm',scope:'test/scope',exactSha:SHA,difficulty:'D3',requestedSize:8,requiredCapabilities:['RCA']});
-assert.equal(plan.swarmSize,8);
-assert.equal(plan.assignments.length,8);
-assert.equal(new Set(plan.assignments.map(x=>x.botId)).size,8);
-assert(plan.assignments.every(x=>x.exactSha===SHA&&x.leaseRequired===true&&x.heartbeatRequired===true));
-assert.equal(plan.mutationAuthority,false);
-assert.equal(plan.certificationAuthority,false);
-assert.deepEqual(adaptAfterResults({difficulty:'D3',currentSize:8,agreement:.9,conflict:0,uncertainty:0,evidenceGap:0}),{action:'STOP_FOR_REVIEW',nextSize:8,reason:'STRONG_AGREEMENT'});
-assert.equal(adaptAfterResults({difficulty:'D5',currentSize:50,agreement:.2,conflict:1,uncertainty:2,evidenceGap:0}).nextSize,100);
-assert.equal(adaptAfterResults({difficulty:'D5',currentSize:200,agreement:.4,conflict:1,uncertainty:4,evidenceGap:4}).action,'BLOCK');
+import {loadSwarmRegistry,planSwarm} from './swarm-controller.mjs';
+
+const registry=loadSwarmRegistry();
+assert.equal(registry.status,'RETIRED');
+assert.deepEqual(registry.bots,[]);
+assert.equal(registry.swarmPolicy?.status,'RETIRED');
+assert.equal(registry.swarmPolicy?.registeredBots,0);
+assert.deepEqual(registry.swarmPolicy?.activeRange,[0,0]);
+assert.equal(registry.lifecycle?.automaticReprovisioning,false);
+assert.equal(registry.lifecycle?.reason,'USER_DIRECTIVE');
+assert.equal(registry.executiveCellGovernance?.retired,true);
+assert.equal(registry.executiveCellGovernance?.targetBotCount,0);
+assert.equal(registry.sharedOperationalMemoryContract?.status,'RETIRED');
+assert.equal(registry.sharedOperationalMemoryContract?.distribution?.targetBotCount,0);
+
+const plan=planSwarm();
+assert.deepEqual(plan,{
+  status:'RETIRED',
+  botCount:0,
+  reason:'CELL_POOL_RETIRED_BY_USER_DIRECTIVE',
+});
+
 console.log('SWARM_CONTROLLER=PASS');
-console.log('SWARM_200_IDENTITY_BOUND=PASS');
-console.log('SWARM_ADAPTIVE_SCALING=PASS');
+console.log('SWARM_RETIREMENT=PASS');
+console.log('SWARM_NO_REPROVISION=PASS');

@@ -12,7 +12,19 @@ assert.equal(REPAIR_PROTOCOL.mutationScope,'ERROR_ONLY');
 assert.equal(REPAIR_PROTOCOL.cellLabRequired,true);
 assert.equal(REPAIR_PROTOCOL.cellLabConsensusPath,'diagnostics/agents/cell-lab/consensus/<taskId>.json');
 const targetSHA='a'.repeat(40);
-assert.throws(()=>assertAgentAdmission({actor:'repairAgent',branch:'execution',mutation:true,session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,taskId:'missing-lab'}}),/CELL_LAB_CONSENSUS_REQUIRED/);
+const chairBinding = {
+  required:true,
+  chairId:'chair_1',
+  leaseId:'a'.repeat(64),
+  fencingHash:'b'.repeat(64),
+  holderAgentId:'AUTO_REPAIR_BOT',
+  taskId:'repair-test-task',
+  workPackageId:'repair-test-work-package',
+  targetSha:targetSHA,
+  centralVerified:true,
+  released:false
+};
+assert.throws(()=>assertAgentAdmission({actor:'repairAgent',branch:'execution',mutation:true,session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,taskId:'missing-lab'}}),/REPAIR_PROTOCOL_CHAIR_REQUIRED/);
 
 const cellLabMutationSession = (consensus) => ({
   state:'FAILURE_CAPTURED',
@@ -21,6 +33,7 @@ const cellLabMutationSession = (consensus) => ({
   protocolHash:REPAIR_PROTOCOL_HASH,
   targetSHA,
   taskId:'repair-test-cell-lab-errors',
+  chairBinding,
   cellLabConsensus:consensus,
 });
 
@@ -121,17 +134,37 @@ assert.throws(()=>assertAgentAdmission({actor:'unknownFutureAgent'}),/UNKNOWN_AG
 assert.throws(()=>assertAgentAdmission({actor:'diagnosticAgent',branch:'execution',mutation:true}),/MUTATION_ROLE_BLOCKED/);
 assert.throws(()=>assertAgentAdmission({actor:'taskAgent',branch:'execution',mutation:true}),/MUTATION_ROLE_BLOCKED/);
 assert.throws(()=>assertAgentAdmission({actor:'implementation',branch:'execution',mutation:true}),/MUTATION_ROLE_BLOCKED/);
-assert.throws(()=>assertAgentAdmission({actor:'actionHistorian',branch:'execution',mutation:true,session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task-historian-fail',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,cellLabConsensus:cellLabConsensus('repair-test-task-historian-fail','actionHistorian')}}),/SUPERVISOR_MODE_REQUIRED/);
-assert.equal(assertAgentAdmission({
-  actor:'actionRepairVerifier', branch:'execution', mutation:true,
-  session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,cellLabConsensus:cellLabConsensus('repair-test-task','actionRepairVerifier'),
-    actionVaultMission:{role:'ACTION-REPAIR-2',mutationSeat:'ACTION-REPAIR-2',supervisorMode:'NORMAL_TRIAD',entrySha:targetSHA,targetSha:targetSHA,candidateRepairApproved:true}}
-}).admitted,true);
-assert.equal(assertAgentAdmission({
-  actor:'actionHistorian', branch:'execution', mutation:true,
-  session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task-historian',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,cellLabConsensus:cellLabConsensus('repair-test-task-historian','actionHistorian'),
-    actionVaultMission:{role:'ACTION-HISTORIAN-3',mutationSeat:'ACTION-HISTORIAN-3',supervisorMode:'SUPERVISOR_20',entrySha:targetSHA,targetSha:targetSHA,catalogReviewed:true,bothProgrammingProposalsReviewed:true,supervisorDecision:true}}
-}).admitted,true);
+const priorAutoRepairContext = process.env.FLIXO_AUTO_REPAIR_CONTEXT;
+process.env.FLIXO_AUTO_REPAIR_CONTEXT = 'true';
+try {
+  assert.throws(() => assertAgentAdmission({
+    actor:'actionRepairBot',
+    branch:'execution',
+    mutation:true,
+    session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,taskId:'auto-repair-no-bypass'}
+  }),/REPAIR_PROTOCOL_CHAIR_REQUIRED/);
+} finally {
+  if (priorAutoRepairContext === undefined) delete process.env.FLIXO_AUTO_REPAIR_CONTEXT;
+  else process.env.FLIXO_AUTO_REPAIR_CONTEXT = priorAutoRepairContext;
+}
+assert.throws(() => assertAgentAdmission({
+  actor:'repairAgent',
+  branch:'execution',
+  mutation:true,
+  session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,taskId:'auto-repair-no-chair',cellLabConsensus:cellLabConsensus('auto-repair-no-chair','repairAgent')}
+}),/REPAIR_PROTOCOL_CHAIR_REQUIRED/);
+assert.throws(()=>assertAgentAdmission({
+  actor:'actionHistorian',
+  branch:'execution',
+  mutation:true,
+  session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task-historian',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,chairBinding,cellLabConsensus:cellLabConsensus('repair-test-task-historian','actionHistorian')}
+}),/MUTATION_ROLE_BLOCKED/);
+assert.throws(()=>assertAgentAdmission({
+  actor:'actionRepairVerifier',
+  branch:'execution',
+  mutation:true,
+  session:{state:'FAILURE_CAPTURED',taskId:'repair-test-task',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,chairBinding,cellLabConsensus:cellLabConsensus('repair-test-task','actionRepairVerifier')}
+}),/MUTATION_ROLE_BLOCKED/);
 const actionRepairSession=createRepairSession({repairSessionId:'action-repair-session',actor:'actionRepairBot',failureFingerprint:'action-repair-test',targetSHA,beforeState:{worktree:'clean'}});
 assert.equal(actionRepairSession.actor,'actionRepairBot');
 const completeProof={
@@ -186,6 +219,7 @@ assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifierProof,cogn
 assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifierProof,programmerTwinParity:{intelligenceParity:'MISMATCH',authorityParity:'SEPARATED_BY_DESIGN'}},targetSHA,failureFingerprint:'action-repair-test'}),/PROGRAMMER_TWIN_PARITY_INVALID/);
 const vaultMutationSession={
   ...actionRepairSession,
+  chairBinding,
   state:'FAILURE_CAPTURED',
   actionVaultMission:{role:'ACTION-REPAIR',triadId:'triad-1',messageId:'msg-1',taskId:'task-1',failureFingerprint:'action-repair-test',entrySha:targetSHA,targetSha:targetSHA,ownerAgent:'actionRepairBot',verifierAgent:'actionRepairVerifier',historianAgent:'actionHistorian',programmerTwinParity:{intelligenceParity:'EXACT',authorityParity:'SEPARATED_BY_DESIGN',targetSha:targetSHA},cognitiveAwareness:{protocol:'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1',targetSha:targetSHA,complete:true},sandboxProof:{protocol:'REPAIR_SANDBOX_SIMULATION_V1',status:'PASS',targetSha:targetSHA,failureFingerprint:'action-repair-test',exactShaBound:true,mutationPerformed:false,patchDigest:'digest',regressionCounterexamples:{targetSha:targetSHA,failureFingerprint:'action-repair-test',exhausted:true,counterexampleFound:false}},differentialProof:{protocol:'DIFFERENTIAL_REPAIR_VERIFICATION_V1',status:'PASS',targetSha:targetSHA,executionEvidence:{required:true,receiptCount:1}},patchCorrectnessProof:{status:'PROVEN',targetSha:targetSHA,patchDigest:'digest',mutationPerformed:false,differentialStatus:'PASS'},proofObligations:['proof'],stopConditions:['GREEN'],noBlindRetry:true,diagnosisKnowledgeReview:{protocol:'ACTION-VAULT-DIAGNOSIS-KNOWLEDGE-REVIEW-v1',reviewer:'ACTION-HISTORIAN-3',decision:'MATCH',allowSourceMutation:true,targetSha:targetSHA,fingerprint:'action-repair-test',diagnosisDigest:'a'.repeat(64)},catalogReview:{status:'REVIEWED',reviewer:'ACTION-HISTORIAN-3',beforeMutation:true,mutationAuthority:false,targetSha:targetSHA,fingerprint:'action-repair-test',source:{indexId:'ACTION-INDEX-4000',declaredCapacity:1000000,actualRecordCount:1},digest:'b'.repeat(64)}},
   actionVaultVerifierProof:verifierProof,
@@ -196,9 +230,9 @@ assert.equal(assertAgentAdmission({actor:'actionRepairBot',branch:'execution',mu
 assert.throws(()=>assertAgentAdmission({actor:'actionRepairBot',branch:'execution',mutation:true,session:{...vaultMutationSession,actionVaultVerifierProof:{...verifierProof,status:'CHALLENGE_FAILED'}}}),/CHALLENGE_FAILED/);
 
 assert.equal(assertAgentAdmission({actor:'actionRepairBot',branch:'execution',mutation:false}).admitted,true);
-const actionCaptured=captureFailure(actionRepairSession,{runId:'action-test-run'});
+const actionCaptured={...captureFailure(actionRepairSession,{runId:'action-test-run'}),chairBinding};
 assert.equal(authorizeMutation(actionCaptured).state,'MUTATION_AUTHORIZED');
-const fallbackSession={protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,state:'FAILURE_CAPTURED',taskId:'fallback-task',targetSHA,cellLabConsensus:cellLabConsensus('fallback-task','assistantRepairAgent'),fallback:{actor:'assistantRepairAgent',primaryAgentsUnavailable:true,learnedRule:'known-rule',learnedRuleConfidence:0.95,learnedRuleSupport:2,targetSha:targetSHA}};
+const fallbackSession={protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,state:'FAILURE_CAPTURED',taskId:'fallback-task',targetSHA,chairBinding,cellLabConsensus:cellLabConsensus('fallback-task','assistantRepairAgent'),fallback:{actor:'assistantRepairAgent',primaryAgentsUnavailable:true,learnedRule:'known-rule',learnedRuleConfidence:0.95,learnedRuleSupport:2,targetSha:targetSHA}};
 assert.equal(assertAgentAdmission({actor:'assistantRepairAgent',branch:'execution',mutation:true,session:fallbackSession}).admitted,true);
 assert.throws(()=>assertAgentAdmission({actor:'assistantRepairAgent',branch:'execution',mutation:true,session:{...fallbackSession,fallback:{...fallbackSession.fallback,primaryAgentsUnavailable:false}}}),/FALLBACK_PRIMARY_AGENT_AVAILABLE/);
 assert.throws(()=>assertAgentAdmission({actor:'assistantRepairAgent',branch:'execution',mutation:true,session:{...fallbackSession,fallback:{...fallbackSession.fallback,learnedRuleConfidence:0.89}}}),/FALLBACK_LEARNING_THRESHOLD/);
@@ -207,7 +241,7 @@ const created=createRepairSession({repairSessionId:'test-session',actor:'repairA
 assert.equal(created.state,'PROTOCOL_VALIDATED');
 const captured=captureFailure(created,{runId:'test-run'});
 assert.equal(captured.state,'FAILURE_CAPTURED');
-const authorized=authorizeMutation(captured);
+const authorized=authorizeMutation({...captured,chairBinding});
 assert.equal(authorized.state,'MUTATION_AUTHORIZED');
 const completed=completeRepairSession(authorized,{retestResult:true,resumePoint:'REMAINING_REQUIRED_TESTS',finalVerification:{targetedRetest:true,recurrence:true,regression:true,exactSHA:true}});
 assert.equal(completed.state,'COMMIT_PENDING');

@@ -196,14 +196,14 @@ export const executeExternalAgent = async (config, dispatch, sessionId, fetchImp
   });
   if (!body || typeof body !== 'object') throw new Error('COUNCIL_BRIDGE_EXECUTOR_RESPONSE_INVALID');
   const status = String(body.status ?? 'DONE');
-  if (!['DONE','FAILED'].includes(status)) throw new Error('COUNCIL_BRIDGE_EXECUTOR_STATUS_INVALID');
+  if (!['DONE','FAILED','CONTINUE'].includes(status)) throw new Error('COUNCIL_BRIDGE_EXECUTOR_STATUS_INVALID');
   const evidence=body.evidence&&typeof body.evidence==='object'?body.evidence:{};
   const resultPayload=body.payload&&typeof body.payload==='object'?body.payload:{};
   const validation=validateActionAgentResult({accountId:config.accountId,dispatch,status,payload:resultPayload});
   return {status,evidence:{...evidence,actionAgentValidation:validation},payload:resultPayload};
 };
 
-export function createBridge({ config, fetchImpl = globalThis.fetch, heartbeatMs = 30_000 } = {}) {
+export function createBridge({ config, fetchImpl = globalThis.fetch, heartbeatMs = 60_000 } = {}) {
   if (!config) throw new Error('COUNCIL_BRIDGE_CONFIG_REQUIRED');
   let running = false;
   let stopped = false;
@@ -213,19 +213,50 @@ export function createBridge({ config, fetchImpl = globalThis.fetch, heartbeatMs
   const processOnce = async () => {
     if (running || stopped) return false;
     running = true;
+    let heartbeatFailure = null;
     try {
       const dispatch = await pollDispatch(config, fetchImpl);
       if (!dispatch) return false;
-      const sessionId = randomUUID();
-      await ackDispatch(config, dispatch, sessionId, fetchImpl);
+
+      const dispatchStatus = String(dispatch.status ?? 'LEASED');
+      if (!['LEASED', 'ACKED'].includes(dispatchStatus)) {
+        throw new Error('COUNCIL_BRIDGE_DISPATCH_STATUS_INVALID');
+      }
+
+      // ACK only when this is the first cycle. An ACKED dispatch carries the same
+      // server-side session_id so a restarted bridge can resume the same task.
+      const sessionId = String(dispatch.session_id ?? dispatch.sessionId ?? '').trim() || randomUUID();
+      if (dispatchStatus === 'LEASED') {
+        await ackDispatch(config, dispatch, sessionId, fetchImpl);
+      }
+
+      const sendHeartbeat = async () => {
+        try {
+          await heartbeatDispatch(config, dispatch, sessionId, fetchImpl);
+        } catch (error) {
+          heartbeatFailure = error instanceof Error ? error : new Error(String(error));
+        }
+      };
+
+      // Establish liveness before handing control to the external executor.
+      await sendHeartbeat();
+      if (heartbeatFailure) throw new Error('COUNCIL_BRIDGE_HEARTBEAT_FAILED', { cause: heartbeatFailure });
 
       heartbeatTimer = setInterval(() => {
-        heartbeatDispatch(config, dispatch, sessionId, fetchImpl).catch(() => {});
+        void sendHeartbeat();
       }, heartbeatMs);
       heartbeatTimer.unref?.();
 
       try {
         const result = await executeExternalAgent(config, dispatch, sessionId, fetchImpl);
+        if (heartbeatFailure) {
+          throw new Error('COUNCIL_BRIDGE_HEARTBEAT_FAILED', { cause: heartbeatFailure });
+        }
+
+        // CONTINUE is deliberately non-terminal: leave the dispatch ACKED so the
+        // next poll cycle resumes the same session instead of prematurely completing it.
+        if (result.status === 'CONTINUE') return true;
+
         await completeDispatch(config, dispatch, sessionId, result.status, {
           bridge: 'external-gpt-bridge-v1',
           accountId: config.accountId,
@@ -235,13 +266,15 @@ export function createBridge({ config, fetchImpl = globalThis.fetch, heartbeatMs
         }, result.payload, fetchImpl);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        await completeDispatch(config, dispatch, sessionId, 'FAILED', {
-          bridge: 'external-gpt-bridge-v1',
-          accountId: config.accountId,
-          sessionId,
-          exactSha: exactSha(dispatch.entry_sha ?? dispatch.entrySha),
-          error: message,
-        }, {}, fetchImpl).catch(() => {});
+        if (!heartbeatFailure) {
+          await completeDispatch(config, dispatch, sessionId, 'FAILED', {
+            bridge: 'external-gpt-bridge-v1',
+            accountId: config.accountId,
+            sessionId,
+            exactSha: exactSha(dispatch.entry_sha ?? dispatch.entrySha),
+            error: message,
+          }, {}, fetchImpl).catch(() => {});
+        }
         throw error;
       } finally {
         if (heartbeatTimer) clearInterval(heartbeatTimer);

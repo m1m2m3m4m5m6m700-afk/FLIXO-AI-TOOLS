@@ -6,6 +6,7 @@ const checks = [
   ['agent-protocol', 'npm', ['run', 'validate:agent-protocol']],
   ['prompt-registry', 'npm', ['run', 'validate:prompt-registry']],
   ['prompt-intelligence', 'npm', ['run', 'test:prompt-intelligence']],
+  ['prompt-execution-bot', 'npm', ['run', 'test:prompt-execution-bot']],
   ['agent-coordination', 'npm', ['run', 'validate:agent-coordination']],
   ['code-scout', 'npm', ['run', 'validate:code-scout']],
   ['technical-debt-contract', 'npm', ['run', 'validate:technical-debt-audit']],

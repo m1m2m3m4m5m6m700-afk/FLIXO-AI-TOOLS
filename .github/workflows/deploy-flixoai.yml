@@ -27,10 +27,11 @@ jobs:
   deploy:
     name: Deploy exact SHA to Cloudflare flixoai
     if: >-
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main' &&
-       github.event.workflow_run.event == 'push')
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch') ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.event == 'push'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -46,10 +47,13 @@ jobs:
           test -n "$sha"
           printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v5
+      - name: Checkout trusted default-branch deployment controller
+        uses: actions/checkout@v5
         with:
-          ref: ${{ steps.sha.outputs.sha }}
+          # workflow_run runs from the default branch; leaving ref unset avoids
+          # introducing an explicit checkout reference into a privileged workflow.
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Check deployment SHA is still current main
         id: freshness

@@ -45,7 +45,7 @@ const isExpectedNavigationAbort = (request: { url(): string; failure(): { errorT
   if (failure?.errorText === 'Load request cancelled') {
     try {
       const url = new URL(request.url());
-      if (url.origin === 'http://127.0.0.1:3000' && url.pathname.startsWith('/assets/')) return true;
+      if (url.origin === 'http://127.0.0.1:3000' && (url.pathname === '/flixo-favicon.png' || url.pathname.startsWith('/assets/'))) return true;
     } catch {
       return false;
     }
@@ -105,7 +105,16 @@ async function snapshot(page: Page): Promise<Snapshot> {
 type ConsoleMessageLike = {
   type(): string;
   text(): string;
-  args(): Array<{ jsonValue(): Promise<unknown> }>;
+  args(): Array<{
+    jsonValue(): Promise<unknown>;
+    evaluate<T>(pageFunction: (value: unknown) => T): Promise<T>;
+  }>;
+};
+
+type ConsoleErrorDetails = {
+  name: string;
+  message: string;
+  stack: string;
 };
 
 async function serializeConsoleError(message: ConsoleMessageLike): Promise<string> {
@@ -113,14 +122,31 @@ async function serializeConsoleError(message: ConsoleMessageLike): Promise<strin
   let serializationFailed = false;
   for (const arg of message.args()) {
     try {
+      let errorDetails: ConsoleErrorDetails | null = null;
+      try {
+        errorDetails = await arg.evaluate((value) => {
+          if (!(value instanceof Error)) return null;
+          return {
+            name: value.name || 'Error',
+            message: value.message || '',
+            stack: value.stack || '',
+          };
+        });
+      } catch {
+        // Fall through to the generic JSON serialization below.
+      }
+
+      if (errorDetails) {
+        parts.push(
+          [errorDetails.name, errorDetails.message, errorDetails.stack]
+            .filter(Boolean)
+            .join(': '),
+        );
+        continue;
+      }
+
       const value = await arg.jsonValue();
-      if (value && typeof value === 'object' && 'name' in value) {
-        const errorValue = value as { name?: unknown; message?: unknown; stack?: unknown };
-        const name = typeof errorValue.name === 'string' ? errorValue.name : 'Error';
-        const detail = typeof errorValue.message === 'string' ? errorValue.message : '';
-        const stack = typeof errorValue.stack === 'string' ? errorValue.stack : '';
-        parts.push([name, detail, stack].filter(Boolean).join(': '));
-      } else if (typeof value === 'string') {
+      if (typeof value === 'string') {
         parts.push(value);
       } else if (value !== undefined) {
         try {
@@ -141,7 +167,7 @@ test.describe.configure({ mode: 'parallel' });
 test.setTimeout(60_000);
 
 for (const pathname of routes) {
-  test(`G4 official all-public-route localization/SEO contract — ${pathname}`, async ({ page }) => {
+  test(`G4 official all-public-route localization/SEO contract — ${pathname}`, async ({ page }, testInfo) => {
     const runtimeErrors: string[] = [];
     const consoleErrorPromises: Promise<void>[] = [];
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
@@ -163,6 +189,11 @@ for (const pathname of routes) {
     const locale = pathname.match(new RegExp(`^/(${localeCodes.join('|')})(?:/|$)`, 'u'))?.[1];
     expect(locale, `${pathname} must have a canonical locale prefix`).toBeTruthy();
     const localeCode = locale as (typeof localeCodes)[number];
+    const verifiedPathname = new URL(page.url()).pathname;
+    const verifiedLocale = verifiedPathname.match(new RegExp(`^/(${localeCodes.join('|')})(?:/|$)`, 'u'))?.[1];
+    expect(verifiedPathname, `${pathname} must execute on the requested canonical pathname`).toBe(pathname);
+    expect(verifiedLocale, `${pathname} must execute under its declared locale`).toBe(localeCode);
+    testInfo.annotations.push({ type: 'flixo-verified-locale', description: verifiedLocale });
     const expectedDirection = LOCALE_METADATA[localeCode].direction;
     const family = familyPath(pathname);
 
@@ -187,7 +218,7 @@ for (const pathname of routes) {
     const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
     expect(canonical).toBeTruthy();
     const canonicalUrl = new URL(canonical!, page.url());
-    const productionOrigin = new URL(process.env.VITE_SITE_URL ?? 'https://flixoai.vercel.app').origin;
+    const productionOrigin = new URL('https://flixoai.vercel.app').origin;
     expect(canonicalUrl.protocol).toBe('https:');
     expect(canonicalUrl.origin).toBe(productionOrigin);
     expect(canonicalUrl.pathname).toBe(pathname);

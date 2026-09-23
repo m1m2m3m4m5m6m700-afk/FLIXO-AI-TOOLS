@@ -3,47 +3,42 @@ name: Daily·FLIXO Green Gate
 run-name: Daily·FLIXO Green Gate ${{ github.run_id }}
 
 on:
+  # Privileged observer definitions must not execute from the mutable execution ref.
+  # Execution changes are observed by the watchdog; this trusted controller remains push/schedule/manual only.
   push:
-    branches: [execution]
+    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: '*/5 * * * *'
-  workflow_run:
-    workflows:
-      # Canonical triggers: completed Test System or Auto Repair cycles wake the watcher.
-      # The watcher still inspects every required workflow/check on the exact SHA.
-      - FLIXO Test System
-      - FLIXO Auto Repair Bot
-    types: [completed]
-    branches: [execution, main]
 
 permissions:
   actions: write
-  contents: write
+  contents: read
   checks: read
   pull-requests: read
 
-# Every observation is evidence-bearing and must complete; duplicate wake suppression is handled by the watchdog.
-# The watcher itself never cancels an evidence-bearing observation.
+# Exactly one trusted Green Gate observer is active at a time; the newest invocation supersedes an older observer.
+# The controller re-reads the live execution SHA after admission, so cancellation cannot substitute stale evidence.
 concurrency:
-  group: flixo-continuous-error-watch-${{ github.run_id }}
-  cancel-in-progress: false
+  group: flixo-continuous-error-watch-${{ github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   watch:
     name: Observe, classify, repair-or-block, prove, continue
     if: >-
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.head_branch == 'execution' ||
-      github.event.workflow_run.head_branch == 'main'
+      github.ref == 'refs/heads/main' &&
+      (github.event_name != 'workflow_run' ||
+       github.event.workflow_run.head_branch == 'execution' ||
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
-      - name: Checkout exact execution branch
+      - name: Checkout trusted Green Gate controller source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: execution
+          # The controller runs from the default branch; execution is observed only via GitHub API state.
           fetch-depth: 1
           persist-credentials: false
 
@@ -65,18 +60,36 @@ jobs:
         id: capture
         env:
           GH_TOKEN: ${{ github.token }}
+          WORKFLOW_RUN_IS_MAIN: ${{ github.event.workflow_run.head_branch == 'main' }}
+          WORKFLOW_RUN_IS_EXECUTION: ${{ github.event.workflow_run.head_branch == 'execution' }}
         run: |
           set -euo pipefail
+          case "$WORKFLOW_RUN_IS_MAIN:$WORKFLOW_RUN_IS_EXECUTION" in
+            true:false|false:true|false:false) ;;
+            true:true) echo "FAIL CLOSED: workflow_run cannot be both main and execution."; exit 1 ;;
+            *) echo "FAIL CLOSED: invalid workflow_run branch binding."; exit 1 ;;
+          esac
           mkdir -p /tmp/flixo-watch/logs
           WATCH_BRANCH="execution"
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            WATCH_BRANCH="${{ github.event.workflow_run.head_branch }}"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
+            if [ "$WORKFLOW_RUN_IS_MAIN" = "true" ]; then
+              WATCH_BRANCH="main"
+            elif [ "$WORKFLOW_RUN_IS_EXECUTION" = "true" ]; then
+              WATCH_BRANCH="execution"
+            else
+              echo "Unsupported observer workflow_run branch."
+              exit 1
+            fi
           fi
           case "$WATCH_BRANCH" in
             execution|main) ;;
-            *) echo "Unsupported observer branch: $WATCH_BRANCH"; exit 1 ;;
+            *) echo "Unsupported observer branch."; exit 1 ;;
           esac
-          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/$WATCH_BRANCH" --jq '.sha')"
+          if [ "$WATCH_BRANCH" = "execution" ]; then
+            EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/execution" --jq '.sha')"
+          else
+            EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')"
+          fi
           MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')"
           gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 5 \
             --json number,headRefOid,baseRefOid,url,mergedAt,mergeCommit,isDraft > /tmp/flixo-watch/open-prs.json
@@ -115,7 +128,7 @@ jobs:
             ["Repository Security Baseline"]="repository-security-baseline.yml"
             ["Claude Security Review"]="claude-security-review.yml"
           )
-          MAX_RESIDENCY_POLLS=1
+          MAX_RESIDENCY_POLLS=24
           RESIDENCY_POLL_SECONDS=5
           declare -A RESIDENT_DISPATCHED=()
           for ((poll=1; poll<=MAX_RESIDENCY_POLLS; poll++)); do
@@ -213,6 +226,7 @@ jobs:
               {
                 databaseId: (.databaseId // .id // null),
                 workflowName: (.workflowName // .name // .display_title // ""),
+                workflowPath: (.workflowPath // .path // ""),
                 headSha: (.headSha // .head_sha // ""),
                 headBranch: (.headBranch // .head_branch // ""),
                 status: (.status // ""),
@@ -223,11 +237,13 @@ jobs:
             | map(normalize_run)
           ' /tmp/flixo-watch/workflow-runs.json > /tmp/flixo-watch/workflow-runs.normalized.json
           mv /tmp/flixo-watch/workflow-runs.normalized.json /tmp/flixo-watch/workflow-runs.json
-          jq -e 'type == "array" and all(.[]; (.databaseId != null and .workflowName != "" and (.headSha | test("^[0-9a-f]{40}$")) and .headBranch != "" and .status != "" and (.updatedAt != "")))' /tmp/flixo-watch/workflow-runs.json >/dev/null
+          jq -e 'type == "array" and all(.[]; (.databaseId != null and .workflowName != "" and .workflowPath != "" and (.headSha | test("^[0-9a-f]{40}$")) and .headBranch != "" and .status != "" and (.updatedAt != "")))' /tmp/flixo-watch/workflow-runs.json >/dev/null
 
       - name: Capture failed CI evidence for classification
         env:
           GH_TOKEN: ${{ github.token }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
           jq -r '.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required") | .databaseId' /tmp/flixo-watch/workflow-runs.json > /tmp/flixo-watch/failed-run-ids
@@ -255,6 +271,27 @@ jobs:
               printf 'EVIDENCE_CAPTURE=FAILED\nRUN_ID=%s\n' "$run_id" > "/tmp/flixo-watch/logs/run-$run_id.log"
             fi
           done < /tmp/flixo-watch/failed-check-run-ids
+
+      - name: Capture CodeQL annotation evidence for repair
+        if: steps.capture.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-watch/codeql
+          CODEQL_CHECK_ID="$(jq -r '[.[].check_runs[] | select(.name == "CodeQL") | select(.head_sha == $ENV_SHA)] | sort_by(.completed_at // .started_at // "") | last | .id // empty' --arg ENV_SHA "$(cat /tmp/flixo-watch/execution-sha)" /tmp/flixo-watch/check-runs.json)"
+          if [ -z "$CODEQL_CHECK_ID" ]; then
+            printf '%s\n' '{"status":"MISSING","reason":"CODEQL_CHECK_NOT_FOUND"}' > /tmp/flixo-watch/codeql/annotations.json
+            exit 0
+          fi
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/check-runs/$CODEQL_CHECK_ID/annotations?per_page=100" > /tmp/flixo-watch/codeql/annotations.json
+          jq -e 'type == "array"' /tmp/flixo-watch/codeql/annotations.json >/dev/null
+          jq -r 'flatten | map({path: .path, start_line: .start_line, end_line: .end_line, level: .annotation_level, title: .title, message: .message, raw_details: .raw_details})' /tmp/flixo-watch/codeql/annotations.json > /tmp/flixo-watch/codeql/annotations.normalized.json
+          mv /tmp/flixo-watch/codeql/annotations.normalized.json /tmp/flixo-watch/codeql/annotations.json
+          jq -e 'length >= 0' /tmp/flixo-watch/codeql/annotations.json >/dev/null
+          echo "CODEQL_ANNOTATION_COUNT=$(jq 'length' /tmp/flixo-watch/codeql/annotations.json)"
+          echo "CODEQL_ZERO_ANNOTATIONS_ALLOWED=true"
 
       - name: Build watcher input
         id: build_input
@@ -307,6 +344,25 @@ jobs:
           echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Maintain 24/7 Repair Bot resident pulse
+        if: steps.evaluate.outputs.status != 'GREEN' && steps.capture.outputs.branch == 'execution' && github.event_name != 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(cat /tmp/flixo-watch/execution-sha)"
+          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=execution&per_page=50" | jq '[.workflow_runs[] | select(.path == ".github/workflows/auto-repair.yml")]')"
+          ACTIVE_AUTO_REPAIR="$(printf '%s' "$RUNS" | jq --arg sha "$EXECUTION_SHA" 'map(select((.status == "queued" or .status == "in_progress") and .headSha == $sha)) | length')"
+          if [ "$ACTIVE_AUTO_REPAIR" -gt 0 ]; then
+            echo "RESIDENT_PULSE=ALREADY_BACKED_BY_ACTIVE_AUTO_REPAIR"
+            exit 0
+          fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/auto-repair.yml/dispatches" \
+            -f ref=main \
+            -f 'inputs[resident]=true'
+          echo "RESIDENT_PULSE=DISPATCHED"
+          echo "RESIDENT_PULSE_OWNER=DAILY_FLIXO_GREEN_GATE"
+          echo "RESIDENT_PULSE_INTERVAL=5m"
       - name: Generate comprehensive execution prompts from this visit
         id: generate_prompts
         if: steps.build_input.outcome == 'success'
@@ -343,7 +399,7 @@ jobs:
           retention-days: 14
 
       - name: Dispatch internal repair target under Task Agent authority
-        if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.evaluate.outputs.repair_required == 'true' && steps.capture.outputs.branch == 'execution'
+        if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.evaluate.outputs.repair_required == 'true' && steps.capture.outputs.branch == 'execution' && github.event_name != 'workflow_run'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -439,15 +495,63 @@ jobs:
               ;;
           esac
 
+          CONVERGENCE_GUIDANCE_ARTIFACT_ID=""
+          if [ "$ATTEMPT" -gt 1 ] && [ "$DISPATCH" = true ]; then
+            CONVERGENCE_GUIDANCE_ARTIFACT_ID="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" | jq -r --arg prefix "flixo-auto-repair-$TARGET_RUN_ID-" '.artifacts[] | select(.expired == false and (.name | startswith($prefix))) | [.created_at,.id,.name] | @tsv' | sort -k1,1r | head -n 1 | cut -f2)"
+            case "$CONVERGENCE_GUIDANCE_ARTIFACT_ID" in
+              ''|*[!0-9]*) echo 'FAIL CLOSED: repair attempt >1 requires a prior Auto Repair evidence artifact.'; exit 1 ;;
+            esac
+            mkdir -p /tmp/flixo-dispatch-guidance
+            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$CONVERGENCE_GUIDANCE_ARTIFACT_ID/zip" > /tmp/flixo-dispatch-guidance.zip
+            unzip -o /tmp/flixo-dispatch-guidance.zip -d /tmp/flixo-dispatch-guidance >/dev/null
+            GUIDANCE_JSON="$(find /tmp/flixo-dispatch-guidance -name flixo-postpatch-adversarial.json -type f -print -quit)"
+            test -s "$GUIDANCE_JSON" || { echo 'FAIL CLOSED: prior repair evidence lacks the adversarial counterexample.'; exit 1; }
+            jq -e --arg fp "$FAILURE_FINGERPRINT" --arg sha "$FAILED_SHA" '
+              .schemaVersion == 2
+              and .protocol == "FLIXO-POST-PATCH-ADVERSARIAL-v2"
+              and .falsifierVerdict == "REJECTED_WITH_COUNTER_EXAMPLE"
+              and .passConfirmed == false
+              and .failureFingerprint == $fp
+              and .sourceSha == $sha
+              and (.convergenceDirective != null)' "$GUIDANCE_JSON" >/dev/null || {
+                echo 'FAIL CLOSED: prior counterexample is not causally bound to the current failure SHA/fingerprint.'
+                exit 1
+              }
+            echo "CONVERGENCE_GUIDANCE_ARTIFACT_ID=$CONVERGENCE_GUIDANCE_ARTIFACT_ID"
+          fi
+
           if [ "$DISPATCH" = true ]; then
+            WORK_PACKAGE_ID="REPAIR:$TARGET_RUN_ID:$FAILURE_FINGERPRINT"
+            TASK_ID="ACTION-REPAIR:$TARGET_RUN_ID:$FAILURE_FINGERPRINT"
+            CENTRAL_SESSION_ID="GREEN-GATE:$GITHUB_RUN_ID:$TARGET_RUN_ID"
+            CENTRAL_LEASE_FILE="/tmp/flixo-watch/central-chair-lease.json"
+            node scripts/ci/central-chair-lease.mjs delegate \
+              --actor=assistantController \
+              --holder=AUTO_REPAIR_BOT \
+              --task="$TASK_ID" \
+              --work-package="$WORK_PACKAGE_ID" \
+              --sha="$FAILED_SHA" \
+              --session="$CENTRAL_SESSION_ID" \
+              --lease-seconds=2700 > "$CENTRAL_LEASE_FILE"
+            CENTRAL_LEASE_ID="$(jq -r '.leaseId // empty' "$CENTRAL_LEASE_FILE")"
+            CENTRAL_FENCING_HASH="$(jq -r '.fencingTokenHash // empty' "$CENTRAL_LEASE_FILE")"
+            test -n "$CENTRAL_LEASE_ID"
+            test -n "$CENTRAL_FENCING_HASH"
+            echo "CENTRAL_CHAIR1_DELEGATED=true"
+            echo "CENTRAL_CHAIR1_EXACT_SHA=$FAILED_SHA"
+            echo "CENTRAL_CHAIR1_LEASE_ID=$CENTRAL_LEASE_ID"
+
             gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/auto-repair.yml/dispatches" \
-              -f ref=execution \
+              -f ref=main \
+              -f "inputs[convergence_guidance_artifact_id]=$CONVERGENCE_GUIDANCE_ARTIFACT_ID" \
               -f "inputs[target_run_id]=$TARGET_RUN_ID" \
               -f "inputs[chain_id]=$REPAIR_CHAIN_ID" \
               -f "inputs[failure_fingerprint]=$FAILURE_FINGERPRINT" \
               -f "inputs[repair_lease_ref]=$LEASE_REF" \
               -f "inputs[repair_lease_attempt]=$ATTEMPT" \
-              -f "inputs[prompt_source_run_id]=$GITHUB_RUN_ID"
+              -f "inputs[prompt_source_run_id]=$GITHUB_RUN_ID" \
+              -f "inputs[central_chair_lease_id]=$CENTRAL_LEASE_ID" \
+              -f "inputs[central_chair_fencing_hash]=$CENTRAL_FENCING_HASH"
             echo "REPAIR_LEASE_DISPATCHED=true"
             echo "REPAIR_DISPATCH_TARGET=$TARGET_RUN_ID"
             echo "REPAIR_CHAIN_ID=$REPAIR_CHAIN_ID"
@@ -520,6 +624,44 @@ jobs:
             /tmp/action-vault-green-record.json
           if-no-files-found: error
           retention-days: 90
+      - name: Race-safe final exact-SHA readback
+        if: always() && steps.capture.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          OBSERVED_BRANCH="$(cat /tmp/flixo-watch/observed-branch)"
+          OBSERVED_SHA="$(cat /tmp/flixo-watch/execution-sha)"
+          if [ "$OBSERVED_BRANCH" = "execution" ]; then
+            LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          elif [ "$OBSERVED_BRANCH" = "main" ]; then
+            LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          else
+            echo "FAIL CLOSED: unexpected observed branch."
+            exit 1
+          fi
+          test "$LIVE_SHA" = "$OBSERVED_SHA" || {
+            echo "FAIL CLOSED: observed branch advanced before evidence publication: branch=$OBSERVED_BRANCH observed=$OBSERVED_SHA live=$LIVE_SHA"
+            exit 1
+          }
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+          TRUSTED_CONTROLLER_SHA="$(cat /tmp/flixo-watch/main-sha)"
+          test "$CHECKED_OUT_SHA" = "$TRUSTED_CONTROLLER_SHA" || {
+            echo "FAIL CLOSED: checked-out controller SHA $CHECKED_OUT_SHA differs from trusted main SHA $TRUSTED_CONTROLLER_SHA"
+            exit 1
+          }
+          echo "TRUSTED_CONTROLLER_SOURCE_SHA=$TRUSTED_CONTROLLER_SHA"
+          if [ "$OBSERVED_BRANCH" = "execution" ]; then
+            test "$CHECKED_OUT_SHA" != "$OBSERVED_SHA" || {
+              echo "FAIL CLOSED: trusted controller checkout unexpectedly matches execution target SHA"
+              exit 1
+            }
+          fi
+          printf '%s\n' "$OBSERVED_SHA" > /tmp/flixo-watch/final-exact-sha
+          printf '%s\n' "$OBSERVED_BRANCH" > /tmp/flixo-watch/final-observed-branch
+          echo "FINAL_EXACT_SHA_READBACK=PASS sha=$OBSERVED_SHA branch=$OBSERVED_BRANCH"
+
       - name: Publish cycle evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -540,6 +682,8 @@ jobs:
             /tmp/flixo-watch/repair-control-plane.json
             /tmp/flixo-watch/lease-claim.json
             /tmp/flixo-watch/lease-recovery.json
+            /tmp/flixo-watch/final-exact-sha
+            /tmp/flixo-watch/final-observed-branch
           if-no-files-found: warn
           retention-days: 14
 

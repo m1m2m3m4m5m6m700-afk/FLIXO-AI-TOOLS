@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "FLIXO-MASTER-REPAIR-20X-TRUST-CONTRACT-v1",
+  "mission": "Fail-closed proof reducer for Master Repair",
+  "defaultTrust": "UNTRUSTED",
+  "topology": {
+    "repair": "execution",
+    "publication": "execution→main",
+    "thirdBranch": false
+  },
+  "rules": [
+    "FORMAL_REPAIR_CONTRACT",
+    "PROOF_CARRYING_PATCH",
+    "INDEPENDENT_REBUILD",
+    "DUAL_DIAGNOSIS",
+    "DIFFERENTIAL_REPAIR_VERIFICATION",
+    "NEGATIVE_PROOF_ENGINE",
+    "HISTORICAL_REPLAY",
+    "MUTATION_TESTING",
+    "MEMORY_POISONING_DEFENSE",
+    "EVIDENCE_FRESHNESS",
+    "PROOF_NON_REPLAYABILITY",
+    "RACE_DETECTOR",
+    "IMMUTABLE_EVIDENCE_CHAIN",
+    "AUTHORITY_SEPARATION",
+    "PLATFORM_ENFORCEMENT",
+    "CANARY_PUBLICATION",
+    "AUTOMATIC_ROLLBACK_PROOF",
+    "FAILURE_TAXONOMY",
+    "SELF_CONTRADICTION_DETECTOR",
+    "NO_IMPLICIT_TRUST"
+  ],
+  "twoOfThree": {
+    "authorities": [
+      "INDEPENDENT_VERIFIER",
+      "ADVERSARIAL_FALSIFIER",
+      "CHAIR_1_AUTHORITY"
+    ],
+    "minimum": 2,
+    "chairRequired": true,
+    "distinctActorsRequired": true
+  },
+  "closure": "CANONICAL_GREEN_AND_CERTIFICATION_ONLY",
+  "publication": "TRUSTED_FOR_PUBLICATION_IS_NOT_GREEN",
+  "learning": "PROMOTE_ONLY_AFTER_CANONICAL_GREEN_AND_CERTIFICATION"
+}

@@ -3,19 +3,13 @@ import { useMemo, useState } from 'react';
 import { SmartCommandPalette } from '../components/SmartCommandPalette';
 import { FlixoLogoImage } from '../components/FlixoLogoImage';
 import { FlixoHeroWorkspace } from '../components/home/FlixoHeroWorkspace';
-import { ArHomeToolsSection } from '../components/ar-home-tools-section';
+import { ArHomeToolsSection, type ToolCard } from '../components/ar-home-tools-section';
 import { TOOLS_REGISTRY } from '../config/tools';
 import { getBestToolIntent } from '../lib/intent-router';
 import { getToolCategories, filterTools } from '../lib/ar-home-search';
 import { recommendImageTool } from '../lib/ar-home-recommendation';
 import { HOME_AR } from '../data/home-i18n';
 
-type ToolCard = {
-  title: string;
-  description: string;
-  category: 'Images' | 'AI' | 'Other';
-  path: string;
-};
 
 type LocalizableTool = {
   id: string;
@@ -63,7 +57,7 @@ export function ArHomePage() {
           copy={{
             badge: HOME_AR.badge,
             eyebrow: HOME_AR.eyebrow,
-            title: HOME_AR.heroTitle.replace(/<[^>]+>/g, ''),
+            title: HOME_AR.heroTitle.replaceAll('<', '').replaceAll('>', ''),
             lead: HOME_AR.heroLead,
             describe: HOME_AR.describe,
             workspace: 'مساحة عمل FLIXO الأساسية',

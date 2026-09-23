@@ -1,0 +1,574 @@
+#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+
+export const CANONICAL_LANE = 'execution';
+export const CONSOLIDATION_PROTOCOL = 'FLIXO-CANONICAL-LANE-CONSOLIDATION-v1';
+
+const SHA_RE = /^[0-9a-f]{40}$/iu;
+const HASH_RE = /^[0-9a-f]{64}$/iu;
+
+const digest = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex');
+
+function clean(value) {
+  return String(value ?? '').trim();
+}
+
+function normalizeFiles(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map(clean).filter(Boolean))].sort();
+}
+
+function normalizeCommit(commit) {
+  const c = commit && typeof commit === 'object' ? commit : {};
+  const sha = clean(c.sha);
+  if (!SHA_RE.test(sha)) throw new Error('CANONICAL_LANE_COMMIT_SHA_INVALID');
+  const parents = Array.isArray(c.parents) ? c.parents.map(clean).filter(Boolean) : [];
+  if (parents.some((parent) => !SHA_RE.test(parent))) throw new Error('CANONICAL_LANE_COMMIT_PARENT_INVALID');
+  return Object.freeze({
+    sha,
+    parents: [...new Set(parents)],
+    changedFiles: normalizeFiles(c.changedFiles),
+    patchSha256: c.patchSha256 == null ? null : clean(c.patchSha256),
+    message: clean(c.message),
+  });
+}
+
+export function normalizePushPacket(packet, index = 0) {
+  if (!packet || typeof packet !== 'object' || Array.isArray(packet)) {
+    throw new Error('CANONICAL_LANE_PACKET_INVALID');
+  }
+  const agentId = clean(packet.agentId ?? packet.agent ?? `AGENT-${index + 1}`);
+  const sourceSha = clean(packet.sourceSha ?? packet.headSha);
+  const baseSha = clean(packet.baseSha ?? packet.parentSha ?? packet.entrySha);
+  if (!agentId) throw new Error('CANONICAL_LANE_AGENT_REQUIRED');
+  if (!SHA_RE.test(sourceSha)) throw new Error('CANONICAL_LANE_SOURCE_SHA_INVALID');
+  if (!SHA_RE.test(baseSha)) throw new Error('CANONICAL_LANE_BASE_SHA_INVALID');
+
+  const commits = Array.isArray(packet.commits) && packet.commits.length
+    ? packet.commits.map(normalizeCommit)
+    : [Object.freeze({
+      sha: sourceSha,
+      parents: [baseSha],
+      changedFiles: normalizeFiles(packet.changedFiles),
+      patchSha256: packet.patchSha256 == null ? null : clean(packet.patchSha256),
+      message: clean(packet.message),
+    })];
+
+  const changedFiles = normalizeFiles([
+    ...(Array.isArray(packet.changedFiles) ? packet.changedFiles : []),
+    ...commits.flatMap((commit) => commit.changedFiles),
+  ]);
+
+  const packetPatchDigest = clean(packet.patchDigest ?? packet.patchSha256);
+  if (packetPatchDigest && !HASH_RE.test(packetPatchDigest)) throw new Error('CANONICAL_LANE_PACKET_PATCH_DIGEST_INVALID');
+
+  return Object.freeze({
+    packetId: clean(packet.packetId) || `push:${agentId}:${sourceSha.slice(0, 12)}`,
+    agentId,
+    sourceSha,
+    baseSha,
+    branch: clean(packet.branch) || 'agent-supplied',
+    createdAt: clean(packet.createdAt) || null,
+    changedFiles,
+    commits,
+    patchDigest: packetPatchDigest || null,
+    patchDigestDeclared: Boolean(packetPatchDigest),
+    patchText: packet.patchText == null ? null : String(packet.patchText),
+    declaredStatus: clean(packet.status) || 'PUSH_RECEIVED',
+    metadata: packet.metadata && typeof packet.metadata === 'object' ? { ...packet.metadata } : {},
+  });
+}
+
+function ancestryRelation(a, b) {
+  if (a.sourceSha === b.baseSha) return 'A_BEFORE_B';
+  if (b.sourceSha === a.baseSha) return 'B_BEFORE_A';
+  const aParents = new Set(a.commits.flatMap((commit) => commit.parents));
+  const bParents = new Set(b.commits.flatMap((commit) => commit.parents));
+  if (aParents.has(b.sourceSha)) return 'B_BEFORE_A';
+  if (bParents.has(a.sourceSha)) return 'A_BEFORE_B';
+  return 'UNRESOLVED';
+}
+
+function duplicateRelation(a, b) {
+  if (a.sourceSha === b.sourceSha) return true;
+  const aCommits = new Set(a.commits.map((commit) => commit.sha));
+  return b.commits.some((commit) => aCommits.has(commit.sha));
+}
+
+const MAX_DIFF_CHARS = 1000000;
+const CONTEXT_RADIUS = 1;
+
+function parsePatchHunks(diffText) {
+  const text = clean(diffText);
+  if (!text) return { status: 'PATCH_UNAVAILABLE', files: {}, hunks: [] };
+  if (text.length > MAX_DIFF_CHARS) return { status: 'PATCH_TOO_LARGE', files: {}, hunks: [] };
+
+  const files = {};
+  const hunks = [];
+  let currentFile = null;
+  let currentHunk = null;
+
+  const finishHunk = () => {
+    if (!currentHunk) return;
+    currentHunk.contentDigest = digest(currentHunk.lines.join('\n'));
+    currentHunk.changedLineCount = currentHunk.lines.filter((line) => /^[+-][^+-]/u.test(line)).length;
+    hunks.push(Object.freeze({ ...currentHunk }));
+    currentHunk = null;
+  };
+
+  for (const line of text.split(/\r?\n/u)) {
+    if (line.startsWith('diff --git ')) {
+      finishHunk();
+      currentFile = null;
+      continue;
+    }
+    if (line.startsWith('+++ ')) {
+      finishHunk();
+      const value = line.slice(4).trim();
+      if (value === '/dev/null') {
+        currentFile = null;
+      } else {
+        currentFile = value.startsWith('b/') ? value.slice(2) : value;
+        files[currentFile] ??= [];
+      }
+      continue;
+    }
+    const match = line.match(/^@@ -([0-9]+)(?:,([0-9]+))? \+([0-9]+)(?:,([0-9]+))? @@/u);
+    if (match && currentFile) {
+      finishHunk();
+      const oldStart = Number(match[1]);
+      const oldCount = Number(match[2] ?? 1);
+      const newStart = Number(match[3]);
+      const newCount = Number(match[4] ?? 1);
+      currentHunk = {
+        file: currentFile,
+        oldStart,
+        oldCount,
+        newStart,
+        newCount,
+        rangeStart: Math.max(1, newStart - CONTEXT_RADIUS),
+        rangeEnd: newStart + Math.max(newCount, 1) + CONTEXT_RADIUS,
+        lines: [],
+      };
+      files[currentFile].push(currentHunk);
+      continue;
+    }
+    if (currentHunk) currentHunk.lines.push(line);
+  }
+  finishHunk();
+
+  const normalizedFiles = {};
+  for (const [file, fileHunks] of Object.entries(files)) {
+    normalizedFiles[file] = fileHunks.map((hunk) => ({
+      oldStart: hunk.oldStart,
+      oldCount: hunk.oldCount,
+      newStart: hunk.newStart,
+      newCount: hunk.newCount,
+      rangeStart: hunk.rangeStart,
+      rangeEnd: hunk.rangeEnd,
+      contentDigest: hunk.contentDigest,
+      changedLineCount: hunk.changedLineCount,
+    }));
+  }
+  return { status: hunks.length ? 'PARSED' : 'NO_HUNKS', files: normalizedFiles, hunks };
+}
+
+const syntheticFixturesAllowed =
+  process.env.NODE_ENV === 'test' &&
+  process.env.FLIXO_CANONICAL_LANE_SYNTHETIC_FIXTURES === 'true';
+
+function gitPatch(packet, root = process.cwd()) {
+  try {
+    const diff = execFileSync('git', ['diff', '--unified=3', packet.baseSha, packet.sourceSha], {
+      cwd: root,
+      encoding: 'utf8',
+      maxBuffer: MAX_DIFF_CHARS + 1024,
+    });
+    return { ...parsePatchHunks(diff), rawDigest: digest(diff) };
+  } catch {
+    return { status: 'PATCH_UNAVAILABLE', files: {}, hunks: [] };
+  }
+}
+
+function verifyPacketPatchIntegrity(packet, root = process.cwd()) {
+  const actual = gitPatch(packet, root);
+  if (actual.status === 'PATCH_UNAVAILABLE') {
+    if (syntheticFixturesAllowed && packet.patchText != null) {
+      return { status: 'SYNTHETIC_TEST_FIXTURE', patch: parsePatchHunks(packet.patchText) };
+    }
+    return actual;
+  }
+  if (packet.patchDigestDeclared && packet.patchDigest !== actual.rawDigest) {
+    return { status: 'PATCH_DIGEST_MISMATCH', reason: 'PACKET_PATCH_DIGEST_MISMATCH', patch: actual };
+  }
+  for (const commit of packet.commits) {
+    if (!commit.patchSha256) continue;
+    if (!HASH_RE.test(commit.patchSha256)) return { status: 'PATCH_DIGEST_INVALID', reason: 'COMMIT_PATCH_DIGEST_INVALID', patch: actual };
+    const parent = commit.parents[0];
+    try {
+      const commitDiff = execFileSync('git', ['diff', '--binary', parent, commit.sha], { cwd: root, encoding: 'utf8', maxBuffer: MAX_DIFF_CHARS + 1024 });
+      if (digest(commitDiff) !== commit.patchSha256) return { status: 'PATCH_DIGEST_MISMATCH', reason: 'COMMIT_PATCH_DIGEST_MISMATCH', patch: actual };
+    } catch {
+      return { status: 'PATCH_UNAVAILABLE', reason: 'COMMIT_PATCH_GIT_LOOKUP_FAILED', patch: actual };
+    }
+  }
+  return { status: 'VERIFIED', patch: actual };
+}
+
+function rangeOverlap(a, b) {
+  return Math.max(a.rangeStart, b.rangeStart) < Math.min(a.rangeEnd, b.rangeEnd);
+}
+
+function semanticFileReconciliation(aHunks, bHunks) {
+  if (!aHunks?.length || !bHunks?.length) {
+    return { status: 'PATCH_EVIDENCE_UNAVAILABLE', compatible: false, reason: 'PATCH_EVIDENCE_UNAVAILABLE' };
+  }
+  const pairs = [];
+  let conflict = false;
+  for (const a of aHunks) {
+    for (const b of bHunks) {
+      if (!rangeOverlap(a, b)) continue;
+      pairs.push({ aDigest: a.contentDigest, bDigest: b.contentDigest, rangeA: [a.rangeStart, a.rangeEnd], rangeB: [b.rangeStart, b.rangeEnd] });
+      if (a.contentDigest !== b.contentDigest) conflict = true;
+    }
+  }
+  if (conflict) {
+    return {
+      status: 'TRUE_HUNK_CONFLICT',
+      compatible: false,
+      reason: 'TRUE_HUNK_CONFLICT',
+      overlappingHunks: pairs,
+    };
+  }
+  if (pairs.length) {
+    return {
+      status: 'IDENTICAL_OVERLAPPING_HUNKS',
+      compatible: true,
+      reason: 'IDENTICAL_OVERLAPPING_HUNKS',
+      overlappingHunks: pairs,
+    };
+  }
+  return {
+    status: 'NON_OVERLAPPING_HUNKS',
+    compatible: true,
+    reason: 'NON_OVERLAPPING_HUNKS',
+    overlappingHunks: [],
+  };
+}
+
+function semanticReconcilePackets(a, b, root = process.cwd()) {
+  const commonFiles = overlap(a, b);
+  if (!commonFiles.length) {
+    return { status: 'DISJOINT_FILES', compatible: true, files: [], conflicts: [] };
+  }
+
+  const aIntegrity = verifyPacketPatchIntegrity(a, root);
+  const bIntegrity = verifyPacketPatchIntegrity(b, root);
+  if (!['VERIFIED', 'SYNTHETIC_TEST_FIXTURE'].includes(aIntegrity.status) ||
+      !['VERIFIED', 'SYNTHETIC_TEST_FIXTURE'].includes(bIntegrity.status)) {
+    return {
+      status: 'PATCH_INTEGRITY_BLOCKED',
+      compatible: false,
+      files: commonFiles.map((file) => ({
+        file,
+        status: 'PATCH_INTEGRITY_BLOCKED',
+        reason: String(aIntegrity.status) + '/' + String(bIntegrity.status),
+        overlappingHunks: [],
+      })),
+      conflicts: [{ reason: 'PATCH_INTEGRITY_BLOCKED', overlappingHunks: [] }],
+    };
+  }
+  const aPatch = aIntegrity.patch;
+  const bPatch = bIntegrity.patch;
+  const files = [];
+  const conflicts = [];
+
+  for (const file of commonFiles) {
+    const result = semanticFileReconciliation(aPatch.files[file], bPatch.files[file]);
+    files.push({ file, status: result.status, reason: result.reason, overlappingHunks: result.overlappingHunks ?? [] });
+    if (!result.compatible) conflicts.push({ file, reason: result.reason, overlappingHunks: result.overlappingHunks ?? [] });
+  }
+
+  const status = conflicts.length
+    ? 'TRUE_HUNK_CONFLICT'
+    : files.some((x) => x.status === 'PATCH_EVIDENCE_UNAVAILABLE')
+      ? 'SEMANTIC_EVIDENCE_UNAVAILABLE'
+      : files.some((x) => x.status === 'NON_OVERLAPPING_HUNKS' || x.status === 'IDENTICAL_OVERLAPPING_HUNKS')
+        ? 'SEMANTICALLY_RECONCILABLE'
+        : 'OVERLAP_WITHOUT_CLASSIFICATION';
+
+  return { status, compatible: conflicts.length === 0 && !files.some((x) => x.status === 'PATCH_EVIDENCE_UNAVAILABLE'), files, conflicts };
+}
+
+function overlap(a, b) {
+  const aFiles = new Set(a.changedFiles);
+  return b.changedFiles.filter((file) => aFiles.has(file));
+}
+
+function conflictReason(a, b, overlappingFiles, root = process.cwd()) {
+  if (duplicateRelation(a, b)) return { reason: 'DUPLICATE_COMMIT_OR_PUSH', semantic: null };
+  if (!overlappingFiles.length) {
+    if (a.baseSha === b.baseSha) return { reason: null, semantic: { status: 'DISJOINT_FILES', compatible: true } };
+    const relation = ancestryRelation(a, b);
+    return {
+      reason: relation === 'UNRESOLVED' ? 'UNRESOLVED_BRANCH_DIVERGENCE' : null,
+      semantic: { status: 'DISJOINT_FILES', compatible: relation !== 'UNRESOLVED' },
+    };
+  }
+  const semantic = semanticReconcilePackets(a, b, root);
+  return {
+    reason: semantic.compatible ? null : semantic.status,
+    semantic,
+  };
+}
+
+function comparePackets(a, b) {
+  const relation = ancestryRelation(a, b);
+  if (relation === 'A_BEFORE_B') return -1;
+  if (relation === 'B_BEFORE_A') return 1;
+  const timeA = a.createdAt ? Date.parse(a.createdAt) : Number.POSITIVE_INFINITY;
+  const timeB = b.createdAt ? Date.parse(b.createdAt) : Number.POSITIVE_INFINITY;
+  if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) return timeA - timeB;
+  return a.packetId.localeCompare(b.packetId);
+}
+
+export function buildCanonicalLaneConsolidation({
+  currentHead,
+  targetBranch = CANONICAL_LANE,
+  packets = [],
+  expectedParent = currentHead,
+} = {}) {
+  const head = clean(currentHead);
+  if (!SHA_RE.test(head)) throw new Error('CANONICAL_LANE_CURRENT_HEAD_INVALID');
+  if (targetBranch !== CANONICAL_LANE) throw new Error('CANONICAL_LANE_TARGET_BRANCH_INVALID');
+  if (!SHA_RE.test(clean(expectedParent))) throw new Error('CANONICAL_LANE_EXPECTED_PARENT_INVALID');
+
+  const normalized = packets.map((packet, index) => normalizePushPacket(packet, index));
+  const deduped = [];
+  const duplicatePacketIds = [];
+  for (const packet of normalized) {
+    const duplicate = deduped.find((candidate) => duplicateRelation(candidate, packet));
+    if (duplicate) duplicatePacketIds.push(packet.packetId);
+    else deduped.push(packet);
+  }
+
+  const conflicts = [];
+  const reconciliation = [];
+  for (let i = 0; i < deduped.length; i += 1) {
+    for (let j = i + 1; j < deduped.length; j += 1) {
+      const a = deduped[i];
+      const b = deduped[j];
+      const files = overlap(a, b);
+      const result = conflictReason(a, b, files, process.cwd());
+      reconciliation.push({
+        packetIds: [a.packetId, b.packetId],
+        agents: [a.agentId, b.agentId],
+        changedFiles: files,
+        relation: ancestryRelation(a, b),
+        semanticStatus: result.semantic?.status ?? (result.reason ? 'CONFLICT' : 'NO_OVERLAP'),
+        semanticFiles: result.semantic?.files ?? [],
+      });
+      if (result.reason) {
+        conflicts.push({
+          type: result.reason,
+          packetIds: [a.packetId, b.packetId],
+          agents: [a.agentId, b.agentId],
+          changedFiles: files,
+          relation: ancestryRelation(a, b),
+          semantic: result.semantic ?? null,
+        });
+      }
+    }
+  }
+
+  const orderedPackets = [...deduped].sort(comparePackets);
+  const sourceHeadSet = new Set(orderedPackets.map((packet) => packet.sourceSha));
+  const stalePackets = orderedPackets
+    .filter((packet) => packet.sourceSha === head || packet.baseSha === head ? false : !sourceHeadSet.has(packet.baseSha))
+    .filter((packet) => packet.baseSha !== head);
+
+  const status = conflicts.length
+    ? 'BLOCKED_CONFLICT'
+    : stalePackets.length
+      ? 'BLOCKED_STALE_OR_UNJOINED_PACKET'
+      : 'READY_FOR_CANONICAL_CONSOLIDATION';
+
+  const requiredEvidence = [
+    'CURRENT_EXECUTION_HEAD',
+    'AGENT_PACKET_IDENTITY',
+    'COMMIT_IDENTITY',
+    'DUPLICATE_DEDUPLICATION',
+    'FILE_SCOPE_OVERLAP_ANALYSIS',
+    'SEMANTIC_HUNK_RECONCILIATION',
+    'PATCH_EVIDENCE_OR_FAIL_CLOSED',
+    'ANCESTRY_AND_ORDER_ANALYSIS',
+    'CONFLICT_ANALYSIS',
+    'SINGLE_LANE_BINDING',
+    'EXACT_SHA_REVALIDATION_AFTER_CONSOLIDATION',
+    'CANONICAL_CI_AFTER_NEW_HEAD',
+  ];
+
+  return Object.freeze({
+    protocol: CONSOLIDATION_PROTOCOL,
+    schemaVersion: 1,
+    status,
+    canonicalLane: CANONICAL_LANE,
+    targetBranch: targetBranch,
+    currentHead: head,
+    expectedParent: clean(expectedParent),
+    packetCountReceived: normalized.length,
+    packetCountUnique: deduped.length,
+    duplicatePacketIds,
+    orderedPackets: orderedPackets.map((packet) => ({
+      packetId: packet.packetId,
+      agentId: packet.agentId,
+      sourceSha: packet.sourceSha,
+      baseSha: packet.baseSha,
+      changedFiles: packet.changedFiles,
+      commitCount: packet.commits.length,
+      patchDigest: packet.patchDigest,
+    })),
+    conflicts,
+    semanticReconciliation: reconciliation,
+    stalePackets: stalePackets.map((packet) => ({
+      packetId: packet.packetId,
+      agentId: packet.agentId,
+      sourceSha: packet.sourceSha,
+      baseSha: packet.baseSha,
+    })),
+    integrationDecision: status === 'READY_FOR_CANONICAL_CONSOLIDATION'
+      ? {
+        mode: orderedPackets.length ? 'SEQUENTIAL_CANONICAL_LANE_APPLICATION' : 'NO_PENDING_PUSHES',
+        semanticReconciliationRequired: reconciliation.some((x) => x.semanticStatus === 'SEMANTICALLY_RECONCILABLE' || x.semanticStatus === 'IDENTICAL_OVERLAPPING_HUNKS'),
+        trueConflictsRejected: true,
+        preservesUniquePackets: true,
+        rejectsConflictingPackets: true,
+        targetParent: head,
+        nextStep: orderedPackets.length ? 'APPLY_ONLY_AFTER_EXACT_HEAD_REVALIDATION' : 'WAIT_FOR_PUSH_PACKET',
+      }
+      : {
+        mode: 'FAIL_CLOSED_REVIEW',
+        preservesUniquePackets: true,
+        rejectsConflictingPackets: true,
+        targetParent: head,
+        nextStep: 'ARBITRATE_CONFLICTS_OR_REPAIR_PACKET_PROVENANCE',
+      },
+    requiredEvidence,
+    consolidationDigest: digest(JSON.stringify({
+      status,
+      head,
+      orderedPackets,
+      reconciliation,
+      duplicatePacketIds,
+      conflicts,
+      stalePackets,
+    })),
+  });
+}
+
+export function assertCanonicalLaneConsolidation(plan, currentHead) {
+  if (!plan || plan.protocol !== CONSOLIDATION_PROTOCOL) throw new Error('CANONICAL_LANE_PLAN_INVALID');
+  if (plan.canonicalLane !== CANONICAL_LANE || plan.targetBranch !== CANONICAL_LANE) throw new Error('CANONICAL_LANE_PLAN_BRANCH_INVALID');
+  if (plan.currentHead !== clean(currentHead)) throw new Error('CANONICAL_LANE_PLAN_STALE_HEAD');
+  if (plan.status !== 'READY_FOR_CANONICAL_CONSOLIDATION') throw new Error('CANONICAL_LANE_PLAN_NOT_READY');
+  if (plan.conflicts.length || plan.stalePackets.length) throw new Error('CANONICAL_LANE_PLAN_CONFLICT_OR_STALE');
+  return true;
+}
+
+function readJsonFiles(rootDir) {
+  if (!fs.existsSync(rootDir)) return [];
+  return fs.readdirSync(rootDir)
+    .filter((name) => name.endsWith('.json'))
+    .sort()
+    .map((name) => {
+      try {
+        const file = path.join(rootDir, name);
+        return JSON.parse(fs.readFileSync(file, 'utf8'));
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+}
+
+function isAncestor(sourceSha, currentHead, root = process.cwd()) {
+  if (!SHA_RE.test(String(sourceSha)) || !SHA_RE.test(String(currentHead))) return false;
+  try {
+    execFileSync('git', ['merge-base', '--is-ancestor', sourceSha, currentHead], {
+      cwd: root,
+      stdio: 'ignore',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function collectAccumulatedPushPackets({
+  currentHead,
+  root = process.cwd(),
+  envValue = process.env.FLIXO_ACCUMULATED_PUSH_PACKETS ?? '',
+} = {}) {
+  const candidates = [
+    ...parseAccumulatedPushPackets(envValue),
+    ...readJsonFiles(path.resolve(root, 'diagnostics/guard/inbox'))
+      .filter((report) => report.status === 'PUSH_PENDING' && report.pendingPush === true)
+      .filter((report) => report.candidateSha || report.currentWorkspaceSha)
+      .map((report) => ({
+        packetId: report.reportId,
+        agentId: report.agentId,
+        sourceSha: report.candidateSha ?? report.currentWorkspaceSha,
+        baseSha: report.executionShaAtEntry,
+        changedFiles: report.changedFiles,
+        patchSha256: report.patchSha256,
+        createdAt: report.pendingPushAt ?? report.createdAt,
+        branch: 'agent-guard-pending',
+        metadata: { source: 'GUARD_CHANGE_REPORT', guardStatus: report.status },
+      })),
+    ...readJsonFiles(path.resolve(root, 'diagnostics/agents/handoffs'))
+      .filter((handoff) => handoff.status === 'VERIFIED')
+      .filter((handoff) => handoff.exitSha && handoff.entrySha && Array.isArray(handoff.changedFiles) && handoff.changedFiles.length > 0)
+      .map((handoff) => ({
+        packetId: handoff.reportId ?? `handoff:${handoff.sessionId}`,
+        agentId: handoff.agentId,
+        sourceSha: handoff.exitSha,
+        baseSha: handoff.entrySha,
+        changedFiles: handoff.changedFiles,
+        createdAt: handoff.finishedAt ?? handoff.startedAt,
+        branch: 'agent-handoff',
+        metadata: { source: 'AGENT_HANDOFF', sessionId: handoff.sessionId },
+      })),
+  ];
+
+  const alreadyIntegrated = [];
+  const pending = [];
+  const seen = new Set();
+  for (const packet of candidates) {
+    const sourceSha = clean(packet?.sourceSha ?? packet?.headSha);
+    const packetId = clean(packet?.packetId) || `push:${sourceSha}`;
+    if (!sourceSha || !SHA_RE.test(sourceSha)) continue;
+    if (isAncestor(sourceSha, currentHead, root) || sourceSha === currentHead) {
+      alreadyIntegrated.push(packetId);
+      continue;
+    }
+    const key = `${packetId}:${sourceSha}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    pending.push(packet);
+  }
+  return Object.freeze({
+    packets: pending,
+    alreadyIntegrated: [...new Set(alreadyIntegrated)],
+    candidateCount: candidates.length,
+  });
+}
+
+export function parseAccumulatedPushPackets(value) {
+  if (value == null || value === '') return [];
+  const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+  if (!Array.isArray(parsed)) throw new Error('CANONICAL_LANE_PUSH_PACKETS_MUST_BE_ARRAY');
+  return parsed;
+}

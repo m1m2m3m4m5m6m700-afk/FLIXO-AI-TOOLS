@@ -48,7 +48,7 @@ assert.deepEqual(arabic.payload?.operations, [
 
 const oversize = extractParameters('resize to 5000x5000');
 assert.equal(oversize.success, false);
-assert.match(oversize.errors.join(' '), /"maximum"\s*:\s*4000|maximum 4000|pixel limit|invalid/i);
+assert.match(oversize.errors.join(' '), /canonical schema validation|maximum 4000|pixel limit|invalid/i);
 assert.equal(planFromIntent('resize to 5000x5000'), null);
 
 const missingFormat = extractParameters('convert this image');
@@ -69,8 +69,7 @@ const unboundPlan = safeParseExecutionPlan({
   confidence: 0.9,
   steps: [{ toolId: 'image-compressor', params: { quality: 0.8 } }],
 });
-assert.equal(unboundPlan.success, true);
-if (unboundPlan.success) assert.equal(unboundPlan.data.catalogFingerprint, TOOL_CATALOG.fingerprint);
+assert.equal(unboundPlan.success, false);
 
 const unsupportedParameter = safeParseExecutionPlan({
   workflowName: 'Invalid Parameter',

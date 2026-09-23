@@ -1,16 +1,10 @@
 import type { Locale } from './config';
+import type { ToolCategory } from '../../config/canonical-tool-definition.ts';
+import { localizeToolCategory } from './tool-localization.ts';
 
-type Category = 'Images';
-type TargetLocale = 'ms' | 'uk';
-
-const CATEGORY_LABELS: Record<TargetLocale, Record<Category, string>> = {
-  ms: { Images: 'Imej' },
-  uk: { Images: 'Зображення' },
-};
-
-export function localizeMsUkCategory(locale: Locale, category: Category): string | undefined {
+export function localizeMsUkCategory(locale: Locale, category: ToolCategory): string | undefined {
   if (locale !== 'ms' && locale !== 'uk') return undefined;
-  return CATEGORY_LABELS[locale][category];
+  return localizeToolCategory(locale, category);
 }
 
 export function localizeMsUkDescription(locale: Locale, localizedTitle: string): string | undefined {

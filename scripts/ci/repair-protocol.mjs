@@ -23,13 +23,18 @@ export const REPAIR_PROTOCOL = Object.freeze({
   fallbackMutationPolicy: Object.freeze({ actor: 'assistantRepairAgent', minConfidence: 0.90, minSupport: 2 }),
   mutationRequires: ['protocolVersion','protocolHash','repairSessionId','failureFingerprint','targetSHA','beforeState'],
   completionRequires: ['repairAttempts','retestResult','resumePoint','finalVerification','finalSHA'],
-  protectedPaths: ['scripts/ci/repair-protocol.mjs','scripts/ci/control-plane-registry.mjs','scripts/ci/auto-repair-engine.mjs','scripts/ci/auto-repair-policy.mjs','scripts/ci/agent-execution-control.mjs','.github/workflows/auto-repair.yml','scripts/ci/validate-agent-protocol.mjs','scripts/ci/validate-agent-coordination.mjs'],
-  mutationAgents: ['repairAgent','executionAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier','actionHistorian'],
+  protectedPaths: ['scripts/ci/repair-protocol.mjs','scripts/ci/control-plane-registry.mjs','scripts/ci/auto-repair-engine.mjs','scripts/ci/auto-repair-policy.mjs','scripts/ci/agent-execution-control.mjs','scripts/ci/execution-head-authority.mjs',
+  'scripts/ci/chair1-change-accumulator.mjs',
+  'scripts/ci/guard-communication.mjs',
+  'scripts/ci/agent-isolated-workspace.mjs',
+  'scripts/ci/agent-session.mjs',
+  'scripts/ci/task-agent.mjs','scripts/ci/execution-mutation-gate.mjs','.github/workflows/auto-repair.yml','scripts/ci/validate-agent-protocol.mjs','scripts/ci/validate-agent-coordination.mjs','scripts/ci/chair-bound-execution.mjs','scripts/ci/chair-push-guard.mjs','scripts/ci/auto-repair-chair1-audit.mjs'],
+  mutationAgents: ['repairAgent','executionAgent','assistantRepairAgent','actionRepairBot'],
   allAgents: ['assistantController','MASTER-1','MASTER-2','MASTER-3','analysis','implementation','verification','release','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','diagnosticAgent','actionRepairBot','actionRepairVerifier','actionHistorian'],
   actionVaultRoles: Object.freeze({
     'ACTION-REPAIR': Object.freeze({ actor: 'actionRepairBot', mutation: true }),
-    'ACTION-REPAIR-2': Object.freeze({ actor: 'actionRepairVerifier', mutation: true }),
-    'ACTION-HISTORIAN-3': Object.freeze({ actor: 'actionHistorian', mutation: true }),
+    'ACTION-REPAIR-2': Object.freeze({ actor: 'actionRepairVerifier', mutation: false }),
+    'ACTION-HISTORIAN-3': Object.freeze({ actor: 'actionHistorian', mutation: false }),
   }),
   actionVaultMissionRequires: ['triadId','messageId','taskId','failureFingerprint','entrySha','targetSha','ownerAgent','proofObligations','stopConditions'],
   cellLabRequired: true,
@@ -51,16 +56,35 @@ export function assertProtocolDefinition(){
   if(REPAIR_PROTOCOL.cellLabConsensusPath!=='diagnostics/agents/cell-lab/consensus/<taskId>.json') throw new Error('REPAIR_PROTOCOL_CELL_LAB_PATH_DRIFT');
   if(ACTION_PRIMARY_CORRECTNESS_PROOF!=='ACTION_PRIMARY_CORRECTNESS_PROOF') throw new Error('REPAIR_PROTOCOL_PRIMARY_PROOF_MARKER_DRIFT');
   if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-REPAIR']?.actor!=='actionRepairBot') throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_ROLE_DRIFT');
-  if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-REPAIR-2']?.mutation!==true) throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_2_MUTATION_DRIFT');
-  if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-HISTORIAN-3']?.mutation!==true) throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_MUTATION_DRIFT');
+  if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-REPAIR-2']?.mutation!==false) throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_2_MUTATION_DRIFT');
+  if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-HISTORIAN-3']?.mutation!==false) throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_MUTATION_DRIFT');
   if(JSON.stringify(REPAIR_PROTOCOL.actionVaultMissionRequires)!==JSON.stringify(['triadId','messageId','taskId','failureFingerprint','entrySha','targetSha','ownerAgent','proofObligations','stopConditions'])) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_MISSION_SCHEMA_DRIFT');
   return Object.freeze({protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH});
 }
+const assertChairBoundMutationSession = (actor, session) => {
+  const binding = session?.chairBinding;
+  if (!binding || binding.required !== true) throw new Error('REPAIR_PROTOCOL_CHAIR_REQUIRED');
+  if (String(binding.chairId ?? '') !== 'chair_1') throw new Error('REPAIR_PROTOCOL_CHAIR_INVALID');
+  const lease = String(binding.leaseId ?? '');
+  const uuidLease = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(lease);
+  const hashLease = /^[a-f0-9]{64}$/u.test(lease);
+  if (!uuidLease && !hashLease) throw new Error('REPAIR_PROTOCOL_CHAIR_LEASE_MISSING');
+  if (!/^[a-f0-9]{64}$/u.test(String(binding.fencingHash ?? ''))) throw new Error('REPAIR_PROTOCOL_CHAIR_FENCING_MISSING');
+  if (binding.centralVerified !== true) throw new Error('REPAIR_PROTOCOL_CENTRAL_CHAIR_PROOF_REQUIRED');
+  if (!String(binding.holderAgentId ?? '').trim()) throw new Error('REPAIR_PROTOCOL_CHAIR_HOLDER_MISSING');
+  if (!String(binding.taskId ?? '').trim() || !String(binding.workPackageId ?? '').trim()) throw new Error('REPAIR_PROTOCOL_CHAIR_SCOPE_MISSING');
+  if (binding.released === true) throw new Error('REPAIR_PROTOCOL_CHAIR_RELEASED');
+  if (String(binding.targetSha ?? '') !== String(session.targetSHA ?? '')) throw new Error('REPAIR_PROTOCOL_CHAIR_SHA_MISMATCH');
+  if (String(session.actor ?? actor) !== actor) throw new Error('REPAIR_PROTOCOL_CHAIR_ACTOR_MISMATCH');
+  return Object.freeze({actor,chairId:binding.chairId,leaseId:binding.leaseId,fencingHash:binding.fencingHash,holderAgentId:binding.holderAgentId,taskId:binding.taskId,workPackageId:binding.workPackageId,targetSha:binding.targetSha,centralVerified:true,admitted:true});
+};
+
 export function assertAgentAdmission({actor,branch='execution',mutation=false,session=null}={}){
   const protocol=assertProtocolDefinition();
   if(!REPAIR_PROTOCOL.allAgents.includes(actor)) throw new Error('REPAIR_PROTOCOL_UNKNOWN_AGENT='+actor);
   if(mutation&&!REPAIR_PROTOCOL.mutationAgents.includes(actor)) throw new Error('REPAIR_PROTOCOL_MUTATION_ROLE_BLOCKED='+actor);
-  if(mutation&&branch!=='execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
+  if (mutation) assertChairBoundMutationSession(actor, session);
+  if (mutation&&branch!=='execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
   if(mutation&&REPAIR_PROTOCOL.cellLabRequired){
     const sessionTaskId=String(session?.taskId??'').trim();
     const missionTaskId=String(session?.actionVaultMission?.taskId??'').trim();

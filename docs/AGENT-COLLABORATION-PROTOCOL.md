@@ -21,6 +21,8 @@ Required behavior:
 3. Use the existing `execution → main` integration PR for promotion.
 4. Never solve a conflict by creating a third branch.
 5. Historical branches are evidence only; they are not active work surfaces.
+6. Existing `chair1/*` repair branches are quarantined read-only history and MUST receive no further commits or pushes.
+7. Branch creation is not a valid execution operation; all repair work remains on the current `execution` SHA.
 
 `BRANCH_CREATION_ATTEMPT` is a protocol violation requiring immediate controller review.
 
@@ -271,7 +273,18 @@ READ PROMPT REGISTRY → SEARCH FINGERPRINT → SEARCH RCA → SEARCH LESSONS / 
 
 أي duplicate أو overlap أو conflict غير محلول = PROMPT_REVIEW_REQUIRED.
 
-### Authority separation
+### Chair push-conflict policy
+
+The three chair seats have a strict separation for repository push proposals:
+
+- **Chair-1** is the only chair with source-write admission and final adoption authority.
+- **Chair-2** and **Chair-3** are proposal-only under this chair policy. They may prepare a candidate and submit a signed push proposal to the Chair Push Guard, but they do not source-mutate or publish the candidate.
+- The **Chair Push Guard** checks the proposal against the current exact `execution` SHA, candidate parent, paths/scope and conflict state.
+- A rejected proposal is preserved as reusable **rejected-push memory** containing the proposal identity, exact SHA, candidate, scope, rejection reason and explicit revalidation condition. A later Chair-1 decision must revalidate the current SHA before reuse.
+- **Auto Repair is exempt from the Chair-1/2/3 policy.** It continues to use its own repair lease, execution mutation gate and exact-SHA repair controls; the chair conflict policy must never block or become an authority requirement for Auto Repair.
+
+This policy resolves chair contention only. It does not create a second mutation authority or an alternative repair protocol.
+## Authority separation
 
 Task Agent = preparation / bounded task ownership
 Error Agent = diagnosis
@@ -344,7 +357,7 @@ execution → main → fresh verification on main
 
 ### Council
 
-مصدر الدخول التشغيلي الحالي هو PR #759. Issue #761 ليس activation source.
+مصدر الدخول التشغيلي الحالي هو active execution → main Council ingress (resolved live at runtime). Issue #761 ليس activation source.
 التخطيط عبر scripts/ci/council-wake-dispatch.mjs والـrelay عبر .github/workflows/agent-communication-relay.yml.
 
 ## Central Repair Protocol Invariant
@@ -387,7 +400,7 @@ The repository topology is permanently limited to:
 
 `execution → main`
 
-**No new branch may be created under any circumstance.** This prohibition applies to every agent, automation, workflow, recovery path, test path, handoff path, and human-requested shortcut.
+**No new branch may be created under any circumstance.** This prohibition applies to every agent, automation, workflow, recovery path, test path, handoff path, and human-requested shortcut. Existing chair repair branches are frozen historical artifacts and are not alternate work lanes.
 
 A proposed feature/fix/chore/repair/agent/test/temp/backup/experimental/hotfix/third branch is a hard integrity violation. Stop before creation, preserve evidence, remain on `execution`, and continue through the existing canonical lane.
 
@@ -541,7 +554,7 @@ NOTIFICATION
   → EXECUTE
 ```
 
-The canonical ingress is the active Council conversation at canonical PR #759. Issue #761 is archived and rejected as an activation source. The event-driven adapter is `.github/workflows/agent-communication-relay.yml`, and the President Wake dispatcher is integrated into `.github/workflows/agent-communication-relay.yml`, using `scripts/ci/council-wake-dispatch.mjs` as the deterministic planner. The machine-readable inbox lifecycle is implemented by `scripts/ci/agent-communication.mjs` and consumed by `scripts/ci/agent-session.mjs`.
+The canonical ingress is the active Council conversation at canonical active execution → main Council ingress (resolved live at runtime). Issue #761 is archived and rejected as an activation source. The event-driven adapter is `.github/workflows/agent-communication-relay.yml`, and the President Wake dispatcher is integrated into `.github/workflows/agent-communication-relay.yml`, using `scripts/ci/council-wake-dispatch.mjs` as the deterministic planner. The machine-readable inbox lifecycle is implemented by `scripts/ci/agent-communication.mjs` and consumed by `scripts/ci/agent-session.mjs`.
 
 Message states are:
 
@@ -743,9 +756,9 @@ All three resident bots have intensive repair authority within the bounded Vault
 
 `ACTION-REPAIR`: constructive programmer; may add/edit repair knowledge; may become the single active source-repair owner after admission.
 
-`ACTION-REPAIR-2`: adversarial programmer; may add/edit repair knowledge; must challenge the primary diagnosis and search for counterexamples; may become the single active source-repair owner after admission.
+`ACTION-REPAIR-2`: adversarial programmer and verification-only seat; may add/edit repair knowledge, must challenge the primary diagnosis and search for counterexamples, and may never become a source-mutation owner.
 
-`ACTION-HISTORIAN-3`: master knowledge/index custodian and diagnosis-to-knowledge judge; may ADD and EDIT the canonical Action Vault index; records every RED, attempt, repaired outcome and unresolved failure; decides whether programming diagnosis matches textual knowledge; may become the single active source-repair owner after admission.
+`ACTION-HISTORIAN-3`: master knowledge/index custodian and diagnosis-to-knowledge judge; may ADD and EDIT the canonical Action Vault index; records every RED, attempt, repaired outcome and unresolved failure; decides whether programming diagnosis matches textual knowledge; never owns source mutation.
 
 No Vault bot may mutate `main`, mutate tests for repair purposes, weaken gates, delete historical knowledge, or declare Canonical GREEN.
 
@@ -916,3 +929,14 @@ Machine enforcement:
 
 
 سقف القطاع النشط المتصل 3 ساعات؛ بعده تجديد إجباري بلا نوم أو خمول، مع استمرار المهمة بلا حد زمني إجمالي حتى GREEN. `MASTER_CELL_LAB` يحمل تحديثات الماسترز كل 5 دقائق وتذكير المهام كل 10 دقائق، مع current exact SHA وRCA وremainingWork وnextAction.
+
+## CHAIR-1 — CENTRAL CUSTODY / TEMPORARY DELEGATION
+
+Chair-1 is centrally owned by `assistantController`. Ownership is permanent unless the user directly commands a transfer.
+
+An agent may use Chair-1 only for an assigned bounded task with task/work-package context. Chair-1 may not be preempted, stolen, or reassigned by another Agent/Master/Bot while an active delegation exists.
+
+Task completion or an authorized task release automatically clears the delegate and returns Chair-1 to `assistantController` custody. Session timeout, heartbeat loss, or agent failure does not authorize another agent to take the chair; recovery must preserve or reassign the task through the canonical controller path.
+
+Controller-only reclaim requires an explicit direct-user command marker. Any other reclaim, preemption, ownership change, or delegation-policy mutation is `FAIL_CLOSED`.
+

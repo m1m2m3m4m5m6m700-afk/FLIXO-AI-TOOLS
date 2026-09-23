@@ -40,6 +40,10 @@ on:
         required: false
         default: ''
         type: string
+      identity_proof:
+        description: HMAC proof issued by the trusted CELL runtime for agent/task/sha/request
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -74,12 +78,24 @@ jobs:
           [[ "$AGENT" =~ ^CELL-[0-9]{3}$ ]]
           CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           test "$ENTRY_SHA" = "$CURRENT_SHA"
+          test -n "${IDENTITY_PROOF:-}"
+          export CELL_IDENTITY_KEY="\${{ secrets.FLIXO_CELL_IDENTITY_KEY }}"
+          test -n "\${CELL_IDENTITY_KEY:-}" || { echo 'FAIL CLOSED: FLIXO_CELL_IDENTITY_KEY is required'; exit 1; }
+          EXPECTED_PROOF="$(node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
+          const key=process.env.CELL_IDENTITY_KEY;
+          const payload=[process.env.AGENT,process.env.TASK,process.env.ENTRY_SHA,process.env.REQUEST_ID].join('|');
+          process.stdout.write(crypto.createHmac('sha256',key).update(payload,'utf8').digest('hex'));
+          NODE
+          )"
+          test "$IDENTITY_PROOF" = "$EXPECTED_PROOF" || { echo 'FAIL CLOSED: CELL identity proof mismatch'; exit 1; }
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const x=JSON.parse(fs.readFileSync('docs/agents/CELL-BOT-REGISTRY.json','utf8'));
           const id=process.env.AGENT;
           if(!Array.isArray(x.bots)||!x.bots.some(b=>String(b.id)===id)) throw new Error('CELL_MASTER_UNKNOWN_CELL_AGENT='+id);
           NODE
+          echo 'CELL_IDENTITY=AUTHENTICATED'
 
       - name: Build canonical Master inbox message
         env:
@@ -91,6 +107,7 @@ jobs:
           QUESTION: ${{ inputs.question }}
           OBSTACLE: ${{ inputs.obstacle }}
           EVIDENCE: ${{ inputs.evidence }}
+          IDENTITY_PROOF: ${{ inputs.identity_proof }}
         run: |
           set -euo pipefail
           jq -n             --arg agent "$AGENT"             --arg task "$TASK"             --arg sha "$ENTRY_SHA"             --arg request "$REQUEST_ID"             --arg risk "$RISK"             --arg question "$QUESTION"             --arg obstacle "$OBSTACLE"             --arg evidence "$EVIDENCE"             '{

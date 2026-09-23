@@ -1,6 +1,6 @@
 # 🔁 Agent Session Handoff Report Contract v1
 
-Every completed agent session MUST produce a machine-readable handoff report for the next agent.
+Every completed worker session MUST produce a machine-readable handoff report for Chair 1. The report is a candidate-result handoff, not a branch publication.
 
 Canonical path:
 
@@ -41,3 +41,78 @@ Handoff reports are continuity evidence, not final certification evidence. They 
 
 ## Cycle lessons
 Every completed repair/verification cycle MUST include `cycleLessons`: an ordered list of the cycle's RCA lesson, strategy lesson or anti-lesson, verification lesson, affected-scope lesson when applicable, recurrence/prevention rule, and external-blocker anti-lesson when applicable. `cycleLessons` is continuity/learning evidence only and never authorizes mutation or certification.
+
+
+## Isolated workspace result
+
+Worker sessions operating under `FLIXO-AGENT-ISOLATED-WORKSPACE-v1` MUST include:
+
+- `workspaceResult`
+- `entrySha`
+- `mainShaAtEntry`
+- `executionShaAtEntry`
+- `changedFiles`
+- `patchSha256`
+- `editableBy: CHAIR_1`
+- `publicationAuthority: CHAIR_1`
+
+The worker's `exitSha` is the workspace entry snapshot, not a claim about the current execution head.
+
+A later movement of `execution` MUST NOT invalidate the worker's result. Chair 1 is responsible for reconciling the result against the newest execution/main state.
+
+## Chair-1 preemption handoff
+
+When a worker loses Chair 1 because another authorized master takes the seat, the session does not become abandoned.
+
+The handoff MUST preserve:
+
+- `preemptionContinuity.status = CONTINUING_AFTER_PREEMPTION`
+- original `taskId`
+- original `targetSha`
+- displaced agent identity
+- new Chair-1 holder identity
+- `mutationAuthorityRevoked = true`
+- `canContinueTask = true`
+- `canMutateAfterPreemption = false`
+- `handoffTo = CHAIR_1_GUARD`
+- `remainingWork`
+- `executionPlanNext`
+- `blockers`
+- exact evidence and cycle lessons.
+
+The displaced agent may continue its session and then close with a handoff to the guard. A successor must revalidate the current exact SHA and RCA before applying any inherited change.
+
+## Guard Change Report
+
+Every worker handoff that contains material change information MUST include `guardChangeReport` created by `scripts/ci/guard-communication.mjs`.
+
+The report is a cloned communication envelope dedicated to `CHAIR_1_GUARD` and MUST preserve:
+
+- `reportId`, `idempotencyKey`, `agentId`, `taskId`
+- `entrySha`, `executionShaAtEntry`, `mainShaAtEntry`
+- `changedFiles` and `changeDetails`
+- `patchSha256` and `resultId` when available
+- `resultStatus`, `risk`, `summary`, `evidence`
+- `remainingWork`, `blockers`, `nextActions`
+- `publicationAuthority: CHAIR_1`
+- `editableBy: CHAIR_1`
+
+The guard report is a **receipt and pending-push acknowledgement surface only**. It does not grant mutation authority, merge authority, certification, GREEN, or any content decision.
+
+The worker MUST send the change details inside the push/handoff payload. The guard does not interrogate the worker and does not request additional details.
+
+The guard may only:
+- record receipt;
+- confirm that the change/push is pending;
+- confirm that change details are present inside the report;
+- preserve the complete report exactly as received and make it available to Chair 1.
+
+The guard MUST NOT reject, delete, discard, downgrade, suppress, edit, judge, or filter any substantive worker change.
+
+After acknowledgement, the report MUST carry:
+- `status: PUSH_PENDING`
+- `pendingPush: true`
+- `changeDetailsPresent: true`
+- `guardRole: PUSH_PENDING_ACK_ONLY`
+
+Chair 1 then reads the full report, asks the originating agent any questions it considers necessary, and remains the final and only filter and the only authority that can edit, integrate, combine, remove, upgrade, commit, publish, or decide what reaches canonical execution.

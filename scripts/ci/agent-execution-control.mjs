@@ -4,6 +4,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { assertAgentAdmission } from './repair-protocol.mjs';
+import { buildSharedLearningContext, publishSharedMemory } from './shared-operational-memory.mjs';
 
 const ROOT = process.cwd();
 const OUT = process.env.FLIXO_AGENT_EXECUTION_CONTROL_OUTPUT_DIR ?? path.resolve(ROOT, 'diagnostics/agents/execution-control');
@@ -24,7 +25,7 @@ const MAX_PREPARED_FILES = MAJOR_REPAIR_WAVE ? MAJOR_MAX_PREPARED_FILES : NORMAL
 const MAX_INSPECTED_FILES = MAJOR_REPAIR_WAVE ? MAJOR_MAX_INSPECTED_FILES : NORMAL_MAX_INSPECTED_FILES;
 const SCOPE_POLICY = 'TASK_PREPARATION_ONLY';
 const SCOPE_ENFORCEMENT = 'FAIL_CLOSED';
-const TASK_AGENT_CONTRACT_VERSION = 'TASK-AGENT-PREPARATION-v3';
+const TASK_AGENT_CONTRACT_VERSION = 'TASK-AGENT-PREPARATION-v4-ISOLATED-WORKSPACE';
 const CONTROL_PLANE_MUTATION_POLICY = 'HUMAN_REVIEW_REQUIRED';
 
 const git = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
@@ -33,6 +34,7 @@ const sha = git(['rev-parse','HEAD']);
 const branch = git(['branch','--show-current']);
 const repairProtocolAdmission = assertAgentAdmission({ actor: 'assistantController', branch, mutation: false });
 const fingerprint = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex').slice(0, 16);
+const sharedLearning = buildSharedLearningContext({ botId:'executionAgent', limit:96 });
 
 function readJson(file) { return JSON.parse(fs.readFileSync(file, 'utf8')); }
 function runTaskAgent(taskId = '') {
@@ -118,7 +120,7 @@ function buildPlan({ index, packet }) {
     parallelism: 'ONLY_FOR_INDEPENDENT_ISOLATED_WORK_WITHIN_EXECUTION',
     failClosed: true,
     mainBranchMutation: false,
-    memory: { errorFingerprint: taskFingerprint, fingerprintStable: true, reuseKnownFingerprint: true, repairSummary: packet.repairSummary },
+    memory: { errorFingerprint: taskFingerprint, fingerprintStable: true, reuseKnownFingerprint: true, repairSummary: packet.repairSummary, sharedOperationalMemory: sharedLearning },
     majorChangePolicy: MAJOR_REPAIR_WAVE
       ? 'LARGE_SOURCE_CHANGESET_ALLOWED_WITHIN_ACTIVE_FAILURE_ROOT_CAUSE_AND_PROPORTIONAL_HARDENING;ALL_CANONICAL_GATES_REMAIN_MANDATORY'
       : 'NORMAL_BOUNDED_REPAIR',
@@ -141,4 +143,9 @@ const payload = latestPacket();
 complexityGuard(payload.packet);
 const plan = buildPlan(payload);
 fs.writeFileSync(path.join(OUT, 'latest.json'), `${JSON.stringify(plan, null, 2)}\n`);
+try{
+  publishSharedMemory({sourceBot:'executionAgent',kind:'OPERATION',taskId:plan.taskId,targetSha:plan.baselineSha,claim:'Execution control consumed the canonical six-bot shared operational memory before planning.',content:JSON.stringify({sharedRecordCount:sharedLearning.recordCount,knownErrors:sharedLearning.errors.slice(0,16),obligations:sharedLearning.obligations.slice(0,16),lessons:sharedLearning.lessons.slice(0,16)}),advice:sharedLearning.advice[0]?.advice??null,obligation:sharedLearning.obligations[0]?.obligation??null,verification:'EXECUTION_CONTROL_PLAN',status:'OBSERVED'});
+  if(sharedLearning.advice[0]?.advice) publishSharedMemory({sourceBot:'executionAgent',kind:'ADVICE',taskId:plan.taskId,targetSha:plan.baselineSha,claim:String(sharedLearning.advice[0].advice),content:String(sharedLearning.advice[0].advice),verification:'SHARED_MEMORY_CONSUMPTION',status:'OBSERVED'});
+  if(sharedLearning.obligations[0]?.obligation) publishSharedMemory({sourceBot:'executionAgent',kind:'OBLIGATION',taskId:plan.taskId,targetSha:plan.baselineSha,claim:String(sharedLearning.obligations[0].obligation),content:String(sharedLearning.obligations[0].obligation),verification:'SHARED_MEMORY_CONSUMPTION',status:'OBSERVED'});
+}catch(error){console.warn('SHARED_MEMORY_PUBLISH_WARNING='+String(error?.message??error));}
 console.log(JSON.stringify(plan, null, 2));

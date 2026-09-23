@@ -1,0 +1,84 @@
+name: FLIXO Security Red-Team Triad (Isolated)
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact commit SHA to scan
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flixo-security-red-team-isolated-${{ inputs.expected_sha }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_SHA: ${{ inputs.expected_sha }}
+
+jobs:
+  redteam:
+    name: Isolated Security Red-Team — ${{ matrix.bot }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        bot:
+          - SECURITY-REDTEAM-1
+          - SECURITY-REDTEAM-2
+          - SECURITY-REDTEAM-3
+    steps:
+      - name: Validate exact SHA format
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]] || {
+            echo "INVALID_EXPECTED_SHA"
+            exit 1
+          }
+
+      - name: Checkout exact SHA into ephemeral isolated runner
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Validate isolated red-team contract
+        run: node scripts/ci/test-security-red-team-contract.mjs
+
+      - name: Run full-project red-team scan
+        env:
+          FLIXO_TWIN_READ_ONLY: "true"
+          FLIXO_TWIN_DETACHED: "true"
+          FLIXO_TWIN_VARIANT: "A/B"
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-redteam
+          node scripts/security/security-red-team-runner.mjs             --bot="${{ matrix.bot }}"             --sha="$EXPECTED_SHA"             --output="/tmp/flixo-redteam/${{ matrix.bot }}.json"
+
+      - name: Verify report is local, read-only evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "/tmp/flixo-redteam/${{ matrix.bot }}.json"
+          jq -e             --arg sha "$EXPECTED_SHA"             --arg bot "${{ matrix.bot }}"             '.exactSha == $sha and .botId == $bot and .mutationAuthority == false'             "/tmp/flixo-redteam/${{ matrix.bot }}.json" >/dev/null
+
+      - name: Publish isolated evidence artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-security-red-team-isolated-${{ matrix.bot }}-${{ env.EXPECTED_SHA }}
+          path: /tmp/flixo-redteam/${{ matrix.bot }}.json
+          if-no-files-found: error
+          retention-days: 30

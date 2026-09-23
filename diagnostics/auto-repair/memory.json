@@ -926,7 +926,7 @@
       ],
       "outcomes": [
         {
-          "outcome": "repair-applied",
+          "outcome": "proposed",
           "verification": "targeted-regression-pending",
           "provenance": {
             "source": "FLIXO Auto Repair learning",

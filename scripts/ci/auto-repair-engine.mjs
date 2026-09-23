@@ -23,6 +23,10 @@ import { buildErrorOnlyRepairModel } from './auto-repair/error-only-programmer.m
 import { simulateAstRepair } from './action-repair-sandbox.mjs';
 import { evaluateMutationGate } from './action-vault-mutation-gate.mjs';
 import { reviewCatalogBeforeMutation, reviewDiagnosisAgainstKnowledge } from './action-vault-triad-governor.mjs';
+import { buildRcaManifest, validateRcaManifest, enforceMutationScope } from './in-repo-repair-v2.mjs';
+import { buildFiveXExecutionEnvelope } from './read-only-power-profile.mjs';
+import { buildFiveXRepairCycleState } from './read-only-power-profile.mjs';
+import { buildSharedLearningContext } from './shared-operational-memory.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
@@ -37,6 +41,30 @@ const git = (args, options = {}) => execFileSync('git', ['-C', targetDir, ...arg
 const targetSha = git(['rev-parse', 'HEAD']).trim();
 const protocolBranch = git(['branch', '--show-current']);
 if (protocolBranch !== 'execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
+
+const centralChairTaskId = `ACTION-REPAIR:${String(process.env.TARGET_RUN_ID ?? '').trim() || repairChainId}:${fingerprint}`;
+const centralChairWorkPackageId = `REPAIR:${String(process.env.TARGET_RUN_ID ?? '').trim() || repairChainId}:${fingerprint}`;
+const centralChairLeaseId = String(process.env.FLIXO_CHAIR_LEASE_ID ?? '').trim();
+const centralChairFencingHash = String(process.env.FLIXO_CHAIR_FENCING_HASH ?? '').trim();
+const centralChairHolder = String(process.env.FLIXO_CHAIR_AGENT ?? '').trim() || 'AUTO_REPAIR_BOT';
+
+function bindRepairSessionToCentralChair(session) {
+  if (!['actionRepairBot','repairAgent','assistantRepairAgent','actionRepairVerifier'].includes(repairActor)) return session;
+  if (!centralChairLeaseId || !centralChairFencingHash) throw new Error('REPAIR_PROTOCOL_CENTRAL_CHAIR_CONTEXT_MISSING');
+  execFileSync('node',['scripts/ci/central-chair-lease.mjs','verify','--holder='+centralChairHolder,'--task='+centralChairTaskId,'--work-package='+centralChairWorkPackageId,'--sha='+targetSha,'--lease-id='+centralChairLeaseId,'--fencing-hash='+centralChairFencingHash],{cwd:targetDir,encoding:'utf8'});
+  return Object.freeze({...session,chairBinding:Object.freeze({required:true,chairId:'chair_1',leaseId:centralChairLeaseId,fencingHash:centralChairFencingHash,holderAgentId:centralChairHolder,taskId:centralChairTaskId,workPackageId:centralChairWorkPackageId,targetSha,centralVerified:true,released:false})});
+}
+
+const chair1MissionPath = process.env.FLIXO_CHAIR1_MISSION_PATH ?? '';
+let chair1Mission = null;
+if (process.env.FLIXO_CHAIR1_PRIMARY_MISSION === 'CHAIR1_PRIMARY_TEST_CYCLE_REPAIR') {
+  if (!chair1MissionPath || !fs.existsSync(chair1MissionPath)) throw new Error('CHAIR1_PRIMARY_MISSION_MISSING');
+  chair1Mission = JSON.parse(fs.readFileSync(chair1MissionPath, 'utf8'));
+  if (chair1Mission.mission !== 'CHAIR1_PRIMARY_TEST_CYCLE_REPAIR') throw new Error('CHAIR1_PRIMARY_MISSION_INVALID');
+  if (chair1Mission.targetSha !== targetSha) throw new Error('CHAIR1_PRIMARY_MISSION_SHA_MISMATCH');
+  if (chair1Mission.noMainMutation !== true || chair1Mission.noSelfDispatch !== true) throw new Error('CHAIR1_PRIMARY_MISSION_SAFETY_DRIFT');
+  if (chair1Mission.directRepairPolicy?.requiredDecision !== 'REVALIDATE_CURRENT_SHA_BEFORE_EVERY_MUTATION') throw new Error('CHAIR1_PRIMARY_MISSION_REVALIDATION_MISSING');
+}
 const repairSessionId = process.env.FLIXO_REPAIR_SESSION_ID ?? process.env.FLIXO_REPAIR_CHAIN_ID ?? `repair-${process.env.GITHUB_RUN_ID ?? 'local'}-${targetSha.slice(0, 12)}`;
 const repairActor = process.env.FLIXO_REPAIR_ACTOR ?? 'repairAgent';
 const fallbackProofPath = process.env.FLIXO_ASSISTANT_FALLBACK_PROOF_PATH ?? '';
@@ -120,7 +148,7 @@ const prepareTargetedVerification = (currentLog, currentFeatures) => {
     verificationPlan,
     reason: 'verification-target-not-exact:' + targetIdentity.reason,
   };
-  const reproductionStability = reproduceStable(targetDir, selection.commands, reproduce, { attempts: 3 });
+  const reproductionStability = reproduceStable(targetDir, selection.commands, reproduce, { attempts: 5 });
   return {
     ok: reproductionStability.classification === 'REPRODUCIBLE_FAILURE',
     selection,
@@ -134,6 +162,8 @@ const attemptLedger = loadAttemptLedger(process.env.FLIXO_REPAIR_ATTEMPT_LEDGER 
 const stableCaseFingerprint = String(process.env.FLIXO_FAILURE_FINGERPRINT ?? '').trim() || attemptLedger.caseFingerprint || fingerprint;
 attemptLedger.caseFingerprint = stableCaseFingerprint;
 const memory = loadMemory();
+const sharedBotIdentity = repairActor === 'actionRepairBot' || repairActor === 'repairAgent' ? 'ACTION-REPAIR' : repairActor === 'actionRepairVerifier' ? 'ACTION-REPAIR-2' : repairActor === 'executionAgent' ? 'executionAgent' : 'executionAgent';
+const sharedLearning = buildSharedLearningContext({ fingerprint, botId: sharedBotIdentity, limit: 64 });
 const known = findCase(memory, fingerprint);
 const similar = findSimilarCases(memory, { fingerprint, normalized: normalizedFailure, features });
 const lessons = rankLessons(memory, { fingerprint });
@@ -157,6 +187,7 @@ if ((known?.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint) {
 if (repairPolicy.requireCleanGitBeforeRepair && git(['status', '--porcelain']).trim()) throw new Error('AUTO_REPAIR_DIRTY_WORKTREE');
 
 const historicalReasoningSupport = [
+  ...sharedLearning.lessons.map(item => ({ rootCause: item.rootCause ?? 'shared-memory', confidence: item.status === 'VERIFIED' || item.status === 'PROMOTED' ? 0.9 : 0.6 })),
   ...memory.cases.map(({ rootCause, successes, attempts }) => ({ rootCause, confidence: attempts ? successes / attempts : 0 })),
   ...memory.lessons.map(({ rootCause, confidence }) => ({ rootCause, confidence })),
 ];
@@ -193,6 +224,7 @@ const evidence = {
   actionVault: repairActor === 'actionRepairBot' ? { enabled: true, verifierProofPath: actionVaultVerifierProofPath, verifierProof: actionVaultVerifierProof, verifierAgent: 'actionRepairVerifier', historianAgent: 'actionHistorian' } : null,
   fingerprint,
   targetSha,
+  chair1Mission: chair1Mission ? { mission: chair1Mission.mission, targetSha: chair1Mission.targetSha, comparison: chair1Mission.comparison, directRepairPolicy: chair1Mission.directRepairPolicy } : null,
   features,
   diagnosis,
   specialist,
@@ -208,6 +240,7 @@ const evidence = {
   },
   learning: {
     memoryVersion: memory.version,
+    sharedOperationalMemory: sharedLearning,
     exactCase: Boolean(known),
     similarCases: similar.map(({ case: item, score }) => ({ fingerprint: item.fingerprint, score, rules: item.rules ?? [] })),
     trustedLessons: trustedLessons.map(({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence }) => ({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence })),
@@ -241,6 +274,63 @@ const diagnosisGate = {
   ) || Boolean(plan.inferenceFallback?.prediction?.eligibleForBoundedMutation),
 };
 evidence.diagnosisGate = diagnosisGate;
+
+const repairV2ManifestPath = process.env.FLIXO_RCA_MANIFEST_PATH ?? '/tmp/flixo-rca-manifest.json';
+let repairV2Manifest = null;
+try {
+  repairV2Manifest = buildRcaManifest({
+    targetDir,
+    targetSha,
+    failureFingerprint: fingerprint,
+    failureLog: log,
+    diagnosis,
+    plan,
+    selected,
+    cycle: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1),
+    convergenceGuidancePath: process.env.FLIXO_CONVERGENCE_GUIDANCE_PATH ?? '',
+  });
+  validateRcaManifest(repairV2Manifest, { currentSha: targetSha, requireMutationEligible: true });
+  fs.writeFileSync(repairV2ManifestPath, JSON.stringify(repairV2Manifest, null, 2) + '\n');
+  evidence.repairV2 = {
+    protocol: repairV2Manifest.protocol,
+    manifestPath: repairV2ManifestPath,
+    status: 'RCA_PROVEN',
+    cycle: repairV2Manifest.cycle,
+    primaryCause: repairV2Manifest.root_cause_analysis.primary_cause,
+    hypotheses: repairV2Manifest.root_cause_analysis.alternative_hypotheses,
+    invariant: repairV2Manifest.root_cause_analysis.invariant_violated,
+    affectedBoundary: repairV2Manifest.root_cause_analysis.affected_boundaries[0],
+    evidenceDigest: repairV2Manifest.evidence.evidence_digest,
+  };
+} catch (error) {
+  evidence.outcome = 'proposal-only';
+  evidence.repairV2 = {
+    protocol: 'FLIXO-IN-REPO-REPAIR-V2',
+    status: 'BLOCKED',
+    error: String(error?.message ?? error),
+  };
+  evidence.escalation = {
+    required: true,
+    reason: 'in-repo-repair-v2-gate-blocked',
+    blockedReasons: [String(error?.message ?? error)],
+  };
+  writeEvidence(evidencePath, evidence);
+  recordOutcome(memory, {
+    fingerprint,
+    normalizedFailure,
+    features,
+    rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown',
+    rule: selected?.id,
+    outcome: 'proposed',
+    verification: 'in-repo-repair-v2-blocked',
+    provenance: { targetSha, repairV2: evidence.repairV2 },
+    preventionRule: 'Repair v2 requires deterministic RCA, three hypotheses, a single surgical boundary, and exact-SHA evidence before mutation.',
+  });
+  writeMemory(memory);
+  console.log('AUTO_REPAIR_RESULT=PROPOSAL_ONLY');
+  console.log('AUTO_REPAIR_REASON=in-repo-repair-v2-gate-blocked');
+  process.exit(0);
+}
 
 const actionVaultCatalogReview = reviewCatalogBeforeMutation({ taskId: process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, fingerprint, targetSha, failedRunId: process.env.GITHUB_RUN_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, errorText: log });
 const actionVaultDiagnosisKnowledgeReview = reviewDiagnosisAgainstKnowledge({ taskId: process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, fingerprint, targetSha, failedRunId: process.env.GITHUB_RUN_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId, diagnosis: diagnosis ?? {}, catalogReview: actionVaultCatalogReview });
@@ -291,6 +381,26 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     mainMutation: false,
     gateWeakening: /continue-on-error|test\\.(?:skip|only)|describe\\.(?:skip|only)|eslint-disable|@ts-(?:ignore|nocheck)/iu.test(candidateDiff),
   };
+  const fiveXRepairCycle = buildFiveXRepairCycleState({
+    phase: 'PRE_MUTATION',
+    chainId: repairChainId || repairSessionId,
+    taskId: fiveXTaskId,
+    failureFingerprint: fingerprint,
+    attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1),
+    targetSha,
+    currentSha: git(['rev-parse', 'HEAD']).trim(),
+    failedSha: process.env.FLIXO_FAILURE_SHA || null,
+    strategyId: selected?.id ?? process.env.FLIXO_REPAIR_STRATEGY_ID ?? null,
+    previousCycle: known?.lastFiveXCycle ?? null,
+    learningOutputs: fiveXLearningOutputs,
+    adversarialStatus: programmerTwinReport?.status ?? null,
+    counterexampleFound: programmerTwinReport?.counterexampleFound ?? null,
+    regressionOk: null,
+    regressionDepth: 0,
+    canonicalGreen: false,
+  });
+  evidence.fiveX.cycle = fiveXRepairCycle;
+
   const mutationGate = evaluateMutationGate({
     targetSha,
     currentSha: git(['rev-parse', 'HEAD']).trim(),
@@ -310,6 +420,8 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     diagnosisKnowledgeReview: actionVaultDiagnosisKnowledgeReview,
     mutationScope,
     branch: protocolBranch,
+    fiveXEnvelope,
+    fiveXCycleState: fiveXRepairCycle,
   });
   evidence.mutationGate = mutationGate;
   if (mutationGate.status !== 'PASS') {
@@ -351,6 +463,7 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     process.exit(0);
   }
   repairProtocolSession = authorizeMutation(repairProtocolSession);
+  repairProtocolSession = bindRepairSessionToCentralChair(repairProtocolSession);
   assertAgentAdmission({ actor: repairActor, branch: protocolBranch, mutation: true, session: repairProtocolSession });
   const preparedVerification = prepareTargetedVerification(log, plan.features);
   evidence.reproductionSelection = preparedVerification.selection;
@@ -537,6 +650,7 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
       preventionRule: 'Do not repeat a conflicting historical revert without new evidence.',
     });
     writeMemory(memory);
+    writeEvidence(evidencePath, evidence);
     writeEvidence(evidencePath, evidence);
     process.exit(8);
   }
@@ -737,21 +851,21 @@ const before = snapshot(targetDir);
         differentialProof: sandbox.differentialProof ?? sandbox.differential,
         counterexampleProof: sandbox.regressionCounterexamples,
 
+
         patchCorrectnessProof: sandbox.patchCorrectnessProof,
         preMutationProof,
       },
     });
-    repairProtocolSession = authorizeMutation(repairProtocolSession);
-    assertAgentAdmission({ actor: repairActor, branch: protocolBranch, mutation: true, session: repairProtocolSession });
-  } else {
-    repairProtocolSession = authorizeMutation(repairProtocolSession);
-    assertAgentAdmission({ actor: repairActor, branch: protocolBranch, mutation: true, session: repairProtocolSession });
   }
+  // Mutation authorization is intentionally deferred until the existing hard mutation gate
+  // passes with the mandatory 5X execution envelope.
 
 
 const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
   const plannedChangedPaths = evidence.actionVaultSandbox?.changedFiles ?? preMutationProof.sandboxSimulation?.changedFiles ?? [];
   const candidateDiff = evidence.actionVaultSandbox?.candidateDiff ?? preMutationProof.sandboxSimulation?.candidateDiff ?? '';
+  const repairV2PlannedScope = enforceMutationScope({ manifest: repairV2Manifest, changedPaths: plannedChangedPaths });
+  evidence.repairV2 = { ...(evidence.repairV2 ?? {}), plannedScope: repairV2PlannedScope };
   const mutationScope = {
     changedPaths: plannedChangedPaths,
     selectedFiles: fileSelection?.selectedFiles?.map((item) => item.path).filter(Boolean) ?? [],
@@ -760,6 +874,153 @@ const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
     mainMutation: false,
     gateWeakening: /continue-on-error|test\.(?:skip|only)|describe\.(?:skip|only)|eslint-disable|@ts-(?:ignore|nocheck)/iu.test(candidateDiff),
   };
+
+  const fiveXTaskId = process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId;
+  const fiveXObservationEvidence = [
+    ['TARGET_SHA_VALID', /^[a-f0-9]{40}$/iu.test(targetSha)],
+    ['CURRENT_SHA_EXACT', /^[a-f0-9]{40}$/iu.test(gateCurrentSha) && gateCurrentSha === targetSha],
+    ['EXECUTION_BRANCH', protocolBranch === 'execution'],
+    ['TASK_BOUND', Boolean(fiveXTaskId)],
+    ['FAILURE_FINGERPRINT_BOUND', /^[a-f0-9]{64}$/iu.test(fingerprint)],
+    ['RCA_MANIFEST_PRESENT', Boolean(repairV2Manifest)],
+    ['RCA_EXACT_SHA', repairV2Manifest?.target_sha === targetSha],
+    ['RCA_MINIMUM_HYPOTHESES_10X', Array.isArray(repairV2Manifest?.root_cause_analysis?.alternative_hypotheses) && repairV2Manifest.root_cause_analysis.alternative_hypotheses.length >= 6],
+    ['DIAGNOSIS_PRESENT', Boolean(diagnosis)],
+    ['DIAGNOSIS_STRONG', diagnosis?.diagnosisQuality === 'strong'],
+    ['DIAGNOSIS_CONFIDENCE', Number(diagnosis?.causalConfidence ?? 0) >= 0.75],
+    ['DIAGNOSIS_UNAMBIGUOUS', diagnosis?.ambiguity === false],
+    ['DIRECT_FAILURE_SIGNAL', diagnosis?.directFailureSignal === true],
+    ['PRE_MUTATION_PROVEN', preMutationProof?.status === 'PROVEN'],
+    ['PRE_MUTATION_NO_SOURCE_CHANGE', preMutationProof?.noMutationApplied === true],
+    ['SANDBOX_PROOF', Boolean(preMutationProof?.sandboxSimulation?.status === 'PASS' || preMutationProof?.sandboxSimulation?.status === 'PROVEN' || preMutationProof?.sandboxSimulation?.ok === true)],
+    ['DIFFERENTIAL_PROOF', preMutationProof?.differentialProof?.status === 'PASS'],
+    ['PATCH_CORRECTNESS_PROOF', preMutationProof?.patchCorrectness?.status === 'PROVEN'],
+    ['REGRESSION_COUNTEREXAMPLES_EXHAUSTED', preMutationProof?.regressionCounterexamples?.exhausted === true && preMutationProof?.regressionCounterexamples?.counterexampleFound === false],
+    ['PROGRAMMER_TWIN_PARITY', programmerTwinParity?.intelligenceParity === 'EXACT' && programmerTwinParity?.authorityParity === 'SEPARATED_BY_DESIGN' && programmerTwinParity?.targetSha === targetSha],
+    ['PROGRAMMER_TWIN_FALSIFICATION_DEPTH', Array.isArray(programmerTwinReport?.falsificationSearches) && programmerTwinReport.falsificationSearches.length >= 10],
+    ['PROGRAMMER_TWIN_NO_COUNTEREXAMPLE', programmerTwinReport?.falsificationComplete === true && programmerTwinReport?.counterexampleFound === false],
+    ['COGNITIVE_AWARENESS', cognitiveAwareness?.awarenessCompleteness?.complete === true && cognitiveAwareness?.targetSha === targetSha],
+    ['FILE_SELECTION_BOUND', fileSelection?.decision === 'SELECTED' && fileSelection?.targetSha === targetSha],
+    ['VERIFIER_PROOF_BOUND', actionVaultVerifierProof?.targetSha === targetSha && actionVaultVerifierProof?.failureFingerprint === fingerprint],
+    ['CATALOG_REVIEW_BOUND', evidence.actionVault?.enabled === true || evidence.actionVault != null],
+    ['SURGICAL_SCOPE', repairV2PlannedScope?.status === 'PASS'],
+    ['NO_TEST_MUTATION', mutationScope.testMutation === false],
+    ['NO_CONTROL_PLANE_MUTATION', mutationScope.controlPlaneMutation === false],
+    ['NO_MAIN_MUTATION', mutationScope.mainMutation === false],
+    ['NO_GATE_WEAKENING', mutationScope.gateWeakening === false],
+    ['BASELINE_REPRODUCIBLE', preparedVerification.reproductionStability?.classification === 'REPRODUCIBLE_FAILURE'],
+    ['BASELINE_REGRESSION_DEPTH_5', Number(preparedVerification.reproductionStability?.runs?.length ?? 0) >= 5],
+    ['SCOUT_PRESENT', Boolean(process.env.FLIXO_SCOUT_REPORT_PATH)],
+    ['HISTORICAL_CONTEXT_PRESENT', Boolean(historicalRollbackCandidate)],
+    ['SHARED_LEARNING_PRESENT', Boolean(sharedLearning)],
+    ['ACTION_VAULT_VERIFIER_PRESENT', Boolean(actionVaultVerifierProof)],
+    ['CATALOG_REVIEW_PROVEN', actionVaultCatalogReview?.status === 'REVIEWED'],
+    ['DIAGNOSIS_KNOWLEDGE_MATCH_PROVEN', actionVaultDiagnosisKnowledgeReview?.decision === 'MATCH'],
+    ['RCA_SCOPE_BOUND', repairV2PlannedScope?.status === 'PASS'],
+    ['RCA_EVIDENCE_DIGEST', typeof repairV2Manifest?.evidence?.evidence_digest === 'string' && repairV2Manifest.evidence.evidence_digest.length === 64],
+    ['SELECTED_RULE_BOUND', Boolean(selected?.id)],
+    ['ATTEMPT_LEDGER_BOUND', Boolean(attemptLedger && typeof attemptLedger === 'object')],
+    ['TASK_ID_BOUND', Boolean(fiveXTaskId)],
+    ['RUN_ID_BOUND', Boolean(process.env.TARGET_RUN_ID)],
+    ['FINGERPRINT_64', /^[a-f0-9]{64}$/iu.test(fingerprint)],
+    ['FAILURE_LOG_PRESENT', Boolean(log.trim())],
+    ['NO_MUTATION_PRE_PROOF', preMutationProof?.noMutationApplied === true],
+    ['BRANCH_EXECUTION_10X', protocolBranch === 'execution'],
+    ['CANONICAL_GREEN_NOT_PREMATURE', process.env.FLIXO_CANONICAL_GREEN !== 'true' || Boolean(gateCurrentSha === targetSha)],
+    ['PROGRAMMER_TWIN_SEARCH_DEPTH_10X', Array.isArray(programmerTwinReport?.falsificationSearches) && programmerTwinReport.falsificationSearches.length >= 10],
+    ['MEMORY_VERSION_PRESENT', Boolean(memory?.version)],
+    ['KNOWN_CASE_CONTEXT', Boolean(known)],
+  ];
+  const fiveXOperationCount = fiveXObservationEvidence.filter(([, ok]) => ok === true).length;
+  const fiveXPreExecution25 = Object.freeze({
+    protocol: 'FLIXO-TEN-X-PRE-MUTATION-EVIDENCE-v1',
+    status: fiveXOperationCount >= 50 ? 'PASS' : 'BLOCKED',
+    operationCount: fiveXOperationCount,
+    operationDigest: createHash('sha256').update(JSON.stringify(fiveXObservationEvidence), 'utf8').digest('hex'),
+    targetSha,
+    failureFingerprint: fingerprint,
+    branch: protocolBranch,
+  });
+  const fiveXEvidenceSources = [
+    ['diagnosis', diagnosis],
+    ['repairV2', repairV2Manifest],
+    ['preMutationProof', preMutationProof],
+    ['actionVaultVerifierProof', actionVaultVerifierProof],
+    ['cognitiveAwareness', cognitiveAwareness],
+    ['programmerTwinParity', programmerTwinParity],
+    ['programmerTwinReport', programmerTwinReport],
+    ['fileSelection', fileSelection],
+    ['actionVaultCatalogReview', actionVaultCatalogReview],
+    ['actionVaultDiagnosisKnowledgeReview', actionVaultDiagnosisKnowledgeReview],
+  ].filter(([, value]) => value && typeof value === 'object');
+  const fiveXLearningOutputs = [
+    Boolean(memory?.version),
+    Boolean(reusableKnowledge && typeof reusableKnowledge === 'object'),
+    Array.isArray(plan?.candidates),
+    Boolean(attemptLedger && typeof attemptLedger === 'object'),
+    Boolean(selected?.id ?? plan?.selected?.id),
+    Boolean(known),
+    Boolean(sharedLearning && typeof sharedLearning === 'object'),
+    Boolean(repairV2Manifest?.evidence?.evidence_digest),
+  ].filter(Boolean).length;
+  const fiveXProofClasses = [
+    ['IDENTITY', /^[a-f0-9]{40}$/iu.test(targetSha) && gateCurrentSha === targetSha && protocolBranch === 'execution' && Boolean(fiveXTaskId)],
+    ['CONSTRAINTS', !(mutationScope.testMutation || mutationScope.controlPlaneMutation || mutationScope.mainMutation || mutationScope.gateWeakening) && repairV2PlannedScope?.status === 'PASS'],
+    ['CAUSALITY', diagnosisGate.allowed === true && repairV2Manifest?.evidence?.exact_sha === true],
+    ['FALSIFICATION', programmerTwinReport?.status === 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE' && programmerTwinReport?.counterexampleFound === false],
+    ['REGRESSION', preparedVerification.reproductionStability?.classification === 'REPRODUCIBLE_FAILURE' && Number(preparedVerification.reproductionStability?.runs?.length ?? 0) >= 5],
+    ['DEPENDENCIES', fiveXEvidenceSources.length >= 8],
+    ['SECURITY', mutationScope.testMutation === false && mutationScope.controlPlaneMutation === false && mutationScope.mainMutation === false && mutationScope.gateWeakening === false],
+    ['REPRODUCIBILITY', preparedVerification.reproductionStability?.classification === 'REPRODUCIBLE_FAILURE' && Number(preparedVerification.reproductionStability?.runs?.length ?? 0) >= 5],
+    ['COORDINATION', Boolean(centralChairLeaseId && centralChairFencingHash)],
+    ['LEARNING', fiveXLearningOutputs >= 8],
+  ].filter(([, ok]) => ok).map(([name]) => name);
+  const fiveXAdversarialReview = programmerTwinReport ? {
+    status: programmerTwinReport.status,
+    counterexampleFound: programmerTwinReport.counterexampleFound,
+  } : null;
+  const fiveXEnvelope = buildFiveXExecutionEnvelope({
+    exactSha: targetSha,
+    branch: protocolBranch,
+    selectedTaskId: fiveXTaskId,
+    hypothesisCount: repairV2Manifest?.root_cause_analysis?.alternative_hypotheses?.length ?? 0,
+    counterexampleChecks: programmerTwinReport?.falsificationSearches?.length ?? 0,
+    regressionDepth: Number(preparedVerification.reproductionStability?.runs?.length ?? 0),
+    independentEvidenceSources: fiveXEvidenceSources.length,
+    learningOutputs: fiveXLearningOutputs,
+    proofClasses: fiveXProofClasses,
+    preExecution25: fiveXPreExecution25,
+    adversarialReview: fiveXAdversarialReview,
+    scopeConflict: Boolean(mutationScope.testMutation || mutationScope.controlPlaneMutation || mutationScope.mainMutation || mutationScope.gateWeakening || repairV2PlannedScope?.status !== 'PASS'),
+  });
+  evidence.fiveX = {
+    envelope: fiveXEnvelope,
+    preExecution25: fiveXPreExecution25,
+    evidenceSources: fiveXEvidenceSources.map(([id]) => id),
+    learningOutputs: fiveXLearningOutputs,
+    proofClasses: fiveXProofClasses,
+  };
+
+  const fiveXRepairCycle = buildFiveXRepairCycleState({
+    phase: 'PRE_MUTATION',
+    chainId: repairChainId || repairSessionId,
+    taskId: fiveXTaskId,
+    failureFingerprint: fingerprint,
+    attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1),
+    targetSha,
+    currentSha: git(['rev-parse', 'HEAD']).trim(),
+    failedSha: process.env.FLIXO_FAILURE_SHA || null,
+    strategyId: selected?.id ?? process.env.FLIXO_REPAIR_STRATEGY_ID ?? null,
+    previousCycle: known?.lastFiveXCycle ?? null,
+    learningOutputs: fiveXLearningOutputs,
+    adversarialStatus: programmerTwinReport?.status ?? null,
+    counterexampleFound: programmerTwinReport?.counterexampleFound ?? null,
+    regressionOk: null,
+    regressionDepth: 0,
+    canonicalGreen: false,
+  });
+  evidence.fiveX.cycle = fiveXRepairCycle;
+
   const mutationGate = evaluateMutationGate({
     targetSha,
     currentSha: gateCurrentSha,
@@ -776,6 +1037,8 @@ const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
     regressionCounterexamples: preMutationProof.regressionCounterexamples,
     mutationScope,
     branch: protocolBranch,
+    fiveXEnvelope,
+    fiveXCycleState: fiveXRepairCycle,
   });
   evidence.mutationGate = mutationGate;
   if (mutationGate.status !== 'PASS') {
@@ -797,6 +1060,14 @@ const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
     console.log('AUTO_REPAIR_RESULT=PROPOSAL_ONLY');
     console.log('AUTO_REPAIR_REASON=hard-mutation-gate-blocked');
     process.exit(0);
+}
+
+if (repairActor === 'actionRepairBot') {
+  repairProtocolSession = authorizeMutation(repairProtocolSession);
+  assertAgentAdmission({ actor: repairActor, branch: protocolBranch, mutation: true, session: repairProtocolSession });
+} else {
+  repairProtocolSession = authorizeMutation(repairProtocolSession);
+  assertAgentAdmission({ actor: repairActor, branch: protocolBranch, mutation: true, session: repairProtocolSession });
 }
 
 try {
@@ -823,6 +1094,36 @@ try {
   const diffSummary = summarizeDiff(changed);
   evidence.diff = diffSummary;
   evidence.changedPaths = diffSummary.files;
+  try {
+    evidence.repairV2 = {
+      ...(evidence.repairV2 ?? {}),
+      actualScope: enforceMutationScope({ manifest: repairV2Manifest, changedPaths: diffSummary.files }),
+    };
+  } catch (error) {
+    rollback(targetDir, before);
+    evidence.outcome = 'blocked';
+    evidence.repairV2 = {
+      ...(evidence.repairV2 ?? {}),
+      status: 'BLOCKED',
+      actualScopeError: String(error?.message ?? error),
+    };
+    evidence.escalation = { required: true, reason: 'in-repo-repair-v2-actual-scope-blocked' };
+    writeEvidence(evidencePath, evidence);
+    recordOutcome(memory, {
+      fingerprint,
+      normalizedFailure,
+      features,
+      rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown',
+      rule: selected.id,
+      outcome: 'blocked',
+      verification: 'in-repo-repair-v2-actual-scope-blocked',
+      provenance: { targetSha, changedPaths: diffSummary.files },
+      preventionRule: 'Reject the patch if the actual source scope differs from the RCA surgical boundary.',
+    });
+    writeMemory(memory);
+    process.exitCode = 2;
+    throw error;
+  }
   const declaredAffectedPaths = diagnosis?.affectedPaths ?? (selected?.files?.length ? selected.files : [diagnosis?.location?.file].filter(Boolean));
   evidence.minimalRepairScope = validateMinimalRepairScope({ affectedPaths: declaredAffectedPaths, changedPaths: diffSummary.files });
   evidence.selfCritic = critiqueRepair({

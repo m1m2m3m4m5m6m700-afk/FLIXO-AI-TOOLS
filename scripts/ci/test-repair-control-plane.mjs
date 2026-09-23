@@ -21,6 +21,7 @@ import {
   assertBrotherAuthority,
   surrenderBrother,
   recordBrotherChallenge,
+  repairIdentityDigest,
 } from './repair-control-plane.mjs';
 
 const SHA_A = 'a'.repeat(40);
@@ -113,6 +114,8 @@ const detected = createRepairCycle({
   executionSha: SHA_A,
 });
 assert.equal(detected.state, 'DETECTED');
+assert.equal(detected.identityDigest, repairIdentityDigest(detected));
+assert.throws(()=>transitionRepairCycle(detected,'CLAIMED',{patch:{failedSha:SHA_B}}),/IDENTITY_IMMUTABLE:failedSha/);
 assert.deepEqual(REPAIR_STATES.slice(0, 4), ['DETECTED', 'CLAIMED', 'EVIDENCE_LOCKED', 'RCA']);
 
 const claimed = claimRepairCycle(detected, { owner: 'WATCHER' });
@@ -128,15 +131,10 @@ const published = transitionRepairCycle(local, 'PUBLISHED_TO_EXECUTION', { actor
 const canonical = transitionRepairCycle(published, 'CANONICAL_CI', { actor: 'WATCHER', reason: 'CANONICAL_CI_STARTED' });
 const green = transitionRepairCycle(canonical, 'GREEN', { actor: 'CANONICAL_CI', reason: 'ALL_REQUIRED_CHECKS_GREEN' });
 const promotion = transitionRepairCycle(green, 'PROMOTION', { actor: 'PROMOTION_GATE', reason: 'PROMOTION_AUTHORIZED' });
-assertClosure(promotion, {
-  canonicalGreen: true,
-  zeroRedChecks: true,
-  freshExactShaEvidence: true,
-  regressionProof: true,
-  noUnprocessedActionableRed: true,
-});
+assertClosure(promotion,{canonicalGreen:true,zeroRedChecks:true,freshExactShaEvidence:true,regressionProof:true,noUnprocessedActionableRed:true,closureProofs:{canonicalGreen:{sourceSha:SHA_A,result:'PASS'},zeroRedChecks:{sourceSha:SHA_A,result:'PASS'},freshExactShaEvidence:{sourceSha:SHA_A,result:'PASS'},regressionProof:{sourceSha:SHA_A,result:'PASS'},noUnprocessedActionableRed:{sourceSha:SHA_A,result:'PASS'}}});
 const closed = transitionRepairCycle(promotion, 'CLOSED', { actor: 'PROMOTION_GATE', reason: 'CLOSED_VERIFIED' });
-assert.equal(closed.state, 'CLOSED');
+assert.equal(closed.state,'CLOSED');
+assert.throws(()=>assertClosure(promotion,{canonicalGreen:true,zeroRedChecks:true,freshExactShaEvidence:true,regressionProof:true,noUnprocessedActionableRed:true}),/CONTROL_PLANE_CLOSURE_PROOF_INVALID/);
 
 assert.deepEqual(BROTHER_IDS, ['A', 'B']);
 assert.deepEqual(BROTHER_MODES, ['WRITE', 'READ']);
@@ -241,13 +239,8 @@ assert.throws(() => createRepairCycle({
   executionSha: SHA_A,
 }), /CONTROL_PLANE_FAILED_SHA_INVALID/);
 
-assert.throws(() => createRepairCycle({
-  failureFingerprint: FAILURE,
-  failedSha: SHA_A,
-  targetRunId: '2',
-  executionSha: SHA_B,
-  observedBranch: 'main',
-}), /CONTROL_PLANE_REPAIR_BRANCH_BLOCKED/);
+assert.throws(()=>createRepairCycle({failureFingerprint:FAILURE,failedSha:SHA_A,targetRunId:'2',executionSha:SHA_B,observedBranch:'main'}),/CONTROL_PLANE_REPAIR_BRANCH_BLOCKED/);
+assert.throws(()=>createRepairCycle({failureFingerprint:FAILURE,failedSha:SHA_A,targetRunId:'3',executionSha:SHA_B,observedBranch:'execution'}),/CONTROL_PLANE_EXECUTION_SHA_MISMATCH/);
 
 assert.equal(CIRCUIT_BREAKER.failClosed, true);
 const advanced = transitionRepairCycle(claimed, 'EVIDENCE_LOCKED', { actor: 'WATCHER', reason: 'CLI_ADVANCE_TEST' });

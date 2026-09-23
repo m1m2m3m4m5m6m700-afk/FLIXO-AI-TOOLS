@@ -1,13 +1,14 @@
 import type { Locale } from '@/lib/i18n';
 import { LOCALES, LOCALE_METADATA } from '@/lib/i18n';
 import type { LocalizedToolSeo, ToolManifest } from './tool-manifest';
+import type { ToolCategory } from '@/config/canonical-tool-definition';
 
 type ToolSeoInput = Readonly<{
   id: string;
   title: string;
   path: string;
   description: string;
-  category: 'Images' | 'AI' | 'Other';
+  category: ToolCategory;
   isReady: boolean;
 }>;
 

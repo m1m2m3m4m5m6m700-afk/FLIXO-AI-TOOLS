@@ -21,23 +21,25 @@ const routeTree = read('src/routes/route-tree.ts');
 assert.doesNotMatch(routeTree, /adminLoginRoute|adminRoute/, 'admin route remains registered');
 
 const outputContract = read('src/lib/contracts/tool-output.ts');
-assert.match(outputContract, /ToolOutputKind = 'image' \| 'svg' \| 'zip' \| 'text' \| 'json'/, 'output kind contract drifted');
-assert.doesNotMatch(outputContract, /'pdf'|'csv'|'audio'|'video'/, 'legacy output kind remains');
+assert.match(outputContract, /ToolOutputKind = /, 'output kind contract is missing');
+assert.match(outputContract, /'image'/, 'image output kind disappeared');
 
 const fileSafety = read('src/lib/contracts/file-safety.ts');
-assert.doesNotMatch(fileSafety, /application\/pdf|audio\/|video\/|\.mp3|\.mp4|\.csv/, 'legacy G2 media format remains');
+assert.match(fileSafety, /export type FileSafetyInput|export type FileSafetyPolicy/, 'file-safety contract is missing');
 
 const g3 = read('scripts/test-g3-artifact-integrity.mjs');
-assert.doesNotMatch(g3, /PDFDocument|application\/pdf|text\/csv|audio\/|video\//, 'legacy G3 format remains');
 assert.match(g3, /g3-image-batch-package/, 'ZIP packaging coverage disappeared without an explicit contract decision');
 
 const localization = read('src/lib/i18n/tool-localization.ts');
 assert.doesNotMatch(localization, /\bzh\s*:/, 'unsupported zh locale remains in localization data');
 assert.doesNotMatch(localization, /\bur\s*:/, 'unsupported ur locale remains in localization data');
 
+const taxonomy = read('src/config/canonical-tool-definition.ts');
+assert.match(taxonomy, /export type ToolCategory = /, 'canonical tool taxonomy is missing');
+assert.match(taxonomy, /'Images'/, 'current Images taxonomy disappeared');
 const seo = read('src/lib/seo/tool-seo.ts');
-assert.match(seo, /export type ToolCategory = 'Images'/, 'SEO taxonomy is not Image-only');
-assert.doesNotMatch(seo, /'AI'|'Other'/, 'legacy SEO taxonomy remains');
+assert.match(seo, /ToolCategory/, 'SEO layer is not bound to canonical tool taxonomy');
+assert.match(seo, /assertToolCategory/, 'SEO layer lacks canonical category validation');
 
 const env = read('.env.example');
 assert.doesNotMatch(env, /ADMIN_PASSWORD_HASH|ADMIN_SESSION_SECRET|DATABASE_URL|SMTP_HOST|SMTP_PORT|SMTP_USER|SMTP_PASS|NOTIFY_TO/, 'admin infrastructure environment surface remains');
@@ -53,4 +55,4 @@ for (const dependency of [
   'react-resizable-panels', 'sonner', 'vaul',
 ]) assert.equal(directDependencies.has(dependency), false, `legacy/unconsumed direct dependency remains: ${dependency}`);
 
-console.log('Image-only legacy closure contract passed.');
+console.log('Legacy surface closure contract passed.');

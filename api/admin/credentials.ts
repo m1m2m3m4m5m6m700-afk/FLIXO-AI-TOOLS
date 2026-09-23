@@ -16,7 +16,7 @@ function parsePasswordHash(value: string): ParsedPasswordHash | null {
   const r = Number(parts[3]);
   const p = Number(parts[4]);
   if (!Number.isSafeInteger(N) || !Number.isSafeInteger(r) || !Number.isSafeInteger(p)) return null;
-  if (N <= 1 || r <= 0 || p <= 0) return null;
+  if (N <= 1 || N > 1_048_576 || (N & (N - 1)) !== 0 || r <= 0 || r > 32 || p <= 0 || p > 8) return null;
 
   try {
     const salt = Buffer.from(parts[5], 'base64');

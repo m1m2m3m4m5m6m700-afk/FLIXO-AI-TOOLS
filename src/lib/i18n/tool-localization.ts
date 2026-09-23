@@ -1,7 +1,27 @@
 import type { Locale } from './config';
+import type { ToolCategory } from '../../config/canonical-tool-definition.ts';
 
-export const CATEGORY_LABELS: Record<Locale, { Images: string }> = {
-  ar: { Images: 'الصور' }, en: { Images: 'Images' }, es: { Images: 'Imágenes' }, fr: { Images: 'Images' }, de: { Images: 'Bilder' }, hi: { Images: 'छवियाँ' }, id: { Images: 'Gambar' }, it: { Images: 'Immagini' }, ja: { Images: '画像' }, ko: { Images: '이미지' }, ms: { Images: 'Imej' }, nl: { Images: 'Afbeeldingen' }, pl: { Images: 'Obrazy' }, pt: { Images: 'Imagens' }, ru: { Images: 'Изображения' }, sv: { Images: 'Bilder' }, th: { Images: 'รูปภาพ' }, tr: { Images: 'Görseller' }, uk: { Images: 'Зображення' }, vi: { Images: 'Hình ảnh' },
+export const CATEGORY_LABELS: Record<Locale, Record<ToolCategory, string>> = {
+  ar: { Images: 'الصور', Video: 'الفيديو', Audio: 'الصوت', AI: 'الذكاء الاصطناعي', Editor: 'المحرر' },
+  en: { Images: 'Images', Video: 'Video', Audio: 'Audio', AI: 'AI', Editor: 'Editor' },
+  es: { Images: 'Imágenes', Video: 'Vídeo', Audio: 'Audio', AI: 'IA', Editor: 'Editor' },
+  fr: { Images: 'Images', Video: 'Vidéo', Audio: 'Audio', AI: 'IA', Editor: 'Éditeur' },
+  de: { Images: 'Bilder', Video: 'Video', Audio: 'Audio', AI: 'KI', Editor: 'Editor' },
+  hi: { Images: 'छवियाँ', Video: 'वीडियो', Audio: 'ऑडियो', AI: 'एआई', Editor: 'एडिटर' },
+  id: { Images: 'Gambar', Video: 'Video', Audio: 'Audio', AI: 'AI', Editor: 'Editor' },
+  it: { Images: 'Immagini', Video: 'Video', Audio: 'Audio', AI: 'IA', Editor: 'Editor' },
+  ja: { Images: '画像', Video: '動画', Audio: '音声', AI: 'AI', Editor: 'エディター' },
+  ko: { Images: '이미지', Video: '동영상', Audio: '오디오', AI: 'AI', Editor: '편집기' },
+  ms: { Images: 'Imej', Video: 'Video', Audio: 'Audio', AI: 'AI', Editor: 'Editor' },
+  nl: { Images: 'Afbeeldingen', Video: 'Video', Audio: 'Audio', AI: 'AI', Editor: 'Editor' },
+  pl: { Images: 'Obrazy', Video: 'Wideo', Audio: 'Audio', AI: 'AI', Editor: 'Edytor' },
+  pt: { Images: 'Imagens', Video: 'Vídeo', Audio: 'Áudio', AI: 'IA', Editor: 'Editor' },
+  ru: { Images: 'Изображения', Video: 'Видео', Audio: 'Аудио', AI: 'ИИ', Editor: 'Редактор' },
+  sv: { Images: 'Bilder', Video: 'Video', Audio: 'Ljud', AI: 'AI', Editor: 'Redigerare' },
+  th: { Images: 'รูปภาพ', Video: 'วิดีโอ', Audio: 'เสียง', AI: 'AI', Editor: 'ตัวแก้ไข' },
+  tr: { Images: 'Görseller', Video: 'Video', Audio: 'Ses', AI: 'Yapay zekâ', Editor: 'Düzenleyici' },
+  uk: { Images: 'Зображення', Video: 'Відео', Audio: 'Аудіо', AI: 'ШІ', Editor: 'Редактор' },
+  vi: { Images: 'Hình ảnh', Video: 'Video', Audio: 'Âm thanh', AI: 'AI', Editor: 'Trình chỉnh sửa' },
 };
 
 type LocalizedTerms = Partial<Record<Locale, string>>;
@@ -44,8 +64,8 @@ function tokenize(value: string): string[] {
   return value.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').split(/\s+/).filter(Boolean);
 }
 
-function fallbackTitle(locale: Locale, category: 'Images'): string {
-  const label = CATEGORY_LABELS[locale][category];
+function fallbackTitle(locale: Locale, category: ToolCategory): string {
+  const label = CATEGORY_LABELS[locale][category] ?? category;
   const templates: Record<Locale, string> = {
     ar: `أداة ${label}`, en: `Tool ${label}`, es: `Herramienta de ${label}`, fr: `Outil ${label}`, de: `${label}-Werkzeug`, hi: `${label} टूल`, id: `Alat ${label}`,
     it: `Strumento ${label}`, ja: `${label}ツール`, ko: `${label} 도구`, ms: `Alat ${label}`, nl: `${label}-tool`, pl: `Narzędzie ${label}`, pt: `Ferramenta de ${label}`,
@@ -54,11 +74,13 @@ function fallbackTitle(locale: Locale, category: 'Images'): string {
   return templates[locale];
 }
 
-export function localizeToolCategory(locale: Locale, category: 'Images'): string {
-  return CATEGORY_LABELS[locale][category];
+export function localizeToolCategory(locale: Locale, category: ToolCategory): string {
+  const label = CATEGORY_LABELS[locale][category];
+  if (!label) throw new Error(`Missing localized category '${category}' for locale '${locale}'.`);
+  return label;
 }
 
-export function localizeToolTitle(locale: Locale, title: string, category: 'Images'): string {
+export function localizeToolTitle(locale: Locale, title: string, category: ToolCategory): string {
   if (locale === 'en') return title;
   const normalizedTitleKey = title.trim().toLowerCase();
   const override = TITLE_OVERRIDES[normalizedTitleKey];
@@ -76,7 +98,7 @@ export function localizeToolTitle(locale: Locale, title: string, category: 'Imag
   return result && result.toLowerCase() !== title.trim().toLowerCase() ? result : fallbackTitle(locale, category);
 }
 
-export function localizeToolDescription(locale: Locale, title: string, category: 'Images'): string {
+export function localizeToolDescription(locale: Locale, title: string, category: ToolCategory): string {
   const localizedTitle = localizeToolTitle(locale, title, category);
   const templates: Record<Locale, string> = {
     ar: `استخدم ${localizedTitle} من FLIXO مباشرة داخل المتصفح.`, en: `Use ${localizedTitle} in FLIXO directly in your browser.`, es: `Usa ${localizedTitle} de FLIXO directamente en tu navegador.`,

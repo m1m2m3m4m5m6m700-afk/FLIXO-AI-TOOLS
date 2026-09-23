@@ -1,0 +1,142 @@
+name: FLIXO Read-Only Error Investigator
+
+on:
+  push:
+    branches:
+      - execution
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Active observation branch
+        required: true
+        default: execution
+        type: choice
+        options:
+          - execution
+          - main
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  pull-requests: read
+  security-events: read
+
+concurrency:
+  group: flixo-read-only-error-investigator-${{ github.event.inputs.branch || 'execution' }}
+  cancel-in-progress: true
+
+jobs:
+  investigate:
+    name: Read-only error/RCA intelligence
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject non-canonical branch
+        env:
+          TARGET_BRANCH: ${{ github.event.inputs.branch || 'execution' }}
+        run: |
+          case "${TARGET_BRANCH}" in
+            execution|main) ;;
+            *) echo "FAIL CLOSED: branch is not canonical: ${TARGET_BRANCH}"; exit 1 ;;
+          esac
+
+      - name: Checkout trusted workflow revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          # The observation target is data only; executable code always comes from the trusted workflow revision.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve observed branch SHA as data only
+        id: observed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_BRANCH: ${{ github.event.inputs.branch || 'execution' }}
+        run: |
+          set -euo pipefail
+          OBSERVED_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha // empty')"
+          [[ "$OBSERVED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          echo "observed_sha=$OBSERVED_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Install read-only analysis dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Validate shared operational memory contract
+        run: node scripts/ci/validate-shared-operational-memory.mjs
+
+      - name: Test shared operational memory
+        run: node scripts/ci/test-shared-operational-memory-contract.mjs
+
+      - name: Validate investigator contract
+        env:
+          FLIXO_READ_ONLY_POWER: '10X'
+        run: node scripts/ci/validate-read-only-error-investigator.mjs
+
+      - name: Test five-x read-only power profile
+        run: node scripts/ci/test-read-only-power-profile.mjs
+
+      - name: Validate deep reasoning contract
+        run: node scripts/ci/validate-read-only-deep-reasoning.mjs
+      
+      - name: Validate repair intelligence mirror contract
+        run: node scripts/ci/validate-read-only-repair-intelligence.mjs
+
+      - name: Test knowledge fusion
+        run: npm run test:knowledge-fusion
+
+      - name: Wait for CodeQL result on exact observed SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OBSERVED_SHA: ${{ steps.observed.outputs.observed_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$OBSERVED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'FAIL CLOSED: invalid observed SHA'; exit 1; }
+          CODEQL_STATUS=''
+          CODEQL_RUN_ID=''
+          CODEQL_EXPECTED_ANNOTATIONS=0
+          for attempt in $(seq 1 90); do
+            CODEQL_JSON="$(gh api "repos/$GITHUB_REPOSITORY/commits/$OBSERVED_SHA/check-runs?per_page=100")"
+            CODEQL_STATUS="$(printf '%s' "$CODEQL_JSON" | jq -r '[.check_runs[] | select(.name == "CodeQL" and .head_sha == $sha)] | sort_by(.completed_at // .started_at // "") | last | .status // empty' --arg sha "$OBSERVED_SHA")"
+            CODEQL_CONCLUSION="$(printf '%s' "$CODEQL_JSON" | jq -r '[.check_runs[] | select(.name == "CodeQL" and .head_sha == $sha)] | sort_by(.completed_at // .started_at // "") | last | .conclusion // empty' --arg sha "$OBSERVED_SHA")"
+            CODEQL_RUN_ID="$(printf '%s' "$CODEQL_JSON" | jq -r '[.check_runs[] | select(.name == "CodeQL" and .head_sha == $sha)] | sort_by(.completed_at // .started_at // "") | last | .id // empty' --arg sha "$OBSERVED_SHA")"
+            CODEQL_EXPECTED_ANNOTATIONS="$(printf '%s' "$CODEQL_JSON" | jq -r '[.check_runs[] | select(.name == "CodeQL" and .head_sha == $sha)] | sort_by(.completed_at // .started_at // "") | last | .output.annotations_count // 0' --arg sha "$OBSERVED_SHA")"
+            if [ "$CODEQL_STATUS" = "completed" ] && [ -n "$CODEQL_RUN_ID" ]; then
+              ANNOTATION_JSON="$(gh api "repos/$GITHUB_REPOSITORY/check-runs/$CODEQL_RUN_ID/annotations?per_page=100")"
+              ANNOTATION_COUNT="$(printf '%s' "$ANNOTATION_JSON" | jq 'length')"
+              if [ "$ANNOTATION_COUNT" -ge "$CODEQL_EXPECTED_ANNOTATIONS" ]; then
+                echo "CODEQL_EXACT_SHA_STATUS=completed"
+                echo "CODEQL_EXACT_SHA_CONCLUSION=$CODEQL_CONCLUSION"
+                echo "CODEQL_CHECK_RUN_ID=$CODEQL_RUN_ID"
+                echo "CODEQL_EXPECTED_ANNOTATIONS=$CODEQL_EXPECTED_ANNOTATIONS"
+                echo "CODEQL_PUBLISHED_ANNOTATIONS=$ANNOTATION_COUNT"
+                break
+              fi
+            fi
+            sleep 5
+          done
+          test "$CODEQL_STATUS" = "completed" || { echo "FAIL CLOSED: CodeQL result did not complete for $OBSERVED_SHA"; exit 1; }
+          test -n "$CODEQL_RUN_ID" || { echo "FAIL CLOSED: CodeQL check run ID missing for $OBSERVED_SHA"; exit 1; }
+          test "$ANNOTATION_COUNT" -ge "$CODEQL_EXPECTED_ANNOTATIONS" || { echo "FAIL CLOSED: CodeQL annotations not published for $OBSERVED_SHA"; exit 1; }
+
+      - name: Run read-only investigator
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OBSERVED_SHA: ${{ steps.observed.outputs.observed_sha }}
+          GITHUB_REF_NAME: ${{ github.event.inputs.branch || 'execution' }}
+          INVESTIGATION_DIR: diagnostics/investigation
+        run: |
+          node scripts/ci/read-only-error-investigator.mjs --branch="${GITHUB_REF_NAME}" --sha="${OBSERVED_SHA}" --max-logs=100 --limit=100
+
+      - name: Upload read-only intelligence report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: error-intelligence-${{ github.run_id }}
+          path: |
+            diagnostics/investigation/error-intelligence-latest.json
+            diagnostics/investigation/error-investigator-contract.json
+          if-no-files-found: error
+          retention-days: 14

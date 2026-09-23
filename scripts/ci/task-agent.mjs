@@ -10,7 +10,7 @@ const ROOT = process.cwd();
 const TASK_FILE = fs.existsSync(path.join(ROOT, 'المهام.md')) ? path.join(ROOT, 'المهام.md') : path.join(ROOT, 'مهام.md');
 const OUTPUT_DIR = process.env.FLIXO_TASK_AGENT_OUTPUT_DIR ?? '/tmp/flixo-task-agent';
 const DIAGNOSIS_PATH = process.env.FLIXO_REPAIR_DIAGNOSIS_PATH ?? '/tmp/flixo-root-cause.json';
-const CONTRACT_VERSION = 'TASK-AGENT-PREPARATION-v3';
+const CONTRACT_VERSION = 'TASK-AGENT-PREPARATION-v4-ISOLATED-WORKSPACE';
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
   const token = process.argv[i];
@@ -304,15 +304,26 @@ for (const task of selected) {
     verification: [],
     blockers: [],
     handoff: {
-      consumer: 'AUTHORIZED_EXECUTION_AGENT_OR_REPAIR_AGENT',
-      applyAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT',
-      commitAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT_ON_EXECUTION_ONLY',
-      pushAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT_ON_EXECUTION_ONLY',
+      consumer: 'CHAIR_1',
+      applyAuthority: 'CHAIR_1',
+      commitAuthority: 'CHAIR_1_ONLY',
+      pushAuthority: 'CHAIR_1_ONLY',
       completionAuthority: 'VERIFIER_AFTER_CANONICAL_GREEN_ONLY',
       scopeAuthority: 'TASK_PREPARATION_ONLY',
       executionAuthority,
       mutationScope,
       humanCommandRequired,
+      workspaceContract: {
+        protocol: 'FLIXO-AGENT-ISOLATED-WORKSPACE-v1',
+        mode: 'DETACHED_WORKSPACE',
+        baseRelation: 'ENTRY_EXECUTION_SHA_ONLY',
+        tracksExecutionHeadAfterEntry: false,
+        tracksMainHeadAfterEntry: false,
+        workerCommitAllowed: false,
+        workerPushAllowed: false,
+        resultFormat: 'FLIXO-AGENT-RESULT-v1',
+        resultEditableBy: 'CHAIR_1',
+      },
     },
   };
   const output = path.join(OUTPUT_DIR, `${task.taskId}.json`);
@@ -342,7 +353,15 @@ const index = {
   selected: outputs,
   executionPrompt: executionPromptBundle ? { digest: executionPromptBundle.digest, selectedPromptId: executionPromptBundle.selectedPromptId, verifiedExactSha: executionPromptBundle.verifiedExactSha } : null,
   selectedCount: outputs.length,
-  lifecycle: 'PREPARATION_HANDOFF_PENDING_EXECUTION',
+  lifecycle: 'PREPARATION_HANDOFF_PENDING_CHAIR1_AGGREGATION',
+  workspaceContract: {
+    protocol: 'FLIXO-AGENT-ISOLATED-WORKSPACE-v1',
+    mode: 'DETACHED_WORKSPACE',
+    entrySha: sha,
+    relationToExecutionHeadAfterEntry: 'NONE',
+    resultEditableBy: 'CHAIR_1',
+    publicationAuthority: 'CHAIR_1',
+  },
   failureContext: { runId: failureRunId || null, failedSha: failureSha || null, fingerprint: failureFingerprint || null },
   repairLoop: {
     enabled: true,

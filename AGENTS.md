@@ -9,9 +9,9 @@ ADMIT → REGISTER SESSION → CAPTURE EXACT SHA → READ CONTROL PLANE → READ
 
 A role that has not admitted P00 is not execution-ready. P00 must remain consistent with the machine-enforced protocol registry, coordination plane, liveness controls and hard exit lock.
 
-# ✅ CANONICAL AGENT COUNCIL — PR #759
+# ✅ CANONICAL AGENT COUNCIL — active execution → main Council ingress (resolved live at runtime)
 
-Issue #761 is archived and MUST NOT be used as an activation source. Active Council ingress is PR #759 on `execution → main`.
+Issue #761 is archived and MUST NOT be used as an activation source. Active Council ingress is active execution → main Council ingress (resolved live at runtime) on `execution → main`.
 
 PRESIDENT=`assistantController`; DEPUTY=`verification`; INVESTIGATOR=`analysis`. These are coordination titles over existing machine roles and do not create mutation or certification authority.
 
@@ -66,7 +66,9 @@ The agent MUST NOT:
 - delete an open task before the deletion protocol is satisfied;
 - reuse a closed task as current proof without a new RCA and current evidence.
 
-The active queue in `المهام.md` is the only default execution scope. Any addition, status transition, or retirement of a material task MUST be reflected in `المهام.md` and `PROJECTS.md`.
+The active execution queue in `المهام.md` is the only default planned scope. `المهام.md` is a project-plan/task-queue document only: it MUST contain planned executable work items and their plan-level disposition, and MUST NOT be used as an operational log.
+
+Agents MUST NOT write into `المهام.md` runtime RCA, heartbeat/liveness updates, CI/run results, job logs, failure evidence, Exact-SHA proof records, handoff reports, or repair-session history. Operational evidence belongs in the repository's diagnostics/evidence surfaces. Changes to the task plan itself (add/remove/reprioritize/retire a planned task) may update `المهام.md`; execution telemetry does not.
 
 ## TWO-BRANCH EXECUTION POLICY
 
@@ -186,7 +188,7 @@ The shared agent communication channel is the first operational dependency for e
 
 `NOTIFICATION → MASTER INBOX → EVENT-DRIVEN RELAY → READ → EXACT-SHA REVALIDATION → LOCK_SCOPE → TASK CLAIM → EXECUTE`
 
-The canonical communication runtime is `scripts/ci/agent-communication.mjs`, the event ingress is `.github/workflows/agent-communication-relay.yml`, the active Council ingress is PR #759, and Wake Dispatch is `.github/workflows/council-wake-dispatch.yml`. Issue #761 is archived and rejected.
+The canonical communication runtime is `scripts/ci/agent-communication.mjs`, the event ingress is `.github/workflows/agent-communication-relay.yml`, the active Council ingress is active execution → main Council ingress (resolved live at runtime), and Wake Dispatch is `.github/workflows/council-wake-dispatch.yml`. Issue #761 is archived and rejected.
 
 Every actionable message MUST carry a unique `messageId`/`idempotencyKey`, target `recipient`, `taskId`, declared `scope`, exact `entrySha`, risk, dependencies, expected evidence, stop conditions and proof obligations.
 
@@ -397,3 +399,22 @@ The Cell-Lab gate is enforced by `scripts/ci/cell-lab-consensus.mjs` and is chec
 
 
 The long-lived residency model uses 45 minutes as the minimum, 3 hours as the maximum for one continuous active segment, and no total task-duration cap while work remains open. MASTER_CELL_LAB carries master status updates every 5 minutes and task reminders every 10 minutes; SHA changes invalidate evidence and require requalification, not sleep or task closure.
+
+
+## NO DIRECT PUSH / NO BYPASS
+
+**ABSOLUTE REPOSITORY RULE:** No agent, bot, Action, workflow, script, token or runtime may push or update the execution branch except through the assistantController publication path after all Chair-1 and Chair Push Validator requirements are satisfied. No automation workflow may request contents:write. No code path may invoke git push, GitHub Contents writes, or direct refs/heads/execution mutation. A failed/missing Chair lease, stale Exact-SHA, missing validator evidence, invalid Push Manifest, or any alternate publication path is FAIL_CLOSED. Tests and emergency paths are not exceptions. The Chair Push Guard remains validation-only; it never grants publication authority. Only assistantController records the final Push decision and performs the guarded publication.
+## CHAIR-1 — CENTRAL CUSTODY / TEMPORARY DELEGATION
+
+Chair-1 is centrally owned by `assistantController`. Ownership is permanent unless the user directly commands a transfer.
+
+An agent may use Chair-1 only for an assigned bounded task with task/work-package context. Chair-1 may not be preempted, stolen, or reassigned by another Agent/Master/Bot while an active delegation exists.
+
+Task completion or an authorized task release automatically clears the delegate and returns Chair-1 to `assistantController` custody. Session timeout, heartbeat loss, or agent failure does not authorize another agent to take the chair; recovery must preserve or reassign the task through the canonical controller path.
+
+Controller-only reclaim requires an explicit direct-user command marker. Any other reclaim, preemption, ownership change, or delegation-policy mutation is `FAIL_CLOSED`.
+
+
+
+**CENTRAL LEASE ENFORCEMENT:** Chair-1 custody is authoritative in the central Control Plane, not in a runner-local file alone. A mutation-capable agent MUST have a controller-issued central lease bound to the exact execution SHA, task ID, work-package ID, lease ID and fencing proof. Local Chair state is a secondary enforcement/cache layer. A worker MUST NOT self-assign Chair-1 merely because a local runner reports it vacant. Missing, stale, expired, mismatched or unverifiable central lease = FAIL_CLOSED. Heartbeat loss does not release Chair-1; it revokes mutation ability until controller-mediated recovery/requalification. Publication remains forbidden until the same central lease and Exact-SHA proof are valid.
+ Every push proposal must also carry a complete Push Manifest (`pushId`, actor identity/role, session, event, repository, branch, reason, change type, Exact-SHA, parent SHA, candidate SHA, commit message, commit tree SHA, requestedAt and patch digest). The Chair Push Guard is **validation-only**: it may inspect and report missing, stale, conflicting or mismatched evidence, but it MUST NOT emit or persist an `ACCEPTED`, `REJECTED`, `READY_FOR_CHAIR_1` or equivalent authority decision. Its output MUST carry `authority=VALIDATION_ONLY`, `decision=null`, and `decisionAuthority=assistantController`. Only `assistantController` may record the final Push Proposal decision as `ACCEPTED` or `REJECTED`, and an `ACCEPTED` decision MUST require a fresh validator report with `validationStatus=PASS` on the same exact SHA. A validation failure returns to the same task/work-package for correction and revalidation; it does not close the task or transfer Chair-1.

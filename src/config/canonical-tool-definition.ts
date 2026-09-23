@@ -3,7 +3,8 @@ import { z, type ZodType } from 'zod';
 import { LOCALES, type Locale } from '@/lib/i18n/config.ts';
 import type { ComponentType, LazyExoticComponent } from 'react';
 
-export type ToolFamily = 'image';
+export type ToolFamily = 'image' | 'video' | 'audio' | 'ai' | 'editor';
+export type ToolCategory = 'Images' | 'Video' | 'Audio' | 'AI' | 'Editor';
 export type ToolLifecycle = 'experimental' | 'beta' | 'ready' | 'deprecated';
 export type ToolExecution = 'browser-local' | 'browser-worker' | 'remote';
 export type ToolContractLevel = 'structural' | 'runtime' | 'artifact';
@@ -21,7 +22,8 @@ export type ToolSource = Readonly<{
   title: string;
   path: string;
   description: string;
-  category: 'Images';
+  family?: ToolFamily;
+  category: ToolCategory;
   isReady: boolean;
   aliases?: readonly string[];
   component: LazyExoticComponent<ComponentType>;
@@ -33,7 +35,7 @@ type ToolConfig = ToolSource;
 export type CapabilityState = 'RECOGNIZED' | 'PLANNABLE' | 'EXECUTABLE' | 'UNAVAILABLE';
 export type ExecutionMode = 'LOCAL' | 'HYBRID' | 'CLOUD';
 export type CapabilityParameters = Record<string, string | number | boolean>;
-export type CapabilityVerifier = (inputBlob: Blob, outputBlob: Blob, parameters: CapabilityParameters) => Promise<boolean>;
+export type CapabilityVerifier = (inputBlob: Blob, outputBlob: Blob, parameters: CapabilityParameters, signal?: AbortSignal) => Promise<boolean>;
 export type CapabilityLimits = Readonly<{ maxPixels: number; maxFileSizeBytes: number; timeoutMs: number }>;
 
 export type ToolDefinition = Readonly<{
@@ -41,7 +43,7 @@ export type ToolDefinition = Readonly<{
   family: ToolFamily;
   title: string;
   description: string;
-  category: 'Images';
+  category: ToolCategory;
   isReady: boolean;
   path: string;
   routes: Readonly<Record<Locale, string>>;
@@ -115,15 +117,15 @@ const TOOL_INTENTS: Readonly<Record<string, readonly string[]>> = {
 };
 
 const EXECUTABLE_IDS = new Set(['background-remover', 'image-upscaler', 'image-cropper', 'image-compressor', 'image-converter', 'image-effects']);
-const defaultVerifier: CapabilityVerifier = async (_inputBlob, outputBlob) => outputBlob.size > 0;
-const targetSizeVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, parameters) => {
-  if (outputBlob.size <= 0) return false;
+const defaultVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, _parameters, signal) => !signal?.aborted && outputBlob.size > 0;
+const targetSizeVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, parameters, signal) => {
+  if (signal?.aborted || outputBlob.size <= 0) return false;
   const targetSizeKB = typeof parameters.targetSizeKB === 'number' ? parameters.targetSizeKB : undefined;
   return targetSizeKB === undefined ? true : outputBlob.size <= targetSizeKB * 1024;
 };
-const formatVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, parameters) => {
+const formatVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, parameters, signal) => {
   const format = parameters.format;
-  return outputBlob.size > 0 && (typeof format !== 'string' || outputBlob.type === format);
+  return !signal?.aborted && outputBlob.size > 0 && (typeof format !== 'string' || outputBlob.type === format);
 };
 const verifierFor = (toolId: string): CapabilityVerifier => {
   if (toolId === 'image-compressor') return targetSizeVerifier;
@@ -168,7 +170,7 @@ export function toToolDefinition(tool: ToolConfig): ToolDefinition {
   const recovery: ToolRecoveryPolicy = Object.freeze({ maxAttempts: capabilityState === 'EXECUTABLE' ? 3 : 0, replanOnFailure: false });
   return Object.freeze({
     id: tool.id,
-    family: 'image',
+    family: tool.family ?? 'image',
     title: tool.title,
     description: tool.description,
     category: tool.category,

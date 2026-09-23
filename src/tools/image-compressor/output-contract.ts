@@ -8,6 +8,7 @@ export const imageCompressorOutputContract = {
       outputMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
       allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
       signatures: ['ffd8ff', '89504e470d0a1a0a', '52494646'],
+      compoundSignatures: [{ offset: 8, signature: '57454250', mimeTypes: ['image/webp'] }],
       downloadRequired: true,
       minOutputBytes: 1,
       maxOutputBytes: 25 * 1024 * 1024,

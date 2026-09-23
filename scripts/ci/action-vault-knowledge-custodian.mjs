@@ -155,7 +155,9 @@ export function recordUnresolvedRepair({taskId,fingerprint,targetSha,failedRunId
   if(token&&repository){
     try{
       const body=councilRelayBody({messageId,taskId,fingerprint,targetSha,runId:failedRunId,errorSummary,diagnosis,attemptedStrategy});
-      execFileSync('gh',['api','--method','POST',`repos/${repository}/issues/759/comments`,'--raw-field',`body=${body}`],{cwd:ROOT,encoding:'utf8',env:{...process.env,GH_TOKEN:token}});
+      const councilPr=execFileSync('gh',['pr','list','--repo',repository,'--head','execution','--base','main','--state','open','--limit','1','--json','number','--jq','.[0].number // empty'],{cwd:ROOT,encoding:'utf8',env:{...process.env,GH_TOKEN:token}}).trim();
+      if(!councilPr) throw new Error('ACTIVE_COUNCIL_PR_NOT_FOUND');
+      execFileSync('gh',['api','--method','POST',`repos/${repository}/issues/${councilPr}/comments`,'--raw-field',`body=${body}`],{cwd:ROOT,encoding:'utf8',env:{...process.env,GH_TOKEN:token}});
       councilDelivery='DELIVERED_TO_COUNCIL_INGRESS';
     }catch(error){ councilDeliveryError=String(error?.message??error); }
   }

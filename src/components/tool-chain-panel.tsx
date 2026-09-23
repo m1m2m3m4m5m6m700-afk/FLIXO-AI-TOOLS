@@ -109,7 +109,7 @@ export function ToolChainPanel({ currentToolId }: { currentToolId?: string | nul
             {result && resultUrl && (
               <div className="flixo-chain-panel__result">
                 <span>{copy.outputReady}: {result.fileName}</span>
-                <a href={resultUrl} download={result.fileName}>{copy.downloadResult}</a>
+                <a href={encodeURI(resultUrl)} download="flixo-result">{copy.downloadResult}</a>
               </div>
             )}
           </div>

@@ -5,6 +5,10 @@ export const REPAIR_GATE_AUTOMATION = Object.freeze([
   'execution-bot-watchdog.yml',
   'auto-repair-merge-gate.yml',
   'advanced-repair-contract.yml',
+  'master-repair-governor.yml',
+  'agent-communication-relay.yml',
+  'ultra-investigator.yml',
+  'unified-execution-push-gate.yml',
 ]);
 
 export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
@@ -14,7 +18,41 @@ export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
   'repair-lease-live-race.yml',
   'historical-action-error-index.yml',
   'action-agent-history-promotion.yml',
+  'task-history-ledger.yml',
 ]);
+
+export const SENSITIVE_PERMISSION_ALLOWLISTS = Object.freeze({
+  contents: Object.freeze([...WRITE_CAPABLE_WORKFLOWS]),
+  actions: Object.freeze([
+    'agent-communication-relay.yml',
+    'daily-flixo-green-gate.yml',
+    'execution-bot-watchdog.yml',
+    'latest-commit-test-supersession.yml',
+  ]),
+  'id-token': Object.freeze([
+    'agent-communication-relay.yml',
+    'council-priority-wake.yml',
+    'council-wake-push-relay.yml',
+    'agent-master-activation.yml',
+    'council-external-lease-watch.yml',
+  ]),
+  issues: Object.freeze([
+    'agent-communication-relay.yml',
+    'council-priority-wake.yml',
+    'council-wake-push-relay.yml',
+    'agent-master-activation.yml',
+    'repair-agent-intake.yml',
+  ]),
+  'pull-requests': Object.freeze([
+    'agent-master-activation.yml',
+    'claude-security-review.yml',
+  ]),
+  'security-events': Object.freeze([]),
+  statuses: Object.freeze([]),
+  deployments: Object.freeze([
+    'cd.yml',
+  ]),
+});
 
 export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
   'auto-repair.yml',
@@ -26,6 +64,8 @@ export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
   'repair-agent-intake.yml',
   'auto-repair-merge-gate.yml',
   'council-live-runtime-verification.yml',
+  'security-red-team.yml',
+  'master-repair-governor.yml',
 ]);
 
 export const HISTORICAL_REPAIR_WORKFLOWS = Object.freeze([
@@ -43,6 +83,9 @@ export const HISTORICAL_REPAIR_WORKFLOWS = Object.freeze([
 
 export const TRUST_PERIMETER_PATHS = Object.freeze([
   '.github/workflows/auto-repair.yml',
+  'scripts/ci/execution-mutation-gate.mjs',
+  'scripts/ci/test-chair1-change-accumulator.mjs',
+  'scripts/ci/test-agent-isolated-workspace.mjs',
   '.github/workflows/execution-sync.yml',
   '.github/workflows/wp0-trust-baseline.yml',
   'scripts/ci/control-plane-registry.mjs',
@@ -50,6 +93,25 @@ export const TRUST_PERIMETER_PATHS = Object.freeze([
   'scripts/ci/auto-repair-policy.mjs',
   'scripts/ci/repair-protocol.mjs',
   'scripts/ci/auto-repair-engine.mjs',
+  'scripts/ci/patch-truth-engine.mjs',
+  'scripts/ci/verify-platform-publication-boundary.mjs',
+  'scripts/ci/master-repair-historical-replay.mjs',
+  'scripts/ci/master-repair-negative-proof.mjs',
+  'scripts/ci/master-repair-canary.mjs',
+  'scripts/ci/master-repair-rollback-proof.mjs',
+  'scripts/ci/master-repair-governor.mjs',
+  'scripts/ci/test-patch-truth-engine.mjs',
+  'scripts/ci/test-master-repair-governor.mjs',
+  'scripts/ci/repair-agent-cognitive-clone.mjs',
+  'scripts/ci/validate-repair-agent-cognitive-clone.mjs',
+  'scripts/ci/repair-adversarial-convergence.mjs',
+  'scripts/ci/test-repair-adversarial-convergence.mjs',
+  'scripts/ci/auto-repair-chair1-audit.mjs',
+  'scripts/ci/execution-head-authority.mjs',
+  'scripts/ci/chair1-change-accumulator.mjs',
+  'scripts/ci/guard-communication.mjs',
+  'scripts/ci/agent-isolated-workspace.mjs',
+  'scripts/ci/agent-session.mjs',
   'scripts/ci/auto-repair-learning.mjs',
   'scripts/ci/auto-repair-proof.mjs',
   'scripts/ci/auto-repair/',
@@ -67,4 +129,9 @@ export const TRUST_PERIMETER_PATHS = Object.freeze([
   'scripts/ci/validate-promotion-closure.mjs',
   'scripts/ci/test-promotion-closure.mjs',
   'scripts/ci/verify-council-live-runtime.mjs',
+  'scripts/security/security-red-team-runner.mjs',
+  'scripts/security/record-security-findings.mjs',
+  'scripts/ci/test-security-red-team-contract.mjs',
+  'docs/agents/SECURITY-RED-TEAM-BOTS.json',
+  '.github/workflows/security-red-team.yml',
 ]);

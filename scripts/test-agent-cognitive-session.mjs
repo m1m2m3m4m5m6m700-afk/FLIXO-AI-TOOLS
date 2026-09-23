@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import {answerFromEvidence} from '../src/lib/agent/knowledge/evidence.ts';
 import {validatePlan} from '../src/lib/agent/reasoning.ts';
-import {canUseTool} from '../src/lib/agent/tool-intelligence.ts';
+import {canUseTool, projectToolProfile} from '../src/lib/agent/tool-intelligence.ts';
+import {getToolDefinition} from '../src/config/canonical-tool-definition.ts';
 import {acceptLearning} from '../src/lib/agent/learning.ts';
 import {supervise} from '../src/lib/agent/supervisor.ts';
 import {validateEvaluation} from '../src/lib/agent/evaluation.ts';
@@ -12,6 +13,12 @@ const r={id:'k',content:'Verified fact',source:'repo',sourceType:'REPOSITORY',ti
 assert.equal(answerFromEvidence('q',[r]).status,'VERIFIED');
 assert.equal(validatePlan([{id:'a',dependsOn:[],action:'x'},{id:'b',dependsOn:['a'],action:'y'}]).length,2);
 assert.equal(canUseTool({id:'t',purpose:'x',permission:'READ',risk:'LOW',failureModes:[]},['READ']),true);
+const localProfile = projectToolProfile(getToolDefinition('image-compressor'));
+assert.equal(localProfile.executionMode, 'LOCAL');
+assert.equal(localProfile.permission, 'EXECUTE');
+const cloudProfile = projectToolProfile(getToolDefinition('ai-image-generator'));
+assert.equal(cloudProfile.executionMode, 'CLOUD');
+assert.equal(cloudProfile.risk, 'HIGH');
 assert.equal(acceptLearning({content:'learn',evidence:[r],confidence:.99})?.status,'VERIFIED');
 assert.equal(supervise({confidence:.99,toolRisk:'LOW',validationPassed:true,loopCount:0}),'ALLOW');
 assert.equal(supervise({confidence:.99,toolRisk:'LOW',validationPassed:false,loopCount:0}),'STOP');

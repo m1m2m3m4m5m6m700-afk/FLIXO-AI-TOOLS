@@ -15,6 +15,7 @@ permissions:
 jobs:
   verify:
     name: Read-only live Council runtime proof
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: flixo-live-runtime-verification
@@ -35,16 +36,21 @@ jobs:
           [[ "$CURRENT_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'FAIL CLOSED: current execution SHA is invalid.'; exit 1; }
           test "$EXPECTED_SHA" = "$CURRENT_SHA"
 
-      - name: Checkout locked execution SHA
+      - name: Checkout trusted verifier source from main
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: execution
+          ref: main
           fetch-depth: 1
           persist-credentials: false
-      - name: Reconfirm exact checkout SHA
+      - name: Reconfirm trusted controller SHA
         env:
-          EXPECTED_SHA: ${{ inputs.expected_sha }}
-        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          CONTROLLER_SHA="$(git rev-parse HEAD)"
+          TRUSTED_MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          test "$CONTROLLER_SHA" = "$TRUSTED_MAIN_SHA"
+          echo "TRUSTED_CONTROLLER_SOURCE_SHA=$TRUSTED_MAIN_SHA"
       - name: Run read-only live runtime verification
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}

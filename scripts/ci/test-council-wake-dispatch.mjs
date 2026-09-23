@@ -7,7 +7,7 @@ const base = [
   '# PRESIDENT WAKE — SCOUT',
   '',
   'ENTRY SHA: ' + sha,
-  'CANONICAL PR: #759',
+  'CANONICAL INGRESS: active execution → main',
   'TOPOLOGY: execution → main ONLY',
   'ROLE: SCOUT',
   'WORK PACKAGE: CODE-SCOUT-CURRENT-TRUTH-001',

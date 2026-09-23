@@ -24,7 +24,7 @@ for (const marker of [
   'consumerAuthority',
   'executionAgent',
   'repairAgent',
-  'TASK-AGENT-PREPARATION-v3',
+  'TASK-AGENT-PREPARATION-v4-ISOLATED-WORKSPACE',
 ]) {
   if (!contract.includes(marker)) throw new Error(`TASK_AGENT_CONTRACT_MARKER_MISSING=${marker}`);
 }
@@ -66,6 +66,9 @@ for (const marker of [
   'exactly **two active branch paths**',
   'There is no third branch',
   'execution → main',
+  'exactly **one active working surface**',
+  'Existing `chair1/*` repair branches are historical/quarantined artifacts only',
+  'Branch creation is not an available repair primitive',
   'MUST fail closed',
 ]) {
   if (!branches.includes(marker)) throw new Error(`TWO_BRANCH_POLICY_MARKER_MISSING=${marker}`);

@@ -1,12 +1,9 @@
 name: FLIXO — Ultra Deep Recovery
 
 on:
-  workflow_call:
-    inputs:
-      expected_sha:
-        description: Exact commit SHA being investigated.
-        required: true
-        type: string
+  # Read-only investigator is intentionally manually dispatched. A workflow_call caller cannot
+  # be proven from the repository graph, which would make an exact-SHA checkout look privileged
+  # to CodeQL. The relay already invokes this workflow through workflow_dispatch.
   workflow_dispatch:
     inputs:
       expected_sha:
@@ -35,11 +32,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ inputs.expected_sha || github.sha }}
           fetch-depth: 0
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -58,23 +55,19 @@ jobs:
       matrix:
         suite: [toolchain, architecture, localization, seo, security, artifact, runtime, browser, build]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ inputs.expected_sha || github.sha }}
           fetch-depth: 0
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version-file: .nvmrc
           cache: npm
       - name: Install dependencies
         timeout-minutes: 5
         run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Cache Playwright browsers
-        if: matrix.suite == 'runtime' || matrix.suite == 'browser'
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-ultra-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      # Playwright cache is intentionally disabled here: this workflow can execute an externally supplied exact SHA.
+      # Avoid persisting artifacts derived from that source into a reusable cache namespace.
       - name: Install Chromium
         if: matrix.suite == 'runtime' || matrix.suite == 'browser'
         timeout-minutes: 8
@@ -99,7 +92,7 @@ jobs:
         run: node --experimental-strip-types scripts/ci/ultra-investigate.mjs --suite "$INVESTIGATION_SUITE"
       - name: Upload suite evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: ultra-investigation-${{ matrix.suite }}-${{ inputs.expected_sha || github.sha }}
           path: diagnostics/investigation/${{ matrix.suite }}.json
@@ -113,12 +106,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ inputs.expected_sha || github.sha }}
           fetch-depth: 0
       - name: Download exact-run suite evidence
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
           pattern: ultra-investigation-*-${{ inputs.expected_sha || github.sha }}
           path: diagnostics/investigation
@@ -138,7 +131,7 @@ jobs:
         run: node scripts/ci/evidence-ledger.mjs
       - name: Upload aggregate and ledger evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: ultra-investigation-aggregate-${{ inputs.expected_sha || github.sha }}
           path: |
@@ -154,12 +147,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ inputs.expected_sha || github.sha }}
           fetch-depth: 0
       - name: Download official aggregate and ledger
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
           name: ultra-investigation-aggregate-${{ inputs.expected_sha || github.sha }}
           path: .

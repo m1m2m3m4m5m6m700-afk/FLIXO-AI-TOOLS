@@ -21,6 +21,7 @@ function assertToolRegistryContract(tools: readonly ToolDefinition[]): void {
     if (tool.recovery.maxAttempts < 0) throw new Error(`Invalid recovery attempt budget: ${tool.id}`);
     if (!tool.operational.executorId && tool.capability.state === 'EXECUTABLE') throw new Error(`Executable tool has no executor binding: ${tool.id}`);
     if (tool.isReady && tool.operational.outputContractId !== tool.id) throw new Error(`Ready tool output contract binding is missing: ${tool.id}`);
+    if (tool.isReady === (tool.capability.state === 'UNAVAILABLE')) throw new Error(`Tool availability/state mismatch: ${tool.id}`);
     for (const alias of tool.aliases) {
       if (routes.has(alias) || alias === tool.path) throw new Error(`Duplicate tool route alias: ${tool.id}:${alias}`);
       routes.add(alias);

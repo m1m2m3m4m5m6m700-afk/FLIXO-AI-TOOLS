@@ -80,7 +80,16 @@ const walkSuite = (suite, inheritedFile = null) => {
       const status = failed ? 'FAIL' : passed ? 'PASS' : skipped ? 'SKIPPED' : 'NOT_EXECUTED';
       record.tests.push({
         name: testName,
-        locale: testName?.match(/(?:^|\s)\/([a-z]{2,3})(?:\/|$)/iu)?.[1]?.toLowerCase() ?? null,
+        locale: (() => {
+          const annotations = Array.isArray(test.annotations) ? test.annotations : [];
+          const verifiedLocales = [...new Set(
+            annotations
+              .filter((annotation) => annotation && annotation.type === 'flixo-verified-locale')
+              .map((annotation) => String(annotation.description ?? '').trim().toLowerCase())
+              .filter((locale) => /^[a-z]{2,3}$/u.test(locale)),
+          )];
+          return verifiedLocales.length === 1 ? verifiedLocales[0] : null;
+        })(),
         status,
         attempt: results.length,
         attempts: results.map((result, index) => ({
@@ -90,6 +99,7 @@ const walkSuite = (suite, inheritedFile = null) => {
           errorCount: Array.isArray(result.errors) ? result.errors.length : 0,
         })),
         assertionId: implementationIndex.get(`${specFile}\u0000${testName ?? ''}`) ?? null,
+        localeEvidenceCount: Array.isArray(test.annotations) ? test.annotations.filter((annotation) => annotation?.type === 'flixo-verified-locale').length : 0,
       });
     }
     specRecords.set(specFile, record);

@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { getToolOutputContractForDefinition } from '../src/lib/contracts/tool-output-contracts.ts';
+import { assertToolOutputContract } from '../src/lib/contracts/tool-output.ts';
 import { getToolDefinition } from '../src/config/canonical-tool-definition.ts';
 import { verifyPipelineOutput } from '../src/lib/workflows/pipeline-runner.ts';
 import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelinePlanFingerprint, createPipelineReceiptChain, createPipelineStepReceipt } from '../src/lib/workflows/pipeline-receipt.ts';
@@ -18,8 +19,11 @@ assert.match(pipelineSource, /stage:\s*'VERIFICATION'/);
 assert.match(pipelineSource, /stage:\s*'RECOVERY'/);
 assert.match(pipelineSource, /deriveRecoveryMetadata/);
 assert.match(pipelineSource, /classifyExecutionFailure/);
+assert.match(pipelineSource, /new AbortController\(\)/);
+assert.match(pipelineSource, /controller\.abort\(\)/);
+assert.match(pipelineSource, /extractImageDimensions/);
 
-const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01]);
+const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01]);
 const validPng = new Blob([pngBytes], { type: 'image/png' });
 const invalidSignature = new Blob([new Uint8Array(9)], { type: 'image/png' });
 const wrongMime = new Blob([pngBytes], { type: 'text/plain' });
@@ -27,6 +31,19 @@ const wrongMime = new Blob([pngBytes], { type: 'text/plain' });
 const compressor = getToolDefinition('image-compressor');
 assert.ok(compressor);
 assert.ok(getToolOutputContractForDefinition(compressor));
+const validWebpBytes = new Uint8Array([0x52,0x49,0x46,0x46,0x04,0x00,0x00,0x00,0x57,0x45,0x42,0x50]);
+assert.doesNotThrow(() => assertToolOutputContract(
+  getToolOutputContractForDefinition(compressor),
+  { mimeType: 'image/webp', byteLength: validWebpBytes.length, bytes: validWebpBytes, filename: 'valid.webp', dimensions: { width: 2, height: 2 } },
+));
+assert.throws(() => assertToolOutputContract(
+  getToolOutputContractForDefinition(compressor),
+  { mimeType: 'image/webp', byteLength: 12, bytes: new Uint8Array([0x52,0x49,0x46,0x46,0x04,0x00,0x00,0x00,0x4e,0x4f,0x50,0x45]), filename: 'invalid.webp', dimensions: { width: 2, height: 2 } },
+), /compound signature/);
+assert.throws(() => assertToolOutputContract(
+  getToolOutputContractForDefinition(compressor),
+  { mimeType: 'image/png', byteLength: pngBytes.length, bytes: pngBytes, filename: 'missing-dimensions.png' },
+), /Dimensions are required/);
 
 assert.equal(
   await verifyPipelineOutput('image-compressor', input, validPng, { quality: 0.8 }),
@@ -61,6 +78,8 @@ assert.match(receipt.inputSha256, /^[a-f0-9]{64}$/);
 assert.match(receipt.outputSha256, /^[a-f0-9]{64}$/);
 assert.equal(receipt.recoveryApplied, false);
 assert.equal(receipt.verified, true);
+assert.equal(receipt.executionMode, compressor.executionMode);
+assert.equal(receipt.executorId, compressor.operational.executorId);
 
 const plan = {
   workflowName: 'Receipt chain test',

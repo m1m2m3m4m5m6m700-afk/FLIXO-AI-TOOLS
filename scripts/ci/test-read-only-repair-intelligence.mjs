@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { buildRepairIntelligenceMirror } from './read-only-repair-intelligence.mjs';
+const sha='a'.repeat(40);
+const log='workflow concurrency stale sha CI contract failed; CAPIError: provider model is not supported';
+const report=buildRepairIntelligenceMirror({failureLog:log,targetSha:sha,historicalSignals:{},full:false});
+assert.equal(report.protocol,'FLIXO-READ-ONLY-REPAIR-INTELLIGENCE-v1');
+assert.equal(report.mutationPolicy,'NO_SOURCE_MUTATION');
+assert.equal(report.exactShaVerified,true);
+assert.ok(report.primaryRepairIntelligence.planner);
+assert.ok(report.primaryRepairIntelligence.errorOnlyModel);
+assert.ok(report.primaryRepairIntelligence.causalDiscriminator);
+assert.ok(report.primaryRepairIntelligence.metaCausalModel);
+assert.ok(report.primaryRepairIntelligence.knowledgeGraph);
+assert.ok(report.primaryRepairIntelligence.vaultKnowledge);
+assert.equal(report.primaryRepairIntelligence.vaultKnowledge.protocol,'ACTION-VAULT-READONLY-KNOWLEDGE-LOOKUP-v1');
+assert.equal(report.primaryRepairIntelligence.vaultKnowledge.authority,'ADVISORY_ONLY');
+assert.equal(report.primaryRepairIntelligence.vaultKnowledge.mutationAuthority,false);
+assert.equal(report.primaryRepairIntelligence.vaultKnowledge.declaredCatalogCapacity,1000000);
+assert.ok(report.primaryRepairIntelligence.vaultKnowledge.routerRuleCount>=5000);
+assert.equal(report.primaryRepairIntelligence.vaultKnowledge.status,'CORPUS_MATCH_CANONICAL_INDEX_EMPTY');
+assert.ok(report.primaryRepairIntelligence.vaultKnowledge.matchedAdvice.length>0);
+assert.ok(report.adversarial);
+assert.equal(report.synthesis.readOnlyDecision,'REPORT_ONLY');
+assert.equal(report.powerProfile.profile,'5X');
+assert.equal(report.powerProfile.multiplier,5);
+assert.equal(report.powerProfile.mutationAuthority,false);
+assert.equal(report.primaryRepairIntelligence.selfCriticPreview.verdict,'REJECT');
+assert.equal(report.adversarial.authorityParity,'NO_MUTATION_AUTHORITY');
+// Required mirror-contract markers: FLIXO-KNOWLEDGE-ARBITRATION-v1, REJECT_ALL, SELECT_WITH_EVIDENCE
+assert.equal(report.primaryRepairIntelligence.actionVaultPrediction.status,'SKIPPED_IN_UNIT_TEST');
+assert.equal(report.primaryRepairIntelligence.actionVaultPrediction.mutationAuthority,'NONE');
+assert.ok(report.primaryRepairIntelligence.knowledgeFusion);
+assert.equal(report.primaryRepairIntelligence.knowledgeFusion.protocol,'FLIXO-READ-ONLY-KNOWLEDGE-FUSION-v1');
+assert.equal(report.primaryRepairIntelligence.knowledgeFusion.mutationAuthority,false);
+assert.equal(report.primaryRepairIntelligence.sharedOperationalMemory.protocol,'FLIXO-SHARED-OPERATIONAL-MEMORY-v1');
+assert.equal(report.primaryRepairIntelligence.sharedOperationalMemory.mutationAuthority,false);
+assert.equal(report.primaryRepairIntelligence.knowledgeFusion.exactShaBound,true);
+assert.notEqual(report.primaryRepairIntelligence.knowledgeFusion.synthesis.disposition,'NO_ACTIONABLE_KNOWLEDGE');
+console.log(JSON.stringify({status:'PASS',checks:11,primary:report.synthesis.primaryCandidate,adversarial:report.adversarial.status},null,2));
+
+assert.equal(report.primaryRepairIntelligence.codeMentor.status,'SKIPPED_IN_UNIT_TEST');
+assert.equal(report.programmerTwin.status,'SKIPPED_IN_UNIT_TEST');

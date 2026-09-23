@@ -8,6 +8,7 @@ import {
   planWithProviderOrLocal,
 } from '../src/lib/agent/llm-provider.ts';
 import { planWithProductionAI } from '../src/lib/ai/optional-planner.ts';
+import { TOOL_CATALOG } from '../src/config/registry.ts';
 
 const validResponse = {
   functionCall: {
@@ -15,6 +16,7 @@ const validResponse = {
     arguments: JSON.stringify({
       workflowName: 'Compress and convert',
       confidence: 0.94,
+      catalogFingerprint: TOOL_CATALOG.fingerprint,
       steps: [
         { toolId: 'image-converter', params: { format: 'image/webp' } },
         { toolId: 'image-compressor', params: { targetSizeKB: 200 } },
@@ -27,6 +29,37 @@ const validResponse = {
 
 const plan = parseProviderExecutionPlan(validResponse);
 assert.deepEqual(plan.steps, JSON.parse(validResponse.functionCall.arguments).steps);
+
+assert.throws(
+  () => parseProviderExecutionPlan({
+    ...validResponse,
+    functionCall: {
+      ...validResponse.functionCall,
+      arguments: JSON.stringify({
+        workflowName: 'Stale catalog',
+        confidence: 0.9,
+        catalogFingerprint: '0'.repeat(64),
+        steps: [{ toolId: 'image-compressor', params: { targetSizeKB: 200 } }],
+      }),
+    },
+  }),
+  (error) => error instanceof LLMProviderError && error.code === 'INVALID_PLAN',
+);
+
+assert.throws(
+  () => parseProviderExecutionPlan({
+    ...validResponse,
+    functionCall: {
+      ...validResponse.functionCall,
+      arguments: JSON.stringify({
+        workflowName: 'Missing catalog fingerprint',
+        confidence: 0.9,
+        steps: [{ toolId: 'image-compressor', params: { targetSizeKB: 200 } }],
+      }),
+    },
+  }),
+  (error) => error instanceof LLMProviderError && error.code === 'INVALID_PLAN',
+);
 
 const objectArgumentPlan = parseProviderExecutionPlan({
   ...validResponse,

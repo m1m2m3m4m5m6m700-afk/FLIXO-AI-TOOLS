@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import fs from 'node:fs';
 export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   schemaVersion: 4,
   contractRank: 'SUPREME_AUTOMATION_RESIDENCY',
@@ -133,6 +134,15 @@ export function assertTransition(from, to, { workAssigned = true, exactShaVerifi
   return true;
 }
 
+export function emitHeartbeat({ file = process.env.FLIXO_HEARTBEAT_PATH ?? '/tmp/flixo-agent-heartbeat.json', taskId = process.env.FLIXO_TASK_ID ?? process.env.FLIXO_AGENT_TASK ?? null, state = 'ACTIVE', exactSha = process.env.FLIXO_TARGET_SHA ?? process.env.FLIXO_FAILED_SHA ?? null, progress = false, now = new Date().toISOString() } = {}) {
+  assertState(state, { workAssigned: true });
+  if (!/^[a-f0-9]{40}$/iu.test(String(exactSha ?? ''))) throw new Error('AGENT_LIVENESS_HEARTBEAT_EXACT_SHA_REQUIRED');
+  const record = { protocolId: AGENT_LIVENESS_PROTOCOL.protocolId, protocolVersion: AGENT_LIVENESS_PROTOCOL.protocolVersion, taskId: taskId ? String(taskId) : null, state: String(state), exactSha: String(exactSha), progress: Boolean(progress), at: String(now) };
+  fs.mkdirSync(file.split('/').slice(0, -1).join('/') || '.', { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
+  return Object.freeze(record);
+}
+
 export function checkHeartbeat({ state, workAssigned = true, lastHeartbeatAt, now = Date.now() } = {}) {
   assertState(state, { workAssigned });
   if (!workAssigned && state === 'COMPLETE') return Object.freeze({ ok: true, action: 'READY_RESIDENT' });
@@ -212,11 +222,21 @@ if (isMain) {
     if (command === 'validate') {
       assertLivenessDefinition();
       console.log(JSON.stringify({ status: 'PASS', protocolId: AGENT_LIVENESS_PROTOCOL.protocolId, version: AGENT_LIVENESS_PROTOCOL.protocolVersion, heartbeatEveryMs: AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs, activeRepairWindowMs: AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs, forbiddenStates: [...AGENT_LIVENESS_PROTOCOL.forbiddenStates], permanentResidency: true }, null, 2));
+    } else if (command === 'heartbeat') {
+      const getArg = (name, fallback = null) => process.argv.find((v) => v.startsWith('--' + name + '='))?.slice(name.length + 3) ?? fallback;
+      const heartbeat = emitHeartbeat({
+        file: getArg('file') ?? undefined,
+        taskId: getArg('task') ?? undefined,
+        state: getArg('state', 'ACTIVE'),
+        exactSha: getArg('sha') ?? undefined,
+        progress: getArg('progress', 'false') === 'true',
+      });
+      console.log(JSON.stringify({ status: 'PASS', heartbeat }, null, 2));
     } else if (command === 'check-heartbeat') {
       console.log(JSON.stringify(checkHeartbeat({ state: process.argv.find((v) => v.startsWith('--state='))?.slice(8) ?? 'ACTIVE', lastHeartbeatAt: process.argv.find((v) => v.startsWith('--last='))?.slice(7) }), null, 2));
     } else if (command === 'check-progress') {
       console.log(JSON.stringify(checkProgress({ state: process.argv.find((v) => v.startsWith('--state='))?.slice(8) ?? 'ACTIVE', lastProgressAt: process.argv.find((v) => v.startsWith('--last='))?.slice(7), consecutiveNoProgress: Number(process.argv.find((v) => v.startsWith('--count='))?.slice(8) ?? 0) }), null, 2));
-    } else throw new Error('Usage: agent-liveness-protocol.mjs validate|check-heartbeat|check-progress');
+    } else throw new Error('Usage: agent-liveness-protocol.mjs validate|heartbeat|check-heartbeat|check-progress');
   } catch (error) {
     console.error('AGENT_LIVENESS_PROTOCOL_BLOCK=' + String(error?.message ?? error));
     process.exitCode = 1;

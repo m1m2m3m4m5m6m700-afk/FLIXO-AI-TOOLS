@@ -1,4 +1,14 @@
 # P00 — SUPREME FIRST OBLIGATION
+## SECURITY-REDTEAM-REMEDIATION-001 — 2026-09-22
+
+STATUS = IMPLEMENTED / CANONICAL-CI-VERIFICATION-PENDING
+OWNER = assistantController
+BRANCH = execution only
+DISCOVERY_SHA = b49db3c2a95968d97895683a5424689e184a2cb0
+SCOPE = Deep Red-Team remediation across Red-Team trust, Auto-Repair control plane, orchestration, learning/escalation, Council OIDC provenance, and Service Worker privacy boundaries.
+REMEDIATIONS = trust perimeter + full source scan + detached repair target + least privilege + SHA-keyed wake dedup + verified-learning gate + external-block escalation + stale-incident quarantine + OIDC job-workflow SHA binding + Service Worker cache boundary.
+NEXT = Fresh targeted contracts and canonical exact-SHA CI; no closure from historical evidence.
+
 
 Before any repository, project or cell action, every Master/Agent/Bot MUST admit:
 RPR-UNIFIED-EXECUTION-001 v4.0.0 → docs/agents/PROMPT-UNIFIED-EXECUTION.md.
@@ -34,7 +44,7 @@ rst is a P0 execution invariant. The canonical ingress is Master Inbox Issue #76
 
 **First work gate for every agent.** Read this file before implementation.
 
-`المهام.md` is the mandatory open-task gateway and must be read immediately after this file.
+`المهام.md` is the canonical task ledger and the mandatory open-task gateway. Any task/status table in this file is a read-only projection and must not be treated as a second task authority.
 
 ## CURRENT STATE
 
@@ -42,8 +52,9 @@ rst is a P0 execution invariant. The canonical ingress is Master Inbox Issue #76
 SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
 CURRENT MAIN SHA = authoritative GitHub main ref; never duplicate a mutable SHA in this map
-ACTIVE PR = #781 OPEN / execution → main (current verification/repair lane); #759 is historical/merged
-CURRENT PR HEAD = authoritative GitHub PR #781 head; do not duplicate a mutable SHA in this map
+ACTIVE PR = #801 OPEN / execution → main (current verification/repair lane); prior PRs are historical only
+CURRENT PR HEAD = authoritative GitHub PR #801 head; do not duplicate a mutable SHA in this map
+LIVE RECONCILIATION = 2026-09-22; GitHub execution/main refs are authoritative and must be re-read after every push; the reconciliation snapshot is historical evidence only
 NO-NEW-BRANCH = ABSOLUTE; only execution and main are active agent branches; existing historical branches are not valid work paths
 STATE = BLOCKED_EXTERNAL
 CANONICAL TEST SYSTEM = FRESH EVIDENCE REQUIRED ON CURRENT MAIN/EXECUTION HEAD; prior exact-head evidence is stale
@@ -57,6 +68,9 @@ PRODUCTION DEPLOYMENT EXACT-SHA = NOT PROVEN IN CURRENT EVIDENCE
 POST-MERGE MAIN SHA VERIFIED = historical 5115ac0528a7b18ae9ae3d392ccbfd2257900ea3; not current GREEN proof
 POST-MERGE CI / CERTIFICATION = PENDING FRESH EVIDENCE
 NO CLOSED/VERIFIED LABEL IN THIS FILE IS CURRENT GREEN PROOF UNLESS IT IS REPROVEN ON THE ACTIVE MAIN SHA
+CURRENT CI SNAPSHOT (RECONCILIATION EVIDENCE; INVALIDATED BY SUBSEQUENT execution COMMITS) = Test System IN_PROGRESS; WP0 IN_PROGRESS; Test Impact SUCCESS; Test Impact Execution IN_PROGRESS; Repository Security SUCCESS; Claude Security SUCCESS; Code Scanning AI findings FAILURE; Auto Repair Merge Gate IN_PROGRESS; Daily Green Gate IN_PROGRESS
+CURRENT CERTIFICATION = NOT PROVEN
+BRANCH POLICY = execution + main are the only active paths; all other visible branches remain historical/unapproved and are not new work paths
 ```
 
 
@@ -444,3 +458,14 @@ Implementation ledger only; not GREEN/certification evidence.
 - BATCH-5: IMPLEMENTED / VERIFICATION PENDING — performance manifest.
 - BATCH-6: IMPLEMENTED / VERIFICATION PENDING — release evidence binding.
 - BATCH-7: IMPLEMENTED / VERIFICATION PENDING — deterministic hybrid knowledge retrieval.
+
+
+## SECURITY-REDTEAM-TRIAD-001 — 2026-09-22
+STATUS = IMPLEMENTED / ISOLATED-EVIDENCE-MODE
+EXECUTION = Three independent read-only security red-team bots on separate ephemeral runners.
+TRIGGER = MANUAL_DISPATCH_ONLY with explicit Exact SHA.
+LEDGER = NOT AUTO-MUTATED; findings remain workflow artifacts until separately promoted.
+REPAIR_INTELLIGENCE = scripts/ci/adversarial-repair-twin.mjs (A+B, read-only advisory)
+WORKFLOW = .github/workflows/security-red-team.yml
+ISOLATION = contents:read / no source mutation / no ledger mutation / no peer wake / no shared workspace.
+NEXT = Run the isolated triad against a chosen exact SHA and inspect its three evidence artifacts.

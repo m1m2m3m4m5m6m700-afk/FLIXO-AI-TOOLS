@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge, hydrateActionHistory, normalizeMemoryCounters, mergeMemoryHistory, MEMORY_RELATION_TYPES, normalizeRelations, normalizeDiagnosticRecord, MEMORY_VERSION } from './auto-repair-learning.mjs';
+import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge, hydrateActionHistory, normalizeMemoryCounters, mergeMemoryHistory, MEMORY_RELATION_TYPES, normalizeRelations, normalizeDiagnosticRecord, MEMORY_VERSION, INTRACTABLE_THRESHOLD } from './auto-repair-learning.mjs';
 
 const sample = 'Run 35012345678 failed on webkit at abcdefabcdefabcdefabcdefabcdefabcdefabcd: Seed waitForGpuRender';
 const fingerprint = fingerprintFailure(sample);
@@ -21,6 +21,22 @@ delete process.env.FLIXO_RUN_ID;
 
 const memory = loadMemory();
 assert(memory.version >= MEMORY_VERSION);
+assert.equal(INTRACTABLE_THRESHOLD, 10);
+const previousGreen = process.env.FLIXO_CANONICAL_GREEN;
+const previousGreenSha = process.env.FLIXO_CANONICAL_GREEN_SHA;
+const previousTargetSha = process.env.FLIXO_TARGET_SHA;
+delete process.env.FLIXO_CANONICAL_GREEN;
+delete process.env.FLIXO_CANONICAL_GREEN_SHA;
+process.env.FLIXO_TARGET_SHA = 'a'.repeat(40);
+assert.equal(normalizeLearningOutcome('success', 'verified-repair'), 'proposed');
+assert.equal(normalizeLearningOutcome('repair-applied', 'exact-sha-proof'), 'proposed');
+process.env.FLIXO_CANONICAL_GREEN = 'true';
+process.env.FLIXO_CANONICAL_GREEN_SHA = 'a'.repeat(40);
+assert.equal(normalizeLearningOutcome('success', 'verified-repair'), 'success');
+if (previousGreen === undefined) delete process.env.FLIXO_CANONICAL_GREEN; else process.env.FLIXO_CANONICAL_GREEN = previousGreen;
+if (previousGreenSha === undefined) delete process.env.FLIXO_CANONICAL_GREEN_SHA; else process.env.FLIXO_CANONICAL_GREEN_SHA = previousGreenSha;
+if (previousTargetSha === undefined) delete process.env.FLIXO_TARGET_SHA; else process.env.FLIXO_TARGET_SHA = previousTargetSha;
+
 const diagnostic = normalizeDiagnosticRecord({
   rootCause: 'lint',
   violatedInvariant: 'UNEXPECTED_UNUSED_SYMBOL',
@@ -121,6 +137,12 @@ const derivedMemoryPath = path.join(tempRoot, 'derived.json');
 fs.writeFileSync(trustedMemoryPath, JSON.stringify({ version: 10, cases: [{ fingerprint: '__trusted_case__', attempts: 0, successes: 0, failures: 0, outcomes: [] }], playbooks: [], lessons: [], antiLessons: [] }));
 fs.writeFileSync(derivedMemoryPath, JSON.stringify({ version: 10, cases: [{ fingerprint: '__derived_case__', attempts: 1, successes: 0, failures: 1, outcomes: [{ outcome: 'failure', verification: 'failed' }] }], playbooks: [], lessons: [], antiLessons: [] }));
 const previousTrustedMemory = process.env.FLIXO_TRUSTED_REPAIR_MEMORY;
+const previousTaskId = process.env.FLIXO_TASK_ID;
+const previousRepairChainId = process.env.FLIXO_REPAIR_CHAIN_ID;
+const previousRunId = process.env.FLIXO_RUN_ID;
+process.env.FLIXO_TASK_ID = 'TEST-TASK-LEDGER-001';
+process.env.FLIXO_REPAIR_CHAIN_ID = 'TEST-CHAIN-001';
+process.env.FLIXO_RUN_ID = '54321';
 const previousDerivedMemory = process.env.FLIXO_DERIVED_REPAIR_MEMORY;
 process.env.FLIXO_TRUSTED_REPAIR_MEMORY = trustedMemoryPath;
 process.env.FLIXO_DERIVED_REPAIR_MEMORY = derivedMemoryPath;
@@ -157,6 +179,10 @@ recordOutcome(memory, {
     { type: 'verified-by', target: 'run:12345', sourceSha: 'a'.repeat(40) },
   ],
 });
+const repairTask = memory.repairTasks.find((item) => item.taskId === 'TEST-TASK-LEDGER-001');
+assert(repairTask);
+assert.equal(repairTask.repairChainId, 'TEST-CHAIN-001');
+assert.equal(repairTask.failureRunId, '54321');
 const relationCase = memory.cases.find((item) => item.fingerprint === '__relation_case__');
 assert.equal(relationCase?.relations?.length, 2);
 assert.deepEqual(relationCase.relations.map((item) => item.type).sort(), ['caused-by', 'verified-by']);
@@ -210,6 +236,9 @@ assert.equal(mirroredRule.attempts, reusable.generalizedRules.find((item) => ite
 assert.equal(reusable.rejectedRules.some((item) => item.rule === 'eslint-unused'), false);
 assert(memory.lessons.some((item) => item.fingerprint === '__self_test__'));
 assert.equal(memory.actionHistory.find((item) => item.fingerprint === '__self_test__')?.attempts, 1);
+if (previousTaskId === undefined) delete process.env.FLIXO_TASK_ID; else process.env.FLIXO_TASK_ID = previousTaskId;
+if (previousRepairChainId === undefined) delete process.env.FLIXO_REPAIR_CHAIN_ID; else process.env.FLIXO_REPAIR_CHAIN_ID = previousRepairChainId;
+if (previousRunId === undefined) delete process.env.FLIXO_RUN_ID; else process.env.FLIXO_RUN_ID = previousRunId;
 
 const hydrated = hydrateActionHistory({
   version: 10,
@@ -230,6 +259,22 @@ const hydrated = hydrateActionHistory({
 const hydratedRepeat = hydrated.actionHistory.find((item) => item.fingerprint === '__hydrated_repeat__');
 assert.equal(hydratedRepeat?.attempts, 3);
 assert.equal(hydratedRepeat?.failures, 3);
+
+recordOutcome(memory, {
+  fingerprint: '__proposed_test__',
+  normalizedFailure: 'repair applied without canonical green',
+  features: ['repair'],
+  rootCause: 'repair',
+  rule: 'unverified-repair',
+  outcome: 'proposed',
+  verification: 'verified-repair',
+  provenance: { runId: 'proposed-run', targetSha: 'a'.repeat(40) },
+});
+const unverifiedProposalCase = memory.cases.find((item) => item.fingerprint === '__proposed_test__');
+assert.equal(unverifiedProposalCase?.attempts, 1);
+assert.equal(unverifiedProposalCase?.successes, 0);
+assert.equal(unverifiedProposalCase?.failures, 1);
+assert(memory.antiLessons.some((item) => item.fingerprint === '__proposed_test__'));
 
 recordOutcome(memory, {
   fingerprint: '__negative_test__',
@@ -262,11 +307,41 @@ assert.deepEqual(
   ['src/example.ts'],
 );
 
+const fiveXFingerprint = '5'.repeat(64);
+recordOutcome(memory, {
+  fingerprint: fiveXFingerprint,
+  normalizedFailure: 'five x cycle test',
+  features: ['five-x'],
+  rootCause: 'five-x-cycle',
+  rule: 'five-x-strategy',
+  outcome: 'success',
+  verification: 'exact-sha-proof',
+  provenance: {
+    targetSha: 'a'.repeat(40),
+    currentSha: 'a'.repeat(40),
+    failedSha: 'a'.repeat(40),
+    strategyId: 'five-x-strategy',
+    runId: 'five-x-run',
+  },
+});
+const fiveXCase = memory.cases.find((item) => item.fingerprint === fiveXFingerprint);
+assert(fiveXCase?.lastFiveXCycle);
+assert.equal(fiveXCase.lastFiveXCycle.protocol, 'FLIXO-FIVE-X-REPAIR-CYCLE-v1');
+assert.equal(fiveXCase.lastFiveXCycle.targetSha, 'a'.repeat(40));
+assert.equal(fiveXCase.lastFiveXCycle.state, 'VERIFICATION_PENDING_CANONICAL_GREEN');
+assert.equal(memory.actionHistory.find((item) => item.fingerprint === fiveXFingerprint)?.lastFiveXCycle?.state, 'VERIFICATION_PENDING_CANONICAL_GREEN');
+
 const afterFailureKnowledge = deriveReusableKnowledge(memory, { rootCause: 'lint', features: ['lint'] });
 assert.equal(afterFailureKnowledge.generalizedRules.some((item) => item.rule === 'eslint-unused'), false);
 assert.equal(afterFailureKnowledge.rejectedRules.some((item) => item.rule === 'eslint-unused' && item.reason === 'low-success-rate'), false);
 
 const proposedBefore = memory.cases.find((item) => item.fingerprint === '__proposal_test__')?.attempts ?? 0;
+const proposalFailuresBefore = memory.cases.find((item) => item.fingerprint === '__proposal_test__')?.failures ?? 0;
+const proposalLessonsBefore = memory.lessons.filter((item) => item.fingerprint === '__proposal_test__').length;
+const proposalAntiLessonsBefore = memory.antiLessons.filter((item) => item.fingerprint === '__proposal_test__').length;
+const proposalHistoryBefore = memory.actionHistory.find((item) => item.fingerprint === '__proposal_test__');
+const proposalHistoryAttemptsBefore = proposalHistoryBefore?.attempts ?? 0;
+const proposalHistoryFailuresBefore = proposalHistoryBefore?.failures ?? 0;
 recordOutcome(memory, {
   fingerprint: '__proposal_test__',
   normalizedFailure: 'webkit DEEP_SEMANTIC_MISSING=webkit:DEEP:webkit:ja',
@@ -275,9 +350,14 @@ recordOutcome(memory, {
   outcome: 'proposed',
   verification: 'root-cause-evidence-insufficient',
 });
-const proposedCase = memory.cases.find((item) => item.fingerprint === '__proposal_test__');
-assert.equal(proposedCase?.attempts ?? 0, proposedBefore);
-assert(!memory.antiLessons.some((item) => item.fingerprint === '__proposal_test__'));
+const proposalCase = memory.cases.find((item) => item.fingerprint === '__proposal_test__');
+assert.equal(proposalCase?.attempts ?? 0, proposedBefore);
+assert.equal(proposalCase?.failures ?? 0, proposalFailuresBefore);
+assert.equal(memory.lessons.filter((item) => item.fingerprint === '__proposal_test__').length, proposalLessonsBefore);
+assert.equal(memory.antiLessons.filter((item) => item.fingerprint === '__proposal_test__').length, proposalAntiLessonsBefore);
+const proposalHistory = memory.actionHistory.find((item) => item.fingerprint === '__proposal_test__');
+assert.equal(proposalHistory?.attempts ?? 0, proposalHistoryAttemptsBefore);
+assert.equal(proposalHistory?.failures ?? 0, proposalHistoryFailuresBefore);
 
 const revertBefore = memory.cases.find((item) => item.fingerprint === '__revert_test__')?.reversions ?? 0;
 const attemptBeforeRevert = memory.cases.find((item) => item.fingerprint === '__revert_test__')?.attempts ?? 0;

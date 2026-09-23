@@ -46,8 +46,8 @@ assert.ok(session.includes('AGENT_ADMISSION_P00_SUPREME_PROTOCOL_INVALID'));
 assert.ok(session.includes('AGENT_ADMISSION_SUPREME_PROMPT_INVALID'));
 assert.equal(protocolRegistry.protocols.find((item) => item.id === 'P00')?.status, 'SUPREME_MANDATORY');
 assert.equal(protocolRegistry.protocols.find((item) => item.id === 'P00')?.canonicalSource, 'docs/agents/PROMPT-UNIFIED-EXECUTION.md');
-assert.equal(protocolRegistry.protocols.find((item) => item.id === 'P00')?.version, '4.0.0');
-for (const marker of ['RPR-UNIFIED-EXECUTION-001 · v4.0.0 · PROTOCOL-ROOT','FIRST OBLIGATION','ZERO-ERROR / NON-STOP','SHARED CELL / MULTI-AGENT COORDINATION','HARD CIRCULAR EXIT LOCK','DIRECTIVE']) assert.ok(supremePrompt.includes(marker));
+assert.equal(protocolRegistry.protocols.find((item) => item.id === 'P00')?.version, '4.1.0');
+for (const marker of ['RPR-UNIFIED-EXECUTION-001 · v4.1.0 · PROTOCOL-ROOT','FIRST OBLIGATION','ZERO-ERROR / NON-STOP','SHARED CELL / MULTI-AGENT COORDINATION','HARD CIRCULAR EXIT LOCK','DIRECTIVE']) assert.ok(supremePrompt.includes(marker));
 
 assert.ok(session.includes('admissionSources'));
 
@@ -92,8 +92,8 @@ assert.ok(task.includes('preparedOnly: true'));
 assert.ok(task.includes("executionMode: 'PREPARATION_ONLY'"));
 assert.ok(task.includes("mutationPolicy: 'NO_DIRECT_MUTATION'"));
 assert.ok(task.includes("const executionAuthority = 'TASK_PREPARATION_ONLY';"));
-assert.ok(task.includes("TASK-AGENT-PREPARATION-v3"));
-assert.ok(task.includes("applyAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT'"));
+assert.ok(task.includes("TASK-AGENT-PREPARATION-v4-ISOLATED-WORKSPACE"));
+assert.ok(task.includes("applyAuthority: 'CHAIR_1'"));
 
 assert.ok(taskContract.toLowerCase().includes('preparation-only'));
 assert.ok(taskContract.includes('MUST NOT'));
@@ -104,7 +104,7 @@ assert.ok(safeExecution.includes('Task Agent is explicitly not a mutation role')
 const unifiedPrompt = prompts.prompts.find((item) => item.promptId === 'RPR-UNIFIED-EXECUTION-001');
 assert.ok(unifiedPrompt);
 assert.equal(unifiedPrompt.status, 'ACTIVE');
-assert.equal(unifiedPrompt.version, '4.0.0');
+assert.equal(unifiedPrompt.version, '4.1.0');
 assert.ok(unifiedPrompt.provenance?.replacedFamilies?.includes('Task Agent preparation'));
 assert.ok(unifiedPrompt.provenance?.replacedFamilies?.includes('Safe Task Agent execution'));
 assert.equal(prompts.prompts.filter((item) => item.status === 'ACTIVE').length, 1);
@@ -153,6 +153,21 @@ const actionVaultSession = {
   protocolId: REPAIR_PROTOCOL.protocolId,
   protocolVersion: REPAIR_PROTOCOL.protocolVersion,
   protocolHash: REPAIR_PROTOCOL_HASH,
+  repairSessionId: 'repair-session-test',
+  actor: 'actionRepairBot',
+  chairBinding: {
+    required: true,
+    chairId: 'chair_1',
+    leaseId: 'a'.repeat(64),
+    fencingHash: 'b'.repeat(64),
+    centralVerified: true,
+    holderAgentId: 'actionRepairBot',
+    taskId: 'task-test',
+    workPackageId: 'wp-test',
+    targetSha: targetSHA,
+    released: false,
+  },
+  cellLabConsensus: JSON.parse(fs.readFileSync('diagnostics/agents/cell-lab/consensus/task-test.json', 'utf8')),
   state: 'FAILURE_CAPTURED',
   targetSHA,
   failureFingerprint: 'fp-test',
@@ -171,7 +186,8 @@ const actionVaultSession = {
 assert.doesNotThrow(() => assertAgentAdmission({ actor: 'actionRepairBot', branch: 'execution', mutation: true, session: actionVaultSession }));
 assert.throws(() => assertAgentAdmission({ actor: 'actionRepairBot', branch: 'execution', mutation: true, session: { ...actionVaultSession, actionVaultMission: { ...actionVaultSession.actionVaultMission, verifierAgent: 'wrong' } } }), /ACTION_VAULT_TRIAD_INCOMPLETE/);
 assert.throws(() => assertAgentAdmission({ actor: 'actionRepairBot', branch: 'execution', mutation: true, session: { ...actionVaultSession, actionVaultMission: { ...actionVaultSession.actionVaultMission, noBlindRetry: false } } }), /BLIND_RETRY_BLOCKED/);
-assert.throws(() => assertAgentAdmission({ actor: 'actionRepairVerifier', branch: 'execution', mutation: true, session: actionVaultSession }), /ACTION_REPAIR_2_MUTATION_SEAT_INVALID/);
+const invalidVerifierSession = { ...actionVaultSession, actor: 'actionRepairVerifier' };
+assert.throws(() => assertAgentAdmission({ actor: 'actionRepairVerifier', branch: 'execution', mutation: true, session: invalidVerifierSession }), /REPAIR_PROTOCOL_MUTATION_ROLE_BLOCKED=actionRepairVerifier/);
 
 console.log('AGENT_ADMISSION_CONTRACT=PASS');
 console.log('TASK_AGENT_MUTATION_AUTHORITY=BLOCKED');

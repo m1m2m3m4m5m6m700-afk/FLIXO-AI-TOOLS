@@ -5,14 +5,15 @@ run-name: FLIXO Agent Repair Heartbeat ${{ github.run_id }}
 on:
   schedule:
     - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 permissions:
-  actions: write
+  actions: read
   contents: read
 
 concurrency:
   group: flixo-agent-repair-heartbeat-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   resident-watch:
@@ -32,7 +33,9 @@ jobs:
           set -euo pipefail
           node scripts/ci/agent-liveness-protocol.mjs validate
           echo 'RESIDENT_AGENT=true'
-          echo 'HEARTBEAT_INTERVAL_MINUTES=5'
+          echo 'HEARTBEAT_INTERVAL_SECONDS=60'
+          echo 'HEARTBEAT_24X7_MODE=true'
+          echo 'SCHEDULE_WAKE_FLOOR_MINUTES=5'
           echo 'OPEN_WORK_SLEEP=FORBIDDEN'
           echo 'STALE_HEARTBEAT_ACTION=RECOVER_AND_CONTINUE'
           echo 'GREEN_DOES_NOT_SUSPEND_RESIDENCY=true'
@@ -41,6 +44,23 @@ jobs:
           echo 'SELF_ABORT_ALLOWED=false'
           echo 'RUN_END_DOES_NOT_END_TASK=true'
 
+      - name: Emit canonical one-minute repair heartbeat continuously
+        env:
+          FLIXO_HEARTBEAT_PATH: /tmp/flixo-heartbeat/heartbeat.json
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-heartbeat
+          for TICK in 1 2 3 4 5 6; do
+            SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+            node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="HEARTBEAT:$GITHUB_RUN_ID:$TICK" --state=ACTIVE --sha="$SHA" --progress=false --file="$FLIXO_HEARTBEAT_PATH"
+            jq -e --arg sha "$SHA" '.protocolId=="AGENT_LIVENESS_PROTOCOL" and .state=="ACTIVE" and .exactSha==$sha and .progress==false' "$FLIXO_HEARTBEAT_PATH" >/dev/null
+            echo "HEARTBEAT_EMITTED=true"
+            echo "HEARTBEAT_TICK=$TICK"
+            echo "HEARTBEAT_EXACT_SHA=$SHA"
+            if [ "$TICK" -lt 6 ]; then sleep 60; fi
+          done
+          echo 'HEARTBEAT_INTERVAL_SECONDS=60'
+          echo 'HEARTBEAT_WINDOW_SECONDS=360'
       - name: Verify five-minute heartbeat compliance
         id: heartbeat_compliance
         env:
@@ -59,7 +79,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-heartbeat-compliance-${{ github.run_id }}
-          path: /tmp/flixo-heartbeat/wake-compliance.json
+          path: |
+            /tmp/flixo-heartbeat/wake-compliance.json
+            /tmp/flixo-heartbeat/heartbeat.json
           if-no-files-found: warn
           retention-days: 14
 
@@ -113,29 +135,6 @@ jobs:
             fi
           fi
 
-      - name: Start resident Repair Bot automatically when the repair session is open
-        if: steps.state.outputs.resident_wake == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/auto-repair.yml/dispatches" -f ref=execution -f "inputs[resident]=true"
-          echo 'AUTOMATIC_REPAIR_BOT_RESIDENCY_WAKE=true'
-          echo 'RESIDENT_MODE_IS_OBSERVATION_ONLY=true'
-          echo 'REPAIR_MUTATION_AUTHORITY_REMAINS_AUTO_REPAIR_CANONICAL_RUN=true'
-          echo 'MANUAL_WAKE_REQUIRED=false'
-      - name: Wake canonical Green Gate automatically
-        if: steps.state.outputs.wake == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/daily-flixo-green-gate.yml/dispatches" -f ref=main
-          echo 'AUTOMATIC_GREEN_GATE_WAKE=true'
-          echo 'HUMAN_MANUAL_REPAIR_LAUNCH=false'
-          echo 'REPAIR_DISPATCH_REMAINS_CANONICAL_GREEN_GATE_AUTHORITY=true'
       - name: Wake observer supervisor automatically
         if: steps.state.outputs.wake == 'true'
         env:

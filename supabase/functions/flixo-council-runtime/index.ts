@@ -62,6 +62,14 @@ const authAccount = (req: Request, account: Account) => {
   }
 };
 
+const trustedWorkflowSha = (workflow: string) => {
+  let parsed: unknown;
+  try { parsed = JSON.parse(Deno.env.get("COUNCIL_TRUSTED_WORKFLOW_SHAS") ?? "{}"); } catch { throw new Error("COUNCIL_TRUSTED_WORKFLOW_SHA_CONFIG_INVALID"); }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("COUNCIL_TRUSTED_WORKFLOW_SHA_CONFIG_INVALID");
+  const value = String((parsed as Record<string, unknown>)[workflow] ?? "").trim().toLowerCase();
+  if (!/^[0-9a-f]{40}$/u.test(value)) throw new Error("COUNCIL_TRUSTED_WORKFLOW_SHA_MISSING=" + workflow);
+  return value;
+};
 const authGitHubWorkflow = async (req: Request, allowedWorkflows: string[]) => {
   const token = bearer(req);
   if (!token) throw new Error("COUNCIL_GITHUB_OIDC_MISSING");
@@ -72,6 +80,17 @@ const authGitHubWorkflow = async (req: Request, allowedWorkflows: string[]) => {
   const claims = verified.payload;
   if (String(claims.repository ?? "") !== GITHUB_REPOSITORY) throw new Error("COUNCIL_GITHUB_OIDC_REPOSITORY_REJECTED");
   if (!allowedWorkflows.includes(String(claims.workflow ?? ""))) throw new Error("COUNCIL_GITHUB_OIDC_WORKFLOW_REJECTED");
+  const workflow = String(claims.workflow ?? "");
+  const workflowSha = String(claims.workflow_sha ?? "").trim().toLowerCase();
+  if (!/^[0-9a-f]{40}$/u.test(workflowSha)) throw new Error("COUNCIL_GITHUB_OIDC_WORKFLOW_SHA_MISSING");
+  if (workflowSha !== trustedWorkflowSha(workflow)) throw new Error("COUNCIL_GITHUB_OIDC_WORKFLOW_SHA_REJECTED");
+  const jobWorkflowRef = String(claims.job_workflow_ref ?? "").trim();
+  const jobWorkflowSha = String(claims.job_workflow_sha ?? "").trim().toLowerCase();
+  if (jobWorkflowRef && !/^[0-9a-f]{40}$/u.test(jobWorkflowSha)) throw new Error("COUNCIL_GITHUB_OIDC_JOB_WORKFLOW_SHA_MISSING");
+  if (jobWorkflowRef && !jobWorkflowSha) throw new Error("COUNCIL_GITHUB_OIDC_JOB_WORKFLOW_SHA_REQUIRED");
+  if (jobWorkflowRef && jobWorkflowSha !== trustedWorkflowSha(workflow)) {
+    throw new Error("COUNCIL_GITHUB_OIDC_JOB_WORKFLOW_SHA_REJECTED");
+  }
   const event = String(claims.event_name ?? "");
   const ref = String(claims.ref ?? "");
   const allowed = allowedWorkflows.some((workflow) => {
@@ -215,6 +234,118 @@ const sha = (value: unknown) => {
   if (!/^[0-9a-f]{40}$/u.test(s)) throw new Error("COUNCIL_EXACT_SHA_INVALID");
   return s;
 };
+
+
+const invokeOpenAIForMaster3 = async ({
+  dispatchId,
+  sessionId,
+  exactSha,
+  taskId,
+  workPackageId,
+  payload,
+}: {
+  dispatchId: string;
+  sessionId: string;
+  exactSha: string;
+  taskId: string;
+  workPackageId: string;
+  payload: Record<string, unknown>;
+}) => {
+  const apiKey = Deno.env.get("OPENAI_API_KEY")?.trim() ?? "";
+  if (!apiKey) {
+    return { attempted: false, ok: false, reason: "OPENAI_API_KEY_MISSING" };
+  }
+
+  const model = Deno.env.get("OPENAI_MODEL")?.trim() || "gpt-5.6-luna";
+  const baseUrl = (Deno.env.get("OPENAI_BASE_URL")?.trim() || "https://api.openai.com").replace(/\/$/u, "");
+  const reasoningEffort = Deno.env.get("OPENAI_REASONING_EFFORT")?.trim() || "high";
+
+  const systemPrompt = [
+    "You are MASTER-3 in the FLIXO Council.",
+    "Role: adversarial analysis, root-cause correlation, exact-SHA requalification, and next-action routing.",
+    "You are an execution worker, not the GREEN authority.",
+    "Never declare GREEN, certification, merge approval, or policy override.",
+    "Treat the supplied exact SHA as immutable truth for this turn.",
+    "Return concise structured JSON-like text with: status, exactSha, rootCause, evidenceNeeded, nextAction.",
+  ].join(" ");
+
+  const userPrompt = JSON.stringify({
+    dispatchId,
+    sessionId,
+    exactSha,
+    taskId,
+    workPackageId,
+    payload,
+  });
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45000);
+  try {
+    const result = await fetch(baseUrl + "/v1/responses", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: "Bearer " + apiKey,
+      },
+      body: JSON.stringify({
+        model,
+        store: false,
+        background: false,
+        reasoning: { effort: reasoningEffort },
+        input: [
+          { role: "system", content: [{ type: "input_text", text: systemPrompt }] },
+          { role: "user", content: [{ type: "input_text", text: userPrompt }] },
+        ],
+      }),
+      signal: controller.signal,
+    });
+    const raw = await result.text();
+    let data: Record<string, unknown> = {};
+    if (raw) {
+      try { data = JSON.parse(raw) as Record<string, unknown>; } catch { data = { raw }; }
+    }
+    if (!result.ok) {
+      return {
+        attempted: true,
+        ok: false,
+        reason: "OPENAI_HTTP_" + result.status,
+        model,
+        error: typeof data.error === "object" && data.error ? (data.error as Record<string, unknown>).message ?? null : null,
+      };
+    }
+
+    const outputText = typeof data.output_text === "string"
+      ? data.output_text
+      : Array.isArray(data.output)
+        ? (data.output as Array<Record<string, unknown>>)
+          .flatMap((item) => Array.isArray(item.content) ? item.content as Array<Record<string, unknown>> : [])
+          .map((item) => typeof item.text === "string" ? item.text : "")
+          .filter(Boolean)
+          .join("\n")
+        : "";
+
+    return {
+      attempted: true,
+      ok: true,
+      provider: "openai-responses-api",
+      model,
+      responseId: typeof data.id === "string" ? data.id : null,
+      status: typeof data.status === "string" ? data.status : "completed",
+      outputText: outputText.slice(0, 12000),
+    };
+  } catch (error) {
+    return {
+      attempted: true,
+      ok: false,
+      reason: "OPENAI_REQUEST_FAILED",
+      model,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 
 const dispatchSingle = async ({
   body, primary, fallback, messageId, idempotencyKey, taskId, workPackageId, payload,
@@ -491,6 +622,167 @@ Deno.serve(async (req) => {
         dispatch: ackedRow,
         session: { sessionId, expiresAt, token: sessionToken },
       }, 200, requestId);
+    }
+
+    if (action === "assistant-channel" && req.method === "GET") {
+      const nonce = String(url.searchParams.get("nonce") ?? "").trim();
+      const suppliedHash = String(url.searchParams.get("tokenHash") ?? "").trim().toLowerCase();
+      const purpose = String(url.searchParams.get("purpose") ?? "").trim().toUpperCase();
+      const exactSha = sha(url.searchParams.get("entrySha"));
+      if (nonce && !/^[A-Za-z0-9_-]{32,256}$/.test(nonce)) throw new Error("COUNCIL_ASSISTANT_NONCE_INVALID");
+      if (suppliedHash && !/^[0-9a-f]{64}$/.test(suppliedHash)) throw new Error("COUNCIL_ASSISTANT_TOKEN_HASH_INVALID");
+      if (!nonce && !suppliedHash) throw new Error("COUNCIL_ASSISTANT_CREDENTIAL_REQUIRED");
+      if (!["WAKE", "STATUS"].includes(purpose)) throw new Error("COUNCIL_ASSISTANT_PURPOSE_INVALID");
+
+      const tokenHash = suppliedHash || sha256Hex(nonce);
+      const claimed = await db("/rest/v1/rpc/council_claim_assistant_wake", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          p_token_hash: tokenHash,
+          p_purpose: purpose,
+          p_exact_sha: exactSha,
+        }),
+      }) as Record<string, unknown>;
+      if (claimed?.accepted !== true) {
+        throw new Error(String(claimed?.reason ?? "COUNCIL_ASSISTANT_NONCE_REJECTED"));
+      }
+      const row = claimed.wake as Record<string, unknown>;
+      if (!row || typeof row !== "object") throw new Error("COUNCIL_ASSISTANT_WAKE_PAYLOAD_INVALID");
+
+      const recipientMaster = String(row.recipientMaster ?? "").trim();
+      const route = MASTER_ACCOUNT_ROUTES[recipientMaster];
+      if (!route) throw new Error("COUNCIL_ASSISTANT_RECIPIENT_INVALID");
+
+      if (purpose === "STATUS") {
+        const runtime = await getAccountState(route.primary);
+        const assignments = await db(
+          "/rest/v1/flix_council_dispatches?recipient_account_id=eq." +
+          encodeURIComponent(route.primary) +
+          "&status=in.(LEASED,ACKED)&entry_sha=eq." + encodeURIComponent(exactSha) +
+          "&select=dispatch_id,message_id,task_id,work_package_id,entry_sha,status,session_id,lease_expires_at,attempts,created_at,updated_at&order=created_at.asc&limit=5"
+        ) as Array<Record<string, unknown>>;
+        return response({
+          ok: true,
+          channel: "MASTER3_DIRECT_ASSISTANT",
+          purpose,
+          recipientMaster,
+          accountId: route.primary,
+          identity: runtime.identity,
+          identityVerified: runtime.identityVerified,
+          accountState: {
+            active: runtime.row.active,
+            currentSessionId: runtime.row.current_session_id,
+            lastSeenAt: runtime.row.last_seen_at,
+          },
+          assignments: assignments ?? [],
+          exactSha,
+        }, 200, requestId);
+      }
+
+      const wakeId = String(row.wakeId ?? row.wake_id ?? "").trim();
+      const dispatchResult = await db("/rest/v1/rpc/council_dispatch_assistant_wake", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ p_wake_id: wakeId, p_exact_sha: exactSha }),
+      }) as Record<string, unknown>;
+      if (dispatchResult?.accepted !== true) {
+        throw new Error(String(dispatchResult?.reason ?? "COUNCIL_ASSISTANT_WAKE_DISPATCH_REJECTED"));
+      }
+      const result = dispatchResult.dispatch as Record<string, unknown>;
+      if (!result || typeof result !== "object") throw new Error("COUNCIL_ASSISTANT_WAKE_DISPATCH_PAYLOAD_INVALID");
+
+      const runtime = await getAccountState(route.primary);
+      if (!runtime.identityVerified || !runtime.identity?.agentId) {
+        throw new Error("COUNCIL_MASTER3_IDENTITY_UNVERIFIED");
+      }
+      const sessionId = crypto.randomUUID();
+      await db("/rest/v1/rpc/council_ack_dispatch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          p_dispatch_id: String(result.dispatchId),
+          p_account_id: route.primary,
+          p_session_id: sessionId,
+          p_exact_sha: exactSha,
+        }),
+      });
+      const gpt = await invokeOpenAIForMaster3({
+        dispatchId: String(result.dispatchId),
+        sessionId,
+        exactSha,
+        taskId: String(result.taskId),
+        workPackageId: String(result.workPackageId),
+        payload: row.payload && typeof row.payload === "object" && !Array.isArray(row.payload)
+          ? row.payload as Record<string, unknown>
+          : {},
+      });
+
+      await db("/rest/v1/rpc/council_heartbeat_dispatch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          p_dispatch_id: String(result.dispatchId),
+          p_account_id: route.primary,
+          p_session_id: sessionId,
+          p_exact_sha: exactSha,
+        }),
+      });
+
+      if (gpt.ok) {
+        await db("/rest/v1/rpc/council_complete_dispatch", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            p_dispatch_id: String(result.dispatchId),
+            p_account_id: route.primary,
+            p_session_id: sessionId,
+            p_exact_sha: exactSha,
+            p_status: "DONE",
+            p_evidence: {
+              provider: "openai-responses-api",
+              responseId: gpt.responseId ?? null,
+              model: gpt.model ?? null,
+              heartbeat: true,
+              exactSha,
+            },
+            p_payload: {
+              directReply: gpt.outputText ?? "",
+            },
+          }),
+        });
+      } else {
+        await db("/rest/v1/rpc/council_complete_dispatch", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            p_dispatch_id: String(result.dispatchId),
+            p_account_id: route.primary,
+            p_session_id: sessionId,
+            p_exact_sha: exactSha,
+            p_status: "FAILED",
+            p_evidence: {
+              provider: "openai-responses-api",
+              model: gpt.model ?? null,
+              heartbeat: true,
+              exactSha,
+              failureReason: gpt.reason ?? "COUNCIL_OPENAI_EXECUTION_FAILED",
+            },
+            p_payload: {
+              directReply: "",
+            },
+          }),
+        });
+      }
+      return response({
+        ok: true,
+        channel: "MASTER3_DIRECT_ASSISTANT",
+        purpose,
+        recipientMaster,
+        exactSha,
+        dispatch: { ...result, sessionId, openai: gpt, status: gpt.ok ? "DONE" : "FAILED" },
+        directReply: gpt.outputText ?? "",
+      }, 202, requestId);
     }
 
     const body = await jsonBody(req);

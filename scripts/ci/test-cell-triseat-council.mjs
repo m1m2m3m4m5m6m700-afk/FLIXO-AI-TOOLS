@@ -1,13 +1,1 @@
-import assert from 'node:assert/strict';
-import fs from 'node:fs';
-const contract=JSON.parse(fs.readFileSync('docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json','utf8'));
-const registry=JSON.parse(fs.readFileSync('docs/agents/CELL-BOT-REGISTRY.json','utf8'));
-assert.equal(contract.cellCouncil.seats.length,3);
-assert.deepEqual(contract.cellCouncil.seats.map((seat)=>seat.id),['CELL-SEAT-01','CELL-SEAT-02','CELL-SEAT-03']);
-assert.equal(contract.cellCouncil.controller,'assistantController');
-assert.equal(contract.cellCouncil.quorum.minimumSeats,2);
-assert.equal(contract.cellCouncil.quorum.criticalDecisions,3);
-assert.equal(registry.cellCouncil.seats.length,3);
-assert.equal(registry.bots.length,200);
-assert.equal(registry.bots.every((bot)=>bot.cellCouncil==='CELL_TRISEAT_CONTROLLER'),true);
-console.log('CELL_TRISEAT_COUNCIL=PASS');
+import assert from 'node:assert/strict';import fs from 'node:fs';const r=JSON.parse(fs.readFileSync('docs/agents/CELL-BOT-REGISTRY.json','utf8'));assert.equal(r.status,'RETIRED');assert.equal(r.bots.length,0);assert.equal(r.cellCouncil.controller,'assistantController');console.log('CELL_TRISEAT_NO_BOT_POOL=PASS');

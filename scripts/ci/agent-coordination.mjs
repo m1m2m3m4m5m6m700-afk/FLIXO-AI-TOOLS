@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { getMessage as getAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
 import { assertAgentAdmission, assertProtocolDefinition } from './repair-protocol.mjs';
 import { buildKnowledgeRecord, persistKnowledge } from './cell-learning.mjs';
+import { initialize as initializeChairState, acquire as acquireChair, release as releaseChair, revoke as revokeChair, heartbeat as heartbeatChair, reconcileDeadLeases, writeSpeculativeContext, activeChairForAgent } from './chair-bound-execution.mjs';
 
 const ROOT = process.cwd();
 const COORD_DIR = path.resolve(ROOT, process.env.FLIXO_COORDINATION_DIR ?? 'diagnostics/agents');
@@ -17,11 +18,22 @@ const WRITE_LOCK_OWNER = path.join(WRITE_LOCK_DIR, 'owner.json');
 const PACKET_DIR = path.join(COORD_DIR, 'task-packets');
 const HANDOFF_DIR = path.join(COORD_DIR, 'handoffs');
 const VISIBILITY_DIR = path.resolve(ROOT, process.env.FLIXO_AGENT_VISIBILITY_DIR ?? 'docs/agents/ledger');
+const SESSION_DIR = path.resolve(ROOT, process.env.FLIXO_AGENT_SESSION_DIR ?? 'diagnostics/agents/sessions');
 const TASK_LEDGER_FILE = path.resolve(ROOT, process.env.FLIXO_TASK_LEDGER_FILE ?? 'المهام.md');
 const WRITE_LOCK_WAIT_MS = 50;
 const WRITE_LOCK_MAX_ATTEMPTS = 240;
 const WRITE_LOCK_STALE_MS = 10 * 60 * 1000;
 const STALE_SESSION_KILL_SWITCH = true;
+const CHAIR_ROLE_POLICY = Object.freeze({
+  chair_1: new Set(['assistantController','executionAgent','repairAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier','actionHistorian','AUTO_REPAIR_BOT']),
+  chair_2: new Set(['verification','reviewAgent','testAgent','securityAgent','diagnosticAgent','errorAgent','repairAgent','assistantRepairAgent','actionRepairVerifier']),
+  chair_3: new Set(['analysis','assistantController']),
+});
+const assertChairRole = (chairId, role) => {
+  const allowed = CHAIR_ROLE_POLICY[chairId];
+  if (!allowed) throw new Error('CHAIR_UNKNOWN=' + chairId);
+  if (!allowed.has(String(role))) throw new Error('CHAIR_ROLE_NOT_AUTHORIZED=' + chairId + ':' + String(role));
+};
 const COUNCIL_MACHINE_ROLES = new Set(['assistantController','verification','analysis','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier','actionHistorian']);
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
@@ -33,7 +45,13 @@ for (let i = 2; i < process.argv.length; i += 1) {
   args.set(key, value ?? null);
 }
 const command = String(process.argv[2] ?? '').toLowerCase();
-const gitBranch = () => execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim();
+const gitBranch = () => {
+  const checkedOut = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  if (checkedOut) return checkedOut;
+  const headRef = String(process.env.GITHUB_HEAD_REF ?? '').trim();
+  if (headRef) return headRef;
+  return String(process.env.GITHUB_REF_NAME ?? '').trim();
+};
 const GOVERNANCE_FILES = ['AGENTS.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/PROTOCOL-HIERARCHY.md', 'docs/PROTOCOL-REGISTRY.json', 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json'];
 const governanceFingerprint = () => createHash('sha256').update(GOVERNANCE_FILES.map((file) => `${file}:${createHash('sha256').update(fs.readFileSync(path.resolve(ROOT, file), 'utf8'), 'utf8').digest('hex')}`).join('|'), 'utf8').digest('hex');
 const assertMutationTopology = () => { if (MUTATING_COMMANDS.has(command) && gitBranch() !== 'execution') throw new Error('COORDINATION_MUTATION_BRANCH_BLOCKED'); };
@@ -213,6 +231,9 @@ const staleSessionRecord = (sessionId, session, reason) => {
   state.staleSessions[sessionId] = { ...session, staleAt: now(), staleAtSha, staleReason: reason };
   const task = session.taskId ? state.tasks[session.taskId] : null;
   if (task?.sessionId === sessionId && task.status === 'RUNNING') { task.status = 'STALE'; task.staleReason = reason; task.staleAt = now(); }
+  if (session.chairId && session.agentId) {
+    revokeChair({ chairId: session.chairId, agentId: session.agentId, reason, sessionId, taskId: session.taskId ?? null });
+  }
   unlock(sessionId);
   delete state.activeSessions[sessionId];
   try { const file = visibilityPath(sessionId); if (fs.existsSync(file)) { const visibility = JSON.parse(fs.readFileSync(file, 'utf8')); visibility.status = 'STALE'; visibility.staleReason = reason; visibility.staleAt = now(); visibility.updatedAt = now(); fs.writeFileSync(file, JSON.stringify(visibility, null, 2) + '\n'); } } catch { return false; }
@@ -225,8 +246,19 @@ const reconcileStaleSessions = () => {
     else if (session.governanceFingerprint && session.governanceFingerprint !== currentGovernanceFingerprint) staleSessionRecord(sessionId, session, 'GOVERNANCE_DRIFT');
   }
 };
+const markSessionChairReleased = (sessionId, chairId, reason) => {
+  const file = path.join(SESSION_DIR, storageKey(sessionId) + '.json');
+  if (!fs.existsSync(file)) return false;
+  const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+  record.chairBinding = { ...(record.chairBinding ?? {}), released: true, releasedAt: now(), releasedChairId: chairId ?? record.chairBinding?.chairId ?? null, releaseReason: reason };
+  record.chairId = null;
+  record.chairLeaseId = null;
+  record.actions = Array.isArray(record.actions) ? [...record.actions, { at: now(), action: 'CHAIR_RELEASED_AT_TASK_END', chairId, reason, sha: sha() }] : [{ at: now(), action: 'CHAIR_RELEASED_AT_TASK_END', chairId, reason, sha: sha() }];
+  fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
+  return true;
+};
 const visibleAgents = () => { if (!fs.existsSync(VISIBILITY_DIR)) return []; return fs.readdirSync(VISIBILITY_DIR).filter((entry) => entry.endsWith('.json')).sort().map((entry) => { try { const item = JSON.parse(fs.readFileSync(path.join(VISIBILITY_DIR, entry), 'utf8')); return { taskId: item.taskId ?? null, sessionId: item.sessionId ?? entry.slice(0,-5), agentId: item.agentId ?? null, role: item.role ?? null, status: item.status ?? null, finalStatus: item.finalStatus ?? null, entrySha: item.entrySha ?? null, exitSha: item.exitSha ?? null, finalSummary: item.finalSummary ?? null, remainingWork: item.remainingWork ?? [], openRcas: item.openRcas ?? [], updatedAt: item.updatedAt ?? null }; } catch { return { sessionId: entry.slice(0,-5), status: 'MALFORMED_EVIDENCE' }; } }); };
-const MUTATING_COMMANDS = new Set(['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next', 'ingest-handoff']);
+const MUTATING_COMMANDS = new Set(['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next', 'ingest-handoff', 'chair-heartbeat', 'chair-reconcile', 'chair-speculate']);
 const writeLocked = MUTATING_COMMANDS.has(command);
 assertMutationTopology();
 if (writeLocked) acquireWriteLock();
@@ -298,11 +330,22 @@ function recordCellTaskKnowledge(task, { outcome, verification }) {
   return { botId, result: persistKnowledge(record), knowledge: record };
 }
 ensure();
-if (writeLocked) reconcileStaleSessions();
-if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next', 'state', 'brief', 'visible', 'ingest-handoff'].includes(command)) throw new Error('Usage: agent-coordination.mjs task-create|task-claim|task-release|task-complete|task-next|state|brief|visible|ingest-handoff');
+const staleReconcileRequired = Object.values(state.activeSessions ?? {}).some((session) =>
+  (session.entrySha && session.entrySha !== sha()) ||
+  (session.governanceFingerprint && session.governanceFingerprint !== currentGovernanceFingerprint)
+);
+if (writeLocked || (command === 'state' && staleReconcileRequired)) {
+  reconcileStaleSessions();
+  if (command === 'state' && staleReconcileRequired && !writeLocked) save();
+}
+if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next', 'state', 'brief', 'visible', 'ingest-handoff', 'chair-heartbeat', 'chair-reconcile', 'chair-speculate'].includes(command)) throw new Error('Usage: agent-coordination.mjs task-create|task-claim|task-release|task-complete|task-next|state|brief|visible|ingest-handoff|chair-heartbeat|chair-reconcile|chair-speculate');
 
 if (command === 'task-create') {
   const taskId = requireArg('task');
+  const tasksAuthorityFile = path.resolve(ROOT, process.env.FLIXO_TASK_AUTHORITY_FILE || 'المهام.md');
+  if (!fs.existsSync(tasksAuthorityFile)) throw new Error('TASK_PERMANENT_LEDGER_MISSING');
+  const ledgerText = fs.readFileSync(tasksAuthorityFile, 'utf8');
+  if (!ledgerText.includes(taskId)) throw new Error('TASK_PERMANENT_LEDGER_ENTRY_REQUIRED=' + taskId);
   if (state.tasks[taskId]) throw new Error(`Task already exists: ${taskId}`);
   const ownerRole = optional('owner-role') || null;
   if (ownerRole && !COUNCIL_MACHINE_ROLES.has(ownerRole)) throw new Error('TASK_OWNER_ROLE_INVALID=' + ownerRole);
@@ -358,24 +401,42 @@ if (command === 'task-claim') {
     if (inboundMessage.taskId !== taskId) throw new Error('COORDINATION_MESSAGE_TASK_MISMATCH');
     if (!overlap(task.scope ?? [], new Set(inboundMessage.scope ?? []))) throw new Error('COORDINATION_MESSAGE_SCOPE_MISMATCH');
   }
+  initializeChairState({targetSha:sha()});
+  reconcileDeadLeases({targetSha:sha()});
   let lockId = lock(sessionId, agentId, task.rca, task.scope);
-  if (inboundMessage) {
-    try {
-      inboundMessage = consumeAgentMessage(inboundMessage.messageId, agentId, sha(), true);
-    } catch (error) {
-      unlock(sessionId);
-      throw error;
+  let chairLease = null;
+  const selectedChair = optional('chair', activeChairForAgent({agentId,targetSha:sha()})?.chairId ?? 'chair_1');
+  assertChairRole(selectedChair, visibility.role);
+  try {
+    const existingChair = activeChairForAgent({agentId,targetSha:sha()});
+    if (existingChair) {
+      if (existingChair.chairId !== selectedChair) throw new Error('CHAIR_SESSION_ALREADY_BOUND_TO_OTHER_CHAIR');
+      chairLease = { chairs: { [existingChair.chairId]: { lease_id: existingChair.leaseId, status: 'OCCUPIED' } }, repository_state: 'ACTIVE', reused: true };
+    } else {
+      chairLease = acquireChair({
+        agentId,
+        chairId: selectedChair,
+        reviewId: optional('review-id') || null,
+        scope: task.scope ?? null,
+        workPackageId: task.workPackageId ?? taskId,
+        taskId
+      });
     }
+    if (inboundMessage) inboundMessage = consumeAgentMessage(inboundMessage.messageId, agentId, sha(), true);
+  } catch (error) {
+    try { if (chairLease) releaseChair({ chairId: selectedChair, agentId, reason: 'CLAIM_ROLLBACK', sessionId, taskId }); } catch { /* rollback cleanup is best-effort */ }
+    unlock(sessionId);
+    throw error;
   }
-  task.status = 'RUNNING'; task.claimedBy = agentId; task.sessionId = sessionId; task.claimedAt = now(); task.entrySha = sha(); task.lockId = lockId;
-  state.activeSessions[sessionId] = { sessionId, agentId, taskId, lockId, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, protocolHash: assertProtocolDefinition().protocolHash, ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}), updatedAt: now() };
+  task.status = 'RUNNING'; task.claimedBy = agentId; task.sessionId = sessionId; task.claimedAt = now(); task.entrySha = sha(); task.lockId = lockId; task.chairId = selectedChair;
+  state.activeSessions[sessionId] = { sessionId, agentId, taskId, lockId, chairId: selectedChair, chairLeaseId: chairLease?.chairs?.[selectedChair]?.lease_id ?? null, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, protocolHash: assertProtocolDefinition().protocolHash, ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}), updatedAt: now() };
   const packetFile = packetPath(taskId); const packet = readJson(packetFile, task); packet.claim = { sessionId, agentId, lockId, claimedAt: now(), entrySha: sha(), ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}) }; writeJson(packetFile, packet); save(); console.log(JSON.stringify(task, null, 2));
 }
 
 if (command === 'task-release') {
   const taskId = requireArg('task'); const sessionId = requireArg('session'); const task = state.tasks[taskId]; if (!task) throw new Error(`Unknown task: ${taskId}`); if (task.sessionId !== sessionId) throw new Error('TASK_OWNER_MISMATCH');
   const visibility = readVisibility(sessionId); if (visibility.taskId !== taskId) throw new Error('AGENT_VISIBILITY_TASK_MISMATCH'); if (!['VERIFIED','BLOCKED'].includes(visibility.finalStatus)) throw new Error('TASK_RELEASE_REQUIRES_CLOSED_AGENT_STATUS');
-  task.status = optional('status', 'READY').toUpperCase(); task.releasedAt = now(); task.remainingWork = list('remaining-work'); task.openRcas = list('open-rcas'); const cellLearning = visibility.finalStatus === 'BLOCKED' ? recordCellTaskKnowledge(task, { outcome: 'blocked', verification: 'task-blocked', sessionId }) : null; unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ task, cellLearning }, null, 2));
+  task.status = optional('status', 'READY').toUpperCase(); task.releasedAt = now(); task.remainingWork = list('remaining-work'); task.openRcas = list('open-rcas'); const activeReleaseChair = activeChairForAgent({agentId: task.claimedBy,targetSha:sha()}); if (activeReleaseChair) { releaseChair({ chairId: activeReleaseChair.chairId, agentId: task.claimedBy, reason: 'TASK_RELEASE', successful: visibility.finalStatus === 'VERIFIED', sessionId, taskId }); markSessionChairReleased(sessionId, activeReleaseChair.chairId, 'TASK_RELEASE'); } const cellLearning = visibility.finalStatus === 'BLOCKED' ? recordCellTaskKnowledge(task, { outcome: 'blocked', verification: 'task-blocked', sessionId }) : null; unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ task, cellLearning }, null, 2));
 }
 
 if (command === 'task-complete') {
@@ -423,7 +484,37 @@ if (command === 'task-complete') {
     task.nextTask = null;
     state.nextDispatch = null;
   }
-  unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ completedTask: task, cellLearning, nextTask: task.nextTask, councilDispatch: state.nextDispatch }, null, 2));
+  const activeCompleteChair = activeChairForAgent({agentId: task.claimedBy,targetSha:sha()}); if (activeCompleteChair) { releaseChair({ chairId: activeCompleteChair.chairId, agentId: task.claimedBy, reason: 'TASK_COMPLETE', successful: true, sessionId, taskId }); markSessionChairReleased(sessionId, activeCompleteChair.chairId, 'TASK_COMPLETE'); } unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ completedTask: task, cellLearning, nextTask: task.nextTask, councilDispatch: state.nextDispatch }, null, 2));
+}
+
+
+if (command === 'chair-heartbeat') {
+  const sessionId = requireArg('session'); const agentId = requireArg('agent'); const chairId = optional('chair', 'chair_1');
+  const session = state.activeSessions[sessionId]; if (!session || session.agentId !== agentId || session.chairId !== chairId) throw new Error('CHAIR_HEARTBEAT_SESSION_MISMATCH');
+  if (session.entrySha !== sha()) throw new Error('STALE_CONTEXT');
+  initializeChairState({targetSha:sha()});
+  const result = heartbeatChair({chairId,agentId,targetSha:sha()});
+  session.updatedAt = now(); session.lastHeartbeatAt = result.heartbeatAt; save();
+  console.log(JSON.stringify(result, null, 2));
+}
+
+if (command === 'chair-reconcile') {
+  initializeChairState({targetSha:sha()});
+  const result = reconcileDeadLeases({targetSha:sha()});
+  save();
+  console.log(JSON.stringify(result, null, 2));
+}
+
+if (command === 'chair-speculate') {
+  const sessionId = requireArg('session'); const taskId = requireArg('task'); const chairId = optional('chair', 'chair_2'); const role = requireArg('role');
+  if (!['chair_2','chair_3'].includes(chairId)) throw new Error('CHAIR_SPECULATION_SEAT_DENIED');
+  assertChairRole(chairId, role);
+  if (!state.activeSessions[sessionId] || state.activeSessions[sessionId].taskId !== taskId) throw new Error('CHAIR_SPECULATION_SESSION_MISMATCH');
+  const currentSha = sha();
+  const pendingDiff = (()=>{const f=optional('pending-diff-file'); if(!f)return optional('pending-diff'); const normalized=String(f).replace(/\\/g,'/'); if(normalized.startsWith('/')||normalized.includes('..')) throw new Error('CHAIR_SPECULATION_PATH_INVALID'); const abs=path.resolve(ROOT,normalized); if(!abs.startsWith(ROOT+path.sep)||!fs.existsSync(abs)) throw new Error('CHAIR_SPECULATION_PATH_INVALID'); return fs.readFileSync(abs,'utf8');})();
+  const testPlan = list('test-plan',';');
+  const cache = writeSpeculativeContext({sessionId,taskId,chairId,role,targetSha:currentSha,pendingDiff,testPlan});
+  console.log(JSON.stringify({readOnly:true,warm:true,cache}, null, 2));
 }
 
 if (command === 'task-next') {
@@ -444,7 +535,7 @@ if (command === 'task-next') {
       dispatchId: `TASK-NEXT:${completedTaskId ?? 'IDLE'}:${sha()}:${task.taskId}`,
       completedTaskId,
       nextTaskId: task.taskId,
-      recipient: task.ownerAgent ?? 'assistantController',
+      recipient: task.ownerAgent ?? optional('agent', 'assistantController'),
       sourceOfTruth: 'المهام.md',
       ledgerLine: ledgerTask.line,
       ledgerStatus: ledgerTask.status,

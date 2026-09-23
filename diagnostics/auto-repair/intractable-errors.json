@@ -2,5 +2,116 @@
   "version": 1,
   "threshold": 10,
   "protocol": "SUPERVISING-REPAIR-TEACHING-v1",
-  "cases": []
+  "cases": [
+    {
+      "fingerprint": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "INTRACTABLE",
+      "rootCause": "external-tooling",
+      "attemptsAtEscalation": 40,
+      "attempts": 20,
+      "externalBlocks": 20,
+      "escalationAttempts": 20,
+      "successes": 0,
+      "failures": 20,
+      "firstSeenAt": "2026-09-19T05:33:52Z",
+      "lastSeenAt": "2026-09-19T06:48:35Z",
+      "evidence": [
+        {
+          "outcome": "unrepaired",
+          "verification": "engine-error",
+          "strategyId": null,
+          "failedSha": "a9621dcc6b7c45e2b589123af86ee5bb1de4b46d",
+          "targetSha": "",
+          "runId": "35425840483",
+          "at": "2026-09-19T06:31:40.118Z",
+          "headSha": "a9621dcc6b7c45e2b589123af86ee5bb1de4b46d"
+        },
+        {
+          "outcome": "unrepaired",
+          "verification": "engine-error",
+          "strategyId": null,
+          "failedSha": "c471b15907cf55b4aaa42412aa9e57c48817ec05",
+          "targetSha": "",
+          "runId": "35426112796",
+          "at": "2026-09-19T06:32:18.211Z",
+          "headSha": "c471b15907cf55b4aaa42412aa9e57c48817ec05"
+        },
+        {
+          "outcome": "unrepaired",
+          "verification": "engine-error",
+          "strategyId": null,
+          "failedSha": "5105b3afa20fa51d66d4fe366e8b23821ce48732",
+          "targetSha": "",
+          "runId": "35426630274",
+          "at": "2026-09-19T06:32:56.552Z",
+          "headSha": "5105b3afa20fa51d66d4fe366e8b23821ce48732"
+        },
+        {
+          "outcome": "unrepaired",
+          "verification": "engine-error",
+          "strategyId": null,
+          "failedSha": "b1fe925182ecbcaaea65e53daff51110ac9faa5e",
+          "targetSha": "",
+          "runId": "35427245542",
+          "at": "2026-09-19T06:41:04.264Z",
+          "headSha": "b1fe925182ecbcaaea65e53daff51110ac9faa5e"
+        },
+        {
+          "outcome": "unrepaired",
+          "verification": "engine-error",
+          "strategyId": null,
+          "failedSha": "b1fe925182ecbcaaea65e53daff51110ac9faa5e",
+          "targetSha": "",
+          "runId": "35427245533",
+          "at": "2026-09-19T06:41:38.891Z",
+          "headSha": "b1fe925182ecbcaaea65e53daff51110ac9faa5e"
+        },
+        {
+          "outcome": "unrepaired",
+          "verification": "engine-error",
+          "strategyId": null,
+          "failedSha": "9a6da1ebb0af6ae1493987239aa753a1f6b45ff0",
+          "targetSha": "",
+          "runId": "35427288342",
+          "at": "2026-09-19T06:42:00.697Z",
+          "headSha": "9a6da1ebb0af6ae1493987239aa753a1f6b45ff0"
+        },
+        {
+          "outcome": "unrepaired",
+          "verification": "engine-error",
+          "strategyId": null,
+          "failedSha": "9ea9022107e65737417848612c7c83389d63480a",
+          "targetSha": "",
+          "runId": "35427458433",
+          "at": "2026-09-19T06:47:04.661Z",
+          "headSha": "9ea9022107e65737417848612c7c83389d63480a"
+        },
+        {
+          "outcome": "unrepaired",
+          "verification": "engine-error",
+          "strategyId": null,
+          "failedSha": "3c2a44fff4e812dd54904703d147cf5d76a0370c",
+          "targetSha": "",
+          "runId": "35427463513",
+          "at": "2026-09-19T06:48:35.260Z",
+          "headSha": "3c2a44fff4e812dd54904703d147cf5d76a0370c"
+        }
+      ],
+      "rejectedApproaches": [],
+      "teachingRequest": {
+        "required": true,
+        "protocol": "SUPERVISING-REPAIR-TEACHING-v1",
+        "state": "AWAITING_SUPERVISING_AGENT",
+        "requiredResponse": [
+          "newHypothesis",
+          "diagnosticChange",
+          "repairStrategy",
+          "verificationPlan",
+          "doNotRepeat",
+          "exitCriteria"
+        ]
+      },
+      "exitCriteria": "A new evidence-backed strategy or provider requalification changes the external-block signature; internal source mutation remains prohibited until source evidence proves causality."
+    }
+  ]
 }

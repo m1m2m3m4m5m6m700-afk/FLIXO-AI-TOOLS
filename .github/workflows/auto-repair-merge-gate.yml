@@ -13,7 +13,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: flixo-auto-repair-merge-gate-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: flixo-auto-repair-merge-gate-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -25,6 +25,11 @@ jobs:
       - name: Resolve canonical PR and exact execution SHA
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          EVENT_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
+          EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref || '' }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha || '' }}
+          EVENT_PR_STATE: ${{ github.event.pull_request.state || '' }}
           PR_EVENT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         shell: bash
         run: |
@@ -58,11 +63,11 @@ jobs:
             done
           }
 
-          PR_NUMBER="${{ github.event.pull_request.number || '' }}"
-          BASE="${{ github.event.pull_request.base.ref || '' }}"
-          HEAD_BRANCH="${{ github.event.pull_request.head.ref || '' }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha || '' }}"
-          STATE="${{ github.event.pull_request.state || '' }}"
+          PR_NUMBER="$EVENT_PR_NUMBER"
+          BASE="$EVENT_BASE_REF"
+          HEAD_BRANCH="$EVENT_HEAD_REF"
+          HEAD_SHA="$EVENT_HEAD_SHA"
+          STATE="$EVENT_PR_STATE"
 
           if [ -z "$PR_NUMBER" ]; then
             PR_JSON="$(gh_with_backoff pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 1 --json number,state,baseRefName,headRefName,headRefOid --jq '.[0]')" || {
@@ -97,13 +102,70 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ env.EXPECTED_SHA }}
-          fetch-depth: 1
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Reconfirm exact checkout SHA
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Setup Node for exact-SHA adversarial verification
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install exact-SHA verification dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Classify Auto-Repair context
+        id: repair_context
+        shell: bash
+        run: |
+          set -euo pipefail
+          message="$(git log -1 --format=%B)"
+          if printf '%s' "$message" | grep -Eq 'FLIXO-REPAIR-MARKER-v1|FLIXO-REPAIR-ROLLBACK-v1'; then
+            echo 'auto_repair=true' >> "$GITHUB_OUTPUT"
+            echo 'AUTO_REPAIR_CONTEXT=TRUE'
+          else
+            echo 'auto_repair=false' >> "$GITHUB_OUTPUT"
+            echo 'AUTO_REPAIR_CONTEXT=FALSE'
+          fi
+
+      - name: Run independent post-patch adversarial falsification on the exact PR head
+        if: steps.repair_context.outputs.auto_repair == 'true'
+        env:
+          FLIXO_TWIN_READ_ONLY: 'true'
+          FLIXO_TWIN_DETACHED: 'false'
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.EXPECTED_SHA }}
+          FLIXO_ADVERSARIAL_OUTPUT: /tmp/flixo-postpatch-adversarial.json
+          FLIXO_RCA_MANIFEST_PATH: ${{ github.workspace }}/diagnostics/auto-repair/last-rca-manifest.json
+          FLIXO_TARGET_DIR: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin refs/heads/main:refs/remotes/origin/main
+          BASE_SHA="$(git rev-parse origin/main)"
+          SOURCE_SHA="$(git rev-parse HEAD^)"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$SOURCE_SHA" != "$EXPECTED_SHA"
+          test -s "$FLIXO_RCA_MANIFEST_PATH"
+          test "$(jq -r '.target_sha' "$FLIXO_RCA_MANIFEST_PATH")" = "$SOURCE_SHA"
+          FLIXO_PATCH_BASE_SHA="$SOURCE_SHA" node scripts/ci/post-patch-adversarial-assessor.mjs
+          test -s /tmp/flixo-postpatch-adversarial.json
+          test "$(jq -r '.status' /tmp/flixo-postpatch-adversarial.json)" = NO_COUNTEREXAMPLE
+          test "$(jq -r '.targetSha' /tmp/flixo-postpatch-adversarial.json)" = "$EXPECTED_SHA"
+          test "$(jq -r '.sourceSha' /tmp/flixo-postpatch-adversarial.json)" = "$SOURCE_SHA"
+          test "$(jq -r '.falsifierVerdict' /tmp/flixo-postpatch-adversarial.json)" = PASS_CONFIRMED
+          test "$(jq -r '.finiteInvariantProof.status' /tmp/flixo-postpatch-adversarial.json)" = PROVEN
+          test "$(jq -r '.passConfirmed' /tmp/flixo-postpatch-adversarial.json)" = true
+          test "$(jq -r '.mutantCasesSurvived' /tmp/flixo-postpatch-adversarial.json)" = 0
+          echo 'POST_PATCH_ADVERSARIAL_STATUS=NO_COUNTEREXAMPLE'
+      - name: Record non-Auto-Repair promotion path
+        if: steps.repair_context.outputs.auto_repair == 'false'
+        run: |
+          set -euo pipefail
+          echo 'AUTO_REPAIR_ADVERSARIAL=NOT_APPLICABLE_FOR_NON_AUTO_REPAIR_COMMIT'
+          echo 'CANONICAL_CI_REMAINS_REQUIRED=true'
 
       - name: Require canonical workflow GREEN on exact SHA
         env:
@@ -145,6 +207,7 @@ jobs:
             "FLIXO Test Impact Execution"
             "Repository Security Baseline"
             "Claude Security Review"
+            "FLIXO Unified Execution Push Gate"
           )
           MAX_POLLS=40
           POLL_SECONDS=15
@@ -333,5 +396,6 @@ jobs:
           path: |
             /tmp/exact-*.json
             /tmp/external-security-evidence.json
+            /tmp/flixo-postpatch-adversarial.json
           if-no-files-found: warn
           retention-days: 30

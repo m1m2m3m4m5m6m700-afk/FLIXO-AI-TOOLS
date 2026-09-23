@@ -2,7 +2,7 @@ import type { Locale } from '../lib/i18n/config.ts';
 import { LOCALES } from '../lib/i18n/config.ts';
 import { getAuthoritativeToolSeoName } from './tool-seo-name-resolver.ts';
 import { TOOL_DEFINITIONS } from './canonical-tool-definition.ts';
-import type { ToolDefinition } from './canonical-tool-definition.ts';
+import type { ToolDefinition, ToolFamily } from './canonical-tool-definition.ts';
 
 export type ToolManifestEntry = ToolDefinition & {
   readonly seoByLocale: Readonly<Record<Locale, { readonly title: string }>>;
@@ -25,7 +25,7 @@ function withLocalizedSeo(tools: readonly ToolDefinition[]): readonly ToolManife
   });
 }
 
-export const TOOL_MANIFEST: readonly ToolManifestEntry[] = Object.freeze(withLocalizedSeo(TOOL_DEFINITIONS).filter((tool) => tool.category === 'Images'));
+export const TOOL_MANIFEST: readonly ToolManifestEntry[] = Object.freeze(withLocalizedSeo(TOOL_DEFINITIONS));
 
 const byId = new Map(TOOL_MANIFEST.map((tool) => [tool.id, tool]));
 const byPath = new Map<string, ToolManifestEntry>();
@@ -42,6 +42,6 @@ export function getToolManifestByPath(path: string): ToolManifestEntry | undefin
   return byPath.get(path);
 }
 
-export function getToolsByFamily(family: 'image'): readonly ToolManifestEntry[] {
-  return family === 'image' ? TOOL_MANIFEST : [];
+export function getToolsByFamily(family: ToolFamily): readonly ToolManifestEntry[] {
+  return TOOL_MANIFEST.filter((tool) => tool.family === family);
 }

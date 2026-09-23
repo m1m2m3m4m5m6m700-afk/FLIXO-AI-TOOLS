@@ -1,28 +1,90 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { getCapability, getExecutableCapabilityIds } from '../src/lib/agent/capability-registry.ts';
-import { parseExecutionPlan, type ExecutionPlanContract } from '../src/lib/contracts/ai-plan.ts';
+import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from '../src/lib/contracts/agent-gateway.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
 import { buildFlixoAgentMasterPrompt } from '../src/lib/agent/flixo-agent-master-prompt.ts';
 
-type ChatMessage = { role: 'user' | 'assistant'; content: string };
-type RequestBody = {
-  locale?: string;
-  messages?: ChatMessage[];
-  file?: { name?: string; type?: string; size?: number } | null;
-  activePlan?: ExecutionPlanContract | null;
-  activeCommand?: string | null;
-};
-
-type AgentDecision = {
-  mode: 'chat' | 'clarify' | 'plan';
-  reply: string;
-  question: string | null;
-  plan: ExecutionPlanContract | null;
-  confidence: number;
-};
-
-const MAX_INPUT_CHARS = Math.max(2000, Number(process.env.FLIXO_AI_MAX_INPUT_CHARS ?? 12000));
 const MAX_MESSAGES = 24;
+const MAX_REQUEST_BODY_BYTES = 512 * 1024;
+const MAX_PROVIDER_CALLS = 2;
+const DEFAULT_TIMEOUT_MS = 15_000;
+const MAX_TIMEOUT_MS = 120_000;
+const DEFAULT_MAX_TOKENS = 900;
+const MAX_RESPONSE_TOKENS = 4_096;
+const SUPPORTED_PROVIDERS = ['openai', 'openrouter', 'gemini'] as const;
+type SupportedProvider = (typeof SUPPORTED_PROVIDERS)[number];
+
+const PROVIDER_BASE_URLS: Record<SupportedProvider, string> = Object.freeze({
+  openai: 'https://api.openai.com/v1',
+  openrouter: 'https://openrouter.ai/api/v1',
+  gemini: 'https://generativelanguage.googleapis.com',
+});
+
+function parseBoundedInteger(
+  value: string | undefined,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number {
+  if (value === undefined || value.trim() === '') return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
+    throw new Error('Invalid FLIXO AI runtime configuration.');
+  }
+  return parsed;
+}
+
+function resolveProvider(value: string | undefined, fallback = 'openai'): SupportedProvider {
+  const normalized = (value ?? fallback).trim().toLocaleLowerCase();
+  if (!SUPPORTED_PROVIDERS.includes(normalized as SupportedProvider)) {
+    throw new Error('Unsupported FLIXO AI provider configuration.');
+  }
+  return normalized as SupportedProvider;
+}
+
+function configuredRuntime(): {
+  provider: SupportedProvider;
+  fallbackProvider: SupportedProvider | null;
+  timeoutMs: number;
+  maxTokens: number;
+} {
+  const provider = resolveProvider(process.env.FLIXO_AI_PROVIDER);
+  const configuredFallback = process.env.FLIXO_AI_FALLBACK_PROVIDER;
+  const fallbackProvider = configuredFallback?.trim()
+    ? resolveProvider(configuredFallback, provider)
+    : null;
+  if (fallbackProvider === provider) {
+    throw new Error('Invalid FLIXO AI fallback configuration.');
+  }
+  return {
+    provider,
+    fallbackProvider,
+    timeoutMs: parseBoundedInteger(process.env.FLIXO_AI_TIMEOUT_MS, DEFAULT_TIMEOUT_MS, 250, MAX_TIMEOUT_MS),
+    maxTokens: parseBoundedInteger(
+      process.env.FLIXO_AI_DEFAULT_MAX_TOKENS,
+      DEFAULT_MAX_TOKENS,
+      128,
+      MAX_RESPONSE_TOKENS,
+    ),
+  };
+}
+
+async function fetchWithTimeout(
+  input: string | URL,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error('AI provider request timed out.', { cause: error });
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function json(res: ServerResponse, status: number, body: unknown): void {
   res.statusCode = status;
@@ -31,27 +93,24 @@ function json(res: ServerResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body));
 }
 
-async function readBody(req: IncomingMessage): Promise<RequestBody> {
-  let raw = '';
-  for await (const chunk of req) {
-    raw += String(chunk);
-    if (raw.length > 500_000) throw new Error('Request body is too large.');
+async function readBody(req: IncomingMessage): Promise<AgentRequestContract> {
+  const contentLength = req.headers['content-length'];
+  if (contentLength !== undefined) {
+    const declaredLength = Number(Array.isArray(contentLength) ? contentLength[0] : contentLength);
+    if (!Number.isFinite(declaredLength) || declaredLength < 0 || declaredLength > MAX_REQUEST_BODY_BYTES) {
+      throw new Error('Request body is too large.');
+    }
   }
-  const value = JSON.parse(raw) as RequestBody;
-  if (!value || typeof value !== 'object') throw new Error('Invalid request.');
-  return value;
-}
 
-function normalizeMessages(messages: ChatMessage[] | undefined): ChatMessage[] {
-  if (!Array.isArray(messages)) return [];
-  return messages
-    .filter((message) => message && (message.role === 'user' || message.role === 'assistant') && typeof message.content === 'string')
-    .slice(-MAX_MESSAGES)
-    .map((message) => ({
-      role: message.role,
-      content: message.content.trim().slice(0, MAX_INPUT_CHARS),
-    }))
-    .filter((message) => message.content.length > 0);
+  let raw = '';
+  let bytes = 0;
+  for await (const chunk of req) {
+    const text = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
+    bytes += Buffer.byteLength(text, 'utf8');
+    if (bytes > MAX_REQUEST_BODY_BYTES) throw new Error('Request body is too large.');
+    raw += text;
+  }
+  return parseAgentRequest(JSON.parse(raw));
 }
 
 function executableCatalog(): Array<Record<string, unknown>> {
@@ -75,47 +134,28 @@ function parseJsonObject(text: string): unknown {
   try {
     return JSON.parse(trimmed) as unknown;
   } catch {
-    const start = trimmed.indexOf('{');
-    const end = trimmed.lastIndexOf('}');
-    if (start >= 0 && end > start) return JSON.parse(trimmed.slice(start, end + 1)) as unknown;
     throw new Error('AI response was not valid JSON.');
   }
 }
 
-function normalizeDecision(value: unknown): AgentDecision {
-  if (!value || typeof value !== 'object') throw new Error('AI decision is not an object.');
-  const raw = value as Record<string, unknown>;
-  const mode = raw.mode;
-  if (mode !== 'chat' && mode !== 'clarify' && mode !== 'plan') throw new Error('AI decision mode is invalid.');
-  const reply = typeof raw.reply === 'string' ? raw.reply.trim() : '';
-  if (!reply) throw new Error('AI reply is empty.');
-  const question = raw.question === null || raw.question === undefined ? null : String(raw.question).trim();
-  const confidence = typeof raw.confidence === 'number' && Number.isFinite(raw.confidence)
-    ? Math.min(1, Math.max(0, raw.confidence))
-    : 0.5;
-  if (mode === 'clarify' && !question) throw new Error('Clarification mode requires a question.');
-  if (mode !== 'plan') return { mode, reply, question, plan: null, confidence };
-
-  const plan = parseExecutionPlan(raw.plan);
-  return { mode: 'plan', reply, question: null, plan, confidence };
-}
-
 async function callOpenAI(
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  timeoutMs: number,
+  maxTokens: number,
 ): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('OPENAI_API_KEY is not configured.');
-  const base = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
+  const base = PROVIDER_BASE_URLS.openai;
   const model = process.env.OPENAI_MODEL;
   if (!model) throw new Error('OPENAI_MODEL is not configured.');
-  const response = await fetch(`${base}/chat/completions`, {
+  const response = await fetchWithTimeout(`${base}/chat/completions`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,
       messages,
       temperature: 0.2,
-      max_tokens: Number(process.env.FLIXO_AI_DEFAULT_MAX_TOKENS ?? 900),
+      max_tokens: maxTokens,
       response_format: { type: 'json_object' },
     }),
   });
@@ -128,12 +168,14 @@ async function callOpenAI(
 
 async function callOpenRouter(
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  timeoutMs: number,
+  maxTokens: number,
 ): Promise<string> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured.');
-  const base = (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
+  const base = PROVIDER_BASE_URLS.openrouter;
   const model = process.env.OPENROUTER_MODEL || process.env.OPENROUTER_FREE_MODEL || 'openrouter/free';
-  const response = await fetch(`${base}/chat/completions`, {
+  const response = await fetchWithTimeout(`${base}/chat/completions`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -145,7 +187,7 @@ async function callOpenRouter(
       model,
       messages,
       temperature: 0.2,
-      max_tokens: Number(process.env.FLIXO_AI_DEFAULT_MAX_TOKENS ?? 900),
+      max_tokens: maxTokens,
       response_format: { type: 'json_object' },
     }),
   });
@@ -158,10 +200,12 @@ async function callOpenRouter(
 
 async function callGemini(
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  timeoutMs: number,
+  maxTokens: number,
 ): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured.');
-  const base = (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
+  const base = PROVIDER_BASE_URLS.gemini;
   const model = process.env.GEMINI_MODEL;
   if (!model) throw new Error('GEMINI_MODEL is not configured.');
   const system = messages.find((message) => message.role === 'system')?.content ?? '';
@@ -169,7 +213,7 @@ async function callGemini(
     role: message.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: message.content }],
   }));
-  const response = await fetch(`${base}/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+  const response = await fetchWithTimeout(`${base}/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -177,7 +221,7 @@ async function callGemini(
       contents,
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: Number(process.env.FLIXO_AI_DEFAULT_MAX_TOKENS ?? 900),
+        maxOutputTokens: maxTokens,
         responseMimeType: 'application/json',
       },
     }),
@@ -190,15 +234,18 @@ async function callGemini(
 }
 
 async function callProvider(
-  provider: string,
+  provider: SupportedProvider,
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  timeoutMs: number,
+  maxTokens: number,
 ): Promise<string> {
-  if (provider === 'gemini') return callGemini(messages);
-  if (provider === 'openrouter') return callOpenRouter(messages);
-  return callOpenAI(messages);
+  if (provider === 'gemini') return callGemini(messages, timeoutMs, maxTokens);
+  if (provider === 'openrouter') return callOpenRouter(messages, timeoutMs, maxTokens);
+  if (provider === 'openai') return callOpenAI(messages, timeoutMs, maxTokens);
+  throw new Error('Unsupported AI provider.');
 }
 
-function fallbackDecision(message: string, file: RequestBody['file']): AgentDecision {
+function fallbackDecision(message: string, file: AgentRequestContract['file']): ReturnType<typeof parseAgentDecision> {
   const normalized = message.toLocaleLowerCase();
   if (!file && /(?:الصوره|الصورة|image|photo|صور)/i.test(normalized)) {
     return {
@@ -226,14 +273,15 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   }
   try {
     const body = await readBody(req);
-    const messages = normalizeMessages(body.messages);
+    const messages = [...(body.messages ?? [])].slice(-MAX_MESSAGES);
     const userMessage = messages[messages.length - 1]?.content;
     if (!userMessage) {
       json(res, 400, { error: 'At least one user message is required.' });
       return;
     }
-    const locale = typeof body.locale === 'string' ? body.locale.slice(0, 16) : 'en';
-    const provider = (process.env.FLIXO_AI_PROVIDER || 'openai').toLocaleLowerCase();
+    const locale = body.locale ?? 'en';
+    const runtime = configuredRuntime();
+    const provider = runtime.provider;
     const promptMessages = [
       {
         role: 'system' as const,
@@ -249,22 +297,52 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       ...messages,
     ];
     const started = Date.now();
+    let providerCalls = 0;
+    const invoke = async (selectedProvider: SupportedProvider): Promise<string> => {
+      if (providerCalls >= MAX_PROVIDER_CALLS) throw new Error('AI provider call budget exhausted.');
+      providerCalls += 1;
+      return callProvider(selectedProvider, promptMessages, runtime.timeoutMs, runtime.maxTokens);
+    };
     try {
-      const raw = await callProvider(provider, promptMessages);
-      const decision = normalizeDecision(parseJsonObject(raw));
+      const raw = await invoke(provider);
+      const decision = parseAgentDecision(parseJsonObject(raw));
       json(res, 200, { ...decision, latencyMs: Date.now() - started, provider });
     } catch (providerError) {
-      if (process.env.FLIXO_AI_FALLBACK_PROVIDER && process.env.FLIXO_AI_FALLBACK_PROVIDER !== provider) {
-        const fallbackProvider = process.env.FLIXO_AI_FALLBACK_PROVIDER.toLocaleLowerCase();
-        const raw = await callProvider(fallbackProvider, promptMessages);
-        const decision = normalizeDecision(parseJsonObject(raw));
-        json(res, 200, { ...decision, latencyMs: Date.now() - started, provider: fallbackProvider, fallback: true });
-        return;
+      if (runtime.fallbackProvider) {
+        try {
+          const raw = await invoke(runtime.fallbackProvider);
+          const decision = parseAgentDecision(parseJsonObject(raw));
+          json(res, 200, { ...decision, latencyMs: Date.now() - started, provider: runtime.fallbackProvider, fallback: true });
+          return;
+        } catch (fallbackError) {
+          console.error('[flixo-agent] provider failure', {
+            primary: provider,
+            fallback: runtime.fallbackProvider,
+            primaryError: providerError instanceof Error ? providerError.name : 'unknown',
+            fallbackError: fallbackError instanceof Error ? fallbackError.name : 'unknown',
+          });
+        }
+      } else {
+        console.error('[flixo-agent] provider failure', {
+          provider,
+          error: providerError instanceof Error ? providerError.name : 'unknown',
+        });
       }
       const decision = fallbackDecision(userMessage, body.file);
-      json(res, 200, { ...decision, fallback: true, reason: providerError instanceof Error ? providerError.message : 'AI provider failure.' });
+      json(res, 200, { ...decision, fallback: true });
     }
   } catch (error) {
-    json(res, 400, { error: error instanceof Error ? error.message : 'Invalid FLIXO agent request.' });
+    if (error instanceof Error && (
+      error.message === 'Request body is too large.'
+      || error.message === 'Invalid FLIXO AI runtime configuration.'
+      || error.message === 'Unsupported FLIXO AI provider configuration.'
+      || error.message === 'Invalid FLIXO AI fallback configuration.'
+    )) {
+      json(res, error.message === 'Request body is too large.' ? 413 : 503, {
+        error: error.message === 'Request body is too large.' ? 'Request body is too large.' : 'AI service is temporarily unavailable.',
+      });
+      return;
+    }
+    json(res, 400, { error: 'Invalid FLIXO agent request.' });
   }
 }

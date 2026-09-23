@@ -3,6 +3,7 @@ import type { AdminSession } from './boundary.ts';
 
 type SessionRecord = {
   session_id: string;
+  token_hash: string;
   actor_subject: string;
   actor_role: string;
   environment: string;
@@ -66,7 +67,14 @@ export const persistAdminSession = async (
     }),
   });
   const persisted = assertSingle(body);
-  if (persisted.session_id !== session.sessionId || persisted.actor_subject !== session.subject || persisted.environment !== input.environment) {
+  const expectedTokenHash = createHash('sha256').update(input.token).digest('hex');
+  if (
+    persisted.session_id !== session.sessionId
+    || persisted.token_hash !== expectedTokenHash
+    || persisted.actor_subject !== session.subject
+    || persisted.actor_role !== session.role
+    || persisted.environment !== input.environment
+  ) {
     throw new Error('admin_session_persistence_identity_mismatch');
   }
   return persisted;
@@ -81,13 +89,23 @@ export const getAdminSessionRecord = async (sessionId: string): Promise<SessionR
   return assertSingle(body);
 };
 
-export const isAdminSessionRevoked = async (sessionId: string, nowMs = Date.now()) => {
+export const getAdminSessionState = async (
+  sessionId: string,
+  binding?: { token?: string; subject?: string; role?: string },
+  nowMs = Date.now(),
+) => {
   const record = await getAdminSessionRecord(sessionId);
   if (!record) return 'MISSING' as const;
   if (record.revoked_at) return 'REVOKED' as const;
   if (Date.parse(record.expires_at) <= nowMs) return 'EXPIRED' as const;
+  if (binding?.token && createHash('sha256').update(binding.token).digest('hex') !== record.token_hash) return 'IDENTITY_MISMATCH' as const;
+  if (binding?.subject && binding.subject !== record.actor_subject) return 'IDENTITY_MISMATCH' as const;
+  if (binding?.role && binding.role !== record.actor_role) return 'IDENTITY_MISMATCH' as const;
   return 'ACTIVE' as const;
 };
+
+export const isAdminSessionRevoked = async (sessionId: string, nowMs = Date.now()) =>
+  getAdminSessionState(sessionId, undefined, nowMs);
 
 export const revokeAdminSession = async (sessionId: string, revokedAt = new Date().toISOString()) => {
   if (!/^[0-9a-f-]{36}$/i.test(sessionId)) throw new Error('admin_session_id_invalid');
