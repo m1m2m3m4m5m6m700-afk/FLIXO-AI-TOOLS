@@ -8,6 +8,7 @@ import { getMessage as getAgentMessage, markConsumed as consumeAgentMessage } fr
 import { assertAgentAdmission, assertProtocolDefinition } from './repair-protocol.mjs';
 import { buildKnowledgeRecord, persistKnowledge } from './cell-learning.mjs';
 import { initialize as initializeChairState, acquire as acquireChair, release as releaseChair, revoke as revokeChair, heartbeat as heartbeatChair, reconcileDeadLeases, writeSpeculativeContext, activeChairForAgent } from './chair-bound-execution.mjs';
+import { FLIXO_WORKER_IDS, evaluateWorkerClaim, buildActiveWorkerSeat } from './flixo-active-worker-guard.mjs';
 
 const ROOT = process.cwd();
 const COORD_DIR = path.resolve(ROOT, process.env.FLIXO_COORDINATION_DIR ?? 'diagnostics/agents');
@@ -35,9 +36,10 @@ const assertChairRole = (chairId, role) => {
   if (!allowed.has(String(role))) throw new Error('CHAIR_ROLE_NOT_AUTHORIZED=' + chairId + ':' + String(role));
 };
 const COUNCIL_MACHINE_ROLES = new Set(['assistantController','verification','analysis','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier','actionHistorian']);
-const FLIXO10_IDS = Object.freeze(['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5','FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10']);
+const FLIXO10_IDS = FLIXO_WORKER_IDS;
 const isFlixo10 = (agentId) => FLIXO10_IDS.includes(String(agentId ?? '').trim().toUpperCase());
 const pushSeatRecord = (taskId) => state.pushSeats[String(taskId)] ?? null;
+const activeWorkerSeatRecord = () => state.activeWorkerSeat ?? null;
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
   const token = process.argv[i];
@@ -261,17 +263,18 @@ const markSessionChairReleased = (sessionId, chairId, reason) => {
   return true;
 };
 const visibleAgents = () => { if (!fs.existsSync(VISIBILITY_DIR)) return []; return fs.readdirSync(VISIBILITY_DIR).filter((entry) => entry.endsWith('.json')).sort().map((entry) => { try { const item = JSON.parse(fs.readFileSync(path.join(VISIBILITY_DIR, entry), 'utf8')); return { taskId: item.taskId ?? null, sessionId: item.sessionId ?? entry.slice(0,-5), agentId: item.agentId ?? null, role: item.role ?? null, status: item.status ?? null, finalStatus: item.finalStatus ?? null, entrySha: item.entrySha ?? null, exitSha: item.exitSha ?? null, finalSummary: item.finalSummary ?? null, remainingWork: item.remainingWork ?? [], openRcas: item.openRcas ?? [], updatedAt: item.updatedAt ?? null }; } catch { return { sessionId: entry.slice(0,-5), status: 'MALFORMED_EVIDENCE' }; } }); };
-const MUTATING_COMMANDS = new Set(['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next', 'ingest-handoff', 'chair-heartbeat', 'chair-reconcile', 'chair-speculate', 'push-seat-claim', 'push-seat-heartbeat']);
+const MUTATING_COMMANDS = new Set(['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next', 'ingest-handoff', 'chair-heartbeat', 'chair-reconcile', 'chair-speculate', 'push-seat-claim', 'push-seat-heartbeat', 'worker-seat-heartbeat']);
 const writeLocked = MUTATING_COMMANDS.has(command);
 assertMutationTopology();
 if (writeLocked) acquireWriteLock();
 process.on('exit', releaseWriteLock);
-const defaultState = () => ({ schemaVersion: 1, authority: 'AGENT_COORDINATION_CONTROL_PLANE', authoritativeSha: sha(), governanceFingerprint: governanceFingerprint(), revision: 0, transactionId: null, updatedAt: now(), tasks: {}, activeSessions: {}, staleSessions: {}, pushSeats: {} });
+const defaultState = () => ({ schemaVersion: 1, authority: 'AGENT_COORDINATION_CONTROL_PLANE', authoritativeSha: sha(), governanceFingerprint: governanceFingerprint(), revision: 0, transactionId: null, updatedAt: now(), tasks: {}, activeSessions: {}, staleSessions: {}, pushSeats: {}, activeWorkerSeat: null });
 const defaultLocks = () => ({ schemaVersion: 1, authority: 'AGENT_SCOPE_LOCKS', governanceFingerprint: governanceFingerprint(), revision: 0, transactionId: null, locks: {} });
 const state = readJson(QUEUE_FILE, defaultState());
 const locks = readJson(LOCK_FILE, defaultLocks());
 state.staleSessions = state.staleSessions ?? {};
 state.pushSeats = state.pushSeats ?? {};
+state.activeWorkerSeat = state.activeWorkerSeat ?? null;
 const currentGovernanceFingerprint = governanceFingerprint();
 if (state.governanceFingerprint && state.governanceFingerprint !== currentGovernanceFingerprint) throw new Error('COORDINATION_GOVERNANCE_DRIFT');
 if (locks.governanceFingerprint && locks.governanceFingerprint !== currentGovernanceFingerprint) throw new Error('COORDINATION_GOVERNANCE_DRIFT');
@@ -342,7 +345,7 @@ if (writeLocked || (command === 'state' && staleReconcileRequired)) {
   reconcileStaleSessions();
   if (command === 'state' && staleReconcileRequired && !writeLocked) save();
 }
-if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next', 'state', 'brief', 'visible', 'ingest-handoff', 'chair-heartbeat', 'chair-reconcile', 'chair-speculate'].includes(command)) throw new Error('Usage: agent-coordination.mjs task-create|task-claim|task-release|task-complete|task-next|state|brief|visible|ingest-handoff|chair-heartbeat|chair-reconcile|chair-speculate');
+if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next', 'state', 'brief', 'visible', 'ingest-handoff', 'chair-heartbeat', 'chair-reconcile', 'chair-speculate', 'worker-seat-status'].includes(command)) throw new Error('Usage: agent-coordination.mjs task-create|task-claim|task-release|task-complete|task-next|state|brief|visible|ingest-handoff|chair-heartbeat|chair-reconcile|chair-speculate|worker-seat-status');
 
 if (command === 'task-create') {
   const taskId = requireArg('task');
@@ -405,6 +408,16 @@ if (command === 'task-claim') {
     if (inboundMessage.taskId !== taskId) throw new Error('COORDINATION_MESSAGE_TASK_MISMATCH');
     if (!overlap(task.scope ?? [], new Set(inboundMessage.scope ?? []))) throw new Error('COORDINATION_MESSAGE_SCOPE_MISMATCH');
   }
+  const requestedFlixoAgent = String(agentId).trim().toUpperCase();
+  const activeWorkerAdmission = FLIXO10_IDS.includes(requestedFlixoAgent)
+    ? evaluateWorkerClaim({
+      seat: activeWorkerSeatRecord(),
+      requestedAgent: requestedFlixoAgent,
+      taskId,
+      sessionId,
+      targetSha: sha(),
+    })
+    : null;
   initializeChairState({targetSha:sha()});
   reconcileDeadLeases({targetSha:sha()});
   let lockId = lock(sessionId, agentId, task.rca, task.scope);
@@ -427,6 +440,16 @@ if (command === 'task-claim') {
       });
     }
     if (inboundMessage) inboundMessage = consumeAgentMessage(inboundMessage.messageId, agentId, sha(), true);
+    if (activeWorkerAdmission) {
+      state.activeWorkerSeat = buildActiveWorkerSeat({
+        taskId,
+        sessionId,
+        agentId: requestedFlixoAgent,
+        targetSha: sha(),
+        previousSeat: activeWorkerSeatRecord(),
+        takeover: activeWorkerAdmission.action === 'FAILOVER_CLAIM',
+      });
+    }
   } catch (error) {
     try { if (chairLease) releaseChair({ chairId: selectedChair, agentId, reason: 'CLAIM_ROLLBACK', sessionId, taskId }); } catch { /* rollback cleanup is best-effort */ }
     unlock(sessionId);
@@ -455,6 +478,20 @@ if (command === 'push-seat-claim') {
   save(); console.log(JSON.stringify({status:'CLAIMED',pushSeat:seat}, null, 2));
 }
 
+if (command === 'worker-seat-heartbeat') {
+  const taskId = requireArg('task'); const sessionId = requireArg('session'); const agentId = requireArg('agent').toUpperCase();
+  const seat = activeWorkerSeatRecord();
+  if (!seat) throw new Error('FLIXO_ACTIVE_WORKER_GUARD_NOT_CLAIMED');
+  if (seat.taskId !== taskId || seat.sessionId !== sessionId || seat.agentId !== agentId) throw new Error('FLIXO_ACTIVE_WORKER_GUARD_OWNER_MISMATCH');
+  if (seat.targetSha !== sha()) throw new Error('FLIXO_ACTIVE_WORKER_GUARD_STALE_SHA');
+  seat.lastSeenAt = now(); seat.heartbeatAt = now(); state.activeWorkerSeat = seat; save();
+  console.log(JSON.stringify({status:'HEARTBEAT',activeWorkerSeat:seat}, null, 2));
+}
+
+if (command === 'worker-seat-status') {
+  console.log(JSON.stringify({status: activeWorkerSeatRecord() ? 'ACTIVE' : 'UNCLAIMED', activeWorkerSeat: activeWorkerSeatRecord(), targetSha:sha()}, null, 2));
+}
+
 if (command === 'push-seat-heartbeat') {
   const taskId = requireArg('task'); const sessionId = requireArg('session'); const agentId = requireArg('agent').toUpperCase();
   const seat = pushSeatRecord(taskId); if (!seat) throw new Error('FLIXO10_PUSH_SEAT_NOT_CLAIMED');
@@ -475,6 +512,7 @@ if (command === 'task-release') {
   const taskId = requireArg('task'); const sessionId = requireArg('session'); const task = state.tasks[taskId]; if (!task) throw new Error(`Unknown task: ${taskId}`); if (task.sessionId !== sessionId) throw new Error('TASK_OWNER_MISMATCH');
   const visibility = readVisibility(sessionId); if (visibility.taskId !== taskId) throw new Error('AGENT_VISIBILITY_TASK_MISMATCH'); if (!['VERIFIED','BLOCKED'].includes(visibility.finalStatus)) throw new Error('TASK_RELEASE_REQUIRES_CLOSED_AGENT_STATUS');
   if (state.pushSeats[taskId]) throw new Error('FLIXO10_PUSH_SEAT_TASK_RELEASE_BLOCKED');
+  if (state.activeWorkerSeat?.taskId === taskId && state.activeWorkerSeat?.sessionId === sessionId) state.activeWorkerSeat = null;
   task.status = optional('status', 'READY').toUpperCase(); task.releasedAt = now(); task.remainingWork = list('remaining-work'); task.openRcas = list('open-rcas'); const activeReleaseChair = activeChairForAgent({agentId: task.claimedBy,targetSha:sha()}); if (activeReleaseChair) { releaseChair({ chairId: activeReleaseChair.chairId, agentId: task.claimedBy, reason: 'TASK_RELEASE', successful: visibility.finalStatus === 'VERIFIED', sessionId, taskId }); markSessionChairReleased(sessionId, activeReleaseChair.chairId, 'TASK_RELEASE'); } const cellLearning = visibility.finalStatus === 'BLOCKED' ? recordCellTaskKnowledge(task, { outcome: 'blocked', verification: 'task-blocked', sessionId }) : null; unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ task, cellLearning }, null, 2));
 }
 
@@ -523,6 +561,7 @@ if (command === 'task-complete') {
     task.nextTask = null;
     state.nextDispatch = null;
   }
+  if (state.activeWorkerSeat?.taskId === taskId && state.activeWorkerSeat?.sessionId === sessionId) state.activeWorkerSeat = null;
   const activeCompleteChair = activeChairForAgent({agentId: task.claimedBy,targetSha:sha()}); if (activeCompleteChair) { releaseChair({ chairId: activeCompleteChair.chairId, agentId: task.claimedBy, reason: 'TASK_COMPLETE', successful: true, sessionId, taskId }); markSessionChairReleased(sessionId, activeCompleteChair.chairId, 'TASK_COMPLETE'); } unlock(sessionId); delete state.activeSessions[sessionId]; save(); console.log(JSON.stringify({ completedTask: task, cellLearning, nextTask: task.nextTask, councilDispatch: state.nextDispatch }, null, 2));
 }
 
