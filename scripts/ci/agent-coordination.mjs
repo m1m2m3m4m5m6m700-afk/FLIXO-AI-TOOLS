@@ -345,7 +345,7 @@ if (writeLocked || (command === 'state' && staleReconcileRequired)) {
   reconcileStaleSessions();
   if (command === 'state' && staleReconcileRequired && !writeLocked) save();
 }
-if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next', 'state', 'brief', 'visible', 'ingest-handoff', 'chair-heartbeat', 'chair-reconcile', 'chair-speculate', 'worker-seat-status'].includes(command)) throw new Error('Usage: agent-coordination.mjs task-create|task-claim|task-release|task-complete|task-next|state|brief|visible|ingest-handoff|chair-heartbeat|chair-reconcile|chair-speculate|worker-seat-status');
+if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next', 'state', 'brief', 'visible', 'ingest-handoff', 'chair-heartbeat', 'chair-reconcile', 'chair-speculate', 'worker-seat-status'].includes(command)) throw new Error('Usage: agent-coordination.mjs task-create|task-claim|task-release|task-complete|task-next|state|brief|visible|ingest-handoff|chair-heartbeat|chair-reconcile|chair-speculate|worker-seat-heartbeat|worker-seat-status');
 
 if (command === 'task-create') {
   const taskId = requireArg('task');
