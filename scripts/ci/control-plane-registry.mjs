@@ -30,7 +30,6 @@ export const SENSITIVE_PERMISSION_ALLOWLISTS = Object.freeze({
     'latest-commit-test-supersession.yml',
     'latest-execution-head-cleanup.yml',
     'agent-repair-heartbeat.yml',
-    'flixo-team-wake-relay.yml',
   ]),
   'id-token': Object.freeze([
     'agent-communication-relay.yml',
@@ -70,7 +69,6 @@ export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
   'security-red-team.yml',
   'master-repair-governor.yml',
   'agent-repair-heartbeat.yml',
-  'flixo-team-wake-relay.yml',
 ]);
 
 export const HISTORICAL_REPAIR_WORKFLOWS = Object.freeze([
