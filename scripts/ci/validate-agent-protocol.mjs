@@ -49,19 +49,14 @@ if (exists('AGENTS.md')) {
 }
 
 const taskGatewayMarkers = [
-  '# FLIXO-AI-TOOLS — سجل التنفيذ الموحد',
-  'TASK-LEDGER v3.0 — GREEN-FIRST / EXECUTABLE',
-  '## 0) CANONICAL UNIFIED EXECUTION PROTOCOL — P00',
-  '## 1) P0 — GREEN-RECOVERY-001',
-  'STATUS = IN_PROGRESS / BLOCKING',
-  'FINGERPRINT → RCA → REPRODUCE → REPAIR → TARGETED REGRESSION → FULL CI',
-  '## 2) P0 — AGENT EXECUTION CONTROL',
-  '## 3) P0 — ERROR INTELLIGENCE',
-  '## 4) P1 — FOUNDATION AFTER GREEN',
-  '## 8) DEPENDENCY GRAPH',
-  '## 9) DONE / GREEN CONTRACT',
-  '## 10) ANTI-COMPLEXITY',
-  '## 13) EXCEPTIONAL IDEAS REVIEW',
+  'P00 —',
+  'STATUS:',
+  'VERIFICATION:',
+  'GREEN',
+  'P01 — FLIXO MASTER DEVELOPMENT MAP',
+  '## المرحلة A — التشغيل المستمر والوكالات',
+  '## ترتيب التنفيذ الإلزامي',
+  '## بوابات الخروج',
 ];
 
 if (exists('المهام.md')) {
