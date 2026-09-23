@@ -91,7 +91,7 @@ console.log('LATEST_COMMIT_ONLY_TESTS=PASS');
 console.log('STALE_TEST_CANCELLATION=PASS');
 console.log('EXACT_SHA_STALE_GUARD=PASS');
 console.log('EXECUTION_PUSH_TEST_TRIGGER=PASS');
-console.log('STARTED_TEST_RUNS_PRESERVED=PASS');
+console.log('STALE_STARTED_TEST_RUNS_CANCELLED=PASS');
 
 const cleanupWorkflow = fs.readFileSync('.github/workflows/latest-execution-head-cleanup.yml', 'utf8');
 assert.match(cleanupWorkflow, /name:\s*FLIXO Latest Execution HEAD Cleanup/u);
