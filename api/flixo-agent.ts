@@ -320,6 +320,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         role: 'system' as const,
         content: buildFlixoHumanConversationPrompt({
           locale,
+          currentMessage: userMessage,
           file: body.file ?? null,
           activeCommand: body.activeCommand ?? null,
           activePlan: body.activePlan ?? null,
