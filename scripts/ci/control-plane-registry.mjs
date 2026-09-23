@@ -69,6 +69,8 @@ export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
   'council-live-runtime-verification.yml',
   'security-red-team.yml',
   'master-repair-governor.yml',
+  'agent-repair-heartbeat.yml',
+  'flixo-team-wake-relay.yml',
 ]);
 
 export const HISTORICAL_REPAIR_WORKFLOWS = Object.freeze([
