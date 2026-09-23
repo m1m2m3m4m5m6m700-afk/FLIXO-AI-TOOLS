@@ -422,7 +422,9 @@ declare
 begin
   select jobid into jid
     from cron.job
-   where jobname = 'flixo-council-lease-recovery-v2';
+   where jobname in ('flixo-council-lease-recovery','flixo-council-lease-recovery-v2')
+   order by case when jobname = 'flixo-council-lease-recovery-v2' then 0 else 1 end
+   limit 1;
   if jid is not null then
     perform cron.unschedule(jid);
   end if;
