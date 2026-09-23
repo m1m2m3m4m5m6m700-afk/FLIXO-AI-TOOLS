@@ -6,6 +6,8 @@ const file = 'db/council-external-accounts.sql';
 const sql = fs.readFileSync(file, 'utf8');
 const runtimeFile = 'supabase/functions/flixo-council-runtime/index.ts';
 const runtime = fs.readFileSync(runtimeFile, 'utf8');
+const migrationFile = 'supabase/migrations/20260924010000_council_liveness_recovery_v2.sql';
+const migration = fs.readFileSync(migrationFile, 'utf8');
 
 for (const marker of [
   'create table if not exists public.flix_council_accounts',
@@ -56,5 +58,25 @@ for (const marker of [
 ]) {
   assert.ok(runtime.includes(marker), 'Missing runtime recovery/wake/security marker: ' + marker);
 }
+
+for (const functionName of [
+  'council_recover_expired_dispatches',
+  'council_claim_dispatch',
+  'council_ack_dispatch',
+  'council_heartbeat_dispatch',
+  'flixo_automation_watchdog_tick',
+]) {
+  const count = (migration.match(new RegExp('create or replace function public\\.' + functionName + '\\b', 'g')) || []).length;
+  assert.equal(count, 1, 'Migration must define exactly one ' + functionName);
+}
+assert.match(migration, /current_execution_sha ~ '\^\[0-9a-f\]\{40\}\
+/);
+assert.match(migration, /last_heartbeat_at/);
+assert.match(migration, /current_execution_sha = p_exact_sha/);
+assert.match(migration, /recoveryState.*RECOVERED/);
+assert.match(migration, /recoveryState.*BLOCKED/);
+assert.match(migration, /recoveryState.*FAILED_TERMINAL/);
+assert.doesNotMatch(migration, /current_execution_sha ~ '\^\[0-9a-f\]\{40\}create or replace function/);
+assert.doesNotMatch(migration, /\$block\$;\s*then\s+raise exception/);
 
 console.log('COUNCIL_RPC_CONTRACT=PASS');
