@@ -335,6 +335,8 @@ function analyzeSnapshot(input) {
   const downstreamFailures = observed.filter((item) => item.classification === 'DOWNSTREAM_FAILURE');
   const securitySignals = observed.filter((item) => item.security);
   const securityFindings = normalizeSecurityAlerts(input.securityFindings);
+  const securityAnnotations = normalizeCheckRunAnnotations(input.securityAnnotations);
+  const securityEvidence = input.securityEvidence ?? { canonicalPr: null, codeScanningQueries: [], alerts: [], codeqlCheckRun: null, checkRunAnnotations: [], errors: [] };
   const historical = historicalSignals();
   const sharedLearning = buildSharedLearningContext({ fingerprint: observed.find(item=>item.fingerprint)?.fingerprint??null, botId:'READ-INVESTIGATOR', limit:96 });
   const knownFingerprints = new Set(historical.memoryLessons.map((item) => item.fingerprint).filter(Boolean));
@@ -492,7 +494,7 @@ function collectWithGh() {
         const stderr = Buffer.isBuffer(error?.stderr)
           ? error.stderr.toString('utf8')
           : String(error?.stderr ?? error?.message ?? 'unknown gh api error');
-        const compact = stderr.replace(/\\s+/gu, ' ').trim().slice(0, 1200);
+        const compact = stderr.replace(/\s+/gu, ' ').trim().slice(0, 1200);
         evidence.errors.push({ label, message: compact });
         return { ok: false, value: null };
       }
@@ -521,7 +523,7 @@ function collectWithGh() {
         : String(error?.stderr ?? error?.message ?? 'unknown gh pr list error');
       evidence.errors.push({
         label: 'canonical-pr-resolution',
-        message: stderr.replace(/\\s+/gu, ' ').trim().slice(0, 1200),
+        message: stderr.replace(/\s+/gu, ' ').trim().slice(0, 1200),
       });
     }
 
@@ -583,8 +585,6 @@ function collectWithGh() {
   })();
 
   const securityFindings = normalizeSecurityAlerts(securityEvidence.alerts);
-  const securityAnnotations = securityEvidence.checkRunAnnotations;
-
   return {
     repository,
     observedBranch: branch,
@@ -592,6 +592,8 @@ function collectWithGh() {
     mainSha: process.env.MAIN_SHA || null,
     runs,
     securityFindings,
+    securityAnnotations,
+    securityEvidence,
     capture: { requested: candidates.length, captured },
   };
 }
