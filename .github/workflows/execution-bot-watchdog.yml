@@ -86,7 +86,7 @@ jobs:
             [[ "$SOURCE_RUN_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
             EXECUTION_SHA="$SOURCE_RUN_SHA"
           else
-            EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+            EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
           fi
           test -n "$EXECUTION_SHA"
           echo "execution_sha=$EXECUTION_SHA" >> "$GITHUB_OUTPUT"
@@ -94,7 +94,7 @@ jobs:
           echo "event_branch=$EVENT_BRANCH" >> "$GITHUB_OUTPUT"
           if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
             test -n "$SOURCE_RUN_SHA"
-            LIVE_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+            LIVE_EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
             test -n "$LIVE_EXECUTION_SHA"
             printf 'LIVE_EXECUTION_SHA=%s\nSOURCE_RUN_SHA=%s\n' "$LIVE_EXECUTION_SHA" "$SOURCE_RUN_SHA"
             if [ "$LIVE_EXECUTION_SHA" != "$SOURCE_RUN_SHA" ]; then
@@ -165,7 +165,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
           LATEST="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100")"
           ACTIVE="$(printf '%s' "$LATEST" | jq -r '[.workflow_runs[] | select(.path == ".github/workflows/daily-flixo-green-gate.yml" and .head_sha == $ENV_SHA and (.status == "queued" or .status == "in_progress"))] | length' --arg ENV_SHA "$EXECUTION_SHA")"
           GREEN="$(printf '%s' "$LATEST" | jq -r '[.workflow_runs[] | select(.path == ".github/workflows/daily-flixo-green-gate.yml" and .head_sha == $ENV_SHA and .status == "completed" and .conclusion == "success")] | length' --arg ENV_SHA "$EXECUTION_SHA")"
@@ -410,7 +410,7 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             CURRENT_EXECUTION_SHA="$GITHUB_SHA"
           else
-            CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+            CURRENT_EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
           fi
           SOURCE_RUN_ID="$EVENT_SOURCE_RUN_ID"
           SOURCE_RUN_SHA="$EVENT_SOURCE_RUN_SHA"
