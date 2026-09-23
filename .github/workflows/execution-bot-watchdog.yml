@@ -28,9 +28,8 @@ permissions:
   contents: read
 
 concurrency:
-  # Single guardian lane: heartbeat, schedule and RED events serialize here.
-  # The second observer re-checks live state and becomes a no-op when Green Gate is already active.
-  group: flixo-execution-watchdog-guardian
+  # Each observer keeps its own immutable event evidence; it never self-cancels another observer.
+  group: flixo-execution-watchdog-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
