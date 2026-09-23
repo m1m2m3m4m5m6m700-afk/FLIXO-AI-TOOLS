@@ -97,6 +97,7 @@ const exactShaVerificationWorkflows = [
   ['test-impact-execution.yml', impactExecutionWorkflow],
   ['repository-security-baseline.yml', securityBaselineWorkflow],
 ];
+const nonCancellingExactShaEvidence = new Set(['test-impact.yml']);
 
 if (!/EXPECTED_SHA/.test(currentCommitGuard) ||
     !/EXPECTED_BRANCH/.test(currentCommitGuard) ||
@@ -130,8 +131,17 @@ if (missingCurrentCommitGuardJobs.length) {
 }
 
 for (const [file, source] of exactShaVerificationWorkflows) {
-  if (!/cancel-in-progress:\s*true/.test(source)) {
-    console.error('CI contract failed: ' + file + ' must cancel superseded verification runs.');
+  const requiresCancellation = !nonCancellingExactShaEvidence.has(file);
+  const cancellationPattern = requiresCancellation
+    ? /cancel-in-progress:\s*true/.test(source)
+    : /cancel-in-progress:\s*false/.test(source);
+  if (!cancellationPattern) {
+    console.error(
+      'CI contract failed: ' + file +
+      (requiresCancellation
+        ? ' must cancel superseded verification runs.'
+        : ' must preserve an already-started exact-SHA evidence run.')
+    );
     process.exit(1);
   }
   const sourceUsesEventScopedSha =

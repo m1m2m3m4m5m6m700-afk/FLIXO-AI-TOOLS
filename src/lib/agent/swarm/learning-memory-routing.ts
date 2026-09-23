@@ -157,7 +157,14 @@ export function poisoningSafe(record: SwarmKnowledge, currentSha: string, confli
 }
 
 export function compactMemory(records: readonly SwarmKnowledge[], caps: Partial<Record<MemoryLayer, number>> = {}) {
-  const merged = mergeCanonical(records).canonical.map(record => decayKnowledge(record));
+  const layerGroups = new Map<string, SwarmKnowledge[]>();
+  for (const record of records) {
+    const key = `${record.layer}|${record.canonicalKey}`;
+    layerGroups.set(key, [...(layerGroups.get(key) ?? []), record]);
+  }
+  const merged = [...layerGroups.values()]
+    .flatMap(group => mergeCanonical(group).canonical)
+    .map(record => decayKnowledge(record));
   const keep: SwarmKnowledge[] = [];
   const archived: SwarmKnowledge[] = [];
   const used = new Map<MemoryLayer, number>();
@@ -172,7 +179,7 @@ export function compactMemory(records: readonly SwarmKnowledge[], caps: Partial<
       archived.push(record);
     }
   }
-  return { active: keep, archived, droppedDuplicates: records.length - mergeCanonical(records).canonical.length, rebuildDigest: hash(keep) };
+  return { active: keep, archived, droppedDuplicates: records.length - merged.length, rebuildDigest: hash(keep) };
 }
 
 export function rebuildMemory(records: readonly SwarmKnowledge[], manifest: { recordCount: number; digest: string; exactSha: string }) {
