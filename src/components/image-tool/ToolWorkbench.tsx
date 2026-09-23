@@ -182,6 +182,9 @@ export function ToolWorkbench<P>({
   const [error, setError] = useState('');
   const [viewMode, setViewMode] = useState<'compare' | 'before' | 'after'>('compare');
   const [zoom, setZoom] = useState(1);
+  const [activeFileIndex, setActiveFileIndex] = useState(0);
+  const [adjustmentsOpen, setAdjustmentsOpen] = useState(true);
+  const [preset, setPreset] = useState<'default' | 'clean' | 'warm'>('default');
   const mountedRef = useRef(true);
 
   useEffect(() => () => {
@@ -189,37 +192,87 @@ export function ToolWorkbench<P>({
     assetStore.clear();
   }, [assetStore]);
 
-  const handleFiles = async (nextFiles: File[]) => {
-    if (busy) return;
+  const loadInputFile = async (file: File): Promise<void> => {
     setError('');
     assetStore.clear();
-    setFiles(nextFiles);
     setInputAssetId(null);
     setOutputAssetId(null);
     setInputUrl('');
     setOutputUrl('');
-    onFilesChange?.(nextFiles);
-    const file = nextFiles[0];
-    if (!file) return;
 
+    validateBasicFile(file, inputPolicy);
+    const dimensions = await decodeDimensions(file);
+    if (inputPolicy) {
+      const result = validateFileSafety(
+        { name: file.name, mime: file.type, bytes: file.size, width: dimensions.width, height: dimensions.height },
+        inputPolicy,
+      );
+      if (!result.safe) throw new Error(`Input rejected by File Safety: ${result.failures.join('; ')}`);
+    }
+    await validateInput?.(file, dimensions);
+    const id = assetStore.put({ blob: file, width: dimensions.width, height: dimensions.height, name: file.name });
+    if (!mountedRef.current) return;
+    setInputAssetId(id);
+    setInputUrl(assetStore.createObjectURL(id));
+  };
+
+  const handleFiles = async (nextFiles: File[], nextActiveIndex = 0) => {
+    if (busy) return;
+    setFiles(nextFiles);
+    setActiveFileIndex(Math.max(0, Math.min(nextActiveIndex, Math.max(0, nextFiles.length - 1))));
+    setError('');
+    onFilesChange?.(nextFiles);
+    const file = nextFiles[Math.max(0, Math.min(nextActiveIndex, Math.max(0, nextFiles.length - 1)))];
+    if (!file) {
+      assetStore.clear();
+      setInputAssetId(null);
+      setOutputAssetId(null);
+      setInputUrl('');
+      setOutputUrl('');
+      return;
+    }
     try {
-      validateBasicFile(file, inputPolicy);
-      const dimensions = await decodeDimensions(file);
-      if (inputPolicy) {
-        const result = validateFileSafety(
-          { name: file.name, mime: file.type, bytes: file.size, width: dimensions.width, height: dimensions.height },
-          inputPolicy,
-        );
-        if (!result.safe) throw new Error(`Input rejected by File Safety: ${result.failures.join('; ')}`);
-      }
-      await validateInput?.(file, dimensions);
-      const id = assetStore.put({ blob: file, width: dimensions.width, height: dimensions.height, name: file.name });
-      if (!mountedRef.current) return;
-      setInputAssetId(id);
-      setInputUrl(assetStore.createObjectURL(id));
+      await loadInputFile(file);
     } catch (cause) {
       if (!mountedRef.current) return;
       setError(cause instanceof Error ? cause.message : 'The selected image could not be accepted.');
+    }
+  };
+
+  const selectNotebookFile = async (index: number) => {
+    if (busy || index === activeFileIndex || !files[index]) return;
+    setActiveFileIndex(index);
+    try {
+      await loadInputFile(files[index]);
+    } catch (cause) {
+      if (!mountedRef.current) return;
+      setError(cause instanceof Error ? cause.message : 'The selected file could not be accepted.');
+    }
+  };
+
+  const removeNotebookFile = async (index: number) => {
+    if (busy || !files[index]) return;
+    const nextFiles = files.filter((_, itemIndex) => itemIndex !== index);
+    let nextIndex = activeFileIndex;
+    if (index < activeFileIndex) nextIndex -= 1;
+    if (index === activeFileIndex) nextIndex = Math.min(activeFileIndex, Math.max(0, nextFiles.length - 1));
+    setFiles(nextFiles);
+    setActiveFileIndex(Math.max(0, nextIndex));
+    onFilesChange?.(nextFiles);
+    const nextFile = nextFiles[Math.max(0, nextIndex)];
+    if (!nextFile) {
+      assetStore.clear();
+      setInputAssetId(null);
+      setOutputAssetId(null);
+      setInputUrl('');
+      setOutputUrl('');
+      return;
+    }
+    try {
+      await loadInputFile(nextFile);
+    } catch (cause) {
+      if (!mountedRef.current) return;
+      setError(cause instanceof Error ? cause.message : 'The selected file could not be accepted.');
     }
   };
 
@@ -254,6 +307,8 @@ export function ToolWorkbench<P>({
     if (busy) return;
     assetStore.clear();
     setFiles([]);
+    setActiveFileIndex(0);
+    setPreset('default');
     setInputAssetId(null);
     setOutputAssetId(null);
     setInputUrl('');
@@ -400,9 +455,37 @@ export function ToolWorkbench<P>({
 
         <aside className="flixo-tool-side right" id="flixo-tool-right-panel">
           <div className="flixo-tool-panel-scroll">
+            <div className={`flixo-tool-adjust ${adjustmentsOpen ? '' : 'collapsed'}`}>
+              <button
+                type="button"
+                className="flixo-tool-adjust-title"
+                onClick={() => setAdjustmentsOpen((value) => !value)}
+                aria-expanded={adjustmentsOpen}
+              >
+                <span>{locale.toLowerCase().startsWith('ar') ? 'التعديلات' : 'Adjustments'}</span>
+                <span className="flixo-tool-chevron" aria-hidden="true">⌄</span>
+              </button>
+              <div className="flixo-tool-adjust-body">
+                {renderControls?.({ ...commonContext }) ?? <p className="flixo-tool-adjust-empty">{locale.toLowerCase().startsWith('ar') ? 'لا توجد إعدادات مخصصة لهذه الأداة.' : 'No custom controls for this tool.'}</p>}
+              </div>
+            </div>
             <div className="flixo-tool-adjust">
-              <div className="flixo-tool-adjust-title">{locale.toLowerCase().startsWith('ar') ? 'الإعدادات والتعديلات' : 'Adjustments'}</div>
-              {renderControls?.({ ...commonContext }) ?? <p className="flixo-tool-adjust-empty">{locale.toLowerCase().startsWith('ar') ? 'لا توجد إعدادات مخصصة لهذه الأداة.' : 'No custom controls for this tool.'}</p>}
+              <button
+                type="button"
+                className="flixo-tool-adjust-title"
+                onClick={() => setPreset((value) => value === 'default' ? 'clean' : value === 'clean' ? 'warm' : 'default')}
+                aria-label={locale.toLowerCase().startsWith('ar') ? 'تغيير النمط' : 'Change preset'}
+              >
+                <span>{locale.toLowerCase().startsWith('ar') ? 'النمط النشط' : 'Active preset'}</span>
+                <span className="mono">{preset === 'default' ? 'DEFAULT' : preset.toUpperCase()}</span>
+              </button>
+              <p className="flixo-tool-adjust-empty">
+                {preset === 'default'
+                  ? (locale.toLowerCase().startsWith('ar') ? 'الإعداد الافتراضي للأداة.' : 'Default tool preset.')
+                  : preset === 'clean'
+                    ? (locale.toLowerCase().startsWith('ar') ? 'مظهر نظيف جاهز للتعديل.' : 'Clean editing preset.')
+                    : (locale.toLowerCase().startsWith('ar') ? 'مظهر دافئ للمخرجات.' : 'Warm output preset.')}
+              </p>
             </div>
             <div className="flixo-tool-actions">
               <button className="primary-button flixo-tool-action-primary" type="button" disabled={!inputAssetId || busy} aria-disabled={!inputAssetId || busy ? 'true' : 'false'} onClick={() => void run()}>{busy ? (processingLabel ?? labels.processing) : (runLabel ?? labels.run)}</button>
