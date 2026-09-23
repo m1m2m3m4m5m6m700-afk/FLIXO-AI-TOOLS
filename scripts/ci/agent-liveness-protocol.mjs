@@ -7,6 +7,8 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   protocolId: 'AGENT_LIVENESS_PROTOCOL',
   protocolVersion: '4.0.0',
   authority: 'CONTROL_PLANE',
+  scheduleIntervalMs: 5 * 60 * 1000,
+  internalHeartbeatEveryMs: 60 * 1000,
   heartbeatEveryMs: 60 * 1000,
   heartbeatGraceMs: 30 * 1000,
   wakeIntervalMs: 60 * 1000,
@@ -16,6 +18,7 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   heartbeatWakePolicy: 'ONE_MINUTE_HEARTBEAT_WAKES_ALL_AGENTS',
   heartbeatWakeScope: 'ALL_AGENTS',
   pulseEveryMs: 60 * 1000,
+  onePulsePerHeartbeat: true,
   pulseProfiles: Object.freeze([
     Object.freeze({ botId:'FLIXO1', pulseType:'RCA_AND_ARCHITECTURE' }),
     Object.freeze({ botId:'FLIXO2', pulseType:'CODE_PATH_AND_RUNTIME' }),
@@ -113,8 +116,12 @@ const working = new Set(AGENT_LIVENESS_PROTOCOL.workAssignedStates);
 
 export function assertLivenessDefinition() {
   if (!AGENT_LIVENESS_PROTOCOL.protocolVersion.startsWith('4.')) throw new Error('AGENT_LIVENESS_VERSION_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.scheduleIntervalMs !== 5 * 60 * 1000) throw new Error('AGENT_LIVENESS_SCHEDULE_INTERVAL_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.internalHeartbeatEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_INTERNAL_HEARTBEAT_INTERVAL_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs !== AGENT_LIVENESS_PROTOCOL.internalHeartbeatEveryMs) throw new Error('AGENT_LIVENESS_HEARTBEAT_ALIGNMENT_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs <= 0 || AGENT_LIVENESS_PROTOCOL.leaseTtlMs <= AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs) throw new Error('AGENT_LIVENESS_TIMING_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.maxNoProgressHeartbeats < 1) throw new Error('AGENT_LIVENESS_PROGRESS_THRESHOLD_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.onePulsePerHeartbeat !== true) throw new Error('AGENT_LIVENESS_ONE_PULSE_PER_HEARTBEAT_REQUIRED');
   if (AGENT_LIVENESS_PROTOCOL.teamWakeIntervalMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_TEAM_WAKE_NOT_ONE_MINUTE');
   if (AGENT_LIVENESS_PROTOCOL.teamWakePolicy !== 'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL') throw new Error('AGENT_LIVENESS_TEAM_WAKE_POLICY_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.teamWakeScope !== 'ALL_ACTION_REPAIR_TEAM') throw new Error('AGENT_LIVENESS_TEAM_WAKE_SCOPE_INVALID');
