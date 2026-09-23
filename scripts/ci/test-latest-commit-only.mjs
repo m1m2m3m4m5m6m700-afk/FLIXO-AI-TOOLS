@@ -13,11 +13,7 @@ const files = [
   '.github/workflows/auto-repair-merge-gate.yml',
 ];
 const staleGuard = /Fail closed when this commit is superseded[\s\S]*?run: node scripts\/ci\/assert-current-commit\.mjs/u;
-const nonCancellingEvidenceFiles = new Set([
-  '.github/workflows/test-impact.yml',
-  '.github/workflows/claude-security-review.yml',
-  '.github/workflows/ci.yml',
-]);
+const nonCancellingEvidenceFiles = new Set();
 
 for (const file of files) {
   assert.ok(fs.existsSync(file), `missing workflow: ${file}`);
@@ -48,14 +44,16 @@ assert.match(supersession, /gh api "repos\/\$REPOSITORY\/actions\/runs\?branch=\
 assert.match(supersession, /is_supersedable_run\(\)/u);
 assert.match(supersession, /head_repository\.full_name == \$sourceRepo/u);
 assert.match(supersession, /CANCEL_STALE_RUN/u);
-assert.match(supersession, /\.status == "queued" or \.status == "pending"/u);
-assert.match(supersession, /KEEP_STARTED_STALE_RUN/u);
+assert.match(supersession, /\.status == "queued" or \.status == "pending" or \.status == "in_progress"/u);
+assert.doesNotMatch(supersession, /KEEP_STARTED_STALE_RUN/u);
+assert.match(supersession, /\*Heartbeat\*/iu);
+assert.match(supersession, /\*Execution\*/iu);
 assert.match(supersession, /LATEST_COMMIT_SUPERSESSION=PASS/u);
 assert.match(supersession, /SUPERSESSION_EXTERNAL_BLOCKER=GITHUB_ACTIONS_API_RATE_LIMIT/u);
 assert.match(supersession, /BLOCKED_EXTERNAL: GitHub Actions API rate limit/u);
 
 const watchdog = fs.readFileSync('.github/workflows/execution-bot-watchdog.yml','utf8');
-assert.match(watchdog, /group:\s*flixo-execution-watchdog-\$\{\{\s*github\.event\.workflow_run\.head_sha\s*\|\|\s*github\.sha\s*\}\}/u);
+assert.match(watchdog, /group:\s*flixo-execution-watchdog-\$\{\{\s*github\.ref_name\s*\}\}/u);
 assert.match(watchdog, /cancel-in-progress:\s*true/u);
 const greenGate = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml','utf8');
 
@@ -64,8 +62,8 @@ assert.match(greenGate, /cancel-in-progress:\s*true/u);
 const ci = fs.readFileSync('.github/workflows/ci.yml','utf8');
 assert.match(ci, /push:\s*\n\s*branches:\s*\[main, execution\]/u);
 assert.match(ci, /group:\s*flixo-test-/u);
-assert.match(ci, /group:\s*flixo-test-\$\{\{\s*github\.event\.pull_request\.head\.repo\.full_name\s*\|\|\s*github\.repository\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/u);
-assert.match(ci, /cancel-in-progress:\s*false/u);
+assert.match(ci, /group:\s*flixo-test-\$\{\{\s*github\.event\.pull_request\.head\.repo\.full_name\s*\|\|\s*github\.repository\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name\s*\}\}/u);
+assert.match(ci, /cancel-in-progress:\s*true/u);
 
 const workflowDir = '.github/workflows';
 const currentWorkflows = fs.readdirSync(workflowDir).filter((file) => /\.ya?ml$/u.test(file)).sort();
@@ -98,7 +96,7 @@ console.log('STARTED_TEST_RUNS_PRESERVED=PASS');
 const cleanupWorkflow = fs.readFileSync('.github/workflows/latest-execution-head-cleanup.yml', 'utf8');
 assert.match(cleanupWorkflow, /name:\s*FLIXO Latest Execution HEAD Cleanup/u);
 assert.match(cleanupWorkflow, /schedule:/u);
-assert.match(cleanupWorkflow, /cron:\s*'17 3 \* \* 0'/u);
+assert.match(cleanupWorkflow, /cron:\s*'\*\/5 \* \* \* \*'/u);
 assert.match(cleanupWorkflow, /actions:\s*write/u);
 assert.match(cleanupWorkflow, /ref:\s*main/u);
 assert.match(cleanupWorkflow, /latest-execution-head-cleanup\.mjs/u);
