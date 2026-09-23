@@ -14,6 +14,12 @@ const MAX_RESPONSE_TOKENS = 4_096;
 const SUPPORTED_PROVIDERS = ['openai', 'openrouter', 'gemini'] as const;
 type SupportedProvider = (typeof SUPPORTED_PROVIDERS)[number];
 
+const PROVIDER_BASE_URLS: Record<SupportedProvider, string> = Object.freeze({
+  openai: 'https://api.openai.com/v1',
+  openrouter: 'https://openrouter.ai/api/v1',
+  gemini: 'https://generativelanguage.googleapis.com',
+});
+
 function parseBoundedInteger(
   value: string | undefined,
   fallback: number,
@@ -139,7 +145,7 @@ async function callOpenAI(
 ): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('OPENAI_API_KEY is not configured.');
-  const base = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
+  const base = PROVIDER_BASE_URLS.openai;
   const model = process.env.OPENAI_MODEL;
   if (!model) throw new Error('OPENAI_MODEL is not configured.');
   const response = await fetchWithTimeout(`${base}/chat/completions`, {
@@ -167,7 +173,7 @@ async function callOpenRouter(
 ): Promise<string> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured.');
-  const base = (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
+  const base = PROVIDER_BASE_URLS.openrouter;
   const model = process.env.OPENROUTER_MODEL || process.env.OPENROUTER_FREE_MODEL || 'openrouter/free';
   const response = await fetchWithTimeout(`${base}/chat/completions`, {
     method: 'POST',
@@ -199,7 +205,7 @@ async function callGemini(
 ): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured.');
-  const base = (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
+  const base = PROVIDER_BASE_URLS.gemini;
   const model = process.env.GEMINI_MODEL;
   if (!model) throw new Error('GEMINI_MODEL is not configured.');
   const system = messages.find((message) => message.role === 'system')?.content ?? '';
