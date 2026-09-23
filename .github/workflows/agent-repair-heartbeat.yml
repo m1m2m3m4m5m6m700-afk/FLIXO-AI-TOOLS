@@ -9,6 +9,9 @@ on:
     branches: [execution, main]
   schedule:
     - cron: '*/5 * * * *'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -16,15 +19,16 @@ permissions:
   contents: read
 
 concurrency:
-  # Bootstrap and resident windows use separate lanes; only resident windows supersede one another.
+  # Bootstrap and resident windows never cancel each other; stale exact-SHA queues are reconciled explicitly.
   group: ${{ github.event_name == 'workflow_dispatch' && github.ref_name == 'execution' && 'flixo-agent-repair-resident' || 'flixo-agent-repair-bootstrap' }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   bootstrap:
     name: Bootstrap resident repair heartbeat automatically
     if: >-
       github.event_name == 'schedule' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'execution') ||
       (github.event_name == 'push' && (github.ref == 'refs/heads/execution' || github.ref == 'refs/heads/main')) ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
@@ -46,7 +50,7 @@ jobs:
             select(
               (.status=="in_progress" and .headSha != $sha) or
               ((.status=="queued" or .status=="pending") and
-               (.headSha != $sha or (((.createdAt|fromdateiso8601) + 120) < $now)))
+               .headSha != $sha)
             ) | .databaseId
           ' "$RUNS_FILE")"
           for RUN_ID in $STALE_RUN_IDS; do
@@ -65,12 +69,16 @@ jobs:
             echo 'RESIDENT_BOOTSTRAP_DISPATCHED=false'
             echo 'RESIDENT_ALREADY_ACTIVE=true'
           fi
-          echo 'RESIDENT_BOOTSTRAP_VERIFIED=true'
+          if [ "$ACTIVE_CURRENT" -eq 0 ] && [ "$FRESH_CURRENT_QUEUE" -eq 0 ]; then
+            for ATTEMPT in 1 2 3 4 5 6; do
+              ACTIVE_CHECK="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 100 --json databaseId,status,headBranch,headSha --jq --arg sha "$EXECUTION_SHA" 'map(select(.headBranch=="execution" and .headSha==$sha and (.status=="queued" or .status=="pending" or .status=="in_progress"))) | length')"
+              if [ "$ACTIVE_CHECK" -gt 0 ]; then
+                echo 'RESIDENT_BOOTSTRAP_VERIFIED=true'
                 exit 0
               fi
               if [ "$ATTEMPT" -lt 6 ]; then sleep 5; fi
             done
-            echo 'FAIL_CLOSED: resident heartbeat bootstrap did not become active.'
+            echo 'FAIL_CLOSED: resident heartbeat dispatch did not become queued/running for the exact SHA.'
             exit 1
           fi
           echo 'RESIDENT_BOOTSTRAP_VERIFIED=true'
