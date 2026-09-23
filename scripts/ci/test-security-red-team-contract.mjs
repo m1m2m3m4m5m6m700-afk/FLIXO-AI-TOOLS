@@ -34,6 +34,7 @@ assert.equal(registry.repairIntelligence.mutationAuthority,false);
 
 assert.match(workflow,/workflow_dispatch:/u);
 assert.match(workflow,/expected_sha:[\s\S]*required:\s*true/u);
+assert.match(workflow,/EXPECTED_SHA:\s*\$\{\{\s*inputs\.expected_sha\s*\|\|\s*github\.sha\s*\}\}/u);
 assert.match(workflow,/push:\s*\n\s*branches:\s*\[execution\]/u);
 assert.match(workflow,/permissions:\s*\n\s*contents:\s*read/u);
 assert.doesNotMatch(workflow,/actions:\s+write/u);
