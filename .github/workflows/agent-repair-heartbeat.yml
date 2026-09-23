@@ -3,8 +3,10 @@ name: FLIXO Agent Repair Heartbeat
 run-name: FLIXO Agent Repair Heartbeat ${{ github.run_id }}
 
 on:
-  # Canonical resident entrypoint. Bootstrap/recovery dispatch comes from the already-running
-  # FLIXO Test System and Daily·FLIXO Green Gate on trusted control paths.
+  # The schedule is the permanent bootstrap/recovery floor. Scheduled runs execute from main,
+  # then dispatch the long-lived resident window on execution. A prior resident run is not required.
+  schedule:
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -12,14 +14,61 @@ permissions:
   contents: read
 
 concurrency:
-  group: flixo-agent-repair-heartbeat-main
-  # Started residency runs are never cancelled. Completion re-arms the next run;
-  # the five-minute schedule remains the independent fallback wake.
+  # Bootstrap runs on main and resident runs on execution must not block one another.
+  group: flixo-agent-repair-heartbeat-${{ github.event_name }}-${{ github.ref_name }}
+  # Started residency runs are never cancelled.
   cancel-in-progress: false
 
 jobs:
-  resident-watch:
-    name: Keep the repair plane resident and wake canonical Green Gate
+  bootstrap:
+    name: Bootstrap resident repair heartbeat automatically
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Dispatch resident window on execution
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          [[ "$EXECUTION_SHA" =~ ^[0-9a-f]{40}$ ]]
+          ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 20 --json databaseId,status,headBranch,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headBranch == "execution")) | length')"
+          echo "EXECUTION_SHA=$EXECUTION_SHA"
+          echo "ACTIVE_RESIDENT=$ACTIVE_RESIDENT"
+          if [ "$ACTIVE_RESIDENT" -eq 0 ]; then
+            gh workflow run agent-repair-heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref execution
+            echo 'RESIDENT_BOOTSTRAP_DISPATCHED=true'
+          else
+            echo 'RESIDENT_BOOTSTRAP_DISPATCHED=false'
+            echo 'RESIDENT_ALREADY_ACTIVE=true'
+          fi
+
+          if [ "$ACTIVE_RESIDENT" -eq 0 ]; then
+            for ATTEMPT in 1 2 3 4 5 6; do
+              ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 20 --json databaseId,status,headBranch,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headBranch == "execution")) | length')"
+              if [ "$ACTIVE_RESIDENT" -gt 0 ]; then
+                echo 'RESIDENT_BOOTSTRAP_VERIFIED=true'
+                exit 0
+              fi
+              if [ "$ATTEMPT" -lt 6 ]; then sleep 5; fi
+            done
+            echo 'FAIL_CLOSED: resident heartbeat bootstrap did not become active.'
+            exit 1
+          fi
+          echo 'RESIDENT_BOOTSTRAP_VERIFIED=true'
+      - name: Record bootstrap policy
+        run: |
+          set -euo pipefail
+          echo 'AUTOMATIC_BOOTSTRAP=true'
+          echo 'BOOTSTRAP_SCHEDULE=*/5 * * * *'
+          echo 'BOOTSTRAP_TARGET_REF=execution'
+          echo 'MANUAL_WAKE_REQUIRED=false'
+
+  resident-watch:    name: Keep the repair plane resident and wake canonical Green Gate
     runs-on: ubuntu-latest
     timeout-minutes: 345
     steps:
@@ -49,6 +98,7 @@ jobs:
           echo 'RESIDENT_ROSTER=CELL-001..CELL-100'
           echo 'STARTED_RUN_CANCELLATION=FORBIDDEN'
           echo 'CONTINUOUS_REARM=WORKFLOW_DISPATCH_ON_EXECUTION'
+          echo 'SCHEDULE_BOOTSTRAP=MAIN_TO_EXECUTION'
           echo 'CONTROLLER_REF=execution'
           echo 'TARGET_REF=execution'
 
