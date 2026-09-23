@@ -60,7 +60,7 @@ const prompt = buildFlixoHumanConversationPrompt({
 assert.match(prompt, /FLIXO-BOT-BRAIN-v1/u);
 assert.match(prompt, /COLLECTIVE DEEP REASONING/u);
 assert.match(prompt, /ADVISORY_ONLY/u);
-assert.match(prompt, /CONTEXT_ONLY|CONTEXT_ONLY/u);
+assert.match(prompt, /CONTEXT_ONLY/u);
 assert.match(prompt, /exact-SHA evidence/u);
 
 const ar = buildCollectiveIntelligenceFrame('لماذا فشل الاختبار؟ نحتاج إثبات السبب وإعادة الاختبار.', []);
