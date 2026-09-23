@@ -30,7 +30,7 @@ assert.match(coordination, /initializeChairState\(\{targetSha:sha\(\)\}\)/);
 assert.match(coordination, /chair-heartbeat/);
 assert.match(coordination, /chair-reconcile/);
 assert.match(coordination, /chair-speculate/);
-assert.match(coordination, /acquireChair\(\{ agentId, chairId:/);
+assert.match(coordination, /acquireChair\(\{\s*agentId,\s*chairId:/);
 assert.doesNotMatch(coordination, /acquireTaskChair/);
 assert.doesNotMatch(coordination, /releaseTaskChair/);
 assert.match(coordination, /reason: 'TASK_COMPLETE'/);
