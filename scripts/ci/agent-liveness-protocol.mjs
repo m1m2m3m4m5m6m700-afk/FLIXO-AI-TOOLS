@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-const LOGICAL_BOT_IDS = Object.freeze(Array.from({ length: 100 }, (_, index) => `CELL-${String(index + 1).padStart(3, '0')}`));
+const LOGICAL_BOT_IDS = Object.freeze(Array.from({ length: 120 }, (_, index) => `CELL-${String(index + 1).padStart(3, '0')}`));
 const RESIDENT_RUNTIME_IDS = Object.freeze(['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5','FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10']);
 const RESIDENT_DEVELOPMENT_DOMAINS = Object.freeze([
   Object.freeze({ id:'RCA_ARCH', role:'RCA_AND_ARCHITECTURE', skills:['root-cause','architecture','dependency-analysis'] }),
@@ -42,23 +42,23 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   heartbeatWakePolicy: 'ONE_MINUTE_HEARTBEAT_WAKES_ALL_AGENTS',
   heartbeatWakeScope: 'ALL_AGENTS',
   pulseEveryMs: 60 * 1000,
-  logicalBotCount: 100,
+  logicalBotCount: 120,
   logicalBotIdPrefix: 'CELL-',
   logicalBotIdWidth: 3,
   logicalBotIds: LOGICAL_BOT_IDS,
   logicalBotDevelopmentDomains: RESIDENT_DEVELOPMENT_DOMAINS,
   logicalBotDevelopmentProfiles: LOGICAL_BOT_DEVELOPMENT_PROFILES,
-  logicalBotPolicy: 'FIXED_100_LOGICAL_PROFILES',
+  logicalBotPolicy: 'FIXED_120_LOGICAL_PROFILES',
   activeCohortSize: 5,
-  activeCohortCount: 20,
-  activeCohortCommitmentMs: 15 * 60 * 1000,
-  activeCohortRotationPolicy: 'FIFO_5_OF_100_WITH_CYCLE_WRAP',
+  activeCohortCount: 24,
+  activeCohortCommitmentMs: 60 * 60 * 1000,
+  activeCohortRotationPolicy: 'FIFO_5_OF_120_WITH_CYCLE_WRAP',
   activeCohortHandoffPolicy: 'NEXT_5_READY_BEFORE_RELEASE',
   fiveBotResidencyCommitment: Object.freeze({
     requiredBotCount: 5,
     postTaskState: 'READY_RESIDENT',
-    journeyLogicalBotCount: 100,
-    journeyCohortCount: 20,
+    journeyLogicalBotCount: 120,
+    journeyCohortCount: 24,
     journeyCohortSize: 5,
     retainResidentAfterTaskClose: true,
     retainResidentUntilJourneyComplete: true,
@@ -94,20 +94,20 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
     'FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5',
     'FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10',
   ]),
-  activeRepairWindowMs: 45 * 60 * 1000,
+  activeRepairWindowMs: 60 * 60 * 1000,
   maxContinuousActiveSessionMs: 3 * 60 * 60 * 1000,
   masterStatusUpdateEveryMs: 5 * 60 * 1000,
   taskReminderEveryMs: 10 * 60 * 1000,
   manualWakeRequired: false,
   selfDisableAllowed: false,
   selfAbortAllowed: false,
-  leaseTtlMs: 15 * 60 * 1000,
+  leaseTtlMs: 60 * 60 * 1000,
   progressWindowMs: 10 * 60 * 1000,
   maxNoProgressHeartbeats: 3,
   sessionPolicy: Object.freeze({
     maxSessionCycles: 12,
     sessionBudgetScopedOnly: true,
-    minimumActiveWindowMs: 45 * 60 * 1000,
+    minimumActiveWindowMs: 60 * 60 * 1000,
     minimumActiveWindowEnforced: true,
     maxContinuousActiveSessionMs: 3 * 60 * 60 * 1000,
     maxContinuousSegmentEnforced: true,
@@ -163,12 +163,12 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
     'SELF_ABORT_FORBIDDEN',
     'LIVENESS_FAILURE_MUST_REENTER_CANONICAL_WAKE_PATH',
     'ACTIVE_COHORT_EXACTLY_FIVE',
-    'ACTIVE_COHORT_COMMITMENT_15_MINUTES',
+    'ACTIVE_COHORT_COMMITMENT_60_MINUTES',
     'NEXT_COHORT_READY_BEFORE_RELEASE',
-    'TWENTY_COHORTS_COMPLETE_ONE_100_BOT_CYCLE',
-    'CYCLE_WRAP_100_TO_1',
+    'TWENTY_FOUR_COHORTS_COMPLETE_ONE_120_BOT_CYCLE',
+    'CYCLE_WRAP_120_TO_1',
     'FIVE_BOT_POST_CLOSE_READY_RESIDENT',
-    'FIVE_BOT_REMAIN_READY_UNTIL_100_JOURNEY_COMPLETE',
+    'FIVE_BOT_REMAIN_READY_UNTIL_120_JOURNEY_COMPLETE',
   ]),
 });
 
@@ -190,19 +190,19 @@ export function assertLivenessDefinition() {
   if (AGENT_LIVENESS_PROTOCOL.heartbeatWakePolicy !== 'ONE_MINUTE_HEARTBEAT_WAKES_ALL_AGENTS') throw new Error('AGENT_LIVENESS_HEARTBEAT_WAKE_POLICY_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatWakeScope !== 'ALL_AGENTS') throw new Error('AGENT_LIVENESS_HEARTBEAT_WAKE_SCOPE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.pulseEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_PULSE_NOT_ONE_MINUTE');
-  if (AGENT_LIVENESS_PROTOCOL.logicalBotCount !== 100 || AGENT_LIVENESS_PROTOCOL.logicalBotIds.length !== 100 || AGENT_LIVENESS_PROTOCOL.logicalBotIds[0] !== 'CELL-001' || AGENT_LIVENESS_PROTOCOL.logicalBotIds[99] !== 'CELL-100' || new Set(AGENT_LIVENESS_PROTOCOL.logicalBotIds).size !== 100) throw new Error('AGENT_LIVENESS_100_LOGICAL_BOT_ROSTER_INVALID');
-  if (AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains.length !== 10 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.length !== 100 || new Set(AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.map((x) => x.botId)).size !== 100 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.some((x) => x.mutationAuthority !== false || x.certificationAuthority !== false || !x.skills.length)) throw new Error('AGENT_LIVENESS_LOGICAL_BOT_DEVELOPMENT_PROFILE_INVALID');
-  if (AGENT_LIVENESS_PROTOCOL.activeCohortSize !== 5 || AGENT_LIVENESS_PROTOCOL.activeCohortCount !== 20 || AGENT_LIVENESS_PROTOCOL.activeCohortCommitmentMs !== 15 * 60 * 1000 || AGENT_LIVENESS_PROTOCOL.activeCohortRotationPolicy !== 'FIFO_5_OF_100_WITH_CYCLE_WRAP' || AGENT_LIVENESS_PROTOCOL.activeCohortHandoffPolicy !== 'NEXT_5_READY_BEFORE_RELEASE') throw new Error('AGENT_LIVENESS_FIVE_BOT_ROTATION_POLICY_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.logicalBotCount !== 120 || AGENT_LIVENESS_PROTOCOL.logicalBotIds.length !== 120 || AGENT_LIVENESS_PROTOCOL.logicalBotIds[0] !== 'CELL-001' || AGENT_LIVENESS_PROTOCOL.logicalBotIds[119] !== 'CELL-120' || new Set(AGENT_LIVENESS_PROTOCOL.logicalBotIds).size !== 120) throw new Error('AGENT_LIVENESS_120_LOGICAL_BOT_ROSTER_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains.length !== 10 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.length !== 120 || new Set(AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.map((x) => x.botId)).size !== 120 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.some((x) => x.mutationAuthority !== false || x.certificationAuthority !== false || !x.skills.length)) throw new Error('AGENT_LIVENESS_LOGICAL_BOT_DEVELOPMENT_PROFILE_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.activeCohortSize !== 5 || AGENT_LIVENESS_PROTOCOL.activeCohortCount !== 24 || AGENT_LIVENESS_PROTOCOL.activeCohortCommitmentMs !== 60 * 60 * 1000 || AGENT_LIVENESS_PROTOCOL.activeCohortRotationPolicy !== 'FIFO_5_OF_120_WITH_CYCLE_WRAP' || AGENT_LIVENESS_PROTOCOL.activeCohortHandoffPolicy !== 'NEXT_5_READY_BEFORE_RELEASE') throw new Error('AGENT_LIVENESS_FIVE_BOT_ROTATION_POLICY_INVALID');
   const residency=AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment;
-  if (!residency || residency.requiredBotCount !== 5 || residency.postTaskState !== 'READY_RESIDENT' || residency.journeyLogicalBotCount !== 100 || residency.journeyCohortCount !== 20 || residency.journeyCohortSize !== 5 || residency.retainResidentAfterTaskClose !== true || residency.retainResidentUntilJourneyComplete !== true || residency.sleepDuringJourney !== false || residency.idleDuringJourney !== false || residency.withdrawalDuringJourney !== false) throw new Error('AGENT_LIVENESS_FIVE_BOT_RESIDENCY_COMMITMENT_INVALID');
+  if (!residency || residency.requiredBotCount !== 5 || residency.postTaskState !== 'READY_RESIDENT' || residency.journeyLogicalBotCount !== 120 || residency.journeyCohortCount !== 24 || residency.journeyCohortSize !== 5 || residency.retainResidentAfterTaskClose !== true || residency.retainResidentUntilJourneyComplete !== true || residency.sleepDuringJourney !== false || residency.idleDuringJourney !== false || residency.withdrawalDuringJourney !== false) throw new Error('AGENT_LIVENESS_FIVE_BOT_RESIDENCY_COMMITMENT_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.activeRuntimeCount !== 5 || AGENT_LIVENESS_PROTOCOL.activeRuntimeIds.length !== 5 || AGENT_LIVENESS_PROTOCOL.stagedRuntimeCount !== 5 || AGENT_LIVENESS_PROTOCOL.stagedRuntimeIds.length !== 5) throw new Error('AGENT_LIVENESS_ACTIVE_RUNTIME_CAPACITY_INVALID');
-  for (const domain of AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains) if (AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.filter((x) => x.domainId === domain.id).length !== 10) throw new Error('AGENT_LIVENESS_BOT_DOMAIN_DISTRIBUTION_INVALID=' + domain.id);
+  for (const domain of AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains) if (AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.filter((x) => x.domainId === domain.id).length !== 12) throw new Error('AGENT_LIVENESS_BOT_DOMAIN_DISTRIBUTION_INVALID=' + domain.id);
   if (AGENT_LIVENESS_PROTOCOL.pulseProfiles.length !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.botId)).size !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.pulseType)).size !== 10) throw new Error('AGENT_LIVENESS_PULSE_PROFILE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.idleSweepMode !== 'FULL_REPOSITORY_READ_ONLY_SCAN' || AGENT_LIVENESS_PROTOCOL.idleSweepPlanLedger !== 'المهام.md') throw new Error('AGENT_LIVENESS_IDLE_SWEEP_POLICY_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.actionRepairTeamSize !== 10 || AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length !== 10) throw new Error('AGENT_LIVENESS_TEAM_SIZE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_HEARTBEAT_NOT_ONE_MINUTE');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatGraceMs !== 30 * 1000) throw new Error('AGENT_LIVENESS_HEARTBEAT_GRACE_NOT_THIRTY_SECONDS');
-  if (AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs !== 45 * 60 * 1000) throw new Error('AGENT_LIVENESS_ACTIVE_WINDOW_NOT_FORTY_FIVE_MINUTES');
+  if (AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs !== 60 * 60 * 1000) throw new Error('AGENT_LIVENESS_ACTIVE_WINDOW_NOT_FORTY_FIVE_MINUTES');
   if (AGENT_LIVENESS_PROTOCOL.maxContinuousActiveSessionMs !== 3 * 60 * 60 * 1000) throw new Error('AGENT_LIVENESS_MAX_CONTINUOUS_SEGMENT_NOT_THREE_HOURS');
   if (AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs !== 5 * 60 * 1000 || AGENT_LIVENESS_PROTOCOL.taskReminderEveryMs !== 10 * 60 * 1000) throw new Error('AGENT_LIVENESS_COORDINATION_CADENCE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.sessionPolicy.maxContinuousActiveSessionMs !== AGENT_LIVENESS_PROTOCOL.maxContinuousActiveSessionMs || AGENT_LIVENESS_PROTOCOL.sessionPolicy.maxContinuousSegmentEnforced !== true || AGENT_LIVENESS_PROTOCOL.sessionPolicy.totalTaskDurationUnlimitedWhileOpen !== true) throw new Error('AGENT_LIVENESS_LONG_SESSION_POLICY_INVALID');
@@ -400,7 +400,7 @@ export function assertActiveRepairWindow({ startedAt, continuousStartedAt = star
 }
 
 export function sessionTerminationDirective({ canonicalGreen = false, activeRepairWindowReached = false, reason = 'SESSION_BUDGET_EXHAUSTED' } = {}) {
-  const residentCommitment={postTaskState:'READY_RESIDENT',retainResidentUntilJourneyComplete:true,journeyLogicalBotCount:100,journeyCohortCount:20,sleep:false,idle:false,withdrawal:false};
+  const residentCommitment={postTaskState:'READY_RESIDENT',retainResidentUntilJourneyComplete:true,journeyLogicalBotCount:120,journeyCohortCount:24,sleep:false,idle:false,withdrawal:false};
   if (canonicalGreen === true && activeRepairWindowReached === true) return Object.freeze({ action: 'CLOSE_ALLOWED', taskRemainsOpen: false, residentState: 'READY_RESIDENT', reason: 'CANONICAL_GREEN_PROVEN', fiveBotResidency:residentCommitment });
   if (canonicalGreen === true && activeRepairWindowReached !== true) return Object.freeze({ action: 'RECOVER_AND_CONTINUE', taskRemainsOpen: true, residentState: 'ACTIVE_OR_RECOVERING', reason: 'ACTIVE_45_MIN_WINDOW_REQUIRED', next: 'maintain_heartbeat_until_minimum_window_then_reverify', fiveBotResidency:residentCommitment });
   return Object.freeze({ action: 'RECOVER_AND_REDISPATCH', taskRemainsOpen: true, residentState: 'ACTIVE_OR_RECOVERING', reason: String(reason), next: 'renew_lease -> capture_state -> new_evidence_or_strategy -> continue_until_verified', fiveBotResidency:residentCommitment });
