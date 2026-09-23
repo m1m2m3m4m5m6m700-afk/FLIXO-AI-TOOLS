@@ -14,7 +14,7 @@
     "oracle",
     "failureInjections"
   ],
-  "comparison": "Output changes are measurable learning only when an explicit oracle provides PASS/FAIL.",
+  "comparison": "Output changes are measurable learning only when an explicit oracle provides PASS/FAIL.",\n  "missionResultContract": ["missionId", "taskId", "botId", "exactSha", "outcome", "evidenceRefs", "verified"],\n  "simulationAuthority": { "authoritative": false, "canCertify": false, "canPromote": false, "canMutate": false },
   "failureInjectionCatalog": [
     "STALE_SHA",
     "DUPLICATE_KNOWLEDGE",
