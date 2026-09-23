@@ -24,6 +24,7 @@ assert.match(workflow, /\*Heartbeat\*/i);
 assert.match(workflow, /\*Execution\*/i);
 assert.match(workflow, /SUPERSESSION_LATE_STALE_ID_FILE=\/tmp\/supersession-late-stale-ids\.txt/);
 assert.doesNotMatch(workflow, /done < <\(/);
+assert.doesNotMatch(workflow, /\| @tsv' \/tmp\/supersession-final-runs\.json\)/);
 assert.match(workflow, /done < \/tmp\/supersession-late-stale-ids\.txt/);
 assert.match(workflow, /LATEST_COMMIT_ONLY_ENFORCED=true/);
 assert.match(workflow, /SUPERSESSION_HEAD_MOVED old=\$EXPECTED_SHA new=\$CURRENT_SHA/);
