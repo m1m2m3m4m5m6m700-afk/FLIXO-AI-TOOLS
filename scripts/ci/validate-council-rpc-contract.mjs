@@ -51,6 +51,8 @@ for (const marker of [
   'NO_FRESH_RECOVERY_RUNTIME',
   'resident-heartbeat',
   'COUNCIL_ASSISTANT_QUERY_CREDENTIAL_FORBIDDEN',
+  'COUNCIL_EXTERNAL_WATCHER_MAIN_REF_REJECTED',
+  'COUNCIL_EXTERNAL_WATCHER_WORKFLOW_SHA_MISMATCH',
 ]) {
   assert.ok(runtime.includes(marker), 'Missing runtime recovery/wake/security marker: ' + marker);
 }
