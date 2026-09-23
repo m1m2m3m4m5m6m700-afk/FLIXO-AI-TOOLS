@@ -29,6 +29,8 @@ export const SENSITIVE_PERMISSION_ALLOWLISTS = Object.freeze({
     'execution-bot-watchdog.yml',
     'latest-commit-test-supersession.yml',
     'latest-execution-head-cleanup.yml',
+    'agent-repair-heartbeat.yml',
+    'flixo-team-wake-relay.yml',
   ]),
   'id-token': Object.freeze([
     'agent-communication-relay.yml',
