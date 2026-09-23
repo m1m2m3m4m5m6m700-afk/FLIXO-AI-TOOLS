@@ -32,7 +32,7 @@ const required=[
  "staleEvidence",
  "securitySignals",
  "historicalSignals",
- "deepInference: buildDeepInference",
+ "buildDeepInference(",
 ];
 
 for(const marker of required) if(!source.includes(marker)) failures.push('MISSING_MARKER='+marker);
