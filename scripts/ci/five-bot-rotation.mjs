@@ -53,7 +53,7 @@ export function buildFiveBotRotation({targetSha,now=new Date().toISOString(),coh
     elapsedMs,remainingMs:Math.max(0,WINDOW_MS-elapsedMs),activeBotIds:[...activeBotIds],
     stagedBotIds:LOGICAL_IDS.filter(id=>!activeBotIds.includes(id)),nextBotIds:[...nextBotIds],
     activeRuntimeCount:ACTIVE_RUNTIME_IDS.length,activeRuntimeIds:[...ACTIVE_RUNTIME_IDS],stagedRuntimeCount:STAGED_RUNTIME_IDS.length,stagedRuntimeIds:[...STAGED_RUNTIME_IDS],
-    assignments,handoff:{policy:AGENT_LIVENESS_PROTOCOL.activeCohortHandoffPolicy,nextReady:true,requiredReadyCount:COHORT_SIZE,readyBotIds:[...nextBotIds],fromCohortIndex:cohortIndex,toCohortIndex:nextIndex,status:'STAGED_NEXT_COHORT'},
+    assignments,handoff:{policy:AGENT_LIVENESS_PROTOCOL.activeCohortHandoffPolicy,nextReady:false,requiredReadyCount:COHORT_SIZE,readyBotIds:[],requiredReadyEvidence:'LIVE_HEARTBEAT_ACK_FOR_EACH_NEXT_BOT_EXACT_SHA',fromCohortIndex:cohortIndex,toCohortIndex:nextIndex,status:'WAITING_FOR_LIVE_READY_ACKS'},
     fiveBotResidency:{...fiveBotResidency,currentCohortSize:COHORT_SIZE,currentCohortOrdinal:cohortIndex+1,journeyLogicalBotCount:120,journeyCohortCount:COHORT_COUNT,journeyCohortSize:COHORT_SIZE,postTaskCloseState:'READY_RESIDENT',retainResidentUntilJourneyComplete:true,currentJourneyComplete:false,journeyCompleteAfterNextHandoff:nextIndex===0},
     cycleWrap:nextIndex===0,cycleBoundary:nextIndex===0,sleep:false,idle:false,withdrawal:false,mutationAuthority:false,sourceMutationAllowed:false,readOnlyWhenResident:true
   });
