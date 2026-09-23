@@ -10,7 +10,7 @@ on:
       - main
     types: [synchronize]
 
-# Central stale-run controller. Any non-authoritative run for an older SHA is cancelled and its evidence is stale.
+# Central stale-run controller. Only queued/pending non-authoritative runs are cancelled; started runs remain as immutable evidence and are allowed to finish.
 concurrency:
   # One controller lane per source repository + branch. Push and PR synchronize events for the
   # same source branch share one supersession owner, while independent forks stay isolated.
