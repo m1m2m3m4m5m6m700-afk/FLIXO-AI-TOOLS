@@ -174,32 +174,4 @@ jobs:
           test -s /tmp/flixo-heartbeat/flixo-full-repository-scan.json
           echo 'IDLE_MODE=FULL_REPOSITORY_READ_ONLY_SCAN'
           echo 'PLAN_TARGET=المهام.md'
-      - name: Build canonical all-team wake plan
-        if: steps.state.outputs.wake == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-          node scripts/ci/action-repair-five-workers.mjs \
-            --role=wake \
-            --status=RED_INTERNAL \
-            --target-sha="$EXECUTION_SHA" \
-            --run-id="$GITHUB_RUN_ID" \
-            --output=/tmp/flixo-heartbeat/team-wake.json
-          jq -e '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .recipientCount==10 and .scope=="ALL_ACTION_REPAIR_TEAM"' /tmp/flixo-heartbeat/team-wake.json >/dev/null
-          echo 'ALL_ACTION_REPAIR_TEAM_WAKE_PLAN=READY'
 
-      - name: Wake canonical observer supervisor for every pulse window
-        if: always() && steps.state.outputs.execution_sha != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/agent-repair-supervisor.yml/dispatches" -f ref=execution
-          echo 'AUTOMATIC_REPAIR_SUPERVISOR_WAKE=true'
-          echo 'ALL_AGENTS_WAKE_DIRECTIVES_EMITTED=1'
-          echo 'SUPERVISOR_REMAINS_OBSERVER_ONLY=true'
-          echo 'IDLE_SWEEP_REMAINS_READ_ONLY=true'
