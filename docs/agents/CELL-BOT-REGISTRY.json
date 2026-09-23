@@ -77,7 +77,7 @@
     "status": "RETIRED",
     "targetBotCount": 0,
     "appliesTo": "HISTORICAL_RUNTIME_POOL",
-    "retired": false
+    "retired": true
   },
   "cellCouncil": {
     "authority": "CELL_TRISEAT_CONTROLLER",

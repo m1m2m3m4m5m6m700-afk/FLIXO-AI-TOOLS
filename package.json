@@ -256,7 +256,13 @@
     "test:agent-collective-intelligence": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-collective-intelligence.mjs",
     "test:full-intelligence-policy": "node scripts/ci/test-full-intelligence-policy.mjs",
     "test:action-repair-ten": "node scripts/ci/test-action-repair-five-workers.mjs",
-    "action-repair:ten": "node scripts/ci/action-repair-five-workers.mjs"
+    "action-repair:ten": "node scripts/ci/action-repair-five-workers.mjs",
+    "validate:work-package": "node scripts/ci/work-package-policy.mjs",
+    "validate:runtime-proof-coverage": "node scripts/ci/validate-runtime-proof-coverage.mjs",
+    "validate:control-contract-locks": "node scripts/ci/validate-control-contract-locks.mjs",
+    "test:work-package": "node scripts/ci/test-work-package-policy.mjs && node scripts/ci/test-agent-work-package-contract.mjs && node scripts/ci/test-runtime-proof-coverage.mjs && node scripts/ci/validate-control-contract-locks.mjs",
+    "test:runtime-proof-coverage": "node scripts/ci/test-runtime-proof-coverage.mjs",
+    "test:control-contract-locks": "node scripts/ci/test-control-contract-locks.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",

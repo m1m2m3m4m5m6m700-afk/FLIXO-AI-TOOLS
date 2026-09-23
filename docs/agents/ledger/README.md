@@ -16,3 +16,10 @@ The ledger is coordination evidence only. It cannot override ownership locks, ex
 ## Live activity gate
 
 An OPEN agent session MUST publish meaningful execution events with `node scripts/ci/agent-session.mjs event --session=<id> --agent=<id> --task=<task-id> --type=<TYPE> --summary=<what-happened>`. Event types: `PROGRESS`, `FINDING`, `BLOCKER`, `CHANGE`, `TEST`, `VERIFICATION`, `HANDOFF`, `NOTE`. Events carry the exact SHA and are visible to all agents. VERIFIED logout is fail-closed when no activity event exists. Event payloads reject common secret-like values and must contain no credentials or private user data.
+
+
+## Work-package binding
+
+New session records use ledger schema v2 and carry a mandatory `workPackageId` with the `ONE_TASK_ONE_WORK_PACKAGE` contract. The ID is immutable for the session and binds changes, evidence, handoff, and exact-SHA qualification. Historical schema-v1 records remain readable and are not rewritten retroactively.
+
+Event evidence is fail-closed: CHANGE events require files; TEST/VERIFICATION events require evidence; FINDING events require findings; BLOCKER events require blockers.

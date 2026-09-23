@@ -46,6 +46,7 @@ const rca = String(args.get('rca') ?? process.env.FLIXO_AGENT_RCA ?? '').trim() 
 const scope = String(args.get('scope') ?? process.env.FLIXO_AGENT_SCOPE ?? '').split(',').map((v) => v.trim()).filter(Boolean);
 const fromSession = rawFromSession ? safeSessionId(rawFromSession, 'previous_session') : null;
 const taskId = String(args.get('task') ?? process.env.FLIXO_AGENT_TASK ?? '').trim();
+const workPackageId = safeSessionId(String(args.get('work-package') ?? process.env.FLIXO_AGENT_WORK_PACKAGE ?? `WP-${taskId}`).trim(), 'work_package');
 const sessionDir = path.resolve(ROOT, process.env.FLIXO_AGENT_SESSION_DIR ?? 'diagnostics/agents/sessions');
 const visibilityDir = path.resolve(ROOT, process.env.FLIXO_AGENT_VISIBILITY_DIR ?? 'docs/agents/ledger');
 const handoffDir = path.resolve(ROOT, process.env.FLIXO_AGENT_HANDOFF_DIR ?? 'diagnostics/agents/handoffs');
@@ -211,7 +212,7 @@ const ensureSessionWorkChair = (record) => {
     leaseId: admission.leaseId,
     targetSha,
     taskId: record.taskId,
-    workPackageId: admission.workPackageId ?? record.taskId,
+    workPackageId: admission.workPackageId ?? record.workPackageId ?? record.taskId,
     acquiredAt: now(),
     released: false,
   };
@@ -221,7 +222,8 @@ const ensureSessionWorkChair = (record) => {
 
 const writeVisibility = (record) => {
   fs.mkdirSync(visibilityDir, { recursive: true });
-  fs.writeFileSync(visibilityPath(sessionId), `${JSON.stringify(record, null, 2)}\n`);
+  const visibleRecord = { schemaVersion: 2, workPackageId, ...record };
+  fs.writeFileSync(visibilityPath(sessionId), `${JSON.stringify(visibleRecord, null, 2)}\n`);
 };
 const secretLike = (value) => /(-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|ghp_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+|Bearer\s+[A-Za-z0-9._-]+|sk-[A-Za-z0-9_-]+)/i.test(String(value ?? ''));
 const assertSafeText = (...values) => { for (const value of values.flat()) if (secretLike(value)) throw new Error('AGENT_EVENT_SECRET_LIKE_CONTENT_REJECTED'); };
@@ -244,7 +246,7 @@ const appendEvent = (record, event) => {
   record.activity = Array.isArray(record.activity) ? [...record.activity, enriched] : [enriched];
 };
 const isMaster = (value) => ['MASTER-1','MASTER-2','MASTER-3'].includes(value);
-const taskSnapshotFromRecord = (record) => ({ taskId: record.taskId, status: record.status, livenessState: record.livenessState, currentSha: record.currentSha ?? record.entrySha, currentRca: record.currentRca, openRcas: record.openRcas ?? [], remainingWork: record.remainingWork ?? [], nextAction: record.executionPlanNext ?? [], blockers: record.blockers ?? [], lastProgressAt: record.lastProgressAt ?? null, lastHeartbeatAt: record.lastHeartbeatAt ?? null, updatedAt: now() });
+const taskSnapshotFromRecord = (record) => ({ workPackageId: record.workPackageId ?? workPackageId, taskId: record.taskId, status: record.status, livenessState: record.livenessState, currentSha: record.currentSha ?? record.entrySha, currentRca: record.currentRca, openRcas: record.openRcas ?? [], remainingWork: record.remainingWork ?? [], nextAction: record.executionPlanNext ?? [], blockers: record.blockers ?? [], lastProgressAt: record.lastProgressAt ?? null, lastHeartbeatAt: record.lastHeartbeatAt ?? null, updatedAt: now() });
 const observeCurrentHead = (record) => {
   if (isWorkspaceOnlySession(record)) {
     const isolated = assertWorkspaceIsolation({ repoRoot: ROOT, workspace: record.workspaceIsolation.workspace, entrySha: record.workspaceIsolation.entrySha });
@@ -270,6 +272,7 @@ const observeCurrentHead = (record) => {
 
 if (!['login', 'event', 'heartbeat', 'master-update', 'logout', 'meeting-exit-approve', 'message-receive', 'message-consume'].includes(command)) throw new Error('Usage: agent-session.mjs login|event|logout|meeting-exit-approve|message-receive|message-consume --session=<id> --agent=<id> --task=<task-id>');
 if (!sessionId || !agentId || !taskId) throw new Error('Agent session requires --session, --agent and --task.');
+if (!/^WP-[A-Za-z0-9][A-Za-z0-9._-]*$/.test(workPackageId)) throw new Error('AGENT_WORK_PACKAGE_ID_INVALID');
 if (meetingRequested && !meetingId) throw new Error('COUNCIL_MEETING_ID_REQUIRED');
 if (!roles.has(role)) throw new Error(`Invalid agent role: ${role}`);
 
@@ -328,7 +331,11 @@ if (command === 'meeting-exit-approve') {
   const next = split(args.get('next') ?? process.env.FLIXO_AGENT_EVENT_NEXT, '|');
   const sha = gitSha();
   assertSafeText(type, summary, files, evidence, findings, blockers, next);
-  const event = { at: now(), action: 'EVENT', type, summary, sha: eventSha ?? sha, files, evidence, findings, blockers, next };
+  if (type === 'CHANGE' && files.length === 0) throw new Error('AGENT_CHANGE_EVENT_REQUIRES_FILES');
+  if ((type === 'TEST' || type === 'VERIFICATION') && evidence.length === 0) throw new Error('AGENT_TEST_EVENT_REQUIRES_EVIDENCE');
+  if (type === 'FINDING' && findings.length === 0) throw new Error('AGENT_FINDING_EVENT_REQUIRES_FINDINGS');
+  if (type === 'BLOCKER' && blockers.length === 0) throw new Error('AGENT_BLOCKER_EVENT_REQUIRES_BLOCKERS');
+  const event = { at: now(), action: 'EVENT', workPackageId, type, summary, sha: eventSha ?? sha, files, evidence, findings, blockers, next };
   if (['PROGRESS','FINDING','CHANGE','TEST','VERIFICATION','HANDOFF','NOTE'].includes(type)) record.lastProgressAt = event.at;
   if (type === 'MASTER_UPDATE' || type === 'HANDOFF') record.lastMasterUpdateAt = event.at;
   record.taskStateSnapshot = taskSnapshotFromRecord(record);
@@ -513,6 +520,8 @@ if (command === 'meeting-exit-approve') {
     admissionSources,
     currentRca: rca,
     taskId,
+    workPackageId,
+    workPackage: { id: workPackageId, mode: 'ONE_TASK_ONE_WORK_PACKAGE', immutableAfterLogin: true, entrySha: currentSha, runtimeProofRequiredForSensitiveChanges: true },
     residencyLock: {
       minimumActiveWindowMs: AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs,
       maxContinuousActiveSessionMs: AGENT_LIVENESS_PROTOCOL.maxContinuousActiveSessionMs,
@@ -543,7 +552,7 @@ if (command === 'meeting-exit-approve') {
     status: 'RUNNING',
     chairId: null,
     chairLeaseId: null,
-    chairBinding: { required: true, admission: 'CHAIR_REQUIRED_FOR_WORK', chairId: null, leaseId: null, targetSha: sha, taskId, workPackageId: taskId, acquiredAt: null, released: false },
+    chairBinding: { required: true, admission: 'CHAIR_REQUIRED_FOR_WORK', chairId: null, leaseId: null, targetSha: sha, taskId, workPackageId, acquiredAt: null, released: false },
     sharedOperationalMemory: buildSharedLearningContext({botId: recordSourceBotForSession({ agentId, role }), limit: 128, currentSha: sha}),
     fullIntelligence: buildFullIntelligenceBootstrap({ agentId, role, request: rca ?? taskId, exactSha: sha, taskId }),
     bootstrap: !continuation,
@@ -805,6 +814,8 @@ if (command === 'meeting-exit-approve') {
   record.finalStatus = status;
   record.guardChangeReport = guardChangeReport;
   record.taskId = taskId;
+  record.workPackageId = workPackageId;
+  record.workPackage = { ...(record.workPackage ?? {}), id: workPackageId, mode: 'ONE_TASK_ONE_WORK_PACKAGE', immutableAfterLogin: true, entrySha: record.workPackage?.entrySha ?? record.entrySha, runtimeProofRequiredForSensitiveChanges: true };
   record.completedWork = completedWork;
   record.failedWork = failedWork;
   record.remainingWork = remainingWork;
