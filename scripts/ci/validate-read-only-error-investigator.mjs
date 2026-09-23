@@ -44,7 +44,10 @@ if(!/['"]--log-failed['"]/u.test(source)) failures.push('READ_ONLY_FAILURE_LOG_C
 if(!/run\?\.headSha !== executionSha/u.test(source)) failures.push('EXACT_SHA_FILTER_MISSING');
 if(!workflowSource.includes('contents: read') || !workflowSource.includes('actions: read')) failures.push('READ_ONLY_WORKFLOW_PERMISSIONS_MISSING');
 if(workflowSource.includes('contents: write') || workflowSource.includes('actions: write')) failures.push('WRITE_PERMISSION_PRESENT');
-if(!/ref:\s*\$\{\{\s*github\.event\.inputs\.branch\s*\|\|\s*'execution'\s*\}\}/u.test(workflowSource)) failures.push('EXECUTION_BRANCH_REF_BINDING_MISSING');
+if(!workflowSource.includes("TARGET_BRANCH: ${{ github.event.inputs.branch || 'execution' }}")) failures.push('EXECUTION_BRANCH_INPUT_BINDING_MISSING');
+if(!workflowSource.includes('git/ref/heads/$TARGET_BRANCH')) failures.push('OBSERVED_BRANCH_SHA_API_BINDING_MISSING');
+if(!workflowSource.includes('Checkout trusted workflow revision')) failures.push('TRUSTED_WORKFLOW_CHECKOUT_MISSING');
+if(/ref:\s*\$\{\{\s*github\.event\.inputs\.branch\s*\|\|\s*'execution'\s*\}\}/u.test(workflowSource)) failures.push('UNTRUSTED_OBSERVED_BRANCH_CHECKOUT_REINTRODUCED');
 if(!testSource.includes('CAPIError') || !testSource.includes('CI contract failed')) failures.push('ROOT_CAUSE_FIXTURES_MISSING');
 if(!fs.existsSync(deepReasoning) || !fs.existsSync(deepTest) || !fs.existsSync(deepContract) || !fs.existsSync(repairIntelligence)) failures.push('DEEP_REASONING_SURFACE_MISSING');
 if(!source.includes('buildDeepInference')) failures.push('DEEP_REASONING_INTEGRATION_MARKER_MISSING');
