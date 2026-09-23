@@ -585,6 +585,7 @@ function collectWithGh() {
   })();
 
   const securityFindings = normalizeSecurityAlerts(securityEvidence.alerts);
+  const securityAnnotations = securityEvidence.checkRunAnnotations;
   return {
     repository,
     observedBranch: branch,
