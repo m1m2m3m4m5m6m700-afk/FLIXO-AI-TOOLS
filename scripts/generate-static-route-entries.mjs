@@ -28,7 +28,7 @@ copyEntry('/admin');
 const adminApiSourceDir = join('api', 'admin');
 const adminApiDistDir = join(DIST_DIR, 'api', 'admin');
 mkdirSync(adminApiDistDir, { recursive: true });
-for (const file of ['boundary.ts', 'canonical.ts', 'persistence.ts', 'centers.ts']) {
+for (const file of ['boundary.ts', 'centers.ts', 'execution-preview.ts', 'overview.ts', 'session.ts']) {
   copyFileSync(join(adminApiSourceDir, file), join(adminApiDistDir, file));
 }
 
@@ -40,4 +40,4 @@ for (const locale of LOCALES) {
   }
 }
 
-console.log(`G1 static route entries generated: ready=${readyTools.length}, locales=${LOCALES.length}, routes=${readyTools.length * LOCALES.length + LOCALES.length + 1}, adminApi=4`);
+console.log(`G1 static route entries generated: ready=${readyTools.length}, locales=${LOCALES.length}, routes=${readyTools.length * LOCALES.length + LOCALES.length + 1}, adminApi=5`);
