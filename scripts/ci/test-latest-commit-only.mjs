@@ -81,7 +81,7 @@ for (const file of currentWorkflows) {
   }
   assert.match(source, /github\.event\.pull_request\.head\.repo\.full_name \|\| github\.repository/u, `${file}: PR head repository missing from concurrency identity`);
   assert.match(source, /github\.event\.pull_request\.head\.ref \|\| github\.ref_name/u, file + ': PR head branch missing from concurrency identity');
-  assert.match(source, /github\.event\.pull_request\.head\.sha \|\| github\.sha/u, file + ': exact head SHA missing from concurrency identity');
+  assert.match(source, /github\.event\.pull_request\.head\.ref \|\| github\.ref_name/u, file + ': canonical source branch missing from concurrency identity');
   assert.match(source, /scripts\/ci\/assert-current-commit\.mjs/u, `${file}: exact-SHA freshness guard missing`);
 }
 
