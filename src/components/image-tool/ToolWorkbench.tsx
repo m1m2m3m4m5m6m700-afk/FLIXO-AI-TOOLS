@@ -363,7 +363,7 @@ export function ToolWorkbench<P>({
           </div>
         </aside>
 
-        <main className="flixo-tool-canvas image-workbench-preview">
+        <div className="flixo-tool-canvas image-workbench-preview">
           <div className="flixo-tool-canvas-toolbar">
             <div className="flixo-tool-view-toggle" role="tablist" aria-label={t('Preview')}>
               {([
