@@ -138,7 +138,7 @@ const p00CellLab = protocolRegistry?.protocols?.find((item) => item.id === 'P00'
 if (typeof p00CellLab !== 'string' || !p00CellLab.includes('P20 Cell-Lab collaboration is mandatory')) failures.push('CELL_LAB_REGISTRATION_MISSING');
 if (protocolRegistry) {
   const p00 = protocolRegistry.protocols?.find((item) => item?.id === 'P00');
-  if (p00?.status !== 'SUPREME_MANDATORY' || p00?.canonicalSource !== 'docs/agents/PROMPT-UNIFIED-EXECUTION.md' || p00?.version !== '4.0.0') failures.push('P00_SUPREME_PROTOCOL_INVALID');
+  if (p00?.status !== 'SUPREME_MANDATORY' || p00?.canonicalSource !== 'docs/agents/PROMPT-UNIFIED-EXECUTION.md' || p00?.version !== '4.1.0') failures.push('P00_SUPREME_PROTOCOL_INVALID');
 }
 if (!protocolRegistry) failures.push('PROTOCOL_REGISTRY_MISSING');
 else {
