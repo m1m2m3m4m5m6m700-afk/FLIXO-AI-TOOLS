@@ -43,7 +43,7 @@ export function MasterRepairChat(){
   };
   const clear=()=>{setRows([starter]);setPlan(null);setError(null);setProvider(null);try{window.localStorage.removeItem(STORAGE);}catch{void 0;}};
   return <section className='mr-chat-card' aria-labelledby='mr-chat-title'>
-    <div className='mr-chat-head'><div><span className='mr-chat-eyebrow'>MASTER REPAIR</span><h2 id='mr-chat-title'>محادثة كاملة مع البوت</h2><p>سياق مستمر · فهم المتابعة · خطة إصلاح قبل التنفيذ</p></div><div className='mr-chat-head-actions'><span className='mr-chat-status'>{busy?'يفكر…':'جاهز'}</span><button type='button' onClick={clear}>محادثة جديدة</button></div></div>
+    <div className='mr-chat-head'><div><span className='mr-chat-eyebrow'>FLIXO BOT</span><h2 id='mr-chat-title'>محادثة كاملة مع البوت</h2><p>سياق مستمر · فهم المتابعة · خطة إصلاح قبل التنفيذ</p></div><div className='mr-chat-head-actions'><span className='mr-chat-status'>{busy?'يفكر…':'جاهز'}</span><button type='button' onClick={clear}>محادثة جديدة</button></div></div>
     <div className='mr-chat-body' aria-live='polite'>{visible.map(row=><div key={row.id} className={'mr-chat-row '+row.role}><div className='mr-chat-avatar'>{row.role==='assistant'?'FB':'أنت'}</div><div className='mr-chat-bubble'>{row.content}</div></div>)}{busy&&<div className='mr-chat-typing'><span/> <span/> <span/></div>}</div>
     <div className='mr-chat-context'><span>السياق: {rows.length-1} رسالة</span><span>{provider?`المحرك: ${provider}`:'المحرك: تلقائي'}</span><span>{plan?`خطة: ${plan.steps.length} خطوات`:'لا توجد خطة معلقة'}</span></div>
     {plan&&<div className='mr-chat-plan'><strong>خطة مقترحة</strong>{plan.steps.map((step,index)=><div key={`${step.toolId}-${index}`}><b>{index+1}.</b> {step.toolId}</div>)}</div>}
