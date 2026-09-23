@@ -31,14 +31,17 @@ export function evaluateHandoff({fromCohortIndex,toCohortIndex,readyBotIds=[],el
   if(ready.length!==COHORT_SIZE||ready.some((id,i)=>id!==expected[i])) return Object.freeze({status:'WAIT_NEXT_COHORT_READY',reason:'NEXT_FIVE_NOT_READY',requiredReadyCount:COHORT_SIZE,readyCount:ready.length,requiredReadyBotIds:expected,readyBotIds:ready,fromCohortIndex:from,toCohortIndex:to,targetSha:String(targetSha)});
   return Object.freeze({status:'HANDOFF_COMMITTED',reason:'NEXT_FIVE_READY',requiredReadyCount:COHORT_SIZE,readyCount:ready.length,requiredReadyBotIds:expected,readyBotIds:ready,fromCohortIndex:from,toCohortIndex:to,targetSha:String(targetSha)});
 }
-export function buildFiveBotRotation({targetSha,now=new Date().toISOString()}={}){
+export function buildFiveBotRotation({targetSha,now=new Date().toISOString(),cohortIndexOverride=null,cycleNumberOverride=null}={}){
   if(!SHA_PATTERN.test(String(targetSha??''))) throw new Error('FIVE_BOT_ROTATION_EXACT_SHA_REQUIRED');
   const parsed=Date.parse(String(now));
   if(!Number.isFinite(parsed)) throw new Error('FIVE_BOT_ROTATION_TIME_INVALID');
   const slotOrdinal=Math.floor(parsed/WINDOW_MS);
-  const cohortIndex=((slotOrdinal%COHORT_COUNT)+COHORT_COUNT)%COHORT_COUNT;
+  const computedCohortIndex=((slotOrdinal%COHORT_COUNT)+COHORT_COUNT)%COHORT_COUNT;
+  const cohortIndex=cohortIndexOverride===null||cohortIndexOverride===undefined||cohortIndexOverride===''?computedCohortIndex:Number(cohortIndexOverride);
+  if(!Number.isInteger(cohortIndex)||cohortIndex<0||cohortIndex>=COHORT_COUNT) throw new Error('FIVE_BOT_COHORT_OVERRIDE_INVALID');
   const nextIndex=(cohortIndex+1)%COHORT_COUNT;
-  const cycleNumber=Math.floor(slotOrdinal/COHORT_COUNT)+1;
+  const cycleNumber=cycleNumberOverride===null||cycleNumberOverride===undefined||cycleNumberOverride===''?Math.floor(slotOrdinal/COHORT_COUNT)+1:Number(cycleNumberOverride);
+  if(!Number.isInteger(cycleNumber)||cycleNumber<1) throw new Error('FIVE_BOT_CYCLE_OVERRIDE_INVALID');
   const elapsedMs=Math.max(0,parsed-slotOrdinal*WINDOW_MS);
   const activeBotIds=cohortMembers(cohortIndex),nextBotIds=cohortMembers(nextIndex);
   const assignments=activeBotIds.map((logicalBotId,index)=>Object.freeze({logicalBotId,runtimeId:ACTIVE_RUNTIME_IDS[index],active:true}));

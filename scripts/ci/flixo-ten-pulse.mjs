@@ -17,7 +17,7 @@ const activeWorker=arg('active-worker',process.env.FLIXO_ACTIVE_WORKER||'').trim
 const output=arg('output','/tmp/flixo-team-pulse.json');
 const pulseMinuteOrdinal=(() => { const parsed=Date.parse(String(minuteKey)); if(Number.isFinite(parsed)) return Math.floor(parsed/60000); const fallback=Date.parse(String(minuteKey).slice(0,16)+':00Z'); return Number.isFinite(fallback)?Math.floor(fallback/60000):0; })();
 const pulseTimestamp=Number.isFinite(Date.parse(String(minuteKey))) ? new Date(Date.parse(String(minuteKey))).toISOString() : new Date(pulseMinuteOrdinal*60000).toISOString();
-const rotation=buildFiveBotRotation({targetSha:sha,now:pulseTimestamp});
+const rotation=buildFiveBotRotation({targetSha:sha,now:pulseTimestamp,cohortIndexOverride:arg('cohort-index')||null,cycleNumberOverride:arg('cycle-number')||null});
 const pulseProfileIndex=((pulseMinuteOrdinal % AGENT_LIVENESS_PROTOCOL.pulseProfiles.length)+AGENT_LIVENESS_PROTOCOL.pulseProfiles.length)%AGENT_LIVENESS_PROTOCOL.pulseProfiles.length;
 const pulseProfile=AGENT_LIVENESS_PROTOCOL.pulseProfiles[pulseProfileIndex];
 const pulseDomain=AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains[pulseProfileIndex % AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains.length];

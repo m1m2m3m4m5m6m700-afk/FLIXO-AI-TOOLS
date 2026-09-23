@@ -63,27 +63,64 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/flixo-heartbeat
           PREVIOUS_HEARTBEAT_SHA=""
+          WORKTREE_PATH="/tmp/flixo-execution-source"
+          WORKTREE_SHA=""
+          CURRENT_COHORT_INDEX=""
+          CURRENT_COHORT_STARTED_EPOCH=""
+          CYCLE_NUMBER=""
           for TICK in $(seq 1 45); do
-            SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
-            [[ "$SHA" =~ ^[0-9a-fA-F]{40}$ ]]
-            if [ -n "${PREVIOUS_HEARTBEAT_SHA:-}" ] && [ "$SHA" != "$PREVIOUS_HEARTBEAT_SHA" ]; then
-              echo "HEARTBEAT_HEAD_ROLLOVER=true"
-              echo "HEARTBEAT_PREVIOUS_TARGET_SHA=$PREVIOUS_HEARTBEAT_SHA"
-              echo "HEARTBEAT_CURRENT_TARGET_SHA=$SHA"
+            LIVE_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
+            [[ "$LIVE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
+            SHA="$LIVE_SHA"
+            if [ "$WORKTREE_SHA" != "$SHA" ]; then
+              git fetch origin "refs/heads/execution:refs/remotes/origin/execution" --depth=1
+              FETCHED_SHA="$(git rev-parse refs/remotes/origin/execution)"
+              [[ "$FETCHED_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
+              SHA="$FETCHED_SHA"
+              if [ -e "$WORKTREE_PATH/.git" ]; then git worktree remove --force "$WORKTREE_PATH"; elif [ -d "$WORKTREE_PATH" ]; then rm -rf "$WORKTREE_PATH"; fi
+              git worktree add --detach "$WORKTREE_PATH" "$SHA"
+              WORKTREE_SHA="$SHA"
             fi
-            PREVIOUS_HEARTBEAT_SHA="$SHA"
-            node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="HEARTBEAT:$GITHUB_RUN_ID:$TICK" --state=ACTIVE --sha="$SHA" --progress=false --file="$FLIXO_HEARTBEAT_PATH"
-            jq -e --arg sha "$SHA" '.protocolId=="AGENT_LIVENESS_PROTOCOL" and .state=="ACTIVE" and .exactSha==$sha and .progress==false' "$FLIXO_HEARTBEAT_PATH" >/dev/null
+            [[ "$WORKTREE_SHA" == "$SHA" ]]
+            if [ -z "$CURRENT_COHORT_INDEX" ]; then
+              BOOTSTRAP_OUTPUT="/tmp/flixo-heartbeat/bootstrap-rotation-$TICK.json"
+              NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              (cd "$WORKTREE_PATH" && node scripts/ci/five-bot-rotation.mjs --sha="$SHA" --now="$NOW" --output="$BOOTSTRAP_OUTPUT")
+              CURRENT_COHORT_INDEX="$(jq -r '.cohortIndex' "$BOOTSTRAP_OUTPUT")"
+              CYCLE_NUMBER="$(jq -r '.cycleNumber' "$BOOTSTRAP_OUTPUT")"
+              CURRENT_COHORT_STARTED_EPOCH="$(date +%s)"
+            fi
+            [[ "$CURRENT_COHORT_INDEX" =~ ^[0-9]+$ ]]
+            NOW_EPOCH="$(date +%s)"
+            ELAPSED_SECONDS=$((NOW_EPOCH-CURRENT_COHORT_STARTED_EPOCH))
             NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             ROTATION_OUTPUT="/tmp/flixo-heartbeat/five-bot-rotation-$TICK.json"
-            node scripts/ci/five-bot-rotation.mjs --sha="$SHA" --now="$NOW" --output="$ROTATION_OUTPUT"
-            jq -e --arg sha "$SHA" '.targetSha==$sha and .activeBotCount==5 and (.activeBotIds|length)==5 and (.nextBotIds|length)==5 and .activeRuntimeCount==5 and (.activeRuntimeIds|length)==5 and .stagedRuntimeCount==5 and (.handoff.nextReady==true) and (.handoff.requiredReadyCount==5) and .sleep==false and .idle==false' "$ROTATION_OUTPUT" >/dev/null
-            node scripts/ci/action-repair-five-workers.mjs --role=wake --status=RED_INTERNAL --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$GITHUB_RUN_ID-$TICK" --output=/tmp/flixo-heartbeat/action-wake-$TICK.json
-            jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .actionRepairSquadReady==true and .targetSha==$sha and .mutationAuthority==false and .directDispatch==false and .activeCohortSize==5 and (.activeBotIds|length)==5 and (.nextBotIds|length)==5 and .nextCohortReady==true and .nextCohortReadyCount==5' /tmp/flixo-heartbeat/action-wake-$TICK.json >/dev/null
+            (cd "$WORKTREE_PATH" && node scripts/ci/five-bot-rotation.mjs --sha="$SHA" --now="$NOW" --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output="$ROTATION_OUTPUT")
+            (cd "$WORKTREE_PATH" && node scripts/ci/action-repair-five-workers.mjs --role=wake --status=RED_INTERNAL --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$GITHUB_RUN_ID-$TICK" --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output=/tmp/flixo-heartbeat/action-wake-$TICK.json)
+            jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .actionRepairSquadReady==true and .targetSha==$sha and .activeCohortSize==5 and (.activeBotIds|length)==5 and (.nextBotIds|length)==5 and (.nextCohortReady==true) and (.nextCohortReadyCount==5)' /tmp/flixo-heartbeat/action-wake-$TICK.json >/dev/null
+            if [ "$ELAPSED_SECONDS" -ge 900 ]; then
+              NEXT_COHORT_INDEX=$(( (CURRENT_COHORT_INDEX + 1) % 20 ))
+              HANDOFF_OUTPUT="/tmp/flixo-heartbeat/handoff-$TICK.json"
+              if (cd "$WORKTREE_PATH" && node scripts/ci/five-bot-handoff-gate.mjs --packet="/tmp/flixo-heartbeat/action-wake-$TICK.json" --sha="$SHA" --expected-cohort="$NEXT_COHORT_INDEX" --output="$HANDOFF_OUTPUT"); then
+                CURRENT_COHORT_INDEX="$NEXT_COHORT_INDEX"
+                if [ "$CURRENT_COHORT_INDEX" -eq 0 ]; then CYCLE_NUMBER=$((CYCLE_NUMBER+1)); fi
+                CURRENT_COHORT_STARTED_EPOCH="$NOW_EPOCH"
+                echo 'ACTIVE_COHORT_HANDOFF=HANDOFF_COMMITTED'
+                (cd "$WORKTREE_PATH" && node scripts/ci/five-bot-rotation.mjs --sha="$SHA" --now="$NOW" --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output="$ROTATION_OUTPUT")
+                (cd "$WORKTREE_PATH" && node scripts/ci/action-repair-five-workers.mjs --role=wake --status=RED_INTERNAL --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK-HANDOFF" --fingerprint="HANDOFF-$GITHUB_RUN_ID-$TICK" --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output=/tmp/flixo-heartbeat/action-wake-$TICK.json)
+              else
+                echo 'ACTIVE_COHORT_HANDOFF=HANDOFF_PENDING'
+                echo 'ACTIVE_COHORT_RELEASE_BLOCKED=true'
+              fi
+            else
+              echo 'ACTIVE_COHORT_HANDOFF=COMMITMENT_ACTIVE'
+            fi
+            PREVIOUS_HEARTBEAT_SHA="$SHA"
+            (cd "$WORKTREE_PATH" && node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="HEARTBEAT:$GITHUB_RUN_ID:$TICK" --state=ACTIVE --sha="$SHA" --progress=false --file="$FLIXO_HEARTBEAT_PATH")
+            jq -e --arg sha "$SHA" '.protocolId=="AGENT_LIVENESS_PROTOCOL" and .state=="ACTIVE" and .exactSha==$sha and .progress==false' "$FLIXO_HEARTBEAT_PATH" >/dev/null
             PULSE_OUTPUT="/tmp/flixo-heartbeat/flixo-team-pulse-$TICK.json"
-            node scripts/ci/flixo-ten-pulse.mjs --sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --minute="$NOW" --active-operation=true --output="$PULSE_OUTPUT"
-            jq -e --arg sha "$SHA" '.protocol=="FLIXO-TEAM-PULSE-CONTROLLER-v2" and .targetSha==$sha and .pulseCount==1 and (.logicalBotIds|length)==100 and .activeBotCount==5 and (.activeBotIds|length)==5 and (.stagedBotCount > 0) and (.nextBotIds|length)==5 and .allAgentsWakeCount==10 and .sleep==false and .idle==false' "$PULSE_OUTPUT" >/dev/null
-            echo 'CANONICAL_TEAM_PULSE=1'
+            (cd "$WORKTREE_PATH" && node scripts/ci/flixo-ten-pulse.mjs --sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --minute="$NOW" --active-operation=true --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output="$PULSE_OUTPUT")
+            jq -e --arg sha "$SHA" '.protocol=="FLIXO-TEAM-PULSE-CONTROLLER-v2" and .targetSha==$sha and .pulseCount==1 and (.logicalBotIds|length)==100 and .activeBotCount==5 and (.activeBotIds|length)==5 and (.nextBotIds|length)==5 and .allAgentsWakeCount==10 and .sleep==false and .idle==false' "$PULSE_OUTPUT" >/dev/null            echo 'CANONICAL_TEAM_PULSE=1'
             echo 'ONE_PULSE_WAKE_SCOPE=ALL_AGENTS'
             echo 'RESIDENT_SLEEP=false'
             echo 'RESIDENT_IDLE=false'
@@ -98,6 +135,9 @@ jobs:
           echo 'ACTIVE_COHORT_COMMITMENT_SECONDS=900'
           echo 'ACTIVE_COHORT_HANDOFF=NEXT_5_READY_BEFORE_RELEASE'
           echo 'ACTIVE_COHORTS_PER_100_BOT_CYCLE=20'
+          echo 'ACTIVE_COHORT_HANDOFF_GATE=FIVE_READY_EXACT_SHA'
+          echo 'ACTIVE_COHORT_RELEASE_BLOCKED_UNTIL_READY=true'
+          if [ -e "$WORKTREE_PATH/.git" ]; then git worktree remove --force "$WORKTREE_PATH"; fi
       - name: Verify five-minute heartbeat compliance
         id: heartbeat_compliance
         env:
