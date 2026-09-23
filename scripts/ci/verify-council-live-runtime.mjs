@@ -52,7 +52,7 @@ async function rpcProbe(functionName, payload, expectedMarker) {
   evidence.checks.push({ name: functionName, status: 'PASS', expectedMarker, httpStatus: result.response.status });
 }
 
-const accounts = await request('/rest/v1/flix_council_accounts?select=account_id,active,lease_seconds&order=account_id.asc');
+const accounts = await request('/rest/v1/flix_council_accounts?select=account_id,active,lease_seconds,last_seen_at,metadata&order=account_id.asc');
 if (!accounts.response.ok) throw new Error('ACCOUNTS_READ_FAILED:' + accounts.response.status);
 const accountIds = Array.isArray(accounts.json) ? accounts.json.map((row) => row?.account_id).sort() : [];
 if (JSON.stringify(accountIds) !== JSON.stringify(['CHIEF','WORKER_A','WORKER_B'])) {
