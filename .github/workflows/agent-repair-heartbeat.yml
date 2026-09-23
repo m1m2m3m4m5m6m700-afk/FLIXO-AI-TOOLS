@@ -84,7 +84,9 @@ jobs:
             PULSE_ID="$(jq -r '.pulses[0].pulseId' "$FLIXO_TEAM_PULSE_PATH")"
             PULSE_TYPE="$(jq -r '.pulses[0].pulseType' "$FLIXO_TEAM_PULSE_PATH")"
             WAKE_FILE="/tmp/flixo-heartbeat/action-wake-$TICK.json"
-            node scripts/ci/action-repair-five-workers.mjs --role=wake --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$PULSE_ID" --output="$WAKE_FILE"
+            WAKE_STATUS="RESIDENT_HEARTBEAT"
+            if [ "$ACTIONABLE_RED" -gt 0 ] || [ "$ACTIONABLE_REQUIRED_RED" -gt 0 ]; then WAKE_STATUS="ACTIONABLE_RED_REENTRY"; elif [ "$ACTIVE_OPERATION" = "true" ]; then WAKE_STATUS="ACTIVE_OPERATION"; fi
+            node scripts/ci/action-repair-five-workers.mjs --role=wake --status="$WAKE_STATUS" --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$PULSE_ID" --output="$WAKE_FILE"
             jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .wakeScope=="ALL_ACTION_REPAIR_TEAM" and .recipientCount==10 and (.recipients|length)==10 and .targetSha==$sha and .mutationAuthority==false and .pushAuthority=="CHAIR_1_ONLY"' "$WAKE_FILE" >/dev/null
             if [ "$ACTIVE_OPERATION" = "true" ]; then
               ACTIVE_GREEN_SHA="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status,headSha | jq --arg sha "$SHA" '[.[] | select((.status == "queued" or .status == "in_progress") and .headSha == $sha)] | length')"
