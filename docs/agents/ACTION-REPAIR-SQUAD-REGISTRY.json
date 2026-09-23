@@ -17,11 +17,11 @@
   },
   "separation": {
     "separateFromCell": true,
-    "cellBotCount": 200,
+    "cellBotCount": 0,
     "includedInCellCount": false,
     "identityNamespace": "ACTION-*",
     "developmentModel": "INDEPENDENT",
-    "purpose": "Two hundred CELL raw workers remain separate from the specialized Actions repair cohort."
+    "purpose": "The historical CELL runtime pool is retired; the current CELL roster is 100 logical development profiles on 10 verified runtime seats, separate from the specialized Actions repair cohort."
   },
   "sharedPolicy": {
     "sameReferencesForAll": true,

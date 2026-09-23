@@ -1,27 +1,37 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "authority": "CELL_CONTROL_PLANE",
-  "status": "RETIRED",
-  "purpose": "CELL-001..CELL-200 worker pool retired by direct user directive.",
+  "status": "LOGICAL_ONLY",
+  "purpose": "CELL-001..CELL-100 logical development roster mapped onto 10 verified runtime seats. The historical CELL-001..CELL-200 runtime pool remains retired.",
   "supervisor": {
     "role": "assistantController",
     "authority": "COORDINATION_ONLY"
   },
   "invariants": [
-    "The 200-bot cell pool is retired and must not be recreated automatically.",
-    "No CELL-001..CELL-200 identity is active or assignable.",
-    "Specialized Action-repair workers remain external to the retired cell pool.",
+    "CELL-001..CELL-100 are logical development profiles only; they are not independent runtime processes.",
+    "Only verified live runtime identities FLIXO1..FLIXO10 count as resident runtime seats.",
+    "The historical CELL-001..CELL-200 worker process pool remains retired and must not be recreated as 200 runtime jobs.",
+    "Specialized Action-repair workers remain external to the logical Cell roster.",
     "Canonical repair, security, CI, and Chair-1 control planes remain authoritative."
   ],
   "sharedOperationalMemoryContract": {
     "contractId": "CELL-SHARED-OPERATIONAL-MEMORY-001",
-    "status": "RETIRED",
+    "status": "LOGICAL_ONLY",
     "distribution": {
-      "targetBotCount": 0,
-      "botIdentityBinding": [],
-      "automaticResynchronization": false,
-      "retirementReason": "USER_DIRECTIVE",
-      "syncStates": ["CURRENT", "SYNC_PENDING", "STALE", "SYNC_FAILED"]
+      "targetBotCount": 100,
+      "botIdentityBinding": [
+        "CELL-001..CELL-100"
+      ],
+      "automaticResynchronization": true,
+      "retirementReason": "HISTORICAL_200_RUNTIME_POOL_RETIRED",
+      "runtimeSeatCount": 10,
+      "runtimeSeatBinding": "scripts/ci/agent-liveness-protocol.mjs",
+      "syncStates": [
+        "CURRENT",
+        "SYNC_PENDING",
+        "STALE",
+        "SYNC_FAILED"
+      ]
     },
     "canonicalMemory": {
       "authority": "CELL_KNOWLEDGE_INDEX",
@@ -35,25 +45,38 @@
   },
   "bots": [],
   "lifecycle": {
-    "status": "RETIRED",
-    "reason": "USER_DIRECTIVE",
+    "status": "LOGICAL_ONLY",
+    "reason": "HISTORICAL_200_RUNTIME_POOL_RETIRED",
     "automaticReprovisioning": false
   },
   "swarmPolicy": {
-    "status": "RETIRED",
-    "registeredBots": 0,
+    "status": "LOGICAL_ONLY",
+    "registeredBots": 100,
     "activeRange": [
-      0,
-      0
+      1,
+      100
+    ],
+    "runtimeSeatCount": 10,
+    "runtimeSeatIds": [
+      "FLIXO1",
+      "FLIXO2",
+      "FLIXO3",
+      "FLIXO4",
+      "FLIXO5",
+      "FLIXO6",
+      "FLIXO7",
+      "FLIXO8",
+      "FLIXO9",
+      "FLIXO10"
     ],
     "escalationLadder": []
   },
   "executiveCellGovernance": {
     "contractId": "CELL-EXEC-GOV-001",
-    "status": "RETIRED",
-    "targetBotCount": 0,
-    "appliesTo": "NO_ACTIVE_CELL_BOTS",
-    "retired": true
+    "status": "LOGICAL_ONLY",
+    "targetBotCount": 100,
+    "appliesTo": "LOGICAL_DEVELOPMENT_PROFILES",
+    "retired": false
   },
   "cellCouncil": {
     "authority": "CELL_TRISEAT_CONTROLLER",
@@ -77,12 +100,33 @@
     ]
   },
   "personalMemory": {
-    "status": "RETIRED"
+    "status": "LOGICAL_ONLY"
   },
   "knowledgeVault": {
-    "status": "RETIRED"
+    "status": "LOGICAL_ONLY"
   },
   "attendanceLedger": {
-    "status": "RETIRED"
+    "status": "LOGICAL_ONLY"
+  },
+  "logicalRoster": {
+    "sourceOfTruth": "scripts/ci/agent-liveness-protocol.mjs",
+    "count": 100,
+    "firstId": "CELL-001",
+    "lastId": "CELL-100",
+    "runtimeSeatCount": 10,
+    "runtimeSeatIds": [
+      "FLIXO1",
+      "FLIXO2",
+      "FLIXO3",
+      "FLIXO4",
+      "FLIXO5",
+      "FLIXO6",
+      "FLIXO7",
+      "FLIXO8",
+      "FLIXO9",
+      "FLIXO10"
+    ],
+    "assignmentModel": "TEN_RUNTIME_SEATS_X_TEN_LOGICAL_PROFILES",
+    "independentProcessCount": 0
   }
 }

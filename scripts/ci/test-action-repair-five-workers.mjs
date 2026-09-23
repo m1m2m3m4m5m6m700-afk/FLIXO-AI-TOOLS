@@ -5,7 +5,7 @@ import {execFileSync} from 'node:child_process';
 
 const registry=JSON.parse(fs.readFileSync('docs/agents/ACTION-REPAIR-SQUAD-REGISTRY.json','utf8'));
 assert.equal(registry.separation.separateFromCell,true);
-assert.equal(registry.separation.cellBotCount,200);
+assert.equal(registry.separation.cellBotCount,0);
 assert.equal(registry.separation.includedInCellCount,false);
 assert.deepEqual(registry.workers.filter(x=>x.kind==='ACTION_REPAIR_BOT'&&x.status==='READY').map(x=>x.id),['ACTION-TWIN-1','ACTION-TWIN-2','ACTION-INDEX','ACTION-WISE','ACTION-RCA-3','ACTION-IMPACT-4','ACTION-SECURITY-5','ACTION-REGRESSION-6','ACTION-SHA-7','ACTION-CONVERGENCE-8']);
 assert.equal(registry.workers.filter(x=>x.id==='ACTION-HISTORIAN-3').length,1);
@@ -42,7 +42,10 @@ for(const [id,role] of Object.entries(expected)){
  assert.match(worker.personalMemoryFile,/^diagnostics\/auto-repair\/action-repair-bots\//u);
 }
 const cell=JSON.parse(fs.readFileSync('docs/agents/CELL-BOT-REGISTRY.json','utf8'));
-assert.equal(cell.bots.length,200);
+assert.equal(cell.bots.length,0);
+assert.equal(cell.status,'LOGICAL_ONLY');
+assert.equal(cell.logicalRoster.count,100);
+assert.equal(cell.logicalRoster.runtimeSeatCount,10);
 assert.equal(cell.bots.some(x=>/^ACTION-/u.test(x.id)),false);
 assert.equal(Object.prototype.hasOwnProperty.call(cell,'actionRepairCohort'),false);
 
