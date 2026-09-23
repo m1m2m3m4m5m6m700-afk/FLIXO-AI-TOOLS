@@ -152,6 +152,8 @@ assert.match(heartbeatWorkflow, /RESIDENT_BOOTSTRAP_VERIFIED=true/);
 assert.match(heartbeatWorkflow, /MANUAL_WAKE_REQUIRED=false/);
 assert.match(heartbeatWorkflow, /SCHEDULE_WAKE_FLOOR_MINUTES=5/);
 assert.match(heartbeatWorkflow, /schedule:\s*\n\s*- cron: '\*\/5 \* \* \* \*'/);
+assert.match(heartbeatWorkflow, /pull_request:\s*\n\s*types: \[opened, synchronize, reopened\]/);
+assert.match(heartbeatWorkflow, /github\.event_name == 'pull_request'/);
 assert.match(heartbeatWorkflow, /name: Bootstrap resident repair heartbeat automatically/);
 assert.match(heartbeatWorkflow, /github\.event_name == 'schedule'/);
 assert.match(heartbeatWorkflow, /github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
