@@ -185,5 +185,10 @@ assert.equal(simulation.exactSha,sha);
 assert.equal(detectDrift({previousContractDigest:h,currentContractDigest:c,previousSchemaVersion:1,currentSchemaVersion:1,exactSha:sha}).drifted,true);
 validateHandoff({missionId:'M1',exactSha:sha,capabilityId:'filter-mask',evidenceRefs:['run:1']});
 assert.equal(rootCauseMemoryLink({productFailureId:'P1',rootCause:'runtime',exactSha:sha,failureFingerprint:h,evidenceRefs:['run:1']}).layer,'L3');
+const expanded=expandSwarmSelection(['CELL-001'],['CELL-002','CELL-003','CELL-004'],3);
+assert.deepEqual(expanded,['CELL-001','CELL-002','CELL-003']);
+const rca=buildRcaChain({trigger:'test',propagation:'route',violatedInvariant:'exact-sha',causalSource:'router',symptom:'mismatch',exactSha:sha,evidenceRefs:['run:1']});
+assert.equal(rca.fingerprint.length,64);
+assert.equal(evaluateShadowStrategy({baseline:{oracle:'FAIL',outputHash:h},shadow:{oracle:'PASS',outputHash:c}}).authoritative,false);
 
 console.log('SWARM_LEARNING_MEMORY_ROUTING=PASS');
