@@ -283,7 +283,7 @@ export function ToolWorkbench<P>({
         </div>
       </header>
 
-      <div className="flixo-tool-workspace">
+      <section className="flixo-tool-workspace image-workbench-grid" aria-label={title} aria-busy={busy}>
         <aside className="flixo-tool-side left" id="flixo-tool-left-panel">
           <div className="flixo-tool-panel-scroll">
             <div>
@@ -318,7 +318,7 @@ export function ToolWorkbench<P>({
           </div>
         </aside>
 
-        <main className="flixo-tool-canvas">
+        <main className="flixo-tool-canvas image-workbench-preview">
           <div className="flixo-tool-canvas-toolbar">
             <div className="flixo-tool-view-toggle" role="tablist" aria-label={locale.toLowerCase().startsWith('ar') ? 'المعاينة' : 'Preview'}>
               {([
@@ -337,7 +337,7 @@ export function ToolWorkbench<P>({
           </div>
 
           <div className="flixo-tool-canvas-stage">
-            <div className="flixo-tool-canvas-card">
+            <div className="flixo-tool-canvas-card image-workbench-output">
               {viewMode === 'compare' ? (
                 <div className="flixo-tool-preview-grid compare">
                   <div className="flixo-tool-preview-pane">
@@ -345,7 +345,7 @@ export function ToolWorkbench<P>({
                     <span className="flixo-tool-preview-label mono">{beforeLabel ?? labels.before}</span>
                   </div>
                   <div className="flixo-tool-preview-pane">
-                    {outputUrl ? <img src={outputUrl} alt={afterLabel ?? labels.after} style={{ transform: `scale(${zoom})` }} /> : <div className="flixo-tool-preview-placeholder">◩<div>{locale.toLowerCase().startsWith('ar') ? 'النتيجة ستظهر هنا' : 'Result appears here'}</div><small>{locale.toLowerCase().startsWith('ar') ? 'شغّل الأداة بعد اختيار الملف' : 'Run the tool after selecting a file'}</small></div>}
+                    {outputUrl ? <img src={outputUrl} alt="Tool result" style={{ transform: `scale(${zoom})` }} /> : <div className="flixo-tool-preview-placeholder">◩<div>{locale.toLowerCase().startsWith('ar') ? 'النتيجة ستظهر هنا' : 'Result appears here'}</div><small>{locale.toLowerCase().startsWith('ar') ? 'شغّل الأداة بعد اختيار الملف' : 'Run the tool after selecting a file'}</small></div>}
                     <span className="flixo-tool-preview-label mono">{afterLabel ?? labels.after}</span>
                   </div>
                 </div>
@@ -359,7 +359,7 @@ export function ToolWorkbench<P>({
                   </div>
                 </div>
               )}
-              {inputAsset && <div className="flixo-tool-stats"><span>{inputAsset.width}×{inputAsset.height}</span><span>{formatBytes(inputAsset.size)}</span><span>{inputAsset.mimeType || 'unknown'}</span></div>}
+              {inputAsset && <div className="flixo-tool-stats"><span>{inputAsset.width}×{inputAsset.height}</span><span>{formatBytes(inputAsset.size)}</span><span>{inputAsset.mimeType || 'unknown'}</span>{outputAsset && <><span>{outputAsset.width}×{outputAsset.height}</span><span>{formatBytes(outputAsset.size)}</span><span>{outputAsset.mimeType || 'unknown'}</span></>}</div>}
             </div>
           </div>
 
@@ -377,16 +377,16 @@ export function ToolWorkbench<P>({
               {renderControls?.({ ...commonContext }) ?? <p className="flixo-tool-adjust-empty">{locale.toLowerCase().startsWith('ar') ? 'لا توجد إعدادات مخصصة لهذه الأداة.' : 'No custom controls for this tool.'}</p>}
             </div>
             <div className="flixo-tool-actions">
-              <button className="primary-button flixo-tool-action-primary" type="button" disabled={!inputAssetId || busy} onClick={() => void run()}>{busy ? (processingLabel ?? labels.processing) : (runLabel ?? labels.run)}</button>
+              <button className="primary-button flixo-tool-action-primary" type="button" disabled={!inputAssetId || busy} aria-disabled={!inputAssetId || busy ? 'true' : 'false'} onClick={() => void run()}>{busy ? (processingLabel ?? labels.processing) : (runLabel ?? labels.run)}</button>
               {onReset && <button className="secondary-button" type="button" disabled={busy} onClick={reset}>{resetLabel ?? labels.reset}</button>}
             </div>
             {renderFooter?.({ files, busy })}
             {error && <p role="alert" className="flixo-tool-error">{error}</p>}
-            {outputAsset && outputUrl && <a className="download-button" href={outputUrl} download={outputName}>{downloadLabel ?? labels.download}</a>}
+            {outputAsset && outputUrl && <a className="download-button" href={outputUrl} download={outputName} role={downloadRole === 'button' ? 'button' : undefined}>{downloadLabel ?? labels.download}</a>}
             <p className="flixo-tool-footer-note">🔒 {locale.toLowerCase().startsWith('ar') ? 'المعالجة الأولى داخل المتصفح وفق مسار الأداة والعقود الحالية.' : 'Browser-first processing follows the existing tool contracts.'}</p>
           </div>
         </aside>
-      </div>
+      </section>
 
       <nav className="flixo-tool-mobile-bar" aria-label={locale.toLowerCase().startsWith('ar') ? 'لوحات الأداة' : 'Tool panels'}>
         <button type="button" id="flixo-tool-open-left" onClick={() => document.getElementById('flixo-tool-left-panel')?.classList.toggle('open')}>{locale.toLowerCase().startsWith('ar') ? 'المصدر' : 'Source'}</button>
