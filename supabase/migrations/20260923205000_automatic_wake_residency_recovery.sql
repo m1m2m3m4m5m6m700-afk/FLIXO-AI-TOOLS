@@ -5,9 +5,6 @@
 
 create extension if not exists pg_cron with schema pg_catalog;
 
-grant usage on schema cron to postgres;
-grant all privileges on all tables in schema cron to postgres;
-
 create or replace function public.flixo_retry_pending_assistant_wakes()
 returns integer
 language plpgsql
