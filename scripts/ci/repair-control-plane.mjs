@@ -394,6 +394,7 @@ export function createRepairCycle({
   if (observedBranch !== 'execution') throw new Error('CONTROL_PLANE_REPAIR_BRANCH_BLOCKED');
   if (!isSha(executionSha)) throw new Error('CONTROL_PLANE_EXECUTION_SHA_INVALID');
   if (mainSha !== null && !isSha(mainSha)) throw new Error('CONTROL_PLANE_MAIN_SHA_INVALID');
+  if (!isSha(failedSha)) throw new Error('CONTROL_PLANE_FAILED_SHA_INVALID');
   if(failedSha!==executionSha) throw new Error('CONTROL_PLANE_EXECUTION_SHA_MISMATCH');
   const identity=deriveRepairIdentity({failureFingerprint,failedSha,targetRunId,branch:observedBranch});
   const identityDigest=repairIdentityDigest({...identity,targetRunId,failureFingerprint,failedSha,executionSha,observedBranch});
