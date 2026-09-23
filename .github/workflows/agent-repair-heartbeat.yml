@@ -123,6 +123,8 @@ jobs:
             ACTIVE_TESTS="$(jq --arg sha "$SHA" '[.workflow_runs[] | select(.path == ".github/workflows/ci.yml" and (.status == "queued" or .status == "in_progress") and .head_sha == $sha)] | length' <<<"$RUNS_JSON")"
             ACTIONABLE_RED="$(jq --arg sha "$SHA" '[.workflow_runs[] | select(.path == ".github/workflows/ci.yml" and .status == "completed" and .head_sha == $sha and (.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required"))] | length' <<<"$RUNS_JSON")"
             ACTIONABLE_REQUIRED_RED="$(jq --arg sha "$SHA" '[.workflow_runs[] | select(.head_branch == "execution" and .head_sha == $sha and .status == "completed" and (.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required") and .path != ".github/workflows/agent-repair-heartbeat.yml")] | length' <<<"$RUNS_JSON")"
+            TASK_BACKLOG_OPEN="$(node --input-type=module -e 'import fs from "node:fs"; const p="المهام.md"; const s=fs.existsSync(p)?fs.readFileSync(p,"utf8"):""; process.stdout.write(/STATUS:\s*\x60?(?:OPEN|IN_REPAIR|BLOCKED_EXTERNAL|SUSTAINABILITY-PROOF-PENDING)\x60?/iu.test(s)?"true":"false")')"
+            MISSION_OPEN="$(node --input-type=module -e 'import fs from "node:fs"; const root="diagnostics/mission-continuity"; let open=false; if(fs.existsSync(root)){ for(const f of fs.readdirSync(root)){ if(!f.endsWith(".json")) continue; try{ const x=JSON.parse(fs.readFileSync(root+"/"+f,"utf8")); if(x.open===true && x.terminal!==true){ open=true; break; } }catch{} } } process.stdout.write(open?"true":"false")')"
             ACTIVE_OPERATION=false
             WAKE_REASON="RESIDENT_DEVELOPMENT_SCAN"
             if [ "$ACTIVE_REPAIRS" -gt 0 ] || [ "$ACTIVE_GREEN" -gt 0 ] || [ "$ACTIVE_TESTS" -gt 0 ]; then
@@ -131,6 +133,9 @@ jobs:
             elif [ "$ACTIONABLE_RED" -gt 0 ] || [ "$ACTIONABLE_REQUIRED_RED" -gt 0 ]; then
               ACTIVE_OPERATION=true
               WAKE_REASON="ACTIONABLE_RED_REENTRY"
+            elif [ "$TASK_BACKLOG_OPEN" = "true" ] || [ "$MISSION_OPEN" = "true" ]; then
+              ACTIVE_OPERATION=true
+              WAKE_REASON="OPEN_MISSION_OR_TASK_BACKLOG"
             fi
             MINUTE_KEY="$(date -u +%Y-%m-%dT%H:%M)"
             node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="HEARTBEAT:$GITHUB_RUN_ID:$TICK" --state=ACTIVE --sha="$SHA" --progress=false --file="$FLIXO_HEARTBEAT_PATH"
@@ -139,10 +144,13 @@ jobs:
             PULSE_ID="$(jq -r '.pulses[0].pulseId' "$FLIXO_TEAM_PULSE_PATH")"
             PULSE_TYPE="$(jq -r '.pulses[0].pulseType' "$FLIXO_TEAM_PULSE_PATH")"
             WAKE_FILE="/tmp/flixo-heartbeat/action-wake-$TICK.json"
+            FANOUT_FILE="/tmp/flixo-heartbeat/flixo10-fanout-$TICK.json"
             WAKE_STATUS="RESIDENT_HEARTBEAT"
             if [ "$ACTIONABLE_RED" -gt 0 ] || [ "$ACTIONABLE_REQUIRED_RED" -gt 0 ]; then WAKE_STATUS="ACTIONABLE_RED_REENTRY"; elif [ "$ACTIVE_OPERATION" = "true" ]; then WAKE_STATUS="ACTIVE_OPERATION"; fi
             node scripts/ci/action-repair-five-workers.mjs --role=wake --status="$WAKE_STATUS" --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$PULSE_ID" --output="$WAKE_FILE"
+            node scripts/ci/action-repair-five-workers.mjs --role=fanout --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$PULSE_ID" --output="$FANOUT_FILE"
             jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .wakeScope=="ALL_ACTION_REPAIR_TEAM" and .recipientCount==10 and (.recipients|length)==10 and .targetSha==$sha and .mutationAuthority==false and .pushAuthority=="CHAIR_1_ONLY"' "$WAKE_FILE" >/dev/null
+            jq -e --arg sha "$SHA" '.workerCount==10 and (.workers|length)==10 and .targetSha==$sha and (.workers|map(.workerId)|sort)==["FLIXO1","FLIXO10","FLIXO2","FLIXO3","FLIXO4","FLIXO5","FLIXO6","FLIXO7","FLIXO8","FLIXO9"]' "$FANOUT_FILE" >/dev/null
             if [ "$ACTIVE_OPERATION" = "true" ]; then
               ACTIVE_GREEN_SHA="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status,headSha | jq --arg sha "$SHA" '[.[] | select((.status == "queued" or .status == "in_progress") and .headSha == $sha)] | length')"
               if [ "$ACTIVE_GREEN_SHA" -eq 0 ]; then
@@ -162,6 +170,8 @@ jobs:
             echo "PULSE_ID=$PULSE_ID"
             echo "ACTIVE_OPERATION=$ACTIVE_OPERATION"
             echo "WAKE_REASON=$WAKE_REASON"
+            echo "TASK_BACKLOG_OPEN=$TASK_BACKLOG_OPEN"
+            echo "MISSION_OPEN=$MISSION_OPEN"
             if [ "$ACTIVE_OPERATION" = "true" ]; then echo 'RED_REENTRY_WAKE=REPAIR_PATH'; else echo 'RED_REENTRY_WAKE=RESIDENT_DEVELOPMENT_SCAN'; fi
             echo 'ACTION_WAKE=DISPATCHED_TO_ALL_ACTION_REPAIR_TEAM'
             if [ "$TICK" -lt 300 ]; then sleep 60; fi
