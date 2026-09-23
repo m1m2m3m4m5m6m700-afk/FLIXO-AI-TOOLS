@@ -91,7 +91,7 @@ const wakeRelay = read('.github/workflows/council-wake-push-relay.yml');
 
 assert.match(heartbeatWorkflow, /HEARTBEAT_24X7_MODE=true/);
 assert.match(heartbeatWorkflow, /HEARTBEAT_INTERVAL_SECONDS=60/);
-assert.match(heartbeatWorkflow, /for TICK in $(seq 1 45); do/);
+assert.match(heartbeatWorkflow, /for TICK in \$\(seq 1 45\); do/);
 assert.match(heartbeatWorkflow, /sleep 60/);
 assert.match(heartbeatWorkflow, /permissions:\s*\n\s*actions: write/);
 assert.match(heartbeatWorkflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);
