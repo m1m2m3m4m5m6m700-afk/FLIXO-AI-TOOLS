@@ -43,7 +43,7 @@ for(const [id,role] of Object.entries(expected)){
 }
 const cell=JSON.parse(fs.readFileSync('docs/agents/CELL-BOT-REGISTRY.json','utf8'));
 assert.equal(cell.bots.length,0);
-assert.equal(cell.status,'LOGICAL_ONLY');
+assert.equal(cell.status,'RETIRED');
 assert.equal(cell.logicalRoster.count,100);
 assert.equal(cell.logicalRoster.runtimeSeatCount,10);
 assert.equal(cell.bots.some(x=>/^ACTION-/u.test(x.id)),false);

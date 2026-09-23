@@ -1,24 +1,25 @@
 {
   "schemaVersion": 4,
   "authority": "CELL_CONTROL_PLANE",
-  "status": "LOGICAL_ONLY",
-  "purpose": "CELL-001..CELL-100 logical development roster mapped onto 10 verified runtime seats. The historical CELL-001..CELL-200 runtime pool remains retired.",
+  "status": "RETIRED",
+  "purpose": "Historical CELL-001..CELL-200 runtime worker pool retired. CELL-001..CELL-100 remain logical development profiles mapped onto 10 verified runtime seats.",
   "supervisor": {
     "role": "assistantController",
     "authority": "COORDINATION_ONLY"
   },
   "invariants": [
+    "The historical CELL-001..CELL-200 runtime worker pool is retired and must not be recreated automatically.",
     "CELL-001..CELL-100 are logical development profiles only; they are not independent runtime processes.",
     "Only verified live runtime identities FLIXO1..FLIXO10 count as resident runtime seats.",
-    "The historical CELL-001..CELL-200 worker process pool remains retired and must not be recreated as 200 runtime jobs.",
-    "Specialized Action-repair workers remain external to the logical Cell roster.",
+    "Specialized Action-repair workers remain external to the historical Cell runtime pool.",
     "Canonical repair, security, CI, and Chair-1 control planes remain authoritative."
   ],
   "sharedOperationalMemoryContract": {
     "contractId": "CELL-SHARED-OPERATIONAL-MEMORY-001",
-    "status": "LOGICAL_ONLY",
+    "status": "RETIRED",
     "distribution": {
-      "targetBotCount": 100,
+      "targetBotCount": 0,
+      "logicalBotCount": 100,
       "botIdentityBinding": [
         "CELL-001..CELL-100"
       ],
@@ -45,16 +46,16 @@
   },
   "bots": [],
   "lifecycle": {
-    "status": "LOGICAL_ONLY",
-    "reason": "HISTORICAL_200_RUNTIME_POOL_RETIRED",
+    "status": "RETIRED",
+    "reason": "USER_DIRECTIVE_HISTORICAL_RUNTIME_POOL_RETIREMENT",
     "automaticReprovisioning": false
   },
   "swarmPolicy": {
-    "status": "LOGICAL_ONLY",
-    "registeredBots": 100,
+    "status": "RETIRED",
+    "registeredBots": 0,
     "activeRange": [
-      1,
-      100
+      0,
+      0
     ],
     "runtimeSeatCount": 10,
     "runtimeSeatIds": [
@@ -73,9 +74,9 @@
   },
   "executiveCellGovernance": {
     "contractId": "CELL-EXEC-GOV-001",
-    "status": "LOGICAL_ONLY",
-    "targetBotCount": 100,
-    "appliesTo": "LOGICAL_DEVELOPMENT_PROFILES",
+    "status": "RETIRED",
+    "targetBotCount": 0,
+    "appliesTo": "HISTORICAL_RUNTIME_POOL",
     "retired": false
   },
   "cellCouncil": {
@@ -127,6 +128,7 @@
       "FLIXO10"
     ],
     "assignmentModel": "TEN_RUNTIME_SEATS_X_TEN_LOGICAL_PROFILES",
-    "independentProcessCount": 0
+    "independentProcessCount": 0,
+    "historicalRuntimePool": "RETIRED"
   }
 }
