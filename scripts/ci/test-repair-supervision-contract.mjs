@@ -112,7 +112,7 @@ assert.match(heartbeatWorkflow, /ACTIVE_RESIDENT=.*headSha --jq --arg sha "\$EXE
 assert.match(heartbeatWorkflow, /OTHER_RESIDENTS=.*headSha --jq --arg current "\$GITHUB_RUN_ID" --arg sha "\$CURRENT_SHA"/);
 assert.match(heartbeatWorkflow, /--arg sha "\$EXECUTION_SHA"/);
 assert.match(heartbeatWorkflow, /if: github\.event_name == 'workflow_dispatch' && github\.ref == 'refs\/heads\/execution'/);
-assert.match(heartbeatWorkflow, /push:\s*\n\s*branches: \[execution, main\]/);
+assert.match(heartbeatWorkflow, /push:\s*\n\s*branches: \[execution\]/);
 assert.doesNotMatch(heartbeatWorkflow, /cron: '\*\/1 \* \* \* \*'/);
 assert.match(heartbeatWorkflow, /flixo-ten-pulse\.mjs/);
 assert.match(heartbeatWorkflow, /action-repair-five-workers\.mjs --role=wake/);
@@ -136,7 +136,7 @@ assert.match(watchdog, /\.headSha == \$sha/);
 assert.match(watchdog, /RESIDENT_HEARTBEAT_DISPATCH_VERIFIED=true/);
 assert.match(dailyGate, /concurrency:[\\s\\S]*cancel-in-progress:\s*true/);
 assert.doesNotMatch(heartbeatWorkflow, /actions\/workflows\/agent-repair-supervisor\.yml\/dispatches/);
-assert.match(heartbeatWorkflow, /actions\/workflows\/daily-flixo-green-gate\.yml\/dispatches/);
+assert.doesNotMatch(heartbeatWorkflow, /actions\/workflows\/daily-flixo-green-gate\.yml\/dispatches/);
 assert.doesNotMatch(heartbeatWorkflow, /GREEN_GATE_WAKE_DEFERRED_TO_CANONICAL_SCHEDULE=true/);
 assert.match(wakeRelay, /name: FLIXO Council Wake Push Relay/);
 assert.match(wakeRelay, /actions: write/);
