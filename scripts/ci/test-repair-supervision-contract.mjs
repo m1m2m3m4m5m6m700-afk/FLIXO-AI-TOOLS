@@ -19,7 +19,7 @@ const autoRepair = read('.github/workflows/auto-repair.yml');
 const master = read('AI_AGENT_MASTER_PROMPT.md');
 const livenessDoc = read('docs/agents/AGENT-LIVENESS-PROTOCOL.md');
 
-assert.match(watchdog, /cancel-in-progress:\s*true/);
+assert.match(watchdog, /cancel-in-progress:\s*false/);
 assert.match(supersession, /cancel_stale_run\(\)/);
 assert.match(supersession, /if ! gh run cancel/);
 assert.match(supersession, /STALE_RUN_ALREADY_COMPLETED run=\$run_id/);
