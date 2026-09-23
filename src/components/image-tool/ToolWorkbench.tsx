@@ -439,7 +439,7 @@ export function ToolWorkbench<P>({
                 aria-label={t('Change preset')}
               >
                 <span>{t('Active preset')}</span>
-                <span className="mono">{preset === 'default' ? t('DEFAULT') : t(preset.toUpperCase())}</span>
+                <span className="mono">{preset === 'default' ? t('DEFAULT') : t(preset === 'clean' ? 'Clean' : 'Warm')}</span>
               </button>
               <p className="flixo-tool-adjust-empty">
                 {preset === 'default'
