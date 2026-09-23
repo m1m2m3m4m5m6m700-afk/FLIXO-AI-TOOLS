@@ -272,6 +272,8 @@ begin
   update public.flix_council_accounts
      set current_session_id = p_session_id,
          last_seen_at = now(),
+         last_heartbeat_at = now(),
+         current_execution_sha = p_exact_sha,
          updated_at = now()
    where account_id = p_account_id;
 
