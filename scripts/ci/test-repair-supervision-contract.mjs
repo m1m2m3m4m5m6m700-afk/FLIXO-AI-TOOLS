@@ -166,4 +166,18 @@ assert.match(twin, /timeout-minutes:\s*45/);
 assert.match(intake, /INTAKE_SCHEDULE_RESCUE_MODE/);
 assert.match(intake, /SCHEDULE_RESCUE_NO_ACTIONABLE_RUN/);
 
+
+const externalWatchdogMigration = read('supabase/migrations/20260924003000_flixo_external_watchdog_v1.sql');
+assert.match(externalWatchdogMigration, /create table if not exists public\\.flix_automation_watchdog/u);
+assert.match(externalWatchdogMigration, /create table if not exists public\\.flix_automation_watchdog_events/u);
+assert.match(externalWatchdogMigration, /security definer/u);
+assert.match(externalWatchdogMigration, /set search_path = public, pg_catalog/u);
+assert.match(externalWatchdogMigration, /pg_try_advisory_xact_lock/u);
+assert.match(externalWatchdogMigration, /council_recover_expired_dispatches\\(25\\)/u);
+assert.match(externalWatchdogMigration, /flixo-automation-watchdog-v1/u);
+assert.match(externalWatchdogMigration, /cron\\.schedule/u);
+assert.match(externalWatchdogMigration, /revoke all on function public\\.flixo_automation_watchdog_tick\\(\\)/u);
+assert.match(externalWatchdogMigration, /grant execute on function public\\.flixo_automation_watchdog_tick\\(\\) to service_role/u);
+
 console.log('REPAIR_SUPERVISION_CONTRACT=PASS');
+console.log('AUTOMATION_24X7_WATCHDOG_CONTRACT=PASS');
