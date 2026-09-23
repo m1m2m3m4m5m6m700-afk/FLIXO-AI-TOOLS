@@ -187,7 +187,11 @@ jobs:
         run: |
           set -euo pipefail
           stale_active=0
-          for poll in 1 2 3 4 5; do
+          SETTLE_MAX_POLLS=20
+          SETTLE_POLL_SECONDS=3
+          echo "SUPERSESSION_SETTLE_MAX_POLLS=$SETTLE_MAX_POLLS"
+          echo "SUPERSESSION_SETTLE_POLL_SECONDS=$SETTLE_POLL_SECONDS"
+          for ((poll=1; poll<=SETTLE_MAX_POLLS; poll++)); do
             if ! RUNS_JSON="$(gh api "repos/$REPOSITORY/actions/runs?branch=$BRANCH&per_page=100" 2>&1)"; then
               if printf '%s' "$RUNS_JSON" | grep -Eiq 'API rate limit exceeded|rate limit exceeded|secondary rate limit|abuse detection'; then
                 echo "BLOCKED_EXTERNAL: GitHub Actions API rate limit prevented final stale-run inventory."
@@ -201,7 +205,7 @@ jobs:
             stale_active="$(jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" '[.workflow_runs[] | select(.status != "completed" and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession" and (.head_repository.full_name // "") == $sourceRepo and (.name | test("Test|test|Repair|repair|Verification|verification|Contract|contract|Security|security|Baseline|baseline|Certification|certification|Impact|impact|Code Scanning|CodeQL|Diagnostic|diagnostic|Proof|proof|Scan|scan")))] | length' /tmp/supersession-final-runs.json)"
             echo "STALE_ACTIVE_RUNS=$stale_active poll=$poll"
             if [ "$stale_active" -eq 0 ]; then break; fi
-            if [ "$poll" -lt 5 ]; then sleep 2; fi
+            if [ "$poll" -lt "$SETTLE_MAX_POLLS" ]; then sleep "$SETTLE_POLL_SECONDS"; fi
           done
           if [ "$stale_active" -ne 0 ]; then
             echo 'FAIL CLOSED: stale runs remain non-completed after supersession cancellation window.'

@@ -22,7 +22,7 @@
       "enforcement": "docs/agents/PROMPT-UNIFIED-EXECUTION.md + scripts/ci/agent-session.mjs + scripts/ci/agent-exit-lock.mjs + scripts/ci/agent-liveness-protocol.mjs + scripts/ci/validate-agent-coordination.mjs",
       "invariant": "Every Master, Agent and Bot is bound first to the unified execution protocol: immediate session admission; shared-cell coordination; root-cause-first repair; zero-error non-terminal execution; Exact-SHA evidence; permanent residency; mandatory Council reporting; and hard circular exit lock. Open work, failed work, open RCAs or non-canonical evidence keep execution RUNNING/RECOVERING. Only fresh canonical GREEN and promotion evidence on the same exact SHA permit session closure.",
       "canonicalSource": "docs/agents/PROMPT-UNIFIED-EXECUTION.md",
-      "version": "4.0.0",
+      "version": "4.1.0",
       "scope": [
         "REPOSITORY",
         "PROJECT",

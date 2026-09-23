@@ -71,9 +71,9 @@ const readCanonicalAdmissionSources = () => {
   const protocolRegistry = JSON.parse(fs.readFileSync(path.resolve(ROOT, 'docs/PROTOCOL-REGISTRY.json'), 'utf8'));
   if (protocolRegistry.authority !== 'FLIXO_PROTOCOL_REGISTRY') throw new Error('AGENT_ADMISSION_PROTOCOL_REGISTRY_INVALID');
   const p00 = protocolRegistry.protocols?.find((item) => item?.id === 'P00');
-  if (p00?.status !== 'SUPREME_MANDATORY' || p00?.canonicalSource !== 'docs/agents/PROMPT-UNIFIED-EXECUTION.md' || p00?.version !== '4.0.0') throw new Error('AGENT_ADMISSION_P00_SUPREME_PROTOCOL_INVALID');
+  if (p00?.status !== 'SUPREME_MANDATORY' || p00?.canonicalSource !== 'docs/agents/PROMPT-UNIFIED-EXECUTION.md' || p00?.version !== '4.1.0') throw new Error('AGENT_ADMISSION_P00_SUPREME_PROTOCOL_INVALID');
   const supremePrompt = fs.readFileSync(path.resolve(ROOT, 'docs/agents/PROMPT-UNIFIED-EXECUTION.md'), 'utf8');
-  if (!supremePrompt.includes('RPR-UNIFIED-EXECUTION-001 · v4.0.0 · PROTOCOL-ROOT') || !supremePrompt.includes('FIRST OBLIGATION') || !supremePrompt.includes('HARD CIRCULAR EXIT LOCK')) throw new Error('AGENT_ADMISSION_SUPREME_PROMPT_INVALID');
+  if (!supremePrompt.includes('RPR-UNIFIED-EXECUTION-001 · v4.1.0 · PROTOCOL-ROOT') || !supremePrompt.includes('FIRST OBLIGATION') || !supremePrompt.includes('HARD CIRCULAR EXIT LOCK')) throw new Error('AGENT_ADMISSION_SUPREME_PROMPT_INVALID');
   if (protocolRegistry.protocols?.find((item) => item?.id === 'P20')?.status !== 'MANDATORY') throw new Error('AGENT_ADMISSION_P20_NOT_MANDATORY');
   const promptRegistry = loadPromptRegistry();
   const promptValidation = validatePromptRegistry(promptRegistry);

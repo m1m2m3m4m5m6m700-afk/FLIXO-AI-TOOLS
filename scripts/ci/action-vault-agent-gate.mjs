@@ -29,7 +29,7 @@ export function validatePromptProtocolBinding(root = ROOT, intelligence = null) 
   const errors = [];
   const binding = intelligence?.promptBinding;
   if (!binding || binding.schemaVersion !== 1) return ['PROMPT_PROTOCOL_BINDING_MISSING'];
-  if (binding.promptId !== 'RPR-UNIFIED-EXECUTION-001' || binding.promptVersion !== '4.0.0') errors.push('PROMPT_CANONICAL_ID_OR_VERSION_INVALID');
+  if (binding.promptId !== 'RPR-UNIFIED-EXECUTION-001' || binding.promptVersion !== '4.1.0') errors.push('PROMPT_CANONICAL_ID_OR_VERSION_INVALID');
   if (binding.enforcement !== 'LIVE_GIT_BLOB_SHA_MUST_MATCH_BEFORE_ACTION_VAULT_ADMISSION') errors.push('PROMPT_LIVE_ENFORCEMENT_INVALID');
   if (binding.failureMode !== 'PROMPT_PROTOCOL_DRIFT_FAIL_CLOSED') errors.push('PROMPT_DRIFT_FAILURE_MODE_INVALID');
   if (JSON.stringify(binding.requiredDocuments ?? []) !== JSON.stringify(PROMPT_PROTOCOL_DOCUMENTS)) errors.push('PROMPT_PROTOCOL_DOCUMENT_SET_INVALID');
@@ -276,7 +276,7 @@ export function runGate(root = ROOT) {
 if (!exists(supremeProtocolPath)) err(errors, 'ACTION_VAULT_SUPREME_PROTOCOL_MISSING');
 else {
   const supremeText = fs.readFileSync(supremeProtocolPath, 'utf8');
-  if (!supremeText.includes('RPR-UNIFIED-EXECUTION-001 · v4.0.0 · PROTOCOL-ROOT') || !supremeText.includes('FIRST OBLIGATION') || !supremeText.includes('HARD CIRCULAR EXIT LOCK')) err(errors, 'ACTION_VAULT_SUPREME_PROTOCOL_INVALID');
+  if (!supremeText.includes('RPR-UNIFIED-EXECUTION-001 · v4.1.0 · PROTOCOL-ROOT') || !supremeText.includes('FIRST OBLIGATION') || !supremeText.includes('HARD CIRCULAR EXIT LOCK')) err(errors, 'ACTION_VAULT_SUPREME_PROTOCOL_INVALID');
 }
 const promptProtocolErrors = validatePromptProtocolBinding(root, intelligence);
   errors.push(...promptProtocolErrors);
@@ -390,7 +390,7 @@ const promptProtocolErrors = validatePromptProtocolBinding(root, intelligence);
     promptProtocolBinding: {
       status: promptProtocolErrors.length ? 'FAIL' : 'PASS',
       canonicalPromptId: 'RPR-UNIFIED-EXECUTION-001',
-      canonicalPromptVersion: '4.0.0',
+      canonicalPromptVersion: '4.1.0',
       documents: Object.fromEntries(PROMPT_PROTOCOL_DOCUMENTS.map((relative) => [relative, exists(path.resolve(root, relative)) ? gitBlobSha(relative) : null])),
     },
     checkedAt: new Date().toISOString(),

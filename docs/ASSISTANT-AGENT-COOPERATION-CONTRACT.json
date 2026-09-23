@@ -764,7 +764,7 @@
   "supremeProtocol": {
     "protocolId": "P00",
     "promptId": "RPR-UNIFIED-EXECUTION-001",
-    "version": "4.0.0",
+    "version": "4.1.0",
     "sourcePath": "docs/agents/PROMPT-UNIFIED-EXECUTION.md",
     "status": "SUPREME_MANDATORY",
     "firstObligation": true,
