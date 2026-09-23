@@ -44,13 +44,6 @@ export type CollectiveIntelligenceFrame = Readonly<{
   }>;
 }>;
 
-const BASELINE_LENSES = Object.freeze([
-  'HUMAN_INTENT_MODELING',
-  'EVIDENCE_PROVENANCE',
-  'UNCERTAINTY_MODELING',
-  'MINIMAL_CHANGE_SELECTION',
-]);
-
 const LENSES: readonly CollectiveReasoningLens[] = Object.freeze([
   { id: 'HUMAN_INTENT_MODELING', purpose: 'Model the desired outcome, constraints, negative requirements, and missing information.', triggers: ['want', 'need', 'make', 'change', 'أريد', 'اريد', 'عايز', 'عاوز', 'محتاج'] },
   { id: 'EVIDENCE_PROVENANCE', purpose: 'Bind material claims to current evidence and exact-SHA provenance.', triggers: ['evidence', 'proof', 'exact', 'sha', 'check', 'verify', 'دليل', 'اثبات', 'إثبات', 'تحقق', 'sha'] },
@@ -116,14 +109,6 @@ const GUARDRAILS = Object.freeze([
   'FAIL_CLOSED_ON_UNCERTAINTY',
 ]);
 
-function normalize(value: string): string {
-  return value.trim().toLocaleLowerCase();
-}
-
-function matches(input: string, lens: CollectiveReasoningLens): boolean {
-  return lens.triggers.some((trigger) => input.includes(trigger.toLocaleLowerCase()));
-}
-
 function selectPerspectives(selectedLenses: readonly string[]): readonly string[] {
   const out: string[] = [];
   for (const [role, lenses] of Object.entries(ROLE_PERSPECTIVES)) {
@@ -136,7 +121,6 @@ export function buildCollectiveIntelligenceFrame(
   request: string,
   capabilityIds: readonly string[] = [],
 ): CollectiveIntelligenceFrame {
-  const normalized = normalize(request);
   const selected = new Set<string>(LENSES.map((lens) => lens.id));
   if (capabilityIds.length > 0) selected.add('DEPENDENCY_IMPACT_REASONING');
 
