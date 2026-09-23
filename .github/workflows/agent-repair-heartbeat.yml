@@ -4,7 +4,7 @@ run-name: FLIXO Agent Repair Heartbeat ${{ github.run_id }}
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/1 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -13,13 +13,13 @@ permissions:
 
 concurrency:
   group: flixo-agent-repair-heartbeat-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   resident-watch:
     name: Keep the repair plane resident and wake canonical Green Gate
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 4
     steps:
       - name: Checkout liveness contract
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -35,7 +35,7 @@ jobs:
           echo 'RESIDENT_AGENT=true'
           echo 'HEARTBEAT_INTERVAL_SECONDS=60'
           echo 'HEARTBEAT_24X7_MODE=true'
-          echo 'SCHEDULE_WAKE_FLOOR_MINUTES=5'
+          echo 'SCHEDULE_WAKE_FLOOR_MINUTES=1'
           echo 'OPEN_WORK_SLEEP=FORBIDDEN'
           echo 'STALE_HEARTBEAT_ACTION=RECOVER_AND_CONTINUE'
           echo 'GREEN_DOES_NOT_SUSPEND_RESIDENCY=true'
@@ -44,24 +44,19 @@ jobs:
           echo 'SELF_ABORT_ALLOWED=false'
           echo 'RUN_END_DOES_NOT_END_TASK=true'
 
-      - name: Emit canonical one-minute repair heartbeat continuously
+      - name: Emit canonical one-minute repair heartbeat
         env:
           FLIXO_HEARTBEAT_PATH: /tmp/flixo-heartbeat/heartbeat.json
         run: |
           set -euo pipefail
           mkdir -p /tmp/flixo-heartbeat
-          for TICK in 1 2 3 4 5 6; do
-            SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-            node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="HEARTBEAT:$GITHUB_RUN_ID:$TICK" --state=ACTIVE --sha="$SHA" --progress=false --file="$FLIXO_HEARTBEAT_PATH"
-            jq -e --arg sha "$SHA" '.protocolId=="AGENT_LIVENESS_PROTOCOL" and .state=="ACTIVE" and .exactSha==$sha and .progress==false' "$FLIXO_HEARTBEAT_PATH" >/dev/null
-            echo "HEARTBEAT_EMITTED=true"
-            echo "HEARTBEAT_TICK=$TICK"
-            echo "HEARTBEAT_EXACT_SHA=$SHA"
-            if [ "$TICK" -lt 6 ]; then sleep 60; fi
-          done
+          SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="HEARTBEAT:$GITHUB_RUN_ID" --state=ACTIVE --sha="$SHA" --progress=false --file="$FLIXO_HEARTBEAT_PATH"
+          jq -e --arg sha "$SHA" '.protocolId=="AGENT_LIVENESS_PROTOCOL" and .state=="ACTIVE" and .exactSha==$sha and .progress==false' "$FLIXO_HEARTBEAT_PATH" >/dev/null
+          echo 'HEARTBEAT_EMITTED=true'
           echo 'HEARTBEAT_INTERVAL_SECONDS=60'
-          echo 'HEARTBEAT_WINDOW_SECONDS=360'
-      - name: Verify five-minute heartbeat compliance
+          echo "HEARTBEAT_EXACT_SHA=$SHA"
+      - name: Verify one-minute heartbeat compliance
         id: heartbeat_compliance
         env:
           GH_TOKEN: ${{ github.token }}
@@ -135,6 +130,23 @@ jobs:
             fi
           fi
 
+      - name: Build canonical all-team wake plan
+        if: steps.state.outputs.wake == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          node scripts/ci/action-repair-five-workers.mjs \
+            --role=wake \
+            --status=RED_INTERNAL \
+            --target-sha="$EXECUTION_SHA" \
+            --run-id="$GITHUB_RUN_ID" \
+            --output=/tmp/flixo-heartbeat/team-wake.json
+          jq -e '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .recipientCount==10 and .scope=="ALL_ACTION_REPAIR_TEAM"' /tmp/flixo-heartbeat/team-wake.json >/dev/null
+          echo 'ALL_ACTION_REPAIR_TEAM_WAKE_PLAN=READY'
+
       - name: Wake observer supervisor automatically
         if: steps.state.outputs.wake == 'true'
         env:
@@ -144,4 +156,5 @@ jobs:
           set -euo pipefail
           gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/agent-repair-supervisor.yml/dispatches" -f ref=execution
           echo 'AUTOMATIC_REPAIR_SUPERVISOR_WAKE=true'
+          echo 'ALL_ACTION_REPAIR_TEAM_WAKE=true'
           echo 'SUPERVISOR_REMAINS_OBSERVER_ONLY=true'
