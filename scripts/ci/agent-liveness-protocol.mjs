@@ -149,7 +149,7 @@ const forbidden = new Set(AGENT_LIVENESS_PROTOCOL.forbiddenStates);
 const working = new Set(AGENT_LIVENESS_PROTOCOL.workAssignedStates);
 
 export function assertLivenessDefinition() {
-  if (!AGENT_LIVENESS_PROTOCOL.protocolVersion.startsWith('5.')) throw new Error('AGENT_LIVENESS_VERSION_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.schemaVersion !== 5 || !AGENT_LIVENESS_PROTOCOL.protocolVersion.startsWith('5.')) throw new Error('AGENT_LIVENESS_VERSION_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.scheduleIntervalMs !== 5 * 60 * 1000) throw new Error('AGENT_LIVENESS_SCHEDULE_INTERVAL_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.internalHeartbeatEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_INTERNAL_HEARTBEAT_INTERVAL_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs !== AGENT_LIVENESS_PROTOCOL.internalHeartbeatEveryMs) throw new Error('AGENT_LIVENESS_HEARTBEAT_ALIGNMENT_INVALID');
@@ -295,9 +295,9 @@ export function buildTeamPulseDirective({ targetSha, taskId = null, activeOperat
     recipientCount: AGENT_LIVENESS_PROTOCOL.residentRuntimeCount,
     teamMemberCount: AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length,
     logicalBotCount: AGENT_LIVENESS_PROTOCOL.logicalBotCount,
-     residentRuntimeCount: AGENT_LIVENESS_PROTOCOL.residentRuntimeCount,
+    residentRuntimeCount: AGENT_LIVENESS_PROTOCOL.residentRuntimeCount,
     logicalBotIds: [...AGENT_LIVENESS_PROTOCOL.logicalBotIds],
-     residentRuntimeIds: [...AGENT_LIVENESS_PROTOCOL.residentRuntimeIds],
+    residentRuntimeIds: [...AGENT_LIVENESS_PROTOCOL.residentRuntimeIds],
     developmentProfiles: AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles,
     mutationAuthority: false,
     pushAuthority: 'CHAIR_1_ONLY',
