@@ -142,7 +142,7 @@ export function FlixoAIAgentStudio({
       const haystack = `${tool.id} ${tool.title} ${tool.description}`.toLowerCase();
       return categoryMatch && (!normalizedSearch || haystack.includes(normalizedSearch));
     }),
-    [tools, activeCategory, normalizedSearch],
+    [localizedTools, activeCategory, normalizedSearch],
   );
 
   const chooseTool = (tool: FlixoAgentStudioTool) => {
