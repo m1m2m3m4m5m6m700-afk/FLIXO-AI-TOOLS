@@ -236,8 +236,32 @@ jobs:
             # Older in-progress workflows can finish after the initial sweep and create
             # new queued/pending dependent runs. Re-scan and cancel those late arrivals
             # inside the same settle window; started runs themselves remain immutable evidence.
-            while IFS=
-          done
+            while IFS="$(printf '\t')" read -r LATE_RUN_ID LATE_STATUS LATE_NAME LATE_SHA LATE_SOURCE_REPOSITORY; do
+              [ -n "$LATE_RUN_ID" ] || continue
+              if [ "$LATE_SOURCE_REPOSITORY" != "$SOURCE_REPOSITORY" ] || [ "$LATE_SHA" = "$CURRENT_SHA" ]; then
+                continue
+              fi
+              case "$LATE_STATUS" in
+                queued|pending)
+                  echo "CANCEL_LATE_STALE_RUN run=$LATE_RUN_ID name=$LATE_NAME status=$LATE_STATUS sha=$LATE_SHA"
+                  cancel_output=""
+                  for attempt in 1 2 3; do
+                    if cancel_output="$(gh run cancel "$LATE_RUN_ID" --repo "$REPOSITORY" 2>&1)"; then
+                      echo "$cancel_output"
+                      break
+                    fi
+                    if printf '%s' "$cancel_output" | grep -Eiq 'API rate limit exceeded|secondary rate limit|abuse detection'; then
+                      echo "BLOCKED_EXTERNAL: rate limit during late stale-run cancellation"
+                      exit 1
+                    fi
+                    sleep 1
+                  done
+                  ;;
+              esac
+            done < <(
+              jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" --arg pattern 'Test|Repair|Verification|Contract|Security|Baseline|Certification|Impact|Code Scanning|CodeQL|Diagnostic|Proof|Scan|Heartbeat|Wake|Watchdog|Execution' '.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession" and (.head_repository.full_name // "") == $sourceRepo and (.name | test($pattern))) | select(.name != "FLIXO Agent Repair Supervisor" and .name != "FLIXO Master Agent Activation Relay" and .name != "FLIXO Master Repair Governor" and .name != "Daily·FLIXO Green Gate" and .name != "FLIXO Auto Repair Bot" and .name != "FLIXO Execution Bot Watchdog") | [.id,.status,.name,.head_sha,.head_repository.full_name] | @tsv' /tmp/supersession-final-runs.json
+            )
+            if [ "$poll" -lt "$SETTLE_MAX_POLLS" ]; then sleep "$SETTLE_POLL_SECONDS"; fi
           if [ "$stale_active" -ne 0 ]; then
             echo 'FAIL CLOSED: stale runs remain non-completed after supersession cancellation window.'
             jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" --arg pattern 'Test|Verification|Contract|Security|Baseline|Certification|Impact|Code Scanning|CodeQL|Diagnostic|Proof|Scan|Heartbeat' '.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession") | select(.head_repository.full_name == $sourceRepo) | select(.name | test($pattern)) | select(.name != "FLIXO Agent Repair Supervisor" and .name != "FLIXO Master Agent Activation Relay" and .name != "FLIXO Master Repair Governor" and .name != "Daily·FLIXO Green Gate" and .name != "FLIXO Auto Repair Bot" and .name != "FLIXO Execution Bot Watchdog") | [.id,.name,.status,.head_sha] | @tsv' /tmp/supersession-final-runs.json)
