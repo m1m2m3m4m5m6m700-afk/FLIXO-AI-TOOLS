@@ -284,7 +284,7 @@ export function buildTeamPulseDirective({ targetSha, taskId = null, activeOperat
     targetSha: sha,
     taskId: taskId ? String(taskId) : null,
     activeOperation: Boolean(activeOperation),
-    mode: activeOperation ? 'ACTIVE_OPERATION' : AGENT_LIVENESS_PROTOCOL.idleSweepMode,
+    mode: activeOperation ? 'ACTIVE_OPERATION' : 'READY_RESIDENT',
     reason: String(reason),
     wakeScope: AGENT_LIVENESS_PROTOCOL.heartbeatWakeScope,
     recipients: ['ALL_AGENTS'],
@@ -296,7 +296,10 @@ export function buildTeamPulseDirective({ targetSha, taskId = null, activeOperat
     mutationAuthority: false,
     pushAuthority: 'CHAIR_1_ONLY',
     exactShaRequired: true,
-    readOnlyWhenIdle: true,
+    readOnlyWhenResident: true,
+    residentState: activeOperation ? 'ACTIVE_OPERATION' : 'READY_RESIDENT',
+    sleep: false,
+    idle: false,
     onePulsePerHeartbeat: true,
   });
 }
