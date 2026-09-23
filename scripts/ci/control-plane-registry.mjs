@@ -186,10 +186,28 @@ export const BOT_RUNTIME_ROLES = Object.freeze({
     reportOnly: true,
     capabilities: Object.freeze([...BOT_RUNTIME_SHARED_CAPABILITIES, 'INDEPENDENT_JUDGMENT', 'PROOF_ARBITRATION']),
   }),
+  MASTER_REPAIR: Object.freeze({
+    mutationAuthority: true,
+    certificationAuthority: false,
+    reportOnly: false,
+    boundedMutationOnly: true,
+    requiresChair1: true,
+    requiresIndependentVerification: true,
+    capabilities: Object.freeze([
+      ...BOT_RUNTIME_SHARED_CAPABILITIES,
+      'COUNTEREXAMPLE_HUNT',
+      'INDEPENDENT_JUDGMENT',
+      'PROOF_ARBITRATION',
+      'PATCH_SIMULATION',
+      'PATCH_CORRECTNESS_PROOF',
+      'ADAPTIVE_REPAIR_PORTFOLIO',
+      'TEN_X_REPAIR',
+    ]),
+  }),
 });
 
 const BOT_RUNTIME_IDS = Object.freeze({
-  'ACTION-REPAIR': 'REPAIR',
+  'ACTION-REPAIR': 'MASTER_REPAIR',
   'ACTION-REPAIR-2': 'ADVERSARIAL',
   'ACTION-HISTORIAN-3': 'HISTORIAN',
   'ACTION-TWIN-1': 'ADVERSARIAL',
@@ -248,7 +266,7 @@ export function validateUnifiedBotRuntimeRegistry() {
     if (!BOT_RUNTIME_ROLES[role]) failures.push('ROLE_UNRESOLVED=' + id);
     else {
       const runtime = getUnifiedBotRuntime(id);
-      if (runtime.mutationAuthority && role !== 'REPAIR') failures.push('UNAUTHORIZED_MUTATION_ROLE=' + id);
+      if (runtime.mutationAuthority && !['REPAIR','MASTER_REPAIR'].includes(role)) failures.push('UNAUTHORIZED_MUTATION_ROLE=' + id);
       if (runtime.certificationAuthority) failures.push('BOT_CERTIFICATION_AUTHORITY_LEAK=' + id);
       if (!runtime.exactShaRequired || !runtime.staleEvidenceRejected) failures.push('IDENTITY_GUARD_MISSING=' + id);
     }
