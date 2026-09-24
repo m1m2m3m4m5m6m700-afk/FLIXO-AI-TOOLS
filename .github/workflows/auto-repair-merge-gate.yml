@@ -234,6 +234,7 @@ jobs:
               status,
               conclusion,
               headSha: .head_sha,
+              path: .path,
               headBranch: .head_branch,
               updatedAt: .updated_at
             }]' /tmp/exact-runs-response.json > /tmp/exact-runs.json
