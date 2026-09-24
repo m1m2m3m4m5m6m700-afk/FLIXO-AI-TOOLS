@@ -78,13 +78,6 @@ jobs:
           RUN_ID="$EVENT_RUN_ID"
           if [ -n "$INPUT_RUN_ID" ]; then RUN_ID="$INPUT_RUN_ID"; fi
           if [ -z "$RUN_ID" ]; then
-              echo 'SCHEDULE_RESCUE_NO_ACTIONABLE_RUN=true'
-              echo 'has_run=false' >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            echo "SCHEDULE_RESCUE_RUN_ID=$RUN_ID"
-          fi
-          if [ -z "$RUN_ID" ]; then
             echo 'has_run=false' >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -103,7 +96,7 @@ jobs:
           WORKFLOW_PATH="$(jq -r '.path // empty' <<<"$META")"
           BRANCH="$(jq -r '.headBranch' <<<"$META")"
           case "$WORKFLOW:$WORKFLOW_PATH" in
-            "FLIXO Test System:.github/workflows/ci.yml"|"FLIXO WP0 Trust Baseline:.github/workflows/wp0-trust-baseline.yml"|"FLIXO Test Impact:.github/workflows/test-impact.yml"|"FLIXO Test Impact Execution:.github/workflows/test-impact-execution.yml"|"FLIXO Continuous Delivery:.github/workflows/cd.yml"|"Repository Security Baseline:.github/workflows/repository-security-baseline.yml"|"Claude Security Review:.github/workflows/claude-security-review.yml"|"Daily·FLIXO Green Gate:.github/workflows/daily-flixo-green-gate.yml"|"FLIXO Auto Repair Bot:.github/workflows/auto-repair.yml"|"FLIXO Auto Repair Chain:.github/workflows/auto-repair.yml"|"FLIXO Auto Repair Merge Gate:.github/workflows/auto-repair-merge-gate.yml") ;;
+            "FLIXO Test System:.github/workflows/ci.yml"|"FLIXO WP0 Trust Baseline:.github/workflows/wp0-trust-baseline.yml"|"FLIXO Test Impact Execution:.github/workflows/test-impact-execution.yml"|"Repository Security Baseline:.github/workflows/repository-security-baseline.yml"|"Claude Security Review:.github/workflows/claude-security-review.yml") ;;
             *) echo "FAIL CLOSED: unapproved workflow source: $WORKFLOW path=$WORKFLOW_PATH"; exit 1 ;;
           esac
           case "$BRANCH" in
