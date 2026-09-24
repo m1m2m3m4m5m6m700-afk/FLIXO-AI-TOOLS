@@ -20,10 +20,10 @@ const commits = commitList.map((sha) => {
   const selfProvingVerifierChange = sensitiveChanged.length > 0 &&
     sensitiveChanged.every((p) => p === 'scripts/ci/verify-council-live-runtime.mjs') &&
     proofChanged.length === 0 &&
-    /SELF_PROOF_CONTRACT:v1/.test(run(['show', `${sha}:scripts/ci/verify-council-live-runtime.mjs'])) &&
-    /flix_council_events/.test(run(['show', `${sha}:scripts/ci/verify-council-live-runtime.mjs'])) &&
-    /residencyRequired/.test(run(['show', `${sha}:scripts/ci/verify-council-live-runtime.mjs'])) &&
-    /exact_sha/.test(run(['show', `${sha}:scripts/ci/verify-council-live-runtime.mjs']));
+    /SELF_PROOF_CONTRACT:v1/.test(run(['show', 'scripts/ci/verify-council-live-runtime.mjs:' + sha]) &&
+    /flix_council_events/.test(run(['show', 'scripts/ci/verify-council-live-runtime.mjs:' + sha]) &&
+    /residencyRequired/.test(run(['show', 'scripts/ci/verify-council-live-runtime.mjs:' + sha]) &&
+    /exact_sha/.test(run(['show', 'scripts/ci/verify-council-live-runtime.mjs:' + sha]);
   return {
     sha,
     changed,
