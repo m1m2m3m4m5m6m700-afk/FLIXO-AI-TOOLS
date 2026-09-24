@@ -25,8 +25,8 @@ The home-route AI agent is interaction-gated in addition to React lazy loading; 
 | Severity | Finding | Impact | Status |
 |---|---|---|---|
 | MEDIUM | `/api/flixo-agent` is publicly reachable without an independently enforced distributed quota/rate-limit layer in this code path. | A hostile caller could issue repeated valid requests and consume provider quota/cost even though secrets remain server-side. | OPEN — add a durable server-side quota/rate-limit control before unrestricted public AI usage |
-| LOW | Initial home-route rendering could have requested the AI agent chunk immediately despite code-splitting. | Interaction-gated loading now prevents the AI agent module from rendering/loading until explicit user activation. | PATCHED; fresh exact-SHA CI required |
+| LOW | Initial home-route rendering could have requested the AI agent chunk immediately despite code-splitting. | Interaction-gated loading now prevents the AI agent module from rendering/loading until explicit user activation. | VERIFIED on exact SHA `e7db5ba…` |
 
 ## Security closure rule
 
-No security finding in this report authorizes bypassing exact-SHA CI, canonical certification, or the execution→main promotion gate. Fresh exact-SHA evidence is required before closure.
+The QuickFlow trust-boundary finding is closed only because exact-SHA canonical CI, certification, and merge-gate evidence are all GREEN on `e7db5ba8757114e00ba7c15213580a824d2862b6`. The remaining MEDIUM rate-limit finding stays open and does not authorize bypassing the execution→main promotion gate.

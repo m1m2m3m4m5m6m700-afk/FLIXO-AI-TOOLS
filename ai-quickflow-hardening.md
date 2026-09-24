@@ -23,12 +23,22 @@ When deterministic QuickFlow has no safe plan, a provider-generated plan cannot 
 
 ## Regression coverage
 
-`tests/ai-quickflow-hardening.unit.mjs` covers all six scenarios plus production-provider conflict handling, provider-only-plan rejection, deterministic stability, provider secret exposure checks, CORS/CSP checks, and the home-route lazy boundary.
+`tests/quickflow-deterministic.unit.mjs` covers QuickFlow without AI. `tests/ai-quickflow-hardening.unit.mjs` covers all six AI/QuickFlow scenarios plus production-provider conflict handling, provider-only-plan rejection, provider secret exposure checks, CORS/CSP checks, and the interaction-gated home route.
 
 ## Loading and cost boundary
 
-The home route keeps `FlixoAIAgent` behind a React lazy boundary. The client source has no provider API endpoints or provider credentials. Provider credentials remain server-side. The planner does not issue a provider request merely because the route is imported.
+The home route keeps `FlixoAIAgent` behind a React lazy boundary and an explicit user-interaction gate. The AI agent module is not rendered on initial page load, so its heavy AI/QuickFlow chunk is not requested until explicit activation. The client source has no provider API endpoints or provider credentials. Provider credentials remain server-side.
 
-## Verification rule
+## Verification evidence
 
-The implementation is committed to the execution lane. Final closure requires fresh canonical CI evidence bound to the final exact SHA. Historical evidence is not reusable.
+Final exact SHA: `e7db5ba8757114e00ba7c15213580a824d2862b6`.
+
+Canonical FLIXO Test System run: `35961087578` — `success`.
+
+Certification job: `success`.
+
+Auto Repair Merge Gate run: `35961090085` — `success`.
+
+Engineering Work Package Guard, WP0 Trust Baseline, Repository Security Baseline, Security Red-Team Triad, Claude Security Review, Test Impact, Test Impact Execution, Unified Execution Push Gate, Master Repair Governor, Advanced Repair Contract, and Task History Ledger were all `success` on the same SHA.
+
+Historical evidence is not reused; closure is bound to this exact SHA.
