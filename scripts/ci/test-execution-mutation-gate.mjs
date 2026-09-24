@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {admit,verifyAdmission,scopeHash,fencingToken} from './execution-mutation-gate.mjs';
+import {admit,verifyAdmission,scopeHash,fencingToken,validateCandidateBinding} from './execution-mutation-gate.mjs';
 
 const sha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
 process.env.NODE_ENV='test';
@@ -17,6 +17,48 @@ const file=path.join(fs.mkdtempSync(path.join(os.tmpdir(),'flixo-mutation-gate-'
 const record=admit({ownerAgent:'AUTO_REPAIR_BOT',targetSha:sha,workPackageId:'WP-001',taskId:'TASK-001',paths:['src/a.ts','diagnostics/auto-repair/memory.json'],output:file});
 assert.equal(record.scopeHash,scopeHash(['diagnostics/auto-repair/memory.json','src/a.ts']));
 assert.equal(record.fencingToken,fencingToken({ownerAgent:'AUTO_REPAIR_BOT',runId:'12345',runAttempt:'1',targetSha:sha,workPackageId:'WP-001',taskId:'TASK-001',scopeDigest:record.scopeHash}));
+
+assert.deepEqual(
+  validateCandidateBinding({
+    admittedScope:['src/a.ts','diagnostics/auto-repair/memory.json'],
+    candidateParents:[sha],
+    targetSha:sha,
+    candidateSha:'c'.repeat(40),
+    actualChangedPaths:['diagnostics/auto-repair/memory.json','src/a.ts'],
+  }).scope,
+  ['diagnostics/auto-repair/memory.json','src/a.ts'],
+);
+assert.throws(
+  () => validateCandidateBinding({
+    admittedScope:['*'],
+    candidateParents:[sha],
+    targetSha:sha,
+    candidateSha:'c'.repeat(40),
+    actualChangedPaths:['src/a.ts'],
+  }),
+  /MUTATION_GATE_WILDCARD_SCOPE_FORBIDDEN/,
+);
+assert.throws(
+  () => validateCandidateBinding({
+    admittedScope:['src/a.ts'],
+    candidateParents:[sha,'d'.repeat(40)],
+    targetSha:sha,
+    candidateSha:'c'.repeat(40),
+    actualChangedPaths:['src/a.ts'],
+  }),
+  /MUTATION_GATE_SINGLE_PARENT_REQUIRED/,
+);
+assert.throws(
+  () => validateCandidateBinding({
+    admittedScope:['src/a.ts'],
+    candidateParents:[sha],
+    targetSha:sha,
+    candidateSha:'c'.repeat(40),
+    actualChangedPaths:['src/b.ts'],
+  }),
+  /MUTATION_GATE_SCOPE_MISMATCH/,
+);
+
 
 process.env.FLIXO_STRICT_CHAIR='false';
 assert.equal(verifyAdmission({file,phase:'pre-commit'}).fencingToken,record.fencingToken);
@@ -32,3 +74,6 @@ console.log('EXECUTION_MUTATION_GATE=PASS');
 console.log('EXECUTION_FENCING_TOKEN=PASS');
 console.log('EXECUTION_EXACT_SHA=PASS');
 console.log('EXECUTION_STALE_RUN_REJECTED=PASS');
+console.log('EXECUTION_SCOPE_BINDING=PASS');
+console.log('EXECUTION_SINGLE_PARENT=PASS');
+console.log('EXECUTION_WILDCARD_SCOPE_REJECTED=PASS');
