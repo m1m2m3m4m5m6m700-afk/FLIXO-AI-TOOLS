@@ -5,9 +5,10 @@ import fs from 'node:fs';
 const eventPath = (process.env.GITHUB_EVENT_PATH ?? '').trim();
 const repository = (process.env.GITHUB_REPOSITORY ?? '').trim();
 const token = (process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN ?? '').trim();
+const runId = (process.env.GITHUB_RUN_ID ?? '').trim();
 
-if (!eventPath || !repository || !token) {
-  console.error('FAIL CLOSED: workflow_run source guard requires GITHUB_EVENT_PATH, GITHUB_REPOSITORY and GH_TOKEN/GITHUB_TOKEN.');
+if (!eventPath || !repository || !token || !runId) {
+  console.error('FAIL CLOSED: workflow_run source guard requires GITHUB_EVENT_PATH, GITHUB_REPOSITORY, GITHUB_RUN_ID and GH_TOKEN/GITHUB_TOKEN.');
   process.exit(1);
 }
 
@@ -76,9 +77,33 @@ if (!/^[0-9a-f]{40}$/u.test(liveSha)) {
 
 if (liveSha !== sourceSha) {
   console.error(
-    'FAIL CLOSED: workflow_run source SHA ' + sourceSha +
-    ' is stale; live ' + sourceBranch + ' head is ' + liveSha + '.',
+    'STALE_WORKFLOW_RUN: source SHA ' + sourceSha +
+    ' is superseded by live ' + sourceBranch + ' head ' + liveSha + '.',
   );
+
+  try {
+    const cancelResponse = await fetch(
+      'https://api.github.com/repos/' + repository + '/actions/runs/' + encodeURIComponent(runId) + '/cancel',
+      {
+        method: 'POST',
+        headers: {
+          accept: 'application/vnd.github+json',
+          authorization: 'Bearer ' + token,
+          'x-github-api-version': '2022-11-28',
+          'user-agent': 'FLIXO-workflow-run-current-verifier',
+        },
+      },
+    );
+    if (!cancelResponse.ok && cancelResponse.status !== 409) {
+      throw new Error('GitHub API HTTP ' + cancelResponse.status + ': ' + await cancelResponse.text());
+    }
+    console.error('STALE_WORKFLOW_RUN_CANCEL_REQUESTED=' + runId);
+  } catch (error) {
+    console.error('FAIL CLOSED: unable to cancel stale workflow_run ' + runId + '.');
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+
   process.exit(1);
 }
 
