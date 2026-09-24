@@ -2,7 +2,8 @@
 
 Date: 2026-09-24
 Repository: m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS
-Observed execution SHA before this hardening commit: 6c678d2f60863b03db9e58a9e1aae96fe38c75bf
+Observed execution SHA before this hardening work package: 6c678d2f60863b03db9e58a9e1aae96fe38c75bf
+Work package: WP2-SECURITY-OBSERVABILITY-001
 
 ## Evidence baseline
 
