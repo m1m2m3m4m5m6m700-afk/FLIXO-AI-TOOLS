@@ -68,7 +68,7 @@ for (let i = 0; i < accountTable.length; i += 1) {
 }
 assert.equal(inString, false, 'Council accounts table has an unterminated SQL string literal');
 assert.equal(parenDepth, 0, 'Council accounts table has unbalanced parentheses');
-assert.match(sql, /current_execution_sha text check \(current_execution_sha is null or current_execution_sha ~ '\^\[0-9a-f\]\{40\}$'\),/u);
+assert.ok(sql.includes("current_execution_sha text check (current_execution_sha is null or current_execution_sha ~ '^[0-9a-f]{40}$'),"), 'Missing exact current_execution_sha format constraint');
 assert.match(sql, /metadata jsonb not null default '\{\}'::jsonb,/u);
 assert.doesNotMatch(sql, /current_execution_sha[^\n]*\^\[0-9a-f\]\{40\}$\}\s+jsonb\s+not\s+null/u);
 
