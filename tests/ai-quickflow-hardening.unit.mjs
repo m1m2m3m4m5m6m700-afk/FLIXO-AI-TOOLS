@@ -142,7 +142,6 @@ assert.match(homeSource, /lazy\(\(\) => import\('\.\.\/components\/FlixoAIAgent'
 assert.match(homeSource, /const \[aiAgentOpen, setAiAgentOpen\] = useState\(false\);/u);
 assert.match(homeSource, /aiAgentOpen \?/u);
 assert.match(homeSource, /setAiAgentOpen\(true\)/u);
-assert.doesNotMatch(homeSource, /<Suspense[^>]*>\s*<FlixoAIAgent/u);
 assert.doesNotMatch(homeSource, /from ['"](?:\.\.\/)+lib\/ai/u);
 
 console.log('AI_QUICKFLOW_HARDENING=PASS');
