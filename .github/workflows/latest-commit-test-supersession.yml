@@ -15,7 +15,7 @@ on:
 # every active run tied to an older SHA on the same source branch is cancelled;
 # exact-SHA guards remain fail-closed for any cancellation race.
 concurrency:
-  group: flixo-latest-commit-supersession-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: flixo-latest-commit-supersession-${{ github.event_name }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
