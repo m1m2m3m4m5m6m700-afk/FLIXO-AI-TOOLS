@@ -44,6 +44,17 @@ for (const [label, ok] of latestCommitPolicyChecks) {
     process.exit(1);
   }
 }
+for (const {file, text} of workflowTexts) {
+  if (!/workflow_run:/u.test(text)) continue;
+  if (!/scripts\/ci\/assert-workflow-run-current\.mjs/u.test(text)) {
+    console.error('CI contract failed: ' + file + ' consumes workflow_run without the fail-closed source-SHA guard.');
+    process.exit(1);
+  }
+  if (!/actions:\s*write/u.test(text)) {
+    console.error('CI contract failed: ' + file + ' needs actions: write so a stale workflow_run can be cancelled.');
+    process.exit(1);
+  }
+}
 
 const testEngine = readFileSync('scripts/test.mjs', 'utf8');
 const certifyEngine = readFileSync('scripts/ci/certify.mjs', 'utf8');
