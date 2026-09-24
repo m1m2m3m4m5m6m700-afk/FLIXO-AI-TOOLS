@@ -29,6 +29,7 @@ const agentMasterActivationWorkflow = readFileSync('.github/workflows/agent-mast
 const continuousWatchWorkflow = readFileSync('scripts/ci/continuous-error-watch.mjs', 'utf8');
 const currentCommitGuard = readFileSync('scripts/ci/assert-current-commit.mjs', 'utf8');
 const workflow = workflowSource.replace(/\\"/g, '"');
+const latestCommitSupersessionWorkflow = readFileSync('.github/workflows/latest-commit-test-supersession.yml', 'utf8');
 const latestCommitPolicyChecks = [
   ['controller actions write permission', /permissions:[\s\S]*actions:\s*write/.test(latestCommitSupersessionWorkflow)],
   ['controller cancels active stale SHA runs', /Cancel every active run for an older SHA/.test(latestCommitSupersessionWorkflow)],
@@ -51,7 +52,6 @@ const autoRepairWorkflow = readFileSync('.github/workflows/auto-repair.yml', 'ut
 const cellMasterConsultWorkflow = readFileSync('.github/workflows/cell-master-consult.yml', 'utf8');
 const executionWatchdogWorkflow = readFileSync('.github/workflows/execution-bot-watchdog.yml', 'utf8');
 const resultState = readFileSync('scripts/ci/result-state.mjs', 'utf8');
-const latestCommitSupersessionWorkflow = readFileSync('.github/workflows/latest-commit-test-supersession.yml', 'utf8');
 
 const required = [
   ['canonical push trigger', /push:\s*\n\s*branches:\s*\[main, execution\]/],
