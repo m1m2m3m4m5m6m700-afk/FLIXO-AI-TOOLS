@@ -52,6 +52,21 @@ for (const file of currentWorkflows) {
   assert.match(source, /scripts\/ci\/assert-current-commit\.mjs/u, file + ': latest-commit workflow must use fail-closed exact-SHA guard');
 }
 
+for (const file of currentWorkflows) {
+  const source = fs.readFileSync(workflowDir + '/' + file, 'utf8');
+  if (!/workflow_run:/u.test(source)) continue;
+  assert.match(
+    source,
+    /scripts\/ci\/assert-workflow-run-current\.mjs/u,
+    file + ': workflow_run consumer must enforce the live source SHA',
+  );
+  assert.match(
+    source,
+    /actions:\s*write/u,
+    file + ': stale workflow_run consumer must be able to cancel itself fail-closed',
+  );
+}
+
 console.log('LATEST_COMMIT_ONLY_TESTS=PASS');
 console.log('ALL_ACTIVE_STALE_RUNS_CANCELLED=PASS');
 console.log('EXACT_SHA_STALE_GUARD_MANDATORY=PASS');
