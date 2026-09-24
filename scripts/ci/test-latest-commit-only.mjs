@@ -13,7 +13,14 @@ const files = [
   '.github/workflows/auto-repair-merge-gate.yml',
 ];
 const staleGuard = /Fail closed when this commit is superseded[\s\S]*?run: node scripts\/ci\/assert-current-commit\.mjs/u;
-const nonCancellingEvidenceFiles = new Set();
+const nonCancellingEvidenceFiles = new Set([
+  '.github/workflows/ci.yml',
+  '.github/workflows/wp0-trust-baseline.yml',
+  '.github/workflows/test-impact.yml',
+  '.github/workflows/test-impact-execution.yml',
+  '.github/workflows/repository-security-baseline.yml',
+  '.github/workflows/claude-security-review.yml',
+]);
 
 for (const file of files) {
   assert.ok(fs.existsSync(file), `missing workflow: ${file}`);
@@ -63,7 +70,7 @@ const ci = fs.readFileSync('.github/workflows/ci.yml','utf8');
 assert.match(ci, /push:\s*\n\s*branches:\s*\[main, execution\]/u);
 assert.match(ci, /group:\s*flixo-test-/u);
 assert.match(ci, /group:\s*flixo-test-\$\{\{\s*github\.event\.pull_request\.head\.repo\.full_name\s*\|\|\s*github\.repository\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name\s*\}\}/u);
-assert.match(ci, /cancel-in-progress:\s*true/u);
+assert.match(ci, /cancel-in-progress:\s*false/u);
 
 const workflowDir = '.github/workflows';
 const currentWorkflows = fs.readdirSync(workflowDir).filter((file) => /\.ya?ml$/u.test(file)).sort();
@@ -91,7 +98,7 @@ console.log('LATEST_COMMIT_ONLY_TESTS=PASS');
 console.log('STALE_TEST_CANCELLATION=PASS');
 console.log('EXACT_SHA_STALE_GUARD=PASS');
 console.log('EXECUTION_PUSH_TEST_TRIGGER=PASS');
-console.log('STALE_STARTED_TEST_RUNS_CANCELLED=PASS');
+console.log('STARTED_EXACT_SHA_RUNS_PRESERVED=PASS');
 
 const cleanupWorkflow = fs.readFileSync('.github/workflows/latest-execution-head-cleanup.yml', 'utf8');
 assert.match(cleanupWorkflow, /name:\s*FLIXO Latest Execution HEAD Cleanup/u);
