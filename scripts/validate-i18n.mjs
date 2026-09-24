@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { CANONICAL_LOCALES as expected } from './validation-contracts.mjs';
 
 const configSource = readFileSync('src/lib/i18n/config.ts', 'utf8');
-const homeSource = readFileSync('src/data/home-locales.ts', 'utf8');
+const homeSource = (locale) => readFileSync(`src/data/home-locales/${locale}.ts`, 'utf8');
 const quickflowSource = readFileSync('src/data/quickflow-locales.ts', 'utf8');
 const toolUiSource = readFileSync('src/data/tool-ui-i18n.ts', 'utf8');
 const localizedToolPageSource = readFileSync('src/routes/localized-tool-page.tsx', 'utf8');
@@ -24,19 +24,11 @@ const missingToolUiLocales = expected.filter((locale) => !new RegExp(`\\b${local
 if (missingToolUiLocales.length) { console.error(`Tool UI localization is incomplete for locale(s): ${missingToolUiLocales.join(', ')}`); process.exit(1); }
 if (!localizedToolPageSource.includes('<ToolComponent locale={locale} />')) { console.error('Localized tool route does not pass the active locale into the tool component.'); process.exit(1); }
 
-const getHomeEntry = (locale) => {
-  const literal = new RegExp(`\\b${locale}:\\s*copy\\(\\{([\\s\\S]*?)\\}\\)`).exec(homeSource)?.[1];
-  if (literal) return literal;
-  const generated = new RegExp(`\\b${locale}:\\s*make\\('${locale}',[\\s\\S]*?lead:'([^']*)',[\\s\\S]*?\\}\\)`).exec(homeSource)?.[0];
-  return generated ?? '';
-};
-const homeFactory = /const make = \(locale: Locale,[\s\S]*?\): HomeCopy => copy\(\{([\s\S]*?)\}\);/.exec(homeSource)?.[1] ?? '';
+const getHomeEntry = (locale) => homeSource(locale);
 const requiredHomeKeys = ['nav:', 'badge:', 'heroTitle:', 'heroLead:', 'searchPlaceholder:', 'smartPalette:', 'trust:', 'quickDropTitle:', 'dropChoose:', 'toolboxTitle:', 'finalTitle:', 'quickTags:'];
 const missingHomeLocales = expected.filter((locale) => {
   const entry = getHomeEntry(locale);
-  const generated = entry.includes(`make('${locale}'`);
-  const source = generated ? homeFactory : entry;
-  return !entry || requiredHomeKeys.some((key) => !source.includes(key));
+  return !entry || requiredHomeKeys.some((key) => !entry.includes(key));
 });
 if (missingHomeLocales.length) { console.error(`Home UI is incomplete for locale(s): ${missingHomeLocales.join(', ')}`); process.exit(1); }
 
