@@ -53,5 +53,8 @@ jobs:
         run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - name: Validate source-controlled Council RPC contract
         run: node scripts/ci/validate-council-rpc-contract.mjs
+      - name: Enforce repository two-branch creation policy
+        run: node scripts/ci/validate-two-branch-policy.mjs
+
       - name: Run repository security baseline
         run: node scripts/ci/repository-security-baseline.mjs

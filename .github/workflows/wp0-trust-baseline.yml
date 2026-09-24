@@ -113,6 +113,9 @@ jobs:
       - name: 07 — Canonical CI/CD trust and exact-SHA gate
         run: npm run verify:ci-cd-trust
 
+      - name: 07A — Enforce repository two-branch creation policy
+        run: node scripts/ci/validate-two-branch-policy.mjs
+
       - name: 08 — WP0 static trust and readiness alignment gate
         run: node scripts/ci/validate-wp0-trust-baseline.mjs
 
