@@ -88,3 +88,9 @@ The promotion decision is based on fresh evidence for the exact commit being pro
 - Treating diagnostics as a second definition of GREEN.
 - Mixing experimental branch assumptions into `main` without rebuilding and verifying against current production state.
 - Deleting historical material solely for cleanliness.
+
+
+## Current Release Evidence Snapshot — 2026-09-24
+
+Execution evidence is bound to 41d44f132fa27892155fa0ab47fb1452b908b380. Canonical Test System and C4 are PASS, with FAST 66/66 and DEEP 60/60. This is execution certification, not production deployment certification.
+The release boundary remains fail-closed because Work Package Governance is RED and the literal npm run verify gate is not directly evidenced on this exact SHA.

@@ -471,11 +471,11 @@ ISOLATION = contents:read / no source mutation / no ledger mutation / no peer wa
 NEXT = Run the isolated triad against a chosen exact SHA and inspect its three evidence artifacts.
 
 ## WAVE5 — ROUTING / MEMORY / LEARNING / ERROR INTELLIGENCE / KNOWLEDGE / SIMULATION
-STATUS = IMPLEMENTED / CANONICAL-CI-VERIFICATION-PENDING
+STATUS = IMPLEMENTED / C4-PASS / GOVERNANCE-BLOCKED
 OWNER = AGENT-3
 BRANCH = execution
 SCOPE = CELL-041..050
-CURRENT_EXECUTION_HEAD = 6ed30b1352bc0869959286142d962a44abda58f7
+CURRENT_EXECUTION_HEAD = 41d44f132fa27892155fa0ab47fb1452b908b380
 IMPLEMENTATION = src/lib/agent/swarm/learning-memory-routing.ts
 TARGETED_TEST = scripts/ci/test-swarm-learning-memory-routing.mjs
 CANONICAL_MEMORY_BASE = src/lib/agent/knowledge/types.ts + existing knowledge/memory surfaces
@@ -486,5 +486,17 @@ LEARNING = Mission Result Contract + provisional/verified/anti-lesson/blocking/r
 ERROR INTELLIGENCE = failure fingerprinting + RCA chain + synthesis + hypothesis + prediction
 SIMULATION = replay + failure injection + drift + non-authoritative evidence
 EVIDENCE = every knowledge/observation/RCA/simulation record binds to exact SHA; memory advisory only
-CURRENT_VERIFICATION = canonical CI still pending/active on the latest execution head; no GREEN/certification claim
+CURRENT_VERIFICATION = canonical C4 PASS on 41d44f132fa27892155fa0ab47fb1452b908b380; Work Package Governance remains RED, so overall release GREEN is not granted
 HANDOFF_BOUNDARY = Agent-1 for authority/governance/CI/certification; Agent-2 for runtime/features/tests/repair executor
+
+
+## Release Evidence Synchronization — 2026-09-24
+
+Evidence snapshot SHA: 41d44f132fa27892155fa0ab47fb1452b908b380
+Canonical Test System run: 35957628269 — PASS.
+C4 Certification job: 107500671225 — PASS.
+Browser evidence: FAST 66/66 semantic units; DEEP 60/60 semantic locale/browser units across 20 locales and 3 browsers.
+Governance RED: Work Package / RCA / Proof Guard job 107499197270 failed at scripts/ci/work-package-policy.mjs:20 with WORK_PACKAGE_BURST_REQUIRES_EXACTLY_ONE_WP_TAG.
+Release gate gap: the literal npm run verify command is not directly evidenced on this exact SHA, so production dependency audit evidence is incomplete.
+Production main snapshot during this evidence cycle: 1a26c4a3624ec7ae58a8c52191246dda423de5bb.
+No production promotion is authorized from this evidence snapshot.

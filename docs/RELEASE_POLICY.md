@@ -91,3 +91,9 @@ The default rollback is a `git revert` of the merge commit. Manual repair should
 ## 8. Promotion rule
 
 No release is called **GREEN**, **CERTIFIED**, or **production-ready** without current CI evidence for the exact commit. Diagnostics explain failures and preserve evidence; they do not create a second release truth.
+
+
+## Current Matrix Authority — 2026-09-24
+
+The active canonical browser and certification workflow is .github/workflows/ci.yml. It provides the 22-tool x 3-browser FAST matrix, the 20-locale x 3-browser DEEP matrix, and the single fail-closed Certification job. Older references to .github/workflows/full-matrix-promotion.yml are historical unless that workflow exists on the exact repository head.
+The current execution snapshot has C4 PASS on 41d44f132fa27892155fa0ab47fb1452b908b380. This does not replace the separate exact-SHA npm run verify requirement or deployment provenance before production promotion.
