@@ -191,7 +191,7 @@ const architectureChecks = [
   ['DEEP browser engine', /\n\s{2}browser_deep:\s*\n/.test(ci)],
   ['single certify gate', /\n\s{2}certify:\s*\n/.test(ci)],
   ['three browsers', /browser:\s*\[chromium, firefox, webkit\]/.test(ci)],
-  ['22 FAST tool specs', new Set((ci.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? []).filter((spec) => !/universal-diagnostic-browser|localization-runtime/.test(spec))).size === 22],
+  ['FAST spec count', new Set((ci.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? []).filter((spec) => !/universal-diagnostic-browser|localization-runtime/.test(spec))).size === 23],
   ['DEEP localization runtime', /tests\/localization-runtime\.spec\.ts/.test(ci)],
   ['immutable artifact', /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci)],
 ];
