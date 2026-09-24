@@ -82,6 +82,13 @@ async function createAnnotatedTag(refName, objectSha, metadata) {
 export async function createRefAtomically({ apiRoot: root = 'https://api.github.com', repoName, authToken, refName, objectSha } = {}) {
   if (!repoName) throw new Error('REPAIR_LEASE_REPOSITORY_REQUIRED');
   if (!authToken) throw new Error('REPAIR_LEASE_GITHUB_TOKEN_REQUIRED');
+  const normalizedRef = String(refName ?? '').trim();
+  if (!/^refs\\/tags\\/[A-Za-z0-9._\\/-]+$/u.test(normalizedRef)) {
+    throw new Error('REPAIR_LEASE_REF_TYPE_BLOCKED');
+  }
+  if (!/^[a-f0-9]{40}$/iu.test(String(objectSha ?? ''))) {
+    throw new Error('REPAIR_LEASE_OBJECT_SHA_INVALID');
+  }
   const response = await fetch(`${root}/repos/${repoName}/git/refs`, {
     method: 'POST',
     headers: {
@@ -91,7 +98,7 @@ export async function createRefAtomically({ apiRoot: root = 'https://api.github.
       'content-type': 'application/json',
       'user-agent': 'FLIXO-repair-lease',
     },
-    body: JSON.stringify({ ref: refName, sha: objectSha }),
+    body: JSON.stringify({ ref: normalizedRef, sha: objectSha }),
   });
   const raw = await response.text();
   let data;

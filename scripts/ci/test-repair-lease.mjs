@@ -38,6 +38,16 @@ for (const [label, variant] of [
 
 assert.match(deriveLeaseEventRef({ identity: base, eventType: 'STATE', eventId: '100' }), /^refs\/tags\/flixo-repair-event-/);
 assert.match(deriveRecoveryRef({ identity: base, attempt: 2 }), /-2$/);
+await assert.rejects(
+  () => createRefAtomically({
+    apiRoot: 'http://127.0.0.1:1',
+    repoName: 'owner/repo',
+    authToken: 'test-token',
+    refName: 'refs/heads/agent-forbidden',
+    objectSha: SHA_A,
+  }),
+  /REPAIR_LEASE_REF_TYPE_BLOCKED/,
+);
 
 const outcomes = [
   { repairKey: base.claimKey, failedSha: SHA_A, exitSha: SHA_A, verificationProgress: false, noProgress: true, at: '2026-09-19T00:03:00.000Z' },
