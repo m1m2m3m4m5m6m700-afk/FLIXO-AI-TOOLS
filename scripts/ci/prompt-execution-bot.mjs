@@ -97,6 +97,8 @@ function isNegated(prompt, pattern) {
   const context = prompt.slice(Math.max(0, at - 90), at);
   return NEGATIVE_AR.test(context) || NEGATIVE_EN.test(context);
 }
+function actions(prompt) { return ACTIONS.filter(([, pattern]) => pattern.test(prompt)).map(([name]) => name); }
+function intentFor(prompt, actionList) {
   if (actionList.includes('REPAIR') || actionList.includes('DIAGNOSE')) return 'REPAIR_DIAGNOSE';
   if (actionList.includes('VERIFY')) return 'VERIFY';
   if (actionList.includes('IMPLEMENT')) return 'EXECUTION';
