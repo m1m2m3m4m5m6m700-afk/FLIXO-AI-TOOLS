@@ -1158,6 +1158,46 @@
         "Run the exact training self-test and lint after adding each dependent training stage; never stack undefined-stage consumers on a green-looking contract."
       ],
       "lastSeenAt": "2026-09-20T19:35:00Z"
+    },
+    {
+      "id": "c24af9eb0ce84286db6",
+      "fingerprint": "exact-sha-gate-root-closure-2026-09-25",
+      "rootCause": "ci-contract-orchestration",
+      "rule": "exact-contract-surface-and-fixture-alignment",
+      "attempts": 1,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0,
+      "status": "PROVISIONAL",
+      "evidence": [
+        {
+          "verification": "repair-applied-pending-canonical-green",
+          "provenance": {
+            "source": "FLIXO Agent-2 exact-SHA root repair",
+            "failedSha": "13d677dd2c69142dd11d748ff695027059e0cca2",
+            "targetSha": "c24af9eb0ce84286db66a6cd605dd66fb64966d2",
+            "runId": null,
+            "workflow": "Advanced Repair Contract / WP Guard / WP0 Trust Baseline",
+            "exactShaBound": true
+          }
+        }
+      ],
+      "preventionRules": [
+        "When a production ref helper explicitly allowlists refs/tags, race/concurrency fixtures must use a contract-valid refs/tags fixture; never invent a forbidden ref namespace merely to exercise the race.",
+        "Certification-surface accounting must distinguish canonical tool specs from dedicated Agent journey/integration specs; 22 tool specs plus 1 journey spec is not 23 tool specs.",
+        "Work-package burst validation requires exactly one WP identity in the active burst; repair commits must carry one canonical [WP:<id>] marker before the guard can accept the burst.",
+        "A downstream promotion/merge-gate RED must be traced to the earliest canonical RED before adding another mutation; do not repair the downstream symptom independently.",
+        "Any new mutation invalidates prior exact-SHA evidence; this lesson remains advisory until fresh canonical verification and certification close the new SHA."
+      ],
+      "changedPaths": [
+        "scripts/ci/test-repair-lease-live-race.mjs",
+        "scripts/ci/validate-certification-surface.mjs",
+        "المهام.md"
+      ],
+      "parentSha": "13d677dd2c69142dd11d748ff695027059e0cca2",
+      "targetSha": "c24af9eb0ce84286db66a6cd605dd66fb64966d2",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-25T00:00:00.000Z"
     }
   ],
   "antiLessons": [
