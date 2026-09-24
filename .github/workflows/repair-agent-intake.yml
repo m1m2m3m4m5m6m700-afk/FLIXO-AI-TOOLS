@@ -127,6 +127,12 @@ jobs:
           printf '%s\n' "$BRANCH" >/tmp/branch
           printf '%s\n' "$CONCLUSION" >/tmp/conclusion
           [[ "$CURRENT_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
+          if [ "$FAILED_SHA" != "$CURRENT_SHA" ]; then
+            echo "FAIL CLOSED: requested source run $FAILED_SHA is superseded by current $CURRENT_SHA."
+            gh run cancel "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || true
+            echo "STALE_MANUAL_INTAKE_CANCEL_REQUESTED=true"
+            exit 1
+          fi
           printf '%s\n' "$CURRENT_SHA" >/tmp/current-sha
           echo 'has_run=true' >> "$GITHUB_OUTPUT"
 
