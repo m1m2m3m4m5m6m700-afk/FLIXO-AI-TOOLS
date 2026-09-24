@@ -38,11 +38,11 @@ assert.doesNotMatch(supersession, /--slurp\b/u);
 assert.match(supersession, /git ls-remote.*refs\/heads\/\$TARGET_BRANCH/u);
 assert.doesNotMatch(supersession, /gh api "repos\/\$GITHUB_REPOSITORY\/pulls\/\$PR_NUMBER"/u);
 assert.match(supersession, /CANCEL_STALE_RUN/u);
-assert.match(supersession, /\.status == "queued" or \.status == "pending"/u);
-assert.match(supersession, /KEEP_STARTED_(?:RUN|STALE_RUN)/u);
+assert.match(supersession, /\.status == "queued" or \.status == "pending" or \.status == "in_progress"/u);
+assert.doesNotMatch(supersession, /KEEP_STARTED_(?:RUN|STALE_RUN)/u);
 assert.doesNotMatch(supersession, /"FLIXO Agent Repair Heartbeat"\)\s*[\r\n]+\s*return 0/u);
 assert.match(supersession, /FLIXO Agent Repair Heartbeat/u);
-assert.match(supersession, /queued.*pending/u);
+assert.match(supersession, /queued.*pending.*in_progress/u);
 assert.match(supersession, /Heartbeat.*supersedable|supersedable.*Heartbeat/u);
 assert.doesNotMatch(supersession, new RegExp(['gh','run','view','$run_id','--repo','$REPOSITORY','--json','status'].join(' ')));
 assert.match(supersession, /head_repository\.full_name/u);
@@ -76,8 +76,8 @@ assert.match(verifyProof, /scripts\/ci\/verify-run-lock\.mjs/u);
 
 console.log('LATEST_COMMIT_ONLY=PASS');
 console.log('STALE_RUN_CANCELLATION=PASS');
-console.log('STARTED_RUN_PRESERVATION=PASS');
+console.log('STALE_STARTED_RUN_CANCELLATION=PASS');
 console.log('RERUN_LOCK=PASS');
 console.log('TEST_DEFINITION_LOCK=PASS');
 
-assert.match(supersession, /stale_active[\s\S]*\.status == "queued" or \.status == "pending"[\s\S]*\.head_sha != \$sha/u);
+assert.match(supersession, /stale_active[\s\S]*\.status == "queued" or \.status == "pending" or \.status == "in_progress"[\s\S]*\.head_sha != \$sha/u);
