@@ -960,7 +960,7 @@
   "playbooks": [],
   "lessons": [
     {
-      "id": "89cee10f43acf1244d06",
+      "id": "9b4621b60eefd94da898",
       "fingerprint": "89cee10f43acf1244d064dab19f9a351b8acafcf",
       "rootCause": "orchestration",
       "rule": "gh-cli-json-jq-contract",
@@ -1002,7 +1002,7 @@
       "lastSeenAt": "2026-09-19T22:48:35Z"
     },
     {
-      "id": "cc208a65323355b8846d",
+      "id": "841d6ce7c5cf5f763542",
       "fingerprint": "cc208a65323355b8846d7aa6d7e85f742feb8909",
       "rootCause": "lint",
       "rule": "regex-contract-escape-discipline",
@@ -1043,7 +1043,7 @@
       "lastSeenAt": "2026-09-20T19:35:00Z"
     },
     {
-      "id": "b7676df7aa32ad7e718f",
+      "id": "f14da7f1fc55e1a36ad3",
       "fingerprint": "b7676df7aa32ad7e718f524ad84aa826d3b28b6c",
       "rootCause": "lint",
       "rule": "repair-test-regex-contract",
@@ -1073,7 +1073,7 @@
       "lastSeenAt": "2026-09-19T22:51:37Z"
     },
     {
-      "id": "11a69c066357a565d2cc",
+      "id": "5713ce78a3dfa74271da",
       "fingerprint": "11a69c066357a565d2cc26afd516d4b2d1eb6f7b",
       "rootCause": "architecture",
       "rule": "canonical-registry-symmetry",
@@ -1103,7 +1103,7 @@
       "lastSeenAt": "2026-09-19T22:53:07Z"
     },
     {
-      "id": "7b032e2a10f99e6bbf65",
+      "id": "6099c34f81f87b3f5451",
       "fingerprint": "7b032e2a10f99e6bbf65f67e6827e74c64abf9a8",
       "rootCause": "orchestration",
       "rule": "primary-red-before-secondary-certification",
@@ -1133,7 +1133,7 @@
       "lastSeenAt": "2026-09-19T22:48:35Z"
     },
     {
-      "id": "f4423c648ec49d08d49e",
+      "id": "8bdb4e81a796f7cea895",
       "fingerprint": "f4423c648ec49d08d49e881e9f2b6c05f5463d1816ce476231a8c9a5c1964d25",
       "rootCause": "orchestration",
       "rule": "composed-training-stage-wiring",
@@ -1160,7 +1160,7 @@
       "lastSeenAt": "2026-09-20T19:35:00Z"
     },
     {
-      "id": "c24af9eb0ce84286db6",
+      "id": "4bf993d1c3743752ab70",
       "fingerprint": "exact-sha-gate-root-closure-2026-09-25",
       "rootCause": "ci-contract-orchestration",
       "rule": "exact-contract-surface-and-fixture-alignment",
@@ -1200,7 +1200,7 @@
       "lastSeenAt": "2026-09-25T00:00:00.000Z"
     },
     {
-      "id": "10k-cancelled-is-not-root",
+      "id": "8ffa237f2366c6e6f513",
       "fingerprint": "10k-cancelled-is-not-root",
       "rootCause": "orchestration",
       "rule": "cancelled-run-classification",
@@ -1230,7 +1230,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-exact-sha-first",
+      "id": "c20cff7b31496e2e56b8",
       "fingerprint": "10k-exact-sha-first",
       "rootCause": "sha-control",
       "rule": "exact-sha-before-rca",
@@ -1260,7 +1260,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-supersession-is-evidence-invalidation",
+      "id": "6fc6336d2a24912d9677",
       "fingerprint": "10k-supersession-is-evidence-invalidation",
       "rootCause": "sha-control",
       "rule": "supersession-invalidates-proof",
@@ -1290,7 +1290,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-first-causal-failure",
+      "id": "342fafab1b3fbc2e496d",
       "fingerprint": "10k-first-causal-failure",
       "rootCause": "orchestration",
       "rule": "first-causal-before-downstream",
@@ -1320,7 +1320,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-merge-gate-is-downstream",
+      "id": "0504015bcfb11dfc5495",
       "fingerprint": "10k-merge-gate-is-downstream",
       "rootCause": "orchestration",
       "rule": "downstream-gate-not-root",
@@ -1350,7 +1350,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-proof-gap-is-real-red",
+      "id": "d150752b8afe5a726368",
       "fingerprint": "10k-proof-gap-is-real-red",
       "rootCause": "proof-coverage",
       "rule": "sensitive-mutation-needs-proof",
@@ -1380,7 +1380,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-external-503-is-not-internal",
+      "id": "364fab71132b38dcfc6e",
       "fingerprint": "10k-external-503-is-not-internal",
       "rootCause": "external-runtime",
       "rule": "external-provider-separation",
@@ -1410,7 +1410,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-stale-security-review-is-not-vuln",
+      "id": "e4a691e18bda17501026",
       "fingerprint": "10k-stale-security-review-is-not-vuln",
       "rootCause": "stale-review",
       "rule": "stale-advisory-review",
@@ -1440,7 +1440,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-watchdog-cancel-semantics",
+      "id": "1981f0ca2b1c592e1b39",
       "fingerprint": "10k-watchdog-cancel-semantics",
       "rootCause": "liveness",
       "rule": "cancellation-continuity-semantics",
@@ -1470,7 +1470,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-diagnostic-success-vs-execution-success",
+      "id": "3f370dfc1da7f9f1d097",
       "fingerprint": "10k-diagnostic-success-vs-execution-success",
       "rootCause": "diagnostic-contract",
       "rule": "reducer-health-separate-from-system-outcome",
@@ -1500,7 +1500,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-shared-source-missing-is-ownership",
+      "id": "031cd4e8521aa9fbdf7a",
       "fingerprint": "10k-shared-source-missing-is-ownership",
       "rootCause": "contract-drift",
       "rule": "shared-source-integrity",
@@ -1530,7 +1530,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-cluster-symptoms-by-lineage",
+      "id": "a20312ca1f7ab1909e5c",
       "fingerprint": "10k-cluster-symptoms-by-lineage",
       "rootCause": "causal-clustering",
       "rule": "fingerprint-lineage-clustering",
@@ -1560,7 +1560,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-repair-only-root",
+      "id": "8210f1ff01a740332b07",
       "fingerprint": "10k-repair-only-root",
       "rootCause": "repair-strategy",
       "rule": "root-only-mutation",
@@ -1590,7 +1590,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-targeted-before-full-regression",
+      "id": "79deaa8d930cb934ae51",
       "fingerprint": "10k-targeted-before-full-regression",
       "rootCause": "repair-strategy",
       "rule": "targeted-regression-before-broad-ci",
@@ -1620,7 +1620,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-fresh-sha-after-mutation",
+      "id": "ac31e68227c969865089",
       "fingerprint": "10k-fresh-sha-after-mutation",
       "rootCause": "verification",
       "rule": "post-mutation-fresh-proof",
@@ -1650,7 +1650,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-identical-red-requires-new-hypothesis",
+      "id": "2908670e58c62d742522",
       "fingerprint": "10k-identical-red-requires-new-hypothesis",
       "rootCause": "repair-convergence",
       "rule": "no-identical-recursion",
@@ -1680,7 +1680,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-external-internal-separation-first",
+      "id": "130d432e8087692634bd",
       "fingerprint": "10k-external-internal-separation-first",
       "rootCause": "causal-classification",
       "rule": "classify-before-mutate",
@@ -1710,7 +1710,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-historical-learning-is-advisory",
+      "id": "f84417238b3aaa7346f0",
       "fingerprint": "10k-historical-learning-is-advisory",
       "rootCause": "learning-integrity",
       "rule": "historical-learning-no-certification",
@@ -1740,7 +1740,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-cancelled-volume-must-not-inflate-red",
+      "id": "2dc82f33ca2c83b0fb01",
       "fingerprint": "10k-cancelled-volume-must-not-inflate-red",
       "rootCause": "metrics",
       "rule": "separate-supersession-metrics",
@@ -1770,7 +1770,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-provider-failure-preserve-evidence",
+      "id": "7efa5056af46ef3c047c",
       "fingerprint": "10k-provider-failure-preserve-evidence",
       "rootCause": "external-runtime",
       "rule": "preserve-external-evidence",
@@ -1800,7 +1800,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-proof-chain-completeness",
+      "id": "a4bbd1cba61e8de0e473",
       "fingerprint": "10k-proof-chain-completeness",
       "rootCause": "proof-coverage",
       "rule": "proof-chain-must-cover-mutation",
@@ -1830,7 +1830,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-zero-stall-operating-loop",
+      "id": "2f89a9789f9105d4926e",
       "fingerprint": "10k-zero-stall-operating-loop",
       "rootCause": "repair-convergence",
       "rule": "never-stall-on-ambiguous-red",
@@ -1966,7 +1966,7 @@
       "lastSeenAt": "2026-09-19T06:48:35.261Z"
     },
     {
-      "id": "83b077936ef0130cd635",
+      "id": "5051724dd38e6e26e3de",
       "fingerprint": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
       "rootCause": "orchestration",
       "rule": "block-preflight-recursion",
@@ -2008,7 +2008,7 @@
       "lastSeenAt": "2026-09-19T22:47:14Z"
     },
     {
-      "id": "10k-anti-cancelled-as-bug",
+      "id": "8d639c8d61d5902318f9",
       "fingerprint": "10k-anti-cancelled-as-bug",
       "rootCause": "10k-retrospective",
       "rule": "cancelled-run-classification",
@@ -2038,7 +2038,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-anti-downstream-first",
+      "id": "64ca2ffcb428a57e3e32",
       "fingerprint": "10k-anti-downstream-first",
       "rootCause": "10k-retrospective",
       "rule": "first-causal-before-downstream",
@@ -2068,7 +2068,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-anti-external-mutation",
+      "id": "37b1395e32e08f02f03a",
       "fingerprint": "10k-anti-external-mutation",
       "rootCause": "10k-retrospective",
       "rule": "external-provider-separation",
@@ -2098,7 +2098,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-anti-stale-proof",
+      "id": "68b7e417718561e4039d",
       "fingerprint": "10k-anti-stale-proof",
       "rootCause": "10k-retrospective",
       "rule": "supersession-invalidates-proof",
@@ -2128,7 +2128,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-anti-identical-recursion",
+      "id": "85708aff5f2449e987c2",
       "fingerprint": "10k-anti-identical-recursion",
       "rootCause": "10k-retrospective",
       "rule": "no-identical-recursion",
@@ -2158,7 +2158,7 @@
       "lastSeenAt": "2026-09-24T22:32:00Z"
     },
     {
-      "id": "10k-anti-red-counting",
+      "id": "7eebcc5ee6bcc5bd675c",
       "fingerprint": "10k-anti-red-counting",
       "rootCause": "10k-retrospective",
       "rule": "separate-supersession-metrics",
