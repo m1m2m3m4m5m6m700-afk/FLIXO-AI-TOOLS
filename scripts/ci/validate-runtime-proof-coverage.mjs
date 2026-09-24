@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const root = process.cwd();
 const env = (name, fallback = '') => String(process.env[name] ?? fallback).trim();
@@ -17,7 +19,7 @@ const closurePath = env('FLIXO_PROOF_HISTORICAL_CLOSURE_FILE', 'scripts/ci/runti
 const loadHistoricalClosure = () => {
   let raw;
   try {
-    raw = JSON.parse(require('node:fs').readFileSync(require('node:path').join(root, closurePath), 'utf8'));
+    raw = JSON.parse(fs.readFileSync(path.join(root, closurePath), 'utf8'));
   } catch {
     return new Map();
   }
