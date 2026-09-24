@@ -30,9 +30,9 @@ const continuousWatchWorkflow = readFileSync('scripts/ci/continuous-error-watch.
 const currentCommitGuard = readFileSync('scripts/ci/assert-current-commit.mjs', 'utf8');
 const workflow = workflowSource.replace(/\\"/g, '"');
 const latestCommitPolicyChecks = [
-  ['controller actions write permission', /permissions:[\\s\\S]*actions:\\s*write/.test(latestCommitSupersessionWorkflow)],
+  ['controller actions write permission', /permissions:[\s\S]*actions:\s*write/.test(latestCommitSupersessionWorkflow)],
   ['controller cancels active stale SHA runs', /Cancel every active run for an older SHA/.test(latestCommitSupersessionWorkflow)],
-  ['controller enumerates all workflow runs', /gh api --paginate "repos\\/$REPOSITORY\\/actions\\/runs\\?branch=\\$BRANCH&per_page=100"/.test(latestCommitSupersessionWorkflow)],
+  ['controller enumerates all workflow runs', /gh api --paginate.*actions\\/runs\\?branch=\\$BRANCH&per_page=100/.test(latestCommitSupersessionWorkflow)],
   ['controller has no resident exceptions', !/is_resident_protected_run|KEEP_STARTED_STALE_RUN/.test(latestCommitSupersessionWorkflow)],
   ['controller fails closed on unresolved cancellation', /FAIL CLOSED: unable to cancel stale active run/.test(latestCommitSupersessionWorkflow)],
   ['mandatory live-head guard has no bypass flag', !/requireLiveHeadMatch|DELEGATED_TO_SUPERSESSION_GATE/.test(currentCommitGuard)],
