@@ -66,6 +66,12 @@ jobs:
           test "$ACTUAL_WATCHDOG_SHA" = "$TRUSTED_MAIN_SHA"
           echo "WATCHDOG_CHECKOUT_MODE=TRUSTED_MAIN"
           echo "WATCHDOG_TRUSTED_SOURCE_SHA=$TRUSTED_MAIN_SHA"
+      - name: Cancel stale workflow_run source
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/ci/assert-workflow-run-current.mjs
+
       - name: Capture exact execution state
         id: source
         env:
