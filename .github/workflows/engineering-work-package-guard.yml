@@ -14,7 +14,7 @@ env:
     # New verification epoch begins after the stabilized mutation/liveness boundary at 4cb500.
   # Historical proof/work-package debt is preserved in prior history; no history is rewritten.
   FLIXO_WP_BASE_SHA: 4cb5008967b2195207dba91338e462256dd9c13a
-  FLIXO_PROOF_BASE_SHA: 4cb5008967b2195207dba91338e462256dd9c13a
+  FLIXO_PROOF_BASE_SHA: 6b2a31c03a8eb42b047a8df7c1d2aa0827c005a7
 
 jobs:
   work-package-guard:
