@@ -6,7 +6,6 @@ import { execFileSync } from 'node:child_process';
 
 const ROOT = process.cwd();
 const DIST = path.join(ROOT, 'dist');
-const ASSETS = path.join(DIST, 'assets');
 const budget = JSON.parse(fs.readFileSync(path.join(ROOT, 'performance-budget.json'), 'utf8'));
 
 const expectedSha = (process.env.EXPECTED_SHA ?? '').trim();
@@ -20,7 +19,6 @@ walk(DIST, '', files);
 
 const bytesByExt = (ext) => files.filter((f) => f.rel.endsWith(ext)).reduce((sum, f) => sum + f.size, 0);
 const jsFiles = files.filter((f) => f.rel.startsWith('assets/') && f.rel.endsWith('.js'));
-const cssFiles = files.filter((f) => f.rel.startsWith('assets/') && f.rel.endsWith('.css'));
 const allAssetFiles = files.filter((f) => f.rel.startsWith('assets/'));
 
 const indexHtml = fs.readFileSync(path.join(DIST, 'index.html'), 'utf8');
