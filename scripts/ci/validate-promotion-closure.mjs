@@ -6,7 +6,8 @@ const expectedSha = process.env.EXPECTED_SHA || '';
 const runsPath = process.env.EXACT_RUNS_PATH || '/tmp/exact-runs.json';
 const statusPath = process.env.EXACT_STATUS_PATH || '/tmp/exact-status.json';
 const checksPath = process.env.EXACT_CHECKS_PATH || '/tmp/exact-check-runs.json';
-const livePath = process.env.LIVE_RUNTIME_EVIDENCE_PATH || 'docs/runtime/council-live-runtime-evidence.json';\nconst vercelPath = process.env.VERCEL_DEPLOYMENT_EVIDENCE_PATH || 'docs/runtime/vercel-deployment-evidence.json';
+const livePath = process.env.LIVE_RUNTIME_EVIDENCE_PATH || 'docs/runtime/council-live-runtime-evidence.json';;
+const vercelPath = process.env.VERCEL_DEPLOYMENT_EVIDENCE_PATH || 'docs/runtime/vercel-deployment-evidence.json';
 const outputPath = process.env.EVIDENCE_OUTPUT_PATH || '/tmp/flixo-promotion-evidence.json';
 
 const requiredWorkflows = [
