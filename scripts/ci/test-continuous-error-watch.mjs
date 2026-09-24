@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { evaluateGreen, classifyCancelledRun, validateRepairTarget } from './continuous-error-watch.mjs';
+import { evaluateGreen, classifyCancelledRun, validateRepairTarget, classifyAutomationOutcome } from './continuous-error-watch.mjs';
 import { deriveRepairIdentity } from './repair-control-plane.mjs';
 
 const SHA_A = 'a'.repeat(40);
@@ -38,6 +38,12 @@ const successorRun = { ...run('FLIXO Test Impact Execution', 41, 'success'), upd
 assert.equal(classifyCancelledRun(cancelledRun, [cancelledRun, successorRun]).state, 'CANCELLED_SUPERSEDED');
 assert.equal(classifyCancelledRun(cancelledRun, [cancelledRun]).state, 'CANCELLED_UNSUPERSEDED');
 
+for (const conclusion of ['success', 'failure', 'timed_out', 'cancelled', 'skipped', 'neutral', 'action_required']) {
+  const outcome = classifyAutomationOutcome({ status: 'completed', conclusion });
+  assert.ok(['GREEN', 'RED'].includes(outcome));
+  assert.equal(outcome, conclusion === 'success' ? 'GREEN' : 'RED');
+}
+
 assert.equal(validateRepairTarget({
   run: {
     databaseId: 10000,
@@ -70,6 +76,18 @@ assert.equal(validateRepairTarget({
   executionSha: SHA_A,
   workflowRuns: [],
   logs: { 50: 'EVIDENCE_CAPTURE=AVAILABLE\ninternal failure' },
+}).valid, true);
+assert.equal(validateRepairTarget({
+  run: { ...run('FLIXO Test Impact Execution', 58, 'skipped'), headBranch: 'execution' },
+  executionSha: SHA_A,
+  workflowRuns: [],
+  logs: { 58: 'EVIDENCE_CAPTURE=AVAILABLE\nskipped required test run' },
+}).valid, true);
+assert.equal(validateRepairTarget({
+  run: { ...run('FLIXO Test Impact Execution', 59, 'neutral'), headBranch: 'execution' },
+  executionSha: SHA_A,
+  workflowRuns: [],
+  logs: { 59: 'EVIDENCE_CAPTURE=AVAILABLE\nneutral required test run' },
 }).valid, true);
 assert.equal(validateRepairTarget({
   run: { ...run('FLIXO Test Impact Execution', 51, 'failure'), headBranch: 'main' },

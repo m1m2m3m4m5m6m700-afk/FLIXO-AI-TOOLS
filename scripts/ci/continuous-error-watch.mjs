@@ -105,10 +105,10 @@ const latestCheck = (checks, patterns) => latestBy(checks, (check) => patterns.s
 const stateOf = (item) => !item ? 'MISSING' : item.status === 'completed' ? (item.conclusion ?? 'unknown') : (item.status ?? 'unknown');
 
 export const classifyAutomationOutcome = (item) => {
-  const state = stateOf(item);
-  if (state === 'success') return 'GREEN';
-  if (['queued', 'in_progress', 'pending'].includes(state)) return 'WAITING';
-  return 'RED';
+  // Terminal automation has exactly two outcomes for bots/certification:
+  // GREEN only on explicit success; every other outcome is RED.
+  // Lifecycle details remain available through stateOf() and are never terminal outcomes.
+  return stateOf(item) === 'success' ? 'GREEN' : 'RED';
 };
 const exactShaOfCheck = (check) => {
   if (!check) return null;
@@ -140,7 +140,10 @@ export function classifyCancelledRun(run, runs = []) {
 export function validateRepairTarget({ run, executionSha, workflowRuns = [], logs = {}, branch = 'execution' } = {}) {
   const errors = [];
   if (!run?.databaseId) errors.push('TARGET_MISSING');
-  if (!run || run.status !== 'completed' || !['failure', 'timed_out'].includes(run.conclusion)) errors.push('TARGET_NOT_FAILED_COMPLETED');
+  const repairableRedConclusions = new Set(['failure', 'timed_out', 'skipped', 'neutral']);
+  if (!run || run.status !== 'completed' || !repairableRedConclusions.has(run.conclusion)) {
+    errors.push('TARGET_NOT_FAILED_COMPLETED');
+  }
   if (run?.conclusion === 'cancelled') errors.push('TARGET_CANCELLED_NOT_SOURCE_FAILURE');
   if (run?.headSha !== executionSha) errors.push('TARGET_SHA_MISMATCH');
   if ((run?.headBranch ?? null) !== branch) errors.push('TARGET_BRANCH_MISMATCH');

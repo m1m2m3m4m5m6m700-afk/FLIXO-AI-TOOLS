@@ -55,6 +55,7 @@ const failedRuns = workflowRuns
   .filter((run) => run.headSha === executionSha);
 
 const byRunId = new Map(failedRuns.map((run) => [String(run.databaseId), run]));
+const terminalOutcome = (conclusion) => String(conclusion ?? '').toLowerCase() === 'success' ? 'GREEN' : 'RED';
 
 const checkFailures = checkRuns
   .filter((check) => check.status === 'completed')
@@ -77,6 +78,7 @@ const normalizeIssue = ({ run = null, check = null, error = null } = {}) => {
     checkRunId,
     workflow: run?.workflowName ?? run?.name ?? check?.name ?? 'unknown',
     conclusion: run?.conclusion ?? check?.conclusion ?? error?.type ?? 'unknown',
+    terminalOutcome: terminalOutcome(run?.conclusion ?? check?.conclusion ?? error?.type),
     headSha: run?.headSha ?? executionSha,
     fingerprint,
     log: evidence.slice(0, 8000),
@@ -85,6 +87,8 @@ const normalizeIssue = ({ run = null, check = null, error = null } = {}) => {
 };
 
 const issueCandidates = [];
+// Binary terminal contract: only GREEN/DONE or RED/REPAIR.
+// SKIPPED and NEUTRAL are normalized to RED and remain actionable.
 for (const run of failedRuns) {
   const matchingChecks = checkFailures.filter((check) => {
     const details = String(check.details_url ?? '');
