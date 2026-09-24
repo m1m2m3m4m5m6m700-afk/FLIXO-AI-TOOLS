@@ -205,10 +205,16 @@ function evidenceShaIsStale(query) {
 export function classifyCausalEvidence(input = {}) {
   const query = buildCausalQuery(input);
   const combined = normalizedText(query.searchText);
+  const branchIdentityMismatch = (
+    /test\s+"(?!execution")[^"]+"\s*=\s*"execution"/u.test(combined) ||
+    /test\s+"execution"\s*=\s*"(?!execution")[^"]+"/u.test(combined) ||
+    containsAny(combined, ['branch identity mismatch', 'expected_branch mismatch', 'head_ref mismatch'])
+  );
   const superseded = (
     ['MOVED', 'SUPERSEDED', 'STALE', 'LIVE_HEAD_MOVED'].includes(query.shaState) ||
     containsAny(query.cancellationReason, ['supersed', 'cancelled because', 'cancelled due to', 'newer sha', 'replacement sha']) ||
     containsAny(combined, ['live_head_moved=1', 'live_head_match=0']) ||
+    branchIdentityMismatch ||
     evidenceShaIsStale(query)
   );
   if (superseded) {
