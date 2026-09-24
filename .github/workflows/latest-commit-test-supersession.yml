@@ -110,6 +110,7 @@ jobs:
                 ;;
               # Heartbeat protection is status-sensitive: queued/pending stale Heartbeats
               # are supersedable, while started Heartbeats remain immutable evidence.
+              # Preserve started runs as immutable evidence; only queued/pending stale work is supersedable.
               "FLIXO Agent Repair Heartbeat")
                 return 1
                 ;;
