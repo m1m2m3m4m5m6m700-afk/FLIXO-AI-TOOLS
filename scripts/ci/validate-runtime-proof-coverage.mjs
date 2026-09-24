@@ -17,7 +17,7 @@ const commits = commitList.map((sha) => {
   const changed = run(['diff-tree', '--no-commit-id', '--name-only', '-r', sha]).split('\n').filter(Boolean);
   const sensitiveChanged = changed.filter((p) => sensitive.test(p));
   const proofChanged = changed.filter((p) => proof.test(p));
-  const verifierSource = run(['show', 'scripts/ci/verify-council-live-runtime.mjs:' + sha]);
+  const verifierSource = run(['show', sha + ':scripts/ci/verify-council-live-runtime.mjs']);
   const selfProvingVerifierChange = sensitiveChanged.length > 0 &&
     sensitiveChanged.every((p) => p === 'scripts/ci/verify-council-live-runtime.mjs') &&
     proofChanged.length === 0 &&
