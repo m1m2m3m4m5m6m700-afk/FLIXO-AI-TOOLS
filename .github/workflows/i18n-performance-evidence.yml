@@ -1,0 +1,61 @@
+name: FLIXO i18n Performance Evidence
+
+on:
+  push:
+    branches:
+      - 'chore/**'
+      - 'feature/**'
+  workflow_dispatch:
+
+concurrency:
+  group: flixo-i18n-performance-${{ github.sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    name: Exact-SHA i18n + performance evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      EXPECTED_SHA: ${{ github.sha }}
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Verify exact checkout SHA
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Run exact build
+        run: npm run build
+      - name: Analyze i18n chunks and performance budgets
+        run: node scripts/ci/analyze-i18n-performance.mjs
+      - name: Run full repository check
+        run: npm run check
+      - name: Verify report identity
+        run: |
+          set -euo pipefail
+          test -s diagnostics/i18n/i18n-build-report.json
+          test -s diagnostics/i18n/performance-budget-report.md
+          node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("diagnostics/i18n/i18n-build-report.json","utf8")); if(x.exactSha!==process.env.EXPECTED_SHA) throw new Error("REPORT_SHA_MISMATCH"); if(x.status!=="PASS") throw new Error("REPORT_NOT_GREEN");'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a0
+        if: always()
+        with:
+          name: flixo-i18n-performance-evidence-${{ github.sha }}
+          path: |
+            diagnostics/i18n/
+            dist/
+          if-no-files-found: error
+          retention-days: 14
