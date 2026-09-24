@@ -18,12 +18,14 @@ The unified merge gate requires the canonical Test System and protected CI/secur
 
 The durable task-history ledger is append-only: retries, corrections, and reversals are represented as new records rather than edits to historical records. The repair-attempt ledger is a bounded working-state structure and is not treated as the immutable historical authority.
 
+The home-route AI agent is interaction-gated in addition to React lazy loading; initial page render does not mount the AI agent component.
+
 ## Residual findings
 
 | Severity | Finding | Impact | Status |
 |---|---|---|---|
 | MEDIUM | `/api/flixo-agent` is publicly reachable without an independently enforced distributed quota/rate-limit layer in this code path. | A hostile caller could issue repeated valid requests and consume provider quota/cost even though secrets remain server-side. | OPEN — add a durable server-side quota/rate-limit control before unrestricted public AI usage |
-| LOW | The client agent shell is lazy at the route boundary but remains a visible home feature; its heavy QuickFlow/AI imports become loadable when that lazy component is rendered. | Code-splitting is present, but strict interaction-gated loading could reduce initial JavaScript further. | OPEN performance follow-up; not an execution-safety defect |
+| LOW | Initial home-route rendering could have requested the AI agent chunk immediately despite code-splitting. | Interaction-gated loading now prevents the AI agent module from rendering/loading until explicit user activation. | PATCHED; fresh exact-SHA CI required |
 
 ## Security closure rule
 

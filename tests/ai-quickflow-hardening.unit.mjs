@@ -139,6 +139,10 @@ assert.doesNotMatch(csp, /api\.openai\.com|openrouter\.ai|generativelanguage\.go
 
 const homeSource = fs.readFileSync(path.join(repoRoot, 'src/routes/home-page.tsx'), 'utf8');
 assert.match(homeSource, /lazy\(\(\) => import\('\.\.\/components\/FlixoAIAgent'/u);
+assert.match(homeSource, /const \[aiAgentOpen, setAiAgentOpen\] = useState\(false\);/u);
+assert.match(homeSource, /aiAgentOpen \?/u);
+assert.match(homeSource, /setAiAgentOpen\(true\)/u);
+assert.doesNotMatch(homeSource, /<Suspense[^>]*>\s*<FlixoAIAgent/u);
 assert.doesNotMatch(homeSource, /from ['"](?:\.\.\/)+lib\/ai/u);
 
 console.log('AI_QUICKFLOW_HARDENING=PASS');
