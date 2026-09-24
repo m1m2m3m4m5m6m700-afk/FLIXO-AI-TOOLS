@@ -264,7 +264,7 @@ assert.doesNotMatch(heartbeatWorkflow,/gh workflow run agent-repair-heartbeat\.y
 const watchdogWorkflow=fs.readFileSync(path.resolve(process.cwd(),'.github/workflows/execution-bot-watchdog.yml'),'utf8');
 assert.match(watchdogWorkflow,/workflow_run:/u);
 assert.match(watchdogWorkflow,/schedule:/u);
-assert.match(watchdogWorkflow,/cron:\s*'\\*/5 \* \* \* \*'/u);
+assert.match(watchdogWorkflow,/cron:\s*'\*\/5 \* \* \* \*'/u);
 assert.match(watchdogWorkflow,/Ensure resident Heartbeat window exists/u);
 assert.match(watchdogWorkflow,/ACTIVE_HEARTBEATS=.*headSha/u);
 assert.match(watchdogWorkflow,/RESIDENT_HEARTBEAT_DISPATCH=NOOP_ACTIVE/u);
