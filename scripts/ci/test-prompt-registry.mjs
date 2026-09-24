@@ -353,4 +353,36 @@ const freshness = retrieveCausalLearning({
 });
 assert.equal(freshness.lessons[0].id, 'fresh-memory');
 
+const branchDrift = classifyCausalEvidence({
+  normalizedFailure: 'test "chore/cleanup-redundant-foundation-docs" = "execution"',
+});
+assert.equal(branchDrift.classification, 'STALE');
+assert.equal(branchDrift.nextAction, 'WAIT_FOR_FRESH_SHA');
+assert.equal(branchDrift.mutationEligible, false);
+
+const actionResolution = classifyCausalEvidence({
+  normalizedFailure: 'Error: Unable to resolve action \`actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0\`, provided ref is a shortened commit SHA',
+});
+assert.equal(actionResolution.classification, 'EXTERNAL');
+assert.equal(actionResolution.nextAction, 'BLOCKED_EXTERNAL');
+
+const certificationContract = classifyCausalEvidence({
+  normalizedFailure: 'Error: CI/CD TRUST FAILURE: canonical certification-surface validator failed: schema_version=10',
+});
+assert.equal(certificationContract.classification, 'CONTRACT');
+assert.equal(certificationContract.nextAction, 'REPAIR');
+
+const explicitInternal = classifyCausalEvidence({
+  normalizedFailure: '##[error]src/config/canonical-tool-definition.ts(40,225): error TS2322: type is not assignable to type',
+});
+assert.equal(explicitInternal.classification, 'INTERNAL');
+assert.equal(explicitInternal.nextAction, 'REPAIR');
+
+const ambiguousRunner = classifyCausalEvidence({
+  normalizedFailure: 'Current runner version: 2.337.0 Ubuntu 24.04 hosted compute agent',
+});
+assert.equal(ambiguousRunner.classification, 'UNKNOWN');
+assert.equal(ambiguousRunner.nextAction, 'TARGETED_PROBE');
+
+console.log('CAUSAL_RCA_REGRESSION_GUARDS=PASS');
 console.log('CAUSAL_RCA_HELDOUT_BENCHMARK=' + JSON.stringify(benchmark));
