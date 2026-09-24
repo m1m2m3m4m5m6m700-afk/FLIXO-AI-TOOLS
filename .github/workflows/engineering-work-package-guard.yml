@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  FLIXO_WP_BASE_SHA: 3ce11b36b805e5544cd1abe43465310f0da5112e
+  FLIXO_WP_BASE_SHA: fddba49348fa48e65be4f0ed28ba07c8a8af8d9f
   FLIXO_PROOF_BASE_SHA: 3ce11b36b805e5544cd1abe43465310f0da5112e
 
 jobs:
