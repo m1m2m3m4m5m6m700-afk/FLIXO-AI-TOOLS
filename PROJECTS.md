@@ -471,11 +471,11 @@ ISOLATION = contents:read / no source mutation / no ledger mutation / no peer wa
 NEXT = Run the isolated triad against a chosen exact SHA and inspect its three evidence artifacts.
 
 ## WAVE5 — ROUTING / MEMORY / LEARNING / ERROR INTELLIGENCE / KNOWLEDGE / SIMULATION
-STATUS = IMPLEMENTED / C4-PASS / GOVERNANCE-BLOCKED
+STATUS = IMPLEMENTED / PRIOR-BASELINE-C4 / CURRENT-HEAD-VERIFICATION-PENDING / GOVERNANCE-BLOCKED
 OWNER = AGENT-3
 BRANCH = execution
 SCOPE = CELL-041..050
-CURRENT_EXECUTION_HEAD = 41d44f132fa27892155fa0ab47fb1452b908b380
+CURRENT_EXECUTION_HEAD = a3bb3dcf7c0cab9f20feaa1b5f81087dc8d2b65a
 IMPLEMENTATION = src/lib/agent/swarm/learning-memory-routing.ts
 TARGETED_TEST = scripts/ci/test-swarm-learning-memory-routing.mjs
 CANONICAL_MEMORY_BASE = src/lib/agent/knowledge/types.ts + existing knowledge/memory surfaces
@@ -486,7 +486,7 @@ LEARNING = Mission Result Contract + provisional/verified/anti-lesson/blocking/r
 ERROR INTELLIGENCE = failure fingerprinting + RCA chain + synthesis + hypothesis + prediction
 SIMULATION = replay + failure injection + drift + non-authoritative evidence
 EVIDENCE = every knowledge/observation/RCA/simulation record binds to exact SHA; memory advisory only
-CURRENT_VERIFICATION = canonical C4 PASS on 41d44f132fa27892155fa0ab47fb1452b908b380; Work Package Governance remains RED, so overall release GREEN is not granted
+CURRENT_VERIFICATION = previous baseline 41d44f132fa27892155fa0ab47fb1452b908b380 had C4 PASS; current execution head a3bb3dcf7c0cab9f20feaa1b5f81087dc8d2b65a is awaiting its own completed exact-SHA Certification; Work Package Governance remains RED
 HANDOFF_BOUNDARY = Agent-1 for authority/governance/CI/certification; Agent-2 for runtime/features/tests/repair executor
 
 

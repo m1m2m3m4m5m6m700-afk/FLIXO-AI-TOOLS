@@ -29,3 +29,7 @@ commit -> Test System -> FAST -> DEEP -> Certification -> certification artifact
 ## Decision
 
 Production promotion is NOT CLOSED. The browser/C4 layer is green, but the literal verify gate, governance guard, and production deployment provenance are not fully closed.
+
+## Current-head validity update — 2026-09-24
+
+Execution advanced after the certified baseline. Current execution head is a3bb3dcf7c0cab9f20feaa1b5f81087dc8d2b65a. A new canonical Test System run 35960443215 is currently in progress. The C4 result recorded in this report is therefore baseline evidence for 41d44f132fa27892155fa0ab47fb1452b908b380 only; it must not be transferred to a3bb3dcf until its own completed exact-SHA Certification succeeds.
