@@ -44,6 +44,70 @@ for (const marker of [
 
 assert.match(sql, /security definer[\s\S]*?set search_path = public, pg_catalog/iu);
 
+const accountTableStart = sql.indexOf('create table if not exists public.flix_council_accounts');
+const accountTableEnd = sql.indexOf('\n);', accountTableStart);
+assert.ok(accountTableStart >= 0 && accountTableEnd > accountTableStart, 'Council accounts table definition missing');
+
+const accountTable = sql.slice(accountTableStart, accountTableEnd + 3);
+let parenDepth = 0;
+let inString = false;
+for (let i = 0; i < accountTable.length; i += 1) {
+  const char = accountTable[i];
+  if (char === "'" ) {
+    if (inString && accountTable[i + 1] === "'") {
+      i += 1;
+      continue;
+    }
+    inString = !inString;
+    continue;
+  }
+  if (inString) continue;
+  if (char === '(') parenDepth += 1;
+  if (char === ')') parenDepth -= 1;
+  assert.ok(parenDepth >= 0, 'Council accounts table has unbalanced closing parenthesis');
+}
+assert.equal(inString, false, 'Council accounts table has an unterminated SQL string literal');
+assert.equal(parenDepth, 0, 'Council accounts table has unbalanced parentheses');
+assert.match(sql, /current_execution_sha text check \(current_execution_sha is null or current_execution_sha ~ '\^\[0-9a-f\]\{40\}\
+for (const marker of [
+  'FLIXO_COUNCIL_WAKE_FALLBACK',
+  'WAKE_PUSH_FAILED',
+  'council_recover_expired_dispatches',
+  'EXTERNAL_COUNCIL_GUARDIAN_V3',
+  'LEASE_EXPIRED_GUARDIAN_RECOVERY',
+  'NO_FRESH_RECOVERY_RUNTIME',
+  'resident-heartbeat',
+  'COUNCIL_ASSISTANT_QUERY_CREDENTIAL_FORBIDDEN',
+  'COUNCIL_EXTERNAL_WATCHER_MAIN_REF_REJECTED',
+  'COUNCIL_EXTERNAL_WATCHER_WORKFLOW_SHA_MISMATCH',
+]) {
+  assert.ok(runtime.includes(marker), 'Missing runtime recovery/wake/security marker: ' + marker);
+}
+
+for (const functionName of [
+  'council_recover_expired_dispatches',
+  'council_claim_dispatch',
+  'council_ack_dispatch',
+  'council_heartbeat_dispatch',
+  'flixo_automation_watchdog_tick',
+]) {
+  const count = (migration.match(new RegExp('create or replace function public\\.' + functionName + '\\b', 'g')) || []).length;
+  assert.equal(count, 1, 'Migration must define exactly one ' + functionName);
+}
+assert.match(migration, /current_execution_sha\s*~\s*'\^\[0-9a-f\]\{40\}\$'/);
+assert.match(migration, /last_heartbeat_at/);
+assert.match(migration, /current_execution_sha = p_exact_sha/);
+assert.match(migration, /recoveryState.*RECOVERED/);
+assert.match(migration, /recoveryState.*BLOCKED/);
+assert.match(migration, /recoveryState.*FAILED_TERMINAL/);
+assert.doesNotMatch(migration, /current_execution_sha ~ '\^\[0-9a-f\]\{40\}create or replace function/);
+assert.doesNotMatch(migration, /\$block\$;\s*then\s+raise exception/);
+
+console.log('COUNCIL_RPC_CONTRACT=PASS');
+\),/u);
+assert.match(sql, /metadata jsonb not null default '\{\}'::jsonb,/u);
+assert.doesNotMatch(sql, /current_execution_sha[^\n]*\^\[0-9a-f\]\{40\}\}\s+jsonb\s+not\s+null/u);
+
 for (const marker of [
   'FLIXO_COUNCIL_WAKE_FALLBACK',
   'WAKE_PUSH_FAILED',
