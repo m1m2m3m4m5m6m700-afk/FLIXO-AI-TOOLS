@@ -27,6 +27,22 @@
       "peerWake": false,
       "sharedWorkspace": false,
       "evidence": "ARTIFACT_ONLY"
+    },
+    "uncertaintyModel": {
+      "enabled": true,
+      "version": "EPISTEMIC-UNCERTAINTY-v1",
+      "method": "STATIC_RULE_MATCH_STRENGTH",
+      "findingFields": [
+        "confidence",
+        "uncertainty",
+        "confidenceLevel",
+        "uncertaintyLevel",
+        "counterevidence",
+        "discriminatingTests"
+      ],
+      "cleanScanPolicy": "NO_FINDINGS_IS_NOT_PROOF_OF_ABSENCE",
+      "unresolvedState": "FAIL_CLOSED_FOR_CERTIFICATION",
+      "humanSupervisorRequired": true
     }
   },
   "repairIntelligence": {
@@ -101,6 +117,9 @@
     "EVERY_NEW_FINDING_MUST_BE_WRITTEN_TO_THE_IMMUTABLE_WORKFLOW_EVIDENCE",
     "REDTEAM_RECORDERS_MUST_NOT_MUTATE_GIT_REFS",
     "REPAIR_INTELLIGENCE_IS_ADVISORY_ONLY",
-    "AUTOMATIC_EXECUTION_PUSH_SCAN"
+    "AUTOMATIC_EXECUTION_PUSH_SCAN",
+    "EVERY_FINDING_MUST_CARRY_EXPLICIT_CONFIDENCE_AND_UNCERTAINTY",
+    "NO_FINDINGS_DOES_NOT_MEAN_NO_RISK",
+    "UNRESOLVED_UNCERTAINTY_REMAINS_VISIBLE_UNTIL_DISCRIMINATING_EVIDENCE"
   ]
 }
