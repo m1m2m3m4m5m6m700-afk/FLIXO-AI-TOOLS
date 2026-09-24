@@ -43,7 +43,7 @@ const { en: EN_DICTIONARY } = await importTs('src/lib/i18n/locales/en.ts');
 const localeQuality = await importTs('src/lib/i18n/locale-quality-overrides.ts');
 const homeData = await importTs('src/data/home-locales.ts');
 const quickData = await importTs('src/data/quickflow-locales.ts');
-const toolUi = await importTs('src/data/tool-ui-i18n.ts');
+const toolUiLoader = await importTs('src/lib/i18n/tool-ui-loader.ts');
 const { TOOLS_REGISTRY } = await importTs('src/config/tools.ts');
 const { getAuthoritativeToolSeoName } = await importTs('src/config/tool-seo-name-resolver.ts');
 
@@ -51,7 +51,7 @@ const effectiveHome = (locale) => ({ ...(homeData.getHomeCopy(locale) ?? {}), ..
 const effectiveQuick = (locale) => ({ ...(quickData.QUICKFLOW_LOCALES[locale] ?? {}), ...(localeQuality.QUICKFLOW_COPY_OVERRIDES[locale] ?? {}) });
 const requiredHome = Object.keys(homeData.getHomeCopy('en'));
 const requiredQuick = Object.keys(quickData.QUICKFLOW_LOCALES.en);
-const requiredUi = Object.keys(toolUi.TOOL_UI_I18N.en);
+const requiredUi = Object.keys(await toolUiLoader.loadToolUiCopy('en'));
 const targets = requestedLocale ? [requestedLocale] : CANONICAL_LOCALES;
 if (requestedLocale && !CANONICAL_LOCALES.includes(requestedLocale)) issue.push(`runtime | registry | runtime | unsupported requested locale: ${requestedLocale}`);
 
@@ -77,11 +77,12 @@ for (const locale of targets) {
   for (const key of requiredQuick) if (!(key in quick) || quick[key] == null || (typeof quick[key] === 'string' && !norm(quick[key]))) issue.push(`${locale} | missing | QuickFlow | missing ${key}`);
   compare(effectiveQuick('en'), quick, locale, 'QuickFlow');
 
-  const ui = toolUi.TOOL_UI_I18N[locale];
+  const ui = await toolUiLoader.loadToolUiCopy(locale);
   if (!ui) issue.push(`${locale} | missing | Tool UI | missing locale entry`);
   else {
     for (const key of requiredUi) if (!(key in ui) || !norm(ui[key])) issue.push(`${locale} | missing | Tool UI | missing ${key}`);
-    compare(toolUi.TOOL_UI_I18N.en, ui, locale, 'Tool UI');
+    const referenceUi = await toolUiLoader.loadToolUiCopy('en');
+    compare(referenceUi, ui, locale, 'Tool UI');
   }
 
   for (const tool of TOOLS_REGISTRY) {
