@@ -81,7 +81,7 @@ function scanRemoteRefs(file, source) {
   if (refPost.test(source) && file !== 'scripts/ci/repair-lease.mjs') add(file, 'GITHUB_REF_CREATION_OUTSIDE_REPAIR_LEASE', 'POST to Git refs API', 1);
   if (file === 'scripts/ci/repair-lease.mjs') {
     if (source.includes("method: 'POST'") && !source.includes('REPAIR_LEASE_REF_TYPE_BLOCKED')) add(file, 'REPAIR_LEASE_REF_TYPE_GUARD_MISSING', 'missing hard ref-type guard', 1);
-    if (!source.includes('^refs\/tags\/')) add(file, 'REPAIR_LEASE_TAG_ONLY_PATTERN_MISSING', 'missing refs/tags-only pattern', 1);
+    if (!/\^refs\\\/tags\\\//u.test(source)) add(file, 'REPAIR_LEASE_TAG_ONLY_PATTERN_MISSING', 'missing refs/tags-only pattern', 1);
   }
   if (/(?:gh\s+api|curl|wget)[^\n]*(?:--method\s+POST|-X\s+POST)[^\n]*\/git\/refs\/heads\//iu.test(source)) add(file, 'GITHUB_BRANCH_REF_CREATE_FORBIDDEN', 'direct POST to refs/heads/*', 1);
   if (/\b(?:createBranch|createRef)\s*\(/u.test(source) && file !== 'scripts/ci/repair-lease.mjs') add(file, 'GITHUB_CREATE_REF_PRIMITIVE_FORBIDDEN', 'runtime createBranch/createRef primitive', 1);
