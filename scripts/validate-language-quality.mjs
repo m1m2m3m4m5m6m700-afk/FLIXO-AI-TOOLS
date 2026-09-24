@@ -27,7 +27,7 @@ for (const locale of locales) {
 
 const home = read(`${root}/src/data/home-locales.ts`);
 const quickflow = read(`${root}/src/data/quickflow-locales.ts`);
-const toolUi = read(`${root}/src/data/tool-ui-i18n.ts`);
+const toolUiSources = Object.fromEntries(locales.map((locale) => [locale, read(`${root}/src/data/tool-ui-locales/${locale}.ts`)]));
 const seoNames = read(`${root}/src/lib/i18n/tool-seo-localization.ts`);
 const overrides = read(`${root}/src/lib/i18n/locale-quality-overrides.ts`);
 
@@ -75,7 +75,7 @@ for (const locale of locales) {
   if (!quickEntry) fail(`QuickFlow: missing locale entry ${locale}`);
   else for (const key of quickflowKeys) if (!quickEntry.includes(key)) fail(`QuickFlow ${locale}: missing ${key}`);
 
-  const uiEntry = objectBody(toolUi, locale);
+  const uiEntry = objectBody(toolUiSources[locale] ?? '', 'toolUi');
   if (!uiEntry) fail(`Tool UI: missing locale entry ${locale}`);
   else for (const key of toolUiKeys) if (!uiEntry.includes(key)) fail(`Tool UI ${locale}: missing ${key}`);
 }
