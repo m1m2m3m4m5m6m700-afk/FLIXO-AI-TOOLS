@@ -10,8 +10,8 @@ const threshold=Number(env('FLIXO_WP_BURST_THRESHOLD','8'));
 const bursts=[]; let b=[];
 for(const row of rows){if(!b.length||row.time-b[b.length-1].time<=windowMs)b.push(row);else{if(b.length>=threshold)bursts.push(b);b=[row];}}
 if(b.length>=threshold)bursts.push(b);
-const markerSingle=/(?:\[WP:(WP-[A-Za-z0-9][A-Za-z0-9._-]*)\]|(?:^|\s)(WP-[A-Za-z0-9][A-Za-z0-9._-]*)(?:\s|$))/;
-const markerGlobal=/(?:\[WP:(WP-[A-Za-z0-9][A-Za-z0-9._-]*)\]|(?:^|\s)(WP-[A-Za-z0-9][A-Za-z0-9._-]*)(?=\s|$))/g;
+const markerSingle=/(?:\[WP:(WP-[A-Za-z0-9][A-Za-z0-9._-]*)\]|(?<![A-Za-z0-9._-])(WP-[A-Za-z0-9][A-Za-z0-9._-]*)(?![A-Za-z0-9._-]))/;
+const markerGlobal=/(?:\[WP:(WP-[A-Za-z0-9][A-Za-z0-9._-]*)\]|(?<![A-Za-z0-9._-])(WP-[A-Za-z0-9][A-Za-z0-9._-]*)(?![A-Za-z0-9._-]))/g;
 const extractWorkPackages=subject=>[...String(subject).matchAll(markerGlobal)].map(m=>m[1]||m[2]).filter(Boolean);
 const burstWorkPackages=burst=>[...new Set(burst.flatMap(c=>extractWorkPackages(c.subject)))];
 const bad=bursts.filter(x=>burstWorkPackages(x).length!==1);
