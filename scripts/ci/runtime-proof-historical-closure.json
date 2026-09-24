@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "policy": "HISTORICAL_RUNTIME_PROOF_CLOSURE-v1",
+  "scope": "EXACT_SHA_ALLOWLIST_ONLY",
+  "entries": [
+    {
+      "commitSha": "baa6a6a8b3090a2168b2203afee462bf0a107d8b",
+      "sensitivePaths": [
+        "api/council/external-runtime.ts"
+      ],
+      "evidence": {
+        "workflow": "FLIXO Advanced Repair Contract",
+        "runId": 35962148525,
+        "jobId": 107512818670,
+        "conclusion": "success",
+        "independent": true,
+        "requiredSteps": [
+          "Run positive and negative contract tests",
+          "Run execution mutation gate regression tests",
+          "Validate the complete auto-repair mutation boundary",
+          "Validate strict Chair-1 central boundary",
+          "Run Chair-1 central lease adversarial attack matrix",
+          "Run 100-worker atomic lease race without GitHub write permission"
+        ]
+      },
+      "reason": "Historical sensitive runtime contract change predates the adjacent-proof guard and received independent exact-SHA Advanced Repair regression evidence on its own commit."
+    },
+    {
+      "commitSha": "9bad17db7eccc9e4b0efb252fa261b1b831b6ec2",
+      "sensitivePaths": [
+        "api/council/external-runtime.ts"
+      ],
+      "evidence": {
+        "workflow": "FLIXO Advanced Repair Contract",
+        "runId": 35962263436,
+        "jobId": 107513169014,
+        "conclusion": "success",
+        "independent": true,
+        "requiredSteps": [
+          "Run positive and negative contract tests",
+          "Run execution mutation gate regression tests",
+          "Validate the complete auto-repair mutation boundary",
+          "Validate strict Chair-1 central boundary",
+          "Run Chair-1 central lease adversarial attack matrix",
+          "Run 100-worker atomic lease race without GitHub write permission"
+        ]
+      },
+      "reason": "Historical sensitive runtime contract change predates the adjacent-proof guard and received independent exact-SHA Advanced Repair regression evidence on its own commit."
+    }
+  ]
+}
