@@ -35,7 +35,17 @@ const homeKeys = ['nav:', 'badge:', 'eyebrow:', 'heroTitle:', 'heroLead:', 'desc
 const quickflowKeys = ['missing:', 'back:', 'eyebrow:', 'runLabel:', 'choose:', 'processing:', 'result:', 'download:', 'chooseError:', 'failure:', 'running:', 'run:', 'resultAlt:', 'progress:'];
 const toolUiKeys = ['notFound:', 'loading:', 'language:', 'about:', 'howTo:', 'features:', 'navigation:', 'home:', 'ready:', 'waiting:', 'workspace:', 'favorite:', 'english:', 'arabic:', 'command:', 'openCommandPalette:', 'upload:', 'reset:', 'exportLabel:', 'localWorkspace:'];
 
-const entryBody = (source) => source;
+const entryBody = (source, locale, marker) => {
+  const startPattern = new RegExp(\`\\\\b${locale}:\\\\s*${marker}\\\\(\\\\{\`, 'u');
+  const match = startPattern.exec(source);
+  if (!match) return '';
+  const start = match.index + match[0].length;
+  const endPattern = /\\n\\s*[a-z]{2}:\\s*(?:copy|q)\\(\\{/gu;
+  endPattern.lastIndex = start;
+  const next = endPattern.exec(source);
+  const end = next ? next.index : source.indexOf('\\n};', start);
+  return source.slice(start, end === -1 ? source.length : end);
+};
 
 const objectBody = (source, locale) => new RegExp(`\\b${locale}:\\s*\\{([\\s\\S]*?)\\}`, 'u').exec(source)?.[1] ?? '';
 const extractString = (entry, key) => entry.match(new RegExp(`${key}['"]([^'"\\n]*)['"]`, 'u'))?.[1] ?? '';
@@ -57,7 +67,7 @@ const effectiveHomeValue = (locale, key, sourceValue) => {
 };
 
 for (const locale of locales) {
-  const homeEntry = entryBody(homeForLocale(locale));
+  const homeEntry = homeForLocale(locale);
   if (!homeEntry) fail(`Home: missing locale entry ${locale}`);
   else for (const key of homeKeys) if (!homeEntry.includes(key)) fail(`Home ${locale}: missing ${key}`);
 
@@ -70,12 +80,12 @@ for (const locale of locales) {
   else for (const key of toolUiKeys) if (!uiEntry.includes(key)) fail(`Tool UI ${locale}: missing ${key}`);
 }
 
-const englishHome = entryBody(homeForLocale('en'));
+const englishHome = homeForLocale('en');
 const englishQuick = entryBody(quickflow, 'en', 'q');
 const englishLeakKeys = ['badge:', 'heroLead:', 'describe:', 'searchLabel:', 'searchPlaceholder:', 'smartPalette:', 'popular:', 'quickDropTitle:', 'dropChoose:', 'dropSupport:', 'suggestedTool:', 'openTool:', 'toolboxTitle:', 'empty:', 'finalTitle:', 'finalLead:', 'trySmart:', 'browserMeta:'];
 
 for (const locale of locales.filter((value) => value !== 'en')) {
-  const entry = entryBody(homeForLocale(locale));
+  const entry = homeForLocale(locale);
   for (const key of englishLeakKeys) {
     const enValue = extractString(englishHome, key);
     const localizedValue = effectiveHomeValue(locale, key, extractString(entry, key));
