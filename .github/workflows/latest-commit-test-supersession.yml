@@ -10,7 +10,7 @@ on:
       - main
     types: [synchronize]
 
-# Central stale-run controller. Only queued/pending non-authoritative runs are cancelled; started runs remain as immutable evidence and are allowed to finish.
+# Central stale-run controller. Any stale non-protected test/verification run is superseded, including runs already in progress.
 concurrency:
   # One controller lane per source repository + branch. Push and PR synchronize events for the
   # same source branch share one supersession owner, while independent forks stay isolated.
@@ -135,14 +135,8 @@ jobs:
             local event="$5"
             echo "CANDIDATE stale run=$run_id sha=$head_sha name=$name event=$event listed_status=$status"
 
-            # Preserve started runs as immutable evidence. Only queued/pending stale work may be superseded.
             case "$status" in
-              queued|pending) ;;
-              in_progress)
-                echo "KEEP_STARTED_RUN run=$run_id name=$name status=$status"
-                echo "KEEP_STARTED_STALE_RUN run=$run_id name=$name status=$status"
-                return 0
-                ;;
+              queued|pending|in_progress) ;;
               *)
                 echo "STALE_RUN_NOT_ACTIONABLE run=$run_id status=$status"
                 return 0
@@ -228,13 +222,13 @@ jobs:
               exit 1
             fi
             printf '%s' "$RUNS_JSON" | jq '.' > /tmp/supersession-final-runs.json
-            stale_active="$(jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" --arg pattern 'Test|Repair|Verification|Contract|Security|Baseline|Certification|Impact|Code Scanning|CodeQL|Diagnostic|Proof|Scan|Heartbeat' '[.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession" and (.head_repository.full_name // "") == $sourceRepo and (.name | test($pattern)) and (.name != "FLIXO Agent Repair Supervisor" and .name != "FLIXO Master Agent Activation Relay" and .name != "FLIXO Master Repair Governor" and .name != "Daily·FLIXO Green Gate" and .name != "FLIXO Auto Repair Bot" and .name != "FLIXO Execution Bot Watchdog"))] | length' /tmp/supersession-final-runs.json)"
+            stale_active="$(jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" --arg pattern 'Test|Repair|Verification|Contract|Security|Baseline|Certification|Impact|Code Scanning|CodeQL|Diagnostic|Proof|Scan|Heartbeat' '[.workflow_runs[] | select((.status == "queued" or .status == "pending" or .status == "in_progress") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession" and (.head_repository.full_name // "") == $sourceRepo and (.name | test($pattern)) and (.name != "FLIXO Agent Repair Supervisor" and .name != "FLIXO Master Agent Activation Relay" and .name != "FLIXO Master Repair Governor" and .name != "Daily·FLIXO Green Gate" and .name != "FLIXO Auto Repair Bot" and .name != "FLIXO Execution Bot Watchdog"))] | length' /tmp/supersession-final-runs.json)"
             echo "STALE_ACTIVE_RUNS=$stale_active poll=$poll"
             if [ "$stale_active" -eq 0 ]; then break; fi
 
             # Re-scan inside the settle window because late dependent workflows can be
             # queued after an older in-progress run completes. Started runs remain immutable.
-            jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" --arg pattern 'Test|Repair|Verification|Contract|Security|Baseline|Certification|Impact|Code Scanning|CodeQL|Diagnostic|Proof|Scan|Heartbeat|Wake|Watchdog|Execution' '.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession" and (.head_repository.full_name // "") == $sourceRepo and (.name | test($pattern))) | select(.name != "FLIXO Agent Repair Supervisor" and .name != "FLIXO Master Agent Activation Relay" and .name != "FLIXO Master Repair Governor" and .name != "Daily·FLIXO Green Gate" and .name != "FLIXO Auto Repair Bot" and .name != "FLIXO Execution Bot Watchdog") | .id' /tmp/supersession-final-runs.json > /tmp/supersession-late-stale-ids.txt
+            jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" --arg pattern 'Test|Repair|Verification|Contract|Security|Baseline|Certification|Impact|Code Scanning|CodeQL|Diagnostic|Proof|Scan|Heartbeat|Wake|Watchdog|Execution' '.workflow_runs[] | select((.status == "queued" or .status == "pending" or .status == "in_progress") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession" and (.head_repository.full_name // "") == $sourceRepo and (.name | test($pattern))) | select(.name != "FLIXO Agent Repair Supervisor" and .name != "FLIXO Master Agent Activation Relay" and .name != "FLIXO Master Repair Governor" and .name != "Daily·FLIXO Green Gate" and .name != "FLIXO Auto Repair Bot" and .name != "FLIXO Execution Bot Watchdog") | .id' /tmp/supersession-final-runs.json > /tmp/supersession-late-stale-ids.txt
             echo "SUPERSESSION_LATE_STALE_ID_FILE=/tmp/supersession-late-stale-ids.txt"
             while read -r LATE_RUN_ID; do
               [ -n "$LATE_RUN_ID" ] || continue
@@ -260,7 +254,7 @@ jobs:
           done
           if [ "$stale_active" -ne 0 ]; then
             echo 'FAIL CLOSED: stale runs remain non-completed after supersession cancellation window.'
-            jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" --arg pattern 'Test|Verification|Contract|Security|Baseline|Certification|Impact|Code Scanning|CodeQL|Diagnostic|Proof|Scan|Heartbeat' '.workflow_runs[] | select((.status == "queued" or .status == "pending") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession") | select(.head_repository.full_name == $sourceRepo) | select(.name | test($pattern)) | select(.name != "FLIXO Agent Repair Supervisor" and .name != "FLIXO Master Agent Activation Relay" and .name != "FLIXO Master Repair Governor" and .name != "Daily·FLIXO Green Gate" and .name != "FLIXO Auto Repair Bot" and .name != "FLIXO Execution Bot Watchdog") | [.id,.name,.status,.head_sha] | @tsv' /tmp/supersession-final-runs.json
+            jq -r --arg sha "$CURRENT_SHA" --arg sourceRepo "$SOURCE_REPOSITORY" --arg pattern 'Test|Verification|Contract|Security|Baseline|Certification|Impact|Code Scanning|CodeQL|Diagnostic|Proof|Scan|Heartbeat' '.workflow_runs[] | select((.status == "queued" or .status == "pending" or .status == "in_progress") and .head_sha != $sha and .name != "FLIXO Latest Commit Test Supersession") | select(.head_repository.full_name == $sourceRepo) | select(.name | test($pattern)) | select(.name != "FLIXO Agent Repair Supervisor" and .name != "FLIXO Master Agent Activation Relay" and .name != "FLIXO Master Repair Governor" and .name != "Daily·FLIXO Green Gate" and .name != "FLIXO Auto Repair Bot" and .name != "FLIXO Execution Bot Watchdog") | [.id,.name,.status,.head_sha] | @tsv' /tmp/supersession-final-runs.json
             exit 1
           fi
           echo 'STALE_ACTIVE_RUNS=0'
