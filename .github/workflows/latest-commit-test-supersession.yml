@@ -15,7 +15,7 @@ on:
 # every active run tied to an older SHA on the same source branch is cancelled;
 # exact-SHA guards remain fail-closed for any cancellation race.
 concurrency:
-  group: flixo-latest-commit-supersession-\${{ github.event.pull_request.head.repo.full_name || github.repository }}-\${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: flixo-latest-commit-supersession-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -38,9 +38,9 @@ jobs:
       - name: Resolve authoritative live head
         id: head
         env:
-          TARGET_BRANCH: \${{ github.event.pull_request.head.ref || github.ref_name }}
-          SOURCE_REPOSITORY: \${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          EVENT_SHA: \${{ github.event.pull_request.head.sha || github.sha }}
+          TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          SOURCE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          EVENT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -67,12 +67,12 @@ jobs:
       - name: Cancel every active run for an older SHA
         if: steps.head.outputs.stale_event != 'true'
         env:
-          GH_TOKEN: \${{ github.token }}
-          CURRENT_SHA: \${{ steps.head.outputs.sha }}
-          BRANCH: \${{ steps.head.outputs.branch }}
-          SOURCE_REPOSITORY: \${{ steps.head.outputs.source_repository }}
-          REPOSITORY: \${{ github.repository }}
-          CONTROLLER_RUN_ID: \${{ github.run_id }}
+          GH_TOKEN: ${{ github.token }}
+          CURRENT_SHA: ${{ steps.head.outputs.sha }}
+          BRANCH: ${{ steps.head.outputs.branch }}
+          SOURCE_REPOSITORY: ${{ steps.head.outputs.source_repository }}
+          REPOSITORY: ${{ github.repository }}
+          CONTROLLER_RUN_ID: ${{ github.run_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -120,12 +120,12 @@ jobs:
       - name: Reconcile late stale runs until the head is stable
         if: steps.head.outputs.stale_event != 'true'
         env:
-          GH_TOKEN: \${{ github.token }}
-          CURRENT_SHA: \${{ steps.head.outputs.sha }}
-          BRANCH: \${{ steps.head.outputs.branch }}
-          SOURCE_REPOSITORY: \${{ steps.head.outputs.source_repository }}
-          REPOSITORY: \${{ github.repository }}
-          CONTROLLER_RUN_ID: \${{ github.run_id }}
+          GH_TOKEN: ${{ github.token }}
+          CURRENT_SHA: ${{ steps.head.outputs.sha }}
+          BRANCH: ${{ steps.head.outputs.branch }}
+          SOURCE_REPOSITORY: ${{ steps.head.outputs.source_repository }}
+          REPOSITORY: ${{ github.repository }}
+          CONTROLLER_RUN_ID: ${{ github.run_id }}
         shell: bash
         run: |
           set -euo pipefail
