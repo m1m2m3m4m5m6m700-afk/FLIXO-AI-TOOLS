@@ -17,8 +17,8 @@ if (!expectedBranch || !expectedRepository || expectedRepository.split('/').leng
 }
 
 const branchPath = expectedBranch.split('/').map(encodeURIComponent).join('/');
-const apiUrl = \`https://api.github.com/repos/\${expectedRepository}/git/ref/heads/\${branchPath}\`;
-const remoteRef = \`refs/heads/\${expectedBranch}\`;
+const apiUrl = 'https://api.github.com/repos/' + expectedRepository + '/git/ref/heads/' + branchPath;
+const remoteRef = 'refs/heads/' + expectedBranch;
 
 let localSha = '';
 try {
@@ -40,7 +40,7 @@ try {
 }
 
 if (!/^[0-9a-f]{40}$/iu.test(localSha) || localSha !== expectedSha) {
-  console.error(\`FAIL CLOSED: local checkout SHA \${localSha || '<empty>'} does not equal EXPECTED_SHA \${expectedSha}.\`);
+  console.error('FAIL CLOSED: local checkout SHA ' + (localSha || '<empty>') + ' does not equal EXPECTED_SHA ' + expectedSha + '.');
   process.exit(1);
 }
 
@@ -50,20 +50,20 @@ try {
     const response = await fetch(apiUrl, {
       headers: {
         accept: 'application/vnd.github+json',
-        authorization: \`Bearer \${token}\`,
+        authorization: 'Bearer ' + token,
         'x-github-api-version': '2022-11-28',
         'user-agent': 'FLIXO-current-commit-verifier',
       },
     });
     if (!response.ok) {
-      throw new Error(\`GitHub API HTTP \${response.status}: \${await response.text()}\`);
+      throw new Error('GitHub API HTTP ' + response.status + ': ' + await response.text());
     }
     actualSha = String((await response.json())?.object?.sha ?? '').trim();
   } else {
     const remote = await new Promise((resolve, reject) => {
       execFile(
         'git',
-        ['ls-remote', \`https://github.com/\${expectedRepository}.git\`, remoteRef],
+        ['ls-remote', 'https://github.com/' + expectedRepository + '.git', remoteRef],
         {encoding: 'utf8'},
         (error, stdout, stderr) => {
           if (error) reject(new Error(stderr || error.message));
@@ -71,7 +71,7 @@ try {
         },
       );
     });
-    actualSha = String(remote).trim().split(/\\s+/u)[0] ?? '';
+    actualSha = String(remote).trim().split(/\s+/u)[0] ?? '';
   }
 } catch (error) {
   console.error('FAIL CLOSED: unable to resolve the current branch tip from GitHub.');
@@ -86,11 +86,15 @@ if (!/^[0-9a-f]{40}$/iu.test(actualSha)) {
 
 if (actualSha !== expectedSha) {
   console.error(
-    \`FAIL CLOSED: commit \${expectedSha} is stale; live head is \${actualSha} on \${expectedRepository}/\${expectedBranch}.\`,
+    'FAIL CLOSED: commit ' + expectedSha + ' is stale; live head is ' + actualSha +
+    ' on ' + expectedRepository + '/' + expectedBranch + '.',
   );
   process.exit(1);
 }
 
 console.log(
-  \`CURRENT_COMMIT_VERIFIED=1 SHA=\${expectedSha} BRANCH=\${expectedBranch} REPOSITORY=\${expectedRepository} LIVE_HEAD_MATCH=1 LIVE_HEAD_ENFORCEMENT=MANDATORY\`,
+  'CURRENT_COMMIT_VERIFIED=1 SHA=' + expectedSha +
+  ' BRANCH=' + expectedBranch +
+  ' REPOSITORY=' + expectedRepository +
+  ' LIVE_HEAD_MATCH=1 LIVE_HEAD_ENFORCEMENT=MANDATORY',
 );
