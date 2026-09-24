@@ -1,5 +1,3 @@
-import type { ExecutionPlanContract } from '@/lib/contracts/ai-plan';
-
 export type PlanStepBoundary = Readonly<{
   toolId: string;
   params?: Record<string, string | number | boolean | undefined>;
@@ -25,8 +23,8 @@ function normalizeSteps(plan: { steps: readonly PlanStepBoundary[] }): readonly 
  * confidence, or explanation, but it must never change the executable decision.
  */
 export function isDeterministicPlanCompatible(
-  candidate: ExecutionPlanContract,
-  deterministic: ExecutionPlanContract | null,
+  candidate: { catalogFingerprint: string; steps: readonly PlanStepBoundary[] },
+  deterministic: { catalogFingerprint: string; steps: readonly PlanStepBoundary[] } | null,
 ): boolean {
   if (!deterministic) return false;
   if (candidate.catalogFingerprint !== deterministic.catalogFingerprint) return false;
