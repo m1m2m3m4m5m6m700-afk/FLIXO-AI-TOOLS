@@ -94,7 +94,7 @@ export function validateTwoBranchPolicy() {
     scanCommands(file, source);
     scanRemoteRefs(file, source);
   }
-  let currentBranch = 'UNKNOWN';
+  let currentBranch;
   try { currentBranch = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim() || 'DETACHED'; } catch { currentBranch = 'UNKNOWN'; }
   const result = {
     protocol: 'FLIXO-TWO-BRANCH-FAIL-CLOSED-v2',

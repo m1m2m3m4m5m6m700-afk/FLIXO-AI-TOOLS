@@ -163,7 +163,8 @@ for (const browser of expectedBrowsers) for (const spec of expectedFastSpecs) {
   const key = `FAST:${browser}:${spec}`;
   if (!fastSemantic.has(key)) invalidEvidence.push(`FAST_MISSING_SEMANTIC=${key}`);
 }
-if (fastSemantic.size !== 66) invalidEvidence.push(`FAST_CONSERVATION=${fastSemantic.size}; expected=66`);
+const expectedFastSemanticUnitCount = expectedFastSpecs.length * expectedBrowsers.length;
+if (fastSemantic.size !== expectedFastSemanticUnitCount) invalidEvidence.push(`FAST_CONSERVATION=${fastSemantic.size}; expected=${expectedFastSemanticUnitCount}`);
 
 const deepSemantic = new Map();
 for (const value of deep) for (const unit of value.units ?? []) {
@@ -189,7 +190,7 @@ else {
     if (graph.status !== 'PASS') errors.push(`EXECUTION_GRAPH_STATUS=${graph.status}`);
     if (graph.exactSha !== sha) shaMismatches.push(`EXECUTION_GRAPH_SHA=${graph.exactSha}`);
     if (graph.runId !== runId) shaMismatches.push(`EXECUTION_GRAPH_RUN=${graph.runId}`);
-    if (graph.fast?.observedSemanticUnits !== 66) invalidEvidence.push(`EXECUTION_GRAPH_FAST=${graph.fast?.observedSemanticUnits}`);
+    if (graph.fast?.observedSemanticUnits !== expectedFastSemanticUnitCount) invalidEvidence.push(`EXECUTION_GRAPH_FAST=${graph.fast?.observedSemanticUnits}`);
     if (graph.deep?.semanticLocaleBrowserUnits !== 60) invalidEvidence.push(`EXECUTION_GRAPH_DEEP=${graph.deep?.semanticLocaleBrowserUnits}`);
   } catch (error) { invalidEvidence.push(`EXECUTION_GRAPH_INVALID=${error.message}`); }
 }
@@ -222,7 +223,7 @@ const result = {
   identityVerified: identityCandidates.length === 1 && shaMismatches.every((item) => !item.startsWith('identity.')),
   reducer: reduced,
   conservation: {
-    fast: { planned: 66, executed: fastSemantic.size, evidenced: fastSemantic.size, certified: status === 'PASS' ? 66 : 0 },
+    fast: { planned: expectedFastSemanticUnitCount, executed: fastSemantic.size, evidenced: fastSemantic.size, certified: status === 'PASS' ? expectedFastSemanticUnitCount : 0 },
     deep: { planned: 60, executed: deepSemantic.size, evidenced: deepSemantic.size, certified: status === 'PASS' ? 60 : 0 },
   },
   zeroFalseGreen: {

@@ -91,7 +91,7 @@ const result = {
   authority: 'canonical-certification-surface',
   status: errors.length ? 'FAIL' : 'PASS',
   workflow: '.github/workflows/ci.yml',
-  architecture: { layers: ['impact-plan', 'impact-execution', 'static+build', 'browser-fast', 'browser-deep', 'certify'], browserFast: { tools: 22, journeySpecs: journeyBrowserSpecs.size, browsers: 3, units: 66 }, browserDeep: { locales: 20, browsers: 3 }, certification: 'single fail-closed certify job' },
+  architecture: { layers: ['impact-plan', 'impact-execution', 'static+build', 'browser-fast', 'browser-deep', 'certify'], browserFast: { tools: 22, journeySpecs: journeyBrowserSpecs.size, browsers: 3, units: (22 + journeyBrowserSpecs.size) * 3 }, browserDeep: { locales: 20, browsers: 3 }, certification: 'single fail-closed certify job' },
   checks: { fastToolCount: fastToolSpecs.length, fastJourneySpecs: [...journeyBrowserSpecs], browsers: /browser:\s*\[chromium, firefox, webkit\]/.test(ci), deepLocalization: /tests\/localization-runtime\.spec\.ts/.test(ci), immutableArtifact: /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci), auxiliaryEvidenceAutomation: [...auxiliaryEvidenceAutomation], trustBaselineAutomation: [...trustBaselineAutomation], councilWakeAutomation: [...councilWakeAutomation], repairGateAutomation: [...REPAIR_GATE_AUTOMATION], nonCanonicalAutomatedWorkflows: automatedNonCanonical, nonTestAutomation: [...nonTestAutomation] },
   errors,
 };

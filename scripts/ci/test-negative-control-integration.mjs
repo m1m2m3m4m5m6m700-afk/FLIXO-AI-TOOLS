@@ -53,6 +53,7 @@ const fastSpecs = [
   'tests/passport-photo-maker.spec.ts','tests/watermark-adder.spec.ts','tests/meme-generator.spec.ts',
   'tests/collage-maker.spec.ts','tests/image-effects.spec.ts','tests/exif-cleaner.spec.ts',
   'tests/svg-optimizer.spec.ts','tests/mockup-generator.spec.ts','tests/seed.spec.ts','tests/pix.spec.ts',
+  'tests/mvp-agent-e2e.spec.ts',
 ];
 const locales = ['ar','de','en','es','fr','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi'];
 
@@ -101,12 +102,12 @@ for (const browser of browsers) {
     const shard = index + 1;
     writeJson(`evidence/browser-fast/browser-fast-${browser}-${shard}.json`, {
       schema_version: 5, evidenceClass: 'PRIMARY_EXECUTION', mode: 'FAST', browser, shard, runId,
-      exactSha: actualSha, sourceReportSha256: '0'.repeat(64), status: 'PASS', toolSpecs: 22,
-      expectedSpecCount: 11, executedSpecCount: 11, unexpectedSpecs: [], executionUnitCount: specs.length,
+      exactSha: actualSha, sourceReportSha256: '0'.repeat(64), status: 'PASS', toolSpecs: fastSpecs.length,
+      expectedSpecCount: specs.length, executedSpecCount: specs.length, unexpectedSpecs: [], executionUnitCount: specs.length,
       skippedTestCount: 0, failedTestCount: 0, notExecutedTestCount: 0,
       statusCounts: { PASS: specs.length, FAIL: 0, SKIPPED: 0, CANCELLED: 0, BLOCKED: 0, NOT_EXECUTED: 0 },
       attribution: { canonicalAssertionIds: [], canonicalAssertionExecutionCount: 0, surfaceCoverageExecutionCount: specs.length, uniqueCoverageIds: specs.map((spec) => `FAST:${spec}`) },
-      semanticCoverage: { model: '22 specs × 3 browsers = 66 semantic spec-browser units', plannedSemanticUnitCount: 22, semanticUnitCount: specs.length, semanticUnitIds: specs.map((spec) => `FAST:${browser}:${spec}`), localeRegistryCount: 20, observedLocaleCount: 0, observedLocales: [], unexpectedLocales: [], partition: true, partitionCount: 2, partitionIndex: shard },
+      semanticCoverage: { model: `${fastSpecs.length} specs × 3 browsers = ${fastSpecs.length * browsers.length} semantic spec-browser units`, plannedSemanticUnitCount: fastSpecs.length, semanticUnitCount: specs.length, semanticUnitIds: specs.map((spec) => `FAST:${browser}:${spec}`), localeRegistryCount: 20, observedLocaleCount: 0, observedLocales: [], unexpectedLocales: [], partition: true, partitionCount: 2, partitionIndex: shard },
       complete: true,
       units: specs.map((spec) => fastUnit(browser, shard, spec)),
     });
@@ -146,7 +147,7 @@ writeJson('evidence/static-build/build.json', { evidenceClass: 'PRIMARY_EXECUTIO
 writeJson('certification-run-manifest.json', {
   schema_version: 4, sha: actualSha, workflow_run_id: runId, workflow: 'FLIXO Test System',
   jobs: { static: 'success', build: 'success', browserFast: 'success', browserDeep: 'success' },
-  required: { matrixFirstUnits: 66, fullMatrixLocales: 20, browsers: 3 },
+  required: { matrixFirstUnits: fastSpecs.length * browsers.length, fullMatrixLocales: 20, browsers: 3 },
 });
 
 const runNode = (script, env) => spawnSync(process.execPath, [script], {
