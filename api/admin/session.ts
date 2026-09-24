@@ -1,5 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import type {
+  AdminErrorResponse,
+  AdminLoginRequest,
+  AdminRequestQuery,
+  AdminSessionGetResponse,
+  AdminSessionLoginResponse,
+  AdminSessionLogoutResponse,
+} from '../contracts.ts';
 import {
   buildAdminClearCookie,
   buildAdminSessionCookie,
@@ -12,8 +20,14 @@ import { verifyAdminPassword } from '../../src/server/admin/credentials.ts';
 import { activeCapabilitiesForRole } from '../../src/lib/admin/roles.ts';
 import { persistAdminSession, revokeAdminSession, isAdminSessionStoreConfigured, getAdminSessionState, getAdminSessionRecord } from '../../src/server/admin/session-store.ts';
 
-type AdminRequest = IncomingMessage & { body?: unknown };
-type BodyRecord = Record<string, unknown>;
+interface AdminRequest extends IncomingMessage {
+  body?: unknown;
+  query?: AdminRequestQuery;
+}
+
+interface BodyGuard<TBody> {
+  (value: unknown): value is TBody;
+}
 
 const LOGIN_TTL_SECONDS = 60 * 60;
 const LOGIN_LIMIT = 10;
@@ -21,7 +35,18 @@ const LOGIN_WINDOW_MS = 60_000;
 const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 const loginBuckets = new Map<string, { attempts: number; resetAt: number }>();
 
-const json = (res: ServerResponse, status: number, body: unknown, correlationId: string, extraHeaders: Record<string, string> = {}) => {
+const json = <
+  TBody extends AdminErrorResponse
+    | AdminSessionGetResponse
+    | AdminSessionLoginResponse
+    | AdminSessionLogoutResponse
+>(
+  res: ServerResponse,
+  status: number,
+  body: TBody,
+  correlationId: string,
+  extraHeaders: Record<string, string> = {},
+): void => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
@@ -83,19 +108,30 @@ const rateAllowed = (ip: string) => {
   return true;
 };
 
-const parseBody = async (req: AdminRequest): Promise<BodyRecord | null> => {
+const isAdminLoginRequest = (value: unknown): value is AdminLoginRequest => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  if (!('password' in value)) return false;
+  return typeof value.password === 'string';
+};
+
+const parseBody = async <TBody>(
+  req: AdminRequest,
+  guard: BodyGuard<TBody>,
+): Promise<TBody | null> => {
   const declaredLength = headerValue(req.headers['content-length']);
   if (declaredLength !== undefined) {
     const size = Number(declaredLength);
     if (!Number.isFinite(size) || size < 0 || size > MAX_REQUEST_BODY_BYTES) return null;
   }
-  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) return req.body as BodyRecord;
+  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+    return guard(req.body) ? req.body : null;
+  }
   if (typeof req.body === 'string' || Buffer.isBuffer(req.body)) {
     const bodySize = Buffer.byteLength(String(req.body), 'utf8');
     if (bodySize > MAX_REQUEST_BODY_BYTES) return null;
     try {
-      const parsed = JSON.parse(String(req.body));
-      return parsed && typeof parsed === 'object' ? parsed as BodyRecord : null;
+      const parsed: unknown = JSON.parse(String(req.body));
+      return guard(parsed) ? parsed : null;
     } catch {
       return null;
     }
@@ -115,8 +151,8 @@ const parseBody = async (req: AdminRequest): Promise<BodyRecord | null> => {
   }
   if (chunks.length === 0) return null;
   try {
-    const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-    return parsed && typeof parsed === 'object' ? parsed as BodyRecord : null;
+    const parsed: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    return guard(parsed) ? parsed : null;
   } catch {
     return null;
   }
@@ -156,10 +192,12 @@ export default async function adminSession(req: AdminRequest, res: ServerRespons
       return fail(res, 503, 'session_store_unavailable', correlationId);
     }
 
-    return json(res, 200, {
+    if (!session.role || !session.sessionId) return fail(res, 401, 'authentication_required', correlationId);
+
+    const response: AdminSessionGetResponse = {
       ok: true,
       authenticated: true,
-      identity: { subject: session.subject, role: session.role ?? 'ADMIN' },
+      identity: { subject: session.subject, role: session.role },
       capabilities: [...session.capabilities],
       expiresAt: session.expiresAt,
       provenance: {
@@ -167,7 +205,9 @@ export default async function adminSession(req: AdminRequest, res: ServerRespons
         environment: record?.environment ?? 'unknown',
       },
       correlationId,
-    }, correlationId);
+    };
+
+    return json(res, 200, response, correlationId);
   }
 
   if (method === 'POST') {
@@ -175,8 +215,8 @@ export default async function adminSession(req: AdminRequest, res: ServerRespons
     if (!configured()) return fail(res, 503, 'server_configuration_unavailable', correlationId);
     if (!rateAllowed(clientIpFor(req))) return fail(res, 429, 'login_rate_limited', correlationId);
 
-    const body = await parseBody(req);
-    const password = typeof body?.password === 'string' ? body.password : '';
+    const body = await parseBody(req, isAdminLoginRequest);
+    const password = body?.password ?? '';
     if (!password || password.length > 256) return fail(res, 400, 'invalid_credentials_payload', correlationId);
     if (!verifyAdminPassword(password)) return fail(res, 401, 'invalid_credentials', correlationId);
 
@@ -187,12 +227,14 @@ export default async function adminSession(req: AdminRequest, res: ServerRespons
       subject: 'owner',
       role,
       sessionId,
-      capabilities: [...capabilities],
+      capabilities,
       ttlSeconds: LOGIN_TTL_SECONDS,
     });
+    const verifiedSession = verifyAdminSessionToken(token);
+    if (!verifiedSession) return fail(res, 503, 'server_configuration_unavailable', correlationId);
 
     try {
-      await persistAdminSession(verifyAdminSessionToken(token)!, {
+      await persistAdminSession(verifiedSession, {
         environment: process.env.VERCEL_ENV ?? 'unknown',
         issuedAt: new Date().toISOString(),
         token,
@@ -201,13 +243,15 @@ export default async function adminSession(req: AdminRequest, res: ServerRespons
       return fail(res, 503, 'session_store_unavailable', correlationId);
     }
 
-    return json(res, 200, {
+    const response: AdminSessionLoginResponse = {
       ok: true,
       authenticated: true,
       identity: { subject: 'owner', role: 'OWNER' },
       expiresIn: LOGIN_TTL_SECONDS,
       correlationId,
-    }, correlationId, {
+    };
+
+    return json(res, 200, response, correlationId, {
       'Set-Cookie': buildAdminSessionCookie(token, LOGIN_TTL_SECONDS),
     });
   }
@@ -226,11 +270,13 @@ export default async function adminSession(req: AdminRequest, res: ServerRespons
       return fail(res, 503, 'session_store_unavailable', correlationId);
     }
 
-    return json(res, 200, {
+    const response: AdminSessionLogoutResponse = {
       ok: true,
       authenticated: false,
       correlationId,
-    }, correlationId, {
+    };
+
+    return json(res, 200, response, correlationId, {
       'Set-Cookie': buildAdminClearCookie(),
     });
   }
