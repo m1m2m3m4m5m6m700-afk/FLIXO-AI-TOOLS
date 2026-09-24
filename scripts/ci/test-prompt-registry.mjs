@@ -208,7 +208,7 @@ const adversarialArchetypes = [
     expectedRule: 'never-stall-on-ambiguous-red',
     build: (i) => ({
       failureFingerprint: `heldout-ambiguous-cancel-${i}`,
-      cancellationReason: 'cancelled without replacement SHA evidence',
+      cancellationReason: 'cancelled unexpectedly by infrastructure without supersession evidence',
     }),
   },
 ];
