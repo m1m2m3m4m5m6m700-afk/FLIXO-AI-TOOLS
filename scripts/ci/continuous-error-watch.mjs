@@ -103,6 +103,13 @@ const latestWorkflow = (runs, name) => {
 };
 const latestCheck = (checks, patterns) => latestBy(checks, (check) => patterns.some((pattern) => pattern.test(String(check.name ?? ''))));
 const stateOf = (item) => !item ? 'MISSING' : item.status === 'completed' ? (item.conclusion ?? 'unknown') : (item.status ?? 'unknown');
+
+export const classifyAutomationOutcome = (item) => {
+  const state = stateOf(item);
+  if (state === 'success') return 'GREEN';
+  if (['queued', 'in_progress', 'pending'].includes(state)) return 'WAITING';
+  return 'RED';
+};
 const exactShaOfCheck = (check) => {
   if (!check) return null;
   const value = check.headSha ?? check.head_sha ?? null;
@@ -178,7 +185,7 @@ const isExternalCheckName = (name) => {
 function externalCheckBlock(check, log) {
   if (!check || !isExternalCheckName(check.name)) return null;
   const state = stateOf(check);
-  if (state === 'skipped' || state === 'neutral') return null;
+  if (state === 'success') return null;
   return {
     kind: 'BLOCKED_EXTERNAL',
     checkName: String(check.name ?? '').trim(),
@@ -355,7 +362,7 @@ export function evaluateGreen({
       .localeCompare(String(a.updated_at ?? a.updatedAt ?? a.completed_at ?? a.started_at ?? '')))[0] ?? null;
   const aggregateSecurityStatus = !securityChecks.length
     ? 'MISSING'
-    : securityChecks.some((check) => ['failure', 'timed_out', 'cancelled', 'action_required'].includes(stateOf(check)))
+    : securityChecks.some((check) => ['failure', 'timed_out', 'cancelled', 'skipped', 'neutral', 'action_required'].includes(stateOf(check)))
       ? 'failure'
       : securityChecks.some((check) => ['queued', 'in_progress', 'pending'].includes(stateOf(check)))
         ? 'in_progress'
@@ -446,7 +453,7 @@ export function evaluateGreen({
     })
     .filter(Boolean);
   report.externalBlockers = [...externalCandidates, ...externalStatusCandidates];
-  if (externalCandidates.some((item) => ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state))) {
+  if (externalCandidates.some((item) => ['failure', 'cancelled', 'timed_out', 'skipped', 'neutral', 'queued', 'in_progress'].includes(item.state))) {
     report.rootCause = 'EXTERNAL_CHECK_BLOCKED';
   }
 
@@ -469,7 +476,7 @@ export function evaluateGreen({
         candidate?.headSha === executionSha &&
         candidate?.headBranch === 'execution' &&
         candidate?.status === 'completed' &&
-        ['failure', 'timed_out'].includes(candidate?.conclusion)
+        ['failure', 'timed_out', 'skipped', 'neutral'].includes(candidate?.conclusion)
       )
       .sort((a, b) => String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')));
 
@@ -535,7 +542,7 @@ export function evaluateGreen({
 
   if (report.externalBlockers.length) {
     const approvalBlocker = report.externalBlockers.find((item) => item.state === 'action_required');
-    const blocker = report.externalBlockers.find((item) => ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state));
+    const blocker = report.externalBlockers.find((item) => ['failure', 'cancelled', 'timed_out', 'skipped', 'neutral', 'queued', 'in_progress'].includes(item.state));
     if (approvalBlocker) {
       report.status = 'FAIL_CLOSED';
       report.rootCause = approvalBlocker.rootCause;
@@ -548,8 +555,19 @@ export function evaluateGreen({
   }
 
   const activeExternalBlocker = report.externalBlockers.some((item) =>
-    ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state)
+    ['failure', 'cancelled', 'timed_out', 'skipped', 'neutral', 'queued', 'in_progress'].includes(item.state)
   );
+
+  const skippedRequiredWorkflows = Object.entries(report.ci.requiredWorkflows)
+    .filter(([, item]) => item.status === 'skipped' || item.status === 'neutral');
+  if (skippedRequiredWorkflows.length) {
+    for (const [workflow, item] of skippedRequiredWorkflows) {
+      report.errors.push({ type: 'SKIPPED_CHECK_RED', workflow, runId: item.runId ?? null, status: item.status });
+    }
+    report.status = 'RED_INTERNAL';
+    report.rootCause = 'SKIPPED_REQUIRED_CHECK_REQUIRES_REPAIR_CYCLE';
+    report.repair.required = false;
+  }
 
   if (report.repair.required) {
     report.status = 'RED_INTERNAL';
@@ -574,6 +592,7 @@ export function evaluateGreen({
     'UNEXPECTED_CHECK_RED',
     'UNEXPECTED_COMMIT_STATUS_RED',
     'UNAPPROVED_WORKFLOW_RED',
+    'SKIPPED_CHECK_RED',
   ].includes(error.type))) {
     report.status = 'RED_INTERNAL';
     report.rootCause = 'REQUIRED_CHECK_FAILURE_REQUIRES_REPAIR_CYCLE';
@@ -584,7 +603,7 @@ export function evaluateGreen({
     report.rootCause = report.externalBlockers.find((item) => item.state === 'action_required')?.rootCause
       ?? 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED';
   } else if (report.externalBlockers.some((item) =>
-    ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state)
+    ['failure', 'cancelled', 'timed_out', 'skipped', 'neutral', 'queued', 'in_progress'].includes(item.state)
   )) {
     report.status = report.externalBlockers.some((item) => item.kind === 'BLOCKED_EXTERNAL')
       ? 'BLOCKED_EXTERNAL'

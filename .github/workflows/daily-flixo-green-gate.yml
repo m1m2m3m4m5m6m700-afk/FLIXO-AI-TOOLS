@@ -277,7 +277,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          jq -r '.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required") | .databaseId' /tmp/flixo-watch/workflow-runs.json > /tmp/flixo-watch/failed-run-ids
+          jq -r '.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "skipped" or .conclusion == "neutral" or .conclusion == "action_required") | .databaseId' /tmp/flixo-watch/workflow-runs.json > /tmp/flixo-watch/failed-run-ids
           while read -r run_id; do
             [ -n "$run_id" ] || continue
             if gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > "/tmp/flixo-watch/logs/run-$run_id.log" 2>&1; then
@@ -289,7 +289,7 @@ jobs:
 
           jq -r '[.[].check_runs[]
             | select(.status == "completed")
-            | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required")
+            | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "skipped" or .conclusion == "neutral" or .conclusion == "action_required")
             | select(.details_url != null and (.details_url | test("/actions/runs/[0-9]+")))
             | .details_url
             | capture("/actions/runs/(?<id>[0-9]+)").id

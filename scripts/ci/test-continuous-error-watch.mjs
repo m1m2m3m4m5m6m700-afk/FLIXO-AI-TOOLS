@@ -229,7 +229,7 @@ assert.equal(green.ci.certification.runId, '1');
 assert.equal(green.ci.certification.canonicalRunId, '1');
 assert.equal(green.ci.certification.canonicalRun, true);
 
-for (const conclusion of ['failure', 'neutral', 'cancelled']) {
+for (const conclusion of ['failure', 'neutral', 'cancelled', 'skipped']) {
   const certificationRed = evaluateGreen({
     executionSha: SHA_A,
     mainSha: SHA_B,
@@ -361,6 +361,15 @@ const cancelledWithoutEvidence = evaluateGreen({
 });
 assert.equal(cancelledWithoutEvidence.status, 'FAIL_CLOSED');
 assert.equal(cancelledWithoutEvidence.repair.required, false);
+
+const skippedRequiredWorkflow = evaluateGreen({
+  ...baseGreenInput,
+  workflowRuns: baseGreenInput.workflowRuns.map((item) =>
+    item.workflowName === 'FLIXO Test System' ? { ...item, conclusion: 'skipped', databaseId: 58 } : item
+  ),
+});
+assert.equal(skippedRequiredWorkflow.status, 'RED_INTERNAL');
+assert.equal(skippedRequiredWorkflow.errors.some((item) => item.type === 'SKIPPED_CHECK_RED'), true);
 
 const missingEvidence = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,

@@ -40,14 +40,14 @@ fs.writeFileSync(input, JSON.stringify({
     databaseId: 123,
     workflowName: 'FLIXO Test System',
     status: 'completed',
-    conclusion: 'failure',
+    conclusion: 'skipped',
     headSha: sha,
     createdAt: '2026-09-20T00:00:00Z',
   }, {
     databaseId: 124,
     workflowName: 'FLIXO Test System',
     status: 'completed',
-    conclusion: 'failure',
+    conclusion: 'skipped',
     headSha: sha,
     createdAt: '2026-09-20T00:01:00Z',
   }],
@@ -83,7 +83,7 @@ const result = spawnSync(process.execPath, [
 assert.equal(result.status, 0, result.stderr || result.stdout);
 const bundle = JSON.parse(fs.readFileSync(output, 'utf8'));
 assert.equal(bundle.executionSha, sha);
-assert.equal(bundle.uniqueFailureCount, 1);
+assert.equal(bundle.uniqueFailureCount, 2);
 assert.equal(bundle.externalBlockerCount, 1);
 assert.equal(bundle.promptCount, 2);
 assert.equal(bundle.promptSourceCount, 1);

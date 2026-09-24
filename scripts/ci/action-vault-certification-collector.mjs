@@ -17,7 +17,7 @@ if(watch.executionSha!==gitHead)throw new Error('CERTIFICATION_EXACT_SHA_MISMATC
 
 const workflows=['FLIXO Test System','FLIXO WP0 Trust Baseline','FLIXO Test Impact','FLIXO Test Impact Execution','Repository Security Baseline','Claude Security Review'];
 const runs=ghJson(`repos/${repo}/actions/runs?head_sha=${gitHead}&per_page=100`).workflow_runs??[];
-const exactRuns=Object.fromEntries(workflows.map(name=>[name,runs.filter(r=>r.name===name&&r.conclusion!=='cancelled').sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)))[0]??null]));
+const exactRuns=Object.fromEntries(workflows.map(name=>[name,runs.filter(r=>r.name===name).sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)))[0]??null]));
 const requiredPass=workflows.every(name=>exactRuns[name]?.status==='completed'&&exactRuns[name]?.conclusion==='success');
 
 const testSuite=spawnSync('npm',['run','test:auto-repair'],{encoding:'utf8',env:process.env});
@@ -40,7 +40,7 @@ for(const run of Object.values(exactRuns)){
 const testSkipped=[...Object.values(jobData).flatMap(jobs=>jobs.flatMap(job=>(job.steps??[]).filter(step=>step.conclusion==='skipped'&&/(test|check|gate|cert|proof|falsif|simulat|regress)/iu.test(String(step.name??'')))))];
 const continueOnErrorScan=spawnSync('git',['grep','-n','continue-on-error:','--','.github/workflows'],{encoding:'utf8',env:process.env});
 const canonicalRedRuns=Object.values(exactRuns).filter(run=>run?.status!=='completed'||run?.conclusion!=='success');
-const canonicalRedSteps=[...Object.values(jobData).flatMap(jobs=>jobs.flatMap(job=>(job.steps??[]).filter(step=>['failure','timed_out','action_required','cancelled'].includes(step.conclusion))))];
+const canonicalRedSteps=[...Object.values(jobData).flatMap(jobs=>jobs.flatMap(job=>(job.steps??[]).filter(step=>['failure','timed_out','action_required','cancelled','skipped','neutral'].includes(step.conclusion))))];
 const projectRedCount=canonicalRedRuns.length+canonicalRedSteps.length;
 if(projectRedCount!==0)throw new Error('PROJECT_RED_COUNT_NOT_ZERO');
 const allIntelligenceTestsPass=requiredPass&&testSuite.status===0&&benchmarkReport.allCasesPass===true;
