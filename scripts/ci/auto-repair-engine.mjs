@@ -234,6 +234,7 @@ if (repairActor === 'assistantRepairAgent') {
   if (!approvedCandidate) throw new Error('ASSISTANT_FALLBACK_LEARNED_RULE_NOT_REUSABLE_ON_CURRENT_SHA');
   selected = approvedCandidate;
 }
+if (!causalRepairAllowed) selected = null;
 const historicalRules = [
   ...(reusableKnowledge.generalizedRules ?? []).map((item) => item.rule).filter(Boolean),
 ];
