@@ -74,7 +74,7 @@ jobs:
         run: |
           set -euo pipefail
           test -s "/tmp/flixo-redteam/${{ matrix.bot }}.json"
-          jq -e             --arg sha "$EXPECTED_SHA"             --arg bot "${{ matrix.bot }}"             '.exactSha == $sha and .botId == $bot and .mutationAuthority == false'             "/tmp/flixo-redteam/${{ matrix.bot }}.json" >/dev/null
+          jq -e             --arg sha "$EXPECTED_SHA"             --arg bot "${{ matrix.bot }}"             '.targetSha == $sha and .botId == $bot and .mutationAuthority == false and (.uncertainty.status != null) and (.uncertainty.method != null)'             "/tmp/flixo-redteam/${{ matrix.bot }}.json" >/dev/null
 
       - name: Publish isolated evidence artifact
         if: always()
