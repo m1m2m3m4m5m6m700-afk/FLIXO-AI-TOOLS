@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 # Every initial verification lane is bound to repository + branch + live head.
-# Supersession is handled by the trusted controller; started verification runs are preserved as immutable evidence.
+# Supersession is handled by the trusted controller; active older-SHA runs are cancelled; only the live branch tip may publish authoritative evidence.
 # Reruns retain immutable run identity and remain fail-closed.
 concurrency:
   group: flixo-test-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}-${{ github.event.pull_request.head.sha || github.sha }}${{ github.run_attempt > 1 && format('-rerun-{0}', github.run_id) || '' }}
