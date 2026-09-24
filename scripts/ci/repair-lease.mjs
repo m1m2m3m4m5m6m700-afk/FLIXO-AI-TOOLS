@@ -83,7 +83,7 @@ export async function createRefAtomically({ apiRoot: root = 'https://api.github.
   if (!repoName) throw new Error('REPAIR_LEASE_REPOSITORY_REQUIRED');
   if (!authToken) throw new Error('REPAIR_LEASE_GITHUB_TOKEN_REQUIRED');
   const normalizedRef = String(refName ?? '').trim();
-  if (!/^refs\/tags\/[A-Za-z0-9._\/-]+$/u.test(normalizedRef)) {
+  if (!/^refs\/tags\/[A-Za-z0-9._/-]+$/u.test(normalizedRef)) {
     throw new Error('REPAIR_LEASE_REF_TYPE_BLOCKED');
   }
   if (!/^[a-f0-9]{40}$/iu.test(String(objectSha ?? ''))) {
