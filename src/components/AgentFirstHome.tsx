@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { FlixoLogoImage } from './FlixoLogoImage';
 import { Link, useNavigate } from '@tanstack/react-router';
 import type { Locale } from '@/lib/i18n';
-import { getHomeCopy } from '../data/home-locales';
+import { loadHomeCopy } from '../lib/i18n/home-loader';
+import type { HomeCopy } from '../data/home-locales/types';
 import { LOCALES } from '../lib/i18n';
 import { FlixoAIAgent } from './FlixoAIAgent';
 import './agent-first-home.css';
@@ -45,7 +46,17 @@ const COPY = {
 export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale }) {
   const navigate = useNavigate();
   const copy = COPY[locale === 'ar' ? 'ar' : 'en'];
-  const home = getHomeCopy(locale);
+  const [home, setHome] = useState<HomeCopy | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void loadHomeCopy(locale).then((nextHome) => {
+      if (active) setHome(nextHome);
+    });
+    return () => { active = false; };
+  }, [locale]);
+  if (!home) return <main className="agent-first-home" lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'} aria-busy="true" />;
+
   function renderHeroTitle(value: string) {
     const opening = '[[';
     const closing = ']]';
