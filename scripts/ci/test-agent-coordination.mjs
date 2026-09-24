@@ -9,6 +9,21 @@ import assert from 'node:assert/strict';
 
 const root = process.cwd();
 const currentSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+const coordinationRegistry = JSON.parse(fs.readFileSync(path.join(root, 'docs/PROTOCOL-REGISTRY.json'), 'utf8'));
+const flixoBotRegistry = JSON.parse(fs.readFileSync(path.join(root, 'docs/agents/FLIXO-BOT.json'), 'utf8'));
+const p22 = coordinationRegistry.protocols.find((item) => item.id === 'P22');
+const p22Aliases = ['ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent','execution-agent-clone-v1'];
+assert.equal(p22.status, 'MANDATORY');
+assert.equal(flixoBotRegistry.distribution.targetCount, 200);
+assert.equal(flixoBotRegistry.distribution.learningConsumers.length, 200);
+for (const alias of p22Aliases) {
+  assert.ok(p22.participants.includes(alias));
+  const canonical = flixoBotRegistry.distribution.botAliasMap[alias];
+  assert.ok(canonical);
+  assert.ok(flixoBotRegistry.distribution.learningConsumers.includes(canonical));
+}
+console.log('P22_ALIAS_RESOLUTION=PASS');
+
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-agent-coordination-'));
 const coordDir = path.join(temp, 'coord');
 const visibilityDir = path.join(temp, 'visibility');

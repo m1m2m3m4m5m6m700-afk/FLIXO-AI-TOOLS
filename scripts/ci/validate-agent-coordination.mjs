@@ -156,8 +156,11 @@ const activeP22 = cellProtocolRegistry?.protocols?.find((item) => item?.id === '
 if (retiredP21?.status !== 'RETIRED' || !Array.isArray(retiredP21?.scope) || !retiredP21.scope.every((id) => /^CELL-\d{3}$/u.test(id) || id === 'ALL_CELL_BOTS')) failures.push('P21_RETIRED_CONTRACT_INVALID');
 const p22CoreParticipants = ['ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent','execution-agent-clone-v1'];
 const canonicalLearningConsumers = Array.isArray(flixoBotRegistry?.distribution?.learningConsumers) ? new Set(flixoBotRegistry.distribution.learningConsumers) : null;
+const botAliasMap = flixoBotRegistry?.distribution?.botAliasMap && typeof flixoBotRegistry.distribution.botAliasMap === 'object' ? flixoBotRegistry.distribution.botAliasMap : {};
+const resolveLearningConsumer = (id) => canonicalLearningConsumers?.has(id) ? id : botAliasMap[id] ?? null;
+const p22TargetCountValid = flixoBotRegistry?.distribution?.targetCount === 200 && canonicalLearningConsumers?.size === 200;
 if (activeP22?.status !== 'MANDATORY' || !Array.isArray(activeP22?.participants)) failures.push('P22_SHARED_MEMORY_CONTRACT_INVALID');
-else if (p22CoreParticipants.some((id) => !activeP22.participants.includes(id)) || !canonicalLearningConsumers || p22CoreParticipants.some((id) => !canonicalLearningConsumers.has(id)) || activeP22.participants.some((id) => !canonicalLearningConsumers.has(id)) || activeP22?.participantsSource !== 'docs/agents/FLIXO-BOT.json#/distribution/learningConsumers') failures.push('P22_SHARED_MEMORY_CONTRACT_INVALID');
+else if (!p22TargetCountValid || p22CoreParticipants.some((id) => !activeP22.participants.includes(id) || !resolveLearningConsumer(id)) || activeP22.participants.some((id) => !resolveLearningConsumer(id)) || activeP22?.participantsSource !== 'docs/agents/FLIXO-BOT.json#/distribution/learningConsumers') failures.push('P22_SHARED_MEMORY_CONTRACT_INVALID');
 if (!sixBotMemoryContract.includes('FLIXO-SHARED-OPERATIONAL-MEMORY-v1')) failures.push('SHARED_SIX_BOT_MEMORY_CONTRACT_MISSING');
 
 const executiveGovernance = sharedMemoryRegistry?.executiveCellGovernance;
