@@ -8,8 +8,8 @@ permissions:
   actions: read
 
 concurrency:
-  group: flixo-execution-mutation-lane
-  cancel-in-progress: false
+  group: flixo-execution-sync-proposal
+  cancel-in-progress: true
   queue: max
 
 jobs:
@@ -24,110 +24,48 @@ jobs:
           ref: execution
           fetch-depth: 0
 
-      - name: Reconcile current execution divergence without rewriting history
+      - name: Produce read-only execution/main reconciliation proposal
         env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_TOKEN: ${{ github.token }}
-          FLIXO_REQUIRE_FENCED_CHAIR: 'true'
-          FLIXO_CHAIR_SIGNING_KEY: ${{ github.token }}
-          FLIXO_MUTATION_ADMISSION: /tmp/flixo-mutation-admission.json
-          FLIXO_HEAD_AUTHORITY_PROOF: /tmp/flixo-head-authority.json
+          PROPOSAL_ARTIFACT: /tmp/flixo-execution-sync-proposal
         run: |
           set -euo pipefail
           git fetch --no-tags origin main execution
           test "$(git branch --show-current)" = "execution"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
           MAIN_SHA="$(git rev-parse origin/main)"
           EXEC_SHA="$(git rev-parse origin/execution)"
-          # Acquire the mutation admission before any merge can change the local HEAD.
-          WORK_PACKAGE_ID="EXECUTION-SYNC:$GITHUB_RUN_ID"
-          TASK_ID="EXECUTION-SYNC:$GITHUB_RUN_ID"
-          node scripts/ci/execution-mutation-gate.mjs admit --owner=EXECUTION_SYNC --sha="$EXEC_SHA" --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --paths="*" --output="$FLIXO_MUTATION_ADMISSION"
-          FENCING_TOKEN="$(jq -r '.fencingToken' "$FLIXO_MUTATION_ADMISSION")"
-          node scripts/ci/chair-bound-execution.mjs init --sha="$EXEC_SHA"
-          node scripts/ci/chair-bound-execution.mjs acquire --chair=chair_1 --agent=EXECUTION_SYNC --sha="$EXEC_SHA" --repository-state=IDLE --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --scope="*" >/tmp/flixo-chair-acquire.json
-          node scripts/ci/chair-bound-execution.mjs authorize-write --chair=chair_1 --agent=EXECUTION_SYNC --sha="$EXEC_SHA" --permission=SOURCE_MUTATION --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --paths="*" >/tmp/flixo-chair-authorize.json
+          mkdir -p "$PROPOSAL_ARTIFACT"
           if git merge-base --is-ancestor "$MAIN_SHA" "$EXEC_SHA"; then
-            echo "execution already contains canonical main $MAIN_SHA"
+            printf '%s\n' 'ALREADY_CONVERGED' > "$PROPOSAL_ARTIFACT/status.txt"
+            printf '%s\n' "$MAIN_SHA" > "$PROPOSAL_ARTIFACT/main-sha.txt"
+            printf '%s\n' "$EXEC_SHA" > "$PROPOSAL_ARTIFACT/execution-sha.txt"
             exit 0
           fi
 
-          # The execution branch may already contain an equivalent workflow-file change
-          # that exists on the single main-only tip commit. Prove semantic parity and
-          # skip history-only reconciliation rather than pushing workflow files with
-          # a GITHUB_TOKEN that cannot authorize workflow updates.
-          MAIN_AHEAD_COUNT="$(git rev-list --count "$EXEC_SHA..$MAIN_SHA")"
-          if [ "$MAIN_AHEAD_COUNT" -eq 1 ]; then
-            MAIN_ONLY_SHA="$(git rev-list "$EXEC_SHA..$MAIN_SHA")"
-            MAIN_ONLY_FILES="$(git diff-tree --no-commit-id --name-only -r "$MAIN_ONLY_SHA" | sort)"
-            if [ "$MAIN_ONLY_FILES" = ".github/workflows/auto-repair.yml" ] &&
-              git diff --quiet "$MAIN_SHA:.github/workflows/auto-repair.yml" "HEAD:.github/workflows/auto-repair.yml"; then
-              echo "execution already contains equivalent auto-repair workflow content from main commit $MAIN_ONLY_SHA"
-              echo "History-only reconciliation skipped; canonical CI remains the verification authority."
-              exit 0
-            fi
-          fi
-
-          if ! git merge --no-edit -X ours origin/main; then
-            echo "FAIL CLOSED: execution cannot reconcile canonical main $MAIN_SHA without a merge conflict."
+          git checkout --detach "$EXEC_SHA"
+          if ! git merge --no-edit -X ours "origin/main"; then
             git merge --abort || true
+            printf '%s\n' 'BLOCKED_CONFLICT' > "$PROPOSAL_ARTIFACT/status.txt"
+            printf '%s\n' "$MAIN_SHA" > "$PROPOSAL_ARTIFACT/main-sha.txt"
+            printf '%s\n' "$EXEC_SHA" > "$PROPOSAL_ARTIFACT/execution-sha.txt"
             exit 1
           fi
 
-          # The Actions GITHUB_TOKEN cannot authorize pushes that modify workflow files.
-          # Preserve the pre-merge execution versions of .github/workflows/* so this
-          # reconciliation commit contains only non-workflow changes from main.
-          WORKFLOW_CHANGES="$(git diff --name-only "$EXEC_SHA" HEAD -- .github/workflows || true)"
-          if [ -n "$WORKFLOW_CHANGES" ]; then
-            echo "Restoring execution-owned workflow files before publication:"
-            printf '%s\n' "$WORKFLOW_CHANGES"
-            while IFS= read -r path; do
-              [ -z "$path" ] && continue
-              if git cat-file -e "$EXEC_SHA:$path" 2>/dev/null; then
-                git restore --source="$EXEC_SHA" -- "$path"
-              else
-                git rm -f -- "$path"
-              fi
-            done <<< "$WORKFLOW_CHANGES"
-            git add -A .github/workflows
-            git commit --amend --no-edit
-          fi
-
-          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          git status --short
           git diff --check
-
-          # Execution sync is reconciliation-only: do not execute target-branch package scripts with write authority.
-          # Canonical Test System remains the verifier for the resulting execution SHA.
-          # Never absorb a concurrent execution writer into this reconciliation candidate.
-          git fetch --no-tags origin execution
-          test "$(git rev-parse origin/execution)" = "$EXEC_SHA" || {
-            echo "FAIL CLOSED: execution advanced while canonical sync was preparing its candidate."
-            exit 1
-          }
-          test -z "$(git status --porcelain=v1 --untracked-files=all)"
-          git diff --check
-          MUTATION_PATHS="$(git diff --name-only "$EXEC_SHA" HEAD | paste -sd, -)"
-          test -n "$MUTATION_PATHS" || { echo 'No reconciliation diff remains; refusing empty execution mutation.'; exit 0; }
           CANDIDATE_SHA="$(git rev-parse HEAD)"
-          node scripts/ci/chair-bound-execution.mjs authorize-publication --chair=chair_1 --agent=EXECUTION_SYNC --sha="$EXEC_SHA" --permission=SOURCE_MUTATION --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --paths="$MUTATION_PATHS" >/tmp/flixo-chair-publication.json
-          node scripts/ci/execution-head-authority.mjs authorize --agent=EXECUTION_SYNC --target-sha="$EXEC_SHA" --parent-sha="$EXEC_SHA" --candidate-sha="$CANDIDATE_SHA" --task-id="$TASK_ID" --work-package="$WORK_PACKAGE_ID" --output="$FLIXO_HEAD_AUTHORITY_PROOF" >/tmp/flixo-head-authority-log.json
-          node scripts/ci/execution-mutation-gate.mjs verify --phase=pre-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA" --parent="$EXEC_SHA"
-          echo 'CHAIR_GUARD_BLOCKED: Execution Sync is proposal-only and cannot mutate execution.'
+          git diff --name-only "$EXEC_SHA" "$CANDIDATE_SHA" | sort > "$PROPOSAL_ARTIFACT/changed-paths.txt"
+          printf '%s\n' 'PROPOSAL_READY' > "$PROPOSAL_ARTIFACT/status.txt"
+          printf '%s\n' "$MAIN_SHA" > "$PROPOSAL_ARTIFACT/main-sha.txt"
+          printf '%s\n' "$EXEC_SHA" > "$PROPOSAL_ARTIFACT/execution-sha.txt"
+          printf '%s\n' "$CANDIDATE_SHA" > "$PROPOSAL_ARTIFACT/candidate-sha.txt"
+          printf '%s\n' 'CHAIR_HANDOFF_REQUIRED=true' > "$PROPOSAL_ARTIFACT/handoff.txt"
+          git show --stat --oneline --no-renames "$CANDIDATE_SHA" > "$PROPOSAL_ARTIFACT/candidate-summary.txt"
 
-          echo 'HANDOFF_REQUIRED: Chair-1 must publish any approved reconciliation through the guarded execution path.'
-
-          exit 1
-          node scripts/ci/execution-mutation-gate.mjs verify --phase=post-push --admission="$FLIXO_MUTATION_ADMISSION" --candidate="$CANDIDATE_SHA"
-          NEW_SHA="$CANDIDATE_SHA"
-          node scripts/ci/chair-bound-execution.mjs release --chair=chair_1 --agent=EXECUTION_SYNC --sha="$EXEC_SHA" --successful=true >/tmp/flixo-chair-release.json
-          PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
-          if [ -n "$PR_URL" ]; then
-            echo "Open execution → main PR detected: $PR_URL"
-            echo "Skipping duplicate workflow_dispatch; pull_request CI will verify the exact execution SHA."
-          else
-            gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution
-            echo "Canonical FLIXO Test System dispatched for reconciled execution head."
-          fi
-          echo "Execution reconciled with canonical main: $NEW_SHA"
+      - name: Publish proposal evidence only
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-execution-sync-proposal-${{ github.run_id }}
+          path: /tmp/flixo-execution-sync-proposal
+          if-no-files-found: error
+          retention-days: 14
