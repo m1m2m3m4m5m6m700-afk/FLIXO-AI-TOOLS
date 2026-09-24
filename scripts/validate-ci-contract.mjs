@@ -384,16 +384,17 @@ if (!greenGateWorkflow.includes('SETTLEMENT_FOUND_RED')) {
   console.error('CI contract failed: Daily Green Gate must expose latest cancellation as RED evidence.');
   process.exit(1);
 }
-const certificationSourceBindingMarkers = [
-  'TEST_SYSTEM_RUN_ID=',
-  'select(.name == "FLIXO Test System" and .headSha == $sha and .status == "completed" and .conclusion == "success")',
-  'select(.name == "Certification")',
-  'select(.head_sha == $sha)',
-  'test("/actions/runs/[0-9]+(?:/job/[0-9]+)?(?:[/?#]|$)")',
-  'canonical Certification check missing or not linked to the canonical FLIXO Test System run',
+const certificationSourceBindingChecks = [
+  ['TEST_SYSTEM_RUN_ID assignment', /TEST_SYSTEM_RUN_ID=/],
+  ['exact-SHA Test System run selector', /select\(\.name == "FLIXO Test System"[^\n]*\.headSha == \\$sha[^\n]*\.status == "completed"[^\n]*\.conclusion == "success"\)/],
+  ['Certification selector', /select\(\.name == "Certification"\)/],
+  ['Certification exact-SHA selector', /select\(\.head_sha == \\$sha\)/],
+  ['Certification action-run URL validation', /test\("\/actions\/runs\/\[0-9\]\+\(\?:\/job\/\[0-9\]\+\)\?/],
+  ['canonical certification failure message', /canonical Certification check missing or not linked to the canonical FLIXO Test System run/],
 ];
-if (!autoRepairMergeGateWorkflow || !certificationSourceBindingMarkers.every((marker) => autoRepairMergeGateWorkflow.includes(marker))) {
-  console.error('CI contract failed: Auto Repair Merge Gate certification must be bound to the canonical exact-SHA FLIXO Test System run.');
+if (!autoRepairMergeGateWorkflow || !certificationSourceBindingChecks.every(([, pattern]) => pattern.test(autoRepairMergeGateWorkflow))) {
+  const missing = certificationSourceBindingChecks.filter(([, pattern]) => !pattern.test(autoRepairMergeGateWorkflow)).map(([label]) => label);
+  console.error('CI contract failed: Auto Repair Merge Gate certification source binding is incomplete: ' + missing.join(', '));
   process.exit(1);
 }
 for (const marker of [
