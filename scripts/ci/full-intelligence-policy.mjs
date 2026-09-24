@@ -80,16 +80,24 @@ export function buildFullIntelligenceBootstrap({
   taskId,
 } = {}) {
   const registry = readRegistry();
-  const canonicalAudience = Array.isArray(registry.distribution?.learningConsumers)
-    ? [...new Set(registry.distribution.learningConsumers.map((value) => String(value).trim()).filter(Boolean))]
+  const learningConsumers = Array.isArray(registry.distribution?.learningConsumers)
+    ? registry.distribution.learningConsumers
     : [];
-  const aliasMap = registry.botAliasMap && typeof registry.botAliasMap === 'object' && !Array.isArray(registry.botAliasMap)
-    ? registry.botAliasMap
+  const activeAudience = registry.activeMembers && typeof registry.activeMembers === 'object' && !Array.isArray(registry.activeMembers)
+    ? Object.values(registry.activeMembers).flatMap((value) => Array.isArray(value) ? value : [])
+    : [];
+  const aliasMap = registry.aliases && typeof registry.aliases === 'object' && !Array.isArray(registry.aliases)
+    ? registry.aliases
     : {};
+  const globalAudience = new Set(
+    [...learningConsumers, ...activeAudience]
+      .map((value) => String(value).trim())
+      .filter(Boolean),
+  );
   const normalizedAgentId = String(agentId ?? '').trim();
   const canonicalAgentId = String(aliasMap[normalizedAgentId] ?? normalizedAgentId).trim();
   if (!normalizedAgentId) throw new Error('FULL_INTELLIGENCE_AGENT_ID_REQUIRED');
-  if (!canonicalAudience.includes(canonicalAgentId)) throw new Error('FULL_INTELLIGENCE_AGENT_NOT_IN_GLOBAL_AUDIENCE');
+  if (!globalAudience.has(canonicalAgentId)) throw new Error('FULL_INTELLIGENCE_AGENT_NOT_IN_GLOBAL_AUDIENCE');
   if (!String(taskId ?? '').trim()) throw new Error('FULL_INTELLIGENCE_TASK_REQUIRED');
 
   const sha = validateSha(exactSha);
