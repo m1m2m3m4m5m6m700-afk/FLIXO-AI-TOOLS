@@ -25,7 +25,7 @@ for (const locale of locales) {
   if (!/homeDescription:\s*'[^']+'/u.test(source)) fail(`${locale}: missing homeDescription`);
 }
 
-const home = read(`${root}/src/data/home-locales.ts`);
+const homeForLocale = (locale) => read(`${root}/src/data/home-locales/${locale}.ts`);
 const quickflow = read(`${root}/src/data/quickflow-locales.ts`);
 const toolUi = read(`${root}/src/data/tool-ui-i18n.ts`);
 const seoNames = read(`${root}/src/lib/i18n/tool-seo-localization.ts`);
@@ -35,17 +35,7 @@ const homeKeys = ['nav:', 'badge:', 'eyebrow:', 'heroTitle:', 'heroLead:', 'desc
 const quickflowKeys = ['missing:', 'back:', 'eyebrow:', 'runLabel:', 'choose:', 'processing:', 'result:', 'download:', 'chooseError:', 'failure:', 'running:', 'run:', 'resultAlt:', 'progress:'];
 const toolUiKeys = ['notFound:', 'loading:', 'language:', 'about:', 'howTo:', 'features:', 'navigation:', 'home:', 'ready:', 'waiting:', 'workspace:', 'favorite:', 'english:', 'arabic:', 'command:', 'openCommandPalette:', 'upload:', 'reset:', 'exportLabel:', 'localWorkspace:'];
 
-const entryBody = (source, locale, marker) => {
-  const startPattern = new RegExp(`\\b${locale}:\\s*${marker}\\(\\{`, 'u');
-  const match = startPattern.exec(source);
-  if (!match) return '';
-  const start = match.index + match[0].length;
-  const endPattern = /\n\s*[a-z]{2}:\s*(?:copy|q)\(\{/gu;
-  endPattern.lastIndex = start;
-  const next = endPattern.exec(source);
-  const end = next ? next.index : source.indexOf('\n};', start);
-  return source.slice(start, end === -1 ? source.length : end);
-};
+const entryBody = (source) => source;
 
 const objectBody = (source, locale) => new RegExp(`\\b${locale}:\\s*\\{([\\s\\S]*?)\\}`, 'u').exec(source)?.[1] ?? '';
 const extractString = (entry, key) => entry.match(new RegExp(`${key}['"]([^'"\\n]*)['"]`, 'u'))?.[1] ?? '';
@@ -67,7 +57,7 @@ const effectiveHomeValue = (locale, key, sourceValue) => {
 };
 
 for (const locale of locales) {
-  const homeEntry = entryBody(home, locale, 'copy');
+  const homeEntry = entryBody(homeForLocale(locale));
   if (!homeEntry) fail(`Home: missing locale entry ${locale}`);
   else for (const key of homeKeys) if (!homeEntry.includes(key)) fail(`Home ${locale}: missing ${key}`);
 
@@ -80,12 +70,12 @@ for (const locale of locales) {
   else for (const key of toolUiKeys) if (!uiEntry.includes(key)) fail(`Tool UI ${locale}: missing ${key}`);
 }
 
-const englishHome = entryBody(home, 'en', 'copy');
+const englishHome = entryBody(homeForLocale('en'));
 const englishQuick = entryBody(quickflow, 'en', 'q');
 const englishLeakKeys = ['badge:', 'heroLead:', 'describe:', 'searchLabel:', 'searchPlaceholder:', 'smartPalette:', 'popular:', 'quickDropTitle:', 'dropChoose:', 'dropSupport:', 'suggestedTool:', 'openTool:', 'toolboxTitle:', 'empty:', 'finalTitle:', 'finalLead:', 'trySmart:', 'browserMeta:'];
 
 for (const locale of locales.filter((value) => value !== 'en')) {
-  const entry = entryBody(home, locale, 'copy');
+  const entry = entryBody(homeForLocale(locale));
   for (const key of englishLeakKeys) {
     const enValue = extractString(englishHome, key);
     const localizedValue = effectiveHomeValue(locale, key, extractString(entry, key));
@@ -102,7 +92,7 @@ for (const locale of locales.filter((value) => value !== 'en')) {
 
 const htmlSource = extractString(englishHome, 'heroTitle:');
 for (const locale of locales) {
-  const entry = entryBody(home, locale, 'copy');
+  const entry = entryBody(homeForLocale(locale));
   const localizedHero = effectiveHomeValue(locale, 'heroTitle:', extractString(entry, 'heroTitle:'));
   if ((htmlSource.includes('<span>') && !localizedHero.includes('<span>')) || (htmlSource.includes('</span>') && !localizedHero.includes('</span>'))) {
     fail(`Home ${locale}: heroTitle HTML emphasis structure differs from English`);
@@ -130,7 +120,7 @@ const reviewedHomePhraseReplacements = Object.freeze({
 });
 const suspiciousTerms = ['Privacy-first', 'Browser-first', 'Instant start', 'Smart routing', 'Open smart command palette', 'Start with the tools people actually need.'];
 for (const locale of locales.filter((value) => value !== 'en')) {
-  const entry = entryBody(home, locale, 'copy');
+  const entry = entryBody(homeForLocale(locale));
   const reviewed = reviewedHomePhraseReplacements[locale] ?? {};
   for (const term of suspiciousTerms) {
     const rawLocalized = entry.includes(`'${term}'`) || entry.includes(`"${term}"`);
