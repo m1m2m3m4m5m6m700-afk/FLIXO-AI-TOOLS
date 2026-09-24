@@ -46,12 +46,7 @@ const isCenter = (value: string): value is Center =>
 
 export default async function adminCenters(req: AdminRequest, res: ServerResponse) {
   const rawCenter = first(req.query?.center)?.trim().toLowerCase();
-  if (!rawCenter || !(rawCenter in CENTER_CAPABILITY)) {
-    const correlationId = first(req.headers['x-request-id'])?.trim() || randomUUID();
-    return json(res, 400, { ok: false, error: { code: 'invalid_admin_center', correlationId } }, correlationId);
-  }
-
-  if (!isCenter(rawCenter)) {
+  if (!rawCenter || !isCenter(rawCenter)) {
     const correlationId = first(req.headers['x-request-id'])?.trim() || randomUUID();
     return json(res, 400, { ok: false, error: { code: 'invalid_admin_center', correlationId } }, correlationId);
   }
