@@ -33,8 +33,8 @@ const missingHomeLocales = expected.filter((locale) => {
 if (missingHomeLocales.length) { console.error(`Home UI is incomplete for locale(s): ${missingHomeLocales.join(', ')}`); process.exit(1); }
 
 const getQuoted = (entry, key) => entry.match(new RegExp(`${key}'([^']*)'`))?.[1] ?? '';
-const englishHero = getQuoted(getHomeEntry('en'), 'lead:') || getQuoted(getHomeEntry('en'), 'heroLead:');
-const suspiciousHomeFallbacks = expected.filter((locale) => locale !== 'en' && getQuoted(getHomeEntry(locale), 'lead:') === englishHero);
+const englishHero = getQuoted(getHomeEntry('en'), 'heroLead:');
+const suspiciousHomeFallbacks = expected.filter((locale) => locale !== 'en' && getQuoted(getHomeEntry(locale), 'heroLead:') === englishHero);
 if (suspiciousHomeFallbacks.length) { console.error(`English Home fallback detected in locale(s): ${suspiciousHomeFallbacks.join(', ')}`); process.exit(1); }
 
 const missingQuickflowLocales = expected.filter((locale) => !new RegExp(`\\b${locale}:\\s*q\\(`).test(quickflowSource));
