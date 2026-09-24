@@ -46,9 +46,9 @@ for (const locale of ['ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl
   const coreSource = fs.readFileSync(path.join(ROOT, 'src/lib/i18n/locales', locale + '.ts'), 'utf8');
   const toolSource = fs.readFileSync(path.join(ROOT, 'src/data/tool-ui-locales', locale + '.ts'), 'utf8');
   const coreMarker = literal(coreSource, /homeTitle:\s*'([^']+)'/u, `core-${locale}`);
-  const toolMarker = literal(toolSource, /notFound:\s*'([^']+)'/u, `tool-ui-${locale}`);
+  const toolMarkers = [literal(toolSource, /notFound:\s*'([^']+)'/u, `tool-ui-${locale}-notFound`), literal(toolSource, /loading:\s*'([^']+)'/u, `tool-ui-${locale}-loading`), literal(toolSource, /navigation:\s*'([^']+)'/u, `tool-ui-${locale}-navigation`)];
   const coreMatches = findAssets(jsFiles, coreMarker);
-  const toolMatches = findAssets(jsFiles, toolMarker);
+  const toolMatches = findAssets(jsFiles, toolMarkers);
   localeResults.push({
     locale,
     core: classifyChunk(coreMatches, criticalFiles),
@@ -122,8 +122,12 @@ function literal(source, regex, label) {
   return value;
 }
 
-function findAssets(assetFiles, marker) {
-  return assetFiles.filter((f) => fs.readFileSync(f.abs, 'utf8').includes(marker)).map((f) => f.rel);
+function findAssets(assetFiles, markerOrMarkers) {
+  const markers = Array.isArray(markerOrMarkers) ? markerOrMarkers : [markerOrMarkers];
+  return assetFiles.filter((f) => {
+    const text = fs.readFileSync(f.abs, 'utf8');
+    return markers.every((marker) => text.includes(marker));
+  }).map((f) => f.rel);
 }
 
 function findAssetsByAny(assetFiles, markers) {
