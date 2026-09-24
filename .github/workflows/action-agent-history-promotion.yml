@@ -7,7 +7,7 @@ on:
     branches: [execution]
 
 permissions:
-  actions: read
+  actions: write
   contents: read
 
 concurrency:
@@ -26,6 +26,11 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Cancel stale workflow_run source
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/ci/assert-workflow-run-current.mjs
       - name: Verify canonical GREEN provenance without consuming untrusted artifacts
         env:
           GH_TOKEN: ${{ github.token }}
