@@ -47,7 +47,6 @@ const entryBody = (source, locale, marker) => {
   return source.slice(start, end === -1 ? source.length : end);
 };
 
-const objectBody = (source, locale) => new RegExp(`\\b${locale}:\\s*\\{([\\s\\S]*?)\\}`, 'u').exec(source)?.[1] ?? '';
 const extractString = (entry, key) => entry.match(new RegExp(`${key}['"]([^'"\\n]*)['"]`, 'u'))?.[1] ?? '';
 
 const overrideEntry = (locale) => {
