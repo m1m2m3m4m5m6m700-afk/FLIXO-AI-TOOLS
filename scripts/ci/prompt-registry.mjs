@@ -225,7 +225,16 @@ export function classifyCausalEvidence(input = {}) {
 
   const external = (
     containsAny(query.providerSignature, ['503', 'provider', 'upstream unavailable', 'rate limit', 'timeout', 'model service']) ||
-    containsAny(combined, ['http 503', 'provider refused', 'external runtime', 'provider outage'])
+    containsAny(combined, [
+      'http 503',
+      'provider refused',
+      'external runtime',
+      'provider outage',
+      'unable to resolve action',
+      'provided ref',
+      'github action resolution failed',
+      'github api rate limit',
+    ])
   );
   if (external) {
     return Object.freeze({
@@ -259,7 +268,16 @@ export function classifyCausalEvidence(input = {}) {
   const contract = (
     containsAny(query.rootCause, ['proof', 'contract', 'contract-drift', 'ownership']) ||
     containsAny(query.failureClass, ['contract', 'proof']) ||
-    containsAny(combined, ['without proof', 'proof coverage', 'contract mismatch', 'shared_source_missing'])
+    containsAny(combined, [
+      'without proof',
+      'proof coverage',
+      'contract mismatch',
+      'shared_source_missing',
+      'certification-surface validator failed',
+      'canonical certification-surface validator failed',
+      'ci/cd trust failure',
+      'schema_version',
+    ])
   );
   if (contract) {
     return Object.freeze({
@@ -290,7 +308,24 @@ export function classifyCausalEvidence(input = {}) {
     });
   }
 
-  const internal = Boolean(query.firstFailingStep || query.rootCause || query.failureClass);
+  const explicitInternalEvidence = (
+    containsAny(combined, [
+      '##[error]src/',
+      'error ts',
+      'syntaxerror',
+      'typeerror',
+      'referenceerror',
+      'module not found',
+      'has no exported member',
+      'is not assignable to type',
+      'process completed with exit code 1',
+      'process completed with exit code 2',
+      'npm run typecheck',
+      'npm run test:static',
+      'npm run test:build',
+    ])
+  );
+  const internal = Boolean(query.firstFailingStep || query.rootCause || query.failureClass || explicitInternalEvidence);
   if (internal && !query.repeatedStrategy) {
     return Object.freeze({
       classification: 'INTERNAL',
