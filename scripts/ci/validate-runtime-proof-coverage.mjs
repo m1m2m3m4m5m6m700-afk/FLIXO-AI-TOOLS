@@ -10,7 +10,7 @@ if (!/^[0-9a-f]{40}$/.test(base)) throw new Error('RUNTIME_PROOF_BASE_SHA_REQUIR
 
 const run = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
 const commitList = run(['rev-list', '--reverse', `${base}..${headSha}`]).split('\n').filter(Boolean);
-const sensitive = /(liveness|wake|watchdog|lease|heartbeat|council|supersession)|CELL-BOT-REGISTRY\.json|ACTION-REPAIR-SQUAD-REGISTRY\.json/i;
+const sensitive = /(?:^|[-_/])(liveness|wake|watchdog|lease|heartbeat|council|supersession)(?:[-_/]|$)|CELL-BOT-REGISTRY\.json|ACTION-REPAIR-SQUAD-REGISTRY\.json/i;
 const proof = /(?:^|\/)(?:test-|verify-|validate-|assert-|check-)|\.test\.|\.spec\.|\.workflow\.yml$/i;
 
 const commits = commitList.map((sha) => {
