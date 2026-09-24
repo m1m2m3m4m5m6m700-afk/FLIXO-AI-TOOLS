@@ -87,28 +87,6 @@ const COUNCIL_SQL_DUPLICATE_SIGNATURES = Object.freeze([
   'create or replace function public.council_recover_expired_dispatches',
 ]);
 
-const countOccurrences = (text, needle) => {
-  let count = 0;
-  let offset = 0;
-  while (true) {
-    const index = text.indexOf(needle, offset);
-    if (index < 0) return count;
-    count += 1;
-    offset = index + needle.length;
-  }
-};
-
-const COUNCIL_SQL_DUPLICATE_SIGNATURES = Object.freeze([
-  'create table if not exists public.flix_council_accounts',
-  'create table if not exists public.flix_council_dispatches',
-  'create table if not exists public.flix_council_events',
-  'create or replace function public.council_claim_dispatch',
-  'create or replace function public.council_ack_dispatch',
-  'create or replace function public.council_heartbeat_dispatch',
-  'create or replace function public.council_complete_dispatch',
-  'create or replace function public.council_recover_expired_dispatches',
-]);
-
 const semanticDuplicateRemovalClosure = (sha, changed, sensitiveChanged, proofChanged) => {
   if (changed.length !== 1 || sensitiveChanged.length !== 1 || proofChanged.length !== 0) return false;
   const file = sensitiveChanged[0];
