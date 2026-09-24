@@ -40,7 +40,7 @@ This record is append-only in meaning: later replies must be recorded as new dat
 
 ## AGENT-2 task completion handoff — 2026-09-25
 - Task: `WP-AUTONOMY-CONTROL-001`
-- Exact execution SHA at handoff: `e688f2478a6906e24f50bc5d343075eedf726c12`
+- Exact execution SHA at handoff: `1a406bfa06b7e1783276e3e6e84f2f18b0af9b0e`
 - Branch: `execution`
 - New branches: none; direct main mutation: none; force push: none.
 - Implemented: causal retrieval, zero-stall routing, 100-case adversarial benchmark, Auto-Repair integration, stale/external/downstream fail-closed routing.
@@ -49,3 +49,5 @@ This record is append-only in meaning: later replies must be recorded as new dat
 - Internal communication: `AGENT2-WP-AUTONOMY-CONTROL-001-20260925-001` recorded in canonical inbox and state passed unchanged for Chair-1 review.
 - Certification: OPEN. Available GitHub Actions queries returned no current PR workflow runs and no combined status for this exact SHA; no GREEN claim is made.
 - Follow-up: re-query exact-SHA CI, run canonical repair/test suite, inspect first causal RED only, and close only with fresh exact-SHA GREEN + certification.
+
+- Final current-HEAD structural revalidation: prompt-registry parse PASS; test-prompt-registry parse PASS; auto-repair-engine parse PASS; 100-case benchmark remains 100/100 after other-agent changes on the same execution head.
