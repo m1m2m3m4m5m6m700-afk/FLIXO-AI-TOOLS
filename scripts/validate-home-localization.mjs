@@ -1,7 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 
 const config = readFileSync('src/lib/i18n/config.ts', 'utf8');
-const source = readFileSync('src/data/home-locales.ts', 'utf8');
 const homeLocaleSource = (locale) => readFileSync(`src/data/home-locales/${locale}.ts`, 'utf8');
 const overrides = readFileSync('src/lib/i18n/locale-quality-overrides.ts', 'utf8');
 const homePage = readFileSync('src/routes/home-page.tsx', 'utf8');
