@@ -10,7 +10,7 @@ const fallback = readFileSync('src/data/tool-ui-fallback.ts', 'utf8');
 
 for (const locale of canonicalLocales) {
   assert.ok(existsSync(`src/data/tool-ui-locales/${locale}.ts`), `missing Tool UI locale module: ${locale}`);
-  assert.match(loader, new RegExp(`@/data/tool-ui-locales/${locale}\\\\['"]`), `missing dynamic import: ${locale}`);
+  assert.match(loader, new RegExp(`@/data/tool-ui-locales/${locale}['"]`), `missing dynamic import: ${locale}`);
 }
 
 assert.match(loader, /const cache = new Map<Locale, Promise<ToolUiCopy>>/u);
