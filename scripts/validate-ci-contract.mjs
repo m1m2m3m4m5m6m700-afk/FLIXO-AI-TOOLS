@@ -29,6 +29,21 @@ const agentMasterActivationWorkflow = readFileSync('.github/workflows/agent-mast
 const continuousWatchWorkflow = readFileSync('scripts/ci/continuous-error-watch.mjs', 'utf8');
 const currentCommitGuard = readFileSync('scripts/ci/assert-current-commit.mjs', 'utf8');
 const workflow = workflowSource.replace(/\\"/g, '"');
+const latestCommitPolicyChecks = [
+  ['controller actions write permission', /permissions:[\\s\\S]*actions:\\s*write/.test(latestCommitSupersessionWorkflow)],
+  ['controller cancels active stale SHA runs', /Cancel every active run for an older SHA/.test(latestCommitSupersessionWorkflow)],
+  ['controller enumerates all workflow runs', /gh api --paginate "repos\\/$REPOSITORY\\/actions\\/runs\\?branch=\\$BRANCH&per_page=100"/.test(latestCommitSupersessionWorkflow)],
+  ['controller has no resident exceptions', !/is_resident_protected_run|KEEP_STARTED_STALE_RUN/.test(latestCommitSupersessionWorkflow)],
+  ['controller fails closed on unresolved cancellation', /FAIL CLOSED: unable to cancel stale active run/.test(latestCommitSupersessionWorkflow)],
+  ['mandatory live-head guard has no bypass flag', !/requireLiveHeadMatch|DELEGATED_TO_SUPERSESSION_GATE/.test(currentCommitGuard)],
+];
+for (const [label, ok] of latestCommitPolicyChecks) {
+  if (!ok) {
+    console.error('CI contract failed: latest-commit-only policy: ' + label);
+    process.exit(1);
+  }
+}
+
 const testEngine = readFileSync('scripts/test.mjs', 'utf8');
 const certifyEngine = readFileSync('scripts/ci/certify.mjs', 'utf8');
 const certifyCore = readFileSync('scripts/ci/certify-core.mjs', 'utf8');
@@ -36,6 +51,7 @@ const autoRepairWorkflow = readFileSync('.github/workflows/auto-repair.yml', 'ut
 const cellMasterConsultWorkflow = readFileSync('.github/workflows/cell-master-consult.yml', 'utf8');
 const executionWatchdogWorkflow = readFileSync('.github/workflows/execution-bot-watchdog.yml', 'utf8');
 const resultState = readFileSync('scripts/ci/result-state.mjs', 'utf8');
+const latestCommitSupersessionWorkflow = readFileSync('.github/workflows/latest-commit-test-supersession.yml', 'utf8');
 
 const required = [
   ['canonical push trigger', /push:\s*\n\s*branches:\s*\[main, execution\]/],
@@ -43,7 +59,7 @@ const required = [
   ['Browser FAST engine', /\n\s{2}browser_fast:\s*\n/],
   ['Browser DEEP engine', /\n\s{2}browser_deep:\s*\n/],
   ['single certification gate', /\n\s{2}certify:\s*\n/],
-  ['canonical exact-SHA verification CI preserves started runs', /cancel-in-progress:\s*false/],
+  ['repository-wide latest-commit supersession controller', /Cancel every active run for an older SHA/],
   ['latest-push branch/exact-SHA concurrency isolation', /group:\s*flixo-test-(?:\$\{\{\s*github\.event_name\s*\}\}-)?\$\{\{\s*github\.event\.pull_request\.head\.repo\.full_name\s*\|\|\s*github\.repository\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/],
   ['exact SHA', /EXPECTED_SHA/],
   ['immutable artifact identity', /flixo-head-sha\.txt[\s\S]*flixo-package-lock\.sha256/],
@@ -101,14 +117,6 @@ const exactShaVerificationWorkflows = [
   ['test-impact-execution.yml', impactExecutionWorkflow],
   ['repository-security-baseline.yml', securityBaselineWorkflow],
 ];
-const nonCancellingExactShaEvidence = new Set([
-  'ci.yml',
-  'wp0-trust-baseline.yml',
-  'test-impact.yml',
-  'test-impact-execution.yml',
-  'repository-security-baseline.yml',
-]);
-
 if (!/EXPECTED_SHA/.test(currentCommitGuard) ||
     !/EXPECTED_BRANCH/.test(currentCommitGuard) ||
     !/FAIL CLOSED/.test(currentCommitGuard) ||
@@ -141,17 +149,8 @@ if (missingCurrentCommitGuardJobs.length) {
 }
 
 for (const [file, source] of exactShaVerificationWorkflows) {
-  const requiresCancellation = !nonCancellingExactShaEvidence.has(file);
-  const cancellationPattern = requiresCancellation
-    ? /cancel-in-progress:\s*true/.test(source)
-    : /cancel-in-progress:\s*false/.test(source);
-  if (!cancellationPattern) {
-    console.error(
-      'CI contract failed: ' + file +
-      (requiresCancellation
-        ? ' must cancel superseded verification runs.'
-        : ' must preserve an already-started exact-SHA evidence run.')
-    );
+  if (!/cancel-in-progress:\s*true/.test(source)) {
+    console.error('CI contract failed: ' + file + ' must cancel superseded verification runs.');
     process.exit(1);
   }
   const sourceUsesEventScopedSha =
@@ -170,8 +169,8 @@ for (const [file, source] of exactShaVerificationWorkflows) {
   }
 }
 
-if (!/cancel-in-progress:\s*false/.test(claudeSecurityWorkflow)) {
-  console.error('CI contract failed: claude-security-review.yml must preserve advisory review runs once started.');
+if (!/cancel-in-progress:\s*true/.test(claudeSecurityWorkflow)) {
+  console.error('CI contract failed: claude-security-review.yml must cancel superseded runs.');
   process.exit(1);
 }
 const claudeConcurrencyBlock = claudeSecurityWorkflow.match(/concurrency:[\s\S]*?(?=\n#|\npermissions:)/)?.[0] ?? '';
@@ -184,11 +183,11 @@ if (!claudeGroupLine.startsWith('group: claude-security-') || !claudeGroupUsesRe
 }
 
 for (const [file, source] of [
-  ['auto-repair.yml', readFileSync('.github/workflows/auto-repair.yml', 'utf8')],
+  ['auto-repair.yml', autoRepairWorkflow],
   ['execution-sync.yml', readFileSync('.github/workflows/execution-sync.yml', 'utf8')],
 ]) {
-  if (!/cancel-in-progress:\s*false/.test(source)) {
-    console.error('CI contract failed: ' + file + ' must remain non-canceling because it carries repair state.');
+  if (!/concurrency:/.test(source)) {
+    console.error('CI contract failed: ' + file + ' must declare a concurrency boundary under the repository latest-commit policy.');
     process.exit(1);
   }
 }
