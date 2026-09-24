@@ -388,6 +388,21 @@ const skippedRequiredWorkflow = evaluateGreen({
 });
 assert.equal(skippedRequiredWorkflow.status, 'RED_INTERNAL');
 assert.equal(skippedRequiredWorkflow.errors.some((item) => item.type === 'SKIPPED_CHECK_RED'), true);
+assert.equal(skippedRequiredWorkflow.automationOutcome, 'RED');
+
+const arbitrarySkippedWorkflow = evaluateGreen({
+  ...baseGreenInput,
+  workflowRuns: [
+    ...baseGreenInput.workflowRuns,
+    {
+      ...run('FLIXO Optional Automation', 59, 'skipped'),
+      path: '.github/workflows/optional-automation.yml',
+    },
+  ],
+});
+assert.equal(arbitrarySkippedWorkflow.errors.some((item) => item.type === 'NON_BINARY_AUTOMATION_OUTCOME'), true);
+assert.equal(arbitrarySkippedWorkflow.automationOutcome, 'RED');
+
 
 const missingEvidence = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,

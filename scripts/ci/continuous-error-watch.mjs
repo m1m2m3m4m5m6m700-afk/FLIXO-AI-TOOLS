@@ -561,6 +561,24 @@ export function evaluateGreen({
     ['failure', 'cancelled', 'timed_out', 'skipped', 'neutral', 'queued', 'in_progress'].includes(item.state)
   );
 
+  // Repository-wide binary outcome guard:
+  // any completed skipped/neutral run on the exact execution SHA is RED,
+  // even when that workflow is not part of the canonical required set.
+  const nonBinaryRuns = workflowRuns.filter((item) =>
+    item?.headSha === executionSha &&
+    item?.status === 'completed' &&
+    ['skipped', 'neutral'].includes(item?.conclusion),
+  );
+  for (const item of nonBinaryRuns) {
+    report.errors.push({
+      type: 'NON_BINARY_AUTOMATION_OUTCOME',
+      workflow: item.workflowName ?? item.name ?? 'unknown',
+      runId: item.databaseId ?? null,
+      status: item.conclusion,
+      headSha: item.headSha ?? null,
+    });
+  }
+
   const skippedRequiredWorkflows = Object.entries(report.ci.requiredWorkflows)
     .filter(([, item]) => item.status === 'skipped' || item.status === 'neutral');
   if (skippedRequiredWorkflows.length) {
@@ -596,6 +614,7 @@ export function evaluateGreen({
     'UNEXPECTED_COMMIT_STATUS_RED',
     'UNAPPROVED_WORKFLOW_RED',
     'SKIPPED_CHECK_RED',
+    'NON_BINARY_AUTOMATION_OUTCOME',
   ].includes(error.type))) {
     report.status = 'RED_INTERNAL';
     report.rootCause = 'REQUIRED_CHECK_FAILURE_REQUIRES_REPAIR_CYCLE';
@@ -616,6 +635,7 @@ export function evaluateGreen({
     report.rootCause = null;
   }
 
+  report.automationOutcome = report.status === 'GREEN' ? 'GREEN' : 'RED';
   return report;
 }
 
