@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "messageId": "AGENT2-WP-AUTONOMY-CONTROL-001-20260925-001",
+  "idempotencyKey": "AGENT2-WP-AUTONOMY-CONTROL-001-20260925-001:e688f2478a6906e24f50bc5d343075eedf726c12",
+  "actor": "executionAgent",
+  "recipient": "assistantController",
+  "intent": "AGENT2_TASK_COMPLETION_HANDOFF",
+  "taskId": "WP-AUTONOMY-CONTROL-001",
+  "scope": ["TASK_EXECUTION","CAUSAL_RCA_RETRIEVAL","ZERO_STALL_ROUTING","HELD_OUT_BENCHMARK","AUTO_REPAIR_INTEGRATION","TARGETED_VERIFICATION"],
+  "entrySha": "e688f2478a6906e24f50bc5d343075eedf726c12",
+  "risk": "HIGH",
+  "dependencies": ["CURRENT_EXACT_SHA","PROMPT_REGISTRY","AUTO_REPAIR_ENGINE","REPAIR_MEMORY","HISTORICAL_REPAIR_KNOWLEDGE"],
+  "expectedEvidence": ["Causal classifier 100/100","Next-action routing 100/100","Zero-Stall compliance 100/100","Causal retrieval recall 100% on eligible adversarial cases","Prompt-registry parse pass","Auto-repair-engine parse pass","No new branch","No main mutation","No force push","Fresh GitHub exact-SHA CI certification"],
+  "stopConditions": ["CANONICAL_GREEN","CERTIFICATION","EXACT_SHA_DRIFT"],
+  "proofObligations": ["EXACT_SHA_REVALIDATION","BENCHMARK_EVIDENCE","NO_FALSE_GREEN","NO_MAIN_MUTATION"],
+  "createdAt": "2026-09-25T00:00:00Z",
+  "source": "AGENT-2",
+  "payload": {
+    "latestExecutionSha": "e688f2478a6906e24f50bc5d343075eedf726c12",
+    "benchmark": {"cases":100,"classificationAccuracy":1,"nextActionAccuracy":1,"zeroStallCompliance":1,"causalRetrievalCases":70,"causalRetrievalRecall":1},
+    "parse": {"promptRegistry":"PASS","testPromptRegistry":"PASS","autoRepairEngine":"PASS"},
+    "ciStatus": "NO_CURRENT_PR_RUNS_OR_COMBINED_STATUS_RETURNED_BY_AVAILABLE_GITHUB_ACTIONS_QUERIES",
+    "certificationState": "OPEN",
+    "guardForwarding": "STATE_PASSED_UNCHANGED_FOR_CHAIR_1_REVIEW",
+    "noNewBranch": true,
+    "noMainMutation": true,
+    "forcePush": false
+  }
+}
