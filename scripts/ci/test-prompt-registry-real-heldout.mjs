@@ -24,16 +24,16 @@ function historicalGold(caseEntry) {
   ].join(' '));
 
   if (
-    /503|provider outage|provider|external runtime|rate limit|upstream unavailable|timeout/iu.test(text) ||
-    /external-tooling|provider-deployment|external/iu.test(String(caseEntry.rootCause ?? ''))
-  ) {
-    return 'EXTERNAL';
-  }
-  if (
     /live_head_moved=1|live_head_match=0|supersed|stale|expected_sha|observed_remote_sha|sha race/iu.test(text) ||
     /stale|supersession/iu.test(String(caseEntry.rootCause ?? ''))
   ) {
     return 'STALE';
+  }
+  if (
+    /503|provider outage|provider|external runtime|rate limit|upstream unavailable|timeout/iu.test(text) ||
+    /external-tooling|provider-deployment|external/iu.test(String(caseEntry.rootCause ?? ''))
+  ) {
+    return 'EXTERNAL';
   }
   if (
     /upstream red|downstream of|blocked by upstream|depends on upstream/iu.test(text) ||
