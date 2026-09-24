@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -32,7 +32,7 @@ jobs:
           EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
           EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
         run: node scripts/ci/assert-current-commit.mjs
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
       - name: Build impact plan
@@ -58,7 +58,7 @@ jobs:
       - name: Verify evidence reducer contract
         run: node scripts/ci/test-evidence-reducer.mjs
       - name: Upload impact evidence
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@615b319bd27bb32c3d64dca6b6ed6974d5fbe653 # v6.0.0
         with:
           name: flixo-test-impact-${{ github.run_id }}
           path: diagnostics/ci/test-impact.json

@@ -18,8 +18,8 @@ jobs:
     name: Dependency Health Inventory
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -34,7 +34,7 @@ jobs:
           npm run report:dependency-health > diagnostics/dependency-health.txt
       - name: Upload dependency health report
         id: upload-report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@615b319bd27bb32c3d64dca6b6ed6974d5fbe653 # v6.0.0
         continue-on-error: true
         with:
           name: dependency-health-${{ github.sha }}
