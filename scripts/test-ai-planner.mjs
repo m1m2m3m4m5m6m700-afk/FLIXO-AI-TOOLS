@@ -3,6 +3,7 @@ import { extractParameters } from '../src/lib/agent/intent/parameter-extractor.t
 import { planFromIntent } from '../src/lib/ai/planner.ts';
 import { safeParseExecutionPlan } from '../src/lib/contracts/ai-plan.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
+import { getCapability, getExecutableCapabilityIds } from '../src/lib/agent/capability-registry.ts';
 
 const combined = extractParameters('compress this image under 200KB and convert to WebP');
 assert.equal(combined.success, true);
@@ -78,4 +79,47 @@ const unsupportedParameter = safeParseExecutionPlan({
 });
 assert.equal(unsupportedParameter.success, false);
 
+
+const expectedMvpExecutableIds = [
+  'background-remover',
+  'image-upscaler',
+  'image-cropper',
+  'image-compressor',
+  'image-converter',
+  'image-effects',
+].sort();
+assert.deepEqual([...getExecutableCapabilityIds()].sort(), expectedMvpExecutableIds);
+for (const capabilityId of expectedMvpExecutableIds) {
+  assert.equal(getCapability(capabilityId)?.state, 'EXECUTABLE');
+}
+
+const naturalLanguageMatrix = [
+  ['remove the background', 'background-remover', {}],
+  ['upscale this image 2x', 'image-upscaler', { scale: 2 }],
+  ['resize to 1200x800', 'image-cropper', { width: 1200, height: 800, mode: 'exact' }],
+  ['compress this image under 200KB', 'image-compressor', { targetSizeKB: 200 }],
+  ['convert this image to WebP', 'image-converter', { format: 'image/webp' }],
+  ['increase contrast 15%', 'image-effects', { contrast: 115 }],
+  ['ارفع الدقة 2x', 'image-upscaler', { scale: 2 }],
+  ['زِد التشبع 20%', 'image-effects', { saturate: 120 }],
+  ['اجعل الصورة أبيض وأسود', 'image-effects', { grayscale: 100 }],
+];
+
+for (const [input, capability, params] of naturalLanguageMatrix) {
+  const extraction = extractParameters(input);
+  assert.equal(extraction.success, true, `MVP intent extraction failed: ${input}`);
+  assert.deepEqual(extraction.payload?.operations, [{ capability, params }]);
+  const plan = planFromIntent(input);
+  assert.deepEqual(plan?.steps, [{ toolId: capability, params }]);
+}
+
+const compoundMvp = planFromIntent('upscale this image 2x, increase contrast 10%, convert to WebP');
+assert.deepEqual(compoundMvp?.steps, [
+  { toolId: 'image-upscaler', params: { scale: 2 } },
+  { toolId: 'image-effects', params: { contrast: 110 } },
+  { toolId: 'image-converter', params: { format: 'image/webp' } },
+]);
+
 console.log('P1.2 dynamic QuickFlow planner contract tests passed.');
+console.log('MVP-003_EXECUTABLE_SCOPE=6');
+console.log('MVP-004_NATURAL_LANGUAGE_MATRIX=PASS');

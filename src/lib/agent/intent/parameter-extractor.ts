@@ -65,6 +65,28 @@ function parseBrightness(text: string): number | undefined {
   return /(?:decrease|lower|خفض|تقليل)/i.test(match[0]) ? Math.max(0, 100 - amount) : Math.min(200, 100 + amount);
 }
 
+function parsePercentageAdjustment(text: string, subject: 'contrast' | 'saturation'): number | undefined {
+  const pattern = subject === 'contrast'
+    ? /(?:increase|raise|boost|decrease|lower|رفع|زيادة|تقليل|خفض|زِد)\s+(?:the\s+)?(?:contrast|تباين)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i
+    : /(?:increase|raise|boost|decrease|lower|رفع|زيادة|تقليل|خفض|زِد)\s+(?:the\s+)?(?:saturation|saturate|تشبع)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i;
+  const match = text.match(pattern);
+  if (!match) return undefined;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount) || amount > 100) return undefined;
+  return /(?:decrease|lower|خفض|تقليل)/i.test(match[0]) ? Math.max(0, 100 - amount) : Math.min(200, 100 + amount);
+}
+
+function parseGrayscale(text: string): number | undefined {
+  return /(?:grayscale|grey\s*scale|black\s+and\s+white|أبيض\s*و\s*أسود|ابيض\s*و\s*اسود|تدرج\s+الرمادي)/i.test(text) ? 100 : undefined;
+}
+
+function parseUpscaleScale(text: string): number | undefined {
+  const match = text.match(/(?:upscale|upscaled|scale|increase\s+resolution|raise\s+resolution|رفع\s+الدقة|زيادة\s+الدقة|تكبير\s+الصورة|كبر\s+الصورة)[^0-9]{0,40}(\d+(?:\.\d+)?)\s*x\b/i);
+  if (!match) return undefined;
+  const scale = Number(match[1]);
+  return Number.isFinite(scale) && scale > 0 && scale <= 8 ? scale : undefined;
+}
+
 function validateOperation(operation: ExtractedOperation, errors: string[]): void {
   const capability = getCapability(operation.capability);
   if (!capability) { errors.push(`Unknown capability '${operation.capability}'.`); return; }
@@ -90,6 +112,11 @@ export function extractParameters(input: string): ExtractionResult {
   const dimensions = parseDimensions(text);
   const aspectRatio = parseAspectRatio(text);
   const brightness = parseBrightness(text);
+  const contrast = parsePercentageAdjustment(text, 'contrast');
+  const saturation = parsePercentageAdjustment(text, 'saturation');
+  const grayscale = parseGrayscale(text);
+  const upscaleScale = parseUpscaleScale(text);
+  const hasUpscaleIntent = /(?:upscale|upscaled|increase\s+resolution|raise\s+resolution|رفع\s+الدقة|زيادة\s+الدقة|تكبير\s+الصورة|كبر\s+الصورة)/i.test(text);
   const hasCompressionIntent = /(?:compress|compression|ضغط|تصغير)/i.test(text);
   const hasConversionIntent = /(?:convert|conversion|تحويل|حول|حوّل)/i.test(text);
   const hasBackgroundRemovalIntent = /(?:remove\s+(?:the\s+)?background|background\s+removal|إزالة\s+الخلفية|ازالة\s+الخلفية|شيل\s+الخلفية|شيل\s+خلفية|بدون\s+خلفية|خلفية\s+شفافة)/i.test(text);
@@ -102,12 +129,16 @@ export function extractParameters(input: string): ExtractionResult {
   if (dimensions) addOperation(operations, 'image-cropper', { width: dimensions.width, height: dimensions.height, mode: 'exact' });
   if (aspectRatio) addOperation(operations, 'image-cropper', { aspectRatio });
   if (brightness !== undefined) addOperation(operations, 'image-effects', { brightness });
+  if (contrast !== undefined) addOperation(operations, 'image-effects', { contrast });
+  if (saturation !== undefined) addOperation(operations, 'image-effects', { saturate: saturation });
+  if (grayscale !== undefined) addOperation(operations, 'image-effects', { grayscale });
+  if (hasUpscaleIntent) addOperation(operations, 'image-upscaler', upscaleScale === undefined ? {} : { scale: upscaleScale });
   if (hasCompressionIntent && targetSizeKB === undefined) addOperation(operations, 'image-compressor', {});
   if (hasConversionIntent && format === undefined) errors.push('A target output format is required for image conversion.');
   if (/\b(?:crop|قص)\b/i.test(text) && dimensions === undefined && aspectRatio === undefined) errors.push('Crop requests require explicit dimensions or an aspect ratio.');
   for (const operation of operations) validateOperation(operation, errors);
 
-  const knownSignal = /(?:compress|ضغط|convert|تحويل|حول|حوّل|webp|png|jpe?g|resize|dimensions|size|أبعاد|حجم|aspect\s+ratio|نسبة|square|مربع|مربعة|خلفية|background|remove|إزالة|ازالة|شيل|brightness|سطوع|\d+\s*[x×]\s*\d+|\d+(?:\.\d+)?\s*(?:kb|kib|mb|mib|كيلوبايت|ميجابايت))/i;
+  const knownSignal = /(?:compress|ضغط|convert|تحويل|حول|حوّل|webp|png|jpe?g|resize|dimensions|size|أبعاد|حجم|aspect\s+ratio|نسبة|square|مربع|مربعة|خلفية|background|remove|إزالة|ازالة|شيل|brightness|سطوع|contrast|تباين|saturation|saturate|تشبع|grayscale|grey\s*scale|black\s+and\s+white|أبيض\s*و\s*أسود|ابيض\s*و\s*اسود|upscale|upscaled|resolution|رفع\s+الدقة|زيادة\s+الدقة|تكبير\s+الصورة|\d+\s*[x×]\s*\d+|\d+(?:\.\d+)?\s*(?:kb|kib|mb|mib|كيلوبايت|ميجابايت))/i;
   if (!knownSignal.test(text)) unrecognizedFragments.push(input.trim());
   if (operations.length === 0 && errors.length === 0) errors.push('No executable operation could be safely extracted.');
   if (unrecognizedFragments.length > 0) errors.push('Unrecognized instruction content requires explicit handling before execution.');
