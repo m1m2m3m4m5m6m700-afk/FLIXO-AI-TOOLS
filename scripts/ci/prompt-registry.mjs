@@ -40,6 +40,41 @@ export const ZERO_STALL_ACTIONS = Object.freeze([
 ]);
 
 const CAUSAL_RULE_BEHAVIORS = Object.freeze({
+  'exact-sha-before-rca': Object.freeze({
+    classification: 'STALE',
+    nextAction: 'WAIT_FOR_FRESH_SHA',
+    forbiddenActions: ['MUTATE_BEFORE_EXACT_SHA'],
+  }),
+  'reject-stale-failure-targets': Object.freeze({
+    classification: 'STALE',
+    nextAction: 'WAIT_FOR_FRESH_SHA',
+    forbiddenActions: ['MUTATE_INTERNAL_SOURCE', 'PROMOTE_HISTORICAL_PROOF'],
+  }),
+  'downstream-gate-not-root': Object.freeze({
+    classification: 'DOWNSTREAM',
+    nextAction: 'TARGETED_PROBE',
+    forbiddenActions: ['REPAIR_DOWNSTREAM_SYMPTOM'],
+  }),
+  'sensitive-mutation-needs-proof': Object.freeze({
+    classification: 'CONTRACT',
+    nextAction: 'REPAIR',
+    forbiddenActions: ['SILENCE_PROOF_GUARD'],
+  }),
+  'external-provider-isolation': Object.freeze({
+    classification: 'EXTERNAL',
+    nextAction: 'BLOCKED_EXTERNAL',
+    forbiddenActions: ['MUTATE_INTERNAL_SOURCE'],
+  }),
+  'external-provider-separation': Object.freeze({
+    classification: 'EXTERNAL',
+    nextAction: 'BLOCKED_EXTERNAL',
+    forbiddenActions: ['MUTATE_INTERNAL_SOURCE'],
+  }),
+  'root-only-mutation': Object.freeze({
+    classification: 'INTERNAL',
+    nextAction: 'REPAIR',
+    forbiddenActions: ['REPAIR_DOWNSTREAM_SYMPTOM'],
+  }),
   'cancelled-run-classification': Object.freeze({
     classification: 'STALE',
     nextAction: 'WAIT_FOR_FRESH_SHA',
