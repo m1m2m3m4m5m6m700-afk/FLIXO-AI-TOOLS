@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: flixo-security-red-team-isolated-${{ inputs.expected_sha }}
+  group: flixo-security-red-team-isolated-${{ github.workflow }}-${{ github.ref_name }}-${{ inputs.expected_sha || github.sha }}
   cancel-in-progress: false
 
 env:
@@ -54,6 +54,14 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+
+      - name: Install deterministic dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Validate dependency and lock security contracts
+        run: |
+          npm run validate:lock-manifest
+          npm run validate:dependency-zero-debt
 
       - name: Validate isolated red-team contract
         run: node scripts/ci/test-security-red-team-contract.mjs

@@ -24,15 +24,26 @@ export const localizedToolRoute = createRoute({
   head: ({ params }) => {
     const seo = getToolSeo(params.locale, params.tool);
     if (!seo) return { meta: [{ title: 'FLIXO | Tool not found' }, { name: 'robots', content: 'noindex,nofollow' }] };
+    const socialImageAlt = seo.altText[0] ?? seo.title;
     return {
       meta: [
         { title: seo.title },
         { name: 'description', content: seo.description },
         { name: 'robots', content: 'index,follow,max-image-preview:large' },
+        { property: 'og:type', content: 'website' },
+        { property: 'og:site_name', content: 'FLIXO AI' },
         { property: 'og:title', content: seo.title },
         { property: 'og:description', content: seo.description },
         { property: 'og:url', content: seo.url },
         { property: 'og:locale', content: seo.languageTag },
+        { property: 'og:image', content: `${SITE_ORIGIN}/flixo-logo.webp` },
+        { property: 'og:image:alt', content: socialImageAlt },
+        { property: 'og:image:type', content: 'image/webp' },
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:title', content: seo.title },
+        { name: 'twitter:description', content: seo.description },
+        { name: 'twitter:image', content: `${SITE_ORIGIN}/flixo-logo.webp` },
+        { name: 'twitter:image:alt', content: socialImageAlt },
       ],
       links: [
         { rel: 'canonical', href: seo.url },

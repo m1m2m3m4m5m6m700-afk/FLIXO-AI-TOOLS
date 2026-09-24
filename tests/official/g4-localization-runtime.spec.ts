@@ -303,7 +303,10 @@ for (const pathname of routes) {
       expect(leakedEnglish, `${pathname} exact English UI fallback(s): ${leakedEnglish.slice(0, 10).join(' | ')}`).toEqual([]);
 
       const expectedToolName = tool ? getAuthoritativeToolSeoName(tool, localeCode) : undefined;
-      if (expectedToolName) expect(current.h1, `${pathname} must expose the authoritative localized tool name`).toContain(expectedToolName);
+      if (tool?.isReady) {
+        expect(expectedToolName, `${pathname} must have an authoritative localized SEO name for ${localeCode}`).toBeTruthy();
+        if (expectedToolName) expect(current.h1, `${pathname} must expose the authoritative localized tool name`).toContain(expectedToolName);
+      }
     }
 
     const a11yIssues = await page.locator('button,a,input,textarea,select,img').evaluateAll((nodes) => {

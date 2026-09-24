@@ -58,6 +58,19 @@ if (!routerSource.includes("hrefLang: 'x-default'")) {
   console.error('x-default hreflang is missing.');
   process.exit(1);
 }
+for (const required of [
+  "{ property: 'og:image', content:",
+  "{ property: 'og:image:alt', content:",
+  "{ property: 'og:image:type', content: 'image/webp' }",
+  "{ name: 'twitter:card', content: 'summary_large_image' }",
+  "{ name: 'twitter:image', content:",
+  "{ name: 'twitter:image:alt', content:",
+]) {
+  if (!localizedToolPageSource.includes(required)) {
+    console.error(`Localized tool SEO media metadata is missing: ${required}`);
+    process.exit(1);
+  }
+}
 
 const jsonLdScriptPattern = /<script\s+type=["']application\/ld\+json["']/;
 if (!jsonLdScriptPattern.test(localizedPageSource)) {
