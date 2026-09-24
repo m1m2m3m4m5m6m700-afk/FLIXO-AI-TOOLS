@@ -87,13 +87,13 @@ if (!existsSync(`${root}/${locPath}`)) {
   const expectedDirection = locale === 'ar' || locale === 'ur' ? 'rtl' : 'ltr';
   if (direction !== expectedDirection) fail(`direction mismatch: expected ${expectedDirection}, found ${direction || '<missing>'}`);
 
-  const home = read('src/data/home-locales.ts');
+  const home = read(`src/data/home-locales/${locale}.ts`);
   const quick = read('src/data/quickflow-locales.ts');
   const ui = read('src/data/tool-ui-i18n.ts');
   const homeKeys = ['nav:', 'badge:', 'eyebrow:', 'heroTitle:', 'heroLead:', 'describe:', 'searchLabel:', 'searchPlaceholder:', 'smartPalette:', 'suggested:', 'openDirectly:', 'popular:', 'trust:', 'quickDrop:', 'quickDropTitle:', 'quickDropLead:', 'dropChoose:', 'dropSupport:', 'suggestedTool:', 'openTool:', 'toolbox:', 'toolboxTitle:', 'ready:', 'empty:', 'builtForFocus:', 'finalTitle:', 'finalLead:', 'trySmart:', 'all:', 'browserMeta:', 'ariaHome:', 'ariaPrimary:', 'ariaFindTool:', 'ariaTrust:', 'ariaCategories:', 'quickTags:'];
   const quickKeys = ['missing:', 'back:', 'eyebrow:', 'runLabel:', 'choose:', 'processing:', 'result:', 'download:', 'chooseError:', 'failure:', 'running:', 'run:', 'resultAlt:', 'progress:'];
   const uiKeys = ['notFound:', 'loading:', 'language:', 'about:', 'howTo:', 'features:', 'navigation:', 'home:', 'ready:', 'waiting:', 'workspace:', 'favorite:', 'english:', 'arabic:', 'command:', 'openCommandPalette:', 'upload:', 'reset:', 'exportLabel:', 'localWorkspace:'];
-  const homeEntry = extractEntry(home, locale, 'copy');
+  const homeEntry = home;
   const quickEntry = extractEntry(quick, locale, 'q');
   const uiEntry = extractObjectBody(ui, locale);
   for (const key of homeKeys) if (!homeEntry.includes(key)) fail(`Home missing ${key}`);
@@ -101,7 +101,7 @@ if (!existsSync(`${root}/${locPath}`)) {
   for (const key of uiKeys) if (!uiEntry.includes(key)) fail(`Tool UI missing ${key}`);
 
   if (locale !== 'en') {
-    const enHome = extractEntry(home, 'en', 'copy');
+    const enHome = read('src/data/home-locales/en.ts');
     const enQuick = extractEntry(quick, 'en', 'q');
     for (const key of ['badge:', 'heroLead:', 'describe:', 'searchLabel:', 'searchPlaceholder:', 'smartPalette:', 'popular:', 'quickDropTitle:', 'dropChoose:', 'dropSupport:', 'suggestedTool:', 'openTool:', 'toolboxTitle:', 'empty:', 'finalTitle:', 'finalLead:', 'trySmart:']) {
       const a = extractEntryValue(enHome, key); const b = extractEntryValue(homeEntry, key);
