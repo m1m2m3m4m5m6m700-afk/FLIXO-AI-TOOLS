@@ -8,6 +8,7 @@ const contract=fs.readFileSync('docs/agents/SHARED-SIX-BOT-OPERATIONAL-MEMORY-CO
 const meshSync=fs.readFileSync('scripts/ci/sync-cognitive-learning-mesh.mjs','utf8');
 const registry=JSON.parse(fs.readFileSync('docs/agents/FLIXO-BOT.json','utf8'));
 const expectedBots=registry?.distribution?.learningConsumers??[];
+const botAliasMap=registry?.distribution?.botAliasMap??{};
 const failures=[];
 for(const marker of [
  'FLIXO-SHARED-OPERATIONAL-MEMORY-v1','SHARED_BOTS','ACTION-REPAIR','ACTION-REPAIR-2',
@@ -22,9 +23,12 @@ if(!fs.existsSync('scripts/ci/sync-cognitive-learning-mesh.mjs')) failures.push(
 if(/git\s+(add|commit|push|reset|checkout)|mergePullRequest|create_pull_request/u.test(source)) failures.push('GIT_MUTATION_FORBIDDEN');
 if(!test.includes('SHARED_OPERATIONAL_MEMORY_CONTRACT_TEST=PASS')) failures.push('TEST_MARKER_MISSING');
 const sha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
-if(expectedBots.length<7) failures.push('GLOBAL_AUDIENCE_TOO_SMALL');
+if(expectedBots.length!==Number(registry?.distribution?.targetCount??200)) failures.push(`GLOBAL_AUDIENCE_COUNT_INVALID=${expectedBots.length}`);
 if(new Set(expectedBots).size!==expectedBots.length) failures.push('GLOBAL_AUDIENCE_DUPLICATE');
-for(const id of ['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','assistantController','MASTER-1','MASTER-2','MASTER-3','executionAgent','reviewAgent','execution-agent-clone-v1','SECURITY-REDTEAM-3']) if(!expectedBots.includes(id)) failures.push('GLOBAL_AUDIENCE_MISSING='+id);
+for(const id of ['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','assistantController','MASTER-1','MASTER-2','MASTER-3','executionAgent','reviewAgent','execution-agent-clone-v1','SECURITY-REDTEAM-3']) {
+  const canonicalId=botAliasMap[id];
+  if(typeof canonicalId!=='string'||!expectedBots.includes(canonicalId)) failures.push(`GLOBAL_AUDIENCE_ALIAS_UNRESOLVED=${id}`);
+}
 if(expectedBots.includes('ACTION-WAKE')||expectedBots.some(id=>/^CELL-\\d{3}$/u.test(id))) failures.push('RETIRED_ID_IN_GLOBAL_AUDIENCE');
 const result={schemaVersion:2,authority:'FLIXO_BOT_SYSTEM_WIDE_SHARED_MEMORY_CONTRACT',status:failures.length?'FAIL':'PASS',checkedSha:sha,targetBotCount:expectedBots.length,failures};
 console.log(JSON.stringify(result,null,2));

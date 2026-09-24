@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { REPAIR_GATE_AUTOMATION } from './control-plane-registry.mjs';
+import { REPAIR_GATE_AUTOMATION, SECURITY_CRITICAL_WORKFLOWS } from './control-plane-registry.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -42,13 +42,14 @@ const nonTestAutomation = new Set([
   'read-only-error-investigator.yml',
   'agent-repair-heartbeat.yml',
   'latest-execution-head-cleanup.yml',
+  'engineering-work-package-guard.yml',
 ]);
 const auxiliaryEvidenceAutomation = new Set(['test-impact.yml', 'test-impact-execution.yml']);
 const trustBaselineAutomation = new Set(['wp0-trust-baseline.yml']);
 const councilWakeAutomation = new Set(['council-wake-push-relay.yml', 'council-network-probe.yml', 'council-wake-bootstrap.yml']);
 const automatedNonCanonical = [];
 for (const file of workflowFiles) {
-  if (file === 'ci.yml' || nonTestAutomation.has(file) || auxiliaryEvidenceAutomation.has(file) || trustBaselineAutomation.has(file) || councilWakeAutomation.has(file) || REPAIR_GATE_AUTOMATION.includes(file)) continue;
+  if (file === 'ci.yml' || nonTestAutomation.has(file) || auxiliaryEvidenceAutomation.has(file) || trustBaselineAutomation.has(file) || councilWakeAutomation.has(file) || REPAIR_GATE_AUTOMATION.includes(file) || SECURITY_CRITICAL_WORKFLOWS.includes(file)) continue;
   const text = fs.readFileSync(path.join(ROOT, '.github', 'workflows', file), 'utf8');
   if (/^\s*(push|pull_request):/m.test(text)) automatedNonCanonical.push(`.github/workflows/${file}`);
 }
