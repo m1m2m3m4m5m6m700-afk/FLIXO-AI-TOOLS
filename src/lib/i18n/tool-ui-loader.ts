@@ -25,19 +25,24 @@ const LOADERS: Record<Locale, () => Promise<ToolUiCopy>> = {
 };
 
 const cache = new Map<Locale, Promise<ToolUiCopy>>();
+const resolvedCache = new Map<Locale, ToolUiCopy>();
 
 export function loadToolUiCopy(locale: Locale): Promise<ToolUiCopy> {
   const cached = cache.get(locale);
   if (cached) return cached;
-  const pending = LOADERS[locale]();
+  const pending = LOADERS[locale]().then((copy) => {
+    resolvedCache.set(locale, copy);
+    return copy;
+  });
   cache.set(locale, pending);
   return pending;
 }
 
 export function getCachedToolUiCopy(locale: Locale): ToolUiCopy | undefined {
-  return undefined;
+  return resolvedCache.get(locale);
 }
 
 export function clearToolUiCopyCache(): void {
   cache.clear();
+  resolvedCache.clear();
 }
