@@ -2,6 +2,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { getCapability, getExecutableCapabilityIds } from '../src/lib/agent/capability-registry.ts';
 import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from '../src/lib/contracts/agent-gateway.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
+import { planFromIntent } from '../src/lib/ai/planner.ts';
+import { isDeterministicPlanCompatible } from '../src/lib/ai/deterministic-boundary.ts';
 import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
 import { buildSharedLearningContext } from '../scripts/ci/shared-operational-memory.mjs';
 import { createExternalAgentLearning, listExternalAgentLearning } from '../src/server/agent/learning-persistence.ts';
@@ -180,6 +182,14 @@ function parseJsonObject(text: string): unknown {
     return JSON.parse(trimmed) as unknown;
   } catch {
     throw new Error('AI response was not valid JSON.');
+  }
+}
+
+function assertDeterministicPlanBoundary(input: string, decision: ReturnType<typeof parseAgentDecision>): void {
+  if (decision.mode !== 'plan' || !decision.plan) return;
+  const deterministic = planFromIntent(input);
+  if (!isDeterministicPlanCompatible(decision.plan, deterministic)) {
+    throw new Error('AI_PLAN_CONFLICTS_WITH_DETERMINISTIC_QUICKFLOW');
   }
 }
 
@@ -405,6 +415,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     try {
       const raw = await invoke(provider);
       const decision = parseAgentDecision(parseJsonObject(raw));
+      assertDeterministicPlanBoundary(userMessage, decision);
       await persistLearningCandidate(decision, userMessage, locale, provider);
       json(res, 200, { ...decision, latencyMs: Date.now() - started, provider });
     } catch (providerError) {
@@ -412,6 +423,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         try {
           const raw = await invoke(runtime.fallbackProvider);
           const decision = parseAgentDecision(parseJsonObject(raw));
+          assertDeterministicPlanBoundary(userMessage, decision);
           await persistLearningCandidate(decision, userMessage, locale, runtime.fallbackProvider);
           json(res, 200, { ...decision, latencyMs: Date.now() - started, provider: runtime.fallbackProvider, fallback: true });
           return;
