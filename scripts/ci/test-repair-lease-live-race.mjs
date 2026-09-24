@@ -14,7 +14,7 @@ const server=http.createServer(async (req,res)=>{
   res.writeHead(404,{'content-type':'application/json'});res.end(JSON.stringify({message:'not found'}));
 });
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-const {port}=server.address(); const apiRoot='http://127.0.0.1:'+port; const refName='refs/flixo/test/live-race-'+Date.now(); const sha='a'.repeat(40);
+const {port}=server.address(); const apiRoot='http://127.0.0.1:'+port; const refName='refs/tags/flixo-test-live-race-'+Date.now(); const sha='a'.repeat(40);
 const results=await Promise.all(Array.from({length:100},()=>createRefAtomically({apiRoot,repoName:'test/repo',authToken:'local-test-token',refName,objectSha:sha})));
 await new Promise(resolve=>server.close(resolve));
 const acquired=results.filter(x=>x.status===201); const claimed=results.filter(x=>x.status===422);

@@ -24,7 +24,11 @@ for (const [label, pattern] of [
 
 const fast = ci.match(/browser_fast:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
 const fastSpecs = [...new Set(fast.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? [])];
-if (fastSpecs.length !== 22) errors.push(`FAST unique tool specs=${fastSpecs.length}, expected 22`);
+const journeyBrowserSpecs = new Set(['tests/mvp-agent-e2e.spec.ts']);
+const fastToolSpecs = fastSpecs.filter((spec) => !journeyBrowserSpecs.has(spec));
+const missingJourneySpecs = [...journeyBrowserSpecs].filter((spec) => !fastSpecs.includes(spec));
+if (fastToolSpecs.length !== 22) errors.push(`FAST unique tool specs=${fastToolSpecs.length}, expected 22`);
+if (missingJourneySpecs.length) errors.push(`required journey browser specs missing: ${missingJourneySpecs.join(',')}`);
 if (!ci.includes(POLICY.runtimeOrigin)) errors.push(`runtime origin ${POLICY.runtimeOrigin} missing from canonical workflow`);
 if (ci.includes(POLICY.testSentinel)) errors.push(`canonical workflow contains forbidden test sentinel ${POLICY.testSentinel}`);
 
@@ -87,8 +91,8 @@ const result = {
   authority: 'canonical-certification-surface',
   status: errors.length ? 'FAIL' : 'PASS',
   workflow: '.github/workflows/ci.yml',
-  architecture: { layers: ['impact-plan', 'impact-execution', 'static+build', 'browser-fast', 'browser-deep', 'certify'], browserFast: { tools: 22, browsers: 3, units: 66 }, browserDeep: { locales: 20, browsers: 3 }, certification: 'single fail-closed certify job' },
-  checks: { fastToolCount: fastSpecs.length, browsers: /browser:\s*\[chromium, firefox, webkit\]/.test(ci), deepLocalization: /tests\/localization-runtime\.spec\.ts/.test(ci), immutableArtifact: /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci), auxiliaryEvidenceAutomation: [...auxiliaryEvidenceAutomation], trustBaselineAutomation: [...trustBaselineAutomation], councilWakeAutomation: [...councilWakeAutomation], repairGateAutomation: [...REPAIR_GATE_AUTOMATION], nonCanonicalAutomatedWorkflows: automatedNonCanonical, nonTestAutomation: [...nonTestAutomation] },
+  architecture: { layers: ['impact-plan', 'impact-execution', 'static+build', 'browser-fast', 'browser-deep', 'certify'], browserFast: { tools: 22, journeySpecs: journeyBrowserSpecs.size, browsers: 3, units: 66 }, browserDeep: { locales: 20, browsers: 3 }, certification: 'single fail-closed certify job' },
+  checks: { fastToolCount: fastToolSpecs.length, fastJourneySpecs: [...journeyBrowserSpecs], browsers: /browser:\s*\[chromium, firefox, webkit\]/.test(ci), deepLocalization: /tests\/localization-runtime\.spec\.ts/.test(ci), immutableArtifact: /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci), auxiliaryEvidenceAutomation: [...auxiliaryEvidenceAutomation], trustBaselineAutomation: [...trustBaselineAutomation], councilWakeAutomation: [...councilWakeAutomation], repairGateAutomation: [...REPAIR_GATE_AUTOMATION], nonCanonicalAutomatedWorkflows: automatedNonCanonical, nonTestAutomation: [...nonTestAutomation] },
   errors,
 };
 fs.mkdirSync(path.join(ROOT, 'diagnostics', 'certification'), { recursive: true });
