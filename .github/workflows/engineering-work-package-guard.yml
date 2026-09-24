@@ -12,7 +12,7 @@ permissions:
 
 env:
   FLIXO_WP_BASE_SHA: fddba49348fa48e65be4f0ed28ba07c8a8af8d9f
-  FLIXO_PROOF_BASE_SHA: 1a26c4a3624ec7ae58a8c52191246dda423de5bb
+  FLIXO_PROOF_BASE_SHA: fddba49348fa48e65be4f0ed28ba07c8a8af8d9f
 
 jobs:
   work-package-guard:
