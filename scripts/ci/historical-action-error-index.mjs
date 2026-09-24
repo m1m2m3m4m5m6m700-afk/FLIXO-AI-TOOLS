@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 
 const ROOT = process.cwd();
 const DIR = path.resolve(ROOT, process.env.FLIXO_HISTORICAL_ERROR_DIR ?? 'docs/agents/historical-action-errors');
@@ -167,12 +168,14 @@ export function query(term, limit = 20) {
     .slice(0, Math.max(1, Number(limit)));
 }
 
-const command = process.argv[2] ?? 'help';
-if (command === 'add') {
-  const input = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
-  console.log(JSON.stringify(mergeOccurrences(input), null, 2));
-} else if (command === 'query') {
-  console.log(JSON.stringify({ results: query(process.argv[3] ?? '', Number(process.argv[4] ?? 20)) }, null, 2));
-} else {
-  console.log('Usage: historical-action-error-index.mjs add <json> | query <term> [limit]');
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const command = process.argv[2] ?? 'help';
+  if (command === 'add') {
+    const input = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+    console.log(JSON.stringify(mergeOccurrences(input), null, 2));
+  } else if (command === 'query') {
+    console.log(JSON.stringify({ results: query(process.argv[3] ?? '', Number(process.argv[4] ?? 20)) }, null, 2));
+  } else {
+    console.log('Usage: historical-action-error-index.mjs add <json> | query <term> [limit]');
+  }
 }
