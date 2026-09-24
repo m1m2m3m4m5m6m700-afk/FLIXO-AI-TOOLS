@@ -17,13 +17,14 @@ const commits = commitList.map((sha) => {
   const changed = run(['diff-tree', '--no-commit-id', '--name-only', '-r', sha]).split('\n').filter(Boolean);
   const sensitiveChanged = changed.filter((p) => sensitive.test(p));
   const proofChanged = changed.filter((p) => proof.test(p));
+  const verifierSource = run(['show', 'scripts/ci/verify-council-live-runtime.mjs:' + sha]);
   const selfProvingVerifierChange = sensitiveChanged.length > 0 &&
     sensitiveChanged.every((p) => p === 'scripts/ci/verify-council-live-runtime.mjs') &&
     proofChanged.length === 0 &&
-    /SELF_PROOF_CONTRACT:v1/.test(run(['show', 'scripts/ci/verify-council-live-runtime.mjs:' + sha]) &&
-    /flix_council_events/.test(run(['show', 'scripts/ci/verify-council-live-runtime.mjs:' + sha]) &&
-    /residencyRequired/.test(run(['show', 'scripts/ci/verify-council-live-runtime.mjs:' + sha]) &&
-    /exact_sha/.test(run(['show', 'scripts/ci/verify-council-live-runtime.mjs:' + sha]);
+    /SELF_PROOF_CONTRACT:v1/.test(verifierSource) &&
+    /flix_council_events/.test(verifierSource) &&
+    /residencyRequired/.test(verifierSource) &&
+    /exact_sha/.test(verifierSource);
   return {
     sha,
     changed,
