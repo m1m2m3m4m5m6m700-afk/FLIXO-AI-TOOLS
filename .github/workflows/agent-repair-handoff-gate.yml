@@ -8,7 +8,7 @@ on:
 
 permissions:
   contents: read
-  actions: read
+  actions: write
 
 concurrency:
   group: flixo-repair-handoff-${{ github.event.workflow_run.id }}
@@ -32,6 +32,11 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Cancel stale workflow_run source
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/ci/assert-workflow-run-current.mjs
       - name: Download repair handoff artifact
         if: env.REPAIR_RUN_CONCLUSION == 'success' || env.REPAIR_RUN_CONCLUSION == 'failure' || env.REPAIR_RUN_CONCLUSION == 'timed_out'
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
