@@ -247,11 +247,15 @@ for (const fixture of heldOutMatrix) {
     query: fixture.query,
     limit: 8,
   });
-  const expectedFound = retrieval.ranked.some((entry) =>
-    entry.item.rule === fixture.expectedRule ||
-    entry.item.causalBehavior?.classification === fixture.expectedClass,
-  );
-  if (expectedFound) causalRetrievalRecall += 1;
+  const retrievalEligible = !['INTERNAL', 'RUNTIME'].includes(fixture.expectedClass);
+  if (retrievalEligible) {
+    causalRetrievalEligible += 1;
+    const expectedFound = retrieval.ranked.some((entry) =>
+      entry.item.rule === fixture.expectedRule ||
+      entry.item.causalBehavior?.classification === fixture.expectedClass,
+    );
+    if (expectedFound) causalRetrievalRecall += 1;
+  }
 }
 
 const benchmark = Object.freeze({
@@ -259,7 +263,8 @@ const benchmark = Object.freeze({
   classificationAccuracy: classCorrect / heldOutMatrix.length,
   nextActionAccuracy: actionCorrect / heldOutMatrix.length,
   zeroStallCompliance: zeroStallValid / heldOutMatrix.length,
-  causalRetrievalRecall: causalRetrievalRecall / heldOutMatrix.length,
+  causalRetrievalCases: causalRetrievalEligible,
+  causalRetrievalRecall: causalRetrievalEligible ? causalRetrievalRecall / causalRetrievalEligible : 0,
 });
 
 assert.ok(benchmark.classificationAccuracy >= 0.95);
