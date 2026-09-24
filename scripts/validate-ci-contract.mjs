@@ -386,9 +386,9 @@ if (!greenGateWorkflow.includes('SETTLEMENT_FOUND_RED')) {
 }
 const certificationSourceBindingChecks = [
   ['TEST_SYSTEM_RUN_ID assignment', /TEST_SYSTEM_RUN_ID=/],
-  ['exact-SHA Test System run selector', /select\(\.name == "FLIXO Test System"[^\n]*\.headSha == \\$sha[^\n]*\.status == "completed"[^\n]*\.conclusion == "success"\)/],
+  ['exact-SHA Test System run selector', /select\(\.name == "FLIXO Test System"[^\n]*\.headSha == \$sha[^\n]*\.status == "completed"[^\n]*\.conclusion == "success"\)/],
   ['Certification selector', /select\(\.name == "Certification"\)/],
-  ['Certification exact-SHA selector', /select\(\.head_sha == \\$sha\)/],
+  ['Certification exact-SHA selector', /select\(\.head_sha == \$sha\)/],
   ['Certification action-run URL validation', /test\("\/actions\/runs\/\[0-9\]\+\(\?:\/job\/\[0-9\]\+\)\?/],
   ['canonical certification failure message', /canonical Certification check missing or not linked to the canonical FLIXO Test System run/],
 ];
