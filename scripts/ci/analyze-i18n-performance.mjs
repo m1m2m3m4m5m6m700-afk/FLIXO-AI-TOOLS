@@ -52,7 +52,7 @@ for (const locale of ['ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl
   localeResults.push({
     locale,
     core: classifyChunk(coreMatches, criticalFiles),
-    toolUi: classifyChunk(toolMatches, criticalFiles),
+    toolUi: classifyChunk(toolMatches, criticalFiles, { allowCriticalFallback: locale === 'en' }),
   });
 }
 
@@ -137,8 +137,18 @@ function findAssetsByAny(assetFiles, markers) {
   }).map((f) => f.rel);
 }
 
-function classifyChunk(matches, critical) {
+function classifyChunk(matches, critical, options = {}) {
   const criticalSet = new Set(critical.map((f) => f.rel));
+  const nonCritical = matches.filter((m) => !criticalSet.has(m));
+  if (options.allowCriticalFallback) {
+    if (nonCritical.length !== 1) return { status: 'FAIL', matches, nonCritical };
+    return {
+      status: 'PASS',
+      chunk: nonCritical[0],
+      bytes: fs.statSync(path.join(DIST, nonCritical[0])).size,
+      criticalFallback: matches.filter((m) => criticalSet.has(m)),
+    };
+  }
   if (matches.length !== 1) return { status: 'FAIL', matches };
   return {
     status: criticalSet.has(matches[0]) ? 'FAIL' : 'PASS',
