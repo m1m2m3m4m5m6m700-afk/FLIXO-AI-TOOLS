@@ -19,7 +19,7 @@ on:
     branches: [execution, main]
 
 permissions:
-  actions: read
+  actions: write
   contents: read
   issues: write
 
@@ -44,6 +44,11 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Cancel stale workflow_run source
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/ci/assert-workflow-run-current.mjs
       - name: Resolve completed workflow run
         id: resolve_run
         env:
