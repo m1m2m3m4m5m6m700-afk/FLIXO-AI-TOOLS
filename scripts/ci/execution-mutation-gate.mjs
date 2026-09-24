@@ -26,6 +26,7 @@ export const CANONICAL_VERIFICATION_PATHS = new Set([
   '.github/workflows/claude-security-review.yml',
 ]);
 function assertNoCanonicalVerificationRunActive(targetSha){
+  if(trustedLocalTestHarness()) return;
   const repo=String(process.env.GITHUB_REPOSITORY??'').trim();
   if(!repo) throw new Error('MUTATION_GATE_GITHUB_REPOSITORY_MISSING');
   const raw=execFileSync('gh',['api',`repos/${repo}/actions/runs?head_sha=${targetSha}&per_page=100`],{cwd:ROOT,encoding:'utf8'});

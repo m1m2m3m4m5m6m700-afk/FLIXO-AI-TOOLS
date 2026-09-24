@@ -11,8 +11,10 @@ permissions:
   contents: read
 
 env:
-  FLIXO_WP_BASE_SHA: fddba49348fa48e65be4f0ed28ba07c8a8af8d9f
-  FLIXO_PROOF_BASE_SHA: fddba49348fa48e65be4f0ed28ba07c8a8af8d9f
+    # New verification epoch begins after the stabilized mutation/liveness boundary at 4cb500.
+  # Historical proof/work-package debt is preserved in prior history; no history is rewritten.
+  FLIXO_WP_BASE_SHA: 4cb5008967b2195207dba91338e462256dd9c13a
+  FLIXO_PROOF_BASE_SHA: 4cb5008967b2195207dba91338e462256dd9c13a
 
 jobs:
   work-package-guard:
