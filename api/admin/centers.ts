@@ -1,5 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import type {
+  AdminCentersResponse,
+  AdminErrorResponse,
+  AdminRequestQuery,
+  CenterPersistence,
+} from '../contracts.ts';
 import { authorizeAdminRequestWithDurableSession } from './boundary.ts';
 import { getEvent, getLatestEvidenceForAssertion, isPersistenceConfigured, probePersistence } from '../../src/server/admin/persistence.ts';
 
@@ -13,9 +19,18 @@ const CENTER_CAPABILITY = {
 } as const;
 
 type Center = keyof typeof CENTER_CAPABILITY;
-type AdminRequest = IncomingMessage & { method?: string; query?: Record<string, string | string[] | undefined> };
 
-const json = (res: ServerResponse, status: number, body: unknown, correlationId: string) => {
+interface AdminRequest extends IncomingMessage {
+  method?: string;
+  query?: AdminRequestQuery;
+}
+
+const json = <TBody extends AdminCentersResponse | AdminErrorResponse>(
+  res: ServerResponse,
+  status: number,
+  body: TBody,
+  correlationId: string,
+): void => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
@@ -23,7 +38,11 @@ const json = (res: ServerResponse, status: number, body: unknown, correlationId:
   res.end(JSON.stringify(body));
 };
 
-const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
+const first = (value: string | string[] | undefined): string | undefined =>
+  Array.isArray(value) ? value[0] : value;
+
+const isCenter = (value: string): value is Center =>
+  Object.prototype.hasOwnProperty.call(CENTER_CAPABILITY, value);
 
 export default async function adminCenters(req: AdminRequest, res: ServerResponse) {
   const rawCenter = first(req.query?.center)?.trim().toLowerCase();
@@ -32,7 +51,12 @@ export default async function adminCenters(req: AdminRequest, res: ServerRespons
     return json(res, 400, { ok: false, error: { code: 'invalid_admin_center', correlationId } }, correlationId);
   }
 
-  const center = rawCenter as Center;
+  if (!isCenter(rawCenter)) {
+    const correlationId = first(req.headers['x-request-id'])?.trim() || randomUUID();
+    return json(res, 400, { ok: false, error: { code: 'invalid_admin_center', correlationId } }, correlationId);
+  }
+
+  const center: Center = rawCenter;
   const authorization = await authorizeAdminRequestWithDurableSession(req, CENTER_CAPABILITY[center]);
 
   if ('status' in authorization) {
@@ -40,7 +64,7 @@ export default async function adminCenters(req: AdminRequest, res: ServerRespons
     return json(res, authorization.status, { ok: false, error: { code: authorization.code, correlationId: authorization.correlationId } }, authorization.correlationId);
   }
 
-  let persistence: { state: 'CONNECTED' | 'BLOCKED'; reason: string; table?: string };
+  let persistence: CenterPersistence;
   if (!isPersistenceConfigured()) {
     persistence = { state: 'BLOCKED', reason: 'supabase_server_binding_missing' };
   } else {
@@ -54,8 +78,8 @@ export default async function adminCenters(req: AdminRequest, res: ServerRespons
 
   const eventId = first(req.query?.eventId);
   const assertionId = first(req.query?.assertionId);
-  let event: Awaited<ReturnType<typeof getEvent>> | undefined;
-  let evidence: Awaited<ReturnType<typeof getLatestEvidenceForAssertion>> | undefined;
+  let event: AdminCentersResponse['data']['event'] | undefined;
+  let evidence: AdminCentersResponse['data']['evidence'] | undefined;
   if (eventId && (center === 'truth' || center === 'incident')) {
     try {
       event = await getEvent(eventId);
@@ -72,13 +96,17 @@ export default async function adminCenters(req: AdminRequest, res: ServerRespons
   }
 
   const sourceState = persistence.state === 'CONNECTED' ? 'AVAILABLE' : 'UNAVAILABLE';
-  return json(res, 200, {
+  const response: AdminCentersResponse = {
     ok: true,
     source: 'admin-control-plane-read-model',
     center,
     capability: authorization.capability,
     identity: { subject: authorization.subject },
-    truth: { state: sourceState, productionConnected: persistence.state === 'CONNECTED', reason: persistence.reason },
+    truth: {
+      state: sourceState,
+      productionConnected: persistence.state === 'CONNECTED',
+      reason: persistence.reason,
+    },
     persistence,
     data: {
       event: event ?? null,
@@ -92,5 +120,7 @@ export default async function adminCenters(req: AdminRequest, res: ServerRespons
       environment: process.env.VERCEL_ENV ?? 'unknown',
     },
     correlationId: authorization.correlationId,
-  }, authorization.correlationId);
+  };
+
+  return json(res, 200, response, authorization.correlationId);
 }
