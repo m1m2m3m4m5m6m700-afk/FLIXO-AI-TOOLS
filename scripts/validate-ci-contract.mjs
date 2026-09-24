@@ -454,8 +454,8 @@ if (!/browser:\s*\[chromium, firefox, webkit\]/.test(workflow)) {
 const fast = workflow.match(/browser_fast:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
 const deep = workflow.match(/browser_deep:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
 const fastSpecs = [...new Set(fast.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? [])];
-if (fastSpecs.length !== 22) {
-  console.error(`CI contract failed: FAST browser ownership must contain exactly 22 unique canonical tool specs; found ${fastSpecs.length}.`);
+if (fastSpecs.length !== 23) {
+  console.error(`CI contract failed: FAST browser ownership must contain exactly 23 unique canonical FAST specs; found ${fastSpecs.length}.`);
   process.exit(1);
 }
 if (!/tests\/localization-runtime\.spec\.ts/.test(deep)) {

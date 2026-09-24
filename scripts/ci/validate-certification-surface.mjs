@@ -27,7 +27,7 @@ const fastSpecs = [...new Set(fast.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? 
 const journeyBrowserSpecs = new Set(['tests/mvp-agent-e2e.spec.ts']);
 const fastToolSpecs = fastSpecs.filter((spec) => !journeyBrowserSpecs.has(spec));
 const missingJourneySpecs = [...journeyBrowserSpecs].filter((spec) => !fastSpecs.includes(spec));
-if (fastToolSpecs.length !== 22) errors.push(`FAST unique tool specs=${fastToolSpecs.length}, expected 22`);
+if (fastToolSpecs.length !== 22) errors.push(`FAST unique tool specs=${fastToolSpecs.length}, expected 23`);
 if (missingJourneySpecs.length) errors.push(`required journey browser specs missing: ${missingJourneySpecs.join(',')}`);
 if (!ci.includes(POLICY.runtimeOrigin)) errors.push(`runtime origin ${POLICY.runtimeOrigin} missing from canonical workflow`);
 if (ci.includes(POLICY.testSentinel)) errors.push(`canonical workflow contains forbidden test sentinel ${POLICY.testSentinel}`);

@@ -358,7 +358,7 @@ A task may be closed only after logout has recorded the final task status and `a
 The repository uses one automatic test workflow: `.github/workflows/ci.yml`.
 
 - `verify` is the single non-browser engine. It installs dependencies once, executes the canonical static contracts, performs the canonical production build, and publishes one immutable artifact identified by exact commit SHA and package-lock digest.
-- `browser_fast` is the only fast browser engine: 22 canonical tools × Chromium/Firefox/WebKit = 66 execution units.
+- `browser_fast` is the only fast browser engine: 23 canonical FAST specs × Chromium/Firefox/WebKit = 69 execution units.
 - `browser_deep` is the same browser engine in deep mode: canonical public-route localization/runtime coverage across 20 locales and Chromium/WebKit/Firefox. It runs on main/release paths when the governing contract requires it.
 - `certify` is the only automatic certification authority. It is fail-closed and consumes evidence from the same workflow run.
 

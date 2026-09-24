@@ -77,11 +77,11 @@ for (const state of ['FAIL', 'BLOCKED', 'CANCELLED', 'NOT_EXECUTED', 'MISSING_EV
 if (reduceCheckResults([{ id: 'A', status: 'PASS' }], 2).decision) fail('missing execution unit incorrectly certified');
 if (reduceCheckResults([{ id: 'A', status: 'PASS' }, { id: 'A', status: 'PASS' }], 1).decision) fail('unexpected execution cardinality incorrectly certified');
 
-const expectedSemantic = new Set(Array.from({ length: 66 }, (_, index) => `FAST:${index}`));
+const expectedSemantic = new Set(Array.from({ length: 69 }, (_, index) => `FAST:${index}`));
 const tamperedSemantic = new Set(expectedSemantic);
-tamperedSemantic.delete('FAST:65');
+tamperedSemantic.delete('FAST:68');
 if (tamperedSemantic.size === expectedSemantic.size) fail('coverage mutation was not detected');
-if (tamperedSemantic.size !== 65) fail('coverage mutation cardinality control failed');
+if (tamperedSemantic.size !== 68) fail('coverage mutation cardinality control failed');
 
 const digestA = createHash('sha256').update('IMMUTABLE-CI-CD-TRUST').digest('hex');
 const digestB = createHash('sha256').update('TAMPERED-CI-CD-TRUST').digest('hex');

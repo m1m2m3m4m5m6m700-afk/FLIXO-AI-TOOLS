@@ -205,7 +205,7 @@ const result = {
   executionOwnerCount: executionOwners.size,
   implementationCount: implementations.length,
   markerCount: markerRefs.length,
-  architecture: { engines: ['static+build', 'browser-fast', 'browser-deep', 'certify'], browserFast: { tools: 22, browsers: 3, units: 66 }, browserDeep: { locales: 20, browsers: 3 } },
+  architecture: { engines: ['static+build', 'browser-fast', 'browser-deep', 'certify'], browserFast: { tools: 23, browsers: 3, units: 69 }, browserDeep: { locales: 20, browsers: 3 } },
   architectureChecks: architectureChecks.map(([label, pass]) => ({ label, status: pass ? 'PASS' : 'FAIL' })),
   implementations,
   errors,
