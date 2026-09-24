@@ -386,7 +386,7 @@ VERIFICATION = validate:effective-localization + WP0 + canonical browser CI on t
 PREVENTION = presentation HTML belongs to AgentFirstHome; localization data stores semantic markers only.
 ## GOVERNANCE
 
-Bounded single-owner work may execute directly on `main`. Use `execution` only for materially risky, broad, conflict-prone, architectural, or production-sensitive isolation. Exact-SHA, regression, authorization, rollback, evidence, and certification requirements remain mandatory.
+`main` is production/source-of-truth and is never a direct mutation surface. All active repair, engineering, and operational mutation work uses `execution` and integrates only through `execution → main`. Exact-SHA, regression, authorization, rollback, evidence, and certification requirements remain mandatory.
 
 ## DELETION
 
@@ -475,7 +475,7 @@ STATUS = IMPLEMENTED / CANONICAL-CI-VERIFICATION-PENDING
 OWNER = AGENT-3
 BRANCH = execution
 SCOPE = CELL-041..050
-CURRENT_EXECUTION_HEAD = 6ed30b1352bc0869959286142d962a44abda58f7
+CURRENT_EXECUTION_HEAD = RESOLVE LIVE FROM `execution`; this field is descriptive only and is never certification evidence
 IMPLEMENTATION = src/lib/agent/swarm/learning-memory-routing.ts
 TARGETED_TEST = scripts/ci/test-swarm-learning-memory-routing.mjs
 CANONICAL_MEMORY_BASE = src/lib/agent/knowledge/types.ts + existing knowledge/memory surfaces
