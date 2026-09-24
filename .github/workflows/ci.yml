@@ -72,6 +72,8 @@ jobs:
         run: npm run test:canonical-governance
       - name: Static contracts
         run: npm run test:static
+      - name: AI / QuickFlow hardening regression
+        run: npm run test:ai-quickflow-hardening
       - name: Build contracts
         run: npm run test:build
       - name: Propagate immutable run identity into browser build artifact
