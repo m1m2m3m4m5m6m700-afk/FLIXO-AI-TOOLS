@@ -1,9 +1,9 @@
-import { Children, cloneElement, createElement, lazy, Suspense, useEffect, useRef, useState, isValidElement, type ComponentType, type ReactNode } from 'react';
+import { Children, cloneElement, createElement, lazy, Suspense, use, useEffect, useRef, useState, isValidElement, type ComponentType, type ReactNode } from 'react';
 import { useParams } from '@tanstack/react-router';
 import { LOCALES, isLocale, type Locale, LOCALE_METADATA } from '../lib/i18n';
 import { assertToolCategory, getToolSeo } from '../lib/seo/tool-seo';
 import { getToolUiTitle } from '../config/tool-ui-title-resolver';
-import { TOOL_UI_I18N } from '../data/tool-ui-i18n';
+import { loadToolUiCopy } from '../lib/i18n/tool-ui-loader';
 import { localizeMsUkCategory } from '../lib/i18n/ms-uk-category';
 import { localizeToolCategory } from '../lib/i18n/tool-localization';
 import { AutoLocalizedToolSurface } from '../components/auto-localized-tool-surface';
@@ -38,9 +38,17 @@ function ToolSurfaceSemanticBoundary({ children }: { children: ReactNode }) {
 }
 
 export function LocalizedToolPage() {
+  return (
+    <Suspense fallback={<main className="tool-page-modern" aria-busy="true" />}>
+      <LocalizedToolPageContent />
+    </Suspense>
+  );
+}
+
+function LocalizedToolPageContent() {
   const params = useParams({ strict: false });
   const locale = (typeof params.locale === 'string' && isLocale(params.locale) ? params.locale : 'en') as Locale;
-  const copy = TOOL_UI_I18N[locale];
+  const copy = use(loadToolUiCopy(locale));
   const direction = LOCALE_METADATA[locale].direction;
   const toolId = typeof params.tool === 'string' && isLocale(locale) && LOCALES.includes(locale) ? params.tool : null;
   const [favorite, setFavorite] = useState(() => (toolId ? getFavorites().includes(toolId) : false));
