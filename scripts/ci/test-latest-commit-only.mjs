@@ -27,7 +27,7 @@ for (const file of files) {
   const source = fs.readFileSync(file, 'utf8');
   assert.match(source, /concurrency:/u, `${file}: concurrency contract missing`);
   if (nonCancellingEvidenceFiles.has(file)) {
-    assert.match(source, /cancel-in-progress:\s*false/u, file + ': non-cancelling evidence workflow must preserve started runs');
+    assert.match(source, /cancel-in-progress:\s*false/u, file + ': non-cancelling evidence workflow delegates stale-run supersession to the trusted controller');
   } else {
     assert.match(source, /cancel-in-progress:\s*true/u, file + ': required verification workflow must cancel stale runs');
   }
@@ -84,7 +84,7 @@ for (const file of currentWorkflows) {
   if (!latestOnlyName.test(workflowName)) continue;
   assert.match(source, /concurrency:/u, `${file}: latest-only workflow must define concurrency`);
   if (nonCancellingEvidenceFiles.has('.github/workflows/' + file)) {
-    assert.match(source, /cancel-in-progress:\s*false/u, file + ': non-cancelling evidence workflow must retain started runs');
+    assert.match(source, /cancel-in-progress:\s*false/u, file + ': non-cancelling evidence workflow delegates stale-run supersession to the trusted controller');
   } else {
     assert.match(source, /cancel-in-progress:\s*true/u, file + ': latest-only workflow must cancel superseded runs');
   }
@@ -98,7 +98,7 @@ console.log('LATEST_COMMIT_ONLY_TESTS=PASS');
 console.log('STALE_TEST_CANCELLATION=PASS');
 console.log('EXACT_SHA_STALE_GUARD=PASS');
 console.log('EXECUTION_PUSH_TEST_TRIGGER=PASS');
-console.log('STARTED_EXACT_SHA_RUNS_PRESERVED=PASS');
+console.log('STALE_STARTED_RUNS_CANCELLED_BY_CONTROLLER=PASS');
 
 const cleanupWorkflow = fs.readFileSync('.github/workflows/latest-execution-head-cleanup.yml', 'utf8');
 assert.match(cleanupWorkflow, /name:\s*FLIXO Latest Execution HEAD Cleanup/u);
