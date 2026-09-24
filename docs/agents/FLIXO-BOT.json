@@ -149,7 +149,8 @@
       "Knowledge never grants authority.",
       "Failed strategies propagate as anti-lessons.",
       "Verified lessons propagate after Canonical GREEN.",
-      "Conflicts remain visible until exact-SHA evidence resolves them."
+      "Conflicts remain visible until exact-SHA evidence resolves them.",
+      "Retrospective 10K-run RCA synthesis is shared advisory knowledge; current exact-SHA evidence remains mandatory."
     ],
     "capabilityModel": "EXPLICIT_UNION_OF_REPAIR_COGNITION_ACTION_VAULT_AND_SECURITY_REASONING",
     "capabilityCount": 97,
@@ -316,7 +317,8 @@
     "docs/PROTOCOL-REGISTRY.json",
     "src/lib/agent/human-conversation.ts",
     "src/lib/agent/conversation.ts",
-    "src/lib/agent/language-detector.ts"
+    "src/lib/agent/language-detector.ts",
+    "docs/agents/ERROR-TEACHING-10K-RUN-RCA-SYNTHESIS-20260925.md"
   ],
   "distribution": {
     "learningConsumers": [

@@ -9,7 +9,8 @@
       "docs/agents/ERROR-TEACHING-EXPANDED-B-1000.md",
       "docs/agents/ERROR-TEACHING-EXPANDED-C-1000.md",
       "docs/agents/ERROR-TEACHING-EXPANDED-D-1000.md"
-    ]
+    ],
+    "10kRcaSynthesis": "docs/agents/ERROR-TEACHING-10K-RUN-RCA-SYNTHESIS-20260925.md"
   },
   "retrievalOrder": [
     "exact_class",
@@ -323,6 +324,38 @@
         "heartbeat-canonical-wake",
         "async-typescript-contract"
       ]
+    },
+    {
+      "file": "docs/agents/ERROR-TEACHING-10K-RUN-RCA-SYNTHESIS-20260925.md",
+      "prefixes": [
+        "root",
+        "causal",
+        "supersession",
+        "downstream",
+        "provider",
+        "proof",
+        "rca",
+        "diagnostic",
+        "first",
+        "wake",
+        "continuity",
+        "learning",
+        "cancelled",
+        "external"
+      ],
+      "classes": [
+        "root-cause-order",
+        "supersession-classification",
+        "downstream-symptom",
+        "external-provider",
+        "proof-gap",
+        "liveness-continuity",
+        "diagnostic-contract",
+        "repair-convergence",
+        "learning-promotion",
+        "failure-family-clustering",
+        "zero-stall-loop"
+      ]
     }
   ],
   "aliases": {
@@ -338,6 +371,9 @@
     "ci": "docs/agents/error-teaching/ci-control.md",
     "artifact": "docs/agents/error-teaching/artifacts.md",
     "repair": "docs/agents/error-teaching/agent-repair.md",
-    "supabase": "docs/agents/error-teaching/integrations.md"
+    "supabase": "docs/agents/error-teaching/integrations.md",
+    "10k-rca": "docs/agents/ERROR-TEACHING-10K-RUN-RCA-SYNTHESIS-20260925.md",
+    "root-cause": "docs/agents/ERROR-TEACHING-10K-RUN-RCA-SYNTHESIS-20260925.md",
+    "supersession": "docs/agents/ERROR-TEACHING-10K-RUN-RCA-SYNTHESIS-20260925.md"
   }
 }
