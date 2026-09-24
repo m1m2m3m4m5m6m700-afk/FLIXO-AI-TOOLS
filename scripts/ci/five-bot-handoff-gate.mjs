@@ -8,7 +8,7 @@ if(!Number.isInteger(expected)||expected<0||expected>23) throw new Error('FIVE_B
 const report=JSON.parse(fs.readFileSync(packetPath,'utf8'));
 if(report.targetSha!==targetSha) throw new Error('FIVE_BOT_HANDOFF_PACKET_SHA_MISMATCH');
 if(report.nextCohortReady!==true) throw new Error('FIVE_BOT_HANDOFF_DECLARATION_NOT_READY');
-if(((Number(report.cohortIndex)+1)%24)!==expected) throw new Error('FIVE_BOT_HANDOFF_SEQUENCE_INVALID');
+const cohortCount=Number(report.cohortCount ?? 40); if(!Number.isInteger(cohortCount)||cohortCount<1) throw new Error('FIVE_BOT_HANDOFF_COHORT_COUNT_INVALID'); if(((Number(report.cohortIndex)+1)%cohortCount)!==expected) throw new Error('FIVE_BOT_HANDOFF_SEQUENCE_INVALID');
 if(!Array.isArray(report.nextBotIds)||report.nextBotIds.length!==5) throw new Error('FIVE_BOT_HANDOFF_NEXT_FIVE_MISSING');
 const commitment=report.fiveBotResidency;
 if(!commitment || commitment.requiredBotCount!==5 || commitment.postTaskCloseState!=='READY_RESIDENT' || commitment.journeyLogicalBotCount!==200 || commitment.journeyCohortCount!==40 || commitment.journeyCohortSize!==5 || commitment.retainResidentUntilJourneyComplete!==true || commitment.sleep!==false || commitment.idle!==false || commitment.withdrawal!==false) throw new Error('FIVE_BOT_HANDOFF_RESIDENCY_COMMITMENT_INVALID');
