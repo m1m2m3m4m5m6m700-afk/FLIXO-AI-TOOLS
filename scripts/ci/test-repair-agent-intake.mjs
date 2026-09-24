@@ -12,6 +12,20 @@ assert.match(
   'Repair Agent Intake must isolate concurrency by source run identity',
 );
 assert.match(intakeWorkflow,/cancel-in-progress:\s*false/u);
+assert.doesNotMatch(intakeWorkflow,/^\s*schedule:\s*$/mu,'Repair Agent Intake must not poll on a periodic schedule');
+assert.match(intakeWorkflow,/types:\s*\[completed\]/u);
+assert.match(intakeWorkflow,/github\.event\.workflow_run\.conclusion == 'failure'/u);
+assert.match(intakeWorkflow,/FLIXO Test System/u);
+assert.match(intakeWorkflow,/FLIXO WP0 Trust Baseline/u);
+assert.match(intakeWorkflow,/FLIXO Test Impact Execution/u);
+assert.match(intakeWorkflow,/Repository Security Baseline/u);
+assert.match(intakeWorkflow,/Claude Security Review/u);
+assert.doesNotMatch(intakeWorkflow,/^\s*- FLIXO Test Impact\s*$/mu);
+assert.doesNotMatch(intakeWorkflow,/^\s*- FLIXO Continuous Delivery\s*$/mu);
+assert.doesNotMatch(intakeWorkflow,/^\s*- Daily·FLIXO Green Gate\s*$/mu);
+assert.doesNotMatch(intakeWorkflow,/^\s*- FLIXO Auto Repair Bot\s*$/mu);
+assert.doesNotMatch(intakeWorkflow,/^\s*- FLIXO Auto Repair Chain\s*$/mu);
+assert.doesNotMatch(intakeWorkflow,/^\s*- FLIXO Auto Repair Merge Gate\s*$/mu);
 assert.doesNotMatch(
   intakeWorkflow,
   /group:\s*flixo-repair-agent-intake-\$\{\{\s*github\.event\.workflow_run\.head_branch\s*\|\|/u,

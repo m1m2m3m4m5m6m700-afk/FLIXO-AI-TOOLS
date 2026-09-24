@@ -8,21 +8,13 @@ on:
         description: 'Workflow run ID to ingest'
         required: true
         type: string
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_run:
     workflows:
       - FLIXO Test System
       - FLIXO WP0 Trust Baseline
-      - FLIXO Test Impact
       - FLIXO Test Impact Execution
-      - FLIXO Continuous Delivery
       - Repository Security Baseline
       - Claude Security Review
-      - Daily·FLIXO Green Gate
-      - FLIXO Auto Repair Bot
-      - FLIXO Auto Repair Chain
-      - FLIXO Auto Repair Merge Gate
     types: [completed]
     branches: [execution, main]
 
@@ -40,7 +32,9 @@ concurrency:
 jobs:
   intake:
     name: Capture every CI error and route to Agent Council
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'timed_out' || github.event.workflow_run.conclusion == 'action_required')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -83,19 +77,7 @@ jobs:
 
           RUN_ID="$EVENT_RUN_ID"
           if [ -n "$INPUT_RUN_ID" ]; then RUN_ID="$INPUT_RUN_ID"; fi
-          if [ -z "$RUN_ID" ] && [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
-            echo 'INTAKE_SCHEDULE_RESCUE_MODE=true'
-            RUN_LIST_JSON="$(gh_retry gh run list --repo "$GITHUB_REPOSITORY" --limit 100 --json databaseId,name,conclusion,headSha,headBranch,createdAt)"
-            RUN_ID="$(jq -r '
-              [ .[]
-                | select(.headBranch == "execution" or .headBranch == "main")
-                | select(.name != "FLIXO Repair Agent — Error Intake Gateway")
-                | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required")
-              ]
-              | sort_by(.createdAt)
-              | last.databaseId // empty
-            ' <<<"$RUN_LIST_JSON")"
-            if [ -z "$RUN_ID" ]; then
+          if [ -z "$RUN_ID" ]; then
               echo 'SCHEDULE_RESCUE_NO_ACTIONABLE_RUN=true'
               echo 'has_run=false' >> "$GITHUB_OUTPUT"
               exit 0
@@ -113,7 +95,7 @@ jobs:
           META="$(gh_retry gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,name,path,conclusion,headSha,headBranch,status,updatedAt)"
           CONCLUSION="$(jq -r '.conclusion // empty' <<<"$META")"
           case "$CONCLUSION" in
-            failure|timed_out|cancelled|action_required) ;;
+            failure|timed_out|action_required) ;;
             *) echo "No actionable error: conclusion=$CONCLUSION"; exit 0 ;;
           esac
           FAILED_SHA="$(jq -r '.headSha' <<<"$META")"

@@ -29,9 +29,9 @@ permissions:
   contents: read
 
 concurrency:
-  # Each observer keeps its own immutable event evidence; it never self-cancels another observer.
-  group: flixo-execution-watchdog-${{ github.run_id }}
-  cancel-in-progress: false
+  # One trusted observer lane prevents workflow_run/schedule fanout from accumulating stale watchers.
+  group: flixo-execution-watchdog-single-observer
+  cancel-in-progress: true
 
 jobs:
   wake:
