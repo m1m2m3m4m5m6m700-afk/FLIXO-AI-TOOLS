@@ -4,7 +4,6 @@ import { CANONICAL_LOCALES as expected } from './validation-contracts.mjs';
 const configSource = readFileSync('src/lib/i18n/config.ts', 'utf8');
 const homeSource = readFileSync('src/data/home-locales.ts', 'utf8');
 const quickflowSource = readFileSync('src/data/quickflow-locales.ts', 'utf8');
-const toolUiSource = readFileSync('src/data/tool-ui-i18n.ts', 'utf8');
 const localizedToolPageSource = readFileSync('src/routes/localized-tool-page.tsx', 'utf8');
 
 const listed = configSource.match(/export const LOCALES = \[([\s\S]*?)\] as const/)?.[1]?.match(/'([a-z]{2})'/g)?.map((value) => value.slice(1, -1)) ?? [];
@@ -20,7 +19,7 @@ if (missingMetadata.length || missingFiles.length) {
   process.exit(1);
 }
 
-const missingToolUiLocales = expected.filter((locale) => !new RegExp(`\\b${locale}:\\s*\\{`).test(toolUiSource));
+const missingToolUiLocales = expected.filter((locale) => !existsSync(`src/data/tool-ui-locales/${locale}.ts`));
 if (missingToolUiLocales.length) { console.error(`Tool UI localization is incomplete for locale(s): ${missingToolUiLocales.join(', ')}`); process.exit(1); }
 if (!localizedToolPageSource.includes('<ToolComponent locale={locale} />')) { console.error('Localized tool route does not pass the active locale into the tool component.'); process.exit(1); }
 
