@@ -20,6 +20,7 @@ assert.doesNotMatch(workflow, /gh run cancel "\$run_id" --repo "\$REPOSITORY"\s*
 assert.doesNotMatch(workflow, /gh api --paginate --slurp/);
 assert.match(workflow, /STALE_ACTIVE_RUNS=\$stale_active/);
 assert.match(workflow, /queued\|pending\|in_progress/);
+assert.match(workflow, /KEEP_STARTED_STALE_RUN/);
 assert.match(workflow, /\*Heartbeat\*/i);
 assert.match(workflow, /\*Execution\*/i);
 assert.match(workflow, /SUPERSESSION_LATE_STALE_ID_FILE=\/tmp\/supersession-late-stale-ids\.txt/);
