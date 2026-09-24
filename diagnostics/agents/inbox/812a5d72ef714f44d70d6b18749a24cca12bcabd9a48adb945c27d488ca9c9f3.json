@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "messageId": "AGENT2-WP-AUTONOMY-CONTROL-001-20260925-001",
-  "idempotencyKey": "AGENT2-WP-AUTONOMY-CONTROL-001-20260925-001:3b2e00c391df9fa8b41babdbec6b5a04571e56e8",
+  "idempotencyKey": "AGENT2-WP-AUTONOMY-CONTROL-001-20260925-001:336c7da81b4cc60621a10449aee6da22e6eebe6e",
   "actor": "executionAgent",
   "recipient": "assistantController",
   "intent": "AGENT2_TASK_COMPLETION_HANDOFF",
@@ -14,7 +14,7 @@
     "AUTO_REPAIR_INTEGRATION",
     "TARGETED_VERIFICATION"
   ],
-  "entrySha": "3b2e00c391df9fa8b41babdbec6b5a04571e56e8",
+  "entrySha": "336c7da81b4cc60621a10449aee6da22e6eebe6e",
   "risk": "HIGH",
   "dependencies": [
     "CURRENT_EXACT_SHA",
@@ -49,7 +49,7 @@
   "createdAt": "2026-09-25T00:00:00Z",
   "source": "AGENT-2",
   "payload": {
-    "latestExecutionSha": "3b2e00c391df9fa8b41babdbec6b5a04571e56e8",
+    "latestExecutionSha": "336c7da81b4cc60621a10449aee6da22e6eebe6e",
     "benchmark": {
       "cases": 100,
       "classificationAccuracy": 1,
@@ -63,7 +63,7 @@
       "testPromptRegistry": "PASS",
       "autoRepairEngine": "PASS"
     },
-    "ciStatus": "NO_CURRENT_PR_RUNS_OR_COMBINED_STATUS_RETURNED_BY_AVAILABLE_GITHUB_ACTIONS_QUERIES",
+    "ciStatus": "CURRENT_CANONICAL_CI_RUNS_QUEUED_OR_PENDING; COMBINED_STATUS_EMPTY; CERTIFICATION_OPEN",
     "certificationState": "OPEN",
     "guardForwarding": "STATE_PASSED_UNCHANGED_FOR_CHAIR_1_REVIEW",
     "noNewBranch": true,
