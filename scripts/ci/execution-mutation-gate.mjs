@@ -18,7 +18,30 @@ export const scopeHash=(paths)=>hash(JSON.stringify([...new Set((paths??[]).map(
 export const fencingToken=({ownerAgent,runId,runAttempt,targetSha,workPackageId,taskId,scopeDigest})=>hash(JSON.stringify({ownerAgent:String(ownerAgent),runId:String(runId),runAttempt:String(runAttempt),targetSha:String(targetSha),workPackageId:String(workPackageId),taskId:String(taskId),scopeDigest:String(scopeDigest)}));
 function argsMap(rest){const m=new Map();for(let i=0;i<rest.length;i+=1){const t=rest[i];if(!t.startsWith('--'))continue;const eq=t.indexOf('=');m.set(t.slice(2,eq<0?undefined:eq),eq<0?(rest[i+1]??''):t.slice(eq+1));}return m;}
 const arg=(m,n,f='')=>String(m.get(n)??f).trim();
-export function remoteExecutionSha(){
+export const CANONICAL_VERIFICATION_PATHS = new Set([
+  '.github/workflows/ci.yml',
+  '.github/workflows/wp0-trust-baseline.yml',
+  '.github/workflows/test-impact-execution.yml',
+  '.github/workflows/repository-security-baseline.yml',
+  '.github/workflows/claude-security-review.yml',
+]);
+function assertNoCanonicalVerificationRunActive(targetSha){
+  const repo=String(process.env.GITHUB_REPOSITORY??'').trim();
+  if(!repo) throw new Error('MUTATION_GATE_GITHUB_REPOSITORY_MISSING');
+  const raw=execFileSync('gh',['api',`repos/${repo}/actions/runs?head_sha=${targetSha}&per_page=100`],{cwd:ROOT,encoding:'utf8'});
+  let body;
+  try{body=JSON.parse(raw);}catch(error){throw new Error('MUTATION_GATE_VERIFICATION_RUN_INVENTORY_INVALID',{cause:error});}
+  const active=(body?.workflow_runs??[]).filter(run=>{
+    const status=String(run?.status??'');
+    const path=String(run?.path??'');
+    return (status==='queued'||status==='in_progress') && CANONICAL_VERIFICATION_PATHS.has(path);
+  });
+  if(active.length){
+    const names=active.map(run=>String(run?.name??run?.path??'unknown')).join(', ');
+    throw new Error(`MUTATION_GATE_CANONICAL_VERIFICATION_ACTIVE: targetSha=${targetSha} active=${names}`);
+  }
+}
+function remoteExecutionSha(){
   const mocked=String(process.env.FLIXO_MUTATION_GATE_REMOTE_SHA??'').trim();
   if(mocked){ if(!trustedLocalTestHarness())throw new Error('MUTATION_GATE_REMOTE_SHA_OVERRIDE_FORBIDDEN'); return assertSha(mocked,'REMOTE_SHA'); }
   const repo=String(process.env.GITHUB_REPOSITORY??'').trim();
@@ -95,6 +118,7 @@ export function admit({ownerAgent,targetSha,workPackageId,taskId,paths,output='/
   const t=assertSha(targetSha,'TARGET_SHA');assertExecutionCheckout(t);
   if(assertSha(git(['rev-parse','HEAD']),'HEAD')!==t)throw new Error('MUTATION_GATE_STALE_LOCAL_HEAD');
   if(remoteExecutionSha()!==t)throw new Error('MUTATION_GATE_REMOTE_HEAD_CHANGED');
+  assertNoCanonicalVerificationRunActive(t);
   const centralChair = verifyCentralChair({ownerAgent,targetSha:t,workPackageId,taskId});
   const record=context({ownerAgent,targetSha:t,workPackageId,taskId,paths});
   record.centralChair = centralChair;

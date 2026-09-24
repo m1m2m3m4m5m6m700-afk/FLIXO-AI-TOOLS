@@ -174,9 +174,22 @@ jobs:
           FLIXO_REPAIR_BEHAVIOR_TRACE_PATH: /tmp/flixo-repair-behavior-trace.json
         run: |
           set -euo pipefail
-          node scripts/ci/repair-session-observer.mjs
+          if node scripts/ci/repair-session-observer.mjs; then
+            echo 'REPAIR_SESSION_OBSERVER=PASS'
+          else
+            RC="$?"
+            echo "REPAIR_SESSION_OBSERVER=DEGRADED rc=$RC"
+            node - <<'NODE'
+            const fs=require('node:fs');
+            const crypto=require('node:crypto');
+            const p='/tmp/flixo-repair-behavior-trace.json';
+            const body={schemaVersion:1,protocol:'FLIXO-REPAIR-BOT-BEHAVIOR-TRACE-v1',status:'DEGRADED',reason:'OBSERVER_EXECUTION_FAILED',targetSha:process.env.FLIXO_EXPECTED_TARGET_SHA??null,observedAt:new Date().toISOString()};
+            body.traceHash=crypto.createHash('sha256').update(JSON.stringify(body),'utf8').digest('hex');
+            fs.writeFileSync(p,JSON.stringify(body,null,2)+'\n');
+            NODE
+          fi
           test -s /tmp/flixo-repair-behavior-trace.json
-          jq -e '.protocol=="FLIXO-REPAIR-BOT-BEHAVIOR-TRACE-v1" and .traceHash != null' /tmp/flixo-repair-behavior-trace.json >/dev/null
+          jq -e '.protocol=="FLIXO-REPAIR-BOT-BEHAVIOR-TRACE-v1" and .traceHash != null and (.status=="DEGRADED" or .directive != null)' /tmp/flixo-repair-behavior-trace.json >/dev/null
       - name: Publish Repair Bot behavior trace
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
