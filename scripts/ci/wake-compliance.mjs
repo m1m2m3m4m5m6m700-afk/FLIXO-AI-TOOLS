@@ -15,7 +15,7 @@ const graceMs=3*60*1000;
 const maxGapMs=expectedMs+graceMs;
 
 const scheduleRuns=runs
-  .filter((r)=>r?.event==='schedule' && (r.status==='completed' || r.status==='in_progress'))
+  .filter((r)=>['schedule','workflow_dispatch'].includes(r?.event) && (r.status==='completed' || r.status==='in_progress'))
   .map((r)=>({
     id:Number(r.id ?? r.databaseId ?? 0),
     status:r.status ?? null,
