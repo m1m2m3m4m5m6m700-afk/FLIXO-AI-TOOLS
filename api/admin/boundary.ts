@@ -7,6 +7,7 @@ import type {
   AdminBoundarySuccessResponse,
   AdminErrorResponse,
   AdminRequestQuery,
+  JsonObject,
   JsonValue,
 } from '../contracts.ts';
 import { isAdminSessionStoreConfigured, getAdminSessionState } from '../../src/server/admin/session-store.ts';
@@ -45,6 +46,9 @@ export interface AdminAuthorizationFailure {
   code: string;
   correlationId: string;
 }
+
+const isJsonObjectValue = (value: unknown): value is JsonObject =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const isStringArray = (value: JsonValue | undefined): value is string[] => {
   if (!Array.isArray(value)) return false;
@@ -118,16 +122,7 @@ export const verifyAdminSessionToken = (token: string | null, secret = process.e
 
   try {
     const parsed: unknown = JSON.parse(fromBase64url(encoded));
-    if (
-      typeof parsed !== 'object'
-      || parsed === null
-      || Array.isArray(parsed)
-      || !('sub' in parsed)
-      || !('role' in parsed)
-      || !('sid' in parsed)
-      || !('cap' in parsed)
-      || !('exp' in parsed)
-    ) return null;
+    if (!isJsonObjectValue(parsed)) return null;
 
     if (
       typeof parsed.sub !== 'string'
@@ -202,7 +197,7 @@ export const authorizeAdminRequestWithDurableSession = async (
   let state: Awaited<ReturnType<typeof getAdminSessionState>>;
   try {
     state = await getAdminSessionState(session.sessionId, {
-      token: token!,
+      token,
       subject: session.subject,
       role: session.role,
     });
