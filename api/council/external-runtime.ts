@@ -162,6 +162,13 @@ const optionalString = (body: JsonObject, key: string): string | undefined => {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 };
 
+const optionalJsonObject = (body: JsonObject, key: string, errorCode: string): JsonObject => {
+  const value = body[key];
+  if (value === undefined || value === null) return {};
+  if (!isJsonObject(value)) throw new Error(errorCode);
+  return value;
+};
+
 const requestedByFrom = (value: JsonValue | undefined): CouncilAccountId | 'SYSTEM' => {
   const requestedBy = String(value ?? 'SYSTEM').trim();
   if (requestedBy === 'SYSTEM' || requestedBy === 'CHIEF') return requestedBy;
@@ -178,12 +185,16 @@ const parseDispatchRequest = (body: JsonObject): CouncilDispatchRequest => {
   const primaryAccountId = accountIdFrom(body.primaryAccountId);
   const fallbackAccountId = accountIdFrom(body.fallbackAccountId);
   const messageId = requiredString(body, 'messageId', 'COUNCIL_DISPATCH_IDENTITY_REQUIRED');
-  const idempotencyKey = optionalString(body, 'idempotencyKey') ?? messageId;
+  const idempotencyValue = body.idempotencyKey;
+  const idempotencyKey = idempotencyValue === undefined
+    ? messageId
+    : optionalString(body, 'idempotencyKey');
+  if (!idempotencyKey) throw new Error('COUNCIL_DISPATCH_IDENTITY_REQUIRED');
   const taskId = requiredString(body, 'taskId', 'COUNCIL_DISPATCH_IDENTITY_REQUIRED');
   const workPackageId = requiredString(body, 'workPackageId', 'COUNCIL_DISPATCH_IDENTITY_REQUIRED');
   const entrySha = requiredString(body, 'entrySha', 'COUNCIL_DISPATCH_IDENTITY_REQUIRED');
   const leaseValue = body.leaseSeconds;
-  const leaseSeconds = leaseValue === undefined ? undefined : Number(leaseValue);
+  const leaseSeconds = leaseValue === undefined || leaseValue === null ? undefined : Number(leaseValue);
   if (leaseSeconds !== undefined && !Number.isInteger(leaseSeconds)) throw new Error('COUNCIL_LEASE_SECONDS_INVALID');
 
   assertExactSha(entrySha);
@@ -224,19 +235,16 @@ const parseHeartbeatRequest = (body: JsonObject): CouncilHeartbeatRequest => {
   return request;
 };
 
-const parseCompleteRequest = (body: JsonObject): CouncilCompleteRequest => {
-  const request: CouncilCompleteRequest = {
-    ...parseHeartbeatRequest(body),
-    status: dispatchStatusFrom(body.status),
-    evidence: body.evidence === undefined ? {} : isJsonObject(body.evidence) ? body.evidence : (() => { throw new Error('COUNCIL_COMPLETE_EVIDENCE_INVALID'); })(),
-    payload: body.payload === undefined ? {} : isJsonObject(body.payload) ? body.payload : (() => { throw new Error('COUNCIL_COMPLETE_PAYLOAD_INVALID'); })(),
-  };
-  return request;
-};
+const parseCompleteRequest = (body: JsonObject): CouncilCompleteRequest => ({
+  ...parseHeartbeatRequest(body),
+  status: dispatchStatusFrom(body.status),
+  evidence: optionalJsonObject(body, 'evidence', 'COUNCIL_COMPLETE_EVIDENCE_INVALID'),
+  payload: optionalJsonObject(body, 'payload', 'COUNCIL_COMPLETE_PAYLOAD_INVALID'),
+});
 
 const parseRecoverRequest = (body: JsonObject): CouncilRecoverRequest => {
   const rawLimit = body.limit;
-  const limit = rawLimit === undefined ? 10 : Number(rawLimit);
+  const limit = rawLimit === undefined || rawLimit === null ? 10 : Number(rawLimit);
   if (!Number.isInteger(limit) || limit < 1 || limit > 25) throw new Error('COUNCIL_RECOVER_LIMIT_INVALID');
   return { limit };
 };
@@ -315,11 +323,6 @@ const councilEventArray = (value: JsonValue): CouncilEventRecord[] => {
   }
   return value;
 };
-
-interface DispatchPersistenceResult {
-  record: CouncilDispatchRecord;
-  dispatchId: string;
-}
 
 const dispatch = async (request: CouncilDispatchRequest, rawBody: JsonObject): Promise<CouncilDispatchAcceptedResponse> => {
   const primary = request.primaryAccountId;
