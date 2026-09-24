@@ -240,7 +240,7 @@ export function classifyCausalEvidence(input = {}) {
   }
 
   const downstream = (
-    containsAny(query.workflowRole, ['downstream', 'gate', 'watchdog', 'certification']) ||
+    containsAny(query.workflowRole, ['downstream']) ||
     Boolean(query.firstFailingStep && containsAny(query.firstFailingStep, ['require canonical workflow green', 'wait for upstream', 'blocked by', 'depends on'])) ||
     containsAny(query.normalizedFailure, ['upstream red', 'downstream of', 'blocked by upstream'])
   );
@@ -346,7 +346,7 @@ function candidateRuleBehavior(item) {
   return behavior ? Object.freeze(behavior) : null;
 }
 
-function scoreCausalCandidate(item, query) {
+function scoreCausalCandidate(item, query, decision = classifyCausalEvidence(query)) {
   const candidate = candidateText(item);
   let score = 0;
   if (query.failureFingerprint && String(item.fingerprint ?? '') === query.failureFingerprint) score += 1000;
@@ -360,7 +360,7 @@ function scoreCausalCandidate(item, query) {
   if (query.strategyId && normalizedText(item.rule) === normalizedText(query.strategyId)) score += 160;
   if (query.searchText && tokenOverlap(query.searchText, candidate) >= 0.25) score += 40;
   const behavior = candidateRuleBehavior(item);
-  if (behavior?.classification === classifyCausalEvidence(query).classification) score += 180;
+  if (behavior?.classification === decision.classification) score += 180;
   if (item.canonicalGreen === true || item.status === 'VERIFIED' || item.status === 'PROMOTED') score += 20;
   if (item.exactShaBound === true) score += 15;
   if (item.targetSha && query.currentSha && item.targetSha !== query.currentSha) score -= 80;
@@ -394,7 +394,7 @@ export function retrieveCausalLearning({
     const normalized = normalizeLearningCandidate({ ...item, anti: anti || item.anti === true }, source);
     candidates.push({
       item: normalized,
-      score: scoreCausalCandidate(normalized, causalQuery),
+      score: scoreCausalCandidate(normalized, causalQuery, decision),
     });
   };
 
