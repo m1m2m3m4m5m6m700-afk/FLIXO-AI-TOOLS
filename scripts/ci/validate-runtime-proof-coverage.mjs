@@ -34,7 +34,8 @@ const loadHistoricalClosure = () => {
     }
     const paths = Array.isArray(entry?.sensitivePaths) ? [...new Set(entry.sensitivePaths)].sort() : [];
     const evidence = entry?.evidence;
-    if (!paths.length || evidence?.workflow !== 'FLIXO Advanced Repair Contract' ||
+    const allowedEvidenceWorkflows = new Set(['FLIXO Advanced Repair Contract', 'Repository Security Baseline']);
+    if (!paths.length || !allowedEvidenceWorkflows.has(String(evidence?.workflow ?? '')) ||
         evidence?.conclusion !== 'success' || evidence?.independent !== true ||
         !Number.isInteger(evidence?.runId) || !Number.isInteger(evidence?.jobId) ||
         !Array.isArray(evidence?.requiredSteps) || evidence.requiredSteps.length < 1 ||
@@ -42,6 +43,11 @@ const loadHistoricalClosure = () => {
       throw new Error('RUNTIME_PROOF_HISTORICAL_CLOSURE_ENTRY_INVALID');
     }
     if (map.has(entry.commitSha)) throw new Error('RUNTIME_PROOF_HISTORICAL_CLOSURE_DUPLICATE_SHA');
+    if (evidence.workflow === 'Repository Security Baseline') {
+      const requiredBaselineSteps = ['Verify exact SHA', 'Validate source-controlled Council RPC contract', 'Run repository security baseline'];
+      if (!requiredBaselineSteps.every((step) => evidence.requiredSteps.includes(step))) throw new Error('RUNTIME_PROOF_HISTORICAL_CLOSURE_BASELINE_STEPS_INVALID');
+      if (!/^[0-9a-f]{40}$/.test(String(evidence.verifiedHeadSha ?? ''))) throw new Error('RUNTIME_PROOF_HISTORICAL_CLOSURE_VERIFIED_HEAD_SHA_INVALID');
+    }
     map.set(entry.commitSha, { paths, evidence, reason: entry.reason });
   }
   return map;

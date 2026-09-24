@@ -46,6 +46,26 @@
         ]
       },
       "reason": "Historical sensitive runtime contract change predates the adjacent-proof guard and received independent exact-SHA Advanced Repair regression evidence on its own commit."
+    },
+    {
+      "commitSha": "846fffc9ef484f7bf1ea3d3c05c3b9adc9ba9e17",
+      "sensitivePaths": [
+        "db/council-external-accounts.sql"
+      ],
+      "evidence": {
+        "workflow": "Repository Security Baseline",
+        "conclusion": "success",
+        "independent": true,
+        "runId": 36069379975,
+        "jobId": 107866502595,
+        "verifiedHeadSha": "9222648f7e10c08ed3a296265885d5a5d3f29d41",
+        "requiredSteps": [
+          "Verify exact SHA",
+          "Validate source-controlled Council RPC contract",
+          "Run repository security baseline"
+        ]
+      },
+      "reason": "Historical exact-SHA closure for the sensitive Council DDL change. An independent successful Repository Security Baseline run on descendant 9222648f7e10c08ed3a296265885d5a5d3f29d41 revalidated the resulting source-controlled Council RPC contract. Historical closure is non-certifying for the current execution head."
     }
   ]
 }

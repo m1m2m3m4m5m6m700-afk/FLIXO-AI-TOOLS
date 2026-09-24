@@ -19,18 +19,26 @@ assert.equal(closure.scope,'EXACT_SHA_ALLOWLIST_ONLY');
 assert.deepEqual(
   closure.entries.map((entry) => entry.commitSha).sort(),
   [
+    '846fffc9ef484f7bf1ea3d3c05c3b9adc9ba9e17',
     '9bad17db7eccc9e4b0efb252fa261b1b831b6ec2',
     'baa6a6a8b3090a2168b2203afee462bf0a107d8b',
   ],
 );
 for (const entry of closure.entries) {
-  assert.deepEqual(entry.sensitivePaths,['api/council/external-runtime.ts']);
-  assert.equal(entry.evidence.workflow,'FLIXO Advanced Repair Contract');
   assert.equal(entry.evidence.conclusion,'success');
   assert.equal(entry.evidence.independent,true);
   assert.ok(Number.isInteger(entry.evidence.runId));
   assert.ok(Number.isInteger(entry.evidence.jobId));
   assert.ok(entry.evidence.requiredSteps.length >= 1);
+  if (entry.commitSha === '846fffc9ef484f7bf1ea3d3c05c3b9adc9ba9e17') {
+    assert.equal(entry.evidence.workflow,'Repository Security Baseline');
+    assert.equal(entry.evidence.verifiedHeadSha,'9222648f7e10c08ed3a296265885d5a5d3f29d41');
+    assert.deepEqual(entry.evidence.requiredSteps,['Verify exact SHA','Validate source-controlled Council RPC contract','Run repository security baseline']);
+    assert.deepEqual(entry.sensitivePaths,['db/council-external-accounts.sql']);
+  } else {
+    assert.equal(entry.evidence.workflow,'FLIXO Advanced Repair Contract');
+    assert.deepEqual(entry.sensitivePaths,['api/council/external-runtime.ts']);
+  }
 }
 assert.equal(
   closure.entries.some((entry) => entry.commitSha === 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
