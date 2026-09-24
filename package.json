@@ -76,7 +76,7 @@
     "test:llm-provider": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-llm-provider.mjs",
     "test:task-agent": "node scripts/ci/test-task-agent-contract.mjs",
     "test:agent-execution-control": "node scripts/ci/agent-execution-control.mjs",
-    "test:i18n": "node --experimental-strip-types scripts/test-i18n-contract.mjs",
+    "test:i18n": "node --experimental-strip-types scripts/test-i18n-contract.mjs && node scripts/ci/test-tool-ui-lazy-boundary.mjs",
     "test:route-resolver": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-route-resolver.mjs",
     "test:upload-boundary": "node --experimental-strip-types scripts/test-upload-boundary.mjs",
     "test:tool-localization": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-tool-localization-contract.mjs",
