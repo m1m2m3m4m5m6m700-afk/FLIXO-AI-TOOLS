@@ -39,6 +39,7 @@ function addFinding({ ruleId, severity='MEDIUM', category, title, file, line, ev
   const fp = fingerprint({ ruleId, file, line, evidence });
   if (seen.has(fp)) return;
   seen.add(fp);
+  const boundedConfidence = Math.min(0.999, Math.max(0.001, Number(confidence) || 0.5));
   findings.push({
     id: `SEC-RT-${BOT_ID.replaceAll('SECURITY-REDTEAM-','RT')}-${fp.slice(0,10).toUpperCase()}`,
     fingerprint: fp,
@@ -50,7 +51,13 @@ function addFinding({ ruleId, severity='MEDIUM', category, title, file, line, ev
     file,
     line,
     evidence: String(evidence).slice(0, 1200),
-    confidence,
+    confidence: boundedConfidence,
+    uncertainty: Number((1 - boundedConfidence).toFixed(3)),
+    confidenceLevel: boundedConfidence >= 0.9 ? 'HIGH' : boundedConfidence >= 0.7 ? 'MEDIUM' : 'LOW',
+    uncertaintyLevel: boundedConfidence >= 0.9 ? 'LOW' : boundedConfidence >= 0.7 ? 'MEDIUM' : 'HIGH',
+    uncertaintyBasis: 'RULE_MATCH_STRENGTH_WITH_STATIC_SCAN_ONLY',
+    counterevidence: [],
+    discriminatingTests: [],
     recommendation,
     exactSha: EXPECTED_SHA,
     status: 'OPEN',
@@ -163,6 +170,46 @@ if (BOT_ID === 'SECURITY-REDTEAM-3') {
   }
 }
 
+function buildUncertaintyAssessment() {
+  const confident = findings.map(f => Number(f.confidence)).filter(Number.isFinite);
+  const uncertainty = findings.map(f => Number(f.uncertainty)).filter(Number.isFinite);
+  const unresolvedFindings = findings.filter(f => f.uncertainty >= 0.3).map(f => ({
+    findingId: f.id,
+    ruleId: f.fingerprint,
+    title: f.title,
+    uncertainty: f.uncertainty,
+    uncertaintyLevel: f.uncertaintyLevel,
+    discriminatingTests: f.discriminatingTests
+  }));
+  if (findings.length === 0) {
+    return {
+      status: 'NO_FINDINGS_OBSERVED',
+      confidence: null,
+      uncertainty: null,
+      confidenceLevel: 'UNKNOWN',
+      uncertaintyLevel: 'UNKNOWN',
+      method: 'STATIC_PATTERN_SCAN_ONLY',
+      unresolvedQuestions: ['A clean static scan does not prove absence of vulnerabilities.'],
+      discriminatingTests: ['Independent dynamic, dependency, browser, and adversarial verification remain required by canonical CI.']
+    };
+  }
+  const minConfidence = Math.min(...confident);
+  const meanConfidence = confident.reduce((sum, value) => sum + value, 0) / confident.length;
+  const meanUncertainty = uncertainty.reduce((sum, value) => sum + value, 0) / uncertainty.length;
+  return {
+    status: unresolvedFindings.length ? 'FINDINGS_WITH_UNCERTAINTY' : 'FINDINGS_HIGH_CONFIDENCE',
+    confidence: Number(meanConfidence.toFixed(3)),
+    lowestFindingConfidence: Number(minConfidence.toFixed(3)),
+    uncertainty: Number(meanUncertainty.toFixed(3)),
+    confidenceLevel: meanConfidence >= 0.9 ? 'HIGH' : meanConfidence >= 0.7 ? 'MEDIUM' : 'LOW',
+    uncertaintyLevel: meanUncertainty <= 0.1 ? 'LOW' : meanUncertainty <= 0.3 ? 'MEDIUM' : 'HIGH',
+    method: 'STATIC_RULE_MATCH_STRENGTH',
+    unresolvedQuestions: unresolvedFindings.map(item => item.title),
+    unresolvedFindings,
+    discriminatingTests: unresolvedFindings.flatMap(item => item.discriminatingTests)
+  };
+}
+
 const securityLog = findings.map(f => `[${f.severity}] ${f.category} ${f.file}:${f.line} ${f.title} :: ${f.evidence}`).join('\n');
 const twin = { A:null, B:null };
 if (findings.some(f => f.severity === 'CRITICAL' || f.severity === 'HIGH')) {
@@ -211,6 +258,7 @@ const report = {
     medium:findings.filter(x=>x.severity==='MEDIUM').length,
     low:findings.filter(x=>x.severity==='LOW').length
   },
+  uncertainty:buildUncertaintyAssessment(),
   repairIntelligence:{
     provider:REGISTRY.repairIntelligence.entry,
     authority:'READ_ONLY_ADVISORY',
