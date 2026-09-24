@@ -260,8 +260,8 @@ jobs:
           SHARD: ${{ matrix.shard }}
         run: |
           set -euo pipefail
-          specs=(tests/image-compressor.spec.ts tests/background-remover.spec.ts tests/image-upscaler.spec.ts tests/image-converter.spec.ts tests/ai-image-generator.spec.ts tests/object-remover.spec.ts tests/watermark-remover.spec.ts tests/image-cropper.spec.ts tests/image-to-svg.spec.ts tests/image-ocr.spec.ts tests/photo-colorizer.spec.ts tests/background-blur.spec.ts tests/passport-photo-maker.spec.ts tests/watermark-adder.spec.ts tests/meme-generator.spec.ts tests/collage-maker.spec.ts tests/image-effects.spec.ts tests/exif-cleaner.spec.ts tests/svg-optimizer.spec.ts tests/mockup-generator.spec.ts tests/seed.spec.ts tests/pix.spec.ts)
-          test "${#specs[@]}" -eq 22
+          specs=(tests/image-compressor.spec.ts tests/background-remover.spec.ts tests/image-upscaler.spec.ts tests/image-converter.spec.ts tests/ai-image-generator.spec.ts tests/object-remover.spec.ts tests/watermark-remover.spec.ts tests/image-cropper.spec.ts tests/image-to-svg.spec.ts tests/image-ocr.spec.ts tests/photo-colorizer.spec.ts tests/background-blur.spec.ts tests/passport-photo-maker.spec.ts tests/watermark-adder.spec.ts tests/meme-generator.spec.ts tests/collage-maker.spec.ts tests/image-effects.spec.ts tests/exif-cleaner.spec.ts tests/svg-optimizer.spec.ts tests/mockup-generator.spec.ts tests/seed.spec.ts tests/pix.spec.ts tests/mvp-agent-e2e.spec.ts)
+          test "${#specs[@]}" -eq 23
           npx playwright test "${specs[@]}" --project="$BROWSER" --workers=6 --retries=0 --max-failures=0 --shard="$SHARD/2"
           mkdir -p diagnostics/certification/playwright-results
           printf '%s\n' "{\"evidenceClass\":\"PRIMARY_EXECUTION\",\"mode\":\"FAST\",\"browser\":\"$BROWSER\",\"shard\":$SHARD,\"sha\":\"$EXPECTED_SHA\",\"run_id\":\"${GITHUB_RUN_ID}\",\"toolSpecs\":22,\"status\":\"PASS\"}" > "diagnostics/certification/browser-fast-${BROWSER}-${SHARD}.json"
