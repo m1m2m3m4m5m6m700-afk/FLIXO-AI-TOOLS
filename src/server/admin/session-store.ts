@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { AdminSession } from '../../../api/admin/boundary.ts';
+import type { AdminSession } from './contracts.ts';
 
 type SessionRecord = {
   session_id: string;
