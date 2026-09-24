@@ -41,15 +41,16 @@ if (registryLocales.length !== CANONICAL_LOCALES.length || registryLocales.some(
 }
 const { en: EN_DICTIONARY } = await importTs('src/lib/i18n/locales/en.ts');
 const localeQuality = await importTs('src/lib/i18n/locale-quality-overrides.ts');
-const homeData = await importTs('src/data/home-locales.ts');
+const loadHomeData = async (locale) => importTs(`src/data/home-locales/${locale}.ts`);
 const quickData = await importTs('src/data/quickflow-locales.ts');
 const toolUi = await importTs('src/data/tool-ui-i18n.ts');
 const { TOOLS_REGISTRY } = await importTs('src/config/tools.ts');
 const { getAuthoritativeToolSeoName } = await importTs('src/config/tool-seo-name-resolver.ts');
 
-const effectiveHome = (locale) => ({ ...(homeData.getHomeCopy(locale) ?? {}), ...(localeQuality.HOME_COPY_OVERRIDES[locale] ?? {}) });
+const effectiveHome = async (locale) => ({ ...((await loadHomeData(locale)).homeCopy ?? {}), ...(localeQuality.HOME_COPY_OVERRIDES[locale] ?? {}) });
 const effectiveQuick = (locale) => ({ ...(quickData.QUICKFLOW_LOCALES[locale] ?? {}), ...(localeQuality.QUICKFLOW_COPY_OVERRIDES[locale] ?? {}) });
-const requiredHome = Object.keys(homeData.getHomeCopy('en'));
+const englishHome = await effectiveHome('en');
+const requiredHome = Object.keys(englishHome);
 const requiredQuick = Object.keys(quickData.QUICKFLOW_LOCALES.en);
 const requiredUi = Object.keys(toolUi.TOOL_UI_I18N.en);
 const targets = requestedLocale ? [requestedLocale] : CANONICAL_LOCALES;
@@ -69,9 +70,9 @@ for (const locale of targets) {
     compare(coreReferenceDictionary, coreDictionary, locale, 'core dictionary');
   }
 
-  const home = effectiveHome(locale);
+  const home = await effectiveHome(locale);
   for (const key of requiredHome) if (!(key in home) || home[key] == null || (typeof home[key] === 'string' && !norm(home[key]))) issue.push(`${locale} | missing | Home | missing ${key}`);
-  compare(effectiveHome('en'), home, locale, 'Home');
+  compare(englishHome, home, locale, 'Home');
 
   const quick = effectiveQuick(locale);
   for (const key of requiredQuick) if (!(key in quick) || quick[key] == null || (typeof quick[key] === 'string' && !norm(quick[key]))) issue.push(`${locale} | missing | QuickFlow | missing ${key}`);
