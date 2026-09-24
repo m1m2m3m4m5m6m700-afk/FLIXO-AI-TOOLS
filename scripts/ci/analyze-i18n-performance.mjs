@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 
 const ROOT = process.cwd();
 const DIST = path.join(ROOT, 'dist');
@@ -97,7 +98,7 @@ console.log(JSON.stringify(report, null, 2));
 if (report.status !== 'PASS') process.exit(1);
 
 function requireGitSha() {
-  const out = require('node:child_process').execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  const out = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   if (!/^[0-9a-f]{40}$/u.test(out)) throw new Error('Invalid git HEAD SHA');
   return out;
 }
