@@ -10,7 +10,7 @@ export const CANONICAL_BRANCHES = Object.freeze([CANONICAL_ACTIVE_WORK_BRANCH, C
 const ROOT = process.cwd();
 const SOURCE_EXTENSIONS = Object.freeze(['.js', '.cjs', '.mjs', '.ts', '.tsx', '.yml', '.yaml', '.sh']);
 const SCAN_ROOTS = Object.freeze(['.github/workflows','scripts/ci','scripts/security','api','supabase/functions','src/lib/agent']);
-const EXCLUDED_BASENAME = /^(?:test-|tests-|validate-|verify-)/u;
+const EXCLUDED_BASENAME = /^(?:test-|tests-)/u;
 const SELF_PATH = 'scripts/ci/validate-two-branch-policy.mjs';
 const violations = [];
 
