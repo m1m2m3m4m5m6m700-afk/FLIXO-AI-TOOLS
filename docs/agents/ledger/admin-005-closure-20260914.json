@@ -15,5 +15,6 @@
   "visibilityStateReason": "STALE_HISTORICAL_SESSION_RECONCILED",
   "reconciledFromStatus": "ACTIVE",
   "reconciledAt": "2026-09-24",
-  "exactShaProofRequired": true
+  "exactShaProofRequired": true,
+  "updatedAt": "2026-09-24T00:00:00Z"
 }
