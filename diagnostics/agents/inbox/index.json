@@ -14,14 +14,14 @@
     },
     "AGENT2-WP-AUTONOMY-CONTROL-001-20260925-001": {
       "messageId": "AGENT2-WP-AUTONOMY-CONTROL-001-20260925-001",
-      "idempotencyKey": "AGENT2-WP-AUTONOMY-CONTROL-001-20260925-001:3b2e00c391df9fa8b41babdbec6b5a04571e56e8",
+      "idempotencyKey": "AGENT2-WP-AUTONOMY-CONTROL-001-20260925-001:336c7da81b4cc60621a10449aee6da22e6eebe6e",
       "status": "RECEIVED",
       "recipient": "assistantController",
       "taskId": "WP-AUTONOMY-CONTROL-001",
-      "entrySha": "3b2e00c391df9fa8b41babdbec6b5a04571e56e8",
+      "entrySha": "336c7da81b4cc60621a10449aee6da22e6eebe6e",
       "receivedAt": "2026-09-24T22:51:44.168Z",
-      "updatedAt": "2026-09-24T22:51:59.419Z"
+      "updatedAt": "2026-09-24T22:52:43.099Z"
     }
   },
-  "updatedAt": "2026-09-24T22:51:59.419Z"
+  "updatedAt": "2026-09-24T22:52:43.099Z"
 }
