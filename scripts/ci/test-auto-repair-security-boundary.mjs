@@ -3,6 +3,13 @@ import fs from 'node:fs';
 
 const workflow = fs.readFileSync('.github/workflows/auto-repair.yml', 'utf8');
 const worker = fs.readFileSync('scripts/ci/action-repair-five-workers.mjs', 'utf8');
+const controlPlaneRegistry = fs.readFileSync('scripts/ci/control-plane-registry.mjs', 'utf8');
+const writeCapableStart = controlPlaneRegistry.indexOf('export const WRITE_CAPABLE_WORKFLOWS');
+const writeCapableEnd = controlPlaneRegistry.indexOf('export const SENSITIVE_PERMISSION_ALLOWLISTS');
+const writeCapable = controlPlaneRegistry.slice(writeCapableStart, writeCapableEnd);
+assert.ok(!writeCapable.includes('execution-sync.yml'));
+assert.ok(!writeCapable.includes('historical-action-error-index.yml'));
+
 
 assert.doesNotMatch(workflow, /needs:\s*adversarial_twin/);
 assert.doesNotMatch(workflow, /needs\.adversarial_twin\.outputs/);

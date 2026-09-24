@@ -13,7 +13,7 @@ const MERGE_GATE = path.join(ROOT, '.github', 'workflows', 'auto-repair-merge-ga
 const PUSH_GATE_WORKFLOW = path.join(ROOT, '.github', 'workflows', 'unified-execution-push-gate.yml');
 const MAX_CHANGED_FILES = 12;
 const MAX_CHANGED_LINES = 300;
-const MUTATION_WORKFLOWS = Object.freeze(['auto-repair.yml','execution-sync.yml','historical-action-error-index.yml']);
+const MUTATION_WORKFLOWS = Object.freeze(['auto-repair.yml']);
 const MUTATION_LANE = 'flixo-execution-mutation-lane';
 const MUTATION_GATE_SCRIPT = path.join(ROOT,'scripts','ci','execution-mutation-gate.mjs');
 

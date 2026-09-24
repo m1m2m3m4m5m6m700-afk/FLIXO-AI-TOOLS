@@ -14,9 +14,7 @@ export const REPAIR_GATE_AUTOMATION = Object.freeze([
 export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
   'auto-repair.yml',
   'daily-flixo-green-gate.yml',
-  'execution-sync.yml',
   'repair-lease-live-race.yml',
-  'historical-action-error-index.yml',
   'action-agent-history-promotion.yml',
   'task-history-ledger.yml',
 ]);
