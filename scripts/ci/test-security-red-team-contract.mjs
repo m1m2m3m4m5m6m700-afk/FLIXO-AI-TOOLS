@@ -31,6 +31,10 @@ assert.equal(Object.keys(registry.bots).length,3);
 for (const bot of Object.values(registry.bots)) assert.equal(bot.mutationAuthority,false);
 assert.equal(registry.repairIntelligence.entry,'scripts/ci/adversarial-repair-twin.mjs');
 assert.equal(registry.repairIntelligence.mutationAuthority,false);
+assert.equal(registry.execution.uncertaintyModel.enabled,true);
+assert.equal(registry.execution.uncertaintyModel.version,'EPISTEMIC-UNCERTAINTY-v1');
+assert.equal(registry.execution.uncertaintyModel.method,'STATIC_RULE_MATCH_STRENGTH');
+assert.equal(registry.execution.uncertaintyModel.humanSupervisorRequired,true);
 
 assert.match(workflow,/workflow_dispatch:/u);
 assert.match(workflow,/expected_sha:[\s\S]*required:\s*true/u);
@@ -61,6 +65,9 @@ assert.match(runner,/execFileSync\(['"]git['"],\s*\['ls-files',\s*['"]-z['"]\]/u
 assert.match(runner,/const appSourceFile = \(file\) => sourceFile\(file\) && !workflowFile\(file\);/u);
 assert.match(runner,/mutationAuthority:false/u);
 assert.match(runner,/adversarial-repair-twin\.mjs/u);
+assert.match(runner,/uncertainty:/u);
+assert.match(runner,/uncertaintyLevel/u);
+assert.match(runner,/NO_FINDINGS_OBSERVED/u);
 
 console.log(JSON.stringify({
   status:'PASS',
