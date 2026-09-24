@@ -7,7 +7,7 @@ on:
     branches: [main, execution]
   workflow_dispatch:
 
-# Each exact commit SHA has its own execution slot; active runs are never cancelled by newer commits.
+# Active older-SHA runs are superseded when the execution branch advances; only the live execution SHA is authoritative.
 concurrency:
   group: flixo-test-impact-execution-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
