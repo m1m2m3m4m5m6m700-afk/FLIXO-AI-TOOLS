@@ -4,8 +4,18 @@ import { PNG } from './helpers/image-tool-fixture';
 test.describe('FLIXO MVP agent full journey', () => {
   test('upload → natural request → plan → execute → verify → result → save', async ({ page }) => {
     await page.addInitScript(() => {
+      type SavePickerStub = (options: {
+        suggestedName: string;
+        types: Array<{ description: string; accept: Record<string, string[]> }>;
+      }) => Promise<{
+        createWritable: () => Promise<{
+          write: (data: Blob) => Promise<void>;
+          close: () => Promise<void>;
+        }>;
+      }>;
       const state = window as Window & {
         __flixoSavedResult?: { type: string; size: number };
+        showSaveFilePicker?: SavePickerStub;
       };
       state.__flixoSavedResult = undefined;
       state.showSaveFilePicker = async () => ({
