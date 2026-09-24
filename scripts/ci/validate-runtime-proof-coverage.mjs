@@ -77,7 +77,6 @@ const countOccurrences = (text, needle) => {
 };
 
 const COUNCIL_SQL_DUPLICATE_SIGNATURES = Object.freeze([
-  'create table if not exists public.flix_council_accounts',
   'create table if not exists public.flix_council_dispatches',
   'create table if not exists public.flix_council_events',
   'create or replace function public.council_claim_dispatch',
@@ -103,10 +102,10 @@ const semanticDuplicateRemovalClosure = (sha, changed, sensitiveChanged, proofCh
   } catch {
     return false;
   }
-  const deleted = diff.split('\\n')
+  const deleted = diff.split('\n')
     .filter((line) => line.startsWith('-') && !line.startsWith('---'))
     .map((line) => line.slice(1));
-  const added = diff.split('\\n')
+  const added = diff.split('\n')
     .filter((line) => line.startsWith('+') && !line.startsWith('+++'))
     .map((line) => line.slice(1));
   const exactShaConstraint =
