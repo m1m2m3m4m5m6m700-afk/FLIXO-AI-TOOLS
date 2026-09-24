@@ -27,7 +27,7 @@ RC-G1-SEO-001 is recorded as resolved but needs fresh G1 and production SEO evid
 
 ## Dependencies
 
-The repository already has lock/manifest and zero-debt dependency validators. This cycle wires both into the Security Red-Team workflow and groups Dependabot security updates. Per GitHub's current documentation, Dependabot security updates remain against the default branch when target-branch is not specified; the execution-branch config becomes active only after it reaches the default branch. citeturn120357search6turn120357search2
+The repository already has lock/manifest and zero-debt dependency validators. This cycle wires both into the Security Red-Team workflow and groups Dependabot security updates.
 
 ## Deployment gate
 

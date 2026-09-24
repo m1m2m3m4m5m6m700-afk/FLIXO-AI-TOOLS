@@ -66,7 +66,7 @@ for (const required of [
   "{ name: 'twitter:image', content:",
   "{ name: 'twitter:image:alt', content:",
 ]) {
-  if (!localizedToolPageSource.includes(required)) {
+  if (!routerSource.includes(required)) {
     console.error(`Localized tool SEO media metadata is missing: ${required}`);
     process.exit(1);
   }
