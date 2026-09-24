@@ -55,8 +55,6 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
     });
     return () => { active = false; };
   }, [locale]);
-  if (!home) return <main className="agent-first-home" lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'} aria-busy="true" />;
-
   function renderHeroTitle(value: string) {
     const opening = '[[';
     const closing = ']]';
@@ -77,9 +75,12 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
   }
 
   useEffect(() => {
+    if (!home) return;
     document.documentElement.lang = home.language;
     document.documentElement.dir = home.dir;
-  }, [home.dir, home.language]);
+  }, [home?.dir, home?.language]);
+
+  if (!home) return <main className="agent-first-home" lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'} aria-busy="true" />;
 
   return (
     <main className="agent-first-home" lang={locale} dir={home.dir}>
