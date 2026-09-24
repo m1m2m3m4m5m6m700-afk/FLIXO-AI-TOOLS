@@ -30,32 +30,52 @@ const lineOf = (source, index) => source.slice(0, index).split('\n').length;
 const add = (file, rule, detail, line) => violations.push({ file, rule, detail, line });
 
 function scanCommands(file, source) {
-  const patterns = [
-    ['THIRD_BRANCH_SWITCH_CREATE', /\bgit\s+switch\s+(?:-c|-C|--create|--force-create)\s+([^\s;&|]+)/giu],
-    ['THIRD_BRANCH_CHECKOUT_CREATE', /\bgit\s+checkout\s+(?:-b|-B|--orphan)\s+([^\s;&|]+)/giu],
-    ['THIRD_BRANCH_BRANCH_CREATE', /\bgit\s+branch\s+(?:-c|-C|-f|--force)\s+([^\s;&|]+)/giu],
-    ['THIRD_BRANCH_WORKTREE_CREATE', /\bgit\s+worktree\s+add\s+(?:-b|-B|--checkout)\s+([^\s;&|]+)/giu],
+  const shellFile = /\\.(?:ya?ml|sh)$/u.test(file);
+  if (shellFile) {
+    const shell = source.replace(/^\\s*#.*$/gmu, '');
+    const patterns = [
+      ['THIRD_BRANCH_SWITCH_CREATE', /\\bgit\\s+switch\\s+(?:-c|-C|--create|--force-create)\\s+([^\\s;&|]+)/giu],
+      ['THIRD_BRANCH_CHECKOUT_CREATE', /\\bgit\\s+checkout\\s+(?:-b|-B|--orphan)\\s+([^\\s;&|]+)/giu],
+      ['THIRD_BRANCH_BRANCH_CREATE', /\\bgit\\s+branch\\s+(?:-c|-C|-f|--force)\\s+([^\\s;&|]+)/giu],
+      ['THIRD_BRANCH_WORKTREE_CREATE', /\\bgit\\s+worktree\\s+add\\s+(?:-b|-B|--checkout)\\s+([^\\s;&|]+)/giu],
+    ];
+    for (const [rule, re] of patterns) {
+      for (const match of shell.matchAll(re)) {
+        const branch = token(match[1]);
+        if (!CANONICAL_BRANCHES.includes(branch)) add(file, rule, branch || 'DYNAMIC_OR_UNKNOWN_BRANCH', lineOf(shell, match.index ?? 0));
+      }
+    }
+    for (const match of shell.matchAll(/\\bgit\\s+branch\\s+([^\\s;&|][^;&|]*?)(?:\\s|$)/giu)) {
+      const body = String(match[1] ?? '').trim();
+      if (!body || /^--(?:show-current|list|all|remotes?|merged|no-merged|contains|format|sort|verbose|vv|column|color|ignore-case)\\b/iu.test(body)) continue;
+      const first = token(body.split(/\\s+/u)[0]);
+      if (!first || first.startsWith('-')) continue;
+      if (!CANONICAL_BRANCHES.includes(first)) add(file, 'THIRD_BRANCH_GIT_BRANCH_CREATE', first, lineOf(shell, match.index ?? 0));
+    }
+    const pushMatch = shell.match(/\\bgit\\s+push\\b[^\\n]*(?:HEAD:|refs\\/heads\\/)([^\\s]+)?/iu);
+    if (pushMatch) {
+      const pushed = token(pushMatch[1] ?? '');
+      if (pushed && !CANONICAL_BRANCHES.includes(pushed)) add(file, 'THIRD_BRANCH_PUSH_FORBIDDEN', pushed, lineOf(shell, shell.indexOf(pushMatch[0])));
+    }
+    return;
+  }
+
+  const arrayPatterns = [
+    ['THIRD_BRANCH_SWITCH_CREATE', /['"]git['"]\\s*,\\s*\\[\\s*['"]switch['"]\\s*,\\s*['"](?:-c|-C|--create|--force-create)['"]\\s*,\\s*([^\\]\\n]+?)(?:\\s*,|\\s*\\])/giu],
+    ['THIRD_BRANCH_CHECKOUT_CREATE', /['"]git['"]\\s*,\\s*\\[\\s*['"]checkout['"]\\s*,\\s*['"](?:-b|-B|--orphan)['"]\\s*,\\s*([^\\]\\n]+?)(?:\\s*,|\\s*\\])/giu],
+    ['THIRD_BRANCH_BRANCH_CREATE', /['"]git['"]\\s*,\\s*\\[\\s*['"]branch['"]\\s*,\\s*['"](?:-c|-C|-f|--force)['"]\\s*,\\s*([^\\]\\n]+?)(?:\\s*,|\\s*\\])/giu],
+    ['THIRD_BRANCH_WORKTREE_CREATE', /['"]git['"]\\s*,\\s*\\[\\s*['"]worktree['"]\\s*,\\s*['"]add['"]\\s*,\\s*['"](?:-b|-B|--checkout)['"]\\s*,\\s*([^\\]\\n]+?)(?:\\s*,|\\s*\\])/giu],
   ];
-  for (const [rule, re] of patterns) {
+  for (const [rule, re] of arrayPatterns) {
     for (const match of source.matchAll(re)) {
-      const branch = token(match[1]);
-      if (!CANONICAL_BRANCHES.includes(branch)) add(file, rule, branch || 'DYNAMIC_OR_UNKNOWN_BRANCH', lineOf(source, match.index ?? 0));
+      const raw = String(match[1] ?? '').trim();
+      const branch = token(raw);
+      if (!/^['"][^'"]+['"]$/u.test(raw) || !CANONICAL_BRANCHES.includes(branch)) {
+        add(file, rule, branch || 'DYNAMIC_OR_UNKNOWN_BRANCH', lineOf(source, match.index ?? 0));
+      }
     }
   }
-  for (const match of source.matchAll(/\bgit\s+branch\s+([^\s;&|][^;&|]*?)(?:\s|$)/giu)) {
-    const body = String(match[1] ?? '').trim();
-    if (!body || /^--(?:show-current|list|all|remotes?|merged|no-merged|contains|format|sort|verbose|vv|column|color|ignore-case)\b/iu.test(body)) continue;
-    const first = token(body.split(/\s+/u)[0]);
-    if (!first || first.startsWith('-')) continue;
-    if (!CANONICAL_BRANCHES.includes(first)) add(file, 'THIRD_BRANCH_GIT_BRANCH_CREATE', first, lineOf(source, match.index ?? 0));
-  }
-  const pushMatch = source.match(/\bgit\s+push\b[^\n]*(?:HEAD:|refs\/heads\/)([^\s]+)?/iu);
-  if (pushMatch) {
-    const pushed = token(pushMatch[1] ?? '');
-    if (pushed && !CANONICAL_BRANCHES.includes(pushed)) add(file, 'THIRD_BRANCH_PUSH_FORBIDDEN', pushed, lineOf(source, source.indexOf(pushMatch[0])));
-  }
 }
-
 function scanRemoteRefs(file, source) {
   const refPost = /(?:git\/refs|git\/ref)[^\n]{0,300}(?:method\s*:\s*['"]POST['"]|--method\s+POST)/iu;
   if (refPost.test(source) && file !== 'scripts/ci/repair-lease.mjs') add(file, 'GITHUB_REF_CREATION_OUTSIDE_REPAIR_LEASE', 'POST to Git refs API', 1);
