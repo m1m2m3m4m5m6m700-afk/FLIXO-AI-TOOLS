@@ -94,6 +94,10 @@ export function validateStatic() {
   }
   const mutationGate = read(MUTATION_GATE_SCRIPT);
   must(mutationGate.includes('FLIXO-EXECUTION-MUTATION-GATE-v1'),'mutation-gate-canonical-protocol');
+  must(mutationGate.includes('validateCandidateBinding'),'mutation-gate-candidate-binding-required');
+  must(mutationGate.includes('MUTATION_GATE_WILDCARD_SCOPE_FORBIDDEN'),'mutation-gate-wildcard-scope-rejected');
+  must(mutationGate.includes('MUTATION_GATE_SCOPE_MISMATCH'),'mutation-gate-exact-scope-match-required');
+  must(mutationGate.includes('MUTATION_GATE_SINGLE_PARENT_REQUIRED'),'mutation-gate-single-parent-required');
 
   must(/name:\s*FLIXO Auto Repair Bot/.test(auto), 'auto-repair-identity');
   must(!/workflow_run:/.test(auto), 'auto-repair-executor-only-trigger');
