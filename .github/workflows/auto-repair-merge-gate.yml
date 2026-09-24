@@ -237,6 +237,10 @@ jobs:
               headBranch: .head_branch,
               updatedAt: .updated_at
             }]' /tmp/exact-runs-response.json > /tmp/exact-runs.json
+            # Preserve cancelled-run evidence so superseded verification remains auditable.
+            CANCELLED_EVIDENCE="$(jq -c '[.[] | select(.conclusion == "cancelled") | {databaseId,name,status,conclusion,headSha,headBranch,updatedAt}]' /tmp/exact-runs.json)"
+            printf '%s\n' "$CANCELLED_EVIDENCE" > /tmp/exact-cancelled-runs.json
+            echo "EXACT_SHA_CANCELLED_RUN_EVIDENCE=$CANCELLED_EVIDENCE"
             WAITING=false
 
             for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
