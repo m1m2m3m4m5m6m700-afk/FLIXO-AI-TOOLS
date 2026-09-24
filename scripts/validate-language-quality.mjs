@@ -75,7 +75,7 @@ for (const locale of locales) {
   if (!quickEntry) fail(`QuickFlow: missing locale entry ${locale}`);
   else for (const key of quickflowKeys) if (!quickEntry.includes(key)) fail(`QuickFlow ${locale}: missing ${key}`);
 
-  const uiEntry = objectBody(toolUiSources[locale] ?? '', 'toolUi');
+  const uiEntry = toolUiSources[locale]?.match(/export const toolUi:\s*ToolUiCopy\s*=\s*\{([\s\S]*)\};?\s*$/u)?.[1] ?? '';
   if (!uiEntry) fail(`Tool UI: missing locale entry ${locale}`);
   else for (const key of toolUiKeys) if (!uiEntry.includes(key)) fail(`Tool UI ${locale}: missing ${key}`);
 }
