@@ -25,6 +25,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Checkout trusted activation controller source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Cancel stale workflow_run source
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/ci/assert-workflow-run-current.mjs
       - name: Revalidate canonical Test System source and live execution SHA
         env:
           GH_TOKEN: \${{ github.token }}
