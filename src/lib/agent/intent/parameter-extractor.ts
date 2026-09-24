@@ -68,7 +68,7 @@ function parseBrightness(text: string): number | undefined {
 function parsePercentageAdjustment(text: string, subject: 'contrast' | 'saturation'): number | undefined {
   const pattern = subject === 'contrast'
     ? /(?:increase|raise|boost|decrease|lower|رفع|زيادة|تقليل|خفض|زِد)\s+(?:the\s+)?(?:contrast|تباين)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i
-    : /(?:increase|raise|boost|decrease|lower|رفع|زيادة|تقليل|خفض|زِد)\s+(?:the\s+)?(?:saturation|saturate|تشبع)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i;
+    : /(?:increase|raise|boost|decrease|lower|رفع|زيادة|تقليل|خفض|زِد)\s+(?:the\s+)?(?:saturation|saturate|تشبع|التشبع)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i;
   const match = text.match(pattern);
   if (!match) return undefined;
   const amount = Number(match[1]);

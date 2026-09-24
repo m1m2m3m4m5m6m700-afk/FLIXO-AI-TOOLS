@@ -1,7 +1,6 @@
 import type { AdminCapability } from '../src/lib/admin/control-plane.ts';
 import type { AdminRole } from '../src/lib/admin/roles.ts';
 import type { AdminEvidence, FlixEvent } from '../src/server/admin/persistence.ts';
-import type { AdminSession } from '../src/server/admin/contracts.ts';
 import type { CouncilAccountId } from '../src/lib/council-account-registry.ts';
 
 export type JsonPrimitive = string | number | boolean | null;

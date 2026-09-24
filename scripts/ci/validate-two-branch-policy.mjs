@@ -95,7 +95,7 @@ export function validateTwoBranchPolicy() {
     scanRemoteRefs(file, source);
   }
   let currentBranch = 'UNKNOWN';
-  try { currentBranch = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim() || 'DETACHED'; } catch {}
+  try { currentBranch = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim() || 'DETACHED'; } catch { currentBranch = 'UNKNOWN'; }
   const result = {
     protocol: 'FLIXO-TWO-BRANCH-FAIL-CLOSED-v2',
     activeWorkBranch: CANONICAL_ACTIVE_WORK_BRANCH,
