@@ -94,7 +94,6 @@ evidence.checks.push({ name: 'expired_open_leases', status: 'PASS', count: 0 });
 const residentAccounts = Array.isArray(accounts.json) ? accounts.json : [];
 // SELF_PROOF_CONTRACT:v1
 // Live schema proof source: last_seen_at + flix_council_events.exact_sha for residencyRequired accounts.
-const residentAccounts = Array.isArray(accounts.json) ? accounts.json : [];
 const requiredResidents = residentAccounts.filter((row) => {
   const metadata = row?.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata) ? row.metadata : {};
   return metadata.residencyRequired === true;
