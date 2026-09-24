@@ -16,5 +16,3 @@ export function getToolUiCopy(locale?: Locale): ToolUiCopy {
   const normalized = normalizeLocale(locale ?? (typeof document !== 'undefined' ? document.documentElement.lang : undefined));
   return getCachedToolUiCopy(normalized) ?? TOOL_UI_FALLBACK;
 }
-
-export { loadToolUiCopy };
