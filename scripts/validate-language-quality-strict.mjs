@@ -85,32 +85,35 @@ for (const locale of locales) {
   else if (metadata.direction !== (locale === 'ar' ? 'rtl' : 'ltr')) report(`Direction mismatch: ${locale}`);
 }
 
-const homeModule = await importModule('src/data/home-locales.ts');
+const loadHomeCopy = async (locale) => (await importModule(`src/data/home-locales/${locale}.ts`)).homeCopy;
 const quickModule = await importModule('src/data/quickflow-locales.ts');
 const overridesModule = await importModule('src/lib/i18n/locale-quality-overrides.ts');
 const toolUiModule = await importModule('src/data/tool-ui-i18n.ts');
-const effectiveHome = (locale) => ({ ...(homeModule.getHomeCopy?.(locale) ?? homeModule.HOME_I18N?.[locale] ?? {}), ...(overridesModule.HOME_COPY_OVERRIDES?.[locale] ?? {}) });
+const effectiveHome = async (locale) => ({ ...(await loadHomeCopy(locale)), ...(overridesModule.HOME_COPY_OVERRIDES?.[locale] ?? {}) });
 const effectiveQuick = (locale) => ({ ...(quickModule.QUICKFLOW_LOCALES?.[locale] ?? {}), ...(overridesModule.QUICKFLOW_COPY_OVERRIDES?.[locale] ?? {}) });
 
-const effectivePairs = [
-  ['HOME', effectiveHome],
-  ['QUICKFLOW', effectiveQuick],
-];
-for (const [name, resolve] of effectivePairs) {
-  const english = resolve('en');
-  if (!english || !Object.keys(english).length) {
-    report(`${name}: English effective baseline missing`);
+const englishHome = await effectiveHome('en');
+if (!englishHome || !Object.keys(englishHome).length) report('HOME: English effective baseline missing');
+for (const locale of nonEnglish) {
+  const localized = await effectiveHome(locale);
+  if (!localized || !Object.keys(localized).length) {
+    report(`HOME: missing effective runtime locale ${locale}`);
     continue;
   }
-  for (const locale of nonEnglish) {
-    const localized = resolve(locale);
-    if (!localized || !Object.keys(localized).length) {
-      report(`${name}: missing effective runtime locale ${locale}`);
-      continue;
-    }
-    compareShapeAndValues(english, localized, `${name}/${locale}`);
-    compareLeaves(english, localized, `${name}/${locale}`);
+  compareShapeAndValues(englishHome, localized, `HOME/${locale}`);
+  compareLeaves(englishHome, localized, `HOME/${locale}`);
+}
+
+const englishQuick = effectiveQuick('en');
+if (!englishQuick || !Object.keys(englishQuick).length) report('QUICKFLOW: English effective baseline missing');
+for (const locale of nonEnglish) {
+  const localized = effectiveQuick(locale);
+  if (!localized || !Object.keys(localized).length) {
+    report(`QUICKFLOW: missing effective runtime locale ${locale}`);
+    continue;
   }
+  compareShapeAndValues(englishQuick, localized, `QUICKFLOW/${locale}`);
+  compareLeaves(englishQuick, localized, `QUICKFLOW/${locale}`);
 }
 
 const coreEnglishModule = await importModule('src/lib/i18n/locales/en.ts');
