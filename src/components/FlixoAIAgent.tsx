@@ -222,9 +222,9 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         activeCommand: memory.activeCommand,
       });
 
-      // A provider fallback means the gateway did not have a usable model response.
-      // Keep the existing deterministic FLIXO planner authoritative in that case.
-      if (decision.fallback) return false;
+      // A fallback is executable when the gateway supplied a contract-valid deterministic plan.
+      // Only fall back to the legacy local path when the gateway has no usable plan.
+      if (decision.fallback && !(decision.mode === 'plan' && decision.plan)) return false;
 
       if (decision.mode === 'plan' && decision.plan) {
         // The model is allowed to understand natural conversation and propose a plan,
