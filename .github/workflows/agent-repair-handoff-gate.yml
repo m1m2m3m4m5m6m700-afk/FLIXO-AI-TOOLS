@@ -12,7 +12,7 @@ permissions:
   checks: read
 
 concurrency:
-  group: flixo-repair-handoff-${{ github.event.workflow_run.id }}
+  group: flixo-execution-mutation-lane
   cancel-in-progress: false
 
 env:
@@ -75,7 +75,7 @@ jobs:
           HANDOFF_EXECUTION_SHA="$CANDIDATE_SHA"
           HANDOFF_PARENT_SHA="$PARENT_SHA"
 
-          test "$(node -e "const h=require('./flixo-prepared-repair-handoff.json');if(h.protocol!=='AGENT-REPAIR-HANDOFF-GATE-v4')process.exit(1);if(h.mode!=='VERIFIED_REPAIR'&&h.mode!=='VERIFIED_HISTORICAL_REVERT')process.exit(1);if(h.applyBy!=='AUTO_REPAIR_BOT')process.exit(1);if(h.requiresCanonicalCI!==true)process.exit(1);if(h.noDirectPushByExecutor!==undefined&&h.noDirectPushByExecutor!==true)process.exit(1);")" = "" 
+          node -e "const h=require('./flixo-prepared-repair-handoff.json');if(h.protocol!=='AGENT-REPAIR-HANDOFF-GATE-v4')throw new Error('HANDOFF_PROTOCOL_INVALID');if(!['VERIFIED_REPAIR','VERIFIED_HISTORICAL_REVERT'].includes(h.mode))throw new Error('HANDOFF_MODE_INVALID');if(h.applyBy!=='AUTO_REPAIR_BOT')throw new Error('HANDOFF_APPLIER_INVALID');if(h.requiresCanonicalCI!==true)throw new Error('HANDOFF_CANONICAL_CI_REQUIRED');if(h.noDirectPushByExecutor!==undefined&&h.noDirectPushByExecutor!==true)throw new Error('HANDOFF_DIRECT_PUSH_FLAG_INVALID');" 
           test "$HANDOFF_BRANCH" = "execution"
           test "$HANDOFF_EXECUTION_SHA" = "$CANDIDATE_SHA"
           test "$HANDOFF_PARENT_SHA" = "$PARENT_SHA"
@@ -108,7 +108,24 @@ jobs:
 
           jq -e --arg parent "$PARENT_SHA" --arg candidate "$CANDIDATE_SHA"             '.protocol=="FLIXO-CHAIR-PUBLICATION-HANDOFF-v1" and .status=="READY_FOR_CHAIR_PUBLICATION" and .targetSha==$parent and .parentSha==$parent and .candidateSha==$candidate and .requiresIndependentChairPublication==true and .noDirectPushByExecutor==true'             flixo-chair-publication-request.json >/dev/null
 
-          node scripts/ci/execution-head-authority.mjs verify             --file=/tmp/repair-publication/flixo-head-authority.json             --target-sha="$PARENT_SHA"             --parent-sha="$PARENT_SHA"             --candidate-sha="$CANDIDATE_SHA"
+          ADMISSION_RUN_ID="$(jq -r '.runId' flixo-mutation-admission.json)"
+          ADMISSION_RUN_ATTEMPT="$(jq -r '.runAttempt' flixo-mutation-admission.json)"
+          test -n "$ADMISSION_RUN_ID"
+          test -n "$ADMISSION_RUN_ATTEMPT"
+          GITHUB_RUN_ID="$ADMISSION_RUN_ID" \
+          GITHUB_RUN_ATTEMPT="$ADMISSION_RUN_ATTEMPT" \
+          FLIXO_HEAD_AUTHORITY_PROOF=/tmp/repair-publication/flixo-head-authority.json \
+          node scripts/ci/execution-mutation-gate.mjs verify \
+            --phase=handoff-pre-push \
+            --admission=/tmp/repair-publication/flixo-mutation-admission.json \
+            --candidate="$CANDIDATE_SHA" \
+            --parent="$PARENT_SHA"
+
+          node scripts/ci/execution-head-authority.mjs verify \
+            --file=/tmp/repair-publication/flixo-head-authority.json \
+            --target-sha="$PARENT_SHA" \
+            --parent-sha="$PARENT_SHA" \
+            --candidate-sha="$CANDIDATE_SHA"
 
           echo "CHAIR_PUBLICATION_PRECHECK=PASS"
           echo "CURRENT_EXECUTION_SHA=$CURRENT_EXECUTION_SHA"

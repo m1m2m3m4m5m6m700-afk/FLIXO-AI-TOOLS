@@ -75,5 +75,9 @@ console.log('EXECUTION_FENCING_TOKEN=PASS');
 console.log('EXECUTION_EXACT_SHA=PASS');
 console.log('EXECUTION_STALE_RUN_REJECTED=PASS');
 console.log('EXECUTION_SCOPE_BINDING=PASS');
+const mutationGateSource=fs.readFileSync('scripts/ci/execution-mutation-gate.mjs','utf8');
+assert.match(mutationGateSource,/handoff-pre-push/);
+assert.match(mutationGateSource,/MUTATION_GATE_HANDOFF_CHAIR_PROOF_INVALID/);
+
 console.log('EXECUTION_SINGLE_PARENT=PASS');
 console.log('EXECUTION_WILDCARD_SCOPE_REJECTED=PASS');
