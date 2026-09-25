@@ -2,9 +2,10 @@ import { Link } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { SmartCommandPalette } from '../components/SmartCommandPalette';
 import { FlixoLogoImage } from '../components/FlixoLogoImage';
+import { AgentWorkbench } from '../components/AgentWorkbench';
 import { FlixoHeroWorkspace } from '../components/home/FlixoHeroWorkspace';
 import { ArHomeToolsSection, type ToolCard } from '../components/ar-home-tools-section';
-import { TOOLS_REGISTRY } from '../config/tools';
+import { TOOL_CATALOG } from '../config/registry';
 import { getBestToolIntent } from '../lib/intent-router';
 import { getToolCategories, filterTools } from '../lib/ar-home-search';
 import { recommendImageTool } from '../lib/ar-home-recommendation';
@@ -19,7 +20,7 @@ type LocalizableTool = {
   path: string;
 };
 
-const READY_TOOLS = TOOLS_REGISTRY.filter((tool) => tool.isReady);
+const READY_TOOLS = TOOL_CATALOG.ready;
 
 function localTool(tool: LocalizableTool): ToolCard {
   return {
@@ -81,6 +82,7 @@ export function ArHomePage() {
           onDescribeTask={() => setPaletteOpen(true)}
           onProcess={() => setPaletteOpen(true)}
         />
+        <AgentWorkbench locale="ar" />
         <section className="home-search-panel" aria-label={HOME_AR.ariaFindTool}>
           <label className="sr-only" htmlFor="ar-tool-search">{HOME_AR.searchLabel}</label>
           <div className="home-search-wrap"><span className="home-search-icon" aria-hidden="true">⌕</span><input id="ar-tool-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={HOME_AR.searchPlaceholder} autoComplete="off" /><button type="button" className="search-command-button" onClick={() => setPaletteOpen(true)} aria-label={HOME_AR.smartPalette}>AI</button></div>

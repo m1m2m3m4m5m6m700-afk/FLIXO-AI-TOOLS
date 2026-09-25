@@ -2,7 +2,7 @@ import { createRoute, useParams } from '@tanstack/react-router';
 import { isLocale, LOCALES, SITE_ORIGIN } from '@/lib/i18n';
 import { getTranslationBundle } from '@/lib/i18n/translations';
 import { LOCALE_METADATA } from '@/lib/i18n/config';
-import { HomePage } from './home-page';
+import { AgentFirstHome } from '../components/AgentFirstHome';
 import { rootRoute } from './__root';
 
 export const localizedHomeRoute = createRoute({
@@ -37,6 +37,6 @@ export const localizedHomeRoute = createRoute({
   component: function LocalizedHomeRoute() {
     const { locale: rawLocale } = useParams({ from: '/$locale' });
     const locale = isLocale(rawLocale) ? rawLocale : 'en';
-    return <HomePage locale={locale} />;
+    return <AgentFirstHome locale={locale} />;
   },
 });

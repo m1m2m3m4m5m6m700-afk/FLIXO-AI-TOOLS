@@ -37,6 +37,7 @@ for (const required of ['auto-repair.yml', 'daily-flixo-green-gate.yml']) {
   if (!workflowFiles.includes(required)) errors.push(`permanent repair control missing: ${required}`);
 }
 const nonTestAutomation = new Set([
+  'vercel-production-monitor.yml',
   'claude-security-review.yml',
   'dependency-health.yml',
   'dependency-usage-classification-v2.yml',

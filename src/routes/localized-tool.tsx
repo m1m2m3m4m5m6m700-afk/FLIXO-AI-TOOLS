@@ -1,5 +1,5 @@
 import { createRoute, notFound, redirect } from '@tanstack/react-router';
-import { getToolConfig, getToolConfigByPath } from '../config/tools';
+import { getToolById, getToolByRoute } from '../config/registry';
 import { getLocalizedToolPath } from '../lib/routing/route-resolver';
 import { getToolSeo } from '../lib/seo/tool-seo';
 import { SITE_ORIGIN } from '../lib/i18n';
@@ -11,7 +11,7 @@ export const localizedToolRoute = createRoute({
   path: '/$locale/$tool',
   loader: ({ params }) => {
     const rawSlug = params.tool;
-    const tool = getToolConfigByPath(`/en/${rawSlug}`) ?? getToolConfigByPath(`/${rawSlug}`) ?? getToolConfig(params.tool);
+    const tool = getToolByRoute(`/en/${rawSlug}`) ?? getToolByRoute(`/${rawSlug}`) ?? getToolById(params.tool);
     if (!tool?.isReady) throw notFound();
 
     const canonicalPath = getLocalizedToolPath(tool, params.locale as Parameters<typeof getLocalizedToolPath>[1]);

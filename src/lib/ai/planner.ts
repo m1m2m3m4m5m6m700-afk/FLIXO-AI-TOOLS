@@ -3,7 +3,7 @@ import { parseExecutionPlan, MAX_PLAN_STEPS } from '@/lib/contracts/ai-plan';
 import { buildQuickFlowPlan } from '@/lib/quickflow';
 import type { ToolDefinition } from '@/config/canonical-tool-definition';
 import { getCapability } from '@/lib/agent/capability-registry';
-import { TOOLS_REGISTRY } from '@/config/tools';
+import { TOOL_REGISTRY } from '@/config/registry';
 import { getWorkflow } from '@/lib/workflows/registry';
 import { TOOL_CATALOG } from '@/config/registry';
 
@@ -30,7 +30,7 @@ export function planFromWorkflow(workflowId: string): ExecutionPlan | null {
 }
 
 export function planFromIntent(input: string): ExecutionPlan | null {
-  const quickFlow = buildQuickFlowPlan(input, TOOLS_REGISTRY);
+  const quickFlow = buildQuickFlowPlan(input, TOOL_REGISTRY);
   if (quickFlow) {
     const intent = resolveIntent(input);
     const steps = quickFlow.steps.map((step) => ({ toolId: step.toolId as ToolDefinition['id'], params: step.params }));

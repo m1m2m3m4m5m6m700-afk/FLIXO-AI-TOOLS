@@ -9,12 +9,13 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 env:
   # Strict WP-tag enforcement epoch begins at this consolidated repair-control boundary.
   # The preceding untagged repair burst is closed here without rewriting history.
   # This boundary commit is tagged; every subsequent commit must carry [WP:<ID>] and stay within one work package.
-  FLIXO_WP_BASE_SHA: de227d103aa23564b4bc7d9c51fd3a161f67f3b4
+  FLIXO_WP_BASE_SHA: a3202d7d30388e0c5351e2b1dbf6c1407d995299
   # New sensitive-runtime proof epoch begins immediately before the runtime-seat binding proof commit.
   # Earlier historical sensitive changes remain governed by the historical closure contract.
   FLIXO_PROOF_BASE_SHA: 9edea33d2ede931f7f42a323d3818a699ba999e9
@@ -33,6 +34,12 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version-file: .nvmrc
+      - name: Enforce RED-lock against new additions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GREEN_FIRST_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/ci/green-first-addition-policy.mjs
       - name: Validate work-package burst policy
         run: node scripts/ci/work-package-policy.mjs "$FLIXO_WP_BASE_SHA" HEAD
       - name: Validate adjacent runtime proof coverage

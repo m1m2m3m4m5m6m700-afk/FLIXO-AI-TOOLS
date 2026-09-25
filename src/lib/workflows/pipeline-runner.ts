@@ -7,6 +7,7 @@ import { getToolById, TOOL_CATALOG } from '@/config/registry';
 import { getToolExecutor, repairToolParameters } from '@/lib/workflows/executor-registry';
 import { getToolOutputContractForDefinition } from '@/lib/contracts/tool-output-contracts';
 import { assertToolOutputContract, type ToolOutputResult } from '@/lib/contracts/tool-output';
+import { verifyVisualGoal } from '@/lib/agent/visual-goal-verifier';
 import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelinePlanFingerprint, createPipelineReceiptChain, createPipelineStepReceipt, type PipelineReceiptChain, type PipelineStepReceipt } from '@/lib/workflows/pipeline-receipt';
 
 export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; task: TaskContext; outputBlob?: Blob; retry?: number; receipt?: PipelineStepReceipt; receiptChain?: PipelineReceiptChain; auditEvents?: readonly ExecutionAuditEvent[]; }
@@ -147,7 +148,8 @@ export async function verifyPipelineOutput(toolId: string, inputBlob: Blob, outp
 
   try {
     assertToolOutputContract(contract, await toOutputContractResult(toolId, outputBlob));
-    return true;
+    const visual = await verifyVisualGoal(inputBlob, outputBlob, toolId, params, controller.signal);
+    return visual.verified;
   } catch {
     return false;
   }

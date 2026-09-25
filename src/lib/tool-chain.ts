@@ -28,6 +28,7 @@ export const setToolChain = (ids: string[]) => {
   try {
     const steps = parseToolChain(unique.map((id, order) => ({ id, order })));
     localStorage.setItem(CHAIN_KEY, JSON.stringify(steps));
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('flixo:tool-chain-change', { detail: steps }));
     return steps;
   } catch (error) {
     console.error('[FLIXO][boundary] Refused invalid tool-chain write.', { key: CHAIN_KEY, error });

@@ -30,10 +30,6 @@ test.describe('FLIXO MVP agent full journey', () => {
 
     await page.goto('/');
 
-    const launch = page.locator('.flixo-ai-agent .home-hero-command');
-    await expect(launch).toBeVisible();
-    await launch.click();
-
     const studio = page.getByTestId('flixo-agent-studio');
     await expect(studio).toBeVisible();
 
@@ -64,5 +60,22 @@ test.describe('FLIXO MVP agent full journey', () => {
     expect(saved).not.toBeUndefined();
     expect(saved?.type).toBe('image/webp');
     expect(saved?.size ?? 0).toBeGreaterThan(0);
+  });
+});
+
+
+test.describe('FLIXO agent-first navigation', () => {
+  test('browse tools → shared tool page', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByRole('link', { name: 'Browse tools' })).toBeVisible();
+    await page.getByRole('link', { name: 'Browse tools' }).click();
+
+    await expect(page).toHaveURL(/\/tools$/);
+    await expect(page.getByRole('heading', { name: 'Tools' })).toBeVisible();
+    await page.getByRole('link', { name: 'Image Compressor' }).click();
+
+    await expect(page).toHaveURL(/\/en\/image-compressor$/);
+    await expect(page.getByRole('heading', { name: 'Image Compressor' })).toBeVisible();
+    await expect(page.locator('.tool-page-modern__workspace')).toBeVisible();
   });
 });

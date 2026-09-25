@@ -28,6 +28,7 @@ import { buildFiveXExecutionEnvelope } from './read-only-power-profile.mjs';
 import { buildFiveXRepairCycleState } from './read-only-power-profile.mjs';
 import { buildSharedLearningContext } from './shared-operational-memory.mjs';
 import { buildCausalQuery, retrieveCausalLearning } from './prompt-registry.mjs';
+import { runOpenHandsRepairAdvisor } from './auto-repair/openhands-repair-advisor.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
@@ -172,6 +173,14 @@ const trustedLessons = lessons.filter((item) => !item.anti && item.confidence >=
 const blockedLessons = lessons.filter((item) => item.anti && item.confidence >= 0.5);
 const revertedRuleIds = new Set(known?.revertedRules ?? []);
 const diagnosis = fs.existsSync(diagnosisPath) ? JSON.parse(fs.readFileSync(diagnosisPath, 'utf8')) : null;
+const openHandsAdvisor = runOpenHandsRepairAdvisor({
+  targetDir,
+  targetSha,
+  failureFingerprint: fingerprint,
+  failureLog: log,
+  diagnosis,
+});
+
 const causalQuery = buildCausalQuery({
   failureFingerprint: fingerprint,
   rootCause: diagnosis?.rootCause ?? '',
@@ -261,6 +270,12 @@ const evidence = {
   chair1Mission: chair1Mission ? { mission: chair1Mission.mission, targetSha: chair1Mission.targetSha, comparison: chair1Mission.comparison, directRepairPolicy: chair1Mission.directRepairPolicy } : null,
   features,
   diagnosis,
+  openHandsAdvisor,
+  primaryAdvisor: openHandsAdvisor?.status === 'COMPLETED' ? 'OPENHANDS' : 'ACTION_REPAIR',
+  proposalPriority: openHandsAdvisor?.status === 'COMPLETED'
+    ? ['OPENHANDS', 'ACTION_REPAIR', 'HISTORICAL', 'DETERMINISTIC']
+    : ['ACTION_REPAIR', 'HISTORICAL', 'DETERMINISTIC'],
+  primaryProposal: openHandsAdvisor?.status === 'COMPLETED' ? 'OPENHANDS' : null,
   specialist,
   candidates: plan.candidates,
   reasoning: plan.reasoning,

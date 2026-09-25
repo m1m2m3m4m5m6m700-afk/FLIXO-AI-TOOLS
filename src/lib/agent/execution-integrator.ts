@@ -8,6 +8,7 @@ import { getToolById } from '@/config/registry';
 import { getToolOutputContractForDefinition } from '@/lib/contracts/tool-output-contracts';
 import { getToolExecutor } from '@/lib/workflows/executor-registry';
 import { runWorkflowPipeline, type PipelineProgress } from '@/lib/workflows/pipeline-runner';
+import { appendConversationEvent } from './conversation-event-store';
 
 export type PreparedExecution = Readonly<{ plan: ExecutionPlanContract; task: TaskContext }>;
 export type ExecutionIntegrationResult = Readonly<{ output: Blob; task: TaskContext }>;
@@ -53,15 +54,25 @@ export function prepareExecution(planInput: unknown, identity: Readonly<{ taskId
   const base = createTaskContext(identity.taskId, identity.traceId);
   const planned = transitionTask(base, 'PLANNED');
   const awaitingConfirmation = transitionTask(planned, 'AWAITING_CONFIRMATION');
+  void appendConversationEvent('PLAN_READY', {
+    taskId: awaitingConfirmation.taskId,
+    traceId: awaitingConfirmation.traceId,
+    stepCount: plan.steps.length,
+    toolIds: plan.steps.map((step) => step.toolId),
+  });
   return Object.freeze({ plan, task: awaitingConfirmation });
 }
 
 export function confirmPreparedExecution(prepared: PreparedExecution): PreparedExecution {
-  return Object.freeze({ ...prepared, task: confirmTask(prepared.task) });
+  const nextTask = confirmTask(prepared.task);
+  void appendConversationEvent('TASK_STATE', { taskId: nextTask.taskId, traceId: nextTask.traceId, state: nextTask.state });
+  return Object.freeze({ ...prepared, task: nextTask });
 }
 
 export function cancelPreparedExecution(prepared: PreparedExecution): PreparedExecution {
-  return Object.freeze({ ...prepared, task: cancelTask(prepared.task) });
+  const nextTask = cancelTask(prepared.task);
+  void appendConversationEvent('CANCELLED', { taskId: nextTask.taskId, traceId: nextTask.traceId });
+  return Object.freeze({ ...prepared, task: nextTask });
 }
 
 export async function executePreparedExecution(
@@ -70,6 +81,11 @@ export async function executePreparedExecution(
   onProgress: (progress: PipelineProgress) => void,
 ): Promise<ExecutionIntegrationResult> {
   assertExecutionAllowed(prepared.task);
+  void appendConversationEvent('EXECUTION_STARTED', {
+    taskId: prepared.task.taskId,
+    traceId: prepared.task.traceId,
+    toolIds: prepared.plan.steps.map((step) => step.toolId),
+  });
   if (inputFile.size <= 0) throw new Error('Execution is blocked because the input file is empty.');
 
   // Keep the canonical gate authoritative. The pipeline itself also performs per-step authorization.
@@ -87,12 +103,25 @@ export async function executePreparedExecution(
     const output = await runWorkflowPipeline(inputFile, prepared.plan as ExecutionPlan, prepared.task, onProgress);
     const verifying = transitionTask(prepared.task, 'VERIFYING');
     const completed = transitionTask(verifying, 'COMPLETED');
+    void appendConversationEvent('EXECUTION_FINISHED', {
+      taskId: completed.taskId,
+      traceId: completed.traceId,
+      toolIds: prepared.plan.steps.map((step) => step.toolId),
+      state: completed.state,
+    });
     return Object.freeze({ output, task: completed });
   } catch (cause) {
     let failedTask = prepared.task;
     if (failedTask.state === 'EXECUTING' || failedTask.state === 'VERIFYING' || failedTask.state === 'RECOVERING') {
       try { failedTask = transitionTask(failedTask, 'FAILED'); } catch { /* preserve original failure */ }
     }
+    void appendConversationEvent('EXECUTION_FAILED', {
+      taskId: failedTask.taskId,
+      traceId: failedTask.traceId,
+      toolId: prepared.plan.steps[0]?.toolId ?? null,
+      errorClass: classifyExecutionFailure(cause),
+      state: failedTask.state,
+    });
     throw new ExecutionIntegrationError(
       cause instanceof Error ? cause.message : 'FLIXO execution failed.',
       { task: failedTask, cause, capabilityId: prepared.plan.steps[0]?.toolId },

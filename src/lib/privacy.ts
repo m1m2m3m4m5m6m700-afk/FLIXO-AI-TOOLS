@@ -1,4 +1,4 @@
-import { getToolConfig } from '../config/tools';
+import { getToolById } from '../config/registry';
 
 export type ProcessingMode = 'local' | 'remote';
 
@@ -40,7 +40,7 @@ const PRIVACY_COPY: Record<string, PrivacyLocaleCopy> = {
 };
 
 export function getToolProcessingMode(toolId: string): ProcessingMode {
-  const tool = getToolConfig(toolId);
+  const tool = getToolById(toolId);
   if (!tool) return 'remote';
   return tool.executionMode === 'LOCAL' ? 'local' : 'remote';
 }
@@ -51,7 +51,7 @@ export function getToolPrivacyCopy(toolId: string, locale: string): {
   mode: ProcessingMode;
 } {
   const mode = getToolProcessingMode(toolId);
-  const tool = getToolConfig(toolId);
+  const tool = getToolById(toolId);
   const title = tool?.title ?? toolId;
   const copy = PRIVACY_COPY[locale] ?? PRIVACY_COPY.en;
 

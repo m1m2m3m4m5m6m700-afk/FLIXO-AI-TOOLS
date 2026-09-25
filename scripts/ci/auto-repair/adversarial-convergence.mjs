@@ -4,6 +4,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { validateAdversarialBotCommandRegistry, resolveAdversarialCommand } from '../adversarial-bot-commands.mjs';
+import { runOpenHandsRepairAdvisor } from './openhands-repair-advisor.mjs';
 
 const ROOT = process.env.FLIXO_TARGET_DIR ?? process.cwd();
 const STATE_DIR = process.env.FLIXO_ADVERSARIAL_CONVERGENCE_DIR ?? '/tmp/flixo-adversarial-convergence';
@@ -215,6 +216,24 @@ function main() {
     fs.mkdirSync(roundDir, { recursive: true });
     const selectionPath = path.join(STATE_DIR, 'next-selection.json');
     const twinProposalPath = path.join(STATE_DIR, 'twin-proposal.json');
+
+    const openHandsPriorityPath = '/tmp/flixo-openhands-priority.json';
+    const openHandsProposal = runOpenHandsRepairAdvisor({
+      targetDir: ROOT,
+      targetSha: baseSha,
+      failureFingerprint: FINGERPRINT,
+      failureLog: fs.existsSync(process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log')
+        ? fs.readFileSync(process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log', 'utf8')
+        : '',
+      diagnosis: fs.existsSync(DIAGNOSIS) ? readJson(DIAGNOSIS) : null,
+    });
+    writeJson(openHandsPriorityPath, {
+      ...openHandsProposal,
+      proposalPriority: openHandsProposal?.status === 'COMPLETED'
+        ? ['OPENHANDS', 'ACTION_REPAIR', 'HISTORICAL', 'DETERMINISTIC']
+        : ['ACTION_REPAIR', 'HISTORICAL', 'DETERMINISTIC'],
+      primaryAdvisor: openHandsProposal?.status === 'COMPLETED' ? 'OPENHANDS' : 'ACTION_REPAIR',
+    });
     const nextEnv = {
       ...process.env,
       FLIXO_EXPECTED_TARGET_SHA: baseSha,
@@ -228,11 +247,13 @@ function main() {
       FLIXO_REPAIR_DIAGNOSIS_PATH: DIAGNOSIS,
       FLIXO_TWIN_PROPOSAL_PATH: round > 1 && fs.existsSync(twinProposalPath) ? twinProposalPath : '',
       FLIXO_SELECTION_PATH: round > 1 && fs.existsSync(selectionPath) ? selectionPath : '',
+      FLIXO_OPENHANDS_PRIORITY_PATH: openHandsPriorityPath,
     };
 
     const strategyExit = executeNode(STRATEGY_ENGINE, [], {
       ...nextEnv,
       FLIXO_REPAIR_STRATEGY_PATH: '/tmp/flixo-repair-strategy.json',
+      FLIXO_OPENHANDS_PRIORITY_PATH: openHandsPriorityPath,
     });
     if (strategyExit !== 0 || !fs.existsSync('/tmp/flixo-repair-strategy.json')) {
       state.rounds.push({ round, strategyExit, decision: 'REPAIR_ENGINE_BLOCKED', reason: 'REPAIR_STRATEGY_REFRESH_FAILED', at: now() });

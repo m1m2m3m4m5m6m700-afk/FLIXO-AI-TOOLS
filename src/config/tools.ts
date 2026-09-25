@@ -5,11 +5,14 @@ import type { ToolDefinition } from './canonical-tool-definition.ts';
 export type ToolConfig = ToolDefinition;
 export type ToolComponent = ToolDefinition['component'];
 
+/** @deprecated Use TOOL_REGISTRY from ./registry.ts. Kept only for external compatibility. */
 export const TOOLS_REGISTRY = TOOL_REGISTRY;
 export const TOOL_MANIFEST_ENTRIES = TOOL_MANIFEST;
 
+/** @deprecated Use getToolById from ./registry.ts. Kept only for external compatibility. */
 export const getToolConfig = (id: string) => TOOL_REGISTRY.find((tool) => tool.id === id);
 export const getToolConfigByPath = getToolManifestByPath;
+/** @deprecated Use TOOL_CATALOG.ready from ./registry.ts. Kept only for external compatibility. */
 export const getReadyToolConfigs = () => TOOL_REGISTRY.filter((tool) => tool.isReady);
 
 export { getToolManifest };

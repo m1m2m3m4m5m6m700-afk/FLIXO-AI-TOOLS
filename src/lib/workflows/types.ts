@@ -1,4 +1,4 @@
-import type { ToolConfig } from '../../config/tools';
+import type { ToolDefinition } from '../../config/canonical-tool-definition';
 
 export type WorkflowId =
   | 'product-ready'
@@ -11,7 +11,7 @@ export type WorkflowId =
 export type StepParams = Record<string, string | number | boolean | undefined>;
 
 export type WorkflowStep = {
-  readonly toolId: ToolConfig['id'];
+  readonly toolId: ToolDefinition['id'];
   readonly title: string;
   readonly optional?: boolean;
   readonly params?: StepParams;

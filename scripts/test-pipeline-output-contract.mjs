@@ -22,6 +22,7 @@ assert.match(pipelineSource, /classifyExecutionFailure/);
 assert.match(pipelineSource, /new AbortController\(\)/);
 assert.match(pipelineSource, /controller\.abort\(\)/);
 assert.match(pipelineSource, /extractImageDimensions/);
+assert.match(pipelineSource, /verifyVisualGoal/);
 
 const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01]);
 const validPng = new Blob([pngBytes], { type: 'image/png' });

@@ -44,7 +44,7 @@ const localeQuality = await importTs('src/lib/i18n/locale-quality-overrides.ts')
 const homeData = await importTs('src/data/home-locales.ts');
 const quickData = await importTs('src/data/quickflow-locales.ts');
 const toolUi = await importTs('src/data/tool-ui-i18n.ts');
-const { TOOLS_REGISTRY } = await importTs('src/config/tools.ts');
+const { TOOL_REGISTRY } = await importTs('src/config/registry.ts');
 const { getAuthoritativeToolSeoName } = await importTs('src/config/tool-seo-name-resolver.ts');
 
 const effectiveHome = (locale) => ({ ...(homeData.getHomeCopy(locale) ?? {}), ...(localeQuality.HOME_COPY_OVERRIDES[locale] ?? {}) });
@@ -84,7 +84,7 @@ for (const locale of targets) {
     compare(toolUi.TOOL_UI_I18N.en, ui, locale, 'Tool UI');
   }
 
-  for (const tool of TOOLS_REGISTRY) {
+  for (const tool of TOOL_REGISTRY) {
     if (!tool.isReady) continue;
     const name = getAuthoritativeToolSeoName(tool, locale);
     if (!norm(name)) issue.push(`${locale} | seo | Tool SEO | missing ${tool.id}`);

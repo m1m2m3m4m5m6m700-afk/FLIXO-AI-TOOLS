@@ -1,6 +1,6 @@
 import { createRoute } from '@tanstack/react-router';
 import { rootRoute } from './__root';
-import { HomePage } from './home-page';
+import { AgentFirstHome } from '../components/AgentFirstHome';
 import { buildSeoMetadata } from '../lib/seo';
 
 const SEO = buildSeoMetadata({
@@ -43,5 +43,5 @@ export const indexRoute = createRoute({
       },
     ],
   }),
-  component: HomePage,
+  component: AgentFirstHome,
 });

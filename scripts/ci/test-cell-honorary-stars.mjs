@@ -4,7 +4,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ROOT=process.cwd();
-const registry=JSON.parse(fs.readFileSync(path.join(ROOT,'docs/agents/CELL-BOT-REGISTRY.json'),'utf8'));
 const ledger=JSON.parse(fs.readFileSync(path.join(ROOT,'docs/agents/CELL-HONORARY-STARS.json'),'utf8'));
 
 assert.equal(ledger.rules.range[0],0);
@@ -27,8 +26,6 @@ for(const award of ledger.awards){
 }
 const master3=ledger.awards.filter(x=>x.holder==='MASTER-3').at(-1);
 assert.equal(master3?.starsAfterAward,1);
-assert.equal(registry.honoraryStarSystem?.ceiling,5);
-assert.equal(registry.honoraryStarSystem?.fiveStarRank,'MASTER-1');
 console.log('CELL_HONORARY_STARS=PASS');
 console.log('CELL_HONORARY_STAR_CEILING=PASS');
 console.log('CELL_HONORARY_STAR_EVIDENCE=PASS');

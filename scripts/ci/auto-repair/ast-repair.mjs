@@ -20,7 +20,7 @@ function findTrackedExport(targetDir, symbol) {
   return { ok: true, moduleFile: hits[0], hits };
 }
 function importSpecifier(fromFile, moduleFile) {
-  let relative = path.posix.relative(path.posix.dirname(fromFile.replace(/\\\\/g, '/')), moduleFile.replace(/\\\\/g, '/')).replace(/\\.(?:mjs|cjs|js|jsx|ts|tsx)$/iu, '');
+  let relative = path.posix.relative(path.posix.dirname(fromFile.replace(/\\\\/g, '/')), moduleFile.replace(/\\\\/g, '/')).replace(/\.(?:mjs|cjs|js|jsx|ts|tsx)$/iu, '');
   return relative.startsWith('.') ? relative : './' + relative;
 }
 function applyTypescriptMissingImport(targetDir, plan) {
@@ -33,7 +33,7 @@ function applyTypescriptMissingImport(targetDir, plan) {
   if (!found.ok) return { applied: false, reason: found.reason, hits: found.hits ?? [] };
   if (found.moduleFile === file) return { applied: false, reason: 'TS_MISSING_IMPORT_SELF_MODULE' };
   const specifier = importSpecifier(file, found.moduleFile);
-  const imported = new RegExp('\\bimport\\s+(?:type\\s+)?\\{[^}]*\\b' + escapeRegExp(symbol) + '\\b[^}]*\\}\\s+from\\s+["\\\']' + escapeRegExp(specifier) + '["\\\']', 'u');
+  const imported = new RegExp('\\bimport\\s+(?:type\\s+)?\\{[^}]*\\b' + escapeRegExp(symbol) + '\\b[^}]*\\}\\s+from\\s+["\']' + escapeRegExp(specifier) + '["\']', 'u');
   if (imported.test(original)) return { applied: false, reason: 'TS_MISSING_IMPORT_ALREADY_PRESENT' };
   const lines = original.split(/\r?\n/u);
   const importLine = "import { " + symbol + " } from '" + specifier + "';";

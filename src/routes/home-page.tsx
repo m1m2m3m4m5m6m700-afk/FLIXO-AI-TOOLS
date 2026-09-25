@@ -1,7 +1,8 @@
 import { Link, useNavigate } from '@tanstack/react-router';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { TOOLS_REGISTRY } from '../config/tools';
+import { TOOL_CATALOG } from '../config/registry';
 import { FlixoLogoImage } from '../components/FlixoLogoImage';
+import { AgentWorkbench } from '../components/AgentWorkbench';
 import { getBestToolIntent } from '@/lib/intent-router';
 import { loadHomeCopy } from '@/lib/i18n/home-loader';
 import { getAuthoritativeToolSeoName } from '@/config/tool-seo-name-resolver';
@@ -11,16 +12,16 @@ import { localizeToolCategory, localizeToolDescription } from '@/lib/i18n/tool-l
 import { IMAGE_BROWSER_FILE_POLICY, validateBrowserFile } from '@/lib/contracts/browser-file-safety';
 import type { HomeCopy } from '../data/home-locales';
 import type { Locale } from '@/lib/i18n';
-import type { ToolConfig } from '../config/tools';
+import type { ToolDefinition } from '../config/canonical-tool-definition';
 
 type ToolCardProps = { readonly id: string; readonly title: string; readonly description: string; readonly category: 'Images'; readonly categoryLabel: string; readonly path: string };
 const FlixoAIAgent = lazy(() => import('../components/FlixoAIAgent').then((module) => ({ default: module.FlixoAIAgent })));
 const SmartCommandPalette = lazy(() => import('../components/SmartCommandPalette').then((module) => ({ default: module.SmartCommandPalette })));
-const READY_TOOLS = TOOLS_REGISTRY.filter((tool) => tool.isReady);
+const READY_TOOLS = TOOL_CATALOG.ready;
 const LANGUAGE_LABELS: Record<string, string> = { en: 'English', ar: 'العربية', es: 'Español', fr: 'Français', de: 'Deutsch', hi: 'हिन्दी', id: 'Bahasa Indonesia', it: 'Italiano', ja: '日本語', ko: '한국어', ms: 'Bahasa Melayu', nl: 'Nederlands', pl: 'Polski', pt: 'Português', ru: 'Русский', sv: 'Svenska', th: 'ไทย', tr: 'Türkçe', uk: 'Українська', vi: 'Tiếng Việt' };
 const FILTER_LABELS: Record<string, string> = { en: 'Filters', ar: 'الفلاتر', es: 'Filtros', fr: 'Filtres', de: 'Filter', hi: 'फ़िल्टर', id: 'Filter', it: 'Filtri', ja: 'フィルター', ko: '필터', ms: 'Penapis', nl: 'Filters', pl: 'Filtry', pt: 'Filtros', ru: 'Фильтры', sv: 'Filter', th: 'ฟิลเตอร์', tr: 'Filtreler', uk: 'Фільтри', vi: 'Bộ lọc' };
 
-function toLocalizedTool(tool: ToolConfig, locale: Locale): ToolCardProps {
+function toLocalizedTool(tool: ToolDefinition, locale: Locale): ToolCardProps {
   const localizedTitle = getAuthoritativeToolSeoName(tool, locale) ?? tool.title;
   const localizedCategory = localizeMsUkCategory(locale, 'Images') ?? localizeToolCategory(locale, 'Images');
   const localizedDescription = localizeMsUkDescription(locale, localizedTitle) ?? localizeToolDescription(locale, localizedTitle, 'Images');
@@ -63,6 +64,7 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
       <nav className="home-nav" aria-label={copy.ariaPrimary}><div className="home-container home-nav-inner"><Link className="home-brand" to="/" aria-label={copy.ariaHome}><FlixoLogoImage alt="FLIXO AI Tools" width={40} height={40} /></Link><div className="home-nav-links"><a href="#tools">{locale === 'ar' ? 'أدوات الصور' : copy.nav.tools}</a><Link to="/$locale/$tool" params={{ locale, tool: 'filter-mask' }}>{FILTER_LABELS[locale] ?? copy.nav.categories}</Link></div><label className="sr-only" htmlFor="home-language">{copy.nav.switch}</label><select id="home-language" className="home-nav-language" value={locale} aria-label={copy.nav.switch} onChange={(event) => { const nextLocale = event.target.value as Locale; void navigate(nextLocale === 'en' ? { to: '/' } : { to: '/$locale', params: { locale: nextLocale } }); }}>{LOCALES.map((code) => <option key={code} value={code}>{LANGUAGE_LABELS[code] ?? code}</option>)}</select></div></nav>
       <div className="home-container home-content">
         <section className="home-hero" aria-labelledby="home-title"><div><span className="home-badge">{copy.badge}</span><p className="image-tool-eyebrow">{copy.eyebrow}</p><h1 id="home-title">{renderHeroTitle(copy.heroTitle)}</h1><p className="home-lead">{copy.heroLead}</p></div><button type="button" className="home-hero-command" onClick={() => setPaletteOpen(true)}><span>{copy.describe}</span><kbd>Ctrl K</kbd></button></section>
+        <AgentWorkbench locale={locale} />
         {aiAgentOpen ? (
           <Suspense fallback={<section className="flixo-ai-agent" aria-hidden="true" />}>
             <FlixoAIAgent locale={locale} />
