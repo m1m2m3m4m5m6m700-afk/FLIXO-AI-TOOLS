@@ -220,14 +220,14 @@ jobs:
           else
             RC="$?"
             echo "REPAIR_SESSION_OBSERVER=DEGRADED rc=$RC"
-            node - <<'NODE'
-            const fs=require('node:fs');
-            const crypto=require('node:crypto');
-            const p='/tmp/flixo-repair-behavior-trace.json';
-            const body={schemaVersion:1,protocol:'FLIXO-REPAIR-BOT-BEHAVIOR-TRACE-v1',status:'DEGRADED',reason:'OBSERVER_EXECUTION_FAILED',targetSha:process.env.FLIXO_EXPECTED_TARGET_SHA??null,observedAt:new Date().toISOString()};
-            body.traceHash=crypto.createHash('sha256').update(JSON.stringify(body),'utf8').digest('hex');
-            fs.writeFileSync(p,JSON.stringify(body,null,2)+'\n');
-            NODE
+            node --input-type=module -e '
+            import fs from "node:fs";
+            import crypto from "node:crypto";
+            const p="/tmp/flixo-repair-behavior-trace.json";
+            const body={schemaVersion:1,protocol:"FLIXO-REPAIR-BOT-BEHAVIOR-TRACE-v1",status:"DEGRADED",reason:"OBSERVER_EXECUTION_FAILED",targetSha:process.env.FLIXO_EXPECTED_TARGET_SHA??null,observedAt:new Date().toISOString()};
+            body.traceHash=crypto.createHash("sha256").update(JSON.stringify(body),"utf8").digest("hex");
+            fs.writeFileSync(p,JSON.stringify(body,null,2)+"\\n");
+            '
           fi
           test -s /tmp/flixo-repair-behavior-trace.json
           jq -e '.protocol=="FLIXO-REPAIR-BOT-BEHAVIOR-TRACE-v1" and .traceHash != null and (.status=="DEGRADED" or .directive != null)' /tmp/flixo-repair-behavior-trace.json >/dev/null
