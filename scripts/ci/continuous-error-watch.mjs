@@ -50,6 +50,7 @@ const REPAIRABLE_WORKFLOW_PATHS = Object.freeze({
   'FLIXO Test Impact Execution': '.github/workflows/test-impact-execution.yml',
   'Repository Security Baseline': '.github/workflows/repository-security-baseline.yml',
   'Claude Security Review': '.github/workflows/claude-security-review.yml',
+  'FLIXO Security Red-Team Triad (Isolated)': '.github/workflows/security-red-team.yml',
 });
 
 const NON_REPAIRABLE_WORKFLOW_PATTERNS = Object.freeze([
