@@ -33,6 +33,7 @@ const requiredRuns = [
   'FLIXO Test Impact Execution',
   'Repository Security Baseline',
   'Claude Security Review',
+  'FLIXO Security Red-Team Triad (Isolated)',
 ].map((name, i) => run(name, i + 1));
 const cancelledRun = { ...run('FLIXO Test Impact Execution', 40, 'cancelled'), updatedAt: '2026-09-19T00:00:00Z' };
 const successorRun = { ...run('FLIXO Test Impact Execution', 41, 'success'), updatedAt: '2026-09-19T00:01:00Z' };
