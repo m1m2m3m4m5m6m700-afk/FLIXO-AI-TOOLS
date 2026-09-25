@@ -9,6 +9,7 @@ export const REQUIRED_WORKFLOWS = Object.freeze([
   'FLIXO WP0 Trust Baseline',
   'FLIXO Test Impact',
   'FLIXO Test Impact Execution',
+  'FLIXO Security Red-Team Triad (Isolated)',
   'Repository Security Baseline',
   'Claude Security Review',
 ]);
