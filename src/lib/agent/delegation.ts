@@ -47,28 +47,39 @@ export async function runBoundedParallel<T, R>(
 ): Promise<readonly AgentTaskResult<T, R>[]> {
   const maxConcurrency = Math.max(1, Math.min(8, Math.floor(options.maxConcurrency ?? 3)));
   const lockManager = options.lockManager ?? new AgentResourceLockManager();
+  const pending = tasks.map((task, index) => ({ task, index }));
   const results: Array<AgentTaskResult<T, R> | undefined> = new Array(tasks.length);
-  let cursor = 0;
 
   async function consume(): Promise<void> {
-    for (;;) {
-      const index = cursor;
-      cursor += 1;
-      if (index >= tasks.length) return;
+    while (pending.length > 0) {
+      const candidate = pending.shift();
+      if (!candidate) return;
 
-      const task = tasks[index];
+      const task = candidate.task;
       const owner = task.id;
       const keys = task.resourceKeys ?? [];
+
       if (!lockManager.tryAcquire(keys, owner)) {
-        results[index] = Object.freeze({ taskId: task.id, status: 'BLOCKED', input: task.input });
+        pending.push(candidate);
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
         continue;
       }
 
       try {
         const output = await worker(task);
-        results[index] = Object.freeze({ taskId: task.id, status: 'COMPLETED', input: task.input, output });
+        results[candidate.index] = Object.freeze({
+          taskId: task.id,
+          status: 'COMPLETED',
+          input: task.input,
+          output,
+        });
       } catch (error) {
-        results[index] = Object.freeze({ taskId: task.id, status: 'FAILED', input: task.input, error });
+        results[candidate.index] = Object.freeze({
+          taskId: task.id,
+          status: 'FAILED',
+          input: task.input,
+          error,
+        });
       } finally {
         lockManager.release(keys, owner);
       }
@@ -80,5 +91,7 @@ export async function runBoundedParallel<T, R>(
     () => consume(),
   );
   await Promise.all(workers);
-  return Object.freeze(results.filter((result): result is AgentTaskResult<T, R> => result !== undefined));
+  return Object.freeze(
+    results.filter((result): result is AgentTaskResult<T, R> => result !== undefined),
+  );
 }
