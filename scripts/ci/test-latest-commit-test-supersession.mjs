@@ -9,7 +9,7 @@ assert.match(workflow, /uses:\s*actions\/checkout@fbc6f3992d24b796d5a048ff273f7f
 assert.match(workflow, /ref:\s*main/);
 assert.match(workflow, /permissions:\s*\n\s*actions:\s*write/);
 assert.match(workflow, /EVENT_SHA_SOURCE=IMMUTABLE_GITHUB_EVENT_SHA/);
-assert.match(workflow, /git ls-remote "[^"]*refs\/heads\/\$TARGET_BRANCH"/);
+assert.match(workflow, /git ls-remote "[^"]*" "refs\/heads\/\$TARGET_BRANCH"/);
 assert.match(workflow, /stale_event=false/);
 assert.match(workflow, /stale_event=true/);
 assert.match(workflow, /if: steps\.head\.outputs\.stale_event != 'true'/);

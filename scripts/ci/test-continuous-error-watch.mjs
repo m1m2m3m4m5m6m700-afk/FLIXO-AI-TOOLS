@@ -298,7 +298,7 @@ for (const conclusion of ['failure', 'neutral', 'cancelled', 'skipped']) {
     compare: { ahead_by: 1, behind_by: 0 },
   });
   assert.equal(certificationRed.ci.certification.status, conclusion);
-  assert.equal(certificationRed.status, 'RED_INTERNAL');
+  assert.equal(certificationRed.status, 'FAIL_CLOSED');
   assert.equal(certificationRed.errors.some((x) => x.type === 'CERTIFICATION_CHECK_RED'), true);
 }
 

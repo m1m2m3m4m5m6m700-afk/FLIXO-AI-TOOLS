@@ -17,10 +17,15 @@ for (const file of requiredWorkflows) {
   assert.ok(fs.existsSync(file), 'missing workflow: ' + file);
   const source = fs.readFileSync(file, 'utf8');
   assert.match(source, /concurrency:/u, file + ': concurrency contract missing');
-  assert.match(source, /scripts\/ci\/assert-current-commit\.mjs/u, file + ': fail-closed exact-SHA guard missing');
-  assert.match(source, /(?:github\.event\.pull_request\.head\.sha \|\| github\.sha|EXPECTED_SHA)/u, file + ': exact SHA binding missing');
-  if (/^\s*pull_request(?:\s*:|\s*$)/mu.test(source)) {
-    assert.match(source, /github\.event\.pull_request\.head\.(?:repo\.full_name|ref)/u, file + ': PR source identity binding missing');
+  const workflowRunConsumer = /^(?:.*\n)*\s*workflow_run\s*:/m.test(source);
+  if (workflowRunConsumer) {
+    assert.match(source, /scripts\/ci\/assert-workflow-run-current\.mjs/u, file + ': workflow_run consumer must bind current source SHA');
+  } else if (/^(?:.*\n)*\s*(?:push|pull_request)\s*:/m.test(source)) {
+    assert.match(source, /scripts\/ci\/assert-current-commit\.mjs/u, file + ': commit-driven workflow must have fail-closed exact-SHA guard');
+    assert.match(source, /(?:github\.event\.pull_request\.head\.sha \|\| github\.sha|EXPECTED_SHA)/u, file + ': exact SHA binding missing');
+    if (/^\s*pull_request(?:\s*:|\s*$)/mu.test(source)) {
+      assert.match(source, /github\.event\.pull_request\.head\.(?:repo\.full_name|ref)/u, file + ': PR source identity binding missing');
+    }
   }
 }
 
