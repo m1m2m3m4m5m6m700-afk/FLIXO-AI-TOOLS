@@ -127,7 +127,7 @@ for (const browser of browsers) {
   parts.forEach((group, index) => {
     const shard = index + 1;
     const sourceReportSha256 = writePlaywrightReport('DEEP', browser, shard);
-    writeJson(`diagnostics/certification/browser-deep/browser-deep-${browser}-${shard}.json`, {
+    writeJson(`diagnostics/certification/browser-deep-${browser}-${shard}.json`, {
       schema_version: 5, evidenceClass: 'PRIMARY_EXECUTION', mode: 'DEEP', browser, shard, runId,
       exactSha: actualSha, sourceReportSha256, status: 'PASS', locales: 20,
       expectedSpecCount: 1, executedSpecCount: 1, unexpectedSpecs: [], executionUnitCount: group.length,
