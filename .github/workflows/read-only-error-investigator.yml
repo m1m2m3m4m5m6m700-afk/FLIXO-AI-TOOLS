@@ -25,7 +25,7 @@ permissions:
   security-events: read
 
 concurrency:
-  group: flixo-read-only-error-investigator-${{ github.event.inputs.branch || 'execution' }}
+  group: flixo-read-only-error-investigator-${{ github.event_name }}-${{ github.event.inputs.branch || github.ref_name || 'execution' }}
   cancel-in-progress: true
 
 jobs:
@@ -59,6 +59,22 @@ jobs:
           OBSERVED_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha // empty')"
           [[ "$OBSERVED_SHA" =~ ^[0-9a-f]{40}$ ]]
           echo "observed_sha=$OBSERVED_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Reconfirm live observation SHA before analysis
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_BRANCH: ${{ github.event.inputs.branch || github.ref_name || 'execution' }}
+          OBSERVED_SHA: ${{ steps.observed.outputs.observed_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha // empty')"
+          [[ "$LIVE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$LIVE_SHA" = "$OBSERVED_SHA" || {
+            echo "FAIL CLOSED: observed SHA moved before read-only analysis observed=$OBSERVED_SHA live=$LIVE_SHA"
+            exit 1
+          }
+          echo "LIVE_OBSERVED_SHA=$LIVE_SHA"
 
       - name: Install read-only analysis dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund

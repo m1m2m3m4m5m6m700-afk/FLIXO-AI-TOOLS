@@ -39,3 +39,10 @@ assert.equal(report.deepInference.synthesis.noMutationAuthority,true);
 assert.equal(report.deepInference.falsification.length > 0,true);
 assert.equal(report.deepInference.counterfactuals.length > 0,true);
 console.log(JSON.stringify({status:'PASS',checks:11},null,2));
+
+import fs from 'node:fs';
+const readOnlyWorkflow = fs.readFileSync('.github/workflows/read-only-error-investigator.yml', 'utf8');
+assert.match(readOnlyWorkflow, /group: flixo-read-only-error-investigator-\$\{\{\s*github\.event_name\s*\}\}-/u);
+assert.match(readOnlyWorkflow, /Reconfirm live observation SHA before analysis/u);
+assert.match(readOnlyWorkflow, /LIVE_OBSERVED_SHA=/u);
+assert.match(readOnlyWorkflow, /FAIL CLOSED: observed SHA moved before read-only analysis/u);
