@@ -9,6 +9,9 @@ export const SHARED_MEMORY_PROTOCOL='FLIXO-SHARED-OPERATIONAL-MEMORY-v1';
 export const CELL_MEMORY_SCOPE='ALL_CELL_MEMBERS';
 export const CELL_MEMBER_COUNT=200;
 export const SHARED_MEMORY_MODEL='ONE_CANONICAL_MEMORY';
+export const FLIXO_UNIFIED_COGNITIVE_KERNEL='FLIXO-UNIFIED-COGNITIVE-KERNEL-v2';
+export const OVER_PROVISIONED_COGNITION=true;
+export const SYSTEM_WIDE_MEMORY_SCOPE='ALL_INTERNAL_AGENTS_AND_REPAIR_BOTS';
 export const FLIXO_BOT_REGISTRY_PATH=path.resolve(ROOT,process.env.FLIXO_BOT_REGISTRY??'docs/agents/FLIXO-BOT.json');
 const loadFlixoBotAudience=()=>{try{const registry=JSON.parse(fs.readFileSync(FLIXO_BOT_REGISTRY_PATH,'utf8'));const audience=registry?.distribution?.learningConsumers;const cognitiveIds=registry?.distribution?.cognitiveBotIds;if(!Array.isArray(cognitiveIds)||cognitiveIds.length!==200)throw new Error('INVALID_COGNITIVE_AUDIENCE');if(!Array.isArray(audience)||audience.length!==200||JSON.stringify(audience)!==JSON.stringify(cognitiveIds))throw new Error('INVALID_GLOBAL_AUDIENCE');return [...new Set(audience.map(x=>String(x).trim()).filter(Boolean))];}catch(error){if(process.env.NODE_ENV==='test'||process.env.FLIXO_ALLOW_LEGACY_SHARED_MEMORY_FALLBACK==='true')return ['ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent'];throw new Error('FLIXO_BOT_GLOBAL_MEMORY_AUDIENCE_UNAVAILABLE:'+error.message,{cause:error});}};
 export const SHARED_BOTS=Object.freeze(loadFlixoBotAudience());
@@ -299,8 +302,10 @@ export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48
     canonical:true,
     targetAudience:[...SHARED_BOTS],
     memoryModel:SHARED_MEMORY_MODEL,
+    cognitiveKernel:FLIXO_UNIFIED_COGNITIVE_KERNEL,
+    overProvisionedCognition:OVER_PROVISIONED_COGNITION,
     cellMemberCount:CELL_MEMBER_COUNT,
-    scope:'ALL_INTERNAL_AGENTS_AND_REPAIR_BOTS',
+    scope:SYSTEM_WIDE_MEMORY_SCOPE,
     recordCount:records.length,
     errors:[...grouped.ERROR,...legacy.errors].slice(0,limit),
     operations:grouped.OPERATION,
