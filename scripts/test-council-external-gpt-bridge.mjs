@@ -85,7 +85,7 @@ const mockFetch = async (url, init = {}) => {
         dispatch: {
           dispatch_id: 'dispatch-001', status: 'LEASED', mission_id: 'MISSION-001',
           task_id: 'GREEN-RECOVERY-001', work_package_id: 'ROOT-CAUSE-SPINE-001',
-          entry_sha: SHA, payload: { reason: 'test-wake' }
+          entry_sha: SHA, payload: { reason: 'test-wake', objective: 'Validate the bridge contract without mutation.' }
         }
       }), { status: 200 });
       if (pollCount === 2) return new Response(JSON.stringify({
@@ -95,7 +95,7 @@ const mockFetch = async (url, init = {}) => {
           dispatch_id: 'dispatch-001', status: 'ACKED', session_id: sessionFromAck,
           mission_id: 'MISSION-001', task_id: 'GREEN-RECOVERY-001',
           work_package_id: 'ROOT-CAUSE-SPINE-001', entry_sha: SHA,
-          payload: { reason: 'continuation' }
+          payload: { reason: 'continuation', objective: 'Continue validating the bridge contract.' }
         }
       }), { status: 200 });
       return new Response(JSON.stringify({ ok: true, dispatch: null }), { status: 200 });
@@ -155,7 +155,7 @@ const directContinue = await executeExternalAgent(config, {
   mission_id: 'MISSION-001',
   entry_sha: SHA,
   identity: { agentId: 'flixo-worker-a-001', machineRole: 'executionAgent' },
-  payload: { reason: 'direct' }
+  payload: { reason: 'direct', objective: 'Directly validate external agent execution.' }
 }, executorCalls[0].body.sessionId, async () => new Response(JSON.stringify({
   status: 'CONTINUE',
   evidence: { executor: 'mock' },
@@ -177,7 +177,7 @@ const failingFetch = async (url, init = {}) => {
       dispatch: {
         dispatch_id: 'dispatch-fail-001', status: 'LEASED', mission_id: 'MISSION-001',
         task_id: 'GREEN-RECOVERY-001', work_package_id: 'ROOT-CAUSE-SPINE-001',
-        entry_sha: SHA, payload: { reason: 'heartbeat-failure' }
+        entry_sha: SHA, payload: { reason: 'heartbeat-failure', objective: 'Validate heartbeat failure handling safely.' }
       }
     }), { status: 200 });
     if (action === 'ack') return new Response(JSON.stringify({ ok: true, dispatch: body }), { status: 200 });
