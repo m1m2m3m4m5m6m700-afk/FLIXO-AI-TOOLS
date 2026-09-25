@@ -208,7 +208,7 @@ function atomicWrite(memory){
   fs.renameSync(tmp,SHARED_MEMORY_PATH);
 }
 
-export function publishSharedMemory(input={}){
+export function writeSharedMemory(input={}){
   const record=normalizeRecord(input);
   const current=loadSharedMemory();
   const duplicate=current.records.find(existing=>existing.id===record.id);
@@ -218,7 +218,7 @@ export function publishSharedMemory(input={}){
   return {persisted:true,duplicate:false,record,memory:withIndexes(next)};
 }
 
-export function publishSharedBatch(records=[]){
+export function writeSharedBatch(records=[]){
   let memory=loadSharedMemory();
   let persisted=0,duplicates=0;
   const normalized=[];
@@ -232,6 +232,9 @@ export function publishSharedBatch(records=[]){
   if(normalized.length) atomicWrite(withIndexes(memory));
   return {persisted,duplicates,records:normalized,memory:withIndexes(memory)};
 }
+
+export const publishSharedMemory=writeSharedMemory;
+export const publishSharedBatch=writeSharedBatch;
 
 export function readSharedMemory({fingerprint=null,botId=null,kinds=null,limit=80}={}){
   const memory=loadSharedMemory();
