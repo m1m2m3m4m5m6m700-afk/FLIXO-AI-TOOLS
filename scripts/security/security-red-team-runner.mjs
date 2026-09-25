@@ -13,7 +13,7 @@ const OUTPUT = path.resolve(ROOT, String(process.argv.find(v => v.startsWith('--
 
 if (!REGISTRY.bots?.[BOT_ID]) throw new Error('SECURITY_RED_TEAM_BOT_NOT_REGISTERED');
 if (!/^[0-9a-f]{40}$/u.test(EXPECTED_SHA)) throw new Error('SECURITY_RED_TEAM_EXACT_SHA_REQUIRED');
-const fullIntelligence = buildFullIntelligenceBootstrap({ agentId: BOT_ID, role: REGISTRY.bots[BOT_ID].role, request: 'security review', exactSha: EXPECTED_SHA, taskId: `SECURITY-REDTEAM:${BOT_ID}:${EXPECTED_SHA}` });
+let fullIntelligence = buildFullIntelligenceBootstrap({ agentId: BOT_ID, role: REGISTRY.bots[BOT_ID].role, request: 'security review', exactSha: EXPECTED_SHA, taskId: `SECURITY-REDTEAM:${BOT_ID}:${EXPECTED_SHA}` });
 assertFullIntelligenceBootstrap(fullIntelligence, BOT_ID);
 
 const git = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
