@@ -114,7 +114,14 @@ function runTestSystemAdversary() {
     const dir = fs.mkdtempSync(path.join(temp, 'branch-policy-'));
     copy(dir);
     const file = path.join(dir, 'scripts/ci/control-plane-registry.mjs');
-    fs.writeFileSync(file, fs.readFileSync(file, 'utf8') + '\nexecFileSync("git", ["switch", "--create", "evil"]);\n');
+    const fixture = [
+      '',
+      '// FLIXO-TWO-BRANCH-POLICY-TEST-FIXTURE-START: TEMP_WORKSPACE_ONLY',
+      'execFileSync("git", ["switch", "--create", "evil"]);',
+      '// FLIXO-TWO-BRANCH-POLICY-TEST-FIXTURE-END',
+      ''
+    ].join('\n');
+    fs.writeFileSync(file, fs.readFileSync(file, 'utf8') + fixture);
     const init = spawnSync('git', ['init', '-q'], { cwd: dir, env: { ...process.env }, encoding: 'utf8' });
     if (init.status !== 0) {
       attacks.push({ id: 'BRANCH_CREATION_POLICY', status: 'ESCAPED', exactSha: EXPECTED_SHA, evidence: String(init.stderr || init.stdout || 'git init failed') });
