@@ -3,6 +3,8 @@
 const repository = (process.env.GITHUB_REPOSITORY ?? '').trim();
 const token = (process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN ?? '').trim();
 const branch = 'execution';
+const eventName = (process.env.GITHUB_EVENT_NAME ?? '').trim();
+const pushEvent = eventName === 'push';
 import fs from 'node:fs/promises';
 
 const graceDays = Number.parseInt(process.env.FLIXO_STALE_EXECUTION_GRACE_DAYS ?? '14', 10);
@@ -111,7 +113,13 @@ const latestSha = await resolveExecutionHead();
 console.log(`LATEST_EXECUTION_HEAD=${latestSha}`);
 console.log(`STALE_EXECUTION_GRACE_DAYS=${graceDays}`);
 
-const runs = await listAll(`/repos/${repository}/actions/runs?branch=${branch}`, 'workflow_runs');
+const runLists = pushEvent
+  ? await Promise.all([
+      listAll(`/repos/${repository}/actions/runs?branch=${branch}&status=in_progress`, 'workflow_runs'),
+      listAll(`/repos/${repository}/actions/runs?branch=${branch}&status=queued`, 'workflow_runs'),
+    ])
+  : [await listAll(`/repos/${repository}/actions/runs?branch=${branch}`, 'workflow_runs')];
+const runs = [...new Map(runLists.flat().map((run) => [Number(run?.id), run])).values()];
 let cancelled = 0;
 let deletedRuns = 0;
 const summary = { schemaVersion: 1, ruleId: 'LATEST-EXECUTION-HEAD-ONLY-001', repository, branch, latestExecutionSha: latestSha, graceDays, cancelledRuns: [], deletedRuns: [], deletedArtifacts: [] };
@@ -152,8 +160,9 @@ for (const run of runs) {
   console.log(`STALE_RUN_DELETED id=${runId} sha=${headSha} name=${name}`);
 }
 
-const artifacts = await listAll(`/repos/${repository}/actions/artifacts`, 'artifacts');
+const artifacts = pushEvent ? [] : await listAll(`/repos/${repository}/actions/artifacts`, 'artifacts');
 let deletedArtifacts = 0;
+if (pushEvent) console.log('STALE_ARTIFACT_CLEANUP=DEFERRED_PUSH_EVENT');
 
 for (const artifact of artifacts) {
   const artifactId = Number(artifact?.id);
@@ -179,6 +188,8 @@ if (finalSha !== latestSha) {
   process.exit(1);
 }
 
+summary.eventName = eventName || 'unknown';
+summary.activeOnly = pushEvent;
 summary.finishedAt = new Date().toISOString();
 await fs.writeFile('/tmp/latest-execution-head-cleanup-summary.json', JSON.stringify(summary, null, 2) + '\n', 'utf8');
 console.log(`STALE_EXECUTION_RUNS_CANCELLED=${cancelled}`);

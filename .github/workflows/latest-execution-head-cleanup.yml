@@ -4,7 +4,7 @@ on:
   push:
     branches: [execution]
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/15 * * * *'
 
 concurrency:
   group: flixo-latest-execution-head-cleanup
