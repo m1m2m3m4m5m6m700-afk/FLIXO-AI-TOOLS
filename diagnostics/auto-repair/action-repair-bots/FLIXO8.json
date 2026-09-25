@@ -5,7 +5,7 @@
   "botId": "FLIXO8",
   "displayName": "FLIXO 8",
   "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
-  "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+  "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
   "legacySeat": "ACTION-REGRESSION-6",
   "systemScope": "FULL_REPOSITORY_AND_AUTOMATION_SYSTEM",
   "lens": "WHOLE_SYSTEM_REPAIR_SYNTHESIS_AND_REGRESSION",
@@ -70,5 +70,10 @@
       "adversaryBot": "FLIXO9",
       "lens": "WHOLE_SYSTEM_REPAIR_SYNTHESIS_AND_REGRESSION"
     }
-  }
+  },
+  "unifiedCognitiveKernelRef": "docs/agents/FLIXO-BOT.json#/unifiedCognitiveKernel",
+  "unifiedMemoryRef": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
+  "cognitiveCoverage": "FULL_SYSTEM",
+  "roleOverlayOnly": true,
+  "canReduceCognitiveCoverage": false
 }
