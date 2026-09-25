@@ -22,6 +22,16 @@ const actualSha = git(['rev-parse', 'HEAD']);
 const branch = git(['branch', '--show-current']);
 if (actualSha !== EXPECTED_SHA) throw new Error(`SECURITY_RED_TEAM_SHA_MISMATCH:${actualSha}:${EXPECTED_SHA}`);
 if (branch !== '' && branch !== 'execution') throw new Error('SECURITY_RED_TEAM_EXECUTION_BRANCH_REQUIRED');
+const remoteHead = (() => {
+  try {
+    return execFileSync('git', ['ls-remote', 'origin', 'refs/heads/execution'], { cwd: ROOT, encoding: 'utf8' }).trim().split(/\s+/u)[0];
+  } catch (error) {
+    throw new Error('SECURITY_RED_TEAM_LIVE_HEAD_LOOKUP_FAILED:' + String(error?.message ?? error));
+  }
+})();
+if (!/^[0-9a-f]{40}$/u.test(remoteHead) || remoteHead !== EXPECTED_SHA) {
+  throw new Error('SECURITY_RED_TEAM_STALE_SHA_REJECTED:' + remoteHead + ':' + EXPECTED_SHA);
+}
 
 const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: ROOT, encoding: 'utf8' })
   .split('\0')
