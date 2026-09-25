@@ -1,31 +1,30 @@
-# FLIXO — Green-Before-Addition Repository Rule
+# FLIXO — Bounded Scope During Canonical GREEN Pending
 
 ## Rule
 
-The repository is RED-locked for additions.
+The repository may continue bounded product, agent, architecture, tooling, integration, and research development while the previous exact-SHA canonical test system is RED.
 
-No new feature, product capability, architecture layer, agent, tool, registry entry, runtime surface, UI capability, integration, scale layer, or other additive scope may be introduced while the previous exact-SHA canonical test system is not fully GREEN.
+Every RED-state mutation must be explicitly classified:
 
-## Required transition
+- Repair scope: `[REPAIR:<ID>] [WP:<ID>]`
+- Additive scope: `[ADD:<ID>] [WP:<ID>]`
 
-RED → repair only → full canonical GREEN → additions reopened
+This classification is an execution-scope marker, not a GREEN claim.
 
-A RED-state mutation must be explicitly classified as a repair with both [REPAIR:<ID>] and [WP:<ID>] markers. Existing repair protocol, mutation gate, control-plane authorization, targeted regression, and Exact-SHA certification remain authoritative.
+## Required safety invariants
+
+RED-compatible work must not weaken or skip tests, weaken security controls, alter certification semantics to obtain GREEN, bypass mutation gates, create a second control plane/executor/registry/event store/publication authority, mutate `main` directly, create a third branch, or reuse stale evidence as GREEN.
 
 ## Canonical GREEN
 
-Required workflow runs on the same exact parent SHA: FLIXO Test System; FLIXO WP0 Trust Baseline; FLIXO Test Impact; FLIXO Test Impact Execution; Repository Security Baseline; Claude Security Review.
-
-Required checks on the same exact parent SHA: trust-gate; Exact-SHA promotion proof; Certification.
-
-Missing, stale, queued, running, failed, cancelled, or SHA-mismatched evidence is not GREEN.
+The canonical workflows and checks remain authoritative. A RED state may coexist with active development; successful additive work does not itself become GREEN.
 
 ## Failure behavior
 
-When the previous exact SHA is not fully GREEN and the current commit is not explicitly classified as a repair, the existing Engineering Work Package Guard fails closed with RED_TEST_SYSTEM_BLOCKS_NEW_ADDITIONS.
+An unclassified mutation on a RED parent is rejected with `RED_SCOPE_REQUIRES_EXPLICIT_CLASSIFICATION`.
 
-No exception may be created by weakening tests, skipping certification, or reclassifying stale evidence as GREEN.
+A correctly classified repair or additive scope is allowed to proceed, but the repository remains RED until fresh exact-SHA canonical evidence proves GREEN.
 
 ## Architecture
 
-This rule extends the existing Engineering Work Package Guard. It does not create a second control plane, executor, registry, event store, or tool chain. The only mutation lane remains execution → main, with no third branch.
+This policy extends the existing Engineering Work Package Guard. It does not create another control plane or mutation lane. The only publication path remains `execution → main`, with no third branch.
