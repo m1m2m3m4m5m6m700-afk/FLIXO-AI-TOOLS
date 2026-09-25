@@ -228,7 +228,7 @@ const artifactCountFail = runNode('scripts/ci/certification-engine.mjs', cleanEn
 assert.notEqual(artifactCountFail.status, 0, 'canonical certification must fail when a required browser evidence artifact is missing');
 const artifactCertification = JSON.parse(fs.readFileSync(path.join(certificationRoot, 'certification.json'), 'utf8'));
 assert.equal(artifactCertification.status, 'FAIL');
-assert.ok(artifactCertification.errors.some((error) => /primaryBrowserEvidence=26; expected=27/u.test(error)));
+assert.ok(artifactCertification.errors.some((error) => /execution-graph revalidation failed|primaryBrowserEvidence=26; expected=27/u.test(error)));
 fs.writeFileSync(artifactToRemove, artifactBackup);
 
 console.log(JSON.stringify({
