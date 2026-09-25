@@ -36,11 +36,6 @@ export const FULL_GUARDRAILS = Object.freeze([
   'FAIL_CLOSED_ON_UNCERTAINTY',
 ]);
 
-function readRegistry() {
-  const file = path.resolve(ROOT, 'docs/agents/FLIXO-BOT.json');
-  return JSON.parse(fs.readFileSync(file, 'utf8'));
-}
-
 function validateSha(value) {
   const sha = String(value ?? '').trim();
   if (!/^[a-f0-9]{40}$/u.test(sha)) throw new Error('FULL_INTELLIGENCE_EXACT_SHA_REQUIRED');
