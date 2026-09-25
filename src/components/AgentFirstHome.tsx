@@ -68,6 +68,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
         )}
         <nav className="agent-first-nav-actions" aria-label={home.ariaPrimary}>
           <Link className="agent-first-tools-button" to={locale === 'ar' ? '/ar/tools' : '/tools'}>{BROWSE_TOOLS_LABELS[locale]}</Link>
+          <Link className="agent-first-tools-button" to={locale === 'en' ? '/agent' : '/$locale/agent'} params={locale === 'en' ? undefined : { locale }}>{locale === 'ar' ? 'الوكيل' : locale === 'en' ? 'Agent' : 'Agent'}</Link>
           <label className="sr-only" htmlFor="home-language">{home.nav.switch}</label>
           <select
             id="home-language"
