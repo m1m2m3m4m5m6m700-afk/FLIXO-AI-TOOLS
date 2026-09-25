@@ -77,7 +77,9 @@ const counters = generateCounterexamples({
 });
 assert(counters.some((item) => item.id === 'CE-DOUBLE-CLAIM'));
 
-const directive = buildConvergenceDirective({ counterexamples: counters });
+const directive = buildConvergenceDirective({
+  counterexamples: [counters.find((item) => item.id === 'CE-DOUBLE-CLAIM'), ...counters.filter((item) => item.id !== 'CE-DOUBLE-CLAIM')].filter(Boolean),
+});
 assert.equal(directive.mode, 'SEARCH_SPACE_REDUCTION');
 assert.equal(directive.next_cycle_requires.includes('previous_counterexample_addressed'), true);
 
