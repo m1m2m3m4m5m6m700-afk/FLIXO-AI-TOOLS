@@ -257,6 +257,34 @@ assert.equal(green.ci.certification.runId, '1');
 assert.equal(green.ci.certification.canonicalRunId, '1');
 assert.equal(green.ci.certification.canonicalRun, true);
 
+const proposalOnlyInput = {
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: [
+    ...requiredRuns,
+    {
+      ...run('Proposal Only Sync', 700, 'failure'),
+      path: '.github/workflows/execution-sync.yml',
+    },
+    {
+      ...run('Historical Action Index', 701, 'skipped'),
+      path: '.github/workflows/historical-action-error-index.yml',
+    },
+  ],
+  checkRuns: securityAndCertification,
+  compare: { ahead_by: 1, behind_by: 0 },
+};
+const proposalOnlyResult = evaluateGreen(proposalOnlyInput);
+assert.equal(
+  proposalOnlyResult.errors.some((item) => item.type === 'UNAPPROVED_WORKFLOW_RED' && item.workflow === 'Proposal Only Sync'),
+  false,
+);
+assert.equal(
+  proposalOnlyResult.errors.some((item) => item.type === 'NON_BINARY_AUTOMATION_OUTCOME' && item.workflow === 'Historical Action Index'),
+  false,
+);
+
 for (const conclusion of ['failure', 'neutral', 'cancelled', 'skipped']) {
   const certificationRed = evaluateGreen({
     executionSha: SHA_A,

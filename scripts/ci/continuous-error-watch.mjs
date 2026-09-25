@@ -34,6 +34,14 @@ const requiredWorkflowsForBranch = (branch) =>
 
 // Any failed execution workflow may enter the repair lane.
 // Only the repair/control-plane infrastructure itself is excluded to prevent self-repair loops.
+const PROPOSAL_ONLY_WORKFLOW_PATHS = Object.freeze(new Set([
+  '.github/workflows/execution-sync.yml',
+  '.github/workflows/historical-action-error-index.yml',
+]));
+
+const isAuthoritativeWorkflowRun = (run) =>
+  !PROPOSAL_ONLY_WORKFLOW_PATHS.has(String(run?.workflowPath ?? run?.path ?? '').trim());
+
 const REPAIRABLE_WORKFLOW_PATHS = Object.freeze({
   'FLIXO Test System': '.github/workflows/ci.yml',
   'FLIXO WP0 Trust Baseline': '.github/workflows/wp0-trust-baseline.yml',
@@ -479,6 +487,7 @@ export function evaluateGreen({
         candidate?.headSha === executionSha &&
         candidate?.headBranch === 'execution' &&
         candidate?.status === 'completed' &&
+        isAuthoritativeWorkflowRun(candidate) &&
         ['failure', 'timed_out', 'skipped', 'neutral'].includes(candidate?.conclusion)
       )
       .sort((a, b) => String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')));
@@ -567,6 +576,7 @@ export function evaluateGreen({
   const nonBinaryRuns = workflowRuns.filter((item) =>
     item?.headSha === executionSha &&
     item?.status === 'completed' &&
+    isAuthoritativeWorkflowRun(item) &&
     ['skipped', 'neutral'].includes(item?.conclusion),
   );
   for (const item of nonBinaryRuns) {
