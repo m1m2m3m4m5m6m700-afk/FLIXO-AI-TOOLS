@@ -67,6 +67,78 @@ function addFinding({ ruleId, severity='MEDIUM', category, title, file, line, ev
 
 const workflowFile = (file) => /^(?:\.github\/workflows\/).+\.ya?ml$/u.test(file);
 const sourceFile = (file) => /\.(?:[cm]?js|tsx?|jsx|vue|svelte|astro|css|html|mjs|cjs|json|yml|yaml)$/iu.test(file);
+
+function runTestSystemAdversary() {
+  const tracked = ['.github/workflows/security-red-team.yml','docs/agents/SECURITY-RED-TEAM-BOTS.json','scripts/ci/test-security-red-team-contract.mjs','scripts/ci/control-plane-registry.mjs','scripts/security/security-red-team-runner.mjs'];
+  const temp = fs.mkdtempSync(path.join(ROOT, '.git', 'flixo-test-system-adversary-'));
+  const copy = (to) => {
+    for (const file of tracked) {
+      const source = path.join(ROOT, file);
+      const dest = path.join(to, file);
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.copyFileSync(source, dest);
+    }
+  };
+  const attacks = [];
+  const check = (id, mutate) => {
+    const dir = fs.mkdtempSync(path.join(temp, 'mutation-'));
+    copy(dir);
+    mutate(dir);
+    const result = spawnSync(process.execPath, [path.resolve(dir, 'scripts/ci/test-security-red-team-contract.mjs')], {
+      cwd: dir, env: { ...process.env }, encoding: 'utf8'
+    });
+    attacks.push({ id, status: result.status === 0 ? 'ESCAPED' : 'BLOCKED', exactSha: EXPECTED_SHA, evidence: String(result.stdout || result.stderr || '').slice(0, 1200) });
+    fs.rmSync(dir, { recursive: true, force: true });
+  };
+  check('EXACT_SHA_REQUIRED', dir => {
+    const file = path.join(dir, '.github/workflows/security-red-team.yml');
+    fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(/(expected_sha:[\s\S]*?required:\s*)true/u, '$1false'));
+  });
+  check('PRIVILEGE_ESCALATION', dir => {
+    const file = path.join(dir, '.github/workflows/security-red-team.yml');
+    fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('permissions:\n  contents: read', 'permissions:\n  contents: read\n  actions: write'));
+  });
+  check('THIRD_BRANCH_POLICY', dir => {
+    const file = path.join(dir, 'docs/agents/SECURITY-RED-TEAM-BOTS.json');
+    fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('"thirdBranchAllowed": false', '"thirdBranchAllowed": true'));
+  });
+  check('MUTATION_AUTHORITY_POLICY', dir => {
+    const file = path.join(dir, 'docs/agents/SECURITY-RED-TEAM-BOTS.json');
+    fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('"mutationAuthority": false', '"mutationAuthority": true'));
+  });
+  check('CHECKOUT_CREDENTIAL_POLICY', dir => {
+    const file = path.join(dir, '.github/workflows/security-red-team.yml');
+    fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(/\n\s+persist-credentials:\s+false/u, ''));
+  });
+  check('BRANCH_CREATION_POLICY', dir => {
+    const file = path.join(dir, 'scripts/security/security-red-team-runner.mjs');
+    fs.writeFileSync(file, fs.readFileSync(file, 'utf8') + '\nexecFileSync("git", ["switch", "--create", "evil"]);\n');
+  });
+  const wrongSha = '0'.repeat(40);
+  const shaProbe = spawnSync(process.execPath, [path.resolve(ROOT, 'scripts/security/security-red-team-runner.mjs'), '--bot=SECURITY-REDTEAM-1', '--sha=' + wrongSha, '--output=/tmp/flixo-redteam-sha-negative.json'], {
+    cwd: ROOT, env: { ...process.env }, encoding: 'utf8'
+  });
+  attacks.push({ id: 'RUNTIME_EXACT_SHA_MISMATCH', status: shaProbe.status === 0 ? 'ESCAPED' : 'BLOCKED', exactSha: EXPECTED_SHA });
+  const negative = spawnSync(process.execPath, [path.resolve(ROOT, 'scripts/ci/test-negative-control-integration.mjs')], { cwd: ROOT, env: { ...process.env }, encoding: 'utf8' });
+  attacks.push({ id: 'FALSE_GREEN_EVIDENCE', status: negative.status === 0 ? 'BLOCKED' : 'ESCAPED', exactSha: EXPECTED_SHA });
+  const escaped = attacks.filter(item => item.status === 'ESCAPED').length;
+  const report = {
+    authority: 'READ_ONLY_TEST_SYSTEM_ADVERSARY',
+    mutationAuthority: false,
+    certificationAuthority: false,
+    greenAuthority: false,
+    targetSha: EXPECTED_SHA,
+    attackCount: attacks.length,
+    blockedAttacks: attacks.length - escaped,
+    escapedAttacks: escaped,
+    status: escaped === 0 ? 'PASS' : 'FAIL',
+    isolation: 'TEMP_WORKSPACE_ONLY',
+    attacks
+  };
+  fs.rmSync(temp, { recursive: true, force: true });
+  return report;
+}
+
 const appSourceFile = (file) => sourceFile(file) && !workflowFile(file);
 
 const textCache = new Map();
@@ -208,6 +280,14 @@ function buildUncertaintyAssessment() {
     unresolvedFindings,
     discriminatingTests: unresolvedFindings.flatMap(item => item.discriminatingTests)
   };
+}
+
+if (BOT_ID === 'SECURITY-REDTEAM-1') {
+  const adversarial = runTestSystemAdversary();
+  fullIntelligence.securityTestSystemAdversary = adversarial;
+  if (adversarial.escapedAttacks > 0) {
+    addFinding({ ruleId:'TEST-SYSTEM-ADVERSARY-ESCAPE', severity:'CRITICAL', category:'TEST_SYSTEM_TRUST', title:'Adversarial mutation escaped a test-system control', file:'scripts/security/security-red-team-runner.mjs', line:1, evidence:JSON.stringify(adversarial), confidence:0.99, recommendation:'Open RCA immediately; an adversarial control escaped and canonical GREEN must remain unavailable.' });
+  }
 }
 
 const securityLog = findings.map(f => `[${f.severity}] ${f.category} ${f.file}:${f.line} ${f.title} :: ${f.evidence}`).join('\n');
