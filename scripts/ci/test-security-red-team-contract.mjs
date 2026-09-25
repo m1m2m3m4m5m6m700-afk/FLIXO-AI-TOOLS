@@ -78,6 +78,10 @@ assert.equal((runner.match(/tracked\.filter\(browserSourceFile\)/gu) ?? []).leng
 assert.doesNotMatch(runner,/tracked\.filter\(appSourceFile\)\s*\{\n\s*const checks = \[\n\s*\['RUNTIME-FETCH-TAINT'/u);
 assert.match(runner,/mutationAuthority:false/u);
 assert.match(runner,/APP-CHILD-PROCESS/u);
+assert.match(runner,/trustedStaticRedirectTargets/u);
+assert.match(runner,/publicViteEndpoint/u);
+assert.match(runner,/sameOriginPath/u);
+assert.match(runner,/findingSeverity = 'MEDIUM'/u);
 assert.match(runner,/(?:node:)?child_process/u);
 assert.ok(runner.includes("(?<!\\.)\\bexec\\s*\\("));
 assert.doesNotMatch(runner,/child_process\|execFileSync/u);

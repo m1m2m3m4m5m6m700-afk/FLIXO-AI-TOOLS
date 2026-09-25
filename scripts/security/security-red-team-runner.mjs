@@ -250,7 +250,22 @@ if (BOT_ID === 'SECURITY-REDTEAM-2') {
       ['APP-HTTP','MEDIUM','TRANSPORT','Hard-coded cleartext HTTP endpoint',/https?:\/\/(?!127\.0\.0\.1|localhost|example\.com|schemas\.microsoft\.com)/iu,0.9,'Use HTTPS for remote resources or document an intentional local-only exception.']
     ];
     for (const [ruleId,severity,category,title,re,confidence,recommendation] of checks) {
-      for (const hit of lineHits(file,re)) addFinding({ruleId,severity,category,title,file,line:hit.line,evidence:hit.text,confidence,recommendation});
+      for (const hit of lineHits(file,re)) {
+        if (ruleId === 'RUNTIME-REDIRECT-TAINT') {
+          const literalPath = /(?:location\.(?:assign|replace)|window\.location)\s*(?:=|\.assign\(|\.replace\()\s*['"]\//u.test(hit.text);
+          const constantPath = [...trustedStaticRedirectTargets].some((name) => new RegExp(`(?:location\\.(?:assign|replace)|window\\.location)\\s*(?:=|\\.assign\\(|\\.replace\\()\\s*\\${name}\\b`).test(hit.text));
+          if (literalPath || constantPath) continue;
+        }
+
+        let findingSeverity = severity;
+        if (ruleId === 'RUNTIME-FETCH-TAINT') {
+          const sameOriginPath = /(?:fetch|axios\\.(?:get|post|put|delete|request))\\s*\\(\\s*[\`'"]\\//u.test(hit.text);
+          const publicViteEndpoint = /import\\.meta\\.env\\.VITE_[A-Z0-9_]+/u.test(hit.text);
+          if (sameOriginPath || publicViteEndpoint) findingSeverity = 'MEDIUM';
+        }
+
+        addFinding({ruleId,severity:findingSeverity,category,title,file,line:hit.line,evidence:hit.text,confidence,recommendation});
+      }
     }
   }
   for (const file of tracked.filter(file => /^(?:package\.json|package-lock\.json)$/u.test(file))) {
@@ -265,6 +280,10 @@ if (BOT_ID === 'SECURITY-REDTEAM-2') {
 
 if (BOT_ID === 'SECURITY-REDTEAM-3') {
   for (const file of tracked.filter(browserSourceFile)) {
+    const fileText = textCache.get(file) ?? '';
+    const trustedStaticRedirectTargets = new Set(
+      [...fileText.matchAll(/\bconst\s+([A-Z][A-Z0-9_]*(?:PATH|URL))\s*=\s*['"]\/[A-Za-z0-9_./-]*['"]/gu)].map((match) => match[1]),
+    );
     const checks = [
       ['RUNTIME-FETCH-TAINT','HIGH','NETWORK_BOUNDARY','Network request built from interpolated or location-derived input',/(?:fetch|axios\.(?:get|post|put|delete|request))\s*\([^\n]*(?:\$\{|location\.|searchParams|params\.|query\.)/u,0.92,'Validate destination and resource identifiers against explicit origin/path allowlists; never let raw input select arbitrary network targets.'],
       ['RUNTIME-CORS-WILDCARD','HIGH','CORS','Wildcard CORS response',/Access-Control-Allow-Origin[^\n]*\*/iu,0.98,'Avoid wildcard CORS for authenticated or sensitive routes; bind allowed origins explicitly.'],
