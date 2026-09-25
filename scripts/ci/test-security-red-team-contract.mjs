@@ -78,6 +78,16 @@ assert.equal((runner.match(/tracked\.filter\(browserSourceFile\)/gu) ?? []).leng
 assert.doesNotMatch(runner,/tracked\.filter\(appSourceFile\)\s*\{\n\s*const checks = \[\n\s*\['RUNTIME-FETCH-TAINT'/u);
 assert.match(runner,/mutationAuthority:false/u);
 assert.match(runner,/APP-CHILD-PROCESS/u);
+const runtime2Start = runner.indexOf("if (BOT_ID === 'SECURITY-REDTEAM-2')");
+const runtime3Start = runner.indexOf("if (BOT_ID === 'SECURITY-REDTEAM-3')");
+assert.ok(runtime2Start >= 0 && runtime3Start > runtime2Start);
+const runtime2 = runner.slice(runtime2Start, runtime3Start);
+const runtime3 = runner.slice(runtime3Start);
+assert.doesNotMatch(runtime2,/trustedStaticRedirectTargets|sameOriginPath|publicViteEndpoint|findingSeverity = 'MEDIUM'/u);
+assert.match(runtime3,/trustedStaticRedirectTargets/u);
+assert.match(runtime3,/sameOriginPath/u);
+assert.match(runtime3,/publicViteEndpoint/u);
+assert.match(runtime3,/findingSeverity = 'MEDIUM'/u);
 assert.match(runner,/trustedStaticRedirectTargets/u);
 assert.match(runner,/publicViteEndpoint/u);
 assert.match(runner,/sameOriginPath/u);

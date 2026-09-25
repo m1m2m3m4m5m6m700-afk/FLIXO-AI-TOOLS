@@ -250,22 +250,7 @@ if (BOT_ID === 'SECURITY-REDTEAM-2') {
       ['APP-HTTP','MEDIUM','TRANSPORT','Hard-coded cleartext HTTP endpoint',/https?:\/\/(?!127\.0\.0\.1|localhost|example\.com|schemas\.microsoft\.com)/iu,0.9,'Use HTTPS for remote resources or document an intentional local-only exception.']
     ];
     for (const [ruleId,severity,category,title,re,confidence,recommendation] of checks) {
-      for (const hit of lineHits(file,re)) {
-        if (ruleId === 'RUNTIME-REDIRECT-TAINT') {
-          const literalPath = /(?:location\.(?:assign|replace)|window\.location)\s*(?:=|\.assign\(|\.replace\()\s*['"]\//u.test(hit.text);
-          const constantPath = [...trustedStaticRedirectTargets].some((name) => new RegExp(`(?:location\\.(?:assign|replace)|window\\.location)\\s*(?:=|\\.assign\\(|\\.replace\\()\\s*\\${name}\\b`).test(hit.text));
-          if (literalPath || constantPath) continue;
-        }
-
-        let findingSeverity = severity;
-        if (ruleId === 'RUNTIME-FETCH-TAINT') {
-          const sameOriginPath = /(?:fetch|axios\\.(?:get|post|put|delete|request))\\s*\\(\\s*[\`'"]\\//u.test(hit.text);
-          const publicViteEndpoint = /import\\.meta\\.env\\.VITE_[A-Z0-9_]+/u.test(hit.text);
-          if (sameOriginPath || publicViteEndpoint) findingSeverity = 'MEDIUM';
-        }
-
-        addFinding({ruleId,severity:findingSeverity,category,title,file,line:hit.line,evidence:hit.text,confidence,recommendation});
-      }
+      for (const hit of lineHits(file,re)) addFinding({ruleId,severity,category,title,file,line:hit.line,evidence:hit.text,confidence,recommendation});
     }
   }
   for (const file of tracked.filter(file => /^(?:package\.json|package-lock\.json)$/u.test(file))) {
@@ -296,7 +281,20 @@ if (BOT_ID === 'SECURITY-REDTEAM-3') {
       ['RUNTIME-SVG-SINK','HIGH','SVG_BOUNDARY','SVG/HTML content reaches a raw rendering sink',/(?:SVG|svg)[^\n]*(?:innerHTML|dangerouslySetInnerHTML)|(?:innerHTML|dangerouslySetInnerHTML)[^\n]*(?:SVG|svg)/iu,0.94,'Sanitize SVG/XML content before rendering and keep external resource references disabled or allowlisted.']
     ];
     for (const [ruleId,severity,category,title,re,confidence,recommendation] of checks) {
-      for (const hit of lineHits(file,re)) addFinding({ruleId,severity,category,title,file,line:hit.line,evidence:hit.text,confidence,recommendation});
+      for (const hit of lineHits(file,re)) {
+        if (ruleId === 'RUNTIME-REDIRECT-TAINT') {
+          const literalPath = /(?:location\.(?:assign|replace)|window\.location)\s*(?:=|\.assign\(|\.replace\()\s*['"]\//u.test(hit.text);
+          const targetName = hit.text.match(/(?:location\.(?:assign|replace)|window\.location)\s*(?:=|\.assign\(|\.replace\()\s*([A-Za-z_$][A-Za-z0-9_$]*)/u)?.[1];
+          if (literalPath || (targetName && trustedStaticRedirectTargets.has(targetName))) continue;
+        }
+        let findingSeverity = severity;
+        if (ruleId === 'RUNTIME-FETCH-TAINT') {
+          const sameOriginPath = /(?:fetch|axios\.(?:get|post|put|delete|request))\s*\(\s*[`'"]\//u.test(hit.text);
+          const publicViteEndpoint = /import\.meta\.env\.VITE_[A-Z0-9_]+/u.test(hit.text);
+          if (sameOriginPath || publicViteEndpoint) findingSeverity = 'MEDIUM';
+        }
+        addFinding({ruleId,severity:findingSeverity,category,title,file,line:hit.line,evidence:hit.text,confidence,recommendation});
+      }
     }
   }
   for (const file of tracked.filter(workflowFile)) {
@@ -304,9 +302,7 @@ if (BOT_ID === 'SECURITY-REDTEAM-3') {
       addFinding({ruleId:'RUNTIME-EVENT-SHA-BOUNDARY', severity:'MEDIUM', category:'EXACT_SHA', title:'Workflow consumes event-derived branch/SHA identity', file, line:hit.line, evidence:hit.text, confidence:0.95, recommendation:'Cross-check event identity against the live target ref before any privileged action, and fail closed on movement or mismatch.'});
     }
   }
-}
-
-function buildUncertaintyAssessment() {
+}function buildUncertaintyAssessment() {
   const confident = findings.map(f => Number(f.confidence)).filter(Number.isFinite);
   const uncertainty = findings.map(f => Number(f.uncertainty)).filter(Number.isFinite);
   const unresolvedFindings = findings.filter(f => f.uncertainty >= 0.3).map(f => ({
