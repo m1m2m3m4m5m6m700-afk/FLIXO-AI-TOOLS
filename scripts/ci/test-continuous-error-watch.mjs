@@ -117,6 +117,37 @@ const redTeamTarget = validateRepairTarget({
 assert.equal(redTeamTarget.valid, true);
 assert.deepEqual(redTeamTarget.errors, []);
 
+const baseGreenInput = {
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: securityAndCertification,
+  compare: { ahead_by: 1, behind_by: 0 },
+};
+
+
+const cancelledThenSucceeded = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: [
+    ...requiredRuns.map((item) =>
+      item.workflowName === 'FLIXO Test Impact Execution'
+        ? { ...item, conclusion: 'cancelled', databaseId: 42, updatedAt: '2026-09-19T00:02:00Z' }
+        : item),
+    {
+      ...run('FLIXO Test Impact Execution', 43, 'success'),
+      updatedAt: '2026-09-19T00:03:00Z',
+    },
+  ],
+  checkRuns: securityAndCertification,
+  logs: {
+    42: 'EVIDENCE_CAPTURE=AVAILABLE\nsuperseded cancelled run',
+    43: 'EVIDENCE_CAPTURE=AVAILABLE\nsuccessor run',
+  },
+  compare: { ahead_by: 1, behind_by: 0 },
+});
 const redTeamRepairInput = evaluateGreen({
   ...baseGreenInput,
   workflowRuns: [
@@ -176,37 +207,6 @@ const securityAndCertification = [
 
 const openPr = { number: 748, headRefOid: SHA_A, baseRefOid: SHA_B };
 
-const baseGreenInput = {
-  executionSha: SHA_A,
-  mainSha: SHA_B,
-  openPr,
-  workflowRuns: requiredRuns,
-  checkRuns: securityAndCertification,
-  compare: { ahead_by: 1, behind_by: 0 },
-};
-
-
-const cancelledThenSucceeded = evaluateGreen({
-  executionSha: SHA_A,
-  mainSha: SHA_B,
-  openPr,
-  workflowRuns: [
-    ...requiredRuns.map((item) =>
-      item.workflowName === 'FLIXO Test Impact Execution'
-        ? { ...item, conclusion: 'cancelled', databaseId: 42, updatedAt: '2026-09-19T00:02:00Z' }
-        : item),
-    {
-      ...run('FLIXO Test Impact Execution', 43, 'success'),
-      updatedAt: '2026-09-19T00:03:00Z',
-    },
-  ],
-  checkRuns: securityAndCertification,
-  logs: {
-    42: 'EVIDENCE_CAPTURE=AVAILABLE\nsuperseded cancelled run',
-    43: 'EVIDENCE_CAPTURE=AVAILABLE\nsuccessor run',
-  },
-  compare: { ahead_by: 1, behind_by: 0 },
-});
 assert.equal(
   cancelledThenSucceeded.ci.requiredWorkflows['FLIXO Test Impact Execution'].status,
   'success',
