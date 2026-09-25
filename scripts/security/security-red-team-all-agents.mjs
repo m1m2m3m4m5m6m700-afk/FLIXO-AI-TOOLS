@@ -133,6 +133,7 @@ const report={
  findings,
  failures,
  adversarialProbes:5,
+ attacks,
  status:failures.length===0&&findings.length===0?'PASS':'FAIL',
  discoveredAt:new Date().toISOString()
 };
