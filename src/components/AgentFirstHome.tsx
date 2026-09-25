@@ -1,11 +1,15 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import type { Locale } from '@/lib/i18n';
 import { getHomeCopy } from '../data/home-locales';
 import { LOCALES } from '../lib/i18n';
-import { FlixoAIAgent } from './FlixoAIAgent';
 import { FlixoLogoImage } from './FlixoLogoImage';
 import './agent-first-home.css';
+
+const FlixoAIAgent = lazy(async () => {
+  const module = await import('./FlixoAIAgent');
+  return { default: module.FlixoAIAgent };
+});
 
 const BROWSE_TOOLS_LABELS: Record<Locale, string> = {
   en: 'Browse tools', ar: 'تصفح الأدوات', es: 'Explorar herramientas', fr: 'Parcourir les outils',
@@ -13,7 +17,7 @@ const BROWSE_TOOLS_LABELS: Record<Locale, string> = {
   ja: 'ツールを参照', ko: '도구 둘러보기', ms: 'Semak alat', nl: 'Tools bekijken',
   pl: 'Przeglądaj narzędzia', pt: 'Explorar ferramentas', ru: 'Обзор инструментов',
   sv: 'Bläddra bland verktyg', th: 'เรียกดูเครื่องมือ', tr: 'Araçlara göz at',
-  uk: 'Переглянути інструменти', vi: 'Duyệt công cụ',
+  uk: 'Переглянути інструментите', vi: 'Duyệt công cụ',
 };
 
 const LANGUAGE_LABELS: Record<Locale, string> = {
@@ -87,7 +91,11 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
           <h1 id="home-title">{renderHeroTitle(home.heroTitle)}</h1>
           <p>{home.eyebrow}</p>
         </div>
-        <div className="agent-first-chat"><FlixoAIAgent locale={locale} /></div>
+        <div className="agent-first-chat">
+          <Suspense fallback={<div role="status" aria-live="polite">Loading…</div>}>
+            <FlixoAIAgent locale={locale} />
+          </Suspense>
+        </div>
         <p className="agent-first-hint">{home.heroLead}</p>
       </section>
     </main>
