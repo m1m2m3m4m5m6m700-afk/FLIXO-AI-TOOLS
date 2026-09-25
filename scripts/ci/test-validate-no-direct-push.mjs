@@ -43,7 +43,7 @@ run({
 run({
   workflowName:'unsafe-contents.yml',
   contents:['permissions:','  contents: read','run: |','  gh api --method PATCH repos/x/contents/src/a.ts'].join('\n'),
-  expectedPass:false,expectedReason:'WORKFLOW_HTTP_GIT_WRITE_NOT_ALLOWLISTED'
+  expectedPass:false,expectedReason:'WORKFLOW_REPOSITORY_CONTENTS_WRITE_FORBIDDEN'
 });
 run({
   workflowName:'unsafe-push.yml',
