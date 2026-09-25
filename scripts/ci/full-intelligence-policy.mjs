@@ -4,54 +4,29 @@ import path from 'node:path';
 import { buildSharedLearningContext } from './shared-operational-memory.mjs';
 
 const ROOT = process.cwd();
-export const FULL_INTELLIGENCE_PROTOCOL = 'FLIXO-FULL-INTELLIGENCE-v1';
-export const FULL_INTELLIGENCE_VERSION = 'FLIXO-BOT-BRAIN-v1';
+export const FULL_INTELLIGENCE_PROTOCOL = 'FLIXO-FULL-INTELLIGENCE-v2';
+export const FULL_INTELLIGENCE_VERSION = 'FLIXO-BOT-BRAIN-v2';
 export const FULL_REASONING_MODE = 'FULL_ALWAYS';
 
-export const FULL_REASONING_LENSES = Object.freeze([
-  'HUMAN_INTENT_MODELING',
-  'EVIDENCE_PROVENANCE',
-  'UNCERTAINTY_MODELING',
-  'MINIMAL_CHANGE_SELECTION',
-  'ROOT_CAUSE_ANALYSIS',
-  'HYPOTHESIS_DISCRIMINATION',
-  'ADVERSARIAL_FALSIFICATION',
-  'DEPENDENCY_IMPACT_REASONING',
-  'REGRESSION_REASONING',
-  'SECURITY_BOUNDARY_REASONING',
-  'RECOVERY_REASONING',
-  'TEMPORAL_STATE_REASONING',
-  'PERFORMANCE_REASONING',
-  'LEARNING_AND_ANTI_LESSON',
-]);
+function readRegistry() {
+  const file = path.resolve(ROOT, 'docs/agents/FLIXO-BOT.json');
+  return JSON.parse(fs.readFileSync(file, 'utf8'));
+}
 
-export const FULL_REASONING_SEQUENCE = Object.freeze([
-  'OBSERVE',
-  'INVENTORY',
-  'CLASSIFY',
-  'CORRELATE',
-  'BUILD_WORLD_MODEL',
-  'GENERATE_HYPOTHESES',
-  'DISCRIMINATE_WITH_EVIDENCE',
-  'CHALLENGE_ADVERSARIALLY',
-  'SCOPE_MINIMAL_CHANGE',
-  'SIMULATE_OR_PREDICT',
-  'TARGETED_REGRESSION',
-  'VERIFY_EXACT_SHA_AND_LEARN',
-]);
+function readUnifiedRegistryKernel() {
+  return readRegistry().unifiedCognitiveKernel;
+}
 
+const UNIFIED_KERNEL = readUnifiedRegistryKernel();
+
+export const FULL_REASONING_LENSES = Object.freeze([...(UNIFIED_KERNEL.reasoningLenses ?? [])]);
+export const FULL_REASONING_SEQUENCE = Object.freeze([...(UNIFIED_KERNEL.reasoningSequence ?? [])]);
 export const FULL_RESOURCE_POLICY = Object.freeze({
+  ...(UNIFIED_KERNEL.resourcePolicy ?? {}),
   noComplexityDowngrade: true,
   reasoningEffort: 'MAXIMUM',
-  maxReasoningLoops: 7,
-  maxHypotheses: 8,
-  sharedMemoryLimit: 128,
-  exactShaRequired: true,
-  freshEvidenceRequired: true,
-  contradictionPreserved: true,
-  failClosedOnUnknowns: true,
+  sharedMemoryLimit: Math.max(128, Number(UNIFIED_KERNEL.resourcePolicy?.sharedMemoryLimit ?? 128)),
 });
-
 export const FULL_GUARDRAILS = Object.freeze([
   'NO_BLIND_RETRY',
   'NO_HIDDEN_AUTHORITY_TRANSFER',
@@ -83,6 +58,9 @@ export function buildFullIntelligenceBootstrap({
   const learningConsumers = Array.isArray(registry.distribution?.learningConsumers)
     ? registry.distribution.learningConsumers
     : [];
+  const internalConsumers = Array.isArray(registry.distribution?.systemWideInternalConsumers)
+    ? registry.distribution.systemWideInternalConsumers
+    : [];
   const activeAudience = registry.activeMembers && typeof registry.activeMembers === 'object' && !Array.isArray(registry.activeMembers)
     ? Object.values(registry.activeMembers).flatMap((value) => Array.isArray(value) ? value : [])
     : [];
@@ -90,10 +68,12 @@ export function buildFullIntelligenceBootstrap({
     ? registry.aliases
     : {};
   const globalAudience = new Set(
-    [...learningConsumers, ...activeAudience]
+    [...learningConsumers, ...internalConsumers, ...activeAudience]
       .map((value) => String(value).trim())
       .filter(Boolean),
   );
+  const kernel = registry.unifiedCognitiveKernel;
+  if (!kernel || kernel.version !== FULL_INTELLIGENCE_VERSION) throw new Error('FULL_INTELLIGENCE_UNIFIED_KERNEL_MISSING');
   const normalizedAgentId = String(agentId ?? '').trim();
   const canonicalAgentId = String(aliasMap[normalizedAgentId] ?? normalizedAgentId).trim();
   if (!normalizedAgentId) throw new Error('FULL_INTELLIGENCE_AGENT_ID_REQUIRED');
@@ -119,6 +99,11 @@ export function buildFullIntelligenceBootstrap({
     allLenses: FULL_REASONING_LENSES,
     reasoningSequence: FULL_REASONING_SEQUENCE,
     resources: FULL_RESOURCE_POLICY,
+    capabilityIds: Object.freeze([...(kernel.capabilities ?? [])]),
+    unifiedKernel: kernel,
+    overProvisionedCognition: kernel.overProvisionedCognition === true,
+    internalConsumerCount: internalConsumers.length,
+    roleOverlayPolicy: kernel.roleOverlayPolicy ?? null,
     guardrails: FULL_GUARDRAILS,
     collectiveMemory: sharedLearning,
     authority: 'CONTEXT_ONLY',
@@ -134,6 +119,8 @@ export function assertFullIntelligenceBootstrap(context, expectedAgentId = null)
   if (context.version !== FULL_INTELLIGENCE_VERSION) throw new Error('FULL_INTELLIGENCE_VERSION_MISMATCH');
   if (context.mode !== FULL_REASONING_MODE) throw new Error('FULL_INTELLIGENCE_MODE_DOWNGRADE');
   if (!Array.isArray(context.allLenses) || context.allLenses.length < FULL_REASONING_LENSES.length) throw new Error('FULL_INTELLIGENCE_LENS_SET_INCOMPLETE');
+  if (!Array.isArray(context.capabilityIds) || context.capabilityIds.length < 90) throw new Error('FULL_INTELLIGENCE_CAPABILITY_SET_INCOMPLETE');
+  if (context.overProvisionedCognition !== true) throw new Error('FULL_INTELLIGENCE_OVERPROVISIONING_DISABLED');
   if (!context.resources?.noComplexityDowngrade || context.resources.reasoningEffort !== 'MAXIMUM') throw new Error('FULL_INTELLIGENCE_RESOURCE_POLICY_DOWNGRADED');
   if (expectedAgentId && context.agentId !== expectedAgentId) throw new Error('FULL_INTELLIGENCE_AGENT_ID_MISMATCH');
   if (context.mutationAuthority === true || context.certificationAuthority === true) throw new Error('FULL_INTELLIGENCE_AUTHORITY_LEAK');
