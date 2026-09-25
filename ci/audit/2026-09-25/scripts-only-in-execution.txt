@@ -11,6 +11,7 @@ scripts/ci/master-repair-conversation.mjs
 scripts/ci/master-repair-engine.mjs
 scripts/ci/repair-pre-commit-adversarial-redteam-gate.mjs
 scripts/ci/resident-wake-proof.mjs
+scripts/ci/runtime-proof-historical-closure.json
 scripts/ci/sync-cognitive-learning-mesh.mjs
 scripts/ci/test-agent-work-package-contract.mjs
 scripts/ci/test-auto-repair-boundary-diff.mjs

@@ -1,12 +1,12 @@
 MAIN_SHA=1a26c4a3624ec7ae58a8c52191246dda423de5bb
-EXECUTION_SHA=a896dd138b193a72ebcfbe5aab64ba877b3b89e3
+EXECUTION_SHA=e7159306055c70cd0b1acd063cd3c4c84cd8fb99
 COMPARE_STATUS=diverged
-AHEAD_BY=1178
+AHEAD_BY=1179
 BEHIND_BY=3
-TOTAL_COMMITS=1178
+TOTAL_COMMITS=1179
 CHANGED_FILES=300
-ADDITIONS=15149
-DELETIONS=1375
+ADDITIONS=14713
+DELETIONS=1362
 
  .github/dependabot.yml | 5 changes, +5, -0
  .github/workflows/action-agent-history-promotion.yml | 7 changes, +6, -1
@@ -55,7 +55,7 @@ DELETIONS=1375
  .github/workflows/unified-execution-push-gate.yml | 2 changes, +1, -1
  .github/workflows/wp0-trust-baseline.yml | 46 changes, +24, -22
  AGENTS.md | 14 changes, +11, -3
- PROJECTS.md | 4 changes, +2, -2
+ PROJECTS.md | 22 changes, +20, -2
  ai-quickflow-hardening.md | 44 changes, +44, -0
  api/admin/boundary.ts | 128 changes, +88, -40
  api/admin/centers.ts | 47 changes, +36, -11
@@ -66,11 +66,13 @@ DELETIONS=1375
  artifacts/ci/execution-log.md | 14 changes, +8, -6
  ci/INTEGRATION-BLOCKER.md | 27 changes, +25, -2
  ci/audit/2026-09-25/branch-diff.txt | 310 changes, +310, -0
- ci/audit/2026-09-25/exec-scripts.txt | 606 changes, +606, -0
+ ci/audit/2026-09-25/exec-scripts.txt | 604 changes, +604, -0
  ci/audit/2026-09-25/main-scripts.txt | 562 changes, +562, -0
- ci/audit/2026-09-25/scripts-only-in-execution.txt | 45 changes, +45, -0
- ci/audit/2026-09-25/task-004-implementation.md | 6 changes, +6, -0
- ci/audit/2026-09-25/unregistered-workflows.json | 62 changes, +62, -0
+ ci/audit/2026-09-25/script-usage-blocker.md | 7 changes, +7, -0
+ ci/audit/2026-09-25/scripts-only-in-execution.txt | 46 changes, +46, -0
+ ci/audit/2026-09-25/task-004-implementation.md | 10 changes, +10, -0
+ ci/audit/2026-09-25/unregistered-workflows.json | 49 changes, +49, -0
+ ci/audit/2026-09-25/unregistered-writers.json | 46 changes, +46, -0
  db/council-external-accounts.sql | 115 changes, +111, -4
  diagnostics/agents/inbox/812a5d72ef714f44d70d6b18749a24cca12bcabd9a48adb945c27d488ca9c9f3.json | 73 changes, +73, -0
  diagnostics/agents/inbox/index.json | 12 changes, +11, -1
@@ -175,8 +177,8 @@ DELETIONS=1375
  scripts/ci/master-repair-conversation.mjs | 55 changes, +55, -0
  scripts/ci/master-repair-engine.mjs | 297 changes, +297, -0
  scripts/ci/prompt-execution-bot.mjs | 14 changes, +10, -4
- scripts/ci/prompt-registry.mjs | 506 changes, +495, -11
- scripts/ci/record-playwright-execution.mjs | 4 changes, +2, -2
+ scripts/ci/prompt-registry.mjs | 0 changes, +0, -0
+ scripts/ci/record-playwright-execution.mjs | 0 changes, +0, -0
  scripts/ci/repair-lease.mjs | 0 changes, +0, -0
  scripts/ci/repair-pre-commit-adversarial-redteam-gate.mjs | 0 changes, +0, -0
  scripts/ci/repair-protocol.mjs | 0 changes, +0, -0
@@ -306,5 +308,3 @@ DELETIONS=1375
  src/data/why-flixo.ts | 0 changes, +0, -0
  src/lib/agent/cognitive-orchestrator.ts | 0 changes, +0, -0
  src/lib/agent/cognitive-outcome.ts | 0 changes, +0, -0
- src/lib/agent/collective-intelligence.ts | 0 changes, +0, -0
- src/lib/agent/conversation.ts | 0 changes, +0, -0

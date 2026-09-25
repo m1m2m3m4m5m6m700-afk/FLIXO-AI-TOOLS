@@ -1,7 +1,7 @@
 {
   "schema": "p-clean/unregistered-writers/v1",
   "generatedAt": "2026-09-25",
-  "executionSha": "a896dd138b193a72ebcfbe5aab64ba877b3b89e3",
+  "executionSha": "e7159306055c70cd0b1acd063cd3c4c84cd8fb99",
   "workflowCount": 52,
   "repairGateAutomation": [
     "auto-repair.yml",
@@ -39,8 +39,12 @@
     "ultra-investigator.yml",
     "unified-execution-push-gate.yml"
   ],
+  "detectedContentsWriteWriters": [
+    "agent-repair-handoff-gate.yml",
+    "daily-flixo-green-gate.yml"
+  ],
   "unregisteredContentsWriteWriters": [],
   "automaticTriggerDisablementsApplied": 0,
-  "method": "contents: write literal scan across all workflow definitions, compared with registry union",
-  "note": "No unregistered contents:write writer was detected; therefore no workflow was disabled."
+  "method": "Exact execution-head scan across all 52 workflow files for contents: write and write-all, compared with registry union.",
+  "note": "No unregistered contents:write/write-all writer detected; no workflow disablement performed."
 }
