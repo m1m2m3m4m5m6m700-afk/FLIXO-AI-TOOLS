@@ -12,7 +12,7 @@ const fail = (message) => { throw new Error(`CI/CD TRUST FAILURE: ${message}`); 
 
 const ci = read('.github/workflows/ci.yml');
 const cd = read('.github/workflows/cd.yml');
-const certifyCore = read('scripts/ci/certify-core.mjs');
+const certificationEngine = read('scripts/ci/certification-engine.mjs');
 
 for (const token of [
   'EXPECTED_SHA:',
@@ -24,8 +24,12 @@ for (const token of [
 ]) {
   if (!ci.includes(token)) fail(`missing canonical CI invariant: ${token}`);
 }
-if (!certifyCore.includes("r.status !== 'PASS'")) {
-  fail("canonical certification engine is missing reducer PASS guard: r.status !== 'PASS'");
+if (!certificationEngine.includes("if (result.status !== 'PASS') process.exit(1);")) {
+  fail("canonical certification engine is missing its fail-closed PASS guard");
+}
+if (!certificationEngine.includes("graph.exactSha !== expectedSha") ||
+    !certificationEngine.includes("String(graph.runId) !== String(runId)")) {
+  fail("canonical certification engine is missing exact SHA/run identity guards");
 }
 if (/continue-on-error\s*:\s*true/i.test(ci)) fail('canonical CI contains continue-on-error=true');
 if (!/if:\s*always\(\)/.test(ci)) fail('Certification must execute with if: always()');
