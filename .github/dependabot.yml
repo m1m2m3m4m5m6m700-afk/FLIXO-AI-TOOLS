@@ -8,3 +8,8 @@ updates:
     versioning-strategy: increase-if-necessary
     labels:
       - security
+    groups:
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"

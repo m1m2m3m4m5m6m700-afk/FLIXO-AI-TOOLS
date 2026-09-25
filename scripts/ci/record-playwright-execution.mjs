@@ -32,7 +32,7 @@ const expectedFastSpecs = [
   'tests/image-to-svg.spec.ts','tests/image-ocr.spec.ts','tests/photo-colorizer.spec.ts','tests/background-blur.spec.ts',
   'tests/passport-photo-maker.spec.ts','tests/watermark-adder.spec.ts','tests/meme-generator.spec.ts','tests/collage-maker.spec.ts',
   'tests/image-effects.spec.ts','tests/exif-cleaner.spec.ts','tests/svg-optimizer.spec.ts','tests/mockup-generator.spec.ts',
-  'tests/seed.spec.ts','tests/pix.spec.ts',
+  'tests/seed.spec.ts','tests/pix.spec.ts','tests/mvp-agent-e2e.spec.ts',
 ];
 const expectedDeepSpec = 'tests/localization-runtime.spec.ts';
 const deepSpecAliases = new Set([
@@ -222,7 +222,7 @@ const output = {
     uniqueCoverageIds: coverageIds,
   },
   semanticCoverage: {
-    model: mode === 'FAST' ? '22 specs × 3 browsers = 66 semantic spec-browser units, partitioned by shard' : `${localeCodes.length} locales × 3 browsers = ${localeCodes.length * 3} semantic locale-browser units, partitioned by shard`,
+    model: mode === 'FAST' ? '23 specs × 3 browsers = 69 semantic spec-browser units, partitioned by shard' : `${localeCodes.length} locales × 3 browsers = ${localeCodes.length * 3} semantic locale-browser units, partitioned by shard`,
     plannedSemanticUnitCount: mode === 'FAST' ? expectedFastSpecs.length : localeCodes.length,
     semanticUnitCount: semanticUnitSet.size,
     semanticUnitIds: [...semanticUnitSet].sort(),

@@ -12,7 +12,7 @@ const fail = (message) => { throw new Error(`CI/CD TRUST FAILURE: ${message}`); 
 
 const ci = read('.github/workflows/ci.yml');
 const cd = read('.github/workflows/cd.yml');
-const certifyCore = read('scripts/ci/certify-core.mjs');
+const certificationEngine = read('scripts/ci/certification-engine.mjs');
 
 for (const token of [
   'EXPECTED_SHA:',
@@ -24,8 +24,12 @@ for (const token of [
 ]) {
   if (!ci.includes(token)) fail(`missing canonical CI invariant: ${token}`);
 }
-if (!certifyCore.includes("r.status !== 'PASS'")) {
-  fail("canonical certification engine is missing reducer PASS guard: r.status !== 'PASS'");
+if (!certificationEngine.includes("if (result.status !== 'PASS') process.exit(1);")) {
+  fail("canonical certification engine is missing its fail-closed PASS guard");
+}
+if (!certificationEngine.includes("graph.exactSha !== expectedSha") ||
+    !certificationEngine.includes("String(graph.runId) !== String(runId)")) {
+  fail("canonical certification engine is missing exact SHA/run identity guards");
 }
 if (/continue-on-error\s*:\s*true/i.test(ci)) fail('canonical CI contains continue-on-error=true');
 if (!/if:\s*always\(\)/.test(ci)) fail('Certification must execute with if: always()');
@@ -77,11 +81,11 @@ for (const state of ['FAIL', 'BLOCKED', 'CANCELLED', 'NOT_EXECUTED', 'MISSING_EV
 if (reduceCheckResults([{ id: 'A', status: 'PASS' }], 2).decision) fail('missing execution unit incorrectly certified');
 if (reduceCheckResults([{ id: 'A', status: 'PASS' }, { id: 'A', status: 'PASS' }], 1).decision) fail('unexpected execution cardinality incorrectly certified');
 
-const expectedSemantic = new Set(Array.from({ length: 66 }, (_, index) => `FAST:${index}`));
+const expectedSemantic = new Set(Array.from({ length: 69 }, (_, index) => `FAST:${index}`));
 const tamperedSemantic = new Set(expectedSemantic);
-tamperedSemantic.delete('FAST:65');
+tamperedSemantic.delete('FAST:68');
 if (tamperedSemantic.size === expectedSemantic.size) fail('coverage mutation was not detected');
-if (tamperedSemantic.size !== 65) fail('coverage mutation cardinality control failed');
+if (tamperedSemantic.size !== 68) fail('coverage mutation cardinality control failed');
 
 const digestA = createHash('sha256').update('IMMUTABLE-CI-CD-TRUST').digest('hex');
 const digestB = createHash('sha256').update('TAMPERED-CI-CD-TRUST').digest('hex');

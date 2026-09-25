@@ -1,10 +1,11 @@
-import { useEffect } from 'react';
-import { FlixoLogoImage } from './FlixoLogoImage';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import type { Locale } from '@/lib/i18n';
 import { getHomeCopy } from '../data/home-locales';
 import { LOCALES } from '../lib/i18n';
 import { FlixoAIAgent } from './FlixoAIAgent';
+import { FlixoLogoImage } from './FlixoLogoImage';
+import { WhyFlixoDialog } from './WhyFlixoDialog';
 import './agent-first-home.css';
 
 const IMAGE_TOOLS_LABELS: Record<Locale, string> = {
@@ -46,6 +47,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
   const navigate = useNavigate();
   const copy = COPY[locale === 'ar' ? 'ar' : 'en'];
   const home = getHomeCopy(locale);
+  const [showWhyFlixo, setShowWhyFlixo] = useState(false);
   function renderHeroTitle(value: string) {
     const opening = '[[';
     const closing = ']]';
@@ -75,7 +77,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
       <header className="agent-first-nav">
         {locale === 'en' ? (
           <Link className="agent-first-brand" to="/" aria-label={copy.title}>
-            <FlixoLogoImage alt="FLIXO AI Tools" width={40} height={40} />
+            <img className="agent-first-brand-mark" src="/flixo-brand-mark.webp" alt="FLIXO" width={40} height={40} />
           </Link>
         ) : (
           <Link className="agent-first-brand" to="/$locale" params={{ locale }} aria-label={copy.title}>
@@ -85,6 +87,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
         <nav className="agent-first-nav-actions" aria-label={home.ariaPrimary}>
           <Link className="agent-first-tools-button" to="/$locale/$tool" params={{ locale, tool: 'image-compressor' }}>{IMAGE_TOOLS_LABELS[locale]}</Link>
           <Link className="agent-first-tools-button" to="/$locale/$tool" params={{ locale, tool: 'filter-mask' }}>{FILTER_LABELS[locale]}</Link>
+          <button className="agent-first-tools-button agent-first-why-button" type="button" onClick={() => setShowWhyFlixo(true)}>{locale === 'ar' ? 'لماذا FLIXO؟' : 'Why FLIXO?'}</button>
           <label className="sr-only" htmlFor="home-language">{home.nav.switch}</label>
           <select
             id="home-language"
@@ -111,6 +114,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
         <div className="agent-first-chat"><FlixoAIAgent locale={locale} /></div>
         <p className="agent-first-hint">{copy.hint}</p>
       </section>
+      <WhyFlixoDialog locale={locale === 'ar' ? 'ar' : 'en'} open={showWhyFlixo} onClose={() => setShowWhyFlixo(false)} />
     </main>
   );
 }

@@ -7,6 +7,11 @@ const envelope=buildAdvancedAgentEnvelope({
  role:'PRIMARY_ACTION_REPAIR',objective:'Diagnose one exact-SHA Actions failure',requiredCapabilities:['RCA','EVIDENCE'],evidenceGradeMinimum:'E3'
 });
 assert.equal(envelope.cognitionTier,'ADVANCED');
+assert.equal(envelope.toolBudget,32);
+assert.equal(envelope.maxReasoningLoops,7);
+assert.equal(envelope.controls.reasoningEffort,'MAXIMUM');
+assert.equal(envelope.controls.fullIntelligence,true);
+assert.equal(envelope.controls.noComplexityDowngrade,true);
 assert.deepEqual(envelope.phases,['INTAKE','CONTEXT_RETRIEVAL','PLAN','EXECUTE','SELF_CHECK','INDEPENDENT_REVIEW','VERIFY','LEARN']);
 const result={profileId:'ACTION_PRIMARY_REPAIR_V1',exactSha:sha,planSummary:'Bounded RCA then verify',decision:'REVIEW',verification:'Targeted evidence collected',selfCritique:'Checked for stale SHA and alternative cause',decisionTrace:'Selected the smallest evidence-backed action',nextAction:'Independent review',findings:['f'],evidence:['e'],unknowns:[],alternativesConsidered:['a'],evidenceGrade:'E4',verificationPassed:true,selfApproved:false,reviewRequired:true};
 assert.equal(validateAdvancedAgentResult({envelope,result}).valid,true);

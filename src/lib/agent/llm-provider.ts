@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { planFromIntent } from '@/lib/ai/planner';
 import { parseExecutionPlan, safeParseExecutionPlan, type ExecutionPlanContract } from '@/lib/contracts/ai-plan';
+import { isDeterministicPlanCompatible } from '@/lib/ai/deterministic-boundary';
 
 const ProviderMessageSchema = z.object({
   role: z.enum(['system', 'user', 'assistant']),
@@ -216,9 +217,10 @@ export async function planWithProviderOrLocal(
     maxRetryDelayMs?: number;
   } = {},
 ): Promise<ProviderOrLocalResult> {
+  const deterministic = planLocally(input);
   if (!provider) {
     return Object.freeze({
-      plan: planLocally(input),
+      plan: deterministic,
       source: 'local',
       latencyMs: 0,
       attempts: 0,
@@ -227,6 +229,24 @@ export async function planWithProviderOrLocal(
   const started = performance.now();
   try {
     const result = await planFromProvider(provider, input, options);
+    if (!isDeterministicPlanCompatible(result.plan, deterministic)) {
+      const providerFailure = new LLMProviderError(
+        'INVALID_PLAN',
+        'LLM provider proposed a plan that conflicts with deterministic QuickFlow.',
+        undefined,
+        undefined,
+        result.attempts,
+      );
+      return Object.freeze({
+        plan: deterministic,
+        source: 'local',
+        latencyMs: result.latencyMs,
+        attempts: result.attempts,
+        model: result.model,
+        usage: result.usage,
+        providerFailure,
+      });
+    }
     return Object.freeze({
       plan: result.plan,
       source: 'provider',

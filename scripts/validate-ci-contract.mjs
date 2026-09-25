@@ -23,11 +23,55 @@ const impactExecutionWorkflow = readFileSync('.github/workflows/test-impact-exec
 const securityBaselineWorkflow = readFileSync('.github/workflows/repository-security-baseline.yml', 'utf8');
 const claudeSecurityWorkflow = readFileSync('.github/workflows/claude-security-review.yml', 'utf8');
 const greenGateWorkflow = readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
+const autoRepairMergeGateWorkflow = readFileSync('.github/workflows/auto-repair-merge-gate.yml', 'utf8');
+const repairAgentIntakeWorkflow = readFileSync('.github/workflows/repair-agent-intake.yml', 'utf8');
+const agentMasterActivationWorkflow = readFileSync('.github/workflows/agent-master-activation.yml', 'utf8');
+const continuousWatchWorkflow = readFileSync('scripts/ci/continuous-error-watch.mjs', 'utf8');
 const currentCommitGuard = readFileSync('scripts/ci/assert-current-commit.mjs', 'utf8');
 const workflow = workflowSource.replace(/\\"/g, '"');
+const latestCommitSupersessionWorkflow = readFileSync('.github/workflows/latest-commit-test-supersession.yml', 'utf8');
+const latestCommitPolicyChecks = [
+  ['controller actions write permission', /permissions:[\s\S]*actions:\s*write/.test(latestCommitSupersessionWorkflow)],
+  ['controller cancels active stale SHA runs', /Cancel every active run for an older SHA/.test(latestCommitSupersessionWorkflow)],
+  ['controller enumerates all workflow runs', /gh api --paginate.*actions\/runs\?branch=\$BRANCH&per_page=100/.test(latestCommitSupersessionWorkflow)],
+  ['controller has no resident exceptions', !/is_resident_protected_run|KEEP_STARTED_STALE_RUN/.test(latestCommitSupersessionWorkflow)],
+  ['controller fails closed on unresolved cancellation', /FAIL CLOSED: unable to cancel stale active run/.test(latestCommitSupersessionWorkflow)],
+  ['mandatory live-head guard has no bypass flag', !/requireLiveHeadMatch|DELEGATED_TO_SUPERSESSION_GATE/.test(currentCommitGuard)],
+];
+for (const [label, ok] of latestCommitPolicyChecks) {
+  if (!ok) {
+    console.error('CI contract failed: latest-commit-only policy: ' + label);
+    process.exit(1);
+  }
+}
+for (const {file, text} of workflowTexts) {
+  if (!/workflow_run:/u.test(text)) continue;
+  const readOnlyPublicationConsumer = file === 'agent-repair-handoff-gate.yml';
+  if (readOnlyPublicationConsumer) {
+    const sourceGuard =
+      /SOURCE_RUN_SHA:\s*\$\{\{\s*github\.event\.workflow_run\.head_sha/u.test(text) &&
+      /LIVE_MAIN_SHA=/u.test(text) &&
+      /test "\$LIVE_MAIN_SHA" = "\$SOURCE_RUN_SHA"/u.test(text) &&
+      /FAIL CLOSED:/u.test(text);
+    if (!sourceGuard) {
+      console.error('CI contract failed: ' + file + ' must have a fail-closed read-only source-SHA guard.');
+      process.exit(1);
+    }
+    continue;
+  }
+  if (!/scripts\/ci\/assert-workflow-run-current\.mjs/u.test(text)) {
+    console.error('CI contract failed: ' + file + ' consumes workflow_run without the fail-closed source-SHA guard.');
+    process.exit(1);
+  }
+  if (!/actions:\s*write/u.test(text)) {
+    console.error('CI contract failed: ' + file + ' needs actions: write so a stale workflow_run can be cancelled.');
+    process.exit(1);
+  }
+}
+
 const testEngine = readFileSync('scripts/test.mjs', 'utf8');
 const certifyEngine = readFileSync('scripts/ci/certify.mjs', 'utf8');
-const certifyCore = readFileSync('scripts/ci/certify-core.mjs', 'utf8');
+const certificationEngine = readFileSync('scripts/ci/certification-engine.mjs', 'utf8');
 const autoRepairWorkflow = readFileSync('.github/workflows/auto-repair.yml', 'utf8');
 const cellMasterConsultWorkflow = readFileSync('.github/workflows/cell-master-consult.yml', 'utf8');
 const executionWatchdogWorkflow = readFileSync('.github/workflows/execution-bot-watchdog.yml', 'utf8');
@@ -39,8 +83,7 @@ const required = [
   ['Browser FAST engine', /\n\s{2}browser_fast:\s*\n/],
   ['Browser DEEP engine', /\n\s{2}browser_deep:\s*\n/],
   ['single certification gate', /\n\s{2}certify:\s*\n/],
-  ['superseding exact-SHA verification CI', /cancel-in-progress:\s*true/],
-  ['latest-push branch concurrency isolation', /group:\s*flixo-test-\$\{\{\s*github\.event\.pull_request\.head\.repo\.full_name\s*\|\|\s*github\.repository\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name\s*\}\}/],
+  ['latest-push branch/exact-SHA concurrency isolation', /group:\s*flixo-test-(?:\$\{\{\s*github\.event_name\s*\}\}-)?\$\{\{\s*github\.event\.pull_request\.head\.repo\.full_name\s*\|\|\s*github\.repository\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/],
   ['exact SHA', /EXPECTED_SHA/],
   ['immutable artifact identity', /flixo-head-sha\.txt[\s\S]*flixo-package-lock\.sha256/],
   ['minimal checkout', /fetch-depth:\s*1/],
@@ -97,8 +140,6 @@ const exactShaVerificationWorkflows = [
   ['test-impact-execution.yml', impactExecutionWorkflow],
   ['repository-security-baseline.yml', securityBaselineWorkflow],
 ];
-const nonCancellingExactShaEvidence = new Set(['test-impact.yml']);
-
 if (!/EXPECTED_SHA/.test(currentCommitGuard) ||
     !/EXPECTED_BRANCH/.test(currentCommitGuard) ||
     !/FAIL CLOSED/.test(currentCommitGuard) ||
@@ -130,18 +171,11 @@ if (missingCurrentCommitGuardJobs.length) {
   process.exit(1);
 }
 
+const standaloneSupersessionControllerValidated = latestCommitPolicyChecks.every(([, ok]) => ok);
+
 for (const [file, source] of exactShaVerificationWorkflows) {
-  const requiresCancellation = !nonCancellingExactShaEvidence.has(file);
-  const cancellationPattern = requiresCancellation
-    ? /cancel-in-progress:\s*true/.test(source)
-    : /cancel-in-progress:\s*false/.test(source);
-  if (!cancellationPattern) {
-    console.error(
-      'CI contract failed: ' + file +
-      (requiresCancellation
-        ? ' must cancel superseded verification runs.'
-        : ' must preserve an already-started exact-SHA evidence run.')
-    );
+  if (!/cancel-in-progress:\s*true/.test(source) && !standaloneSupersessionControllerValidated) {
+    console.error('CI contract failed: ' + file + ' requires either direct supersession cancellation or a validated standalone latest-commit supersession controller.');
     process.exit(1);
   }
   const sourceUsesEventScopedSha =
@@ -160,8 +194,8 @@ for (const [file, source] of exactShaVerificationWorkflows) {
   }
 }
 
-if (!/cancel-in-progress:\s*false/.test(claudeSecurityWorkflow)) {
-  console.error('CI contract failed: claude-security-review.yml must preserve advisory review runs once started.');
+if (!/cancel-in-progress:\s*true/.test(claudeSecurityWorkflow) && !standaloneSupersessionControllerValidated) {
+  console.error('CI contract failed: claude-security-review.yml requires either direct supersession cancellation or a validated standalone latest-commit supersession controller.');
   process.exit(1);
 }
 const claudeConcurrencyBlock = claudeSecurityWorkflow.match(/concurrency:[\s\S]*?(?=\n#|\npermissions:)/)?.[0] ?? '';
@@ -174,11 +208,11 @@ if (!claudeGroupLine.startsWith('group: claude-security-') || !claudeGroupUsesRe
 }
 
 for (const [file, source] of [
-  ['auto-repair.yml', readFileSync('.github/workflows/auto-repair.yml', 'utf8')],
+  ['auto-repair.yml', autoRepairWorkflow],
   ['execution-sync.yml', readFileSync('.github/workflows/execution-sync.yml', 'utf8')],
 ]) {
-  if (!/cancel-in-progress:\s*false/.test(source)) {
-    console.error('CI contract failed: ' + file + ' must remain non-canceling because it carries repair state.');
+  if (!/concurrency:/.test(source)) {
+    console.error('CI contract failed: ' + file + ' must declare a concurrency boundary under the repository latest-commit policy.');
     process.exit(1);
   }
 }
@@ -227,7 +261,7 @@ const watchdogExactVerify =
 const watchdogSourceFreshnessMarkers = [
   'name: Capture exact execution state',
   "SOURCE_RUN_SHA: ${{ github.event.workflow_run.head_sha || '' }}",
-  'LIVE_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq \'.object.sha\')"',
+  'LIVE_EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk \'{print $1}\')"',
   'if [ "$LIVE_EXECUTION_SHA" != "$SOURCE_RUN_SHA" ]',
   'STALE_WATCHDOG_EVENT=true',
 ];
@@ -235,9 +269,9 @@ const watchdogSourceFreshness = watchdogSourceFreshnessMarkers.every((marker) =>
   executionWatchdogWorkflow.includes(marker),
 );
 const watchdogConcurrency =
-  /concurrency:[\s\S]*group:\s*flixo-execution-watchdog-single-observer[\s\S]*cancel-in-progress:\s*true/.test(executionWatchdogWorkflow);
+  /concurrency:[\s\S]*group:\s*flixo-execution-watchdog-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*cancel-in-progress:\s*false/.test(executionWatchdogWorkflow);
 if (!watchdogExactCheckout || !watchdogExactVerify || !watchdogSourceFreshness || !watchdogConcurrency) {
-  console.error('CI contract failed: execution-bot-watchdog.yml must execute only trusted controller code from main, observe the exact execution SHA through GitHub APIs, and reject stale workflow_run events.');
+  console.error('CI contract failed: execution-bot-watchdog.yml must execute only trusted controller code from main, observe the exact execution SHA through GitHub APIs, reject stale workflow_run events, and never self-cancel a concurrent recovery observer.');
   process.exit(1);
 }
 const watchdogStepBlock = (workflowText, stepName) => {
@@ -346,6 +380,59 @@ if (
   process.exit(1);
 }
 
+const promotionClosureValidator = readFileSync('scripts/ci/validate-promotion-closure.mjs', 'utf8');
+const canonicalWorkflowSourceMarkers = [
+  ['watcher-path-map', continuousWatchWorkflow, 'REQUIRED_WORKFLOW_PATHS'],
+  ['watcher-path-filter', continuousWatchWorkflow, 'run.workflowName === name && (!expectedPath || String(run.workflowPath ?? run.path ?? \'\') === expectedPath)'],
+  ['merge-path-map', autoRepairMergeGateWorkflow, 'REQUIRED_WORKFLOW_PATHS'],
+  ['merge-path-filter', autoRepairMergeGateWorkflow, '.path == $path'],
+  ['merge-cancel-visible', autoRepairMergeGateWorkflow, 'conclusion == "cancelled"'],
+  ['daily-path-filter', greenGateWorkflow, '.path == (".github/workflows/" + $file)'],
+  ['intake-durable-run-gate', repairAgentIntakeWorkflow, "steps.resolve_run.outputs.has_run == 'true'"],
+  ['intake-source-path', repairAgentIntakeWorkflow, 'WORKFLOW_PATH'],
+  ['master-activation-source', agentMasterActivationWorkflow, '.github/workflows/ci.yml'],
+  ['master-activation-live-sha', agentMasterActivationWorkflow, 'git/ref/heads/execution'],
+  ['watchdog-source-path', executionWatchdogWorkflow, 'SOURCE_PATH'],
+];
+for (const [label, source, marker] of canonicalWorkflowSourceMarkers) {
+  if (!source.includes(marker)) {
+    console.error('CI contract failed: ' + label + ' is missing.');
+    process.exit(1);
+  }
+}
+if (repairAgentIntakeWorkflow.includes("hashFiles('/tmp/run-id')")) {
+  console.error('CI contract failed: repair-agent-intake cannot use hashFiles on /tmp.');
+  process.exit(1);
+}
+if (!greenGateWorkflow.includes('SETTLEMENT_FOUND_RED')) {
+  console.error('CI contract failed: Daily Green Gate must expose latest cancellation as RED evidence.');
+  process.exit(1);
+}
+const certificationSourceBindingChecks = [
+  ['TEST_SYSTEM_RUN_ID assignment', /TEST_SYSTEM_RUN_ID=/],
+  ['exact-SHA Test System run selector', /select\(\.name == "FLIXO Test System"[^\n]*\.headSha == \$sha[^\n]*\.status == "completed"[^\n]*\.conclusion == "success"\)/],
+  ['Certification selector', /select\(\.name == "Certification"\)/],
+  ['Certification exact-SHA selector', /select\(\.head_sha == \$sha\)/],
+  ['Certification action-run URL validation', /test\("\/actions\/runs\/\[0-9\]\+\(\?:\/job\/\[0-9\]\+\)\?/],
+  ['canonical certification failure message', /canonical Certification check missing or not linked to the canonical FLIXO Test System run/],
+];
+if (!autoRepairMergeGateWorkflow || !certificationSourceBindingChecks.every(([, pattern]) => pattern.test(autoRepairMergeGateWorkflow))) {
+  const missing = certificationSourceBindingChecks.filter(([, pattern]) => !pattern.test(autoRepairMergeGateWorkflow)).map(([label]) => label);
+  console.error('CI contract failed: Auto Repair Merge Gate certification source binding is incomplete: ' + missing.join(', '));
+  process.exit(1);
+}
+for (const marker of [
+  'CANONICAL_TEST_SYSTEM_RUN_MISSING',
+  'CERTIFICATION_MISSING_OR_NONCANONICAL',
+  'actionRunIdOfCheck',
+  'run?.head_sha === expectedSha',
+]) {
+  if (!promotionClosureValidator.includes(marker)) {
+    console.error('CI contract failed: promotion closure certification source binding is incomplete: ' + marker);
+    process.exit(1);
+  }
+}
+
 const protectedLiveRuntime = workflowTexts.find(({ file }) => file === 'council-live-runtime-verification.yml');
 if (!protectedLiveRuntime ||
     !/^\s{2}verify:\s*$/m.test(protectedLiveRuntime.text) ||
@@ -370,8 +457,11 @@ for (const job of ['verify', 'browser_fast', 'browser_deep', 'certify']) {
 
 for (const [label, source, pattern] of [
   ['central result-state reducer', testEngine, /result-state\.mjs/],
-  ['central result-state reducer import in certification core', certifyCore, /result-state\.mjs/],
-  ['certification wrapper delegates to canonical core', certifyEngine, /certify-core\.mjs/],
+  ['certification wrapper delegates directly to canonical engine', certifyEngine, /certification-engine\.mjs/],
+  ['canonical certification authority identity', certificationEngine, /authority:\s*'CANONICAL_CERTIFICATION_ENGINE'/],
+  ['canonical certification exact-SHA guard', certificationEngine, /graph\.exactSha !== expectedSha/],
+  ['canonical certification exact-run guard', certificationEngine, /String\(graph\.runId\) !== String\(runId\)/],
+  ['canonical certification fail-closed result', certificationEngine, /if \(result\.status !== 'PASS'\) process\.exit\(1\)/],
   ['explicit cancellation state', resultState, /['"]CANCELLED['"]/],
   ['explicit missing-evidence state', resultState, /['"]MISSING_EVIDENCE['"]/],
   ['explicit malformed-evidence state', resultState, /['"]MALFORMED_EVIDENCE['"]/],
@@ -391,8 +481,8 @@ if (!/browser:\s*\[chromium, firefox, webkit\]/.test(workflow)) {
 const fast = workflow.match(/browser_fast:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
 const deep = workflow.match(/browser_deep:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
 const fastSpecs = [...new Set(fast.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? [])];
-if (fastSpecs.length !== 22) {
-  console.error(`CI contract failed: FAST browser ownership must contain exactly 22 unique canonical tool specs; found ${fastSpecs.length}.`);
+if (fastSpecs.length !== 23) {
+  console.error(`CI contract failed: FAST browser ownership must contain exactly 23 unique canonical FAST specs; found ${fastSpecs.length}.`);
   process.exit(1);
 }
 if (!/tests\/localization-runtime\.spec\.ts/.test(deep)) {
@@ -410,6 +500,7 @@ if (/github\.event_name\s*!=\s*'pull_request'/.test(deep)) {
 
 const semanticValidationCommands = [
   'scripts/ci/test-execution-graph-semantic-identity.mjs',
+  'scripts/ci/test-canonical-chain-red-team-v2.mjs',
   'scripts/ci/test-image-core-foundation.mjs',
   'scripts/ci/validate-playwright-surface.mjs',
   'scripts/ci/validate-certification-surface.mjs',

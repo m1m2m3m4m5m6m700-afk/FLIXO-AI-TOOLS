@@ -9,6 +9,7 @@ import { buildRepairEngineeringPlan, executeRepairEngineering } from './action-r
 import { buildCausalDiscriminator } from './action-causal-discriminator.mjs';
 import { buildMetaCausalModel } from './meta-causal-model.mjs';
 import { runGate } from './action-vault-agent-gate.mjs';
+import { buildFullIntelligenceBootstrap, assertFullIntelligenceBootstrap } from './full-intelligence-policy.mjs';
 
 const ROOT=process.cwd();
 const arg=(name,fallback='')=>{const p='--'+name+'=';const v=process.argv.find(x=>x.startsWith(p));return v?v.slice(p.length):fallback};
@@ -20,12 +21,12 @@ const logPath=arg('log');
 const output=arg('output','/tmp/action-agent-runtime.json');
 
 const MODEL_DEFAULTS=Object.freeze({
-  ACTION_COMMANDER_V1:{modelProfile:'FRONTIER_REASONING',reasoningEffort:'HIGH',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true},
-  ACTION_PRIMARY_REPAIR_V1:{modelProfile:'FRONTIER_REASONING',reasoningEffort:'HIGH',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true},
-  ACTION_ADVERSARIAL_REPAIR_V1:{modelProfile:'FRONTIER_REASONING_ADVERSARIAL',reasoningEffort:'HIGH',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true},
+  ACTION_COMMANDER_V1:{modelProfile:'FRONTIER_REASONING',reasoningEffort:'MAXIMUM',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true},
+  ACTION_PRIMARY_REPAIR_V1:{modelProfile:'FRONTIER_REASONING',reasoningEffort:'MAXIMUM',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true},
+  ACTION_ADVERSARIAL_REPAIR_V1:{modelProfile:'FRONTIER_REASONING_ADVERSARIAL',reasoningEffort:'MAXIMUM',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true},
   ACTION_FRONTIER_REPAIR_V2:{modelProfile:'FRONTIER_CODING_REASONING',reasoningEffort:'MAXIMUM',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true},
   ACTION_HISTORICAL_EXPLORER_V2:{modelProfile:'FRONTIER_HISTORICAL_REASONING',reasoningEffort:'MAXIMUM',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true},
-  ACTION_FAILURE_HISTORIAN_V2:{modelProfile:'FRONTIER_FORENSIC_REASONING',reasoningEffort:'HIGH',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true}
+  ACTION_FAILURE_HISTORIAN_V2:{modelProfile:'FRONTIER_FORENSIC_REASONING',reasoningEffort:'MAXIMUM',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true}
 });
 
 const readJson=(p,d)=>fs.existsSync(p)?JSON.parse(fs.readFileSync(p,'utf8')):d;
@@ -99,7 +100,7 @@ const metaCausalModel=buildMetaCausalModel({
 const hypothesisBase=causalDiscriminator.hypotheses.slice(0,12);
 
 const toolBudget={
-  maxToolCalls:36,
+  maxToolCalls:60,
   maxHistoricalRecords:150,
   maxMessagesPerAgent:300,
   maxCandidateHypotheses:12,
@@ -161,6 +162,9 @@ const codeMentor=buildMentorPacket({
   sourceFiles:mentorPaths,
   mode:'TEACH'
 });
+const fullIntelligence = buildFullIntelligenceBootstrap({ agentId: String(process.env.FLIXO_AGENT_ID ?? 'executionAgent'), role: String(process.env.FLIXO_AGENT_ROLE ?? 'executionAgent'), request: task, exactSha: targetSha, taskId: task });
+assertFullIntelligenceBootstrap(fullIntelligence, fullIntelligence.agentId);
+
 const safety={
   exactShaRequired:true,
   evidenceFirst:true,
@@ -211,6 +215,7 @@ const runtime={
   differentialVerification:repairEngineeringExecution?.simulations?.map((item)=>item.differential??null).filter(Boolean)??[],
   toolBudget,
   safety,
+  fullIntelligence,
   actionVaultAdmission:{
     status:actionVaultAdmission.status,
     authority:actionVaultAdmission.authority,

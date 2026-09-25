@@ -7,12 +7,12 @@ on:
     branches: [main, execution]
   workflow_dispatch:
 
-# Every initial verification lane is bound to repository + branch + exact head SHA.
-# The dedicated Latest Commit Supersession controller cancels older-SHA verification runs.
-# Reruns retain an immutable run-specific lane and cannot cancel a different commit.
+# Every verification lane is bound to repository + branch + live head.
+# The trusted supersession controller cancels only queued/pending stale-SHA work; started evidence is preserved.
+# Reruns retain immutable run identity and remain fail-closed.
 concurrency:
-  group: flixo-test-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}${{ github.run_attempt > 1 && format('-rerun-{0}', github.run_id) || '' }}
-  cancel-in-progress: true
+  group: flixo-test-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}-${{ github.event.pull_request.head.sha || github.sha }}${{ github.run_attempt > 1 && format('-rerun-{0}', github.run_id) || '' }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -53,6 +53,11 @@ jobs:
           REQUIRE_LIVE_HEAD_MATCH: 'true'
         run: node scripts/ci/assert-current-commit.mjs
       - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Canonical Assurance Gate
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          FLIXO_CANONICAL_ASSURANCE_OUTPUT: /tmp/flixo-canonical-assurance.json
+        run: node scripts/ci/test-canonical-assurance.mjs --mode=full
       - name: Create immutable run identity
         run: node scripts/ci/create-run-identity.mjs
       - name: Verify immutable rerun lock
@@ -72,6 +77,8 @@ jobs:
         run: npm run test:canonical-governance
       - name: Static contracts
         run: npm run test:static
+      - name: AI / QuickFlow hardening regression
+        run: npm run test:ai-quickflow-hardening
       - name: Build contracts
         run: npm run test:build
       - name: Propagate immutable run identity into browser build artifact
@@ -121,6 +128,14 @@ jobs:
           test "$(cat "dist/__flixo/identity/$EXPECTED_SHA/index.txt")" = "$EXPECTED_SHA"
           node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("dist/__flixo/build-identity.json","utf8")); if(x.commitSha!==process.env.EXPECTED_SHA) throw new Error("Invalid commitSha"); if(x.artifactHash!==fs.readFileSync("dist/__flixo/artifact-hash.txt","utf8").trim()) throw new Error("Invalid artifactHash");'
           sha256sum -c dist/flixo-package-lock.sha256
+      - name: Publish canonical assurance evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: flixo-canonical-assurance-${{ github.run_id }}
+          path: /tmp/flixo-canonical-assurance.json
+          if-no-files-found: error
+          retention-days: 30
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: flixo-build-${{ github.run_id }}
@@ -258,8 +273,8 @@ jobs:
           SHARD: ${{ matrix.shard }}
         run: |
           set -euo pipefail
-          specs=(tests/image-compressor.spec.ts tests/background-remover.spec.ts tests/image-upscaler.spec.ts tests/image-converter.spec.ts tests/ai-image-generator.spec.ts tests/object-remover.spec.ts tests/watermark-remover.spec.ts tests/image-cropper.spec.ts tests/image-to-svg.spec.ts tests/image-ocr.spec.ts tests/photo-colorizer.spec.ts tests/background-blur.spec.ts tests/passport-photo-maker.spec.ts tests/watermark-adder.spec.ts tests/meme-generator.spec.ts tests/collage-maker.spec.ts tests/image-effects.spec.ts tests/exif-cleaner.spec.ts tests/svg-optimizer.spec.ts tests/mockup-generator.spec.ts tests/seed.spec.ts tests/pix.spec.ts)
-          test "${#specs[@]}" -eq 22
+          specs=(tests/image-compressor.spec.ts tests/background-remover.spec.ts tests/image-upscaler.spec.ts tests/image-converter.spec.ts tests/ai-image-generator.spec.ts tests/object-remover.spec.ts tests/watermark-remover.spec.ts tests/image-cropper.spec.ts tests/image-to-svg.spec.ts tests/image-ocr.spec.ts tests/photo-colorizer.spec.ts tests/background-blur.spec.ts tests/passport-photo-maker.spec.ts tests/watermark-adder.spec.ts tests/meme-generator.spec.ts tests/collage-maker.spec.ts tests/image-effects.spec.ts tests/exif-cleaner.spec.ts tests/svg-optimizer.spec.ts tests/mockup-generator.spec.ts tests/seed.spec.ts tests/pix.spec.ts tests/mvp-agent-e2e.spec.ts)
+          test "${#specs[@]}" -eq 23
           npx playwright test "${specs[@]}" --project="$BROWSER" --workers=6 --retries=0 --max-failures=0 --shard="$SHARD/2"
           mkdir -p diagnostics/certification/playwright-results
           printf '%s\n' "{\"evidenceClass\":\"PRIMARY_EXECUTION\",\"mode\":\"FAST\",\"browser\":\"$BROWSER\",\"shard\":$SHARD,\"sha\":\"$EXPECTED_SHA\",\"run_id\":\"${GITHUB_RUN_ID}\",\"toolSpecs\":22,\"status\":\"PASS\"}" > "diagnostics/certification/browser-fast-${BROWSER}-${SHARD}.json"

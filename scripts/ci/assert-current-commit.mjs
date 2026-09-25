@@ -6,7 +6,6 @@ const expectedSha = (process.env.EXPECTED_SHA ?? '').trim();
 const expectedBranch = (process.env.EXPECTED_BRANCH ?? '').trim();
 const expectedRepository = (process.env.EXPECTED_REPOSITORY ?? process.env.GITHUB_REPOSITORY ?? '').trim();
 const token = (process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN ?? '').trim();
-const requireLiveHeadMatch = /^(?:1|true|yes)$/iu.test((process.env.REQUIRE_LIVE_HEAD_MATCH ?? '').trim());
 
 if (!/^[0-9a-f]{40}$/iu.test(expectedSha)) {
   console.error('FAIL CLOSED: EXPECTED_SHA is missing or malformed.');
@@ -16,18 +15,18 @@ if (!expectedBranch || !expectedRepository || expectedRepository.split('/').leng
   console.error('FAIL CLOSED: expected repository/branch identity is incomplete.');
   process.exit(1);
 }
-const branchPath = expectedBranch.split('/').map(encodeURIComponent).join('/');
-const apiUrl = `https://api.github.com/repos/${expectedRepository}/git/ref/heads/${branchPath}`;
-const remoteRef = `refs/heads/${expectedBranch}`;
 
-let localSha;
+const branchPath = expectedBranch.split('/').map(encodeURIComponent).join('/');
+const apiUrl = 'https://api.github.com/repos/' + expectedRepository + '/git/ref/heads/' + branchPath;
+const remoteRef = 'refs/heads/' + expectedBranch;
+
+let localSha = '';
 try {
-  // Browser jobs may run in a container with different repository ownership. Mark only this workspace as safe for the read-only SHA probe.
   localSha = await new Promise((resolve, reject) => {
     execFile(
       'git',
       ['-c', 'safe.directory=' + process.cwd(), 'rev-parse', 'HEAD'],
-      { encoding: 'utf8' },
+      {encoding: 'utf8'},
       (error, stdout, stderr) => {
         if (error) reject(new Error(stderr || error.message));
         else resolve(String(stdout ?? '').trim());
@@ -39,35 +38,33 @@ try {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 }
+
 if (!/^[0-9a-f]{40}$/iu.test(localSha) || localSha !== expectedSha) {
-  console.error(`FAIL CLOSED: local checkout SHA ${localSha || '<empty>'} does not equal EXPECTED_SHA ${expectedSha}.`);
+  console.error('FAIL CLOSED: local checkout SHA ' + (localSha || '<empty>') + ' does not equal EXPECTED_SHA ' + expectedSha + '.');
   process.exit(1);
 }
 
-let actualSha;
-let resolutionMode = token ? 'GITHUB_API' : 'PUBLIC_GIT_REMOTE';
+let actualSha = '';
 try {
   if (token) {
     const response = await fetch(apiUrl, {
-      method: 'GET',
       headers: {
         accept: 'application/vnd.github+json',
-        authorization: `Bearer ${token}`,
+        authorization: 'Bearer ' + token,
         'x-github-api-version': '2022-11-28',
         'user-agent': 'FLIXO-current-commit-verifier',
       },
     });
     if (!response.ok) {
-      throw new Error(`GitHub API HTTP ${response.status}: ${await response.text()}`);
+      throw new Error('GitHub API HTTP ' + response.status + ': ' + await response.text());
     }
-    const body = await response.json();
-    actualSha = String(body?.object?.sha ?? '').trim();
+    actualSha = String((await response.json())?.object?.sha ?? '').trim();
   } else {
     const remote = await new Promise((resolve, reject) => {
       execFile(
         'git',
-        ['ls-remote', `https://github.com/${expectedRepository}.git`, remoteRef],
-        { encoding: 'utf8' },
+        ['ls-remote', 'https://github.com/' + expectedRepository + '.git', remoteRef],
+        {encoding: 'utf8'},
         (error, stdout, stderr) => {
           if (error) reject(new Error(stderr || error.message));
           else resolve(String(stdout ?? ''));
@@ -87,24 +84,17 @@ if (!/^[0-9a-f]{40}$/iu.test(actualSha)) {
   process.exit(1);
 }
 
-const liveHeadMatches = actualSha === expectedSha;
-if (actualSha !== expectedSha && requireLiveHeadMatch) {
+if (actualSha !== expectedSha) {
   console.error(
-    `FAIL CLOSED: commit ${expectedSha} is superseded by ${actualSha} on ${expectedRepository}/${expectedBranch}.`,
+    'FAIL CLOSED: commit ' + expectedSha + ' is stale; live head is ' + actualSha +
+    ' on ' + expectedRepository + '/' + expectedBranch + '.',
   );
   process.exit(1);
 }
 
-if (!liveHeadMatches) {
-  console.warn(
-    `LIVE_HEAD_MOVED=1 EXPECTED_SHA=${expectedSha} OBSERVED_REMOTE_SHA=${actualSha} ` +
-      `BRANCH=${expectedBranch} REPOSITORY=${expectedRepository} ` +
-      'LOCAL_CHECKOUT_REMAINS_EXACT=1 CURRENTNESS_DECISION=DELEGATED_TO_SUPERSESSION_GATE',
-  );
-}
-
 console.log(
-  `CURRENT_COMMIT_VERIFIED=1 SHA=${expectedSha} BRANCH=${expectedBranch} REPOSITORY=${expectedRepository} ` +
-    `MODE=${resolutionMode} REMOTE_SHA=${actualSha} LIVE_HEAD_MATCH=${liveHeadMatches ? '1' : '0'} ` +
-    `LIVE_HEAD_ENFORCEMENT=${requireLiveHeadMatch ? '1' : '0'}`,
+  'CURRENT_COMMIT_VERIFIED=1 SHA=' + expectedSha +
+  ' BRANCH=' + expectedBranch +
+  ' REPOSITORY=' + expectedRepository +
+  ' LIVE_HEAD_MATCH=1 LIVE_HEAD_ENFORCEMENT=MANDATORY',
 );

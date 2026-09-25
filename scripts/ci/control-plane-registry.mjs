@@ -14,9 +14,8 @@ export const REPAIR_GATE_AUTOMATION = Object.freeze([
 export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
   'auto-repair.yml',
   'daily-flixo-green-gate.yml',
-  'execution-sync.yml',
+  'agent-repair-handoff-gate.yml',
   'repair-lease-live-race.yml',
-  'historical-action-error-index.yml',
   'action-agent-history-promotion.yml',
   'task-history-ledger.yml',
 ]);
@@ -24,11 +23,16 @@ export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
 export const SENSITIVE_PERMISSION_ALLOWLISTS = Object.freeze({
   contents: Object.freeze([...WRITE_CAPABLE_WORKFLOWS]),
   actions: Object.freeze([
+    'action-agent-history-promotion.yml',
     'agent-communication-relay.yml',
+    'agent-repair-handoff-gate.yml',
     'daily-flixo-green-gate.yml',
     'execution-bot-watchdog.yml',
     'latest-commit-test-supersession.yml',
     'latest-execution-head-cleanup.yml',
+    'agent-repair-heartbeat.yml',
+    'agent-master-activation.yml',
+    'repair-agent-intake.yml',
   ]),
   'id-token': Object.freeze([
     'agent-communication-relay.yml',
@@ -67,6 +71,7 @@ export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
   'council-live-runtime-verification.yml',
   'security-red-team.yml',
   'master-repair-governor.yml',
+  'agent-repair-heartbeat.yml',
 ]);
 
 export const HISTORICAL_REPAIR_WORKFLOWS = Object.freeze([
@@ -131,12 +136,113 @@ export const TRUST_PERIMETER_PATHS = Object.freeze([
   'scripts/ci/test-promotion-closure.mjs',
   'scripts/ci/verify-council-live-runtime.mjs',
   'scripts/security/security-red-team-runner.mjs',
+  'scripts/security/security-red-team-all-agents.mjs',
   'scripts/security/record-security-findings.mjs',
   'scripts/ci/test-security-red-team-contract.mjs',
   'docs/agents/SECURITY-RED-TEAM-BOTS.json',
   '.github/workflows/security-red-team.yml',
 ]);
 
+
+
+export const CONTROL_PLANE_WORKFLOW_REGISTRY = Object.freeze({
+  'agent-repair-handoff-gate.yml': Object.freeze({
+    classification: 'EXECUTION_REF_WRITER',
+    capabilities: Object.freeze(['contents:write', 'execution-ref-write']),
+    mutationLane: 'EXECUTION',
+    authority: 'CHAIR_1_PUBLICATION',
+    mutationGate: 'scripts/ci/execution-mutation-gate.mjs',
+    directRefMutation: true,
+  }),
+  'daily-flixo-green-gate.yml': Object.freeze({
+    classification: 'CONTROL_WRITE',
+    capabilities: Object.freeze(['contents:write', 'actions:write']),
+    mutationLane: 'CONTROL',
+    authority: 'DAILY_GREEN_GATE',
+    directRefMutation: false,
+  }),
+  'action-agent-history-promotion.yml': Object.freeze({
+    classification: 'ACTIONS_CONTROL_WRITE',
+    capabilities: Object.freeze(['actions:write']),
+    mutationLane: 'CONTROL',
+    authority: 'ACTION_HISTORY_PROMOTION',
+    directRefMutation: false,
+  }),
+  'agent-communication-relay.yml': Object.freeze({
+    classification: 'CONTROL_WRITE',
+    capabilities: Object.freeze(['actions:write', 'issues:write', 'id-token:write']),
+    mutationLane: 'CONTROL',
+    authority: 'AGENT_COMMUNICATION_RELAY',
+    directRefMutation: false,
+  }),
+  'agent-master-activation.yml': Object.freeze({
+    classification: 'CONTROL_WRITE',
+    capabilities: Object.freeze(['actions:write', 'issues:write', 'pull-requests:write', 'id-token:write']),
+    mutationLane: 'CONTROL',
+    authority: 'AGENT_MASTER_ACTIVATION',
+    directRefMutation: false,
+  }),
+  'execution-bot-watchdog.yml': Object.freeze({
+    classification: 'ACTIONS_CONTROL_WRITE',
+    capabilities: Object.freeze(['actions:write']),
+    mutationLane: 'CONTROL',
+    authority: 'EXECUTION_BOT_WATCHDOG',
+    directRefMutation: false,
+  }),
+  'latest-commit-test-supersession.yml': Object.freeze({
+    classification: 'ACTIONS_CONTROL_WRITE',
+    capabilities: Object.freeze(['actions:write']),
+    mutationLane: 'CONTROL',
+    authority: 'TEST_SUPERSESSION',
+    directRefMutation: false,
+  }),
+  'latest-execution-head-cleanup.yml': Object.freeze({
+    classification: 'ACTIONS_CONTROL_WRITE',
+    capabilities: Object.freeze(['actions:write']),
+    mutationLane: 'CONTROL',
+    authority: 'EXECUTION_HEAD_CLEANUP',
+    directRefMutation: false,
+  }),
+  'repair-agent-intake.yml': Object.freeze({
+    classification: 'CONTROL_WRITE',
+    capabilities: Object.freeze(['actions:write', 'issues:write']),
+    mutationLane: 'CONTROL',
+    authority: 'REPAIR_AGENT_INTAKE',
+    directRefMutation: false,
+  }),
+  'council-priority-wake.yml': Object.freeze({
+    classification: 'CONTROL_WRITE',
+    capabilities: Object.freeze(['issues:write', 'id-token:write']),
+    mutationLane: 'CONTROL',
+    authority: 'COUNCIL_PRIORITY_WAKE',
+    directRefMutation: false,
+  }),
+  'council-wake-push-relay.yml': Object.freeze({
+    classification: 'CONTROL_WRITE',
+    capabilities: Object.freeze(['issues:write', 'id-token:write']),
+    mutationLane: 'CONTROL',
+    authority: 'COUNCIL_WAKE_PUSH_RELAY',
+    directRefMutation: false,
+  }),
+  'council-external-lease-watch.yml': Object.freeze({
+    classification: 'IDENTITY_CONTROL_WRITE',
+    capabilities: Object.freeze(['id-token:write']),
+    mutationLane: 'CONTROL',
+    authority: 'COUNCIL_EXTERNAL_LEASE_WATCH',
+    directRefMutation: false,
+  }),
+  'claude-security-review.yml': Object.freeze({
+    classification: 'PR_CONTROL_WRITE',
+    capabilities: Object.freeze(['pull-requests:write']),
+    mutationLane: 'CONTROL',
+    authority: 'SECURITY_REVIEW',
+    directRefMutation: false,
+  }),
+});
+
+export const DIRECT_EXECUTION_REF_WRITERS = Object.freeze([
+  'agent-repair-handoff-gate.yml',
+]);
 
 export const BOT_RUNTIME_PROTOCOL = 'FLIXO-UNIFIED-BOT-RUNTIME-v1';
 export const BOT_RUNTIME_ENGINE_VERSION = 'UNIFIED-BOT-ENGINE-v1';
@@ -191,6 +297,12 @@ export const BOT_RUNTIME_ROLES = Object.freeze({
     certificationAuthority: false,
     reportOnly: false,
     boundedMutationOnly: true,
+    canReadRepository: true,
+    canWriteExecutionSource: true,
+    canWriteTests: false,
+    canWriteMain: false,
+    canWriteControlPlane: false,
+    transactionalWrites: true,
     requiresChair1: true,
     requiresIndependentVerification: true,
     capabilities: Object.freeze([
@@ -202,6 +314,37 @@ export const BOT_RUNTIME_ROLES = Object.freeze({
       'PATCH_CORRECTNESS_PROOF',
       'ADAPTIVE_REPAIR_PORTFOLIO',
       'TEN_X_REPAIR',
+      'REPOSITORY_READ',
+      'REPOSITORY_INTELLIGENCE_GRAPH',
+      'DEPENDENCY_IMPACT_ANALYSIS',
+      'NO_REPAIR_DECISION',
+      'BOUNDED_SOURCE_WRITE',
+      'PATCH_TRANSACTION',
+      'ROLLBACK_EXECUTION',
+      'PERSISTENT_REPAIR_RECEIPT',
+    ]),
+  }),
+  FLIXO_TEAM: Object.freeze({
+    mutationAuthority: false,
+    certificationAuthority: false,
+    reportOnly: false,
+    canReadRepository: true,
+    canWriteExecutionSource: false,
+    canWriteTests: false,
+    canWriteMain: false,
+    canWriteControlPlane: false,
+    transactionalWrites: false,
+    capabilities: Object.freeze([
+      ...BOT_RUNTIME_SHARED_CAPABILITIES,
+      'WHOLE_SYSTEM_REPOSITORY_READ',
+      'WHOLE_SYSTEM_RCA',
+      'PROPOSAL_WRITING',
+      'PARALLEL_PROPOSAL_MERGE_REVIEW',
+      'PUSH_SEAT_CLAIM',
+      'PUSH_SEAT_HEARTBEAT',
+      'EXACT_SHA_REVALIDATION',
+      'NO_ABANDONMENT',
+      'NO_PEER_TAKEOVER',
     ]),
   }),
 });
@@ -214,6 +357,22 @@ const BOT_RUNTIME_IDS = Object.freeze({
   'ACTION-TWIN-2': 'ADVERSARIAL',
   'ACTION-INDEX': 'HISTORIAN',
   'ACTION-WISE': 'READ_ONLY',
+  'ACTION-RCA-3': 'ADVERSARIAL',
+  'ACTION-IMPACT-4': 'ADVERSARIAL',
+  'ACTION-SECURITY-5': 'ADVERSARIAL',
+  'ACTION-REGRESSION-6': 'ADVERSARIAL',
+  'ACTION-SHA-7': 'ADVERSARIAL',
+  'ACTION-CONVERGENCE-8': 'ADVERSARIAL',
+  'FLIXO1': 'FLIXO_TEAM',
+  'FLIXO2': 'FLIXO_TEAM',
+  'FLIXO3': 'FLIXO_TEAM',
+  'FLIXO4': 'FLIXO_TEAM',
+  'FLIXO5': 'FLIXO_TEAM',
+  'FLIXO6': 'FLIXO_TEAM',
+  'FLIXO7': 'FLIXO_TEAM',
+  'FLIXO8': 'FLIXO_TEAM',
+  'FLIXO9': 'FLIXO_TEAM',
+  'FLIXO10': 'FLIXO_TEAM',
   'ACTION-WAKE': 'READ_ONLY',
   'ACTION-MASTER': 'MASTER_GATE',
   'AUTO_REPAIR_BOT': 'REPAIR',
@@ -248,6 +407,12 @@ export function getUnifiedBotRuntime(botId) {
     reportOnly: role.reportOnly,
     exactShaRequired: true,
     staleEvidenceRejected: true,
+    canReadRepository: role.canReadRepository === true,
+    canWriteExecutionSource: role.canWriteExecutionSource === true,
+    canWriteTests: role.canWriteTests === true,
+    canWriteMain: role.canWriteMain === true,
+    canWriteControlPlane: role.canWriteControlPlane === true,
+    transactionalWrites: role.transactionalWrites === true,
   });
 }
 
@@ -267,6 +432,10 @@ export function validateUnifiedBotRuntimeRegistry() {
     else {
       const runtime = getUnifiedBotRuntime(id);
       if (runtime.mutationAuthority && !['REPAIR','MASTER_REPAIR'].includes(role)) failures.push('UNAUTHORIZED_MUTATION_ROLE=' + id);
+      if (role === 'MASTER_REPAIR') {
+        if (!runtime.canReadRepository || !runtime.canWriteExecutionSource || !runtime.transactionalWrites) failures.push('MASTER_REPAIR_IO_CAPABILITY_MISSING=' + id);
+        if (runtime.canWriteTests || runtime.canWriteMain || runtime.canWriteControlPlane) failures.push('MASTER_REPAIR_BOUNDARY_BREACH=' + id);
+      }
       if (runtime.certificationAuthority) failures.push('BOT_CERTIFICATION_AUTHORITY_LEAK=' + id);
       if (!runtime.exactShaRequired || !runtime.staleEvidenceRejected) failures.push('IDENTITY_GUARD_MISSING=' + id);
     }

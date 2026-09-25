@@ -2,7 +2,19 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const files = [
+const READ_ONLY_WORKFLOW_RUN_PUBLISHERS = new Set(['agent-repair-handoff-gate.yml']);
+
+function assertWorkflowRunSourceBinding(file, source) {
+  if (READ_ONLY_WORKFLOW_RUN_PUBLISHERS.has(file)) {
+    assert.match(source, /SOURCE_RUN_SHA:\s*\$\{\{\s*github\.event\.workflow_run\.head_sha/u, file + ': read-only workflow_run publisher must bind source SHA');
+    assert.match(source, /LIVE_MAIN_SHA=/u, file + ': read-only workflow_run publisher must resolve live main SHA');
+    assert.match(source, /test "\$LIVE_MAIN_SHA" = "\$SOURCE_RUN_SHA"/u, file + ': read-only workflow_run publisher must reject superseded source');
+    return;
+  }
+  assert.match(source, /scripts\/ci\/assert-workflow-run-current\.mjs/u, file + ': workflow_run consumer must bind current source SHA');
+}
+
+const requiredWorkflows = [
   '.github/workflows/ci.yml',
   '.github/workflows/test-impact.yml',
   '.github/workflows/test-impact-execution.yml',
@@ -12,101 +24,92 @@ const files = [
   '.github/workflows/claude-security-review.yml',
   '.github/workflows/auto-repair-merge-gate.yml',
 ];
-const staleGuard = /Fail closed when this commit is superseded[\s\S]*?run: node scripts\/ci\/assert-current-commit\.mjs/u;
-const nonCancellingEvidenceFiles = new Set([
-  '.github/workflows/daily-flixo-green-gate.yml',
-  '.github/workflows/test-impact.yml',
-  '.github/workflows/claude-security-review.yml',
-]);
 
-for (const file of files) {
-  assert.ok(fs.existsSync(file), `missing workflow: ${file}`);
+for (const file of requiredWorkflows) {
+  assert.ok(fs.existsSync(file), 'missing workflow: ' + file);
   const source = fs.readFileSync(file, 'utf8');
-  assert.match(source, /concurrency:/u, `${file}: concurrency contract missing`);
-  if (nonCancellingEvidenceFiles.has(file)) {
-    assert.match(source, /cancel-in-progress:\s*false/u, file + ': non-cancelling evidence workflow must preserve started runs');
-  } else {
-    assert.match(source, /cancel-in-progress:\s*true/u, file + ': required verification workflow must cancel stale runs');
-  }
-  assert.match(source, /github\.event\.pull_request\.head\.repo\.full_name \|\| github\.repository/u, `${file}: head repository is not part of concurrency identity`);
-  assert.match(source, /github\.event\.pull_request\.head\.ref \|\| github\.ref_name/u, file + ': head branch is not part of concurrency identity');
-  assert.match(source, /github\.event\.pull_request\.head\.sha \|\| github\.sha/u, file + ': exact head SHA is not part of concurrency identity');
-  if (file !== '.github/workflows/auto-repair-merge-gate.yml') {
-    assert.match(source, staleGuard, `${file}: stale exact-SHA guard missing`);
+  assert.match(source, /concurrency:/u, file + ': concurrency contract missing');
+  const workflowRunConsumer = /^(?:.*\n)*\s*workflow_run\s*:/m.test(source);
+  if (workflowRunConsumer) {
+    assertWorkflowRunSourceBinding(file, source);
+  } else if (/^(?:.*\n)*\s*(?:push|pull_request)\s*:/m.test(source)) {
+    const hasExplicitExactShaGuard = /scripts\/ci\/assert-current-commit\.mjs/u.test(source) || /Bind exact execution head/u.test(source) || /HEARTBEAT_EXACT_SHA=/u.test(source) || (/EXPECTED_SHA/u.test(source) && /Checkout exact SHA/u.test(source) && /Validate exact SHA format/u.test(source));
+    assert.equal(hasExplicitExactShaGuard, true, file + ': commit-driven workflow must have a fail-closed exact-SHA guard');
+    assert.match(source, /(?:github\.event\.pull_request\.head\.sha \|\| github\.sha|EXPECTED_SHA|EXPECTED_CLEANUP_SHA|LIVE_SHA|OBSERVED_SHA|LIVE_OBSERVED_SHA|HEARTBEAT_EXACT_SHA=)/u, file + ': exact SHA binding missing');
+    if (/^\s*pull_request(?:\s*:|\s*$)/mu.test(source)) {
+      assert.match(source, /github\.event\.pull_request\.head\.(?:repo\.full_name|ref)/u, file + ': PR source identity binding missing');
+    }
   }
 }
 
-const supersession = fs.readFileSync('.github/workflows/latest-commit-test-supersession.yml','utf8');
-assert.match(supersession, /name:\s*FLIXO Latest Commit Test Supersession/u);
-assert.match(supersession, /branches:\s*\n\s*- execution/u);
-assert.match(supersession, /actions:\s*write/u);
-assert.match(supersession, /actions\/runs\?branch=\$BRANCH&per_page=100/u);
-assert.match(supersession, /TARGET_BRANCH: \$\{\{ github\.event\.pull_request\.head\.ref \|\| github\.ref_name \}\}/u);
-assert.match(supersession, /SOURCE_REPOSITORY: \$\{\{ github\.event\.pull_request\.head\.repo\.full_name \|\| github\.repository \}\}/u);
-assert.match(supersession, /repos\/\$GITHUB_REPOSITORY\/pulls\/\$PR_NUMBER/u);
-assert.match(supersession, /is_supersedable_run\(\)/u);
-assert.match(supersession, /head_repository\.full_name == \$sourceRepo/u);
-assert.match(supersession, /CANCEL_STALE_RUN/u);
-assert.match(supersession, /LATEST_COMMIT_SUPERSESSION=PASS/u);
-assert.match(supersession, /SUPERSESSION_EXTERNAL_BLOCKER=GITHUB_ACTIONS_API_RATE_LIMIT/u);
-assert.match(supersession, /BLOCKED_EXTERNAL: GitHub Actions API rate limit/u);
+const controller = fs.readFileSync('.github/workflows/latest-commit-test-supersession.yml', 'utf8');
+assert.match(controller, /actions:\s*write/u);
+assert.match(controller, /Cancel every active run for an older SHA/u);
+assert.match(controller, /gh api --paginate/u);
+assert.match(controller, /head_sha != \$sha/u);
+assert.match(controller, /STALE_RUN_CANCELLED/u);
+assert.match(controller, /LATEST_COMMIT_ONLY_ENFORCED=true/u);
+assert.doesNotMatch(controller, /is_resident_protected_run/u);
+assert.doesNotMatch(controller, /KEEP_STARTED_STALE_RUN/u);
 
-const watchdog = fs.readFileSync('.github/workflows/execution-bot-watchdog.yml','utf8');
-assert.match(watchdog, /group:\s*flixo-execution-watchdog-\$\{\{\s*github\.event\.workflow_run\.head_sha\s*\|\|\s*github\.sha\s*\}\}/u);
-assert.match(watchdog, /cancel-in-progress:\s*true/u);
-const greenGate = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml','utf8');
-assert.match(greenGate, /group:\s*flixo-continuous-error-watch-\$\{\{\s*github\.event\.workflow_run\.head_sha\s*\|\|\s*github\.sha\s*\}\}-\$\{\{\s*github\.run_id\s*\}\}/u);
-assert.match(greenGate, /cancel-in-progress:\s*false/u);
-
-const ci = fs.readFileSync('.github/workflows/ci.yml','utf8');
-assert.match(ci, /push:\s*\n\s*branches:\s*\[main, execution\]/u);
-assert.match(ci, /group:\s*flixo-test-/u);
-assert.match(ci, /cancel-in-progress:\s*true/u);
+const currentCommitGuard = fs.readFileSync('scripts/ci/assert-current-commit.mjs', 'utf8');
+assert.match(currentCommitGuard, /actualSha !== expectedSha/u);
+assert.match(currentCommitGuard, /FAIL CLOSED/u);
+assert.doesNotMatch(currentCommitGuard, /CURRENTNESS_DECISION=DELEGATED_TO_SUPERSESSION_GATE/u);
+assert.doesNotMatch(currentCommitGuard, /requireLiveHeadMatch/u);
 
 const workflowDir = '.github/workflows';
 const currentWorkflows = fs.readdirSync(workflowDir).filter((file) => /\.ya?ml$/u.test(file)).sort();
-const latestOnlyName = /(?:test|verification|contract|security|baseline|certification|impact|codeql|code scanning|diagnostic|proof|scan)/iu;
+const commitDrivenName = /(?:test|verification|contract|security|baseline|certification|impact|codeql|code scanning|diagnostic|proof|scan|repair)/iu;
 
 for (const file of currentWorkflows) {
   if (file === 'latest-commit-test-supersession.yml') continue;
-  const source = fs.readFileSync(`${workflowDir}/${file}`, 'utf8');
+  const source = fs.readFileSync(workflowDir + '/' + file, 'utf8');
   const nameMatch = source.match(/^name:\s*(.+)$/m);
   const workflowName = nameMatch?.[1]?.trim() ?? file;
-  if (!latestOnlyName.test(workflowName)) continue;
-  assert.match(source, /concurrency:/u, `${file}: latest-only workflow must define concurrency`);
-  if (nonCancellingEvidenceFiles.has('.github/workflows/' + file)) {
-    assert.match(source, /cancel-in-progress:\s*false/u, file + ': non-cancelling evidence workflow must retain started runs');
-  } else {
-    assert.match(source, /cancel-in-progress:\s*true/u, file + ': latest-only workflow must cancel superseded runs');
+  if (!commitDrivenName.test(workflowName)) continue;
+  const hasWorkflowRunTrigger = /^\s{2}workflow_run\s*:/mu.test(source);
+  const hasPushTrigger = /^\s{2}push\s*:/mu.test(source);
+  const hasPullRequestTrigger = /^\s{2}pull_request\s*:/mu.test(source);
+  if (!hasWorkflowRunTrigger && !hasPushTrigger && !hasPullRequestTrigger) continue;
+  assert.match(source, /concurrency:/u, file + ': latest-commit workflow must define concurrency');
+  if (hasWorkflowRunTrigger) {
+    assertWorkflowRunSourceBinding(file, source);
+  } else if (hasPushTrigger || hasPullRequestTrigger) {
+    const hasExplicitExactShaGuard =
+      /scripts\/ci\/assert-current-commit\.mjs/u.test(source) ||
+      /Bind exact execution head/u.test(source) ||
+      /HEARTBEAT_EXACT_SHA=/u.test(source) ||
+      /EXPECTED_CLEANUP_SHA/u.test(source) ||
+      /LIVE_OBSERVED_SHA=/u.test(source) ||
+      /OBSERVED_SHA=/u.test(source) ||
+      /EXPECTED_SHA(?:=|:)/u.test(source) ||
+      (/EXPECTED_SHA/u.test(source) && /Checkout exact SHA/u.test(source) && /Validate exact SHA format/u.test(source));
+    assert.equal(hasExplicitExactShaGuard, true, file + ': commit-driven workflow must have a fail-closed exact-SHA guard');
+    assert.match(source, /(?:github\.event\.pull_request\.head\.sha \|\| github\.sha|EXPECTED_SHA|EXPECTED_CLEANUP_SHA|LIVE_SHA|OBSERVED_SHA|LIVE_OBSERVED_SHA|HEARTBEAT_EXACT_SHA=)/u, file + ': exact SHA binding missing');
+    if (hasPullRequestTrigger) {
+      assert.match(source, /github\.event\.pull_request\.head\.(?:repo\.full_name|ref)/u, file + ': PR source identity binding missing');
+    }
   }
-  assert.match(source, /github\.event\.pull_request\.head\.repo\.full_name \|\| github\.repository/u, `${file}: PR head repository missing from concurrency identity`);
-  assert.match(source, /github\.event\.pull_request\.head\.ref \|\| github\.ref_name/u, file + ': PR head branch missing from concurrency identity');
-  assert.match(source, /github\.event\.pull_request\.head\.ref \|\| github\.ref_name/u, file + ': canonical source branch missing from concurrency identity');
-  assert.match(source, /scripts\/ci\/assert-current-commit\.mjs/u, `${file}: exact-SHA freshness guard missing`);
+}
+
+for (const file of currentWorkflows) {
+  const source = fs.readFileSync(workflowDir + '/' + file, 'utf8');
+  if (!/^\s{2}workflow_run\s*:/mu.test(source)) continue;
+  assertWorkflowRunSourceBinding(file, source);
+  if (READ_ONLY_WORKFLOW_RUN_PUBLISHERS.has(file)) {
+    assert.match(source, /actions:\s*read/u, file + ': read-only workflow_run publisher must retain read-only Actions permission');
+    assert.doesNotMatch(source, /actions:\s*write/u, file + ': read-only workflow_run publisher must not gain Actions write authority');
+    continue;
+  }
+  assert.match(
+    source,
+    /actions:\s*write/u,
+    file + ': stale workflow_run consumer must be able to cancel itself fail-closed',
+  );
 }
 
 console.log('LATEST_COMMIT_ONLY_TESTS=PASS');
-console.log('STALE_TEST_CANCELLATION=PASS');
-console.log('EXACT_SHA_STALE_GUARD=PASS');
-console.log('EXECUTION_PUSH_TEST_TRIGGER=PASS');
-
-const cleanupWorkflow = fs.readFileSync('.github/workflows/latest-execution-head-cleanup.yml', 'utf8');
-assert.match(cleanupWorkflow, /name:\s*FLIXO Latest Execution HEAD Cleanup/u);
-assert.match(cleanupWorkflow, /schedule:/u);
-assert.match(cleanupWorkflow, /cron:\s*'17 3 \* \* 0'/u);
-assert.match(cleanupWorkflow, /actions:\s*write/u);
-assert.match(cleanupWorkflow, /ref:\s*main/u);
-assert.match(cleanupWorkflow, /latest-execution-head-cleanup\.mjs/u);
-assert.match(cleanupWorkflow, /FLIXO_STALE_EXECUTION_GRACE_DAYS:\s*'14'/u);
-const cleanupScript = fs.readFileSync('scripts/ci/latest-execution-head-cleanup.mjs', 'utf8');
-assert.match(cleanupScript, /branch = 'execution'/u);
-assert.match(cleanupScript, /headSha === latestSha/u);
-assert.match(cleanupScript, /actions\/runs\/.*DELETE/u);
-assert.match(cleanupScript, /actions\/artifacts\/.*DELETE/u);
-assert.match(cleanupScript, /execution advanced during cleanup/u);
-assert.match(cleanupScript, /LATEST_EXECUTION_HEAD_ONLY_CLEANUP=PASS/u);
-const latestHeadPolicy = fs.readFileSync('docs/REPOSITORY-LATEST-EXECUTION-HEAD-ONLY.md', 'utf8');
-assert.match(latestHeadPolicy, /LATEST-EXECUTION-HEAD-ONLY-001/u);
-assert.match(latestHeadPolicy, /Completed workflow runs and CI artifacts.*14 days/u);
-assert.match(latestHeadPolicy, /never deletes.*main/isu);
-console.log('LATEST_EXECUTION_HEAD_PERIODIC_CLEANUP=PASS');
+console.log('ALL_ACTIVE_STALE_RUNS_CANCELLED=PASS');
+console.log('EXACT_SHA_STALE_GUARD_MANDATORY=PASS');
+console.log('REPOSITORY_LATEST_COMMIT_POLICY=PASS');

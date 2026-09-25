@@ -13,12 +13,16 @@
   border-bottom:1px solid rgba(255,255,255,.06);
 }
 .tools-modern-brand{
+  display:flex;
+  align-items:center;
+  gap:9px;
   color:#f5f6f7;
   text-decoration:none;
   font-size:.78rem;
   font-weight:750;
   letter-spacing:.12em;
 }
+.tools-modern-brand img{width:36px;height:36px;display:block;object-fit:cover;border-radius:9px;border:1px solid rgba(103,232,249,.18);box-shadow:0 7px 18px rgba(0,0,0,.24)}
 .tools-modern-back{
   color:#747c85;
   text-decoration:none;

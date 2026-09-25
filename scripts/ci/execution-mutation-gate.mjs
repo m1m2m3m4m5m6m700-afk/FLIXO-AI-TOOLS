@@ -15,10 +15,62 @@ const hash=(v)=>crypto.createHash('sha256').update(String(v),'utf8').digest('hex
 const assertSha=(v,label)=>{const x=String(v??'').trim();if(!SHA_RE.test(x))throw new Error('MUTATION_GATE_'+label+'_INVALID');return x;};
 const trustedLocalTestHarness=()=>process.env.NODE_ENV==='test' && process.env.FLIXO_MUTATION_GATE_TEST_MODE==='true';
 export const scopeHash=(paths)=>hash(JSON.stringify([...new Set((paths??[]).map(normalize).filter(Boolean))].sort()));
+
+export const validateCandidateBinding=({admittedScope,candidateParents,targetSha,candidateSha,actualChangedPaths})=>{
+  const target=assertSha(targetSha,'TARGET_SHA');
+  const candidate=assertSha(candidateSha,'CANDIDATE_SHA');
+  if(candidate===target) throw new Error('MUTATION_GATE_EMPTY_CANDIDATE');
+  const parents=(candidateParents??[]).map((v)=>assertSha(v,'PARENT_SHA'));
+  if(parents.length!==1 || parents[0]!==target) throw new Error('MUTATION_GATE_SINGLE_PARENT_REQUIRED');
+  const rawScope=[...(admittedScope??[])].map(normalize).filter(Boolean);
+  if(!rawScope.length) throw new Error('MUTATION_GATE_SCOPE_REQUIRED');
+  if(rawScope.some((p)=>p==='*'||p.includes('?')||p.includes('*')||p.includes('[')||p.includes(']'))) throw new Error('MUTATION_GATE_WILDCARD_SCOPE_FORBIDDEN');
+  if(rawScope.some((p)=>p.startsWith('/')||p.split('/').includes('..'))) throw new Error('MUTATION_GATE_PATH_SCOPE_INVALID');
+  const admitted=[...new Set(rawScope)].sort();
+  const actual=[...new Set((actualChangedPaths??[]).map(normalize).filter(Boolean))].sort();
+  if(actual.some((p)=>p.startsWith('/')||p.split('/').includes('..'))) throw new Error('MUTATION_GATE_CANDIDATE_PATH_INVALID');
+  if(JSON.stringify(admitted)!==JSON.stringify(actual)){
+    throw new Error('MUTATION_GATE_SCOPE_MISMATCH');
+  }
+  return {targetSha:target,candidateSha:candidate,scope:actual,scopeHash:scopeHash(actual)};
+};
 export const fencingToken=({ownerAgent,runId,runAttempt,targetSha,workPackageId,taskId,scopeDigest})=>hash(JSON.stringify({ownerAgent:String(ownerAgent),runId:String(runId),runAttempt:String(runAttempt),targetSha:String(targetSha),workPackageId:String(workPackageId),taskId:String(taskId),scopeDigest:String(scopeDigest)}));
 function argsMap(rest){const m=new Map();for(let i=0;i<rest.length;i+=1){const t=rest[i];if(!t.startsWith('--'))continue;const eq=t.indexOf('=');m.set(t.slice(2,eq<0?undefined:eq),eq<0?(rest[i+1]??''):t.slice(eq+1));}return m;}
 const arg=(m,n,f='')=>String(m.get(n)??f).trim();
-export function remoteExecutionSha(){
+export const CANONICAL_VERIFICATION_PATHS = new Set([
+  '.github/workflows/ci.yml',
+  '.github/workflows/wp0-trust-baseline.yml',
+  '.github/workflows/test-impact-execution.yml',
+  '.github/workflows/repository-security-baseline.yml',
+  '.github/workflows/claude-security-review.yml',
+]);
+function assertNoCanonicalVerificationRunActive(targetSha){
+  if(trustedLocalTestHarness()) return;
+  const repo=String(process.env.GITHUB_REPOSITORY??'').trim();
+  if(!repo) throw new Error('MUTATION_GATE_GITHUB_REPOSITORY_MISSING');
+
+  // Mutation admission is branch-global: an active canonical verification for ANY
+  // execution SHA fences the writer lane. Checking only targetSha allowed rapid
+  // per-file commits to race the push-triggered CI before its run became active.
+  const raw=execFileSync('gh',['api',`repos/${repo}/actions/runs?branch=execution&per_page=100`],{cwd:ROOT,encoding:'utf8'});
+  let body;
+  try{body=JSON.parse(raw);}catch(error){throw new Error('MUTATION_GATE_VERIFICATION_RUN_INVENTORY_INVALID',{cause:error});}
+  const active=(body?.workflow_runs??[]).filter(run=>{
+    const status=String(run?.status??'');
+    const path=String(run?.path??'');
+    const headSha=String(run?.head_sha??'').trim();
+    return (status==='queued'||status==='in_progress') &&
+      CANONICAL_VERIFICATION_PATHS.has(path) &&
+      SHA_RE.test(headSha);
+  });
+  if(active.length){
+    const details=active
+      .map(run=>`${String(run?.name??run?.path??'unknown')}@${String(run?.head_sha??'unknown')}`)
+      .join(', ');
+    throw new Error(`MUTATION_GATE_CANONICAL_VERIFICATION_ACTIVE: targetSha=${targetSha} active=${details}`);
+  }
+}
+function remoteExecutionSha(){
   const mocked=String(process.env.FLIXO_MUTATION_GATE_REMOTE_SHA??'').trim();
   if(mocked){ if(!trustedLocalTestHarness())throw new Error('MUTATION_GATE_REMOTE_SHA_OVERRIDE_FORBIDDEN'); return assertSha(mocked,'REMOTE_SHA'); }
   const repo=String(process.env.GITHUB_REPOSITORY??'').trim();
@@ -95,6 +147,7 @@ export function admit({ownerAgent,targetSha,workPackageId,taskId,paths,output='/
   const t=assertSha(targetSha,'TARGET_SHA');assertExecutionCheckout(t);
   if(assertSha(git(['rev-parse','HEAD']),'HEAD')!==t)throw new Error('MUTATION_GATE_STALE_LOCAL_HEAD');
   if(remoteExecutionSha()!==t)throw new Error('MUTATION_GATE_REMOTE_HEAD_CHANGED');
+  assertNoCanonicalVerificationRunActive(t);
   const centralChair = verifyCentralChair({ownerAgent,targetSha:t,workPackageId,taskId});
   const record=context({ownerAgent,targetSha:t,workPackageId,taskId,paths});
   record.centralChair = centralChair;
@@ -104,12 +157,44 @@ export function admit({ownerAgent,targetSha,workPackageId,taskId,paths,output='/
 function readAdmission(file){if(!fs.existsSync(file))throw new Error('MUTATION_GATE_ADMISSION_MISSING');const x=JSON.parse(fs.readFileSync(file,'utf8'));if(x?.schemaVersion!==1||x?.protocol!=='FLIXO-EXECUTION-MUTATION-GATE-v1')throw new Error('MUTATION_GATE_ADMISSION_INVALID');return x;}
 export function verifyAdmission({file='/tmp/flixo-mutation-admission.json',phase='pre-commit',candidateSha=null,parentSha=null}={}){
   const a=readAdmission(file);
-  if (centralChairStrictRequired(a.ownerAgent)) verifyCentralChair({ownerAgent:a.ownerAgent,targetSha:a.targetSha,workPackageId:a.workPackageId,taskId:a.taskId});
+  const handoffPhase=phase==='handoff-pre-push';
+  if (!handoffPhase && centralChairStrictRequired(a.ownerAgent)) {
+    verifyCentralChair({ownerAgent:a.ownerAgent,targetSha:a.targetSha,workPackageId:a.workPackageId,taskId:a.taskId});
+  }
+  if (handoffPhase) {
+    const proof=a.centralChair;
+    if(
+      proof?.required!==true ||
+      proof?.verified!==true ||
+      proof?.holder!==a.ownerAgent ||
+      proof?.targetSha!==a.targetSha ||
+      proof?.delegatedBy!=='assistantController' ||
+      !String(proof?.leaseId??'').trim() ||
+      !HASH_RE.test(String(proof?.fencingTokenHash??''))
+    ) throw new Error('MUTATION_GATE_HANDOFF_CHAIR_PROOF_INVALID');
+  }
   const expected=fencingToken({ownerAgent:a.ownerAgent,runId:a.runId,runAttempt:a.runAttempt,targetSha:a.targetSha,workPackageId:a.workPackageId,taskId:a.taskId,scopeDigest:a.scopeHash});
   if(expected!==a.fencingToken||!HASH_RE.test(a.fencingToken))throw new Error('MUTATION_GATE_FENCING_TOKEN_INVALID');
   if(String(process.env.GITHUB_RUN_ID??'')!==a.runId||String(process.env.GITHUB_RUN_ATTEMPT??'1')!==a.runAttempt)throw new Error('MUTATION_GATE_RUN_CONTEXT_STALE');
+  if(phase==='handoff-pre-push') {
+    if(remoteExecutionSha()!==a.targetSha)throw new Error('MUTATION_GATE_REMOTE_HEAD_CHANGED');
+    const c=assertSha(candidateSha??'','CANDIDATE_SHA');
+    const p=parentSha?assertSha(parentSha,'PARENT_SHA'):null;
+    if(p&&p!==a.targetSha)throw new Error('MUTATION_GATE_PARENT_MISMATCH');
+    const parents=git(['rev-list','--parents','-n','1',c]).split(/\s+/u).slice(1);
+    const actualChangedPaths=git(['diff-tree','--no-commit-id','--name-only','-r',a.targetSha,c]).split(/\r?\n/u).filter(Boolean);
+    validateCandidateBinding({admittedScope:a.scope,candidateParents:parents,targetSha:a.targetSha,candidateSha:c,actualChangedPaths});
+    verifyExecutionHeadAuthority({file:process.env.FLIXO_HEAD_AUTHORITY_PROOF ?? '/tmp/flixo-head-authority.json',targetSha:a.targetSha,parentSha:a.targetSha,candidateSha:c});
+    return a;
+  }
   if(phase==='post-push'){
-    const c=assertSha(candidateSha??'','CANDIDATE_SHA');if(remoteExecutionSha()!==c)throw new Error('MUTATION_GATE_POST_PUSH_MISMATCH');verifyExecutionHeadAuthority({file:process.env.FLIXO_HEAD_AUTHORITY_PROOF ?? '/tmp/flixo-head-authority.json',targetSha:a.targetSha,parentSha:a.targetSha,candidateSha:c});return a;
+    const c=assertSha(candidateSha??'','CANDIDATE_SHA');
+    if(remoteExecutionSha()!==c)throw new Error('MUTATION_GATE_POST_PUSH_MISMATCH');
+    const parents=git(['rev-list','--parents','-n','1',c]).split(/\\s+/u).slice(1);
+    const actualChangedPaths=git(['diff-tree','--no-commit-id','--name-only','-r',a.targetSha,c]).split(/\\r?\\n/u).filter(Boolean);
+    validateCandidateBinding({admittedScope:a.scope,candidateParents:parents,targetSha:a.targetSha,candidateSha:c,actualChangedPaths});
+    verifyExecutionHeadAuthority({file:process.env.FLIXO_HEAD_AUTHORITY_PROOF ?? '/tmp/flixo-head-authority.json',targetSha:a.targetSha,parentSha:a.targetSha,candidateSha:c});
+    return a;
   }
   if(remoteExecutionSha()!==a.targetSha)throw new Error('MUTATION_GATE_REMOTE_HEAD_CHANGED');
   if(phase==='pre-commit'){
@@ -118,10 +203,10 @@ export function verifyAdmission({file='/tmp/flixo-mutation-admission.json',phase
   }else if(phase==='pre-push'){
     const c=assertSha(candidateSha??git(['rev-parse','HEAD']),'CANDIDATE_SHA');const p=parentSha?assertSha(parentSha,'PARENT_SHA'):null;
     if(git(['rev-parse','HEAD'])!==c)throw new Error('MUTATION_GATE_CANDIDATE_NOT_HEAD');
-    const parents=git(['rev-list','--parents','-n','1',c]).split(/\s+/u).slice(1);
-    if(!parents.includes(a.targetSha))throw new Error('MUTATION_GATE_CANDIDATE_NOT_BOUND_TO_TARGET');
+    const parents=git(['rev-list','--parents','-n','1',c]).split(/\\s+/u).slice(1);
     if(p&&p!==a.targetSha)throw new Error('MUTATION_GATE_PARENT_MISMATCH');
-    if(c===a.targetSha)throw new Error('MUTATION_GATE_EMPTY_CANDIDATE');
+    const actualChangedPaths=git(['diff-tree','--no-commit-id','--name-only','-r',a.targetSha,c]).split(/\\r?\\n/u).filter(Boolean);
+    validateCandidateBinding({admittedScope:a.scope,candidateParents:parents,targetSha:a.targetSha,candidateSha:c,actualChangedPaths});
     verifyExecutionHeadAuthority({file:process.env.FLIXO_HEAD_AUTHORITY_PROOF ?? '/tmp/flixo-head-authority.json',targetSha:a.targetSha,parentSha:a.targetSha,candidateSha:c});
   }else throw new Error('MUTATION_GATE_PHASE_INVALID');
   return a;

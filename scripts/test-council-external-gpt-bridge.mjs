@@ -46,6 +46,7 @@ const agentResult = () => ({
 
 let pollCount = 0;
 let sessionFromAck = null;
+let residentHeartbeatCount = 0;
 const completeCalls = [];
 
 const mockFetch = async (url, init = {}) => {
@@ -55,6 +56,27 @@ const mockFetch = async (url, init = {}) => {
   calls.push({ path: u.pathname, action, method: init.method ?? 'GET', body });
 
   if (u.hostname === 'runtime.test') {
+    if (action === 'runtime-state') return new Response(JSON.stringify({
+      ok: true,
+      identity: { agentId: 'flixo-worker-a-001', machineRole: 'executionAgent' },
+      accountState: {
+        active: true,
+        currentSessionId: sessionFromAck,
+        lastSeenAt: null,
+        currentExecutionSha: SHA
+      }
+    }), { status: 200 });
+    if (action === 'resident-heartbeat') {
+      residentHeartbeatCount += 1;
+      return new Response(JSON.stringify({
+        ok: true,
+        accountId: 'WORKER_A',
+        agentId: 'flixo-worker-a-001',
+        runtimeSessionId: body?.runtimeSessionId,
+        exactSha: body?.entrySha,
+        state: 'ACTIVE'
+      }), { status: 200 });
+    }
     if (action === 'poll') {
       pollCount += 1;
       if (pollCount === 1) return new Response(JSON.stringify({
@@ -63,7 +85,7 @@ const mockFetch = async (url, init = {}) => {
         dispatch: {
           dispatch_id: 'dispatch-001', status: 'LEASED', mission_id: 'MISSION-001',
           task_id: 'GREEN-RECOVERY-001', work_package_id: 'ROOT-CAUSE-SPINE-001',
-          entry_sha: SHA, payload: { reason: 'test-wake' }
+          entry_sha: SHA, payload: { reason: 'test-wake', objective: 'Validate the bridge contract without mutation.' }
         }
       }), { status: 200 });
       if (pollCount === 2) return new Response(JSON.stringify({
@@ -73,7 +95,7 @@ const mockFetch = async (url, init = {}) => {
           dispatch_id: 'dispatch-001', status: 'ACKED', session_id: sessionFromAck,
           mission_id: 'MISSION-001', task_id: 'GREEN-RECOVERY-001',
           work_package_id: 'ROOT-CAUSE-SPINE-001', entry_sha: SHA,
-          payload: { reason: 'continuation' }
+          payload: { reason: 'continuation', objective: 'Continue validating the bridge contract.' }
         }
       }), { status: 200 });
       return new Response(JSON.stringify({ ok: true, dispatch: null }), { status: 200 });
@@ -111,6 +133,8 @@ const config = buildConfig('WORKER_A', {
 });
 
 const bridge = createBridge({ config, fetchImpl: mockFetch, heartbeatMs: 5 });
+assert.equal(await bridge.sendPresenceHeartbeat(), true);
+assert.equal(residentHeartbeatCount, 1);
 assert.equal(await bridge.processOnce(), true);
 assert.equal(await bridge.processOnce(), true);
 
@@ -119,6 +143,8 @@ assert.equal(executorCalls.length, 2);
 assert.equal(executorCalls[0].body.sessionId, executorCalls[1].body.sessionId);
 assert.equal(calls.filter((call) => call.action === 'ack').length, 1);
 assert.equal(completeCalls.length, 1);
+assert.ok(calls.some((call) => call.action === 'runtime-state'));
+assert.ok(calls.some((call) => call.action === 'resident-heartbeat'));
 assert.equal(completeCalls[0].status, 'DONE');
 assert.ok(calls.filter((call) => call.action === 'heartbeat').length >= 2);
 
@@ -129,7 +155,7 @@ const directContinue = await executeExternalAgent(config, {
   mission_id: 'MISSION-001',
   entry_sha: SHA,
   identity: { agentId: 'flixo-worker-a-001', machineRole: 'executionAgent' },
-  payload: { reason: 'direct' }
+  payload: { reason: 'direct', objective: 'Directly validate external agent execution.' }
 }, executorCalls[0].body.sessionId, async () => new Response(JSON.stringify({
   status: 'CONTINUE',
   evidence: { executor: 'mock' },
@@ -151,7 +177,7 @@ const failingFetch = async (url, init = {}) => {
       dispatch: {
         dispatch_id: 'dispatch-fail-001', status: 'LEASED', mission_id: 'MISSION-001',
         task_id: 'GREEN-RECOVERY-001', work_package_id: 'ROOT-CAUSE-SPINE-001',
-        entry_sha: SHA, payload: { reason: 'heartbeat-failure' }
+        entry_sha: SHA, payload: { reason: 'heartbeat-failure', objective: 'Validate heartbeat failure handling safely.' }
       }
     }), { status: 200 });
     if (action === 'ack') return new Response(JSON.stringify({ ok: true, dispatch: body }), { status: 200 });

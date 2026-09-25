@@ -3,6 +3,8 @@
 const repository = (process.env.GITHUB_REPOSITORY ?? '').trim();
 const token = (process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN ?? '').trim();
 const branch = 'execution';
+const eventName = (process.env.GITHUB_EVENT_NAME ?? '').trim();
+const pushEvent = eventName === 'push';
 import fs from 'node:fs/promises';
 
 const graceDays = Number.parseInt(process.env.FLIXO_STALE_EXECUTION_GRACE_DAYS ?? '14', 10);
@@ -25,18 +27,67 @@ const headers = {
   'content-type': 'application/json',
 };
 
+const API_RETRY_BASE_MS = Number.parseInt(process.env.FLIXO_GITHUB_API_RETRY_BASE_MS ?? '3000', 10);
+const API_RETRY_MAX = Number.parseInt(process.env.FLIXO_GITHUB_API_MAX_RETRIES ?? '5', 10);
+const API_RETRY_MAX_DELAY_MS = Number.parseInt(process.env.FLIXO_GITHUB_API_MAX_DELAY_MS ?? '60000', 10);
+
+if (!Number.isInteger(API_RETRY_BASE_MS) || API_RETRY_BASE_MS < 250 ||
+    !Number.isInteger(API_RETRY_MAX) || API_RETRY_MAX < 0 || API_RETRY_MAX > 8 ||
+    !Number.isInteger(API_RETRY_MAX_DELAY_MS) || API_RETRY_MAX_DELAY_MS < API_RETRY_BASE_MS) {
+  console.error('FAIL CLOSED: invalid GitHub API retry configuration.');
+  process.exit(1);
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const rateLimitDelayMs = (response, attempt) => {
+  const retryAfter = Number(response.headers.get('retry-after') ?? '');
+  const resetEpochSeconds = Number(response.headers.get('x-ratelimit-reset') ?? '');
+  const retryAfterMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 0;
+  const resetDelayMs = Number.isFinite(resetEpochSeconds) && resetEpochSeconds > 0
+    ? Math.max(0, resetEpochSeconds * 1000 - Date.now() + 250)
+    : 0;
+  const exponential = Math.min(API_RETRY_MAX_DELAY_MS, API_RETRY_BASE_MS * 2 ** attempt);
+  return Math.min(API_RETRY_MAX_DELAY_MS, Math.max(exponential, retryAfterMs, resetDelayMs));
+};
+
+const isRateLimited = (response, text) =>
+  response.status === 429 ||
+  (response.status === 403 && /rate limit exceeded for installation/i.test(text));
+
 async function github(path, options = {}) {
-  const response = await fetch(`${apiBase}${path}`, {
-    ...options,
-    headers: {...headers, ...(options.headers ?? {})},
-  });
-  const text = await response.text();
-  let body = null;
-  try { body = text ? JSON.parse(text) : null; } catch (parseError) { void parseError; }
-  if (!response.ok) {
-    throw new Error(`GitHub API ${response.status} ${path}: ${text.slice(0, 500)}`);
+  for (let attempt = 0; attempt <= API_RETRY_MAX; attempt += 1) {
+    const response = await fetch(`${apiBase}${path}`, {
+      ...options,
+      headers: {...headers, ...(options.headers ?? {})},
+    });
+    const text = await response.text();
+    let body = null;
+    try { body = text ? JSON.parse(text) : null; } catch (parseError) { void parseError; }
+    if (response.ok) return body;
+
+    if (!isRateLimited(response, text) || attempt === API_RETRY_MAX) {
+      throw new Error(`GitHub API ${response.status} ${path}: ${text.slice(0, 500)}`);
+    }
+
+    const delay = rateLimitDelayMs(response, attempt);
+    console.log(`GITHUB_API_RATE_LIMIT_RETRY attempt=${attempt + 1} delayMs=${delay} path=${path}`);
+    await sleep(delay);
   }
-  return body;
+
+  throw new Error(`GitHub API retry loop exhausted for ${path}`);
+}
+
+async function cancelRun(runId) {
+  try {
+    await github(`/repos/${repository}/actions/runs/${runId}/cancel`, {method: 'POST'});
+    return {cancelled: true, racedCompleted: false};
+  } catch (error) {
+    const message = String(error?.message ?? error);
+    if (!/GitHub API 409[\s\S]*(Cannot cancel a workflow run that is completed|Cannot cancel a workflow run that is not in progress)/u.test(message)) throw error;
+    console.log(`STALE_RUN_CANCEL_RACE_ALREADY_COMPLETED id=${runId}`);
+    return {cancelled: false, racedCompleted: true};
+  }
 }
 
 async function listAll(path, key) {
@@ -62,7 +113,13 @@ const latestSha = await resolveExecutionHead();
 console.log(`LATEST_EXECUTION_HEAD=${latestSha}`);
 console.log(`STALE_EXECUTION_GRACE_DAYS=${graceDays}`);
 
-const runs = await listAll(`/repos/${repository}/actions/runs?branch=${branch}`, 'workflow_runs');
+const runLists = pushEvent
+  ? await Promise.all([
+      listAll(`/repos/${repository}/actions/runs?branch=${branch}&status=in_progress`, 'workflow_runs'),
+      listAll(`/repos/${repository}/actions/runs?branch=${branch}&status=queued`, 'workflow_runs'),
+    ])
+  : [await listAll(`/repos/${repository}/actions/runs?branch=${branch}`, 'workflow_runs')];
+const runs = [...new Map(runLists.flat().map((run) => [Number(run?.id), run])).values()];
 let cancelled = 0;
 let deletedRuns = 0;
 const summary = { schemaVersion: 1, ruleId: 'LATEST-EXECUTION-HEAD-ONLY-001', repository, branch, latestExecutionSha: latestSha, graceDays, cancelledRuns: [], deletedRuns: [], deletedArtifacts: [] };
@@ -75,14 +132,23 @@ for (const run of runs) {
   const status = String(run?.status ?? '');
   const updatedAt = Date.parse(String(run?.updated_at ?? ''));
   const name = String(run?.name ?? '');
+  const event = String(run?.event ?? '');
+  const disallowedHeartbeatEvent = name.startsWith('FLIXO Agent Repair Heartbeat') && event === 'pull_request';
 
   if (!Number.isInteger(runId) || headBranch !== branch || headRepository !== repository) continue;
+  if (disallowedHeartbeatEvent && status !== 'completed') {
+    const result = await cancelRun(runId);
+    if (result.cancelled) cancelled += 1;
+    summary.cancelledRuns.push({id: runId, sha: headSha, name, reason: 'DISALLOWED_HEARTBEAT_EVENT_PULL_REQUEST', racedCompleted: result.racedCompleted});
+    console.log(`DISALLOWED_HEARTBEAT_EVENT_CANCELLED id=${runId} sha=${headSha} event=${event}`);
+    continue;
+  }
   if (headSha === latestSha) continue;
 
   if (status !== 'completed') {
-    await github(`/repos/${repository}/actions/runs/${runId}/cancel`, {method: 'POST'});
-    cancelled += 1;
-    summary.cancelledRuns.push({id: runId, sha: headSha, name});
+    const result = await cancelRun(runId);
+    if (result.cancelled) cancelled += 1;
+    summary.cancelledRuns.push({id: runId, sha: headSha, name, racedCompleted: result.racedCompleted});
     console.log(`STALE_RUN_CANCELLED id=${runId} sha=${headSha} name=${name}`);
     continue;
   }
@@ -94,8 +160,9 @@ for (const run of runs) {
   console.log(`STALE_RUN_DELETED id=${runId} sha=${headSha} name=${name}`);
 }
 
-const artifacts = await listAll(`/repos/${repository}/actions/artifacts`, 'artifacts');
+const artifacts = pushEvent ? [] : await listAll(`/repos/${repository}/actions/artifacts`, 'artifacts');
 let deletedArtifacts = 0;
+if (pushEvent) console.log('STALE_ARTIFACT_CLEANUP=DEFERRED_PUSH_EVENT');
 
 for (const artifact of artifacts) {
   const artifactId = Number(artifact?.id);
@@ -121,6 +188,8 @@ if (finalSha !== latestSha) {
   process.exit(1);
 }
 
+summary.eventName = eventName || 'unknown';
+summary.activeOnly = pushEvent;
 summary.finishedAt = new Date().toISOString();
 await fs.writeFile('/tmp/latest-execution-head-cleanup-summary.json', JSON.stringify(summary, null, 2) + '\n', 'utf8');
 console.log(`STALE_EXECUTION_RUNS_CANCELLED=${cancelled}`);

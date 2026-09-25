@@ -6,7 +6,7 @@ export const ACTION_AGENT_ACCOUNTS=Object.freeze(['CHIEF','WORKER_A','WORKER_B']
 export const ACTION_AGENT_PROFILES=Object.freeze({
   CHIEF:Object.freeze({
     accountId:'CHIEF',profileId:'ACTION_COMMANDER_V1',role:'ACTION_COMMANDER',
-    cognitionTier:'ADVANCED',modelProfile:'FRONTIER_REASONING',reasoningEffort:'HIGH',
+    cognitionTier:'ADVANCED',modelProfile:'FRONTIER_REASONING',reasoningEffort:'MAXIMUM',
     mutationMode:'NONE',certificationAuthority:false,canDispatchTo:Object.freeze(['WORKER_A','WORKER_B']),
     fallbackAccountId:'CHIEF',requiredOutput:Object.freeze(['finding','evidence','evidenceGrade','unknowns','lesson','antiLesson','skillCandidate','directBenefit','nextAction','decisionTrace'])
   }),

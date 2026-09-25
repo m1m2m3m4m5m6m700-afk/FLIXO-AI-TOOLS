@@ -18,7 +18,7 @@ const mk=(id,mins)=>({
 });
 
 // Historical gaps must not poison the recovered rolling compliance window.
-const historicalGap = [mk(1,0), mk(2,60), ...Array.from({length: 12}, (_, i) => mk(i+3, 70 + (i * 5)))];
+const historicalGap = [mk(1,0), mk(2,10), ...Array.from({length: 11}, (_, i) => mk(i+3, 65 + (i * 5)))];
 fs.writeFileSync(input,JSON.stringify(historicalGap));
 r=spawnSync(process.execPath,['scripts/ci/wake-compliance.mjs',input,output,'--now=2026-09-21T01:40:00Z'],{encoding:'utf8'});
 assert.equal(r.status,0);
@@ -33,10 +33,12 @@ assert.equal(r.status,0);
 let report=JSON.parse(fs.readFileSync(output,'utf8'));
 assert.equal(report.status,'PASS');
 assert.equal(report.gaps.length,0);
-assert.equal(report.maxAllowedGapMs,7*60000);
+assert.equal(report.expectedEveryMs,5*60*1000);
+assert.equal(report.maxAllowedGapMs,8*60*1000);
+assert.equal(report.exactScheduleRequired,'*/5 * * * *');
 
 fs.writeFileSync(input,JSON.stringify([mk(1,0),mk(2,10)]));
-r=spawnSync(process.execPath,['scripts/ci/wake-compliance.mjs',input,output,'--now=2026-09-21T00:11:00Z'],{encoding:'utf8'});
+r=spawnSync(process.execPath,['scripts/ci/wake-compliance.mjs',input,output,'--now=2026-09-21T00:16:00Z'],{encoding:'utf8'});
 assert.equal(r.status,2);
 report=JSON.parse(fs.readFileSync(output,'utf8'));
 assert.equal(report.status,'WAKE_GAP_RED');

@@ -1,29 +1,128 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+const LOGICAL_BOT_IDS = Object.freeze(Array.from({ length: 200 }, (_, index) => `CELL-${String(index + 1).padStart(3, '0')}`));
+const RESIDENT_RUNTIME_IDS = Object.freeze(['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5','FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10']);
+const RESIDENT_DEVELOPMENT_DOMAINS = Object.freeze([
+  Object.freeze({ id:'RCA_ARCH', role:'RCA_AND_ARCHITECTURE', skills:['root-cause','architecture','dependency-analysis'] }),
+  Object.freeze({ id:'CODE_RUNTIME', role:'CODE_PATH_AND_RUNTIME', skills:['typescript','react','runtime-debugging'] }),
+  Object.freeze({ id:'TEST_CONTRACTS', role:'TEST_CONTRACTS_AND_REGRESSION', skills:['unit-tests','contract-tests','regression'] }),
+  Object.freeze({ id:'CI_WORKFLOWS', role:'CI_AND_WORKFLOW_ENGINEERING', skills:['github-actions','concurrency','workflow-contracts'] }),
+  Object.freeze({ id:'BROWSER_SECURITY', role:'BROWSER_RUNTIME_AND_SECURITY', skills:['playwright','browser-runtime','security'] }),
+  Object.freeze({ id:'ADVERSARIAL', role:'INDEPENDENT_FALSIFICATION', skills:['counterexamples','red-team','false-green-detection'] }),
+  Object.freeze({ id:'REPAIR_STRATEGY', role:'REPAIR_STRATEGY_AND_DEPENDENCIES', skills:['repair-strategy','dependency-graph','recurrence-prevention'] }),
+  Object.freeze({ id:'IMPLEMENTATION', role:'IMPLEMENTATION_AND_REGRESSION', skills:['bounded-implementation','targeted-regression','integration'] }),
+  Object.freeze({ id:'EXACT_SHA', role:'EXACT_SHA_AND_PROOF', skills:['exact-sha','provenance','certification-evidence'] }),
+  Object.freeze({ id:'FINAL_VERIFY', role:'FINAL_VERIFICATION_AND_PLAN', skills:['verification','roadmap','learning'] }),
+]);
+const LOGICAL_BOT_DEVELOPMENT_PROFILES = Object.freeze(LOGICAL_BOT_IDS.map((botId, index) => {
+  const domain = RESIDENT_DEVELOPMENT_DOMAINS[index % RESIDENT_DEVELOPMENT_DOMAINS.length];
+  return Object.freeze({
+    botId, seat: (index % 10) + 1, squadOrdinal: Math.floor(index / 10) + 1,
+    domainId: domain.id, role: domain.role, skills: Object.freeze([...domain.skills]),
+    developmentMode: 'EVIDENCE_DRIVEN_SPECIALIZATION',
+    mutationAuthority: false, certificationAuthority: false,
+    sourceOfTruth: 'RPR-UNIFIED-EXECUTION-001',
+  });
+}));
 export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
-  schemaVersion: 4,
+  schemaVersion: 5,
   contractRank: 'SUPREME_AUTOMATION_RESIDENCY',
   authorityScope: 'ENTIRE_REPAIR_AUTOMATION_PLANE',
   protocolId: 'AGENT_LIVENESS_PROTOCOL',
-  protocolVersion: '4.0.0',
+  protocolVersion: '5.0.0',
   authority: 'CONTROL_PLANE',
+  scheduleIntervalMs: 5 * 60 * 1000,
+  internalHeartbeatEveryMs: 60 * 1000,
   heartbeatEveryMs: 60 * 1000,
   heartbeatGraceMs: 30 * 1000,
   wakeIntervalMs: 60 * 1000,
-  activeRepairWindowMs: 45 * 60 * 1000,
+  teamWakeIntervalMs: 60 * 1000,
+  teamWakePolicy: 'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL',
+  teamWakeScope: 'ALL_ACTION_REPAIR_TEAM',
+  heartbeatWakePolicy: 'ONE_MINUTE_HEARTBEAT_WAKES_ALL_AGENTS',
+  heartbeatWakeScope: 'ALL_AGENTS',
+  pulseEveryMs: 60 * 1000,
+  logicalBotCount: 200,
+  logicalBotIdPrefix: 'CELL-',
+  logicalBotIdWidth: 3,
+  logicalBotIds: LOGICAL_BOT_IDS,
+  logicalBotDevelopmentDomains: RESIDENT_DEVELOPMENT_DOMAINS,
+  logicalBotDevelopmentProfiles: LOGICAL_BOT_DEVELOPMENT_PROFILES,
+  logicalBotPolicy: 'FIXED_200_LOGICAL_PROFILES',
+  activeCohortSize: 5,
+  activeCohortCount: 40,
+  activeCohortCommitmentMs: 60 * 60 * 1000,
+  activeCohortRotationPolicy: 'FIFO_5_OF_200_WITH_CYCLE_WRAP',
+  activeCohortHandoffPolicy: 'NEXT_5_READY_BEFORE_RELEASE',
+  seatContinuityContract: Object.freeze({
+    minimumConnectedSeats: 5,
+    minimumVerifiedResidentRuntimeSeats: 10,
+    requiredSurplusSeats: 5,
+    heartbeatEveryMs: 60 * 1000,
+    heartbeatGraceMs: 30 * 1000,
+    staleAfterMs: 90 * 1000,
+    lazyBotAction: 'IMMEDIATE_REPLACE_FROM_STAGED_OR_VERIFIED_PROVISIONED_RUNTIME',
+    seatDropBelowMinimumAction: 'FAIL_CLOSED_AND_REPLACE',
+    heartbeatAckRequired: true,
+    generatedWakeIsNotAttendanceProof: true,
+  }),
+  fiveBotResidencyCommitment: Object.freeze({
+    requiredBotCount: 5,
+    postTaskState: 'READY_RESIDENT',
+    journeyLogicalBotCount: 200,
+    journeyCohortCount: 40,
+    journeyCohortSize: 5,
+    retainResidentAfterTaskClose: true,
+    retainResidentUntilJourneyComplete: true,
+    sleepDuringJourney: false,
+    idleDuringJourney: false,
+    withdrawalDuringJourney: false,
+  }),
+  activeRuntimeCount: 5,
+  activeRuntimeIds: Object.freeze(RESIDENT_RUNTIME_IDS.slice(0, 5)),
+  stagedRuntimeCount: 5,
+  stagedRuntimeIds: Object.freeze(RESIDENT_RUNTIME_IDS.slice(5)),
+  residentRuntimeCount: 10,
+  residentRuntimeIds: RESIDENT_RUNTIME_IDS,
+  minimumResidentFloor: 1,
+  residentWakeBatonTtlMs: 90 * 1000,
+  residentWakePolicy: 'ACTIVE_BOT_WAKES_NEXT_RESIDENT_BEFORE_RELEASE',
+  residentRuntimePolicy: 'ONLY_VERIFIED_LIVE_RUNTIME_IDS_COUNT_AS_RESIDENT',
+  onePulsePerHeartbeat: true,
+  pulseProfiles: Object.freeze([
+    Object.freeze({ botId:'FLIXO1', pulseType:'RCA_AND_ARCHITECTURE' }),
+    Object.freeze({ botId:'FLIXO2', pulseType:'CODE_PATH_AND_RUNTIME' }),
+    Object.freeze({ botId:'FLIXO3', pulseType:'TEST_CONTRACTS' }),
+    Object.freeze({ botId:'FLIXO4', pulseType:'CI_AND_WORKFLOWS' }),
+    Object.freeze({ botId:'FLIXO5', pulseType:'BROWSER_RUNTIME_AND_SECURITY' }),
+    Object.freeze({ botId:'FLIXO6', pulseType:'INDEPENDENT_FALSIFICATION' }),
+    Object.freeze({ botId:'FLIXO7', pulseType:'REPAIR_STRATEGY_AND_DEPENDENCIES' }),
+    Object.freeze({ botId:'FLIXO8', pulseType:'IMPLEMENTATION_AND_REGRESSION' }),
+    Object.freeze({ botId:'FLIXO9', pulseType:'EXACT_SHA_FALSE_GREEN_AND_SECURITY' }),
+    Object.freeze({ botId:'FLIXO10', pulseType:'FINAL_VERIFICATION_AND_DEVELOPMENT_PLAN' }),
+  ]),
+  idleSweepMode: 'FULL_REPOSITORY_READ_ONLY_SCAN',
+  idleSweepPlanLedger: 'المهام.md',
+  idleSweepPlanSection: 'FLIXO BOT — AUTONOMOUS FULL-REPOSITORY DEVELOPMENT PLAN',
+  actionRepairTeamSize: 10,
+  actionRepairTeamIds: Object.freeze([
+    'FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5',
+    'FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10',
+  ]),
+  activeRepairWindowMs: 60 * 60 * 1000,
   maxContinuousActiveSessionMs: 3 * 60 * 60 * 1000,
   masterStatusUpdateEveryMs: 5 * 60 * 1000,
   taskReminderEveryMs: 10 * 60 * 1000,
   manualWakeRequired: false,
   selfDisableAllowed: false,
   selfAbortAllowed: false,
-  leaseTtlMs: 15 * 60 * 1000,
+  leaseTtlMs: 60 * 60 * 1000,
   progressWindowMs: 10 * 60 * 1000,
   maxNoProgressHeartbeats: 3,
   sessionPolicy: Object.freeze({
     maxSessionCycles: 12,
     sessionBudgetScopedOnly: true,
-    minimumActiveWindowMs: 45 * 60 * 1000,
+    minimumActiveWindowMs: 60 * 60 * 1000,
     minimumActiveWindowEnforced: true,
     maxContinuousActiveSessionMs: 3 * 60 * 60 * 1000,
     maxContinuousSegmentEnforced: true,
@@ -58,6 +157,7 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   rules: Object.freeze([
     'PERMANENT_RESIDENCY',
     'NO_SLEEP',
+    'NO_SLEEP_WHILE_WORK_ASSIGNED',
     'NO_IDLE',
     'NO_SILENT_STOP',
     'OPEN_WORK_REMAINS_OPEN',
@@ -78,6 +178,13 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
     'SELF_DISABLE_FORBIDDEN',
     'SELF_ABORT_FORBIDDEN',
     'LIVENESS_FAILURE_MUST_REENTER_CANONICAL_WAKE_PATH',
+    'ACTIVE_COHORT_EXACTLY_FIVE',
+    'ACTIVE_COHORT_COMMITMENT_60_MINUTES',
+    'NEXT_COHORT_READY_BEFORE_RELEASE',
+    'FORTY_COHORTS_COMPLETE_ONE_200_BOT_CYCLE',
+    'CYCLE_WRAP_200_TO_1',
+    'FIVE_BOT_POST_CLOSE_READY_RESIDENT',
+    'FIVE_BOT_REMAIN_READY_UNTIL_200_JOURNEY_COMPLETE',
   ]),
 });
 
@@ -86,12 +193,37 @@ const forbidden = new Set(AGENT_LIVENESS_PROTOCOL.forbiddenStates);
 const working = new Set(AGENT_LIVENESS_PROTOCOL.workAssignedStates);
 
 export function assertLivenessDefinition() {
-  if (!AGENT_LIVENESS_PROTOCOL.protocolVersion.startsWith('4.')) throw new Error('AGENT_LIVENESS_VERSION_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.schemaVersion !== 5 || !AGENT_LIVENESS_PROTOCOL.protocolVersion.startsWith('5.')) throw new Error('AGENT_LIVENESS_VERSION_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.scheduleIntervalMs !== 5 * 60 * 1000) throw new Error('AGENT_LIVENESS_SCHEDULE_INTERVAL_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.internalHeartbeatEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_INTERNAL_HEARTBEAT_INTERVAL_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs !== AGENT_LIVENESS_PROTOCOL.internalHeartbeatEveryMs) throw new Error('AGENT_LIVENESS_HEARTBEAT_ALIGNMENT_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs <= 0 || AGENT_LIVENESS_PROTOCOL.leaseTtlMs <= AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs) throw new Error('AGENT_LIVENESS_TIMING_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.maxNoProgressHeartbeats < 1) throw new Error('AGENT_LIVENESS_PROGRESS_THRESHOLD_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.minimumResidentFloor !== 1) throw new Error('AGENT_LIVENESS_MINIMUM_RESIDENT_FLOOR_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.residentWakeBatonTtlMs < AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs) throw new Error('AGENT_LIVENESS_WAKE_BATON_TTL_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.residentWakePolicy !== 'ACTIVE_BOT_WAKES_NEXT_RESIDENT_BEFORE_RELEASE') throw new Error('AGENT_LIVENESS_RESIDENT_WAKE_POLICY_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.onePulsePerHeartbeat !== true) throw new Error('AGENT_LIVENESS_ONE_PULSE_PER_HEARTBEAT_REQUIRED');
+  if (AGENT_LIVENESS_PROTOCOL.teamWakeIntervalMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_TEAM_WAKE_NOT_ONE_MINUTE');
+  if (AGENT_LIVENESS_PROTOCOL.teamWakePolicy !== 'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL') throw new Error('AGENT_LIVENESS_TEAM_WAKE_POLICY_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.teamWakeScope !== 'ALL_ACTION_REPAIR_TEAM') throw new Error('AGENT_LIVENESS_TEAM_WAKE_SCOPE_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.heartbeatWakePolicy !== 'ONE_MINUTE_HEARTBEAT_WAKES_ALL_AGENTS') throw new Error('AGENT_LIVENESS_HEARTBEAT_WAKE_POLICY_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.heartbeatWakeScope !== 'ALL_AGENTS') throw new Error('AGENT_LIVENESS_HEARTBEAT_WAKE_SCOPE_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.pulseEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_PULSE_NOT_ONE_MINUTE');
+  if (AGENT_LIVENESS_PROTOCOL.logicalBotCount !== 200 || AGENT_LIVENESS_PROTOCOL.logicalBotIds.length !== 200 || AGENT_LIVENESS_PROTOCOL.logicalBotIds[0] !== 'CELL-001' || AGENT_LIVENESS_PROTOCOL.logicalBotIds[199] !== 'CELL-200' || new Set(AGENT_LIVENESS_PROTOCOL.logicalBotIds).size !== 200) throw new Error('AGENT_LIVENESS_200_LOGICAL_BOT_ROSTER_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains.length !== 10 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.length !== 200 || new Set(AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.map((x) => x.botId)).size !== 200 || AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.some((x) => x.mutationAuthority !== false || x.certificationAuthority !== false || !x.skills.length)) throw new Error('AGENT_LIVENESS_LOGICAL_BOT_DEVELOPMENT_PROFILE_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.activeCohortSize !== 5 || AGENT_LIVENESS_PROTOCOL.activeCohortCount !== 40 || AGENT_LIVENESS_PROTOCOL.activeCohortCommitmentMs !== 60 * 60 * 1000 || AGENT_LIVENESS_PROTOCOL.activeCohortRotationPolicy !== 'FIFO_5_OF_200_WITH_CYCLE_WRAP' || AGENT_LIVENESS_PROTOCOL.activeCohortHandoffPolicy !== 'NEXT_5_READY_BEFORE_RELEASE') throw new Error('AGENT_LIVENESS_FIVE_BOT_ROTATION_POLICY_INVALID');
+  const continuity=AGENT_LIVENESS_PROTOCOL.seatContinuityContract;
+  if (!continuity || continuity.minimumConnectedSeats !== 5 || continuity.minimumVerifiedResidentRuntimeSeats !== 10 || continuity.requiredSurplusSeats !== 5 || continuity.heartbeatEveryMs !== 60 * 1000 || continuity.heartbeatGraceMs !== 30 * 1000 || continuity.staleAfterMs !== 90 * 1000 || continuity.lazyBotAction !== 'IMMEDIATE_REPLACE_FROM_STAGED_OR_VERIFIED_PROVISIONED_RUNTIME' || continuity.seatDropBelowMinimumAction !== 'FAIL_CLOSED_AND_REPLACE' || continuity.heartbeatAckRequired !== true || continuity.generatedWakeIsNotAttendanceProof !== true) throw new Error('AGENT_LIVENESS_SEAT_CONTINUITY_CONTRACT_INVALID');
+  const residency=AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment;
+  if (!residency || residency.requiredBotCount !== 5 || residency.postTaskState !== 'READY_RESIDENT' || residency.journeyLogicalBotCount !== 200 || residency.journeyCohortCount !== 40 || residency.journeyCohortSize !== 5 || residency.retainResidentAfterTaskClose !== true || residency.retainResidentUntilJourneyComplete !== true || residency.sleepDuringJourney !== false || residency.idleDuringJourney !== false || residency.withdrawalDuringJourney !== false) throw new Error('AGENT_LIVENESS_FIVE_BOT_RESIDENCY_COMMITMENT_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.activeRuntimeCount !== 5 || AGENT_LIVENESS_PROTOCOL.activeRuntimeIds.length !== 5 || AGENT_LIVENESS_PROTOCOL.stagedRuntimeCount !== 5 || AGENT_LIVENESS_PROTOCOL.stagedRuntimeIds.length !== 5) throw new Error('AGENT_LIVENESS_ACTIVE_RUNTIME_CAPACITY_INVALID');
+  for (const domain of AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains) if (AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.filter((x) => x.domainId === domain.id).length !== 20) throw new Error('AGENT_LIVENESS_BOT_DOMAIN_DISTRIBUTION_INVALID=' + domain.id);
+  if (AGENT_LIVENESS_PROTOCOL.pulseProfiles.length !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.botId)).size !== 10 || new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map((x) => x.pulseType)).size !== 10) throw new Error('AGENT_LIVENESS_PULSE_PROFILE_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.idleSweepMode !== 'FULL_REPOSITORY_READ_ONLY_SCAN' || AGENT_LIVENESS_PROTOCOL.idleSweepPlanLedger !== 'المهام.md') throw new Error('AGENT_LIVENESS_IDLE_SWEEP_POLICY_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.actionRepairTeamSize !== 10 || AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length !== 10) throw new Error('AGENT_LIVENESS_TEAM_SIZE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_HEARTBEAT_NOT_ONE_MINUTE');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatGraceMs !== 30 * 1000) throw new Error('AGENT_LIVENESS_HEARTBEAT_GRACE_NOT_THIRTY_SECONDS');
-  if (AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs !== 45 * 60 * 1000) throw new Error('AGENT_LIVENESS_ACTIVE_WINDOW_NOT_FORTY_FIVE_MINUTES');
+  if (AGENT_LIVENESS_PROTOCOL.activeRepairWindowMs !== 60 * 60 * 1000) throw new Error('AGENT_LIVENESS_ACTIVE_WINDOW_NOT_ONE_HOUR');
   if (AGENT_LIVENESS_PROTOCOL.maxContinuousActiveSessionMs !== 3 * 60 * 60 * 1000) throw new Error('AGENT_LIVENESS_MAX_CONTINUOUS_SEGMENT_NOT_THREE_HOURS');
   if (AGENT_LIVENESS_PROTOCOL.masterStatusUpdateEveryMs !== 5 * 60 * 1000 || AGENT_LIVENESS_PROTOCOL.taskReminderEveryMs !== 10 * 60 * 1000) throw new Error('AGENT_LIVENESS_COORDINATION_CADENCE_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.sessionPolicy.maxContinuousActiveSessionMs !== AGENT_LIVENESS_PROTOCOL.maxContinuousActiveSessionMs || AGENT_LIVENESS_PROTOCOL.sessionPolicy.maxContinuousSegmentEnforced !== true || AGENT_LIVENESS_PROTOCOL.sessionPolicy.totalTaskDurationUnlimitedWhileOpen !== true) throw new Error('AGENT_LIVENESS_LONG_SESSION_POLICY_INVALID');
@@ -169,6 +301,157 @@ export function completionGate({ state, workAssigned = true, exactShaVerified, r
   return Object.freeze({ ok: true, state: 'COMPLETE', residentState: 'READY_RESIDENT' });
 }
 
+export function buildResidentWakeBaton({ actor, nextActor = null, targetSha, taskId = null, now = new Date().toISOString(), ttlMs = AGENT_LIVENESS_PROTOCOL.residentWakeBatonTtlMs, reason = 'RESIDENT_HANDOFF_WAKE' } = {}) {
+  assertLivenessDefinition();
+  const actorId = String(actor ?? '').trim();
+  const nextId = nextActor == null || String(nextActor).trim() === ''
+    ? AGENT_LIVENESS_PROTOCOL.residentRuntimeIds[(AGENT_LIVENESS_PROTOCOL.residentRuntimeIds.indexOf(actorId) + 1) % AGENT_LIVENESS_PROTOCOL.residentRuntimeIds.length]
+    : String(nextActor).trim();
+  const sha = String(targetSha ?? '').trim();
+  if (!AGENT_LIVENESS_PROTOCOL.residentRuntimeIds.includes(actorId)) throw new Error('AGENT_LIVENESS_RESIDENT_WAKE_ACTOR_INVALID=' + actorId);
+  if (!AGENT_LIVENESS_PROTOCOL.residentRuntimeIds.includes(nextId)) throw new Error('AGENT_LIVENESS_RESIDENT_WAKE_NEXT_INVALID=' + nextId);
+  if (actorId === nextId) throw new Error('AGENT_LIVENESS_RESIDENT_WAKE_SELF_FORBIDDEN');
+  if (!/^[a-f0-9]{40}$/iu.test(sha)) throw new Error('AGENT_LIVENESS_RESIDENT_WAKE_EXACT_SHA_REQUIRED');
+  const issuedAt = Date.parse(String(now));
+  if (!Number.isFinite(issuedAt)) throw new Error('AGENT_LIVENESS_RESIDENT_WAKE_TIME_INVALID');
+  const ttl = Number(ttlMs);
+  if (!Number.isFinite(ttl) || ttl < AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs) throw new Error('AGENT_LIVENESS_RESIDENT_WAKE_TTL_INVALID');
+  return Object.freeze({
+    schemaVersion: 1,
+    protocol: 'FLIXO-RESIDENT-WAKE-BATON-v1',
+    action: 'WAKE_NEXT_RESIDENT_BOT',
+    actor: actorId,
+    nextActor: nextId,
+    targetSha: sha,
+    taskId: taskId ? String(taskId) : null,
+    reason: String(reason),
+    issuedAt: new Date(issuedAt).toISOString(),
+    expiresAt: new Date(issuedAt + ttl).toISOString(),
+    minimumResidentFloor: AGENT_LIVENESS_PROTOCOL.minimumResidentFloor,
+    exactShaRequired: true,
+    nextMustAckBeforeRelease: true,
+    fallback: 'WATCHDOG_DISPATCH_HEARTBEAT',
+    mutationAuthority: false,
+    pushAuthority: 'CHAIR_1_ONLY',
+  });
+}
+export function buildTeamWakeDirective({ actor, targetSha, taskId = null, failureFingerprint = null, reason = 'ACTIVE_BOT_WAKE' } = {}) {
+  assertLivenessDefinition();
+  const actorId = String(actor ?? '').trim();
+  const sha = String(targetSha ?? '').trim();
+  if (!AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.includes(actorId)) throw new Error('AGENT_LIVENESS_TEAM_WAKE_ACTOR_NOT_AUTHORIZED=' + actorId);
+  if (!/^[a-f0-9]{40}$/iu.test(sha)) throw new Error('AGENT_LIVENESS_TEAM_WAKE_EXACT_SHA_REQUIRED');
+  const fingerprint = String(failureFingerprint ?? '').trim() || `WAKE-${sha.slice(0, 12)}`;
+  return Object.freeze({
+    protocolId: AGENT_LIVENESS_PROTOCOL.protocolId,
+    action: 'WAKE_ALL_ACTION_REPAIR_TEAM',
+    policy: AGENT_LIVENESS_PROTOCOL.teamWakePolicy,
+    scope: AGENT_LIVENESS_PROTOCOL.teamWakeScope,
+    actor: actorId,
+    targetSha: sha,
+    taskId: taskId ? String(taskId) : null,
+    failureFingerprint: fingerprint,
+    reason: String(reason),
+    recipients: [...AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds],
+    recipientCount: AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length,
+    mutationAuthority: false,
+    pushAuthority: 'CHAIR_1_ONLY',
+    next: 'canonical_agent_repair_supervisor_and_existing_wake_dispatcher',
+  });
+}
+
+export function buildTeamPulseDirective({ targetSha, taskId = null, activeOperation = true, activeWorker = null, reason = 'MINUTE_HEARTBEAT' } = {}) {
+  assertLivenessDefinition();
+  const sha = String(targetSha ?? '').trim();
+  if (!/^[a-f0-9]{40}$/iu.test(sha)) throw new Error('AGENT_LIVENESS_PULSE_EXACT_SHA_REQUIRED');
+  const worker = activeWorker == null ? null : String(activeWorker).trim();
+  if (worker && !AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.includes(worker)) throw new Error('AGENT_LIVENESS_ACTIVE_WORKER_NOT_AUTHORIZED=' + worker);
+  return Object.freeze({
+    protocolId: AGENT_LIVENESS_PROTOCOL.protocolId,
+    action: 'WAKE_ALL_AGENTS',
+    pulseType: 'CANONICAL_TEAM_HEARTBEAT',
+    actor: 'FLIXO_HEARTBEAT_CONTROLLER',
+    activeWorker: worker,
+    targetSha: sha,
+    taskId: taskId ? String(taskId) : null,
+    activeOperation: Boolean(activeOperation),
+    mode: activeOperation ? 'ACTIVE_OPERATION' : 'READY_RESIDENT',
+    reason: String(reason),
+    wakeScope: AGENT_LIVENESS_PROTOCOL.heartbeatWakeScope,
+    recipients: ['ALL_AGENTS'],
+    recipientCount: AGENT_LIVENESS_PROTOCOL.residentRuntimeCount,
+    teamMemberCount: AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds.length,
+    logicalBotCount: AGENT_LIVENESS_PROTOCOL.logicalBotCount,
+    residentRuntimeCount: AGENT_LIVENESS_PROTOCOL.residentRuntimeCount,
+    logicalBotIds: [...AGENT_LIVENESS_PROTOCOL.logicalBotIds],
+    residentRuntimeIds: [...AGENT_LIVENESS_PROTOCOL.residentRuntimeIds],
+    developmentProfiles: AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles,
+    mutationAuthority: false,
+    pushAuthority: 'CHAIR_1_ONLY',
+    exactShaRequired: true,
+    readOnlyWhenResident: true,
+    residentState: activeOperation ? 'ACTIVE_OPERATION' : 'READY_RESIDENT',
+    sleep: false,
+    idle: false,
+    onePulsePerHeartbeat: true,
+  });
+}
+
+export function buildDifferentiatedPulseDirective({ actor, targetSha, taskId = null, activeOperation = true, reason = 'MINUTE_PULSE' } = {}) {
+  return buildTeamPulseDirective({ targetSha, taskId, activeOperation, activeWorker: actor, reason: 'LEGACY_COMPATIBILITY_' + reason });
+}
+export function assessFiveSeatContinuity({ activeRuntimeIds, stagedRuntimeIds = AGENT_LIVENESS_PROTOCOL.stagedRuntimeIds, heartbeatAcks = [], targetSha, now = Date.now() } = {}) {
+  assertLivenessDefinition();
+  if (!/^[a-f0-9]{40}$/iu.test(String(targetSha ?? ''))) throw new Error('AGENT_LIVENESS_SEAT_CONTINUITY_EXACT_SHA_REQUIRED');
+  const expectedActive = new Set(AGENT_LIVENESS_PROTOCOL.activeRuntimeIds);
+  const active = [...new Set((Array.isArray(activeRuntimeIds) ? activeRuntimeIds : []).map(String))];
+  if (active.length !== 5 || active.some(id => !expectedActive.has(id))) throw new Error('AGENT_LIVENESS_SEAT_CONTINUITY_ACTIVE_ROSTER_INVALID');
+  const staged = [...new Set((Array.isArray(stagedRuntimeIds) ? stagedRuntimeIds : []).map(String))];
+  const cutoff = Number(now) - AGENT_LIVENESS_PROTOCOL.seatContinuityContract.staleAfterMs;
+  const fresh = new Set();
+  for (const ack of Array.isArray(heartbeatAcks) ? heartbeatAcks : []) {
+    if (!ack || !expectedActive.has(String(ack.runtimeId)) || String(ack.targetSha) !== String(targetSha)) continue;
+    const at = Date.parse(String(ack.at ?? ''));
+    if (Number.isFinite(at) && at >= cutoff && ack.state === 'ACTIVE' && ack.heartbeatAck === true) fresh.add(String(ack.runtimeId));
+  }
+  const missing = active.filter(id => !fresh.has(id));
+  const replacementCount = missing.length;
+  return Object.freeze({
+    ok: missing.length === 0,
+    minimumConnectedSeats: 5,
+    activeSeatCount: fresh.size,
+    missingRuntimeIds: missing,
+    replacementRequired: replacementCount > 0,
+    replacementCount,
+    availableStagedReplacementCount: staged.length,
+    failClosed: replacementCount > 0,
+    action: replacementCount > 0 ? 'FAIL_CLOSED_AND_REPLACE' : 'CONTINUE',
+    lazyBotDetected: replacementCount > 0,
+    targetSha: String(targetSha),
+  });
+}
+
+export function assertFiveBotResidencyCommitment({ botIds, states = [], taskClosed = false, journeyComplete = false } = {}) {
+  assertLivenessDefinition();
+  const expected=[...AGENT_LIVENESS_PROTOCOL.activeRuntimeIds].sort();
+  const actual=[...new Set((Array.isArray(botIds)?botIds:[]).map(String))].sort();
+  if(actual.length!==5 || actual.some((id,index)=>id!==expected[index])) throw new Error('AGENT_LIVENESS_FIVE_BOT_RESIDENT_ROSTER_INVALID');
+  if(states.length && states.length!==5) throw new Error('AGENT_LIVENESS_FIVE_BOT_RESIDENT_STATE_COUNT_INVALID');
+  if(states.some((state)=>AGENT_LIVENESS_PROTOCOL.forbiddenStates.includes(String(state)))) throw new Error('AGENT_LIVENESS_FIVE_BOT_RESIDENT_FORBIDDEN_STATE');
+  if(taskClosed && states.length && states.some((state)=>String(state)!=='READY_RESIDENT')) throw new Error('AGENT_LIVENESS_FIVE_BOT_CLOSE_MUST_REMAIN_READY_RESIDENT');
+  return Object.freeze({
+    ok:true,
+    botIds:expected,
+    requiredBotCount:5,
+    postTaskState:'READY_RESIDENT',
+    taskClosed:Boolean(taskClosed),
+    journeyComplete:Boolean(journeyComplete),
+    retainResidentUntilJourneyComplete:AGENT_LIVENESS_PROTOCOL.fiveBotResidencyCommitment.retainResidentUntilJourneyComplete,
+    sleep:false,
+    idle:false,
+  });
+}
+
 export function buildRecoveryDirective({ reason, currentState = 'ACTIVE', newEvidenceRequired = true } = {}) {
   assertState(currentState, { workAssigned: true });
   return Object.freeze({
@@ -203,9 +486,10 @@ export function assertActiveRepairWindow({ startedAt, continuousStartedAt = star
 }
 
 export function sessionTerminationDirective({ canonicalGreen = false, activeRepairWindowReached = false, reason = 'SESSION_BUDGET_EXHAUSTED' } = {}) {
-  if (canonicalGreen === true && activeRepairWindowReached === true) return Object.freeze({ action: 'CLOSE_ALLOWED', taskRemainsOpen: false, residentState: 'READY_RESIDENT', reason: 'CANONICAL_GREEN_PROVEN' });
-  if (canonicalGreen === true && activeRepairWindowReached !== true) return Object.freeze({ action: 'RECOVER_AND_CONTINUE', taskRemainsOpen: true, residentState: 'ACTIVE_OR_RECOVERING', reason: 'ACTIVE_45_MIN_WINDOW_REQUIRED', next: 'maintain_heartbeat_until_minimum_window_then_reverify' });
-  return Object.freeze({ action: 'RECOVER_AND_REDISPATCH', taskRemainsOpen: true, residentState: 'ACTIVE_OR_RECOVERING', reason: String(reason), next: 'renew_lease -> capture_state -> new_evidence_or_strategy -> continue_until_verified' });
+  const residentCommitment={postTaskState:'READY_RESIDENT',retainResidentUntilJourneyComplete:true,journeyLogicalBotCount:200,journeyCohortCount:40,sleep:false,idle:false,withdrawal:false};
+  if (canonicalGreen === true && activeRepairWindowReached === true) return Object.freeze({ action: 'CLOSE_ALLOWED', taskRemainsOpen: false, residentState: 'READY_RESIDENT', reason: 'CANONICAL_GREEN_PROVEN', fiveBotResidency:residentCommitment });
+  if (canonicalGreen === true && activeRepairWindowReached !== true) return Object.freeze({ action: 'RECOVER_AND_CONTINUE', taskRemainsOpen: true, residentState: 'ACTIVE_OR_RECOVERING', reason: 'ACTIVE_60_MIN_WINDOW_REQUIRED', next: 'maintain_heartbeat_until_minimum_window_then_reverify', fiveBotResidency:residentCommitment });
+  return Object.freeze({ action: 'RECOVER_AND_REDISPATCH', taskRemainsOpen: true, residentState: 'ACTIVE_OR_RECOVERING', reason: String(reason), next: 'renew_lease -> capture_state -> new_evidence_or_strategy -> continue_until_verified', fiveBotResidency:residentCommitment });
 }
 
 // Legacy admission APIs remain as hard blockers so older callers cannot suspend a resident agent.
@@ -234,6 +518,22 @@ if (isMain) {
       console.log(JSON.stringify({ status: 'PASS', heartbeat }, null, 2));
     } else if (command === 'check-heartbeat') {
       console.log(JSON.stringify(checkHeartbeat({ state: process.argv.find((v) => v.startsWith('--state='))?.slice(8) ?? 'ACTIVE', lastHeartbeatAt: process.argv.find((v) => v.startsWith('--last='))?.slice(7) }), null, 2));
+    } else if (command === 'resident-baton') {
+      const getArg = (name, fallback = null) => process.argv.find((v) => v.startsWith('--' + name + '='))?.slice(name.length + 3) ?? fallback;
+      const baton = buildResidentWakeBaton({
+        actor: getArg('actor'),
+        nextActor: getArg('next') ?? undefined,
+        targetSha: getArg('sha'),
+        taskId: getArg('task') ?? undefined,
+        now: getArg('now') ?? undefined,
+        ttlMs: Number(getArg('ttlMs', AGENT_LIVENESS_PROTOCOL.residentWakeBatonTtlMs)),
+      });
+      const file = getArg('file');
+      if (file) {
+        fs.mkdirSync(file.split('/').slice(0, -1).join('/') || '.', { recursive: true });
+        fs.writeFileSync(file, JSON.stringify(baton, null, 2) + '\n');
+      }
+      console.log(JSON.stringify({ status: 'PASS', baton }, null, 2));
     } else if (command === 'check-progress') {
       console.log(JSON.stringify(checkProgress({ state: process.argv.find((v) => v.startsWith('--state='))?.slice(8) ?? 'ACTIVE', lastProgressAt: process.argv.find((v) => v.startsWith('--last='))?.slice(7), consecutiveNoProgress: Number(process.argv.find((v) => v.startsWith('--count='))?.slice(8) ?? 0) }), null, 2));
     } else throw new Error('Usage: agent-liveness-protocol.mjs validate|heartbeat|check-heartbeat|check-progress');

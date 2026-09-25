@@ -2,9 +2,13 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { getCapability, getExecutableCapabilityIds } from '../src/lib/agent/capability-registry.ts';
 import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from '../src/lib/contracts/agent-gateway.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
-import { buildFlixoAgentMasterPrompt } from '../src/lib/agent/flixo-agent-master-prompt.ts';
+import { planFromIntent } from '../src/lib/ai/planner.ts';
+import { isDeterministicPlanCompatible } from '../src/lib/ai/deterministic-boundary.ts';
+import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
+import { buildSharedLearningContext } from '../scripts/ci/shared-operational-memory.mjs';
+import { createExternalAgentLearning, listExternalAgentLearning } from '../src/server/agent/learning-persistence.ts';
 
-const MAX_MESSAGES = 24;
+const MAX_MESSAGES = 80;
 const MAX_REQUEST_BODY_BYTES = 512 * 1024;
 const MAX_PROVIDER_CALLS = 2;
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -129,12 +133,63 @@ function executableCatalog(): Array<Record<string, unknown>> {
   }).filter(Boolean) as Array<Record<string, unknown>>;
 }
 
+const exactSha = (): string | null => {
+  const candidates = [
+    process.env.VERCEL_GIT_COMMIT_SHA,
+    process.env.GITHUB_SHA,
+    process.env.FLIXO_TARGET_SHA,
+  ];
+  return candidates.find((value) => /^[a-f0-9]{40}$/u.test(String(value ?? '').trim()))?.trim() ?? null;
+};
+
+async function persistLearningCandidate(
+  decision: ReturnType<typeof parseAgentDecision>,
+  userMessage: string,
+  locale: string,
+  provider: string,
+): Promise<void> {
+  if (!decision.learning) return;
+  const targetSha = exactSha();
+  if (!targetSha) return;
+  try {
+    await createExternalAgentLearning({
+      sourceAgent: 'execution-agent-clone-v1',
+      sourceRole: 'executionAgent',
+      kind: decision.learning.kind,
+      taskId: `UI-LEARNING:${targetSha.slice(0, 12)}:${Date.now()}`,
+      targetSha,
+      claim: decision.learning.claim,
+      content: decision.learning.content,
+      evidenceRefs: decision.learning.evidenceRefs,
+      provenance: {
+        channel: 'external-ui-agent',
+        locale,
+        provider,
+        userMessage: userMessage.slice(0, 2000),
+        status: 'PROPOSED',
+      },
+    });
+  } catch (error) {
+    console.warn('[flixo-agent] learning persistence warning', {
+      error: error instanceof Error ? error.name : 'unknown',
+    });
+  }
+}
+
 function parseJsonObject(text: string): unknown {
   const trimmed = text.trim().replace(/^\uFEFF/, '');
   try {
     return JSON.parse(trimmed) as unknown;
   } catch {
     throw new Error('AI response was not valid JSON.');
+  }
+}
+
+function assertDeterministicPlanBoundary(input: string, decision: ReturnType<typeof parseAgentDecision>): void {
+  if (decision.mode !== 'plan' || !decision.plan) return;
+  const deterministic = planFromIntent(input);
+  if (!isDeterministicPlanCompatible(decision.plan, deterministic)) {
+    throw new Error('AI_PLAN_CONFLICTS_WITH_DETERMINISTIC_QUICKFLOW');
   }
 }
 
@@ -245,21 +300,68 @@ async function callProvider(
   throw new Error('Unsupported AI provider.');
 }
 
-function fallbackDecision(message: string, file: AgentRequestContract['file']): ReturnType<typeof parseAgentDecision> {
-  const normalized = message.toLocaleLowerCase();
+export function fallbackDecision(
+  message: string,
+  file: AgentRequestContract['file'],
+  locale: string,
+): ReturnType<typeof parseAgentDecision> {
+  const normalized = message.trim().toLocaleLowerCase();
+  const arabic = /[\u0600-\u06FF]/u.test(message) || locale.startsWith('ar');
+  if (/^(?:مرحبا|مرحبًا|اهلا|أهلا|السلام عليكم|هاي|هلا|hello|hi|hey)\b/i.test(normalized)) {
+    return {
+      mode: 'chat',
+      reply: arabic ? 'أهلًا 👋 أنا FLIXO BOT. قل لي ما الذي تريد الوصول إليه، وسأفهمك خطوة بخطوة.' : 'Hi 👋 I’m FLIXO BOT. Tell me what you want to achieve and I’ll follow the conversation step by step.',
+      question: null,
+      plan: null,
+      confidence: 0.98,
+    };
+  }
+  if (/^(?:من انت|من أنت|مين انت|who are you)\??$/i.test(normalized)) {
+    return {
+      mode: 'chat',
+      reply: arabic ? 'أنا FLIXO BOT، المساعد الذي يفهم طلبك الطبيعي ويحوله إلى خطوات آمنة داخل أدوات FLIXO.' : 'I’m FLIXO BOT, the assistant that understands natural requests and turns them into safe FLIXO tool steps.',
+      question: null,
+      plan: null,
+      confidence: 0.98,
+    };
+  }
+  if (/^(?:شكرا|شكرًا|thanks|thank you|تمام|ممتاز)\b/i.test(normalized)) {
+    return {
+      mode: 'chat',
+      reply: arabic ? 'العفو. أكمل معي من حيث توقفت.' : 'You’re welcome. Continue from where we left off.',
+      question: null,
+      plan: null,
+      confidence: 0.97,
+    };
+  }
   if (!file && /(?:الصوره|الصورة|image|photo|صور)/i.test(normalized)) {
     return {
       mode: 'clarify',
-      reply: 'مفهوم. قبل التنفيذ أحتاج الصورة نفسها.',
-      question: 'ارفع الصورة التي تريد العمل عليها، ثم أخبرني بالنتيجة المطلوبة.',
+      reply: arabic ? 'مفهوم. أحتاج الصورة نفسها قبل أن نكمل.' : 'Understood. I need the image itself before we continue.',
+      question: arabic ? 'ارفع الصورة، ثم قل لي النتيجة التي تريد الوصول إليها.' : 'Upload the image, then tell me the result you want.',
       plan: null,
       confidence: 0.9,
     };
   }
+
+  const deterministicPlan = planFromIntent(message);
+  if (file && deterministicPlan) {
+    return {
+      mode: 'plan',
+      reply: arabic
+        ? 'تعذر الوصول إلى مزوّد الذكاء الاصطناعي، فاعتمدت الخطة الحتمية الآمنة المتاحة محليًا.'
+        : 'The AI provider was unavailable, so I used the available deterministic safe plan.',
+      question: null,
+      plan: deterministicPlan,
+      confidence: deterministicPlan.confidence,
+      reason: 'DETERMINISTIC_QUICKFLOW_FALLBACK',
+    };
+  }
+
   return {
     mode: 'clarify',
-    reply: 'أريد أن أتأكد من النتيجة التي تقصدها قبل اختيار الأداة.',
-    question: 'ما النتيجة النهائية التي تريدها بالضبط؟',
+    reply: arabic ? 'أفهم أنك تريد المساعدة. أحتاج تحديد النتيجة المطلوبة حتى أقدر أساعدك بدقة.' : 'I understand you want help. I need the desired result so I can guide you precisely.',
+    question: arabic ? 'ما النتيجة التي تريدها من الصورة؟' : 'What result do you want from the image?',
     plan: null,
     confidence: 0.55,
   };
@@ -282,11 +384,33 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const locale = body.locale ?? 'en';
     const runtime = configuredRuntime();
     const provider = runtime.provider;
+    const recentMessages = messages.slice(-24);
+    const sharedLearning = buildSharedLearningContext({ botId: 'executionAgent', limit: 48 });
+    const targetSha = exactSha();
+    const remoteLearning = targetSha ? await listExternalAgentLearning(targetSha, 48).catch(() => []) : [];
+    const remoteLessons = remoteLearning.filter((item) => item.kind === 'LESSON');
+    const remoteAntiLessons = remoteLearning.filter((item) => item.kind === 'ANTI_LESSON');
+    const remoteAdvice = remoteLearning.filter((item) => item.kind === 'ADVICE');
+    const remoteCounterexamples = remoteLearning.filter((item) => item.kind === 'COUNTEREXAMPLE');
     const promptMessages = [
       {
         role: 'system' as const,
-        content: buildFlixoAgentMasterPrompt({
+        content: buildFlixoHumanConversationPrompt({
           locale,
+          currentMessage: userMessage,
+          collectiveLearning: {
+            authority: 'CONTEXT_ONLY',
+            mutationAuthority: false,
+            certificationAuthority: false,
+            lessons: [...remoteLessons, ...sharedLearning.lessons],
+            antiLessons: [...remoteAntiLessons, ...sharedLearning.antiLessons],
+            advice: [...remoteAdvice, ...sharedLearning.advice],
+            errors: sharedLearning.errors,
+            obligations: sharedLearning.obligations,
+            counterexamples: [...remoteCounterexamples, ...sharedLearning.counterexamples],
+            verifications: sharedLearning.verifications,
+            externalLearningCandidates: remoteLearning.slice(0, 48),
+          },
           file: body.file ?? null,
           activeCommand: body.activeCommand ?? null,
           activePlan: body.activePlan ?? null,
@@ -294,7 +418,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           catalogFingerprint: TOOL_CATALOG.fingerprint,
         }),
       },
-      ...messages,
+      ...recentMessages,
     ];
     const started = Date.now();
     let providerCalls = 0;
@@ -306,12 +430,16 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     try {
       const raw = await invoke(provider);
       const decision = parseAgentDecision(parseJsonObject(raw));
+      assertDeterministicPlanBoundary(userMessage, decision);
+      await persistLearningCandidate(decision, userMessage, locale, provider);
       json(res, 200, { ...decision, latencyMs: Date.now() - started, provider });
     } catch (providerError) {
       if (runtime.fallbackProvider) {
         try {
           const raw = await invoke(runtime.fallbackProvider);
           const decision = parseAgentDecision(parseJsonObject(raw));
+          assertDeterministicPlanBoundary(userMessage, decision);
+          await persistLearningCandidate(decision, userMessage, locale, runtime.fallbackProvider);
           json(res, 200, { ...decision, latencyMs: Date.now() - started, provider: runtime.fallbackProvider, fallback: true });
           return;
         } catch (fallbackError) {
@@ -328,7 +456,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           error: providerError instanceof Error ? providerError.name : 'unknown',
         });
       }
-      const decision = fallbackDecision(userMessage, body.file);
+      const decision = fallbackDecision(userMessage, body.file, locale);
       json(res, 200, { ...decision, fallback: true });
     }
   } catch (error) {

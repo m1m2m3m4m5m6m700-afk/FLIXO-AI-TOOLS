@@ -8,10 +8,10 @@ on:
     branches: [main, execution]
   workflow_dispatch:
 
-# Each exact commit SHA has its own advisory execution slot; active reviews are never cancelled by newer commits.
+# Advisory reviews are evidence-bearing and are preserved once started; repository-wide latest-commit supersession cancels only queued/pending stale runs.
 # The surviving run still reviews the exact PR head SHA.
 concurrency:
-  group: claude-security-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.sha || github.sha }}
+  group: claude-security-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: false
 
 # Advisory only: this workflow never modifies source code and is not a merge gate.
@@ -24,25 +24,23 @@ jobs:
     name: Claude Security Review (Advisory)
     runs-on: ubuntu-latest
     steps:
-      - name: Fail closed when PR head changes during review
+      - name: Checkout trusted security-review revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Fail closed when this commit is superseded
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
           EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          REQUIRE_LIVE_HEAD_MATCH: 'true'
         shell: bash
-        run: |
-          set -euo pipefail
-          [[ "$EXPECTED_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "FAIL CLOSED: invalid expected PR SHA"; exit 1; }
-          [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || { echo "FAIL CLOSED: invalid PR number"; exit 1; }
-          LIVE_SHA="$(gh api "repos/$EXPECTED_REPOSITORY/pulls/$PR_NUMBER" --jq '.head.sha')"
-          [[ "$LIVE_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "FAIL CLOSED: invalid live PR SHA"; exit 1; }
-          test "$LIVE_SHA" = "$EXPECTED_SHA"
-          echo "CLAUDE_SECURITY_PR_HEAD_SHA=$LIVE_SHA"
-          echo "CLAUDE_SECURITY_PR_BRANCH=$EXPECTED_BRANCH"
-          echo "CLAUDE_SECURITY_TRUSTED_WORKSPACE=NO_PR_CHECKOUT"
+        run: node scripts/ci/assert-current-commit.mjs
 
       - name: Check whether Claude API key is configured
         id: key-check

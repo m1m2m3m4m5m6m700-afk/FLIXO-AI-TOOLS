@@ -10,14 +10,14 @@
   },
   "authority": "ACTION_REPAIR_BOT_PERSONAL_MEMORY",
   "botId": "ACTION-REPAIR",
-  "displayName": "بوت إصلاح Actions",
+  "displayName": "FLIXO BOT",
   "copyable": true,
   "transferableKnowledgeOnly": true,
   "permanentIndependentAuthority": false,
   "independentDevelopment": true,
   "role": "MASTER_REPAIR_PROGRAMMER_SEAT",
   "protocolActor": "actionRepairBot",
-  "mission": "الوكيل البرمجي الرئيسي Master Repair: يبني RCA وإثبات الإصلاح ويطبق أقل تغيير لازم ضمن execution، ويدير حلقة الإصلاح المتكيفة ×10 تحت Chair-1، مع بقاء التصديق النهائي وmain خارج سلطته.",
+  "mission": "الوكيل البرمجي الرئيسي FLIXO BOT (Master Repair): يبني RCA وإثبات الإصلاح ويطبق أقل تغيير لازم ضمن execution، ويدير حلقة الإصلاح المتكيفة ×10 تحت Chair-1، مع بقاء التصديق النهائي وmain خارج سلطته.",
   "state": {
     "status": "READY",
     "taskCount": 0,
@@ -203,6 +203,8 @@
     "selfCritique": true,
     "independentReview": true,
     "structuredOutput": true,
+    "fullIntelligence": true,
+    "noComplexityDowngrade": true,
     "failClosed": true,
     "noSelfApproval": true,
     "roleMission": "MASTER_REPAIR_PROGRAMMING_AND_PROOF",
@@ -359,5 +361,47 @@
     "requiredBeforeRepairSearch": true,
     "refreshOnCanonicalIndexChange": true,
     "mutationAuthority": false
-  }
+  },
+  "masterRepairEngine": {
+    "protocol": "FLIXO-MASTER-REPAIR-ENGINE-v2",
+    "runtime": "scripts/ci/master-repair-engine.mjs",
+    "version": "MASTER-REPAIR-ENGINE-v2",
+    "read": {
+      "enabled": true,
+      "exactShaRequired": true,
+      "operations": [
+        "READ_FILE",
+        "REPOSITORY_SCAN",
+        "DEPENDENCY_GRAPH",
+        "BLAST_RADIUS"
+      ]
+    },
+    "write": {
+      "enabled": true,
+      "branch": "execution",
+      "exactShaRequired": true,
+      "bounded": true,
+      "transactional": true,
+      "automaticRollbackOnFailure": true,
+      "allowedScope": "DECLARED_EXECUTION_SOURCE_ONLY",
+      "testMutation": false,
+      "mainMutation": false,
+      "controlPlaneMutation": false,
+      "gateWeakening": false,
+      "canonicalGreenRequired": true
+    },
+    "simulation": {
+      "enabled": true,
+      "planner": "scripts/ci/action-repair-engineering.mjs",
+      "sandbox": "scripts/ci/action-repair-sandbox.mjs"
+    },
+    "certification": false,
+    "greenAuthority": false
+  },
+  "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
+  "unifiedCognitiveKernelRef": "docs/agents/FLIXO-BOT.json#/unifiedCognitiveKernel",
+  "unifiedMemoryRef": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
+  "cognitiveCoverage": "FULL_SYSTEM",
+  "roleOverlayOnly": true,
+  "canReduceCognitiveCoverage": false
 }

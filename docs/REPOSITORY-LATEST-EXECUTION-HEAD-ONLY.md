@@ -1,36 +1,21 @@
 # Repository Policy — Latest-Execution-HEAD-Only
 
-**Rule ID:** `LATEST-EXECUTION-HEAD-ONLY-001`  
-**Scope:** repository-wide  
-**Canonical repair branch:** `execution`  
-**Canonical promotion direction:** `execution → main`
+**Legacy Rule ID:** `LATEST-EXECUTION-HEAD-ONLY-001`  
+**Superseded by:** `LATEST-COMMIT-ONLY-002`  
+**Scope:** repository-wide
 
-## Rule
+The repository-wide authority is now defined by `docs/REPOSITORY-LATEST-COMMIT-ONLY.md`.
 
-The live `execution` branch tip is the only authoritative current execution HEAD.
+The live tip of each canonical branch is authoritative. When a canonical branch advances, every active run tied to an older SHA is subject to repository-wide supersession cancellation, and every exact-SHA gate rejects the older SHA.
 
-Any workflow run, verification invocation, deployment evidence, or generated CI artifact tied to an older `execution` SHA becomes **STALE** as soon as the branch advances. Historical evidence may describe its original run, but it must never certify the newer HEAD.
+This document remains as the historical execution-branch policy record. It does not grant an exception to the repository-wide latest-commit-only rule.
 
-## Enforcement
+## Historical execution cleanup
 
-1. `.github/workflows/latest-commit-test-supersession.yml` cancels active stale verification runs.
-2. `scripts/ci/assert-current-commit.mjs` fail-closes jobs that require the live-head match.
-3. `scripts/ci/latest-execution-head-cleanup.mjs` performs periodic retention cleanup.
-4. `.github/workflows/latest-execution-head-cleanup.yml` runs the cleanup weekly and is sourced from trusted `main`.
-
-## Periodic deletion
-
-Completed workflow runs and CI artifacts for older `execution` SHAs are deleted after **14 days**.
-
-Active stale runs are cancelled during cleanup. The cleanup never deletes:
-
-- the current `execution` HEAD or anything attached to it;
-- `main` runs or artifacts;
-- tracked repository files, task ledgers, memory, or learning records;
-- runs/artifacts belonging to another repository.
+`.github/workflows/latest-execution-head-cleanup.yml` and `scripts/ci/latest-execution-head-cleanup.mjs` remain responsible for retention cleanup of obsolete execution-branch runs and artifacts. Cleanup is operational retention; it is not the authority for deciding whether a SHA is current.
 
 ## Race safety
 
-The cleanup resolves the live `execution` SHA before deletion and re-checks it after deletion. If the branch moves during cleanup, the job fails closed.
+A cancellation race does not create valid evidence. The mandatory exact live-head guard fails closed when the branch tip has moved.
 
-This rule removes obsolete operational CI state over time without rewriting the repository's tracked historical record.
+Completed historical workflow runs cannot be retroactively converted to GitHub status `cancelled`; they remain historical records and are non-authoritative for current certification.

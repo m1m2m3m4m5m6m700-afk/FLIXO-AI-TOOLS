@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "authority": "ACTION_REPAIR_HISTORY_CONTROL_PLANE",
   "name": "FLIXO-ACTIONS-VAULT",
-  "purpose": "Five independent Actions specialists, outside the 200-bot CELL pool, intentionally separated so each can be developed independently according to project needs.",
+  "purpose": "Ten independent Actions repair-analysis specialists, outside the 200-bot CELL pool, cloned from the canonical FLIXO BOT cognitive kernel with role overlays; one mutation owner receives their handoffs and guarded publication remains singular.",
   "headquarters": {
     "primary": "docs/agents/historical-action-errors",
     "index": "docs/agents/historical-action-errors/index.json",
@@ -17,11 +17,11 @@
   },
   "separation": {
     "separateFromCell": true,
-    "cellBotCount": 200,
+    "cellBotCount": 0,
     "includedInCellCount": false,
     "identityNamespace": "ACTION-*",
     "developmentModel": "INDEPENDENT",
-    "purpose": "Two hundred CELL raw workers remain separate from the specialized Actions repair cohort."
+    "purpose": "The historical CELL runtime pool is retired; the current CELL roster is 100 logical development profiles on 10 verified runtime seats, separate from the specialized Actions repair cohort."
   },
   "sharedPolicy": {
     "sameReferencesForAll": true,
@@ -51,7 +51,55 @@
     "supervisorEscalationAfterFailedAttempts": 20,
     "cognitiveScopeMayExceedRoleScope": true,
     "authorityScopeMustNotExpand": true,
-    "wholeSystemAwarenessRequired": true
+    "wholeSystemAwarenessRequired": true,
+    "workerCount": 10,
+    "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
+    "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
+    "cloneModel": "ONE_SHARED_COGNITIVE_KERNEL_WITH_ROLE_OVERLAYS",
+    "pushAuthority": "CHAIR_1_ONLY",
+    "sourceMutationOwner": "ACTION-REPAIR",
+    "workerMutationAuthority": false,
+    "heartbeatEveryMinutes": 1,
+    "wakePolicy": "ONE_MINUTE_HEARTBEAT_WAKES_ALL_AGENTS",
+    "wakeScope": "ALL_AGENTS",
+    "wakeDispatcher": "CANONICAL_GREEN_GATE_AND_DURABLE_REPAIR_LEASE",
+    "wakeRequiresExactSha": true,
+    "wakeDoesNotGrantMutation": true,
+    "wakeDoesNotGrantPush": true,
+    "flixo10SystemScope": "FULL_REPOSITORY_AND_AUTOMATION_SYSTEM",
+    "pushSeatPolicy": "ACTIVE_WORKER_ONLY_DURABLE_LEASE_UNTIL_TASK_COMPLETION",
+    "pushSeatClaim": "DURABLE_REPAIR_LEASE_FLIXO_WORKER_ASSIGNMENT",
+    "pushSeatTakeover": "ONLY_NEXT_FLIXO_AFTER_STALE_WORKER_HEARTBEAT",
+    "pushSeatAbandonment": "FORBIDDEN",
+    "parallelProposalMerge": "SINGLE_PUSH_INTEGRATOR",
+    "pulseCountPerHeartbeat": 1,
+    "activeWorkerPolicy": {
+      "guard": "scripts/ci/flixo-active-worker-guard.mjs",
+      "mode": "SINGLE_ACTIVE_ORDERED_FAILOVER",
+      "simultaneousActiveWorkers": 1,
+      "reserveCount": 10,
+      "initialWorker": "FLIXO1",
+      "failoverOrder": [
+        "FLIXO1",
+        "FLIXO2",
+        "FLIXO3",
+        "FLIXO4",
+        "FLIXO5",
+        "FLIXO6",
+        "FLIXO7",
+        "FLIXO8",
+        "FLIXO9",
+        "FLIXO10"
+      ],
+      "heartbeatMaxAgeSeconds": 90,
+      "takeoverPolicy": "NEXT_WORKER_ONLY_AFTER_HEARTBEAT_STALE",
+      "peerCompetition": "FORBIDDEN",
+      "parallelMutation": "FORBIDDEN",
+      "taskRemainsOpenOnWorkerFailure": true,
+      "failoverIntoSameTask": true,
+      "workerSeatIsNotAProposalRace": true
+    },
+    "workerPoolPurpose": "TEN_IDENTITIES_FOR_CONTINUITY_ONE_ACTIVE_WORKER"
   },
   "workers": [
     {
@@ -78,7 +126,10 @@
       "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
       "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
       "currentAssignment": null,
-      "independentDevelopment": true
+      "independentDevelopment": true,
+      "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
+      "cognitiveParity": "EXACT_SHARED_BY_REFERENCE"
     },
     {
       "id": "ACTION-TWIN-2",
@@ -104,7 +155,10 @@
       "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
       "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
       "currentAssignment": null,
-      "independentDevelopment": true
+      "independentDevelopment": true,
+      "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
+      "cognitiveParity": "EXACT_SHARED_BY_REFERENCE"
     },
     {
       "id": "ACTION-INDEX",
@@ -130,7 +184,10 @@
       "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
       "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
       "currentAssignment": null,
-      "independentDevelopment": true
+      "independentDevelopment": true,
+      "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
+      "cognitiveParity": "EXACT_SHARED_BY_REFERENCE"
     },
     {
       "id": "ACTION-WISE",
@@ -156,7 +213,10 @@
       "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
       "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
       "currentAssignment": null,
-      "independentDevelopment": true
+      "independentDevelopment": true,
+      "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
+      "cognitiveParity": "EXACT_SHARED_BY_REFERENCE"
     },
     {
       "id": "ACTION-WAKE",
@@ -201,6 +261,198 @@
       "masterEscalationOnFirstRepositoryOccurrence": true,
       "currentAssignment": "ACTION_VAULT_CONTINUOUS_RECORD_AND_INDEX",
       "independentDevelopment": true
+    },
+    {
+      "id": "ACTION-RCA-3",
+      "displayName": "RCA 3",
+      "kind": "ACTION_REPAIR_BOT",
+      "status": "READY",
+      "workerIndex": 7,
+      "role": "ACTION_RCA_EVIDENCE_REVIEW",
+      "mission": "Independent root-cause evidence reconstruction; proposal-only.",
+      "weakness": "ROOT_CAUSE_EVIDENCE_DISCRIMINATION",
+      "headquarters": "docs/agents/historical-action-errors",
+      "sharedReferences": [
+        "docs/AUTO_REPAIR_HISTORY.jsonl",
+        "diagnostics/auto-repair/memory.json",
+        "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+        "docs/agents/ERROR-TEACHING-ROUTER.json",
+        "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md",
+        "docs/agents/historical-action-errors/index.json",
+        "docs/agents/historical-action-errors/records"
+      ],
+      "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-RCA-3.json",
+      "mutationAuthority": false,
+      "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+      "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
+      "currentAssignment": null,
+      "independentDevelopment": true,
+      "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
+      "cognitiveParity": "EXACT_SHARED_BY_REFERENCE",
+      "sourceMutationOwner": "ACTION-REPAIR",
+      "pushAuthority": "CHAIR_1_ONLY"
+    },
+    {
+      "id": "ACTION-IMPACT-4",
+      "displayName": "Impact 4",
+      "kind": "ACTION_REPAIR_BOT",
+      "status": "READY",
+      "workerIndex": 8,
+      "role": "ACTION_BLAST_RADIUS_REVIEW",
+      "mission": "Independent dependency and blast-radius analysis; proposal-only.",
+      "weakness": "DEPENDENCY_AND_BLAST_RADIUS",
+      "headquarters": "docs/agents/historical-action-errors",
+      "sharedReferences": [
+        "docs/AUTO_REPAIR_HISTORY.jsonl",
+        "diagnostics/auto-repair/memory.json",
+        "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+        "docs/agents/ERROR-TEACHING-ROUTER.json",
+        "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md",
+        "docs/agents/historical-action-errors/index.json",
+        "docs/agents/historical-action-errors/records"
+      ],
+      "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-IMPACT-4.json",
+      "mutationAuthority": false,
+      "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+      "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
+      "currentAssignment": null,
+      "independentDevelopment": true,
+      "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
+      "cognitiveParity": "EXACT_SHARED_BY_REFERENCE",
+      "sourceMutationOwner": "ACTION-REPAIR",
+      "pushAuthority": "CHAIR_1_ONLY"
+    },
+    {
+      "id": "ACTION-SECURITY-5",
+      "displayName": "Security 5",
+      "kind": "ACTION_REPAIR_BOT",
+      "status": "READY",
+      "workerIndex": 9,
+      "role": "ACTION_SECURITY_BOUNDARY_REVIEW",
+      "mission": "Independent security/control-plane boundary challenge; proposal-only.",
+      "weakness": "SECURITY_BOUNDARY_ANALYSIS",
+      "headquarters": "docs/agents/historical-action-errors",
+      "sharedReferences": [
+        "docs/AUTO_REPAIR_HISTORY.jsonl",
+        "diagnostics/auto-repair/memory.json",
+        "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+        "docs/agents/ERROR-TEACHING-ROUTER.json",
+        "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md",
+        "docs/agents/historical-action-errors/index.json",
+        "docs/agents/historical-action-errors/records"
+      ],
+      "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-SECURITY-5.json",
+      "mutationAuthority": false,
+      "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+      "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
+      "currentAssignment": null,
+      "independentDevelopment": true,
+      "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
+      "cognitiveParity": "EXACT_SHARED_BY_REFERENCE",
+      "sourceMutationOwner": "ACTION-REPAIR",
+      "pushAuthority": "CHAIR_1_ONLY"
+    },
+    {
+      "id": "ACTION-REGRESSION-6",
+      "displayName": "Regression 6",
+      "kind": "ACTION_REPAIR_BOT",
+      "status": "READY",
+      "workerIndex": 10,
+      "role": "ACTION_REGRESSION_PLANNER",
+      "mission": "Independent targeted-regression and recurrence-risk planning; proposal-only.",
+      "weakness": "REGRESSION_AND_RECURRENCE",
+      "headquarters": "docs/agents/historical-action-errors",
+      "sharedReferences": [
+        "docs/AUTO_REPAIR_HISTORY.jsonl",
+        "diagnostics/auto-repair/memory.json",
+        "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+        "docs/agents/ERROR-TEACHING-ROUTER.json",
+        "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md",
+        "docs/agents/historical-action-errors/index.json",
+        "docs/agents/historical-action-errors/records"
+      ],
+      "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-REGRESSION-6.json",
+      "mutationAuthority": false,
+      "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+      "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
+      "currentAssignment": null,
+      "independentDevelopment": true,
+      "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
+      "cognitiveParity": "EXACT_SHARED_BY_REFERENCE",
+      "sourceMutationOwner": "ACTION-REPAIR",
+      "pushAuthority": "CHAIR_1_ONLY"
+    },
+    {
+      "id": "ACTION-SHA-7",
+      "displayName": "SHA 7",
+      "kind": "ACTION_REPAIR_BOT",
+      "status": "READY",
+      "workerIndex": 11,
+      "role": "ACTION_CERTIFIER_ADVERSARY",
+      "mission": "Independent adversary of the final certifier; attempts to falsify Exact-SHA, targeted-regression, required-CI and GREEN evidence; proposal-only.",
+      "weakness": "FINAL_CERTIFICATION_FALSIFICATION",
+      "headquarters": "docs/agents/historical-action-errors",
+      "sharedReferences": [
+        "docs/AUTO_REPAIR_HISTORY.jsonl",
+        "diagnostics/auto-repair/memory.json",
+        "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+        "docs/agents/ERROR-TEACHING-ROUTER.json",
+        "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md",
+        "docs/agents/historical-action-errors/index.json",
+        "docs/agents/historical-action-errors/records"
+      ],
+      "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-SHA-7.json",
+      "mutationAuthority": false,
+      "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+      "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
+      "currentAssignment": null,
+      "independentDevelopment": true,
+      "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
+      "cognitiveParity": "EXACT_SHARED_BY_REFERENCE",
+      "sourceMutationOwner": "ACTION-REPAIR",
+      "pushAuthority": "CHAIR_1_ONLY",
+      "peerOf": "ACTION-CONVERGENCE-8",
+      "challengeRequired": true
+    },
+    {
+      "id": "ACTION-CONVERGENCE-8",
+      "displayName": "Convergence 8",
+      "kind": "ACTION_REPAIR_BOT",
+      "status": "READY",
+      "workerIndex": 12,
+      "role": "ACTION_FINAL_CERTIFIER",
+      "mission": "Final verification and Exact-SHA evidence assembly; cannot mutate source, tests, main, or publish/push.",
+      "weakness": "FINAL_EXACT_SHA_CERTIFICATION",
+      "headquarters": "docs/agents/historical-action-errors",
+      "sharedReferences": [
+        "docs/AUTO_REPAIR_HISTORY.jsonl",
+        "diagnostics/auto-repair/memory.json",
+        "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+        "docs/agents/ERROR-TEACHING-ROUTER.json",
+        "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md",
+        "docs/agents/historical-action-errors/index.json",
+        "docs/agents/historical-action-errors/records"
+      ],
+      "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-CONVERGENCE-8.json",
+      "mutationAuthority": false,
+      "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+      "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
+      "currentAssignment": null,
+      "independentDevelopment": true,
+      "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
+      "cognitiveParity": "EXACT_SHARED_BY_REFERENCE",
+      "sourceMutationOwner": "ACTION-REPAIR",
+      "pushAuthority": "CHAIR_1_ONLY",
+      "adversarialPeer": "ACTION-SHA-7",
+      "requiresAdversarialChallenge": true,
+      "canPush": false,
+      "canMutate": false
     }
   ],
   "sourceIndexSnapshot": {
@@ -213,7 +465,7 @@
     "kind": "ACTION_REPAIR_EXECUTOR",
     "status": "READY",
     "role": "ACTION_REPAIR_EXECUTOR",
-    "mission": "Executes the bounded source repair selected from the five Actions knowledge workers, then runs targeted regression and returns the result to canonical CI.",
+    "mission": "Executes the bounded source repair selected from the ten Actions knowledge-analysis workers, then runs targeted regression and returns the result to canonical CI.",
     "protocolActor": "actionRepairBot",
     "workflow": ".github/workflows/auto-repair.yml",
     "engine": "scripts/ci/auto-repair-engine.mjs",
@@ -222,7 +474,7 @@
     "mutationScope": "ERROR_ONLY",
     "branch": "execution",
     "maxAttemptsPerFingerprint": 1000000,
-    "knowledgeSource": "ACTION-WISE+ACTION-INDEX",
+    "knowledgeSource": "ACTION-WISE+ACTION-INDEX+ACTION-10-WORKER-HANDOFFS",
     "historicalSource": "ACTION-INDEX",
     "proofAuthority": "CURRENT_EXACT_SHA_CI_ONLY",
     "canonicalGreenAuthority": "DAILY_FLIXO_GREEN_GATE",
@@ -564,7 +816,7 @@
     "turnSelection": "ODD_ATTEMPT_PRIMARY_EVEN_ATTEMPT_ASSISTANT",
     "firstAttemptIsAlwaysPrimary": true,
     "failoverAfter": "FAILED_REPAIR_OR_UNREPAIRED",
-    "resumeFromSleep": "PRIMARY_RETAKES_NEXT_ODD_TURN",
+    "resumeFromSleep": "FORBIDDEN_NO_SLEEP_STATE",
     "terminalCondition": "ZERO_ACTIONABLE_RED_OR_BLOCKED_EXTERNAL",
     "noIdleWithoutTask": true,
     "noMonitoringBot": true
@@ -598,7 +850,13 @@
       "ACTION-TWIN-1",
       "ACTION-TWIN-2",
       "ACTION-INDEX",
-      "ACTION-WISE"
+      "ACTION-WISE",
+      "ACTION-RCA-3",
+      "ACTION-IMPACT-4",
+      "ACTION-SECURITY-5",
+      "ACTION-REGRESSION-6",
+      "ACTION-SHA-7",
+      "ACTION-CONVERGENCE-8"
     ],
     "directBotToBot": true,
     "taskAssignment": true,
@@ -829,5 +1087,275 @@
     "guidanceArtifact": "/tmp/flixo-adversarial-convergence.json",
     "maxFiniteAttempts": false,
     "terminalCondition": "CANONICAL_GREEN_ONLY"
-  }
+  },
+  "lastSeatChallenge": {
+    "model": "FINAL_CERTIFIER_WITH_INDEPENDENT_ADVERSARY",
+    "certifier": "ACTION-CONVERGENCE-8",
+    "adversary": "ACTION-SHA-7",
+    "sameExactShaRequired": true,
+    "counterexampleBlocksCertification": true,
+    "certifierCannotPush": true,
+    "certifierCannotMutate": true
+  },
+  "flixo10Team": {
+    "protocol": "FLIXO10-FULL-SYSTEM-REPAIR-v1",
+    "count": 10,
+    "ids": [
+      "FLIXO1",
+      "FLIXO2",
+      "FLIXO3",
+      "FLIXO4",
+      "FLIXO5",
+      "FLIXO6",
+      "FLIXO7",
+      "FLIXO8",
+      "FLIXO9",
+      "FLIXO10"
+    ],
+    "architecture": "TEN_AWAKE_WORKERS_WITH_SINGLE_ACTIVE_MUTATION_SEAT",
+    "systemScope": "FULL_REPOSITORY_AND_AUTOMATION_SYSTEM",
+    "workflow": "ACTIVE_WORKER:READ→DIAGNOSE→WRITE_PROPOSAL→EVIDENCE→HANDOFF",
+    "proposalPolicy": "ACTIVE_WORKER_ONLY",
+    "proposalMutationAuthority": false,
+    "pushSeat": {
+      "type": "SINGLE_ACTIVE_WORKER_SEAT",
+      "claimCommand": "worker-seat-claim-via-task-claim",
+      "heartbeatCommand": "worker-seat-heartbeat",
+      "statusCommand": "worker-seat-status",
+      "sameTaskOnly": true,
+      "sameExactShaRequired": true,
+      "firstSuccessfulClaimWins": false,
+      "immutableOwnerUntilTaskCompletion": true,
+      "peerTakeover": false,
+      "automaticReassignment": true,
+      "abandonmentForbidden": true,
+      "mergeParallelProposals": true,
+      "conflictPolicy": "FAIL_CLOSED_RECONCILE_ON_CURRENT_EXACT_SHA",
+      "publicationPath": "ASSISTANT_CONTROLLER_GUARDED_PUBLICATION",
+      "branch": "execution",
+      "ownership": "ACTIVE_WORKER_ONLY",
+      "failover": "NEXT_WORKER_AFTER_STALE_HEARTBEAT",
+      "reassignmentOrder": [
+        "FLIXO1",
+        "FLIXO2",
+        "FLIXO3",
+        "FLIXO4",
+        "FLIXO5",
+        "FLIXO6",
+        "FLIXO7",
+        "FLIXO8",
+        "FLIXO9",
+        "FLIXO10"
+      ]
+    },
+    "seats": [
+      {
+        "id": "FLIXO1",
+        "legacyRole": "ACTION-TWIN-1",
+        "systemLens": "WHOLE_SYSTEM_RCA_AND_ARCHITECTURE"
+      },
+      {
+        "id": "FLIXO2",
+        "legacyRole": "ACTION-TWIN-2",
+        "systemLens": "WHOLE_SYSTEM_CODE_AND_RUNTIME"
+      },
+      {
+        "id": "FLIXO3",
+        "legacyRole": "ACTION-INDEX",
+        "systemLens": "WHOLE_SYSTEM_TEST_AND_CONTRACT"
+      },
+      {
+        "id": "FLIXO4",
+        "legacyRole": "ACTION-WISE",
+        "systemLens": "WHOLE_SYSTEM_CI_AND_WORKFLOW"
+      },
+      {
+        "id": "FLIXO5",
+        "legacyRole": "ACTION-RCA-3",
+        "systemLens": "WHOLE_SYSTEM_SECURITY_AND_CONTROL_PLANE"
+      },
+      {
+        "id": "FLIXO6",
+        "legacyRole": "ACTION-IMPACT-4",
+        "systemLens": "WHOLE_SYSTEM_BROWSER_AND_CLIENT_RUNTIME"
+      },
+      {
+        "id": "FLIXO7",
+        "legacyRole": "ACTION-SECURITY-5",
+        "systemLens": "WHOLE_SYSTEM_DEPENDENCY_BUILD_AND_PERFORMANCE"
+      },
+      {
+        "id": "FLIXO8",
+        "legacyRole": "ACTION-REGRESSION-6",
+        "systemLens": "WHOLE_SYSTEM_REPAIR_SYNTHESIS_AND_REGRESSION"
+      },
+      {
+        "id": "FLIXO9",
+        "legacyRole": "ACTION-SHA-7",
+        "systemLens": "WHOLE_SYSTEM_ADVERSARIAL_FALSE_GREEN_FALSIFICATION"
+      },
+      {
+        "id": "FLIXO10",
+        "legacyRole": "ACTION-CONVERGENCE-8",
+        "systemLens": "WHOLE_SYSTEM_FINAL_EVIDENCE_AND_CERTIFICATION_CHALLENGE"
+      }
+    ],
+    "pushOwnerResponsibilities": [
+      "claim first connected push seat atomically through canonical coordination control plane",
+      "collect all parallel proposals bound to same task and exact SHA",
+      "re-read current exact execution SHA before integration",
+      "merge compatible proposals into one candidate without silent overwrite",
+      "block and reconcile conflicting proposals instead of choosing by last-writer-wins",
+      "run targeted regression and required proof before guarded publication",
+      "retain ownership until canonical task completion",
+      "never abandon, self-release, or transfer the push seat to a peer"
+    ],
+    "pairs": [],
+    "pairPolicy": {
+      "sequence": "ACTIVE_WORKER_READ→DIAGNOSE→EVIDENCE→HANDOFF",
+      "requiredEdges": 0,
+      "allEdgesRequired": false,
+      "sameTaskRequired": true,
+      "sameFailureFingerprintRequired": true,
+      "sameExactShaRequired": true,
+      "concurrentAdversarialRing": false,
+      "counterexampleStillRequiredBeforePublication": true,
+      "noLastWriterWins": true,
+      "noSilentOverwrite": true
+    },
+    "pushAdmissionPolicy": {
+      "logicalPushSeat": "ACTIVE_FLIXO_WORKER",
+      "simultaneousActiveWorkers": 1,
+      "ownerCannotAbandon": true,
+      "peerTakeoverForbidden": true,
+      "failoverOnlyAfterStaleHeartbeat": true,
+      "proposalAggregation": "SINGLE_ACTIVE_WORKER_HANDOFF",
+      "conflicts": "FAIL_CLOSED_RECONCILE_CURRENT_SHA",
+      "requiresPairGate": "NOT_APPLICABLE",
+      "requiresCounterexampleProof": true,
+      "requiresRequiredRedCount": 0,
+      "requiresTargetedRegression": true,
+      "requiresExactSha": true,
+      "requiresRequiredCi": true,
+      "canonicalPublicationAuthority": "assistantController",
+      "directGitPushByBot": false
+    },
+    "seatAssignments": {
+      "FLIXO1": {
+        "lens": "WHOLE_SYSTEM_RCA_AND_ARCHITECTURE",
+        "phase": "ACTIVE_BY_DEFAULT",
+        "activation": "EVERY_ONE_MINUTE_HEARTBEAT_WAKE",
+        "reserveOrder": 1,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
+      },
+      "FLIXO2": {
+        "lens": "WHOLE_SYSTEM_CODE_AND_RUNTIME",
+        "phase": "WAKE_READY_RESERVE",
+        "activation": "EVERY_ONE_MINUTE_HEARTBEAT_WAKE",
+        "reserveOrder": 2,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
+      },
+      "FLIXO3": {
+        "lens": "WHOLE_SYSTEM_TEST_AND_CONTRACT",
+        "phase": "WAKE_READY_RESERVE",
+        "activation": "EVERY_ONE_MINUTE_HEARTBEAT_WAKE",
+        "reserveOrder": 3,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
+      },
+      "FLIXO4": {
+        "lens": "WHOLE_SYSTEM_CI_AND_WORKFLOW",
+        "phase": "WAKE_READY_RESERVE",
+        "activation": "EVERY_ONE_MINUTE_HEARTBEAT_WAKE",
+        "reserveOrder": 4,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
+      },
+      "FLIXO5": {
+        "lens": "WHOLE_SYSTEM_SECURITY_AND_CONTROL_PLANE",
+        "phase": "WAKE_READY_RESERVE",
+        "activation": "EVERY_ONE_MINUTE_HEARTBEAT_WAKE",
+        "reserveOrder": 5,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
+      },
+      "FLIXO6": {
+        "lens": "WHOLE_SYSTEM_BROWSER_AND_CLIENT_RUNTIME",
+        "phase": "WAKE_READY_RESERVE",
+        "activation": "EVERY_ONE_MINUTE_HEARTBEAT_WAKE",
+        "reserveOrder": 6,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
+      },
+      "FLIXO7": {
+        "lens": "WHOLE_SYSTEM_DEPENDENCY_BUILD_AND_PERFORMANCE",
+        "phase": "WAKE_READY_RESERVE",
+        "activation": "EVERY_ONE_MINUTE_HEARTBEAT_WAKE",
+        "reserveOrder": 7,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
+      },
+      "FLIXO8": {
+        "lens": "WHOLE_SYSTEM_REPAIR_SYNTHESIS_AND_REGRESSION",
+        "phase": "WAKE_READY_RESERVE",
+        "activation": "EVERY_ONE_MINUTE_HEARTBEAT_WAKE",
+        "reserveOrder": 8,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
+      },
+      "FLIXO9": {
+        "lens": "WHOLE_SYSTEM_ADVERSARIAL_FALSE_GREEN_FALSIFICATION",
+        "phase": "WAKE_READY_RESERVE",
+        "activation": "EVERY_ONE_MINUTE_HEARTBEAT_WAKE",
+        "reserveOrder": 9,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
+      },
+      "FLIXO10": {
+        "lens": "WHOLE_SYSTEM_FINAL_EVIDENCE_AND_CERTIFICATION_CHALLENGE",
+        "phase": "WAKE_READY_RESERVE",
+        "activation": "EVERY_ONE_MINUTE_HEARTBEAT_WAKE",
+        "reserveOrder": 10,
+        "activeWorkerEligible": true,
+        "concurrentExecution": false,
+        "sameTaskOnFailover": true
+      }
+    },
+    "ring": {
+      "type": "DISABLED",
+      "reason": "TEN_IDENTITIES_EXIST FOR CONTINUITY; ONLY ONE WORKER MAY EXECUTE",
+      "assignmentOnTaskReceipt": false,
+      "concurrentAdversarialRing": false,
+      "failoverOrder": [
+        "FLIXO1",
+        "FLIXO2",
+        "FLIXO3",
+        "FLIXO4",
+        "FLIXO5",
+        "FLIXO6",
+        "FLIXO7",
+        "FLIXO8",
+        "FLIXO9",
+        "FLIXO10"
+      ],
+      "activeWorkerCount": 1
+    }
+  },
+  "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
+  "intelligenceKernelRef": "docs/agents/FLIXO-BOT.json#/unifiedCognitiveKernel",
+  "sharedMemoryRef": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
+  "sharedCognitiveMode": "FULL_SUPERSET_WITH_ROLE_OVERLAYS",
+  "everyWorkerGetsFullCognitiveKernel": true,
+  "roleCannotReduceCognition": true
 }

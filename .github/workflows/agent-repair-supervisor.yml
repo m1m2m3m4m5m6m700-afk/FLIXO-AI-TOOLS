@@ -1,13 +1,11 @@
 name: FLIXO Agent Repair Supervisor
 
 on:
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 concurrency:
   group: flixo-agent-repair-supervisor-observer-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   actions: read

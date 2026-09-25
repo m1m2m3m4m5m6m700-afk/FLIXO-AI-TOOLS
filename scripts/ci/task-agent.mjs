@@ -145,15 +145,25 @@ const activeRepairTask = failureRunId || failureSha || failureFingerprint
       sourceText: 'Generated from the current failure context; do not replace with unrelated task backlog work.',
     }]
   : [];
+const readyTasks = tasks.filter((task) => !task.completed);
+const currentSection = source.match(/^#{1,3}\s+(.+)$/mu)?.[1]?.trim() ?? 'CURRENT OPERATIONS';
+const residencyFallbackTask = {
+  taskId: `resident-control-${slug(currentSection)}`.slice(0, 160),
+  section: currentSection,
+  title: 'Maintain active repair and wake control plane until canonical GREEN',
+  completed: false,
+  sourceLine: null,
+  sourceText: 'Derived from the canonical task file because no checkbox backlog item exists; this is an operational residency task, not scope expansion.',
+};
 const selected = requested
   ? tasks.filter((task) => task.taskId === requested || task.title.includes(requested))
   : activeRepairTask.length
     ? activeRepairTask
-    : allReady
-      ? tasks.filter((task) => !task.completed)
-      : tasks.filter((task) => !task.completed).slice(0, 1);
+    : readyTasks.length
+      ? (allReady ? readyTasks : readyTasks.slice(0, 1))
+      : [residencyFallbackTask];
 
-if (!selected.length) throw new Error(requested ? `TASK_NOT_FOUND=${requested}` : 'NO_READY_TASKS');
+if (!selected.length) throw new Error(requested ? `TASK_NOT_FOUND=${requested}` : 'TASK_AGENT_SELECTION_EMPTY');
 if (branch !== 'execution') throw new Error('TASK_PREPARATION_REQUIRES_EXECUTION_BRANCH');
 const repairProtocolAdmission = assertAgentAdmission({ actor: 'taskAgent', branch, mutation: false });
 

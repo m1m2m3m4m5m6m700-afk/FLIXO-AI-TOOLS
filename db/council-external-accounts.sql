@@ -12,6 +12,8 @@ create table if not exists public.flix_council_accounts (
   lease_seconds integer not null default 120 check (lease_seconds between 15 and 3600),
   current_session_id text,
   last_seen_at timestamptz,
+  last_heartbeat_at timestamptz,
+  current_execution_sha text check (current_execution_sha is null or current_execution_sha ~ '^[0-9a-f]{40}$'),
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -118,6 +120,24 @@ begin
    where dispatch_id = v_dispatch.dispatch_id
   returning * into v_dispatch;
 
+  update public.flix_council_accounts
+     set current_session_id = v_session_id,
+         last_seen_at = now(),
+         last_heartbeat_at = now(),
+         current_execution_sha = v_dispatch.entry_sha,
+         updated_at = now()
+   where account_id = p_account_id;
+
+  insert into public.flix_council_events(
+    dispatch_id, account_id, event_type, exact_sha, payload
+  ) values (
+    v_dispatch.dispatch_id,
+    p_account_id,
+    'HEARTBEAT',
+    v_dispatch.entry_sha,
+    jsonb_build_object('source', 'COUNCIL_CLAIM', 'sessionId', v_session_id)
+  );
+
   return next v_dispatch;
 end;
 $$;
@@ -171,6 +191,14 @@ begin
          updated_at = now()
    where dispatch_id = p_dispatch_id
   returning * into v_dispatch;
+
+  update public.flix_council_accounts
+     set current_session_id = p_session_id,
+         last_seen_at = now(),
+         last_heartbeat_at = now(),
+         current_execution_sha = p_exact_sha,
+         updated_at = now()
+   where account_id = p_account_id;
 
   insert into public.flix_council_events(
     dispatch_id, account_id, event_type, exact_sha, payload
@@ -241,6 +269,14 @@ begin
          updated_at = now()
    where dispatch_id = p_dispatch_id
   returning * into v_dispatch;
+
+  update public.flix_council_accounts
+     set current_session_id = p_session_id,
+         last_seen_at = now(),
+         last_heartbeat_at = now(),
+         current_execution_sha = p_exact_sha,
+         updated_at = now()
+   where account_id = p_account_id;
 
   insert into public.flix_council_events(
     dispatch_id, account_id, event_type, exact_sha, payload
@@ -379,16 +415,53 @@ begin
       jsonb_build_object(
         'previousStatus', v_dispatch.status,
         'previousSessionId', v_dispatch.session_id,
-        'attempt', v_dispatch.attempts
+        'attempt', v_dispatch.attempts,
+        'recoveryVersion', 'v2'
       )
     );
 
     if v_dispatch.attempts >= 20 then
       update public.flix_council_dispatches
          set status = 'FAILED',
+             session_id = null,
+             lease_expires_at = null,
              last_error = 'LEASE_RECOVERY_ATTEMPTS_EXHAUSTED',
+             completed_at = now(),
              updated_at = now()
-       where dispatch_id = v_dispatch.dispatch_id;
+       where dispatch_id = v_dispatch.dispatch_id
+      returning * into v_dispatch;
+
+      insert into public.flix_council_events(
+        dispatch_id, account_id, event_type, exact_sha, payload
+      ) values (
+        v_dispatch.dispatch_id,
+        v_dispatch.recipient_account_id,
+        'FAILED',
+        v_dispatch.entry_sha,
+        jsonb_build_object(
+          'reason', 'LEASE_RECOVERY_ATTEMPTS_EXHAUSTED',
+          'attempts', v_dispatch.attempts,
+          'terminal', true
+        )
+      );
+
+      insert into public.flix_council_events(
+        dispatch_id, account_id, event_type, exact_sha, payload
+      ) values (
+        v_dispatch.dispatch_id,
+        v_dispatch.handoff_account_id,
+        'HANDOFF_READY',
+        v_dispatch.entry_sha,
+        jsonb_build_object(
+          'reason', 'LEASE_RECOVERY_ATTEMPTS_EXHAUSTED',
+          'sourceAccountId', v_dispatch.recipient_account_id,
+          'attempts', v_dispatch.attempts,
+          'terminal', true,
+          'requiredAction', 'SUPERVISOR_ESCALATION'
+        )
+      );
+
+      return next v_dispatch;
       continue;
     end if;
 
@@ -409,9 +482,29 @@ begin
     if not found then
       update public.flix_council_dispatches
          set status = 'FAILED',
+             session_id = null,
+             lease_expires_at = null,
              last_error = 'FALLBACK_ACCOUNT_INACTIVE',
+             completed_at = now(),
              updated_at = now()
-       where dispatch_id = v_dispatch.dispatch_id;
+       where dispatch_id = v_dispatch.dispatch_id
+      returning * into v_dispatch;
+
+      insert into public.flix_council_events(
+        dispatch_id, account_id, event_type, exact_sha, payload
+      ) values (
+        v_dispatch.dispatch_id,
+        v_dispatch.handoff_account_id,
+        'HANDOFF_READY',
+        v_dispatch.entry_sha,
+        jsonb_build_object(
+          'reason', 'FALLBACK_ACCOUNT_INACTIVE',
+          'terminal', true,
+          'requiredAction', 'SUPERVISOR_ESCALATION'
+        )
+      );
+
+      return next v_dispatch;
       continue;
     end if;
 
@@ -425,6 +518,21 @@ begin
            updated_at = now()
      where dispatch_id = v_dispatch.dispatch_id
     returning * into v_dispatch;
+
+    insert into public.flix_council_events(
+      dispatch_id, account_id, event_type, exact_sha, payload
+    ) values (
+      v_dispatch.dispatch_id,
+      v_dispatch.recipient_account_id,
+      'DISPATCHED',
+      v_dispatch.entry_sha,
+      jsonb_build_object(
+        'attempt', v_dispatch.attempts,
+        'fallback', true,
+        'automatic', true,
+        'recoveryVersion', 'v2'
+      )
+    );
 
     return next v_dispatch;
   end loop;
@@ -442,4 +550,3 @@ grant execute on function public.council_ack_dispatch(uuid, text, text, text) to
 grant execute on function public.council_heartbeat_dispatch(uuid, text, text, text) to service_role;
 grant execute on function public.council_complete_dispatch(uuid, text, text, text, text, jsonb, jsonb) to service_role;
 grant execute on function public.council_recover_expired_dispatches(integer) to service_role;
-

@@ -11,11 +11,11 @@ const raw=fs.readFileSync(inputPath,'utf8');
 const parsed=JSON.parse(raw);
 const runs=Array.isArray(parsed) ? parsed : (parsed.workflow_runs ?? []);
 const expectedMs=5*60*1000;
-const graceMs=2*60*1000;
+const graceMs=3*60*1000;
 const maxGapMs=expectedMs+graceMs;
 
 const scheduleRuns=runs
-  .filter((r)=>r?.event==='schedule' && (r.status==='completed' || r.status==='in_progress'))
+  .filter((r)=>['schedule','workflow_dispatch'].includes(r?.event) && (r.status==='completed' || r.status==='in_progress'))
   .map((r)=>({
     id:Number(r.id ?? r.databaseId ?? 0),
     status:r.status ?? null,

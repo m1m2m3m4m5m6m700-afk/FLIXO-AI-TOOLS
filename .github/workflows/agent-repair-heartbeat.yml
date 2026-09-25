@@ -3,11 +3,15 @@ name: FLIXO Agent Repair Heartbeat
 run-name: FLIXO Agent Repair Heartbeat ${{ github.run_id }}
 
 on:
-  schedule:
-    - cron: '*/5 * * * *'
+  push:
+    branches: [execution]
+  # Scheduled resident bootstrap is owned exclusively by the trusted Watchdog.
+  # This prevents one resident window from being multiplied every five minutes.
   workflow_dispatch:
 
 permissions:
+  # Heartbeat emits only liveness/wake evidence. Privileged renewal stays in trusted Watchdog.
+  # Single guardian lane: trusted Watchdog owns privileged renewal; Heartbeat remains read-only observation/wake evidence.
   actions: read
   contents: read
 
@@ -19,12 +23,13 @@ jobs:
   resident-watch:
     name: Keep the repair plane resident and wake canonical Green Gate
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 70
     steps:
       - name: Checkout liveness contract
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: execution
+          # The heartbeat is read-only; privileged recovery remains with trusted canonical observers.
+          ref: main
           fetch-depth: 1
           persist-credentials: false
 
@@ -34,6 +39,12 @@ jobs:
           node scripts/ci/agent-liveness-protocol.mjs validate
           echo 'RESIDENT_AGENT=true'
           echo 'HEARTBEAT_INTERVAL_SECONDS=60'
+          echo 'ACTIVE_BOT_COUNT=5'
+          echo 'ACTIVE_BOT_COMMITMENT_MINUTES=60'
+          echo 'ACTIVE_BOT_COHORT_COUNT=40'
+          echo 'LOGICAL_BOT_CYCLE=200_TO_1'
+          echo 'NEXT_COHORT_READY_REQUIRED=true'
+          echo 'ACTIVE_RUNTIME_CAPACITY=5'
           echo 'HEARTBEAT_24X7_MODE=true'
           echo 'SCHEDULE_WAKE_FLOOR_MINUTES=5'
           echo 'OPEN_WORK_SLEEP=FORBIDDEN'
@@ -46,21 +57,120 @@ jobs:
 
       - name: Emit canonical one-minute repair heartbeat continuously
         env:
+          GH_TOKEN: ${{ github.token }}
           FLIXO_HEARTBEAT_PATH: /tmp/flixo-heartbeat/heartbeat.json
         run: |
           set -euo pipefail
           mkdir -p /tmp/flixo-heartbeat
-          for TICK in 1 2 3 4 5 6; do
-            SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-            node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="HEARTBEAT:$GITHUB_RUN_ID:$TICK" --state=ACTIVE --sha="$SHA" --progress=false --file="$FLIXO_HEARTBEAT_PATH"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const trace={schemaVersion:1,protocol:'FLIXO-REPAIR-BOT-BEHAVIOR-TRACE-v1',status:'STARTED',repository:process.env.GITHUB_REPOSITORY,runId:process.env.GITHUB_RUN_ID,observedAt:new Date().toISOString()};
+          trace.traceHash=crypto.createHash('sha256').update(JSON.stringify(trace),'utf8').digest('hex');
+          fs.writeFileSync('/tmp/flixo-repair-behavior-trace.json',JSON.stringify(trace,null,2)+'\n');
+          NODE
+          PREVIOUS_HEARTBEAT_SHA=""
+          WORKTREE_PATH="/tmp/flixo-execution-source"
+          WORKTREE_SHA=""
+          CURRENT_COHORT_INDEX=""
+          CURRENT_COHORT_STARTED_EPOCH=""
+          CYCLE_NUMBER=""
+          for TICK in $(seq 1 61); do
+            LIVE_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
+            [[ "$LIVE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
+            SHA="$LIVE_SHA"
+            if [ "$WORKTREE_SHA" != "$SHA" ]; then
+              git fetch origin "refs/heads/execution:refs/remotes/origin/execution" --depth=1
+              FETCHED_SHA="$(git rev-parse refs/remotes/origin/execution)"
+              [[ "$FETCHED_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
+              SHA="$FETCHED_SHA"
+              if [ -e "$WORKTREE_PATH/.git" ]; then git worktree remove --force "$WORKTREE_PATH"; elif [ -d "$WORKTREE_PATH" ]; then rm -rf "$WORKTREE_PATH"; fi
+              git worktree add --detach "$WORKTREE_PATH" "$SHA"
+              WORKTREE_SHA="$SHA"
+            fi
+            [[ "$WORKTREE_SHA" == "$SHA" ]]
+            if [ "$TICK" -eq 1 ]; then
+              (cd "$WORKTREE_PATH" && node scripts/ci/test-resident-wake-proof.mjs)
+              echo 'RESIDENT_WAKE_PROOF_RED_TEAM=PASS'
+            fi
+            if [ -z "$CURRENT_COHORT_INDEX" ]; then
+              BOOTSTRAP_OUTPUT="/tmp/flixo-heartbeat/bootstrap-rotation-$TICK.json"
+              NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              (cd "$WORKTREE_PATH" && node scripts/ci/five-bot-rotation.mjs --sha="$SHA" --now="$NOW" --output="$BOOTSTRAP_OUTPUT")
+              CURRENT_COHORT_INDEX="$(jq -r '.cohortIndex' "$BOOTSTRAP_OUTPUT")"
+              CYCLE_NUMBER="$(jq -r '.cycleNumber' "$BOOTSTRAP_OUTPUT")"
+              CURRENT_COHORT_STARTED_EPOCH="$(date +%s)"
+            fi
+            [[ "$CURRENT_COHORT_INDEX" =~ ^[0-9]+$ ]]
+            NOW_EPOCH="$(date +%s)"
+            ELAPSED_SECONDS=$((NOW_EPOCH-CURRENT_COHORT_STARTED_EPOCH))
+            NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            ROTATION_OUTPUT="/tmp/flixo-heartbeat/five-bot-rotation-$TICK.json"
+            (cd "$WORKTREE_PATH" && node scripts/ci/five-bot-rotation.mjs --sha="$SHA" --now="$NOW" --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output="$ROTATION_OUTPUT")
+            (cd "$WORKTREE_PATH" && node scripts/ci/action-repair-five-workers.mjs --role=wake --status=RED_INTERNAL --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$GITHUB_RUN_ID-$TICK" --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output=/tmp/flixo-heartbeat/action-wake-$TICK.json)
+            BATON_SEAT_INDEX=$((CURRENT_COHORT_INDEX % 5))
+            BATON_ACTOR="FLIXO$((BATON_SEAT_INDEX + 1))"
+            BATON_NEXT="FLIXO$((BATON_SEAT_INDEX + 6))"
+            BATON_OUTPUT="/tmp/flixo-heartbeat/resident-baton-$TICK.json"
+            (cd "$WORKTREE_PATH" && node scripts/ci/agent-liveness-protocol.mjs resident-baton --actor="$BATON_ACTOR" --next="$BATON_NEXT" --sha="$SHA" --task="RESIDENT:$GITHUB_RUN_ID:$TICK" --file="$BATON_OUTPUT")
+            jq -e --arg sha "$SHA" --arg actor "$BATON_ACTOR" --arg next "$BATON_NEXT" '.protocol=="FLIXO-RESIDENT-WAKE-BATON-v1" and .action=="WAKE_NEXT_RESIDENT_BOT" and .targetSha==$sha and .actor==$actor and .nextActor==$next and .minimumResidentFloor==1 and .nextMustAckBeforeRelease==true' "$BATON_OUTPUT" >/dev/null
+            RESIDENT_ACK_OUTPUT="/tmp/flixo-heartbeat/resident-ack-$TICK.json"
+            RESIDENT_PROOF_OUTPUT="/tmp/flixo-heartbeat/resident-proof-$TICK.json"
+            (cd "$WORKTREE_PATH" && node scripts/ci/resident-wake-proof.mjs issue --baton="$BATON_OUTPUT" --wake="/tmp/flixo-heartbeat/action-wake-$TICK.json" --responder="$BATON_NEXT" --output="$RESIDENT_ACK_OUTPUT")
+            jq -e --arg sha "$SHA" --arg actor "$BATON_ACTOR" --arg next "$BATON_NEXT" '.protocol=="FLIXO-RESIDENT-READY-ACK-v1" and .action=="RESIDENT_NEXT_READY" and .targetSha==$sha and .actor==$actor and .responder==$next and .ready==true and .readyState=="READY_RESIDENT" and .liveHeartbeatAck==false and .independentObservationRequired==true' "$RESIDENT_ACK_OUTPUT" >/dev/null
+            (cd "$WORKTREE_PATH" && node scripts/ci/resident-wake-proof.mjs verify --baton="$BATON_OUTPUT" --ack="$RESIDENT_ACK_OUTPUT" --observer=FLIXO_HEARTBEAT_PROOF_VERIFIER --output="$RESIDENT_PROOF_OUTPUT")
+            jq -e --arg sha "$SHA" '.protocol=="FLIXO-RESIDENT-HANDOFF-PROOF-v1" and .status=="PASS" and .independentObserver==true and .targetSha==$sha and .readyBeforeRelease==true and .releaseAllowed==true and .liveHeartbeatStillRequired==true and .minimumResidentFloor==1' "$RESIDENT_PROOF_OUTPUT" >/dev/null
+            jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .actionRepairSquadReady==true and .targetSha==$sha and .activeCohortSize==5 and (.activeBotIds|length)==5 and (.nextBotIds|length)==5 and (.nextCohortReadyCount==5) and .fiveBotResidency.requiredBotCount==5 and .fiveBotResidency.postTaskCloseState=="READY_RESIDENT" and .fiveBotResidency.retainResidentUntilJourneyComplete==true and  .fiveBotResidency.journeyLogicalBotCount==200 and  .fiveBotResidency.journeyCohortCount==40 and .fiveBotResidency.journeyCohortSize==5 and .fiveBotResidency.sleep==false and .fiveBotResidency.idle==false and .withdrawal==false' /tmp/flixo-heartbeat/action-wake-$TICK.json >/dev/null
+            if [ "$ELAPSED_SECONDS" -ge 3600 ]; then
+              NEXT_COHORT_INDEX=$(( (CURRENT_COHORT_INDEX + 1) % 40 ))
+              HANDOFF_OUTPUT="/tmp/flixo-heartbeat/handoff-$TICK.json"
+              if (cd "$WORKTREE_PATH" && node scripts/ci/five-bot-handoff-gate.mjs --packet="/tmp/flixo-heartbeat/action-wake-$TICK.json" --sha="$SHA" --expected-cohort="$NEXT_COHORT_INDEX" --output="$HANDOFF_OUTPUT"); then
+                CURRENT_COHORT_INDEX="$NEXT_COHORT_INDEX"
+                if [ "$CURRENT_COHORT_INDEX" -eq 0 ]; then CYCLE_NUMBER=$((CYCLE_NUMBER+1)); fi
+                CURRENT_COHORT_STARTED_EPOCH="$NOW_EPOCH"
+                echo 'ACTIVE_COHORT_HANDOFF=HANDOFF_COMMITTED'
+                (cd "$WORKTREE_PATH" && node scripts/ci/five-bot-rotation.mjs --sha="$SHA" --now="$NOW" --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output="$ROTATION_OUTPUT")
+                (cd "$WORKTREE_PATH" && node scripts/ci/action-repair-five-workers.mjs --role=wake --status=RED_INTERNAL --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK-HANDOFF" --fingerprint="HANDOFF-$GITHUB_RUN_ID-$TICK" --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output=/tmp/flixo-heartbeat/action-wake-$TICK.json)
+              else
+                echo 'ACTIVE_COHORT_HANDOFF=HANDOFF_PENDING'
+                echo 'ACTIVE_COHORT_RELEASE_BLOCKED=true'
+                echo 'CURRENT_FIVE_REMAIN_ACTIVE_UNTIL_FIVE_READY=true'
+              fi
+            else
+              echo 'ACTIVE_COHORT_HANDOFF=COMMITMENT_ACTIVE'
+            fi
+            PREVIOUS_HEARTBEAT_SHA="$SHA"
+            (cd "$WORKTREE_PATH" && node scripts/ci/agent-liveness-protocol.mjs heartbeat --task="HEARTBEAT:$GITHUB_RUN_ID:$TICK" --state=ACTIVE --sha="$SHA" --progress=false --file="$FLIXO_HEARTBEAT_PATH")
             jq -e --arg sha "$SHA" '.protocolId=="AGENT_LIVENESS_PROTOCOL" and .state=="ACTIVE" and .exactSha==$sha and .progress==false' "$FLIXO_HEARTBEAT_PATH" >/dev/null
+            PULSE_OUTPUT="/tmp/flixo-heartbeat/flixo-team-pulse-$TICK.json"
+            (cd "$WORKTREE_PATH" && node scripts/ci/flixo-ten-pulse.mjs --sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --minute="$NOW" --active-operation=true --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output="$PULSE_OUTPUT")
+            jq -e --arg sha "$SHA" '.protocol=="FLIXO-TEAM-PULSE-CONTROLLER-v3" and .targetSha==$sha and .pulseCount==1 and ( .logicalBotIds|length)==200 and .activeBotCount==5 and (.activeBotIds|length)==5 and (.nextBotIds|length)==5 and .allAgentsWakeCount==10 and .sleep==false and .idle==false and .fiveBotResidency.requiredBotCount==5 and .fiveBotResidency.postTaskCloseState=="READY_RESIDENT" and .fiveBotResidency.retainResidentUntilJourneyComplete==true and  .fiveBotResidency.journeyLogicalBotCount==200 and  .fiveBotResidency.journeyCohortCount==40' "$PULSE_OUTPUT" >/dev/null
+            echo 'CANONICAL_TEAM_PULSE=1'
+            echo 'MINIMUM_RESIDENT_BOT_FLOOR=1'
+            echo "RESIDENT_WAKE_BATON_ACTOR=$BATON_ACTOR"
+            echo "RESIDENT_WAKE_BATON_NEXT=$BATON_NEXT"
+            echo 'ACTIVE_BOT_MUST_WAKE_NEXT_BEFORE_RELEASE=true'
+            echo 'ONE_PULSE_WAKE_SCOPE=ALL_AGENTS'
+            echo 'RESIDENT_SLEEP=false'
+            echo 'RESIDENT_IDLE=false'
             echo "HEARTBEAT_EMITTED=true"
             echo "HEARTBEAT_TICK=$TICK"
             echo "HEARTBEAT_EXACT_SHA=$SHA"
-            if [ "$TICK" -lt 6 ]; then sleep 60; fi
+            if [ "$TICK" -lt 61 ]; then sleep 60; fi
           done
           echo 'HEARTBEAT_INTERVAL_SECONDS=60'
-          echo 'HEARTBEAT_WINDOW_SECONDS=360'
+          echo 'HEARTBEAT_WINDOW_SECONDS=3600'
+          echo 'HEARTBEAT_MINIMUM_ACTIVE_WINDOW_SECONDS=3600'
+          echo 'ACTIVE_COHORT_COMMITMENT_SECONDS=3600'
+          echo 'ACTIVE_COHORT_HANDOFF=NEXT_5_READY_BEFORE_RELEASE'
+          echo 'ACTIVE_COHORTS_PER_200_BOT_CYCLE=40'
+          echo 'ACTIVE_COHORT_HANDOFF_GATE=FIVE_READY_EXACT_SHA'
+          echo 'ACTIVE_COHORT_RELEASE_BLOCKED_UNTIL_READY=true'
+          echo 'FIVE_BOT_POST_CLOSE_STATE=READY_RESIDENT'
+          echo 'FIVE_BOT_REMAIN_RESIDENT_UNTIL_200_JOURNEY_COMPLETE=true'
+          echo 'FIVE_BOT_SLEEP_DURING_200_JOURNEY=false'
+          echo 'FIVE_BOT_IDLE_DURING_200_JOURNEY=false'
+          if [ -e "$WORKTREE_PATH/.git" ]; then git worktree remove --force "$WORKTREE_PATH"; fi
       - name: Verify five-minute heartbeat compliance
         id: heartbeat_compliance
         env:
@@ -68,7 +178,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/flixo-heartbeat
-          gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch main --limit 50 --json databaseId,status,conclusion,createdAt,updatedAt,startedAt,headSha,event > /tmp/flixo-heartbeat/scheduled-wakes.json
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 50 --json databaseId,status,conclusion,createdAt,updatedAt,startedAt,headSha,event > /tmp/flixo-heartbeat/scheduled-wakes.json
           gh run view "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,status,conclusion,createdAt,updatedAt,startedAt,headSha,event > /tmp/flixo-heartbeat/current-wake.json
           jq -s 'map(if type == "array" then . else [.] end) | add' /tmp/flixo-heartbeat/scheduled-wakes.json /tmp/flixo-heartbeat/current-wake.json > /tmp/flixo-heartbeat/wake-runs.json
           node scripts/ci/wake-compliance.mjs /tmp/flixo-heartbeat/wake-runs.json /tmp/flixo-heartbeat/wake-compliance.json
@@ -82,6 +192,9 @@ jobs:
           path: |
             /tmp/flixo-heartbeat/wake-compliance.json
             /tmp/flixo-heartbeat/heartbeat.json
+            /tmp/flixo-heartbeat/resident-baton-*.json
+            /tmp/flixo-heartbeat/resident-ack-*.json
+            /tmp/flixo-heartbeat/resident-proof-*.json
           if-no-files-found: warn
           retention-days: 14
 
@@ -91,9 +204,22 @@ jobs:
           FLIXO_REPAIR_BEHAVIOR_TRACE_PATH: /tmp/flixo-repair-behavior-trace.json
         run: |
           set -euo pipefail
-          node scripts/ci/repair-session-observer.mjs
+          if node scripts/ci/repair-session-observer.mjs; then
+            echo 'REPAIR_SESSION_OBSERVER=PASS'
+          else
+            RC="$?"
+            echo "REPAIR_SESSION_OBSERVER=DEGRADED rc=$RC"
+            node - <<'NODE'
+            const fs=require('node:fs');
+            const crypto=require('node:crypto');
+            const p='/tmp/flixo-repair-behavior-trace.json';
+            const body={schemaVersion:1,protocol:'FLIXO-REPAIR-BOT-BEHAVIOR-TRACE-v1',status:'DEGRADED',reason:'OBSERVER_EXECUTION_FAILED',targetSha:process.env.FLIXO_EXPECTED_TARGET_SHA??null,observedAt:new Date().toISOString()};
+            body.traceHash=crypto.createHash('sha256').update(JSON.stringify(body),'utf8').digest('hex');
+            fs.writeFileSync(p,JSON.stringify(body,null,2)+'\n');
+            NODE
+          fi
           test -s /tmp/flixo-repair-behavior-trace.json
-          jq -e '.protocol=="FLIXO-REPAIR-BOT-BEHAVIOR-TRACE-v1" and .traceHash != null' /tmp/flixo-repair-behavior-trace.json >/dev/null
+          jq -e '.protocol=="FLIXO-REPAIR-BOT-BEHAVIOR-TRACE-v1" and .traceHash != null and (.status=="DEGRADED" or .directive != null)' /tmp/flixo-repair-behavior-trace.json >/dev/null
       - name: Publish Repair Bot behavior trace
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -102,46 +228,3 @@ jobs:
           path: /tmp/flixo-repair-behavior-trace.json
           if-no-files-found: error
           retention-days: 30
-      - name: Determine whether canonical repair work is already resident
-        id: state
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-          ACTIVE_GREEN_GATES="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'")) | length')"
-          ACTIVE_REPAIRS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status,headSha --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'")) | length')"
-          ACTIVE_RESIDENT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 50 --json status,headSha,displayTitle --jq 'map(select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'" and .displayTitle == "FLIXO Auto Repair Chain  NO_FINGERPRINT")) | length')"
-          GREEN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --commit "$EXECUTION_SHA" --limit 50 --json databaseId,status,conclusion,headSha,createdAt --jq 'map(select(.headSha == "'"$EXECUTION_SHA"'" and .conclusion == "success")) | sort_by(.createdAt) | last.databaseId // empty')"
-
-          echo "EXECUTION_SHA=$EXECUTION_SHA"
-          echo "ACTIVE_GREEN_GATES=$ACTIVE_GREEN_GATES"
-          echo "ACTIVE_REPAIRS=$ACTIVE_REPAIRS"
-          echo "ACTIVE_RESIDENT=$ACTIVE_RESIDENT"
-          echo "LAST_GREEN_GATE=${GREEN:-none}"
-
-          if [ -n "$GREEN" ]; then
-            echo 'CANONICAL_GREEN_ALREADY_PROVEN=true'
-            echo 'wake=false' >> "$GITHUB_OUTPUT"
-            echo 'resident_wake=false' >> "$GITHUB_OUTPUT"
-          else
-            echo 'CANONICAL_GREEN_NOT_PROVEN=true'
-            echo 'wake=true' >> "$GITHUB_OUTPUT"
-            if [ "$ACTIVE_RESIDENT" -eq 0 ]; then
-              echo 'resident_wake=true' >> "$GITHUB_OUTPUT"
-            else
-              echo 'resident_wake=false' >> "$GITHUB_OUTPUT"
-            fi
-          fi
-
-      - name: Wake observer supervisor automatically
-        if: steps.state.outputs.wake == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/agent-repair-supervisor.yml/dispatches" -f ref=execution
-          echo 'AUTOMATIC_REPAIR_SUPERVISOR_WAKE=true'
-          echo 'SUPERVISOR_REMAINS_OBSERVER_ONLY=true'

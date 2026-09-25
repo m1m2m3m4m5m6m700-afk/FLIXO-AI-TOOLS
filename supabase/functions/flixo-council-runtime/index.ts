@@ -64,12 +64,17 @@ const authAccount = (req: Request, account: Account) => {
 
 const trustedWorkflowSha = (workflow: string) => {
   let parsed: unknown;
-  try { parsed = JSON.parse(Deno.env.get("COUNCIL_TRUSTED_WORKFLOW_SHAS") ?? "{}"); } catch { throw new Error("COUNCIL_TRUSTED_WORKFLOW_SHA_CONFIG_INVALID"); }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("COUNCIL_TRUSTED_WORKFLOW_SHA_CONFIG_INVALID");
+  try { parsed = JSON.parse(Deno.env.get("COUNCIL_TRUSTED_WORKFLOW_SHAS") ?? "{}"); }
+  catch { throw new Error("COUNCIL_TRUSTED_WORKFLOW_SHA_CONFIG_INVALID"); }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("COUNCIL_TRUSTED_WORKFLOW_SHA_CONFIG_INVALID");
+  }
   const value = String((parsed as Record<string, unknown>)[workflow] ?? "").trim().toLowerCase();
-  if (!/^[0-9a-f]{40}$/u.test(value)) throw new Error("COUNCIL_TRUSTED_WORKFLOW_SHA_MISSING=" + workflow);
-  return value;
+  return /^[0-9a-f]{40}$/u.test(value) ? value : null;
 };
+const externalLeaseWatcherWorkflow = "FLIXO External Council Lease Watcher";
+const externalLeaseWatcherRef =
+  `${GITHUB_REPOSITORY}/.github/workflows/council-external-lease-watch.yml@refs/heads/main`;
 const authGitHubWorkflow = async (req: Request, allowedWorkflows: string[]) => {
   const token = bearer(req);
   if (!token) throw new Error("COUNCIL_GITHUB_OIDC_MISSING");
@@ -83,19 +88,37 @@ const authGitHubWorkflow = async (req: Request, allowedWorkflows: string[]) => {
   const workflow = String(claims.workflow ?? "");
   const workflowSha = String(claims.workflow_sha ?? "").trim().toLowerCase();
   if (!/^[0-9a-f]{40}$/u.test(workflowSha)) throw new Error("COUNCIL_GITHUB_OIDC_WORKFLOW_SHA_MISSING");
-  if (workflowSha !== trustedWorkflowSha(workflow)) throw new Error("COUNCIL_GITHUB_OIDC_WORKFLOW_SHA_REJECTED");
+  const configuredWorkflowSha = trustedWorkflowSha(workflow);
   const jobWorkflowRef = String(claims.job_workflow_ref ?? "").trim();
   const jobWorkflowSha = String(claims.job_workflow_sha ?? "").trim().toLowerCase();
-  if (jobWorkflowRef && !/^[0-9a-f]{40}$/u.test(jobWorkflowSha)) throw new Error("COUNCIL_GITHUB_OIDC_JOB_WORKFLOW_SHA_MISSING");
+  if (jobWorkflowRef && !/^[0-9a-f]{40}$/u.test(jobWorkflowSha)) {
+    throw new Error("COUNCIL_GITHUB_OIDC_JOB_WORKFLOW_SHA_MISSING");
+  }
   if (jobWorkflowRef && !jobWorkflowSha) throw new Error("COUNCIL_GITHUB_OIDC_JOB_WORKFLOW_SHA_REQUIRED");
-  if (jobWorkflowRef && jobWorkflowSha !== trustedWorkflowSha(workflow)) {
-    throw new Error("COUNCIL_GITHUB_OIDC_JOB_WORKFLOW_SHA_REJECTED");
+  if (configuredWorkflowSha) {
+    if (workflowSha !== configuredWorkflowSha) throw new Error("COUNCIL_GITHUB_OIDC_WORKFLOW_SHA_REJECTED");
+    if (jobWorkflowRef && jobWorkflowSha !== configuredWorkflowSha) {
+      throw new Error("COUNCIL_GITHUB_OIDC_JOB_WORKFLOW_SHA_REJECTED");
+    }
+  } else if (workflow === externalLeaseWatcherWorkflow) {
+    const mainRef = `${GITHUB_REPOSITORY}/.github/workflows/council-external-lease-watch.yml@refs/heads/main`;
+    if (jobWorkflowRef !== mainRef) throw new Error("COUNCIL_EXTERNAL_WATCHER_MAIN_REF_REJECTED");
+    if (!jobWorkflowSha || jobWorkflowSha !== workflowSha) {
+      throw new Error("COUNCIL_EXTERNAL_WATCHER_WORKFLOW_SHA_MISMATCH");
+    }
+  } else {
+    throw new Error("COUNCIL_TRUSTED_WORKFLOW_SHA_MISSING=" + workflow);
   }
   const event = String(claims.event_name ?? "");
   const ref = String(claims.ref ?? "");
   const allowed = allowedWorkflows.some((workflow) => {
     if (workflow === "FLIXO Master Agent Activation Relay") return event === "workflow_run" && ref === "refs/heads/execution" && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/agent-master-activation.yml@");
-    if (workflow === "FLIXO External Council Lease Watcher") return ((event === "schedule" && ref === "refs/heads/main") || (event === "workflow_dispatch" && (ref === "refs/heads/main" || ref === "refs/heads/execution"))) && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/council-external-lease-watch.yml@");
+    if (workflow === externalLeaseWatcherWorkflow) {
+      const expectedRef = String(claims.job_workflow_ref ?? "");
+      if (event === "schedule") return ref === "refs/heads/main" && expectedRef === externalLeaseWatcherRef;
+      if (event === "workflow_dispatch") return ref === "refs/heads/main" && expectedRef === externalLeaseWatcherRef;
+      return false;
+    }
     if (workflow === "FLIXO Council Wake Push Relay") return event === "push" && ref === "refs/heads/execution" && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/council-wake-push-relay.yml@");
     if (workflow === "FLIXO Agent Communication Relay") return event === "issue_comment" && ref === "refs/heads/main" && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/agent-communication-relay.yml@");
     if (workflow === "FLIXO Cell Master Consult Relay") return event === "workflow_dispatch" && (ref === "refs/heads/execution" || ref === "refs/heads/main") && String(claims.job_workflow_ref ?? "").startsWith(GITHUB_REPOSITORY + "/.github/workflows/cell-master-consult.yml@");
@@ -121,6 +144,206 @@ const db = async (path: string, init: RequestInit = {}) => {
   if (!r.ok) throw new Error("COUNCIL_DB_FAILED=" + r.status);
   return body;
 };
+
+const liveAccountFresh = (row: Record<string, unknown>, nowMs = Date.now()) => {
+  if (row?.active !== true || !row?.last_seen_at) return false;
+  const seen = Date.parse(String(row.last_seen_at));
+  if (!Number.isFinite(seen)) return false;
+  const leaseSeconds = Math.max(15, Number(row.lease_seconds ?? 120));
+  return nowMs - seen <= Math.max(120000, leaseSeconds * 2000);
+};
+
+const chooseRecoveryAccount = async (row: Record<string, unknown>) => {
+  const preferred = [
+    String(row.fallback_account_id ?? "").trim(),
+    String(row.primary_account_id ?? "").trim(),
+    "WORKER_A",
+    "WORKER_B",
+  ].filter(Boolean);
+  const candidates = [...new Set(preferred)].filter((account) =>
+    accounts[account as Account]?.endpointEnv
+  ) as Account[];
+  if (candidates.length === 0) return null;
+  const queryIds = [...new Set(candidates)].join(",");
+  const rows = await db(
+    "/rest/v1/flix_council_accounts?account_id=in.(" +
+      encodeURIComponent(queryIds) +
+      ")&select=account_id,active,lease_seconds,last_seen_at,metadata"
+  ) as Array<Record<string, unknown>>;
+  const active = rows.filter((item) => item.active === true);
+  const fresh = active.filter((item) => liveAccountFresh(item));
+  const freshById = new Map(fresh.map((item) => [String(item.account_id), item]));
+  const activeById = new Map(active.map((item) => [String(item.account_id), item]));
+  for (const candidate of candidates) {
+    if (freshById.has(candidate)) return { account: candidate, row: freshById.get(candidate)! };
+  }
+  for (const candidate of candidates) {
+    if (activeById.has(candidate)) return { account: candidate, row: activeById.get(candidate)! };
+  }
+  return null;
+};
+
+const directGuardianRecovery = async () => {
+  const cutoff = new Date().toISOString();
+  const expired = await db(
+    "/rest/v1/flix_council_dispatches?status=in.(LEASED,ACKED)&lease_expires_at=lte." +
+      encodeURIComponent(cutoff) +
+      "&select=dispatch_id,task_id,work_package_id,entry_sha,primary_account_id,fallback_account_id,recipient_account_id,handoff_account_id,status,attempts,session_id,lease_expires_at,payload&order=lease_expires_at.asc,created_at.asc&limit=25"
+  ) as Array<Record<string, unknown>>;
+  const repaired: Array<Record<string, unknown>> = [];
+  for (const current of expired) {
+    const dispatchId = String(current.dispatch_id);
+    const attempts = Number(current.attempts ?? 0);
+    if (attempts >= 20) {
+      const terminal = await db(
+        "/rest/v1/flix_council_dispatches?dispatch_id=eq." + encodeURIComponent(dispatchId) +
+        "&attempts=eq." + encodeURIComponent(String(attempts)) +
+        "&status=in.(LEASED,ACKED)&lease_expires_at=lte." + encodeURIComponent(cutoff),
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json", prefer: "return=representation" },
+          body: JSON.stringify({
+            status: "FAILED",
+            session_id: null,
+            lease_expires_at: null,
+            last_error: "LEASE_RECOVERY_ATTEMPTS_EXHAUSTED",
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }),
+        }
+      ) as Array<Record<string, unknown>>;
+      if (terminal.length) {
+        await db("/rest/v1/flix_council_events", {
+          method: "POST",
+          headers: { "content-type": "application/json", prefer: "return=minimal" },
+          body: JSON.stringify({
+            dispatch_id: dispatchId,
+            account_id: current.recipient_account_id,
+            event_type: "FAILED",
+            exact_sha: current.entry_sha,
+            payload: {
+              reason: "LEASE_RECOVERY_ATTEMPTS_EXHAUSTED",
+              attempts,
+              terminal: true,
+              recoveryVersion: "guardian-v3",
+              recoveryState: "FAILED_TERMINAL",
+            },
+          }),
+        });
+        await db("/rest/v1/flix_council_events", {
+          method: "POST",
+          headers: { "content-type": "application/json", prefer: "return=minimal" },
+          body: JSON.stringify({
+            dispatch_id: dispatchId,
+            account_id: current.handoff_account_id,
+            event_type: "HANDOFF_READY",
+            exact_sha: current.entry_sha,
+            payload: {
+              reason: "LEASE_RECOVERY_ATTEMPTS_EXHAUSTED",
+              attempts,
+              terminal: true,
+              requiredAction: "SUPERVISOR_ESCALATION",
+              recoveryVersion: "guardian-v3",
+              recoveryState: "FAILED_TERMINAL",
+            },
+          }),
+        });
+        repaired.push({ ...current, status: "FAILED", attempts, recoveryState: "FAILED_TERMINAL", guardianAction: "FAILED_TERMINAL" });
+      }
+      continue;
+    }
+
+    const target = await chooseRecoveryAccount(current);
+    if (!target) {
+      const terminal = await db(
+        "/rest/v1/flix_council_dispatches?dispatch_id=eq." + encodeURIComponent(dispatchId) +
+        "&attempts=eq." + encodeURIComponent(String(attempts)) +
+        "&status=in.(LEASED,ACKED)&lease_expires_at=lte." + encodeURIComponent(cutoff),
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json", prefer: "return=representation" },
+          body: JSON.stringify({
+            status: "FAILED",
+            session_id: null,
+            lease_expires_at: null,
+            last_error: "NO_FRESH_RECOVERY_RUNTIME",
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }),
+        }
+      ) as Array<Record<string, unknown>>;
+      if (terminal.length) {
+        await db("/rest/v1/flix_council_events", {
+          method: "POST",
+          headers: { "content-type": "application/json", prefer: "return=minimal" },
+          body: JSON.stringify({
+            dispatch_id: dispatchId,
+            account_id: current.handoff_account_id,
+            event_type: "HANDOFF_READY",
+            exact_sha: current.entry_sha,
+            payload: {
+              reason: "NO_FRESH_RECOVERY_RUNTIME",
+              previousAccountId: current.recipient_account_id,
+              attempts,
+              terminal: true,
+              requiredAction: "SUPERVISOR_ESCALATION",
+              recoveryVersion: "guardian-v3",
+              recoveryState: "BLOCKED",
+            },
+          }),
+        });
+        repaired.push({ ...current, status: "FAILED", attempts, recoveryState: "BLOCKED", guardianAction: "BLOCKED" });
+      }
+      continue;
+    }
+
+    const nextLease = new Date(
+      Date.now() + Math.max(15, Number(target.row.lease_seconds ?? 120)) * 1000
+    ).toISOString();
+    const updated = await db(
+      "/rest/v1/flix_council_dispatches?dispatch_id=eq." + encodeURIComponent(dispatchId) +
+      "&attempts=eq." + encodeURIComponent(String(attempts)) +
+      "&status=in.(LEASED,ACKED)&lease_expires_at=lte." + encodeURIComponent(cutoff),
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json", prefer: "return=representation" },
+        body: JSON.stringify({
+          recipient_account_id: target.account,
+          status: "LEASED",
+          session_id: null,
+          lease_expires_at: nextLease,
+          attempts: attempts + 1,
+          last_error: "LEASE_EXPIRED_GUARDIAN_RECOVERY",
+          updated_at: new Date().toISOString(),
+        }),
+      }
+    ) as Array<Record<string, unknown>>;
+    if (!updated.length) continue;
+
+    const recovered = updated[0];
+    await db("/rest/v1/flix_council_events", {
+      method: "POST",
+      headers: { "content-type": "application/json", prefer: "return=minimal" },
+      body: JSON.stringify({
+        dispatch_id: dispatchId,
+        account_id: target.account,
+        event_type: "DISPATCHED",
+        exact_sha: current.entry_sha,
+        payload: {
+          attempt: attempts + 1,
+          fallback: true,
+          automatic: true,
+          recoveryVersion: "guardian-v3",
+          previousAccountId: current.recipient_account_id,
+          recoveryState: "RECOVERED",
+        },
+      }),
+    });
+    repaired.push({ ...recovered, recoveryState: "RECOVERED", guardianAction: "RECOVERED" });
+  }
+  return repaired;
+};
+
 
 const jsonBody = async (req: Request): Promise<Body> => {
   const raw = await req.text();
@@ -211,7 +434,7 @@ const accountFromBearer = (req: Request): Account => {
 };
 
 const getAccountState = async (account: Account) => {
-  const rows = await db("/rest/v1/flix_council_accounts?account_id=eq." + encodeURIComponent(account) + "&select=account_id,role,active,current_session_id,last_seen_at,metadata&limit=1") as Array<Record<string, unknown>>;
+  const rows = await db("/rest/v1/flix_council_accounts?account_id=eq." + encodeURIComponent(account) + "&select=account_id,role,active,current_session_id,last_seen_at,last_heartbeat_at,current_execution_sha,metadata&limit=1") as Array<Record<string, unknown>>;
   const row = rows?.[0];
   if (!row) throw new Error("COUNCIL_ACCOUNT_STATE_MISSING");
   const metadata = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
@@ -491,6 +714,7 @@ Deno.serve(async (req) => {
           active: runtime.row.active,
           currentSessionId: runtime.row.current_session_id,
           lastSeenAt: runtime.row.last_seen_at,
+          currentExecutionSha: runtime.row.current_execution_sha,
         },
         dispatch: rows?.[0] ?? null,
       }, 200, requestId);
@@ -511,6 +735,7 @@ Deno.serve(async (req) => {
           active: runtime.row.active,
           currentSessionId: runtime.row.current_session_id,
           lastSeenAt: runtime.row.last_seen_at,
+          currentExecutionSha: runtime.row.current_execution_sha,
         },
         assignment: assignments?.[0] ?? null,
       }, 200, requestId);
@@ -624,11 +849,15 @@ Deno.serve(async (req) => {
       }, 200, requestId);
     }
 
-    if (action === "assistant-channel" && req.method === "GET") {
-      const nonce = String(url.searchParams.get("nonce") ?? "").trim();
-      const suppliedHash = String(url.searchParams.get("tokenHash") ?? "").trim().toLowerCase();
-      const purpose = String(url.searchParams.get("purpose") ?? "").trim().toUpperCase();
-      const exactSha = sha(url.searchParams.get("entrySha"));
+    if (action === "assistant-channel" && (req.method === "GET" || req.method === "POST")) {
+      if (req.method === "GET" && (url.searchParams.has("nonce") || url.searchParams.has("tokenHash"))) {
+        throw new Error("COUNCIL_ASSISTANT_QUERY_CREDENTIAL_FORBIDDEN");
+      }
+      const bodyForAssistant = req.method === "POST" ? await jsonBody(req) : {};
+      const nonce = String(req.headers.get("x-council-assistant-nonce") ?? bodyForAssistant.nonce ?? "").trim();
+      const suppliedHash = String(req.headers.get("x-council-assistant-token-hash") ?? bodyForAssistant.tokenHash ?? "").trim().toLowerCase();
+      const purpose = String(req.method === "POST" ? bodyForAssistant.purpose ?? "" : url.searchParams.get("purpose") ?? "").trim().toUpperCase();
+      const exactSha = sha(req.method === "POST" ? bodyForAssistant.entrySha : url.searchParams.get("entrySha"));
       if (nonce && !/^[A-Za-z0-9_-]{32,256}$/.test(nonce)) throw new Error("COUNCIL_ASSISTANT_NONCE_INVALID");
       if (suppliedHash && !/^[0-9a-f]{64}$/.test(suppliedHash)) throw new Error("COUNCIL_ASSISTANT_TOKEN_HASH_INVALID");
       if (!nonce && !suppliedHash) throw new Error("COUNCIL_ASSISTANT_CREDENTIAL_REQUIRED");
@@ -787,6 +1016,60 @@ Deno.serve(async (req) => {
 
     const body = await jsonBody(req);
 
+    if (action === "resident-heartbeat" && req.method === "POST") {
+      const hb = body;
+      const account = accountFrom(hb.accountId);
+      authAccount(req, account);
+      const runtime = await getAccountState(account);
+      const declaredAgentId = String(hb.agentId ?? "").trim();
+      const exactSha = sha(hb.entrySha);
+      if (!runtime.identityVerified || declaredAgentId !== runtime.identity?.agentId) {
+        throw new Error("COUNCIL_AGENT_IDENTITY_REJECTED");
+      }
+      const runtimeSessionId = String(hb.runtimeSessionId ?? hb.sessionId ?? runtime.row.current_session_id ?? "").trim();
+      if (!runtimeSessionId) throw new Error("COUNCIL_RESIDENT_SESSION_REQUIRED");
+      const now = new Date().toISOString();
+      const updated = await db(
+        "/rest/v1/flix_council_accounts?account_id=eq." + encodeURIComponent(account),
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json", prefer: "return=representation" },
+          body: JSON.stringify({
+            current_session_id: runtimeSessionId,
+            last_seen_at: now,
+            updated_at: now,
+          }),
+        }
+      ) as Array<Record<string, unknown>>;
+      if (!updated.length) throw new Error("COUNCIL_ACCOUNT_STATE_UPDATE_FAILED");
+      await db("/rest/v1/flix_council_events", {
+        method: "POST",
+        headers: { "content-type": "application/json", prefer: "return=minimal" },
+        body: JSON.stringify({
+          account_id: account,
+          event_type: "HEARTBEAT",
+          exact_sha: exactSha,
+          payload: {
+            source: "RESIDENT_RUNTIME_HEARTBEAT",
+            runtimeSessionId,
+            agentId: declaredAgentId,
+            exactSha,
+          },
+        }),
+      });
+      return response({
+        ok: true,
+        accountId: account,
+        agentId: declaredAgentId,
+        runtimeSessionId,
+        exactSha,
+        lastSeenAt: now,
+        lastHeartbeatAt: now,
+        currentExecutionSha: exactSha,
+        state: "ACTIVE",
+      }, 200, requestId);
+    }
+
     if (action === "dispatch" && req.method === "POST") {
       const requester = String(body.requestedByAccountId ?? "SYSTEM");
       if (requester === "SYSTEM") await authGitHubWorkflow(req, ["FLIXO Master Agent Activation Relay", "FLIXO Council Wake Push Relay"]);
@@ -858,21 +1141,113 @@ Deno.serve(async (req) => {
 
     if (action === "recover" && req.method === "POST") {
       await authGitHubWorkflow(req, ["FLIXO External Council Lease Watcher"]);
-      const rows = await db("/rest/v1/rpc/council_recover_expired_dispatches", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ p_limit: 10 }),
-      }) as Array<Record<string, unknown>>;
-      return response({
-        ok: true,
-        recovered: (rows ?? []).map((row) => ({
+      let rows: Array<Record<string, unknown>> = [];
+      let rpcRecoveryError = "";
+      try {
+        rows = await db("/rest/v1/rpc/council_recover_expired_dispatches", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ p_limit: 25 }),
+        }) as Array<Record<string, unknown>>;
+      } catch (error) {
+        rpcRecoveryError = error instanceof Error ? error.message : String(error);
+      }
+
+      const guardianRows = await directGuardianRecovery();
+      const combinedRows = [...rows, ...guardianRows];
+      const seenDispatches = new Set<string>();
+      const recovered = [];
+      for (const row of combinedRows) {
+        const rowId = String(row.dispatch_id ?? "");
+        if (!rowId || seenDispatches.has(rowId)) continue;
+        seenDispatches.add(rowId);
+        const account = accountFrom(row.recipient_account_id);
+        const endpointEnv = accounts[account].endpointEnv;
+        const endpoint = endpointEnv ? (Deno.env.get(endpointEnv)?.trim() ?? "") : "";
+        const token = Deno.env.get(accounts[account].tokenEnv)?.trim() ?? "";
+
+        let push = { attempted: false, ok: false, reason: "POLL_ONLY" };
+        if (endpoint && token) {
+          push = { attempted: true, ok: false, reason: "UNSET" };
+          try {
+            const r = await fetch(endpoint, {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                authorization: "Bearer " + token,
+              },
+              body: JSON.stringify({
+                wakeType: "FLIXO_COUNCIL_WAKE_FALLBACK",
+                dispatchId: row.dispatch_id,
+                accountId: account,
+                exactSha: row.entry_sha,
+                taskId: row.task_id,
+                workPackageId: row.work_package_id,
+                attempts: row.attempts,
+                payload: row.payload ?? {},
+              }),
+              signal: AbortSignal.timeout(8000),
+            });
+            push.ok = r.ok;
+            push.reason = r.ok ? "DELIVERED" : "HTTP_" + r.status;
+          } catch (error) {
+            push.reason = error instanceof Error ? error.message : String(error);
+          }
+
+          if (!push.ok) {
+            await db("/rest/v1/flix_council_events", {
+              method: "POST",
+              headers: { "content-type": "application/json", prefer: "return=minimal" },
+              body: JSON.stringify({
+                dispatch_id: row.dispatch_id,
+                account_id: account,
+                event_type: "WAKE_PUSH_FAILED",
+                exact_sha: row.entry_sha,
+                payload: { reason: push.reason, source: "external-lease-recovery" },
+              }),
+            }).catch(() => null);
+          }
+        }
+
+        recovered.push({
           dispatchId: row.dispatch_id,
-          recipientAccountId: row.recipient_account_id,
+          recipientAccountId: account,
           attempts: row.attempts,
           entrySha: row.entry_sha,
           workPackageId: row.work_package_id,
-        })),
-      }, 200, requestId);
+          push,
+        });
+      }
+
+      const healthAccounts = await db(
+        "/rest/v1/flix_council_accounts?select=account_id,active,lease_seconds,last_seen_at,metadata&order=account_id.asc"
+      ) as Array<Record<string, unknown>>;
+      const expiredRemaining = await db(
+        "/rest/v1/flix_council_dispatches?status=in.(LEASED,ACKED)&lease_expires_at=lte." +
+          encodeURIComponent(new Date().toISOString()) +
+          "&select=dispatch_id,recipient_account_id,attempts,lease_expires_at,entry_sha&limit=100"
+      ) as Array<Record<string, unknown>>;
+      const staleResidents = healthAccounts
+        .filter((account) => {
+          const metadata = account.metadata && typeof account.metadata === "object" && !Array.isArray(account.metadata)
+            ? account.metadata as Record<string, unknown>
+            : {};
+          return metadata.residencyRequired === true && !liveAccountFresh(account);
+        })
+        .map((account) => String(account.account_id));
+      const healthy = expiredRemaining.length === 0 && staleResidents.length === 0;
+      return response({
+        ok: healthy,
+        guardian: "EXTERNAL_COUNCIL_GUARDIAN_V3",
+        rpcRecoveryError: rpcRecoveryError || null,
+        recovered,
+        health: {
+          healthy,
+          state: healthy ? "HEALTHY" : "DEGRADED",
+          remainingExpiredOpenLeases: expiredRemaining.length,
+          staleResidentAccounts: staleResidents,
+        },
+      }, healthy ? 200 : 503, requestId);
     }
 
     throw new Error("COUNCIL_ACTION_UNSUPPORTED");
@@ -889,6 +1264,7 @@ Deno.serve(async (req) => {
       /UNAUTHORIZED|OIDC_MISSING/u.test(errorCode) ? 401 :
       /REJECTED|FORBIDDEN/u.test(errorCode) ? 403 :
       /INVALID|REQUIRED|TOO_LARGE|UNKNOWN/u.test(errorCode) ? 400 :
+      /TRUSTED_WORKFLOW_SHA_MISSING|WORKFLOW_SHA_MISMATCH|CONFIG_MISSING/u.test(errorCode) ? 503 :
       500;
     return response({ ok: false, error: errorCode, requestId }, status, requestId);
   }

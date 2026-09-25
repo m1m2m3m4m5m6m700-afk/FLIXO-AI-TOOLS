@@ -81,8 +81,8 @@ export function validateBotProfile(profile) {
 
 export function validateThreeBotIntelligence(profile, bots) {
   const errors = [];
-  if (profile?.schemaVersion !== 6) err(errors, 'INTELLIGENCE_SCHEMA_INVALID');
-  if (profile?.parity?.model !== 'SHARED_INTELLIGENCE_WITH_SPECIALIZED_PROOF_OBJECTIVES' ||
+  if (profile?.schemaVersion !== 7) err(errors, 'INTELLIGENCE_SCHEMA_INVALID');
+  if (profile?.parity?.model !== 'UNIFIED_SUPERSET_INTELLIGENCE_WITH_SPECIALIZED_PROOF_OBJECTIVES' ||
       profile?.parity?.commonSafetyEqual !== true ||
       profile?.parity?.commonIdentityBindingEqual !== true ||
       profile?.parity?.roleCapabilitiesEqual !== true) {

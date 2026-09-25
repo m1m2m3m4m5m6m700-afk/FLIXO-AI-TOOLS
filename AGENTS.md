@@ -358,7 +358,7 @@ A task may be closed only after logout has recorded the final task status and `a
 The repository uses one automatic test workflow: `.github/workflows/ci.yml`.
 
 - `verify` is the single non-browser engine. It installs dependencies once, executes the canonical static contracts, performs the canonical production build, and publishes one immutable artifact identified by exact commit SHA and package-lock digest.
-- `browser_fast` is the only fast browser engine: 22 canonical tools × Chromium/Firefox/WebKit = 66 execution units.
+- `browser_fast` is the only fast browser engine: 23 canonical FAST specs × Chromium/Firefox/WebKit = 69 execution units.
 - `browser_deep` is the same browser engine in deep mode: canonical public-route localization/runtime coverage across 20 locales and Chromium/WebKit/Firefox. It runs on main/release paths when the governing contract requires it.
 - `certify` is the only automatic certification authority. It is fail-closed and consumes evidence from the same workflow run.
 
@@ -422,7 +422,7 @@ The long-lived residency model uses 45 minutes as the minimum, 3 hours as the ma
 
 ## NO DIRECT PUSH / NO BYPASS
 
-**ABSOLUTE REPOSITORY RULE:** No agent, bot, Action, workflow, script, token or runtime may push or update the execution branch except through the assistantController publication path after all Chair-1 and Chair Push Validator requirements are satisfied. No automation workflow may request contents:write. No code path may invoke git push, GitHub Contents writes, or direct refs/heads/execution mutation. A failed/missing Chair lease, stale Exact-SHA, missing validator evidence, invalid Push Manifest, or any alternate publication path is FAIL_CLOSED. Tests and emergency paths are not exceptions. The Chair Push Guard remains validation-only; it never grants publication authority. Only assistantController records the final Push decision and performs the guarded publication.
+**ABSOLUTE REPOSITORY RULE:** No agent, bot, Action, workflow, script, token or runtime may push or update the execution branch except through the assistantController publication path after all Chair-1 and Chair Push Validator requirements are satisfied. Write-capable workflows are restricted to the explicit control-plane registry allowlist; only the guarded Chair handoff workflow may update refs/heads/execution, and only as a non-force fast-forward after the exact mutation/head-authority proofs. No code path may invoke git push, arbitrary GitHub Contents writes, or any alternate refs/heads/execution mutation path. A failed/missing Chair lease, stale Exact-SHA, missing validator evidence, invalid Push Manifest, or any alternate publication path is FAIL_CLOSED. Tests and emergency paths are not exceptions. The Chair Push Guard remains validation-only; it never grants publication authority. Only assistantController records the final Push decision and performs the guarded publication.
 ## CHAIR-1 — CENTRAL CUSTODY / TEMPORARY DELEGATION
 
 Chair-1 is centrally owned by `assistantController`. Ownership is permanent unless the user directly commands a transfer.
@@ -437,3 +437,11 @@ Controller-only reclaim requires an explicit direct-user command marker. Any oth
 
 **CENTRAL LEASE ENFORCEMENT:** Chair-1 custody is authoritative in the central Control Plane, not in a runner-local file alone. A mutation-capable agent MUST have a controller-issued central lease bound to the exact execution SHA, task ID, work-package ID, lease ID and fencing proof. Local Chair state is a secondary enforcement/cache layer. A worker MUST NOT self-assign Chair-1 merely because a local runner reports it vacant. Missing, stale, expired, mismatched or unverifiable central lease = FAIL_CLOSED. Heartbeat loss does not release Chair-1; it revokes mutation ability until controller-mediated recovery/requalification. Publication remains forbidden until the same central lease and Exact-SHA proof are valid.
  Every push proposal must also carry a complete Push Manifest (`pushId`, actor identity/role, session, event, repository, branch, reason, change type, Exact-SHA, parent SHA, candidate SHA, commit message, commit tree SHA, requestedAt and patch digest). The Chair Push Guard is **validation-only**: it may inspect and report missing, stale, conflicting or mismatched evidence, but it MUST NOT emit or persist an `ACCEPTED`, `REJECTED`, `READY_FOR_CHAIR_1` or equivalent authority decision. Its output MUST carry `authority=VALIDATION_ONLY`, `decision=null`, and `decisionAuthority=assistantController`. Only `assistantController` may record the final Push Proposal decision as `ACCEPTED` or `REJECTED`, and an `ACCEPTED` decision MUST require a fresh validator report with `validationStatus=PASS` on the same exact SHA. A validation failure returns to the same task/work-package for correction and revalidation; it does not close the task or transfer Chair-1.
+## MASTER-1 — DIRECT TASK EXECUTION RULES — 2026-09-25
+
+- كل مهمة لها هدف واحد ونطاق ملفات محدد؛ أي توسع غير مثبت سببًا يرفض.
+- لا يُنشأ فرع ثالث أو mutation lane ثالث؛ execution هو مسار الإصلاح والتكامل.
+- تغييرات workflows التي يمكن أن تغير سلطة GREEN تتطلب human review ولا تُدمج ذاتيًا.
+- فشل npm run build أو npm run typecheck بعد mutation هو RED؛ لا تخطٍ ولا masking.
+- كل إغلاق مهمة يسجل الملفات والأسطر وأوامر التحقق والنتيجة وexact SHA.
+- الدليل stale أو skipped أو neutral أو cancelled لا يصنع GREEN.

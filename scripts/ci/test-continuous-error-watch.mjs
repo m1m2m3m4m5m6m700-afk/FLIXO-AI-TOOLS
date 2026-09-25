@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { evaluateGreen, classifyCancelledRun, validateRepairTarget } from './continuous-error-watch.mjs';
+import { evaluateGreen, classifyCancelledRun, validateRepairTarget, classifyAutomationOutcome } from './continuous-error-watch.mjs';
 import { deriveRepairIdentity } from './repair-control-plane.mjs';
 
 const SHA_A = 'a'.repeat(40);
@@ -17,6 +17,7 @@ const run = (workflowName, databaseId, conclusion = 'success') => ({
     'FLIXO Test Impact Execution': '.github/workflows/test-impact-execution.yml',
     'Repository Security Baseline': '.github/workflows/repository-security-baseline.yml',
     'Claude Security Review': '.github/workflows/claude-security-review.yml',
+    'FLIXO Security Red-Team Triad (Isolated)': '.github/workflows/security-red-team.yml',
   }[workflowName] ?? ''),
   databaseId,
   headSha: SHA_A,
@@ -32,11 +33,18 @@ const requiredRuns = [
   'FLIXO Test Impact Execution',
   'Repository Security Baseline',
   'Claude Security Review',
+  'FLIXO Security Red-Team Triad (Isolated)',
 ].map((name, i) => run(name, i + 1));
 const cancelledRun = { ...run('FLIXO Test Impact Execution', 40, 'cancelled'), updatedAt: '2026-09-19T00:00:00Z' };
 const successorRun = { ...run('FLIXO Test Impact Execution', 41, 'success'), updatedAt: '2026-09-19T00:01:00Z' };
 assert.equal(classifyCancelledRun(cancelledRun, [cancelledRun, successorRun]).state, 'CANCELLED_SUPERSEDED');
 assert.equal(classifyCancelledRun(cancelledRun, [cancelledRun]).state, 'CANCELLED_UNSUPERSEDED');
+
+for (const conclusion of ['success', 'failure', 'timed_out', 'cancelled', 'skipped', 'neutral', 'action_required']) {
+  const outcome = classifyAutomationOutcome({ status: 'completed', conclusion });
+  assert.ok(['GREEN', 'RED'].includes(outcome));
+  assert.equal(outcome, conclusion === 'success' ? 'GREEN' : 'RED');
+}
 
 assert.equal(validateRepairTarget({
   run: {
@@ -72,6 +80,18 @@ assert.equal(validateRepairTarget({
   logs: { 50: 'EVIDENCE_CAPTURE=AVAILABLE\ninternal failure' },
 }).valid, true);
 assert.equal(validateRepairTarget({
+  run: { ...run('FLIXO Test Impact Execution', 58, 'skipped'), headBranch: 'execution' },
+  executionSha: SHA_A,
+  workflowRuns: [],
+  logs: { 58: 'EVIDENCE_CAPTURE=AVAILABLE\nskipped required test run' },
+}).valid, true);
+assert.equal(validateRepairTarget({
+  run: { ...run('FLIXO Test Impact Execution', 59, 'neutral'), headBranch: 'execution' },
+  executionSha: SHA_A,
+  workflowRuns: [],
+  logs: { 59: 'EVIDENCE_CAPTURE=AVAILABLE\nneutral required test run' },
+}).valid, true);
+assert.equal(validateRepairTarget({
   run: { ...run('FLIXO Test Impact Execution', 51, 'failure'), headBranch: 'main' },
   executionSha: SHA_A,
   workflowRuns: [],
@@ -89,6 +109,73 @@ assert.equal(validateRepairTarget({
   workflowRuns: [],
   logs: { 53: 'EVIDENCE_CAPTURE=AVAILABLE\nself target' },
 }).errors.includes('TARGET_SELF_REPAIR'), true);
+const redTeamTarget = validateRepairTarget({
+  run: { ...run('FLIXO Security Red-Team Triad (Isolated)', 77, 'failure'), headBranch: 'execution' },
+  executionSha: SHA_A,
+  workflowRuns: [],
+  logs: { 77: 'EVIDENCE_CAPTURE=AVAILABLE\\nREDTEAM_REPAIR_REQUIRED=true\\n[HIGH] actionable security finding' },
+});
+assert.equal(redTeamTarget.valid, true);
+assert.deepEqual(redTeamTarget.errors, []);
+
+const securityAndCertification = [
+  { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success' },
+  {
+    id: 102,
+    name: 'Certification',
+    status: 'completed',
+    conclusion: 'success',
+    headSha: SHA_A,
+    details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/1/job/10002',
+  },
+];
+const openPr = { number: 748, headRefOid: SHA_A, baseRefOid: SHA_B };
+const baseGreenInput = {
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: securityAndCertification,
+  compare: { ahead_by: 1, behind_by: 0 },
+};
+
+
+const cancelledThenSucceeded = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: [
+    ...requiredRuns.map((item) =>
+      item.workflowName === 'FLIXO Test Impact Execution'
+        ? { ...item, conclusion: 'cancelled', databaseId: 42, updatedAt: '2026-09-19T00:02:00Z' }
+        : item),
+    {
+      ...run('FLIXO Test Impact Execution', 43, 'success'),
+      updatedAt: '2026-09-19T00:03:00Z',
+    },
+  ],
+  checkRuns: securityAndCertification,
+  logs: {
+    42: 'EVIDENCE_CAPTURE=AVAILABLE\nsuperseded cancelled run',
+    43: 'EVIDENCE_CAPTURE=AVAILABLE\nsuccessor run',
+  },
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+const redTeamRepairInput = evaluateGreen({
+  ...baseGreenInput,
+  workflowRuns: [
+    ...baseGreenInput.workflowRuns,
+    { ...run('FLIXO Security Red-Team Triad (Isolated)', 78, 'failure'), headBranch: 'execution' },
+  ],
+  logs: {
+    78: 'EVIDENCE_CAPTURE=AVAILABLE\\nREDTEAM_REPAIR_REQUIRED=true\\n[HIGH] actionable security finding\\nREDTEAM_TARGET_SHA=' + SHA_A,
+  },
+});
+assert.equal(redTeamRepairInput.status, 'RED_INTERNAL');
+assert.equal(redTeamRepairInput.repair.required, true);
+assert.equal(redTeamRepairInput.repair.targetRunId, 78);
+assert.equal(redTeamRepairInput.repair.failedSha, SHA_A);
+
 const unknownTarget = validateRepairTarget({
   run: { ...run('Unknown workflow', 54, 'failure'), headBranch: 'execution' },
   executionSha: SHA_A,
@@ -118,35 +205,9 @@ assert.equal(validateRepairTarget({
   logs: {},
 }).errors.includes('EVIDENCE_CAPTURE_FAILED'), true);
 
-const securityAndCertification = [
-  { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success' },
-  { id: 102, name: 'Certification', status: 'completed', conclusion: 'success' },
-];
 
 
-const openPr = { number: 748, headRefOid: SHA_A, baseRefOid: SHA_B };
 
-const cancelledThenSucceeded = evaluateGreen({
-  executionSha: SHA_A,
-  mainSha: SHA_B,
-  openPr,
-  workflowRuns: [
-    ...requiredRuns.map((item) =>
-      item.workflowName === 'FLIXO Test Impact Execution'
-        ? { ...item, conclusion: 'cancelled', databaseId: 42, updatedAt: '2026-09-19T00:02:00Z' }
-        : item),
-    {
-      ...run('FLIXO Test Impact Execution', 43, 'success'),
-      updatedAt: '2026-09-19T00:03:00Z',
-    },
-  ],
-  checkRuns: securityAndCertification,
-  logs: {
-    42: 'EVIDENCE_CAPTURE=AVAILABLE\nsuperseded cancelled run',
-    43: 'EVIDENCE_CAPTURE=AVAILABLE\nsuccessor run',
-  },
-  compare: { ahead_by: 1, behind_by: 0 },
-});
 assert.equal(
   cancelledThenSucceeded.ci.requiredWorkflows['FLIXO Test Impact Execution'].status,
   'success',
@@ -158,12 +219,48 @@ assert.equal(
   false,
 );
 
+const spoofedRequiredWorkflow = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns.map((item) =>
+    item.workflowName === 'FLIXO Test System'
+      ? { ...item, path: '.github/workflows/not-canonical.yml' }
+      : item,
+  ),
+  checkRuns: securityAndCertification,
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(spoofedRequiredWorkflow.ci.requiredWorkflows['FLIXO Test System'].status, 'MISSING');
+assert.equal(spoofedRequiredWorkflow.errors.some((item) => item.type === 'REQUIRED_WORKFLOW_MISSING' && item.workflow === 'FLIXO Test System'), true);
+assert.notEqual(spoofedRequiredWorkflow.status, 'GREEN');
+
+const latestCancelledWithOlderSuccess = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: [
+    ...requiredRuns.map((item) => item.workflowName === 'FLIXO Test Impact Execution'
+      ? { ...item, databaseId: 60, conclusion: 'success', updatedAt: '2026-09-19T00:00:00Z' }
+      : item),
+    { ...run('FLIXO Test Impact Execution', 61, 'cancelled'), updatedAt: '2026-09-19T00:02:00Z' },
+  ],
+  checkRuns: securityAndCertification,
+  logs: {
+    60: 'EVIDENCE_CAPTURE=AVAILABLE\nolder success',
+    61: 'EVIDENCE_CAPTURE=AVAILABLE\nlatest cancellation',
+  },
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(latestCancelledWithOlderSuccess.ci.requiredWorkflows['FLIXO Test Impact Execution'].status, 'cancelled');
+assert.equal(latestCancelledWithOlderSuccess.errors.some((item) => item.type === 'REQUIRED_WORKFLOW_RED' && item.workflow === 'FLIXO Test Impact Execution' && item.status === 'cancelled'), true);
+assert.notEqual(latestCancelledWithOlderSuccess.status, 'GREEN');
 const securityWorkflowEvidence = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
   workflowRuns: requiredRuns,
   checkRuns: [
     { id: 109, name: 'Workflow trust baseline', status: 'completed', conclusion: 'success' },
-    { id: 110, name: 'Certification', status: 'completed', conclusion: 'success' },
+    { id: 110, name: 'Certification', status: 'completed', conclusion: 'success', headSha: SHA_A, details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/1/job/10002' },
   ],
   compare: { ahead_by: 1, behind_by: 0 },
 });
@@ -180,6 +277,128 @@ const green = evaluateGreen({
   compare: { ahead_by: 1, behind_by: 0 },
 });
 assert.equal(green.status, 'GREEN');
+assert.equal(green.ci.certification.headSha, SHA_A);
+assert.equal(green.ci.certification.exactSha, true);
+assert.equal(green.ci.certification.runId, '1');
+assert.equal(green.ci.certification.canonicalRunId, '1');
+assert.equal(green.ci.certification.canonicalRun, true);
+
+const proposalOnlyInput = {
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: [
+    ...requiredRuns,
+    {
+      ...run('Proposal Only Sync', 700, 'failure'),
+      path: '.github/workflows/execution-sync.yml',
+    },
+    {
+      ...run('Historical Action Index', 701, 'skipped'),
+      path: '.github/workflows/historical-action-error-index.yml',
+    },
+  ],
+  checkRuns: securityAndCertification,
+  compare: { ahead_by: 1, behind_by: 0 },
+};
+const proposalOnlyResult = evaluateGreen(proposalOnlyInput);
+assert.equal(
+  proposalOnlyResult.errors.some((item) => item.type === 'UNAPPROVED_WORKFLOW_RED' && item.workflow === 'Proposal Only Sync'),
+  false,
+);
+assert.equal(
+  proposalOnlyResult.errors.some((item) => item.type === 'NON_BINARY_AUTOMATION_OUTCOME' && item.workflow === 'Historical Action Index'),
+  false,
+);
+
+for (const conclusion of ['failure', 'neutral', 'cancelled', 'skipped']) {
+  const certificationRed = evaluateGreen({
+    executionSha: SHA_A,
+    mainSha: SHA_B,
+    openPr,
+    workflowRuns: requiredRuns,
+    checkRuns: [
+      { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success', headSha: SHA_A },
+      { id: 102, name: 'Certification', status: 'completed', conclusion, headSha: SHA_A },
+    ],
+    compare: { ahead_by: 1, behind_by: 0 },
+  });
+  assert.equal(certificationRed.ci.certification.status, conclusion);
+  assert.equal(certificationRed.status, 'FAIL_CLOSED');
+  assert.equal(certificationRed.errors.some((x) => x.type === 'CERTIFICATION_CHECK_RED'), true);
+}
+
+const staleCertification = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: [
+    { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success', headSha: SHA_A },
+    { id: 102, name: 'Certification', status: 'completed', conclusion: 'success', head_sha: SHA_B },
+  ],
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(staleCertification.ci.certification.status, 'success');
+assert.equal(staleCertification.ci.certification.headSha, SHA_B);
+assert.equal(staleCertification.ci.certification.exactSha, false);
+assert.equal(staleCertification.status, 'FAIL_CLOSED');
+assert.equal(staleCertification.errors.some((x) => x.type === 'STALE_CERTIFICATION_EVIDENCE'), true);
+
+const missingCertificationSha = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: [
+    { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success', headSha: SHA_A },
+    { id: 102, name: 'Certification', status: 'completed', conclusion: 'success' },
+  ],
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(missingCertificationSha.ci.certification.exactSha, false);
+assert.equal(missingCertificationSha.status, 'FAIL_CLOSED');
+assert.equal(missingCertificationSha.errors.some((x) => x.type === 'CERTIFICATION_SHA_MISSING'), true);
+
+const nonCanonicalCertificationRun = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: [
+    { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success', headSha: SHA_A },
+    {
+      id: 102,
+      name: 'Certification',
+      status: 'completed',
+      conclusion: 'success',
+      headSha: SHA_A,
+      details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/999/job/9999',
+    },
+  ],
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(nonCanonicalCertificationRun.ci.certification.status, 'success');
+assert.equal(nonCanonicalCertificationRun.ci.certification.exactSha, true);
+assert.equal(nonCanonicalCertificationRun.ci.certification.runId, '999');
+assert.equal(nonCanonicalCertificationRun.ci.certification.canonicalRunId, '1');
+assert.equal(nonCanonicalCertificationRun.ci.certification.canonicalRun, false);
+assert.equal(nonCanonicalCertificationRun.status, 'FAIL_CLOSED');
+assert.equal(nonCanonicalCertificationRun.errors.some((x) => x.type === 'NONCANONICAL_CERTIFICATION_RUN'), true);
+
+const missingCertificationRunLink = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: [
+    { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success', headSha: SHA_A },
+    { id: 102, name: 'Certification', status: 'completed', conclusion: 'success', headSha: SHA_A },
+  ],
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(missingCertificationRunLink.status, 'FAIL_CLOSED');
+assert.equal(missingCertificationRunLink.errors.some((x) => x.type === 'CERTIFICATION_RUN_ID_MISSING'), true);
 
 const mainObservedGreen = evaluateGreen({
   executionSha: SHA_A,
@@ -224,6 +443,30 @@ const cancelledWithoutEvidence = evaluateGreen({
 });
 assert.equal(cancelledWithoutEvidence.status, 'FAIL_CLOSED');
 assert.equal(cancelledWithoutEvidence.repair.required, false);
+
+const skippedRequiredWorkflow = evaluateGreen({
+  ...baseGreenInput,
+  workflowRuns: baseGreenInput.workflowRuns.map((item) =>
+    item.workflowName === 'FLIXO Test System' ? { ...item, conclusion: 'skipped', databaseId: 58 } : item
+  ),
+});
+assert.equal(skippedRequiredWorkflow.status, 'RED_INTERNAL');
+assert.equal(skippedRequiredWorkflow.errors.some((item) => item.type === 'SKIPPED_CHECK_RED'), true);
+assert.equal(skippedRequiredWorkflow.automationOutcome, 'RED');
+
+const arbitrarySkippedWorkflow = evaluateGreen({
+  ...baseGreenInput,
+  workflowRuns: [
+    ...baseGreenInput.workflowRuns,
+    {
+      ...run('FLIXO Optional Automation', 59, 'skipped'),
+      path: '.github/workflows/optional-automation.yml',
+    },
+  ],
+});
+assert.equal(arbitrarySkippedWorkflow.errors.some((item) => item.type === 'NON_BINARY_AUTOMATION_OUTCOME'), true);
+assert.equal(arbitrarySkippedWorkflow.automationOutcome, 'RED');
+
 
 const missingEvidence = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
@@ -273,9 +516,9 @@ const cloudflareSkipped = evaluateGreen({
   ],
   compare: { ahead_by: 1, behind_by: 0 },
 });
-assert.equal(cloudflareSkipped.status, 'GREEN');
+assert.equal(cloudflareSkipped.status, 'BLOCKED_EXTERNAL');
 assert.equal(cloudflareSkipped.repair.required, false);
-assert.equal(cloudflareSkipped.externalBlockers.length, 0);
+assert.ok(cloudflareSkipped.externalBlockers.length > 0);
 
 const externalActionRequired = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
@@ -313,7 +556,7 @@ const codeqlSecurityEvidence = evaluateGreen({
   ],
   checkRuns: [
     { id: 201, name: 'Analyze (javascript-typescript)', status: 'completed', conclusion: 'success', updatedAt: '2026-09-19T00:02:00Z' },
-    { id: 202, name: 'Certification', status: 'completed', conclusion: 'success', updatedAt: '2026-09-19T00:02:00Z' },
+    { id: 202, name: 'Certification', status: 'completed', conclusion: 'success', headSha: SHA_A, updatedAt: '2026-09-19T00:02:00Z' },
     { id: 203, name: 'Deploy exact SHA to Cloudflare flixoai', status: 'completed', conclusion: 'failure', updatedAt: '2026-09-19T00:01:00Z' },
     { id: 204, name: 'Deploy exact SHA to Cloudflare flixoai', status: 'completed', conclusion: 'skipped', updatedAt: '2026-09-19T00:03:00Z' },
     { id: 205, name: 'Observe, classify, repair-or-block, prove, continue', status: 'completed', conclusion: 'failure', updatedAt: '2026-09-19T00:04:00Z' },
@@ -332,7 +575,7 @@ const securityProvider = evaluateGreen({
   workflowRuns: requiredRuns,
   checkRuns: [
     { id: 104, name: 'github-advanced-security', status: 'completed', conclusion: 'failure', details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/35452323662' },
-    { id: 102, name: 'Certification', status: 'completed', conclusion: 'success' },
+    { id: 102, name: 'Certification', status: 'completed', conclusion: 'success', headSha: SHA_A },
   ],
   logs: { 35452323662: 'CAPIError: 400 The requested model is not supported' },
   compare: { ahead_by: 1, behind_by: 0 },
@@ -345,7 +588,7 @@ const securityMissingEvidence = evaluateGreen({
   workflowRuns: requiredRuns,
   checkRuns: [
     { id: 105, name: 'github-advanced-security', status: 'completed', conclusion: 'failure', details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/35452323663' },
-    { id: 102, name: 'Certification', status: 'completed', conclusion: 'success' },
+    { id: 102, name: 'Certification', status: 'completed', conclusion: 'success', headSha: SHA_A },
   ],
   logs: {},
   compare: { ahead_by: 1, behind_by: 0 },
@@ -361,7 +604,7 @@ const securityAggregation = evaluateGreen({
   checkRuns: [
     { id: 301, name: 'github-advanced-security', status: 'completed', conclusion: 'failure', updatedAt: '2026-09-19T00:04:00Z', details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/301' },
     { id: 302, name: 'CodeQL', status: 'completed', conclusion: 'success', updatedAt: '2026-09-19T00:05:00Z' },
-    { id: 303, name: 'Certification', status: 'completed', conclusion: 'success', updatedAt: '2026-09-19T00:05:00Z' },
+    { id: 303, name: 'Certification', status: 'completed', conclusion: 'success', headSha: SHA_A, updatedAt: '2026-09-19T00:05:00Z' },
   ],
   logs: { 301: 'CAPIError: 400 The requested model is not supported' },
   compare: { ahead_by: 1, behind_by: 0 },

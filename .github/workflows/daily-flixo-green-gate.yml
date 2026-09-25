@@ -6,12 +6,19 @@ on:
   # Privileged observer definitions run only from the trusted controller ref.
   # Execution changes are observed by the watchdog; this controller uses schedule/manual observation only.
   workflow_dispatch:
+  workflow_run:
+    workflows:
+      - FLIXO Security Red-Team Triad (Isolated)
+    types: [completed]
+    branches: [execution]
   schedule:
     - cron: '*/5 * * * *'
 
 permissions:
   actions: write
-  contents: read
+  # repair-lease.mjs uses an atomic compare-and-create on refs/tags/flixo-repair-lease-*.
+  # This is control-plane lease storage only; source publication remains Chair-gated.
+  contents: write
   checks: read
   pull-requests: read
 
@@ -44,6 +51,11 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version-file: .nvmrc
+      - name: Cancel stale workflow_run source
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/ci/assert-workflow-run-current.mjs
 
       - name: Self-test canonical repair control plane
         run: |
@@ -53,6 +65,9 @@ jobs:
 
       - name: Self-test continuous watcher
         run: node scripts/ci/test-continuous-error-watch.mjs
+
+      - name: Canonical Assurance controller self-test
+        run: node scripts/ci/test-canonical-assurance.mjs --mode=contract
 
       - name: Capture exact repository state
         id: capture
@@ -106,6 +121,38 @@ jobs:
           printf '%s\n' "$WATCH_BRANCH" > /tmp/flixo-watch/observed-branch
           printf 'branch=%s\n' "$WATCH_BRANCH" >> "$GITHUB_OUTPUT"
 
+      - name: Require recent external agent guardian health
+        if: steps.capture.outputs.branch == 'execution'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          GUARDIAN_RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/council-external-lease-watch.yml/runs?branch=main&per_page=20")"
+          LATEST="$(printf '%s' "$GUARDIAN_RUNS" | jq -c '[.workflow_runs[] | select(.status == "completed")] | sort_by(.updated_at) | last // empty')"
+          if [ -z "$LATEST" ]; then
+            echo 'FAIL CLOSED: no completed external agent guardian evidence exists.'
+            exit 1
+          fi
+          STATUS="$(printf '%s' "$LATEST" | jq -r '.status')"
+          CONCLUSION="$(printf '%s' "$LATEST" | jq -r '.conclusion // ""')"
+          UPDATED_AT="$(printf '%s' "$LATEST" | jq -r '.updated_at')"
+          UPDATED_EPOCH="$(date -d "$UPDATED_AT" +%s)"
+          NOW_EPOCH="$(date -u +%s)"
+          AGE="$((NOW_EPOCH - UPDATED_EPOCH))"
+          echo "AGENT_GUARDIAN_STATUS=$STATUS"
+          echo "AGENT_GUARDIAN_CONCLUSION=$CONCLUSION"
+          echo "AGENT_GUARDIAN_AGE_SECONDS=$AGE"
+          if [ "$STATUS" != "completed" ] || [ "$CONCLUSION" != "success" ]; then
+            echo 'FAIL CLOSED: external agent guardian is not GREEN.'
+            exit 1
+          fi
+          if [ "$AGE" -gt 600 ]; then
+            echo 'FAIL CLOSED: external agent guardian evidence is older than 10 minutes.'
+            exit 1
+          fi
+          echo 'AGENT_PLANE_GREEN_PROOF=PASS'
+
       - name: Ensure exact-SHA required CI is resident
         if: >-
           steps.capture.outputs.branch == 'execution' &&
@@ -134,7 +181,7 @@ jobs:
             MISSING=0
             for WORKFLOW in "FLIXO Test System" "FLIXO WP0 Trust Baseline" "FLIXO Test Impact" "FLIXO Test Impact Execution" "Repository Security Baseline" "Claude Security Review"; do
               FILE="${REQUIRED_FILES[$WORKFLOW]}"
-              RUN_COUNT="$(jq --arg name "$WORKFLOW" --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == $name and .head_sha == $sha and (.status == "queued" or .status == "in_progress" or .conclusion == "success" or .conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required"))] | length' /tmp/flixo-watch/workflow-runs.json)"
+              RUN_COUNT="$(jq --arg name "$WORKFLOW" --arg file "$FILE" --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == $name and .path == (".github/workflows/" + $file) and .head_sha == $sha)] | length' /tmp/flixo-watch/workflow-runs.json)"
               if [ "$RUN_COUNT" -eq 0 ]; then
                 echo "REQUIRED_CI_MISSING workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA poll=$poll"
                 MISSING=1
@@ -186,7 +233,8 @@ jobs:
             WAITING=false
             FAILED=false
             for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
-              RUN_JSON="$(jq -c --arg name "$workflow" --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == $name and .head_sha == $sha and .conclusion != "cancelled")] | sort_by(.updated_at) | last // empty' /tmp/flixo-watch/workflow-runs.json)"
+              FILE="${REQUIRED_FILES[$workflow]}"
+              RUN_JSON="$(jq -c --arg name "$workflow" --arg path ".github/workflows/$FILE" --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == $name and .path == $path and .head_sha == $sha)] | sort_by(.updated_at) | last // empty' /tmp/flixo-watch/workflow-runs.json)"
               if [ -z "$RUN_JSON" ]; then
                 echo "SETTLEMENT_WAITING poll=$poll workflow=$workflow state=MISSING"
                 WAITING=true
@@ -237,6 +285,29 @@ jobs:
           mv /tmp/flixo-watch/workflow-runs.normalized.json /tmp/flixo-watch/workflow-runs.json
           jq -e 'type == "array" and all(.[]; (.databaseId != null and .workflowName != "" and .workflowPath != "" and (.headSha | test("^[0-9a-f]{40}$")) and .headBranch != "" and .status != "" and (.updatedAt != "")))' /tmp/flixo-watch/workflow-runs.json >/dev/null
 
+      - name: Require exact-SHA Canonical Assurance evidence
+        if: steps.capture.outputs.branch == 'execution' && steps.settle_required_ci.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(cat /tmp/flixo-watch/execution-sha)"
+          RUN_JSON="$(jq -c --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == "FLIXO Test System" and .path == ".github/workflows/ci.yml" and .head_sha == $sha and .status == "completed" and .conclusion == "success")] | sort_by(.updated_at) | last // empty' /tmp/flixo-watch/workflow-runs.json)"
+          test -n "$RUN_JSON" || { echo "FAIL CLOSED: no successful FLIXO Test System run for exact SHA=$EXECUTION_SHA"; exit 1; }
+          TEST_RUN_ID="$(printf '%s' "$RUN_JSON" | jq -r '.databaseId')"
+          ARTIFACT_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TEST_RUN_ID/artifacts?per_page=100" --jq '[.artifacts[] | select(.expired == false and .name == ("flixo-canonical-assurance-" + ($TEST_RUN_ID|tostring)))] | last.id // empty')"
+          test -n "$ARTIFACT_ID" || { echo "FAIL CLOSED: canonical assurance artifact missing run=$TEST_RUN_ID sha=$EXECUTION_SHA"; exit 1; }
+          rm -rf /tmp/flixo-canonical-assurance && mkdir -p /tmp/flixo-canonical-assurance
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > /tmp/flixo-canonical-assurance/artifact.zip
+          unzip -o /tmp/flixo-canonical-assurance/artifact.zip -d /tmp/flixo-canonical-assurance/unpacked >/dev/null
+          PROOF="$(find /tmp/flixo-canonical-assurance/unpacked -name flixo-canonical-assurance.json -type f -print -quit)"
+          test -s "$PROOF"
+          jq -e --arg sha "$EXECUTION_SHA" '.protocol == "FLIXO-CANONICAL-ASSURANCE-v1" and .status == "PASS" and .exactShaVerified == true and .executionSha == $sha and .actualHeadSha == $sha and .falseGreenPolicy.skipped == "RED" and .falseGreenPolicy.neutral == "RED" and .falseGreenPolicy.cancelled == "RED" and .falseGreenPolicy.staleEvidence == "RED" and .falseGreenPolicy.wrongShaEvidence == "RED" and .falseGreenPolicy.missingVerification == "RED" and (.categoryCount >= 10) and (all(.wiringChecks[]; . == true)) and (all(.subtests[]; .status == "PASS"))' "$PROOF" >/dev/null
+          echo "CANONICAL_ASSURANCE_EXACT_SHA=$EXECUTION_SHA"
+          echo "CANONICAL_ASSURANCE_TEST_RUN=$TEST_RUN_ID"
+          echo "CANONICAL_ASSURANCE_ARTIFACT=$ARTIFACT_ID"
+          echo "CANONICAL_ASSURANCE=PASS"
       - name: Capture failed CI evidence for classification
         env:
           GH_TOKEN: ${{ github.token }}
@@ -244,7 +315,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          jq -r '.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required") | .databaseId' /tmp/flixo-watch/workflow-runs.json > /tmp/flixo-watch/failed-run-ids
+          jq -r '.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "skipped" or .conclusion == "neutral" or .conclusion == "action_required") | .databaseId' /tmp/flixo-watch/workflow-runs.json > /tmp/flixo-watch/failed-run-ids
           while read -r run_id; do
             [ -n "$run_id" ] || continue
             if gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > "/tmp/flixo-watch/logs/run-$run_id.log" 2>&1; then
@@ -256,7 +327,7 @@ jobs:
 
           jq -r '[.[].check_runs[]
             | select(.status == "completed")
-            | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required")
+            | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "skipped" or .conclusion == "neutral" or .conclusion == "action_required")
             | select(.details_url != null and (.details_url | test("/actions/runs/[0-9]+")))
             | .details_url
             | capture("/actions/runs/(?<id>[0-9]+)").id
@@ -378,7 +449,14 @@ jobs:
           retention-days: 14
 
       - name: Dispatch internal repair target under Task Agent authority
-        if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.evaluate.outputs.repair_required == 'true' && steps.capture.outputs.branch == 'execution' && github.event_name != 'workflow_run'
+        if: >-
+          steps.evaluate.outputs.status == 'RED_INTERNAL' &&
+          steps.evaluate.outputs.repair_required == 'true' &&
+          steps.capture.outputs.branch == 'execution' &&
+          (
+            github.event_name != 'workflow_run' ||
+            github.event.workflow_run.name == 'FLIXO Security Red-Team Triad (Isolated)'
+          )
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 const root = process.cwd();
 const evidenceRoot = path.resolve(root, process.env.EXECUTION_EVIDENCE_ROOT ?? 'diagnostics/certification');
@@ -44,6 +45,14 @@ for (const entry of included) {
   if (value.executionUnitCount !== (value.units ?? []).length) errors.push(`${relative}: executionUnitCount mismatch`);
   if (value.status !== 'PASS') errors.push(`${relative}: execution status=${value.status}`);
   if (value.complete !== true) errors.push(`${relative}: execution ledger is not complete`);
+  if (!/^[0-9a-f]{64}$/iu.test(String(value.sourceReportSha256 ?? ''))) errors.push(`${relative}: invalid source report hash`);
+  const expectedReportPath = path.join(evidenceRoot, 'playwright-results', `browser-${String(value.mode).toLowerCase()}-${value.browser}-${value.shard}-results.json`);
+  if (!fs.existsSync(expectedReportPath)) {
+    errors.push(`${relative}: source Playwright report is missing`);
+  } else {
+    const sourceReportSha256 = createHash('sha256').update(fs.readFileSync(expectedReportPath)).digest('hex');
+    if (sourceReportSha256 !== value.sourceReportSha256) errors.push(`${relative}: source Playwright report hash mismatch`);
+  }
   const unitIds = new Set();
   for (const unit of value.units ?? []) {
     if (unitIds.has(unit.executionUnitId)) errors.push(`${relative}: duplicate executionUnitId=${unit.executionUnitId}`);
@@ -53,6 +62,7 @@ for (const entry of included) {
     if (!unit.spec || !unit.test) errors.push(`${relative}: unit missing spec/test`);
     if (!Array.isArray(unit.attempts) || unit.attempts.length === 0) errors.push(`${relative}: unit missing attempt evidence`);
     if (!['PASS','FAIL','CANCELLED','BLOCKED','NOT_EXECUTED','MISSING_EVIDENCE','MALFORMED_EVIDENCE'].includes(unit.status)) errors.push(`${relative}: invalid unit state ${unit.status}`);
+    if (unit.status !== 'PASS') errors.push(`${relative}: non-PASS execution unit ${unit.executionUnitId}=${unit.status}`);
     if (unit.assertionId !== null && unit.assertionId !== undefined) {
       if (!registeredAssertionIds.has(unit.assertionId)) errors.push(`${relative}: unknown assertionId=${unit.assertionId}`);
       const canonical = registryByImplementation.get(`${normalize(unit.spec)}\u0000${unit.test}`) ?? null;
@@ -63,7 +73,7 @@ for (const entry of included) {
     if (unit.mode === 'DEEP' && unit.semanticUnitId !== `DEEP:${unit.browser}:${unit.semanticLocale}`) errors.push(`${relative}: invalid DEEP semanticUnitId`);
   }
 }
-const expectedFastSpecs = ['tests/image-compressor.spec.ts','tests/background-remover.spec.ts','tests/image-upscaler.spec.ts','tests/image-converter.spec.ts','tests/ai-image-generator.spec.ts','tests/object-remover.spec.ts','tests/watermark-remover.spec.ts','tests/image-cropper.spec.ts','tests/image-to-svg.spec.ts','tests/image-ocr.spec.ts','tests/photo-colorizer.spec.ts','tests/background-blur.spec.ts','tests/passport-photo-maker.spec.ts','tests/watermark-adder.spec.ts','tests/meme-generator.spec.ts','tests/collage-maker.spec.ts','tests/image-effects.spec.ts','tests/exif-cleaner.spec.ts','tests/svg-optimizer.spec.ts','tests/mockup-generator.spec.ts','tests/seed.spec.ts','tests/pix.spec.ts'];
+const expectedFastSpecs = ['tests/image-compressor.spec.ts','tests/background-remover.spec.ts','tests/image-upscaler.spec.ts','tests/image-converter.spec.ts','tests/ai-image-generator.spec.ts','tests/object-remover.spec.ts','tests/watermark-remover.spec.ts','tests/image-cropper.spec.ts','tests/image-to-svg.spec.ts','tests/image-ocr.spec.ts','tests/photo-colorizer.spec.ts','tests/background-blur.spec.ts','tests/passport-photo-maker.spec.ts','tests/watermark-adder.spec.ts','tests/meme-generator.spec.ts','tests/collage-maker.spec.ts','tests/image-effects.spec.ts','tests/exif-cleaner.spec.ts','tests/svg-optimizer.spec.ts','tests/mockup-generator.spec.ts','tests/seed.spec.ts','tests/pix.spec.ts','tests/mvp-agent-e2e.spec.ts'];
 const fastSemanticOwners = new Map();
 for (const entry of fast) for (const unit of entry.value?.units ?? []) {
   if (!unit.semanticUnitId) { errors.push(`FAST_SEMANTIC_UNIT_MISSING=${entry.value.browser}:${unit.spec}`); continue; }
@@ -73,7 +83,7 @@ for (const entry of fast) for (const unit of entry.value?.units ?? []) {
   fastSemanticOwners.set(key, entry.value.shard);
 }
 for (const browser of ['chromium','firefox','webkit']) for (const spec of expectedFastSpecs) if (!fastSemanticOwners.has(`${browser}:FAST:${browser}:${spec}`)) errors.push(`FAST_SEMANTIC_MISSING=${browser}:FAST:${browser}:${spec}`);
-if (fastSemanticOwners.size !== 66) errors.push(`FAST_CONSERVATION=${fastSemanticOwners.size}; expected=66 semantic spec-browser units`);
+if (fastSemanticOwners.size !== 69) errors.push(`FAST_CONSERVATION=${fastSemanticOwners.size}; expected=69 semantic spec-browser units`);
 const deepSemanticOwners = new Map(), deepExecutionKeys = new Set(), deepLocales = new Set();
 for (const entry of deep) for (const unit of entry.value?.units ?? []) {
   if (unit.status !== 'PASS') errors.push(`${path.relative(root, entry.file)}: non-PASS execution unit`);
@@ -95,7 +105,7 @@ for (const browser of ['chromium','firefox','webkit']) for (const locale of expe
 if (deepSemanticOwners.size !== expectedLocales.length * 3) errors.push(`DEEP_SEMANTIC_CONSERVATION=${deepSemanticOwners.size}; expected=${expectedLocales.length * 3}`);
 for (const locale of expectedLocales) if (!deepLocales.has(locale)) errors.push(`DEEP_LOCALE_MISSING=${locale}`);
 for (const locale of deepLocales) if (!expectedLocales.includes(locale)) errors.push(`DEEP_LOCALE_UNEXPECTED=${locale}`);
-const result = { schema_version: 4, status: errors.length ? 'FAIL' : 'PASS', exactSha: expectedSha, runId: expectedRunId, registryAssertionCount: registeredAssertionIds.size, fast: { shardFiles: fastFiles.length, expectedBrowsers: 3, expectedSpecsPerBrowser: 22, requiredSemanticUnits: 66, observedSemanticUnits: fastSemanticOwners.size }, deep: { shardFiles: deepFiles.length, executionRecords: deepExecutionKeys.size, semanticLocaleBrowserUnits: deepSemanticOwners.size, expectedSemanticLocaleBrowserUnits: expectedLocales.length * 3, semanticLocaleCount: deepLocales.size, expectedLocaleCount: expectedLocales.length, observedLocales: [...deepLocales].sort() }, conservation: { fast: { required: 66, observed: fastSemanticOwners.size, status: fastSemanticOwners.size === 66 ? 'PASS' : 'FAIL' }, deepSemanticLocaleBrowser: { required: expectedLocales.length * 3, observed: deepSemanticOwners.size, status: deepSemanticOwners.size === expectedLocales.length * 3 ? 'PASS' : 'FAIL' } }, attribution: { canonicalExecutionUnits: included.flatMap((entry) => entry.value?.units ?? []).filter((unit) => unit.assertionId).length, surfaceCoverageOnlyUnits: included.flatMap((entry) => entry.value?.units ?? []).filter((unit) => !unit.assertionId).length }, errors };
+const result = { schema_version: 4, status: errors.length ? 'FAIL' : 'PASS', exactSha: expectedSha, runId: expectedRunId, registryAssertionCount: registeredAssertionIds.size, fast: { shardFiles: fastFiles.length, expectedBrowsers: 3, expectedSpecsPerBrowser: 23, requiredSemanticUnits: 69, observedSemanticUnits: fastSemanticOwners.size }, deep: { shardFiles: deepFiles.length, executionRecords: deepExecutionKeys.size, semanticLocaleBrowserUnits: deepSemanticOwners.size, expectedSemanticLocaleBrowserUnits: expectedLocales.length * 3, semanticLocaleCount: deepLocales.size, expectedLocaleCount: expectedLocales.length, observedLocales: [...deepLocales].sort() }, conservation: { fast: { required: 69, observed: fastSemanticOwners.size, status: fastSemanticOwners.size === 69 ? 'PASS' : 'FAIL' }, deepSemanticLocaleBrowser: { required: expectedLocales.length * 3, observed: deepSemanticOwners.size, status: deepSemanticOwners.size === expectedLocales.length * 3 ? 'PASS' : 'FAIL' } }, attribution: { canonicalExecutionUnits: included.flatMap((entry) => entry.value?.units ?? []).filter((unit) => unit.assertionId).length, surfaceCoverageOnlyUnits: included.flatMap((entry) => entry.value?.units ?? []).filter((unit) => !unit.assertionId).length }, errors };
 fs.mkdirSync(path.resolve(root, 'diagnostics', 'certification'), { recursive: true });
 fs.writeFileSync(path.resolve(root, 'diagnostics', 'certification', 'execution-graph.json'), `${JSON.stringify(result, null, 2)}\n`);
 console.log(JSON.stringify(result, null, 2));

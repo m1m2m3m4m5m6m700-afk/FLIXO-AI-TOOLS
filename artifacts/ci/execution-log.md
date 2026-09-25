@@ -1,13 +1,15 @@
 # FLIXO CI Rebuild Execution Log
 
-CURRENT PHASE: SECURITY-HARDENING — execution workflow repair and state synchronization
+> HISTORICAL SNAPSHOT — this file is evidence from a prior repair cycle, not live repository state.
+> Current `main`, `execution`, PR, and workflow state must always be resolved from GitHub at runtime.
+HISTORICAL PHASE: SECURITY-HARDENING — execution workflow repair and state synchronization
 
-PHASE STATUS: REQUIRES FRESH VERIFICATION
+HISTORICAL PHASE STATUS: REQUIRES FRESH VERIFICATION — not current state
 
-CURRENT BRANCH: execution
-CANONICAL MAIN SHA: 75a6780f760de6acde2a69affc5104e634667596
-ACTIVE PR: #748
-PRE-REPAIR EXECUTION HEAD: 49c3699555af41464e15745f45708bb20a7cc0fe
+HISTORICAL BRANCH SNAPSHOT: execution
+HISTORICAL MAIN SHA: 75a6780f760de6acde2a69affc5104e634667596
+HISTORICAL PR SNAPSHOT: #748
+HISTORICAL PRE-REPAIR EXECUTION HEAD: 49c3699555af41464e15745f45708bb20a7cc0fe
 
 PRE-REPAIR VERIFIED EVIDENCE:
 - FLIXO Test System run 35417501218: PASS

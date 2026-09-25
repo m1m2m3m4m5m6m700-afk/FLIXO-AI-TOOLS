@@ -1,5 +1,6 @@
 import { planFromIntent, type ExecutionPlan } from './planner';
 import { planWithProviderOrLocal, type LLMProvider } from '@/lib/agent/llm-provider';
+import { isDeterministicPlanCompatible } from './deterministic-boundary';
 
 export type AIPlanProvider = (input: string) => Promise<unknown>;
 
@@ -31,6 +32,7 @@ export async function planWithOptionalAI(
     if (!candidate) return { plan: deterministic, source: 'deterministic' };
     const { validateExecutionPlan } = await import('./planner');
     const plan = validateExecutionPlan(candidate);
+    if (!isDeterministicPlanCompatible(plan, deterministic)) return { plan: deterministic, source: 'deterministic' };
     return { plan, source: 'ai' };
   } catch {
     return { plan: deterministic, source: 'deterministic' };

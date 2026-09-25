@@ -3,7 +3,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const root = process.cwd();
-const target = path.join(root, 'scripts/ci/certify-core.mjs');
+const target = path.join(root, 'scripts/ci/certification-engine.mjs');
 const result = spawnSync(process.execPath, [target], {
   cwd: root,
   env: process.env,

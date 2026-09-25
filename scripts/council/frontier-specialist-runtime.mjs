@@ -30,8 +30,9 @@ export function buildFrontierCognitionEnvelope({
     ...base,protocol:FRONTIER_PROTOCOL,frontierRuntimeVersion:FRONTIER_RUNTIME_VERSION,
     cognitionTier:tier,phases:FRONTIER_PHASES,maxHypotheses,
     reasoningPolicy:{
-      adaptiveBudget:true,minimumEvidenceGrade:evidenceGradeMinimum,toolBudget,maxReasoningLoops,
+      adaptiveBudget:false,minimumEvidenceGrade:evidenceGradeMinimum,toolBudget,maxReasoningLoops,
       hypothesisCompetition:true,counterexampleSearch:true,preMutationSimulation:true,memoryFirst:true,
+      fullIntelligence:true,noComplexityDowngrade:true,reasoningEffort:'MAXIMUM',
     },
   });
 }

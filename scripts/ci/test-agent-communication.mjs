@@ -7,6 +7,12 @@ import { ingest, validateMessage, markRead, markConsumed, acknowledgeAdministrat
 
 const root = process.cwd();
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+const relayWorkflow = fs.readFileSync(path.join(root, '.github/workflows/agent-communication-relay.yml'), 'utf8');
+assert.match(relayWorkflow, /gh_api_with_rate_limit_backoff\(\)/);
+assert.match(relayWorkflow, /GITHUB_API_RATE_LIMIT_BACKOFF/);
+assert.match(relayWorkflow, /HEAD_SHA="\$\(gh_api_with_rate_limit_backoff/);
+assert.match(relayWorkflow, /COMMIT_AT="\$\(gh_api_with_rate_limit_backoff/);
+console.log('RELAY_RATE_LIMIT_BACKOFF_CONTRACT=PASS');
 const id = 'TEST-COMM-' + Date.now();
 const base = {
   schemaVersion: 1,

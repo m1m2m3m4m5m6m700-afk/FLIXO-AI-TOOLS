@@ -13,9 +13,10 @@ const MERGE_GATE = path.join(ROOT, '.github', 'workflows', 'auto-repair-merge-ga
 const PUSH_GATE_WORKFLOW = path.join(ROOT, '.github', 'workflows', 'unified-execution-push-gate.yml');
 const MAX_CHANGED_FILES = 12;
 const MAX_CHANGED_LINES = 300;
-const MUTATION_WORKFLOWS = Object.freeze(['auto-repair.yml','execution-sync.yml','historical-action-error-index.yml']);
+const MUTATION_WORKFLOWS = Object.freeze(['agent-repair-handoff-gate.yml']);
 const MUTATION_LANE = 'flixo-execution-mutation-lane';
 const MUTATION_GATE_SCRIPT = path.join(ROOT,'scripts','ci','execution-mutation-gate.mjs');
+const PRE_COMMIT_GATE_SCRIPT = path.join(ROOT,'scripts','ci','repair-pre-commit-adversarial-redteam-gate.mjs');
 
 export const CONTROL_PLANE_FILES = Object.freeze([
   ...REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${name}`),
@@ -26,6 +27,8 @@ export const CONTROL_PLANE_FILES = Object.freeze([
   'scripts/ci/validate-auto-repair-boundary.mjs',
   'scripts/ci/auto-repair-chair1-audit.mjs',
   'scripts/ci/post-patch-adversarial-assessor.mjs',
+  'scripts/ci/repair-pre-commit-adversarial-redteam-gate.mjs',
+  'scripts/ci/test-repair-pre-commit-adversarial-redteam.mjs',
   'scripts/ci/candidate-verification-parallel.mjs',
   'scripts/ci/in-repo-repair-v2.mjs',
   'scripts/ci/test-in-repo-repair-v2.mjs',
@@ -85,6 +88,18 @@ export function validateStatic() {
   const heartbeat = read(path.join(ROOT, '.github', 'workflows', 'agent-repair-heartbeat.yml'));
   const errors = [];
   const must = (condition, code) => { if (!condition) errors.push(code); };
+  must(fs.existsSync(PRE_COMMIT_GATE_SCRIPT), 'pre-commit-adversarial-redteam-gate-exists');
+  const preCommitGate = fs.readFileSync(PRE_COMMIT_GATE_SCRIPT, 'utf8');
+  must(preCommitGate.includes('FLIXO-PRE-COMMIT-ADVERSARIAL-REDTEAM-v1'), 'pre-commit-gate-protocol');
+  must(preCommitGate.includes('commitCreated:false'), 'pre-commit-gate-no-commit');
+  must(/SECURITY-REDTEAM-1[\s\S]*SECURITY-REDTEAM-2[\s\S]*SECURITY-REDTEAM-3/u.test(preCommitGate), 'pre-commit-gate-redteam-triad');
+  must(preCommitGate.includes('NEW_RED_TEAM_FINDINGS'), 'pre-commit-gate-new-findings-rejected');
+  must(preCommitGate.includes('ADVERSARIAL_MUTATION_SURVIVED'), 'pre-commit-gate-mutation-survivor-rejected');
+  must(auto.includes('Pre-commit adversarial + Red Team gate'), 'pre-commit-gate-workflow-wired');
+  must(/steps\.verify\.outputs\.verified == 'true' && steps\.pre_commit_adversarial_redteam\.outcome == 'success'/u.test(auto), 'candidate-commit-requires-pre-commit-gate');
+  const preGateIndex = auto.indexOf('Pre-commit adversarial + Red Team gate');
+  const candidateCommitIndex = auto.indexOf('Create exact unpublished candidate commit');
+  must(preGateIndex >= 0 && candidateCommitIndex > preGateIndex, 'pre-commit-gate-before-commit');
   const workflowDir = path.join(ROOT,'.github','workflows');
   const workflowNames = fs.readdirSync(workflowDir).filter((name)=>/\.ya?ml$/u.test(name));
   for (const name of workflowNames) {
@@ -94,6 +109,10 @@ export function validateStatic() {
   }
   const mutationGate = read(MUTATION_GATE_SCRIPT);
   must(mutationGate.includes('FLIXO-EXECUTION-MUTATION-GATE-v1'),'mutation-gate-canonical-protocol');
+  must(mutationGate.includes('validateCandidateBinding'),'mutation-gate-candidate-binding-required');
+  must(mutationGate.includes('MUTATION_GATE_WILDCARD_SCOPE_FORBIDDEN'),'mutation-gate-wildcard-scope-rejected');
+  must(mutationGate.includes('MUTATION_GATE_SCOPE_MISMATCH'),'mutation-gate-exact-scope-match-required');
+  must(mutationGate.includes('MUTATION_GATE_SINGLE_PARENT_REQUIRED'),'mutation-gate-single-parent-required');
 
   must(/name:\s*FLIXO Auto Repair Bot/.test(auto), 'auto-repair-identity');
   must(!/workflow_run:/.test(auto), 'auto-repair-executor-only-trigger');
@@ -150,23 +169,49 @@ export function validateStatic() {
   must(!/git\s+push[^\n]*\bexecution\b/.test(auto) && /EXECUTION_PUBLICATION=BLOCKED_BY_CHAIR_GUARD/.test(auto), 'auto-repair-execution-publication-chair-gated');
   must(/if: steps\.chair1_audit\.outcome == 'success'/.test(auto), 'auto-repair-publication-must-depend-on-chair1');
   must(/FLIXO_CHAIR_CONTEXT:\s*\/tmp\/flixo-chair1-proposal\.json/.test(auto), 'auto-repair-chair-context-boundary');
+  must(/active_worker_id/.test(auto) && /INPUT_ACTIVE_WORKER_ID/.test(auto), 'auto-repair-active-flixo-worker-input');
+  must(/repair-lease\.mjs worker-state/.test(auto), 'auto-repair-durable-flixo-worker-state');
+  must(/repair-lease\.mjs heartbeat[\s\S]*--workerId="\$FLIXO_ACTIVE_WORKER_ID"/.test(auto), 'auto-repair-worker-heartbeat-bound-to-seat');
   must(auto.includes('EVIDENCE_CAPTURE=FAILED'), 'auto-repair-evidence-capture-fail-closed');
-  must(handoffGate.includes('branches: [execution]'), 'handoff-gate-execution-trigger');
+  must(handoffGate.includes('branches: [main]'), 'handoff-gate-main-source-trigger');
   must(/permissions:\s*[\s\S]*contents:\s+read[\s\S]*checks:\s+read/.test(supervisor) && !/actions:\s*write/.test(supervisor), 'supervisor-read-only');
   must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(supervisor), 'supervisor-no-direct-repair-dispatch');
   must(!/push:\s*\n\s+branches:/m.test(supervisor) && !/pull_request:/m.test(supervisor), 'supervisor-observer-only-trigger');
   must(!/gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*-f\s+"?(?:target_run_id|failure_fingerprint|repair_lease_ref)=/i.test(heartbeat), 'heartbeat-no-mutation-repair-dispatch');
-  must(!/actions:\s*write/.test(heartbeat), 'heartbeat-no-actions-write');
+  must(/actions:\s*read/.test(heartbeat) && !/actions:\s*write/.test(heartbeat), 'heartbeat-read-only-actions-permission');
   must(!/actions\/workflows\/auto-repair\.yml\/dispatches/.test(heartbeat), 'heartbeat-no-direct-auto-repair-api-dispatch');
   must(!/actions\/workflows\/daily-flixo-green-gate\.yml\/dispatches/.test(heartbeat), 'heartbeat-no-direct-green-gate-api-dispatch');
-  must(/gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*--ref\s+execution\s+-f\s+resident=true/.test(heartbeat) || !/gh\s+workflow\s+run\s+auto-repair\.yml/.test(heartbeat), 'heartbeat-resident-dispatch-must-be-explicit');
-  must(
-    /RESIDENT_MODE_IS_(?:OBSERVER|OBSERVATION)_ONLY|resident.*observ(?:er|ation)/i.test(heartbeat) ||
-      !/gh\s+workflow\s+run\s+auto-repair\.yml/.test(heartbeat),
-    'heartbeat-resident-mode-observer-only'
-  );
-  must(heartbeat.includes('actions/workflows/agent-repair-supervisor.yml/dispatches'), 'heartbeat-observer-only-wakeup');
+  must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(heartbeat), 'heartbeat-resident-dispatch-must-be-explicit');
+  must(/resident.*guardian|guardian.*watchdog|single guardian lane/i.test(heartbeat), 'heartbeat-guardian-mode-declared');
+  must(!/actions\/workflows\/agent-repair-supervisor\.yml\/dispatches/.test(heartbeat), 'heartbeat-no-direct-supervisor-dispatch');
+  must(/cron:\s*'\*\/5 \* \* \* \*'/.test(watchdog), 'watchdog-five-minute-scheduled-bootstrap');
+  must(/actions\/workflows\/agent-repair-heartbeat\.yml\/dispatches/.test(watchdog), 'watchdog-heartbeat-bootstrap-dispatch');
+  must(/ACTIVE_HEARTBEATS=.*headSha/.test(watchdog), 'watchdog-single-resident-heartbeat-gate');
+  must(/RESIDENT_HEARTBEAT_DISPATCH=NOOP_ACTIVE/.test(watchdog), 'watchdog-no-duplicate-resident-window');
+  must(!/schedule:\s*\n\s*- cron:\s*'\*\/5 \* \* \* \*'/.test(heartbeat), 'heartbeat-no-independent-five-minute-bootstrap');
+  must(/WAKE_ALL_AGENTS|ONE_PULSE_WAKE_SCOPE=ALL_AGENTS/.test(heartbeat), 'heartbeat-all-agent-pulse');
+  must(/RESIDENT_SLEEP=false/.test(heartbeat) && /RESIDENT_IDLE=false/.test(heartbeat), 'heartbeat-no-sleep-no-idle');
+  must(/HEARTBEAT_INTERVAL_SECONDS=60/.test(heartbeat), 'heartbeat-one-minute-emission');
+  must(/CANONICAL_TEAM_PULSE=1/.test(heartbeat), 'heartbeat-one-pulse-per-minute');
+  must(/flixo-ten-pulse\.mjs|flixo-team-pulse/.test(heartbeat), 'heartbeat-team-wake-plan');
+  must(/ONE_PULSE_WAKE_SCOPE=ALL_AGENTS|wakeScope.*ALL_AGENTS/.test(heartbeat), 'heartbeat-team-wake-broadcast');
+  must(!/pulseCount==10|DIFFERENTIATED_PULSES=10|ALL_AGENTS_WAKE_DIRECTIVES_EMITTED=10/.test(heartbeat), 'heartbeat-no-ten-pulse-competition');
+  must(/five-bot-rotation\.mjs/.test(heartbeat), 'heartbeat-five-bot-rotation-controller');
+  must(/ACTIVE_BOT_COUNT=5/.test(heartbeat) && /ACTIVE_BOT_COMMITMENT_MINUTES=60/.test(heartbeat), 'heartbeat-five-active-60-minute-commitment');
+  must(/ACTIVE_BOT_COHORT_COUNT=40/.test(heartbeat) && /LOGICAL_BOT_CYCLE=200_TO_1/.test(heartbeat), 'heartbeat-200-bot-cycle');
+  must(/NEXT_COHORT_READY_REQUIRED=true/.test(heartbeat) && /ACTIVE_COHORT_HANDOFF=NEXT_5_READY_BEFORE_RELEASE/.test(heartbeat), 'heartbeat-next-five-ready-handoff');
+
   must(handoffGate.includes('CURRENT_EXECUTION_SHA=') && handoffGate.includes('HANDOFF_EXECUTION_SHA'), 'handoff-gate-current-head-check');
+  must(/branches:\s*\[main\]/.test(handoffGate), 'handoff-gate-main-source-trigger');
+  must(/contents:\s*write/.test(handoffGate), 'handoff-gate-publication-write-permission');
+  must(/actions:\s*read/.test(handoffGate), 'handoff-gate-actions-read-only');
+  must(/git\/refs\/heads\/execution/.test(handoffGate) && /--method\s+PATCH/.test(handoffGate), 'handoff-gate-execution-fast-forward-publication');
+  must(/-F\s+force=false/.test(handoffGate), 'handoff-gate-no-force-publication');
+  must(/execution-head-authority\.mjs verify/.test(handoffGate), 'handoff-gate-chair-head-proof');
+  must(/FLIXO-CHAIR-PUBLICATION-HANDOFF-v1/.test(handoffGate), 'handoff-gate-chair-publication-contract');
+  must(!/git\/refs\/heads\/main/.test(handoffGate), 'handoff-gate-no-main-publication');
+  must(/flixo-auto-repair-publication-\$\{\{ env\.REPAIR_RUN_ID \}\}/.test(handoffGate), 'handoff-gate-exact-artifact-binding');
+  must(/flixo-candidate\.bundle/.test(auto) && /Package exact Chair publication candidate/.test(auto), 'auto-repair-candidate-bundle');
   must(/Create exact unpublished candidate commit/.test(auto), 'auto-repair-candidate-commit');
   must(/Run targeted regression and post-patch adversarial falsification in parallel/.test(auto), 'auto-repair-parallel-verification');
   must(/candidate-verification-parallel\.mjs/.test(auto), 'auto-repair-parallel-verification-script');
@@ -186,7 +231,12 @@ export function validateStatic() {
   must(!/gh\s+pr\s+merge/i.test(auto), 'auto-repair-no-self-merge');
   must(/actions\/workflows\/auto-repair\.yml\/dispatches/.test(dailyGate), 'daily-gate-auto-repair-dispatch');
   must(/group:\s*flixo-execution-mutation-lane/.test(auto), 'auto-repair-single-execution-writer-lane');
-  must(/contents:\s*read/.test(dailyGate) && !/contents:\s*write/.test(dailyGate), 'daily-gate-no-source-mutation-permission');
+  must(
+    /contents:\s*write/.test(dailyGate) &&
+      /repair-lease\.mjs/.test(dailyGate) &&
+      /refs\/tags\/flixo-repair-lease-/.test(dailyGate),
+    'daily-gate-repair-lease-write-permission'
+  );
   must(!/gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i.test(dailyGate), 'daily-gate-no-watchdog-dispatch');
   must(/workflow_run:/.test(watchdog), 'watchdog-workflow-run-trigger');
   must(/FLIXO Test System/.test(watchdog) && /FLIXO WP0 Trust Baseline/.test(watchdog), 'watchdog-required-workflow-set');
@@ -210,7 +260,9 @@ export function validateStatic() {
   for (const [id, workflow] of exactShaEvidenceWorkflows) {
     must(/github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha/.test(workflow), 'required-evidence-workflow-must-bind-exact-sha:' + id);
   }
-  const nonCancellingEvidence = new Set(['test-impact']);
+  // Canonical Test System preserves started runs; the central supersession controller
+  // cancels only queued/pending stale verification runs.
+  const nonCancellingEvidence = new Set(['canonical-test', 'wp0', 'test-impact', 'test-impact-execution', 'security-baseline']);
   for (const [id, workflow] of exactShaEvidenceWorkflows.filter(([id]) => id !== 'claude-security')) {
     const requiresCancellation = !nonCancellingEvidence.has(id);
     must(
@@ -259,24 +311,76 @@ export function validateStatic() {
 export function validateDiff() {
   const branch = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim();
   if (branch !== 'execution') fail('mutation-branch:' + branch);
-  const raw = execFileSync('git', ['diff', '--name-status'], { cwd: ROOT, encoding: 'utf8' }).trim();
-  if (!raw) return { status: 'PASS', changedFiles: 0, changedLines: 0 };
-  const entries = raw.split(/\r?\n/).filter(Boolean).map((line) => {
-    const [status, ...rest] = line.split(/\s+/);
-    return { status, path: rest.at(-1) };
-  });
+
+  const unstaged = execFileSync('git', ['diff', '--name-status'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  const staged = execFileSync('git', ['diff', '--cached', '--name-status'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  const unstagedNumstat = execFileSync('git', ['diff', '--numstat'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  const stagedNumstat = execFileSync('git', ['diff', '--cached', '--numstat'], { cwd: ROOT, encoding: 'utf8' }).trim();
+
+  const entryMap = new Map();
+  const addEntry = (status, targetPath) => {
+    const cleanPath = String(targetPath ?? '').trim();
+    if (!cleanPath) return;
+    const normalizedPath = cleanPath.includes(' -> ')
+      ? cleanPath.split(' -> ').at(-1).trim()
+      : cleanPath;
+    entryMap.set(normalizedPath, { status, path: normalizedPath });
+  };
+  const parseNameStatus = (text) => {
+    for (const line of String(text ?? '').split(/\r?\n/).filter(Boolean)) {
+      const [status, ...rest] = line.split(/\s+/);
+      addEntry(status, rest.at(-1));
+    }
+  };
+  parseNameStatus(unstaged);
+  parseNameStatus(staged);
+
+  // Git's cached numstat is the authoritative fallback for staged candidate files.
+  // This covers staged additions reliably even when --name-status is empty in a
+  // runner process, while retaining the normal status-based path collection.
+  const parseNumstatPaths = (text) => {
+    for (const line of String(text ?? '').split(/\r?\n/).filter(Boolean)) {
+      const parts = line.split(/\s+/);
+      if (parts.length >= 3) addEntry('NUMSTAT', parts.at(-1));
+    }
+  };
+  parseNumstatPaths(unstagedNumstat);
+  parseNumstatPaths(stagedNumstat);
+
+  if (entryMap.size === 0) {
+    const porcelain = execFileSync(
+      'git',
+      ['status', '--porcelain=v1', '--untracked-files=all'],
+      { cwd: ROOT, encoding: 'utf8' },
+    ).trim();
+    for (const line of porcelain.split(/\r?\n/).filter(Boolean)) {
+      if (line.startsWith('??')) continue;
+      const status = line.slice(0, 2);
+      if (status === '  ') continue;
+      addEntry(status, line.slice(3));
+    }
+  }
+
+  const entries = [...entryMap.values()];
+  if (entries.length === 0 && !unstagedNumstat && !stagedNumstat) {
+    return { status: 'PASS', changedFiles: 0, changedLines: 0 };
+  }
   if (entries.length > MAX_CHANGED_FILES) fail(`changed-files:${entries.length}>${MAX_CHANGED_FILES}`);
+
   const protectedChanged = entries.filter(({ path: p }) => CONTROL_PLANE_FILES.includes(p));
   if (protectedChanged.length) fail('control-plane-mutation:' + protectedChanged.map((x) => x.path).join(','));
+
   const denied = entries.filter(({ path: p }) => denyPath(p));
   if (denied.length) fail('sensitive-path-mutation:' + denied.map((x) => x.path).join(','));
-  const numstat = execFileSync('git', ['diff', '--numstat'], { cwd: ROOT, encoding: 'utf8' }).trim();
+
+  const numstat = [unstagedNumstat, stagedNumstat].filter(Boolean).join('\n');
   let changedLines = 0;
   for (const line of numstat.split(/\r?\n/).filter(Boolean)) {
     const [add, del] = line.split(/\s+/).map(Number);
     changedLines += (Number.isFinite(add) ? add : 0) + (Number.isFinite(del) ? del : 0);
   }
   if (changedLines > MAX_CHANGED_LINES) fail(`changed-lines:${changedLines}>${MAX_CHANGED_LINES}`);
+
   return { status: 'PASS', changedFiles: entries.length, changedLines };
 }
 

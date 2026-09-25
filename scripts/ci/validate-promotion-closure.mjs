@@ -6,7 +6,8 @@ const expectedSha = process.env.EXPECTED_SHA || '';
 const runsPath = process.env.EXACT_RUNS_PATH || '/tmp/exact-runs.json';
 const statusPath = process.env.EXACT_STATUS_PATH || '/tmp/exact-status.json';
 const checksPath = process.env.EXACT_CHECKS_PATH || '/tmp/exact-check-runs.json';
-const livePath = process.env.LIVE_RUNTIME_EVIDENCE_PATH || 'docs/runtime/council-live-runtime-evidence.json';
+const livePath = process.env.LIVE_RUNTIME_EVIDENCE_PATH || 'docs/runtime/council-live-runtime-evidence.json';;
+const vercelPath = process.env.VERCEL_DEPLOYMENT_EVIDENCE_PATH || 'docs/runtime/vercel-deployment-evidence.json';
 const outputPath = process.env.EVIDENCE_OUTPUT_PATH || '/tmp/flixo-promotion-evidence.json';
 
 const requiredWorkflows = [
@@ -59,12 +60,37 @@ if (status?.statuses) {
 
 const checks = readJson(checksPath, 'CHECK_RUNS');
 const checkRuns = Array.isArray(checks) ? checks.flatMap((page) => page?.check_runs ?? []) : [];
+const canonicalTestRun = Array.isArray(runs)
+  ? runs
+    .filter((run) =>
+      run?.name === 'FLIXO Test System' &&
+      run?.headSha === expectedSha &&
+      run?.status === 'completed' &&
+      run?.conclusion === 'success'
+    )
+    .sort((a, b) => String(a?.updatedAt ?? '').localeCompare(String(b?.updatedAt ?? '')))
+    .at(-1) ?? null
+  : null;
+if (!canonicalTestRun) failures.push('CANONICAL_TEST_SYSTEM_RUN_MISSING');
+
+const actionRunIdOfCheck = (check) => {
+  const detailsUrl = String(check?.details_url ?? '');
+  const match = detailsUrl.match(/\/actions\/runs\/(\d+)(?:\/job\/\d+)?(?:[/?#]|$)/u);
+  return match?.[1] ?? null;
+};
 const certification = checkRuns
-  .filter((run) => run?.name === 'Certification')
+  .filter((run) =>
+    run?.name === 'Certification' &&
+    run?.status === 'completed' &&
+    run?.conclusion === 'success' &&
+    run?.head_sha === expectedSha &&
+    actionRunIdOfCheck(run) !== null &&
+    canonicalTestRun?.databaseId != null &&
+    actionRunIdOfCheck(run) === String(canonicalTestRun.databaseId)
+  )
   .sort((a, b) => String(a?.completed_at ?? a?.started_at ?? '').localeCompare(String(b?.completed_at ?? b?.started_at ?? '')))
   .at(-1);
-if (!certification) failures.push('CERTIFICATION_MISSING');
-else if (certification.status !== 'completed' || certification.conclusion !== 'success') failures.push('CERTIFICATION_NOT_GREEN');
+if (!certification) failures.push('CERTIFICATION_MISSING_OR_NONCANONICAL');
 
 const live = readJson(livePath, 'LIVE_RUNTIME_EVIDENCE');
 if (!live) {
@@ -76,6 +102,17 @@ if (!live) {
   if (!String(live.verifier ?? '').trim()) failures.push('LIVE_RUNTIME_VERIFIER_MISSING');
   if (Number.isNaN(Date.parse(String(live.verifiedAt ?? '')))) failures.push('LIVE_RUNTIME_VERIFIED_AT_INVALID');
   if (!String(live.provider ?? '').trim()) failures.push('LIVE_RUNTIME_PROVIDER_MISSING');
+}
+
+const vercel = readJson(vercelPath, 'VERCEL_DEPLOYMENT_EVIDENCE');
+if (!vercel) {
+  failures.push('VERCEL_DEPLOYMENT_EVIDENCE_MISSING');
+} else {
+  if (vercel.provider !== 'vercel') failures.push(`VERCEL_DEPLOYMENT_PROVIDER_INVALID=${vercel.provider}`);
+  if (vercel.state !== 'LIVE_VERIFIED') failures.push(`VERCEL_DEPLOYMENT_STATE=${vercel.state}`);
+  if (vercel.gitSha !== expectedSha) failures.push(`VERCEL_DEPLOYMENT_SHA_DRIFT=${vercel.gitSha}`);
+  if (!String(vercel.url ?? '').trim()) failures.push('VERCEL_DEPLOYMENT_URL_MISSING');
+  if (Number.isNaN(Date.parse(String(vercel.verifiedAt ?? '')))) failures.push('VERCEL_DEPLOYMENT_VERIFIED_AT_INVALID');
 }
 
 const evidence = {

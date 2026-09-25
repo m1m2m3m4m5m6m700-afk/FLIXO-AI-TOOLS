@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: flixo-unified-execution-push-gate-${{ github.ref }}-${{ github.sha }}
+  group: flixo-unified-execution-push-gate-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:

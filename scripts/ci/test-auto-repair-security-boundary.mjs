@@ -3,6 +3,13 @@ import fs from 'node:fs';
 
 const workflow = fs.readFileSync('.github/workflows/auto-repair.yml', 'utf8');
 const worker = fs.readFileSync('scripts/ci/action-repair-five-workers.mjs', 'utf8');
+const controlPlaneRegistry = fs.readFileSync('scripts/ci/control-plane-registry.mjs', 'utf8');
+const writeCapableStart = controlPlaneRegistry.indexOf('export const WRITE_CAPABLE_WORKFLOWS');
+const writeCapableEnd = controlPlaneRegistry.indexOf('export const SENSITIVE_PERMISSION_ALLOWLISTS');
+const writeCapable = controlPlaneRegistry.slice(writeCapableStart, writeCapableEnd);
+assert.ok(!writeCapable.includes('execution-sync.yml'));
+assert.ok(!writeCapable.includes('historical-action-error-index.yml'));
+
 
 assert.doesNotMatch(workflow, /needs:\s*adversarial_twin/);
 assert.doesNotMatch(workflow, /needs\.adversarial_twin\.outputs/);
@@ -24,6 +31,7 @@ assert.match(worker, /canonicalMutationOwner:'repairAgent'/);
 console.log('AUTO_REPAIR_SECURITY_BOUNDARY=PASS');
 const boundary = fs.readFileSync('scripts/ci/validate-auto-repair-boundary.mjs', 'utf8');
 assert.match(boundary, /required-evidence-workflow-must-cancel-stale/u);
+assert.match(boundary, /const nonCancellingEvidence = new Set\(\['canonical-test', 'test-impact'\]\)/u);
 assert.doesNotMatch(boundary, /required-evidence-workflow-must-not-cancel/u);
 assert.match(workflow, /contents:\s*read/u);
 assert.match(workflow, /actions:\s*read/u);

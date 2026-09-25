@@ -2,6 +2,7 @@
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { ACTION_AGENT_TRIAD_VERSION, getActionAgentProfile, assertActionAgentDispatch, validateActionAgentResult, buildActionAgentCognitionEnvelope } from './action-agent-triad.mjs';
+import { buildFullIntelligenceBootstrap, assertFullIntelligenceBootstrap } from '../ci/full-intelligence-policy.mjs';
 
 const ACCOUNTS = Object.freeze({
   CHIEF: Object.freeze({
@@ -31,6 +32,7 @@ const ACCOUNTS = Object.freeze({
 });
 
 const SHA_RE = /^[0-9a-f]{40}$/u;
+const DEFAULT_PRESENCE_HEARTBEAT_MS = 60_000;
 
 const accountId = (value) => {
   const id = String(value ?? '').trim().toUpperCase();
@@ -55,10 +57,13 @@ export const buildConfig = (account, env = process.env) => {
   const spec = ACCOUNTS[id];
   const runtimeUrl = envValue(env, 'COUNCIL_RUNTIME_URL');
   const token = envValue(env, spec.tokenEnv);
+  const githubRepository = envValue(env, 'GITHUB_REPOSITORY', false)
+    || [envValue(env, 'GITHUB_OWNER', false), envValue(env, 'GITHUB_REPO', false)].filter(Boolean).join('/');
+  const githubToken = envValue(env, 'GITHUB_TOKEN', false);
   const executorEndpoint = envValue(env, spec.executorEndpointEnv);
   const executorToken = envValue(env, spec.executorTokenEnv);
   const modelProfile = envValue(env, spec.modelProfileEnv, false) || 'FRONTIER_REASONING';
-  const reasoningEffort = envValue(env, spec.reasoningEffortEnv, false) || 'HIGH';
+  const reasoningEffort = envValue(env, spec.reasoningEffortEnv, false) || 'MAXIMUM';
   const portRaw = envValue(env, spec.wakePortEnv, false) || '8781';
   const port = Number(portRaw);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('COUNCIL_BRIDGE_PORT_INVALID');
@@ -66,6 +71,8 @@ export const buildConfig = (account, env = process.env) => {
     accountId: id,
     runtimeUrl: runtimeUrl.replace(/\/$/u, ''),
     token,
+    githubRepository,
+    githubToken,
     executorEndpoint,
     executorToken,
     modelProfile,
@@ -100,6 +107,57 @@ const requestJson = async (fetchImpl, url, init = {}) => {
 };
 
 const authHeaders = (token) => ({ authorization: 'Bearer ' + token });
+
+const readRuntimeState = async (config, fetchImpl = globalThis.fetch) => {
+  const body = await requestJson(fetchImpl, runtimeUrl(config, 'runtime-state') + '&accountId=' + encodeURIComponent(config.accountId), {
+    method: 'GET',
+    headers: authHeaders(config.token),
+  });
+  const agentId = String(body?.identity?.agentId ?? '').trim();
+  if (!agentId) throw new Error('COUNCIL_BRIDGE_AGENT_IDENTITY_UNVERIFIED');
+  return {
+    agentId,
+    runtimeSessionId: String(body?.accountState?.currentSessionId ?? '').trim(),
+    currentExecutionSha: String(body?.accountState?.currentExecutionSha ?? '').trim(),
+  };
+};
+
+const resolveCurrentExecutionSha = async (config, runtimeState, fetchImpl = globalThis.fetch) => {
+  if (SHA_RE.test(runtimeState.currentExecutionSha)) return runtimeState.currentExecutionSha;
+  if (!config.githubRepository) throw new Error('COUNCIL_BRIDGE_GITHUB_REPOSITORY_MISSING');
+
+  const headers = {
+    accept: 'application/vnd.github+json',
+    'user-agent': 'FLIXO-council-bridge',
+  };
+  if (config.githubToken) headers.authorization = 'Bearer ' + config.githubToken;
+  const body = await requestJson(
+    fetchImpl,
+    'https://api.github.com/repos/' + config.githubRepository + '/git/ref/heads/execution',
+    { method: 'GET', headers },
+  );
+  return exactSha(body?.object?.sha);
+};
+
+export const residentHeartbeat = async (
+  config,
+  { agentId, runtimeSessionId, entrySha },
+  fetchImpl = globalThis.fetch,
+) => {
+  const normalizedAgentId = String(agentId ?? '').trim();
+  const normalizedSessionId = String(runtimeSessionId ?? '').trim();
+  if (!normalizedAgentId || !normalizedSessionId) throw new Error('COUNCIL_BRIDGE_RESIDENT_HEARTBEAT_IDENTITY_REQUIRED');
+  return requestJson(fetchImpl, runtimeUrl(config, 'resident-heartbeat'), {
+    method: 'POST',
+    headers: authHeaders(config.token),
+    body: JSON.stringify({
+      accountId: config.accountId,
+      agentId: normalizedAgentId,
+      runtimeSessionId: normalizedSessionId,
+      entrySha: exactSha(entrySha),
+    }),
+  });
+};
 
 export const pollDispatch = async (config, fetchImpl = globalThis.fetch) => {
   const body = await requestJson(fetchImpl, runtimeUrl(config, 'poll') + '&accountId=' + encodeURIComponent(config.accountId), {
@@ -162,20 +220,26 @@ export const completeDispatch = async (config, dispatch, sessionId, status, evid
 
 export const executeExternalAgent = async (config, dispatch, sessionId, fetchImpl = globalThis.fetch) => {
   const endpoint = new URL(config.executorEndpoint);
+  const exactEntrySha = exactSha(dispatch.entry_sha ?? dispatch.entrySha);
+  const taskId = String(dispatch.task_id ?? dispatch.taskId ?? '');
+  const fullIntelligence = buildFullIntelligenceBootstrap({ agentId: config.accountId, role: getActionAgentProfile(config.accountId).role, request: dispatch.payload?.objective ?? taskId, exactSha: exactEntrySha, taskId });
+  assertFullIntelligenceBootstrap(fullIntelligence, config.accountId);
+
   const payload = {
     protocol: 'FLIXO_EXTERNAL_GPT_BRIDGE_V1',
     accountId: config.accountId,
     sessionId,
     dispatchId: String(dispatch.dispatch_id ?? dispatch.dispatchId),
     agentId: String(dispatch.identity?.agentId ?? dispatch.payload?.agentId ?? ''),
-    exactSha: exactSha(dispatch.entry_sha ?? dispatch.entrySha),
+    exactSha: exactEntrySha,
     taskId: String(dispatch.task_id ?? dispatch.taskId ?? ''),
     workPackageId: String(dispatch.work_package_id ?? dispatch.workPackageId ?? ''),
     actionAgentTriadVersion: ACTION_AGENT_TRIAD_VERSION,
     actionAgentProfileId: getActionAgentProfile(config.accountId).profileId,
     modelProfile: config.modelProfile,
     reasoningEffort: config.reasoningEffort,
-    capabilities: { toolCalling: true, structuredOutput: true, selfCritique: true, independentReview: config.accountId !== 'CHIEF' },
+    capabilities: { toolCalling: true, structuredOutput: true, selfCritique: true, independentReview: config.accountId !== 'CHIEF', fullIntelligence: true, noComplexityDowngrade: true },
+    fullIntelligence,
     cognitionEnvelope: buildActionAgentCognitionEnvelope({
       accountId: config.accountId,
       dispatch,
@@ -208,7 +272,53 @@ export function createBridge({ config, fetchImpl = globalThis.fetch, heartbeatMs
   let running = false;
   let stopped = false;
   let heartbeatTimer = null;
+  let presenceTimer = null;
+  let presenceRunning = false;
   let lastWakeAt = null;
+  let lastPresenceAt = null;
+  let activeSessionId = null;
+  let activeEntrySha = null;
+  let residentSessionId = randomUUID();
+
+  const sendPresenceHeartbeat = async () => {
+    if (presenceRunning || stopped) return false;
+    presenceRunning = true;
+    try {
+      const runtimeState = await readRuntimeState(config, fetchImpl);
+      const entrySha = activeEntrySha ?? await resolveCurrentExecutionSha(config, runtimeState, fetchImpl);
+      const runtimeSessionId = activeSessionId || runtimeState.runtimeSessionId || residentSessionId;
+      await residentHeartbeat(config, {
+        agentId: runtimeState.agentId,
+        runtimeSessionId,
+        entrySha,
+      }, fetchImpl);
+      lastPresenceAt = new Date().toISOString();
+      return true;
+    } finally {
+      presenceRunning = false;
+    }
+  };
+
+  const startPresenceHeartbeat = () => {
+    if (presenceTimer || stopped) return;
+    void sendPresenceHeartbeat().catch((error) => {
+      console.error(JSON.stringify({
+        event: 'COUNCIL_BRIDGE_RESIDENT_HEARTBEAT_FAILED',
+        accountId: config.accountId,
+        errorCode: error instanceof Error ? error.message : String(error),
+      }));
+    });
+    presenceTimer = setInterval(() => {
+      void sendPresenceHeartbeat().catch((error) => {
+        console.error(JSON.stringify({
+          event: 'COUNCIL_BRIDGE_RESIDENT_HEARTBEAT_FAILED',
+          accountId: config.accountId,
+          errorCode: error instanceof Error ? error.message : String(error),
+        }));
+      });
+    }, DEFAULT_PRESENCE_HEARTBEAT_MS);
+    presenceTimer.unref?.();
+  };
 
   const processOnce = async () => {
     if (running || stopped) return false;
@@ -223,9 +333,9 @@ export function createBridge({ config, fetchImpl = globalThis.fetch, heartbeatMs
         throw new Error('COUNCIL_BRIDGE_DISPATCH_STATUS_INVALID');
       }
 
-      // ACK only when this is the first cycle. An ACKED dispatch carries the same
-      // server-side session_id so a restarted bridge can resume the same task.
       const sessionId = String(dispatch.session_id ?? dispatch.sessionId ?? '').trim() || randomUUID();
+      activeSessionId = sessionId;
+      activeEntrySha = exactSha(dispatch.entry_sha ?? dispatch.entrySha);
       if (dispatchStatus === 'LEASED') {
         await ackDispatch(config, dispatch, sessionId, fetchImpl);
       }
@@ -238,7 +348,6 @@ export function createBridge({ config, fetchImpl = globalThis.fetch, heartbeatMs
         }
       };
 
-      // Establish liveness before handing control to the external executor.
       await sendHeartbeat();
       if (heartbeatFailure) throw new Error('COUNCIL_BRIDGE_HEARTBEAT_FAILED', { cause: heartbeatFailure });
 
@@ -253,8 +362,6 @@ export function createBridge({ config, fetchImpl = globalThis.fetch, heartbeatMs
           throw new Error('COUNCIL_BRIDGE_HEARTBEAT_FAILED', { cause: heartbeatFailure });
         }
 
-        // CONTINUE is deliberately non-terminal: leave the dispatch ACKED so the
-        // next poll cycle resumes the same session instead of prematurely completing it.
         if (result.status === 'CONTINUE') return true;
 
         await completeDispatch(config, dispatch, sessionId, result.status, {
@@ -282,6 +389,8 @@ export function createBridge({ config, fetchImpl = globalThis.fetch, heartbeatMs
       }
       return true;
     } finally {
+      activeSessionId = null;
+      activeEntrySha = null;
       running = false;
     }
   };
@@ -301,14 +410,19 @@ export function createBridge({ config, fetchImpl = globalThis.fetch, heartbeatMs
   const stop = () => {
     stopped = true;
     if (heartbeatTimer) clearInterval(heartbeatTimer);
+    if (presenceTimer) clearInterval(presenceTimer);
+    heartbeatTimer = null;
+    presenceTimer = null;
   };
 
   return Object.freeze({
     processOnce,
     wake,
+    sendPresenceHeartbeat,
+    startPresenceHeartbeat,
     stop,
     get status() {
-      return Object.freeze({ accountId: config.accountId, running, stopped, lastWakeAt });
+      return Object.freeze({ accountId: config.accountId, running, stopped, lastWakeAt, lastPresenceAt });
     },
   });
 }
@@ -369,6 +483,7 @@ const main = async () => {
   const account = accountId(process.argv.find((arg) => arg.startsWith('--account='))?.split('=')[1] ?? process.env.COUNCIL_ACCOUNT_ID);
   const config = buildConfig(account);
   const bridge = createBridge({ config });
+  bridge.startPresenceHeartbeat();
   const server = createWakeServer({ config, bridge });
   server.listen(config.port, '0.0.0.0', () => {
     console.log(JSON.stringify({
@@ -378,6 +493,8 @@ const main = async () => {
       wakePath: '/wake',
       pollEnabled: true,
       exactShaRequired: true,
+      residentHeartbeatEnabled: true,
+      residentHeartbeatIntervalMs: DEFAULT_PRESENCE_HEARTBEAT_MS,
       executorEndpoint: config.executorEndpoint,
     }));
   });

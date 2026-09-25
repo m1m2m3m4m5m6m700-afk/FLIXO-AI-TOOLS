@@ -8,47 +8,18 @@ on:
         description: 'Workflow run ID to ingest'
         required: true
         type: string
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_run:
     workflows:
       - FLIXO Test System
       - FLIXO WP0 Trust Baseline
-      - FLIXO Test Impact
       - FLIXO Test Impact Execution
-      - FLIXO Continuous Delivery
       - Repository Security Baseline
       - Claude Security Review
-      - Daily·FLIXO Green Gate
-      - FLIXO Auto Repair Bot
-      - FLIXO Auto Repair Chain
-      - FLIXO Auto Repair Merge Gate
-      - FLIXO Agent Repair Supervisor
-      - FLIXO Agent Repair Heartbeat
-      - FLIXO Master Agent Activation Relay
-      - FLIXO Agent Communication Relay
-      - FLIXO Agent Repair Handoff Gate
-      - Agent Recovery Gate
-      - Admin 006 Persistence Roundtrip
-      - Bundle Boundary Contract
-      - CI SLO Report
-      - Dependency Health
-      - Dependency Usage Classification v2
-      - Deploy FLIXOAI
-      - Error Memory Root Cause
-      - Execution Bot Watchdog
-      - Execution Sync
-      - Phase3 Chain Compatibility
-      - Repair Lease Live Race
-      - Root Cause Diagnostics
-      - SEO Production Certification
-      - Test Matrix Contract
-      - Code Read-Only Scout
     types: [completed]
     branches: [execution, main]
 
 permissions:
-  actions: read
+  actions: write
   contents: read
   issues: write
 
@@ -61,7 +32,9 @@ concurrency:
 jobs:
   intake:
     name: Capture every CI error and route to Agent Council
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'timed_out' || github.event.workflow_run.conclusion == 'action_required')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -71,7 +44,13 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Cancel stale workflow_run source
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/ci/assert-workflow-run-current.mjs
       - name: Resolve completed workflow run
+        id: resolve_run
         env:
           GH_TOKEN: ${{ github.token }}
           INPUT_RUN_ID: ${{ inputs.run_id || '' }}
@@ -103,37 +82,28 @@ jobs:
 
           RUN_ID="$EVENT_RUN_ID"
           if [ -n "$INPUT_RUN_ID" ]; then RUN_ID="$INPUT_RUN_ID"; fi
-          if [ -z "$RUN_ID" ] && [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
-            echo 'INTAKE_SCHEDULE_RESCUE_MODE=true'
-            RUN_LIST_JSON="$(gh_retry gh run list --repo "$GITHUB_REPOSITORY" --limit 100 --json databaseId,name,conclusion,headSha,headBranch,createdAt)"
-            RUN_ID="$(jq -r '
-              [ .[]
-                | select(.headBranch == "execution" or .headBranch == "main")
-                | select(.name != "FLIXO Repair Agent — Error Intake Gateway")
-                | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required")
-              ]
-              | sort_by(.createdAt)
-              | last.databaseId // empty
-            ' <<<"$RUN_LIST_JSON")"
-            if [ -z "$RUN_ID" ]; then
-              echo 'SCHEDULE_RESCUE_NO_ACTIONABLE_RUN=true'
-              exit 0
-            fi
-            echo "SCHEDULE_RESCUE_RUN_ID=$RUN_ID"
+          if [ -z "$RUN_ID" ]; then
+            echo 'has_run=false' >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           test -n "$RUN_ID"
           case "$RUN_ID" in
             ""|*[!0-9]*) echo "FAIL CLOSED: run_id must be numeric."; exit 1 ;;
           esac
-          META="$(gh_retry gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,name,conclusion,headSha,headBranch,status,updatedAt)"
+          META="$(gh_retry gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,name,path,conclusion,headSha,headBranch,status,updatedAt)"
           CONCLUSION="$(jq -r '.conclusion // empty' <<<"$META")"
           case "$CONCLUSION" in
-            failure|timed_out|cancelled|action_required) ;;
+            failure|timed_out|action_required) ;;
             *) echo "No actionable error: conclusion=$CONCLUSION"; exit 0 ;;
           esac
           FAILED_SHA="$(jq -r '.headSha' <<<"$META")"
           WORKFLOW="$(jq -r '.name' <<<"$META")"
+          WORKFLOW_PATH="$(jq -r '.path // empty' <<<"$META")"
           BRANCH="$(jq -r '.headBranch' <<<"$META")"
+          case "$WORKFLOW:$WORKFLOW_PATH" in
+            "FLIXO Test System:.github/workflows/ci.yml"|"FLIXO WP0 Trust Baseline:.github/workflows/wp0-trust-baseline.yml"|"FLIXO Test Impact Execution:.github/workflows/test-impact-execution.yml"|"Repository Security Baseline:.github/workflows/repository-security-baseline.yml"|"Claude Security Review:.github/workflows/claude-security-review.yml") ;;
+            *) echo "FAIL CLOSED: unapproved workflow source: $WORKFLOW path=$WORKFLOW_PATH"; exit 1 ;;
+          esac
           case "$BRANCH" in
             execution|main) ;;
             *) echo "FAIL CLOSED: workflow head branch is outside the canonical trust boundary."; exit 1 ;;
@@ -157,10 +127,17 @@ jobs:
           printf '%s\n' "$BRANCH" >/tmp/branch
           printf '%s\n' "$CONCLUSION" >/tmp/conclusion
           [[ "$CURRENT_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
+          if [ "$FAILED_SHA" != "$CURRENT_SHA" ]; then
+            echo "FAIL CLOSED: requested source run $FAILED_SHA is superseded by current $CURRENT_SHA."
+            gh run cancel "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || true
+            echo "STALE_MANUAL_INTAKE_CANCEL_REQUESTED=true"
+            exit 1
+          fi
           printf '%s\n' "$CURRENT_SHA" >/tmp/current-sha
+          echo 'has_run=true' >> "$GITHUB_OUTPUT"
 
       - name: Capture logs once at the gateway
-        if: hashFiles('/tmp/run-id') != ''
+        if: steps.resolve_run.outputs.has_run == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -172,7 +149,7 @@ jobs:
           test -s /tmp/repair-agent-intake/failure.log || printf 'LOG_CAPTURE_EMPTY run=%s\n' "$RUN_ID" > /tmp/repair-agent-intake/failure.log
 
       - name: Build canonical Repair Agent incident
-        if: hashFiles('/tmp/run-id') != ''
+        if: steps.resolve_run.outputs.has_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -181,7 +158,7 @@ jobs:
           jq -e '.incident.failureFingerprint != null' /tmp/repair-agent-intake/output.json >/dev/null
 
       - name: Block stale incident delivery
-        if: hashFiles('/tmp/run-id') != ''
+        if: steps.resolve_run.outputs.has_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -192,7 +169,7 @@ jobs:
           fi
 
       - name: Deliver incident once to Agent Council
-        if: hashFiles('/tmp/run-id') != ''
+        if: steps.resolve_run.outputs.has_run == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash

@@ -1,9 +1,9 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "id": "ACTION-THREE-BOT-INTELLIGENCE",
   "purpose": "Canonical shared-intelligence contract for the three Action Vault seats: two equal programming seats with opposed proof objectives and one knowledge/catalog supervisor seat.",
   "parity": {
-    "model": "SHARED_INTELLIGENCE_WITH_SPECIALIZED_PROOF_OBJECTIVES",
+    "model": "UNIFIED_SUPERSET_INTELLIGENCE_WITH_SPECIALIZED_PROOF_OBJECTIVES",
     "commonSafetyEqual": true,
     "commonIdentityBindingEqual": true,
     "roleCapabilitiesEqual": true,
@@ -13,7 +13,10 @@
     "fileSelectionSeparatedToAgent3": true,
     "proofObjectiveSeparation": "PRIMARY_CONSTRUCTIVE_VS_TWIN_ADVERSARIAL",
     "primaryProofRole": "ACTION-REPAIR",
-    "adversarialFalsifierRole": "ACTION-REPAIR-2"
+    "adversarialFalsifierRole": "ACTION-REPAIR-2",
+    "cognitiveKernel": "FLIXO-UNIFIED-COGNITIVE-KERNEL-v2",
+    "allInternalAgentsShareCore": true,
+    "roleOverlayCannotReduceCapabilities": true
   },
   "capabilities": [
     "CURRENT_ACTION_LOG_ANALYSIS",
@@ -837,5 +840,13 @@
     },
     "authority": "CANONICAL_INDEX_ONLY",
     "learningRule": "Bots learn locally from their exact mirror; promoted knowledge is written by ACTION-HISTORIAN-3 to the canonical index and then mirrored."
+  },
+  "sharedIntelligenceBoundary": {
+    "canonicalKernel": "docs/agents/FLIXO-BOT.json#/unifiedCognitiveKernel",
+    "canonicalMemory": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
+    "scope": "ALL_INTERNAL_AGENTS_AND_REPAIR_BOTS",
+    "capabilityParity": "FULL",
+    "roleDifferentiation": "TASK_AND_AUTHORITY_ONLY",
+    "knowledgeOnly": "true"
   }
 }

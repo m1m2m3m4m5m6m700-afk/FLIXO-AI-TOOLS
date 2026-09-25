@@ -22,11 +22,11 @@ on:
 permissions:
   contents: read
 
-# Each exact commit SHA has its own execution slot; active verification is never cancelled by newer commits.
-# The active run still validates its exact SHA.
+# Started security evidence is preserved; the trusted supersession controller cancels only queued/pending stale-SHA verification runs.
+# Exact-SHA checkout and fail-closed validation remain the authority for each run.
 concurrency:
-  group: repository-security-baseline-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: true
+  group: repository-security-baseline-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
   baseline:
@@ -53,5 +53,8 @@ jobs:
         run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - name: Validate source-controlled Council RPC contract
         run: node scripts/ci/validate-council-rpc-contract.mjs
+      - name: Enforce repository two-branch creation policy
+        run: node scripts/ci/validate-two-branch-policy.mjs
+
       - name: Run repository security baseline
         run: node scripts/ci/repository-security-baseline.mjs

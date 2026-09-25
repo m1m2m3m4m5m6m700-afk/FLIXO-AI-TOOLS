@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   wake:
-    if: ${{ contains(github.event.head_commit.message, 'PRESIDENT WAKE') && github.actor == 'github-actions[bot]' && github.event.sender.login == 'github-actions[bot]' }}
+    if: github.event_name == 'push' && github.ref == 'refs/heads/execution'
     runs-on: ubuntu-latest
     steps:
       - name: Load trusted Council controller
@@ -38,10 +38,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          WAKE_REQUESTED=false
+          if printf '%s\n' "$MESSAGE" | grep -Fq 'PRESIDENT WAKE' && [ "$GITHUB_ACTOR" = "github-actions[bot]" ] && [ "${{ github.event.sender.login }}" = "github-actions[bot]" ]; then
           ROLE="$(printf '%s\n' "$MESSAGE" | sed -nE 's/.*ROLE=([A-Z]+).*/\1/p' | head -n1)"
           WP="$(printf '%s\n' "$MESSAGE" | sed -nE 's/.*WORK_PACKAGE=([A-Z][A-Z0-9_-]{3,80}).*/\1/p' | head -n1)"
           test -n "$ROLE"
           [[ "$WP" =~ ^[A-Z][A-Z0-9_-]{3,80}$ ]]
+          WAKE_REQUESTED=true
+          else
+            ROLE="NONE"
+            WP="NONE"
+          fi
+          echo "wake_requested=$WAKE_REQUESTED" >> "$GITHUB_OUTPUT"
           echo "role=$ROLE" >> "$GITHUB_OUTPUT"
           echo "work_package=$WP" >> "$GITHUB_OUTPUT"
           echo "entry_sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
@@ -57,7 +65,7 @@ jobs:
           test "$CURRENT" = "$ENTRY_SHA"
 
       - name: Wake external Council runtime
-        if: ${{ steps.parse.outputs.role == 'DEPUTY' || steps.parse.outputs.role == 'TASK' || steps.parse.outputs.role == 'EXECUTION' || steps.parse.outputs.role == 'REVIEW' || steps.parse.outputs.role == 'CERTIFICATION' }}
+        if: ${{ steps.parse.outputs.wake_requested == 'true' && (steps.parse.outputs.role == 'DEPUTY' || steps.parse.outputs.role == 'TASK' || steps.parse.outputs.role == 'EXECUTION' || steps.parse.outputs.role == 'REVIEW' || steps.parse.outputs.role == 'CERTIFICATION') }}
         env:
           ENTRY_SHA: ${{ steps.parse.outputs.entry_sha }}
           ROLE: ${{ steps.parse.outputs.role }}
@@ -124,7 +132,7 @@ jobs:
           retention-days: 30
 
       - name: Stop on unsupported role
-        if: ${{ steps.parse.outputs.role != 'DEPUTY' && steps.parse.outputs.role != 'TASK' && steps.parse.outputs.role != 'EXECUTION' && steps.parse.outputs.role != 'REVIEW' && steps.parse.outputs.role != 'CERTIFICATION' }}
+        if: ${{ steps.parse.outputs.wake_requested == 'true' && steps.parse.outputs.role != 'DEPUTY' && steps.parse.outputs.role != 'TASK' && steps.parse.outputs.role != 'EXECUTION' && steps.parse.outputs.role != 'REVIEW' && steps.parse.outputs.role != 'CERTIFICATION' }}
         run: |
           echo "WAKE_ROLE_NOT_SUPPORTED_FOR_EXTERNAL_TRANSPORT"
           exit 1

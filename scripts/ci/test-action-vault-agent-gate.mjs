@@ -9,7 +9,7 @@ assert.equal(result.botCount, 3);
 assert.ok(result.errors.length === 0, JSON.stringify(result.errors));
 assert.deepEqual(result.bots.map((x) => x.botId), EXPECTED_BOTS);
 const intelligence = JSON.parse(fs.readFileSync('diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json','utf8'));
-assert.equal(intelligence.schemaVersion,6);
+assert.equal(intelligence.schemaVersion,7);
 assert.equal(intelligence.cooperation.triadGovernance.protocol,'ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-v1');
 assert.equal(intelligence.cooperation.triadGovernance.recurrenceEscalationThreshold,20);
 assert.equal(intelligence.cooperation.triadGovernance.catalogCapacity,1000000);

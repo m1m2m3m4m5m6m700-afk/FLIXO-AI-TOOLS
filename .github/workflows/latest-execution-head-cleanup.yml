@@ -1,8 +1,10 @@
 name: FLIXO Latest Execution HEAD Cleanup
 
 on:
+  push:
+    branches: [execution]
   schedule:
-    - cron: '17 3 * * 0'
+    - cron: '*/15 * * * *'
 
 concurrency:
   group: flixo-latest-execution-head-cleanup
@@ -18,13 +20,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout trusted default branch
+      - name: Checkout exact event SHA
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: main
-          fetch-depth: 1
+          ref: ${{ github.sha }}
           persist-credentials: false
-
+          fetch-depth: 1
+      - name: Verify exact cleanup source SHA
+        shell: bash
+        env:
+          EXPECTED_CLEANUP_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_CLEANUP_SHA"
       - name: Run repository latest-execution-head cleanup
         env:
           GH_TOKEN: ${{ github.token }}

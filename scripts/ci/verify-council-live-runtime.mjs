@@ -52,13 +52,117 @@ async function rpcProbe(functionName, payload, expectedMarker) {
   evidence.checks.push({ name: functionName, status: 'PASS', expectedMarker, httpStatus: result.response.status });
 }
 
-const accounts = await request('/rest/v1/flix_council_accounts?select=account_id,active,lease_seconds&order=account_id.asc');
+const accounts = await request('/rest/v1/flix_council_accounts?select=account_id,active,lease_seconds,last_seen_at,metadata&order=account_id.asc');
 if (!accounts.response.ok) throw new Error('ACCOUNTS_READ_FAILED:' + accounts.response.status);
 const accountIds = Array.isArray(accounts.json) ? accounts.json.map((row) => row?.account_id).sort() : [];
 if (JSON.stringify(accountIds) !== JSON.stringify(['CHIEF','WORKER_A','WORKER_B'])) {
   throw new Error('ACCOUNTS_SET_INVALID:' + JSON.stringify(accountIds));
 }
 evidence.checks.push({ name: 'accounts_readback', status: 'PASS', accountIds });
+
+const nowMs = Date.now();
+
+const recoverExpired = async () => {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const result = await request('/rest/v1/rpc/council_recover_expired_dispatches', {
+      method: 'POST',
+      body: JSON.stringify({ p_limit: 25 }),
+    });
+    if (!result.response.ok) throw new Error('LIVE_RECOVERY_CALL_FAILED:' + result.response.status);
+    const rows = Array.isArray(result.json) ? result.json : [];
+    if (rows.length === 0) {
+      evidence.checks.push({ name: 'expired_lease_recovery', status: 'PASS', passes: attempt + 1 });
+      return;
+    }
+  }
+  evidence.checks.push({ name: 'expired_lease_recovery', status: 'BOUNDED_RETRY' });
+};
+
+await recoverExpired();
+
+const expiredLeases = await request(
+  '/rest/v1/flix_council_dispatches?status=in.(LEASED,ACKED)&lease_expires_at=lt.' +
+    encodeURIComponent(new Date(nowMs).toISOString()) +
+    '&select=dispatch_id,account_id,recipient_account_id,attempts,lease_expires_at,entry_sha&limit=100'
+);
+if (!expiredLeases.response.ok) throw new Error('EXPIRED_LEASE_READ_FAILED:' + expiredLeases.response.status);
+if (Array.isArray(expiredLeases.json) && expiredLeases.json.length > 0) {
+  throw new Error('ZOMBIE_LEASES_PRESENT:' + expiredLeases.json.length);
+}
+evidence.checks.push({ name: 'expired_open_leases', status: 'PASS', count: 0 });
+
+const residentAccounts = Array.isArray(accounts.json) ? accounts.json : [];
+// SELF_PROOF_CONTRACT:v1
+// Live schema proof source: last_seen_at + flix_council_events.exact_sha for residencyRequired accounts.
+const requiredResidents = residentAccounts.filter((row) => {
+  const metadata = row?.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata) ? row.metadata : {};
+  return metadata.residencyRequired === true;
+});
+const eventEvidence = new Map();
+if (requiredResidents.length > 0) {
+  const residentIds = requiredResidents.map((row) => row.account_id).join(',');
+  const eventResult = await request('/rest/v1/flix_council_events?account_id=in.(' + encodeURIComponent(residentIds) + ')&select=account_id,event_type,exact_sha,created_at&order=created_at.desc&limit=200');
+  if (!eventResult.response.ok) throw new Error('RESIDENT_EVENT_READ_FAILED:' + eventResult.response.status);
+  for (const row of Array.isArray(eventResult.json) ? eventResult.json : []) {
+    if (!eventEvidence.has(row.account_id)) eventEvidence.set(row.account_id, row);
+  }
+}
+const staleResidentAccounts = requiredResidents.filter((row) => {
+  const lastSeenAt = row?.last_seen_at;
+  if (!lastSeenAt) return true;
+  const lastSeen = Date.parse(String(lastSeenAt));
+  if (!Number.isFinite(lastSeen)) return true;
+  const leaseSeconds = Number(row.lease_seconds ?? 120);
+  const freshnessMs = Math.max(120000, leaseSeconds * 2 * 1000);
+  return nowMs - lastSeen > freshnessMs;
+}).map((row) => row.account_id);
+if (staleResidentAccounts.length > 0) throw new Error('STALE_RESIDENT_ACCOUNTS:' + staleResidentAccounts.join(','));
+const heartbeatShaMismatch = requiredResidents.filter((row) => {
+  const latest = eventEvidence.get(row.account_id);
+  return !latest || String(latest.exact_sha ?? '').toLowerCase() !== expectedSha;
+}).map((row) => row.account_id);
+if (heartbeatShaMismatch.length > 0) throw new Error('RESIDENT_EXACT_SHA_MISMATCH:' + heartbeatShaMismatch.join(','));
+evidence.checks.push({ name: 'resident_heartbeat_exact_sha', status: 'PASS', requiredResidentCount: requiredResidents.length, mismatches: [] });
+evidence.checks.push({ name: 'resident_heartbeat_freshness', status: 'PASS', count: requiredResidents.length });
+
+const watchdog = await request('/rest/v1/flix_automation_watchdog?select=state,last_tick_at,evidence&limit=1');
+if (!watchdog.response.ok) throw new Error('WATCHDOG_READ_FAILED:' + watchdog.response.status);
+const watchdogRow = Array.isArray(watchdog.json) ? watchdog.json[0] : watchdog.json;
+if (!watchdogRow) throw new Error('WATCHDOG_ROW_MISSING');
+if (String(watchdogRow.state ?? '') === 'HEALTHY') {
+  const ev = watchdogRow.evidence && typeof watchdogRow.evidence === 'object' ? watchdogRow.evidence : {};
+  if (Number(ev.remainingExpiredOpenLeases ?? 0) !== 0 || Number(ev.staleResidentAccounts ?? 0) !== 0) {
+    throw new Error('WATCHDOG_FALSE_HEALTHY');
+  }
+}
+evidence.checks.push({ name: 'watchdog_health_claim', status: 'PASS', state: watchdogRow.state });
+
+async function expectAnonRpcDenied(functionName) {
+  const result = await fetch(baseUrl + '/rest/v1/rpc/' + functionName, {
+    method: 'POST',
+    headers: { apikey: anonKey, Authorization: 'Bearer ' + anonKey, 'Content-Type': 'application/json' },
+    body: functionName === 'flixo_retry_pending_assistant_wakes' ? '{}' : '{}',
+  });
+  if (result.ok) throw new Error('ANON_RPC_EXECUTE_BYPASS:' + functionName);
+  evidence.checks.push({ name: 'anonymous_rpc_denied:' + functionName, status: 'PASS', httpStatus: result.status });
+}
+
+await expectAnonRpcDenied('flixo_retry_pending_assistant_wakes');
+await expectAnonRpcDenied('flixo_auto_wake_stale_master3');
+
+const assistantQueryCredential = await fetch(
+  baseUrl + '/functions/v1/flixo-council-runtime?action=assistant-channel&purpose=STATUS&entrySha=' +
+    encodeURIComponent(expectedSha) + '&nonce=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  {
+    method: 'GET',
+    headers: { apikey: anonKey, Authorization: 'Bearer ' + anonKey },
+  },
+);
+const assistantQueryBody = await assistantQueryCredential.text();
+if (assistantQueryCredential.ok || !assistantQueryBody.includes('COUNCIL_ASSISTANT_QUERY_CREDENTIAL_FORBIDDEN')) {
+  throw new Error('ASSISTANT_QUERY_CREDENTIAL_NOT_REJECTED');
+}
+evidence.checks.push({ name: 'assistant_query_credential_rejected', status: 'PASS', httpStatus: assistantQueryCredential.status });
 
 const anon = await fetch(baseUrl + '/rest/v1/flix_council_accounts?select=account_id', {
   headers: { apikey: anonKey, Authorization: 'Bearer ' + anonKey },

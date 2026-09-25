@@ -20,6 +20,16 @@ assert.match(runtime, /authGitHubWorkflow\(req, \["FLIXO Master Agent Activation
 assert.match(runtime, /job_workflow_ref/);
 assert.match(runtime, /action === "activate" && req\.method === "POST"/);
 assert.match(runtime, /action === "heartbeat" && req\.method === "POST"/);
+assert.match(runtime, /action === "resident-heartbeat" && req\.method === "POST"/);
+assert.match(runtime, /EXTERNAL_COUNCIL_GUARDIAN_V3/);
+assert.match(runtime, /COUNCIL_EXTERNAL_WATCHER_MAIN_REF_REJECTED/);
+assert.match(runtime, /COUNCIL_EXTERNAL_WATCHER_WORKFLOW_SHA_MISMATCH/);
+assert.match(runtime, /COUNCIL_ASSISTANT_QUERY_CREDENTIAL_FORBIDDEN/);
+assert.match(runtime, /current_execution_sha/);
+assert.match(runtime, /currentExecutionSha: runtime\.row\.current_execution_sha/);
+assert.match(runtime, /last_heartbeat_at/);
+assert.match(runtime, /FAILED_TERMINAL/);
+assert.match(runtime, /recoveryState/);
 assert.match(runtime, /action === "complete" && req\.method === "POST"/);
 assert.doesNotMatch(runtime, /searchParams\.get\("session"\)/);
 

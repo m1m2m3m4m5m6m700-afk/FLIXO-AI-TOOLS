@@ -7,17 +7,17 @@ on:
     branches: [main, execution]
   workflow_dispatch:
 
-# Each exact commit SHA has its own execution slot; active verification is never cancelled by newer commits.
+# Each exact commit SHA has its own execution slot. The trusted supersession controller cancels only queued/pending stale-SHA runs; started WP0 evidence remains intact.
 # Exact-SHA checks below remain mandatory for the surviving run.
 concurrency:
   group: flixo-wp0-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 env:
-  EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  EXPECTED_SHA: ${{ github.sha }}
   VITE_SITE_URL: https://flixoai.vercel.app
   SITE_URL: https://flixoai.vercel.app
 
@@ -30,23 +30,20 @@ jobs:
       - name: 01 — Checkout exact source SHA
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 1
       - name: Fail closed when this commit is superseded
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
-          EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          EXPECTED_BRANCH: ${{ github.ref_name }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
         run: node scripts/ci/assert-current-commit.mjs
 
       - name: 02 — Verify exact source checkout identity and bind agent to source branch
         shell: bash
         env:
-          PR_HEAD_REF: ${{ github.event.pull_request.head.ref || '' }}
-          PR_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
-          PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || '' }}
           EXPECTED_REPOSITORY: ${{ github.repository }}
-          TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          TARGET_BRANCH: ${{ github.ref_name }}
           EVENT_REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
@@ -55,18 +52,11 @@ jobs:
             main|execution) ;;
             *) echo "FAIL CLOSED: invalid canonical target branch"; exit 1 ;;
           esac
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            test "$PR_HEAD_REF" = "execution"
-            test "$PR_BASE_REF" = "main"
-            test "$PR_HEAD_REPOSITORY" = "$EXPECTED_REPOSITORY"
-            test "$TARGET_BRANCH" = "execution"
-          else
-            case "$GITHUB_EVENT_NAME" in
-              push|workflow_dispatch) ;;
-              *) echo "Unsupported execution event: $GITHUB_EVENT_NAME"; exit 1 ;;
-            esac
-            test "$EVENT_REF_NAME" = "$TARGET_BRANCH"
-          fi
+          case "$GITHUB_EVENT_NAME" in
+            push|workflow_dispatch) ;;
+            *) echo "Unsupported WP0 event: $GITHUB_EVENT_NAME"; exit 1 ;;
+          esac
+          test "$EVENT_REF_NAME" = "$TARGET_BRANCH"
           ACTUAL_SHA="$(git rev-parse HEAD)"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA"
           case "$TARGET_BRANCH" in
@@ -99,6 +89,12 @@ jobs:
       - name: 04 — Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
 
+      - name: 05 — Prepare resident task-agent packet before control gate
+        run: |
+          set -euo pipefail
+          node scripts/ci/task-agent.mjs --all-ready
+          test -s /tmp/flixo-task-agent/latest.json
+
       - name: 05 — Task state, confirmation and cancellation contract
         run: |
           set -euo pipefail
@@ -116,6 +112,12 @@ jobs:
 
       - name: 07 — Canonical CI/CD trust and exact-SHA gate
         run: npm run verify:ci-cd-trust
+
+      - name: 07A — Enforce repository two-branch creation policy
+        run: node scripts/ci/validate-two-branch-policy.mjs
+
+      - name: 07B — Control-plane writer integrity
+        run: node scripts/ci/validate-control-plane-writers.mjs
 
       - name: 08 — WP0 static trust and readiness alignment gate
         run: node scripts/ci/validate-wp0-trust-baseline.mjs

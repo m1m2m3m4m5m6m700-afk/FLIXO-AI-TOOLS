@@ -14,7 +14,7 @@ const AgentFileSchema = z.object({
 
 export const AgentRequestSchema = z.object({
   locale: z.string().trim().min(2).max(16).optional(),
-  messages: z.array(ChatMessageSchema).max(24).optional(),
+  messages: z.array(ChatMessageSchema).max(120).optional(),
   file: AgentFileSchema.nullable().optional(),
   activePlan: z.unknown().nullable().optional(),
   activeCommand: z.string().trim().max(2_000).nullable().optional(),
@@ -37,6 +37,20 @@ export function parseAgentRequest(value: unknown): AgentRequestContract {
   });
 }
 
+export const AgentLearningCandidateSchema = z.object({
+  kind: z.enum(['LESSON', 'ANTI_LESSON', 'ADVICE', 'COUNTEREXAMPLE']),
+  claim: z.string().trim().min(1).max(8_000),
+  content: z.string().trim().min(1).max(16_000),
+  evidenceRefs: z.array(z.string().trim().min(1).max(512)).max(32).default([]),
+}).strict();
+
+export type AgentLearningCandidate = Readonly<{
+  kind: 'LESSON' | 'ANTI_LESSON' | 'ADVICE' | 'COUNTEREXAMPLE';
+  claim: string;
+  content: string;
+  evidenceRefs: readonly string[];
+}>;
+
 const AgentDecisionEnvelopeSchema = z.object({
   mode: z.enum(['chat', 'clarify', 'plan']),
   reply: z.string().trim().min(1).max(20_000),
@@ -47,6 +61,7 @@ const AgentDecisionEnvelopeSchema = z.object({
   provider: z.string().trim().max(128).optional(),
   fallback: z.boolean().optional(),
   reason: z.string().trim().max(4_000).optional(),
+  learning: AgentLearningCandidateSchema.nullable().optional(),
 }).strict();
 
 export type AgentDecisionContract = Readonly<{
@@ -59,6 +74,7 @@ export type AgentDecisionContract = Readonly<{
   provider?: string;
   fallback?: boolean;
   reason?: string;
+  learning?: AgentLearningCandidate | null;
 }>;
 
 export function parseAgentDecision(value: unknown): AgentDecisionContract {
@@ -78,6 +94,7 @@ export function parseAgentDecision(value: unknown): AgentDecisionContract {
       ...(envelope.provider === undefined ? {} : { provider: envelope.provider }),
       ...(envelope.fallback === undefined ? {} : { fallback: envelope.fallback }),
       ...(envelope.reason === undefined ? {} : { reason: envelope.reason }),
+      ...(envelope.learning === undefined ? {} : { learning: envelope.learning }),
     });
   }
   const plan = parseExecutionPlan(envelope.plan);
@@ -91,5 +108,6 @@ export function parseAgentDecision(value: unknown): AgentDecisionContract {
     ...(envelope.provider === undefined ? {} : { provider: envelope.provider }),
     ...(envelope.fallback === undefined ? {} : { fallback: envelope.fallback }),
     ...(envelope.reason === undefined ? {} : { reason: envelope.reason }),
+    ...(envelope.learning === undefined ? {} : { learning: envelope.learning }),
   });
 }

@@ -33,13 +33,14 @@ const ACTIONS = Object.freeze([
   ['PLAN', /(plan|design|decompose|architecture|خطة|صمم|صمّم|قسّم|تفكيك|معمارية)/iu],
   ['DOCUMENT', /(document|docs|write|describe|وثق|وثّق|اكتب|توثيق)/iu],
 ]);
-const NEGATIVE = /(لا|ليس|ليست|ممنوع|بدون|دون|لن|never|don't|do not|must not|cannot|forbid|forbidden|without)/iu;
+const NEGATIVE_AR = /(?:^|[^\p{L}\p{N}_])(لا|ليس|ليست|ممنوع|بدون|دون|لن)(?=$|[^\p{L}\p{N}_])/iu;
+const NEGATIVE_EN = /\b(?:never|don't|do not|must not|cannot|forbid|forbidden|without)\b/iu;
 const UNSAFE = [
   [/(?:ignore|override)\s+(?:all\s+)?(?:previous|system|repository)\s+(?:rules|instructions)/iu, 'PROMPT_INJECTION_OVERRIDE'],
   [/(?:تجاهل|تجاوز)\s+(?:كل\s+)?(?:قواعد|تعليمات)\s+(?:المستودع|النظام|البروتوكول)/iu, 'PROMPT_INJECTION_OVERRIDE_AR'],
   [/(?:disable|skip|remove|weaken|bypass)\s+(?:tests?|checks?|gates?|security|protection)/iu, 'GATE_WEAKENING'],
-  [/(?:تعطيل|تخطي|حذف|إضعاف|تجاوز)\s+(?:الاختبارات|الفحوصات|البوابات|الحماية|الأمان)/iu, 'GATE_WEAKENING_AR'],
-  [/(?:force[-\s]?push|push\s+(?:directly\s+)?main|edit\s+main\s+directly)/iu, 'MAIN_MUTATION'],
+  [/(?:تعطيل|عطّل|عطل|تخطي|حذف|إضعاف|تجاوز)\s+(?:الاختبارات|الاختبار|الفحوصات|البوابات|الحماية|الأمان)/iu, 'GATE_WEAKENING_AR'],
+  [/(?:force[-\s]?push|push\s+(?:directly\s+)?main|edit\s+main\s+directly|ادفع(?:\s+(?:التعديل|التغييرات))?\s+(?:مباشرة\s+)?(?:إلى\s+)?main|ادفع\s+.*?\bmain\b)/iu, 'MAIN_MUTATION'],
   [/(?:إنشاء|استخدام)\s+(?:فرع|branch)\s+(?:جديد|ثالث|آخر)/iu, 'THIRD_BRANCH'],
   [/(?:git\s+push\s+--force|git\s+reset\s+--hard\s+main)/iu, 'HISTORY_REWRITE'],
   [/(?:expose|print|share|leak)\s+(?:secrets?|tokens?|credentials?)/iu, 'SECRET_EXFILTRATION'],
@@ -90,7 +91,12 @@ function canonicalContext() {
 }
 
 function sentenceList(prompt) { return prompt.split(/(?<=[.!?؟])\s+|\n+/u).map((x) => x.trim()).filter(Boolean); }
-function isNegated(prompt, pattern) { const at = prompt.search(pattern); return at >= 0 && NEGATIVE.test(prompt.slice(Math.max(0, at - 90), at)); }
+function isNegated(prompt, pattern) {
+  const at = prompt.search(pattern);
+  if (at < 0) return false;
+  const context = prompt.slice(Math.max(0, at - 90), at);
+  return NEGATIVE_AR.test(context) || NEGATIVE_EN.test(context);
+}
 function actions(prompt) { return ACTIONS.filter(([, pattern]) => pattern.test(prompt)).map(([name]) => name); }
 function intentFor(prompt, actionList) {
   if (actionList.includes('REPAIR') || actionList.includes('DIAGNOSE')) return 'REPAIR_DIAGNOSE';

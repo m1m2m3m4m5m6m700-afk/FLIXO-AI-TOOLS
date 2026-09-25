@@ -6,14 +6,19 @@ import { createHash } from 'node:crypto';
 const ROOT=process.cwd();
 export const SHARED_MEMORY_PATH=path.resolve(ROOT,process.env.FLIXO_SHARED_OPERATIONAL_MEMORY??'diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json');
 export const SHARED_MEMORY_PROTOCOL='FLIXO-SHARED-OPERATIONAL-MEMORY-v1';
-export const SHARED_BOTS=Object.freeze([
-  'ACTION-REPAIR',
-  'ACTION-REPAIR-2',
-  'READ-INVESTIGATOR',
-  'READ-ADVERSARY',
-  'executionAgent',
-  'reviewAgent',
-]);
+export const CELL_MEMORY_SCOPE='ALL_CELL_MEMBERS';
+export const CELL_MEMBER_COUNT=200;
+export const SHARED_MEMORY_MODEL='ONE_CANONICAL_MEMORY';
+export const FLIXO_UNIFIED_COGNITIVE_KERNEL='FLIXO-UNIFIED-COGNITIVE-KERNEL-v2';
+export const OVER_PROVISIONED_COGNITION=true;
+export const SYSTEM_WIDE_MEMORY_SCOPE='ALL_INTERNAL_AGENTS_AND_REPAIR_BOTS';
+export const FLIXO_BOT_REGISTRY_PATH=path.resolve(ROOT,process.env.FLIXO_BOT_REGISTRY??'docs/agents/FLIXO-BOT.json');
+const loadFlixoBotAudience=()=>{try{const registry=JSON.parse(fs.readFileSync(FLIXO_BOT_REGISTRY_PATH,'utf8'));const audience=registry?.distribution?.learningConsumers;const cognitiveIds=registry?.distribution?.cognitiveBotIds;if(!Array.isArray(cognitiveIds)||cognitiveIds.length!==200)throw new Error('INVALID_COGNITIVE_AUDIENCE');if(!Array.isArray(audience)||audience.length!==200||JSON.stringify(audience)!==JSON.stringify(cognitiveIds))throw new Error('INVALID_GLOBAL_AUDIENCE');return [...new Set(audience.map(x=>String(x).trim()).filter(Boolean))];}catch(error){if(process.env.NODE_ENV==='test'||process.env.FLIXO_ALLOW_LEGACY_SHARED_MEMORY_FALLBACK==='true')return ['ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent'];throw new Error('FLIXO_BOT_GLOBAL_MEMORY_AUDIENCE_UNAVAILABLE:'+error.message,{cause:error});}};
+export const SHARED_BOTS=Object.freeze(loadFlixoBotAudience());
+if(SHARED_BOTS.length!==CELL_MEMBER_COUNT) throw new Error('CELL_SHARED_MEMORY_MEMBER_COUNT_INVALID');
+const loadFlixoBotAliases=()=>{try{const registry=JSON.parse(fs.readFileSync(FLIXO_BOT_REGISTRY_PATH,'utf8'));return Object.freeze({...registry?.distribution?.botAliasMap});}catch(error){if(process.env.NODE_ENV==='test'||process.env.FLIXO_ALLOW_LEGACY_SHARED_MEMORY_FALLBACK==='true')return Object.freeze({});throw new Error('FLIXO_BOT_ALIAS_MAP_UNAVAILABLE:'+error.message,{cause:error});}};
+export const FLIXO_BOT_ALIASES=loadFlixoBotAliases();
+export function resolveSharedMemoryBotId(botId){const id=String(botId??'').trim();const canonical=SHARED_BOTS.includes(id)?id:FLIXO_BOT_ALIASES[id];if(!canonical||!SHARED_BOTS.includes(canonical))throw new Error('SHARED_MEMORY_BOT_INVALID='+id);return canonical;}
 export const SHARED_KINDS=Object.freeze([
   'ERROR',
   'OPERATION',
@@ -31,9 +36,52 @@ const LEGACY_CELL_INDEX_PATH=path.resolve(ROOT,'diagnostics/auto-repair/cell-kno
 const now=()=>new Date().toISOString();
 const hash=(value)=>createHash('sha256').update(String(value),'utf8').digest('hex');
 const readJson=(file,fallback)=>{try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return fallback;}};
+const remoteLearningConfig=()=>({
+  url:String(process.env.SUPABASE_URL??'').trim().replace(/\/$/u,''),
+  key:String(process.env.SUPABASE_SECRET_KEY??process.env.SUPABASE_SERVICE_ROLE_KEY??'').trim(),
+});
+async function readRemoteExternalLearning(targetSha,limit=48){
+  const cfg=remoteLearningConfig();
+  if(!cfg.url||!cfg.key||!validSha(targetSha)) return [];
+  const bounded=Math.min(128,Math.max(1,Number(limit)||48));
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),1500);
+  try{
+    const url=`${cfg.url}/rest/v1/flixo_agent_learning_events?target_sha=eq.${encodeURIComponent(targetSha)}&status=neq.BLOCKED&select=*&order=created_at.desc&limit=${bounded}`;
+    const response=await fetch(url,{
+      method:'GET',
+      headers:{apikey:cfg.key,Authorization:`Bearer ${cfg.key}`,Accept:'application/json'},
+      signal:controller.signal,
+    });
+    if(!response.ok) return [];
+    const body=await response.json();
+    if(!Array.isArray(body)) return [];
+    return body.filter(item=>item&&typeof item==='object'&&validSha(item.target_sha)&&item.target_sha===targetSha&&SHA.test(String(item.fingerprint??''))).map(item=>({
+      id:String(item.learning_id??item.fingerprint),
+      kind:String(item.kind),
+      status:String(item.status??'PROPOSED'),
+      claim:String(item.claim??''),
+      content:String(item.content??''),
+      fingerprint:String(item.fingerprint),
+      targetSha:String(item.target_sha),
+      sourceBot:String(item.source_agent??'execution-agent-clone-v1'),
+      sourceRole:String(item.source_role??'executionAgent'),
+      evidenceRefs:Array.isArray(item.evidence_refs)?item.evidence_refs.slice(0,32):[],
+      provenance:item.provenance&&typeof item.provenance==='object'?item.provenance:{},
+      createdAt:String(item.created_at??''),
+      canonicalGreen:item.canonical_green===true,
+    })).filter(item=>item.claim||item.content);
+  }catch{
+    return [];
+  }finally{
+    clearTimeout(timer);
+  }
+}
 
 const empty=()=>({
-  schemaVersion:1,
+  schemaVersion:2,
+  intelligenceRegistry:'docs/agents/FLIXO-BOT.json',
+  intelligenceVersion:'FLIXO-BOT-BRAIN-v2',
   protocol:SHARED_MEMORY_PROTOCOL,
   authority:'SHARED_KNOWLEDGE_ONLY',
   mutationAuthority:false,
@@ -67,7 +115,7 @@ function ensureParent(){
 export function validateSharedMemoryRecord(input={}){
   const failures=[];
   const sourceBot=String(input.sourceBot??'').trim();
-  if(!SHARED_BOTS.includes(sourceBot)) failures.push('SOURCE_BOT_INVALID');
+  try { resolveSharedMemoryBotId(sourceBot); } catch { failures.push('SOURCE_BOT_INVALID'); }
   if(!SHARED_KINDS.includes(String(input.kind??''))) failures.push('KIND_INVALID');
   if(!validSha(input.targetSha)) failures.push('EXACT_TARGET_SHA_REQUIRED');
   if(!String(input.taskId??'').trim()) failures.push('TASK_ID_REQUIRED');
@@ -96,8 +144,10 @@ function normalizeRecord(input={}){
   return {
     id,
     protocol:SHARED_MEMORY_PROTOCOL,
-    sourceBot:String(input.sourceBot),
-    audience:[...SHARED_BOTS],
+    sourceBot:resolveSharedMemoryBotId(input.sourceBot),
+    sourceBotAlias:String(input.sourceBot??'').trim() || null,
+    memoryModel:SHARED_MEMORY_MODEL,
+    cellMemberCount:SHARED_BOTS.length,
     kind:String(input.kind),
     status,
     taskId:String(input.taskId),
@@ -120,6 +170,8 @@ function normalizeRecord(input={}){
     authenticatedSourceBot:String(input.authenticatedSourceBot??process.env.FLIXO_AUTHENTICATED_AGENT_ID??'')||null,
     antiLesson:Boolean(input.antiLesson===true||String(input.kind)==='ANTI_LESSON'),
     source:'SHARED_MEMORY_WRITE',
+    intelligenceRegistry:'docs/agents/FLIXO-BOT.json',
+    intelligenceVersion:'FLIXO-BOT-BRAIN-v2',
     exactShaBound:true,
     mutationAuthority:false,
     certificationAuthority:false,
@@ -159,7 +211,7 @@ function atomicWrite(memory){
   fs.renameSync(tmp,SHARED_MEMORY_PATH);
 }
 
-export function publishSharedMemory(input={}){
+export function writeSharedMemory(input={}){
   const record=normalizeRecord(input);
   const current=loadSharedMemory();
   const duplicate=current.records.find(existing=>existing.id===record.id);
@@ -169,7 +221,7 @@ export function publishSharedMemory(input={}){
   return {persisted:true,duplicate:false,record,memory:withIndexes(next)};
 }
 
-export function publishSharedBatch(records=[]){
+export function writeSharedBatch(records=[]){
   let memory=loadSharedMemory();
   let persisted=0,duplicates=0;
   const normalized=[];
@@ -184,12 +236,15 @@ export function publishSharedBatch(records=[]){
   return {persisted,duplicates,records:normalized,memory:withIndexes(memory)};
 }
 
+export const publishSharedMemory=writeSharedMemory;
+export const publishSharedBatch=writeSharedBatch;
+
 export function readSharedMemory({fingerprint=null,botId=null,kinds=null,limit=80}={}){
   const memory=loadSharedMemory();
   const allowedKinds=Array.isArray(kinds)?new Set(kinds.filter(kind=>SHARED_KINDS.includes(kind))):null;
+  if(botId) resolveSharedMemoryBotId(botId);
   const rows=memory.records.filter(record=>
     (!fingerprint||record.fingerprint===fingerprint) &&
-    (!botId||record.audience.includes(botId)) &&
     (!allowedKinds||allowedKinds.has(record.kind))
   ).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
   return rows.slice(0,Math.max(1,Number(limit)||80));
@@ -238,6 +293,7 @@ export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48
   const records=readSharedMemory({fingerprint,botId,limit});
   const grouped=Object.fromEntries(SHARED_KINDS.map(kind=>[kind,records.filter(r=>r.kind===kind)]));
   const legacy=legacyReadThroughContext(limit);
+  // Synchronous consumers use canonical in-repo memory. Remote external candidates are merged by buildAsyncSharedLearningContext or the API bridge.
   return {
     protocol:SHARED_MEMORY_PROTOCOL,
     authority:'CONTEXT_ONLY',
@@ -245,6 +301,11 @@ export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48
     certificationAuthority:false,
     canonical:true,
     targetAudience:[...SHARED_BOTS],
+    memoryModel:SHARED_MEMORY_MODEL,
+    cognitiveKernel:FLIXO_UNIFIED_COGNITIVE_KERNEL,
+    overProvisionedCognition:OVER_PROVISIONED_COGNITION,
+    cellMemberCount:CELL_MEMBER_COUNT,
+    scope:SYSTEM_WIDE_MEMORY_SCOPE,
     recordCount:records.length,
     errors:[...grouped.ERROR,...legacy.errors].slice(0,limit),
     operations:grouped.OPERATION,
@@ -255,7 +316,28 @@ export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48
     legacyContext:legacy,
     counterexamples:grouped.COUNTEREXAMPLE,
     verifications:grouped.VERIFICATION,
-    note:'Shared memory informs all six bots; it never proves GREEN or grants authority.'
+    externalCandidates:[],
+    remoteLearningPending:false,
+    note:'Shared memory informs every internal FLIXO agent and repair bot through the same canonical store; it never proves GREEN or grants authority.'
+  };
+}
+
+export async function buildAsyncSharedLearningContext({fingerprint=null,botId=null,limit=48,currentSha=null}={}){
+  const context=buildSharedLearningContext({fingerprint,botId,limit});
+  const targetSha=validSha(currentSha)?String(currentSha):null;
+  const externalCandidates=targetSha?await readRemoteExternalLearning(targetSha,limit):[];
+  const proposedLessons=externalCandidates.filter(item=>item.kind==='LESSON');
+  const proposedAntiLessons=externalCandidates.filter(item=>item.kind==='ANTI_LESSON');
+  const proposedAdvice=externalCandidates.filter(item=>item.kind==='ADVICE');
+  const proposedCounterexamples=externalCandidates.filter(item=>item.kind==='COUNTEREXAMPLE');
+  return {
+    ...context,
+    advice:[...proposedAdvice,...context.advice].slice(0,limit),
+    lessons:[...proposedLessons,...context.lessons].slice(0,limit),
+    antiLessons:[...proposedAntiLessons,...context.antiLessons].slice(0,limit),
+    counterexamples:[...proposedCounterexamples,...context.counterexamples].slice(0,limit),
+    externalCandidates,
+    remoteLearningPending:false,
   };
 }
 
@@ -266,7 +348,7 @@ export function buildSharedMemoryBootstrapSummary(){
     'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json',
     'docs/agents/ACTION-ERROR-HISTORY.md',
   ];
-  return Object.freeze({protocol:SHARED_MEMORY_PROTOCOL,canonical:true,legacyReadThrough:sources,mode:'CONTEXT_ONLY',targetBotCount:SHARED_BOTS.length});
+  return Object.freeze({protocol:SHARED_MEMORY_PROTOCOL,canonical:true,legacyReadThrough:sources,mode:'SYSTEM_WIDE_CONTEXT_ONLY',intelligenceRegistry:'docs/agents/FLIXO-BOT.json',intelligenceVersion:'FLIXO-BOT-BRAIN-v2',targetBotCount:SHARED_BOTS.length});
 }
 
 if(import.meta.url===new URL(process.argv[1]??'','file:').href){

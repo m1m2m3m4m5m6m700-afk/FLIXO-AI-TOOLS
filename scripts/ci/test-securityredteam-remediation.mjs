@@ -25,8 +25,8 @@ assert.doesNotMatch(auto,/(?:pull-requests|issues|statuses|security-events):\s*w
 assert.match(gate,/FLIXO_DETACHED_EXECUTION_TARGET/u);
 assert.match(gate,/MUTATION_GATE_DETACHED_REMOTE_HEAD_MISMATCH/u);
 
-assert.match(watchdog,/group:\s*flixo-execution-watchdog-\$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.ref_name \}\}/u);
-assert.match(green,/group:\s*flixo-continuous-error-watch-\$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/u);
+assert.match(watchdog,/group:\s*flixo-execution-watchdog-\$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/u);
+assert.match(green,/group:\s*flixo-continuous-error-watch-\$\{\{ github\.ref_name \}\}/u);
 assert.match(green,/cancel-in-progress:\s*true/u);
 
 assert.match(learning,/raw === 'repair-applied'/u);

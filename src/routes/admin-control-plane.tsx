@@ -3,6 +3,7 @@ import { createRoute } from '@tanstack/react-router';
 import { rootRoute } from './__root';
 import { ADMIN_CAPABILITIES, INITIAL_CONTROL_PLANE_STATE } from '../lib/admin/control-plane';
 import { ADMIN_EXECUTION_CLASSES, ADMIN_MODULES, ADMIN_ROLE_CAPABILITY_MATRIX } from '../lib/admin/module-registry';
+import { MasterRepairChat } from '../components/MasterRepairChat';
 
 const CENTER_OPTIONS = ['truth', 'operations', 'incident', 'evidence', 'security', 'contract'] as const;
 type المركز = (typeof CENTER_OPTIONS)[number];
@@ -174,6 +175,8 @@ function AdminControlPlanePage() {
           </div>
           <div className="hero-badge"><small>الحالة الحالية</small><strong>{labelFor(state.verdict)}</strong><div style={{ marginTop: 8, color: '#8792a6', fontSize: 11 }}>{state.reason}</div></div>
         </header>
+
+        <MasterRepairChat />
 
         <section className="status-grid" aria-label="حالة مركز التحكم">
           <Metric label="الاتصال" value={labelFor(state.connected ? 'CONNECTED' : 'UNAVAILABLE')} detail={state.reason} />

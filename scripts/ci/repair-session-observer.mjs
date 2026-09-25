@@ -56,7 +56,9 @@ const inferredChainId = chainId || (String(allRuns[0]?.displayTitle ?? '').match
 let executionSha = targetSha;
 if (!executionSha) {
   try {
-    executionSha = String(ghJson(['api', 'repos/' + repo + '/git/ref/heads/execution']).object?.sha ?? '').trim();
+    const refResult = spawnSync('git', ['ls-remote', 'https://github.com/' + repo + '.git', 'refs/heads/execution'], { encoding: 'utf8', env: process.env });
+    if (refResult.status !== 0) throw new Error((refResult.stderr || refResult.stdout || 'git ls-remote failed').trim());
+    executionSha = String(refResult.stdout || '').split(/\s+/u)[0].trim();
   } catch (error) {
     executionSha = '';
     if (process.env.CI) console.warn(`REPAIR_SESSION_OBSERVER_EXECUTION_SHA_LOOKUP_FAILED: ${String(error?.message ?? error)}`);

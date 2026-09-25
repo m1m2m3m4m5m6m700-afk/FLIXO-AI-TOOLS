@@ -32,7 +32,7 @@ export const COUNCIL_DIRECTIVE = Object.freeze({
   operatingMessage: 'FOCUS ON THE ASSIGNED WORK PACKAGE. DO NOT ENTER FREEZE, SLEEP, IDLE, SILENT, OR ABANDONED. CONTINUE THE CURRENT CONTROLLED LIFECYCLE UNTIL VERIFIED OR AN EXPLICIT AUTHORITY DECISION ABORTS IT.',
   liveness: Object.freeze({
     protocol: 'AGENT_LIVENESS_PROTOCOL',
-    heartbeatEveryMinutes: 5,
+    heartbeatEveryMinutes: 1,
     heartbeatGraceMinutes: 2,
     leaseTtlMinutes: 15,
     progressWindowMinutes: 10,

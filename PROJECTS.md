@@ -386,7 +386,7 @@ VERIFICATION = validate:effective-localization + WP0 + canonical browser CI on t
 PREVENTION = presentation HTML belongs to AgentFirstHome; localization data stores semantic markers only.
 ## GOVERNANCE
 
-Bounded single-owner work may execute directly on `main`. Use `execution` only for materially risky, broad, conflict-prone, architectural, or production-sensitive isolation. Exact-SHA, regression, authorization, rollback, evidence, and certification requirements remain mandatory.
+`main` is production/source-of-truth and is never a direct mutation surface. All active repair, engineering, and operational mutation work uses `execution` and integrates only through `execution → main`. Exact-SHA, regression, authorization, rollback, evidence, and certification requirements remain mandatory.
 
 ## DELETION
 
@@ -475,7 +475,7 @@ STATUS = IMPLEMENTED / CANONICAL-CI-VERIFICATION-PENDING
 OWNER = AGENT-3
 BRANCH = execution
 SCOPE = CELL-041..050
-CURRENT_EXECUTION_HEAD = 6ed30b1352bc0869959286142d962a44abda58f7
+CURRENT_EXECUTION_HEAD = RESOLVE LIVE FROM `execution`; this field is descriptive only and is never certification evidence
 IMPLEMENTATION = src/lib/agent/swarm/learning-memory-routing.ts
 TARGETED_TEST = scripts/ci/test-swarm-learning-memory-routing.mjs
 CANONICAL_MEMORY_BASE = src/lib/agent/knowledge/types.ts + existing knowledge/memory surfaces
@@ -488,3 +488,20 @@ SIMULATION = replay + failure injection + drift + non-authoritative evidence
 EVIDENCE = every knowledge/observation/RCA/simulation record binds to exact SHA; memory advisory only
 CURRENT_VERIFICATION = canonical CI still pending/active on the latest execution head; no GREEN/certification claim
 HANDOFF_BOUNDARY = Agent-1 for authority/governance/CI/certification; Agent-2 for runtime/features/tests/repair executor
+
+
+## P-CLEAN — REPO CONTROL-PLANE HYGIENE & PRODUCT-BUILD READINESS — 2026-09-25
+
+STATUS = ACTIVE / ENTRY-RECORDED
+OWNER = assistantController / execution-only hygiene lane
+BRANCH POLICY = execution only; no direct main; no third branch
+WP-CLEAN-001 = COMPLETED / 604 execution scripts, 562 main scripts, 46 execution-only
+WP-CLEAN-002 = BLOCKED / exact local checkout required; no CSV manufactured
+WP-CLEAN-003 = BLOCKED / awaits WP-CLEAN-002
+WP-CLEAN-004 = IMPLEMENTED / VERIFICATION PENDING; localization validators consolidated
+WP-CLEAN-005 = VERIFIED / cancel-in-progress=false already present
+WP-CLEAN-006 = COMPLETED / 52 workflows, registry union 14, 0 unregistered contents:write writers, 0 disablements
+WP-CLEAN-007 = BLOCKED / HUMAN REVIEW REQUIRED
+WP-CLEAN-008 = BLOCKED / cleanliness certification not yet proven
+P-PRODUCT-001 = BLOCKED / awaits WP-CLEAN-008
+CONTROL RULE = P-CLEAN does not weaken or supersede active P0 Test-System/Repair work.

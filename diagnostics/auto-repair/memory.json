@@ -1,5 +1,5 @@
 {
-  "version": 11,
+  "version": 12,
   "cases": [
     {
       "fingerprint": "cefe8e431b2be0d946960754d598c026fdb7e760c2b8803922a69344eb2921c0",
@@ -960,7 +960,7 @@
   "playbooks": [],
   "lessons": [
     {
-      "id": "89cee10f43acf1244d06",
+      "id": "9b4621b60eefd94da898",
       "fingerprint": "89cee10f43acf1244d064dab19f9a351b8acafcf",
       "rootCause": "orchestration",
       "rule": "gh-cli-json-jq-contract",
@@ -1002,7 +1002,7 @@
       "lastSeenAt": "2026-09-19T22:48:35Z"
     },
     {
-      "id": "cc208a65323355b8846d",
+      "id": "841d6ce7c5cf5f763542",
       "fingerprint": "cc208a65323355b8846d7aa6d7e85f742feb8909",
       "rootCause": "lint",
       "rule": "regex-contract-escape-discipline",
@@ -1043,7 +1043,7 @@
       "lastSeenAt": "2026-09-20T19:35:00Z"
     },
     {
-      "id": "b7676df7aa32ad7e718f",
+      "id": "f14da7f1fc55e1a36ad3",
       "fingerprint": "b7676df7aa32ad7e718f524ad84aa826d3b28b6c",
       "rootCause": "lint",
       "rule": "repair-test-regex-contract",
@@ -1073,7 +1073,7 @@
       "lastSeenAt": "2026-09-19T22:51:37Z"
     },
     {
-      "id": "11a69c066357a565d2cc",
+      "id": "5713ce78a3dfa74271da",
       "fingerprint": "11a69c066357a565d2cc26afd516d4b2d1eb6f7b",
       "rootCause": "architecture",
       "rule": "canonical-registry-symmetry",
@@ -1103,7 +1103,7 @@
       "lastSeenAt": "2026-09-19T22:53:07Z"
     },
     {
-      "id": "7b032e2a10f99e6bbf65",
+      "id": "6099c34f81f87b3f5451",
       "fingerprint": "7b032e2a10f99e6bbf65f67e6827e74c64abf9a8",
       "rootCause": "orchestration",
       "rule": "primary-red-before-secondary-certification",
@@ -1133,7 +1133,7 @@
       "lastSeenAt": "2026-09-19T22:48:35Z"
     },
     {
-      "id": "f4423c648ec49d08d49e",
+      "id": "8bdb4e81a796f7cea895",
       "fingerprint": "f4423c648ec49d08d49e881e9f2b6c05f5463d1816ce476231a8c9a5c1964d25",
       "rootCause": "orchestration",
       "rule": "composed-training-stage-wiring",
@@ -1158,6 +1158,706 @@
         "Run the exact training self-test and lint after adding each dependent training stage; never stack undefined-stage consumers on a green-looking contract."
       ],
       "lastSeenAt": "2026-09-20T19:35:00Z"
+    },
+    {
+      "id": "4bf993d1c3743752ab70",
+      "fingerprint": "exact-sha-gate-root-closure-2026-09-25",
+      "rootCause": "ci-contract-orchestration",
+      "rule": "exact-contract-surface-and-fixture-alignment",
+      "attempts": 1,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0,
+      "status": "PROVISIONAL",
+      "evidence": [
+        {
+          "verification": "repair-applied-pending-canonical-green",
+          "provenance": {
+            "source": "FLIXO Agent-2 exact-SHA root repair",
+            "failedSha": "13d677dd2c69142dd11d748ff695027059e0cca2",
+            "targetSha": "c24af9eb0ce84286db66a6cd605dd66fb64966d2",
+            "runId": "36065892547",
+            "workflow": "FLIXO Master Repair Governor / trust-gate",
+            "exactShaBound": true
+          }
+        }
+      ],
+      "preventionRules": [
+        "When a production ref helper explicitly allowlists refs/tags, race/concurrency fixtures must use a contract-valid refs/tags fixture; never invent a forbidden ref namespace merely to exercise the race.",
+        "Certification-surface accounting must distinguish canonical tool specs from dedicated Agent journey/integration specs; 22 tool specs plus 1 journey spec is not 23 tool specs.",
+        "Work-package burst validation requires exactly one WP identity in the active burst; repair commits must carry one canonical [WP:<id>] marker before the guard can accept the burst.",
+        "A downstream promotion/merge-gate RED must be traced to the earliest canonical RED before adding another mutation; do not repair the downstream symptom independently.",
+        "Any new mutation invalidates prior exact-SHA evidence; this lesson remains advisory until fresh canonical verification and certification close the new SHA."
+      ],
+      "changedPaths": [
+        "scripts/ci/test-repair-lease-live-race.mjs",
+        "scripts/ci/validate-certification-surface.mjs",
+        "المهام.md"
+      ],
+      "parentSha": "13d677dd2c69142dd11d748ff695027059e0cca2",
+      "targetSha": "c24af9eb0ce84286db66a6cd605dd66fb64966d2",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-25T00:00:00.000Z"
+    },
+    {
+      "id": "8ffa237f2366c6e6f513",
+      "fingerprint": "10k-cancelled-is-not-root",
+      "rootCause": "orchestration",
+      "rule": "cancelled-run-classification",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "cancelled-run-classification"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Classify CANCELLED as SUPERSEDED, UNEXPECTED, or UNKNOWN before repair; SUPERSEDED is not a product RED."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "c20cff7b31496e2e56b8",
+      "fingerprint": "10k-exact-sha-first",
+      "rootCause": "sha-control",
+      "rule": "exact-sha-before-rca",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "exact-sha-before-rca"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Re-read the authoritative branch head before RCA, before mutation, and after mutation; stale evidence cannot certify a newer SHA."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "6fc6336d2a24912d9677",
+      "fingerprint": "10k-supersession-is-evidence-invalidation",
+      "rootCause": "sha-control",
+      "rule": "supersession-invalidates-proof",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "supersession-invalidates-proof"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Tag superseded runs as historical-only and require fresh exact-head evidence."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "342fafab1b3fbc2e496d",
+      "fingerprint": "10k-first-causal-failure",
+      "rootCause": "orchestration",
+      "rule": "first-causal-before-downstream",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "first-causal-before-downstream"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Build a causal tree from the first failing step; later gates are hypotheses until upstream dependencies are cleared."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "0504015bcfb11dfc5495",
+      "fingerprint": "10k-merge-gate-is-downstream",
+      "rootCause": "orchestration",
+      "rule": "downstream-gate-not-root",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "downstream-gate-not-root"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Trace every gate failure to its upstream dependency and repair only the first causal owner."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "d150752b8afe5a726368",
+      "fingerprint": "10k-proof-gap-is-real-red",
+      "rootCause": "proof-coverage",
+      "rule": "sensitive-mutation-needs-proof",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "sensitive-mutation-needs-proof"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Bind every sensitive mutation to its canonical proof producer and reject mutation paths that lack evidence."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "364fab71132b38dcfc6e",
+      "fingerprint": "10k-external-503-is-not-internal",
+      "rootCause": "external-runtime",
+      "rule": "external-provider-separation",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "external-provider-separation"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Classify as BLOCKED_EXTERNAL, preserve the evidence, recheck provider state, and do not mutate unrelated internal code."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "e4a691e18bda17501026",
+      "fingerprint": "10k-stale-security-review-is-not-vuln",
+      "rootCause": "stale-review",
+      "rule": "stale-advisory-review",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "stale-advisory-review"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Separate advisory invalidation from security findings; do not create a security repair from a stale target."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "1981f0ca2b1c592e1b39",
+      "fingerprint": "10k-watchdog-cancel-semantics",
+      "rootCause": "liveness",
+      "rule": "cancellation-continuity-semantics",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "cancellation-continuity-semantics"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Record cancellation reason, replacement run/commit, exact SHA state, and wake obligation before deciding to re-dispatch."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "3f370dfc1da7f9f1d097",
+      "fingerprint": "10k-diagnostic-success-vs-execution-success",
+      "rootCause": "diagnostic-contract",
+      "rule": "reducer-health-separate-from-system-outcome",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "reducer-health-separate-from-system-outcome"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Never collapse diagnostic-contract PASS into system PASS; preserve both states in RCA."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "031cd4e8521aa9fbdf7a",
+      "fingerprint": "10k-shared-source-missing-is-ownership",
+      "rootCause": "contract-drift",
+      "rule": "shared-source-integrity",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "shared-source-integrity"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Trace provenance and ownership of the missing source, restore the contract or correct the consumer, then run targeted regression."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "a20312ca1f7ab1909e5c",
+      "fingerprint": "10k-cluster-symptoms-by-lineage",
+      "rootCause": "causal-clustering",
+      "rule": "fingerprint-lineage-clustering",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "fingerprint-lineage-clustering"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Treat run count as symptom volume, not root-cause count."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "8210f1ff01a740332b07",
+      "fingerprint": "10k-repair-only-root",
+      "rootCause": "repair-strategy",
+      "rule": "root-only-mutation",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "root-only-mutation"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Require a causal-source path from diagnosis to changed files and verify the downstream graph again after the root repair."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "79deaa8d930cb934ae51",
+      "fingerprint": "10k-targeted-before-full-regression",
+      "rootCause": "repair-strategy",
+      "rule": "targeted-regression-before-broad-ci",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "targeted-regression-before-broad-ci"
+          }
+        }
+      ],
+      "preventionRules": [
+        "A targeted pass is necessary evidence of local repair; broad CI then validates integration."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "ac31e68227c969865089",
+      "fingerprint": "10k-fresh-sha-after-mutation",
+      "rootCause": "verification",
+      "rule": "post-mutation-fresh-proof",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "post-mutation-fresh-proof"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Never promote historical evidence to current GREEN after a new commit."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "2908670e58c62d742522",
+      "fingerprint": "10k-identical-red-requires-new-hypothesis",
+      "rootCause": "repair-convergence",
+      "rule": "no-identical-recursion",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "no-identical-recursion"
+          }
+        }
+      ],
+      "preventionRules": [
+        "After recurrence, change the hypothesis, change the diagnostic probe, or escalate to the next authority level."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "130d432e8087692634bd",
+      "fingerprint": "10k-external-internal-separation-first",
+      "rootCause": "causal-classification",
+      "rule": "classify-before-mutate",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "classify-before-mutate"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Unknown classification remains fail-closed and requires more evidence; do not guess a root cause."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "f84417238b3aaa7346f0",
+      "fingerprint": "10k-historical-learning-is-advisory",
+      "rootCause": "learning-integrity",
+      "rule": "historical-learning-no-certification",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "historical-learning-no-certification"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Use historical lessons to rank hypotheses and prevent recurrence; require current exact-SHA evidence for closure."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "2dc82f33ca2c83b0fb01",
+      "fingerprint": "10k-cancelled-volume-must-not-inflate-red",
+      "rootCause": "metrics",
+      "rule": "separate-supersession-metrics",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "separate-supersession-metrics"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Maintain distinct counters for success, failure, superseded-cancelled, unexpected-cancelled, and skipped so RCA remains statistically meaningful."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "7efa5056af46ef3c047c",
+      "fingerprint": "10k-provider-failure-preserve-evidence",
+      "rootCause": "external-runtime",
+      "rule": "preserve-external-evidence",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "preserve-external-evidence"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Record provider failures as BLOCKED_EXTERNAL and schedule requalification; never conceal or relabel them as application defects."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "a4bbd1cba61e8de0e473",
+      "fingerprint": "10k-proof-chain-completeness",
+      "rootCause": "proof-coverage",
+      "rule": "proof-chain-must-cover-mutation",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "proof-chain-must-cover-mutation"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Close only when mutation provenance and verification provenance form one traceable chain on the exact SHA."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "2f89a9789f9105d4926e",
+      "fingerprint": "10k-zero-stall-operating-loop",
+      "rootCause": "repair-convergence",
+      "rule": "never-stall-on-ambiguous-red",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "never-stall-on-ambiguous-red"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Ambiguity changes the next diagnostic action; it does not justify endless waiting, blind mutation, or silent abandonment."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
     }
   ],
   "antiLessons": [
@@ -1266,7 +1966,7 @@
       "lastSeenAt": "2026-09-19T06:48:35.261Z"
     },
     {
-      "id": "83b077936ef0130cd635",
+      "id": "5051724dd38e6e26e3de",
       "fingerprint": "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
       "rootCause": "orchestration",
       "rule": "block-preflight-recursion",
@@ -1306,6 +2006,186 @@
         "A repeated preflight RED is evidence against the dispatcher state, not evidence for another identical repair attempt."
       ],
       "lastSeenAt": "2026-09-19T22:47:14Z"
+    },
+    {
+      "id": "8d639c8d61d5902318f9",
+      "fingerprint": "10k-anti-cancelled-as-bug",
+      "rootCause": "10k-retrospective",
+      "rule": "cancelled-run-classification",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "cancelled-run-classification"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Do not turn superseded cancellation into a product repair."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "64ca2ffcb428a57e3e32",
+      "fingerprint": "10k-anti-downstream-first",
+      "rootCause": "10k-retrospective",
+      "rule": "first-causal-before-downstream",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "first-causal-before-downstream"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Do not repair Merge Gate, Certification, or Watchdog before identifying the earliest causal RED."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "37b1395e32e08f02f03a",
+      "fingerprint": "10k-anti-external-mutation",
+      "rootCause": "10k-retrospective",
+      "rule": "external-provider-separation",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "external-provider-separation"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Do not change internal source code to fix a provider 503 without internal causal evidence."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "68b7e417718561e4039d",
+      "fingerprint": "10k-anti-stale-proof",
+      "rootCause": "10k-retrospective",
+      "rule": "supersession-invalidates-proof",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "supersession-invalidates-proof"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Do not reuse RED or GREEN evidence after the execution head moved."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "85708aff5f2449e987c2",
+      "fingerprint": "10k-anti-identical-recursion",
+      "rootCause": "10k-retrospective",
+      "rule": "no-identical-recursion",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "no-identical-recursion"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Do not repeat the same failed repair strategy on the same fingerprint without a new hypothesis or stronger evidence."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
+    },
+    {
+      "id": "7eebcc5ee6bcc5bd675c",
+      "fingerprint": "10k-anti-red-counting",
+      "rootCause": "10k-retrospective",
+      "rule": "separate-supersession-metrics",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 0,
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "verification": "retrospective-10k-synthesis",
+          "provenance": {
+            "source": "GitHub Actions 10,000-run RCA retrospective",
+            "windowStart": "2026-09-23T22:29:00Z",
+            "windowEnd": "2026-09-24T22:32:00Z",
+            "runCount": 10000,
+            "exactShaBound": false,
+            "evidenceMode": "historical-synthesis-only",
+            "rule": "separate-supersession-metrics"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Do not equate workflow failure count with root-cause count."
+      ],
+      "status": "PROVISIONAL_HISTORICAL_TEACHING",
+      "canonicalGreen": false,
+      "lastSeenAt": "2026-09-24T22:32:00Z"
     }
   ],
   "actionHistory": [

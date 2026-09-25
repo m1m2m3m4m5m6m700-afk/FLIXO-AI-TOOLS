@@ -56,6 +56,14 @@ if (!rootSource.includes("href: '/flixo-favicon.png'")) throw new Error('Root ro
 if (!localizedToolRouteSource.includes("path: '/$locale/$tool'")) throw new Error('Localized tool route is missing.');
 if (!localizedToolRouteSource.includes("rel: 'canonical'")) throw new Error('Localized tool canonical generation is missing.');
 if (!localizedToolRouteSource.includes("hrefLang: 'x-default'")) throw new Error('Localized tool x-default hreflang is missing.');
+for (const required of [
+  "{ property: 'og:image', content:",
+  "{ property: 'og:image:alt', content:",
+  "{ name: 'twitter:card', content: 'summary_large_image' }",
+  "{ name: 'twitter:image', content:",
+]) {
+  if (!localizedToolRouteSource.includes(required)) throw new Error(`Localized tool social metadata is missing: ${required}`);
+}
 const alternateCount = (toolSeoSource.match(/locale: alternateLocale/g) ?? []).length;
 if (alternateCount !== 1) throw new Error('Tool SEO must derive alternates from the canonical LOCALES registry exactly once.');
 if (!toolSeoSource.includes('LOCALES.map((alternateLocale)')) throw new Error('Tool SEO alternates must be generated from LOCALES.');

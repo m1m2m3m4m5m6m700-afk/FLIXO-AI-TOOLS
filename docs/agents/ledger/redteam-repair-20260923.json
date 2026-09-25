@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "authority": "AGENT_VISIBILITY_LEDGER",
+  "visibilityState": "CLOSED",
+  "taskId": "RECONCILED-redteam-repair-20260923",
+  "sessionId": "redteam-repair-20260923",
+  "agentId": "flixo-agent-gpt56-001",
+  "role": "assistantController",
+  "workPackageId": "WP-RECONCILED-redteam-repair-20260923",
+  "entrySha": "cd7ed88f5f123be13847b9ec788c784290e24384",
+  "exitSha": "cd7ed88f5f123be13847b9ec788c784290e24384",
+  "status": "BLOCKED",
+  "finalStatus": "BLOCKED",
+  "finalSummary": "Historical session reconciled as blocked because its source session record is stale and lacked a current exact-SHA closure proof.",
+  "visibilityStateReason": "STALE_HISTORICAL_SESSION_RECONCILED",
+  "reconciledFromStatus": "ACTIVE",
+  "reconciledAt": "2026-09-24",
+  "exactShaProofRequired": true,
+  "updatedAt": "2026-09-24T00:00:00Z"
+}

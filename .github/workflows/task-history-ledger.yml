@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: flixo-task-history-ledger-${{ github.ref }}
-  cancel-in-progress: false
+  group: flixo-task-history-ledger-${{ github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   task-history:

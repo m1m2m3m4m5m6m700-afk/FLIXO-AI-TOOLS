@@ -2,6 +2,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { buildFullIntelligenceBootstrap, assertFullIntelligenceBootstrap } from './full-intelligence-policy.mjs';
+
 const ROOT=process.cwd();
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):String(fallback)};
 const mode=arg('mode','worker');
@@ -26,6 +28,8 @@ if(mode==='worker'){
  const worker=council.workers.find(w=>w.id===workerId);
  if(!worker) throw new Error('ACTION_COUNCIL_WORKER_INVALID');
  const specialization=worker.specialization;
+ const fullIntelligence=buildFullIntelligenceBootstrap({agentId:workerId,role:'ACTION_COUNCIL_WORKER',request:specialization,exactSha:targetSha,taskId:`${runId}:${workerId}`});
+ assertFullIntelligenceBootstrap(fullIntelligence,workerId);
  const corpus=memory.valuableKnowledge??{};
  const rules=Array.isArray(corpus.provenRules)?corpus.provenRules:[];
  const anti=Array.isArray(corpus.antiLessons)?corpus.antiLessons:[];
@@ -33,7 +37,7 @@ if(mode==='worker'){
  const candidateRule=rules[Math.abs(worker.index-1)%Math.max(1,rules.length)] || null;
  const strategyId=candidateRule?'ACTION-'+candidateRule:'ACTION-REPAIR-NEEDS-FRESH-HYPOTHESIS';
  const blocked=anti.some(a=>String(a).toLowerCase().includes('external provider')) && specialization==='EXTERNAL_PROVIDER';
- const result={schemaVersion:1,botId:workerId,kind:'ACTION_REPAIR_COUNCIL_WORKER',specialization,sourceKnowledgeBot:'ACTION-REPAIR',knowledgeSnapshotVersion:memory.schemaVersion,targetSha,runId,fingerprint,mutationAuthority:false,repositoryWrite:false,actionsWrite:false,evidence:{memorySources:Object.keys(memory.headquarters??{}),provenRuleCount:rules.length,antiLessonCount:anti.length,currentSignal:sourceSignal},proposal:{disposition:blocked?'REJECT':'CANDIDATE',strategyId,rule:candidateRule,exactTargetSha:targetSha,testMutation:false,needsCurrentReproduction:true,needsCanonicalGreen:true,rationale:'candidate derived from ACTION-REPAIR knowledge snapshot; specialization='+specialization,antiLessonConflict:blocked}};
+ const result={schemaVersion:1,botId:workerId,kind:'ACTION_REPAIR_COUNCIL_WORKER',fullIntelligence,specialization,sourceKnowledgeBot:'ACTION-REPAIR',knowledgeSnapshotVersion:memory.schemaVersion,targetSha,runId,fingerprint,mutationAuthority:false,repositoryWrite:false,actionsWrite:false,evidence:{memorySources:Object.keys(memory.headquarters??{}),provenRuleCount:rules.length,antiLessonCount:anti.length,currentSignal:sourceSignal},proposal:{disposition:blocked?'REJECT':'CANDIDATE',strategyId,rule:candidateRule,exactTargetSha:targetSha,testMutation:false,needsCurrentReproduction:true,needsCanonicalGreen:true,rationale:'candidate derived from ACTION-REPAIR knowledge snapshot; specialization='+specialization,antiLessonConflict:blocked}};
  fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n');
  console.log(JSON.stringify({status:'PASS',botId:workerId,specialization,strategyId,output},null,2));process.exit(0);
 }
@@ -47,7 +51,9 @@ if(mode==='arbiter'){
  const ranked=[...counts.values()].sort((a,b)=>b.count-a.count||a.strategyId.localeCompare(b.strategyId));
  const winner=ranked[0]??null;
  const disposition=winner&&winner.count>=3&&winner.safe?'ACCEPT':'REJECT';
- const result={schemaVersion:1,botId:'ACTION-ARBITER',kind:'FINAL_REPAIR_PROPOSAL_ARBITER',targetSha,runId,fingerprint,workerCount:20,receivedCount:results.length,mutationAuthority:false,executionAuthority:'ACCEPT_OR_REJECT_PROPOSAL_ONLY',acceptanceRequires:{minimumIndependentConsensus:3,exactTargetSha:true,noTestMutation:true,noAntiLessonConflict:true,currentReproduction:true,canonicalGreen:true},decision:{disposition,acceptedStrategyId:disposition==='ACCEPT'?winner.strategyId:null,consensusCount:winner?.count??0,consensusWorkers:winner?.workers??[],ranked},note:'ACCEPT authorizes consideration by ACTION-REPAIR only; it does not assert source mutation success or Canonical GREEN.'};
+ const fullIntelligence=buildFullIntelligenceBootstrap({agentId:'ACTION-ARBITER',role:'ACTION_ARBITER',request:'arbitrate repair proposals',exactSha:targetSha,taskId:`${runId}:ACTION-ARBITER`});
+ assertFullIntelligenceBootstrap(fullIntelligence,'ACTION-ARBITER');
+ const result={schemaVersion:1,botId:'ACTION-ARBITER',kind:'FINAL_REPAIR_PROPOSAL_ARBITER',fullIntelligence,targetSha,runId,fingerprint,workerCount:20,receivedCount:results.length,mutationAuthority:false,executionAuthority:'ACCEPT_OR_REJECT_PROPOSAL_ONLY',acceptanceRequires:{minimumIndependentConsensus:3,exactTargetSha:true,noTestMutation:true,noAntiLessonConflict:true,currentReproduction:true,canonicalGreen:true},decision:{disposition,acceptedStrategyId:disposition==='ACCEPT'?winner.strategyId:null,consensusCount:winner?.count??0,consensusWorkers:winner?.workers??[],ranked},note:'ACCEPT authorizes consideration by ACTION-REPAIR only; it does not assert source mutation success or Canonical GREEN.'};
  fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n');
  console.log(JSON.stringify({status:'PASS',botId:'ACTION-ARBITER',disposition,acceptedStrategyId:result.decision.acceptedStrategyId,consensusCount:result.decision.consensusCount,output},null,2));process.exit(disposition==='ACCEPT'?0:2);
 }

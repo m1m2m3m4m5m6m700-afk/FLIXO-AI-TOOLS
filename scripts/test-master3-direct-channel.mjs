@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const fn=fs.readFileSync('supabase/functions/flixo-council-runtime/index.ts','utf8');
 const claim=fs.readFileSync('supabase/migrations/20260922142000_master3_assistant_channel_claim_rpc.sql','utf8');
 const dispatch=fs.readFileSync('supabase/migrations/20260922142500_master3_assistant_wake_dispatch_rpc.sql','utf8');
-const delivery=fs.readFileSync('supabase/migrations/20260922141500_master3_assistant_wake_autodelivery.sql','utf8');
+const delivery=fs.readFileSync('supabase/migrations/20260924024500_master3_assistant_wake_post_transport.sql','utf8');
 
 assert.match(fn,/action === "assistant-channel"/);
 assert.match(fn,/tokenHash/);
@@ -28,7 +28,10 @@ assert.match(dispatch,/insert into public\.flix_council_events/is);
 assert.match(dispatch,/grant execute .*service_role/is);
 
 assert.match(delivery,/flixo_council_assistant_wake_notify/i);
-assert.match(delivery,/net\.http_get/i);
+assert.match(delivery,/net\.http_post/i);
+assert.match(delivery,/params := jsonb_build_object\(\s*'action',\s*'assistant-channel'/is);
+assert.match(delivery,/body := jsonb_build_object\(/is);
+assert.doesNotMatch(delivery,/net\.http_get/i);
 assert.doesNotMatch(delivery,/cron\.schedule|cron\.job/i);
 
 console.log('MASTER3_DIRECT_CHANNEL_CONTRACT=PASS');

@@ -8,6 +8,7 @@ on:
       - FLIXO Test Impact
       - FLIXO Test Impact Execution
       - FLIXO Auto Repair Bot
+      - FLIXO Agent Repair Heartbeat
       - Repository Security Baseline
       - Claude Security Review
     types: [completed]
@@ -28,10 +29,9 @@ permissions:
   contents: read
 
 concurrency:
-  # One observer lane only. Every wake is read-only and re-evaluates the current execution SHA,
-  # so cancelling an older observer cannot lose repair authority; it removes duplicate wake pressure.
-  group: flixo-execution-watchdog-single-observer
-  cancel-in-progress: true
+  # Each observer preserves its own immutable event evidence; it never self-cancels another observer.
+  group: flixo-execution-watchdog-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   wake:
@@ -66,6 +66,12 @@ jobs:
           test "$ACTUAL_WATCHDOG_SHA" = "$TRUSTED_MAIN_SHA"
           echo "WATCHDOG_CHECKOUT_MODE=TRUSTED_MAIN"
           echo "WATCHDOG_TRUSTED_SOURCE_SHA=$TRUSTED_MAIN_SHA"
+      - name: Cancel stale workflow_run source
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/ci/assert-workflow-run-current.mjs
+
       - name: Capture exact execution state
         id: source
         env:
@@ -86,15 +92,21 @@ jobs:
             [[ "$SOURCE_RUN_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
             EXECUTION_SHA="$SOURCE_RUN_SHA"
           else
-            EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+            EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
           fi
           test -n "$EXECUTION_SHA"
           echo "execution_sha=$EXECUTION_SHA" >> "$GITHUB_OUTPUT"
           echo "event_sha=$EVENT_SHA" >> "$GITHUB_OUTPUT"
           echo "event_branch=$EVENT_BRANCH" >> "$GITHUB_OUTPUT"
           if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
+            SOURCE_WORKFLOW="${{ github.event.workflow_run.name || '' }}"
+            SOURCE_PATH="${{ github.event.workflow_run.path || '' }}"
+            case "$SOURCE_WORKFLOW:$SOURCE_PATH" in
+              "FLIXO Test System:.github/workflows/ci.yml"|"FLIXO WP0 Trust Baseline:.github/workflows/wp0-trust-baseline.yml"|"FLIXO Test Impact:.github/workflows/test-impact.yml"|"FLIXO Test Impact Execution:.github/workflows/test-impact-execution.yml"|"FLIXO Auto Repair Bot:.github/workflows/auto-repair.yml"|"FLIXO Agent Repair Heartbeat:.github/workflows/agent-repair-heartbeat.yml"|"Repository Security Baseline:.github/workflows/repository-security-baseline.yml"|"Claude Security Review:.github/workflows/claude-security-review.yml") ;;
+              *) echo "FAIL CLOSED: watchdog source workflow/path is outside the canonical observer perimeter: $SOURCE_WORKFLOW path=$SOURCE_PATH"; exit 1 ;;
+            esac
             test -n "$SOURCE_RUN_SHA"
-            LIVE_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+            LIVE_EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
             test -n "$LIVE_EXECUTION_SHA"
             printf 'LIVE_EXECUTION_SHA=%s\nSOURCE_RUN_SHA=%s\n' "$LIVE_EXECUTION_SHA" "$SOURCE_RUN_SHA"
             if [ "$LIVE_EXECUTION_SHA" != "$SOURCE_RUN_SHA" ]; then
@@ -111,6 +123,54 @@ jobs:
               echo "stale=false" >> "$GITHUB_OUTPUT"
             fi
           fi
+      - name: Independently verify resident handoff proof
+        if: >-
+          github.event_name == 'workflow_run' &&
+          github.event.workflow_run.name == 'FLIXO Agent Repair Heartbeat' &&
+          steps.source.outputs.stale != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id || '' }}
+          EXPECTED_SHA: ${{ steps.source.outputs.execution_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SOURCE_RUN_ID"
+          test -n "$EXPECTED_SHA"
+          ARTIFACT_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false and (.name | startswith("flixo-heartbeat-compliance-")))] | sort_by(.created_at) | last.id // empty')"
+          test -n "$ARTIFACT_ID" || {
+            echo "FAIL CLOSED: resident heartbeat proof artifact missing for run=$SOURCE_RUN_ID sha=$EXPECTED_SHA"
+            exit 1
+          }
+          rm -rf /tmp/flixo-resident-proof
+          mkdir -p /tmp/flixo-resident-proof
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > /tmp/flixo-resident-proof/artifact.zip
+          unzip -o /tmp/flixo-resident-proof/artifact.zip -d /tmp/flixo-resident-proof/unpacked >/dev/null
+          BATON_FILE="$(find /tmp/flixo-resident-proof/unpacked -type f -name 'resident-baton-*.json' | sort -V | tail -n 1)"
+          test -n "$BATON_FILE"
+          TICK="$(basename "$BATON_FILE" | sed -E 's/.*-([0-9]+)\.json$/\1/')"
+          ACK_FILE="$(find /tmp/flixo-resident-proof/unpacked -type f -name "resident-ack-$TICK.json" | head -n 1)"
+          PROOF_FILE="$(find /tmp/flixo-resident-proof/unpacked -type f -name "resident-proof-$TICK.json" | head -n 1)"
+          test -f "$ACK_FILE"
+          test -f "$PROOF_FILE"
+          BATON_SHA="$(jq -r '.targetSha' "$BATON_FILE")"
+          ACK_SHA="$(jq -r '.targetSha' "$ACK_FILE")"
+          PROOF_SHA="$(jq -r '.targetSha' "$PROOF_FILE")"
+          test "$BATON_SHA" = "$EXPECTED_SHA"
+          test "$ACK_SHA" = "$EXPECTED_SHA"
+          test "$PROOF_SHA" = "$EXPECTED_SHA"
+          ACK_AT="$(jq -r '.ackAt' "$ACK_FILE")"
+          node scripts/ci/resident-wake-proof.mjs verify \
+            --baton="$BATON_FILE" \
+            --ack="$ACK_FILE" \
+            --observer=FLIXO_EXECUTION_WATCHDOG \
+            --now="$ACK_AT" \
+            --output="$PROOF_FILE"
+          jq -e --arg sha "$EXPECTED_SHA" '.protocol=="FLIXO-RESIDENT-HANDOFF-PROOF-v1" and .status=="PASS" and .independentObserver==true and .targetSha==$sha and .readyBeforeRelease==true and .releaseAllowed==true and .liveHeartbeatStillRequired==true and .minimumResidentFloor==1' "$PROOF_FILE" >/dev/null
+          echo "RESIDENT_HANDOFF_PROOF=PASS"
+          echo "RESIDENT_HANDOFF_PROOF_SHA=$EXPECTED_SHA"
+          echo "RESIDENT_HANDOFF_PROOF_RUN_ID=$SOURCE_RUN_ID"
       - name: Dispatch canonical Green Gate on the first RED signal
         if: >-
           github.event_name == 'workflow_run' &&
@@ -165,7 +225,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
           LATEST="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXECUTION_SHA&per_page=100")"
           ACTIVE="$(printf '%s' "$LATEST" | jq -r '[.workflow_runs[] | select(.path == ".github/workflows/daily-flixo-green-gate.yml" and .head_sha == $ENV_SHA and (.status == "queued" or .status == "in_progress"))] | length' --arg ENV_SHA "$EXECUTION_SHA")"
           GREEN="$(printf '%s' "$LATEST" | jq -r '[.workflow_runs[] | select(.path == ".github/workflows/daily-flixo-green-gate.yml" and .head_sha == $ENV_SHA and .status == "completed" and .conclusion == "success")] | length' --arg ENV_SHA "$EXECUTION_SHA")"
@@ -210,6 +270,29 @@ jobs:
           }
           echo "WATCHDOG_EXPECTED_TEST_SHA=$EXECUTION_SHA"
           echo "WATCHDOG_CANONICAL_TEST_SYSTEM_RUNS=$RUN_COUNT"
+      - name: Ensure resident Heartbeat window exists
+        id: resident_heartbeat
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
+          [[ "$EXECUTION_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
+          ACTIVE_HEARTBEATS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch execution --limit 50 --json status,headSha --jq '[.[] | select((.status == "queued" or .status == "in_progress") and .headSha == "'"$EXECUTION_SHA"'")] | length')"
+          echo "WATCHDOG_RESIDENT_HEARTBEAT_TARGET_SHA=$EXECUTION_SHA"
+          echo "WATCHDOG_ACTIVE_RESIDENT_HEARTBEATS=$ACTIVE_HEARTBEATS"
+          if [ "$ACTIVE_HEARTBEATS" -gt 0 ]; then
+            echo 'RESIDENT_HEARTBEAT_DISPATCH=NOOP_ACTIVE'
+            echo 'RESIDENT_HEARTBEAT_DISPATCH_VERIFIED=true'
+            exit 0
+          fi
+          gh api --method POST \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/agent-repair-heartbeat.yml/dispatches" \
+            -f ref=execution
+          echo 'RESIDENT_HEARTBEAT_DISPATCH=WORKFLOW_DISPATCH'
+          echo 'RESIDENT_HEARTBEAT_DISPATCH_VERIFIED=true'
       - name: Validate mission continuity contract
         if: steps.source.outputs.stale != 'true'
         shell: bash
@@ -410,7 +493,7 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             CURRENT_EXECUTION_SHA="$GITHUB_SHA"
           else
-            CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+            CURRENT_EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
           fi
           SOURCE_RUN_ID="$EVENT_SOURCE_RUN_ID"
           SOURCE_RUN_SHA="$EVENT_SOURCE_RUN_SHA"

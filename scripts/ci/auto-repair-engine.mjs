@@ -27,6 +27,7 @@ import { buildRcaManifest, validateRcaManifest, enforceMutationScope } from './i
 import { buildFiveXExecutionEnvelope } from './read-only-power-profile.mjs';
 import { buildFiveXRepairCycleState } from './read-only-power-profile.mjs';
 import { buildSharedLearningContext } from './shared-operational-memory.mjs';
+import { buildCausalQuery, retrieveCausalLearning } from './prompt-registry.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
@@ -171,6 +172,32 @@ const trustedLessons = lessons.filter((item) => !item.anti && item.confidence >=
 const blockedLessons = lessons.filter((item) => item.anti && item.confidence >= 0.5);
 const revertedRuleIds = new Set(known?.revertedRules ?? []);
 const diagnosis = fs.existsSync(diagnosisPath) ? JSON.parse(fs.readFileSync(diagnosisPath, 'utf8')) : null;
+const causalQuery = buildCausalQuery({
+  failureFingerprint: fingerprint,
+  rootCause: diagnosis?.rootCause ?? '',
+  failureClass: features?.failureClass ?? diagnosis?.failureClass ?? '',
+  workflow: features?.workflow ?? process.env.GITHUB_WORKFLOW ?? '',
+  workflowRole: features?.workflowRole ?? '',
+  firstFailingStep: features?.firstFailingStep ?? diagnosis?.firstFailingStep ?? process.env.FLIXO_FIRST_FAILING_STEP ?? '',
+  cancellationReason: features?.cancellationReason ?? process.env.FLIXO_CANCELLATION_REASON ?? '',
+  providerSignature: features?.providerSignature ?? diagnosis?.providerSignature ?? process.env.FLIXO_PROVIDER_SIGNATURE ?? '',
+  shaState: features?.shaState ?? process.env.FLIXO_SHA_STATE ?? '',
+  currentSha: targetSha,
+  evidenceSha: process.env.EXPECTED_SHA ?? process.env.FLIXO_FAILURE_SHA ?? '',
+  normalizedFailure,
+  strategyId: process.env.FLIXO_REPAIR_STRATEGY_ID ?? '',
+  repeatedStrategy: Boolean(known?.revertedRules?.length && process.env.FLIXO_REPAIR_STRATEGY_ID),
+  executionOutcome: diagnosis?.executionOutcome ?? '',
+  diagnosticContract: diagnosis?.diagnosticContract ?? '',
+  features,
+});
+const causalLearning = retrieveCausalLearning({
+  memory,
+  query: causalQuery,
+  sharedLearning,
+  limit: 64,
+});
+const causalDecision = causalLearning.decision;
 const historicalRollbackCandidate = findHistoricalRepairCandidate(targetDir, {
   fingerprint,
   currentSha: targetSha,
@@ -187,6 +214,10 @@ if ((known?.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint) {
 if (repairPolicy.requireCleanGitBeforeRepair && git(['status', '--porcelain']).trim()) throw new Error('AUTO_REPAIR_DIRTY_WORKTREE');
 
 const historicalReasoningSupport = [
+  ...causalLearning.lessons.map(item => ({
+    rootCause: item.rootCause ?? causalDecision.classification.toLowerCase(),
+    confidence: item.canonicalGreen ? 0.9 : Math.min(0.9, 0.55 + Math.max(0, Number(item.retrievalScore ?? 0)) / 1200),
+  })),
   ...sharedLearning.lessons.map(item => ({ rootCause: item.rootCause ?? 'shared-memory', confidence: item.status === 'VERIFIED' || item.status === 'PROMOTED' ? 0.9 : 0.6 })),
   ...memory.cases.map(({ rootCause, successes, attempts }) => ({ rootCause, confidence: attempts ? successes / attempts : 0 })),
   ...memory.lessons.map(({ rootCause, confidence }) => ({ rootCause, confidence })),
@@ -195,12 +226,15 @@ const reusableKnowledge = deriveReusableKnowledge(memory, { rootCause: diagnosis
 const plan = planRepair(log, { historical: historicalReasoningSupport, memory });
 const specialist = selectSpecialist(plan.features);
 let selected = plan.selected;
+const causalRepairAllowed = causalDecision.nextAction === 'REPAIR' && causalDecision.mutationEligible === true;
+if (!causalRepairAllowed) selected = null;
 if (repairActor === 'assistantRepairAgent') {
   const approvedRule = fallbackProof?.approvedLearnedRule;
   const approvedCandidate = plan.candidates.find((candidate) => candidate.id === approvedRule && candidate.mutate && Number(candidate.confidence ?? 0) >= 90);
   if (!approvedCandidate) throw new Error('ASSISTANT_FALLBACK_LEARNED_RULE_NOT_REUSABLE_ON_CURRENT_SHA');
   selected = approvedCandidate;
 }
+if (!causalRepairAllowed) selected = null;
 const historicalRules = [
   ...(reusableKnowledge.generalizedRules ?? []).map((item) => item.rule).filter(Boolean),
 ];
@@ -238,6 +272,29 @@ const evidence = {
     mode: process.env.FLIXO_TRUSTED_REPAIR_MEMORY ? 'canonical-main-snapshot' : 'local-output-memory',
     sourceSha: process.env.FLIXO_TRUSTED_MEMORY_SHA ?? null,
   },
+  causalRCA: {
+    decision: causalDecision,
+    query: causalLearning.query,
+    zeroStall: causalLearning.zeroStall,
+    topLessons: causalLearning.lessons.slice(0, 8).map(item => ({
+      id: item.id,
+      rule: item.rule ?? null,
+      rootCause: item.rootCause ?? null,
+      retrievalScore: item.retrievalScore ?? 0,
+      source: item.source,
+      historicalOnly: item.historicalOnly,
+      causalBehavior: item.causalBehavior ?? null,
+    })),
+    topAntiLessons: causalLearning.antiLessons.slice(0, 8).map(item => ({
+      id: item.id,
+      rule: item.rule ?? null,
+      rootCause: item.rootCause ?? null,
+      retrievalScore: item.retrievalScore ?? 0,
+      source: item.source,
+      historicalOnly: item.historicalOnly,
+      causalBehavior: item.causalBehavior ?? null,
+    })),
+  },
   learning: {
     memoryVersion: memory.version,
     sharedOperationalMemory: sharedLearning,
@@ -245,7 +302,8 @@ const evidence = {
     similarCases: similar.map(({ case: item, score }) => ({ fingerprint: item.fingerprint, score, rules: item.rules ?? [] })),
     trustedLessons: trustedLessons.map(({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence }) => ({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence })),
     blockedLessons: blockedLessons.map(({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence }) => ({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence })),
-    decision: selected?.id ? 'historical-learning-assisted' : 'no-trusted-learned-repair',
+    decision: selected?.id ? 'causal-learning-assisted' : (causalRepairAllowed ? 'no-trusted-learned-repair' : `causal-routing-${causalDecision.nextAction.toLowerCase()}`),
+    causalClassification: causalDecision.classification,
     durableNoRepeat: { enabled: true, chainId: repairChainId || null, caseFingerprint: stableCaseFingerprint, rejectedSelection: durableLedgerRejected, rejectedReasons: rejectionReasons(attemptLedger, { chainId: repairChainId, caseFingerprint: stableCaseFingerprint, strategyId: process.env.FLIXO_REPAIR_STRATEGY_ID ?? null, ruleId: plan.selected?.id ?? null }).slice(-20) },
   },
   outcome: 'diagnostic-only',
@@ -373,10 +431,13 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
   const before = snapshot(targetDir);
   const plannedChangedPaths = preMutationProof.sandboxSimulation?.changedFiles ?? [];
   const candidateDiff = preMutationProof.sandboxSimulation?.candidateDiff ?? '';
+  const isTestPath = (file) =>
+    /(^|\/)(?:tests?|__tests__)\//u.test(String(file)) ||
+    /^scripts\/ci\/test-[^/]+\.(?:mjs|cjs|js|ts|tsx)$/u.test(String(file));
   const mutationScope = {
     changedPaths: plannedChangedPaths,
     selectedFiles: fileSelection?.selectedFiles?.map((item) => item.path).filter(Boolean) ?? [],
-    testMutation: plannedChangedPaths.some((file) => /(^|\/)(?:tests?|__tests__)\//u.test(file)),
+    testMutation: plannedChangedPaths.some(isTestPath),
     controlPlaneMutation: plannedChangedPaths.some((file) => /^scripts\/ci\/|^\\.github\/workflows\//u.test(file)),
     mainMutation: false,
     gateWeakening: /continue-on-error|test\\.(?:skip|only)|describe\\.(?:skip|only)|eslint-disable|@ts-(?:ignore|nocheck)/iu.test(candidateDiff),

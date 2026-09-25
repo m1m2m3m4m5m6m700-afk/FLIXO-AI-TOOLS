@@ -10,6 +10,13 @@ const routes = [...new Set([...sitemap.matchAll(/<url>\s*<loc>([^<]+)<\/loc>[\s\
 const localeCodes = LOCALES;
 const languageTags = Object.fromEntries(LOCALES.map((locale) => [locale, LOCALE_METADATA[locale].languageTag])) as Record<(typeof localeCodes)[number], string>;
 const sharedTerms = new Set(['FLIXO', 'QuickFlow', 'OCR', 'PDF', 'English', 'العربية', 'Smart Intent', 'Ctrl K', 'WebP', 'PNG', 'JPEG', 'GIF', 'SVG', 'CSV', 'JSON', 'ZIP', 'MP3', 'MP4', 'Whisper', 'WebGPU', 'WASM', 'Photo', 'Zoom', 'Mono', 'Retro']);
+
+const getImageAccessibilityIssues = (
+  img: Pick<HTMLImageElement, 'getAttribute' | 'hasAttribute'>,
+): string[] => {
+  if (img.getAttribute('role') === 'presentation') return [];
+  return img.hasAttribute('alt') ? [] : ['visible image missing alt'];
+};
 const sharedPhrases = new Set(['FLIXO AI Tools', 'FLIXO home']);
 
 const technicalCapabilityPhrase = /^(?:WebGPU|WASM|CPU)(?:\s+(?:WebGPU|WASM|CPU))*$/u;
@@ -36,7 +43,7 @@ const isExpectedNavigationAbort = (request: { url(): string; failure(): { errorT
   if (failure?.errorText === 'NS_BINDING_ABORTED') {
     try {
       const url = new URL(request.url());
-      if (url.origin === 'http://127.0.0.1:3000' && (url.pathname === '/flixo-favicon.png' || url.pathname === '/flixo-logo.webp' || url.pathname.startsWith('/assets/'))) return true;
+      if (url.origin === 'http://127.0.0.1:3000' && (url.pathname === '/flixo-favicon.png' || url.pathname === '/flixo-logo.webp' || url.pathname === '/flixo-brand-mark.webp' || url.pathname.startsWith('/assets/'))) return true;
     } catch {
       return false;
     }
@@ -45,7 +52,7 @@ const isExpectedNavigationAbort = (request: { url(): string; failure(): { errorT
   if (failure?.errorText === 'Load request cancelled') {
     try {
       const url = new URL(request.url());
-      if (url.origin === 'http://127.0.0.1:3000' && (url.pathname === '/flixo-favicon.png' || url.pathname.startsWith('/assets/'))) return true;
+      if (url.origin === 'http://127.0.0.1:3000' && (url.pathname === '/flixo-favicon.png' || url.pathname === '/flixo-brand-mark.webp' || url.pathname.startsWith('/assets/'))) return true;
     } catch {
       return false;
     }
@@ -166,6 +173,18 @@ async function serializeConsoleError(message: ConsoleMessageLike): Promise<strin
 test.describe.configure({ mode: 'parallel' });
 test.setTimeout(60_000);
 
+test('G4 image accessibility predicate contract — empty alt is decorative, missing alt is not', () => {
+  const fakeImage = (attributes: Record<string, string>): Pick<HTMLImageElement, 'getAttribute' | 'hasAttribute'> => ({
+    getAttribute: (name) => Object.prototype.hasOwnProperty.call(attributes, name) ? attributes[name] : null,
+    hasAttribute: (name) => Object.prototype.hasOwnProperty.call(attributes, name),
+  });
+
+  expect(getImageAccessibilityIssues(fakeImage({ alt: '' }))).toEqual([]);
+  expect(getImageAccessibilityIssues(fakeImage({ alt: 'FLIXO' }))).toEqual([]);
+  expect(getImageAccessibilityIssues(fakeImage({ role: 'presentation' }))).toEqual([]);
+  expect(getImageAccessibilityIssues(fakeImage({}))).toEqual(['visible image missing alt']);
+});
+
 for (const pathname of routes) {
   test(`G4 official all-public-route localization/SEO contract — ${pathname}`, async ({ page }, testInfo) => {
     const runtimeErrors: string[] = [];
@@ -284,7 +303,10 @@ for (const pathname of routes) {
       expect(leakedEnglish, `${pathname} exact English UI fallback(s): ${leakedEnglish.slice(0, 10).join(' | ')}`).toEqual([]);
 
       const expectedToolName = tool ? getAuthoritativeToolSeoName(tool, localeCode) : undefined;
-      if (expectedToolName) expect(current.h1, `${pathname} must expose the authoritative localized tool name`).toContain(expectedToolName);
+      if (tool?.isReady) {
+        expect(expectedToolName, `${pathname} must have an authoritative localized SEO name for ${localeCode}`).toBeTruthy();
+        if (expectedToolName) expect(current.h1, `${pathname} must expose the authoritative localized tool name`).toContain(expectedToolName);
+      }
     }
 
     const a11yIssues = await page.locator('button,a,input,textarea,select,img').evaluateAll((nodes) => {
@@ -303,7 +325,7 @@ for (const pathname of routes) {
         if (node.tagName === 'IMG') {
           const img = node as HTMLImageElement;
           if (img.getAttribute('role') === 'presentation') return [];
-          return img.alt.trim() ? [] : ['visible image missing alt'];
+          return img.hasAttribute('alt') ? [] : ['visible image missing alt'];
         }
         const input = node as HTMLInputElement;
         const explicitLabel = input.id ? document.querySelector(`label[for="${CSS.escape(input.id)}"]`)?.textContent ?? '' : '';

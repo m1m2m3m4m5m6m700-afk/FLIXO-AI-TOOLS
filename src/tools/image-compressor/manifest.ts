@@ -10,12 +10,14 @@ import { it } from './seo/it';
 import { ja } from './seo/ja';
 import { ko } from './seo/ko';
 import { nl } from './seo/nl';
+import { ms } from './seo/ms';
 import { pl } from './seo/pl';
 import { pt } from './seo/pt';
 import { ru } from './seo/ru';
 import { sv } from './seo/sv';
 import { th } from './seo/th';
 import { tr } from './seo/tr';
+import { uk } from './seo/uk';
 import { ur } from './seo/ur';
 import { vi } from './seo/vi';
 import { zh } from './seo/zh';
@@ -26,5 +28,5 @@ export const IMAGE_COMPRESSOR_MANIFEST: ToolManifest = Object.freeze({
   status: 'ready',
   seoStatus: 'pilot',
   capabilities: ['client-side', 'batch', 'resize', 'target-size', 'webp', 'jpg', 'png'] as const,
-  seoLocales: Object.freeze({ en, ar, es, fr, de, ru, zh, hi, id, ur, ja, pt, it, ko, nl, pl, tr, vi, th, sv }),
+  seoLocales: Object.freeze({ en, ar, es, fr, de, ru, zh, hi, id, ur, ja, pt, it, ko, nl, ms, pl, tr, vi, uk, th, sv }),
 });

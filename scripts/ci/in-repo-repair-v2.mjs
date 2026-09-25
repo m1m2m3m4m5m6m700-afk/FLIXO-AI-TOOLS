@@ -187,7 +187,9 @@ export function buildRcaManifest(input) {
   const hypotheses = buildMinimumHypotheses(diagnosis, plan, policy.minimumHypotheses);
   if (policy.requireThreeHypotheses && hypotheses.length < policy.minimumHypotheses) fail('MINIMUM_HYPOTHESES_REQUIRED');
 
-  const guidancePath = String(input.convergenceGuidancePath ?? process.env.FLIXO_CONVERGENCE_GUIDANCE_PATH ?? '');
+  const guidancePath = input.convergenceGuidancePath !== undefined
+    ? String(input.convergenceGuidancePath ?? '')
+    : String(process.env.FLIXO_CONVERGENCE_GUIDANCE_PATH ?? '');
   const prior = cycle > 1 ? readJson(guidancePath) : null;
   if (cycle > 1 && !prior) fail('PRIOR_COUNTEREXAMPLE_REQUIRED', { cycle, guidancePath });
   const priorDirective = prior?.convergenceDirective ?? prior?.convergence_directive ?? null;

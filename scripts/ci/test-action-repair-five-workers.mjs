@@ -5,21 +5,33 @@ import {execFileSync} from 'node:child_process';
 
 const registry=JSON.parse(fs.readFileSync('docs/agents/ACTION-REPAIR-SQUAD-REGISTRY.json','utf8'));
 assert.equal(registry.separation.separateFromCell,true);
-assert.equal(registry.separation.cellBotCount,200);
+assert.equal(registry.separation.cellBotCount,0);
 assert.equal(registry.separation.includedInCellCount,false);
-assert.deepEqual(registry.workers.filter(x=>x.id!=='ACTION-HISTORIAN-3').map(x=>x.id),['ACTION-TWIN-1','ACTION-TWIN-2','ACTION-INDEX','ACTION-WISE','ACTION-WAKE']);
+assert.deepEqual(registry.workers.filter(x=>x.kind==='ACTION_REPAIR_BOT'&&x.status==='READY').map(x=>x.id),['ACTION-TWIN-1','ACTION-TWIN-2','ACTION-INDEX','ACTION-WISE','ACTION-RCA-3','ACTION-IMPACT-4','ACTION-SECURITY-5','ACTION-REGRESSION-6','ACTION-SHA-7','ACTION-CONVERGENCE-8']);
 assert.equal(registry.workers.filter(x=>x.id==='ACTION-HISTORIAN-3').length,1);
 assert.equal(registry.repairExecutor.id,'ACTION-REPAIR');
 assert.equal(registry.repairExecutor.protocolActor,'actionRepairBot');
 assert.equal(registry.repairExecutor.mutationAuthority,true);
 assert.equal(registry.repairExecutor.executionAuthority,'SOURCE_MUTATION_VIA_REPAIR_PROTOCOL');
 assert.equal(registry.repairExecutor.maxAttemptsPerFingerprint,1000000);
+assert.equal(registry.lastSeatChallenge.certifier,'ACTION-CONVERGENCE-8');
+assert.equal(registry.lastSeatChallenge.adversary,'ACTION-SHA-7');
+assert.equal(registry.lastSeatChallenge.counterexampleBlocksCertification,true);
+assert.equal(registry.workers.find(x=>x.id==='ACTION-SHA-7').role,'ACTION_CERTIFIER_ADVERSARY');
+assert.equal(registry.workers.find(x=>x.id==='ACTION-CONVERGENCE-8').role,'ACTION_FINAL_CERTIFIER');
+assert.equal(registry.workers.find(x=>x.id==='ACTION-SHA-7').peerOf,'ACTION-CONVERGENCE-8');
+assert.equal(registry.workers.find(x=>x.id==='ACTION-CONVERGENCE-8').adversarialPeer,'ACTION-SHA-7');
 const expected={
  'ACTION-TWIN-1':'ACTION_REPAIR_TWIN_A',
  'ACTION-TWIN-2':'ACTION_REPAIR_TWIN_B',
  'ACTION-INDEX':'ACTION_SOLUTION_INDEXER_SUPPORT',
  'ACTION-WISE':'ACTION_BEST_OPTION_SELECTOR',
- 'ACTION-WAKE':'ACTION_SYSTEM_WAKE_COORDINATOR'
+ 'ACTION-RCA-3':'ACTION_RCA_EVIDENCE_REVIEW',
+ 'ACTION-IMPACT-4':'ACTION_BLAST_RADIUS_REVIEW',
+ 'ACTION-SECURITY-5':'ACTION_SECURITY_BOUNDARY_REVIEW',
+ 'ACTION-REGRESSION-6':'ACTION_REGRESSION_PLANNER',
+ 'ACTION-SHA-7':'ACTION_CERTIFIER_ADVERSARY',
+ 'ACTION-CONVERGENCE-8':'ACTION_FINAL_CERTIFIER'
 };
 for(const [id,role] of Object.entries(expected)){
  const worker=registry.workers.find(x=>x.id===id);
@@ -30,28 +42,70 @@ for(const [id,role] of Object.entries(expected)){
  assert.match(worker.personalMemoryFile,/^diagnostics\/auto-repair\/action-repair-bots\//u);
 }
 const cell=JSON.parse(fs.readFileSync('docs/agents/CELL-BOT-REGISTRY.json','utf8'));
-assert.equal(cell.bots.length,200);
+assert.equal(cell.bots.length,0);
+assert.equal(cell.status,'RETIRED');
+assert.equal(cell.logicalRoster.count,100);
+assert.equal(cell.logicalRoster.runtimeSeatCount,10);
 assert.equal(cell.bots.some(x=>/^ACTION-/u.test(x.id)),false);
 assert.equal(Object.prototype.hasOwnProperty.call(cell,'actionRepairCohort'),false);
 
 const sha='0123456789abcdef0123456789abcdef01234567';
 const fp='test-action-fingerprint';
-const base=['scripts/ci/action-repair-five-workers.mjs',`--target-sha=${sha}`,'--run-id=TEST-RUN-5',`--fingerprint=${fp}`];
-const out='/tmp/flixo-five-action-repair-workers-test.json';
+const base=['scripts/ci/action-repair-five-workers.mjs',`--target-sha=${sha}`,'--run-id=TEST-RUN-10',`--fingerprint=${fp}`];
+const out='/tmp/flixo-ten-action-repair-workers-test.json';
 execFileSync('node',[...base,'--output='+out],{stdio:'pipe'});
 const report=JSON.parse(fs.readFileSync(out,'utf8'));
-assert.equal(report.workerCount,5);
-assert.deepEqual(report.roleOrder,Object.values(expected));
+assert.equal(report.workerCount,10);
+assert.equal(report.activeWorkerCount,5);
+assert.equal(report.stagedWorkerCount,5);
+assert.equal(report.activeBotIds.length,5);
+assert.equal(report.nextBotIds.length,5);
+assert.equal(report.activeRuntimeCount,5);
+assert.equal(report.stagedRuntimeCount,5);
+assert.equal(report.workers.filter(worker=>worker.active===true).length,5);
+assert.equal(report.workers.filter(worker=>worker.active===false).length,5);
+assert.equal(report.cloneModel,'ONE_SHARED_COGNITIVE_KERNEL_WITH_ROLE_OVERLAYS');
+assert.equal(report.pushAuthority,'CHAIR_1_ONLY');
+assert.equal(report.roleOrder.length,10);
+assert.deepEqual(report.workers.map(x=>x.workerId),['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5','FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10']);
+assert.ok(report.workers.every(x=>x.systemScope==='FULL_REPOSITORY_AND_AUTOMATION_SYSTEM'));
+assert.ok(report.workers.every(x=>x.workflow==='READ→DIAGNOSE→WRITE_PROPOSAL→RING_CHALLENGE→HANDOFF'));
+assert.equal(report.schemaVersion,3);
+assert.equal(report.lifecycle,'AWAKE_RESIDENT');
+assert.equal(report.wakeSource,'FLIXO_AGENT_REPAIR_HEARTBEAT');
+assert.equal(report.residentWorkerCount,10);
+assert.equal(report.workers.filter(x=>x.lifecycle==='AWAKE_RESIDENT' && x.resident===true).length,5);
+assert.equal(report.workers.filter(x=>x.lifecycle==='STAGED_READY' && x.active===false).length,5);
+assert.ok(report.workers.every(x=>x.wakeSource==='FLIXO_AGENT_REPAIR_HEARTBEAT'));
+assert.deepEqual(report.roleOrder,['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5','FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10']);
 for(const worker of report.workers){
  assert.equal(worker.mutationAuthority,false);
- assert.equal(worker.canonicalMutationOwner,'repairAgent');
+ assert.equal(worker.canonicalMutationOwner,'ACTION-REPAIR');
+ assert.equal(worker.pushAuthority,'CHAIR_1_ONLY');
+ assert.equal(worker.cloneSource,'FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE');
+ assert.equal(worker.intelligenceVersion,'FLIXO-BOT-BRAIN-v1');
  assert.equal(worker.sameIncidentContext,true);
 }
 const wake='/tmp/flixo-action-wake.json';
 execFileSync('node',[...base,'--role=wake','--status=RED_INTERNAL','--output='+wake],{stdio:'pipe'});
 const wakeResult=JSON.parse(fs.readFileSync(wake,'utf8'));
-assert.equal(wakeResult.botId,'ACTION-WAKE');
-assert.equal(wakeResult.action,'WAKE_ACTION_REPAIR_SQUAD');
+assert.equal(wakeResult.botId,'FLIXO_HEARTBEAT_CONTROLLER');
+assert.equal(wakeResult.action,'WAKE_ALL_ACTION_REPAIR_TEAM');
+assert.equal(wakeResult.role,'CANONICAL_WAKE_CONTROLLER');
+assert.equal(wakeResult.wakeScope,'ALL_ACTION_REPAIR_TEAM');
+assert.equal(wakeResult.wakePolicy,'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL');
+assert.equal(wakeResult.directDispatch,false);
+assert.equal(wakeResult.dispatchRequired,false);
+assert.equal(wakeResult.dispatchWorkflow,null);
+assert.equal(wakeResult.canonicalNextStep,'DAILY_FLIXO_GREEN_GATE');
+assert.equal(wakeResult.recipientCount,10);
+assert.deepEqual(wakeResult.recipients,['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5','FLIXO6','FLIXO7','FLIXO8','FLIXO9','FLIXO10']);
+assert.deepEqual(wakeResult.recipients,report.workers.map(worker=>worker.workerId));
+assert.equal(wakeResult.activeCohortSize,5);
+assert.equal(wakeResult.activeBotIds.length,5);
+assert.equal(wakeResult.nextBotIds.length,5);
+assert.equal(wakeResult.nextCohortReady,true);
+assert.equal(wakeResult.nextCohortReadyCount,5);
 const index='/tmp/flixo-action-index.json';
 execFileSync('node',[...base,'--role=index','--output='+index],{stdio:'pipe'});
 assert.equal(JSON.parse(fs.readFileSync(index,'utf8')).botId,'ACTION-INDEX');
@@ -65,4 +119,4 @@ execFileSync('node',[...base,'--role=select','--historical='+historical,'--twin-
 const chosen=JSON.parse(fs.readFileSync(select,'utf8'));
 assert.equal(chosen.botId,'ACTION-WISE');
 assert.equal(chosen.selection.disposition,'SELECTED');
-console.log('FIVE_ACTION_REPAIR_SQUAD=PASS');
+console.log('TEN_ACTION_REPAIR_CLONE_SQUAD_WITH_FINAL_CERTIFIER_ADVERSARY=PASS');

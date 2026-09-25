@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Validate comment is not newer than the current PR head
+        id: comment_freshness
         env:
           GH_TOKEN: ${{ github.token }}
           COMMENT_AT: ${{ github.event.comment.created_at || '' }}
@@ -31,13 +32,50 @@ jobs:
           case "$ISSUE_NUMBER" in
             ''|*[!0-9]*) echo 'FAIL CLOSED: invalid PR number'; exit 1 ;;
           esac
-          HEAD_SHA="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$ISSUE_NUMBER" --jq '.head.sha // empty')"
-          COMMIT_AT="$(gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA" --jq '.commit.committer.date // .commit.author.date // empty')"
+          gh_api_with_rate_limit_backoff() {
+            local attempt=0
+            local delay=3000
+            local output
+            local status
+            while [ "$attempt" -lt 5 ]; do
+              if output="$(gh api "$@" 2>/tmp/gh-api-error)"; then
+                rm -f /tmp/gh-api-error
+                printf '%s' "$output"
+                return 0
+              fi
+              status="$(cat /tmp/gh-api-error)"
+              if ! printf '%s' "$status" | grep -Eqi 'rate limit exceeded|secondary rate limit|HTTP 429|HTTP 403'; then
+                cat /tmp/gh-api-error >&2
+                rm -f /tmp/gh-api-error
+                return 1
+              fi
+              attempt=$((attempt + 1))
+              if [ "$attempt" -ge 5 ]; then
+                cat /tmp/gh-api-error >&2
+                rm -f /tmp/gh-api-error
+                return 1
+              fi
+              echo "GITHUB_API_RATE_LIMIT_BACKOFF attempt=$attempt delayMs=$delay" >&2
+              sleep "$delay"
+              delay=$((delay * 2))
+            done
+          }
+
+          HEAD_SHA="$(gh_api_with_rate_limit_backoff "repos/$GITHUB_REPOSITORY/pulls/$ISSUE_NUMBER" --jq '.head.sha // empty')"
+          COMMIT_AT="$(gh_api_with_rate_limit_backoff "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA" --jq '.commit.committer.date // .commit.author.date // empty')"
           test -n "$HEAD_SHA"
           test -n "$COMMIT_AT"
           COMMENT_EPOCH="$(date -u -d "$COMMENT_AT" +%s)"
           HEAD_EPOCH="$(date -u -d "$COMMIT_AT" +%s)"
-          test "$HEAD_EPOCH" -le "$COMMENT_EPOCH"
+          if [ "$HEAD_EPOCH" -gt "$COMMENT_EPOCH" ]; then
+            echo "MESSAGE_COMMENT_STALE=FAIL_CLOSED"
+            echo "COMMENT_SHA=$HEAD_SHA"
+            echo "COMMENT_EPOCH=$COMMENT_EPOCH"
+            echo "HEAD_EPOCH=$HEAD_EPOCH"
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "stale=false" >> "$GITHUB_OUTPUT"
       - name: Checkout trusted communication implementation
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
@@ -46,11 +84,14 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Bind relay to current exact execution SHA
         id: relay_head
         env:
           GH_TOKEN: ${{ github.token }}
+          COMMENT_ID: ${{ github.event.comment.id || '' }}
+          COUNCIL_PR_NUMBER: ${{ github.event.issue.number || '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -66,6 +107,7 @@ jobs:
           [[ "$CONTROLLER_SHA" =~ ^[0-9a-f]{40}$ ]]
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "controller_sha=$CONTROLLER_SHA" >> "$GITHUB_OUTPUT"
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Resolve canonical Council ingress
         id: council_ingress
@@ -86,13 +128,15 @@ jobs:
           ISSUE_NUMBER="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 1 --json number --jq '.[0].number // empty')"
           test -n "$ISSUE_NUMBER"
           echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Extract President Wake when present
         id: president_wake
         if: >-
           github.event_name == 'issue_comment' &&
           github.event.issue.pull_request != null &&
-          contains(github.event.comment.body || '', '<!-- FLIXO_AGENT_COUNCIL_WAKE -->')
+          contains(github.event.comment.body || '', '<!-- FLIXO_AGENT_COUNCIL_WAKE -->') &&
+          steps.comment_freshness.outputs.stale != 'true'
         env:
           COMMENT_BODY: ${{ github.event.comment.body || '' }}
         shell: bash
@@ -210,7 +254,8 @@ jobs:
           github.event_name == 'issue_comment' &&
           github.event.issue.pull_request != null &&
           (contains(github.event.comment.body || '', '### COUNCIL QUESTION') ||
-           contains(github.event.comment.body || '', '<!-- FLIXO_COUNCIL_PRIORITY -->'))
+           contains(github.event.comment.body || '', '<!-- FLIXO_COUNCIL_PRIORITY -->')) &&
+          steps.comment_freshness.outputs.stale != 'true'
         env:
           COMMENT_BODY: ${{ github.event.comment.body || '' }}
         shell: bash
@@ -286,6 +331,7 @@ jobs:
           process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
           fs.appendFileSync(process.env.GITHUB_OUTPUT, 'MESSAGE_ID=' + message.messageId + '\\n');
           NODE
+        if: steps.comment_freshness.outputs.stale != 'true'
 
       - name: Resolve message branch by exact SHA
         id: target
@@ -428,7 +474,9 @@ jobs:
           cat /tmp/council-runtime-dispatches.jsonl >> /tmp/council-runtime-dispatch-response.json
 
       - name: Publish immediate receipt to master inbox
-        if: steps.ingest.outcome == 'success'
+        if: >-
+          steps.comment_freshness.outputs.stale != 'true' &&
+          steps.ingest.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           MESSAGE_ID: ${{ steps.ingest.outputs.MESSAGE_ID }}
@@ -461,7 +509,12 @@ jobs:
           echo 'AGENT_MESSAGE_REPAIR_WAKE=DISPATCHED'
 
       - name: Record stale-message evidence
-        if: steps.target.outputs.status == 'STALE'
+        if: >-
+          always() &&
+          (
+            steps.comment_freshness.outputs.stale == 'true' ||
+            steps.target.outputs.status == 'STALE'
+          )
         run: |
           set -euo pipefail
           printf '%s\n' 'MESSAGE_STALE=FAIL_CLOSED' > /tmp/flixo-agent-message-stale.txt

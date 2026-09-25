@@ -7,11 +7,11 @@ import {
   REPAIR_OUTCOMES,
   BROTHER_IDS,
 } from './repair-control-plane.mjs';
-import { assertState, checkHeartbeat, AGENT_LIVENESS_PROTOCOL } from './agent-liveness-protocol.mjs';
+import { assertState, checkHeartbeat } from './agent-liveness-protocol.mjs';
+import { FLIXO_WORKER_IDS } from './flixo-active-worker-guard.mjs';
 
 const API_VERSION = '2022-11-28';
 const DEFAULT_STALE_AFTER_MS = 60 * 60 * 1000;
-const DEFAULT_HEARTBEAT_TTL_MS = AGENT_LIVENESS_PROTOCOL.leaseTtlMs;
 
 const args = Object.fromEntries(process.argv.slice(2).filter((arg) => arg.startsWith('--')).map((arg) => {
   const [key, ...rest] = arg.slice(2).split('=');
@@ -82,6 +82,13 @@ async function createAnnotatedTag(refName, objectSha, metadata) {
 export async function createRefAtomically({ apiRoot: root = 'https://api.github.com', repoName, authToken, refName, objectSha } = {}) {
   if (!repoName) throw new Error('REPAIR_LEASE_REPOSITORY_REQUIRED');
   if (!authToken) throw new Error('REPAIR_LEASE_GITHUB_TOKEN_REQUIRED');
+  const normalizedRef = String(refName ?? '').trim();
+  if (!/^refs\/tags\/[A-Za-z0-9._/-]+$/u.test(normalizedRef)) {
+    throw new Error('REPAIR_LEASE_REF_TYPE_BLOCKED');
+  }
+  if (!/^[a-f0-9]{40}$/iu.test(String(objectSha ?? ''))) {
+    throw new Error('REPAIR_LEASE_OBJECT_SHA_INVALID');
+  }
   const response = await fetch(`${root}/repos/${repoName}/git/refs`, {
     method: 'POST',
     headers: {
@@ -91,7 +98,7 @@ export async function createRefAtomically({ apiRoot: root = 'https://api.github.
       'content-type': 'application/json',
       'user-agent': 'FLIXO-repair-lease',
     },
-    body: JSON.stringify({ ref: refName, sha: objectSha }),
+    body: JSON.stringify({ ref: normalizedRef, sha: objectSha }),
   });
   const raw = await response.text();
   let data;
@@ -180,7 +187,40 @@ async function readWorkflowRun(runId) {
   return { status: result.status, data: result.data };
 }
 
+async function cancelWorkflowRun(runId) {
+  const result = await api('POST', `/repos/${repo}/actions/runs/${encodeURIComponent(String(runId))}/cancel`);
+  return { runId, status: result.status, ok: result.ok, decision: result.ok ? 'CANCEL_REQUESTED' : result.status === 404 ? 'ALREADY_GONE' : result.status === 409 ? 'ALREADY_COMPLETED' : 'CANCEL_FAILED' };
+}
+
 const crashConclusions = new Set(['failure', 'timed_out', 'cancelled']);
+const FLIXO_WORKER_HEARTBEAT_MAX_AGE_MS = 90 * 1000;
+function flixoWorkerIndex(workerId) {
+  const id = String(workerId ?? '').trim().toUpperCase();
+  const index = FLIXO_WORKER_IDS.indexOf(id);
+  if (index < 0) throw new Error('FLIXO_WORKER_ID_INVALID=' + id);
+  return index;
+}
+function nextFlixoWorker(workerId) {
+  return FLIXO_WORKER_IDS[(flixoWorkerIndex(workerId) + 1) % FLIXO_WORKER_IDS.length];
+}
+function latestFlixoWorkerState(events) {
+  const ordered = events.filter((item) => item?.eventType === 'FLIXO_WORKER_ASSIGNMENT' || item?.eventType === 'FLIXO_WORKER_HEARTBEAT')
+    .filter((item) => FLIXO_WORKER_IDS.includes(String(item.workerId ?? '').toUpperCase()))
+    .sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')));
+  const latest = ordered[0] ?? null;
+  if (!latest) return { activeWorker: null, lastHeartbeatAt: null, stale: true, nextWorker: FLIXO_WORKER_IDS[0], lastEvent: null };
+  const activeWorker = String(latest.workerId).toUpperCase();
+  const heartbeatAt = ordered.find((item) => item.eventType === 'FLIXO_WORKER_HEARTBEAT' && String(item.workerId ?? '').toUpperCase() === activeWorker)?.heartbeatAt ?? null;
+  const heartbeatMs = Date.parse(String(heartbeatAt ?? ''));
+  const heartbeatMissing = !Number.isFinite(heartbeatMs);
+  const stale = !heartbeatMissing && (Date.now() - heartbeatMs) > FLIXO_WORKER_HEARTBEAT_MAX_AGE_MS;
+  return { activeWorker, lastHeartbeatAt: heartbeatAt, heartbeatMissing, stale, nextWorker: (stale || heartbeatMissing) ? nextFlixoWorker(activeWorker) : activeWorker, lastEvent: latest };
+}
+function requireFlixoWorker(value) {
+  const id = String(value ?? '').trim().toUpperCase();
+  if (!FLIXO_WORKER_IDS.includes(id)) throw new Error('FLIXO_WORKER_ID_INVALID=' + id);
+  return id;
+}
 
 async function activeRepairRuns(identity, failedSha) {
   const result = await api('GET', `/repos/${repo}/actions/workflows/auto-repair.yml/runs?branch=execution&per_page=100`);
@@ -299,56 +339,120 @@ async function commandVerify() {
   console.log(JSON.stringify({ status: 'LEASE_ACTIVE', leaseRef: identity.leaseRef, repairChainId: identity.repairChainId, attempt }, null, 2));
 }
 
+async function commandWorkerState() {
+  const identity = identityFromArgs();
+  const events = await listEventMetadata(identity);
+  const state = latestFlixoWorkerState(events);
+  console.log(JSON.stringify({
+    status:'FLIXO_WORKER_STATE',
+    repairChainId:identity.repairChainId,
+    cycleKey:identity.cycleKey,
+    failedSha:getArg('failedSha'),
+    targetRunId:getArg('targetRunId'),
+    workerIds:FLIXO_WORKER_IDS,
+    simultaneousActiveWorkers:1,
+    heartbeatMaxAgeMs:FLIXO_WORKER_HEARTBEAT_MAX_AGE_MS,
+    ...state,
+  },null,2));
+}
+
+async function commandWorkerAssign() {
+  const identity = identityFromArgs();
+  const failedSha = getArg('failedSha');
+  const requested = getArg('workerId', '');
+  const attempt = Number(getArg('attempt', '1'));
+  const events = await listEventMetadata(identity);
+  const state = latestFlixoWorkerState(events);
+  let workerId = requested ? requireFlixoWorker(requested) : null;
+  let action = 'INITIAL_ASSIGNMENT';
+  let previousWorker = state.activeWorker;
+  if (state.activeWorker && attempt > 1) {
+    const expected = nextFlixoWorker(state.activeWorker);
+    if (workerId && workerId !== expected) throw new Error('FLIXO_FAILOVER_ORDER_BLOCKED=' + expected);
+    workerId = expected;
+    action = state.stale ? 'FAILOVER_AFTER_STALE_HEARTBEAT' : 'FAILOVER_AFTER_PREVIOUS_ATTEMPT';
+  } else if (state.activeWorker && !state.stale && !state.heartbeatMissing) {
+    if (workerId && workerId !== state.activeWorker) throw new Error('FLIXO_ACTIVE_WORKER_COMPETITION_BLOCKED=' + state.activeWorker);
+    workerId = state.activeWorker;
+    action = 'REUSE_ACTIVE_WORKER';
+  } else if (state.activeWorker && state.stale) {
+    const expected = state.nextWorker;
+    if (workerId && workerId !== expected) throw new Error('FLIXO_FAILOVER_ORDER_BLOCKED=' + expected);
+    workerId = expected;
+    action = 'FAILOVER_AFTER_STALE_HEARTBEAT';
+  } else {
+    workerId = workerId ?? FLIXO_WORKER_IDS[0];
+    if (workerId !== FLIXO_WORKER_IDS[0]) throw new Error('FLIXO_INITIAL_WORKER_MUST_BE_FLIXO1');
+  }
+  const now = new Date().toISOString();
+  const event = await emitEvent(identity, 'WORKER_ASSIGNMENT', `worker-assign-${workerId}-${Date.now()}`, {
+    repairKey:identity.claimKey,
+    leaseRef:identity.leaseRef,
+    repairChainId:identity.repairChainId,
+    cycleKey:identity.cycleKey,
+    branch:'execution',
+    failedSha,
+    targetRunId:getArg('targetRunId'),
+    repairRunId:getArg('repairRunId', process.env.GITHUB_RUN_ID),
+    workerId,
+    previousWorker:previousWorker ?? null,
+    action,
+    simultaneousActiveWorkers:1,
+    peerCompetition:'FORBIDDEN',
+    heartbeatMaxAgeMs:FLIXO_WORKER_HEARTBEAT_MAX_AGE_MS,
+    takeoverReason:action === 'FAILOVER_AFTER_STALE_HEARTBEAT' ? 'PREVIOUS_HEARTBEAT_STALE' : null,
+    state:'FLIXO_WORKER_ACTIVE',
+    at:now,
+  });
+  console.log(JSON.stringify({status:event.decision === 'ACQUIRED' || event.decision === 'ALREADY_CLAIMED' || event.decision === 'TAG_OBJECT_CREATED' ? 'WORKER_ASSIGNED' : event.decision,workerId,previousWorker,action,stale:state.stale,event},null,2));
+  if(!['ACQUIRED','ALREADY_CLAIMED','TAG_OBJECT_CREATED'].includes(event.decision)) process.exitCode=1;
+}
+
 async function commandHeartbeat() {
   const identity = identityFromArgs();
   const failedSha = getArg('failedSha');
   const meta = await readLeaseMetadata(identity.leaseRef, failedSha);
   if (!meta.exists) throw new Error('REPAIR_LEASE_MISSING');
   if (meta.metadata?.failedSha && meta.metadata.failedSha !== failedSha) throw new Error('REPAIR_LEASE_FAILED_SHA_MISMATCH');
-
   const repairRunId = getArg('repairRunId', process.env.GITHUB_RUN_ID);
+  const workerId = requireFlixoWorker(getArg('workerId'));
+  const events = await listEventMetadata(identity);
+  const workerState = latestFlixoWorkerState(events);
+  if (!workerState.activeWorker) throw new Error('FLIXO_WORKER_NOT_ASSIGNED');
+  if (workerState.activeWorker !== workerId) throw new Error('FLIXO_WORKER_NOT_ACTIVE=' + workerState.activeWorker);
+  if (workerState.stale && workerState.activeWorker === workerId && getArg('allowStaleOwnerHeartbeat','false') !== 'true') throw new Error('FLIXO_WORKER_HEARTBEAT_STALE_REQUIRES_FAILOVER');
   const livenessState = getArg('livenessState', 'ACTIVE');
   const progress = getArg('progress', 'false') === 'true';
   const now = Date.now();
   const heartbeatAt = new Date(now).toISOString();
-  const expiresAt = new Date(now + DEFAULT_HEARTBEAT_TTL_MS).toISOString();
+  const expiresAt = new Date(now + FLIXO_WORKER_HEARTBEAT_MAX_AGE_MS).toISOString();
   assertState(livenessState, { workAssigned: true });
   const previousHeartbeat = getArg('previousHeartbeat', heartbeatAt);
-  const heartbeatCheck = checkHeartbeat({ state: livenessState, lastHeartbeatAt: previousHeartbeat, now });
-  if (heartbeatCheck.ok === false && heartbeatCheck.action === 'RECOVERY_REQUIRED' && getArg('forceRecoveryHeartbeat', 'false') !== 'true') {
-    throw new Error('REPAIR_LEASE_HEARTBEAT_STALE_USE_RECOVERY');
-  }
-
-  const event = await emitEvent(identity, 'HEARTBEAT', `heartbeat-${repairRunId}-${now}`, {
-    repairKey: identity.claimKey,
-    repairChainId: identity.repairChainId,
+  const heartbeatCheck = checkHeartbeat({ state:livenessState, lastHeartbeatAt:previousHeartbeat, now });
+  if (heartbeatCheck.ok === false && heartbeatCheck.action === 'RECOVERY_REQUIRED' && getArg('forceRecoveryHeartbeat','false') !== 'true') throw new Error('REPAIR_LEASE_HEARTBEAT_STALE_USE_RECOVERY');
+  const event = await emitEvent(identity, 'FLIXO_WORKER_HEARTBEAT', `heartbeat-${workerId}-${repairRunId}-${now}`, {
+    repairKey:identity.claimKey,
+    repairChainId:identity.repairChainId,
     failedSha,
-    targetRunId: getArg('targetRunId'),
+    targetRunId:getArg('targetRunId'),
     repairRunId,
-    attempt: Number(getArg('attempt', '1')),
-    leaseOwner: getArg('leaseOwner', 'AUTO_REPAIR_BOT'),
-    leaseState: 'LEASE_ACTIVE',
+    attempt:Number(getArg('attempt','1')),
+    leaseOwner:getArg('leaseOwner','AUTO_REPAIR_BOT'),
+    workerId,
+    leaseState:'LEASE_ACTIVE',
     livenessState,
     heartbeatAt,
     expiresAt,
     progress,
-    progressAt: progress ? heartbeatAt : getArg('progressAt', heartbeatAt),
-    state: 'LEASE_ACTIVE',
-    at: heartbeatAt,
+    progressAt:progress?heartbeatAt:getArg('progressAt',heartbeatAt),
+    simultaneousActiveWorkers:1,
+    peerCompetition:'FORBIDDEN',
+    state:'LEASE_ACTIVE',
+    at:heartbeatAt,
   });
-  console.log(JSON.stringify({
-    status: event.decision === 'ACQUIRED' || event.decision === 'ALREADY_CLAIMED' || event.decision === 'TAG_OBJECT_CREATED' ? 'HEARTBEAT_RECORDED' : event.decision,
-    heartbeatAt,
-    expiresAt,
-    leaseRef: identity.leaseRef,
-    repairChainId: identity.repairChainId,
-    livenessState,
-    progress,
-    event,
-  }, null, 2));
-  if (!['ACQUIRED', 'ALREADY_CLAIMED', 'TAG_OBJECT_CREATED'].includes(event.decision)) process.exitCode = 1;
+  console.log(JSON.stringify({status:event.decision === 'ACQUIRED' || event.decision === 'ALREADY_CLAIMED' || event.decision === 'TAG_OBJECT_CREATED' ? 'HEARTBEAT_RECORDED' : event.decision,workerId,heartbeatAt,expiresAt,leaseRef:identity.leaseRef,repairChainId:identity.repairChainId,livenessState,progress,event},null,2));
+  if(!['ACQUIRED','ALREADY_CLAIMED','TAG_OBJECT_CREATED'].includes(event.decision)) process.exitCode=1;
 }
-
 function latestBrotherState(events) {
   const brotherEvents = events
     .filter((item) => String(item?.eventType ?? '').startsWith('BROTHER_'))
@@ -532,6 +636,7 @@ async function commandOutcome() {
   const metadata = {
     repairKey: identity.claimKey,
     leaseRef: identity.leaseRef,
+    workerId: requireFlixoWorker(getArg('workerId')),
     leaseOwner: getArg('leaseOwner', 'AUTO_REPAIR_BOT'),
     repairRunId,
     targetRunId: getArg('targetRunId'),
@@ -626,7 +731,48 @@ async function commandRecover() {
     }
   }
 
-  const active = await activeRepairRuns(identity, failedSha);
+  let active = await activeRepairRuns(identity, failedSha);
+  const workerState = latestFlixoWorkerState(events);
+  const activeRepairRunId = latestActiveState?.repairRunId ? String(latestActiveState.repairRunId) : '';
+  let workerFailoverReason = null;
+  let workerCancellation = [];
+  let staleWorkerHeartbeat = Boolean(workerState.activeWorker && workerState.stale);
+  let stalledBeforeFirstHeartbeat = false;
+  if (workerState.activeWorker && workerState.heartbeatMissing && activeRepairRunId) {
+    const runEvidence = await readWorkflowRun(activeRepairRunId);
+    const startedMs = Date.parse(String(runEvidence.data?.run_started_at ?? runEvidence.data?.created_at ?? ''));
+    stalledBeforeFirstHeartbeat = runEvidence.status === 200
+      && runEvidence.data?.status !== 'completed'
+      && Number.isFinite(startedMs)
+      && (Date.now() - startedMs) > FLIXO_WORKER_HEARTBEAT_MAX_AGE_MS;
+  }
+  if ((staleWorkerHeartbeat || stalledBeforeFirstHeartbeat) && active.length > 0) {
+    workerFailoverReason = staleWorkerHeartbeat ? 'ACTIVE_WORKER_HEARTBEAT_STALE' : 'ACTIVE_WORKER_STARTED_WITHOUT_HEARTBEAT';
+    for (const run of active) {
+      const cancelled = await cancelWorkflowRun(run.databaseId);
+      workerCancellation.push(cancelled);
+      if (!['CANCEL_REQUESTED','ALREADY_GONE','ALREADY_COMPLETED'].includes(cancelled.decision)) {
+        console.log(JSON.stringify({status:'FAIL_CLOSED',reason:'FLIXO_WORKER_FAILOVER_CANCELLATION_FAILED',workerState,workerCancellation:[...workerCancellation]},null,2));
+        process.exitCode = 1;
+        return;
+      }
+    }
+    active = [];
+    await emitEvent(identity, 'WORKER_FAILOVER', `failover-${process.env.GITHUB_RUN_ID || Date.now()}`, {
+      repairKey:identity.claimKey,
+      leaseRef:identity.leaseRef,
+      failedSha,
+      targetRunId:getArg('targetRunId'),
+      repairRunId:activeRepairRunId || process.env.GITHUB_RUN_ID || null,
+      previousWorker:workerState.activeWorker,
+      nextWorker:nextFlixoWorker(workerState.activeWorker),
+      reason:workerFailoverReason,
+      cancellation:workerCancellation,
+      previousHeartbeatAt:workerState.lastHeartbeatAt,
+      state:'FLIXO_WORKER_FAILOVER_READY',
+      at:new Date().toISOString(),
+    });
+  }
   const currentRef = await readRef('refs/heads/execution');
   const currentExecutionSha = String(currentRef?.data?.object?.sha ?? '');
   const leaseAgeMs = Math.max(0, Date.now() - Date.parse(String(meta.metadata?.createdAt ?? '')));
@@ -639,6 +785,7 @@ async function commandRecover() {
     !latestActiveState?.repairRunId &&
     String(meta.metadata?.leaseOwner ?? '') === 'DAILY_FLIXO_GREEN_GATE' &&
     leaseAgeMs >= 2 * 60 * 1000;
+  const immediateFlixoFailover = Boolean(workerFailoverReason);
   const decision = staleRecoveryDecision({
     leaseCreatedAt: meta.metadata?.createdAt,
     staleAfterMs: Number(getArg('staleAfterMs', String(DEFAULT_STALE_AFTER_MS))),
@@ -647,8 +794,8 @@ async function commandRecover() {
     activeRuns: active,
     outcomes,
     repairKey: identity.claimKey,
-    terminalRepairFailure,
-    orphanedDispatch,
+    terminalRepairFailure: terminalRepairFailure || immediateFlixoFailover,
+    orphanedDispatch: orphanedDispatch || immediateFlixoFailover,
   });
   if (active.some((item) => item.status === 'UNKNOWN')) {
     console.log(JSON.stringify({ status: 'FAIL_CLOSED', reason: 'ACTIVE_SESSION_EVIDENCE_UNAVAILABLE', active, decision }, null, 2));
@@ -725,18 +872,24 @@ async function commandRecover() {
     attempt: nextAttempt,
     repairChainId: identity.repairChainId,
     decision,
+    workerFailoverReason,
+    workerCancellation,
+    previousWorker:workerState.activeWorker,
+    nextWorker:workerState.nextWorker,
   }, null, 2));
   if (!['ACQUIRED', 'ALREADY_CLAIMED'].includes(ref.decision)) process.exitCode = 1;
 }
 
 function usage() {
-  throw new Error('Usage: repair-lease.mjs claim|verify|heartbeat|outcome|recover|brother-state|brother-surrender|brother-challenge');
+  throw new Error('Usage: repair-lease.mjs claim|verify|worker-state|worker-assign|heartbeat|outcome|recover|brother-state|brother-surrender|brother-challenge');
 }
 
 if (import.meta.url === (await import('node:url')).pathToFileURL(process.argv[1] ?? '').href) {
   try {
     if (command === 'claim') await commandClaim();
     else if (command === 'verify') await commandVerify();
+    else if (command === 'worker-state') await commandWorkerState();
+    else if (command === 'worker-assign') await commandWorkerAssign();
     else if (command === 'heartbeat') await commandHeartbeat();
     else if (command === 'outcome') await commandOutcome();
     else if (command === 'recover') await commandRecover();

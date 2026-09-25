@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "authority": "AGENT_VISIBILITY_LEDGER",
+  "visibilityState": "CLOSED",
+  "taskId": "RECONCILED-release-001-20260916-0300",
+  "sessionId": "release-001-20260916-0300",
+  "agentId": "GPT-5.6-Luna-exec",
+  "role": "release",
+  "workPackageId": "WP-RECONCILED-release-001-20260916-0300",
+  "entrySha": "3389b83cf6755364f2b0535010a6cdfd6424d37a",
+  "exitSha": "3389b83cf6755364f2b0535010a6cdfd6424d37a",
+  "status": "BLOCKED",
+  "finalStatus": "BLOCKED",
+  "finalSummary": "Historical session reconciled as blocked because its source session record is stale and lacked a current exact-SHA closure proof.",
+  "visibilityStateReason": "STALE_HISTORICAL_SESSION_RECONCILED",
+  "reconciledFromStatus": "RUNNING",
+  "reconciledAt": "2026-09-24",
+  "exactShaProofRequired": true,
+  "updatedAt": "2026-09-24T00:00:00Z"
+}

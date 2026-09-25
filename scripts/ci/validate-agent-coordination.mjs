@@ -31,7 +31,8 @@ const expected = {
   'docs/agents/ledger/README.md': ['Agent Visibility Ledger', 'docs/agents/ledger/<sessionId>.json', 'taskId', 'finalStatus', 'finalSummary', 'visibilityState'],
   'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json': ['ASSISTANT_AGENT_COOPERATION_CONTRACT', 'assistantController', 'councilPresident', 'councilDeputy', 'councilInvestigator', 'codeScout', 'executionAgent', 'reviewAgent', 'testAgent', 'securityAgent', 'performanceAgent', 'certificationAuthority', 'actionRepairBot', 'actionRepairVerifier', 'actionHistorian', 'ACTION-REPAIR', 'ACTION-REPAIR-2', 'ACTION-HISTORIAN-3', 'action_vault_reasoning', 'messageEnvelope', 'no_implicit_authority', 'parallelism', 'arbitration', 'architecture', 'quality', 'efficiency', 'recovery', 'security', 'release', 'communication_first', 'event_driven_delivery', 'message_idempotency', 'message_freshness'],
   'docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md': ['READ', 'WRITE', 'FORBIDDEN', 'NO_SOURCE_MUTATION', 'code-scout-latest.json', 'execution agents'],
-  'scripts/ci/test-shared-operational-memory-contract.mjs': ['SHARED_OPERATIONAL_MEMORY_CONTRACT_TEST=PASS','RETIRED_CELL_POOL_CONTRACT=PASS','P21_RETIRED=PASS','P22_SHARED_MEMORY=PASS'],
+  'scripts/ci/test-shared-operational-memory-contract.mjs': ['SHARED_OPERATIONAL_MEMORY_CONTRACT_TEST=PASS','RETIRED_CELL_POOL_CONTRACT=PASS','P21_RETIRED=PASS','P22_SHARED_MEMORY_SYSTEM_WIDE=PASS'],
+  'src/lib/agent/collective-intelligence.ts': ['FLIXO-BOT-BRAIN-v2','ONE_SHARED_SUPERSET_COGNITIVE_KERNEL_WITH_ROLE_OVERLAYS','VERIFY_EXACT_SHA_AND_LEARN'],
   'docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md': ['CELL-EXEC-RETIRED','retired','No CELL-001..CELL-200 bot is active or assignable','Any attempt to provision, assign, wake, or recreate'],
   'scripts/ci/test-cell-executive-governance.mjs': ['CELL_EXECUTIVE_GOVERNANCE_TEST=PASS','BOT_COUNT=PASS','RANKING=PASS','ESCALATION=PASS','PARALLEL_LANES=PASS'],
 };
@@ -113,17 +114,54 @@ if (exists('docs/agents/ledger/README.md')) {
   }
 }
 
+
+const sessionDir = path.resolve(root, 'diagnostics/agents/sessions');
+if (fs.existsSync(sessionDir) && fs.existsSync(ledgerDir)) {
+  const sessionFiles = fs.readdirSync(sessionDir).filter((name) => name.endsWith('.json'));
+  for (const entry of sessionFiles) {
+    try {
+      const session = JSON.parse(fs.readFileSync(path.join(sessionDir, entry), 'utf8'));
+      const sessionId = String(session.sessionId ?? '').trim();
+      if (!sessionId) {
+        failures.push(`AGENT_SESSION_ID_MISSING=${entry}`);
+        continue;
+      }
+      const visibilityPath = path.join(ledgerDir, sessionId + '.json');
+      if (!fs.existsSync(visibilityPath)) {
+        failures.push(`VISIBILITY_LEDGER_SESSION_MISSING=${sessionId}`);
+        continue;
+      }
+      const visibility = JSON.parse(fs.readFileSync(visibilityPath, 'utf8'));
+      if (visibility.sessionId !== sessionId) failures.push(`VISIBILITY_LEDGER_SESSION_ID_MISMATCH=${sessionId}`);
+      if (visibility.taskId !== session.taskId && session.taskId) failures.push(`VISIBILITY_LEDGER_TASK_ID_MISMATCH=${sessionId}`);
+      if (!String(visibility.visibilityState ?? '').trim()) failures.push(`VISIBILITY_LEDGER_STATE_MISSING=${sessionId}`);
+      if (visibility.visibilityState === 'CLOSED' && visibility.finalStatus === 'VERIFIED' && String(visibility.exitSha ?? '') !== String(session.exitSha ?? '')) {
+        failures.push(`VISIBILITY_LEDGER_EXIT_SHA_MISMATCH=${sessionId}`);
+      }
+    } catch {
+      failures.push(`AGENT_SESSION_INVALID_JSON=${entry}`);
+    }
+  }
+}
+
 const packageJson = exists('package.json') ? JSON.parse(read('package.json')) : { scripts: {} };
 for (const key of ['validate:agent-coordination','agent:coordination','agent:communication','test:agent-communication','validate:code-scout','agent:code-scout','test:council-wake','agent:council-wake']) if (typeof packageJson.scripts?.[key] !== 'string') failures.push(`PACKAGE_SCRIPT_MISSING=${key}`);
 
 const sharedMemoryRegistry = exists('docs/agents/CELL-BOT-REGISTRY.json') ? JSON.parse(read('docs/agents/CELL-BOT-REGISTRY.json')) : null;
+const flixoBotRegistry = exists('docs/agents/FLIXO-BOT.json') ? JSON.parse(read('docs/agents/FLIXO-BOT.json')) : null;
 const sixBotMemoryContract = exists('docs/agents/SHARED-SIX-BOT-OPERATIONAL-MEMORY-CONTRACT.md') ? read('docs/agents/SHARED-SIX-BOT-OPERATIONAL-MEMORY-CONTRACT.md') : '';
 const cellProtocolRegistry = exists('docs/PROTOCOL-REGISTRY.json') ? JSON.parse(read('docs/PROTOCOL-REGISTRY.json')) : null;
 if (sharedMemoryRegistry?.status !== 'RETIRED' || sharedMemoryRegistry?.bots?.length !== 0) failures.push('RETIRED_CELL_POOL_STATE_INVALID');
 const retiredP21 = cellProtocolRegistry?.protocols?.find((item) => item?.id === 'P21');
 const activeP22 = cellProtocolRegistry?.protocols?.find((item) => item?.id === 'P22');
 if (retiredP21?.status !== 'RETIRED' || !Array.isArray(retiredP21?.scope) || !retiredP21.scope.every((id) => /^CELL-\d{3}$/u.test(id) || id === 'ALL_CELL_BOTS')) failures.push('P21_RETIRED_CONTRACT_INVALID');
-if (activeP22?.status !== 'MANDATORY' || !Array.isArray(activeP22?.participants) || activeP22.participants.length !== 6) failures.push('P22_SHARED_MEMORY_CONTRACT_INVALID');
+const p22CoreParticipants = ['ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent','execution-agent-clone-v1'];
+const canonicalLearningConsumers = Array.isArray(flixoBotRegistry?.distribution?.learningConsumers) ? new Set(flixoBotRegistry.distribution.learningConsumers) : null;
+const botAliasMap = flixoBotRegistry?.distribution?.botAliasMap && typeof flixoBotRegistry.distribution.botAliasMap === 'object' ? flixoBotRegistry.distribution.botAliasMap : {};
+const resolveLearningConsumer = (id) => canonicalLearningConsumers?.has(id) ? id : botAliasMap[id] ?? null;
+const p22TargetCountValid = flixoBotRegistry?.distribution?.targetCount === 200 && canonicalLearningConsumers?.size === 200;
+if (activeP22?.status !== 'MANDATORY' || !Array.isArray(activeP22?.participants)) failures.push('P22_SHARED_MEMORY_CONTRACT_INVALID');
+else if (!p22TargetCountValid || p22CoreParticipants.some((id) => !activeP22.participants.includes(id) || !resolveLearningConsumer(id)) || activeP22.participants.some((id) => !resolveLearningConsumer(id)) || activeP22?.participantsSource !== 'docs/agents/FLIXO-BOT.json#/distribution/learningConsumers') failures.push('P22_SHARED_MEMORY_CONTRACT_INVALID');
 if (!sixBotMemoryContract.includes('FLIXO-SHARED-OPERATIONAL-MEMORY-v1')) failures.push('SHARED_SIX_BOT_MEMORY_CONTRACT_MISSING');
 
 const executiveGovernance = sharedMemoryRegistry?.executiveCellGovernance;
@@ -167,9 +205,21 @@ for (const marker of ['candidateCheckResults','executionEvidence','DIFFERENTIAL_
 for (const marker of ['ACTION-VAULT-INTELLIGENCE-BENCHMARK-v1','GATE_INTEGRITY_ADVERSARIAL','score','blockedCases']) if (!actionVaultBenchmarkSource.includes(marker)) failures.push('ACTION_VAULT_BENCHMARK_MARKER_MISSING='+marker);
 const repairSource = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';
 for (const marker of ['ACTION-SYSTEM-COGNITIVE-AWARENESS-v1','ACTION_PRIMARY_CORRECTNESS_PROOF','ADVERSARIAL_PROGRAMMER_FALSIFIER','ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','NO_BLIND_RETRY','ACTION_VAULT_SHA_MISMATCH','ACTION_VAULT_TRIAD_INCOMPLETE','ACTION_VAULT_VERIFIER_PROOF_REQUIRED','ACTION_VAULT_ALTERNATIVES_MISSING','ACTION_VAULT_FALSIFICATION_CHECKS_MISSING','ACTION_VAULT_ADVERSARIAL_FALSIFICATION_FAILED','CELL_LAB_CONSENSUS_REQUIRED','CELL_LAB_EXACT_SHA_MISMATCH','CELL_LAB_PLAN_HASH_MISMATCH','ACTION_VAULT_COGNITIVE_AWARENESS_INVALID','ACTION_VAULT_SANDBOX_PROOF_REQUIRED','ACTION_VAULT_DIFFERENTIAL_PROOF_REQUIRED','ACTION_VAULT_PATCH_CORRECTNESS_PROOF_REQUIRED']) if (!repairSource.includes(marker)) failures.push(`ACTION_VAULT_REPAIR_MARKER_MISSING=${marker}`);
+// Canonical relay YAML guard: duplicate step-level if keys are invalid and can prevent any job from starting.
+const relayPath = '.github/workflows/agent-communication-relay.yml';
+if (exists(relayPath)) {
+  const relayText = read(relayPath);
+  const relayStepChunks = relayText.split(/^\x20{6}- name:\s*/m).slice(1);
+  for (const chunk of relayStepChunks) {
+    const stepName = chunk.split(/\r?\n/, 1)[0].trim();
+    const ifKeys = chunk.match(/^\x20{8}if:\s*/gm) ?? [];
+    if (ifKeys.length > 1) failures.push('AGENT_RELAY_DUPLICATE_IF_KEY=' + stepName);
+  }
+}
+
 const sha = execFileSync('git', ['rev-parse','HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 for (const marker of ['FLIXO-SHARED-OPERATIONAL-MEMORY-v1','ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent','ERROR','OPERATION','ADVICE','OBLIGATION','LESSON','ANTI_LESSON','COUNTEREXAMPLE','VERIFICATION']) if (!sharedMemorySource.includes(marker)) failures.push('SHARED_MEMORY_MARKER_MISSING='+marker);
-if (!sharedMemoryContract.includes('Every published record is visible to all six participants')) failures.push('SHARED_MEMORY_CONTRACT_BINDING_MISSING');
+if (!sharedMemoryContract.includes('Every published record is visible to every active FLIXO BOT learning consumer')) failures.push('SHARED_MEMORY_CONTRACT_BINDING_MISSING');
 
 const result = { schemaVersion: 7, authority: 'AGENT_COORDINATION_GUARD', status: failures.length ? 'FAIL' : 'PASS', checkedSha: sha, controlPlane: 'scripts/ci/agent-coordination.mjs', sessionTool: 'scripts/ci/agent-session.mjs', cooperationContract: 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json', scoutProtocol: 'docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md', scout: 'scripts/ci/code-read-only-scout.mjs', protocolRegistry: 'docs/PROTOCOL-REGISTRY.json#P20', runtimeStatePolicy: 'generated-and-ignored', atomicCoordination: 'WRITE_LOCK_PLUS_OPTIMISTIC_REVISION_AND_ATOMIC_RENAME', failures };
 fs.mkdirSync(path.resolve(root,'diagnostics/agents'), { recursive:true });

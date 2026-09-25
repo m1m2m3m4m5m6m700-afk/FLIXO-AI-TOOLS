@@ -45,7 +45,7 @@ jobs:
           printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
 
       - name: Checkout trusted default-branch deployment controller
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
         with:
           # workflow_run runs from the default branch; leaving ref unset avoids
           # introducing an explicit checkout reference into a privileged workflow.
@@ -221,7 +221,7 @@ jobs:
 
       - name: Upload deployment evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@615b319bd27bb32c3d64dca6b6ed6974d5fbe653 # v6.0.0
         with:
           name: flixoai-cloudflare-evidence-${{ steps.sha.outputs.sha }}
           path: flixoai-cloudflare-deployment-evidence.json

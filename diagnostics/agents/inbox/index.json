@@ -11,7 +11,17 @@
       "entrySha": "e8c38c45b1aeda2c60bb8181b2b67265c6cf310e",
       "receivedAt": "2026-09-20T14:00:00+03:00",
       "updatedAt": "2026-09-20T14:01:00+03:00"
+    },
+    "AGENT2-WP-AUTONOMY-CONTROL-001-20260925-001": {
+      "messageId": "AGENT2-WP-AUTONOMY-CONTROL-001-20260925-001",
+      "idempotencyKey": "AGENT2-WP-AUTONOMY-CONTROL-001-20260925-001:336c7da81b4cc60621a10449aee6da22e6eebe6e",
+      "status": "RECEIVED",
+      "recipient": "assistantController",
+      "taskId": "WP-AUTONOMY-CONTROL-001",
+      "entrySha": "336c7da81b4cc60621a10449aee6da22e6eebe6e",
+      "receivedAt": "2026-09-24T22:51:44.168Z",
+      "updatedAt": "2026-09-24T22:52:43.099Z"
     }
   },
-  "updatedAt": "2026-09-20T14:01:00+03:00"
+  "updatedAt": "2026-09-24T22:52:43.099Z"
 }

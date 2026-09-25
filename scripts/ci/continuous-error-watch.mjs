@@ -9,6 +9,7 @@ export const REQUIRED_WORKFLOWS = Object.freeze([
   'FLIXO WP0 Trust Baseline',
   'FLIXO Test Impact',
   'FLIXO Test Impact Execution',
+  'FLIXO Security Red-Team Triad (Isolated)',
   'Repository Security Baseline',
   'Claude Security Review',
 ]);
@@ -20,11 +21,29 @@ export const REQUIRED_WORKFLOWS_BY_BRANCH = Object.freeze({
   ]),
 });
 
+const REQUIRED_WORKFLOW_PATHS = Object.freeze({
+  'FLIXO Test System': '.github/workflows/ci.yml',
+  'FLIXO WP0 Trust Baseline': '.github/workflows/wp0-trust-baseline.yml',
+  'FLIXO Test Impact': '.github/workflows/test-impact.yml',
+  'FLIXO Test Impact Execution': '.github/workflows/test-impact-execution.yml',
+  'Repository Security Baseline': '.github/workflows/repository-security-baseline.yml',
+  'Claude Security Review': '.github/workflows/claude-security-review.yml',
+  'FLIXO Security Red-Team Triad (Isolated)': '.github/workflows/security-red-team.yml',
+});
+
 const requiredWorkflowsForBranch = (branch) =>
   REQUIRED_WORKFLOWS_BY_BRANCH[branch] ?? REQUIRED_WORKFLOWS_BY_BRANCH.execution;
 
 // Any failed execution workflow may enter the repair lane.
 // Only the repair/control-plane infrastructure itself is excluded to prevent self-repair loops.
+const PROPOSAL_ONLY_WORKFLOW_PATHS = Object.freeze(new Set([
+  '.github/workflows/execution-sync.yml',
+  '.github/workflows/historical-action-error-index.yml',
+]));
+
+const isAuthoritativeWorkflowRun = (run) =>
+  !PROPOSAL_ONLY_WORKFLOW_PATHS.has(String(run?.workflowPath ?? run?.path ?? '').trim());
+
 const REPAIRABLE_WORKFLOW_PATHS = Object.freeze({
   'FLIXO Test System': '.github/workflows/ci.yml',
   'FLIXO WP0 Trust Baseline': '.github/workflows/wp0-trust-baseline.yml',
@@ -32,6 +51,7 @@ const REPAIRABLE_WORKFLOW_PATHS = Object.freeze({
   'FLIXO Test Impact Execution': '.github/workflows/test-impact-execution.yml',
   'Repository Security Baseline': '.github/workflows/repository-security-baseline.yml',
   'Claude Security Review': '.github/workflows/claude-security-review.yml',
+  'FLIXO Security Red-Team Triad (Isolated)': '.github/workflows/security-red-team.yml',
 });
 
 const NON_REPAIRABLE_WORKFLOW_PATTERNS = Object.freeze([
@@ -80,8 +100,9 @@ const latestBy = (items, predicate) => items
   .sort((a, b) => String(b.updatedAt ?? b.completed_at ?? b.started_at ?? '').localeCompare(String(a.updatedAt ?? a.completed_at ?? a.started_at ?? '')))[0] ?? null;
 
 const latestWorkflow = (runs, name) => {
+  const expectedPath = REQUIRED_WORKFLOW_PATHS[name] ?? null;
   const candidates = runs
-    .filter((run) => run.workflowName === name)
+    .filter((run) => run.workflowName === name && (!expectedPath || String(run.workflowPath ?? run.path ?? '') === expectedPath))
     .sort((a, b) => String(b.updatedAt ?? b.completed_at ?? b.started_at ?? '')
       .localeCompare(String(a.updatedAt ?? a.completed_at ?? a.started_at ?? '')));
   for (const candidate of candidates) {
@@ -93,6 +114,23 @@ const latestWorkflow = (runs, name) => {
 };
 const latestCheck = (checks, patterns) => latestBy(checks, (check) => patterns.some((pattern) => pattern.test(String(check.name ?? ''))));
 const stateOf = (item) => !item ? 'MISSING' : item.status === 'completed' ? (item.conclusion ?? 'unknown') : (item.status ?? 'unknown');
+
+export const classifyAutomationOutcome = (item) => {
+  // Terminal automation has exactly two outcomes for bots/certification:
+  // GREEN only on explicit success; every other outcome is RED.
+  // Lifecycle details remain available through stateOf() and are never terminal outcomes.
+  return stateOf(item) === 'success' ? 'GREEN' : 'RED';
+};
+const exactShaOfCheck = (check) => {
+  if (!check) return null;
+  const value = check.headSha ?? check.head_sha ?? null;
+  return typeof value === 'string' && /^[0-9a-f]{40}$/iu.test(value) ? value : null;
+};
+const actionRunIdOfCheck = (check) => {
+  const detailsUrl = String(check?.details_url ?? '');
+  const match = detailsUrl.match(/\/actions\/runs\/(\d+)(?:\/job\/\d+)?(?:[/?#]|$)/u);
+  return match?.[1] ?? null;
+};
 const providerFailure = (log) => PROVIDER_FAILURE_PATTERNS.some((pattern) => pattern.test(String(log ?? '')));
 
 export function classifyCancelledRun(run, runs = []) {
@@ -113,7 +151,10 @@ export function classifyCancelledRun(run, runs = []) {
 export function validateRepairTarget({ run, executionSha, workflowRuns = [], logs = {}, branch = 'execution' } = {}) {
   const errors = [];
   if (!run?.databaseId) errors.push('TARGET_MISSING');
-  if (!run || run.status !== 'completed' || !['failure', 'timed_out'].includes(run.conclusion)) errors.push('TARGET_NOT_FAILED_COMPLETED');
+  const repairableRedConclusions = new Set(['failure', 'timed_out', 'skipped', 'neutral']);
+  if (!run || run.status !== 'completed' || !repairableRedConclusions.has(run.conclusion)) {
+    errors.push('TARGET_NOT_FAILED_COMPLETED');
+  }
   if (run?.conclusion === 'cancelled') errors.push('TARGET_CANCELLED_NOT_SOURCE_FAILURE');
   if (run?.headSha !== executionSha) errors.push('TARGET_SHA_MISMATCH');
   if ((run?.headBranch ?? null) !== branch) errors.push('TARGET_BRANCH_MISMATCH');
@@ -158,7 +199,7 @@ const isExternalCheckName = (name) => {
 function externalCheckBlock(check, log) {
   if (!check || !isExternalCheckName(check.name)) return null;
   const state = stateOf(check);
-  if (state === 'skipped' || state === 'neutral') return null;
+  if (state === 'success') return null;
   return {
     kind: 'BLOCKED_EXTERNAL',
     checkName: String(check.name ?? '').trim(),
@@ -335,7 +376,7 @@ export function evaluateGreen({
       .localeCompare(String(a.updated_at ?? a.updatedAt ?? a.completed_at ?? a.started_at ?? '')))[0] ?? null;
   const aggregateSecurityStatus = !securityChecks.length
     ? 'MISSING'
-    : securityChecks.some((check) => ['failure', 'timed_out', 'cancelled', 'action_required'].includes(stateOf(check)))
+    : securityChecks.some((check) => ['failure', 'timed_out', 'cancelled', 'skipped', 'neutral', 'action_required'].includes(stateOf(check)))
       ? 'failure'
       : securityChecks.some((check) => ['queued', 'in_progress', 'pending'].includes(stateOf(check)))
         ? 'in_progress'
@@ -355,13 +396,61 @@ export function evaluateGreen({
   if (!securityChecks.length) report.errors.push({ type: 'SECURITY_EVIDENCE_MISSING' });
 
   const certificationCheck = latestCheck(checkRuns, CERTIFICATION_CHECK_PATTERNS);
+  const certificationStatus = stateOf(certificationCheck);
+  const certificationHeadSha = exactShaOfCheck(certificationCheck);
+  const certificationRunId = actionRunIdOfCheck(certificationCheck);
+  const canonicalTestRunId = report.ci.requiredWorkflows['FLIXO Test System']?.runId != null
+    ? String(report.ci.requiredWorkflows['FLIXO Test System'].runId)
+    : null;
   report.ci.certification = {
     present: Boolean(certificationCheck),
-    status: stateOf(certificationCheck),
+    status: certificationStatus,
     name: certificationCheck?.name ?? null,
     checkId: certificationCheck?.id ?? null,
+    headSha: certificationHeadSha,
+    exactSha: certificationHeadSha === executionSha,
+    runId: certificationRunId,
+    canonicalRunId: canonicalTestRunId,
+    canonicalRun: certificationRunId !== null && canonicalTestRunId !== null && certificationRunId === canonicalTestRunId,
   };
-  if (!certificationCheck) report.errors.push({ type: 'CERTIFICATION_EVIDENCE_MISSING' });
+  if (!certificationCheck) {
+    report.errors.push({ type: 'CERTIFICATION_EVIDENCE_MISSING' });
+  } else if (certificationStatus !== 'success') {
+    report.errors.push({
+      type: 'CERTIFICATION_CHECK_RED',
+      status: certificationStatus,
+      checkId: certificationCheck.id ?? null,
+    });
+  } else if (!certificationHeadSha) {
+    report.errors.push({
+      type: 'CERTIFICATION_SHA_MISSING',
+      checkId: certificationCheck.id ?? null,
+    });
+  } else if (certificationHeadSha !== executionSha) {
+    report.errors.push({
+      type: 'STALE_CERTIFICATION_EVIDENCE',
+      checkId: certificationCheck.id ?? null,
+      certificationSha: certificationHeadSha,
+      executionSha,
+    });
+  } else if (!certificationRunId) {
+    report.errors.push({
+      type: 'CERTIFICATION_RUN_ID_MISSING',
+      checkId: certificationCheck.id ?? null,
+    });
+  } else if (!canonicalTestRunId) {
+    report.errors.push({
+      type: 'CANONICAL_TEST_RUN_ID_MISSING',
+      checkId: certificationCheck.id ?? null,
+    });
+  } else if (certificationRunId !== canonicalTestRunId) {
+    report.errors.push({
+      type: 'NONCANONICAL_CERTIFICATION_RUN',
+      checkId: certificationCheck.id ?? null,
+      certificationRunId,
+      canonicalTestRunId,
+    });
+  }
 
   const externalCandidates = latestChecks.map((check) => externalCheckBlock(check, logForCheck(check, logs))).filter(Boolean);
   const externalStatusCandidates = statuses
@@ -378,7 +467,7 @@ export function evaluateGreen({
     })
     .filter(Boolean);
   report.externalBlockers = [...externalCandidates, ...externalStatusCandidates];
-  if (externalCandidates.some((item) => ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state))) {
+  if (externalCandidates.some((item) => ['failure', 'cancelled', 'timed_out', 'skipped', 'neutral', 'queued', 'in_progress'].includes(item.state))) {
     report.rootCause = 'EXTERNAL_CHECK_BLOCKED';
   }
 
@@ -401,7 +490,8 @@ export function evaluateGreen({
         candidate?.headSha === executionSha &&
         candidate?.headBranch === 'execution' &&
         candidate?.status === 'completed' &&
-        ['failure', 'timed_out'].includes(candidate?.conclusion)
+        isAuthoritativeWorkflowRun(candidate) &&
+        ['failure', 'timed_out', 'skipped', 'neutral'].includes(candidate?.conclusion)
       )
       .sort((a, b) => String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')));
 
@@ -467,7 +557,7 @@ export function evaluateGreen({
 
   if (report.externalBlockers.length) {
     const approvalBlocker = report.externalBlockers.find((item) => item.state === 'action_required');
-    const blocker = report.externalBlockers.find((item) => ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state));
+    const blocker = report.externalBlockers.find((item) => ['failure', 'cancelled', 'timed_out', 'skipped', 'neutral', 'queued', 'in_progress'].includes(item.state));
     if (approvalBlocker) {
       report.status = 'FAIL_CLOSED';
       report.rootCause = approvalBlocker.rootCause;
@@ -480,8 +570,38 @@ export function evaluateGreen({
   }
 
   const activeExternalBlocker = report.externalBlockers.some((item) =>
-    ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state)
+    ['failure', 'cancelled', 'timed_out', 'skipped', 'neutral', 'queued', 'in_progress'].includes(item.state)
   );
+
+  // Repository-wide binary outcome guard:
+  // any completed skipped/neutral run on the exact execution SHA is RED,
+  // even when that workflow is not part of the canonical required set.
+  const nonBinaryRuns = workflowRuns.filter((item) =>
+    item?.headSha === executionSha &&
+    item?.status === 'completed' &&
+    isAuthoritativeWorkflowRun(item) &&
+    ['skipped', 'neutral'].includes(item?.conclusion),
+  );
+  for (const item of nonBinaryRuns) {
+    report.errors.push({
+      type: 'NON_BINARY_AUTOMATION_OUTCOME',
+      workflow: item.workflowName ?? item.name ?? 'unknown',
+      runId: item.databaseId ?? null,
+      status: item.conclusion,
+      headSha: item.headSha ?? null,
+    });
+  }
+
+  const skippedRequiredWorkflows = Object.entries(report.ci.requiredWorkflows)
+    .filter(([, item]) => item.status === 'skipped' || item.status === 'neutral');
+  if (skippedRequiredWorkflows.length) {
+    for (const [workflow, item] of skippedRequiredWorkflows) {
+      report.errors.push({ type: 'SKIPPED_CHECK_RED', workflow, runId: item.runId ?? null, status: item.status });
+    }
+    report.status = 'RED_INTERNAL';
+    report.rootCause = 'SKIPPED_REQUIRED_CHECK_REQUIRES_REPAIR_CYCLE';
+    report.repair.required = false;
+  }
 
   if (report.repair.required) {
     report.status = 'RED_INTERNAL';
@@ -506,6 +626,8 @@ export function evaluateGreen({
     'UNEXPECTED_CHECK_RED',
     'UNEXPECTED_COMMIT_STATUS_RED',
     'UNAPPROVED_WORKFLOW_RED',
+    'SKIPPED_CHECK_RED',
+    'NON_BINARY_AUTOMATION_OUTCOME',
   ].includes(error.type))) {
     report.status = 'RED_INTERNAL';
     report.rootCause = 'REQUIRED_CHECK_FAILURE_REQUIRES_REPAIR_CYCLE';
@@ -516,7 +638,7 @@ export function evaluateGreen({
     report.rootCause = report.externalBlockers.find((item) => item.state === 'action_required')?.rootCause
       ?? 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED';
   } else if (report.externalBlockers.some((item) =>
-    ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state)
+    ['failure', 'cancelled', 'timed_out', 'skipped', 'neutral', 'queued', 'in_progress'].includes(item.state)
   )) {
     report.status = report.externalBlockers.some((item) => item.kind === 'BLOCKED_EXTERNAL')
       ? 'BLOCKED_EXTERNAL'
@@ -526,6 +648,7 @@ export function evaluateGreen({
     report.rootCause = null;
   }
 
+  report.automationOutcome = report.status === 'GREEN' ? 'GREEN' : 'RED';
   return report;
 }
 

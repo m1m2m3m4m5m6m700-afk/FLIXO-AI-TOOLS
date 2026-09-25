@@ -1,6 +1,33 @@
 import { getReadyToolConfigs } from '../src/config/tools.ts';
+import { readFileSync } from 'node:fs';
 import { LOCALES } from '../src/lib/i18n/config.ts';
 import { localizeToolTitle, localizeToolDescription, localizeToolCategory } from '../src/lib/i18n/tool-localization.ts';
+
+const COMPLETE_LOCALE_REGRESSION_TOOLS = [
+  'background-remover',
+  'image-compressor',
+  'image-converter',
+  'image-cropper',
+  'exif-cleaner',
+  'background-blur',
+];
+const REQUIRED_REGRESSION_LOCALES = ['ms', 'uk'];
+const manifestFailures = [];
+for (const toolId of COMPLETE_LOCALE_REGRESSION_TOOLS) {
+  const manifest = readFileSync(new URL(`../src/tools/${toolId}/manifest.ts`, import.meta.url), 'utf8');
+  for (const locale of REQUIRED_REGRESSION_LOCALES) {
+    if (!manifest.includes(`import { ${locale} } from './seo/${locale}';`)) {
+      manifestFailures.push(`${toolId}:${locale}:manifest import missing`);
+    }
+    if (!manifest.includes(` ${locale},`)) {
+      manifestFailures.push(`${toolId}:${locale}:seoLocales registration missing`);
+    }
+  }
+}
+if (manifestFailures.length) {
+  console.error(manifestFailures.join('\n'));
+  process.exit(1);
+}
 
 const tools = getReadyToolConfigs();
 const failures = [];

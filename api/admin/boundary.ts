@@ -1,5 +1,15 @@
 import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { AdminCapability } from '../../src/lib/admin/control-plane.ts';
+import type { AdminRole } from '../../src/lib/admin/roles.ts';
+import type { AdminSession } from '../../src/server/admin/contracts.ts';
+import type {
+  AdminBoundarySuccessResponse,
+  AdminErrorResponse,
+  AdminRequestQuery,
+  JsonObject,
+  JsonValue,
+} from '../contracts.ts';
 import { isAdminSessionStoreConfigured, getAdminSessionState } from '../../src/server/admin/session-store.ts';
 import { ADMIN_CAPABILITIES } from '../../src/lib/admin/control-plane.ts';
 import { activeCapabilitiesForRole, isAdminRole } from '../../src/lib/admin/roles.ts';
@@ -7,43 +17,54 @@ import { activeCapabilitiesForRole, isAdminRole } from '../../src/lib/admin/role
 const SESSION_COOKIE = 'flixo_admin_session';
 const DEFAULT_TTL_SECONDS = 60 * 60;
 
-const BOUNDARY_CAPABILITY = 'admin.read' as const;
-const ACTIVE_CAPABILITIES = new Set<string>(ADMIN_CAPABILITIES);
+const BOUNDARY_CAPABILITY: AdminCapability = 'admin.read';
+const ACTIVE_CAPABILITIES = new Set<AdminCapability>(ADMIN_CAPABILITIES);
 
-type AdminRequest = IncomingMessage & {
+interface AdminRequest extends IncomingMessage {
   method?: string;
-  query?: Record<string, string | string[] | undefined>;
-};
+  query?: AdminRequestQuery;
+}
 
-type SessionInput = {
+interface SessionInput {
   subject: string;
-  capabilities: string[];
-  role: string;
-  sessionId?: string;
+  capabilities: readonly AdminCapability[];
+  role: AdminRole;
+  sessionId: string;
   ttlSeconds?: number;
-};
+}
 
-export type AdminSession = {
-  subject: string;
-  sessionId?: string;
-  capabilities: Set<string>;
-  role?: string;
-  expiresAt: number;
-};
+export type { AdminSession };
 
-export type AdminAuthorization = {
+export interface AdminAuthorization {
   subject: string;
-  capability: string;
+  capability: AdminCapability;
   correlationId: string;
-};
+}
 
-export type AdminAuthorizationFailure = {
+export interface AdminAuthorizationFailure {
   status: 401 | 403 | 405 | 503;
   code: string;
   correlationId: string;
+}
+
+const isJsonObjectValue = (value: unknown): value is JsonObject =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isStringArray = (value: JsonValue | undefined): value is string[] => {
+  if (!Array.isArray(value)) return false;
+  const candidates = value as JsonValue[];
+  return candidates.every((entry) => typeof entry === 'string');
 };
 
-const json = (res: ServerResponse, status: number, body: unknown, correlationId: string) => {
+const isAdminCapability = (value: string): value is AdminCapability =>
+  ACTIVE_CAPABILITIES.has(value as AdminCapability);
+
+const json = <TBody extends AdminBoundarySuccessResponse | AdminErrorResponse>(
+  res: ServerResponse,
+  status: number,
+  body: TBody,
+  correlationId: string,
+): void => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
@@ -62,15 +83,18 @@ const sessionSecret = () => {
   return secret && secret.length >= 32 ? secret : null;
 };
 
-export const signAdminSession = ({ subject, capabilities, role, sessionId, ttlSeconds = DEFAULT_TTL_SECONDS }: SessionInput, secret = process.env.ADMIN_SESSION_SECRET) => {
+export const signAdminSession = (
+  { subject, capabilities, role, sessionId, ttlSeconds = DEFAULT_TTL_SECONDS }: SessionInput,
+  secret = process.env.ADMIN_SESSION_SECRET,
+): string => {
   if (!secret || secret.length < 32) throw new Error('ADMIN_SESSION_SECRET is not configured');
   if (!subject || !Array.isArray(capabilities)) throw new Error('invalid session payload');
   if (!isAdminRole(role)) throw new Error('invalid session role');
-  if (!sessionId || !/^[0-9a-f-]{36}$/i.test(sessionId)) throw new Error('invalid session id');
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId)) throw new Error('invalid session id');
 
   const canonicalCapabilities = new Set<string>(activeCapabilitiesForRole(role));
   const requestedCapabilities = [...new Set(capabilities)].sort();
-  if (requestedCapabilities.some((capability) => !canonicalCapabilities.has(capability))) {
+  if (!requestedCapabilities.every((capability) => canonicalCapabilities.has(capability))) {
     throw new Error('session capabilities do not match role');
   }
 
@@ -97,17 +121,36 @@ export const verifyAdminSessionToken = (token: string | null, secret = process.e
   if (actualSignature.length !== expectedSignature.length || !timingSafeEqual(actualSignature, expectedSignature)) return null;
 
   try {
-    const payload = JSON.parse(fromBase64url(encoded)) as { sub?: string; role?: string; sid?: string; cap?: unknown; exp?: number };
-    if (!payload.sub || !Array.isArray(payload.cap) || typeof payload.exp !== 'number' || !Number.isInteger(payload.exp)) return null;
-    if (typeof payload.sid !== 'string' || !/^[0-9a-f-]{36}$/i.test(payload.sid)) return null;
-    if (typeof payload.role !== 'string' || !isAdminRole(payload.role)) return null;
-    if (payload.exp <= Math.floor(Date.now() / 1000)) return null;
-    const capabilities = payload.cap.filter((value): value is string => typeof value === 'string');
-    if (capabilities.length !== payload.cap.length || capabilities.some((value) => !ACTIVE_CAPABILITIES.has(value))) return null;
-    const canonicalCapabilities = new Set<string>(activeCapabilitiesForRole(payload.role));
+    const parsed: unknown = JSON.parse(fromBase64url(encoded));
+    if (!isJsonObjectValue(parsed)) return null;
+
+    if (
+      typeof parsed.sub !== 'string'
+      || typeof parsed.role !== 'string'
+      || typeof parsed.sid !== 'string'
+      || !/^[0-9a-f-]{36}$/i.test(parsed.sid)
+      || typeof parsed.exp !== 'number'
+      || !Number.isInteger(parsed.exp)
+      || !isStringArray(parsed.cap)
+    ) return null;
+
+    if (!isAdminRole(parsed.role)) return null;
+    if (parsed.exp <= Math.floor(Date.now() / 1000)) return null;
+
+    const capabilities = parsed.cap.filter(isAdminCapability);
+    if (capabilities.length !== parsed.cap.length) return null;
+
+    const canonicalCapabilities = new Set(activeCapabilitiesForRole(parsed.role));
     const actualCapabilities = [...new Set(capabilities)].sort();
     if (actualCapabilities.some((capability) => !canonicalCapabilities.has(capability))) return null;
-    return { subject: payload.sub, sessionId: payload.sid, role: payload.role, expiresAt: payload.exp, capabilities: new Set(actualCapabilities) };
+
+    return {
+      subject: parsed.sub,
+      sessionId: parsed.sid,
+      role: parsed.role,
+      expiresAt: parsed.exp,
+      capabilities: new Set(actualCapabilities),
+    };
   } catch {
     return null;
   }
@@ -136,14 +179,14 @@ const readCookie = (cookieHeader: string | undefined, name: string) => {
 
 export const authorizeAdminRequestWithDurableSession = async (
   req: AdminRequest,
-  requiredCapability = 'admin.read',
+  requiredCapability: AdminCapability = BOUNDARY_CAPABILITY,
 ): Promise<AdminAuthorization | AdminAuthorizationFailure> => {
   const authorization = authorizeAdminRequest(req, requiredCapability);
   if ('status' in authorization) return authorization;
 
   const token = readAdminSessionToken(req.headers.cookie);
   const session = verifyAdminSessionToken(token);
-  if (!session?.sessionId) {
+  if (!token || !session?.sessionId) {
     return { status: 401, code: 'authentication_required', correlationId: authorization.correlationId };
   }
 
@@ -154,7 +197,7 @@ export const authorizeAdminRequestWithDurableSession = async (
   let state: Awaited<ReturnType<typeof getAdminSessionState>>;
   try {
     state = await getAdminSessionState(session.sessionId, {
-      token: token!,
+      token,
       subject: session.subject,
       role: session.role,
     });
@@ -169,7 +212,10 @@ export const authorizeAdminRequestWithDurableSession = async (
   return authorization;
 };
 
-export const authorizeAdminRequest = (req: AdminRequest, requiredCapability = 'admin.read'): AdminAuthorization | AdminAuthorizationFailure => {
+export const authorizeAdminRequest = (
+  req: AdminRequest,
+  requiredCapability: AdminCapability = BOUNDARY_CAPABILITY,
+): AdminAuthorization | AdminAuthorizationFailure => {
   const suppliedRequestId = req.headers['x-request-id'];
   const correlationId = typeof suppliedRequestId === 'string' && suppliedRequestId.trim().length <= 128 && suppliedRequestId.trim().length > 0 ? suppliedRequestId : randomUUID();
   const method = String(req.method ?? 'GET').toUpperCase();
@@ -211,12 +257,14 @@ export default async function adminBoundary(req: AdminRequest, res: ServerRespon
     return errorResponse(res, 403, 'capability_denied', authorization.correlationId);
   }
 
-  return json(res, 200, {
+  const response: AdminBoundarySuccessResponse = {
     ok: true,
     identity: { subject: authorization.subject },
     authorization: { capability: authorization.capability, decision: 'ALLOW' },
     correlationId: authorization.correlationId,
-  }, authorization.correlationId);
+  };
+
+  return json(res, 200, response, authorization.correlationId);
 }
 
 export const sessionCookieName = SESSION_COOKIE;
