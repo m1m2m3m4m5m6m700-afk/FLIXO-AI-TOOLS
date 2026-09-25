@@ -67,7 +67,13 @@ for (const file of currentWorkflows) {
   if (!hasWorkflowRunTrigger && !hasPushTrigger && !hasPullRequestTrigger) continue;
   assert.match(source, /concurrency:/u, file + ': latest-commit workflow must define concurrency');
   if (hasWorkflowRunTrigger) {
-    assert.match(source, /scripts\/ci\/assert-workflow-run-current\.mjs/u, file + ': workflow_run consumer must bind current source SHA');
+    if (file === 'agent-repair-handoff-gate.yml') {
+      assert.match(source, /SOURCE_RUN_SHA:\s*\$\{\{\s*github\.event\.workflow_run\.head_sha/u, file + ': read-only workflow_run publisher source SHA binding missing');
+      assert.match(source, /LIVE_MAIN_SHA=/u, file + ': read-only workflow_run publisher live-head binding missing');
+      assert.match(source, /test "\$LIVE_MAIN_SHA" = "\$SOURCE_RUN_SHA"/u, file + ': read-only workflow_run publisher must reject stale source');
+    } else {
+      assert.match(source, /scripts\/ci\/assert-workflow-run-current\.mjs/u, file + ': workflow_run consumer must bind current source SHA');
+    }
   } else if (hasPushTrigger || hasPullRequestTrigger) {
     const hasExplicitExactShaGuard =
       /scripts\/ci\/assert-current-commit\.mjs/u.test(source) ||
