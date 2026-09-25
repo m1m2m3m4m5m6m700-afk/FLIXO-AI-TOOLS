@@ -50,9 +50,9 @@
     "validate:breadcrumb-seo": "node scripts/validate-breadcrumb-seo.mjs",
     "validate:ci-contract": "node scripts/validate-ci-contract.mjs",
     "validate:contracts": "node --experimental-strip-types scripts/validate-contracts.mjs",
-    "validate:localization-full": "node scripts/validate-localization-full.mjs",
-    "validate:localization-complete": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-localization-complete.mjs",
-    "verify:i18n": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-localization-complete.mjs --strict --report",
+    "validate:localization-full": "node scripts/validate-localization.mjs",
+    "validate:localization-complete": "node scripts/validate-localization.mjs",
+    "verify:i18n": "node scripts/validate-localization.mjs --strict --report",
     "validate:tool-registry": "node scripts/validate-tool-registry-contract.mjs",
     "validate:tool-manifest": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-tool-manifest.mjs",
     "validate:tool-definition": "node scripts/validate-tool-definition-contract.mjs",
@@ -267,7 +267,8 @@
     "test:runtime-proof-coverage": "node scripts/ci/test-runtime-proof-coverage.mjs",
     "test:control-contract-locks": "node scripts/ci/test-control-contract-locks.mjs",
     "test:swarm-capacity": "node scripts/ci/test-flixo-swarm-capacity-controller.mjs",
-    "test:developer-tool-registry": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-developer-tool-registry.mjs"
+    "test:developer-tool-registry": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-developer-tool-registry.mjs",
+    "validate:localization": "node scripts/validate-localization.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
