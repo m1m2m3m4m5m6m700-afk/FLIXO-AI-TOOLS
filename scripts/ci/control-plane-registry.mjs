@@ -347,7 +347,6 @@ export const BOT_RUNTIME_ROLES = Object.freeze({
       'NO_PEER_TAKEOVER',
     ]),
   }),
-  }),
 });
 
 const BOT_RUNTIME_IDS = Object.freeze({
