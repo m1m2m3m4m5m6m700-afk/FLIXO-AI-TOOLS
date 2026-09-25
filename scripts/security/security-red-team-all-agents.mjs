@@ -97,7 +97,7 @@ function adversarialProbe(id,mutate){
   const escaped=errors.length===0;
   const evidence=errors.length?errors.join(','):'NO_INVARIANT_VIOLATION_DETECTED';
   const status=escaped?'ESCAPED':'BLOCKED';
-  attacks.push({id,status,exactSha:EXPECTED_SHA,evidence});
+  attacks.push({id,status,exactSha:expectedSha,evidence});
   if(escaped) fail('ADVERSARIAL_ESCAPE',id);
 }
 
