@@ -93,3 +93,12 @@ The external FLIXO UI agent `execution-agent-clone-v1` is connected to the same 
 **External → internal:** the external agent may emit a bounded `PROPOSED` learning candidate. CI sync imports only candidates bound to the current exact SHA into canonical shared operational memory. Proposed knowledge remains advisory until independently verified and promoted through the existing learning and GREEN gates.
 
 The browser never receives repository secrets and never writes the canonical repository memory directly.
+
+
+## Unified internal cognition v2
+
+The historical six-bot compatibility set is now a compatibility view over `FLIXO-BOT-BRAIN-v2`. Every internal repository agent and repair bot listed in `docs/agents/FLIXO-BOT.json#/distribution/systemWideInternalConsumers` receives the same complete cognitive substrate and the same canonical shared learning stream. Role overlays change default emphasis, workflow, ownership and authority only; they cannot reduce capability depth or create a private canonical learning store.
+
+Canonical cognitive kernel: `docs/agents/FLIXO-BOT.json#/unifiedCognitiveKernel`.
+Canonical memory: `diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json`.
+Excluded from this internal memory authority domain: `execution-agent-clone-v1`, external runtime agents, and the retired historical CELL runtime pool.
