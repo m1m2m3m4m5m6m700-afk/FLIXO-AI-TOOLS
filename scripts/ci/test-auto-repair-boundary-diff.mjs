@@ -22,7 +22,7 @@ try {
   fs.writeFileSync(path.join(temp, 'base.txt'), 'base\n');
   runGit('add', 'base.txt');
   runGit('commit', '-qm', 'base');
-  runGit('switch', '-cq', 'execution');
+  runGit('switch', '-C', 'execution');
 
   fs.writeFileSync(path.join(temp, 'staged-probe.mjs'), 'export default {};\n');
   runGit('add', 'staged-probe.mjs');
