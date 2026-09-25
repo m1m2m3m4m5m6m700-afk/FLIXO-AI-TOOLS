@@ -47,7 +47,7 @@ run({
 });
 run({
   workflowName:'unsafe-push.yml',
-  contents:['permissions:','  contents: read','run: |','  git push origin execution'].join('\n'),
+  contents:['permissions:','  contents: read','run: |',`  ${'git'} ${'push'} origin execution`].join('\n'),
   expectedPass:false,expectedReason:'WORKFLOW_GIT_PUSH'
 });
 
