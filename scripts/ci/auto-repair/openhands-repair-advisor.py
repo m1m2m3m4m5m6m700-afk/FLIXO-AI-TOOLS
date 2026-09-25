@@ -60,7 +60,12 @@ def main() -> int:
     if not api_key:
         return emit({"status": "BLOCKED_EXTERNAL", "reason": "OPENHANDS_LLM_CREDENTIAL_MISSING"})
 
-    model = os.environ.get("FLIXO_OPENHANDS_MODEL") or os.environ.get("OPENAI_MODEL") or "gpt-5.5"
+    model = (
+        os.environ.get("FLIXO_OPENHANDS_MODEL")
+        or (os.environ.get("OPENROUTER_MODEL") if os.environ.get("OPENROUTER_API_KEY") else None)
+        or os.environ.get("OPENAI_MODEL")
+        or "gpt-5.5"
+    )
     base_url = os.environ.get("FLIXO_OPENHANDS_BASE_URL")
     if not base_url and os.environ.get("OPENROUTER_API_KEY"):
         base_url = "https://openrouter.ai/api/v1"
