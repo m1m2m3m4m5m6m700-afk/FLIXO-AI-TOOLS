@@ -13,6 +13,7 @@ import {
 import { getAgentProfile, listAgentProfiles, profilesForLenses } from '../src/lib/agent/agent-profile.ts';
 import { assessAgentStuck } from '../src/lib/agent/stuck-detector.ts';
 import { runBoundedGoalLoop } from '../src/lib/agent/goal-controller.ts';
+import { AgentResourceLockManager, runBoundedParallel } from '../src/lib/agent/delegation.ts';
 import { appendConversationEvent, verifyConversationEventChain } from '../src/lib/agent/conversation-event-store.ts';
 
 const registry = JSON.parse(fs.readFileSync('docs/agents/FLIXO-BOT.json', 'utf8'));
@@ -130,3 +131,22 @@ assert.equal(event.sequence, 1);
 assert.equal(verifyConversationEventChain([event]), true);
 
 console.log('Agent platform primitives tests passed.');
+
+const lockManager = new AgentResourceLockManager();
+assert.equal(lockManager.tryAcquire(['image:1'], 'task-a'), true);
+assert.equal(lockManager.tryAcquire(['image:1'], 'task-b'), false);
+lockManager.release(['image:1'], 'task-a');
+assert.equal(lockManager.tryAcquire(['image:1'], 'task-b'), true);
+
+const delegated = await runBoundedParallel(
+  [
+    { id: 'task-1', input: 1, resourceKeys: ['image:1'] },
+    { id: 'task-2', input: 2, resourceKeys: ['image:2'] },
+  ],
+  async (task) => task.input * 2,
+  { maxConcurrency: 2, lockManager: new AgentResourceLockManager() },
+);
+assert.deepEqual(delegated.map((item) => item.output), [2, 4]);
+assert.ok(delegated.every((item) => item.status === 'COMPLETED'));
+
+console.log('Agent delegation primitives tests passed.');
