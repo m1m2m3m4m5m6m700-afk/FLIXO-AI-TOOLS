@@ -129,7 +129,7 @@ for (const browser of browsers) {
     const sourceReportSha256 = writePlaywrightReport('DEEP', browser, shard);
     writeJson(`diagnostics/certification/browser-deep-${browser}-${shard}.json`, {
       schema_version: 5, evidenceClass: 'PRIMARY_EXECUTION', mode: 'DEEP', browser, shard, runId,
-      exactSha: actualSha, sourceReportSha256: '0'.repeat(64), status: 'PASS', locales: 20,
+      exactSha: actualSha, sourceReportSha256, status: 'PASS', locales: 20,
       expectedSpecCount: 1, executedSpecCount: 1, unexpectedSpecs: [], executionUnitCount: group.length,
       skippedTestCount: 0, failedTestCount: 0, notExecutedTestCount: 0,
       statusCounts: { PASS: group.length, FAIL: 0, SKIPPED: 0, CANCELLED: 0, BLOCKED: 0, NOT_EXECUTED: 0 },
