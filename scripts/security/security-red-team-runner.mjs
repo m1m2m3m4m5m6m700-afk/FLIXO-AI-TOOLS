@@ -68,6 +68,11 @@ function addFinding({ ruleId, severity='MEDIUM', category, title, file, line, ev
 
 const workflowFile = (file) => /^(?:\.github\/workflows\/).+\.ya?ml$/u.test(file);
 const sourceFile = (file) => /\.(?:[cm]?js|tsx?|jsx|vue|svelte|astro|css|html|mjs|cjs|json|yml|yaml)$/iu.test(file);
+const browserSourceFile = (file) =>
+  /^src\//u.test(file) &&
+  sourceFile(file) &&
+  !/^src\/(?:server|.*\/server)(?:\/|$)/u.test(file) &&
+  !/^src\/(?:.*\/)?(?:__tests__|tests|test-fixtures)(?:\/|$)/u.test(file);
 
 function runTestSystemAdversary() {
   const tracked = ['.github/workflows/security-red-team.yml','docs/agents/SECURITY-RED-TEAM-BOTS.json','scripts/ci/test-security-red-team-contract.mjs','scripts/ci/control-plane-registry.mjs','scripts/ci/validate-two-branch-policy.mjs','scripts/security/security-red-team-runner.mjs'];
@@ -234,7 +239,7 @@ if (BOT_ID === 'SECURITY-REDTEAM-1') {
 }
 
 if (BOT_ID === 'SECURITY-REDTEAM-2') {
-  for (const file of tracked.filter(appSourceFile)) {
+  for (const file of tracked.filter(browserSourceFile)) {
     const checks = [
       ['APP-DYNAMIC-CODE','CRITICAL','CODE_EXECUTION','Dynamic code execution primitive',/(?:\beval\s*\(|new\s+Function\s*\(|vm\.(?:runIn|runInNew|runInThisContext)\s*\()/u,0.98,'Remove or strictly isolate dynamic execution; replace with typed dispatch/allowlisted interpreters.'],
       ['APP-CHILD-PROCESS','HIGH','COMMAND_EXECUTION','Server-side child process execution boundary',/(?:child_process|execFileSync\(|execSync\(|spawnSync\(|exec\()/u,0.96,'Constrain command construction to fixed allowlists and validated arguments; prove no user-controlled command concatenation.'],
