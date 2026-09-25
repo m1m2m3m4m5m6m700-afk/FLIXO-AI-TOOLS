@@ -15,6 +15,8 @@ assert.match(workflow, /stale_event=true/);
 assert.match(workflow, /if: steps\.head\.outputs\.stale_event != 'true'/);
 assert.match(workflow, /gh run cancel "\$run_id" --repo "\$REPOSITORY"/);
 assert.match(workflow, /STALE_RUN_ALREADY_COMPLETED run=\$run_id/);
+assert.match(workflow, /CANCEL_DEFERRED_STALE_INVALIDATED/u);
+assert.match(workflow, /STALE_RUN_INVALIDATED=true/u);
 assert.doesNotMatch(workflow, /gh run view "\$run_id"/);
 assert.doesNotMatch(workflow, /gh run cancel "\$run_id" --repo "\$REPOSITORY"\s*\|\|\s*true/);
 assert.match(workflow, /gh api --paginate/);
