@@ -138,3 +138,69 @@ The other repositories are recorded as capability references until a specific pr
 - https://github.com/SWE-bench/SWE-smith
 - https://github.com/SWE-bench/SWE-bench
 - https://github.com/eclipse-repairnator/repairnator
+## 9. Image-Editing AI Capability Layer
+
+This second research layer is specifically for the FLIXO product goal: a conversational image-editing assistant that understands the image, identifies the intended region/object, selects an editing operation, executes it, and verifies the visual result.
+
+| Source repository | Capability | FLIXO opportunity | State | Boundary |
+|---|---|---|---|---|
+| [comfyanonymous/ComfyUI](https://github.com/comfyanonymous/ComfyUI) / [Comfy-Org/ComfyUI](https://github.com/Comfy-Org/ComfyUI) | Node/graph-based image workflow execution, reusable workflow composition, API/backend | Reference for representing complex multi-tool image transformations as explicit execution graphs | **REFERENCE / EVALUATE AFTER GREEN** | Do not import the full UI/runtime; FLIXO keeps its own Tool/Capability Registry and Execution Gate |
+| [invoke-ai/InvokeAI](https://github.com/invoke-ai/InvokeAI) | Canvas-centric editing, inpainting masks, lasso/region selection, workflow execution against canvas images | Reference for region-aware editing UX and image-to-workflow execution | **REFERENCE** | No second canvas/runtime or parallel execution authority |
+| [Acly/krita-ai-diffusion](https://github.com/Acly/krita-ai-diffusion) | Selection-based inpainting/outpainting, controlled editing, references, sketches, line art, depth maps | Strong reference for precise user intent translated into constrained visual edits | **REFERENCE / HIGH VALUE** | Reuse concepts and contracts; do not import the Krita plugin architecture |
+| [huggingface/diffusers](https://github.com/huggingface/diffusers) | Modular diffusion pipelines, image-to-image, inpainting and composable model components | Candidate inference substrate for future FLIXO AI editing capabilities | **REFERENCE / FUTURE IMPLEMENTATION** | Any model runtime must enter through FLIXO Capability Registry → Execution Gate → Executor → Verification |
+| [facebookresearch/segment-anything](https://github.com/facebookresearch/segment-anything) / SAM 2 family | Promptable segmentation from points/boxes and visual masks | Foundation for turning phrases such as “the person”, “the sky”, or “the left object” into editable regions | **REFERENCE / HIGH VALUE** | Segmentation output is evidence/input to editing, never direct authorization |
+| [IDEA-Research/GroundingDINO](https://github.com/IDEA-Research/GroundingDINO) | Open-set text-conditioned object detection; language-to-box grounding; compatibility with SAM and editing pipelines | Candidate grounding layer from natural language object references to bounding regions | **REFERENCE / HIGH VALUE** | Detection confidence must be verified; absence/ambiguity must fail closed or trigger clarification |
+| [IDEA-Research/Grounded-Segment-Anything](https://github.com/IDEA-Research/Grounded-Segment-Anything) | Grounding DINO + SAM composition for text-prompted detection/segmentation and controllable editing | Reference architecture for intent → locate → mask → edit | **REFERENCE / HIGH VALUE** | Treat this as a capability pattern, not a new end-to-end FLIXO runtime |
+
+### 9.1 Proposed visual execution chain
+
+```text
+User language
+   ↓
+Intent / Clarification
+   ↓
+Visual grounding
+   ├─ Grounding DINO → object/region candidates
+   └─ SAM/SAM2       → pixel mask
+   ↓
+Edit Planner
+   ├─ local edit / inpaint
+   ├─ remove / replace
+   ├─ extend / outpaint
+   ├─ style / appearance
+   └─ global transformation
+   ↓
+Inference / Workflow Engine
+   ├─ Diffusers pipelines
+   └─ workflow graph reference (ComfyUI/InvokeAI patterns)
+   ↓
+Visual Verification
+   ├─ target region preserved/changed as intended
+   ├─ prompt/intent adherence
+   ├─ artifact detection
+   └─ output integrity
+   ↓
+User-visible result + revision loop
+```
+
+### 9.2 Important architectural finding
+
+The strongest reusable idea from this research is **not** to copy one repository wholesale. It is to separate the visual editing problem into contracts:
+
+`Intent → Grounding → Region/Mask → Edit Plan → Execution → Visual Verification → Revision`
+
+This aligns naturally with the existing FLIXO intent, capability registry, execution, and verification layers. It also leaves room for multiple inference backends without changing the user-facing Agent contract.
+
+### 9.3 Immediate research priorities after canonical GREEN
+
+1. **Visual Grounding spike:** evaluate Grounding DINO + SAM/SAM2 on FLIXO-style natural-language targets.
+2. **Edit backend spike:** evaluate Diffusers pipelines for inpainting, image-to-image, and related constrained edits.
+3. **Workflow abstraction spike:** compare explicit FLIXO task graphs against ComfyUI/InvokeAI workflow semantics.
+4. **Visual verification spike:** define measurable checks for mask adherence, unintended-region drift, artifacts, and output integrity.
+5. **Human-in-the-loop clarification:** when grounding has multiple plausible targets, the Agent should ask one targeted clarification rather than guessing.
+
+### 9.4 Current decision
+
+No image-generation/editing dependency is activated by this document.
+
+The research is intended to guide the future FLIXO Visual Agent Core after the current exact-SHA RED is closed. The existing FLIXO governance remains unchanged: one capability registry, one execution gate, one verification authority, one mutation lane, and no third branch.
