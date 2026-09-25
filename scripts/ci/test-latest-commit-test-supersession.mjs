@@ -3,7 +3,7 @@ import fs from 'node:fs';
 
 const workflow = fs.readFileSync('.github/workflows/latest-commit-test-supersession.yml', 'utf8');
 
-assert.match(workflow, /group:\s*flixo-latest-commit-supersession-\$\{\{\s*github\.event\.pull_request\.head\.repo\.full_name\s*\|\|\s*github\.repository\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name\s*\}\}/);
+assert.match(workflow, /group:\s*flixo-latest-commit-supersession-\$\{\{\s*github\.event_name\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.repo\.full_name\s*\|\|\s*github\.repository\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name\s*\}\}/);
 assert.match(workflow, /cancel-in-progress:\s*true/);
 assert.match(workflow, /uses:\s*actions\/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09/);
 assert.match(workflow, /ref:\s*main/);

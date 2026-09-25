@@ -6,7 +6,7 @@ assert.match(source,/SENSITIVE_CONTRACT_CHANGES_REQUIRE_PER_COMMIT_PROOF/);
 assert.match(source,/(?:^|[-_/])(liveness|wake|watchdog|lease|heartbeat|council|supersession)/);
 assert.match(source,/HISTORICAL_RUNTIME_PROOF_CLOSURE-v1/);
 assert.match(source,/EXACT_SHA_ALLOWLIST_ONLY/);
-assert.match(source,/SEMANTIC_DUPLICATE_REMOVAL_CLOSURE/u);
+assert.match(source,/semanticDuplicateRemovalClosure/u);
 assert.match(source,/db\/council-external-accounts\.sql/u);
 assert.match(source,/countOccurrences\(parentText, signature\)/u);
 assert.match(source,/countOccurrences\(childText, signature\)/u);
