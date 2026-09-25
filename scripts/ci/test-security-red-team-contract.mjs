@@ -35,6 +35,13 @@ assert.equal(registry.execution.uncertaintyModel.enabled,true);
 assert.equal(registry.execution.uncertaintyModel.version,'EPISTEMIC-UNCERTAINTY-v1');
 assert.equal(registry.execution.uncertaintyModel.method,'STATIC_RULE_MATCH_STRENGTH');
 assert.equal(registry.execution.uncertaintyModel.humanSupervisorRequired,true);
+assert.equal(registry.execution.allAgentSweep.enabled,true);
+assert.equal(registry.execution.allAgentSweep.scope,'ALL_200_CANONICAL_COGNITIVE_IDENTITIES');
+assert.equal(registry.execution.allAgentSweep.script,'scripts/security/security-red-team-all-agents.mjs');
+assert.equal(registry.execution.allAgentSweep.mutationAuthority,false);
+assert.equal(registry.execution.allAgentSweep.certificationAuthority,false);
+assert.equal(registry.execution.allAgentSweep.greenAuthority,false);
+
 
 assert.match(workflow,/workflow_dispatch:/u);
 assert.match(workflow,/expected_sha:[\s\S]*required:\s*true/u);
