@@ -7,7 +7,7 @@ test.describe('Universal browser diagnostic', () => {
     expect(response?.status()).toBe(200);
     await expect(page.locator('main')).toHaveCount(1);
     await expect(page.locator('#home-title')).toBeVisible();
-    await expect(page.locator('a[href="/en/image-compressor"]')).toBeVisible();
+    await expect(page.locator('a[href="/tools"]')).toBeVisible();
   });
 
   // @flixo-canonical-assertion ASSERT-BROWSER-FIREFOX-001
