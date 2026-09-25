@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 const repoRoot = process.cwd();
 const expectedSha = process.env.EXPECTED_SHA || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
@@ -107,6 +108,7 @@ for (const browser of browsers) {
   const parts = [fastSpecs.slice(0, 11), fastSpecs.slice(11)];
   parts.forEach((specs, index) => {
     const shard = index + 1;
+    const sourceReportSha256 = writePlaywrightReport('FAST', browser, shard);
     writeJson(`diagnostics/certification/browser-fast-${browser}-${shard}.json`, {
       schema_version: 5,
       evidenceClass: 'PRIMARY_EXECUTION',
@@ -137,6 +139,7 @@ for (const browser of browsers) {
   const parts = [locales.slice(0, 3), locales.slice(3, 6), locales.slice(6, 9), locales.slice(9, 12), locales.slice(12, 15), locales.slice(15, 18), locales.slice(18)];
   parts.forEach((group, index) => {
     const shard = index + 1;
+    const sourceReportSha256 = writePlaywrightReport('DEEP', browser, shard);
     writeJson(`diagnostics/certification/browser-deep-${browser}-${shard}.json`, {
       schema_version: 5,
       evidenceClass: 'PRIMARY_EXECUTION',
@@ -145,7 +148,7 @@ for (const browser of browsers) {
       shard,
       runId,
       exactSha: expectedSha,
-      sourceReportSha256: '0'.repeat(64),
+      sourceReportSha256,
       status: 'PASS',
       locales: 20,
       expectedSpecCount: 1,
@@ -311,7 +314,7 @@ const rebuildFixture = () => {
       const sourceReportSha256 = writePlaywrightReport('FAST', browser, shard);
       writeJson(`diagnostics/certification/browser-fast-${browser}-${shard}.json`, {
         schema_version: 5, evidenceClass: 'PRIMARY_EXECUTION', mode: 'FAST', browser, shard, runId,
-        exactSha: expectedSha, sourceReportSha256: '0'.repeat(64), status: 'PASS',
+        exactSha: expectedSha, sourceReportSha256, status: 'PASS',
         toolSpecs: 23, expectedSpecCount: specs.length, executedSpecCount: specs.length, unexpectedSpecs: [],
         executionUnitCount: specs.length, skippedTestCount: 0, failedTestCount: 0, notExecutedTestCount: 0,
         statusCounts: { PASS: specs.length, FAIL: 0, SKIPPED: 0, CANCELLED: 0, BLOCKED: 0, NOT_EXECUTED: 0 },
@@ -325,7 +328,7 @@ const rebuildFixture = () => {
       const sourceReportSha256 = writePlaywrightReport('DEEP', browser, shard);
       writeJson(`diagnostics/certification/browser-deep-${browser}-${shard}.json`, {
         schema_version: 5, evidenceClass: 'PRIMARY_EXECUTION', mode: 'DEEP', browser, shard, runId,
-        exactSha: expectedSha, sourceReportSha256: '0'.repeat(64), status: 'PASS', locales: 20,
+        exactSha: expectedSha, sourceReportSha256, status: 'PASS', locales: 20,
         expectedSpecCount: 1, executedSpecCount: 1, unexpectedSpecs: [], executionUnitCount: group.length,
         skippedTestCount: 0, failedTestCount: 0, notExecutedTestCount: 0,
         statusCounts: { PASS: group.length, FAIL: 0, SKIPPED: 0, CANCELLED: 0, BLOCKED: 0, NOT_EXECUTED: 0 },
