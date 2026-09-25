@@ -7,8 +7,21 @@ const run=a=>execFileSync('git',a,{cwd:root,encoding:'utf8'}).trim();
 const rows=run(['log','--format=%H%x09%aI%x09%s','--reverse',`${base}..${head}`]).split('\n').filter(Boolean).map(x=>{const [sha,date,subject]=x.split('\t');return{sha,time:Date.parse(date),subject};});
 const windowMs=Number(env('FLIXO_WP_BURST_WINDOW_MINUTES','5'))*60000;
 const threshold=Number(env('FLIXO_WP_BURST_THRESHOLD','8'));
-const bursts=[]; let b=[];
-for(const row of rows){if(!b.length||row.time-b[b.length-1].time<=windowMs)b.push(row);else{if(b.length>=threshold)bursts.push(b);b=[row];}}
+const bursts=[]; let b=[]; let activeWorkPackage=null;
+for(const row of rows){
+  const rowWorkPackages=[...new Set(extractWorkPackages(row.subject))];
+  const rowWorkPackage=rowWorkPackages.length===1?rowWorkPackages[0]:rowWorkPackages.length>1?'__MULTIPLE__':null;
+  const withinWindow=!b.length||row.time-b[b.length-1].time<=windowMs;
+  const workPackageBoundary=Boolean(activeWorkPackage&&rowWorkPackage&&rowWorkPackage!==activeWorkPackage);
+  if(!b.length||!withinWindow||workPackageBoundary){
+    if(b.length>=threshold)bursts.push(b);
+    b=[row];
+    activeWorkPackage=rowWorkPackage;
+  }else{
+    b.push(row);
+    if(!activeWorkPackage&&rowWorkPackage)activeWorkPackage=rowWorkPackage;
+  }
+}
 if(b.length>=threshold)bursts.push(b);
 const markerSingle=/(?:\[WP:(WP-[A-Za-z0-9][A-Za-z0-9._-]*)\]|(?<![A-Za-z0-9._-])(WP-[A-Za-z0-9][A-Za-z0-9._-]*)(?![A-Za-z0-9._-]))/;
 const markerGlobal=/(?:\[WP:(WP-[A-Za-z0-9][A-Za-z0-9._-]*)\]|(?<![A-Za-z0-9._-])(WP-[A-Za-z0-9][A-Za-z0-9._-]*)(?![A-Za-z0-9._-]))/g;
