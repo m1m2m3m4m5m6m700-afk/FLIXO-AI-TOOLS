@@ -28,7 +28,7 @@ assert.match(workflow, /while read -r run_id; do[\s\S]*LATE_STALE_RUN_CANCEL_REQ
 assert.doesNotMatch(workflow, /\| @tsv' \/tmp\/supersession-final-runs\.json\)/);
 assert.match(workflow, /done <<< "\$stale_ids"|done < <\(printf/); // semantic late-id iteration evidence
 assert.match(workflow, /LATEST_COMMIT_ONLY_ENFORCED=true/);
-assert.match(workflow, /SUPERSESSION_HEAD_MOVED old=\$EXPECTED_SHA new=\$CURRENT_SHA/);
+assert.match(workflow, /SUPERSESSION_HEAD_MOVED old=\$CURRENT_SHA new=\$LIVE_SHA/);
 
 console.log('LATEST_COMMIT_TEST_SUPERSESSION_CONTRACT=PASS');
 console.log('STALE_STARTED_RUNS_CANCELLED_BY_CONTROLLER=PASS');

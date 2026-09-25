@@ -56,17 +56,24 @@ for (const file of currentWorkflows) {
   const workflowName = nameMatch?.[1]?.trim() ?? file;
   if (!commitDrivenName.test(workflowName)) continue;
   assert.match(source, /concurrency:/u, file + ': latest-commit workflow must define concurrency');
-  assert.match(source, /scripts\/ci\/assert-current-commit\.mjs/u, file + ': latest-commit workflow must use fail-closed exact-SHA guard');
+  const hasWorkflowRunTrigger = /^\s{2}workflow_run\s*:/mu.test(source);
+  const hasPushTrigger = /^\s{2}push\s*:/mu.test(source);
+  const hasPullRequestTrigger = /^\s{2}pull_request\s*:/mu.test(source);
+  if (hasWorkflowRunTrigger) {
+    assert.match(source, /scripts\/ci\/assert-workflow-run-current\.mjs/u, file + ': workflow_run consumer must bind current source SHA');
+  } else if (hasPushTrigger || hasPullRequestTrigger) {
+    assert.match(source, /scripts\/ci\/assert-current-commit\.mjs/u, file + ': commit-driven workflow must have fail-closed exact-SHA guard');
+    assert.match(source, /(?:github\.event\.pull_request\.head\.sha \|\| github\.sha|EXPECTED_SHA)/u, file + ': exact SHA binding missing');
+    if (hasPullRequestTrigger) {
+      assert.match(source, /github\.event\.pull_request\.head\.(?:repo\.full_name|ref)/u, file + ': PR source identity binding missing');
+    }
+  }
 }
 
 for (const file of currentWorkflows) {
   const source = fs.readFileSync(workflowDir + '/' + file, 'utf8');
-  if (!/workflow_run:/u.test(source)) continue;
-  assert.match(
-    source,
-    /scripts\/ci\/assert-workflow-run-current\.mjs/u,
-    file + ': workflow_run consumer must enforce the live source SHA',
-  );
+  if (!/^\s{2}workflow_run\s*:/mu.test(source)) continue;
+  assert.match(source, /scripts\/ci\/assert-workflow-run-current\.mjs/u, file + ': workflow_run consumer must enforce the live source SHA');
   assert.match(
     source,
     /actions:\s*write/u,
