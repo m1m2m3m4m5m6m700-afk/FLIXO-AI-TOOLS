@@ -46,7 +46,7 @@ export function deriveVisualGoalSpec(toolId: string, parameters: CapabilityParam
     const scale = Number(parameters.scale ?? 2);
     return Object.freeze({
       toolId,
-      dimensions: { kind: 'SCALE', scale: Number.isFinite(scale) && scale > 0 ? scale : 2 },
+      dimensions: { kind: 'SCALE', scale: Number.isFinite(scale) && scale > 0 ? scale : 2 } satisfies VisualDimensionRule,
       requireVisibleChange: false,
       minVisibleChangeScore: 0,
     });
@@ -56,17 +56,17 @@ export function deriveVisualGoalSpec(toolId: string, parameters: CapabilityParam
     const width = Number(parameters.width);
     const height = Number(parameters.height);
     if (Number.isInteger(width) && width > 0 && Number.isInteger(height) && height > 0) {
-      return Object.freeze({ toolId, dimensions: { kind: 'EXACT', width, height }, requireVisibleChange: false, minVisibleChangeScore: 0 });
+      return Object.freeze({ toolId, dimensions: { kind: 'EXACT', width, height } satisfies VisualDimensionRule, requireVisibleChange: false, minVisibleChangeScore: 0 });
     }
     const ratio = parseAspectRatio(parameters.aspectRatio);
     if (ratio !== null) {
-      return Object.freeze({ toolId, dimensions: { kind: 'ASPECT', ratio }, requireVisibleChange: false, minVisibleChangeScore: 0 });
+      return Object.freeze({ toolId, dimensions: { kind: 'ASPECT', ratio } satisfies VisualDimensionRule, requireVisibleChange: false, minVisibleChangeScore: 0 });
     }
-    return Object.freeze({ toolId, dimensions: { kind: 'PRESERVE' }, requireVisibleChange: false, minVisibleChangeScore: 0 });
+    return Object.freeze({ toolId, dimensions: { kind: 'PRESERVE' } satisfies VisualDimensionRule, requireVisibleChange: false, minVisibleChangeScore: 0 });
   }
 
   if (toolId === 'image-compressor' || toolId === 'image-converter') {
-    return Object.freeze({ toolId, dimensions: { kind: 'PRESERVE' }, requireVisibleChange: false, minVisibleChangeScore: 0 });
+    return Object.freeze({ toolId, dimensions: { kind: 'PRESERVE' } satisfies VisualDimensionRule, requireVisibleChange: false, minVisibleChangeScore: 0 });
   }
 
   if (toolId === 'image-effects') {
@@ -76,13 +76,13 @@ export function deriveVisualGoalSpec(toolId: string, parameters: CapabilityParam
     });
     return Object.freeze({
       toolId,
-      dimensions: { kind: 'PRESERVE' },
+      dimensions: { kind: 'PRESERVE' } satisfies VisualDimensionRule,
       requireVisibleChange,
       minVisibleChangeScore: requireVisibleChange ? 0.001 : 0,
     });
   }
 
-  return Object.freeze({ toolId, dimensions: { kind: 'PRESERVE' }, requireVisibleChange: false, minVisibleChangeScore: 0 });
+  return Object.freeze({ toolId, dimensions: { kind: 'PRESERVE' } satisfies VisualDimensionRule, requireVisibleChange: false, minVisibleChangeScore: 0 });
 }
 
 function assertRaster(raster: VisualRaster): void {
