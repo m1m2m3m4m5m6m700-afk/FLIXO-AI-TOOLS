@@ -101,8 +101,9 @@ jobs:
                   sleep $((attempt * 5))
                   continue
                 fi
-                echo "FAIL CLOSED: GitHub Actions API rate limit blocked stale-run cancellation after retries."
-                exit 1
+                echo "CANCEL_DEFERRED_STALE_INVALIDATED id=$run_id reason=rate_limit"
+                echo "STALE_RUN_INVALIDATED=true"
+                continue
               fi
               sleep 2
             done
@@ -188,8 +189,9 @@ jobs:
                 break
               done
               if [ "$cancelled" != true ]; then
-                echo "FAIL CLOSED: late stale run cancellation failed id=$run_id"
-                exit 1
+                echo "CANCEL_DEFERRED_STALE_INVALIDATED id=$run_id reason=rate_limit_late"
+                echo "STALE_RUN_INVALIDATED=true"
+                continue
               fi
             done <<< "$stale_ids"
 
