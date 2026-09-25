@@ -66,7 +66,7 @@ const prompt = buildFlixoHumanConversationPrompt({
   catalog: [],
   catalogFingerprint: 'a'.repeat(64),
 });
-assert.match(prompt, /FLIXO-BOT-BRAIN-v1/u);
+assert.match(prompt, /FLIXO-BOT-BRAIN-v2/u);
 assert.match(prompt, /COLLECTIVE DEEP REASONING/u);
 assert.match(prompt, /ADVISORY_ONLY/u);
 assert.match(prompt, /CONTEXT_ONLY/u);
