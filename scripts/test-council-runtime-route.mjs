@@ -26,6 +26,7 @@ assert.match(runtime, /COUNCIL_EXTERNAL_WATCHER_MAIN_REF_REJECTED/);
 assert.match(runtime, /COUNCIL_EXTERNAL_WATCHER_WORKFLOW_SHA_MISMATCH/);
 assert.match(runtime, /COUNCIL_ASSISTANT_QUERY_CREDENTIAL_FORBIDDEN/);
 assert.match(runtime, /current_execution_sha/);
+assert.match(runtime, /currentExecutionSha: runtime\.row\.current_execution_sha/);
 assert.match(runtime, /last_heartbeat_at/);
 assert.match(runtime, /FAILED_TERMINAL/);
 assert.match(runtime, /recoveryState/);
