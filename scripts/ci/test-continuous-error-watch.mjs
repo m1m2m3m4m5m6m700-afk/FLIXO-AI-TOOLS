@@ -316,7 +316,7 @@ const staleCertification = evaluateGreen({
 assert.equal(staleCertification.ci.certification.status, 'success');
 assert.equal(staleCertification.ci.certification.headSha, SHA_B);
 assert.equal(staleCertification.ci.certification.exactSha, false);
-assert.equal(staleCertification.status, 'RED_INTERNAL');
+assert.equal(staleCertification.status, 'FAIL_CLOSED');
 assert.equal(staleCertification.errors.some((x) => x.type === 'STALE_CERTIFICATION_EVIDENCE'), true);
 
 const missingCertificationSha = evaluateGreen({
@@ -331,7 +331,7 @@ const missingCertificationSha = evaluateGreen({
   compare: { ahead_by: 1, behind_by: 0 },
 });
 assert.equal(missingCertificationSha.ci.certification.exactSha, false);
-assert.equal(missingCertificationSha.status, 'RED_INTERNAL');
+assert.equal(missingCertificationSha.status, 'FAIL_CLOSED');
 assert.equal(missingCertificationSha.errors.some((x) => x.type === 'CERTIFICATION_SHA_MISSING'), true);
 
 const nonCanonicalCertificationRun = evaluateGreen({
@@ -357,7 +357,7 @@ assert.equal(nonCanonicalCertificationRun.ci.certification.exactSha, true);
 assert.equal(nonCanonicalCertificationRun.ci.certification.runId, '999');
 assert.equal(nonCanonicalCertificationRun.ci.certification.canonicalRunId, '1');
 assert.equal(nonCanonicalCertificationRun.ci.certification.canonicalRun, false);
-assert.equal(nonCanonicalCertificationRun.status, 'RED_INTERNAL');
+assert.equal(nonCanonicalCertificationRun.status, 'FAIL_CLOSED');
 assert.equal(nonCanonicalCertificationRun.errors.some((x) => x.type === 'NONCANONICAL_CERTIFICATION_RUN'), true);
 
 const missingCertificationRunLink = evaluateGreen({
@@ -371,7 +371,7 @@ const missingCertificationRunLink = evaluateGreen({
   ],
   compare: { ahead_by: 1, behind_by: 0 },
 });
-assert.equal(missingCertificationRunLink.status, 'RED_INTERNAL');
+assert.equal(missingCertificationRunLink.status, 'FAIL_CLOSED');
 assert.equal(missingCertificationRunLink.errors.some((x) => x.type === 'CERTIFICATION_RUN_ID_MISSING'), true);
 
 const mainObservedGreen = evaluateGreen({
