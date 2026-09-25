@@ -170,8 +170,6 @@ function runTestSystemAdversary() {
   return report;
 }
 
-const appSourceFile = (file) => sourceFile(file) && !workflowFile(file);
-
 const textCache = new Map();
 for (const file of tracked) {
   let buffer;
