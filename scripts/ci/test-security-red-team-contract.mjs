@@ -51,7 +51,7 @@ assert.match(workflow,/mutationAuthority\s*==\s*false/u);
 assert.match(workflow,/upload-artifact/u);
 assert.match(workflow,/Evaluate actionable findings and request automated repair/u);
 assert.match(workflow,/REDTEAM_REPAIR_REQUIRED=true/u);
-assert.match(workflow,/\.confidence >= 0\\.90/u);
+assert.match(workflow,/\.confidence >= 0\.90/u);
 assert.match(workflow,/severity == "CRITICAL" or \.severity == "HIGH"/u);
 assert.doesNotMatch(workflow,/record-[123]:/u);
 assert.doesNotMatch(workflow,/record-security-findings\.mjs/u);
