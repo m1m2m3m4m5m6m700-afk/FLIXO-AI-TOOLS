@@ -5,7 +5,7 @@
   "botId": "FLIXO9",
   "displayName": "FLIXO 9",
   "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
-  "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+  "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
   "legacySeat": "ACTION-SHA-7",
   "systemScope": "FULL_REPOSITORY_AND_AUTOMATION_SYSTEM",
   "lens": "WHOLE_SYSTEM_ADVERSARIAL_FALSE_GREEN_FALSIFICATION",
@@ -70,5 +70,10 @@
       "adversaryBot": "FLIXO10",
       "lens": "WHOLE_SYSTEM_ADVERSARIAL_FALSE_GREEN_FALSIFICATION"
     }
-  }
+  },
+  "unifiedCognitiveKernelRef": "docs/agents/FLIXO-BOT.json#/unifiedCognitiveKernel",
+  "unifiedMemoryRef": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
+  "cognitiveCoverage": "FULL_SYSTEM",
+  "roleOverlayOnly": true,
+  "canReduceCognitiveCoverage": false
 }
