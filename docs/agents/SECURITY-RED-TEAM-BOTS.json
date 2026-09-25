@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "protocol": "FLIXO-SECURITY-RED-TEAM-v2",
+  "protocol": "FLIXO-SECURITY-RED-TEAM-TRIAD-v1",
   "canonical": true,
   "authority": "READ_ONLY_SECURITY_DISCOVERY",
   "branchPolicy": {
