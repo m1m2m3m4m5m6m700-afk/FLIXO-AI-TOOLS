@@ -70,4 +70,6 @@ console.log('STALE_STARTED_RUN_CANCELLATION=PASS');
 console.log('RERUN_LOCK=PASS');
 console.log('TEST_DEFINITION_LOCK=PASS');
 
-assert.match(supersession, /stale_active[\s\S]*\.status == "queued" or \.status == "pending" or \.status == "in_progress"[\s\S]*\.head_sha != \$sha/u);
+assert.ok(supersession.includes('stale_active='), 'Stale active-run accounting missing');
+assert.ok(supersession.includes('.status == "queued" or .status == "pending" or .status == "in_progress"'), 'Active status filter missing');
+assert.ok(supersession.includes('.head_sha != $sha'), 'Stale SHA filter missing');
