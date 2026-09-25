@@ -12,7 +12,7 @@ assert.equal(redBoundedFeature.state, 'ADDITIVE_SCOPE');
 assert.equal(redBoundedFeature.reason, 'RED_BOUNDED_ADDITION');
 const redRepair = evaluateGreenFirstPolicy({ parentGreen: false, subject: 'fix(ci): close exact-sha blocker [REPAIR:CI-GREEN-001] [WP:MVP-CLOSURE-001]', changedFiles: ['scripts/ci/exact-sha-gate.mjs'] });
 assert.equal(redRepair.allowed, true);
-assert.equal(redRepair.state, 'REPAIR_ONLY');
+assert.equal(redRepair.state, 'REPAIR_SCOPE');
 const redRepairWithoutWp = evaluateGreenFirstPolicy({ parentGreen: false, subject: 'fix(ci): close exact-sha blocker [REPAIR:CI-GREEN-001]', changedFiles: ['scripts/ci/exact-sha-gate.mjs'] });
 assert.equal(redRepairWithoutWp.allowed, false);
 console.log('GREEN_FIRST_ADDITION_POLICY_TEST=PASS');
