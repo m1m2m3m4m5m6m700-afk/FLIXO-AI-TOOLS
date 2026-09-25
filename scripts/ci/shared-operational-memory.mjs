@@ -6,9 +6,12 @@ import { createHash } from 'node:crypto';
 const ROOT=process.cwd();
 export const SHARED_MEMORY_PATH=path.resolve(ROOT,process.env.FLIXO_SHARED_OPERATIONAL_MEMORY??'diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json');
 export const SHARED_MEMORY_PROTOCOL='FLIXO-SHARED-OPERATIONAL-MEMORY-v1';
+export const CELL_MEMORY_SCOPE='ALL_CELL_MEMBERS';
+export const CELL_MEMBER_COUNT=200;
 export const FLIXO_BOT_REGISTRY_PATH=path.resolve(ROOT,process.env.FLIXO_BOT_REGISTRY??'docs/agents/FLIXO-BOT.json');
 const loadFlixoBotAudience=()=>{try{const registry=JSON.parse(fs.readFileSync(FLIXO_BOT_REGISTRY_PATH,'utf8'));const audience=registry?.distribution?.learningConsumers;const cognitiveIds=registry?.distribution?.cognitiveBotIds;if(!Array.isArray(cognitiveIds)||cognitiveIds.length!==200)throw new Error('INVALID_COGNITIVE_AUDIENCE');if(!Array.isArray(audience)||audience.length!==200||JSON.stringify(audience)!==JSON.stringify(cognitiveIds))throw new Error('INVALID_GLOBAL_AUDIENCE');return [...new Set(audience.map(x=>String(x).trim()).filter(Boolean))];}catch(error){if(process.env.NODE_ENV==='test'||process.env.FLIXO_ALLOW_LEGACY_SHARED_MEMORY_FALLBACK==='true')return ['ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent'];throw new Error('FLIXO_BOT_GLOBAL_MEMORY_AUDIENCE_UNAVAILABLE:'+error.message,{cause:error});}};
 export const SHARED_BOTS=Object.freeze(loadFlixoBotAudience());
+if(SHARED_BOTS.length!==CELL_MEMBER_COUNT) throw new Error('CELL_SHARED_MEMORY_MEMBER_COUNT_INVALID');
 const loadFlixoBotAliases=()=>{try{const registry=JSON.parse(fs.readFileSync(FLIXO_BOT_REGISTRY_PATH,'utf8'));return Object.freeze({...registry?.distribution?.botAliasMap});}catch(error){if(process.env.NODE_ENV==='test'||process.env.FLIXO_ALLOW_LEGACY_SHARED_MEMORY_FALLBACK==='true')return Object.freeze({});throw new Error('FLIXO_BOT_ALIAS_MAP_UNAVAILABLE:'+error.message,{cause:error});}};
 export const FLIXO_BOT_ALIASES=loadFlixoBotAliases();
 export function resolveSharedMemoryBotId(botId){const id=String(botId??'').trim();const canonical=SHARED_BOTS.includes(id)?id:FLIXO_BOT_ALIASES[id];if(!canonical||!SHARED_BOTS.includes(canonical))throw new Error('SHARED_MEMORY_BOT_INVALID='+id);return canonical;}
@@ -140,6 +143,9 @@ function normalizeRecord(input={}){
     sourceBot:resolveSharedMemoryBotId(input.sourceBot),
     sourceBotAlias:String(input.sourceBot??'').trim() || null,
     audience:[...SHARED_BOTS],
+    broadcastScope:CELL_MEMORY_SCOPE,
+    broadcastToAllCellMembers:true,
+    cellMemberCount:SHARED_BOTS.length,
     kind:String(input.kind),
     status,
     taskId:String(input.taskId),
@@ -233,6 +239,8 @@ export function readSharedMemory({fingerprint=null,botId=null,kinds=null,limit=8
   const allowedKinds=Array.isArray(kinds)?new Set(kinds.filter(kind=>SHARED_KINDS.includes(kind))):null;
   const canonicalBotId=botId?resolveSharedMemoryBotId(botId):null;
   const rows=memory.records.filter(record=>
+    record.broadcastToAllCellMembers === true && record.broadcastScope === CELL_MEMORY_SCOPE && record.cellMemberCount === CELL_MEMBER_COUNT && record.audience.length === CELL_MEMBER_COUNT && record.audience.every((id,index)=>id===SHARED_BOTS[index]) &&
+
     (!fingerprint||record.fingerprint===fingerprint) &&
     (!canonicalBotId||record.audience.includes(canonicalBotId)) &&
     (!allowedKinds||allowedKinds.has(record.kind))
@@ -291,6 +299,9 @@ export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48
     certificationAuthority:false,
     canonical:true,
     targetAudience:[...SHARED_BOTS],
+    broadcastScope:CELL_MEMORY_SCOPE,
+    broadcastMode:'EVERY_RECORD_TO_EVERY_CELL_MEMBER',
+    cellMemberCount:CELL_MEMBER_COUNT,
     scope:'ALL_INTERNAL_AGENTS_AND_REPAIR_BOTS',
     recordCount:records.length,
     errors:[...grouped.ERROR,...legacy.errors].slice(0,limit),
