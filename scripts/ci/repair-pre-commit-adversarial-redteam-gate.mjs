@@ -32,7 +32,7 @@ const wt=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-precommit-wt-'));
 fs.writeFileSync(pf,patch);
 const rootHead=git(['rev-parse','HEAD']);
 const rootIndex=patch;
-const cleanup=()=>{try{run('git',['worktree','remove','--force',wt],ROOT)}catch{/* best effort cleanup */};try{fs.rmSync(pf,{force:true})}catch{}};
+const cleanup=()=>{try{run('git',['worktree','remove','--force',wt],ROOT)}catch(error){void error};try{fs.rmSync(pf,{force:true})}catch(error){void error}};
 process.on('exit',cleanup);
 run('git',['worktree','add','--detach',wt,SHA],ROOT);
 if(git(['rev-parse','HEAD'],wt)!==SHA)die('TEMP_SHA_MISMATCH');
@@ -68,7 +68,7 @@ const kill=(name,mutate)=>{
   try{run(process.execPath,[path.join(dir,'scripts','ci','repair-pre-commit-adversarial-redteam-gate.mjs'),'--validate-only'],dir);die('ADVERSARIAL_MUTATION_SURVIVED:'+name)}
   catch(e){if(String(e?.message??e).includes('ADVERSARIAL_MUTATION_SURVIVED'))throw e}
   return {name,status:'KILLED'};
- }finally{try{run('git',['worktree','remove','--force',dir],ROOT)}catch{}}
+ }finally{try{run('git',['worktree','remove','--force',dir],ROOT)}catch(error){void error}}
 };
 const mutations=[
  kill('BYPASS_GATE_CONDITION',p=>{const s=fs.readFileSync(p,'utf8').replace("steps.pre_commit_adversarial_redteam.outcome == 'success'","steps.pre_commit_adversarial_redteam.outcome != 'success'");fs.writeFileSync(p,s)}),
