@@ -57,6 +57,7 @@ jobs:
           echo "LATEST_COMMIT_EVENT_SHA=$EVENT_SHA"
           echo "LATEST_COMMIT_BRANCH=$TARGET_BRANCH"
           echo "LATEST_COMMIT_SOURCE_REPOSITORY=$SOURCE_REPOSITORY"
+          echo "EVENT_SHA_SOURCE=IMMUTABLE_GITHUB_EVENT_SHA"
           if [ "$EVENT_SHA" != "$LIVE_SHA" ]; then
             echo "stale_event=true" >> "$GITHUB_OUTPUT"
             echo "SUPERSESSION_EVENT_OBSOLETE=true"
@@ -91,7 +92,7 @@ jobs:
                 return 0
               fi
               if printf '%s' "$output" | grep -Eiq 'already completed|cannot cancel.*completed|not in progress|completed'; then
-                echo "STALE_RUN_ALREADY_COMPLETED id=$run_id"
+                echo "STALE_RUN_ALREADY_COMPLETED run=$run_id"
                 return 0
               fi
               if printf '%s' "$output" | grep -Eiq 'rate limit exceeded|secondary rate limit|abuse detection'; then
@@ -148,8 +149,9 @@ jobs:
                 | .id] | .[]?'
             )"
 
-            if [ -z "$stale_ids" ]; then
-              echo "STALE_ACTIVE_RUNS=0"
+            stale_active="$(printf '%s\n' "$stale_ids" | awk 'NF {count++} END {print count+0}')"
+            echo "STALE_ACTIVE_RUNS=$stale_active"
+            if [ "$stale_active" -eq 0 ]; then
               echo "LATEST_COMMIT_ONLY_ENFORCED=true"
               echo "LATEST_COMMIT_SHA=$CURRENT_SHA"
               echo "LATEST_COMMIT_BRANCH=$BRANCH"
@@ -160,7 +162,10 @@ jobs:
             while read -r run_id; do
               [ -n "$run_id" ] || continue
               echo "LATE_STALE_RUN_CANCEL_REQUESTED id=$run_id"
-              gh run cancel "$run_id" --repo "$REPOSITORY" >/dev/null 2>&1 || true
+              if ! gh run cancel "$run_id" --repo "$REPOSITORY" >/dev/null 2>&1; then
+                echo "FAIL CLOSED: late stale run cancellation failed id=$run_id"
+                exit 1
+              fi
             done <<< "$stale_ids"
 
             sleep 3

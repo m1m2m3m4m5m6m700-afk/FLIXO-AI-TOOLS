@@ -234,7 +234,7 @@ const securityWorkflowEvidence = evaluateGreen({
   workflowRuns: requiredRuns,
   checkRuns: [
     { id: 109, name: 'Workflow trust baseline', status: 'completed', conclusion: 'success' },
-    { id: 110, name: 'Certification', status: 'completed', conclusion: 'success', headSha: SHA_A },
+    { id: 110, name: 'Certification', status: 'completed', conclusion: 'success', headSha: SHA_A, details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/1/job/10002' },
   ],
   compare: { ahead_by: 1, behind_by: 0 },
 });
