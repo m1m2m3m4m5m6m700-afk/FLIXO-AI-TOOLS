@@ -41,7 +41,8 @@ if(kernel?.roleOverlayPolicy!=='PRIORITY_ONLY_NO_CAPABILITY_REDUCTION') fail('RO
 const capabilityHash=hash(kernel.capabilities);
 const lensHash=hash(kernel.reasoningLenses);
 const memory=kernel?.unifiedLearningMemory;
-if(memory?.singleMemory!=='diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json') fail('WRONG_CANONICAL_MEMORY',String(memory?.singleMemory));
+const ONE_CANONICAL_MEMORY='diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json';
+if(memory?.singleMemory!==ONE_CANONICAL_MEMORY) fail('WRONG_CANONICAL_MEMORY',String(memory?.singleMemory));
 if(memory?.members!==200) fail('MEMORY_MEMBER_COUNT',String(memory?.members));
 if(memory?.automaticVisibility!==true) fail('MEMORY_NOT_AUTOMATIC',String(memory?.automaticVisibility));
 if(memory?.perAgentMemoryCopies===true) fail('PRIVATE_MEMORY_COPIES_ENABLED','per-agent copies forbidden');
@@ -50,7 +51,7 @@ for(const agent of agents){
   if(!agents.includes(agent)) fail('AGENT_MISSING',agent);
   const local=registry?.agentOverlays?.[agent]??registry?.roleOverlays?.[agent];
   if(local?.capabilities && hash(local.capabilities)!==capabilityHash) add('ROLE_CAPABILITY_DRIFT',agent,'agent-specific capability set differs from shared kernel','CRITICAL');
-  if(local?.memory && local.memory!=='diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json') add('PRIVATE_MEMORY',agent,'agent-specific canonical memory detected','CRITICAL');
+  if(local?.memory && local.memory!==ONE_CANONICAL_MEMORY) add('PRIVATE_MEMORY',agent,'agent-specific canonical memory detected','CRITICAL');
   if(local?.mutationAuthority===true && local?.role!=='REPAIR') add('AUTHORITY_OVERLAY_DRIFT',agent,'unexpected mutation authority on cognitive identity','CRITICAL');
   if(local?.certificationAuthority===true) add('CERTIFICATION_ESCALATION',agent,'cognitive identity cannot self-certify','CRITICAL');
 }
@@ -81,7 +82,7 @@ function validateCandidate(candidate){
   if(!Array.isArray(k?.capabilities)||k.capabilities.length<90) errors.push('CAPABILITY_UNDERCOVERAGE');
   if(!Array.isArray(k?.reasoningLenses)||k.reasoningLenses.length<30) errors.push('REASONING_UNDERCOVERAGE');
   if(k?.roleOverlayPolicy!=='PRIORITY_ONLY_NO_CAPABILITY_REDUCTION') errors.push('ROLE_REDUCES_COGNITION');
-  if(m?.singleMemory!=='diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json') errors.push('WRONG_CANONICAL_MEMORY');
+  if(m?.singleMemory!==ONE_CANONICAL_MEMORY) errors.push('WRONG_CANONICAL_MEMORY');
   if(m?.members!==200) errors.push('MEMORY_MEMBER_COUNT');
   if(m?.automaticVisibility!==true) errors.push('MEMORY_NOT_AUTOMATIC');
   if(m?.perAgentMemoryCopies===true) errors.push('PRIVATE_MEMORY_COPIES');
