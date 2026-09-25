@@ -495,7 +495,6 @@ HANDOFF_BOUNDARY = Agent-1 for authority/governance/CI/certification; Agent-2 fo
 STATUS = ACTIVE / ENTRY-RECORDED
 OWNER = assistantController / execution-only hygiene lane
 BRANCH POLICY = execution only; no direct main; no third branch
-CURRENT EXECUTION SHA = a896dd138b193a72ebcfbe5aab64ba877b3b89e3
 WP-CLEAN-001 = COMPLETED / 604 execution scripts, 562 main scripts, 46 execution-only
 WP-CLEAN-002 = BLOCKED / exact local checkout required; no CSV manufactured
 WP-CLEAN-003 = BLOCKED / awaits WP-CLEAN-002
