@@ -1923,7 +1923,8 @@ jobs:
           CANDIDATE_SHA="$(cat /tmp/flixo-candidate-sha)"
           PARENT_SHA="$(cat /tmp/flixo-chair-publication-parent)"
           test "$(git rev-parse "$CANDIDATE_SHA^1")" = "$PARENT_SHA"
-          git bundle create /tmp/flixo-candidate.bundle "$CANDIDATE_SHA" "^$PARENT_SHA"
+          git update-ref refs/flixo/repair-candidate "$CANDIDATE_SHA"
+          git bundle create /tmp/flixo-candidate.bundle refs/flixo/repair-candidate "^$PARENT_SHA"
           git bundle verify /tmp/flixo-candidate.bundle
           sha256sum /tmp/flixo-candidate.bundle > /tmp/flixo-candidate.bundle.sha256
           test -s /tmp/flixo-candidate.bundle

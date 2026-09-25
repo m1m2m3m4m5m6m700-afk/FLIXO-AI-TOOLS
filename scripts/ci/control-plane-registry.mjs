@@ -65,7 +65,6 @@ export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
   'wp0-trust-baseline.yml',
   'repository-security-baseline.yml',
   'agent-master-activation.yml',
-  'agent-repair-handoff-gate.yml',
   'council-wake-push-relay.yml',
   'repair-agent-intake.yml',
   'auto-repair-merge-gate.yml',

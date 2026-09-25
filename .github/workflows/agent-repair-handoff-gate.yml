@@ -87,7 +87,8 @@ jobs:
           test "$(git rev-parse refs/remotes/origin/execution)" = "$PARENT_SHA"
 
           git bundle verify ./flixo-candidate.bundle
-          git fetch ./flixo-candidate.bundle "$CANDIDATE_SHA"
+          git fetch ./flixo-candidate.bundle refs/flixo/repair-candidate:refs/flixo/repair-candidate
+          test "$(git rev-parse refs/flixo/repair-candidate)" = "$CANDIDATE_SHA"
           test "$(git rev-parse "$CANDIDATE_SHA^1")" = "$PARENT_SHA"
 
           DERIVED_PATCH=/tmp/flixo-derived-repair.patch
@@ -128,6 +129,7 @@ jobs:
           test "$PATCHED_SHA" = "$CANDIDATE_SHA"
 
           LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          export LIVE_SHA
           test "$LIVE_SHA" = "$CANDIDATE_SHA"
 
           node -e 'const fs=require("fs");const h=JSON.parse(fs.readFileSync("flixo-prepared-repair-handoff.json","utf8"));const receipt={schemaVersion:1,protocol:"FLIXO-CHAIR-EXECUTION-PUBLICATION-v1",sourceRunId:process.env.REPAIR_RUN_ID,sourceBranch:process.env.REPAIR_SOURCE_BRANCH,parentSha:h.parentSha,candidateSha:h.executionSha,executionShaAfterPublication:process.env.LIVE_SHA,authority:"CHAIR_1",publicationTransport:"github-ref-fast-forward",force:false,status:"PUBLISHED_TO_EXECUTION",createdAt:new Date().toISOString()};fs.writeFileSync("/tmp/chair-execution-publication.json",JSON.stringify(receipt,null,2)+"\n");'
