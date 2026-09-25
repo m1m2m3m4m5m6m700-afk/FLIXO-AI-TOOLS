@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { evaluateGreenFirstPolicy } from './green-first-addition-policy.mjs';
+const greenFeature = evaluateGreenFirstPolicy({ parentGreen: true, subject: 'feat(image): add visual critic', changedFiles: ['src/lib/agent/visual-critic.ts'] });
+assert.equal(greenFeature.allowed, true);
+assert.equal(greenFeature.state, 'OPEN');
+const redFeature = evaluateGreenFirstPolicy({ parentGreen: false, subject: 'feat(agent): add agent registry', changedFiles: ['src/lib/agent/agent-registry.ts'] });
+assert.equal(redFeature.allowed, false);
+assert.equal(redFeature.reason, 'RED_TEST_SYSTEM_BLOCKS_NEW_ADDITIONS');
+const redRepair = evaluateGreenFirstPolicy({ parentGreen: false, subject: 'fix(ci): close exact-sha blocker [REPAIR:CI-GREEN-001] [WP:MVP-CLOSURE-001]', changedFiles: ['scripts/ci/exact-sha-gate.mjs'] });
+assert.equal(redRepair.allowed, true);
+assert.equal(redRepair.state, 'REPAIR_ONLY');
+const redRepairWithoutWp = evaluateGreenFirstPolicy({ parentGreen: false, subject: 'fix(ci): close exact-sha blocker [REPAIR:CI-GREEN-001]', changedFiles: ['scripts/ci/exact-sha-gate.mjs'] });
+assert.equal(redRepairWithoutWp.allowed, false);
+console.log('GREEN_FIRST_ADDITION_POLICY_TEST=PASS');

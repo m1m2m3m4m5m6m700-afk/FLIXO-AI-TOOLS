@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 env:
   # Strict WP-tag enforcement epoch begins at this consolidated repair-control boundary.
@@ -33,6 +34,12 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version-file: .nvmrc
+      - name: Enforce RED-lock against new additions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GREEN_FIRST_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/ci/green-first-addition-policy.mjs
       - name: Validate work-package burst policy
         run: node scripts/ci/work-package-policy.mjs "$FLIXO_WP_BASE_SHA" HEAD
       - name: Validate adjacent runtime proof coverage
