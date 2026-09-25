@@ -9,8 +9,8 @@ if (!/^[0-9a-f]{40}$/.test(base)) throw new Error('WORK_PACKAGE_BASE_SHA_REQUIRE
 
 const run = (a) => execFileSync('git', a, { cwd: root, encoding: 'utf8' }).trim();
 
-const markerSingle = /(?:\[WP:(WP-[A-Za-z0-9][A-Za-z0-9._-]*)\]|(?<![A-Za-z0-9._-])(WP-[A-Za-z0-9][A-Za-z0-9._-]*)(?![A-Za-z0-9._-]))/;
-const markerGlobal = /(?:\[WP:(WP-[A-Za-z0-9][A-Za-z0-9._-]*)\]|(?<![A-Za-z0-9._-])(WP-[A-Za-z0-9][A-Za-z0-9._-]*)(?![A-Za-z0-9._-]))/g;
+const markerSingle = /(?:\[WP:([A-Za-z0-9][A-Za-z0-9._-]*)\]|(?<![A-Za-z0-9._-])(WP-[A-Za-z0-9][A-Za-z0-9._-]*)(?![A-Za-z0-9._-]))/;
+const markerGlobal = /(?:\[WP:([A-Za-z0-9][A-Za-z0-9._-]*)\]|(?<![A-Za-z0-9._-])(WP-[A-Za-z0-9][A-Za-z0-9._-]*)(?![A-Za-z0-9._-]))/g;
 const extractWorkPackages = (subject) => [...String(subject).matchAll(markerGlobal)].map((m) => m[1] || m[2]).filter(Boolean);
 const burstWorkPackages = (burst) => [...new Set(burst.flatMap((c) => extractWorkPackages(c.subject)))];
 
