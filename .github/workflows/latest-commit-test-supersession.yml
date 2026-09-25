@@ -103,7 +103,7 @@ jobs:
                 fi
                 echo "CANCEL_DEFERRED_STALE_INVALIDATED id=$run_id reason=rate_limit"
                 echo "STALE_RUN_INVALIDATED=true"
-                continue
+                return 0
               fi
               sleep 2
             done
@@ -191,7 +191,7 @@ jobs:
               if [ "$cancelled" != true ]; then
                 echo "CANCEL_DEFERRED_STALE_INVALIDATED id=$run_id reason=rate_limit_late"
                 echo "STALE_RUN_INVALIDATED=true"
-                continue
+                cancelled=true
               fi
             done <<< "$stale_ids"
 
