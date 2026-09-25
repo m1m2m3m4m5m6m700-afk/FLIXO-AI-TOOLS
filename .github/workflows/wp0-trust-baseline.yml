@@ -116,6 +116,9 @@ jobs:
       - name: 07A — Enforce repository two-branch creation policy
         run: node scripts/ci/validate-two-branch-policy.mjs
 
+      - name: 07B — Control-plane writer integrity
+        run: node scripts/ci/validate-control-plane-writers.mjs
+
       - name: 08 — WP0 static trust and readiness alignment gate
         run: node scripts/ci/validate-wp0-trust-baseline.mjs
 

@@ -144,6 +144,106 @@ export const TRUST_PERIMETER_PATHS = Object.freeze([
 ]);
 
 
+
+export const CONTROL_PLANE_WORKFLOW_REGISTRY = Object.freeze({
+  'agent-repair-handoff-gate.yml': Object.freeze({
+    classification: 'EXECUTION_REF_WRITER',
+    capabilities: Object.freeze(['contents:write', 'execution-ref-write']),
+    mutationLane: 'EXECUTION',
+    authority: 'CHAIR_1_PUBLICATION',
+    mutationGate: 'scripts/ci/execution-mutation-gate.mjs',
+    directRefMutation: true,
+  }),
+  'daily-flixo-green-gate.yml': Object.freeze({
+    classification: 'CONTROL_WRITE',
+    capabilities: Object.freeze(['contents:write', 'actions:write']),
+    mutationLane: 'CONTROL',
+    authority: 'DAILY_GREEN_GATE',
+    directRefMutation: false,
+  }),
+  'action-agent-history-promotion.yml': Object.freeze({
+    classification: 'ACTIONS_CONTROL_WRITE',
+    capabilities: Object.freeze(['actions:write']),
+    mutationLane: 'CONTROL',
+    authority: 'ACTION_HISTORY_PROMOTION',
+    directRefMutation: false,
+  }),
+  'agent-communication-relay.yml': Object.freeze({
+    classification: 'CONTROL_WRITE',
+    capabilities: Object.freeze(['actions:write', 'issues:write', 'id-token:write']),
+    mutationLane: 'CONTROL',
+    authority: 'AGENT_COMMUNICATION_RELAY',
+    directRefMutation: false,
+  }),
+  'agent-master-activation.yml': Object.freeze({
+    classification: 'CONTROL_WRITE',
+    capabilities: Object.freeze(['actions:write', 'issues:write', 'pull-requests:write', 'id-token:write']),
+    mutationLane: 'CONTROL',
+    authority: 'AGENT_MASTER_ACTIVATION',
+    directRefMutation: false,
+  }),
+  'execution-bot-watchdog.yml': Object.freeze({
+    classification: 'ACTIONS_CONTROL_WRITE',
+    capabilities: Object.freeze(['actions:write']),
+    mutationLane: 'CONTROL',
+    authority: 'EXECUTION_BOT_WATCHDOG',
+    directRefMutation: false,
+  }),
+  'latest-commit-test-supersession.yml': Object.freeze({
+    classification: 'ACTIONS_CONTROL_WRITE',
+    capabilities: Object.freeze(['actions:write']),
+    mutationLane: 'CONTROL',
+    authority: 'TEST_SUPERSESSION',
+    directRefMutation: false,
+  }),
+  'latest-execution-head-cleanup.yml': Object.freeze({
+    classification: 'ACTIONS_CONTROL_WRITE',
+    capabilities: Object.freeze(['actions:write']),
+    mutationLane: 'CONTROL',
+    authority: 'EXECUTION_HEAD_CLEANUP',
+    directRefMutation: false,
+  }),
+  'repair-agent-intake.yml': Object.freeze({
+    classification: 'CONTROL_WRITE',
+    capabilities: Object.freeze(['actions:write', 'issues:write']),
+    mutationLane: 'CONTROL',
+    authority: 'REPAIR_AGENT_INTAKE',
+    directRefMutation: false,
+  }),
+  'council-priority-wake.yml': Object.freeze({
+    classification: 'CONTROL_WRITE',
+    capabilities: Object.freeze(['issues:write', 'id-token:write']),
+    mutationLane: 'CONTROL',
+    authority: 'COUNCIL_PRIORITY_WAKE',
+    directRefMutation: false,
+  }),
+  'council-wake-push-relay.yml': Object.freeze({
+    classification: 'CONTROL_WRITE',
+    capabilities: Object.freeze(['issues:write', 'id-token:write']),
+    mutationLane: 'CONTROL',
+    authority: 'COUNCIL_WAKE_PUSH_RELAY',
+    directRefMutation: false,
+  }),
+  'council-external-lease-watch.yml': Object.freeze({
+    classification: 'IDENTITY_CONTROL_WRITE',
+    capabilities: Object.freeze(['id-token:write']),
+    mutationLane: 'CONTROL',
+    authority: 'COUNCIL_EXTERNAL_LEASE_WATCH',
+    directRefMutation: false,
+  }),
+  'claude-security-review.yml': Object.freeze({
+    classification: 'PR_CONTROL_WRITE',
+    capabilities: Object.freeze(['pull-requests:write']),
+    mutationLane: 'CONTROL',
+    authority: 'SECURITY_REVIEW',
+    directRefMutation: false,
+  }),
+});
+
+export const DIRECT_EXECUTION_REF_WRITERS = Object.freeze([
+  'agent-repair-handoff-gate.yml',
+]);
+
 export const BOT_RUNTIME_PROTOCOL = 'FLIXO-UNIFIED-BOT-RUNTIME-v1';
 export const BOT_RUNTIME_ENGINE_VERSION = 'UNIFIED-BOT-ENGINE-v1';
 export const BOT_RUNTIME_SHARED_CAPABILITIES = Object.freeze([
@@ -223,6 +323,7 @@ export const BOT_RUNTIME_ROLES = Object.freeze({
       'ROLLBACK_EXECUTION',
       'PERSISTENT_REPAIR_RECEIPT',
     ]),
+  }),
   FLIXO_TEAM: Object.freeze({
     mutationAuthority: false,
     certificationAuthority: false,
