@@ -71,7 +71,7 @@ for (const {file, text} of workflowTexts) {
 
 const testEngine = readFileSync('scripts/test.mjs', 'utf8');
 const certifyEngine = readFileSync('scripts/ci/certify.mjs', 'utf8');
-const certifyCore = readFileSync('scripts/ci/certify-core.mjs', 'utf8');
+const certificationEngine = readFileSync('scripts/ci/certification-engine.mjs', 'utf8');
 const autoRepairWorkflow = readFileSync('.github/workflows/auto-repair.yml', 'utf8');
 const cellMasterConsultWorkflow = readFileSync('.github/workflows/cell-master-consult.yml', 'utf8');
 const executionWatchdogWorkflow = readFileSync('.github/workflows/execution-bot-watchdog.yml', 'utf8');
@@ -457,8 +457,11 @@ for (const job of ['verify', 'browser_fast', 'browser_deep', 'certify']) {
 
 for (const [label, source, pattern] of [
   ['central result-state reducer', testEngine, /result-state\.mjs/],
-  ['central result-state reducer import in certification core', certifyCore, /result-state\.mjs/],
-  ['certification wrapper delegates to canonical core', certifyEngine, /certify-core\.mjs/],
+  ['certification wrapper delegates directly to canonical engine', certifyEngine, /certification-engine\.mjs/],
+  ['canonical certification authority identity', certificationEngine, /authority:\s*'CANONICAL_CERTIFICATION_ENGINE'/],
+  ['canonical certification exact-SHA guard', certificationEngine, /graph\.exactSha !== expectedSha/],
+  ['canonical certification exact-run guard', certificationEngine, /String\(graph\.runId\) !== String\(runId\)/],
+  ['canonical certification fail-closed result', certificationEngine, /if \(result\.status !== 'PASS'\) process\.exit\(1\)/],
   ['explicit cancellation state', resultState, /['"]CANCELLED['"]/],
   ['explicit missing-evidence state', resultState, /['"]MISSING_EVIDENCE['"]/],
   ['explicit malformed-evidence state', resultState, /['"]MALFORMED_EVIDENCE['"]/],
