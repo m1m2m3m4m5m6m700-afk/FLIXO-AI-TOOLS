@@ -20,7 +20,7 @@ function findTrackedExport(targetDir, symbol) {
   return { ok: true, moduleFile: hits[0], hits };
 }
 function importSpecifier(fromFile, moduleFile) {
-  let relative = path.posix.relative(path.posix.dirname(fromFile.replace(/\\\\/g, '/')), moduleFile.replace(/\\\\/g, '/')).replace(/\\.(?:mjs|cjs|js|jsx|ts|tsx)$/iu, '');
+  let relative = path.posix.relative(path.posix.dirname(fromFile.replace(/\\\\/g, '/')), moduleFile.replace(/\\\\/g, '/')).replace(/\.(?:mjs|cjs|js|jsx|ts|tsx)$/iu, '');
   return relative.startsWith('.') ? relative : './' + relative;
 }
 function applyTypescriptMissingImport(targetDir, plan) {
