@@ -30,6 +30,7 @@ export const SENSITIVE_PERMISSION_ALLOWLISTS = Object.freeze({
     'latest-commit-test-supersession.yml',
     'latest-execution-head-cleanup.yml',
     'agent-repair-heartbeat.yml',
+    'agent-master-activation.yml',
     'repair-agent-intake.yml',
   ]),
   'id-token': Object.freeze([
