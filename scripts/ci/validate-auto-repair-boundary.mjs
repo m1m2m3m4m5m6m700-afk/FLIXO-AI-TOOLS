@@ -13,7 +13,7 @@ const MERGE_GATE = path.join(ROOT, '.github', 'workflows', 'auto-repair-merge-ga
 const PUSH_GATE_WORKFLOW = path.join(ROOT, '.github', 'workflows', 'unified-execution-push-gate.yml');
 const MAX_CHANGED_FILES = 12;
 const MAX_CHANGED_LINES = 300;
-const MUTATION_WORKFLOWS = Object.freeze(['auto-repair.yml']);
+const MUTATION_WORKFLOWS = Object.freeze(['agent-repair-handoff-gate.yml']);
 const MUTATION_LANE = 'flixo-execution-mutation-lane';
 const MUTATION_GATE_SCRIPT = path.join(ROOT,'scripts','ci','execution-mutation-gate.mjs');
 const PRE_COMMIT_GATE_SCRIPT = path.join(ROOT,'scripts','ci','repair-pre-commit-adversarial-redteam-gate.mjs');
@@ -202,6 +202,16 @@ export function validateStatic() {
   must(/NEXT_COHORT_READY_REQUIRED=true/.test(heartbeat) && /ACTIVE_COHORT_HANDOFF=NEXT_5_READY_BEFORE_RELEASE/.test(heartbeat), 'heartbeat-next-five-ready-handoff');
 
   must(handoffGate.includes('CURRENT_EXECUTION_SHA=') && handoffGate.includes('HANDOFF_EXECUTION_SHA'), 'handoff-gate-current-head-check');
+  must(/branches:\s*\[main\]/.test(handoffGate), 'handoff-gate-main-source-trigger');
+  must(/contents:\s*write/.test(handoffGate), 'handoff-gate-publication-write-permission');
+  must(/actions:\s*read/.test(handoffGate), 'handoff-gate-actions-read-only');
+  must(/git\/refs\/heads\/execution/.test(handoffGate) && /--method\s+PATCH/.test(handoffGate), 'handoff-gate-execution-fast-forward-publication');
+  must(/-F\s+force=false/.test(handoffGate), 'handoff-gate-no-force-publication');
+  must(/execution-head-authority\.mjs verify/.test(handoffGate), 'handoff-gate-chair-head-proof');
+  must(/FLIXO-CHAIR-PUBLICATION-HANDOFF-v1/.test(handoffGate), 'handoff-gate-chair-publication-contract');
+  must(!/git\/refs\/heads\/main/.test(handoffGate), 'handoff-gate-no-main-publication');
+  must(/flixo-auto-repair-publication-\$\{\{ env\.REPAIR_RUN_ID \}\}/.test(handoffGate), 'handoff-gate-exact-artifact-binding');
+  must(/flixo-candidate\.bundle/.test(auto) && /Package exact Chair publication candidate/.test(auto), 'auto-repair-candidate-bundle');
   must(/Create exact unpublished candidate commit/.test(auto), 'auto-repair-candidate-commit');
   must(/Run targeted regression and post-patch adversarial falsification in parallel/.test(auto), 'auto-repair-parallel-verification');
   must(/candidate-verification-parallel\.mjs/.test(auto), 'auto-repair-parallel-verification-script');

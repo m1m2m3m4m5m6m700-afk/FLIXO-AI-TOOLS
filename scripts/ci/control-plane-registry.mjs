@@ -14,6 +14,7 @@ export const REPAIR_GATE_AUTOMATION = Object.freeze([
 export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
   'auto-repair.yml',
   'daily-flixo-green-gate.yml',
+  'agent-repair-handoff-gate.yml',
   'repair-lease-live-race.yml',
   'action-agent-history-promotion.yml',
   'task-history-ledger.yml',
@@ -64,6 +65,7 @@ export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
   'wp0-trust-baseline.yml',
   'repository-security-baseline.yml',
   'agent-master-activation.yml',
+  'agent-repair-handoff-gate.yml',
   'council-wake-push-relay.yml',
   'repair-agent-intake.yml',
   'auto-repair-merge-gate.yml',

@@ -1915,6 +1915,48 @@ jobs:
           node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/flixo-prepared-repair-handoff.json','utf8'));for(const k of ['repairRunId','targetFailureRunId','chainId','failedSha','sourceSha','controllerSha','executionSha','parentSha','fingerprint','selectedRule','patchSha256']) if(h[k]===undefined||h[k]===null||h[k]==='') throw new Error('missing handoff field '+k);"
           test "${GITHUB_RUN_ID}" = "$(node -e "const h=require('/tmp/flixo-prepared-repair-handoff.json');process.stdout.write(h.repairRunId)")"
           test "$TARGET_RUN_ID" = "$(node -e "const h=require('/tmp/flixo-prepared-repair-handoff.json');process.stdout.write(h.targetFailureRunId)")"
+      - name: Package exact Chair publication candidate
+        id: package_publication
+        if: steps.publish_candidate.outcome == 'success'
+        run: |
+          set -euo pipefail
+          CANDIDATE_SHA="$(cat /tmp/flixo-candidate-sha)"
+          PARENT_SHA="$(cat /tmp/flixo-chair-publication-parent)"
+          test "$(git rev-parse "$CANDIDATE_SHA^1")" = "$PARENT_SHA"
+          git bundle create /tmp/flixo-candidate.bundle "$CANDIDATE_SHA" "^$PARENT_SHA"
+          git bundle verify /tmp/flixo-candidate.bundle
+          sha256sum /tmp/flixo-candidate.bundle > /tmp/flixo-candidate.bundle.sha256
+          test -s /tmp/flixo-candidate.bundle
+          test -s /tmp/flixo-candidate.bundle.sha256
+          test -s /tmp/flixo-prepared-repair-handoff.json
+          test -s /tmp/flixo-prepared-repair.patch
+          test -s /tmp/flixo-chair1-audit.json
+          test -s /tmp/flixo-master-repair-governor.json
+          test -s /tmp/flixo-head-authority.json
+          test -s /tmp/flixo-mutation-admission.json
+          test -s /tmp/flixo-chair-publication.json
+          test -s /tmp/flixo-chair-publication-request.json
+          echo "CHAIR_PUBLICATION_PACKAGE=READY"
+
+      - name: Publish exact Chair publication package
+        if: steps.package_publication.outcome == 'success'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: flixo-auto-repair-publication-${{ github.run_id }}
+          path: |
+            /tmp/flixo-prepared-repair-handoff.json
+            /tmp/flixo-prepared-repair.patch
+            /tmp/flixo-candidate.bundle
+            /tmp/flixo-candidate.bundle.sha256
+            /tmp/flixo-chair1-audit.json
+            /tmp/flixo-master-repair-governor.json
+            /tmp/flixo-head-authority.json
+            /tmp/flixo-mutation-admission.json
+            /tmp/flixo-chair-publication.json
+            /tmp/flixo-chair-publication-request.json
+            /tmp/flixo-repair-evidence.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Validate Phase 2 release integrity handoff
         if: steps.publish_candidate.outcome == 'success'
         env:

@@ -49,6 +49,14 @@ assert.match(gate,/verifyExecutionHeadAuthority/);
 assert.match(gate,/FLIXO_HEAD_AUTHORITY_PROOF/);
 
 const publicationWorkflows=['.github/workflows/auto-repair.yml'];
+const handoffWorkflow=read('.github/workflows/agent-repair-handoff-gate.yml');
+assert.match(handoffWorkflow,/branches:\s*\[main\]/);
+assert.match(handoffWorkflow,/permissions:[\s\S]*contents:\s*write/);
+assert.match(handoffWorkflow,/git\/refs\/heads\/execution/);
+assert.match(handoffWorkflow,/--method PATCH/);
+assert.match(handoffWorkflow,/-F force=false/);
+assert.match(handoffWorkflow,/execution-head-authority\.mjs verify/);
+assert.doesNotMatch(handoffWorkflow,/git\/refs\/heads\/main/);
 for(const workflow of publicationWorkflows){
   const text=read(workflow);
   assert.doesNotMatch(text,/git\s+push[^\n]*\bexecution\b/,workflow+' must not publish execution directly');
