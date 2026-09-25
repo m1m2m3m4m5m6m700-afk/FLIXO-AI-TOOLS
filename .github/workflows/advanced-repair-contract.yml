@@ -99,7 +99,10 @@ jobs:
           node scripts/ci/master-repair-negative-proof.mjs
           test -s docs/agents/master-repair-20x-contract.json
 
-      - name: Validate no direct push boundary
-        run: node scripts/ci/validate-no-direct-push.mjs
+      - name: Validate no direct push boundary contract
+        run: |
+          set -euo pipefail
+          node scripts/ci/test-validate-no-direct-push.mjs
+          node scripts/ci/validate-no-direct-push.mjs
       - name: Run 100-worker atomic lease race without GitHub write permission
         run: node scripts/ci/test-repair-lease-live-race.mjs
