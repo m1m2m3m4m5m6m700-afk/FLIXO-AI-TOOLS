@@ -74,7 +74,7 @@ async function readRemoteExternalLearning(targetSha,limit=48){
 const empty=()=>({
   schemaVersion:2,
   intelligenceRegistry:'docs/agents/FLIXO-BOT.json',
-  intelligenceVersion:'FLIXO-BOT-BRAIN-v1',
+  intelligenceVersion:'FLIXO-BOT-BRAIN-v2',
   protocol:SHARED_MEMORY_PROTOCOL,
   authority:'SHARED_KNOWLEDGE_ONLY',
   mutationAuthority:false,
@@ -163,7 +163,7 @@ function normalizeRecord(input={}){
     antiLesson:Boolean(input.antiLesson===true||String(input.kind)==='ANTI_LESSON'),
     source:'SHARED_MEMORY_WRITE',
     intelligenceRegistry:'docs/agents/FLIXO-BOT.json',
-    intelligenceVersion:'FLIXO-BOT-BRAIN-v1',
+    intelligenceVersion:'FLIXO-BOT-BRAIN-v2',
     exactShaBound:true,
     mutationAuthority:false,
     certificationAuthority:false,
@@ -291,6 +291,7 @@ export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48
     certificationAuthority:false,
     canonical:true,
     targetAudience:[...SHARED_BOTS],
+    scope:'ALL_INTERNAL_AGENTS_AND_REPAIR_BOTS',
     recordCount:records.length,
     errors:[...grouped.ERROR,...legacy.errors].slice(0,limit),
     operations:grouped.OPERATION,
@@ -303,7 +304,7 @@ export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48
     verifications:grouped.VERIFICATION,
     externalCandidates:[],
     remoteLearningPending:false,
-    note:'Shared memory informs every active FLIXO BOT consumer; it never proves GREEN or grants authority.'
+    note:'Shared memory informs every internal FLIXO agent and repair bot through the same canonical store; it never proves GREEN or grants authority.'
   };
 }
 
@@ -333,7 +334,7 @@ export function buildSharedMemoryBootstrapSummary(){
     'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json',
     'docs/agents/ACTION-ERROR-HISTORY.md',
   ];
-  return Object.freeze({protocol:SHARED_MEMORY_PROTOCOL,canonical:true,legacyReadThrough:sources,mode:'SYSTEM_WIDE_CONTEXT_ONLY',intelligenceRegistry:'docs/agents/FLIXO-BOT.json',intelligenceVersion:'FLIXO-BOT-BRAIN-v1',targetBotCount:SHARED_BOTS.length});
+  return Object.freeze({protocol:SHARED_MEMORY_PROTOCOL,canonical:true,legacyReadThrough:sources,mode:'SYSTEM_WIDE_CONTEXT_ONLY',intelligenceRegistry:'docs/agents/FLIXO-BOT.json',intelligenceVersion:'FLIXO-BOT-BRAIN-v2',targetBotCount:SHARED_BOTS.length});
 }
 
 if(import.meta.url===new URL(process.argv[1]??'','file:').href){
