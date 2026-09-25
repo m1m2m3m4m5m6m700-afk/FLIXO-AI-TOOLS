@@ -173,7 +173,7 @@ export function validateStatic() {
   must(/repair-lease\.mjs worker-state/.test(auto), 'auto-repair-durable-flixo-worker-state');
   must(/repair-lease\.mjs heartbeat[\s\S]*--workerId="\$FLIXO_ACTIVE_WORKER_ID"/.test(auto), 'auto-repair-worker-heartbeat-bound-to-seat');
   must(auto.includes('EVIDENCE_CAPTURE=FAILED'), 'auto-repair-evidence-capture-fail-closed');
-  must(handoffGate.includes('branches: [execution]'), 'handoff-gate-execution-trigger');
+  must(handoffGate.includes('branches: [main]'), 'handoff-gate-main-source-trigger');
   must(/permissions:\s*[\s\S]*contents:\s+read[\s\S]*checks:\s+read/.test(supervisor) && !/actions:\s*write/.test(supervisor), 'supervisor-read-only');
   must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(supervisor), 'supervisor-no-direct-repair-dispatch');
   must(!/push:\s*\n\s+branches:/m.test(supervisor) && !/pull_request:/m.test(supervisor), 'supervisor-observer-only-trigger');
