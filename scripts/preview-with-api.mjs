@@ -25,7 +25,7 @@ function closeServer(server) {
 const host = flagValue('--host', '0.0.0.0');
 const parsedPort = Number(flagValue('--port', '3000'));
 if (!Number.isInteger(parsedPort) || parsedPort < 1 || parsedPort > 65_535) {
-  throw new Error(\`Invalid preview port: \${parsedPort}\`);
+  throw new Error(`Invalid preview port: ${parsedPort}`);
 }
 
 const previewApiPlugin = {
