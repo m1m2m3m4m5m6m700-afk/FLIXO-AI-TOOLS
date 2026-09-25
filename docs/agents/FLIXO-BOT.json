@@ -830,7 +830,18 @@
       "FLIXO10": "FLIXO-BOT-077"
     },
     "roleOverlayPolicy": "ROLE_CHANGES_EXECUTION_SCOPE_ONLY; ALL_COGNITIVE_BOTS_SHARE_THE_SAME_CORE_INTELLIGENCE_AND_CANONICAL_LEARNING_MEMORY",
-    "operationalRuntimePool": "SEPARATE_FROM_200_COGNITIVE_BOTS; DO_NOT_CONFLATE_LOGICAL_COGNITIVE_COUNT_WITH_RUNTIME_SEATS"
+    "operationalRuntimePool": "SEPARATE_FROM_200_COGNITIVE_BOTS; DO_NOT_CONFLATE_LOGICAL_COGNITIVE_COUNT_WITH_RUNTIME_SEATS",
+    "singleMemoryPolicy": {
+      "protocol": "FLIXO-SINGLE-MEMORY-v1",
+      "model": "ONE_CANONICAL_MEMORY",
+      "path": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
+      "members": 200,
+      "automaticVisibility": true,
+      "directRead": true,
+      "replicatedCopies": false,
+      "perAgentMemory": false,
+      "perRecordVisibilityFilter": false
+    }
   },
   "learning": {
     "onEveryMeaningfulFinding": "PUBLISH_TO_SHARED_MEMORY",
