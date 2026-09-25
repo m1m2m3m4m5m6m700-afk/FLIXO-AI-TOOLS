@@ -51,6 +51,11 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version-file: .nvmrc
+      - name: Cancel stale workflow_run source
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/ci/assert-workflow-run-current.mjs
 
       - name: Self-test canonical repair control plane
         run: |
