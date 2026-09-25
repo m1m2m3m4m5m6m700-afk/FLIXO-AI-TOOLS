@@ -44,6 +44,7 @@ const scripts = [
   'scripts/ci/test-security-red-team-contract.mjs',
   'scripts/ci/test-root-closure-contract.mjs',
   'scripts/ci/test-continuous-error-watch.mjs',
+  'scripts/ci/test-automation-watchdog-contract.mjs',
   'scripts/ci/continuous-error-watch.mjs',
   'scripts/ci/release-evidence-binding.mjs',
 ];
@@ -53,7 +54,7 @@ const wiringChecks = [
   ['CI_CURRENT_SHA_GUARD', /scripts\/ci\/assert-current-commit\.mjs/u.test(workflows.ci)],
   ['CI_RUN_PROOF', /scripts\/ci\/verify-run-proof\.mjs/u.test(workflows.ci)],
   ['CI_RUN_LOCK', /scripts\/ci\/verify-run-lock\.mjs/u.test(workflows.ci)],
-  ['CI_LATEST_ONLY_CONTROLLER', /latest-commit-test-supersession\.yml/u.test(workflows.ci) && /scripts\/ci\/assert-current-commit\.mjs/u.test(workflows.ci) && /cancel-in-progress:\s*true/u.test(workflows.supersession)],
+  ['CI_LATEST_ONLY_CONTROLLER', /scripts\/ci\/assert-current-commit\.mjs/u.test(workflows.ci) && /cancel-in-progress:\s*true/u.test(workflows.supersession) && /gh run cancel/u.test(workflows.supersession)],
   ['CI_CANONICAL_ASSURANCE_STEP', /test-canonical-assurance\.mjs --mode=full/u.test(workflows.ci)],
   ['CI_CANONICAL_ASSURANCE_ARTIFACT', /flixo-canonical-assurance-/u.test(workflows.ci)],
   ['GREEN_FAIL_CLOSED', /case "\$STATUS" in[\s\S]*GREEN\) exit 0/iu.test(workflows.green)],

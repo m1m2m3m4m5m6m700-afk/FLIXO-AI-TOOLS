@@ -157,6 +157,7 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   rules: Object.freeze([
     'PERMANENT_RESIDENCY',
     'NO_SLEEP',
+    'NO_SLEEP_WHILE_WORK_ASSIGNED',
     'NO_IDLE',
     'NO_SILENT_STOP',
     'OPEN_WORK_REMAINS_OPEN',
