@@ -17,6 +17,7 @@ const intake = read('.github/workflows/repair-agent-intake.yml');
 const autoRepair = read('.github/workflows/auto-repair.yml');
 const actionWake = read('scripts/ci/action-repair-five-workers.mjs');
 const master = read('AI_AGENT_MASTER_PROMPT.md');
+const councilDirective = read('scripts/ci/council-directive.mjs');
 const livenessDoc = read('docs/agents/AGENT-LIVENESS-PROTOCOL.md');
 
 assert.match(watchdog, /workflow_dispatch:/);
@@ -89,11 +90,14 @@ assert.match(liveness, /wakeIntervalMs: 60 \* 1000/);
 assert.match(liveness, /heartbeatGraceMs: 30 \* 1000/);
 assert.match(liveness, /scheduleIntervalMs: 5 \* 60 \* 1000/);
 assert.match(liveness, /onePulsePerHeartbeat: true/);
+assert.match(councilDirective, /heartbeatEveryMinutes: 1/);
+assert.doesNotMatch(councilDirective, /heartbeatEveryMinutes: 5/);
 const heartbeatWorkflow = read('.github/workflows/agent-repair-heartbeat.yml');
 const wakeRelay = read('.github/workflows/council-wake-push-relay.yml');
 
 assert.match(heartbeatWorkflow, /HEARTBEAT_24X7_MODE=true/);
 assert.match(heartbeatWorkflow, /HEARTBEAT_INTERVAL_SECONDS=60/);
+assert.match(heartbeatWorkflow, /sleep 60/);
 assert.match(heartbeatWorkflow, /for TICK in \$\(seq 1 45\); do/);
 assert.match(heartbeatWorkflow, /sleep 60/);
 assert.match(heartbeatWorkflow, /permissions:\s*\n\s*actions: read/);
