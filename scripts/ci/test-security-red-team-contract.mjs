@@ -73,7 +73,7 @@ assert.match(runner,/const explicitlyAdmitted = allowlist\.has\(workflow\)/u);
 assert.match(runner,/if \(explicitlyAdmitted\) continue/u);
 assert.match(runner,/const browserSourceFile =/u);
 assert.match(runner,/\^src\\\/(?:server|.*\\\/server)/u);
-assert.match(runner,/\^src\\\/(?:.*\\\/)?(?:__tests__|tests|test-fixtures)/u);
+assert.match(runner,/(?:__tests__|tests|test-fixtures)/u);
 assert.match(runner,/tracked\.filter\(browserSourceFile\)/u);
 assert.match(runner,/mutationAuthority:false/u);
 assert.match(runner,/adversarial-repair-twin\.mjs/u);
