@@ -1,7 +1,7 @@
-import type { ToolConfig } from '../config/tools';
+import type { ToolDefinition } from '../config/canonical-tool-definition';
 
 export type IntentMatch = {
-  readonly tool: ToolConfig;
+  readonly tool: ToolDefinition;
   readonly score: number;
 };
 
@@ -37,7 +37,7 @@ const normalize = (value: string): string =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const scoreMatch = (query: string, tool: ToolConfig): number => {
+const scoreMatch = (query: string, tool: ToolDefinition): number => {
   const normalizedQuery = normalize(query);
   if (!normalizedQuery) return 0;
 
@@ -59,7 +59,7 @@ const scoreMatch = (query: string, tool: ToolConfig): number => {
   return score;
 };
 
-export const findToolIntent = (query: string, tools: readonly ToolConfig[]): IntentMatch[] =>
+export const findToolIntent = (query: string, tools: readonly ToolDefinition[]): IntentMatch[] =>
   tools
     .filter((tool) => tool.isReady)
     .map((tool) => ({ tool, score: scoreMatch(query, tool) }))
@@ -67,5 +67,5 @@ export const findToolIntent = (query: string, tools: readonly ToolConfig[]): Int
     .sort((a, b) => b.score - a.score)
     .slice(0, 6);
 
-export const getBestToolIntent = (query: string, tools: readonly ToolConfig[]): IntentMatch | null =>
+export const getBestToolIntent = (query: string, tools: readonly ToolDefinition[]): IntentMatch | null =>
   findToolIntent(query, tools)[0] ?? null;

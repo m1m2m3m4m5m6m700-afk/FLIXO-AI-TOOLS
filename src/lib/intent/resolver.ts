@@ -1,4 +1,5 @@
-import { TOOLS_REGISTRY, type ToolConfig } from '../../config/tools';
+import { getToolById } from '../../config/registry';
+import type { ToolDefinition } from '../../config/canonical-tool-definition';
 import { CAPABILITY_REGISTRY } from '@/lib/agent/capability-registry';
 import { WORKFLOW_REGISTRY } from '../workflows/registry';
 import type { IntentMatch } from '../workflows/types';
@@ -7,7 +8,7 @@ import { createFilterMaskHandoff } from '@/tools/filter-mask/handoff';
 import { getLiveFilter, resolveLiveFilter } from '@/tools/filter-mask/registry';
 
 type KeywordRule = {
-  readonly id: ToolConfig['id'];
+  readonly id: ToolDefinition['id'];
   readonly terms: readonly string[];
 };
 
@@ -61,7 +62,7 @@ export const resolveIntent = (input: string): IntentMatch => {
   };
 };
 
-export const getResolvedTool = (id: string) => TOOLS_REGISTRY.find((tool) => tool.id === id);
+export const getResolvedTool = (id: string) => getToolById(id);
 
 
 export const resolveFilterMaskSelection = (input: string) => {

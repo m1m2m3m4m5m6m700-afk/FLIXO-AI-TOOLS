@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { extname, join, normalize, relative, sep } from 'node:path';
-import { TOOLS_REGISTRY, getToolConfig } from '../src/config/tools.ts';
+import { TOOL_REGISTRY, getToolById } from '../src/config/registry.ts';
 import { TOOL_MANIFEST } from '../src/config/tool-manifest.ts';
 import { LOCALES, LOCALE_METADATA, getCanonicalSiteOrigin } from '../src/lib/i18n/config.ts';
 import { getLocalizedToolPath } from '../src/lib/routing/route-resolver.ts';
@@ -33,28 +33,28 @@ run('site origin', process.execPath, ['--import=./scripts/register-node-resolver
 run('indexing', process.execPath, ['scripts/validate-indexing.mjs']);
 
 const routeSource = readFileSync('src/routes/localized-tool.tsx', 'utf8');
-for (const token of ['loader:', 'getToolConfig(params.tool)', '!tool?.isReady', 'notFound()', 'notFoundComponent:']) {
+for (const token of ['loader:', 'getToolById(params.tool)', '!tool?.isReady', 'notFound()', 'notFoundComponent:']) {
   if (!routeSource.includes(token)) fail('localized tool readiness/404 boundary is incomplete', [`missing=${token}`]);
 }
 
 const duplicate = (values) => [...new Set(values.filter((value, index) => values.indexOf(value) !== index))];
 const readyTools = TOOL_MANIFEST.filter((tool) => tool.isReady);
 const unreadyTools = TOOL_MANIFEST.filter((tool) => !tool.isReady);
-const ids = TOOLS_REGISTRY.map((tool) => tool.id);
-const registryRoutes = TOOLS_REGISTRY.flatMap((tool) => [tool.path, ...(tool.aliases ?? [])]);
+const ids = TOOL_REGISTRY.map((tool) => tool.id);
+const registryRoutes = TOOL_REGISTRY.flatMap((tool) => [tool.path, ...(tool.aliases ?? [])]);
 const manifestShape = TOOL_MANIFEST.map((tool) => `${tool.id}|${tool.path}|${tool.isReady}`);
-const registryShape = TOOLS_REGISTRY.map((tool) => `${tool.id}|${tool.path}|${tool.isReady}`);
+const registryShape = TOOL_REGISTRY.map((tool) => `${tool.id}|${tool.path}|${tool.isReady}`);
 
 if (duplicate(ids).length) fail('duplicate tool ids', duplicate(ids));
 if (duplicate(registryRoutes).length) fail('duplicate canonical/alias routes', duplicate(registryRoutes));
-if (TOOL_MANIFEST.length !== TOOLS_REGISTRY.length || manifestShape.some((value, index) => value !== registryShape[index])) {
-  fail('manifest/registry contract drift', [`manifest=${TOOL_MANIFEST.length}`, `registry=${TOOLS_REGISTRY.length}`]);
+if (TOOL_MANIFEST.length !== TOOL_REGISTRY.length || manifestShape.some((value, index) => value !== registryShape[index])) {
+  fail('manifest/registry contract drift', [`manifest=${TOOL_MANIFEST.length}`, `registry=${TOOL_REGISTRY.length}`]);
 }
 
 // The registry is the source of truth. Every ready tool must resolve through the
 // same canonical localized route resolver for every supported locale.
 for (const tool of readyTools) {
-  if (getToolConfig(tool.id)?.id !== tool.id) fail('registry resolver ownership drift', [`missing=${tool.id}`]);
+  if (getToolById(tool.id)?.id !== tool.id) fail('registry resolver ownership drift', [`missing=${tool.id}`]);
   for (const locale of LOCALES) {
     const localizedPath = getLocalizedToolPath(tool, locale);
     const expectedPrefix = `/${locale}/`;
@@ -215,4 +215,4 @@ try {
   rmSync(temp, { recursive: true, force: true });
 }
 
-console.log(`G1 PLATFORM CONTRACT PASSED: registry=${TOOLS_REGISTRY.length}, ready=${readyTools.length}, unready=${unreadyTools.length}, locales=${LOCALES.length}, seoBindings=${seoChecked}/${seoExpectedCount}, sitemap=${LOCALES.length * (readyTools.length + 1)}, canonical=${canonicalOrigin}, httpReady=${readyTools.length * LOCALES.length}, http404=${unreadyTools.length * LOCALES.length}`);
+console.log(`G1 PLATFORM CONTRACT PASSED: registry=${TOOL_REGISTRY.length}, ready=${readyTools.length}, unready=${unreadyTools.length}, locales=${LOCALES.length}, seoBindings=${seoChecked}/${seoExpectedCount}, sitemap=${LOCALES.length * (readyTools.length + 1)}, canonical=${canonicalOrigin}, httpReady=${readyTools.length * LOCALES.length}, http404=${unreadyTools.length * LOCALES.length}`);

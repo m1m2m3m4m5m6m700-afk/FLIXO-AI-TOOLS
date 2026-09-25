@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getReadyToolConfigs } from '../config/tools';
+import { TOOL_CATALOG } from '../config/registry';
 import { addToolToChain, clearToolChain, getToolChain, moveToolInChain, removeToolFromChain } from '../lib/tool-chain';
 import { getToolUiCopy } from '../data/tool-ui-i18n';
 import './tool-chain-panel.css';
@@ -14,7 +14,7 @@ export function ToolChainPanel({ currentToolId }: { currentToolId?: string | nul
   const [error, setError] = useState('');
   const [result, setResult] = useState<{ blob: Blob; fileName: string } | null>(null);
   const [resultUrl, setResultUrl] = useState('');
-  const tools = useMemo(() => getReadyToolConfigs(), []);
+  const tools = useMemo(() => TOOL_CATALOG.ready, []);
   const selected = chain.map((step) => ({ step, tool: tools.find((tool) => tool.id === step.id) })).filter((item): item is { step: typeof chain[number]; tool: (typeof tools)[number] } => Boolean(item.tool));
   const copy = getToolUiCopy();
 

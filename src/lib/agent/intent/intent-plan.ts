@@ -4,8 +4,7 @@ import { buildQuickFlowPlan, type QuickFlowPlan } from '@/lib/quickflow';
 import { resolveIntent } from '@/lib/intent/resolver';
 import type { IntentMatch } from '@/lib/workflows/types';
 import { extractParameters, type ExtractedOperation, type ExtractionResult } from '@/lib/agent/intent/parameter-extractor';
-import { TOOLS_REGISTRY } from '@/config/tools';
-import { TOOL_CATALOG } from '@/config/registry';
+import { TOOL_CATALOG, TOOL_REGISTRY } from '@/config/registry';
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import { buildWorldModel, WorldModelSchema, type WorldModel } from '@/lib/agent/world-model';
 import { selectClarificationQuestion } from '@/lib/agent/question-engine';
@@ -285,7 +284,7 @@ export function buildIntentPlan(
     );
   }
 
-  const quickFlow = buildQuickFlowPlan(normalizedInput, TOOLS_REGISTRY);
+  const quickFlow = buildQuickFlowPlan(normalizedInput, TOOL_REGISTRY);
   if (!quickFlow) {
     return buildBasePlan(
       normalizedInput,

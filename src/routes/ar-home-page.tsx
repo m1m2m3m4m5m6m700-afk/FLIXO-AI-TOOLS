@@ -5,7 +5,7 @@ import { FlixoLogoImage } from '../components/FlixoLogoImage';
 import { AgentWorkbench } from '../components/AgentWorkbench';
 import { FlixoHeroWorkspace } from '../components/home/FlixoHeroWorkspace';
 import { ArHomeToolsSection, type ToolCard } from '../components/ar-home-tools-section';
-import { TOOLS_REGISTRY } from '../config/tools';
+import { TOOL_CATALOG } from '../config/registry';
 import { getBestToolIntent } from '../lib/intent-router';
 import { getToolCategories, filterTools } from '../lib/ar-home-search';
 import { recommendImageTool } from '../lib/ar-home-recommendation';
@@ -20,7 +20,7 @@ type LocalizableTool = {
   path: string;
 };
 
-const READY_TOOLS = TOOLS_REGISTRY.filter((tool) => tool.isReady);
+const READY_TOOLS = TOOL_CATALOG.ready;
 
 function localTool(tool: LocalizableTool): ToolCard {
   return {

@@ -6,7 +6,7 @@ import { planFromIntent } from '../src/lib/ai/planner.ts';
 import { planWithOptionalAI, planWithProductionAI } from '../src/lib/ai/optional-planner.ts';
 import { planWithProviderOrLocal } from '../src/lib/agent/llm-provider.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
-import { TOOLS_REGISTRY } from '../src/config/tools.ts';
+import { TOOL_REGISTRY } from '../src/config/registry.ts';
 import { fallbackDecision } from '../api/flixo-agent.ts';
 
 const FIXTURE_INPUT = 'compress this image under 200KB and convert to WebP';
@@ -94,7 +94,7 @@ assert.equal(unknownDeterministic.plan, null);
 
 assert.equal(JSON.stringify(planFromIntent(FIXTURE_INPUT)?.steps), baselineSteps);
 assert.deepEqual(
-  buildQuickFlowPlan('compress image', TOOLS_REGISTRY)?.steps.map((step) => step.toolId),
+  buildQuickFlowPlan('compress image', TOOL_REGISTRY)?.steps.map((step) => step.toolId),
   ['image-compressor'],
 );
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { getReadyToolConfigs } from '../config/tools';
+import { TOOL_CATALOG } from '../config/registry';
 import { getRecentTools } from '../lib/local-workspace';
 
 export function CommandPalette() {
@@ -24,7 +24,7 @@ export function CommandPalette() {
 
   const tools = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const all = getReadyToolConfigs();
+    const all = TOOL_CATALOG.ready;
     const ordered = [...all].sort((a, b) => {
       const ai = recent.indexOf(a.id);
       const bi = recent.indexOf(b.id);

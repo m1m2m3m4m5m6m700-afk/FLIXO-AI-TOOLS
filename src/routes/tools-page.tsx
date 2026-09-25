@@ -20,7 +20,7 @@ import {
   Wand2,
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
-import { TOOLS_REGISTRY } from '@/config/tools';
+import { TOOL_CATALOG } from '@/config/registry';
 import { getAuthoritativeToolSeoName } from '@/config/tool-seo-name-resolver';
 import { localizeToolDescription } from '@/lib/i18n/tool-localization';
 import type { Locale } from '@/lib/i18n';
@@ -58,7 +58,7 @@ function getToolIcon(toolId: string) {
 
 export function ToolsPage({ locale = 'en' as Locale }: { locale?: Locale }) {
   const [query, setQuery] = useState('');
-  const ready = useMemo(() => TOOLS_REGISTRY.filter((tool) => tool.isReady), []);
+  const ready = useMemo(() => TOOL_CATALOG.ready, []);
   const tools = useMemo(() => ready.map((tool) => {
     const title = getAuthoritativeToolSeoName(tool, locale) ?? tool.title;
     return {

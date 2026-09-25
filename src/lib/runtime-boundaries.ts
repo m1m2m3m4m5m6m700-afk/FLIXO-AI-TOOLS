@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { TOOLS_REGISTRY } from '../config/tools.ts';
+import { TOOL_REGISTRY } from '../config/registry.ts';
 
-const toolIds = new Set(TOOLS_REGISTRY.map((tool) => tool.id));
+const toolIds = new Set(TOOL_REGISTRY.map((tool) => tool.id));
 
 export const ToolChainStepSchema = z.object({
   id: z.string().min(1).max(200),

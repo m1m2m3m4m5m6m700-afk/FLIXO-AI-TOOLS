@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getReadyToolConfigs } from '@/config/tools';
+import { TOOL_CATALOG } from '@/config/registry';
 import { getAuthoritativeToolSeoName } from '@/config/tool-seo-name-resolver';
 import { ms } from '@/lib/i18n/locales/ms';
 import { uk } from '@/lib/i18n/locales/uk';
@@ -22,7 +22,7 @@ describe('ms/uk tool title localization', () => {
   });
 
   it('has an authoritative reviewed SEO name for every ready tool in ms and uk', () => {
-    for (const tool of getReadyToolConfigs()) {
+    for (const tool of TOOL_CATALOG.ready) {
       expect(getAuthoritativeToolSeoName(tool, 'ms'), `Missing ms SEO name for ${tool.id}`).toBeTruthy();
       expect(getAuthoritativeToolSeoName(tool, 'uk'), `Missing uk SEO name for ${tool.id}`).toBeTruthy();
     }

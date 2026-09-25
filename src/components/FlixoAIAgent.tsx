@@ -3,7 +3,7 @@ import type { ExecutionPlan } from '@/lib/ai/planner';
 import { assessCognitiveRequest } from '@/lib/agent/cognitive-orchestrator';
 import type { PipelineProgress } from '@/lib/workflows/pipeline-runner';
 import { cancelPreparedExecution, confirmPreparedExecution, executePreparedExecution, prepareExecution, type PreparedExecution } from '@/lib/agent/execution-integrator';
-import { getReadyToolConfigs } from '@/config/tools';
+import { TOOL_CATALOG } from '@/config/registry';
 import { findToolIntent } from '@/lib/intent-router';
 import { detectAgentLocale } from '@/lib/agent/language-detector';
 
@@ -126,7 +126,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const [filterHandoff, setFilterHandoff] = useState<FilterMaskHandoff | null>(null);
 
   const contextualQuery = useMemo(() => contextualizeCommand(query, memory), [query, memory]);
-  const intent = useMemo(() => contextualQuery.trim() ? findToolIntent(contextualQuery, getReadyToolConfigs())[0] : null, [contextualQuery]);
+  const intent = useMemo(() => contextualQuery.trim() ? findToolIntent(contextualQuery, TOOL_CATALOG.ready)[0] : null, [contextualQuery]);
   const planned = useMemo(() => {
     if (!contextualQuery.trim()) return null;
     return assessCognitiveRequest(contextualQuery).executionPlan;
@@ -433,7 +433,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       error={error}
       result={result}
       filterHandoff={filterHandoff}
-      tools={getReadyToolConfigs()}
+      tools={TOOL_CATALOG.ready}
       onDownload={() => {
         if (!result) return;
         void saveResultToFile(result).catch((cause) => {

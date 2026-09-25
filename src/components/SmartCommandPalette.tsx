@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { getReadyToolConfigs } from '@/config/tools';
+import { TOOL_CATALOG } from '@/config/registry';
 import { findToolIntent } from '@/lib/intent-router';
 
 type SmartCommandPaletteProps = {
@@ -10,7 +10,7 @@ type SmartCommandPaletteProps = {
 export function SmartCommandPalette({ onClose }: SmartCommandPaletteProps) {
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-  const results = useMemo(() => findToolIntent(query, getReadyToolConfigs()), [query]);
+  const results = useMemo(() => findToolIntent(query, TOOL_CATALOG.ready), [query]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => inputRef.current?.focus());

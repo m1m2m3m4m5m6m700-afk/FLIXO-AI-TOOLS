@@ -1,4 +1,4 @@
-import type { ToolConfig } from '../config/tools';
+import type { ToolDefinition } from '../config/canonical-tool-definition';
 import { getBestToolIntent } from './intent-router.ts';
 import { extractParameters, type ExtractedOperation } from './agent/intent/parameter-extractor.ts';
 import { getCapability, validateCapabilityParameters } from './agent/capability-registry.ts';
@@ -9,7 +9,7 @@ const MAX_STEPS = 4;
 const PRODUCT_PREP = /(?:product\s+(?:image|photo)|e-?commerce|catalog|marketplace|store|shop|product\s+listing|صورة\s+المنتج|المنتج\s+للمتجر|للمتجر|كتالوج|متجر)/i;
 const STEP_ORDER = ['background-remover', 'image-upscaler', 'image-cropper', 'image-effects', 'image-converter', 'image-compressor'];
 
-function pathFor(toolId: string, tools: readonly ToolConfig[]): string | undefined { return tools.find((tool) => tool.id === toolId)?.path; }
+function pathFor(toolId: string, tools: readonly ToolDefinition[]): string | undefined { return tools.find((tool) => tool.id === toolId)?.path; }
 function productPreparationOperations(): ExtractedOperation[] { return [{ capability: 'background-remover', params: {} }, { capability: 'image-cropper', params: { aspectRatio: '1:1' } }]; }
 function orderedOperations(operations: readonly ExtractedOperation[]): ExtractedOperation[] {
   return [...operations].sort((a, b) => {
@@ -30,7 +30,7 @@ function semanticGate(operations: readonly ExtractedOperation[]): ExtractedOpera
   } catch { return null; }
 }
 
-export const buildQuickFlowPlan = (intent: string, tools: readonly ToolConfig[]): QuickFlowPlan | null => {
+export const buildQuickFlowPlan = (intent: string, tools: readonly ToolDefinition[]): QuickFlowPlan | null => {
   const normalizedIntent = intent.trim();
   if (!normalizedIntent) return null;
   const extracted = extractParameters(normalizedIntent);
