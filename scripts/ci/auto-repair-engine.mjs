@@ -271,6 +271,11 @@ const evidence = {
   features,
   diagnosis,
   openHandsAdvisor,
+  primaryAdvisor: openHandsAdvisor?.status === 'COMPLETED' ? 'OPENHANDS' : 'ACTION_REPAIR',
+  proposalPriority: openHandsAdvisor?.status === 'COMPLETED'
+    ? ['OPENHANDS', 'ACTION_REPAIR', 'HISTORICAL', 'DETERMINISTIC']
+    : ['ACTION_REPAIR', 'HISTORICAL', 'DETERMINISTIC'],
+  primaryProposal: openHandsAdvisor?.status === 'COMPLETED' ? 'OPENHANDS' : null,
   specialist,
   candidates: plan.candidates,
   reasoning: plan.reasoning,
