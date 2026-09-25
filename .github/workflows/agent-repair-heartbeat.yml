@@ -185,6 +185,7 @@ jobs:
           path: |
             /tmp/flixo-heartbeat/wake-compliance.json
             /tmp/flixo-heartbeat/heartbeat.json
+            /tmp/flixo-heartbeat/resident-baton-*.json
             /tmp/flixo-heartbeat/resident-ack-*.json
             /tmp/flixo-heartbeat/resident-proof-*.json
           if-no-files-found: warn
