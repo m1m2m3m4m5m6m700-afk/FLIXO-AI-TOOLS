@@ -72,18 +72,37 @@ export function ToolsPage({ locale = 'en' as Locale }: { locale?: Locale }) {
     return !query.trim() || haystack.includes(query.trim().toLowerCase());
   }), [ready, locale, query]);
 
-  const ar = locale === 'ar';
+  const AGENT_NAV_LABELS: Readonly<Record<Locale, string>> = {
+  en: 'Agent',
+  ar: 'الوكيل',
+  es: 'Agente de IA',
+  fr: 'Agent IA',
+  de: 'KI-Agent',
+  hi: 'एआई एजेंट',
+  id: 'Agen AI',
+  it: 'Agente IA',
+  ja: 'AIエージェント',
+  ko: 'AI 에이전트',
+  ms: 'Ejen AI',
+  nl: 'AI-agent',
+  pl: 'Agent AI',
+  pt: 'Agente IA',
+  ru: 'ИИ-агент',
+  sv: 'AI-agent',
+  th: 'เอเจนต์ AI',
+  tr: 'Yapay zekâ ajanı',
+  uk: 'AI-агент',
+  vi: 'Tác nhân AI',
+};
+
+const ar = locale === 'ar';
 
   return (
     <main className="tools-modern" lang={locale} dir={ar ? 'rtl' : 'ltr'}>
       <header className="tools-modern-nav">
         <Link className="tools-modern-brand" to={ar ? '/ar' : '/'} aria-label="FLIXO"><img src="/flixo-brand-mark.webp" alt="FLIXO" width={36} height={36} /><span>FLIXO</span></Link>
         <Link className="tools-modern-back" to={ar ? '/ar' : '/'}>{ar ? 'الرئيسية' : 'Home'}</Link>
-        {ar ? (
-          <Link className="tools-modern-back" to="/$locale/agent" params={{ locale }}>{ar ? 'الوكيل' : 'Agent'}</Link>
-        ) : (
-          <Link className="tools-modern-back" to="/agent">{ar ? 'الوكيل' : 'Agent'}</Link>
-        )}
+        <Link className="tools-modern-back" to={locale === 'en' ? '/agent' : '/$locale/agent'} params={locale === 'en' ? undefined : { locale }}>{AGENT_NAV_LABELS[locale]}</Link>
       </header>
 
       <div className="tools-modern-container">
