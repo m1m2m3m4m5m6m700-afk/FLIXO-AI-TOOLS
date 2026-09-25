@@ -9,7 +9,7 @@ const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === 'true';
 
 export default defineConfig({
   testDir: './tests',
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: isCi,
   workers: isS4RuntimeGate ? 4 : isCi ? 3 : undefined,
   retries: isS4RuntimeGate ? 0 : isCi ? 2 : 0,
