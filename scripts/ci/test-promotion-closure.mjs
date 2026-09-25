@@ -53,9 +53,16 @@ const livePath = write('live.json', {
 const outputPath = path.join(dir, 'evidence.json');
 const script = path.resolve('scripts/ci/validate-promotion-closure.mjs');
 const autoRepairWorkflow = fs.readFileSync(path.resolve('.github/workflows/auto-repair.yml'), 'utf8');
-assert.doesNotMatch(autoRepairWorkflow, /ACTION-REPAIR-TWO-COMMITS|ACTION_REPAIR_TWO_COMMITS|SECOND_SHA/u);
-assert.match(autoRepairWorkflow, /ACTION_REPAIR_SINGLE_COMMIT=PASS/u);
-assert.match(autoRepairWorkflow, /rev-list --count \"\\$FAILED_SHA\"\.\.\\$EXECUTION_SHA/u);
+assert.ok(
+  !autoRepairWorkflow.includes('ACTION-REPAIR-TWO-COMMITS') &&
+  !autoRepairWorkflow.includes('ACTION_REPAIR_TWO_COMMITS') &&
+  !autoRepairWorkflow.includes('SECOND_SHA'),
+);
+assert.ok(autoRepairWorkflow.includes('CANDIDATE_SHA="$(cat /tmp/flixo-candidate-sha)"'));
+assert.ok(autoRepairWorkflow.includes('PARENT_SHA="$(git rev-parse "$CANDIDATE_SHA^")"'));
+assert.ok(autoRepairWorkflow.includes('test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"'));
+assert.ok(autoRepairWorkflow.includes('CHAIR_GUARD_BLOCKED: direct execution publication is forbidden'));
+assert.ok(autoRepairWorkflow.includes('DIRECT_PUSH_BY_AUTO_REPAIR=FORBIDDEN'));
 
 let p = spawnSync(process.execPath, [script], {
   env: { ...process.env, EXPECTED_SHA: sha, EXACT_RUNS_PATH: runsPath, EXACT_STATUS_PATH: statusPath, EXACT_CHECKS_PATH: checksPath, LIVE_RUNTIME_EVIDENCE_PATH: livePath, VERCEL_DEPLOYMENT_EVIDENCE_PATH: vercelPath, EVIDENCE_OUTPUT_PATH: outputPath },
