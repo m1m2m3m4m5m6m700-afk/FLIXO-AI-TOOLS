@@ -1,5 +1,3 @@
-[Reading 68 lines from start (total: 68 lines, 0 remaining)]
-
 import { Link } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { getReadyToolConfigs } from '@/config/tools';
@@ -68,5 +66,3 @@ export function AgentWorkbench({ locale = 'en' }: Props) {
     </section>
   );
 }
-
-[executed on device: Abood (bebcad5f-769c-412e-b9ef-1475b8eefe5a)]
