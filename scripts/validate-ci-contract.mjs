@@ -500,6 +500,7 @@ if (/github\.event_name\s*!=\s*'pull_request'/.test(deep)) {
 
 const semanticValidationCommands = [
   'scripts/ci/test-execution-graph-semantic-identity.mjs',
+  'scripts/ci/test-canonical-chain-red-team-v2.mjs',
   'scripts/ci/test-image-core-foundation.mjs',
   'scripts/ci/validate-playwright-surface.mjs',
   'scripts/ci/validate-certification-surface.mjs',
