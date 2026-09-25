@@ -26,7 +26,7 @@ const remoteHead = (() => {
   try {
     return execFileSync('git', ['ls-remote', 'origin', 'refs/heads/execution'], { cwd: ROOT, encoding: 'utf8' }).trim().split(/\s+/u)[0];
   } catch (error) {
-    throw new Error('SECURITY_RED_TEAM_LIVE_HEAD_LOOKUP_FAILED:' + String(error?.message ?? error));
+    throw new Error('SECURITY_RED_TEAM_LIVE_HEAD_LOOKUP_FAILED:' + String(error?.message ?? error), { cause: error });
   }
 })();
 if (!/^[0-9a-f]{40}$/u.test(remoteHead) || remoteHead !== EXPECTED_SHA) {
