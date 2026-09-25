@@ -22,11 +22,11 @@ on:
 permissions:
   contents: read
 
-# Superseded verification on the same canonical branch/event is replaceable.
+# Started security evidence is preserved; the trusted supersession controller cancels only queued/pending stale-SHA verification runs.
 # Exact-SHA checkout and fail-closed validation remain the authority for each run.
 concurrency:
   group: repository-security-baseline-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   baseline:

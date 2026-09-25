@@ -7,11 +7,11 @@ on:
     branches: [main, execution]
   workflow_dispatch:
 
-# Each exact commit SHA has its own execution slot; supersession is handled by the trusted controller, which cancels active stale work; exact-SHA gates reject any cancellation race.
+# Each exact commit SHA has its own execution slot; supersession is handled by the trusted controller, which cancels only queued/pending stale work and preserves started evidence.
 # The surviving run still validates the exact SHA before publishing evidence.
 concurrency:
   group: flixo-test-impact-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read

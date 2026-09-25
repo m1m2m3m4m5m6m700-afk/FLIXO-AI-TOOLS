@@ -7,10 +7,10 @@ on:
     branches: [main, execution]
   workflow_dispatch:
 
-# Active older-SHA runs are superseded when the execution branch advances; only the live execution SHA is authoritative.
+# The trusted supersession controller cancels only queued/pending older-SHA runs; started impact-execution evidence remains intact.
 concurrency:
   group: flixo-test-impact-execution-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read

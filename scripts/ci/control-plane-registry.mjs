@@ -22,12 +22,15 @@ export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
 export const SENSITIVE_PERMISSION_ALLOWLISTS = Object.freeze({
   contents: Object.freeze([...WRITE_CAPABLE_WORKFLOWS]),
   actions: Object.freeze([
+    'action-agent-history-promotion.yml',
     'agent-communication-relay.yml',
+    'agent-repair-handoff-gate.yml',
     'daily-flixo-green-gate.yml',
     'execution-bot-watchdog.yml',
     'latest-commit-test-supersession.yml',
     'latest-execution-head-cleanup.yml',
     'agent-repair-heartbeat.yml',
+    'repair-agent-intake.yml',
   ]),
   'id-token': Object.freeze([
     'agent-communication-relay.yml',

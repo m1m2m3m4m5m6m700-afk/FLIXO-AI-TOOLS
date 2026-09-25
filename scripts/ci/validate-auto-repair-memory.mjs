@@ -37,6 +37,14 @@ for (const collection of ['lessons', 'antiLessons']) {
     if (!Array.isArray(lesson.evidence) || !Array.isArray(lesson.preventionRules)) fail(`${collection}-evidence-shape`);
     for (const evidence of lesson.evidence) {
       const provenance = evidence?.provenance;
+      const evidenceMode = String(provenance?.evidenceMode ?? '');
+      if (evidenceMode === 'historical-synthesis-only') {
+        if (!provenance || typeof provenance.source !== 'string' || !provenance.source.trim()) fail(`${collection}-historical-synthesis-missing-source`);
+        if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(String(provenance.windowStart ?? ''))) fail(`${collection}-historical-synthesis-invalid-window-start`);
+        if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(String(provenance.windowEnd ?? ''))) fail(`${collection}-historical-synthesis-invalid-window-end`);
+        if (!Number.isInteger(Number(provenance.runCount)) || Number(provenance.runCount) <= 0) fail(`${collection}-historical-synthesis-invalid-run-count`);
+        continue;
+      }
       if (!provenance || !/^\d+$/.test(String(provenance.runId ?? ''))) fail(`${collection}-missing-provenance-run-id`);
       const hasSha = ['failedSha', 'executionSha', 'targetSha', 'mergedMainSha', 'revertedCommit']
         .some((key) => /^[a-f0-9]{40}$/u.test(String(provenance[key] ?? '')));

@@ -1176,8 +1176,8 @@
             "source": "FLIXO Agent-2 exact-SHA root repair",
             "failedSha": "13d677dd2c69142dd11d748ff695027059e0cca2",
             "targetSha": "c24af9eb0ce84286db66a6cd605dd66fb64966d2",
-            "runId": null,
-            "workflow": "Advanced Repair Contract / WP Guard / WP0 Trust Baseline",
+            "runId": "36065892547",
+            "workflow": "FLIXO Master Repair Governor / trust-gate",
             "exactShaBound": true
           }
         }

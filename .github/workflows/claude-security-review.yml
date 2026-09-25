@@ -8,11 +8,11 @@ on:
     branches: [main, execution]
   workflow_dispatch:
 
-# Each exact commit SHA has its own advisory execution slot; advisory reviews are also subject to repository-wide latest-commit supersession.
+# Advisory reviews are evidence-bearing and are preserved once started; repository-wide latest-commit supersession cancels only queued/pending stale runs.
 # The surviving run still reviews the exact PR head SHA.
 concurrency:
   group: claude-security-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 # Advisory only: this workflow never modifies source code and is not a merge gate.
 permissions:
