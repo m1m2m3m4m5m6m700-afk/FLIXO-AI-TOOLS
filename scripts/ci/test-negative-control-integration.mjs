@@ -221,7 +221,7 @@ for (const [id, mutate] of directCertificationMutations) {
 }
 fs.writeFileSync(graphPath, `${JSON.stringify(graphBaseline, null, 2)}\n`);
 
-const artifactToRemove = path.join(evidenceRoot, 'browser-fast', 'browser-fast-chromium-1.json');
+const artifactToRemove = path.join(evidenceRoot, 'browser-fast-chromium-1.json');
 const artifactBackup = fs.readFileSync(artifactToRemove);
 fs.rmSync(artifactToRemove);
 const artifactCountFail = runNode('scripts/ci/certification-engine.mjs', cleanEnv);
