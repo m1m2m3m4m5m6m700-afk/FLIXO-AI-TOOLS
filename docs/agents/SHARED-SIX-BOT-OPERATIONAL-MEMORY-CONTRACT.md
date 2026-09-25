@@ -48,7 +48,7 @@ Shared memory cannot grant mutation, certification, merge, dispatch, or permissi
 
 A memory record marked VERIFIED does not by itself certify GREEN; current Exact-SHA canonical CI remains authoritative.
 
-New learning is published once and becomes available to all active FLIXO BOT agents/bots.
+Every write to the canonical memory is immediately visible to all 200 cell members because they read the same store; no agent-to-agent propagation step is required.
 
 Repair failures and counterexamples are retained so execution can avoid repeating them.
 
@@ -102,3 +102,10 @@ The historical six-bot compatibility set is now a compatibility view over `FLIXO
 Canonical cognitive kernel: `docs/agents/FLIXO-BOT.json#/unifiedCognitiveKernel`.
 Canonical memory: `diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json`.
 Excluded from this internal memory authority domain: `execution-agent-clone-v1`, external runtime agents, and the retired historical CELL runtime pool.
+
+
+## Single canonical memory
+
+Protocol: `FLIXO-SINGLE-MEMORY-v1`.
+
+There is one canonical learning store: `diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json`. All 200 cell members read this same store directly. A memory write is sufficient to make information available to the whole cell. There are no per-agent memory copies and visibility is not filtered by role. Provenance, Exact-SHA binding, and authority boundaries remain unchanged.
