@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "protocol": "FLIXO-SECURITY-RED-TEAM-TRIAD-v1",
+  "protocol": "FLIXO-SECURITY-RED-TEAM-v2",
   "canonical": true,
   "authority": "READ_ONLY_SECURITY_DISCOVERY",
   "branchPolicy": {
@@ -81,6 +81,28 @@
       "repairAuthority": "AUTO_REPAIR_BOT_ONLY",
       "certificationAuthority": "CANONICAL_GREEN_GATE_AND_EXACT_SHA",
       "staleSha": "FAIL_CLOSED"
+    },
+    "allAgentSweep": {
+      "enabled": true,
+      "protocol": "FLIXO-REDTEAM-ALL-AGENTS-v1",
+      "scope": "ALL_200_CANONICAL_COGNITIVE_IDENTITIES",
+      "script": "scripts/security/security-red-team-all-agents.mjs",
+      "exactShaRequired": true,
+      "readOnly": true,
+      "mutationAuthority": false,
+      "certificationAuthority": false,
+      "greenAuthority": false,
+      "isolatedRunner": true,
+      "sharedMemoryTest": "ONE_CANONICAL_MEMORY",
+      "cognitionParityTest": "ALL_AGENTS_SAME_CANONICAL_KERNEL",
+      "adversarialProbes": [
+        "REMOVE_AGENT",
+        "REDUCE_CAPABILITIES",
+        "PRIVATE_MEMORY",
+        "ROLE_SUPPRESS_CAPABILITY",
+        "GRANT_CERTIFICATION"
+      ],
+      "escapedAttackPolicy": "FAIL_CLOSED"
     }
   },
   "repairIntelligence": {
@@ -165,6 +187,12 @@
     "ESCAPED_ADVERSARIAL_ATTACK_BLOCKS_CERTIFICATION",
     "ACTIONABLE_HIGH_OR_CRITICAL_FINDINGS_AUTO_ROUTE_TO_REPAIR_BOT",
     "AUTO_REPAIR_IS_DISPATCHED_ONLY_BY_DAILY_FLIXO_GREEN_GATE",
-    "REPAIR_TARGET_MUST_MATCH_REDTEAM_EXACT_SHA"
+    "REPAIR_TARGET_MUST_MATCH_REDTEAM_EXACT_SHA",
+    "ALL_200_CANONICAL_AGENTS_MUST_BE_TESTED",
+    "ALL_AGENTS_MUST_SHARE_ONE_CANONICAL_COGNITIVE_KERNEL",
+    "ALL_AGENTS_MUST_SHARE_ONE_CANONICAL_MEMORY",
+    "ROLE_OVERLAYS_MUST_NOT_REDUCE_COGNITIVE_CAPABILITY",
+    "PER_AGENT_CANONICAL_MEMORY_IS_FORBIDDEN",
+    "ADVERSARIAL_AGENT_CONTRACT_ESCAPE_BLOCKS_CERTIFICATION"
   ]
 }
