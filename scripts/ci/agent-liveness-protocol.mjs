@@ -84,6 +84,9 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   stagedRuntimeIds: Object.freeze(RESIDENT_RUNTIME_IDS.slice(5)),
   residentRuntimeCount: 10,
   residentRuntimeIds: RESIDENT_RUNTIME_IDS,
+  minimumResidentFloor: 1,
+  residentWakeBatonTtlMs: 90 * 1000,
+  residentWakePolicy: 'ACTIVE_BOT_WAKES_NEXT_RESIDENT_BEFORE_RELEASE',
   residentRuntimePolicy: 'ONLY_VERIFIED_LIVE_RUNTIME_IDS_COUNT_AS_RESIDENT',
   onePulsePerHeartbeat: true,
   pulseProfiles: Object.freeze([
@@ -195,6 +198,9 @@ export function assertLivenessDefinition() {
   if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs !== AGENT_LIVENESS_PROTOCOL.internalHeartbeatEveryMs) throw new Error('AGENT_LIVENESS_HEARTBEAT_ALIGNMENT_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs <= 0 || AGENT_LIVENESS_PROTOCOL.leaseTtlMs <= AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs) throw new Error('AGENT_LIVENESS_TIMING_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.maxNoProgressHeartbeats < 1) throw new Error('AGENT_LIVENESS_PROGRESS_THRESHOLD_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.minimumResidentFloor !== 1) throw new Error('AGENT_LIVENESS_MINIMUM_RESIDENT_FLOOR_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.residentWakeBatonTtlMs < AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs) throw new Error('AGENT_LIVENESS_WAKE_BATON_TTL_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.residentWakePolicy !== 'ACTIVE_BOT_WAKES_NEXT_RESIDENT_BEFORE_RELEASE') throw new Error('AGENT_LIVENESS_RESIDENT_WAKE_POLICY_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.onePulsePerHeartbeat !== true) throw new Error('AGENT_LIVENESS_ONE_PULSE_PER_HEARTBEAT_REQUIRED');
   if (AGENT_LIVENESS_PROTOCOL.teamWakeIntervalMs !== 60 * 1000) throw new Error('AGENT_LIVENESS_TEAM_WAKE_NOT_ONE_MINUTE');
   if (AGENT_LIVENESS_PROTOCOL.teamWakePolicy !== 'ANY_ACTIVE_ACTION_REPAIR_BOT_WAKES_ALL') throw new Error('AGENT_LIVENESS_TEAM_WAKE_POLICY_INVALID');
@@ -294,6 +300,40 @@ export function completionGate({ state, workAssigned = true, exactShaVerified, r
   return Object.freeze({ ok: true, state: 'COMPLETE', residentState: 'READY_RESIDENT' });
 }
 
+export function buildResidentWakeBaton({ actor, nextActor = null, targetSha, taskId = null, now = new Date().toISOString(), ttlMs = AGENT_LIVENESS_PROTOCOL.residentWakeBatonTtlMs, reason = 'RESIDENT_HANDOFF_WAKE' } = {}) {
+  assertLivenessDefinition();
+  const actorId = String(actor ?? '').trim();
+  const nextId = nextActor == null || String(nextActor).trim() === ''
+    ? AGENT_LIVENESS_PROTOCOL.residentRuntimeIds[(AGENT_LIVENESS_PROTOCOL.residentRuntimeIds.indexOf(actorId) + 1) % AGENT_LIVENESS_PROTOCOL.residentRuntimeIds.length]
+    : String(nextActor).trim();
+  const sha = String(targetSha ?? '').trim();
+  if (!AGENT_LIVENESS_PROTOCOL.residentRuntimeIds.includes(actorId)) throw new Error('AGENT_LIVENESS_RESIDENT_WAKE_ACTOR_INVALID=' + actorId);
+  if (!AGENT_LIVENESS_PROTOCOL.residentRuntimeIds.includes(nextId)) throw new Error('AGENT_LIVENESS_RESIDENT_WAKE_NEXT_INVALID=' + nextId);
+  if (actorId === nextId) throw new Error('AGENT_LIVENESS_RESIDENT_WAKE_SELF_FORBIDDEN');
+  if (!/^[a-f0-9]{40}$/iu.test(sha)) throw new Error('AGENT_LIVENESS_RESIDENT_WAKE_EXACT_SHA_REQUIRED');
+  const issuedAt = Date.parse(String(now));
+  if (!Number.isFinite(issuedAt)) throw new Error('AGENT_LIVENESS_RESIDENT_WAKE_TIME_INVALID');
+  const ttl = Number(ttlMs);
+  if (!Number.isFinite(ttl) || ttl < AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs) throw new Error('AGENT_LIVENESS_RESIDENT_WAKE_TTL_INVALID');
+  return Object.freeze({
+    schemaVersion: 1,
+    protocol: 'FLIXO-RESIDENT-WAKE-BATON-v1',
+    action: 'WAKE_NEXT_RESIDENT_BOT',
+    actor: actorId,
+    nextActor: nextId,
+    targetSha: sha,
+    taskId: taskId ? String(taskId) : null,
+    reason: String(reason),
+    issuedAt: new Date(issuedAt).toISOString(),
+    expiresAt: new Date(issuedAt + ttl).toISOString(),
+    minimumResidentFloor: AGENT_LIVENESS_PROTOCOL.minimumResidentFloor,
+    exactShaRequired: true,
+    nextMustAckBeforeRelease: true,
+    fallback: 'WATCHDOG_DISPATCH_HEARTBEAT',
+    mutationAuthority: false,
+    pushAuthority: 'CHAIR_1_ONLY',
+  });
+}
 export function buildTeamWakeDirective({ actor, targetSha, taskId = null, failureFingerprint = null, reason = 'ACTIVE_BOT_WAKE' } = {}) {
   assertLivenessDefinition();
   const actorId = String(actor ?? '').trim();
@@ -477,6 +517,22 @@ if (isMain) {
       console.log(JSON.stringify({ status: 'PASS', heartbeat }, null, 2));
     } else if (command === 'check-heartbeat') {
       console.log(JSON.stringify(checkHeartbeat({ state: process.argv.find((v) => v.startsWith('--state='))?.slice(8) ?? 'ACTIVE', lastHeartbeatAt: process.argv.find((v) => v.startsWith('--last='))?.slice(7) }), null, 2));
+    } else if (command === 'resident-baton') {
+      const getArg = (name, fallback = null) => process.argv.find((v) => v.startsWith('--' + name + '='))?.slice(name.length + 3) ?? fallback;
+      const baton = buildResidentWakeBaton({
+        actor: getArg('actor'),
+        nextActor: getArg('next') ?? undefined,
+        targetSha: getArg('sha'),
+        taskId: getArg('task') ?? undefined,
+        now: getArg('now') ?? undefined,
+        ttlMs: Number(getArg('ttlMs', AGENT_LIVENESS_PROTOCOL.residentWakeBatonTtlMs)),
+      });
+      const file = getArg('file');
+      if (file) {
+        fs.mkdirSync(file.split('/').slice(0, -1).join('/') || '.', { recursive: true });
+        fs.writeFileSync(file, JSON.stringify(baton, null, 2) + '\n');
+      }
+      console.log(JSON.stringify({ status: 'PASS', baton }, null, 2));
     } else if (command === 'check-progress') {
       console.log(JSON.stringify(checkProgress({ state: process.argv.find((v) => v.startsWith('--state='))?.slice(8) ?? 'ACTIVE', lastProgressAt: process.argv.find((v) => v.startsWith('--last='))?.slice(7), consecutiveNoProgress: Number(process.argv.find((v) => v.startsWith('--count='))?.slice(8) ?? 0) }), null, 2));
     } else throw new Error('Usage: agent-liveness-protocol.mjs validate|heartbeat|check-heartbeat|check-progress');

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, buildTeamWakeDirective, buildTeamPulseDirective, buildDifferentiatedPulseDirective, assessFiveSeatContinuity, assertActiveRepairWindow, checkContinuousSessionWindow, sessionTerminationDirective, assertFiveBotResidencyCommitment, idleAdmission, sleepAdmission, selfDisableAdmission, selfAbortAdmission, runEndAdmission } from './agent-liveness-protocol.mjs';
+import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, buildTeamWakeDirective, buildResidentWakeBaton, buildTeamPulseDirective, buildDifferentiatedPulseDirective, assessFiveSeatContinuity, assertActiveRepairWindow, checkContinuousSessionWindow, sessionTerminationDirective, assertFiveBotResidencyCommitment, idleAdmission, sleepAdmission, selfDisableAdmission, selfAbortAdmission, runEndAdmission } from './agent-liveness-protocol.mjs';
 import { buildFiveBotRotation, cohortMembers, cohortIndexAt, evaluateHandoff } from './five-bot-rotation.mjs';
 
 assert.equal(assertLivenessDefinition(), true);
@@ -22,6 +22,9 @@ assert.equal(AGENT_LIVENESS_PROTOCOL.pulseEveryMs, 60 * 1000);
 assert.equal(AGENT_LIVENESS_PROTOCOL.logicalBotCount, 200);
 assert.equal(AGENT_LIVENESS_PROTOCOL.residentRuntimeCount, 10);
 assert.equal(AGENT_LIVENESS_PROTOCOL.residentRuntimeIds.length, 10);
+assert.equal(AGENT_LIVENESS_PROTOCOL.minimumResidentFloor, 1);
+assert.equal(AGENT_LIVENESS_PROTOCOL.residentWakePolicy, 'ACTIVE_BOT_WAKES_NEXT_RESIDENT_BEFORE_RELEASE');
+assert.equal(AGENT_LIVENESS_PROTOCOL.residentWakeBatonTtlMs, 90 * 1000);
 assert.equal(AGENT_LIVENESS_PROTOCOL.logicalBotIds.length, 200);
 assert.equal(AGENT_LIVENESS_PROTOCOL.logicalBotIds[0], 'CELL-001');
 assert.equal(AGENT_LIVENESS_PROTOCOL.logicalBotIds[199], 'CELL-200');
@@ -128,6 +131,24 @@ assert.equal(closedResidency.ok,true);
 assert.equal(closedResidency.journeyComplete,false);
 assert.throws(()=>assertFiveBotResidencyCommitment({botIds:['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5'],states:['READY_RESIDENT','READY_RESIDENT','SLEEP','READY_RESIDENT','READY_RESIDENT'],taskClosed:true}),/FORBIDDEN_STATE/u);
 assert.throws(()=>assertFiveBotResidencyCommitment({botIds:['FLIXO1','FLIXO2','FLIXO3','FLIXO4','FLIXO5'],states:['ACTIVE','ACTIVE','ACTIVE','ACTIVE','ACTIVE'],taskClosed:true}),/MUST_REMAIN_READY_RESIDENT/u);
+const baton = buildResidentWakeBaton({
+  actor:'FLIXO1',
+  nextActor:'FLIXO6',
+  targetSha:'a'.repeat(40),
+  taskId:'TASK-RESIDENT-HANDOFF',
+  now:'2026-09-25T00:00:00Z',
+});
+assert.equal(baton.protocol,'FLIXO-RESIDENT-WAKE-BATON-v1');
+assert.equal(baton.action,'WAKE_NEXT_RESIDENT_BOT');
+assert.equal(baton.actor,'FLIXO1');
+assert.equal(baton.nextActor,'FLIXO6');
+assert.equal(baton.targetSha,'a'.repeat(40));
+assert.equal(baton.minimumResidentFloor,1);
+assert.equal(baton.nextMustAckBeforeRelease,true);
+assert.equal(baton.mutationAuthority,false);
+assert.throws(()=>buildResidentWakeBaton({actor:'FLIXO1',nextActor:'FLIXO1',targetSha:'a'.repeat(40)}),/SELF_FORBIDDEN/u);
+assert.throws(()=>buildResidentWakeBaton({actor:'BAD',targetSha:'a'.repeat(40)}),/ACTOR_INVALID/u);
+
 const teamWake=buildTeamWakeDirective({
   actor:'ACTION-TWIN-1',
   targetSha:'a'.repeat(40),
@@ -142,6 +163,8 @@ assert.deepEqual(teamWake.recipients,AGENT_LIVENESS_PROTOCOL.actionRepairTeamIds
 assert.throws(() => buildTeamWakeDirective({actor:'UNKNOWN-BOT',targetSha:'a'.repeat(40)}), /TEAM_WAKE_ACTOR_NOT_AUTHORIZED/u);
 
 const teamPulse=buildTeamPulseDirective({targetSha:'a'.repeat(40),taskId:'TASK-PULSE',activeOperation:false,activeWorker:'FLIXO1'});
+const livenessCliOutput=execFileSync(process.execPath,[path.resolve(process.cwd(),'scripts/ci/agent-liveness-protocol.mjs'),'resident-baton','--actor=FLIXO1','--next=FLIXO6','--sha='+'a'.repeat(40),'--task=CLI-RESIDENT'],{encoding:'utf8'});
+assert.match(livenessCliOutput,/WAKE_NEXT_RESIDENT_BOT/u);
 assert.equal(teamPulse.action,'WAKE_ALL_AGENTS');
 assert.equal(teamPulse.wakeScope,'ALL_AGENTS');
 assert.deepEqual(teamPulse.recipients,['ALL_AGENTS']);

@@ -97,6 +97,12 @@ jobs:
             ROTATION_OUTPUT="/tmp/flixo-heartbeat/five-bot-rotation-$TICK.json"
             (cd "$WORKTREE_PATH" && node scripts/ci/five-bot-rotation.mjs --sha="$SHA" --now="$NOW" --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output="$ROTATION_OUTPUT")
             (cd "$WORKTREE_PATH" && node scripts/ci/action-repair-five-workers.mjs --role=wake --status=RED_INTERNAL --target-sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --fingerprint="HEARTBEAT-$GITHUB_RUN_ID-$TICK" --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output=/tmp/flixo-heartbeat/action-wake-$TICK.json)
+            BATON_SEAT_INDEX=$((CURRENT_COHORT_INDEX % 5))
+            BATON_ACTOR="FLIXO$((BATON_SEAT_INDEX + 1))"
+            BATON_NEXT="FLIXO$((BATON_SEAT_INDEX + 6))"
+            BATON_OUTPUT="/tmp/flixo-heartbeat/resident-baton-$TICK.json"
+            (cd "$WORKTREE_PATH" && node scripts/ci/agent-liveness-protocol.mjs resident-baton --actor="$BATON_ACTOR" --next="$BATON_NEXT" --sha="$SHA" --task="RESIDENT:$GITHUB_RUN_ID:$TICK" --file="$BATON_OUTPUT")
+            jq -e --arg sha "$SHA" --arg actor "$BATON_ACTOR" --arg next "$BATON_NEXT" '.protocol=="FLIXO-RESIDENT-WAKE-BATON-v1" and .action=="WAKE_NEXT_RESIDENT_BOT" and .targetSha==$sha and .actor==$actor and .nextActor==$next and .minimumResidentFloor==1 and .nextMustAckBeforeRelease==true' "$BATON_OUTPUT" >/dev/null
             jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .actionRepairSquadReady==true and .targetSha==$sha and .activeCohortSize==5 and (.activeBotIds|length)==5 and (.nextBotIds|length)==5 and (.nextCohortReadyCount==5) and .fiveBotResidency.requiredBotCount==5 and .fiveBotResidency.postTaskCloseState=="READY_RESIDENT" and .fiveBotResidency.retainResidentUntilJourneyComplete==true and  .fiveBotResidency.journeyLogicalBotCount==200 and  .fiveBotResidency.journeyCohortCount==40 and .fiveBotResidency.journeyCohortSize==5 and .fiveBotResidency.sleep==false and .fiveBotResidency.idle==false and .withdrawal==false' /tmp/flixo-heartbeat/action-wake-$TICK.json >/dev/null
             if [ "$ELAPSED_SECONDS" -ge 3600 ]; then
               NEXT_COHORT_INDEX=$(( (CURRENT_COHORT_INDEX + 1) % 40 ))
@@ -123,6 +129,10 @@ jobs:
             (cd "$WORKTREE_PATH" && node scripts/ci/flixo-ten-pulse.mjs --sha="$SHA" --run-id="$GITHUB_RUN_ID-$TICK" --minute="$NOW" --active-operation=true --cohort-index="$CURRENT_COHORT_INDEX" --cycle-number="$CYCLE_NUMBER" --output="$PULSE_OUTPUT")
             jq -e --arg sha "$SHA" '.protocol=="FLIXO-TEAM-PULSE-CONTROLLER-v3" and .targetSha==$sha and .pulseCount==1 and ( .logicalBotIds|length)==200 and .activeBotCount==5 and (.activeBotIds|length)==5 and (.nextBotIds|length)==5 and .allAgentsWakeCount==10 and .sleep==false and .idle==false and .fiveBotResidency.requiredBotCount==5 and .fiveBotResidency.postTaskCloseState=="READY_RESIDENT" and .fiveBotResidency.retainResidentUntilJourneyComplete==true and  .fiveBotResidency.journeyLogicalBotCount==200 and  .fiveBotResidency.journeyCohortCount==40' "$PULSE_OUTPUT" >/dev/null
             echo 'CANONICAL_TEAM_PULSE=1'
+            echo 'MINIMUM_RESIDENT_BOT_FLOOR=1'
+            echo "RESIDENT_WAKE_BATON_ACTOR=$BATON_ACTOR"
+            echo "RESIDENT_WAKE_BATON_NEXT=$BATON_NEXT"
+            echo 'ACTIVE_BOT_MUST_WAKE_NEXT_BEFORE_RELEASE=true'
             echo 'ONE_PULSE_WAKE_SCOPE=ALL_AGENTS'
             echo 'RESIDENT_SLEEP=false'
             echo 'RESIDENT_IDLE=false'

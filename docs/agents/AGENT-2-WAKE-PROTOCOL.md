@@ -84,3 +84,9 @@ An open repair session is never allowed to become SLEEP/IDLE/SILENT/ABANDONED. W
 
 Heartbeat command: `node scripts/ci/repair-lease.mjs heartbeat ...`
 Liveness contract: `scripts/ci/agent-liveness-protocol.mjs`
+
+## Resident handoff
+
+`ACTIVE BOT → WAKE_NEXT_RESIDENT_BOT → NEXT BOT READY ACK → CONTINUE/HANDOFF`
+
+The baton is exact-SHA-bound with a short TTL. It is a wake/handoff signal only and grants no mutation or push authority. The Watchdog remains an independent fallback and maintains a minimum resident floor of one live runtime seat.

@@ -99,3 +99,7 @@ SLEEP وIDLE ليسا حالات انتقال حرة.
 ## قاعدة Action Vault
 
 الوكلاء الثلاثة resident agents لا يدخلون SLEEP/IDLE أثناء مهمة مفتوحة. انتهاء الزيارة أو فشل المحاولة لا يغلق المهمة؛ الإغلاق يتطلب GREEN record.
+
+## Resident Baton
+
+The resident system has a hard floor of 1 live runtime seat. Each heartbeat emits a `FLIXO-RESIDENT-WAKE-BATON-v1` from one live seat to the next resident seat on the exact execution SHA. The next seat must acknowledge readiness before release; the independent Watchdog remains the fallback wake path every five minutes. The baton grants no mutation or push authority.
