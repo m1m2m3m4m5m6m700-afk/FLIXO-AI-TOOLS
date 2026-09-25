@@ -33,6 +33,15 @@ const writeJson = (relative, value) => {
   fs.writeFileSync(target, JSON.stringify(value, null, 2) + '\n');
 };
 
+const writePlaywrightReport = (mode, browser, shard) => {
+  const relative = `diagnostics/certification/playwright-results/browser-${mode.toLowerCase()}-${browser}-${shard}-results.json`;
+  const target = path.join(workspace, relative);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  const report = { suites: [], generatedFor: { mode, browser, shard, runId, exactSha: expectedSha } };
+  fs.writeFileSync(target, JSON.stringify(report) + '\n');
+  return createHash('sha256').update(fs.readFileSync(target)).digest('hex');
+};
+
 const browsers = ['chromium', 'firefox', 'webkit'];
 const fastSpecs = [
   'tests/image-compressor.spec.ts','tests/background-remover.spec.ts','tests/image-upscaler.spec.ts',
@@ -106,7 +115,7 @@ for (const browser of browsers) {
       shard,
       runId,
       exactSha: expectedSha,
-      sourceReportSha256: '0'.repeat(64),
+      sourceReportSha256,
       status: 'PASS',
       toolSpecs: 23,
       expectedSpecCount: specs.length,
@@ -292,6 +301,7 @@ const rebuildFixture = () => {
     const fastParts = [fastSpecs.slice(0, 11), fastSpecs.slice(11)];
     fastParts.forEach((specs, index) => {
       const shard = index + 1;
+      const sourceReportSha256 = writePlaywrightReport('FAST', browser, shard);
       writeJson(`diagnostics/certification/browser-fast-${browser}-${shard}.json`, {
         schema_version: 5, evidenceClass: 'PRIMARY_EXECUTION', mode: 'FAST', browser, shard, runId,
         exactSha: expectedSha, sourceReportSha256: '0'.repeat(64), status: 'PASS',
@@ -305,6 +315,7 @@ const rebuildFixture = () => {
     const deepParts = [locales.slice(0, 3), locales.slice(3, 6), locales.slice(6, 9), locales.slice(9, 12), locales.slice(12, 15), locales.slice(15, 18), locales.slice(18)];
     deepParts.forEach((group, index) => {
       const shard = index + 1;
+      const sourceReportSha256 = writePlaywrightReport('DEEP', browser, shard);
       writeJson(`diagnostics/certification/browser-deep-${browser}-${shard}.json`, {
         schema_version: 5, evidenceClass: 'PRIMARY_EXECUTION', mode: 'DEEP', browser, shard, runId,
         exactSha: expectedSha, sourceReportSha256: '0'.repeat(64), status: 'PASS', locales: 20,
