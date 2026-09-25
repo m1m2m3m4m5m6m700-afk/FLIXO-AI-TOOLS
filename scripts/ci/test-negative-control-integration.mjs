@@ -26,8 +26,7 @@ for (const file of [
   'scripts/ci/assertion-registry.json',
   'scripts/ci/test-plan.json',
   'scripts/ci/result-state.mjs',
-  'scripts/ci/certify-core.mjs',
-  'scripts/ci/certify.mjs',
+  'scripts/ci/certification-engine.mjs',
   'scripts/ci/validate-execution-graph.mjs',
   'src/lib/i18n/config.ts',
 ]) copy(file);
@@ -158,6 +157,16 @@ const cleanEnv = { EXPECTED_SHA: actualSha, GITHUB_RUN_ID: runId, EXECUTION_EVID
 const graphPass = runNode('scripts/ci/validate-execution-graph.mjs', cleanEnv);
 assert.equal(graphPass.status, 0, `positive graph validation failed:\n${graphPass.stdout}\n${graphPass.stderr}`);
 
+const graphPath = path.join(certificationRoot, 'execution-graph.json');
+const graphBaseline = JSON.parse(fs.readFileSync(graphPath, 'utf8'));
+
+const certPass = runNode('scripts/ci/certification-engine.mjs', cleanEnv);
+assert.equal(certPass.status, 0, `canonical certification engine rejected clean evidence:\n${certPass.stdout}\n${certPass.stderr}`);
+const cleanCertification = JSON.parse(fs.readFileSync(path.join(certificationRoot, 'certification.json'), 'utf8'));
+assert.equal(cleanCertification.authority, 'CANONICAL_CERTIFICATION_ENGINE');
+assert.equal(cleanCertification.status, 'PASS');
+
+
 const target = path.join(evidenceRoot, 'browser-fast', 'browser-fast-chromium-1.json');
 const mutated = JSON.parse(fs.readFileSync(target, 'utf8'));
 mutated.exactSha = corruptedSha;
@@ -172,19 +181,56 @@ assert.equal(graphEvidence.status, 'FAIL');
 assert.ok(graphEvidence.errors.some((error) => error.includes('exactSha mismatch')));
 assert.equal(graphEvidence.exactSha, actualSha);
 
-const certFail = runNode('scripts/ci/certify.mjs', {
-  ...cleanEnv,
-  CERTIFICATION_MANIFEST: path.join(workspace, 'certification-run-manifest.json'),
-});
-assert.notEqual(certFail.status, 0, 'certification must fail closed on corrupted evidence');
-const globalEvidencePath = path.join(certificationRoot, 'global-evidence.json');
-assert.equal(fs.existsSync(globalEvidencePath), true, 'global evidence must persist');
-const globalEvidence = JSON.parse(fs.readFileSync(globalEvidencePath, 'utf8'));
-assert.equal(globalEvidence.status, 'FAIL');
-assert.ok((globalEvidence.shaMismatches?.length ?? 0) > 0 || (globalEvidence.invalidEvidence?.length ?? 0) > 0);
-assert.equal(globalEvidence.conservation.fast.certified, 0);
-assert.equal(globalEvidence.conservation.deep.certified, 0);
-assert.equal(globalEvidence.zeroFalseGreen?.shaMismatches > 0, true);
+const certFail = runNode('scripts/ci/certification-engine.mjs', cleanEnv);
+assert.notEqual(certFail.status, 0, 'canonical certification engine must fail closed on corrupted evidence');
+const rejectedCertification = JSON.parse(fs.readFileSync(path.join(certificationRoot, 'certification.json'), 'utf8'));
+assert.equal(rejectedCertification.authority, 'CANONICAL_CERTIFICATION_ENGINE');
+assert.equal(rejectedCertification.status, 'FAIL');
+assert.ok(rejectedCertification.errors.some((error) => /executionGraph\.(status|exactSha)/u.test(error)));
+
+const directCertificationMutations = [
+  ['GRAPH_STATUS_FAIL', (graph) => { graph.status = 'FAIL'; graph.errors = ['INJECTED_GRAPH_FAILURE']; }],
+  ['EXACT_SHA_MISMATCH', (graph) => { graph.exactSha = corruptedSha; }],
+  ['RUN_ID_MISMATCH', (graph) => { graph.runId = 'stale-run-id'; }],
+  ['FAST_UNDERCOVERAGE', (graph) => { graph.fast.observedSemanticUnits = 68; }],
+  ['DEEP_UNDERCOVERAGE', (graph) => { graph.deep.semanticLocaleBrowserUnits = 59; }],
+  ['LOCALE_UNDERCOVERAGE', (graph) => { graph.deep.semanticLocaleCount = 19; }],
+  ['FAST_CONSERVATION_FAIL', (graph) => { graph.conservation.fast.status = 'FAIL'; }],
+  ['DEEP_CONSERVATION_FAIL', (graph) => { graph.conservation.deepSemanticLocaleBrowser.status = 'FAIL'; }],
+];
+
+for (const [id, mutate] of directCertificationMutations) {
+  const mutatedGraph = structuredClone(graphBaseline);
+  mutate(mutatedGraph);
+  fs.writeFileSync(graphPath, `${JSON.stringify(mutatedGraph, null, 2)}\n`);
+  const result = runNode('scripts/ci/certification-engine.mjs', cleanEnv);
+  assert.notEqual(result.status, 0, `canonical certification mutation escaped: ${id}`);
+  const certification = JSON.parse(fs.readFileSync(path.join(certificationRoot, 'certification.json'), 'utf8'));
+  assert.equal(certification.authority, 'CANONICAL_CERTIFICATION_ENGINE');
+  assert.equal(certification.status, 'FAIL', `canonical certification mutation falsely passed: ${id}`);
+}
+fs.writeFileSync(graphPath, `${JSON.stringify(graphBaseline, null, 2)}\n`);
+
+const artifactToRemove = path.join(evidenceRoot, 'browser-fast', 'browser-fast-chromium-1.json');
+const artifactBackup = fs.readFileSync(artifactToRemove);
+fs.rmSync(artifactToRemove);
+const artifactCountFail = runNode('scripts/ci/certification-engine.mjs', cleanEnv);
+assert.notEqual(artifactCountFail.status, 0, 'canonical certification must fail when a required browser evidence artifact is missing');
+const artifactCertification = JSON.parse(fs.readFileSync(path.join(certificationRoot, 'certification.json'), 'utf8'));
+assert.equal(artifactCertification.status, 'FAIL');
+assert.ok(artifactCertification.errors.some((error) => /primaryBrowserEvidence=26; expected=27/u.test(error)));
+fs.writeFileSync(artifactToRemove, artifactBackup);
+
+console.log(JSON.stringify({
+  status: 'PASS', actualSha, corruptedSha,
+  proof: {
+    cleanCanonicalCertificationPass: true,
+    executionGraphRejectedCorruption: true,
+    canonicalCertificationRejectedCorruption: true,
+    canonicalCertificationAdversarialMutations: directCertificationMutations.length + 1,
+    noSuccessCertificationOnMutation: true,
+  },
+}, null, 2));
 
 console.log(JSON.stringify({
   status: 'PASS', actualSha, corruptedSha,
