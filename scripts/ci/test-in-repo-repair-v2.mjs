@@ -129,13 +129,21 @@ assert.throws(() => buildRcaManifest({
   convergenceGuidancePath: '',
 }), /PRIOR_COUNTEREXAMPLE_REQUIRED/);
 
+const cycle2Diagnosis = {
+  ...diagnosis,
+  rootCause: 'lease-race with atomic exclusive transition guard',
+  hypotheses: diagnosis.hypotheses.map((item, index) => index === 0
+    ? { ...item, evidenceLines: ['chair lease write collided', 'atomic check-and-set exclusive-state guard prevents the mutation transition'] }
+    : item),
+};
 const cycle2Manifest = buildRcaManifest({
   targetDir: tmp,
   targetSha: sha,
   failureFingerprint: 'b'.repeat(64),
   failureLog: 'failure',
-  diagnosis,
-  plan: { candidates: diagnosis.hypotheses, reasoning: { rootCause: 'lease-race' } },
+  cycle2Diagnosis,
+  diagnosis: cycle2Diagnosis,
+  plan: { candidates: cycle2Diagnosis.hypotheses, reasoning: { rootCause: cycle2Diagnosis.rootCause } },
   selected: { id: 'lease-race', file: 'src/test.ts' },
   cycle: 2,
   convergenceGuidancePath: guidancePath,
