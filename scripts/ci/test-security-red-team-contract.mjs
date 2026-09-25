@@ -53,7 +53,7 @@ assert.match(workflow,/strategy:[\s\S]*matrix:[\s\S]*SECURITY-REDTEAM-1[\s\S]*SE
 assert.match(workflow,/persist-credentials:\s*false/u);
 assert.match(workflow,/Fail closed unless expected SHA is the live execution head/u);
 assert.match(workflow,/gh api "repos\/\$GITHUB_REPOSITORY\/git\/ref\/heads\/execution"/u);
-assert.match(workflow,/LIVE_EXECUTION_SHA=\$\(gh api/u);
+assert.match(workflow,/LIVE_EXECUTION_SHA="\$\(gh api/u);
 assert.match(workflow,/security-red-team-runner\.mjs/u);
 assert.match(workflow,/FLIXO_TWIN_READ_ONLY:\s*"true"/u);
 assert.match(workflow,/FLIXO_TWIN_DETACHED:\s*"true"/u);
