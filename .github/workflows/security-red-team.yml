@@ -123,3 +123,61 @@ jobs:
           path: /tmp/flixo-redteam/${{ matrix.bot }}.json
           if-no-files-found: error
           retention-days: 30
+
+
+  agent-sweep:
+    name: Isolated Red-Team — All 200 Agents
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Validate exact SHA format
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]] || {
+            echo "INVALID_EXPECTED_SHA"
+            exit 1
+          }
+
+      - name: Fail closed unless expected SHA is the live execution head
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          LIVE_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$LIVE_EXECUTION_SHA" = "$EXPECTED_SHA" || {
+            echo "SECURITY_RED_TEAM_ALL_AGENTS_STALE_SHA_REJECTED live=$LIVE_EXECUTION_SHA expected=$EXPECTED_SHA"
+            exit 1
+          }
+
+      - name: Checkout exact SHA into ephemeral isolated runner
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install deterministic dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Run adversarial sweep across every canonical agent
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-redteam
+          node scripts/security/security-red-team-all-agents.mjs --sha="$EXPECTED_SHA" --output="/tmp/flixo-redteam/all-agents.json"
+
+      - name: Publish all-agent evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-security-red-team-all-agents-${{ env.EXPECTED_SHA }}
+          path: /tmp/flixo-redteam/all-agents.json
+          if-no-files-found: error
+          retention-days: 30
