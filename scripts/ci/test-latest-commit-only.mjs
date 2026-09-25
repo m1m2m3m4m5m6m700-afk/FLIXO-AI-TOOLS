@@ -23,7 +23,7 @@ for (const file of requiredWorkflows) {
   } else if (/^(?:.*\n)*\s*(?:push|pull_request)\s*:/m.test(source)) {
     const hasExplicitExactShaGuard = /scripts\/ci\/assert-current-commit\.mjs/u.test(source) || /Bind exact execution head/u.test(source) || /HEARTBEAT_EXACT_SHA=/u.test(source) || (/EXPECTED_SHA/u.test(source) && /Checkout exact SHA/u.test(source) && /Validate exact SHA format/u.test(source));
     assert.equal(hasExplicitExactShaGuard, true, file + ': commit-driven workflow must have a fail-closed exact-SHA guard');
-    assert.match(source, /(?:github\.event\.pull_request\.head\.sha \|\| github\.sha|EXPECTED_SHA|LIVE_SHA|OBSERVED_SHA|LIVE_OBSERVED_SHA|HEARTBEAT_EXACT_SHA=)/u, file + ': exact SHA binding missing');
+    assert.match(source, /(?:github\.event\.pull_request\.head\.sha \|\| github\.sha|EXPECTED_SHA|EXPECTED_CLEANUP_SHA|LIVE_SHA|OBSERVED_SHA|LIVE_OBSERVED_SHA|HEARTBEAT_EXACT_SHA=)/u, file + ': exact SHA binding missing');
     if (/^\s*pull_request(?:\s*:|\s*$)/mu.test(source)) {
       assert.match(source, /github\.event\.pull_request\.head\.(?:repo\.full_name|ref)/u, file + ': PR source identity binding missing');
     }
