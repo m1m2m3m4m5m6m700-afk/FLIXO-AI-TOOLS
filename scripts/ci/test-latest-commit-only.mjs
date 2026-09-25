@@ -71,6 +71,7 @@ for (const file of currentWorkflows) {
       /EXPECTED_CLEANUP_SHA/u.test(source) ||
       /LIVE_OBSERVED_SHA=/u.test(source) ||
       /OBSERVED_SHA=/u.test(source) ||
+      /EXPECTED_SHA=/u.test(source) ||
       (/EXPECTED_SHA/u.test(source) && /Checkout exact SHA/u.test(source) && /Validate exact SHA format/u.test(source));
     assert.equal(hasExplicitExactShaGuard, true, file + ': commit-driven workflow must have a fail-closed exact-SHA guard');
     assert.match(source, /(?:github\.event\.pull_request\.head\.sha \|\| github\.sha|EXPECTED_SHA|LIVE_SHA|HEARTBEAT_EXACT_SHA=)/u, file + ': exact SHA binding missing');
