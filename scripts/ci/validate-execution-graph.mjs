@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 const root = process.cwd();
 const evidenceRoot = path.resolve(root, process.env.EXECUTION_EVIDENCE_ROOT ?? 'diagnostics/certification');
@@ -44,6 +45,14 @@ for (const entry of included) {
   if (value.executionUnitCount !== (value.units ?? []).length) errors.push(`${relative}: executionUnitCount mismatch`);
   if (value.status !== 'PASS') errors.push(`${relative}: execution status=${value.status}`);
   if (value.complete !== true) errors.push(`${relative}: execution ledger is not complete`);
+  if (!/^[0-9a-f]{64}$/iu.test(String(value.sourceReportSha256 ?? ''))) errors.push(`${relative}: invalid source report hash`);
+  const expectedReportPath = path.join(evidenceRoot, 'playwright-results', `browser-${String(value.mode).toLowerCase()}-${value.browser}-${value.shard}-results.json`);
+  if (!fs.existsSync(expectedReportPath)) {
+    errors.push(`${relative}: source Playwright report is missing`);
+  } else {
+    const sourceReportSha256 = createHash('sha256').update(fs.readFileSync(expectedReportPath)).digest('hex');
+    if (sourceReportSha256 !== value.sourceReportSha256) errors.push(`${relative}: source Playwright report hash mismatch`);
+  }
   const unitIds = new Set();
   for (const unit of value.units ?? []) {
     if (unitIds.has(unit.executionUnitId)) errors.push(`${relative}: duplicate executionUnitId=${unit.executionUnitId}`);
@@ -53,6 +62,7 @@ for (const entry of included) {
     if (!unit.spec || !unit.test) errors.push(`${relative}: unit missing spec/test`);
     if (!Array.isArray(unit.attempts) || unit.attempts.length === 0) errors.push(`${relative}: unit missing attempt evidence`);
     if (!['PASS','FAIL','CANCELLED','BLOCKED','NOT_EXECUTED','MISSING_EVIDENCE','MALFORMED_EVIDENCE'].includes(unit.status)) errors.push(`${relative}: invalid unit state ${unit.status}`);
+    if (unit.status !== 'PASS') errors.push(`${relative}: non-PASS execution unit ${unit.executionUnitId}=${unit.status}`);
     if (unit.assertionId !== null && unit.assertionId !== undefined) {
       if (!registeredAssertionIds.has(unit.assertionId)) errors.push(`${relative}: unknown assertionId=${unit.assertionId}`);
       const canonical = registryByImplementation.get(`${normalize(unit.spec)}\u0000${unit.test}`) ?? null;
