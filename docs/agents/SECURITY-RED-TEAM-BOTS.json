@@ -63,6 +63,24 @@
         "FALSE_GREEN_EVIDENCE"
       ],
       "acceptance": "ANY_ESCAPED_ATTACK_FAILS_CLOSED_AND_BLOCKS_CANONICAL_CERTIFICATION"
+    },
+    "repairRouting": {
+      "workflow": ".github/workflows/daily-flixo-green-gate.yml",
+      "watcher": "scripts/ci/continuous-error-watch.mjs",
+      "targetWorkflow": ".github/workflows/auto-repair.yml",
+      "trigger": "SECURITY-REDTEAM-RED",
+      "threshold": {
+        "severities": [
+          "HIGH",
+          "CRITICAL"
+        ],
+        "minimumConfidence": 0.9,
+        "escapedAdversarialAttackAlwaysActionable": true
+      },
+      "ownership": "DAILY_FLIXO_GREEN_GATE_DISPATCHES_AUTO_REPAIR_BOT",
+      "repairAuthority": "AUTO_REPAIR_BOT_ONLY",
+      "certificationAuthority": "CANONICAL_GREEN_GATE_AND_EXACT_SHA",
+      "staleSha": "FAIL_CLOSED"
     }
   },
   "repairIntelligence": {
@@ -144,6 +162,9 @@
     "TEST_SYSTEM_ADVERSARY_ISOLATED_FROM_CANONICAL_GREEN",
     "TEST_SYSTEM_ADVERSARY_MUTATIONS_RUN_ONLY_IN_EPHEMERAL_WORKSPACES",
     "ADVERSARIAL_EVIDENCE_MUST_BIND_TO_EXACT_SHA",
-    "ESCAPED_ADVERSARIAL_ATTACK_BLOCKS_CERTIFICATION"
+    "ESCAPED_ADVERSARIAL_ATTACK_BLOCKS_CERTIFICATION",
+    "ACTIONABLE_HIGH_OR_CRITICAL_FINDINGS_AUTO_ROUTE_TO_REPAIR_BOT",
+    "AUTO_REPAIR_IS_DISPATCHED_ONLY_BY_DAILY_FLIXO_GREEN_GATE",
+    "REPAIR_TARGET_MUST_MATCH_REDTEAM_EXACT_SHA"
   ]
 }
