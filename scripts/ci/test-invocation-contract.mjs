@@ -115,8 +115,18 @@ assert.deepEqual(buildRecoveryDecision(admissible), {
   admissible: true,
   rule: 'LEASE_EXPIRED + NO_VALID_HEARTBEAT + NO_NEWER_INVOCATION + EXACT_SHA_CURRENT + NO_COMPETING_OWNER',
 });
-for (const key of Object.keys(admissible)) {
-  assert.throws(() => assertRecoveryAdmissible({ ...admissible, [key]: key === 'leaseExpired' ? false : admissible[key] }), /RECOVERY_NOT_ADMISSIBLE/);
+const recoveryNegativeCases = {
+  leaseExpired: false,
+  heartbeatValid: true,
+  newerInvocationExists: true,
+  exactShaCurrent: false,
+  competingOwner: true,
+};
+for (const key of Object.keys(recoveryNegativeCases)) {
+  assert.throws(
+    () => assertRecoveryAdmissible({ ...admissible, [key]: recoveryNegativeCases[key] }),
+    /RECOVERY_NOT_ADMISSIBLE/,
+  );
 }
 for (const state of INVOCATION_STATES) {
   if (state === 'VERIFIED') assert.equal(canTransition(state, 'STARTED'), false);
