@@ -117,6 +117,18 @@ const redTeamTarget = validateRepairTarget({
 assert.equal(redTeamTarget.valid, true);
 assert.deepEqual(redTeamTarget.errors, []);
 
+const securityAndCertification = [
+  { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success' },
+  {
+    id: 102,
+    name: 'Certification',
+    status: 'completed',
+    conclusion: 'success',
+    headSha: SHA_A,
+    details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/1/job/10002',
+  },
+];
+const openPr = { number: 748, headRefOid: SHA_A, baseRefOid: SHA_B };
 const baseGreenInput = {
   executionSha: SHA_A,
   mainSha: SHA_B,
@@ -192,20 +204,8 @@ assert.equal(validateRepairTarget({
   logs: {},
 }).errors.includes('EVIDENCE_CAPTURE_FAILED'), true);
 
-const securityAndCertification = [
-  { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success' },
-  {
-    id: 102,
-    name: 'Certification',
-    status: 'completed',
-    conclusion: 'success',
-    headSha: SHA_A,
-    details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/1/job/10002',
-  },
-];
 
 
-const openPr = { number: 748, headRefOid: SHA_A, baseRefOid: SHA_B };
 
 assert.equal(
   cancelledThenSucceeded.ci.requiredWorkflows['FLIXO Test Impact Execution'].status,
