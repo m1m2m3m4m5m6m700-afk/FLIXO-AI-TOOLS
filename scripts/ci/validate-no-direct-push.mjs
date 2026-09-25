@@ -64,6 +64,9 @@ function checkWorkflow(file){
   }
 }
 function checkCi(file){
+  // Regression fixtures intentionally contain blocked command strings as data.
+  // They are not production CI executors and must not become false positives.
+  if (path.basename(file).startsWith('test-')) return;
   const c=fs.readFileSync(file,'utf8');
   if(/\bgit\s+push\b/iu.test(c)) add(file,'CI_GIT_PUSH');
   if(/(?:github\.com|api\.github\.com)[^\n]*(?:\/git\/refs\/heads\/execution|\/contents\/)[^\n]*(?:method\s*:\s*["'](?:POST|PUT|PATCH|DELETE)|--method\s+(?:POST|PUT|PATCH|DELETE))/iu.test(c)){
