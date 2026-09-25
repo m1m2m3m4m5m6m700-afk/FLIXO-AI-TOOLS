@@ -128,14 +128,6 @@ const GUARDRAILS = Object.freeze([
   'FAIL_CLOSED_ON_UNCERTAINTY',
 ]);
 
-function selectPerspectives(selectedLenses: readonly string[]): readonly string[] {
-  const out: string[] = [];
-  for (const [role, lenses] of Object.entries(ROLE_PERSPECTIVES)) {
-    if (lenses.some((lens) => selectedLenses.includes(lens))) out.push(role);
-  }
-  return Object.freeze(out);
-}
-
 export function buildCollectiveIntelligenceFrame(
   request: string,
   capabilityIds: readonly string[] = [],
