@@ -351,4 +351,8 @@ const report = {
 
 fs.mkdirSync(path.dirname(OUTPUT),{recursive:true});
 fs.writeFileSync(OUTPUT,JSON.stringify(report,null,2)+'\n');
+if (BOT_ID === 'SECURITY-REDTEAM-1' && Number(fullIntelligence.securityTestSystemAdversary?.escapedAttacks ?? 0) > 0) {
+  console.error('TEST_SYSTEM_ADVERSARY_ESCAPED');
+  process.exit(1);
+}
 console.log(JSON.stringify({status:'PASS',botId:BOT_ID,targetSha:EXPECTED_SHA,scannedFileCount:tracked.length,findings:findings.length,critical:report.counts.critical,high:report.counts.high,output:OUTPUT},null,2));
