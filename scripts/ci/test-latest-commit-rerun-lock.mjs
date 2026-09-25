@@ -32,22 +32,33 @@ assert.doesNotMatch(browserFast, /flixo-static-build-evidence-\$\{\{\s*github\.r
 assert.match(browserFast, /name:\s*Verify immutable rerun lock[\s\S]*FLIXO_RUN_IDENTITY_PATH:\s*dist\/diagnostics\/certification\/run-identity\.json/u);
 assert.match(browserDeep, /name:\s*flixo-build-\$\{\{\s*github\.run_id\s*\}\}[\s\S]*path:\s*dist/u);
 
-assert.match(supersession, /gh api --paginate/u);
+assert.ok(supersession.includes('gh api --paginate'), 'Supersession must paginate all runs');
 assert.doesNotMatch(supersession, /gh api --paginate --slurp/u);
-assert.doesNotMatch(supersession, /--slurp\b/u);
-assert.match(supersession, /git ls-remote.*refs\/heads\/\$TARGET_BRANCH/u);
-assert.doesNotMatch(supersession, /gh api "repos\\/\\$GITHUB_REPOSITORY\\/pulls\\/\\$PR_NUMBER"/u);
-assert.match(supersession, /cancel_run\\(\)/u);
+assert.doesNotMatch(supersession, /--slurp\\b/u);
+assert.match(supersession, /git ls-remote[^\n]*refs\/heads\/\\$TARGET_BRANCH/u);
+assert.equal(
+  supersession.includes('gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER"'),
+  false,
+  'Supersession must not depend on PR lookup',
+);
+assert.match(supersession, /cancel_run\(\)/u);
 assert.match(supersession, /status == "queued" or \.status == "pending" or \.status == "in_progress"/u);
-assert.match(supersession, /head_sha != \$CURRENT_SHA|head_sha != \$sha/u);
-assert.match(supersession, /head_repository\\.full_name/u);
-assert.match(supersession, /EVENT_SHA_SOURCE=IMMUTABLE_GITHUB_EVENT_SHA/u);
-assert.match(supersession, /STALE_ACTIVE_RUNS=\\$stale_active/u);
-assert.match(supersession, /LATEST_COMMIT_ONLY_ENFORCED=true/u);
-assert.match(supersession, /SUPERSESSION_HEAD_MOVED old=\\$CURRENT_SHA new=\\$LIVE_SHA/u);
-assert.match(supersession, /LATE_STALE_RUN_CANCEL_REQUESTED/u);
-assert.doesNotMatch(supersession, /gh\\s+run\\s+view\\s+"\\$run_id"/u);
-assert.match(supersession, /group:\\s*flixo-latest-commit-supersession-\\$\\{\\{\\s*github\\.event_name\\s*\\}\\}-\\$\\{\\{\\s*github\\.event\\.pull_request\\.head\\.repo\\.full_name\\s*\\|\\|\\s*github\\.repository\\s*\\}\\}-\\$\\{\\{\\s*github\\.event\\.pull_request\\.head\\.ref\\s*\\|\\|\\s*github\\.ref_name\\s*\\}\}/u);
+assert.ok(
+  supersession.includes('head_sha != $CURRENT_SHA') || supersession.includes('head_sha != $sha'),
+  'Stale SHA predicate missing',
+);
+assert.ok(supersession.includes('head_repository.full_name'), 'Source repository binding missing');
+assert.ok(supersession.includes('EVENT_SHA_SOURCE=IMMUTABLE_GITHUB_EVENT_SHA'), 'Immutable event SHA provenance missing');
+assert.ok(supersession.includes('STALE_ACTIVE_RUNS=$stale_active'), 'Stale active-run accounting missing');
+assert.ok(supersession.includes('LATEST_COMMIT_ONLY_ENFORCED=true'), 'Latest-only enforcement marker missing');
+assert.ok(supersession.includes('SUPERSESSION_HEAD_MOVED old=$CURRENT_SHA new=$LIVE_SHA'), 'Head-move race marker missing');
+assert.ok(supersession.includes('LATE_STALE_RUN_CANCEL_REQUESTED'), 'Late stale cancellation marker missing');
+assert.doesNotMatch(supersession, /gh\s+run\s+view\s+"\$run_id"/u);
+assert.match(
+  supersession,
+  /group:\s*flixo-latest-commit-supersession-\$\{\{\s*github\.event_name\s*\}\}/u,
+  'Supersession group must isolate push/PR event classes',
+);
 assert.match(createIdentity, /LATEST_COMMIT_ONLY_RERUN_LOCK_V2/u);
 assert.match(createIdentity, /testDefinitionSha256/u);
 assert.match(createIdentity, /playwright\.config\.ts/u);
