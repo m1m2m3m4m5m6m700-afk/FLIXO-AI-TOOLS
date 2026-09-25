@@ -1200,6 +1200,33 @@ jobs:
           ' /tmp/flixo-ten-x-repair-gate.json >/dev/null
           echo 'FLIXO_TEN_X_GATE=PASS'
           echo "FLIXO_TEN_X_GATE_PATH=/tmp/flixo-ten-x-repair-gate.json" >> "$GITHUB_ENV"
+      - name: Prepare optional OpenHands repair advisor runtime
+        if: steps.master_repair.outcome == 'success' && steps.ten_x_gate.outcome == 'success' && steps.strategy.outcome == 'success' && steps.repair_v2.outcome == 'success'
+        env:
+          FLIXO_OPENHANDS_API_KEY: ${{ secrets.FLIXO_OPENHANDS_API_KEY || secrets.OPENAI_API_KEY || secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -u
+          if [ -z "${FLIXO_OPENHANDS_API_KEY:-}" ]; then
+            echo 'OPENHANDS_ADVISOR_RUNTIME=BLOCKED_EXTERNAL_NO_CREDENTIAL'
+            exit 0
+          fi
+          PYTHON_BIN="$(command -v python3.12 || command -v python3 || true)"
+          if [ -z "$PYTHON_BIN" ]; then
+            echo 'OPENHANDS_ADVISOR_RUNTIME=BLOCKED_EXTERNAL_PYTHON_UNAVAILABLE'
+            exit 0
+          fi
+          PYTHON_VERSION="$($PYTHON_BIN -c 'import sys; print(".".join(map(str,sys.version_info[:2])))')"
+          case "$PYTHON_VERSION" in
+            3.1[2-9]|3.[2-9][0-9]) ;;
+            *) echo "OPENHANDS_ADVISOR_RUNTIME=BLOCKED_EXTERNAL_PYTHON_VERSION:$PYTHON_VERSION"; exit 0 ;;
+          esac
+          if "$PYTHON_BIN" -m pip install --disable-pip-version-check --no-input --prefer-binary "openhands-sdk==1.49.5"; then
+            echo "OPENHANDS_ADVISOR_RUNTIME=READY"
+            echo "FLIXO_OPENHANDS_PYTHON=$PYTHON_BIN" >> "$GITHUB_ENV"
+          else
+            echo 'OPENHANDS_ADVISOR_RUNTIME=BLOCKED_EXTERNAL_PACKAGE_INSTALL'
+          fi
+
       - name: Execute adversarial repair convergence until both sides stabilize
         id: execute_repair
         if: steps.master_repair.outcome == 'success' && steps.ten_x_gate.outcome == 'success' && steps.strategy.outcome == 'success' && steps.repair_v2.outcome == 'success'
@@ -1211,6 +1238,8 @@ jobs:
           FLIXO_REPAIR_ENGINE_PATH: /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs
           FLIXO_ADVERSARIAL_CONVERGENCE_STATE_PATH: /tmp/flixo-adversarial-convergence/convergence.json
           FLIXO_ADVERSARIAL_MAX_ROUNDS: '0'
+          FLIXO_OPENHANDS_ADVISOR_ENABLED: 'true'
+          FLIXO_OPENHANDS_API_KEY: ${{ secrets.FLIXO_OPENHANDS_API_KEY || secrets.OPENAI_API_KEY || secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
           export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
