@@ -32,7 +32,7 @@ const wt=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-precommit-wt-'));
 fs.writeFileSync(pf,patch);
 const rootHead=git(['rev-parse','HEAD']);
 const rootIndex=patch;
-const cleanup=()=>{try{run('git',['worktree','remove','--force',wt],ROOT)}catch{};try{fs.rmSync(pf,{force:true})}catch{}};
+const cleanup=()=>{try{run('git',['worktree','remove','--force',wt],ROOT)}catch{/* best effort cleanup */};try{fs.rmSync(pf,{force:true})}catch{}};
 process.on('exit',cleanup);
 run('git',['worktree','add','--detach',wt,SHA],ROOT);
 if(git(['rev-parse','HEAD'],wt)!==SHA)die('TEMP_SHA_MISMATCH');
@@ -76,7 +76,7 @@ const mutations=[
  kill('MOVE_COMMIT_BEFORE_GATE',p=>{
    const s=fs.readFileSync(p,'utf8'), gs=s.indexOf('      - name: Pre-commit adversarial + Red Team gate'), ge=s.indexOf('\n      - name:',gs+1), cs=s.indexOf('      - name: Create exact unpublished candidate commit');
    if(gs<0||ge<0||cs<0)throw new Error('MUTATION_SETUP_FAILED');
-   const ge2=s.indexOf('\n      - name:',cs+1); const gateBlock=s.slice(gs,ge); const without=s.slice(0,gs)+s.slice(ge); const c2=without.indexOf('      - name: Create exact unpublished candidate commit'); const cend=without.indexOf('\n      - name:',c2+1);
+   const gateBlock=s.slice(gs,ge); const without=s.slice(0,gs)+s.slice(ge); const c2=without.indexOf('      - name: Create exact unpublished candidate commit'); const cend=without.indexOf('\n      - name:',c2+1);
    fs.writeFileSync(p,without.slice(0,cend)+'\n'+gateBlock+without.slice(cend));
  })
 ];
