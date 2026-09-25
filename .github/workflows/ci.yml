@@ -53,6 +53,11 @@ jobs:
           REQUIRE_LIVE_HEAD_MATCH: 'true'
         run: node scripts/ci/assert-current-commit.mjs
       - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Canonical Assurance Gate
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          FLIXO_CANONICAL_ASSURANCE_OUTPUT: /tmp/flixo-canonical-assurance.json
+        run: node scripts/ci/test-canonical-assurance.mjs --mode=full
       - name: Create immutable run identity
         run: node scripts/ci/create-run-identity.mjs
       - name: Verify immutable rerun lock
@@ -123,6 +128,14 @@ jobs:
           test "$(cat "dist/__flixo/identity/$EXPECTED_SHA/index.txt")" = "$EXPECTED_SHA"
           node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("dist/__flixo/build-identity.json","utf8")); if(x.commitSha!==process.env.EXPECTED_SHA) throw new Error("Invalid commitSha"); if(x.artifactHash!==fs.readFileSync("dist/__flixo/artifact-hash.txt","utf8").trim()) throw new Error("Invalid artifactHash");'
           sha256sum -c dist/flixo-package-lock.sha256
+      - name: Publish canonical assurance evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: flixo-canonical-assurance-${{ github.run_id }}
+          path: /tmp/flixo-canonical-assurance.json
+          if-no-files-found: error
+          retention-days: 30
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: flixo-build-${{ github.run_id }}

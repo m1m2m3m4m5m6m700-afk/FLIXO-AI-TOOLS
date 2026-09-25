@@ -54,6 +54,9 @@ jobs:
       - name: Self-test continuous watcher
         run: node scripts/ci/test-continuous-error-watch.mjs
 
+      - name: Canonical Assurance controller self-test
+        run: node scripts/ci/test-canonical-assurance.mjs --mode=contract
+
       - name: Capture exact repository state
         id: capture
         env:
@@ -270,6 +273,29 @@ jobs:
           mv /tmp/flixo-watch/workflow-runs.normalized.json /tmp/flixo-watch/workflow-runs.json
           jq -e 'type == "array" and all(.[]; (.databaseId != null and .workflowName != "" and .workflowPath != "" and (.headSha | test("^[0-9a-f]{40}$")) and .headBranch != "" and .status != "" and (.updatedAt != "")))' /tmp/flixo-watch/workflow-runs.json >/dev/null
 
+      - name: Require exact-SHA Canonical Assurance evidence
+        if: steps.capture.outputs.branch == 'execution' && steps.settle_required_ci.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(cat /tmp/flixo-watch/execution-sha)"
+          RUN_JSON="$(jq -c --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == "FLIXO Test System" and .path == ".github/workflows/ci.yml" and .head_sha == $sha and .status == "completed" and .conclusion == "success")] | sort_by(.updated_at) | last // empty' /tmp/flixo-watch/workflow-runs.json)"
+          test -n "$RUN_JSON" || { echo "FAIL CLOSED: no successful FLIXO Test System run for exact SHA=$EXECUTION_SHA"; exit 1; }
+          TEST_RUN_ID="$(printf '%s' "$RUN_JSON" | jq -r '.databaseId')"
+          ARTIFACT_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TEST_RUN_ID/artifacts?per_page=100" --jq '[.artifacts[] | select(.expired == false and .name == ("flixo-canonical-assurance-" + ($TEST_RUN_ID|tostring)))] | last.id // empty')"
+          test -n "$ARTIFACT_ID" || { echo "FAIL CLOSED: canonical assurance artifact missing run=$TEST_RUN_ID sha=$EXECUTION_SHA"; exit 1; }
+          rm -rf /tmp/flixo-canonical-assurance && mkdir -p /tmp/flixo-canonical-assurance
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > /tmp/flixo-canonical-assurance/artifact.zip
+          unzip -o /tmp/flixo-canonical-assurance/artifact.zip -d /tmp/flixo-canonical-assurance/unpacked >/dev/null
+          PROOF="$(find /tmp/flixo-canonical-assurance/unpacked -name flixo-canonical-assurance.json -type f -print -quit)"
+          test -s "$PROOF"
+          jq -e --arg sha "$EXECUTION_SHA" '.protocol == "FLIXO-CANONICAL-ASSURANCE-v1" and .status == "PASS" and .exactShaVerified == true and .executionSha == $sha and .actualHeadSha == $sha and .falseGreenPolicy.skipped == "RED" and .falseGreenPolicy.neutral == "RED" and .falseGreenPolicy.cancelled == "RED" and .falseGreenPolicy.staleEvidence == "RED" and .falseGreenPolicy.wrongShaEvidence == "RED" and .falseGreenPolicy.missingVerification == "RED" and (.categoryCount >= 10) and (all(.wiringChecks[]; . == true)) and (all(.subtests[]; .status == "PASS"))' "$PROOF" >/dev/null
+          echo "CANONICAL_ASSURANCE_EXACT_SHA=$EXECUTION_SHA"
+          echo "CANONICAL_ASSURANCE_TEST_RUN=$TEST_RUN_ID"
+          echo "CANONICAL_ASSURANCE_ARTIFACT=$ARTIFACT_ID"
+          echo "CANONICAL_ASSURANCE=PASS"
       - name: Capture failed CI evidence for classification
         env:
           GH_TOKEN: ${{ github.token }}
