@@ -96,7 +96,12 @@ jobs:
                 return 0
               fi
               if printf '%s' "$output" | grep -Eiq 'rate limit exceeded|secondary rate limit|abuse detection'; then
-                echo "FAIL CLOSED: GitHub Actions API rate limit blocked stale-run cancellation."
+                echo "STALE_RUN_CANCEL_RETRY rate_limit id=$run_id attempt=$attempt"
+                if [ "$attempt" -lt 3 ]; then
+                  sleep $((attempt * 5))
+                  continue
+                fi
+                echo "FAIL CLOSED: GitHub Actions API rate limit blocked stale-run cancellation after retries."
                 exit 1
               fi
               sleep 2
@@ -162,7 +167,27 @@ jobs:
             while read -r run_id; do
               [ -n "$run_id" ] || continue
               echo "LATE_STALE_RUN_CANCEL_REQUESTED id=$run_id"
-              if ! gh run cancel "$run_id" --repo "$REPOSITORY" >/dev/null 2>&1; then
+              cancelled=false
+              for attempt in 1 2 3; do
+                if output="$(gh run cancel "$run_id" --repo "$REPOSITORY" 2>&1)"; then
+                  echo "$output"
+                  echo "STALE_RUN_CANCELLED id=$run_id attempt=$attempt"
+                  cancelled=true
+                  break
+                fi
+                if printf '%s' "$output" | grep -Eiq 'already completed|cannot cancel.*completed|not in progress|completed'; then
+                  echo "STALE_RUN_ALREADY_COMPLETED run=$run_id"
+                  cancelled=true
+                  break
+                fi
+                if printf '%s' "$output" | grep -Eiq 'rate limit exceeded|secondary rate limit|abuse detection'; then
+                  echo "STALE_RUN_CANCEL_RETRY rate_limit_late id=$run_id attempt=$attempt"
+                  sleep $((attempt * 5))
+                  continue
+                fi
+                break
+              done
+              if [ "$cancelled" != true ]; then
                 echo "FAIL CLOSED: late stale run cancellation failed id=$run_id"
                 exit 1
               fi
