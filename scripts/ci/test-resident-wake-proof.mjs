@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   buildResidentReadyAck,
   verifyResidentHandoffProof,
+  isNextResidentRuntimeReady,
 } from './resident-wake-proof.mjs';
 
 const sha='a'.repeat(40);
@@ -20,6 +21,17 @@ const baton={
   mutationAuthority:false,
   pushAuthority:'CHAIR_1_ONLY',
 };
+
+const runtimeReadyWake={
+  targetSha:sha,
+  stagedRuntimeIds:['FLIXO6','FLIXO7'],
+  nextRuntimeIds:['FLIXO8','FLIXO9','FLIXO10'],
+  nextBotIds:['CELL-126','CELL-127','CELL-128','CELL-129','CELL-130'],
+};
+assert.equal(isNextResidentRuntimeReady(runtimeReadyWake,'FLIXO6'),true);
+assert.equal(isNextResidentRuntimeReady(runtimeReadyWake,'FLIXO10'),true);
+assert.equal(isNextResidentRuntimeReady(runtimeReadyWake,'CELL-126'),false);
+assert.equal(isNextResidentRuntimeReady(runtimeReadyWake,'FLIXO2'),false);
 
 const ack=buildResidentReadyAck({
   baton,
