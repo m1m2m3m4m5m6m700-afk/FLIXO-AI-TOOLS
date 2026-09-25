@@ -237,7 +237,7 @@ export function publishSharedBatch(records=[]){
 export function readSharedMemory({fingerprint=null,botId=null,kinds=null,limit=80}={}){
   const memory=loadSharedMemory();
   const allowedKinds=Array.isArray(kinds)?new Set(kinds.filter(kind=>SHARED_KINDS.includes(kind))):null;
-  const canonicalBotId=botId?resolveSharedMemoryBotId(botId):null;
+  if(botId) resolveSharedMemoryBotId(botId);
   const rows=memory.records.filter(record=>
     (record.legacyRecord === true || record.broadcastToAllCellMembers === undefined || (record.broadcastToAllCellMembers === true && record.broadcastScope === CELL_MEMORY_SCOPE && record.cellMemberCount === CELL_MEMBER_COUNT && record.audience.length === CELL_MEMBER_COUNT && record.audience.every((id,index)=>id===SHARED_BOTS[index]))) &&
 
@@ -299,8 +299,7 @@ export function buildSharedLearningContext({fingerprint=null,botId=null,limit=48
     certificationAuthority:false,
     canonical:true,
     targetAudience:[...SHARED_BOTS],
-    broadcastScope:CELL_MEMORY_SCOPE,
-    broadcastMode:'EVERY_RECORD_TO_EVERY_CELL_MEMBER',
+    memoryModel:SHARED_MEMORY_MODEL,
     cellMemberCount:CELL_MEMBER_COUNT,
     scope:'ALL_INTERNAL_AGENTS_AND_REPAIR_BOTS',
     recordCount:records.length,
