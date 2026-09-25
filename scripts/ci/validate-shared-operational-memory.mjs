@@ -11,11 +11,11 @@ const expectedBots=registry?.distribution?.learningConsumers??[];
 const botAliasMap=registry?.distribution?.botAliasMap??{};
 const failures=[];
 for(const marker of [
- 'FLIXO-SHARED-OPERATIONAL-MEMORY-v1','SHARED_BOTS','ACTION-REPAIR','ACTION-REPAIR-2',
+ 'FLIXO-SHARED-OPERATIONAL-MEMORY-v1','FLIXO-BOT-BRAIN-v2','FLIXO-UNIFIED-COGNITIVE-KERNEL-v2','SHARED_BOTS','ACTION-REPAIR','ACTION-REPAIR-2',
  'READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent','execution-agent-clone-v1',
  'ERROR','OPERATION','ADVICE','OBLIGATION','LESSON','ANTI_LESSON','COUNTEREXAMPLE','VERIFICATION',
  'exactShaBound:true','mutationAuthority:false','certificationAuthority:false',
- 'publishSharedMemory','buildSharedLearningContext','FLIXO_BOT_REGISTRY_PATH','docs/agents/FLIXO-BOT.json','SYSTEM_WIDE'
+ 'publishSharedMemory','buildSharedLearningContext','FLIXO_BOT_REGISTRY_PATH','docs/agents/FLIXO-BOT.json','SYSTEM_WIDE','ALL_INTERNAL_AGENTS_AND_REPAIR_BOTS','overProvisionedCognition'
 ]) if(!source.includes(marker)) failures.push('MISSING_MARKER='+marker);
 for(const marker of ['FLIXO-BIDIRECTIONAL-COGNITIVE-MESH-v1']) if(!contract.includes(marker)) failures.push('MISSING_CONTRACT_MARKER='+marker);
 for(const marker of ['FLIXO-BIDIRECTIONAL-COGNITIVE-MESH-v1','flixo_agent_learning_events']) if(!meshSync.includes(marker)) failures.push('MISSING_SYNC_MARKER='+marker);
