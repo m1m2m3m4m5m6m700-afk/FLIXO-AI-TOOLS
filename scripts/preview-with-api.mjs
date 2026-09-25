@@ -4,7 +4,7 @@ import flixoAgentHandler from '../api/flixo-agent.ts';
 const args = process.argv.slice(2);
 
 function flagValue(flag, fallback) {
-  const equalsPrefix = \`\${flag}=\`;
+  const equalsPrefix = `${flag}=`;
   const inline = args.find((value) => value.startsWith(equalsPrefix));
   if (inline) return inline.slice(equalsPrefix.length);
   const index = args.indexOf(flag);
