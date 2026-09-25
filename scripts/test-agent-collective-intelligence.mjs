@@ -128,7 +128,8 @@ assert.equal(goal.value.value, 2);
 const event = await appendConversationEvent('SYSTEM', { test: 'platform-primitives' });
 assert.equal(event.version, 1);
 assert.equal(event.sequence, 1);
-assert.equal(verifyConversationEventChain([event]), true);
+assert.equal(await verifyConversationEventChain([event]), true);
+assert.equal(await verifyConversationEventChain([{ ...event, hash: '0'.repeat(64) }]), false);
 
 console.log('Agent platform primitives tests passed.');
 
