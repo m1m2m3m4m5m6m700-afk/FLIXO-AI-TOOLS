@@ -490,9 +490,9 @@ const cloudflareSkipped = evaluateGreen({
   ],
   compare: { ahead_by: 1, behind_by: 0 },
 });
-assert.equal(cloudflareSkipped.status, 'GREEN');
+assert.equal(cloudflareSkipped.status, 'BLOCKED_EXTERNAL');
 assert.equal(cloudflareSkipped.repair.required, false);
-assert.equal(cloudflareSkipped.externalBlockers.length, 0);
+assert.ok(cloudflareSkipped.externalBlockers.length > 0);
 
 const externalActionRequired = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
