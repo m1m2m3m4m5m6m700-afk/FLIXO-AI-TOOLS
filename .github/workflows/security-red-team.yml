@@ -84,6 +84,25 @@ jobs:
           test -s "/tmp/flixo-redteam/${{ matrix.bot }}.json"
           jq -e             --arg sha "$EXPECTED_SHA"             --arg bot "${{ matrix.bot }}"             '.targetSha == $sha and .botId == $bot and .mutationAuthority == false and (.uncertainty.status != null) and (.uncertainty.method != null)'             "/tmp/flixo-redteam/${{ matrix.bot }}.json" >/dev/null
 
+      - name: Evaluate actionable findings and request automated repair
+        id: repair_signal
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT="/tmp/flixo-redteam/${{ matrix.bot }}.json"
+          ACTIONABLE="$(jq '[.findings[] | select((.severity == "CRITICAL" or .severity == "HIGH") and (.confidence >= 0.90))] | length' "$REPORT")"
+          ESCAPED="$(jq -r '.fullIntelligence.securityTestSystemAdversary.escapedAttacks // 0' "$REPORT")"
+          printf '%s\n' "REDTEAM_TARGET_SHA=$EXPECTED_SHA"
+          printf '%s\n' "REDTEAM_BOT=${{ matrix.bot }}"
+          printf '%s\n' "REDTEAM_ACTIONABLE_HIGH_CRITICAL=$ACTIONABLE"
+          printf '%s\n' "REDTEAM_ESCAPED_ATTACKS=$ESCAPED"
+          if [ "$ACTIONABLE" -gt 0 ] || [ "$ESCAPED" -gt 0 ]; then
+            echo 'REDTEAM_REPAIR_REQUIRED=true'
+            jq -c --arg sha "$EXPECTED_SHA" --arg bot "${{ matrix.bot }}" '{protocol,botId:$bot,targetSha:$sha,status,counts,uncertainty,repairIntelligence,securityTestSystemAdversary:(.fullIntelligence.securityTestSystemAdversary // null),actionableFindings:[.findings[] | select((.severity == "CRITICAL" or .severity == "HIGH") and (.confidence >= 0.90))]}' "$REPORT"
+            exit 1
+          fi
+          echo 'REDTEAM_REPAIR_REQUIRED=false'
+
       - name: Publish isolated evidence artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
