@@ -36,6 +36,7 @@ const scripts = [
   'scripts/ci/resident-wake-proof.mjs',
   'scripts/ci/test-resident-wake-proof.mjs',
   'scripts/ci/test-negative-control-integration.mjs',
+  'scripts/ci/test-canonical-chain-red-team-v2.mjs',
   'scripts/ci/test-release-evidence-binding.mjs',
   'scripts/ci/test-post-patch-adversarial-v2.mjs',
   'scripts/ci/test-runtime-proof-coverage.mjs',
