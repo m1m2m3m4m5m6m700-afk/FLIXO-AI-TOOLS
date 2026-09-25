@@ -52,6 +52,13 @@ function checkWorkflow(file){
       !/git\/refs\/heads\/main/iu.test(c);
     if(!leaseWriteIsScoped) add(file,'LEASE_CONTROL_WRITE_SCOPE_INVALID');
   }
+  const repositoryContentsWrite =
+    /gh\s+api[^\n]*(?:--method\s+)?(?:POST|PUT|PATCH|DELETE)[^\n]*\/contents\//iu.test(c)
+    || /(?:curl|wget)[^\n]*(?:\/contents\/)[^\n]*\b(?:POST|PUT|PATCH|DELETE)\b/iu.test(c)
+    || /(?:curl|wget)[^\n]*\b(?:POST|PUT|PATCH|DELETE)\b[^\n]*(?:\/contents\/)/iu.test(c);
+  if(repositoryContentsWrite){
+    add(file,'WORKFLOW_REPOSITORY_CONTENTS_WRITE_FORBIDDEN');
+  }
   if(/(?:curl|wget)[^\n]*(?:\/git\/refs\/heads\/execution|\/contents\/)[^\n]*\b(?:POST|PUT|PATCH|DELETE)\b/iu.test(c) && name!==EXECUTION_PUBLICATION_WORKFLOW){
     add(file,'WORKFLOW_HTTP_GIT_WRITE_NOT_ALLOWLISTED');
   }
