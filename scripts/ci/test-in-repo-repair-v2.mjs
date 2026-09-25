@@ -126,6 +126,7 @@ assert.throws(() => buildRcaManifest({
   plan: { candidates: diagnosis.hypotheses, reasoning: { rootCause: 'lease-race' } },
   selected: { id: 'lease-race', file: 'src/test.ts' },
   cycle: 2,
+  convergenceGuidancePath: '',
 }), /PRIOR_COUNTEREXAMPLE_REQUIRED/);
 
 const cycle2Manifest = buildRcaManifest({

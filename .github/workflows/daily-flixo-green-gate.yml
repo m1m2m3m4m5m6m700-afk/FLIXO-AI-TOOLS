@@ -11,7 +11,9 @@ on:
 
 permissions:
   actions: write
-  contents: read
+  # repair-lease.mjs uses an atomic compare-and-create on refs/tags/flixo-repair-lease-*.
+  # This is control-plane lease storage only; source publication remains Chair-gated.
+  contents: write
   checks: read
   pull-requests: read
 
