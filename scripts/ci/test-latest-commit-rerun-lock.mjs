@@ -34,12 +34,12 @@ assert.match(browserDeep, /name:\s*flixo-build-\$\{\{\s*github\.run_id\s*\}\}[\s
 
 assert.match(supersession, /gh api --paginate/u);
 assert.doesNotMatch(supersession, /gh api --paginate --slurp/u);
-assert.doesNotMatch(supersession, /--slurp\\b/u);
-assert.match(supersession, /git ls-remote.*refs\\/heads\\/\\$TARGET_BRANCH/u);
+assert.doesNotMatch(supersession, /--slurp\b/u);
+assert.match(supersession, /git ls-remote.*refs\/heads\/\$TARGET_BRANCH/u);
 assert.doesNotMatch(supersession, /gh api "repos\\/\\$GITHUB_REPOSITORY\\/pulls\\/\\$PR_NUMBER"/u);
 assert.match(supersession, /cancel_run\\(\)/u);
 assert.match(supersession, /status == "queued" or \.status == "pending" or \.status == "in_progress"/u);
-assert.match(supersession, /head_sha != \\$CURRENT_SHA|head_sha != \\$sha/u);
+assert.match(supersession, /head_sha != \$CURRENT_SHA|head_sha != \$sha/u);
 assert.match(supersession, /head_repository\\.full_name/u);
 assert.match(supersession, /EVENT_SHA_SOURCE=IMMUTABLE_GITHUB_EVENT_SHA/u);
 assert.match(supersession, /STALE_ACTIVE_RUNS=\\$stale_active/u);
