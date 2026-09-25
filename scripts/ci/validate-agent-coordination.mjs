@@ -32,6 +32,7 @@ const expected = {
   'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json': ['ASSISTANT_AGENT_COOPERATION_CONTRACT', 'assistantController', 'councilPresident', 'councilDeputy', 'councilInvestigator', 'codeScout', 'executionAgent', 'reviewAgent', 'testAgent', 'securityAgent', 'performanceAgent', 'certificationAuthority', 'actionRepairBot', 'actionRepairVerifier', 'actionHistorian', 'ACTION-REPAIR', 'ACTION-REPAIR-2', 'ACTION-HISTORIAN-3', 'action_vault_reasoning', 'messageEnvelope', 'no_implicit_authority', 'parallelism', 'arbitration', 'architecture', 'quality', 'efficiency', 'recovery', 'security', 'release', 'communication_first', 'event_driven_delivery', 'message_idempotency', 'message_freshness'],
   'docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md': ['READ', 'WRITE', 'FORBIDDEN', 'NO_SOURCE_MUTATION', 'code-scout-latest.json', 'execution agents'],
   'scripts/ci/test-shared-operational-memory-contract.mjs': ['SHARED_OPERATIONAL_MEMORY_CONTRACT_TEST=PASS','RETIRED_CELL_POOL_CONTRACT=PASS','P21_RETIRED=PASS','P22_SHARED_MEMORY_SYSTEM_WIDE=PASS'],
+  'src/lib/agent/collective-intelligence.ts': ['FLIXO-BOT-BRAIN-v2','ONE_SHARED_SUPERSET_COGNITIVE_KERNEL_WITH_ROLE_OVERLAYS','VERIFY_EXACT_SHA_AND_LEARN'],
   'docs/agents/CELL-EXECUTIVE-OPERATING-POLICY.md': ['CELL-EXEC-RETIRED','retired','No CELL-001..CELL-200 bot is active or assignable','Any attempt to provision, assign, wake, or recreate'],
   'scripts/ci/test-cell-executive-governance.mjs': ['CELL_EXECUTIVE_GOVERNANCE_TEST=PASS','BOT_COUNT=PASS','RANKING=PASS','ESCALATION=PASS','PARALLEL_LANES=PASS'],
 };
