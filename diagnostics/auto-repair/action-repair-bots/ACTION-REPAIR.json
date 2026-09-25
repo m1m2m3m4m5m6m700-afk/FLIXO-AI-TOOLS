@@ -397,5 +397,11 @@
     },
     "certification": false,
     "greenAuthority": false
-  }
+  },
+  "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
+  "unifiedCognitiveKernelRef": "docs/agents/FLIXO-BOT.json#/unifiedCognitiveKernel",
+  "unifiedMemoryRef": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
+  "cognitiveCoverage": "FULL_SYSTEM",
+  "roleOverlayOnly": true,
+  "canReduceCognitiveCoverage": false
 }
