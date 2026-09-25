@@ -103,15 +103,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PROBE="src/flixo-staged-boundary-probe.mjs"
+          PROBE="README.md"
           cleanup() {
             git restore --staged --worktree "$PROBE" >/dev/null 2>&1 || true
-            rm -f "$PROBE"
           }
           trap cleanup EXIT
-          printf '%s\n' 'export default {};' > "$PROBE"
-          git add "$PROBE"
+          printf '\n%s\n' '<!-- FLIXO-STAGED-BOUNDARY-PROBE -->' >> "$PROBE"
+          git add -- "$PROBE"
+          test -n "$(git diff --cached --name-only -- "$PROBE")"
+          test -n "$(git diff --cached --numstat -- "$PROBE")"
           node scripts/ci/validate-auto-repair-boundary.mjs --diff-only > /tmp/flixo-staged-boundary.out
+          cat /tmp/flixo-staged-boundary.out
           jq -e '.status == "PASS" and .changedFiles == 1 and .changedLines >= 1' /tmp/flixo-staged-boundary.out >/dev/null
           echo 'STAGED_MUTATION_BOUNDARY=PASS'
       - name: Validate no direct push boundary contract
