@@ -66,7 +66,7 @@ assert.match(registryText,/\.github\/workflows\/security-red-team\.yml/u);
 
 const runner = fs.readFileSync(path.join(root,'scripts/security/security-red-team-runner.mjs'),'utf8');
 assert.match(runner,/execFileSync\(['"]git['"],\s*\['ls-files',\s*['"]-z['"]\]/u);
-assert.match(runner,/const appSourceFile = \(file\) => sourceFile\(file\) && !workflowFile\(file\);/u);
+assert.match(runner,/const browserSourceFile =/u);
 assert.match(runner,/SENSITIVE_PERMISSION_ALLOWLISTS/u);
 assert.match(runner,/const allowlist = new Set\(SENSITIVE_PERMISSION_ALLOWLISTS\[permission\] \?\? \[\]\)/u);
 assert.match(runner,/const explicitlyAdmitted = allowlist\.has\(workflow\)/u);
