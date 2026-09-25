@@ -714,6 +714,7 @@ Deno.serve(async (req) => {
           active: runtime.row.active,
           currentSessionId: runtime.row.current_session_id,
           lastSeenAt: runtime.row.last_seen_at,
+          currentExecutionSha: runtime.row.current_execution_sha,
         },
         dispatch: rows?.[0] ?? null,
       }, 200, requestId);
@@ -734,6 +735,7 @@ Deno.serve(async (req) => {
           active: runtime.row.active,
           currentSessionId: runtime.row.current_session_id,
           lastSeenAt: runtime.row.last_seen_at,
+          currentExecutionSha: runtime.row.current_execution_sha,
         },
         assignment: assignments?.[0] ?? null,
       }, 200, requestId);
