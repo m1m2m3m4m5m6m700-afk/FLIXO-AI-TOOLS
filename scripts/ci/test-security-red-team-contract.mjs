@@ -79,7 +79,7 @@ assert.doesNotMatch(runner,/tracked\.filter\(appSourceFile\)\s*\{\n\s*const chec
 assert.match(runner,/mutationAuthority:false/u);
 assert.match(runner,/APP-CHILD-PROCESS/u);
 assert.match(runner,/(?:node:)?child_process/u);
-assert.ok(runner.includes("(?<!.)\\bexec\\s*\\("));
+assert.ok(runner.includes("(?<!\\.)\\bexec\\s*\\("));
 assert.doesNotMatch(runner,/child_process\|execFileSync/u);
 assert.match(runner,/adversarial-repair-twin\.mjs/u);
 assert.match(runner,/uncertainty:/u);
