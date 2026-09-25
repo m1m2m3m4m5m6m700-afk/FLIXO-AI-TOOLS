@@ -150,3 +150,18 @@ assert.deepEqual(delegated.map((item) => item.output), [2, 4]);
 assert.ok(delegated.every((item) => item.status === 'COMPLETED'));
 
 console.log('Agent delegation primitives tests passed.');
+
+const contention = await runBoundedParallel(
+  [
+    { id: 'shared-1', input: 'first', resourceKeys: ['image:shared'] },
+    { id: 'shared-2', input: 'second', resourceKeys: ['image:shared'] },
+  ],
+  async (task) => {
+    if (task.id === 'shared-1') await new Promise((resolve) => setTimeout(resolve, 5));
+    return task.input;
+  },
+  { maxConcurrency: 2, lockManager: new AgentResourceLockManager() },
+);
+assert.deepEqual(contention.map((item) => item.output), ['first', 'second']);
+assert.ok(contention.every((item) => item.status === 'COMPLETED'));
+console.log('Agent delegated resource contention tests passed.');
