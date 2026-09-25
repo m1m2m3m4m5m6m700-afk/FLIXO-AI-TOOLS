@@ -1,11 +1,11 @@
 MAIN_SHA=1a26c4a3624ec7ae58a8c52191246dda423de5bb
-EXECUTION_SHA=e7159306055c70cd0b1acd063cd3c4c84cd8fb99
+EXECUTION_SHA=9b36d77ce8a59fd554ae07ab44d14426c521a135
 COMPARE_STATUS=diverged
-AHEAD_BY=1179
+AHEAD_BY=1180
 BEHIND_BY=3
-TOTAL_COMMITS=1179
+TOTAL_COMMITS=1180
 CHANGED_FILES=300
-ADDITIONS=14713
+ADDITIONS=14766
 DELETIONS=1362
 
  .github/dependabot.yml | 5 changes, +5, -0
@@ -66,13 +66,13 @@ DELETIONS=1362
  artifacts/ci/execution-log.md | 14 changes, +8, -6
  ci/INTEGRATION-BLOCKER.md | 27 changes, +25, -2
  ci/audit/2026-09-25/branch-diff.txt | 310 changes, +310, -0
- ci/audit/2026-09-25/exec-scripts.txt | 604 changes, +604, -0
- ci/audit/2026-09-25/main-scripts.txt | 562 changes, +562, -0
- ci/audit/2026-09-25/script-usage-blocker.md | 7 changes, +7, -0
- ci/audit/2026-09-25/scripts-only-in-execution.txt | 46 changes, +46, -0
+ ci/audit/2026-09-25/exec-scripts.txt | 628 changes, +628, -0
+ ci/audit/2026-09-25/main-scripts.txt | 585 changes, +585, -0
+ ci/audit/2026-09-25/script-usage-blocker.md | 8 changes, +8, -0
+ ci/audit/2026-09-25/scripts-only-in-execution.txt | 47 changes, +47, -0
  ci/audit/2026-09-25/task-004-implementation.md | 10 changes, +10, -0
  ci/audit/2026-09-25/unregistered-workflows.json | 49 changes, +49, -0
- ci/audit/2026-09-25/unregistered-writers.json | 46 changes, +46, -0
+ ci/audit/2026-09-25/unregistered-writers.json | 50 changes, +50, -0
  db/council-external-accounts.sql | 115 changes, +111, -4
  diagnostics/agents/inbox/812a5d72ef714f44d70d6b18749a24cca12bcabd9a48adb945c27d488ca9c9f3.json | 73 changes, +73, -0
  diagnostics/agents/inbox/index.json | 12 changes, +11, -1
