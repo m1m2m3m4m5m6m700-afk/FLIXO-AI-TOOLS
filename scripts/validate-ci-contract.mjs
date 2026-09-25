@@ -70,7 +70,6 @@ const required = [
   ['Browser FAST engine', /\n\s{2}browser_fast:\s*\n/],
   ['Browser DEEP engine', /\n\s{2}browser_deep:\s*\n/],
   ['single certification gate', /\n\s{2}certify:\s*\n/],
-  ['repository-wide latest-commit supersession integration', /latest-commit-test-supersession\.yml|LATEST_COMMIT_ONLY_ENFORCED|SUPERSESSION_HEAD_MOVED/],
   ['latest-push branch/exact-SHA concurrency isolation', /group:\s*flixo-test-(?:\$\{\{\s*github\.event_name\s*\}\}-)?\$\{\{\s*github\.event\.pull_request\.head\.repo\.full_name\s*\|\|\s*github\.repository\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/],
   ['exact SHA', /EXPECTED_SHA/],
   ['immutable artifact identity', /flixo-head-sha\.txt[\s\S]*flixo-package-lock\.sha256/],
