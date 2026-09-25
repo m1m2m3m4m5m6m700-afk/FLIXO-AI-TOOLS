@@ -66,29 +66,47 @@ if(redteam?.execution?.mutationAuthority!==false||redteam?.execution?.certificat
 if(redteam?.execution?.isolation?.repositoryAccess!=='CONTENTS_READ_ONLY') fail('REDTEAM_WRITE_ACCESS','red team is not contents-read-only');
 if(redteam?.branchPolicy?.thirdBranchAllowed!==false) fail('REDTEAM_THIRD_BRANCH_POLICY','third branch allowed');
 
-function adversarialProbe(id,mutate){
-  const temp=fs.mkdtempSync(path.join('/tmp/','flixo-agent-sweep-'));
-  const target=path.join(temp,'FLIXO-BOT.json');
-  fs.writeFileSync(target,JSON.stringify(registry,null,2));
-  const altered=JSON.parse(fs.readFileSync(target,'utf8'));
-  mutate(altered);
-  const probe=[];
-  try{
-    const ids=altered.distribution?.cognitiveBotIds??[];
-    if(id==='REMOVE_AGENT' && ids.length===200) probe.push('ESCAPED');
-    else if(id==='REDUCE_CAPABILITIES' && altered.unifiedCognitiveKernel?.capabilities?.length>=90) probe.push('ESCAPED');
-    else if(id==='PRIVATE_MEMORY' && altered.unifiedCognitiveKernel?.unifiedLearningMemory?.singleMemory==='diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json') probe.push('ESCAPED');
-    else if(id==='ROLE_SUPPRESS_CAPABILITY' && altered.unifiedCognitiveKernel?.roleOverlayPolicy==='PRIORITY_ONLY_NO_CAPABILITY_REDUCTION') probe.push('ESCAPED');
-    else if(id==='GRANT_CERTIFICATION' && !altered.unifiedCognitiveKernel?.unifiedLearningMemory?.certificationAuthority) probe.push('ESCAPED');
-    else probe.push('BLOCKED');
-  } finally { fs.rmSync(temp,{recursive:true,force:true}); }
-  if(probe[0]==='ESCAPED') fail('ADVERSARIAL_ESCAPE',id);
+function validateCandidate(candidate){
+  const errors=[];
+  const ids=candidate?.distribution?.cognitiveBotIds;
+  const learning=candidate?.distribution?.learningConsumers;
+  const k=candidate?.unifiedCognitiveKernel;
+  const m=k?.unifiedLearningMemory;
+  if(!Array.isArray(ids)||ids.length!==200) errors.push('GLOBAL_COUNT');
+  if(Array.isArray(ids)&&new Set(ids).size!==ids.length) errors.push('GLOBAL_UNIQUE');
+  if(Array.isArray(ids)&&!ids.every((id)=>/^FLIXO-BOT-\\d{3}$/u.test(String(id)))) errors.push('GLOBAL_ID_FORMAT');
+  if(JSON.stringify(ids)!==JSON.stringify(learning)) errors.push('LEARNING_AUDIENCE_PARITY');
+  if(k?.version!=='FLIXO-BOT-BRAIN-v2') errors.push('KERNEL_VERSION');
+  if(k?.overProvisionedCognition!==true) errors.push('OVERPROVISIONING_DISABLED');
+  if(!Array.isArray(k?.capabilities)||k.capabilities.length<90) errors.push('CAPABILITY_UNDERCOVERAGE');
+  if(!Array.isArray(k?.reasoningLenses)||k.reasoningLenses.length<30) errors.push('REASONING_UNDERCOVERAGE');
+  if(k?.roleOverlayPolicy!=='PRIORITY_ONLY_NO_CAPABILITY_REDUCTION') errors.push('ROLE_REDUCES_COGNITION');
+  if(m?.singleMemory!=='diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json') errors.push('WRONG_CANONICAL_MEMORY');
+  if(m?.members!==200) errors.push('MEMORY_MEMBER_COUNT');
+  if(m?.automaticVisibility!==true) errors.push('MEMORY_NOT_AUTOMATIC');
+  if(m?.perAgentMemoryCopies===true) errors.push('PRIVATE_MEMORY_COPIES');
+  if(m?.certificationAuthority===true) errors.push('CERTIFICATION_AUTHORITY_LEAK');
+  return errors;
 }
+
+function adversarialProbe(id,mutate){
+  const altered=JSON.parse(JSON.stringify(registry));
+  mutate(altered);
+  const errors=validateCandidate(altered);
+  const escaped=errors.length===0;
+  const evidence=errors.length?errors.join(','):'NO_INVARIANT_VIOLATION_DETECTED';
+  const status=escaped?'ESCAPED':'BLOCKED';
+  attacks.push({id,status,exactSha:EXPECTED_SHA,evidence});
+  if(escaped) fail('ADVERSARIAL_ESCAPE',id);
+}
+
+const attacks=[];
 adversarialProbe('REMOVE_AGENT',x=>x.distribution.cognitiveBotIds.pop());
 adversarialProbe('REDUCE_CAPABILITIES',x=>x.unifiedCognitiveKernel.capabilities.splice(0,20));
 adversarialProbe('PRIVATE_MEMORY',x=>{x.unifiedCognitiveKernel.unifiedLearningMemory.singleMemory='diagnostics/auto-repair/private-agent-memory.json';});
 adversarialProbe('ROLE_SUPPRESS_CAPABILITY',x=>{x.unifiedCognitiveKernel.roleOverlayPolicy='ROLE_CAN_REDUCE_CAPABILITIES';});
 adversarialProbe('GRANT_CERTIFICATION',x=>{x.unifiedCognitiveKernel.unifiedLearningMemory.certificationAuthority=true;});
+
 
 const perAgent=[
  {count:agents.length,passed:failures.filter(x=>x.id==='GLOBAL_COUNT').length===0},
