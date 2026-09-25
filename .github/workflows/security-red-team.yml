@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: flixo-security-red-team-isolated-${{ github.workflow }}-${{ github.ref_name }}-${{ inputs.expected_sha || github.sha }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
@@ -39,6 +39,18 @@ jobs:
           set -euo pipefail
           [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]] || {
             echo "INVALID_EXPECTED_SHA"
+            exit 1
+          }
+
+      - name: Fail closed unless expected SHA is the live execution head
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          LIVE_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$LIVE_EXECUTION_SHA" = "$EXPECTED_SHA" || {
+            echo "SECURITY_RED_TEAM_STALE_SHA_REJECTED live=$LIVE_EXECUTION_SHA expected=$EXPECTED_SHA"
             exit 1
           }
 
