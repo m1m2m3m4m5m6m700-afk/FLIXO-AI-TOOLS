@@ -10,7 +10,6 @@ permissions:
 concurrency:
   group: flixo-execution-sync-proposal
   cancel-in-progress: true
-  queue: max
 
 jobs:
   sync:

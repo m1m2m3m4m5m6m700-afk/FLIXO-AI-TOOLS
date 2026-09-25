@@ -26,7 +26,6 @@ permissions:
 concurrency:
   group: flixo-historical-index-proposal
   cancel-in-progress: true
-  queue: max
 
 jobs:
   index:
