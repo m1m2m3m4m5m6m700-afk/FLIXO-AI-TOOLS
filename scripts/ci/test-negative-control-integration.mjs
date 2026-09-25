@@ -42,6 +42,15 @@ const writeJson = (relative, value) => {
   fs.writeFileSync(target, `${JSON.stringify(value, null, 2)}\n`);
 };
 
+const writePlaywrightReport = (mode, browser, shard) => {
+  const relative = `diagnostics/certification/playwright-results/browser-${mode.toLowerCase()}-${browser}-${shard}-results.json`;
+  const target = path.join(workspace, relative);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  const report = { suites: [], generatedFor: { mode, browser, shard, runId, exactSha: actualSha } };
+  fs.writeFileSync(target, JSON.stringify(report) + '\n');
+  return createHash('sha256').update(fs.readFileSync(target)).digest('hex');
+};
+
 const browsers = ['chromium', 'firefox', 'webkit'];
 const fastSpecs = [
   'tests/image-compressor.spec.ts','tests/background-remover.spec.ts','tests/image-upscaler.spec.ts',
@@ -98,9 +107,10 @@ for (const browser of browsers) {
   const parts = [fastSpecs.slice(0, 11), fastSpecs.slice(11)];
   parts.forEach((specs, index) => {
     const shard = index + 1;
-    writeJson(`evidence/browser-fast/browser-fast-${browser}-${shard}.json`, {
+    const sourceReportSha256 = writePlaywrightReport('FAST', browser, shard);
+    writeJson(`diagnostics/certification/browser-fast-${browser}-${shard}.json`, {
       schema_version: 5, evidenceClass: 'PRIMARY_EXECUTION', mode: 'FAST', browser, shard, runId,
-      exactSha: actualSha, sourceReportSha256: '0'.repeat(64), status: 'PASS', toolSpecs: fastSpecs.length,
+      exactSha: actualSha, sourceReportSha256, status: 'PASS', toolSpecs: fastSpecs.length,
       expectedSpecCount: specs.length, executedSpecCount: specs.length, unexpectedSpecs: [], executionUnitCount: specs.length,
       skippedTestCount: 0, failedTestCount: 0, notExecutedTestCount: 0,
       statusCounts: { PASS: specs.length, FAIL: 0, SKIPPED: 0, CANCELLED: 0, BLOCKED: 0, NOT_EXECUTED: 0 },
@@ -116,7 +126,8 @@ for (const browser of browsers) {
   const parts = [locales.slice(0, 3), locales.slice(3, 6), locales.slice(6, 9), locales.slice(9, 12), locales.slice(12, 15), locales.slice(15, 18), locales.slice(18)];
   parts.forEach((group, index) => {
     const shard = index + 1;
-    writeJson(`evidence/browser-deep/browser-deep-${browser}-${shard}.json`, {
+    const sourceReportSha256 = writePlaywrightReport('DEEP', browser, shard);
+    writeJson(`diagnostics/certification/browser-deep-${browser}-${shard}.json`, {
       schema_version: 5, evidenceClass: 'PRIMARY_EXECUTION', mode: 'DEEP', browser, shard, runId,
       exactSha: actualSha, sourceReportSha256: '0'.repeat(64), status: 'PASS', locales: 20,
       expectedSpecCount: 1, executedSpecCount: 1, unexpectedSpecs: [], executionUnitCount: group.length,
