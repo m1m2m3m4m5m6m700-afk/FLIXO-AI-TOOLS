@@ -1220,9 +1220,11 @@ jobs:
             3.1[2-9]|3.[2-9][0-9]) ;;
             *) echo "OPENHANDS_ADVISOR_RUNTIME=BLOCKED_EXTERNAL_PYTHON_VERSION:$PYTHON_VERSION"; exit 0 ;;
           esac
-          if "$PYTHON_BIN" -m pip install --disable-pip-version-check --no-input --prefer-binary "openhands-sdk==1.49.5"; then
+          VENV="/tmp/flixo-openhands-venv"
+          rm -rf "$VENV"
+          if "$PYTHON_BIN" -m venv "$VENV" && "$VENV/bin/python" -m pip install --disable-pip-version-check --no-input --prefer-binary "openhands-sdk==1.49.5"; then
             echo "OPENHANDS_ADVISOR_RUNTIME=READY"
-            echo "FLIXO_OPENHANDS_PYTHON=$PYTHON_BIN" >> "$GITHUB_ENV"
+            echo "FLIXO_OPENHANDS_PYTHON=$VENV/bin/python" >> "$GITHUB_ENV"
           else
             echo 'OPENHANDS_ADVISOR_RUNTIME=BLOCKED_EXTERNAL_PACKAGE_INSTALL'
           fi
