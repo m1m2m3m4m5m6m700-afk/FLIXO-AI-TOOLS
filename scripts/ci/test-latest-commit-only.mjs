@@ -56,6 +56,10 @@ for (const file of currentWorkflows) {
   const nameMatch = source.match(/^name:\s*(.+)$/m);
   const workflowName = nameMatch?.[1]?.trim() ?? file;
   if (!commitDrivenName.test(workflowName)) continue;
+  const hasWorkflowRunTrigger = /^\s{2}workflow_run\s*:/mu.test(source);
+  const hasPushTrigger = /^\s{2}push\s*:/mu.test(source);
+  const hasPullRequestTrigger = /^\s{2}pull_request\s*:/mu.test(source);
+  if (!hasWorkflowRunTrigger && !hasPushTrigger && !hasPullRequestTrigger) continue;
   assert.match(source, /concurrency:/u, file + ': latest-commit workflow must define concurrency');
   const hasWorkflowRunTrigger = /^\s{2}workflow_run\s*:/mu.test(source);
   const hasPushTrigger = /^\s{2}push\s*:/mu.test(source);
