@@ -300,7 +300,7 @@ async function callProvider(
   throw new Error('Unsupported AI provider.');
 }
 
-function fallbackDecision(
+export function fallbackDecision(
   message: string,
   file: AgentRequestContract['file'],
   locale: string,
@@ -343,6 +343,21 @@ function fallbackDecision(
       confidence: 0.9,
     };
   }
+
+  const deterministicPlan = planFromIntent(message);
+  if (file && deterministicPlan) {
+    return {
+      mode: 'plan',
+      reply: arabic
+        ? 'تعذر الوصول إلى مزوّد الذكاء الاصطناعي، فاعتمدت الخطة الحتمية الآمنة المتاحة محليًا.'
+        : 'The AI provider was unavailable, so I used the available deterministic safe plan.',
+      question: null,
+      plan: deterministicPlan,
+      confidence: deterministicPlan.confidence,
+      reason: 'DETERMINISTIC_QUICKFLOW_FALLBACK',
+    };
+  }
+
   return {
     mode: 'clarify',
     reply: arabic ? 'أفهم أنك تريد المساعدة. أحتاج تحديد النتيجة المطلوبة حتى أقدر أساعدك بدقة.' : 'I understand you want help. I need the desired result so I can guide you precisely.',

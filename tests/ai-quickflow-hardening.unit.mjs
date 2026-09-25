@@ -7,9 +7,23 @@ import { planWithOptionalAI, planWithProductionAI } from '../src/lib/ai/optional
 import { planWithProviderOrLocal } from '../src/lib/agent/llm-provider.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
 import { TOOLS_REGISTRY } from '../src/config/tools.ts';
+import { fallbackDecision } from '../api/flixo-agent.ts';
 
 const FIXTURE_INPUT = 'compress this image under 200KB and convert to WebP';
 const deterministic = planFromIntent(FIXTURE_INPUT);
+const fallbackWithProviderOutage = fallbackDecision(
+  FIXTURE_INPUT,
+  { name: 'fixture.png', type: 'image/png', size: 1024 },
+  'en',
+);
+assert.equal(fallbackWithProviderOutage.mode, 'plan');
+assert.equal(fallbackWithProviderOutage.reason, 'DETERMINISTIC_QUICKFLOW_FALLBACK');
+assert.deepEqual(fallbackWithProviderOutage.plan?.steps, deterministic?.steps);
+assert.equal(fallbackWithProviderOutage.plan?.catalogFingerprint, TOOL_CATALOG.fingerprint);
+
+const fallbackWithoutFile = fallbackDecision(FIXTURE_INPUT, null, 'en');
+assert.equal(fallbackWithoutFile.mode, 'clarify');
+assert.equal(fallbackWithoutFile.plan, null);
 assert.ok(deterministic, 'baseline deterministic QuickFlow must be available');
 const baselineSteps = JSON.stringify(deterministic.steps);
 const aiCandidate = {
