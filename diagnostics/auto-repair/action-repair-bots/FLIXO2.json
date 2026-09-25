@@ -5,7 +5,7 @@
   "botId": "FLIXO2",
   "displayName": "FLIXO 2",
   "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
-  "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+  "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
   "legacySeat": "ACTION-TWIN-2",
   "systemScope": "FULL_REPOSITORY_AND_AUTOMATION_SYSTEM",
   "lens": "WHOLE_SYSTEM_CODE_AND_RUNTIME",
@@ -70,5 +70,10 @@
       "adversaryBot": "FLIXO3",
       "lens": "WHOLE_SYSTEM_CODE_AND_RUNTIME"
     }
-  }
+  },
+  "unifiedCognitiveKernelRef": "docs/agents/FLIXO-BOT.json#/unifiedCognitiveKernel",
+  "unifiedMemoryRef": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
+  "cognitiveCoverage": "FULL_SYSTEM",
+  "roleOverlayOnly": true,
+  "canReduceCognitiveCoverage": false
 }
