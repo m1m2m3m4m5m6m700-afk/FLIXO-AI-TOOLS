@@ -1,0 +1,107 @@
+name: FLIXO Vercel Production Monitor
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "*/15 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flixo-vercel-production-monitor-main
+  cancel-in-progress: true
+
+env:
+  FLIXO_PRODUCTION_ORIGIN: https://flixoai.vercel.app
+
+jobs:
+  monitor:
+    name: Monitor Vercel production for main only
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Resolve exact current main SHA
+        id: main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')"
+          printf '%s\n' "$MAIN_SHA" > /tmp/main-sha
+          printf 'main_sha=%s\n' "$MAIN_SHA" >> "$GITHUB_OUTPUT"
+          test "$GITHUB_REF" = "refs/heads/main"
+          echo "VERCEL_MONITOR_BRANCH=main"
+          echo "VERCEL_MONITOR_MAIN_SHA=$MAIN_SHA"
+
+      - name: Probe canonical Vercel SHA
+        id: sha
+        shell: bash
+        env:
+          PRODUCTION_ORIGIN: ${{ env.FLIXO_PRODUCTION_ORIGIN }}
+          EXPECTED_SHA: ${{ steps.main.outputs.main_sha }}
+        run: |
+          set -euo pipefail
+          URL="$PRODUCTION_ORIGIN/flixo-head-sha.txt?__flixo_monitor=$GITHUB_RUN_ID"
+          OBSERVED_SHA="$(
+            curl --fail --silent --show-error --location               --retry 5 --retry-delay 2 --retry-all-errors --max-time 20               -H "Cache-Control: no-cache" "$URL" |
+              tr -d '\r\n'
+          )"
+          printf '%s\n' "$OBSERVED_SHA" > /tmp/vercel-sha
+          if ! printf '%s' "$OBSERVED_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "FAIL: Vercel SHA endpoint returned invalid content."
+            exit 1
+          fi
+          if [ "$OBSERVED_SHA" != "$EXPECTED_SHA" ]; then
+            echo "FAIL: Vercel production SHA mismatch."
+            echo "expected=$EXPECTED_SHA"
+            echo "observed=$OBSERVED_SHA"
+            exit 1
+          fi
+          echo "VERCEL_PRODUCTION_EXACT_SHA=PASS"
+          echo "VERCEL_PRODUCTION_SHA=$OBSERVED_SHA"
+
+      - name: Probe production routes
+        shell: bash
+        env:
+          PRODUCTION_ORIGIN: ${{ env.FLIXO_PRODUCTION_ORIGIN }}
+          CACHE_BUSTER: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          probe_html() {
+            local route="$1"
+            local output="$2"
+            local url="$PRODUCTION_ORIGIN$route?__flixo_monitor=$CACHE_BUSTER"
+            local status
+            status="$(
+              curl --silent --show-error --location                 --retry 5 --retry-delay 2 --retry-all-errors --max-time 20                 -o "$output" -w '%{http_code}'                 -H "Cache-Control: no-cache" "$url"
+            )"
+            echo "route=$route http_status=$status"
+            test "$status" = "200"
+            test -s "$output"
+            grep -qi '<html' "$output"
+          }
+
+          probe_html "/" /tmp/production.html
+          probe_html "/admin" /tmp/admin.html
+
+          echo "VERCEL_PRODUCTION_ROUTES=PASS"
+
+      - name: Publish Vercel monitoring evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-vercel-production-monitor-${{ github.run_id }}
+          path: |
+            /tmp/main-sha
+            /tmp/vercel-sha
+            /tmp/production.html
+            /tmp/admin.html
+          if-no-files-found: warn
+          retention-days: 14
