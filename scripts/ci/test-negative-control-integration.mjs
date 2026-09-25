@@ -31,9 +31,8 @@ for (const file of [
   'src/lib/i18n/config.ts',
 ]) copy(file);
 
-const evidenceRoot = path.join(workspace, 'evidence');
 const certificationRoot = path.join(workspace, 'diagnostics', 'certification');
-fs.mkdirSync(evidenceRoot, { recursive: true });
+const evidenceRoot = certificationRoot;
 fs.mkdirSync(certificationRoot, { recursive: true });
 
 const digest = (relative) => createHash('sha256').update(fs.readFileSync(path.join(workspace, relative))).digest('hex');
@@ -152,7 +151,7 @@ writeJson('certification-run-manifest.json', {
 const runNode = (script, env) => spawnSync(process.execPath, [script], {
   cwd: workspace, env: { ...process.env, ...env }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
 });
-const cleanEnv = { EXPECTED_SHA: actualSha, GITHUB_RUN_ID: runId, EXECUTION_EVIDENCE_ROOT: 'evidence', CERTIFICATION_SHA: actualSha, GITHUB_EVENT_NAME: 'test', GITHUB_WORKFLOW: 'FLIXO Test System' };
+const cleanEnv = { EXPECTED_SHA: actualSha, GITHUB_RUN_ID: runId, EXECUTION_EVIDENCE_ROOT: 'diagnostics/certification', CERTIFICATION_SHA: actualSha, GITHUB_EVENT_NAME: 'test', GITHUB_WORKFLOW: 'FLIXO Test System' };
 
 const graphPass = runNode('scripts/ci/validate-execution-graph.mjs', cleanEnv);
 assert.equal(graphPass.status, 0, `positive graph validation failed:\n${graphPass.stdout}\n${graphPass.stderr}`);
