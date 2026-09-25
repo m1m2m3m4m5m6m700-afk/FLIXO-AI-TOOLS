@@ -1,12 +1,12 @@
 MAIN_SHA=1a26c4a3624ec7ae58a8c52191246dda423de5bb
-EXECUTION_SHA=2417154846f79e11bb5c60c540abb5bcd4f3e64a
+EXECUTION_SHA=a896dd138b193a72ebcfbe5aab64ba877b3b89e3
 COMPARE_STATUS=diverged
-AHEAD_BY=1167
+AHEAD_BY=1178
 BEHIND_BY=3
-TOTAL_COMMITS=1167
+TOTAL_COMMITS=1178
 CHANGED_FILES=300
-ADDITIONS=14734
-DELETIONS=1455
+ADDITIONS=15149
+DELETIONS=1375
 
  .github/dependabot.yml | 5 changes, +5, -0
  .github/workflows/action-agent-history-promotion.yml | 7 changes, +6, -1
@@ -54,7 +54,7 @@ DELETIONS=1455
  .github/workflows/test-matrix-contract.yml | 2 changes, +1, -1
  .github/workflows/unified-execution-push-gate.yml | 2 changes, +1, -1
  .github/workflows/wp0-trust-baseline.yml | 46 changes, +24, -22
- AGENTS.md | 4 changes, +2, -2
+ AGENTS.md | 14 changes, +11, -3
  PROJECTS.md | 4 changes, +2, -2
  ai-quickflow-hardening.md | 44 changes, +44, -0
  api/admin/boundary.ts | 128 changes, +88, -40
@@ -65,6 +65,12 @@ DELETIONS=1455
  api/flixo-agent.ts | 150 changes, +139, -11
  artifacts/ci/execution-log.md | 14 changes, +8, -6
  ci/INTEGRATION-BLOCKER.md | 27 changes, +25, -2
+ ci/audit/2026-09-25/branch-diff.txt | 310 changes, +310, -0
+ ci/audit/2026-09-25/exec-scripts.txt | 606 changes, +606, -0
+ ci/audit/2026-09-25/main-scripts.txt | 562 changes, +562, -0
+ ci/audit/2026-09-25/scripts-only-in-execution.txt | 45 changes, +45, -0
+ ci/audit/2026-09-25/task-004-implementation.md | 6 changes, +6, -0
+ ci/audit/2026-09-25/unregistered-workflows.json | 62 changes, +62, -0
  db/council-external-accounts.sql | 115 changes, +111, -4
  diagnostics/agents/inbox/812a5d72ef714f44d70d6b18749a24cca12bcabd9a48adb945c27d488ca9c9f3.json | 73 changes, +73, -0
  diagnostics/agents/inbox/index.json | 12 changes, +11, -1
@@ -126,7 +132,7 @@ DELETIONS=1455
  docs/agents/task-history/FLIXO-NEW-UI-INTEGRATION-2026-09-23.md | 46 changes, +46, -0
  docs/agents/task-history/MASTER-REPAIR-HUMAN-CHAT-2026-09-23.md | 53 changes, +53, -0
  docs/agents/teaching-sessions/REDTEAM-TEST-SYSTEM-20260925.md | 37 changes, +37, -0
- package.json | 30 changes, +25, -5
+ package.json | 37 changes, +29, -8
  public/flixo-brand-mark.webp | 0 changes, +0, -0
  scripts/ci/action-agent-runtime.mjs | 15 changes, +10, -5
  scripts/ci/action-bot-chat.mjs | 2 changes, +1, -1
@@ -163,6 +169,7 @@ DELETIONS=1455
  scripts/ci/full-intelligence-policy.mjs | 124 changes, +124, -0
  scripts/ci/generate-repair-execution-prompts.mjs | 9 changes, +7, -2
  scripts/ci/historical-action-error-index.mjs | 19 changes, +11, -8
+ scripts/ci/impact-dependency-graph.json | 2 changes, +1, -1
  scripts/ci/in-repo-repair-v2.mjs | 4 changes, +3, -1
  scripts/ci/latest-execution-head-cleanup.mjs | 99 changes, +84, -15
  scripts/ci/master-repair-conversation.mjs | 55 changes, +55, -0
@@ -170,24 +177,24 @@ DELETIONS=1455
  scripts/ci/prompt-execution-bot.mjs | 14 changes, +10, -4
  scripts/ci/prompt-registry.mjs | 506 changes, +495, -11
  scripts/ci/record-playwright-execution.mjs | 4 changes, +2, -2
- scripts/ci/repair-lease.mjs | 227 changes, +190, -37
- scripts/ci/repair-pre-commit-adversarial-redteam-gate.mjs | 86 changes, +86, -0
- scripts/ci/repair-protocol.mjs | 2 changes, +1, -1
- scripts/ci/repair-session-observer.mjs | 4 changes, +3, -1
- scripts/ci/resident-wake-proof.mjs | 171 changes, +171, -0
- scripts/ci/runtime-proof-historical-closure.json | 157 changes, +157, -0
- scripts/ci/shared-operational-memory.mjs | 116 changes, +99, -17
- scripts/ci/sync-cognitive-learning-mesh.mjs | 110 changes, +110, -0
- scripts/ci/task-agent.mjs | 18 changes, +14, -4
- scripts/ci/test-action-repair-five-workers.mjs | 78 changes, +66, -12
- scripts/ci/test-action-vault-agent-gate.mjs | 2 changes, +1, -1
- scripts/ci/test-agent-chair-lifecycle.mjs | 2 changes, +1, -1
- scripts/ci/test-agent-communication.mjs | 6 changes, +6, -0
- scripts/ci/test-agent-coordination.mjs | 15 changes, +15, -0
- scripts/ci/test-agent-liveness-protocol.mjs | 225 changes, +219, -6
- scripts/ci/test-agent-work-package-contract.mjs | 4 changes, +4, -0
- scripts/ci/test-auto-repair-architecture.mjs | 12 changes, +7, -5
- scripts/ci/test-auto-repair-boundary-diff.mjs | 40 changes, +40, -0
+ scripts/ci/repair-lease.mjs | 0 changes, +0, -0
+ scripts/ci/repair-pre-commit-adversarial-redteam-gate.mjs | 0 changes, +0, -0
+ scripts/ci/repair-protocol.mjs | 0 changes, +0, -0
+ scripts/ci/repair-session-observer.mjs | 0 changes, +0, -0
+ scripts/ci/resident-wake-proof.mjs | 0 changes, +0, -0
+ scripts/ci/runtime-proof-historical-closure.json | 0 changes, +0, -0
+ scripts/ci/shared-operational-memory.mjs | 0 changes, +0, -0
+ scripts/ci/sync-cognitive-learning-mesh.mjs | 0 changes, +0, -0
+ scripts/ci/task-agent.mjs | 0 changes, +0, -0
+ scripts/ci/test-action-repair-five-workers.mjs | 0 changes, +0, -0
+ scripts/ci/test-action-vault-agent-gate.mjs | 0 changes, +0, -0
+ scripts/ci/test-agent-chair-lifecycle.mjs | 0 changes, +0, -0
+ scripts/ci/test-agent-communication.mjs | 0 changes, +0, -0
+ scripts/ci/test-agent-coordination.mjs | 0 changes, +0, -0
+ scripts/ci/test-agent-liveness-protocol.mjs | 0 changes, +0, -0
+ scripts/ci/test-agent-work-package-contract.mjs | 0 changes, +0, -0
+ scripts/ci/test-auto-repair-architecture.mjs | 0 changes, +0, -0
+ scripts/ci/test-auto-repair-boundary-diff.mjs | 0 changes, +0, -0
  scripts/ci/test-auto-repair-final.mjs | 0 changes, +0, -0
  scripts/ci/test-auto-repair-security-boundary.mjs | 0 changes, +0, -0
  scripts/ci/test-automation-watchdog-contract.mjs | 0 changes, +0, -0
@@ -273,9 +280,15 @@ DELETIONS=1455
  scripts/test-council-runtime-route.mjs | 0 changes, +0, -0
  scripts/test-developer-tool-registry.mjs | 0 changes, +0, -0
  scripts/test-master3-direct-channel.mjs | 0 changes, +0, -0
+ scripts/test-tool-localization-contract.mjs | 0 changes, +0, -0
  scripts/validate-ci-contract.mjs | 0 changes, +0, -0
  scripts/validate-home-localization.mjs | 0 changes, +0, -0
  scripts/validate-indexing.mjs | 0 changes, +0, -0
+ scripts/validate-localization-complete.mjs | 0 changes, +0, -0
+ scripts/validate-localization-core.mjs | 0 changes, +0, -0
+ scripts/validate-localization-full.mjs | 0 changes, +0, -0
+ scripts/validate-localization.mjs | 0 changes, +0, -0
+ scripts/validate-s3-static-gate.mjs | 0 changes, +0, -0
  scripts/validate-seo.mjs | 0 changes, +0, -0
  security-boundary-report.md | 0 changes, +0, -0
  src/components/AgentFirstHome.tsx | 0 changes, +0, -0
@@ -295,16 +308,3 @@ DELETIONS=1455
  src/lib/agent/cognitive-outcome.ts | 0 changes, +0, -0
  src/lib/agent/collective-intelligence.ts | 0 changes, +0, -0
  src/lib/agent/conversation.ts | 0 changes, +0, -0
- src/lib/agent/execution-agent-clone.ts | 0 changes, +0, -0
- src/lib/agent/execution-integrator.ts | 0 changes, +0, -0
- src/lib/agent/human-conversation.ts | 0 changes, +0, -0
- src/lib/agent/intent/intent-plan.ts | 0 changes, +0, -0
- src/lib/agent/intent/parameter-extractor.ts | 0 changes, +0, -0
- src/lib/agent/llm-provider.ts | 0 changes, +0, -0
- src/lib/agent/question-engine.ts | 0 changes, +0, -0
- src/lib/agent/world-model.ts | 0 changes, +0, -0
- src/lib/ai/deterministic-boundary.ts | 0 changes, +0, -0
- src/lib/ai/optional-planner.ts | 0 changes, +0, -0
- src/lib/contracts/agent-gateway.ts | 0 changes, +0, -0
- src/lib/developer/developer-tool-registry.ts | 0 changes, +0, -0
- src/lib/i18n/tool-ui-runtime-completeness.ts | 0 changes, +0, -0

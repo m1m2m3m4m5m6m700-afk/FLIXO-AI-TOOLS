@@ -488,3 +488,21 @@ SIMULATION = replay + failure injection + drift + non-authoritative evidence
 EVIDENCE = every knowledge/observation/RCA/simulation record binds to exact SHA; memory advisory only
 CURRENT_VERIFICATION = canonical CI still pending/active on the latest execution head; no GREEN/certification claim
 HANDOFF_BOUNDARY = Agent-1 for authority/governance/CI/certification; Agent-2 for runtime/features/tests/repair executor
+
+
+## P-CLEAN — REPO CONTROL-PLANE HYGIENE & PRODUCT-BUILD READINESS — 2026-09-25
+
+STATUS = ACTIVE / ENTRY-RECORDED
+OWNER = assistantController / execution-only hygiene lane
+BRANCH POLICY = execution only; no direct main; no third branch
+CURRENT EXECUTION SHA = a896dd138b193a72ebcfbe5aab64ba877b3b89e3
+WP-CLEAN-001 = COMPLETED / 604 execution scripts, 562 main scripts, 46 execution-only
+WP-CLEAN-002 = BLOCKED / exact local checkout required; no CSV manufactured
+WP-CLEAN-003 = BLOCKED / awaits WP-CLEAN-002
+WP-CLEAN-004 = IMPLEMENTED / VERIFICATION PENDING; localization validators consolidated
+WP-CLEAN-005 = VERIFIED / cancel-in-progress=false already present
+WP-CLEAN-006 = COMPLETED / 52 workflows, registry union 14, 0 unregistered contents:write writers, 0 disablements
+WP-CLEAN-007 = BLOCKED / HUMAN REVIEW REQUIRED
+WP-CLEAN-008 = BLOCKED / cleanliness certification not yet proven
+P-PRODUCT-001 = BLOCKED / awaits WP-CLEAN-008
+CONTROL RULE = P-CLEAN does not weaken or supersede active P0 Test-System/Repair work.

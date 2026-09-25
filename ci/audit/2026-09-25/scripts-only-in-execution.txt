@@ -43,3 +43,4 @@ scripts/test-agent-collective-intelligence.mjs
 scripts/test-agent-execution-agent-clone.mjs
 scripts/test-agent-execution-integrator.mjs
 scripts/test-developer-tool-registry.mjs
+scripts/validate-localization.mjs

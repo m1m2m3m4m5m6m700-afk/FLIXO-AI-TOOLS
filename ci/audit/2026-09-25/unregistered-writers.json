@@ -1,0 +1,46 @@
+{
+  "schema": "p-clean/unregistered-writers/v1",
+  "generatedAt": "2026-09-25",
+  "executionSha": "a896dd138b193a72ebcfbe5aab64ba877b3b89e3",
+  "workflowCount": 52,
+  "repairGateAutomation": [
+    "auto-repair.yml",
+    "daily-flixo-green-gate.yml",
+    "execution-sync.yml",
+    "execution-bot-watchdog.yml",
+    "auto-repair-merge-gate.yml",
+    "advanced-repair-contract.yml",
+    "master-repair-governor.yml",
+    "agent-communication-relay.yml",
+    "ultra-investigator.yml",
+    "unified-execution-push-gate.yml"
+  ],
+  "writeCapableWorkflows": [
+    "auto-repair.yml",
+    "daily-flixo-green-gate.yml",
+    "agent-repair-handoff-gate.yml",
+    "repair-lease-live-race.yml",
+    "action-agent-history-promotion.yml",
+    "task-history-ledger.yml"
+  ],
+  "registryUnion": [
+    "action-agent-history-promotion.yml",
+    "advanced-repair-contract.yml",
+    "agent-communication-relay.yml",
+    "agent-repair-handoff-gate.yml",
+    "auto-repair-merge-gate.yml",
+    "auto-repair.yml",
+    "daily-flixo-green-gate.yml",
+    "execution-bot-watchdog.yml",
+    "execution-sync.yml",
+    "master-repair-governor.yml",
+    "repair-lease-live-race.yml",
+    "task-history-ledger.yml",
+    "ultra-investigator.yml",
+    "unified-execution-push-gate.yml"
+  ],
+  "unregisteredContentsWriteWriters": [],
+  "automaticTriggerDisablementsApplied": 0,
+  "method": "contents: write literal scan across all workflow definitions, compared with registry union",
+  "note": "No unregistered contents:write writer was detected; therefore no workflow was disabled."
+}

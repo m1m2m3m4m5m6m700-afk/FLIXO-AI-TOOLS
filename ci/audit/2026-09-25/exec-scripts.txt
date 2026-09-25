@@ -579,9 +579,7 @@ scripts/validate-language-quality-strict.mjs
 scripts/validate-language-quality.mjs
 scripts/validate-locale-contract.mjs
 scripts/validate-locale-navigation.mjs
-scripts/validate-localization-complete.mjs
-scripts/validate-localization-core.mjs
-scripts/validate-localization-full.mjs
+scripts/validate-localization.mjs
 scripts/validate-localized-tool-copy.mjs
 scripts/validate-lock-manifest-contract.mjs
 scripts/validate-performance-budget.mjs
