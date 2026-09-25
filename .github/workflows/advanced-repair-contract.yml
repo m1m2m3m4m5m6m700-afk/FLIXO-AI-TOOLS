@@ -103,6 +103,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          node scripts/ci/test-auto-repair-boundary-diff.mjs
           git reset --hard HEAD >/dev/null
           git clean -fd >/dev/null
           test -z "$(git status --porcelain)"
@@ -120,10 +121,9 @@ jobs:
           echo "STAGED_NUMSTAT_START"
           git diff --cached --numstat -- "$PROBE"
           echo "STAGED_NUMSTAT_END"
-          node scripts/ci/validate-auto-repair-boundary.mjs --diff-only
           BOUNDARY_OUTPUT="$(node scripts/ci/validate-auto-repair-boundary.mjs --diff-only)"
-          printf '%s\n' "$BOUNDARY_OUTPUT" > /tmp/flixo-staged-boundary.out
           printf '%s\n' "$BOUNDARY_OUTPUT"
+          printf '%s\n' "$BOUNDARY_OUTPUT" > /tmp/flixo-staged-boundary.out
           jq -e '.status == "PASS" and .changedFiles == 1 and .changedLines >= 1' /tmp/flixo-staged-boundary.out >/dev/null
           echo 'STAGED_MUTATION_BOUNDARY=PASS'
       - name: Validate no direct push boundary contract

@@ -311,33 +311,76 @@ export function validateStatic() {
 export function validateDiff() {
   const branch = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim();
   if (branch !== 'execution') fail('mutation-branch:' + branch);
-  // Mutation validation must cover both the working tree and the index because the
-  // repair executor stages files before creating the unpublished candidate commit.
+
   const unstaged = execFileSync('git', ['diff', '--name-status'], { cwd: ROOT, encoding: 'utf8' }).trim();
   const staged = execFileSync('git', ['diff', '--cached', '--name-status'], { cwd: ROOT, encoding: 'utf8' }).trim();
-  const raw = [unstaged, staged].filter(Boolean).join('\\n');
-  if (!raw) return { status: 'PASS', changedFiles: 0, changedLines: 0 };
-  const entryMap = new Map();
-  for (const line of raw.split(/\\r?\\n/).filter(Boolean)) {
-    const [status, ...rest] = line.split(/\\s+/);
-    const targetPath = rest.at(-1);
-    if (targetPath) entryMap.set(targetPath, { status, path: targetPath });
-  }
-  const entries = [...entryMap.values()];
-  if (entries.length > MAX_CHANGED_FILES) fail(`changed-files:${entries.length}>${MAX_CHANGED_FILES}`);
-  const protectedChanged = entries.filter(({ path: p }) => CONTROL_PLANE_FILES.includes(p));
-  if (protectedChanged.length) fail('control-plane-mutation:' + protectedChanged.map((x) => x.path).join(','));
-  const denied = entries.filter(({ path: p }) => denyPath(p));
-  if (denied.length) fail('sensitive-path-mutation:' + denied.map((x) => x.path).join(','));
   const unstagedNumstat = execFileSync('git', ['diff', '--numstat'], { cwd: ROOT, encoding: 'utf8' }).trim();
   const stagedNumstat = execFileSync('git', ['diff', '--cached', '--numstat'], { cwd: ROOT, encoding: 'utf8' }).trim();
-  const numstat = [unstagedNumstat, stagedNumstat].filter(Boolean).join('\\n');
+
+  const entryMap = new Map();
+  const addEntry = (status, targetPath) => {
+    const cleanPath = String(targetPath ?? '').trim();
+    if (!cleanPath) return;
+    const normalizedPath = cleanPath.includes(' -> ')
+      ? cleanPath.split(' -> ').at(-1).trim()
+      : cleanPath;
+    entryMap.set(normalizedPath, { status, path: normalizedPath });
+  };
+  const parseNameStatus = (text) => {
+    for (const line of String(text ?? '').split(/\r?\n/).filter(Boolean)) {
+      const [status, ...rest] = line.split(/\s+/);
+      addEntry(status, rest.at(-1));
+    }
+  };
+  parseNameStatus(unstaged);
+  parseNameStatus(staged);
+
+  // Git's cached numstat is the authoritative fallback for staged candidate files.
+  // This covers staged additions reliably even when --name-status is empty in a
+  // runner process, while retaining the normal status-based path collection.
+  const parseNumstatPaths = (text) => {
+    for (const line of String(text ?? '').split(/\r?\n/).filter(Boolean)) {
+      const parts = line.split(/\s+/);
+      if (parts.length >= 3) addEntry('NUMSTAT', parts.at(-1));
+    }
+  };
+  parseNumstatPaths(unstagedNumstat);
+  parseNumstatPaths(stagedNumstat);
+
+  if (entryMap.size === 0) {
+    const porcelain = execFileSync(
+      'git',
+      ['status', '--porcelain=v1', '--untracked-files=all'],
+      { cwd: ROOT, encoding: 'utf8' },
+    ).trim();
+    for (const line of porcelain.split(/\r?\n/).filter(Boolean)) {
+      if (line.startsWith('??')) continue;
+      const status = line.slice(0, 2);
+      if (status === '  ') continue;
+      addEntry(status, line.slice(3));
+    }
+  }
+
+  const entries = [...entryMap.values()];
+  if (entries.length === 0 && !unstagedNumstat && !stagedNumstat) {
+    return { status: 'PASS', changedFiles: 0, changedLines: 0 };
+  }
+  if (entries.length > MAX_CHANGED_FILES) fail(`changed-files:${entries.length}>${MAX_CHANGED_FILES}`);
+
+  const protectedChanged = entries.filter(({ path: p }) => CONTROL_PLANE_FILES.includes(p));
+  if (protectedChanged.length) fail('control-plane-mutation:' + protectedChanged.map((x) => x.path).join(','));
+
+  const denied = entries.filter(({ path: p }) => denyPath(p));
+  if (denied.length) fail('sensitive-path-mutation:' + denied.map((x) => x.path).join(','));
+
+  const numstat = [unstagedNumstat, stagedNumstat].filter(Boolean).join('\n');
   let changedLines = 0;
   for (const line of numstat.split(/\r?\n/).filter(Boolean)) {
     const [add, del] = line.split(/\s+/).map(Number);
     changedLines += (Number.isFinite(add) ? add : 0) + (Number.isFinite(del) ? del : 0);
   }
   if (changedLines > MAX_CHANGED_LINES) fail(`changed-lines:${changedLines}>${MAX_CHANGED_LINES}`);
+
   return { status: 'PASS', changedFiles: entries.length, changedLines };
 }
 
