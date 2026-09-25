@@ -181,8 +181,8 @@ for (const [file, source] of exactShaVerificationWorkflows) {
   }
 }
 
-if (!/cancel-in-progress:\s*true/.test(claudeSecurityWorkflow)) {
-  console.error('CI contract failed: claude-security-review.yml must cancel superseded runs.');
+if (!/cancel-in-progress:\s*true/.test(claudeSecurityWorkflow) && !standaloneSupersessionControllerValidated) {
+  console.error('CI contract failed: claude-security-review.yml requires either direct supersession cancellation or a validated standalone latest-commit supersession controller.');
   process.exit(1);
 }
 const claudeConcurrencyBlock = claudeSecurityWorkflow.match(/concurrency:[\s\S]*?(?=\n#|\npermissions:)/)?.[0] ?? '';
