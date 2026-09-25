@@ -8,7 +8,7 @@
 
 export const COLLECTIVE_INTELLIGENCE_VERSION = 'FLIXO-BOT-BRAIN-v2' as const;
 export const COLLECTIVE_INTELLIGENCE_SOURCE = 'docs/agents/FLIXO-BOT.json' as const;
-export const COLLECTIVE_ACTIVE_MEMBER_COUNT = 76 as const;
+export const COLLECTIVE_ACTIVE_MEMBER_COUNT = 200 as const;
 export const COLLECTIVE_CAPABILITY_COUNT = 97 as const;
 
 export type CollectiveReasoningLens = Readonly<{
