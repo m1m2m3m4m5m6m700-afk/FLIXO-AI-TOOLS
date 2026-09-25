@@ -16,6 +16,13 @@ const BROWSE_TOOLS_LABELS: Record<Locale, string> = {
   uk: 'Переглянути інструменти', vi: 'Duyệt công cụ',
 };
 
+const LANGUAGE_LABELS: Record<Locale, string> = {
+  en: 'English', ar: 'العربية', es: 'Español', fr: 'Français', de: 'Deutsch',
+  hi: 'हिन्दी', id: 'Bahasa Indonesia', it: 'Italiano', ja: '日本語', ko: '한국어',
+  ms: 'Bahasa Melayu', nl: 'Nederlands', pl: 'Polski', pt: 'Português', ru: 'Русский',
+  sv: 'Svenska', th: 'ไทย', tr: 'Türkçe', uk: 'Українська', vi: 'Tiếng Việt',
+};
+
 export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale }) {
   const navigate = useNavigate();
   const home = getHomeCopy(locale);
