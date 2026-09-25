@@ -44,6 +44,7 @@ const scripts = [
   'scripts/ci/test-security-red-team-contract.mjs',
   'scripts/ci/test-root-closure-contract.mjs',
   'scripts/ci/test-continuous-error-watch.mjs',
+  'scripts/ci/test-repair-pre-commit-adversarial-redteam.mjs',
   'scripts/ci/test-automation-watchdog-contract.mjs',
   'scripts/ci/continuous-error-watch.mjs',
   'scripts/ci/release-evidence-binding.mjs',
@@ -65,6 +66,7 @@ const wiringChecks = [
   ['HEARTBEAT_INDEPENDENT_PROOF', /resident-wake-proof\.mjs verify/u.test(workflows.heartbeat)],
   ['WATCHDOG_INDEPENDENT_PROOF', /Independently verify resident handoff proof/u.test(workflows.watchdog)],
   ['SECURITY_READ_ONLY', /contents:\s*read/u.test(workflows.security)],
+  ['PRE_COMMIT_ADVERSARIAL_REDTEAM_GATE', /FLIXO-PRE-COMMIT-ADVERSARIAL-REDTEAM-v1/u.test(read('scripts/ci/repair-pre-commit-adversarial-redteam-gate.mjs')) && /Pre-commit adversarial \+ Red Team gate/u.test(read('.github/workflows/auto-repair.yml'))],
   ['BINARY_AUTOMATION_OUTCOME', /NON_BINARY_AUTOMATION_OUTCOME/u.test(read('scripts/ci/continuous-error-watch.mjs')) && /automationOutcome/u.test(read('scripts/ci/continuous-error-watch.mjs'))],
 ];
 for (const [name, passed] of wiringChecks) if (!passed) failures.push(`ASSURANCE_WIRING_FAILED=${name}`);

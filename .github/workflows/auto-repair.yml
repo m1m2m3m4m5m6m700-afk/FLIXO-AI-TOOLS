@@ -1466,9 +1466,24 @@ jobs:
           node scripts/ci/chair-bound-execution.mjs authorize-write --chair=chair_1 --agent=AUTO_REPAIR_BOT --sha="$FAILED_SHA" --permission=SOURCE_MUTATION --work-package="$WORK_PACKAGE_ID" --task-id="$TASK_ID" --fencing-token="$FENCING_TOKEN" --paths="$STAGED_PATHS" --scope="$STAGED_PATHS"
           echo 'CHAIR1_LOCAL_DELEGATION=VERIFIED'
           echo 'GLOBAL_MUTATION_GATE=PASS'
+      - name: Pre-commit adversarial + Red Team gate
+        id: pre_commit_adversarial_redteam
+        if: steps.verify.outputs.verified == 'true'
+        env:
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_PRE_COMMIT_ADVERSARIAL_REDTEAM_OUTPUT: /tmp/flixo-pre-commit-adversarial-redteam.json
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$(cat /tmp/flixo-failed-sha)"
+          test -n "$(git diff --cached --name-only)"
+          node scripts/ci/repair-pre-commit-adversarial-redteam-gate.mjs
+          test -s /tmp/flixo-pre-commit-adversarial-redteam.json
+          jq -e --arg sha "$(cat /tmp/flixo-failed-sha)" '.protocol == "FLIXO-PRE-COMMIT-ADVERSARIAL-REDTEAM-v1" and .expectedSha == $sha and .commitCreated == false and .baselineRedTeam.pass == true and .patchedRedTeam.pass == true and .patchedRedTeam.newFindingCount == 0 and .adversarial.pass == true and .authority.commitAuthority == false' /tmp/flixo-pre-commit-adversarial-redteam.json >/dev/null
+          echo 'PRE_COMMIT_ADVERSARIAL_REDTEAM=PASS'
+
       - name: Create exact unpublished candidate commit
         id: candidate_commit
-        if: steps.verify.outputs.verified == 'true'
+        if: steps.verify.outputs.verified == 'true' && steps.pre_commit_adversarial_redteam.outcome == 'success'
         run: |
           set -euo pipefail
           BASE_SHA="$(git rev-parse HEAD)"

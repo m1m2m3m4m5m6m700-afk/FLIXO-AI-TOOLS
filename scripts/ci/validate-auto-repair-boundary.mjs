@@ -16,6 +16,7 @@ const MAX_CHANGED_LINES = 300;
 const MUTATION_WORKFLOWS = Object.freeze(['auto-repair.yml']);
 const MUTATION_LANE = 'flixo-execution-mutation-lane';
 const MUTATION_GATE_SCRIPT = path.join(ROOT,'scripts','ci','execution-mutation-gate.mjs');
+const PRE_COMMIT_GATE_SCRIPT = path.join(ROOT,'scripts','ci','repair-pre-commit-adversarial-redteam-gate.mjs');
 
 export const CONTROL_PLANE_FILES = Object.freeze([
   ...REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${name}`),
@@ -26,6 +27,8 @@ export const CONTROL_PLANE_FILES = Object.freeze([
   'scripts/ci/validate-auto-repair-boundary.mjs',
   'scripts/ci/auto-repair-chair1-audit.mjs',
   'scripts/ci/post-patch-adversarial-assessor.mjs',
+  'scripts/ci/repair-pre-commit-adversarial-redteam-gate.mjs',
+  'scripts/ci/test-repair-pre-commit-adversarial-redteam.mjs',
   'scripts/ci/candidate-verification-parallel.mjs',
   'scripts/ci/in-repo-repair-v2.mjs',
   'scripts/ci/test-in-repo-repair-v2.mjs',
@@ -83,6 +86,18 @@ export function validateStatic() {
   const claudeSecurity = read(path.join(ROOT, '.github', 'workflows', 'claude-security-review.yml'));
   const supervisor = read(path.join(ROOT, '.github', 'workflows', 'agent-repair-supervisor.yml'));
   const heartbeat = read(path.join(ROOT, '.github', 'workflows', 'agent-repair-heartbeat.yml'));
+  must(fs.existsSync(PRE_COMMIT_GATE_SCRIPT), 'pre-commit-adversarial-redteam-gate-exists');
+  const preCommitGate = fs.readFileSync(PRE_COMMIT_GATE_SCRIPT, 'utf8');
+  must(preCommitGate.includes('FLIXO-PRE-COMMIT-ADVERSARIAL-REDTEAM-v1'), 'pre-commit-gate-protocol');
+  must(preCommitGate.includes('commitCreated:false'), 'pre-commit-gate-no-commit');
+  must(/SECURITY-REDTEAM-1[\s\S]*SECURITY-REDTEAM-2[\s\S]*SECURITY-REDTEAM-3/u.test(preCommitGate), 'pre-commit-gate-redteam-triad');
+  must(preCommitGate.includes('NEW_RED_TEAM_FINDINGS'), 'pre-commit-gate-new-findings-rejected');
+  must(preCommitGate.includes('ADVERSARIAL_MUTATION_SURVIVED'), 'pre-commit-gate-mutation-survivor-rejected');
+  must(auto.includes('Pre-commit adversarial + Red Team gate'), 'pre-commit-gate-workflow-wired');
+  must(/steps\.verify\.outputs\.verified == 'true' && steps\.pre_commit_adversarial_redteam\.outcome == 'success'/u.test(auto), 'candidate-commit-requires-pre-commit-gate');
+  const preGateIndex = auto.indexOf('Pre-commit adversarial + Red Team gate');
+  const candidateCommitIndex = auto.indexOf('Create exact unpublished candidate commit');
+  must(preGateIndex >= 0 && candidateCommitIndex > preGateIndex, 'pre-commit-gate-before-commit');
   const errors = [];
   const must = (condition, code) => { if (!condition) errors.push(code); };
   const workflowDir = path.join(ROOT,'.github','workflows');
