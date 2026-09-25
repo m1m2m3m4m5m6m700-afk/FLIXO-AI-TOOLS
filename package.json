@@ -269,7 +269,8 @@
     "test:control-contract-locks": "node scripts/ci/test-control-contract-locks.mjs",
     "test:swarm-capacity": "node scripts/ci/test-flixo-swarm-capacity-controller.mjs",
     "test:developer-tool-registry": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-developer-tool-registry.mjs",
-    "validate:localization": "node scripts/validate-localization.mjs"
+    "validate:localization": "node scripts/validate-localization.mjs",
+    "test:openhands-repair-advisor": "node scripts/ci/auto-repair/test-openhands-repair-advisor.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
