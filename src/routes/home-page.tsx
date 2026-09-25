@@ -2,6 +2,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { TOOLS_REGISTRY } from '../config/tools';
 import { FlixoLogoImage } from '../components/FlixoLogoImage';
+import { AgentWorkbench } from '../components/AgentWorkbench';
 import { getBestToolIntent } from '@/lib/intent-router';
 import { loadHomeCopy } from '@/lib/i18n/home-loader';
 import { getAuthoritativeToolSeoName } from '@/config/tool-seo-name-resolver';
@@ -68,7 +69,8 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
             <FlixoAIAgent locale={locale} />
           </Suspense>
         ) : (
-          <section className="flixo-ai-agent" aria-labelledby="home-ai-launch-title">
+          <AgentWorkbench locale={locale} />
+        <section className="flixo-ai-agent" aria-labelledby="home-ai-launch-title">
             <div className="home-container">
               <button type="button" className="home-hero-command" onClick={() => setAiAgentOpen(true)}>
                 <span id="home-ai-launch-title">{copy.describe}</span><kbd>AI</kbd>

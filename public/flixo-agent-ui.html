@@ -1,0 +1,51 @@
+[Reading 47 lines from start (total: 47 lines, 0 remaining)]
+
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FLIXO AI — استوديو التحرير الذكي</title>
+<meta name="description" content="تحدث مع وكيل FLIXO، طابق طلبك مع الأداة المناسبة، ثم افتح أداة التنفيذ الفعلية.">
+<meta name="theme-color" content="#0A0E14"><meta name="color-scheme" content="dark">
+<style>
+:root{--bg:#0A0E14;--panel:#10151D;--panel2:#141B25;--border:#1E2733;--text:#E7ECF2;--muted:#7C8797;--teal:#3ECFB2;--focus:0 0 0 3px rgba(62,207,178,.35)}*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;overflow:hidden}button,input,textarea{font:inherit}button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{outline:0;box-shadow:var(--focus)}.shell{height:100%;display:grid;grid-template-columns:58px minmax(0,1fr) 320px}.rail{background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:8px}.logo{width:34px;height:34px;border-radius:9px;background:var(--teal);color:#04140f;display:grid;place-items:center;font-weight:800;margin-bottom:18px}.rail button{width:40px;height:40px;border:1px solid transparent;background:transparent;color:var(--muted);border-radius:9px;cursor:pointer}.rail button.active,.rail button:hover{background:rgba(62,207,178,.12);color:var(--teal)}.rail .spacer{flex:1}.chat{display:flex;flex-direction:column;min-width:0}.head{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--border)}.status{display:flex;gap:8px;align-items:center;font-size:13px}.dot{width:7px;height:7px;border-radius:50%;background:var(--teal)}.messages{flex:1;overflow:auto;padding:24px;display:flex;flex-direction:column;gap:14px}.msg{max-width:700px;display:flex;gap:10px}.msg.user{align-self:flex-end;flex-direction:row-reverse}.avatar{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none;background:#12202a;color:var(--teal);font-size:11px;font-weight:700}.msg.user .avatar{color:var(--muted)}.bubble{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px}.msg.user .bubble{background:rgba(62,207,178,.1);border-color:#21424a}.composer{padding:14px 20px 18px;border-top:1px solid var(--border)}.chips{display:flex;gap:8px;overflow:auto;margin-bottom:10px}.chip{white-space:nowrap;background:var(--panel);border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:6px 11px;cursor:pointer}.box{display:flex;align-items:end;gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:8px}.box textarea{flex:1;background:transparent;border:0;outline:0;resize:none;color:var(--text);min-height:38px;max-height:120px;padding:8px}.send{background:var(--teal);border:0;border-radius:9px;padding:10px 14px;color:#04140f;font-weight:800}.tools{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;min-width:0}.tools h2{font-size:15px;margin:0 0 12px}.tools-head{padding:16px;border-bottom:1px solid var(--border)}.search{width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:9px;color:var(--text);padding:9px}.tool-list{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:8px}.tool{display:flex;gap:10px;text-align:right;width:100%;padding:11px;border-radius:10px;background:var(--panel2);border:1px solid #182028;color:var(--text);cursor:pointer}.tool:hover{border-color:#2c5d65}.icon{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:rgba(62,207,178,.12);color:var(--teal);flex:none}.tool strong{display:block;font-size:13px}.tool span{color:var(--muted);font-size:11px}.empty{padding:26px;text-align:center;color:var(--muted)}
+@media(max-width:900px){.shell{grid-template-columns:56px minmax(0,1fr)}.tools{display:none}.tools.open{display:flex;position:fixed;right:0;top:0;bottom:0;width:88vw;max-width:360px;z-index:20;box-shadow:-20px 0 40px rgba(0,0,0,.5)}.toggle{display:block!important}.head .toggle{display:block!important}.toggle{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px}}.toggle{display:none}
+</style>
+</head>
+<body>
+<div class="shell">
+<nav class="rail" aria-label="التنقل"><div class="logo">FX</div><button class="active" aria-current="page" title="المحادثة">◌</button><button title="السجل">◷</button><button title="المشاريع">□</button><div class="spacer"></div><button title="الإعدادات">⚙</button></nav>
+<section class="chat" aria-label="وكيل FLIXO">
+<header class="head"><div class="status"><span class="dot" aria-hidden="true"></span><strong>وكيل FLIXO</strong><span style="color:var(--muted)">جاهز</span></div><button class="toggle" id="toggle" aria-expanded="false">الأدوات</button></header>
+<div class="messages" id="messages" aria-live="polite"><div class="msg"><div class="avatar">FX</div><div class="bubble">أرسل طلبك بلغة طبيعية. سأطابق النية مع أداة FLIXO المناسبة ثم أفتح مسار التنفيذ الفعلي.</div></div></div>
+<div class="composer"><div class="chips" id="chips"><button class="chip">إزالة الخلفية</button><button class="chip">ضغط الصورة</button><button class="chip">تحويل الصورة إلى WebP</button><button class="chip">تكبير الصورة</button></div><form class="box" id="form"><textarea id="input" rows="1" aria-label="طلب FLIXO" placeholder="مثال: أزل الخلفية ثم حوّل الصورة إلى WebP"></textarea><button class="send" type="submit">إرسال</button></form></div>
+</section>
+<aside class="tools" id="tools" aria-label="الأدوات"></aside>
+</div>
+<script>
+'use strict';
+(()=>{const TOOLS=[
+{id:'background-remover',cat:'صورة',name:'إزالة الخلفية',desc:'فصل الموضوع عن الخلفية تلقائياً.'},
+{id:'image-compressor',cat:'صورة',name:'ضغط الصورة',desc:'تقليل الحجم مع الحفاظ على الجودة.'},
+{id:'image-converter',cat:'صورة',name:'تحويل الصورة',desc:'تحويل PNG وJPG وWebP.'},
+{id:'image-upscaler',cat:'صورة',name:'تكبير الصورة',desc:'رفع الدقة مع الحفاظ على التفاصيل.'},
+{id:'image-cropper',cat:'صورة',name:'اقتصاص الصورة',desc:'قص الصورة بأبعاد دقيقة.'},
+{id:'image-ocr',cat:'صورة',name:'استخراج النص OCR',desc:'استخراج النص من الصورة.'},
+{id:'pix',cat:'تحرير',name:'محرر الصور',desc:'تحرير متقدم للصورة.'}
+];
+const ALIASES={'background-remover':['إزالة الخلفية','تفريغ الصورة','remove background'],'image-compressor':['ضغط الصورة','ضغط الصور','compress image'],'image-converter':['تحويل الصورة','webp','تحويل png'],'image-upscaler':['تكبير الصورة','رفع الجودة','upscale'],'image-cropper':['اقتصاص','قص الصورة'],'image-ocr':['ocr','استخراج النص','نسخ النص'],'pix':['محرر الصور','تعديل الصور','تحرير الصورة']};
+const $=id=>document.getElementById(id),messages=$('messages'),input=$('input'),tools=$('tools'),search=document.createElement('input');search.className='search';search.placeholder='ابحث عن أداة…';
+const head=document.createElement('div');head.className='tools-head';head.innerHTML='<h2>تصفح الأدوات</h2>';head.appendChild(search);const list=document.createElement('div');list.className='tool-list';tools.append(head,list);
+function render(){const q=search.value.trim().toLowerCase();list.innerHTML='';TOOLS.filter(t=>!q||t.name.toLowerCase().includes(q)||t.desc.toLowerCase().includes(q)).forEach(t=>{const b=document.createElement('button');b.className='tool';b.type='button';b.innerHTML='<span class="icon">✦</span><span><strong>'+t.name+'</strong><span>'+t.desc+' · '+t.cat+'</span></span>';b.onclick=()=>useTool(t);list.appendChild(b)});if(!list.children.length)list.innerHTML='<div class="empty">لا توجد أداة مطابقة.</div>'}
+function score(q,t){const n=q.toLowerCase();return Math.max(...[t.id,t.name,...(ALIASES[t.id]||[])].map(x=>n.includes(x.toLowerCase())||x.toLowerCase().includes(n)?100:0))}
+function find(q){return TOOLS.map(t=>({t,s:score(q,t)})).filter(x=>x.s).sort((a,b)=>b.s-a.s)[0]?.t||null}
+function useTool(t){const p=document.createElement('div');p.className='msg';p.innerHTML='<div class="avatar">FX</div><div class="bubble">الأداة المختارة: <strong>'+t.name+'</strong>.<br><a href="/ar/'+t.id+'" style="color:var(--teal)">فتح الأداة الفعلية ←</a></div>';messages.appendChild(p);messages.scrollTop=messages.scrollHeight}
+function send(text){const u=document.createElement('div');u.className='msg user';u.innerHTML='<div class="avatar">أنت</div><div class="bubble">'+text.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))+'</div>';messages.appendChild(u);const t=find(text);if(t)useTool(t);else{const a=document.createElement('div');a.className='msg';a.innerHTML='<div class="avatar">FX</div><div class="bubble">لم أجد تطابقاً مباشرًا. اختر أداة من اللوحة أو صِف المهمة بصورة أخرى.</div>';messages.appendChild(a)}messages.scrollTop=messages.scrollHeight}
+$('form').addEventListener('submit',e=>{e.preventDefault();const v=input.value.trim();if(v){send(v);input.value='';input.style.height='auto'}});
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{input.value=c.textContent||'';input.focus()});
+search.oninput=render;render();$('toggle').onclick=()=>{const open=tools.classList.toggle('open');$('toggle').setAttribute('aria-expanded',String(open))};
+})();
+</script>
+</body></html>
+
+[executed on device: Abood (bebcad5f-769c-412e-b9ef-1475b8eefe5a)]

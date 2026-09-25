@@ -21,6 +21,12 @@ export function ToolChainPanel({ currentToolId }: { currentToolId?: string | nul
   useEffect(() => () => { if (resultUrl) URL.revokeObjectURL(resultUrl); }, [resultUrl]);
 
   const refresh = () => setChain(getToolChain());
+
+  useEffect(() => {
+    const handleChainChange = () => refresh();
+    window.addEventListener('flixo:tool-chain-change', handleChainChange);
+    return () => window.removeEventListener('flixo:tool-chain-change', handleChainChange);
+  }, []);
   const addCurrent = () => {
     if (!currentToolId) return;
     addToolToChain(currentToolId);
