@@ -72,6 +72,7 @@ assert.match(allAgentsRunner,/ONE_CANONICAL_MEMORY/u);
 assert.match(allAgentsRunner,/mutationAuthority:false/u);
 assert.match(allAgentsRunner,/certificationAuthority:false/u);
 assert.match(allAgentsRunner,/ADVERSARIAL/u);
+assert.match(allAgentsRunner,/adversarialProbes:5[\s\S]*attacks,/u);
 
 assert.match(workflow,/Evaluate actionable findings and request automated repair/u);
 assert.match(workflow,/REDTEAM_REPAIR_REQUIRED=true/u);
