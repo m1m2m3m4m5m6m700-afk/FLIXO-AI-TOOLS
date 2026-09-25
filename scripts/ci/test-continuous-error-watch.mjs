@@ -17,6 +17,7 @@ const run = (workflowName, databaseId, conclusion = 'success') => ({
     'FLIXO Test Impact Execution': '.github/workflows/test-impact-execution.yml',
     'Repository Security Baseline': '.github/workflows/repository-security-baseline.yml',
     'Claude Security Review': '.github/workflows/claude-security-review.yml',
+    'FLIXO Security Red-Team Triad (Isolated)': '.github/workflows/security-red-team.yml',
   }[workflowName] ?? ''),
   databaseId,
   headSha: SHA_A,
@@ -107,6 +108,30 @@ assert.equal(validateRepairTarget({
   workflowRuns: [],
   logs: { 53: 'EVIDENCE_CAPTURE=AVAILABLE\nself target' },
 }).errors.includes('TARGET_SELF_REPAIR'), true);
+const redTeamTarget = validateRepairTarget({
+  run: { ...run('FLIXO Security Red-Team Triad (Isolated)', 77, 'failure'), headBranch: 'execution' },
+  executionSha: SHA_A,
+  workflowRuns: [],
+  logs: { 77: 'EVIDENCE_CAPTURE=AVAILABLE\\nREDTEAM_REPAIR_REQUIRED=true\\n[HIGH] actionable security finding' },
+});
+assert.equal(redTeamTarget.valid, true);
+assert.deepEqual(redTeamTarget.errors, []);
+
+const redTeamRepairInput = evaluateGreen({
+  ...baseGreenInput,
+  workflowRuns: [
+    ...baseGreenInput.workflowRuns,
+    { ...run('FLIXO Security Red-Team Triad (Isolated)', 78, 'failure'), headBranch: 'execution' },
+  ],
+  logs: {
+    78: 'EVIDENCE_CAPTURE=AVAILABLE\\nREDTEAM_REPAIR_REQUIRED=true\\n[HIGH] actionable security finding\\nREDTEAM_TARGET_SHA=' + SHA_A,
+  },
+});
+assert.equal(redTeamRepairInput.status, 'RED_INTERNAL');
+assert.equal(redTeamRepairInput.repair.required, true);
+assert.equal(redTeamRepairInput.repair.targetRunId, 78);
+assert.equal(redTeamRepairInput.repair.failedSha, SHA_A);
+
 const unknownTarget = validateRepairTarget({
   run: { ...run('Unknown workflow', 54, 'failure'), headBranch: 'execution' },
   executionSha: SHA_A,
