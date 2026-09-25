@@ -78,7 +78,7 @@ assert.equal((runner.match(/tracked\.filter\(browserSourceFile\)/gu) ?? []).leng
 assert.doesNotMatch(runner,/tracked\.filter\(appSourceFile\)\s*\{\n\s*const checks = \[\n\s*\['RUNTIME-FETCH-TAINT'/u);
 assert.match(runner,/mutationAuthority:false/u);
 assert.match(runner,/APP-CHILD-PROCESS/u);
-assert.match(runner,/node:)?child_process/u);
+assert.match(runner,/(?:node:)?child_process/u);
 assert.match(runner,/(?<!\\.)\\bexec\\s*\\(/u);
 assert.doesNotMatch(runner,/child_process\|execFileSync/u);
 assert.match(runner,/adversarial-repair-twin\.mjs/u);
