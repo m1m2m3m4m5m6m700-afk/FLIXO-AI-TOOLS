@@ -254,7 +254,11 @@ jobs:
 
             for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
               EXPECTED_WORKFLOW_PATH="${REQUIRED_WORKFLOW_PATHS[$workflow]}"
-              RUN_JSON="$(jq -c --arg name "$workflow" --arg path "$EXPECTED_WORKFLOW_PATH" '[.[] | select(.name == $name and .path == $path)] | sort_by(.updatedAt) | last // empty' /tmp/exact-runs.json)"
+              RUN_JSON="$(jq -c --arg name "$workflow" --arg path "$EXPECTED_WORKFLOW_PATH" '
+                ([.[] | select(.name == $name and .path == $path and .conclusion != "cancelled")] | sort_by(.updatedAt) | last)
+                // ([.[] | select(.name == $name and .path == $path)] | sort_by(.updatedAt) | last)
+                // empty
+              ' /tmp/exact-runs.json)"
               if [ -z "$RUN_JSON" ]; then
                 echo "EXACT_SHA_GATE_WAITING poll=$poll workflow=$workflow state=MISSING"
                 WAITING=true
