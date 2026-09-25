@@ -54,7 +54,7 @@
     "wholeSystemAwarenessRequired": true,
     "workerCount": 10,
     "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
-    "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+    "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
     "cloneModel": "ONE_SHARED_COGNITIVE_KERNEL_WITH_ROLE_OVERLAYS",
     "pushAuthority": "CHAIR_1_ONLY",
     "sourceMutationOwner": "ACTION-REPAIR",
@@ -128,7 +128,7 @@
       "currentAssignment": null,
       "independentDevelopment": true,
       "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
-      "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
       "cognitiveParity": "EXACT_SHARED_BY_REFERENCE"
     },
     {
@@ -157,7 +157,7 @@
       "currentAssignment": null,
       "independentDevelopment": true,
       "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
-      "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
       "cognitiveParity": "EXACT_SHARED_BY_REFERENCE"
     },
     {
@@ -186,7 +186,7 @@
       "currentAssignment": null,
       "independentDevelopment": true,
       "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
-      "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
       "cognitiveParity": "EXACT_SHARED_BY_REFERENCE"
     },
     {
@@ -215,7 +215,7 @@
       "currentAssignment": null,
       "independentDevelopment": true,
       "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
-      "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
       "cognitiveParity": "EXACT_SHARED_BY_REFERENCE"
     },
     {
@@ -288,7 +288,7 @@
       "currentAssignment": null,
       "independentDevelopment": true,
       "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
-      "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
       "cognitiveParity": "EXACT_SHARED_BY_REFERENCE",
       "sourceMutationOwner": "ACTION-REPAIR",
       "pushAuthority": "CHAIR_1_ONLY"
@@ -319,7 +319,7 @@
       "currentAssignment": null,
       "independentDevelopment": true,
       "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
-      "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
       "cognitiveParity": "EXACT_SHARED_BY_REFERENCE",
       "sourceMutationOwner": "ACTION-REPAIR",
       "pushAuthority": "CHAIR_1_ONLY"
@@ -350,7 +350,7 @@
       "currentAssignment": null,
       "independentDevelopment": true,
       "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
-      "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
       "cognitiveParity": "EXACT_SHARED_BY_REFERENCE",
       "sourceMutationOwner": "ACTION-REPAIR",
       "pushAuthority": "CHAIR_1_ONLY"
@@ -381,7 +381,7 @@
       "currentAssignment": null,
       "independentDevelopment": true,
       "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
-      "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
       "cognitiveParity": "EXACT_SHARED_BY_REFERENCE",
       "sourceMutationOwner": "ACTION-REPAIR",
       "pushAuthority": "CHAIR_1_ONLY"
@@ -412,7 +412,7 @@
       "currentAssignment": null,
       "independentDevelopment": true,
       "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
-      "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
       "cognitiveParity": "EXACT_SHARED_BY_REFERENCE",
       "sourceMutationOwner": "ACTION-REPAIR",
       "pushAuthority": "CHAIR_1_ONLY",
@@ -445,7 +445,7 @@
       "currentAssignment": null,
       "independentDevelopment": true,
       "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
-      "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
       "cognitiveParity": "EXACT_SHARED_BY_REFERENCE",
       "sourceMutationOwner": "ACTION-REPAIR",
       "pushAuthority": "CHAIR_1_ONLY",
@@ -1351,5 +1351,11 @@
       ],
       "activeWorkerCount": 1
     }
-  }
+  },
+  "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
+  "intelligenceKernelRef": "docs/agents/FLIXO-BOT.json#/unifiedCognitiveKernel",
+  "sharedMemoryRef": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
+  "sharedCognitiveMode": "FULL_SUPERSET_WITH_ROLE_OVERLAYS",
+  "everyWorkerGetsFullCognitiveKernel": true,
+  "roleCannotReduceCognition": true
 }
