@@ -239,7 +239,7 @@ export function readSharedMemory({fingerprint=null,botId=null,kinds=null,limit=8
   const allowedKinds=Array.isArray(kinds)?new Set(kinds.filter(kind=>SHARED_KINDS.includes(kind))):null;
   const canonicalBotId=botId?resolveSharedMemoryBotId(botId):null;
   const rows=memory.records.filter(record=>
-    (record.legacyRecord === true || (record.broadcastToAllCellMembers === true && record.broadcastScope === CELL_MEMORY_SCOPE && record.cellMemberCount === CELL_MEMBER_COUNT && record.audience.length === CELL_MEMBER_COUNT && record.audience.every((id,index)=>id===SHARED_BOTS[index]))) &&
+    (record.legacyRecord === true || record.broadcastToAllCellMembers === undefined || (record.broadcastToAllCellMembers === true && record.broadcastScope === CELL_MEMORY_SCOPE && record.cellMemberCount === CELL_MEMBER_COUNT && record.audience.length === CELL_MEMBER_COUNT && record.audience.every((id,index)=>id===SHARED_BOTS[index]))) &&
 
     (!fingerprint||record.fingerprint===fingerprint) &&
     (!canonicalBotId||record.audience.includes(canonicalBotId)) &&
