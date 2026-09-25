@@ -224,7 +224,11 @@ export function FlixoAIAgentStudio({
             <div className="flixo-agent-inline-card" data-testid="flixo-agent-plan-ready">
               <div>
                 <strong>{copy.planReady}</strong>
-                <span>{planned?.steps?.length ?? plan.steps.length} {copy.step}</span>
+                {(() => {
+                  const stepCount = planned?.steps?.length ?? plan.steps.length;
+                  const stepLabel = locale === 'en' && stepCount !== 1 ? 'steps' : copy.step;
+                  return <span>{stepCount} {stepLabel}</span>;
+                })()}
               </div>
               <span>{file ? copy.execute : copy.uploadThenExecute}</span>
             </div>
