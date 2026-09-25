@@ -90,7 +90,7 @@ jobs:
           case "$RUN_ID" in
             ""|*[!0-9]*) echo "FAIL CLOSED: run_id must be numeric."; exit 1 ;;
           esac
-          META="$(gh_retry gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,name,path,conclusion,headSha,headBranch,status,updatedAt)"
+          META="$(gh_retry gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" | jq '{databaseId: .id, name, path, conclusion, headSha: .head_sha, headBranch: .head_branch, status, updatedAt: .updated_at}')"
           CONCLUSION="$(jq -r '.conclusion // empty' <<<"$META")"
           case "$CONCLUSION" in
             failure|timed_out|action_required) ;;
