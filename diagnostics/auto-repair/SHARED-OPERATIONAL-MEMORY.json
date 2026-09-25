@@ -1461,7 +1461,7 @@
     ]
   },
   "intelligenceRegistry": "docs/agents/FLIXO-BOT.json",
-  "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+  "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
   "systemWide": true,
   "legacyParticipants": [
     "ACTION-REPAIR",
@@ -1558,5 +1558,18 @@
       "exactShaBindingRequired": true,
       "provenanceRequired": true
     }
+  },
+  "scope": "ALL_INTERNAL_AGENTS_AND_REPAIR_BOTS",
+  "cognitiveKernelProtocol": "FLIXO-UNIFIED-COGNITIVE-KERNEL-v2",
+  "unifiedMemoryPolicy": {
+    "canonicalStore": true,
+    "allInternalAgents": true,
+    "allRepairBots": true,
+    "localMemoryRole": "CACHE_OR_SCRATCH",
+    "authority": "KNOWLEDGE_ONLY",
+    "exactShaBound": true,
+    "promotion": "CANONICAL_GREEN_ONLY",
+    "staleKnowledgePolicy": "REQUALIFY_BEFORE_REUSE",
+    "conflictsPreserved": true
   }
 }
