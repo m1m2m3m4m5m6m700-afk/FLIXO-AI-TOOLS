@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 const root = process.cwd();
 const expectedSha = process.env.EXPECTED_SHA || process.env.GITHUB_SHA;
@@ -29,6 +30,19 @@ const fail = (message) => {
 if (!expectedSha || !/^[0-9a-f]{40}$/iu.test(expectedSha)) fail('EXPECTED_SHA/GITHUB_SHA is missing or invalid');
 if (!runId) fail('GITHUB_RUN_ID is required');
 if (!fs.existsSync(graphPath)) fail('execution-graph.json is missing');
+const graphValidatorPath = path.join(root, 'scripts', 'ci', 'validate-execution-graph.mjs');
+if (!fs.existsSync(graphValidatorPath)) fail('validate-execution-graph.mjs is missing');
+
+const graphValidation = spawnSync(process.execPath, [graphValidatorPath], {
+  cwd: root,
+  env: { ...process.env, EXPECTED_SHA: expectedSha, GITHUB_RUN_ID: String(runId) },
+  encoding: 'utf8',
+});
+if (graphValidation.error) fail(`execution-graph validator failed to start: ${graphValidation.error.message}`);
+if (graphValidation.status !== 0) {
+  const diagnostic = String(graphValidation.stderr || graphValidation.stdout || 'unknown validator failure').trim().slice(-1800);
+  fail(`execution-graph revalidation failed: ${diagnostic}`);
+}
 
 let graph;
 try {
