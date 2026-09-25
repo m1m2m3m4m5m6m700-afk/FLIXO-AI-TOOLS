@@ -229,6 +229,7 @@ let classCorrect = 0;
 let actionCorrect = 0;
 let zeroStallValid = 0;
 let causalRetrievalRecall = 0;
+let causalRetrievalEligible = 0;
 
 for (const fixture of heldOutMatrix) {
   const decision = classifyCausalEvidence(buildCausalQuery(fixture.query));
@@ -361,7 +362,7 @@ assert.equal(branchDrift.nextAction, 'WAIT_FOR_FRESH_SHA');
 assert.equal(branchDrift.mutationEligible, false);
 
 const actionResolution = classifyCausalEvidence({
-  normalizedFailure: 'Error: Unable to resolve action \`actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0\`, provided ref is a shortened commit SHA',
+  normalizedFailure: "Error: Unable to resolve action `actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0`, provided ref is a shortened commit SHA",
 });
 assert.equal(actionResolution.classification, 'EXTERNAL');
 assert.equal(actionResolution.nextAction, 'BLOCKED_EXTERNAL');

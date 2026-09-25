@@ -148,6 +148,16 @@ const securityAndCertification = [
   },
 ];
 
+const baseGreenInput = {
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: securityAndCertification,
+  compare: { ahead_by: 1, behind_by: 0 },
+};
+
+
 
 const openPr = { number: 748, headRefOid: SHA_A, baseRefOid: SHA_B };
 

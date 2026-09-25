@@ -24,7 +24,7 @@ export const validateCandidateBinding=({admittedScope,candidateParents,targetSha
   if(parents.length!==1 || parents[0]!==target) throw new Error('MUTATION_GATE_SINGLE_PARENT_REQUIRED');
   const rawScope=[...(admittedScope??[])].map(normalize).filter(Boolean);
   if(!rawScope.length) throw new Error('MUTATION_GATE_SCOPE_REQUIRED');
-  if(rawScope.some((p)=>p==='*'||/[?*\[\]]/u.test(p))) throw new Error('MUTATION_GATE_WILDCARD_SCOPE_FORBIDDEN');
+  if(rawScope.some((p)=>p==='*'||p.includes('?')||p.includes('*')||p.includes('[')||p.includes(']'))) throw new Error('MUTATION_GATE_WILDCARD_SCOPE_FORBIDDEN');
   if(rawScope.some((p)=>p.startsWith('/')||p.split('/').includes('..'))) throw new Error('MUTATION_GATE_PATH_SCOPE_INVALID');
   const admitted=[...new Set(rawScope)].sort();
   const actual=[...new Set((actualChangedPaths??[]).map(normalize).filter(Boolean))].sort();

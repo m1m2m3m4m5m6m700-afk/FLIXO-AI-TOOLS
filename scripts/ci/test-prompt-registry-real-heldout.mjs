@@ -19,8 +19,8 @@ const sanitizeHistoricalLog = (value) => String(value ?? '')
   .replace(SHA40, '<SHA>')
   .replace(LONG_RUN_NUMBER, '<RUN>')
   .replace(UUID, '<UUID>')
-  .replace(/https?:\\/\\/[^\\s]+/giu, '<URL>')
-  .replace(/\\s+/gu, ' ')
+  .replace(/https?:\/\/[^\s]+/giu, '<URL>')
+  .replace(/\s+/gu, ' ')
   .trim();
 
 const CASES = Object.freeze([

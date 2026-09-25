@@ -65,11 +65,6 @@ const CAUSAL_RULE_BEHAVIORS = Object.freeze({
     nextAction: 'BLOCKED_EXTERNAL',
     forbiddenActions: ['MUTATE_INTERNAL_SOURCE'],
   }),
-  'external-provider-separation': Object.freeze({
-    classification: 'EXTERNAL',
-    nextAction: 'BLOCKED_EXTERNAL',
-    forbiddenActions: ['MUTATE_INTERNAL_SOURCE'],
-  }),
   'root-only-mutation': Object.freeze({
     classification: 'INTERNAL',
     nextAction: 'REPAIR',
