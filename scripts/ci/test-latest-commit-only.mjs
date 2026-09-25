@@ -18,7 +18,12 @@ for (const file of requiredWorkflows) {
   const source = fs.readFileSync(file, 'utf8');
   assert.match(source, /concurrency:/u, file + ': concurrency contract missing');
   const workflowRunConsumer = /^(?:.*\n)*\s*workflow_run\s*:/m.test(source);
-  if (workflowRunConsumer) {
+  const readOnlyPublicationConsumer = file === '.github/workflows/agent-repair-handoff-gate.yml';
+  if (workflowRunConsumer && readOnlyPublicationConsumer) {
+    assert.match(source, /SOURCE_RUN_SHA:\s*\$\{\{\s*github\.event\.workflow_run\.head_sha/u, file + ': read-only workflow_run publisher must bind source SHA');
+    assert.match(source, /LIVE_MAIN_SHA=/u, file + ': read-only workflow_run publisher must resolve live main SHA');
+    assert.match(source, /test "\$LIVE_MAIN_SHA" = "\$SOURCE_RUN_SHA"/u, file + ': read-only workflow_run publisher must reject superseded source');
+  } else if (workflowRunConsumer) {
     assert.match(source, /scripts\/ci\/assert-workflow-run-current\.mjs/u, file + ': workflow_run consumer must bind current source SHA');
   } else if (/^(?:.*\n)*\s*(?:push|pull_request)\s*:/m.test(source)) {
     const hasExplicitExactShaGuard = /scripts\/ci\/assert-current-commit\.mjs/u.test(source) || /Bind exact execution head/u.test(source) || /HEARTBEAT_EXACT_SHA=/u.test(source) || (/EXPECTED_SHA/u.test(source) && /Checkout exact SHA/u.test(source) && /Validate exact SHA format/u.test(source));
@@ -84,6 +89,14 @@ for (const file of currentWorkflows) {
 for (const file of currentWorkflows) {
   const source = fs.readFileSync(workflowDir + '/' + file, 'utf8');
   if (!/^\s{2}workflow_run\s*:/mu.test(source)) continue;
+  if (file === 'agent-repair-handoff-gate.yml') {
+    assert.match(source, /SOURCE_RUN_SHA:\s*\$\{\{\s*github\.event\.workflow_run\.head_sha/u, file + ': read-only workflow_run publisher source SHA binding missing');
+    assert.match(source, /LIVE_MAIN_SHA=/u, file + ': read-only workflow_run publisher live-head binding missing');
+    assert.match(source, /test "\$LIVE_MAIN_SHA" = "\$SOURCE_RUN_SHA"/u, file + ': read-only workflow_run publisher must reject stale source');
+    assert.match(source, /actions:\s*read/u, file + ': read-only workflow_run publisher must retain read-only Actions permission');
+    assert.doesNotMatch(source, /actions:\s*write/u, file + ': read-only workflow_run publisher must not gain Actions write authority');
+    continue;
+  }
   assert.match(source, /scripts\/ci\/assert-workflow-run-current\.mjs/u, file + ': workflow_run consumer must enforce the live source SHA');
   assert.match(
     source,

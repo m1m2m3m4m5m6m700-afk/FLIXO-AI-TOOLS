@@ -103,7 +103,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PROBE="src/.flixo-staged-boundary-probe.mjs"
+          PROBE="src/flixo-staged-boundary-probe.mjs"
           cleanup() {
             git restore --staged --worktree "$PROBE" >/dev/null 2>&1 || true
             rm -f "$PROBE"

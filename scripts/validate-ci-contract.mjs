@@ -46,6 +46,19 @@ for (const [label, ok] of latestCommitPolicyChecks) {
 }
 for (const {file, text} of workflowTexts) {
   if (!/workflow_run:/u.test(text)) continue;
+  const readOnlyPublicationConsumer = file === 'agent-repair-handoff-gate.yml';
+  if (readOnlyPublicationConsumer) {
+    const sourceGuard =
+      /SOURCE_RUN_SHA:\s*\$\{\{\s*github\.event\.workflow_run\.head_sha/u.test(text) &&
+      /LIVE_MAIN_SHA=/u.test(text) &&
+      /test "\$LIVE_MAIN_SHA" = "\$SOURCE_RUN_SHA"/u.test(text) &&
+      /FAIL CLOSED:/u.test(text);
+    if (!sourceGuard) {
+      console.error('CI contract failed: ' + file + ' must have a fail-closed read-only source-SHA guard.');
+      process.exit(1);
+    }
+    continue;
+  }
   if (!/scripts\/ci\/assert-workflow-run-current\.mjs/u.test(text)) {
     console.error('CI contract failed: ' + file + ' consumes workflow_run without the fail-closed source-SHA guard.');
     process.exit(1);
