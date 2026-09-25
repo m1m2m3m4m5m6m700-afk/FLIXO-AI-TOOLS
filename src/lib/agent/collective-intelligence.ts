@@ -150,7 +150,7 @@ export function buildCollectiveIntelligenceFrame(
 
   return Object.freeze({
     version: COLLECTIVE_INTELLIGENCE_VERSION,
-    mode: 'ONE_SHARED_COGNITIVE_KERNEL_WITH_ROLE_OVERLAYS',
+    mode: 'ONE_SHARED_SUPERSET_COGNITIVE_KERNEL_WITH_ROLE_OVERLAYS',
     authority: 'ADVISORY_ONLY',
     mutationAuthority: false,
     certificationAuthority: false,
