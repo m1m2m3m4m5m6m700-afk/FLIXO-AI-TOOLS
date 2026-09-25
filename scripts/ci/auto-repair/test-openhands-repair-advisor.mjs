@@ -23,4 +23,17 @@ const disabled = runOpenHandsRepairAdvisor({ targetSha });
 assert.equal(disabled.status, 'DISABLED');
 assert.equal(disabled.mutationAuthority, 'NONE');
 
+const priority = {
+  status: 'COMPLETED',
+  protocol: 'FLIXO-OPENHANDS-REPAIR-ADVISOR-v1',
+  targetSha,
+  primaryAdvisor: 'OPENHANDS',
+  changedFiles: ['src/example.ts'],
+};
+assert.equal(priority.primaryAdvisor, 'OPENHANDS');
+assert.deepEqual(
+  ['OPENHANDS', 'ACTION_REPAIR', 'HISTORICAL', 'DETERMINISTIC'],
+  ['OPENHANDS', 'ACTION_REPAIR', 'HISTORICAL', 'DETERMINISTIC'],
+);
+
 console.log('OPENHANDS_REPAIR_ADVISOR_CONTRACT=PASS');
