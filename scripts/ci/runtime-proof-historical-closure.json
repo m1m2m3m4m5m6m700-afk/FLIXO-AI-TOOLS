@@ -152,6 +152,26 @@
         ]
       },
       "reason": "Historical runtime-proof closure for cef267a95acb19e4ab49defb1cf5e725775f0031: the independent Repository Security Baseline succeeded on exact descendant head 7903729fda9cb77d8c397775ca106c5aad36ae96 and revalidated the resulting source-controlled trust perimeter, including ACTION-REPAIR-SQUAD-REGISTRY.json."
+    },
+    {
+      "commitSha": "664326d970bb03d6aa1d82094e100437cac7a896",
+      "sensitivePaths": [
+        "docs/agents/CELL-BOT-REGISTRY.json"
+      ],
+      "evidence": {
+        "workflow": "Repository Security Baseline",
+        "conclusion": "success",
+        "independent": true,
+        "runId": 36125802844,
+        "jobId": 108041515254,
+        "verifiedHeadSha": "664326d970bb03d6aa1d82094e100437cac7a896",
+        "requiredSteps": [
+          "Verify exact SHA",
+          "Validate source-controlled Council RPC contract",
+          "Run repository security baseline"
+        ]
+      },
+      "reason": "Historical runtime-proof closure for 664326d970bb03d6aa1d82094e100437cac7a896: an independent Repository Security Baseline completed successfully on the exact sensitive commit and verified the repository security perimeter at that exact SHA. The sensitive registry field was later identified as test-contract drift and restored; the closure only satisfies the historical per-commit proof obligation and never certifies the current execution head."
     }
   ]
 }

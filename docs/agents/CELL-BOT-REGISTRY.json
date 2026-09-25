@@ -130,11 +130,5 @@
     "assignmentModel": "TEN_RUNTIME_SEATS_X_TEN_LOGICAL_PROFILES",
     "independentProcessCount": 0,
     "historicalRuntimePool": "RETIRED"
-  },
-  "honoraryStarSystem": {
-    "ceiling": 5,
-    "fiveStarRank": "MASTER-1",
-    "formalTransitionRequired": true,
-    "automaticPrivilegeChange": false
   }
 }
