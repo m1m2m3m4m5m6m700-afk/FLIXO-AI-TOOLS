@@ -86,6 +86,8 @@ export function validateStatic() {
   const claudeSecurity = read(path.join(ROOT, '.github', 'workflows', 'claude-security-review.yml'));
   const supervisor = read(path.join(ROOT, '.github', 'workflows', 'agent-repair-supervisor.yml'));
   const heartbeat = read(path.join(ROOT, '.github', 'workflows', 'agent-repair-heartbeat.yml'));
+  const errors = [];
+  const must = (condition, code) => { if (!condition) errors.push(code); };
   must(fs.existsSync(PRE_COMMIT_GATE_SCRIPT), 'pre-commit-adversarial-redteam-gate-exists');
   const preCommitGate = fs.readFileSync(PRE_COMMIT_GATE_SCRIPT, 'utf8');
   must(preCommitGate.includes('FLIXO-PRE-COMMIT-ADVERSARIAL-REDTEAM-v1'), 'pre-commit-gate-protocol');
@@ -98,8 +100,6 @@ export function validateStatic() {
   const preGateIndex = auto.indexOf('Pre-commit adversarial + Red Team gate');
   const candidateCommitIndex = auto.indexOf('Create exact unpublished candidate commit');
   must(preGateIndex >= 0 && candidateCommitIndex > preGateIndex, 'pre-commit-gate-before-commit');
-  const errors = [];
-  const must = (condition, code) => { if (!condition) errors.push(code); };
   const workflowDir = path.join(ROOT,'.github','workflows');
   const workflowNames = fs.readdirSync(workflowDir).filter((name)=>/\.ya?ml$/u.test(name));
   for (const name of workflowNames) {
