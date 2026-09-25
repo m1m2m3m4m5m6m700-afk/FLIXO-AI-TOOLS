@@ -90,6 +90,7 @@ jobs:
         run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: 05 — Prepare resident task-agent packet before control gate
+        if: github.ref == 'refs/heads/execution'
         run: |
           set -euo pipefail
           node scripts/ci/task-agent.mjs --all-ready
