@@ -1,6 +1,13 @@
 {
   "schemaVersion": 3,
-  "supremeProtocol": {"protocolId":"P00","promptId":"RPR-UNIFIED-EXECUTION-001","version":"4.0.0","sourcePath":"docs/agents/PROMPT-UNIFIED-EXECUTION.md","status":"SUPREME_MANDATORY","firstObligation":true},
+  "supremeProtocol": {
+    "protocolId": "P00",
+    "promptId": "RPR-UNIFIED-EXECUTION-001",
+    "version": "4.0.0",
+    "sourcePath": "docs/agents/PROMPT-UNIFIED-EXECUTION.md",
+    "status": "SUPREME_MANDATORY",
+    "firstObligation": true
+  },
   "botId": "ACTION-HISTORIAN-3",
   "displayName": "بوت سجل Actions 3",
   "kind": "ACTION_HISTORIAN_INDEXER",
@@ -252,5 +259,11 @@
     "requiredBeforeRepairSearch": true,
     "refreshOnCanonicalIndexChange": true,
     "mutationAuthority": false
-  }
+  },
+  "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
+  "unifiedCognitiveKernelRef": "docs/agents/FLIXO-BOT.json#/unifiedCognitiveKernel",
+  "unifiedMemoryRef": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
+  "cognitiveCoverage": "FULL_SYSTEM",
+  "roleOverlayOnly": true,
+  "canReduceCognitiveCoverage": false
 }
