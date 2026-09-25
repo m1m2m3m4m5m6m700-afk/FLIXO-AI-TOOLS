@@ -6,6 +6,11 @@ on:
   # Privileged observer definitions run only from the trusted controller ref.
   # Execution changes are observed by the watchdog; this controller uses schedule/manual observation only.
   workflow_dispatch:
+  workflow_run:
+    workflows:
+      - FLIXO Security Red-Team Triad (Isolated)
+    types: [completed]
+    branches: [execution]
   schedule:
     - cron: '*/5 * * * *'
 
@@ -439,7 +444,14 @@ jobs:
           retention-days: 14
 
       - name: Dispatch internal repair target under Task Agent authority
-        if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.evaluate.outputs.repair_required == 'true' && steps.capture.outputs.branch == 'execution' && github.event_name != 'workflow_run'
+        if: >-
+          steps.evaluate.outputs.status == 'RED_INTERNAL' &&
+          steps.evaluate.outputs.repair_required == 'true' &&
+          steps.capture.outputs.branch == 'execution' &&
+          (
+            github.event_name != 'workflow_run' ||
+            github.event.workflow_run.name == 'FLIXO Security Red-Team Triad (Isolated)'
+          )
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
