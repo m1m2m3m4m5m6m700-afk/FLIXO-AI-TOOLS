@@ -79,7 +79,11 @@ export function ToolsPage({ locale = 'en' as Locale }: { locale?: Locale }) {
       <header className="tools-modern-nav">
         <Link className="tools-modern-brand" to={ar ? '/ar' : '/'} aria-label="FLIXO"><img src="/flixo-brand-mark.webp" alt="FLIXO" width={36} height={36} /><span>FLIXO</span></Link>
         <Link className="tools-modern-back" to={ar ? '/ar' : '/'}>{ar ? 'الرئيسية' : 'Home'}</Link>
-        <Link className="tools-modern-back" to={ar ? '/ar/agent' : '/agent'}>{ar ? 'الوكيل' : 'Agent'}</Link>
+        {ar ? (
+          <Link className="tools-modern-back" to="/$locale/agent" params={{ locale }}>{ar ? 'الوكيل' : 'Agent'}</Link>
+        ) : (
+          <Link className="tools-modern-back" to="/agent">{ar ? 'الوكيل' : 'Agent'}</Link>
+        )}
       </header>
 
       <div className="tools-modern-container">

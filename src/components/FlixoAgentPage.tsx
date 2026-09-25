@@ -1,7 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Link } from '@tanstack/react-router';
 import type { Locale } from '@/lib/i18n';
-import { LOCALES } from '@/lib/i18n';
 import { FlixoLogoImage } from './FlixoLogoImage';
 import './agent-page.css';
 
