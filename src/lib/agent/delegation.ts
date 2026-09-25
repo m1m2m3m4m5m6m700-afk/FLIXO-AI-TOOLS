@@ -43,10 +43,13 @@ export async function runBoundedParallel<T, R>(
   options: Readonly<{
     maxConcurrency?: number;
     lockManager?: AgentResourceLockManager;
+    maxContentionRetries?: number;
   }> = {},
 ): Promise<readonly AgentTaskResult<T, R>[]> {
   const maxConcurrency = Math.max(1, Math.min(8, Math.floor(options.maxConcurrency ?? 3)));
   const lockManager = options.lockManager ?? new AgentResourceLockManager();
+  const maxContentionRetries = Math.max(1, Math.min(500, Math.floor(options.maxContentionRetries ?? 100)));
+  const contentionCounts = new Map<string, number>();
   const pending = tasks.map((task, index) => ({ task, index }));
   const results: Array<AgentTaskResult<T, R> | undefined> = new Array(tasks.length);
 
@@ -60,8 +63,14 @@ export async function runBoundedParallel<T, R>(
       const keys = task.resourceKeys ?? [];
 
       if (!lockManager.tryAcquire(keys, owner)) {
-        pending.push(candidate);
-        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        const attempts = (contentionCounts.get(task.id) ?? 0) + 1;
+        contentionCounts.set(task.id, attempts);
+        if (attempts >= maxContentionRetries) {
+          results[candidate.index] = Object.freeze({ taskId: task.id, status: 'BLOCKED', input: task.input });
+        } else {
+          pending.push(candidate);
+          await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        }
         continue;
       }
 
