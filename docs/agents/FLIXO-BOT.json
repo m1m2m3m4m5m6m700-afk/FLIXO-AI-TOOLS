@@ -6,7 +6,7 @@
   "status": "ACTIVE",
   "branch": "execution",
   "thirdBranchAllowed": false,
-  "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+  "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
   "architecture": {
     "mode": "ONE_SHARED_COGNITIVE_KERNEL_WITH_ROLE_OVERLAYS",
     "principle": "ONE_BRAIN_MANY_SEATS",
@@ -270,7 +270,7 @@
     ]
   },
   "fullIntelligencePolicy": {
-    "protocol": "FLIXO-FULL-INTELLIGENCE-v1",
+    "protocol": "FLIXO-FULL-INTELLIGENCE-v2",
     "mode": "FULL_ALWAYS",
     "reasoningEffort": "MAXIMUM",
     "noComplexityDowngrade": true,
@@ -525,7 +525,7 @@
     ],
     "targetCount": 200,
     "syncModel": "LIVE_SHARED_MEMORY_BY_REFERENCE_BIDIRECTIONAL_COGNITIVE_MESH",
-    "coreIntelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+    "coreIntelligenceVersion": "FLIXO-BOT-BRAIN-v2",
     "deliveryRule": "EVERY_PUBLISHED_LESSON_AND_ANTI_LESSON_IS_VISIBLE_TO_ALL_200_CANONICAL_COGNITIVE_BOTS",
     "exactShaBindingRequired": true,
     "provenanceRequired": true,
@@ -538,7 +538,7 @@
       "protocol": "FLIXO-BIDIRECTIONAL-COGNITIVE-MESH-v1",
       "cloneToAllActiveMembers": "publishSharedMemory → every active learning consumer",
       "allActiveMembersToClone": "buildSharedLearningContext(system-wide) → execution-agent-clone-v1",
-      "sameBrainVersion": "FLIXO-BOT-BRAIN-v1",
+      "sameBrainVersion": "FLIXO-BOT-BRAIN-v2",
       "sameCapabilitySet": true,
       "sameCanonicalMemory": true,
       "knowledgeOnly": true,
@@ -879,7 +879,7 @@
         "src/lib/agent/human-conversation.ts",
         "src/lib/agent/cognitive-orchestrator.ts"
       ],
-      "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+      "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
       "capabilityParity": "EXACT_SHARED_BY_REFERENCE",
       "learningParity": "BIDIRECTIONAL",
       "sharedMemory": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
@@ -895,7 +895,7 @@
     "id": "ACTION-REPAIR-FLIXO-BOT-10",
     "count": 10,
     "sourceBot": "ACTION-REPAIR",
-    "sourceIntelligence": "FLIXO-BOT-BRAIN-v1",
+    "sourceIntelligence": "FLIXO-BOT-BRAIN-v2",
     "cloneModel": "ONE_SHARED_COGNITIVE_KERNEL_WITH_ROLE_OVERLAYS",
     "mutationAuthority": false,
     "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
@@ -921,7 +921,7 @@
       "FLIXO10"
     ],
     "protocol": "FLIXO10-SINGLE-ACTIVE-FAILOVER-v1",
-    "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+    "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
     "systemScope": "FULL_REPOSITORY_AND_AUTOMATION_SYSTEM",
     "workerPoolMode": "SINGLE_ACTIVE_ORDERED_FAILOVER",
     "activeWorkerCount": 1,
