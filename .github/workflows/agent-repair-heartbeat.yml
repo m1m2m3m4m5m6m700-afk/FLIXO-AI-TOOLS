@@ -82,6 +82,10 @@ jobs:
               WORKTREE_SHA="$SHA"
             fi
             [[ "$WORKTREE_SHA" == "$SHA" ]]
+            if [ "$TICK" -eq 1 ]; then
+              (cd "$WORKTREE_PATH" && node scripts/ci/test-resident-wake-proof.mjs)
+              echo 'RESIDENT_WAKE_PROOF_RED_TEAM=PASS'
+            fi
             if [ -z "$CURRENT_COHORT_INDEX" ]; then
               BOOTSTRAP_OUTPUT="/tmp/flixo-heartbeat/bootstrap-rotation-$TICK.json"
               NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
