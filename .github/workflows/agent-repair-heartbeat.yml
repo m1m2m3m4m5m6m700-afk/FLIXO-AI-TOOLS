@@ -103,6 +103,12 @@ jobs:
             BATON_OUTPUT="/tmp/flixo-heartbeat/resident-baton-$TICK.json"
             (cd "$WORKTREE_PATH" && node scripts/ci/agent-liveness-protocol.mjs resident-baton --actor="$BATON_ACTOR" --next="$BATON_NEXT" --sha="$SHA" --task="RESIDENT:$GITHUB_RUN_ID:$TICK" --file="$BATON_OUTPUT")
             jq -e --arg sha "$SHA" --arg actor "$BATON_ACTOR" --arg next "$BATON_NEXT" '.protocol=="FLIXO-RESIDENT-WAKE-BATON-v1" and .action=="WAKE_NEXT_RESIDENT_BOT" and .targetSha==$sha and .actor==$actor and .nextActor==$next and .minimumResidentFloor==1 and .nextMustAckBeforeRelease==true' "$BATON_OUTPUT" >/dev/null
+            RESIDENT_ACK_OUTPUT="/tmp/flixo-heartbeat/resident-ack-$TICK.json"
+            RESIDENT_PROOF_OUTPUT="/tmp/flixo-heartbeat/resident-proof-$TICK.json"
+            (cd "$WORKTREE_PATH" && node scripts/ci/resident-wake-proof.mjs issue --baton="$BATON_OUTPUT" --wake="/tmp/flixo-heartbeat/action-wake-$TICK.json" --responder="$BATON_NEXT" --output="$RESIDENT_ACK_OUTPUT")
+            jq -e --arg sha "$SHA" --arg actor "$BATON_ACTOR" --arg next "$BATON_NEXT" '.protocol=="FLIXO-RESIDENT-READY-ACK-v1" and .action=="RESIDENT_NEXT_READY" and .targetSha==$sha and .actor==$actor and .responder==$next and .ready==true and .readyState=="READY_RESIDENT" and .liveHeartbeatAck==false and .independentObservationRequired==true' "$RESIDENT_ACK_OUTPUT" >/dev/null
+            (cd "$WORKTREE_PATH" && node scripts/ci/resident-wake-proof.mjs verify --baton="$BATON_OUTPUT" --ack="$RESIDENT_ACK_OUTPUT" --observer=FLIXO_HEARTBEAT_PROOF_VERIFIER --output="$RESIDENT_PROOF_OUTPUT")
+            jq -e --arg sha "$SHA" '.protocol=="FLIXO-RESIDENT-HANDOFF-PROOF-v1" and .status=="PASS" and .independentObserver==true and .targetSha==$sha and .readyBeforeRelease==true and .releaseAllowed==true and .liveHeartbeatStillRequired==true and .minimumResidentFloor==1' "$RESIDENT_PROOF_OUTPUT" >/dev/null
             jq -e --arg sha "$SHA" '.action=="WAKE_ALL_ACTION_REPAIR_TEAM" and .actionRepairSquadReady==true and .targetSha==$sha and .activeCohortSize==5 and (.activeBotIds|length)==5 and (.nextBotIds|length)==5 and (.nextCohortReadyCount==5) and .fiveBotResidency.requiredBotCount==5 and .fiveBotResidency.postTaskCloseState=="READY_RESIDENT" and .fiveBotResidency.retainResidentUntilJourneyComplete==true and  .fiveBotResidency.journeyLogicalBotCount==200 and  .fiveBotResidency.journeyCohortCount==40 and .fiveBotResidency.journeyCohortSize==5 and .fiveBotResidency.sleep==false and .fiveBotResidency.idle==false and .withdrawal==false' /tmp/flixo-heartbeat/action-wake-$TICK.json >/dev/null
             if [ "$ELAPSED_SECONDS" -ge 3600 ]; then
               NEXT_COHORT_INDEX=$(( (CURRENT_COHORT_INDEX + 1) % 40 ))
@@ -175,6 +181,8 @@ jobs:
           path: |
             /tmp/flixo-heartbeat/wake-compliance.json
             /tmp/flixo-heartbeat/heartbeat.json
+            /tmp/flixo-heartbeat/resident-ack-*.json
+            /tmp/flixo-heartbeat/resident-proof-*.json
           if-no-files-found: warn
           retention-days: 14
 
