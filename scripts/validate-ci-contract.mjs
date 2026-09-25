@@ -158,9 +158,11 @@ if (missingCurrentCommitGuardJobs.length) {
   process.exit(1);
 }
 
+const standaloneSupersessionControllerValidated = latestCommitPolicyChecks.every(([, ok]) => ok);
+
 for (const [file, source] of exactShaVerificationWorkflows) {
-  if (!/cancel-in-progress:\s*true/.test(source)) {
-    console.error('CI contract failed: ' + file + ' must cancel superseded verification runs.');
+  if (!/cancel-in-progress:\s*true/.test(source) && !standaloneSupersessionControllerValidated) {
+    console.error('CI contract failed: ' + file + ' requires either direct supersession cancellation or a validated standalone latest-commit supersession controller.');
     process.exit(1);
   }
   const sourceUsesEventScopedSha =
