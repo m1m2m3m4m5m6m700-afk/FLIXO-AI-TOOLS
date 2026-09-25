@@ -6,9 +6,9 @@
  * execution, merge, or certification authority.
  */
 
-export const COLLECTIVE_INTELLIGENCE_VERSION = 'FLIXO-BOT-BRAIN-v1' as const;
+export const COLLECTIVE_INTELLIGENCE_VERSION = 'FLIXO-BOT-BRAIN-v2' as const;
 export const COLLECTIVE_INTELLIGENCE_SOURCE = 'docs/agents/FLIXO-BOT.json' as const;
-export const COLLECTIVE_ACTIVE_MEMBER_COUNT = 61 as const;
+export const COLLECTIVE_ACTIVE_MEMBER_COUNT = 76 as const;
 export const COLLECTIVE_CAPABILITY_COUNT = 97 as const;
 
 export type CollectiveReasoningLens = Readonly<{
@@ -19,7 +19,7 @@ export type CollectiveReasoningLens = Readonly<{
 
 export type CollectiveIntelligenceFrame = Readonly<{
   version: typeof COLLECTIVE_INTELLIGENCE_VERSION;
-  mode: 'ONE_SHARED_COGNITIVE_KERNEL_WITH_ROLE_OVERLAYS';
+  mode: 'ONE_SHARED_SUPERSET_COGNITIVE_KERNEL_WITH_ROLE_OVERLAYS';
   authority: 'ADVISORY_ONLY';
   mutationAuthority: false;
   certificationAuthority: false;
@@ -57,6 +57,23 @@ const LENSES: readonly CollectiveReasoningLens[] = Object.freeze([
   { id: 'TEMPORAL_STATE_REASONING', purpose: 'Detect stale evidence, changed heads, superseded runs, and current-versus-historical state.', triggers: ['latest', 'current', 'stale', 'historical', 'old', 'جديد', 'الحالي', 'قديم', 'تاريخي'] },
   { id: 'PERFORMANCE_REASONING', purpose: 'Distinguish performance symptoms from correctness regressions and preserve gates while optimizing.', triggers: ['performance', 'latency', 'slow', 'fast', 'speed', 'أداء', 'بطء', 'سرعة'] },
   { id: 'LEARNING_AND_ANTI_LESSON', purpose: 'Turn verified successes into lessons and failed strategies into anti-lessons without transferring authority.', triggers: ['learn', 'lesson', 'memory', 'history', 'تعلم', 'درس', 'ذاكرة', 'سجل'] },
+  { id: 'SYSTEMS_THINKING', purpose: 'Reason across interacting subsystems, feedback loops, constraints, and emergent failure modes.', triggers: ['system', 'architecture', 'platform', 'نظام', 'معمارية', 'منظومة'] },
+  { id: 'CAUSAL_GRAPH_REASONING', purpose: 'Build causal graphs linking triggers, propagation, violated invariants, and downstream symptoms.', triggers: ['causal', 'propagation', 'chain', 'سببية', 'انتقال', 'سلسلة'] },
+  { id: 'STATE_MACHINE_REASONING', purpose: 'Reason about lifecycle state, legal transitions, stale state, and recovery paths.', triggers: ['state', 'transition', 'lifecycle', 'حالة', 'انتقال', 'دورة'] },
+  { id: 'CONTRACT_COMPOSITION', purpose: 'Compose multiple repository contracts without weakening the strongest invariant.', triggers: ['contract', 'policy', 'protocol', 'عقد', 'سياسة', 'بروتوكول'] },
+  { id: 'FAILURE_TAXONOMY', purpose: 'Classify failures into causal families before selecting any repair strategy.', triggers: ['classification', 'failure family', 'taxonomy', 'تصنيف', 'عائلة'] },
+  { id: 'CHANGE_IMPACT_SIMULATION', purpose: 'Predict direct and indirect effects of a proposed change before mutation.', triggers: ['impact', 'blast', 'simulation', 'تأثير', 'محاكاة'] },
+  { id: 'PRIORITY_ARBITRATION', purpose: 'Resolve competing tasks using evidence, severity, dependency and ownership rather than convenience.', triggers: ['priority', 'arbitrate', 'urgent', 'أولوية', 'تحكيم', 'عاجل'] },
+  { id: 'MULTI_AGENT_SYNTHESIS', purpose: 'Fuse independent agent findings while preserving disagreements and provenance.', triggers: ['agent', 'peer', 'synthesis', 'وكلاء', 'تجميع', 'خلاف'] },
+  { id: 'KNOWLEDGE_RETRIEVAL', purpose: 'Retrieve reusable knowledge from shared memory while requalifying it against current evidence.', triggers: ['knowledge', 'memory', 'retrieve', 'معرفة', 'استرجاع'] },
+  { id: 'MEMORY_CONSOLIDATION', purpose: 'Consolidate lessons, anti-lessons and counterexamples into the canonical learning stream.', triggers: ['consolidate', 'memory', 'learn', 'دمج', 'ذاكرة', 'تعلم'] },
+  { id: 'CONFLICT_RECONCILIATION', purpose: 'Preserve conflicting evidence until fresh exact evidence resolves it.', triggers: ['conflict', 'contradiction', 'reconcile', 'تعارض', 'تناقض', 'تسوية'] },
+  { id: 'PROVENANCE_GRAPH_REASONING', purpose: 'Trace every material claim through its source, transformation and verification chain.', triggers: ['provenance', 'trace', 'source', 'أصل', 'تتبع', 'مصدر'] },
+  { id: 'NEGATIVE_PROOF_REASONING', purpose: 'Test whether a proposed repair fails under adversarial counterexamples and boundary conditions.', triggers: ['negative proof', 'counterexample', 'falsify', 'إثبات سلبي', 'دحض'] },
+  { id: 'RECURRENCE_PREVENTION', purpose: 'Convert repaired failures into preventative controls and recurrence detectors.', triggers: ['recurrence', 'prevent', 'regression', 'تكرار', 'منع'] },
+  { id: 'DECISION_CALIBRATION', purpose: 'Calibrate confidence, abstain when evidence is insufficient, and separate observation from inference.', triggers: ['confidence', 'uncertain', 'calibrate', 'ثقة', 'غير مؤكد'] },
+  { id: 'TOOL_SELECTION_REASONING', purpose: 'Select the narrowest valid tool path while retaining access to the full cognitive substrate.', triggers: ['tool', 'select', 'command', 'أداة', 'اختيار'] },
+  { id: 'HUMAN_HANDOFF_REASONING', purpose: 'Prepare precise escalation when authority or evidence boundaries require human arbitration.', triggers: ['handoff', 'escalate', 'human', 'تصعيد', 'تسليم', 'إنسان'] },
 ]);
 
 const ROLE_PERSPECTIVES: Readonly<Record<string, readonly string[]>> = Object.freeze({
@@ -79,15 +96,22 @@ const ROLE_PERSPECTIVES: Readonly<Record<string, readonly string[]>> = Object.fr
 const REASONING_SEQUENCE = Object.freeze([
   'OBSERVE',
   'INVENTORY',
+  'REFRESH_EXACT_SHA',
   'CLASSIFY',
   'CORRELATE',
+  'RETRIEVE_SHARED_MEMORY',
   'BUILD_WORLD_MODEL',
+  'BUILD_CAUSAL_GRAPH',
   'GENERATE_HYPOTHESES',
   'DISCRIMINATE_WITH_EVIDENCE',
   'CHALLENGE_ADVERSARIALLY',
+  'SYNTHESIZE_PEER_PERSPECTIVES',
+  'CALIBRATE_UNCERTAINTY',
   'SCOPE_MINIMAL_CHANGE',
   'SIMULATE_OR_PREDICT',
+  'CHECK_SECURITY_AND_BOUNDARIES',
   'TARGETED_REGRESSION',
+  'INDEPENDENT_REVIEW',
   'VERIFY_EXACT_SHA_AND_LEARN',
 ]);
 
