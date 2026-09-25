@@ -123,6 +123,54 @@ jobs:
               echo "stale=false" >> "$GITHUB_OUTPUT"
             fi
           fi
+      - name: Independently verify resident handoff proof
+        if: >-
+          github.event_name == 'workflow_run' &&
+          github.event.workflow_run.name == 'FLIXO Agent Repair Heartbeat' &&
+          steps.source.outputs.stale != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id || '' }}
+          EXPECTED_SHA: ${{ steps.source.outputs.execution_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SOURCE_RUN_ID"
+          test -n "$EXPECTED_SHA"
+          ARTIFACT_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false and (.name | startswith("flixo-heartbeat-compliance-")))] | sort_by(.created_at) | last.id // empty')"
+          test -n "$ARTIFACT_ID" || {
+            echo "FAIL CLOSED: resident heartbeat proof artifact missing for run=$SOURCE_RUN_ID sha=$EXPECTED_SHA"
+            exit 1
+          }
+          rm -rf /tmp/flixo-resident-proof
+          mkdir -p /tmp/flixo-resident-proof
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > /tmp/flixo-resident-proof/artifact.zip
+          unzip -o /tmp/flixo-resident-proof/artifact.zip -d /tmp/flixo-resident-proof/unpacked >/dev/null
+          BATON_FILE="$(find /tmp/flixo-resident-proof/unpacked -type f -name 'resident-baton-*.json' | sort -V | tail -n 1)"
+          test -n "$BATON_FILE"
+          TICK="$(basename "$BATON_FILE" | sed -E 's/.*-([0-9]+)\.json$/\1/')"
+          ACK_FILE="$(find /tmp/flixo-resident-proof/unpacked -type f -name "resident-ack-$TICK.json" | head -n 1)"
+          PROOF_FILE="$(find /tmp/flixo-resident-proof/unpacked -type f -name "resident-proof-$TICK.json" | head -n 1)"
+          test -f "$ACK_FILE"
+          test -f "$PROOF_FILE"
+          BATON_SHA="$(jq -r '.targetSha' "$BATON_FILE")"
+          ACK_SHA="$(jq -r '.targetSha' "$ACK_FILE")"
+          PROOF_SHA="$(jq -r '.targetSha' "$PROOF_FILE")"
+          test "$BATON_SHA" = "$EXPECTED_SHA"
+          test "$ACK_SHA" = "$EXPECTED_SHA"
+          test "$PROOF_SHA" = "$EXPECTED_SHA"
+          ACK_AT="$(jq -r '.ackAt' "$ACK_FILE")"
+          node scripts/ci/resident-wake-proof.mjs verify \
+            --baton="$BATON_FILE" \
+            --ack="$ACK_FILE" \
+            --observer=FLIXO_EXECUTION_WATCHDOG \
+            --now="$ACK_AT" \
+            --output="$PROOF_FILE"
+          jq -e --arg sha "$EXPECTED_SHA" '.protocol=="FLIXO-RESIDENT-HANDOFF-PROOF-v1" and .status=="PASS" and .independentObserver==true and .targetSha==$sha and .readyBeforeRelease==true and .releaseAllowed==true and .liveHeartbeatStillRequired==true and .minimumResidentFloor==1' "$PROOF_FILE" >/dev/null
+          echo "RESIDENT_HANDOFF_PROOF=PASS"
+          echo "RESIDENT_HANDOFF_PROOF_SHA=$EXPECTED_SHA"
+          echo "RESIDENT_HANDOFF_PROOF_RUN_ID=$SOURCE_RUN_ID"
       - name: Dispatch canonical Green Gate on the first RED signal
         if: >-
           github.event_name == 'workflow_run' &&
