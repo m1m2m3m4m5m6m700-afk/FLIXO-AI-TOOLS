@@ -61,9 +61,6 @@ for (const file of currentWorkflows) {
   const hasPullRequestTrigger = /^\s{2}pull_request\s*:/mu.test(source);
   if (!hasWorkflowRunTrigger && !hasPushTrigger && !hasPullRequestTrigger) continue;
   assert.match(source, /concurrency:/u, file + ': latest-commit workflow must define concurrency');
-  const hasWorkflowRunTrigger = /^\s{2}workflow_run\s*:/mu.test(source);
-  const hasPushTrigger = /^\s{2}push\s*:/mu.test(source);
-  const hasPullRequestTrigger = /^\s{2}pull_request\s*:/mu.test(source);
   if (hasWorkflowRunTrigger) {
     assert.match(source, /scripts\/ci\/assert-workflow-run-current\.mjs/u, file + ': workflow_run consumer must bind current source SHA');
   } else if (hasPushTrigger || hasPullRequestTrigger) {
