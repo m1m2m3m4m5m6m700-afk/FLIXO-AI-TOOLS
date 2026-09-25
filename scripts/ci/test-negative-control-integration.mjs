@@ -177,7 +177,7 @@ assert.equal(cleanCertification.authority, 'CANONICAL_CERTIFICATION_ENGINE');
 assert.equal(cleanCertification.status, 'PASS');
 
 
-const target = path.join(evidenceRoot, 'browser-fast', 'browser-fast-chromium-1.json');
+const target = path.join(evidenceRoot, 'browser-fast-chromium-1.json');
 const mutated = JSON.parse(fs.readFileSync(target, 'utf8'));
 mutated.exactSha = corruptedSha;
 mutated.units[0].exactSha = corruptedSha;
