@@ -264,7 +264,7 @@ if (BOT_ID === 'SECURITY-REDTEAM-2') {
 }
 
 if (BOT_ID === 'SECURITY-REDTEAM-3') {
-  for (const file of tracked.filter(appSourceFile)) {
+  for (const file of tracked.filter(browserSourceFile)) {
     const checks = [
       ['RUNTIME-FETCH-TAINT','HIGH','NETWORK_BOUNDARY','Network request built from interpolated or location-derived input',/(?:fetch|axios\.(?:get|post|put|delete|request))\s*\([^\n]*(?:\$\{|location\.|searchParams|params\.|query\.)/u,0.92,'Validate destination and resource identifiers against explicit origin/path allowlists; never let raw input select arbitrary network targets.'],
       ['RUNTIME-CORS-WILDCARD','HIGH','CORS','Wildcard CORS response',/Access-Control-Allow-Origin[^\n]*\*/iu,0.98,'Avoid wildcard CORS for authenticated or sensitive routes; bind allowed origins explicitly.'],
