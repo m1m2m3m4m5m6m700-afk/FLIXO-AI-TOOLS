@@ -7,12 +7,9 @@ on:
         description: "Exact main commit SHA to promote"
         required: true
         type: string
-  workflow_run:
-    workflows: ["FLIXO Test System"]
-    types: [completed]
 
 concurrency:
-  group: flixo-cd-${{ inputs.sha || github.event.workflow_run.head_sha || github.run_id }}
+  group: flixo-cd-${{ inputs.sha || github.run_id }}
   cancel-in-progress: false
 
 permissions:
@@ -26,11 +23,7 @@ env:
 jobs:
   promote:
     name: Promote exact certified SHA
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.conclusion == 'success')
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
@@ -42,10 +35,9 @@ jobs:
         shell: bash
         env:
           MANUAL_SHA: ${{ inputs.sha }}
-          AUTOMATIC_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          sha="${MANUAL_SHA:-$AUTOMATIC_SHA}"
+          sha="$MANUAL_SHA"
           test -n "$sha"
           printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
 
@@ -112,7 +104,7 @@ jobs:
               "/repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${PROMOTION_SHA}&event=push&per_page=20")" || runs='{}'
             run_id="$(jq -r '[.workflow_runs[] | select(.head_sha == env.PROMOTION_SHA and .head_branch == "main" and .event == "push" and .conclusion == "success")] | sort_by(.id) | last.id // empty' <<<"$runs")"
             if [ -n "$run_id" ]; then
-              resolution=EXACT_SHA_CI_RUN
+              resolution=MANUAL_EXACT_SHA_CI_RUN
             else
               resolution=NO_CERTIFIED_CI_RUN_FOR_SHA
             fi
