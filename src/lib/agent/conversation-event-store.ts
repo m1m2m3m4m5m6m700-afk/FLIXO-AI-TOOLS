@@ -81,7 +81,7 @@ export async function appendConversationEvent(
   return event;
 }
 
-export function verifyConversationEventChain(events: readonly ConversationEvent[] = loadConversationEvents()): boolean {
+export async function verifyConversationEventChain(events: readonly ConversationEvent[] = loadConversationEvents()): Promise<boolean> {
   if (events.length === 0) return true;
   let previousHash: string | null = events[0].previousHash;
   let previousSequence = events[0].sequence - 1;
@@ -90,6 +90,9 @@ export function verifyConversationEventChain(events: readonly ConversationEvent[
     if (!Number.isInteger(event.sequence) || event.sequence !== previousSequence + 1) return false;
     if (event.previousHash !== previousHash) return false;
     if (!event.hash || !event.eventId || !event.timestamp) return false;
+    const { hash: providedHash, ...base } = event;
+    const expectedHash = await digest(base);
+    if (providedHash !== expectedHash) return false;
     previousHash = event.hash;
     previousSequence = event.sequence;
   }
