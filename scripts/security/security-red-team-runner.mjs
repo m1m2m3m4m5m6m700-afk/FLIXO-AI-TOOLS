@@ -69,7 +69,7 @@ const workflowFile = (file) => /^(?:\.github\/workflows\/).+\.ya?ml$/u.test(file
 const sourceFile = (file) => /\.(?:[cm]?js|tsx?|jsx|vue|svelte|astro|css|html|mjs|cjs|json|yml|yaml)$/iu.test(file);
 
 function runTestSystemAdversary() {
-  const tracked = ['.github/workflows/security-red-team.yml','docs/agents/SECURITY-RED-TEAM-BOTS.json','scripts/ci/test-security-red-team-contract.mjs','scripts/ci/control-plane-registry.mjs','scripts/security/security-red-team-runner.mjs'];
+  const tracked = ['.github/workflows/security-red-team.yml','docs/agents/SECURITY-RED-TEAM-BOTS.json','scripts/ci/test-security-red-team-contract.mjs','scripts/ci/control-plane-registry.mjs','scripts/ci/validate-two-branch-policy.mjs','scripts/security/security-red-team-runner.mjs'];
   const temp = fs.mkdtempSync(path.join(ROOT, '.git', 'flixo-test-system-adversary-'));
   const copy = (to) => {
     for (const file of tracked) {
@@ -110,17 +110,28 @@ function runTestSystemAdversary() {
     const file = path.join(dir, '.github/workflows/security-red-team.yml');
     fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(/\n\s+persist-credentials:\s+false/u, ''));
   });
-  check('BRANCH_CREATION_POLICY', dir => {
-    const file = path.join(dir, 'scripts/security/security-red-team-runner.mjs');
-    const fixture = [
-      '',
-      '// FLIXO-TWO-BRANCH-POLICY-TEST-FIXTURE-START: TEMP_WORKSPACE_ONLY',
-      'execFileSync("git", ["switch", "--create", "evil"]);',
-      '// FLIXO-TWO-BRANCH-POLICY-TEST-FIXTURE-END',
-      ''
-    ].join('\n');
-    fs.writeFileSync(file, fs.readFileSync(file, 'utf8') + fixture);
-  });
+  {
+    const dir = fs.mkdtempSync(path.join(temp, 'branch-policy-'));
+    copy(dir);
+    const file = path.join(dir, 'scripts/ci/control-plane-registry.mjs');
+    fs.writeFileSync(file, fs.readFileSync(file, 'utf8') + '\nexecFileSync("git", ["switch", "--create", "evil"]);\n');
+    const init = spawnSync('git', ['init', '-q'], { cwd: dir, env: { ...process.env }, encoding: 'utf8' });
+    if (init.status !== 0) {
+      attacks.push({ id: 'BRANCH_CREATION_POLICY', status: 'ESCAPED', exactSha: EXPECTED_SHA, evidence: String(init.stderr || init.stdout || 'git init failed') });
+    } else {
+      spawnSync('git', ['add', '-A'], { cwd: dir, env: { ...process.env }, encoding: 'utf8' });
+      const result = spawnSync(process.execPath, [path.resolve(dir, 'scripts/ci/validate-two-branch-policy.mjs')], {
+        cwd: dir, env: { ...process.env }, encoding: 'utf8'
+      });
+      attacks.push({
+        id: 'BRANCH_CREATION_POLICY',
+        status: result.status === 0 ? 'ESCAPED' : 'BLOCKED',
+        exactSha: EXPECTED_SHA,
+        evidence: String(result.stdout || result.stderr || '').slice(0, 1200)
+      });
+    }
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
   const wrongSha = '0'.repeat(40);
   const shaProbe = spawnSync(process.execPath, [path.resolve(ROOT, 'scripts/security/security-red-team-runner.mjs'), '--bot=SECURITY-REDTEAM-1', '--sha=' + wrongSha, '--output=/tmp/flixo-redteam-sha-negative.json'], {
     cwd: ROOT, env: { ...process.env }, encoding: 'utf8'
