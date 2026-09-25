@@ -18,6 +18,7 @@ import { sv } from './seo/sv';
 import { th } from './seo/th';
 import { tr } from './seo/tr';
 import { ur } from './seo/ur';
+import { uk } from './seo/uk';
 import { vi } from './seo/vi';
 import { zh } from './seo/zh';
 
@@ -27,5 +28,5 @@ export const BACKGROUND_REMOVER_MANIFEST: ToolManifest = Object.freeze({
   status: 'ready',
   seoStatus: 'pilot',
   capabilities: ['client-side', 'connected-background', 'preview'] as const,
-  seoLocales: Object.freeze({ en, ar, es, fr, de, ru, zh, hi, id, ur, ja, pt, it, ko, nl, ms, pl, tr, vi, th, sv }),
+  seoLocales: Object.freeze({ en, ar, es, fr, de, ru, zh, hi, id, ur, ja, pt, it, ko, nl, ms, pl, tr, vi, th, uk, sv }),
 });
