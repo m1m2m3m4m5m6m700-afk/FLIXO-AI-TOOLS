@@ -289,11 +289,11 @@ function buildUncertaintyAssessment() {
   };
 }
 
+let securityTestSystemAdversary = null;
 if (BOT_ID === 'SECURITY-REDTEAM-1') {
-  const adversarial = runTestSystemAdversary();
-  fullIntelligence.securityTestSystemAdversary = adversarial;
-  if (adversarial.escapedAttacks > 0) {
-    addFinding({ ruleId:'TEST-SYSTEM-ADVERSARY-ESCAPE', severity:'CRITICAL', category:'TEST_SYSTEM_TRUST', title:'Adversarial mutation escaped a test-system control', file:'scripts/security/security-red-team-runner.mjs', line:1, evidence:JSON.stringify(adversarial), confidence:0.99, recommendation:'Open RCA immediately; an adversarial control escaped and canonical GREEN must remain unavailable.' });
+  securityTestSystemAdversary = runTestSystemAdversary();
+  if (securityTestSystemAdversary.escapedAttacks > 0) {
+    addFinding({ ruleId:'TEST-SYSTEM-ADVERSARY-ESCAPE', severity:'CRITICAL', category:'TEST_SYSTEM_TRUST', title:'Adversarial mutation escaped a test-system control', file:'scripts/security/security-red-team-runner.mjs', line:1, evidence:JSON.stringify(securityTestSystemAdversary), confidence:0.99, recommendation:'Open RCA immediately; an adversarial control escaped and canonical GREEN must remain unavailable.' });
   }
 }
 
@@ -352,13 +352,13 @@ const report = {
     twinA:twin.A ? { disposition:twin.A.challenge?.disposition ?? null, preferredStrategy:twin.A.challenge?.preferredAlternativeStrategy ?? null, preferredRepair:twin.A.challenge?.preferredAlternativeRepair ?? null, dissentStrength:twin.A.challenge?.dissentStrength ?? 0 } : null,
     twinB:twin.B ? { disposition:twin.B.challenge?.disposition ?? null, preferredStrategy:twin.B.challenge?.preferredAlternativeStrategy ?? null, preferredRepair:twin.B.challenge?.preferredAlternativeRepair ?? null, dissentStrength:twin.B.challenge?.dissentStrength ?? 0 } : null
   },
-  fullIntelligence,
+  fullIntelligence: { ...fullIntelligence, securityTestSystemAdversary },
   generatedAt:new Date().toISOString()
 };
 
 fs.mkdirSync(path.dirname(OUTPUT),{recursive:true});
 fs.writeFileSync(OUTPUT,JSON.stringify(report,null,2)+'\n');
-if (BOT_ID === 'SECURITY-REDTEAM-1' && Number(fullIntelligence.securityTestSystemAdversary?.escapedAttacks ?? 0) > 0) {
+if (BOT_ID === 'SECURITY-REDTEAM-1' && Number(securityTestSystemAdversary?.escapedAttacks ?? 0) > 0) {
   console.error('TEST_SYSTEM_ADVERSARY_ESCAPED');
   process.exit(1);
 }
