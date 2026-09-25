@@ -46,6 +46,7 @@ const agentResult = () => ({
 
 let pollCount = 0;
 let sessionFromAck = null;
+let residentHeartbeatCount = 0;
 const completeCalls = [];
 
 const mockFetch = async (url, init = {}) => {
@@ -55,6 +56,27 @@ const mockFetch = async (url, init = {}) => {
   calls.push({ path: u.pathname, action, method: init.method ?? 'GET', body });
 
   if (u.hostname === 'runtime.test') {
+    if (action === 'runtime-state') return new Response(JSON.stringify({
+      ok: true,
+      identity: { agentId: 'flixo-worker-a-001', machineRole: 'executionAgent' },
+      accountState: {
+        active: true,
+        currentSessionId: sessionFromAck,
+        lastSeenAt: null,
+        currentExecutionSha: SHA
+      }
+    }), { status: 200 });
+    if (action === 'resident-heartbeat') {
+      residentHeartbeatCount += 1;
+      return new Response(JSON.stringify({
+        ok: true,
+        accountId: 'WORKER_A',
+        agentId: 'flixo-worker-a-001',
+        runtimeSessionId: body?.runtimeSessionId,
+        exactSha: body?.entrySha,
+        state: 'ACTIVE'
+      }), { status: 200 });
+    }
     if (action === 'poll') {
       pollCount += 1;
       if (pollCount === 1) return new Response(JSON.stringify({
@@ -111,6 +133,8 @@ const config = buildConfig('WORKER_A', {
 });
 
 const bridge = createBridge({ config, fetchImpl: mockFetch, heartbeatMs: 5 });
+assert.equal(await bridge.sendPresenceHeartbeat(), true);
+assert.equal(residentHeartbeatCount, 1);
 assert.equal(await bridge.processOnce(), true);
 assert.equal(await bridge.processOnce(), true);
 
@@ -119,6 +143,8 @@ assert.equal(executorCalls.length, 2);
 assert.equal(executorCalls[0].body.sessionId, executorCalls[1].body.sessionId);
 assert.equal(calls.filter((call) => call.action === 'ack').length, 1);
 assert.equal(completeCalls.length, 1);
+assert.ok(calls.some((call) => call.action === 'runtime-state'));
+assert.ok(calls.some((call) => call.action === 'resident-heartbeat'));
 assert.equal(completeCalls[0].status, 'DONE');
 assert.ok(calls.filter((call) => call.action === 'heartbeat').length >= 2);
 
