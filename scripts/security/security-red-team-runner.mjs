@@ -112,7 +112,14 @@ function runTestSystemAdversary() {
   });
   check('BRANCH_CREATION_POLICY', dir => {
     const file = path.join(dir, 'scripts/security/security-red-team-runner.mjs');
-    fs.writeFileSync(file, fs.readFileSync(file, 'utf8') + '\nexecFileSync("git", ["switch", "--create", "evil"]);\n');
+    const fixture = [
+      '',
+      '// FLIXO-TWO-BRANCH-POLICY-TEST-FIXTURE-START: TEMP_WORKSPACE_ONLY',
+      'execFileSync("git", ["switch", "--create", "evil"]);',
+      '// FLIXO-TWO-BRANCH-POLICY-TEST-FIXTURE-END',
+      ''
+    ].join('\n');
+    fs.writeFileSync(file, fs.readFileSync(file, 'utf8') + fixture);
   });
   const wrongSha = '0'.repeat(40);
   const shaProbe = spawnSync(process.execPath, [path.resolve(ROOT, 'scripts/security/security-red-team-runner.mjs'), '--bot=SECURITY-REDTEAM-1', '--sha=' + wrongSha, '--output=/tmp/flixo-redteam-sha-negative.json'], {

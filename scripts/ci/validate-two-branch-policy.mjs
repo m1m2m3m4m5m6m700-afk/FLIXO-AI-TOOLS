@@ -60,6 +60,18 @@ function scanCommands(file, source) {
     return;
   }
 
+  let scanSource = source;
+  if (file === 'scripts/security/security-red-team-runner.mjs') {
+    const startMarker = '// FLIXO-TWO-BRANCH-POLICY-TEST-FIXTURE-START: TEMP_WORKSPACE_ONLY';
+    const endMarker = '// FLIXO-TWO-BRANCH-POLICY-TEST-FIXTURE-END';
+    const start = scanSource.indexOf(startMarker);
+    const end = scanSource.indexOf(endMarker, start);
+    if ((start >= 0) !== (end >= 0)) {
+      add(file, 'TEMP_FIXTURE_MARKERS_MALFORMED', 'branch-policy adversarial fixture markers are unbalanced', lineOf(scanSource, Math.max(start, 0)));
+    } else if (start >= 0 && end >= start) {
+      scanSource = scanSource.slice(0, start) + scanSource.slice(end + endMarker.length);
+    }
+  }
   const arrayPatterns = [
     ['THIRD_BRANCH_SWITCH_CREATE', /['"]git['"]\s*,\s*\[\s*['"]switch['"]\s*,\s*['"](?:-c|-C|--create|--force-create)['"]\s*,\s*([^\]\n]+?)(?:\s*,|\s*\])/giu],
     ['THIRD_BRANCH_CHECKOUT_CREATE', /['"]git['"]\s*,\s*\[\s*['"]checkout['"]\s*,\s*['"](?:-b|-B|--orphan)['"]\s*,\s*([^\]\n]+?)(?:\s*,|\s*\])/giu],
@@ -67,11 +79,11 @@ function scanCommands(file, source) {
     ['THIRD_BRANCH_WORKTREE_CREATE', /['"]git['"]\s*,\s*\[\s*['"]worktree['"]\s*,\s*['"]add['"]\s*,\s*['"](?:-b|-B|--checkout)['"]\s*,\s*([^\]\n]+?)(?:\s*,|\s*\])/giu],
   ];
   for (const [rule, re] of arrayPatterns) {
-    for (const match of source.matchAll(re)) {
+    for (const match of scanSource.matchAll(re)) {
       const raw = String(match[1] ?? '').trim();
       const branch = token(raw);
       if (!/^['"][^'"]+['"]$/u.test(raw) || !CANONICAL_BRANCHES.includes(branch)) {
-        add(file, rule, branch || 'DYNAMIC_OR_UNKNOWN_BRANCH', lineOf(source, match.index ?? 0));
+        add(file, rule, branch || 'DYNAMIC_OR_UNKNOWN_BRANCH', lineOf(scanSource, match.index ?? 0));
       }
     }
   }
