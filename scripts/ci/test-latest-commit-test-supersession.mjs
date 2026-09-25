@@ -17,6 +17,7 @@ assert.match(workflow, /gh run cancel "\$run_id" --repo "\$REPOSITORY"/);
 assert.match(workflow, /STALE_RUN_ALREADY_COMPLETED run=\$run_id/);
 assert.doesNotMatch(workflow, /gh run view "\$run_id"/);
 assert.doesNotMatch(workflow, /gh run cancel "\$run_id" --repo "\$REPOSITORY"\s*\|\|\s*true/);
+assert.match(workflow, /gh api --paginate/);
 assert.doesNotMatch(workflow, /gh api --paginate --slurp/);
 assert.match(workflow, /STALE_ACTIVE_RUNS=\$stale_active/);
 assert.match(workflow, /queued\|pending\|in_progress/);

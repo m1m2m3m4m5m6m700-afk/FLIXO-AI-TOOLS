@@ -133,7 +133,8 @@ if (isMain) {
       const baton = readJson(readArg('baton'));
       const wake = readJson(readArg('wake'));
       if (wake.targetSha !== baton.targetSha) throw new Error('RESIDENT_PROOF_WAKE_SHA_MISMATCH');
-      if (!Array.isArray(wake.nextBotIds) || !wake.nextBotIds.includes(baton.nextActor)) throw new Error('RESIDENT_PROOF_NEXT_ACTOR_NOT_READY_IN_WAKE_REPORT');
+      const readyRuntimeSeats = new Set([...(Array.isArray(wake.stagedRuntimeIds) ? wake.stagedRuntimeIds : []), ...(Array.isArray(wake.nextRuntimeIds) ? wake.nextRuntimeIds : [])].map(String));
+      if (!readyRuntimeSeats.has(String(baton.nextActor))) throw new Error('RESIDENT_PROOF_NEXT_ACTOR_NOT_READY_IN_WAKE_REPORT');
       const ack = buildResidentReadyAck({
         baton,
         responder: readArg('responder', baton.nextActor),
