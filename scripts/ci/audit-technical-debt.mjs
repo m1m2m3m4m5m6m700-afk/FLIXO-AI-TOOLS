@@ -49,7 +49,7 @@ const assetFiles = tracked.filter((p) => /(?:^|\/)(?:assets?|public|static)\//i.
 
 const contractProtected = [
   'scripts/ci/certify.mjs',
-  'scripts/ci/certify-core.mjs',
+  'scripts/ci/certification-engine.mjs',
   'scripts/ci/validate-execution-graph.mjs',
   'scripts/ci/test-plan.json',
   'scripts/ci/assertion-registry.json',
