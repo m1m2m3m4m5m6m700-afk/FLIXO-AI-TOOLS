@@ -194,6 +194,13 @@ const restoreFast = () => {
 
 const attacks = [
   {
+    id: 'POST_VALIDATION_PLAYWRIGHT_REPORT_RACE',
+    mutate() {
+      const file = path.join(evidenceRoot, 'playwright-results', 'browser-fast-chromium-1-results.json');
+      fs.appendFileSync(file, '\nATTACKER_MUTATION=1\n');
+    },
+  },
+  {
     id: 'POST_VALIDATION_EVIDENCE_STATUS_RACE',
     mutate() {
       const file = path.join(evidenceRoot, 'browser-fast-chromium-1.json');
