@@ -43,5 +43,5 @@ export const arIndexRoute = createRoute({
       },
     ],
   }),
-  component: AgentFirstHome,
+  component: () => <AgentFirstHome locale="ar" />,
 });
