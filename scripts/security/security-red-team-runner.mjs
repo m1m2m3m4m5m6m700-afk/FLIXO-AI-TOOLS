@@ -162,6 +162,15 @@ function runTestSystemAdversary() {
   attacks.push({ id: 'RUNTIME_EXACT_SHA_MISMATCH', status: shaProbe.status === 0 ? 'ESCAPED' : 'BLOCKED', exactSha: EXPECTED_SHA });
   const negative = spawnSync(process.execPath, [path.resolve(ROOT, 'scripts/ci/test-negative-control-integration.mjs')], { cwd: ROOT, env: { ...process.env }, encoding: 'utf8' });
   attacks.push({ id: 'FALSE_GREEN_EVIDENCE', status: negative.status === 0 ? 'BLOCKED' : 'ESCAPED', exactSha: EXPECTED_SHA });
+  const canonicalChain = spawnSync(process.execPath, [path.resolve(ROOT, 'scripts/ci/test-canonical-chain-red-team-v2.mjs')], {
+    cwd: ROOT, env: { ...process.env, EXPECTED_SHA }, encoding: 'utf8'
+  });
+  attacks.push({
+    id: 'CANONICAL_CHAIN_FALSE_GREEN',
+    status: canonicalChain.status === 0 ? 'BLOCKED' : 'ESCAPED',
+    exactSha: EXPECTED_SHA,
+    evidence: String(canonicalChain.stdout || canonicalChain.stderr || '').slice(-1600)
+  });
   const escaped = attacks.filter(item => item.status === 'ESCAPED').length;
   const report = {
     authority: 'READ_ONLY_TEST_SYSTEM_ADVERSARY',
