@@ -311,18 +311,27 @@ export function validateStatic() {
 export function validateDiff() {
   const branch = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim();
   if (branch !== 'execution') fail('mutation-branch:' + branch);
-  const raw = execFileSync('git', ['diff', '--name-status'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  // Mutation validation must cover both the working tree and the index because the
+  // repair executor stages files before creating the unpublished candidate commit.
+  const unstaged = execFileSync('git', ['diff', '--name-status'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  const staged = execFileSync('git', ['diff', '--cached', '--name-status'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  const raw = [unstaged, staged].filter(Boolean).join('\\n');
   if (!raw) return { status: 'PASS', changedFiles: 0, changedLines: 0 };
-  const entries = raw.split(/\r?\n/).filter(Boolean).map((line) => {
-    const [status, ...rest] = line.split(/\s+/);
-    return { status, path: rest.at(-1) };
-  });
+  const entryMap = new Map();
+  for (const line of raw.split(/\\r?\\n/).filter(Boolean)) {
+    const [status, ...rest] = line.split(/\\s+/);
+    const targetPath = rest.at(-1);
+    if (targetPath) entryMap.set(targetPath, { status, path: targetPath });
+  }
+  const entries = [...entryMap.values()];
   if (entries.length > MAX_CHANGED_FILES) fail(`changed-files:${entries.length}>${MAX_CHANGED_FILES}`);
   const protectedChanged = entries.filter(({ path: p }) => CONTROL_PLANE_FILES.includes(p));
   if (protectedChanged.length) fail('control-plane-mutation:' + protectedChanged.map((x) => x.path).join(','));
   const denied = entries.filter(({ path: p }) => denyPath(p));
   if (denied.length) fail('sensitive-path-mutation:' + denied.map((x) => x.path).join(','));
-  const numstat = execFileSync('git', ['diff', '--numstat'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  const unstagedNumstat = execFileSync('git', ['diff', '--numstat'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  const stagedNumstat = execFileSync('git', ['diff', '--cached', '--numstat'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  const numstat = [unstagedNumstat, stagedNumstat].filter(Boolean).join('\\n');
   let changedLines = 0;
   for (const line of numstat.split(/\r?\n/).filter(Boolean)) {
     const [add, del] = line.split(/\s+/).map(Number);

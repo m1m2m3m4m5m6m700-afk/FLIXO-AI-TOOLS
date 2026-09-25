@@ -99,6 +99,26 @@ jobs:
           node scripts/ci/master-repair-negative-proof.mjs
           test -s docs/agents/master-repair-20x-contract.json
 
+      - name: Validate staged mutation boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROBE="scripts/ci/.flixo-staged-boundary-probe-${GITHUB_RUN_ID}.mjs"
+          cleanup() {
+            git restore --staged --worktree "$PROBE" >/dev/null 2>&1 || true
+            rm -f "$PROBE"
+          }
+          trap cleanup EXIT
+          printf '%s\n' "export default {};" > "$PROBE"
+          git add "$PROBE"
+          set +e
+          node scripts/ci/validate-auto-repair-boundary.mjs --diff-only > /tmp/flixo-staged-boundary.out 2>&1
+          EXIT_CODE="$?"
+          set -e
+          test "$EXIT_CODE" -ne 0
+          grep -q 'control-plane-mutation:' /tmp/flixo-staged-boundary.out
+          echo 'STAGED_MUTATION_BOUNDARY=PASS'
+
       - name: Validate no direct push boundary contract
         run: |
           set -euo pipefail
