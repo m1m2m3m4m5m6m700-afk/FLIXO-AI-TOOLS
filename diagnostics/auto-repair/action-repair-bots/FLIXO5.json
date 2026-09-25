@@ -5,7 +5,7 @@
   "botId": "FLIXO5",
   "displayName": "FLIXO 5",
   "cloneSource": "FLIXO-BOT-SYSTEM-WIDE-INTELLIGENCE",
-  "intelligenceVersion": "FLIXO-BOT-BRAIN-v1",
+  "intelligenceVersion": "FLIXO-BOT-BRAIN-v2",
   "legacySeat": "ACTION-RCA-3",
   "systemScope": "FULL_REPOSITORY_AND_AUTOMATION_SYSTEM",
   "lens": "WHOLE_SYSTEM_SECURITY_AND_CONTROL_PLANE",
@@ -70,5 +70,10 @@
       "adversaryBot": "FLIXO6",
       "lens": "WHOLE_SYSTEM_SECURITY_AND_CONTROL_PLANE"
     }
-  }
+  },
+  "unifiedCognitiveKernelRef": "docs/agents/FLIXO-BOT.json#/unifiedCognitiveKernel",
+  "unifiedMemoryRef": "diagnostics/auto-repair/SHARED-OPERATIONAL-MEMORY.json",
+  "cognitiveCoverage": "FULL_SYSTEM",
+  "roleOverlayOnly": true,
+  "canReduceCognitiveCoverage": false
 }
