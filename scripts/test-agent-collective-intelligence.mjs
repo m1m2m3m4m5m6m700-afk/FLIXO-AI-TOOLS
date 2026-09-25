@@ -10,6 +10,10 @@ import {
   buildCollectiveIntelligenceFrame,
   summarizeCollectiveIntelligence,
 } from '../src/lib/agent/collective-intelligence.ts';
+import { getAgentProfile, listAgentProfiles, profilesForLenses } from '../src/lib/agent/agent-profile.ts';
+import { assessAgentStuck } from '../src/lib/agent/stuck-detector.ts';
+import { runBoundedGoalLoop } from '../src/lib/agent/goal-controller.ts';
+import { appendConversationEvent, verifyConversationEventChain } from '../src/lib/agent/conversation-event-store.ts';
 
 const registry = JSON.parse(fs.readFileSync('docs/agents/FLIXO-BOT.json', 'utf8'));
 assert.equal(registry.intelligenceVersion, COLLECTIVE_INTELLIGENCE_VERSION);
@@ -22,7 +26,7 @@ const ci = buildCollectiveIntelligenceFrame(
   'CI failed with a race condition; prove the root cause and repair it without weakening security.',
   ['image-compressor'],
 );
-assert.equal(ci.version, 'FLIXO-BOT-BRAIN-v1');
+assert.equal(ci.version, COLLECTIVE_INTELLIGENCE_VERSION);
 assert.equal(ci.authority, 'ADVISORY_ONLY');
 assert.equal(ci.mutationAuthority, false);
 assert.equal(ci.certificationAuthority, false);
@@ -30,7 +34,7 @@ assert.equal(ci.reasoningDepth, 'DEEP');
 assert.equal(ci.depthPolicy.mode, 'FULL_ALWAYS');
 assert.equal(ci.depthPolicy.noComplexityDowngrade, true);
 assert.equal(ci.depthPolicy.reasoningEffort, 'MAXIMUM');
-assert.equal(new Set(ci.selectedLenses).size, 14);
+assert.equal(new Set(ci.selectedLenses).size, 29);
 assert.ok(ci.selectedLenses.includes('ROOT_CAUSE_ANALYSIS'));
 assert.ok(ci.selectedLenses.includes('EVIDENCE_PROVENANCE'));
 assert.ok(ci.selectedLenses.includes('ADVERSARIAL_FALSIFICATION'));
@@ -76,3 +80,53 @@ const summary = summarizeCollectiveIntelligence(ci);
 assert.match(summary, /advisory only/i);
 assert.match(summary, /exact-SHA/i);
 console.log('Agent collective intelligence tests passed.');
+
+const executionProfile = getAgentProfile('executionAgent');
+assert.ok(executionProfile);
+assert.equal(executionProfile.doesNotGrantAuthority, true);
+assert.equal(executionProfile.authorityBinding, 'CANONICAL_CONTROL_PLANE');
+assert.ok(listAgentProfiles().length >= 15);
+assert.ok(profilesForLenses(['ADVERSARIAL_FALSIFICATION']).some((profile) => profile.id === 'reviewAgent'));
+
+const repeated = assessAgentStuck([
+  { kind: 'TOOL', signature: 'image-compressor:{}' },
+  { kind: 'ERROR', signature: 'output verification failed' },
+  { kind: 'TOOL', signature: 'image-compressor:{}' },
+  { kind: 'ERROR', signature: 'output verification failed' },
+  { kind: 'TOOL', signature: 'image-compressor:{}' },
+]);
+assert.equal(repeated.severity, 'STUCK');
+assert.equal(repeated.recommendation, 'REFLECT');
+
+const alternating = assessAgentStuck([
+  { kind: 'TOOL', signature: 'tool:A' },
+  { kind: 'RESULT', signature: 'result:B' },
+  { kind: 'TOOL', signature: 'tool:A' },
+  { kind: 'RESULT', signature: 'result:B' },
+  { kind: 'TOOL', signature: 'tool:A' },
+  { kind: 'RESULT', signature: 'result:B' },
+]);
+assert.equal(alternating.severity, 'STUCK');
+assert.equal(alternating.alternating, true);
+assert.equal(alternating.recommendation, 'REPLAN');
+
+const goal = runBoundedGoalLoop(
+  { value: 0 },
+  (state) => ({
+    satisfied: state.value >= 2,
+    score: Math.min(1, state.value / 2),
+    unmetCriteria: state.value >= 2 ? [] : ['value>=2'],
+    reason: state.value >= 2 ? 'goal reached' : 'value is below target',
+  }),
+  (state) => ({ value: state.value + 1 }),
+);
+assert.equal(goal.status, 'REFINED');
+assert.equal(goal.refinements, 2);
+assert.equal(goal.value.value, 2);
+
+const event = await appendConversationEvent('SYSTEM', { test: 'platform-primitives' });
+assert.equal(event.version, 1);
+assert.equal(event.sequence, 1);
+assert.equal(verifyConversationEventChain([event]), true);
+
+console.log('Agent platform primitives tests passed.');
