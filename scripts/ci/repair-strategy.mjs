@@ -15,6 +15,7 @@ const caseFingerprint = String(process.env.FLIXO_FAILURE_FINGERPRINT ?? '').trim
 const attemptLedgerPath = process.env.FLIXO_REPAIR_ATTEMPT_LEDGER ?? '/tmp/flixo-repair-attempt-ledger.json';
 const trainingPath = process.env.FLIXO_REPAIR_TRAINING_PATH ?? '/tmp/flixo-repair-training.json';
 const behaviorTracePath = process.env.FLIXO_REPAIR_BEHAVIOR_TRACE_PATH ?? '/tmp/flixo-repair-behavior-trace.json';
+const openHandsPriorityPath = process.env.FLIXO_OPENHANDS_PRIORITY_PATH ?? '/tmp/flixo-openhands-priority.json';
 
 const strategies = [
   ['reproduce-exact', 'Reproduce the exact failure on the exact target SHA before changing source.'],
@@ -459,7 +460,14 @@ if (selectedRepairStrategy && !VALID_STRATEGY_IDS.has(selectedRepairStrategy)) {
   throw new Error('TWIN_SELECTED_STRATEGY_NOT_ALLOWLISTED');
 }
 const behaviorTrace = readJson(behaviorTracePath, null);
+const openHandsPriority = readJson(openHandsPriorityPath, null);
 const behaviorDirective = behaviorTrace?.directive ?? {};
+const openHandsAvailable = openHandsPriority?.status === 'COMPLETED'
+  && openHandsPriority?.primaryAdvisor === 'OPENHANDS'
+  && String(openHandsPriority?.targetSha ?? '') === String(process.env.FLIXO_EXPECTED_TARGET_SHA ?? process.env.FLIXO_TARGET_SHA ?? '')
+  && Array.isArray(openHandsPriority?.changedFiles)
+  && openHandsPriority.changedFiles.length > 0;
+
 const forcedBehaviorStrategy = behaviorDirective.strategyChangeRequired === true && VALID_STRATEGY_IDS.has(String(behaviorDirective.nextStrategy ?? '')) ? String(behaviorDirective.nextStrategy) : null;
 const twinPreferredStrategy = selectedRepairStrategy
   || String(twinProposal?.challenge?.preferredAlternativeStrategy ?? twinA?.challenge?.preferredAlternativeStrategy ?? twinB?.challenge?.preferredAlternativeStrategy ?? '').trim();
@@ -667,7 +675,21 @@ fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   trainingDecision,
   nextEvidence,
   behaviorObservation: behaviorTrace ? { traceHash: behaviorTrace.traceHash ?? null, directive: behaviorDirective } : null,
+  openHandsAdvisor: openHandsAvailable ? {
+    status: openHandsPriority.status,
+    targetSha: openHandsPriority.targetSha,
+    changedFiles: openHandsPriority.changedFiles,
+    diffStat: openHandsPriority.diffStat,
+    candidatePatch: openHandsPriority.candidatePatch,
+    proposalPriority: ['OPENHANDS', 'ACTION_REPAIR', 'HISTORICAL', 'DETERMINISTIC'],
+  } : null,
+  primaryProposal: openHandsAvailable ? 'OPENHANDS' : null,
   decisionTrace,
+  openHandsProposal: openHandsAvailable ? openHandsPriority : null,
+  proposalPriority: openHandsAvailable
+    ? ['OPENHANDS', 'ACTION_REPAIR', 'HISTORICAL', 'DETERMINISTIC']
+    : ['ACTION_REPAIR', 'HISTORICAL', 'DETERMINISTIC'],
+  primaryAdvisor: openHandsAvailable ? 'OPENHANDS' : 'ACTION_REPAIR',
   stateActionRecommendation,
   behavioralRecommendation,
   cycle: nextAttempt,
