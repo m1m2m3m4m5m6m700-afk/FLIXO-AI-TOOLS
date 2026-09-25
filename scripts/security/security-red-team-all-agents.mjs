@@ -74,7 +74,7 @@ function validateCandidate(candidate){
   const m=k?.unifiedLearningMemory;
   if(!Array.isArray(ids)||ids.length!==200) errors.push('GLOBAL_COUNT');
   if(Array.isArray(ids)&&new Set(ids).size!==ids.length) errors.push('GLOBAL_UNIQUE');
-  if(Array.isArray(ids)&&!ids.every((id)=>/^FLIXO-BOT-\\d{3}$/u.test(String(id)))) errors.push('GLOBAL_ID_FORMAT');
+  if(Array.isArray(ids)&&!ids.every((id)=>/^FLIXO-BOT-\d{3}$/u.test(String(id)))) errors.push('GLOBAL_ID_FORMAT');
   if(JSON.stringify(ids)!==JSON.stringify(learning)) errors.push('LEARNING_AUDIENCE_PARITY');
   if(k?.version!=='FLIXO-BOT-BRAIN-v2') errors.push('KERNEL_VERSION');
   if(k?.overProvisionedCognition!==true) errors.push('OVERPROVISIONING_DISABLED');
