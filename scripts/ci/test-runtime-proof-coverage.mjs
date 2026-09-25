@@ -20,13 +20,13 @@ assert.deepEqual(
   closure.entries.map((entry) => entry.commitSha).sort(),
   [
     '0fd64bfe30548a13b80ce715f678d81dffd098ad',
+    '664326d970bb03d6aa1d82094e100437cac7a896',
     '6b622ec03cd9de100b065abb5ab89530a9cc444d',
     '846fffc9ef484f7bf1ea3d3c05c3b9adc9ba9e17',
     '9875f961089f93529b3ab5e8ae83cfc3163f377d',
     '9bad17db7eccc9e4b0efb252fa261b1b831b6ec2',
     'baa6a6a8b3090a2168b2203afee462bf0a107d8b',
     'cef267a95acb19e4ab49defb1cf5e725775f0031',
-    '664326d970bb03d6aa1d82094e100437cac7a896',
   ],
 );
 for (const entry of closure.entries) {
