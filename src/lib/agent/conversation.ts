@@ -1,3 +1,5 @@
+import { appendConversationEvent } from './conversation-event-store';
+
 export type ConversationTurn = Readonly<{
   role: 'user' | 'agent';
   text: string;
@@ -117,6 +119,7 @@ export function rememberTurn(
     turns: [...memory.turns, turn].slice(-MAX_MEMORY_TURNS),
   };
   saveConversationMemory(next);
+  void appendConversationEvent(turn.role === 'user' ? 'USER_MESSAGE' : 'AGENT_MESSAGE', { text: turn.text });
   return next;
 }
 
@@ -172,6 +175,12 @@ export function setConversationTask(
     lastPlanReady: task.planReady,
   };
   saveConversationMemory(next);
+  void appendConversationEvent('TASK_STATE', {
+    state: task.planReady ? 'PLANNED' : task.pendingQuestion ? 'NEEDS_INPUT' : 'IDLE',
+    command: task.command,
+    toolId: task.toolId ?? null,
+    pendingToolId: task.pendingToolId ?? null,
+  });
   return next;
 }
 
@@ -185,6 +194,7 @@ export function clearConversationTask(memory: ConversationMemory): ConversationM
     lastPlanReady: false,
   };
   saveConversationMemory(next);
+  void appendConversationEvent('CANCELLED', { reason: 'conversation_task_cleared' });
   return next;
 }
 
