@@ -11,15 +11,18 @@ export const REQUIRED_GREEN_WORKFLOWS = Object.freeze([
 ]);
 export const REQUIRED_GREEN_CHECKS = Object.freeze(['trust-gate', 'Exact-SHA promotion proof', 'Certification']);
 const REPAIR_MARKER = /\[REPAIR:([A-Za-z0-9][A-Za-z0-9._-]*)\]/u;
+const ADD_MARKER = /\[ADD:([A-Za-z0-9][A-Za-z0-9._-]*)\]/u;
 const WP_MARKER = /\[WP:([A-Za-z0-9][A-Za-z0-9._-]*)\]/u;
 
 export function evaluateGreenFirstPolicy({ parentGreen, subject, changedFiles = [] }) {
   const normalizedSubject = String(subject ?? '').trim();
   const repairId = normalizedSubject.match(REPAIR_MARKER)?.[1] ?? null;
+  const addId = normalizedSubject.match(ADD_MARKER)?.[1] ?? null;
   const workPackageId = normalizedSubject.match(WP_MARKER)?.[1] ?? null;
-  if (parentGreen) return Object.freeze({ state: 'OPEN', allowed: true, reason: 'PARENT_CANONICAL_GREEN', parentGreen: true, repairId, workPackageId, changedFiles });
-  if (!repairId || !workPackageId) return Object.freeze({ state: 'BLOCKED', allowed: false, reason: 'RED_TEST_SYSTEM_BLOCKS_NEW_ADDITIONS', message: 'No new additive scope is allowed while the previous exact-SHA canonical test system is not fully GREEN. RED-state mutations require [REPAIR:<ID>] and [WP:<ID>] and remain under the existing repair/control-plane contracts.', parentGreen: false, repairId, workPackageId, changedFiles });
-  return Object.freeze({ state: 'REPAIR_ONLY', allowed: true, reason: 'RED_REPAIR_EXCEPTION', message: 'Only explicitly classified repair mutation is permitted while the previous exact-SHA canonical test system is RED. Existing repair protocol, mutation gate and Exact-SHA verification remain authoritative.', parentGreen: false, repairId, workPackageId, changedFiles });
+  if (parentGreen) return Object.freeze({ state: 'OPEN', allowed: true, reason: 'PARENT_CANONICAL_GREEN', parentGreen: true, repairId, addId, workPackageId, changedFiles });
+  if (!workPackageId || (!repairId && !addId)) return Object.freeze({ state: 'BLOCKED', allowed: false, reason: 'RED_SCOPE_REQUIRES_EXPLICIT_CLASSIFICATION', message: 'RED-state work remains bounded and must declare [REPAIR:<ID>] or [ADD:<ID>] together with [WP:<ID>]. Canonical verification, security, certification, exact-SHA and mutation controls remain mandatory.', parentGreen: false, repairId, addId, workPackageId, changedFiles });
+  const state = repairId ? 'REPAIR_SCOPE' : 'ADDITIVE_SCOPE';
+  return Object.freeze({ state, allowed: true, reason: repairId ? 'RED_REPAIR_EXCEPTION' : 'RED_BOUNDED_ADDITION', message: repairId ? 'Explicitly classified repair scope is permitted while canonical GREEN is pending.' : 'Explicitly classified additive scope is permitted while canonical GREEN is pending under the existing verification and mutation controls.', parentGreen: false, repairId, addId, workPackageId, changedFiles });
 }
 
 const run = (args, options = {}) => execFileSync(args[0], args.slice(1), { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...options }).trim();
@@ -41,5 +44,5 @@ const workflowFailures = REQUIRED_GREEN_WORKFLOWS.flatMap(name => { const r = la
 const checkFailures = REQUIRED_GREEN_CHECKS.flatMap(name => { const r = latestCheck(name); if (!r) return ['CHECK_MISSING=' + name]; if (r.status !== 'completed' || r.conclusion !== 'success') return ['CHECK_NOT_GREEN=' + name + ':' + r.status + ':' + r.conclusion]; return []; });
 const parentGreen = workflowFailures.length === 0 && checkFailures.length === 0;
 const decision = evaluateGreenFirstPolicy({ parentGreen, subject, changedFiles });
-console.log(JSON.stringify({ schemaVersion: 1, policy: 'NO_NEW_ADDITIONS_BEFORE_FULL_CANONICAL_GREEN', headSha: currentHead, parentSha, parentGreen, requiredWorkflows: REQUIRED_GREEN_WORKFLOWS, requiredChecks: REQUIRED_GREEN_CHECKS, workflowFailures, checkFailures, decision: decision.state, allowed: decision.allowed, repairId: decision.repairId, workPackageId: decision.workPackageId, changedFiles }, null, 2));
+console.log(JSON.stringify({ schemaVersion: 2, policy: 'BOUNDED_SCOPE_DURING_CANONICAL_GREEN_PENDING', headSha: currentHead, parentSha, parentGreen, requiredWorkflows: REQUIRED_GREEN_WORKFLOWS, requiredChecks: REQUIRED_GREEN_CHECKS, workflowFailures, checkFailures, decision: decision.state, allowed: decision.allowed, repairId: decision.repairId, addId: decision.addId, workPackageId: decision.workPackageId, changedFiles }, null, 2));
 if (!decision.allowed) process.exitCode = 1;
