@@ -13,7 +13,6 @@ const SHA40 = /\\b[a-f0-9]{40}\\b/giu;
 const LONG_RUN_NUMBER = /\\b(?:run[_ -]?id|run)\\s*[:=#]?\\s*\\d{6,}\\b/giu;
 const UUID = /\\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\b/giu;
 
-const normalize = (value) => String(value ?? '').toLowerCase();
 const sanitizeHistoricalLog = (value) => String(value ?? '')
   .replace(ISO_TS, '<TIME>')
   .replace(SHA40, '<SHA>')
