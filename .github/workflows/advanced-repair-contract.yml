@@ -103,13 +103,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PROBE="scripts/ci/.flixo-staged-boundary-probe-${GITHUB_RUN_ID}.mjs"
+          PROBE="scripts/ci/control-plane-registry.mjs"
+          BACKUP="/tmp/flixo-control-plane-registry.mjs"
           cleanup() {
             git restore --staged --worktree "$PROBE" >/dev/null 2>&1 || true
-            rm -f "$PROBE"
+            rm -f "$BACKUP"
           }
           trap cleanup EXIT
-          printf '%s\n' "export default {};" > "$PROBE"
+          cp "$PROBE" "$BACKUP"
+          printf '\n// staged-boundary-negative-test\n' >> "$PROBE"
           git add "$PROBE"
           set +e
           node scripts/ci/validate-auto-repair-boundary.mjs --diff-only > /tmp/flixo-staged-boundary.out 2>&1
@@ -117,7 +119,9 @@ jobs:
           set -e
           test "$EXIT_CODE" -ne 0
           grep -q 'control-plane-mutation:' /tmp/flixo-staged-boundary.out
+          grep -q 'scripts/ci/control-plane-registry.mjs' /tmp/flixo-staged-boundary.out
           echo 'STAGED_MUTATION_BOUNDARY=PASS'
+
 
       - name: Validate no direct push boundary contract
         run: |
