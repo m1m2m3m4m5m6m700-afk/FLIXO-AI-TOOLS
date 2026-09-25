@@ -4,6 +4,7 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { buildFullIntelligenceBootstrap, assertFullIntelligenceBootstrap } from '../ci/full-intelligence-policy.mjs';
+import { SENSITIVE_PERMISSION_ALLOWLISTS } from '../ci/control-plane-registry.mjs';
 
 const ROOT = process.cwd();
 const REGISTRY = JSON.parse(fs.readFileSync(path.resolve(ROOT, 'docs/agents/SECURITY-RED-TEAM-BOTS.json'), 'utf8'));
@@ -196,8 +197,22 @@ if (BOT_ID === 'SECURITY-REDTEAM-1') {
     }
     for (const hit of lineHits(file, /^\s*(?:actions|contents|security-events|pull-requests|issues|id-token):\s*write\s*$/iu)) {
       const permission = hit.text.trim().split(':')[0];
+      const workflow = path.basename(file);
+      const allowlist = new Set(SENSITIVE_PERMISSION_ALLOWLISTS[permission] ?? []);
+      const explicitlyAdmitted = allowlist.has(workflow);
+      if (explicitlyAdmitted) continue;
       const severity = /^(?:actions|id-token)$/iu.test(permission) ? 'HIGH' : 'MEDIUM';
-      addFinding({ ruleId:'CONTROL-PRIVILEGED-PERMISSION', severity, category:'LEAST_PRIVILEGE', title:`Privileged workflow permission: ${permission}`, file, line:hit.line, evidence:hit.text, confidence:0.98, recommendation:'Document the exact mutation need, scope the job to the smallest step, and enforce a dedicated allowlist plus adversarial regression for the permission.' });
+      addFinding({
+        ruleId:'CONTROL-PRIVILEGED-PERMISSION',
+        severity,
+        category:'LEAST_PRIVILEGE',
+        title:`Privileged workflow permission: ${permission}`,
+        file,
+        line:hit.line,
+        evidence:hit.text,
+        confidence:0.98,
+        recommendation:'Document the exact mutation need, scope the job to the smallest step, and admit only the exact workflow+permission pair through SENSITIVE_PERMISSION_ALLOWLISTS with adversarial regression.'
+      });
     }
     for (const hit of lineHits(file, /run:\s*.*\$\{\{\s*(?:github\.event|inputs\.)/iu)) {
       addFinding({ ruleId:'CONTROL-INPUT-TO-SHELL', severity:'HIGH', category:'COMMAND_INJECTION', title:'Untrusted workflow expression reaches shell command text', file, line:hit.line, evidence:hit.text, confidence:0.94, recommendation:'Pass untrusted values through environment variables or validated files; never interpolate attacker-controlled expressions directly into shell syntax.' });
