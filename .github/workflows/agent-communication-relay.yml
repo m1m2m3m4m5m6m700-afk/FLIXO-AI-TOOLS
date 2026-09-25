@@ -32,8 +32,37 @@ jobs:
           case "$ISSUE_NUMBER" in
             ''|*[!0-9]*) echo 'FAIL CLOSED: invalid PR number'; exit 1 ;;
           esac
-          HEAD_SHA="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$ISSUE_NUMBER" --jq '.head.sha // empty')"
-          COMMIT_AT="$(gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA" --jq '.commit.committer.date // .commit.author.date // empty')"
+          gh_api_with_rate_limit_backoff() {
+            local attempt=0
+            local delay=3000
+            local output
+            local status
+            while [ "$attempt" -lt 5 ]; do
+              if output="$(gh api "$@" 2>/tmp/gh-api-error)"; then
+                rm -f /tmp/gh-api-error
+                printf '%s' "$output"
+                return 0
+              fi
+              status="$(cat /tmp/gh-api-error)"
+              if ! printf '%s' "$status" | grep -Eqi 'rate limit exceeded|secondary rate limit|HTTP 429|HTTP 403'; then
+                cat /tmp/gh-api-error >&2
+                rm -f /tmp/gh-api-error
+                return 1
+              fi
+              attempt=$((attempt + 1))
+              if [ "$attempt" -ge 5 ]; then
+                cat /tmp/gh-api-error >&2
+                rm -f /tmp/gh-api-error
+                return 1
+              fi
+              echo "GITHUB_API_RATE_LIMIT_BACKOFF attempt=$attempt delayMs=$delay" >&2
+              sleep "$delay"
+              delay=$((delay * 2))
+            done
+          }
+
+          HEAD_SHA="$(gh_api_with_rate_limit_backoff "repos/$GITHUB_REPOSITORY/pulls/$ISSUE_NUMBER" --jq '.head.sha // empty')"
+          COMMIT_AT="$(gh_api_with_rate_limit_backoff "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA" --jq '.commit.committer.date // .commit.author.date // empty')"
           test -n "$HEAD_SHA"
           test -n "$COMMIT_AT"
           COMMENT_EPOCH="$(date -u -d "$COMMENT_AT" +%s)"
