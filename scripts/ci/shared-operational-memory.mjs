@@ -8,6 +8,7 @@ export const SHARED_MEMORY_PATH=path.resolve(ROOT,process.env.FLIXO_SHARED_OPERA
 export const SHARED_MEMORY_PROTOCOL='FLIXO-SHARED-OPERATIONAL-MEMORY-v1';
 export const CELL_MEMORY_SCOPE='ALL_CELL_MEMBERS';
 export const CELL_MEMBER_COUNT=200;
+export const SHARED_MEMORY_MODEL='ONE_CANONICAL_MEMORY';
 export const FLIXO_BOT_REGISTRY_PATH=path.resolve(ROOT,process.env.FLIXO_BOT_REGISTRY??'docs/agents/FLIXO-BOT.json');
 const loadFlixoBotAudience=()=>{try{const registry=JSON.parse(fs.readFileSync(FLIXO_BOT_REGISTRY_PATH,'utf8'));const audience=registry?.distribution?.learningConsumers;const cognitiveIds=registry?.distribution?.cognitiveBotIds;if(!Array.isArray(cognitiveIds)||cognitiveIds.length!==200)throw new Error('INVALID_COGNITIVE_AUDIENCE');if(!Array.isArray(audience)||audience.length!==200||JSON.stringify(audience)!==JSON.stringify(cognitiveIds))throw new Error('INVALID_GLOBAL_AUDIENCE');return [...new Set(audience.map(x=>String(x).trim()).filter(Boolean))];}catch(error){if(process.env.NODE_ENV==='test'||process.env.FLIXO_ALLOW_LEGACY_SHARED_MEMORY_FALLBACK==='true')return ['ACTION-REPAIR','ACTION-REPAIR-2','READ-INVESTIGATOR','READ-ADVERSARY','executionAgent','reviewAgent'];throw new Error('FLIXO_BOT_GLOBAL_MEMORY_AUDIENCE_UNAVAILABLE:'+error.message,{cause:error});}};
 export const SHARED_BOTS=Object.freeze(loadFlixoBotAudience());
@@ -142,9 +143,7 @@ function normalizeRecord(input={}){
     protocol:SHARED_MEMORY_PROTOCOL,
     sourceBot:resolveSharedMemoryBotId(input.sourceBot),
     sourceBotAlias:String(input.sourceBot??'').trim() || null,
-    audience:[...SHARED_BOTS],
-    broadcastScope:CELL_MEMORY_SCOPE,
-    broadcastToAllCellMembers:true,
+    memoryModel:SHARED_MEMORY_MODEL,
     cellMemberCount:SHARED_BOTS.length,
     kind:String(input.kind),
     status,
@@ -239,10 +238,7 @@ export function readSharedMemory({fingerprint=null,botId=null,kinds=null,limit=8
   const allowedKinds=Array.isArray(kinds)?new Set(kinds.filter(kind=>SHARED_KINDS.includes(kind))):null;
   if(botId) resolveSharedMemoryBotId(botId);
   const rows=memory.records.filter(record=>
-    (record.legacyRecord === true || record.broadcastToAllCellMembers === undefined || (record.broadcastToAllCellMembers === true && record.broadcastScope === CELL_MEMORY_SCOPE && record.cellMemberCount === CELL_MEMBER_COUNT && record.audience.length === CELL_MEMBER_COUNT && record.audience.every((id,index)=>id===SHARED_BOTS[index]))) &&
-
     (!fingerprint||record.fingerprint===fingerprint) &&
-    (!canonicalBotId||record.audience.includes(canonicalBotId)) &&
     (!allowedKinds||allowedKinds.has(record.kind))
   ).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
   return rows.slice(0,Math.max(1,Number(limit)||80));
