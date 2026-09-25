@@ -11,6 +11,13 @@ const FlixoAIAgent = lazy(async () => {
   return { default: module.FlixoAIAgent };
 });
 
+const AGENT_LABELS: Record<Locale, string> = {
+  en: 'Agent', ar: 'الوكيل', es: 'Agente de IA', fr: 'Agent IA', de: 'KI-Agent', hi: 'एआई एजेंट',
+  id: 'Agen AI', it: 'Agente IA', ja: 'AIエージェント', ko: 'AI 에이전트', ms: 'Ejen AI',
+  nl: 'AI-agent', pl: 'Agent AI', pt: 'Agente IA', ru: 'ИИ-агент', sv: 'AI-agent',
+  th: 'เอเจนต์ AI', tr: 'Yapay zekâ ajanı', uk: 'AI-агент', vi: 'Tác nhân AI',
+};
+
 const BROWSE_TOOLS_LABELS: Record<Locale, string> = {
   en: 'Browse tools', ar: 'تصفح الأدوات', es: 'Explorar herramientas', fr: 'Parcourir les outils',
   de: 'Tools durchsuchen', hi: 'टूल्स ब्राउज़ करें', id: 'Jelajahi alat', it: 'Sfoglia strumenti',
@@ -68,7 +75,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
         )}
         <nav className="agent-first-nav-actions" aria-label={home.ariaPrimary}>
           <Link className="agent-first-tools-button" to={locale === 'ar' ? '/ar/tools' : '/tools'}>{BROWSE_TOOLS_LABELS[locale]}</Link>
-          <Link className="agent-first-tools-button" to={locale === 'en' ? '/agent' : '/$locale/agent'} params={locale === 'en' ? undefined : { locale }}>{locale === 'ar' ? 'الوكيل' : locale === 'en' ? 'Agent' : 'Agent'}</Link>
+          <Link className="agent-first-tools-button" to={locale === 'en' ? '/agent' : '/$locale/agent'} params={locale === 'en' ? undefined : { locale }}>{AGENT_LABELS[locale]}</Link>
           <label className="sr-only" htmlFor="home-language">{home.nav.switch}</label>
           <select
             id="home-language"
