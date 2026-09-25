@@ -14,7 +14,7 @@ env:
   # Strict WP-tag enforcement epoch begins at this exact execution boundary.
   # The preceding untagged repair burst is closed here without rewriting history.
   # Every subsequent commit must carry [WP:<ID>] and stay within one work package.
-  FLIXO_WP_BASE_SHA: 44aa73b39134160acc8adf3a168d86241f5601c4
+  FLIXO_WP_BASE_SHA: 428a9736b81ed29121ff4e377679393906bf4f45
   # New sensitive-runtime proof epoch begins immediately before the runtime-seat binding proof commit.
   # Earlier historical sensitive changes remain governed by the historical closure contract.
   FLIXO_PROOF_BASE_SHA: 9edea33d2ede931f7f42a323d3818a699ba999e9
