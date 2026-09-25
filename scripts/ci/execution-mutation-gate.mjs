@@ -48,17 +48,26 @@ function assertNoCanonicalVerificationRunActive(targetSha){
   if(trustedLocalTestHarness()) return;
   const repo=String(process.env.GITHUB_REPOSITORY??'').trim();
   if(!repo) throw new Error('MUTATION_GATE_GITHUB_REPOSITORY_MISSING');
-  const raw=execFileSync('gh',['api',`repos/${repo}/actions/runs?head_sha=${targetSha}&per_page=100`],{cwd:ROOT,encoding:'utf8'});
+
+  // Mutation admission is branch-global: an active canonical verification for ANY
+  // execution SHA fences the writer lane. Checking only targetSha allowed rapid
+  // per-file commits to race the push-triggered CI before its run became active.
+  const raw=execFileSync('gh',['api',`repos/${repo}/actions/runs?branch=execution&per_page=100`],{cwd:ROOT,encoding:'utf8'});
   let body;
   try{body=JSON.parse(raw);}catch(error){throw new Error('MUTATION_GATE_VERIFICATION_RUN_INVENTORY_INVALID',{cause:error});}
   const active=(body?.workflow_runs??[]).filter(run=>{
     const status=String(run?.status??'');
     const path=String(run?.path??'');
-    return (status==='queued'||status==='in_progress') && CANONICAL_VERIFICATION_PATHS.has(path);
+    const headSha=String(run?.head_sha??'').trim();
+    return (status==='queued'||status==='in_progress') &&
+      CANONICAL_VERIFICATION_PATHS.has(path) &&
+      SHA_RE.test(headSha);
   });
   if(active.length){
-    const names=active.map(run=>String(run?.name??run?.path??'unknown')).join(', ');
-    throw new Error(`MUTATION_GATE_CANONICAL_VERIFICATION_ACTIVE: targetSha=${targetSha} active=${names}`);
+    const details=active
+      .map(run=>`${String(run?.name??run?.path??'unknown')}@${String(run?.head_sha??'unknown')}`)
+      .join(', ');
+    throw new Error(`MUTATION_GATE_CANONICAL_VERIFICATION_ACTIVE: targetSha=${targetSha} active=${details}`);
   }
 }
 function remoteExecutionSha(){
