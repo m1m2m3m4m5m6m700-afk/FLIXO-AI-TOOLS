@@ -82,11 +82,12 @@ export async function appendConversationEvent(
 }
 
 export function verifyConversationEventChain(events: readonly ConversationEvent[] = loadConversationEvents()): boolean {
-  let previousHash: string | null = null;
-  let previousSequence = 0;
+  if (events.length === 0) return true;
+  let previousHash: string | null = events[0].previousHash;
+  let previousSequence = events[0].sequence - 1;
   for (const event of events) {
     if (event.version !== 1) return false;
-    if (event.sequence !== previousSequence + 1) return false;
+    if (!Number.isInteger(event.sequence) || event.sequence !== previousSequence + 1) return false;
     if (event.previousHash !== previousHash) return false;
     if (!event.hash || !event.eventId || !event.timestamp) return false;
     previousHash = event.hash;
