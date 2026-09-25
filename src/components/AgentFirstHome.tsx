@@ -17,7 +17,7 @@ const BROWSE_TOOLS_LABELS: Record<Locale, string> = {
   ja: 'ツールを参照', ko: '도구 둘러보기', ms: 'Semak alat', nl: 'Tools bekijken',
   pl: 'Przeglądaj narzędzia', pt: 'Explorar ferramentas', ru: 'Обзор инструментов',
   sv: 'Bläddra bland verktyg', th: 'เรียกดูเครื่องมือ', tr: 'Araçlara göz at',
-  uk: 'Переглянути інструментите', vi: 'Duyệt công cụ',
+  uk: 'Переглянути інструменти', vi: 'Duyệt công cụ',
 };
 
 const LANGUAGE_LABELS: Record<Locale, string> = {
