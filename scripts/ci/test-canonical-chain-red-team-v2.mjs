@@ -285,21 +285,12 @@ const attacks = [
   },
 ];
 
-const escaped = [];
-for (const attack of attacks) {
-  fs.writeFileSync(graphPath, fs.readFileSync(graphPath));
-  attack.mutate();
-  const result = run('scripts/ci/certification-engine.mjs');
-  const certification = fs.existsSync(certificationPath)
-    ? JSON.parse(fs.readFileSync(certificationPath, 'utf8'))
-    : null;
-  const blocked = result.status !== 0 && certification?.status === 'FAIL' && certification?.authority === 'CANONICAL_CERTIFICATION_ENGINE';
-  if (!blocked) escaped.push({ id: attack.id, exitCode: result.status, certification });
+const rebuildFixture = () => {
   fs.rmSync(evidenceRoot, { recursive: true, force: true });
   fs.mkdirSync(evidenceRoot, { recursive: true });
   for (const browser of browsers) {
-    const parts = [fastSpecs.slice(0, 11), fastSpecs.slice(11)];
-    parts.forEach((specs, index) => {
+    const fastParts = [fastSpecs.slice(0, 11), fastSpecs.slice(11)];
+    fastParts.forEach((specs, index) => {
       const shard = index + 1;
       writeJson(`diagnostics/certification/browser-fast-${browser}-${shard}.json`, {
         schema_version: 5, evidenceClass: 'PRIMARY_EXECUTION', mode: 'FAST', browser, shard, runId,
@@ -325,6 +316,28 @@ for (const attack of attacks) {
       });
     });
   }
+  const rebuilt = run('scripts/ci/validate-execution-graph.mjs');
+  assert.equal(rebuilt.status, 0, `fixture rebuild failed:\n${rebuilt.stdout}\n${rebuilt.stderr}`);
+};
+
+const escaped = [];
+for (const attack of attacks) {
+  attack.mutate();
+  const result = run('scripts/ci/certification-engine.mjs');
+  const certification = fs.existsSync(certificationPath)
+    ? JSON.parse(fs.readFileSync(certificationPath, 'utf8'))
+    : null;
+  const blocked = result.status !== 0 &&
+    certification?.status === 'FAIL' &&
+    certification?.authority === 'CANONICAL_CERTIFICATION_ENGINE';
+  if (!blocked) escaped.push({
+    id: attack.id,
+    exitCode: result.status,
+    certification,
+    stdoutTail: String(result.stdout ?? '').slice(-1200),
+    stderrTail: String(result.stderr ?? '').slice(-1200),
+  });
+  rebuildFixture();
 }
 
 fs.rmSync(workspace, { recursive: true, force: true });
@@ -336,7 +349,7 @@ console.log(JSON.stringify({
   attackCount: attacks.length,
   blockedAttacks: attacks.length - escaped.length,
   escapedAttacks: escaped.length,
-  attacks,
+  attacks: attacks.map(({ id }) => id),
   escaped,
 }, null, 2));
 
