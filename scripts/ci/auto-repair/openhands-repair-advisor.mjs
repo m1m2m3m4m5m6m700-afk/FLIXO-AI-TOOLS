@@ -54,6 +54,17 @@ export function runOpenHandsRepairAdvisor({
   failureLog = '',
   diagnosis = null,
 } = {}) {
+  const precomputedPath = process.env.FLIXO_OPENHANDS_PRIORITY_PATH ?? '';
+  if (precomputedPath && fs.existsSync(precomputedPath)) {
+    try {
+      const precomputed = JSON.parse(fs.readFileSync(precomputedPath, 'utf8'));
+      if (precomputed?.targetSha === targetSha && precomputed?.protocol === 'FLIXO-OPENHANDS-REPAIR-ADVISOR-v1') {
+        return Object.freeze({ ...precomputed, reusedPrecomputed: true });
+      }
+    } catch {
+      // Invalid precomputed evidence is ignored; the exact-SHA adapter will re-run and fail closed if unavailable.
+    }
+  }
   const enabled = process.env.FLIXO_OPENHANDS_ADVISOR_ENABLED === 'true';
   if (!enabled) {
     return Object.freeze({
