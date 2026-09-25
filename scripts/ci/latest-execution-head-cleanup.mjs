@@ -25,18 +25,55 @@ const headers = {
   'content-type': 'application/json',
 };
 
+const API_RETRY_BASE_MS = Number.parseInt(process.env.FLIXO_GITHUB_API_RETRY_BASE_MS ?? '3000', 10);
+const API_RETRY_MAX = Number.parseInt(process.env.FLIXO_GITHUB_API_MAX_RETRIES ?? '5', 10);
+const API_RETRY_MAX_DELAY_MS = Number.parseInt(process.env.FLIXO_GITHUB_API_MAX_DELAY_MS ?? '60000', 10);
+
+if (!Number.isInteger(API_RETRY_BASE_MS) || API_RETRY_BASE_MS < 250 ||
+    !Number.isInteger(API_RETRY_MAX) || API_RETRY_MAX < 0 || API_RETRY_MAX > 8 ||
+    !Number.isInteger(API_RETRY_MAX_DELAY_MS) || API_RETRY_MAX_DELAY_MS < API_RETRY_BASE_MS) {
+  console.error('FAIL CLOSED: invalid GitHub API retry configuration.');
+  process.exit(1);
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const rateLimitDelayMs = (response, attempt) => {
+  const retryAfter = Number(response.headers.get('retry-after') ?? '');
+  const resetEpochSeconds = Number(response.headers.get('x-ratelimit-reset') ?? '');
+  const retryAfterMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 0;
+  const resetDelayMs = Number.isFinite(resetEpochSeconds) && resetEpochSeconds > 0
+    ? Math.max(0, resetEpochSeconds * 1000 - Date.now() + 250)
+    : 0;
+  const exponential = Math.min(API_RETRY_MAX_DELAY_MS, API_RETRY_BASE_MS * 2 ** attempt);
+  return Math.min(API_RETRY_MAX_DELAY_MS, Math.max(exponential, retryAfterMs, resetDelayMs));
+};
+
+const isRateLimited = (response, text) =>
+  response.status === 429 ||
+  (response.status === 403 && /rate limit exceeded for installation/i.test(text));
+
 async function github(path, options = {}) {
-  const response = await fetch(`${apiBase}${path}`, {
-    ...options,
-    headers: {...headers, ...(options.headers ?? {})},
-  });
-  const text = await response.text();
-  let body = null;
-  try { body = text ? JSON.parse(text) : null; } catch (parseError) { void parseError; }
-  if (!response.ok) {
-    throw new Error(`GitHub API ${response.status} ${path}: ${text.slice(0, 500)}`);
+  for (let attempt = 0; attempt <= API_RETRY_MAX; attempt += 1) {
+    const response = await fetch(`${apiBase}${path}`, {
+      ...options,
+      headers: {...headers, ...(options.headers ?? {})},
+    });
+    const text = await response.text();
+    let body = null;
+    try { body = text ? JSON.parse(text) : null; } catch (parseError) { void parseError; }
+    if (response.ok) return body;
+
+    if (!isRateLimited(response, text) || attempt === API_RETRY_MAX) {
+      throw new Error(`GitHub API ${response.status} ${path}: ${text.slice(0, 500)}`);
+    }
+
+    const delay = rateLimitDelayMs(response, attempt);
+    console.log(`GITHUB_API_RATE_LIMIT_RETRY attempt=${attempt + 1} delayMs=${delay} path=${path}`);
+    await sleep(delay);
   }
-  return body;
+
+  throw new Error(`GitHub API retry loop exhausted for ${path}`);
 }
 
 async function cancelRun(runId) {
