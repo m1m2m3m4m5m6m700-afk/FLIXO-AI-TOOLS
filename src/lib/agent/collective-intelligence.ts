@@ -6,6 +6,8 @@
  * execution, merge, or certification authority.
  */
 
+import { listAgentProfiles } from '@/lib/agent/agent-profile';
+
 export const COLLECTIVE_INTELLIGENCE_VERSION = 'FLIXO-BOT-BRAIN-v2' as const;
 export const COLLECTIVE_INTELLIGENCE_SOURCE = 'docs/agents/FLIXO-BOT.json' as const;
 export const COLLECTIVE_ACTIVE_MEMBER_COUNT = 200 as const;
@@ -76,22 +78,15 @@ const LENSES: readonly CollectiveReasoningLens[] = Object.freeze([
   { id: 'HUMAN_HANDOFF_REASONING', purpose: 'Prepare precise escalation when authority or evidence boundaries require human arbitration.', triggers: ['handoff', 'escalate', 'human', 'تصعيد', 'تسليم', 'إنسان'] },
 ]);
 
-const ROLE_PERSPECTIVES: Readonly<Record<string, readonly string[]>> = Object.freeze({
-  analysis: ['ROOT_CAUSE_ANALYSIS', 'HYPOTHESIS_DISCRIMINATION', 'UNCERTAINTY_MODELING'],
-  codeScout: ['DEPENDENCY_IMPACT_REASONING', 'MINIMAL_CHANGE_SELECTION'],
-  errorAgent: ['ROOT_CAUSE_ANALYSIS', 'EVIDENCE_PROVENANCE', 'TEMPORAL_STATE_REASONING'],
-  repairAgent: ['ROOT_CAUSE_ANALYSIS', 'MINIMAL_CHANGE_SELECTION', 'RECOVERY_REASONING'],
-  executionAgent: ['HUMAN_INTENT_MODELING', 'MINIMAL_CHANGE_SELECTION', 'EVIDENCE_PROVENANCE'],
-  reviewAgent: ['ADVERSARIAL_FALSIFICATION', 'EVIDENCE_PROVENANCE', 'REGRESSION_REASONING'],
-  testAgent: ['REGRESSION_REASONING', 'EVIDENCE_PROVENANCE'],
-  securityAgent: ['SECURITY_BOUNDARY_REASONING', 'ADVERSARIAL_FALSIFICATION'],
-  performanceAgent: ['PERFORMANCE_REASONING', 'DEPENDENCY_IMPACT_REASONING'],
-  certificationAuthority: ['EVIDENCE_PROVENANCE', 'TEMPORAL_STATE_REASONING'],
-  actionHistorian: ['LEARNING_AND_ANTI_LESSON', 'TEMPORAL_STATE_REASONING'],
-  actionRepairBot: ['ROOT_CAUSE_ANALYSIS', 'MINIMAL_CHANGE_SELECTION', 'RECOVERY_REASONING'],
-  actionRepairVerifier: ['ADVERSARIAL_FALSIFICATION', 'REGRESSION_REASONING', 'EVIDENCE_PROVENANCE'],
-  'ACTION-CODE-MENTOR': ['DEPENDENCY_IMPACT_REASONING', 'MINIMAL_CHANGE_SELECTION'],
-});
+function selectRolePerspectives(selectedLenses: readonly string[]): readonly string[] {
+  const wanted = new Set(selectedLenses);
+  const roles = new Set<string>();
+  for (const profile of listAgentProfiles()) {
+    if (profile.lenses.some((lens) => wanted.has(lens))) roles.add(profile.id);
+  }
+  return Object.freeze([...roles]);
+}
+
 
 const REASONING_SEQUENCE = Object.freeze([
   'OBSERVE',
@@ -158,7 +153,7 @@ export function buildCollectiveIntelligenceFrame(
     request: request.trim(),
     capabilityIds: Object.freeze([...new Set(capabilityIds.map((id) => String(id).trim()).filter(Boolean))]),
     selectedLenses: Object.freeze([...selected]),
-    selectedPerspectives: selectPerspectives([...selected]),
+    selectedPerspectives: selectRolePerspectives([...selected]),
     reasoningSequence: REASONING_SEQUENCE,
     proofObligations: PROOF_OBLIGATIONS,
     guardrails: GUARDRAILS,
