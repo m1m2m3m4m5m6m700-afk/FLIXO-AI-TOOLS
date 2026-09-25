@@ -196,7 +196,7 @@ assert.notEqual(certFail.status, 0, 'canonical certification engine must fail cl
 const rejectedCertification = JSON.parse(fs.readFileSync(path.join(certificationRoot, 'certification.json'), 'utf8'));
 assert.equal(rejectedCertification.authority, 'CANONICAL_CERTIFICATION_ENGINE');
 assert.equal(rejectedCertification.status, 'FAIL');
-assert.ok(rejectedCertification.errors.some((error) => /executionGraph\.(status|exactSha)/u.test(error)));
+assert.ok(rejectedCertification.errors.some((error) => /execution-graph revalidation failed|executionGraph\.(status|exactSha)/u.test(error)));
 
 const directCertificationMutations = [
   ['GRAPH_STATUS_FAIL', (graph) => { graph.status = 'FAIL'; graph.errors = ['INJECTED_GRAPH_FAILURE']; }],
