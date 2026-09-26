@@ -1,3 +1,4 @@
+import { assertApprovalNotReplayed } from '../../src/lib/agent/flixo-bot-task-bridge.ts';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -43,5 +44,18 @@ assert.match(ui, /runtimeResumeState: prepared\.runtimeState/u);
 
 assert.match(vite, /__FLIXO_BUILD_SHA__/u);
 assert.match(vite, /VERCEL_GIT_COMMIT_SHA/u);
+
+const approval = 'approval-replay-fixture';
+const runId = 'run-replay-fixture';
+assert.doesNotThrow(() => assertApprovalNotReplayed([], runId, approval));
+assert.throws(
+  () => assertApprovalNotReplayed([
+    { kind: 'SYSTEM', payload: { type: 'FLIXO_BOT_APPROVAL_ACCEPTED', runId, approvalId: approval } },
+  ], runId, approval),
+  /FLIXO_BOT_APPROVAL_REPLAY/,
+);
+assert.doesNotThrow(() => assertApprovalNotReplayed([
+  { kind: 'SYSTEM', payload: { type: 'FLIXO_BOT_APPROVAL_ACCEPTED', runId, approvalId: 'different' } },
+], runId, approval));
 
 console.log('FLIXO BOT execution bridge contract passed.');
