@@ -95,7 +95,6 @@ const DEFAULT_MAX_PIXELS = 16_000_000;
 const DEFAULT_MAX_FILE_SIZE_BYTES = 64 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MIME_TYPES = ['image/webp', 'image/jpeg', 'image/png'] as const;
-const VIDEO_MIME_TYPES = ['video/webm'] as const;
 const COMMON_PARAMETERS = z.record(z.string().max(64), z.union([z.string(), z.number().finite(), z.boolean()]));
 
 const PARAMETER_SCHEMAS: Readonly<Record<string, ZodType>> = {
