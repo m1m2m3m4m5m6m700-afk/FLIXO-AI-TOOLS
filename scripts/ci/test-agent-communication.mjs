@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { ingest, validateMessage, markRead, markConsumed, acknowledgeAdministrativeInstruction, auditAdministrativeAttendance, COUNCIL_PRIORITY, COUNCIL_RESPONSE_MODE } from './agent-communication.mjs';
 
 const root = process.cwd();
+process.env.NODE_ENV = 'test';
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 const relayWorkflow = fs.readFileSync(path.join(root, '.github/workflows/agent-communication-relay.yml'), 'utf8');
 assert.match(relayWorkflow, /gh_api_with_rate_limit_backoff\(\)/);
