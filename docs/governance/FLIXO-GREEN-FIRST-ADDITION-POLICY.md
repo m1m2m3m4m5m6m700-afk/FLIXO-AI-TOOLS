@@ -28,3 +28,8 @@ A correctly classified repair or additive scope is allowed to proceed, but the r
 ## Architecture
 
 This policy extends the existing Engineering Work Package Guard. It does not create another control plane or mutation lane. The only publication path remains `execution → main`, with no third branch.
+
+
+## Documentation is not an exemption
+
+Documentation, governance text, README/CONTRIBUTING edits, and policy prose are repository mutations for Green-First purposes. They are not exempt merely because they do not change runtime code. While canonical GREEN is pending, such changes must carry the same [REPAIR:<ID>] [WP:<ID>] or [ADD:<ID>] [WP:<ID>] classification and pass the same canonical verification gates.

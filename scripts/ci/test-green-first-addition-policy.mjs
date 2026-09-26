@@ -16,3 +16,11 @@ assert.equal(redRepair.state, 'REPAIR_SCOPE');
 const redRepairWithoutWp = evaluateGreenFirstPolicy({ parentGreen: false, subject: 'fix(ci): close exact-sha blocker [REPAIR:CI-GREEN-001]', changedFiles: ['scripts/ci/exact-sha-gate.mjs'] });
 assert.equal(redRepairWithoutWp.allowed, false);
 console.log('GREEN_FIRST_ADDITION_POLICY_TEST=PASS');
+
+const redDocumentationWithoutClassification = evaluateGreenFirstPolicy({
+  parentGreen: false,
+  subject: 'docs: update repository governance',
+  changedFiles: ['CONTRIBUTING.md', 'docs/governance/FLIXO-GREEN-FIRST-ADDITION-POLICY.md'],
+});
+assert.equal(redDocumentationWithoutClassification.allowed, false);
+assert.equal(redDocumentationWithoutClassification.reason, 'RED_SCOPE_REQUIRES_EXPLICIT_CLASSIFICATION');

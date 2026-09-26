@@ -17,19 +17,18 @@ FLIXO AI is a browser-first toolbox built with React, Vite, TypeScript, and TanS
 ## Engineering model
 
 ```text
-main
+execution
   |
-  +-- feature/* or chore/*
-        |
-        +-- small change
-        +-- targeted validation
-        +-- PR
-        +-- exact-SHA CI
-        +-- diff review
-        +-- merge only when GREEN
+  +-- bounded repair / implementation
+  +-- targeted validation
+  +-- exact-SHA CI
+  +-- certification evidence
+  +-- PR
+  +-- main
+
 ```
 
-`main` is never the scratchpad. Experimental, diagnostic, repair, and historical branches are not production inputs until deliberately rebuilt against current `main` and verified again.
+`execution` is the sole working and mutation path. `main` is the production/source-of-truth destination. No feature, chore, repair, test, diagnostic, temporary, or agent branch may be created or used as an execution path. Promotion is only `execution → main`; direct `main` mutation is forbidden.
 
 ## Verification contract
 
