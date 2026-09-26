@@ -1,4 +1,4 @@
-import { validateFileSafety } from '../../lib/contracts/file-safety';
+import { validateFileSafety } from '../../lib/contracts/file-safety.ts';
 
 export const IMAGE_COMPRESSOR_MAX_INPUT_SIZE = 10 * 1024 * 1024;
 export const IMAGE_COMPRESSOR_MAX_PIXELS = 40_000_000;
