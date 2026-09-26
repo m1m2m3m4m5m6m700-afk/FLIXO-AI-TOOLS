@@ -1,5 +1,5 @@
 import { appendConversationEvent } from './conversation-event-store';
-import { parseExecutionPlan, type ExecutionPlanContract } from '@/lib/contracts/ai-plan';
+import { parseExecutionPlan, type ExecutionPlanContract } from '../contracts/ai-plan';
 
 export type ConversationTurn = Readonly<{
   role: 'user' | 'agent';
