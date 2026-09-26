@@ -28,7 +28,7 @@ export type FlixoBotRunEvent = Readonly<{
   type:
     | 'RUN_CREATED' | 'MODEL_TURN' | 'TOOL_CALL' | 'TOOL_RESULT'
     | 'GUARDRAIL_REJECT' | 'RETRY_SCHEDULED' | 'HANDOFF'
-    | 'APPROVAL_REQUIRED' | 'INTERRUPTION' | 'FINAL_OUTPUT'
+    | 'APPROVAL_REQUIRED' | 'APPROVAL_ACCEPTED' | 'INTERRUPTION' | 'FINAL_OUTPUT'
     | 'RUN_FAILED' | 'RUN_CANCELLED' | 'RUN_STALE';
   at: string;
   exactSha: string;
@@ -54,7 +54,7 @@ export type FlixoBotRunState<TContext = unknown> = Readonly<{
   traceId: string;
   inputDigest: string;
   context: TContext | null;
-  pendingApproval: Readonly<{ toolId: string; callId: string; reason: string }> | null;
+  pendingApproval: Readonly<{ toolId: string; callId: string; reason: string; approvalId: string }> | null;
   lastError: string | null;
   lastOutput: unknown | null;
   events: readonly FlixoBotRunEvent[];
@@ -248,7 +248,7 @@ export function recordToolCall(
         Object.freeze({
           ...state,
           pendingApproval: approval
-            ? { toolId: request.toolId, callId: request.callId, reason: decision.reason }
+            ? { toolId: request.toolId, callId: request.callId, reason: decision.reason, approvalId: id('approval') }
             : null,
         }),
         approval ? 'WAITING_APPROVAL' : 'BLOCKED',
@@ -271,6 +271,16 @@ export function recordToolCall(
   });
 }
 
+export type FlixoBotToolEvidence = Readonly<{
+  inputSha256?: string;
+  outputSha256?: string;
+  verified?: boolean;
+  receiptChainSha256?: string;
+  executorId?: string;
+  executionMode?: string;
+  attempt?: number;
+}>;
+
 export function recordToolResult(
   state: FlixoBotRunState,
   currentSha: string,
@@ -278,6 +288,7 @@ export function recordToolResult(
   toolId: string,
   success: boolean,
   output?: unknown,
+  evidence: FlixoBotToolEvidence = {},
 ): FlixoBotRunState {
   assertCurrentRunSha(state, currentSha);
   if (!['RUNNING', 'RETRYING'].includes(state.status)) throw new Error('FLIXO_BOT_TOOL_RESULT_INVALID_STATE');
@@ -287,7 +298,67 @@ export function recordToolResult(
       lastError: success ? null : 'TOOL_EXECUTION_FAILED',
       lastOutput: success ? (output ?? null) : null,
     }),
-    { type: 'TOOL_RESULT', actorId, detail: { toolId, success } },
+    {
+      type: 'TOOL_RESULT',
+      actorId,
+      detail: {
+        toolId,
+        success,
+        ...evidence,
+      },
+    },
+  );
+}
+
+export function approveRun(
+  state: FlixoBotRunState,
+  currentSha: string,
+): FlixoBotRunState {
+  assertCurrentRunSha(state, currentSha);
+  if (state.status !== 'WAITING_APPROVAL' || !state.pendingApproval) {
+    throw new Error('FLIXO_BOT_APPROVAL_INVALID_STATE');
+  }
+
+  return withStatus(
+    Object.freeze({
+      ...state,
+      status: 'RUNNING',
+      pendingApproval: null,
+      lastError: null,
+    }),
+    'RUNNING',
+    {
+      type: 'APPROVAL_ACCEPTED',
+      actorId: state.currentOwner,
+      detail: {
+        approvalId: state.pendingApproval.approvalId,
+        toolId: state.pendingApproval.toolId,
+        callId: state.pendingApproval.callId,
+      },
+    },
+  );
+}
+
+export function failRun(
+  state: FlixoBotRunState,
+  currentSha: string,
+  reason: string,
+): FlixoBotRunState {
+  assertCurrentRunSha(state, currentSha);
+  if (['SUCCEEDED', 'FAILED', 'CANCELLED', 'STALE'].includes(state.status)) {
+    throw new Error('FLIXO_BOT_FAIL_INVALID_STATE');
+  }
+  return withStatus(
+    Object.freeze({
+      ...state,
+      lastError: reason,
+    }),
+    'FAILED',
+    {
+      type: 'RUN_FAILED',
+      actorId: state.currentOwner,
+      detail: { reason },
+    },
   );
 }
 
@@ -343,7 +414,7 @@ export function applyNextStep(
   return withStatus(
     Object.freeze({
       ...state,
-      pendingApproval: step.requiresApproval ? { toolId: '', callId: '', reason: step.reason } : null,
+      pendingApproval: step.requiresApproval ? { toolId: '', callId: '', reason: step.reason, approvalId: id('approval') } : null,
     }),
     step.requiresApproval ? 'WAITING_APPROVAL' : 'BLOCKED',
     { type: 'INTERRUPTION', actorId: state.currentOwner, detail: { reason: step.reason } },
@@ -403,6 +474,9 @@ export function restoreFlixoBotRunState<TContext = unknown>(
   if (parsed.branch !== FLIXO_BOT_CANONICAL_BRANCH) throw new Error('FLIXO_BOT_RUN_BRANCH_MISMATCH');
   assertExactSha(parsed.exactSha);
   if (!Array.isArray(parsed.events)) throw new Error('FLIXO_BOT_RUN_EVENTS_INVALID');
+  if (parsed.pendingApproval) {
+    required(parsed.pendingApproval.approvalId, 'APPROVAL_ID');
+  }
   parsed.events.forEach((event, index) => {
     if (event.seq !== index + 1 || event.exactSha !== parsed.exactSha) {
       throw new Error('FLIXO_BOT_RUN_EVENT_PROVENANCE_INVALID');
