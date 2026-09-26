@@ -8,6 +8,8 @@ export type ConversationTurn = Readonly<{
 
 export type ConversationMemory = {
   version: 1;
+  conversationId: string;
+  taskId: string | null;
   turns: ConversationTurn[];
   activeCommand: string | null;
   activeToolId: string | null;
@@ -39,7 +41,7 @@ const hasAny = (text: string, patterns: readonly RegExp[]) => patterns.some((pat
 const CONTINUATION_PATTERNS: readonly RegExp[] = [
   /(?:^|\s)(?:و|ثم|وبعدين|بعدها|كمان|أيضا|ايضا|برضه|برضو|دلوقتي|الان|الآن)(?:\s|$)/i,
   /(?:هذا|هذه|ذلك|تلك|ها|عليه|عليها|منها|فيها|به|بها|نفسها|نفسه)/i,
-  /^(?:مربع|مربعه|square|1[:/]1|\d{2,5}\s*[x×]\s*\d{2,5})$/i,
+  /^(?:مربع|مربعه|square|1[:\/]1|\d{2,5}\s*[x×]\s*\d{2,5})$/i,
 ];
 
 const GREETING_PATTERNS: readonly RegExp[] = [
@@ -70,6 +72,8 @@ export type ConversationKind = 'greeting' | 'thanks' | 'farewell' | 'capability'
 export function createConversationMemory(): ConversationMemory {
   return {
     version: 1,
+    conversationId: crypto.randomUUID(),
+    taskId: null,
     turns: [],
     activeCommand: null,
     activeToolId: null,
@@ -90,6 +94,10 @@ export function loadConversationMemory(): ConversationMemory {
     if (parsed.version !== 1 || !Array.isArray(parsed.turns)) return createConversationMemory();
     return {
       version: 1,
+      conversationId: typeof parsed.conversationId === 'string' && parsed.conversationId.trim()
+        ? parsed.conversationId
+        : crypto.randomUUID(),
+      taskId: typeof parsed.taskId === 'string' && parsed.taskId.trim() ? parsed.taskId : null,
       turns: parsed.turns.slice(-MAX_MEMORY_TURNS).filter((turn): turn is ConversationTurn =>
         Boolean(turn) &&
         (turn as ConversationTurn).role !== undefined &&
@@ -131,7 +139,11 @@ export function rememberTurn(
     turns: [...memory.turns, turn].slice(-MAX_MEMORY_TURNS),
   };
   saveConversationMemory(next);
-  void appendConversationEvent(turn.role === 'user' ? 'USER_MESSAGE' : 'AGENT_MESSAGE', { text: turn.text });
+  void appendConversationEvent(turn.role === 'user' ? 'USER_MESSAGE' : 'AGENT_MESSAGE', {
+    conversationId: memory.conversationId,
+    taskId: memory.taskId,
+    text: turn.text,
+  });
   return next;
 }
 
@@ -140,7 +152,6 @@ export function classifyConversation(text: string): ConversationKind {
   if (!normalized) return 'conversation';
   if (hasAny(normalized, GREETING_PATTERNS)) return 'greeting';
   if (hasAny(normalized, THANKS_PATTERNS)) return 'thanks';
-  if (hasAny(normalized, FAREWELL_PATTERNS)) return 'farewell';
   if (hasAny(normalized, CONVERSATIONAL_PATTERNS)) {
     if (/(?:ما|ماذا|ايه|ما الذي|what)\s+(?:تستطيع|تقدر|can you)/i.test(normalized)) return 'capability';
     return 'conversation';
@@ -182,6 +193,7 @@ export function setConversationTask(
 ): ConversationMemory {
   const next: ConversationMemory = {
     ...memory,
+    taskId: task.planReady ? memory.taskId ?? crypto.randomUUID() : memory.taskId,
     activeCommand: task.command,
     activeToolId: task.toolId ?? memory.activeToolId,
     pendingToolId: task.pendingToolId ?? null,
@@ -197,6 +209,8 @@ export function setConversationTask(
   saveConversationMemory(next);
   void appendConversationEvent('TASK_STATE', {
     state: task.planReady ? 'PLANNED' : task.pendingQuestion ? 'NEEDS_INPUT' : 'IDLE',
+    conversationId: next.conversationId,
+    taskId: next.taskId,
     command: task.command,
     toolId: task.toolId ?? null,
     pendingToolId: task.pendingToolId ?? null,
@@ -207,6 +221,7 @@ export function setConversationTask(
 export function clearConversationTask(memory: ConversationMemory): ConversationMemory {
   const next: ConversationMemory = {
     ...memory,
+    taskId: null,
     activeCommand: null,
     activeToolId: null,
     pendingToolId: null,
@@ -216,11 +231,13 @@ export function clearConversationTask(memory: ConversationMemory): ConversationM
     runtimeResumeState: null,
   };
   saveConversationMemory(next);
-  void appendConversationEvent('CANCELLED', { reason: 'conversation_task_cleared' });
+  void appendConversationEvent('CANCELLED', {
+    reason: 'conversation_task_cleared',
+    conversationId: memory.conversationId,
+    taskId: memory.taskId,
+  });
   return next;
 }
-
-
 
 export function isQuestion(text: string): boolean {
   const normalized = normalizeAgentText(text);
