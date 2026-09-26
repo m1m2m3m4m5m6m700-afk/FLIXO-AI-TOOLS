@@ -29,8 +29,12 @@ export type IngestionHandlers = Readonly<{
   deliver?: (input: NormalizedIngestion) => Promise<void> | void;
 }>;
 
+function stripNulCharacters(text: string): string {
+  return [...text].filter((character) => character !== String.fromCharCode(0)).join('');
+}
+
 function normalizeText(text: string | null): string {
-  return (text ?? '').replace(/\u0000/g, '').replace(/\s+/g, ' ').trim().slice(0, 100_000);
+  return stripNulCharacters(text ?? '').replace(/\s+/g, ' ').trim().slice(0, 100_000);
 }
 
 export function normalizeIngestion(document: IngestionDocument): NormalizedIngestion {
@@ -42,7 +46,7 @@ export function normalizeIngestion(document: IngestionDocument): NormalizedInges
     document: Object.freeze({
       ...document,
       locator: document.locator.trim().slice(0, 2048),
-      text: document.text === null ? null : document.text.slice(0, 100_000),
+      text: document.text === null ? null : stripNulCharacters(document.text).slice(0, 100_000),
       metadata: Object.freeze({ ...document.metadata }),
     }),
     normalizedText: normalizeText(document.text),

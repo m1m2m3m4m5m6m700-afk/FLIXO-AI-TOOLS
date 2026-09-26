@@ -12,15 +12,14 @@ function json(res: ServerResponse, status: number, body: unknown): void {
 function authorized(req: IncomingMessage): boolean {
   const secret = process.env.CRON_SECRET?.trim();
   if (!secret) return false;
-  const auth = req.headers.authorization;
-  return auth === \`Bearer \${secret}\`;
+  return req.headers.authorization === 'Bearer ' + secret;
 }
 
 function agentUrl(): string {
   const explicit = process.env.FLIXO_INTERNAL_AGENT_URL?.trim();
   if (explicit) return explicit;
   const deployment = process.env.VERCEL_URL?.trim();
-  if (deployment) return \`https://\${deployment}/api/flixo-agent\`;
+  if (deployment) return 'https://' + deployment + '/api/flixo-agent';
   const site = process.env.VITE_SITE_URL?.trim();
   if (site) return new URL('/api/flixo-agent', site).toString();
   throw new Error('FLIXO_INTERNAL_AGENT_URL_NOT_CONFIGURED');
@@ -34,23 +33,23 @@ async function invokeAgent(input: Readonly<{
   idempotencyKey: string;
   taskId: string;
 }>): Promise<Response> {
+  const payload: Record<string, unknown> = {
+    userId: input.ownerId,
+    locale: input.locale,
+    triggerSource: 'SCHEDULE',
+    taskId: input.taskId,
+    messages: [{ role: 'user', content: input.prompt }],
+    idempotencyKey: input.idempotencyKey,
+  };
+  if (input.conversationId) payload.conversationId = input.conversationId;
+
   return fetch(agentUrl(), {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       'x-flixo-scheduled-run': '1',
     },
-    body: JSON.stringify({
-      userId: input.ownerId,
-      conversationId: input.conversationId,
-      userId: input.ownerId,
-      locale: input.locale,
-      triggerSource: 'SCHEDULE',
-      taskId: input.taskId,
-      messages: [{ role: 'user', content: input.prompt }],
-      idempotencyKey: input.idempotencyKey,
-      ...(input.conversationId ? { conversationId: input.conversationId } : {}),
-    }),
+    body: JSON.stringify(payload),
   });
 }
 
@@ -71,16 +70,18 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const results: Array<Record<string, unknown>> = [];
 
     for (const job of jobs) {
+      const runNumber = job.runCount + 1;
+      const taskId = 'SCHEDULE:' + job.scheduleId + ':' + runNumber;
       const runEvent = createAgentEvent({
         source: 'SCHEDULE',
         eventType: 'scheduled.run',
-        idempotencyKey: \`schedule:\${job.scheduleId}:\${job.runCount + 1}\`,
+        idempotencyKey: 'schedule:' + job.scheduleId + ':' + runNumber,
         userId: job.ownerId,
         conversationId: job.conversationId,
-        taskId: `SCHEDULE:${job.scheduleId}:${job.runCount + 1}`,
+        taskId,
         payload: {
           scheduleId: job.scheduleId,
-          runNumber: job.runCount + 1,
+          runNumber,
         },
       });
 
@@ -91,12 +92,13 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           locale: job.locale,
           prompt: job.prompt,
           idempotencyKey: runEvent.idempotencyKey,
-          taskId: runEvent.taskId ?? `SCHEDULE:${job.scheduleId}:${job.runCount + 1}`,
+          taskId,
         });
         const bodyText = await response.text();
         const updated = response.ok
           ? await markScheduleRun(job, now, runEvent.eventId)
           : null;
+
         results.push({
           scheduleId: job.scheduleId,
           runEventId: runEvent.eventId,

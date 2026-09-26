@@ -3,12 +3,11 @@ import { getToolDefinition } from '@/config/canonical-tool-definition.ts';
 import { deriveToolSecurityProfile, type ExecutionRisk } from './execution-observability.ts';
 import { parseExecutionPlan, type ExecutionPlanContract } from '@/lib/contracts/ai-plan.ts';
 import { WORKFLOW_REGISTRY } from '@/lib/workflows/registry.ts';
-import type { WorkflowId } from '@/lib/workflows/types.ts';
 
 export const WORKFLOW_TOOL_PREFIX = 'workflow:' as const;
 export const WORKFLOW_TOOL_CONTRACT_VERSION = 1 as const;
 
-export type WorkflowToolId = 'workflow:' & string;
+export type WorkflowToolId = string;
 
 export type WorkflowToolDescriptor = Readonly<{
   contractVersion: typeof WORKFLOW_TOOL_CONTRACT_VERSION;
@@ -78,7 +77,7 @@ export function toWorkflowTool(
 
   return Object.freeze({
     contractVersion: WORKFLOW_TOOL_CONTRACT_VERSION,
-    id: (WORKFLOW_TOOL_PREFIX + workflow.id) as WorkflowToolId,
+    id: WORKFLOW_TOOL_PREFIX + workflow.id,
     title: workflow.title,
     description: workflow.description,
     intents: Object.freeze([...workflow.intentPatterns]),
