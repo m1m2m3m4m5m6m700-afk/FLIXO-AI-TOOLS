@@ -67,7 +67,7 @@ export function rememberMemory(
     id: input.id?.trim() || idFor(input.layer, input.key),
     layer: input.layer,
     key: input.key.trim(),
-    value: input.value.trim(),
+    value: input.value.trim().slice(0, 8_000),
     source: input.source,
     state: input.state,
     confidence: Math.max(0, Math.min(1, input.confidence)),
