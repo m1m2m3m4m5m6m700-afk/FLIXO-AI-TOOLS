@@ -276,7 +276,6 @@ export async function runWorkflowPipeline(
 
       if (attemptExecutionError) {
         const error = attemptExecutionError;
-        runtimeAfterToolInvoked = true;
         await runtimeHooks?.afterTool?.({
           toolId: step.toolId,
           stepIndex: i + 1,
@@ -307,7 +306,6 @@ export async function runWorkflowPipeline(
         });
         if (attempt === maxAttempts - 1) throw new PipelineVerificationError(message, stableBlob, i, step.toolId);
       } else if (!verified) {
-        runtimeAfterToolInvoked = true;
         await runtimeHooks?.afterTool?.({
           toolId: step.toolId,
           stepIndex: i + 1,
