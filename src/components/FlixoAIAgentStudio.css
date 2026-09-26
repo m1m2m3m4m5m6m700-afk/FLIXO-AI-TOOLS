@@ -1,0 +1,105 @@
+/* FLIXO Agent Studio — canonical product surface */
+.flixo-agent-studio{
+  --agent-bg:#0a0f14;
+  --agent-panel:#0d141b;
+  --agent-panel-2:#101a22;
+  --agent-border:#1c2d37;
+  --agent-border-strong:#294652;
+  --agent-text:#e7f6fa;
+  --agent-muted:#7f949f;
+  --agent-accent:#67e8f9;
+  --agent-success:#86efac;
+  --agent-danger:#fca5a5;
+  display:grid;
+  grid-template-columns:52px minmax(0,1fr) minmax(280px,340px);
+  min-height:720px;
+  width:min(1440px,calc(100vw - 32px));
+  margin:24px auto;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:20px;
+  background:var(--agent-bg);
+  box-shadow:0 18px 60px rgba(0,0,0,.25);
+  color:var(--agent-text);
+}
+.flixo-agent-rail{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 7px;border-inline-end:1px solid var(--agent-border);background:#080d12}
+.flixo-agent-rail-logo{width:32px;height:32px;border-radius:10px;object-fit:cover;margin-bottom:8px}
+.flixo-agent-rail-btn{width:36px;height:36px;display:grid;place-items:center;border:1px solid transparent;border-radius:10px;background:transparent;color:#7d929d;text-decoration:none;cursor:pointer}
+.flixo-agent-rail-btn:hover,.flixo-agent-rail-btn.active{border-color:var(--agent-border-strong);background:#0f1c24;color:var(--agent-accent)}
+.flixo-agent-rail-spacer{flex:1}
+.flixo-agent-chat-col{min-width:0;display:flex;flex-direction:column;background:radial-gradient(circle at 50% -5%,rgba(103,232,249,.055),transparent 35%),var(--agent-bg)}
+.flixo-agent-chat-top{min-height:68px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 18px;border-bottom:1px solid var(--agent-border)}
+.flixo-agent-chat-top-left,.flixo-agent-chat-top-actions{display:flex;align-items:center;gap:10px;min-width:0}
+.flixo-agent-chat-logo{width:28px;height:28px;border-radius:9px;object-fit:cover}
+.flixo-agent-status-dot{width:7px;height:7px;border-radius:50%;background:var(--agent-success);box-shadow:0 0 0 4px rgba(134,239,172,.08)}
+.flixo-agent-chat-title{font-weight:800;letter-spacing:-.015em}
+.flixo-agent-chat-sub{font-size:.68rem;color:var(--agent-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flixo-language-switch{display:flex;align-items:center;gap:6px;min-width:0;padding:5px 8px;border:1px solid var(--agent-border);border-radius:9px;background:#0b1218;color:var(--agent-muted)}
+.flixo-language-switch select{border:0;outline:0;background:transparent;color:var(--agent-text);max-width:120px;font-size:.7rem}
+.flixo-agent-state-badge{padding:6px 9px;border:1px solid var(--agent-border);border-radius:999px;background:#0c151c;color:#8da5b0;font-size:.62rem}
+.flixo-agent-messages{flex:1;min-height:0;overflow:auto;padding:22px clamp(14px,4vw,38px);display:flex;flex-direction:column;gap:14px}
+.flixo-agent-msg{display:flex;align-items:flex-start;gap:9px;max-width:min(760px,92%)}
+.flixo-agent-msg.user{margin-inline-start:auto;flex-direction:row-reverse}
+.flixo-agent-avatar{width:28px;height:28px;display:grid;place-items:center;flex:none;border:1px solid #294552;border-radius:50%;background:#0f1e27;color:var(--agent-accent);font-size:.62rem;font-weight:800}
+.flixo-agent-avatar img{width:22px;height:22px;border-radius:7px}
+.flixo-agent-bubble{min-width:0;padding:10px 13px;border:1px solid var(--agent-border);border-radius:14px;background:#0c151c;line-height:1.55;font-size:.8rem}
+.flixo-agent-msg.user .flixo-agent-bubble{background:#0c212a;border-color:#245565}
+.flixo-agent-bubble p{margin:0;overflow-wrap:anywhere}
+.flixo-agent-attachment{display:flex;align-items:center;gap:8px;margin-top:8px;padding:7px 9px;border:1px solid var(--agent-border);border-radius:9px;background:#081017;color:#92a7b1;font-size:.66rem}
+.flixo-agent-thumb{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,#203640,#10232c)}
+.flixo-agent-inline-card,.flixo-agent-inline-progress,.flixo-agent-error,.flixo-agent-success-card{width:min(760px,100%);border:1px solid var(--agent-border);border-radius:13px;background:#0c151c}
+.flixo-agent-inline-card{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px}
+.flixo-agent-inline-card>div{display:grid;gap:3px;min-width:0}
+.flixo-agent-inline-card strong{font-size:.78rem}
+.flixo-agent-inline-card span{color:var(--agent-muted);font-size:.68rem}
+.flixo-agent-inline-link{flex:none;color:var(--agent-accent);font-size:.72rem;font-weight:800;text-decoration:none}
+.flixo-agent-inline-link:hover{text-decoration:underline}
+.flixo-agent-inline-progress{display:flex;align-items:center;gap:9px;padding:9px 12px;font-size:.68rem}
+.flixo-agent-inline-progress span,.flixo-agent-inline-progress small{color:var(--agent-muted)}
+.flixo-agent-inline-progress strong{color:#d9f9ff}
+.flixo-agent-error{padding:10px 12px;border-color:#5f3034;background:#211215;color:var(--agent-danger);font-size:.72rem}
+.flixo-agent-success-card{overflow:hidden;padding:12px}
+.flixo-agent-result-preview-frame{display:grid;place-items:center;min-height:240px;border-radius:10px;overflow:hidden;background:#071015}
+.flixo-agent-result-preview{display:block;width:100%;max-height:420px;object-fit:contain}
+.flixo-agent-result-meta{display:grid;gap:3px;padding:10px 2px}
+.flixo-agent-result-meta strong{font-size:.78rem;color:var(--agent-success)}
+.flixo-agent-result-meta span{font-size:.68rem;color:var(--agent-muted)}
+.flixo-agent-primary{width:100%;min-height:38px;border:1px solid #2b6b78;border-radius:10px;background:#0e2a31;color:#dffcff;font-weight:800;cursor:pointer}
+.flixo-agent-primary:hover{border-color:#4ca8b8;background:#12353d}
+.flixo-agent-composer-wrap{padding:12px 16px 14px;border-top:1px solid var(--agent-border);background:#090e14}
+.flixo-agent-suggest-row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:0 2px 8px}
+.flixo-agent-suggest-row::-webkit-scrollbar{display:none}
+.flixo-agent-suggest-chip{flex:0 0 auto;border:1px solid var(--agent-border);border-radius:999px;padding:6px 9px;background:#0c151c;color:#8ca2ad;font-size:.66rem;cursor:pointer}
+.flixo-agent-suggest-chip:hover{border-color:#2e5a67;color:#c9f9ff}
+.flixo-agent-composer{display:flex;align-items:flex-end;gap:8px;min-height:50px;padding:7px;border:1px solid var(--agent-border-strong);border-radius:14px;background:#0b141b;box-shadow:0 8px 30px rgba(0,0,0,.18)}
+.flixo-agent-icon-btn{width:32px;height:32px;display:grid;place-items:center;flex:none;border:1px solid var(--agent-border);border-radius:9px;background:#0e1921;color:#91a5af;cursor:pointer}
+.flixo-agent-icon-btn:hover{border-color:#37616d;color:var(--agent-accent)}
+.flixo-agent-composer textarea{flex:1;min-width:0;min-height:32px;max-height:120px;resize:vertical;border:0;outline:0;background:transparent;color:var(--agent-text);font:inherit;font-size:.78rem;line-height:1.4;padding:6px 2px}
+.flixo-agent-file-input{display:none}
+.flixo-agent-secondary-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 3px 0;color:#687d87;font-size:.63rem}
+.flixo-agent-ghost{border:1px solid var(--agent-border);border-radius:8px;padding:5px 8px;background:#0c151c;color:#9ab0b9;font-size:.64rem;font-weight:800;cursor:pointer}
+.flixo-agent-ghost:hover{border-color:#315965;color:var(--agent-accent)}
+.flixo-agent-tools-panel{min-width:0;display:flex;flex-direction:column;border-inline-start:1px solid var(--agent-border);background:#0b1117}
+.flixo-agent-tools-head{display:grid;gap:9px;padding:16px;border-bottom:1px solid var(--agent-border)}
+.flixo-agent-tools-head h2{margin:0;font-size:.86rem;letter-spacing:-.01em}
+.flixo-agent-tool-search{display:flex;align-items:center;gap:7px;padding:7px 9px;border:1px solid var(--agent-border);border-radius:9px;background:#080f14;color:#6f858f}
+.flixo-agent-tool-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--agent-text);font:inherit;font-size:.68rem}
+.flixo-agent-tabs{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none}
+.flixo-agent-tabs::-webkit-scrollbar{display:none}
+.flixo-agent-tab{flex:0 0 auto;border:1px solid transparent;border-radius:999px;padding:5px 8px;background:transparent;color:#6f858f;font-size:.62rem;cursor:pointer}
+.flixo-agent-tab.active,.flixo-agent-tab:hover{border-color:#264b57;background:#0d1b23;color:var(--agent-accent)}
+.flixo-agent-tools-grid{display:grid;grid-template-columns:1fr;gap:7px;overflow:auto;padding:10px}
+.flixo-agent-tool-card{width:100%;display:grid;grid-template-columns:30px minmax(0,1fr);gap:9px;text-align:start;padding:10px;border:1px solid var(--agent-border);border-radius:11px;background:#0c151c;color:var(--agent-text);cursor:pointer}
+.flixo-agent-tool-card:hover{border-color:#315764;background:#0e1920}
+.flixo-agent-tool-icon{width:30px;height:30px;display:grid;place-items:center;border:1px solid #23404b;border-radius:8px;background:#0f1c24;color:var(--agent-accent)}
+.flixo-agent-tool-body{display:grid;gap:2px;min-width:0}
+.flixo-agent-tool-body strong{font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flixo-agent-tool-body small{color:#718791;font-size:.6rem;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.flixo-agent-tool-body em{font-style:normal;color:#506974;font-size:.54rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flixo-agent-empty{color:#6f858f;font-size:.65rem;text-align:center;padding:20px 8px}
+@media (max-width:1100px){.flixo-agent-studio{grid-template-columns:52px minmax(0,1fr)}.flixo-agent-tools-panel{display:none}}
+@media (max-width:760px){.flixo-agent-studio{grid-template-columns:1fr;width:100%;margin:10px 0;min-height:calc(100dvh - 20px);border-radius:14px}.flixo-agent-rail{display:none}.flixo-agent-chat-top{padding:10px 12px}.flixo-agent-chat-top-actions{gap:6px}.flixo-language-switch select{max-width:78px}.flixo-agent-state-badge{display:none}.flixo-agent-messages{padding:16px 10px}.flixo-agent-msg{max-width:97%}.flixo-agent-composer-wrap{padding:10px}.flixo-agent-tools-panel{display:flex;border-inline-start:0;border-top:1px solid var(--agent-border);max-height:320px}}
+@media (max-width:520px){.flixo-agent-chat-top-left{gap:7px}.flixo-agent-chat-title{font-size:.78rem}.flixo-agent-chat-sub{font-size:.58rem}.flixo-agent-chat-logo{width:24px;height:24px}.flixo-language-switch{padding:4px 6px}.flixo-language-switch span{display:none}.flixo-language-switch select{max-width:88px}.flixo-agent-messages{padding-inline:8px}.flixo-agent-bubble{font-size:.71rem;padding:9px 10px}.flixo-agent-inline-card{align-items:flex-start;flex-direction:column;gap:7px}.flixo-agent-result-preview-frame{min-height:180px}.flixo-agent-suggest-chip{font-size:.57rem}.flixo-agent-secondary-actions{font-size:.57rem}.flixo-agent-tools-head{padding:12px}.flixo-agent-tools-grid{grid-template-columns:1fr 1fr;overflow:auto}.flixo-agent-tool-card{grid-template-columns:24px minmax(0,1fr);padding:8px}.flixo-agent-tool-icon{width:24px;height:24px}.flixo-agent-tool-body strong{font-size:.62rem}.flixo-agent-tool-body small{font-size:.54rem}}
+html[dir="rtl"] .flixo-agent-composer textarea,html[dir="rtl"] .flixo-agent-bubble,html[dir="rtl"] .flixo-agent-tool-card{text-align:right}
+html[dir="rtl"] .flixo-agent-tools-panel{border-inline-start:0;border-inline-end:1px solid var(--agent-border)}
+@media (max-width:760px){html[dir="rtl"] .flixo-agent-tools-panel{border-inline-end:0;border-top:1px solid var(--agent-border)}}

@@ -1,0 +1,100 @@
+name: FLIXO CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, execution]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: http://127.0.0.1:3000
+
+jobs:
+  verify:
+    name: Typecheck, lint, core contracts, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flixo-build-${{ github.run_id }}
+          path: dist
+          if-no-files-found: error
+          retention-days: 7
+
+  browser:
+    name: Chromium browser smoke
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - uses: actions/download-artifact@v4
+        with:
+          name: flixo-build-${{ github.run_id }}
+          path: dist
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e -- --project=chromium
+
+  trust-gate:
+    name: trust-gate
+    needs: [verify, browser]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Assert canonical CI gates are GREEN
+        env:
+          VERIFY_RESULT: ${{ needs.verify.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+        run: |
+          set -euo pipefail
+          test "$VERIFY_RESULT" = success
+          test "$BROWSER_RESULT" = success
+          echo 'TRUST_GATE=PASS'
+
+  promotion-proof:
+    name: Exact-SHA promotion proof
+    needs: [trust-gate]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Verify exact head identity
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          TRUST_RESULT: ${{ needs.trust-gate.result }}
+        run: |
+          set -euo pipefail
+          test "$TRUST_RESULT" = success
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          if [ -n "${{ github.event.pull_request.number || '' }}" ]; then
+            test "$HEAD_BRANCH" = execution
+          fi
+          echo "EXACT_SHA_PROMOTION_PROOF=$EXPECTED_SHA"

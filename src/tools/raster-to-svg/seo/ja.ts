@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const ja: LocalizedToolSeo={title:'ラスターからSVG変換',description:'FLIXOでラスター画像をSVGに変換します。',intro:'ラスター画像をSVG形式の結果に変換します。',keywords:['ラスター SVG','画像 SVG 変換','SVG コンバーター'],howTo:['画像を選択。','SVGへ変換。','結果をダウンロード。'],features:['ローカル変換','簡単な操作','SVGダウンロード'],altText:['ラスターからSVGの作業画面','SVG変換プレビュー','変換済みSVG']};

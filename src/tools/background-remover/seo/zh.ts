@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const zh: LocalizedToolSeo = Object.freeze({ title: '在线移除图片背景 | FLIXO', description: '无需上传图片，在浏览器中直接移除颜色或纹理较为统一的连接背景。', intro: 'FLIXO 背景移除工具可帮助你直接在浏览器中从简单背景中分离主体。它适合背景颜色或纹理较为一致的图片。选择图片后运行本地处理，检查预览，再下载结果。在本地流程中，原始图片保留在浏览器中，不会发送到 FLIXO 处理服务器。', keywords: ['移除图片背景', '在线去背景', '透明背景', '浏览器去背景'], howTo: ['选择具有统一或连接背景的图片。', '运行背景移除并检查预览。', '确认结果后下载处理后的图片。'], features: ['浏览器本地处理', '适合统一连接背景', '下载前预览', '本地流程无需上传图片'], altText: ['背景移除工作区', '移除前的原始图片', '移除背景后的处理图片'] });

@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest'; export const zh: LocalizedToolSeo = Object.freeze({title:'在线模糊图片背景 | FLIXO',description:'直接在浏览器中模糊图片背景。',intro:'在浏览器本地处理图片背景，无需上传文件到服务器。',keywords:['模糊背景','图片背景虚化','在线模糊图片'],howTo:['选择图片。','调整模糊程度。','下载结果。'],features:['本地处理','可调模糊','JPG、PNG、WebP','隐私保护'],altText:['背景模糊工作区','原图预览','模糊结果']});

@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const zh: LocalizedToolSeo = Object.freeze({ title: '在线裁剪图片 | FLIXO', description: '直接在浏览器中裁剪和调整 JPG、PNG 与 WebP 图片大小。', intro: 'FLIXO Image Cropper 可在浏览器本地裁剪和调整图片尺寸。选择图片，设置裁剪区域，需要时调整输出尺寸，查看预览并下载结果。', keywords: ['在线裁剪图片','图片裁剪','调整图片大小','裁剪 JPG PNG WebP'], howTo: ['选择图片。', '设置裁剪区域和可选尺寸。', '查看预览并下载裁剪后的图片。'], features: ['浏览器本地处理','精准裁剪区域','可选调整尺寸','支持 JPG、PNG 和 WebP'], altText: ['图片裁剪工作区','原图预览','可下载的裁剪图片'] });

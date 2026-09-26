@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest'; export const zh: LocalizedToolSeo = Object.freeze({title:'在线清除 EXIF 元数据 | FLIXO',description:'直接在浏览器中删除照片元数据。',intro:'无需上传到服务器，即可在浏览器本地清除 GPS、相机和时间等敏感元数据。',keywords:['删除EXIF','清除照片元数据','删除GPS'],howTo:['选择图片。','清除元数据。','下载清理后的图片。'],features:['本地处理','删除EXIF','隐私保护','直接下载'],altText:['EXIF清理工作区','原图预览','清理后的图片']});
