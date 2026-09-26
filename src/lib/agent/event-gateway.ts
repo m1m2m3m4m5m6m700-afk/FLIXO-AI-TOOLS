@@ -32,9 +32,11 @@ function assertId(value: string | null, code: string): void {
 
 function normalizeText(value: string, code: string, maxLength = 256): string {
   const normalized = value.trim();
-  if (!normalized || normalized.length > maxLength || /[\u0000-\u001f\u007f]/u.test(normalized)) {
-    throw new Error(code);
-  }
+  const hasControlCharacter = [...normalized].some((character) => {
+    const point = character.codePointAt(0) ?? 0;
+    return point < 0x20 && point !== 0x09 && point !== 0x0a && point !== 0x0d || point === 0x7f;
+  });
+  if (!normalized || normalized.length > maxLength || hasControlCharacter) throw new Error(code);
   return normalized;
 }
 
