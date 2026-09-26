@@ -26,6 +26,7 @@ assert.match(bridge, /completeRuntimeExecution/u);
 assert.match(integrator, /runtimeState\?\: FlixoBotRunState/u);
 assert.match(integrator, /confirmRuntimeExecution/u);
 assert.match(integrator, /runWorkflowPipeline\([\s\S]*runtimeHooks/u);
+assert.match(integrator, /try \{[\s\S]*authorizeExecution\([\s\S]*catch \(cause\)/u);
 assert.match(integrator, /receiptChain\?\:/u);
 
 assert.match(pipeline, /export type PipelineRuntimeHooks/u);
