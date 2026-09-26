@@ -151,6 +151,18 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     return assessCognitiveRequest(contextualQuery).executionPlan;
   }, [contextualQuery]);
   const filterMaskMatch = intent?.tool.id === 'filter-mask';
+  const manualFallback = useMemo(() => {
+    const latestUserCommand = [...messages].reverse().find((message) => message.role === 'user')?.text ?? '';
+    if (!latestUserCommand.trim()) return null;
+    const candidate = findToolIntent(latestUserCommand, TOOL_CATALOG.ready)
+      .find(({ tool }) => tool.executionMode === 'LOCAL' && !tool.requirements.network)?.tool;
+    if (!candidate) return null;
+    return Object.freeze({
+      id: candidate.id,
+      title: candidate.title,
+      path: candidate.routes[locale] ?? candidate.path,
+    });
+  }, [messages, locale]);
 
   const resolveFilterMaskHandoff = (command: string) => resolveFilterMaskSelection(command);
 
@@ -261,9 +273,12 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         return true;
       }
     } catch {
-      // Continue to the conversational provider path only when the deterministic
-      // planner cannot produce a safe executable plan.
+      // Continue only when no local manual fallback can safely handle the request.
     }
+
+    const localManualFallback = findToolIntent(contextualCommand, TOOL_CATALOG.ready)
+      .some(({ tool }) => tool.executionMode === 'LOCAL' && !tool.requirements.network);
+    if (localManualFallback) return false;
 
     try {
       const decision = await askConversationalAgent({
@@ -545,6 +560,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       error={error}
       result={result}
       filterHandoff={filterHandoff}
+      manualFallback={manualFallback}
       tools={TOOL_CATALOG.ready}
       onDownload={() => {
         if (!result) return;

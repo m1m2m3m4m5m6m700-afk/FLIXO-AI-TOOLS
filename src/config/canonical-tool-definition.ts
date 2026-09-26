@@ -116,7 +116,8 @@ const TOOL_INTENTS: Readonly<Record<string, readonly string[]>> = {
   'ai-image-generator': ['generate image', 'create image with ai', 'text to image', 'make an image', 'إنشاء صورة بالذكاء الاصطناعي'],
 };
 
-const EXECUTABLE_IDS = new Set(['background-remover', 'image-upscaler', 'image-cropper', 'image-compressor', 'image-converter', 'image-effects']);
+export const MVP_EXECUTABLE_TOOL_IDS = Object.freeze(['background-remover', 'image-upscaler', 'image-cropper', 'image-compressor', 'image-converter', 'image-effects'] as const);
+const EXECUTABLE_IDS: ReadonlySet<string> = new Set(MVP_EXECUTABLE_TOOL_IDS);
 const defaultVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, _parameters, signal) => !signal?.aborted && outputBlob.size > 0;
 const targetSizeVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, parameters, signal) => {
   if (signal?.aborted || outputBlob.size <= 0) return false;

@@ -33,6 +33,7 @@ type Props = Readonly<{
   result: Blob | null;
   onDownload: () => void;
   filterHandoff: FilterMaskHandoff | null;
+  manualFallback: Readonly<{ id: string; title: string; path: string }> | null;
   tools: readonly FlixoAgentStudioTool[];
 }>;
 
@@ -111,6 +112,7 @@ export function FlixoAIAgentStudio({
   result,
   onDownload,
   filterHandoff,
+  manualFallback,
   tools,
 }: Props) {
   const navigate = useNavigate();
@@ -276,6 +278,18 @@ export function FlixoAIAgentStudio({
           )}
 
           {error && <div className="flixo-agent-error" role="alert">{error}</div>}
+
+          {manualFallback && state === 'error' && !plan && !result && (
+            <div className="flixo-agent-inline-card" data-testid="flixo-agent-manual-fallback">
+              <div>
+                <strong>{copy.nearestTool} {manualFallback.title}</strong>
+                <span>{copy.noSafePlan}</span>
+              </div>
+              <a className="flixo-agent-inline-link" href={manualFallback.path} data-testid="flixo-agent-manual-fallback-link">
+                {ui.openPreview}
+              </a>
+            </div>
+          )}
 
           {state === 'success' && result && (
             <div className="flixo-agent-success-card" data-testid="flixo-agent-result">
