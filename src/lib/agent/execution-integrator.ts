@@ -154,17 +154,6 @@ export async function executePreparedExecution(
   });
   if (inputFile.size <= 0) throw new Error('Execution is blocked because the input file is empty.');
 
-  // Keep the canonical gate authoritative. The pipeline itself also performs per-step authorization.
-  const firstStep = prepared.plan.steps[0];
-  if (firstStep) {
-    await authorizeExecution({
-      task: prepared.task,
-      capabilityId: firstStep.toolId,
-      parameters: firstStep.params ?? {},
-      inputBlob: inputFile,
-    });
-  }
-
   let latestReceiptChain: PipelineReceiptChain | undefined;
   const runtimeAwareProgress = (progress: PipelineProgress): void => {
     latestReceiptChain = progress.receiptChain ?? latestReceiptChain;
@@ -209,6 +198,18 @@ export async function executePreparedExecution(
     : undefined;
 
   try {
+    // Keep authorization inside the same lifecycle boundary as execution so
+    // permission failures receive FAILED-state, evidence, and RCA handling.
+    const firstStep = prepared.plan.steps[0];
+    if (firstStep) {
+      await authorizeExecution({
+        task: prepared.task,
+        capabilityId: firstStep.toolId,
+        parameters: firstStep.params ?? {},
+        inputBlob: inputFile,
+      });
+    }
+
     const output = await runWorkflowPipeline(
       inputFile,
       prepared.plan as ExecutionPlan,
