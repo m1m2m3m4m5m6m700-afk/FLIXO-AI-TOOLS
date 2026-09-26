@@ -940,3 +940,77 @@ Task completion or an authorized task release automatically clears the delegate 
 
 Controller-only reclaim requires an explicit direct-user command marker. Any other reclaim, preemption, ownership change, or delegation-policy mutation is `FAIL_CLOSED`.
 
+
+
+---
+
+## AUTONOMOUS EXECUTION SQUAD — CANONICAL CHOREOGRAPHY
+
+**Work Package:** `AUTONOMOUS-EXEC-001`  
+**Admission:** `[ADD:AUTONOMOUS-SQUAD-001] [WP:AUTONOMOUS-EXEC-001]`  
+**Purpose:** تشغيل مجموعة مساعدة مترابطة فوق الأدوار الموجودة، دون إنشاء Agent Registry أو Control Plane أو Mutation Lane جديد.
+
+### Canonical helper seats
+
+| Seat | Existing agent profile | Responsibility | Authority |
+|---|---|---|---|
+| SCOUT | `codeScout` | repository/dependency reconnaissance | READ_ONLY |
+| RCA | `errorAgent` | failure fingerprint + RCA + invariant mapping | DIAGNOSTIC |
+| REPAIR | `actionRepairBot` | bounded source repair on `execution` | MUTATION ONLY THROUGH CANONICAL GATE |
+| FALSIFIER | `reviewAgent` | independent counterexample / adversarial challenge | READ_ONLY |
+| TEST | `testAgent` | targeted regression + affected-contract verification | TEST/VERIFY |
+| SECURITY | `securityAgent` | trust-boundary / security challenge | READ_ONLY |
+| LEARN | `actionHistorian` | lesson / anti-lesson / recurrence prevention | LEARNING |
+| CERTIFY | `certificationAuthority` | exact-SHA evidence review | READ_ONLY / CERTIFICATION |
+
+### Choreography
+
+`CURRENT STEP`
+→ SCOUT produces bounded context
+→ RCA confirms failure fingerprint / causal chain
+→ FALSIFIER attempts to invalidate the RCA
+→ REPAIR produces/applys causal patch through canonical mutation gate
+→ TEST runs targeted regression
+→ SECURITY challenges changed trust boundaries when applicable
+→ FALSIFIER reruns adversarial challenge
+→ CERTIFY checks exact-SHA evidence
+→ LEARN records verified lesson/anti-lesson
+→ `NEXT STEP`
+
+### Message contract
+
+Every helper handoff uses the existing Canonical Agent Communication path and carries:
+
+`messageId + idempotencyKey + taskId + scope + entrySha + targetSha + risk + dependencies + proofObligations`
+
+A helper:
+- may not create a second queue;
+- may not create a branch;
+- may not self-certify;
+- may not expand scope silently;
+- may not consume another helper's mutation authority;
+- returns a typed result or an explicit failure packet.
+
+### Automatic recovery
+
+- SCOUT failure → retry with narrower read scope.
+- RCA uncertainty → FALSIFIER challenge → re-analysis.
+- REPAIR failure → preserve candidate/evidence → new bounded repair attempt.
+- TEST failure → return to RCA using the new failure fingerprint.
+- SECURITY finding → route to REPAIR only after causal proof.
+- CERTIFY failure → task remains open and re-enters verification; no false GREEN.
+- stale SHA → invalidate the current helper packet and restart the current step from the new SHA.
+- helper unavailable → substitute an existing canonical role with equivalent read-only/verification capability; never create a shadow authority.
+
+### Parallelism rule
+
+Read-only analysis may run concurrently on disjoint scope. Mutation is always serialized. Verification may run in parallel only when it does not share mutable scope with another writer.
+
+### Completion rule
+
+The squad is successful only when the current step has:
+`targeted regression + affected-contract verification + required adversarial checks + exact-SHA evidence`.
+
+The squad does not replace MASTER/Council/control-plane/certification authority; it is a bounded execution choreography over the existing roles.
+
+---
