@@ -1,9 +1,10 @@
 import {createHash} from 'node:crypto';
 export const KNOWLEDGE_LIFECYCLE_VERSION=1 as const;
 export type KnowledgeDisposition='PROPOSED'|'VERIFIED'|'REJECTED'|'REVOKED';
-export type KnowledgeCandidate=Readonly<{id:string;claim:string;content:string;targetSha:string;evidenceRefs:readonly string[];source:string;disposition:'PROPOSED';contradictions:number;createdAt:string;}>;
+type KnowledgeCandidateCore=Readonly<{id:string;claim:string;content:string;targetSha:string;evidenceRefs:readonly string[];source:string;contradictions:number;createdAt:string;}>;
+export type KnowledgeCandidate=Readonly<KnowledgeCandidateCore&{disposition:'PROPOSED';}>;
 export type KnowledgeVerification=Readonly<{targetSha:string;currentSha:string;status:'PASS'|'FAIL';evidenceRefs:readonly string[];independent:boolean;}>;
-export type KnowledgeRecord=Readonly<KnowledgeCandidate&{disposition:KnowledgeDisposition;verifiedAt?:string;}>;
+export type KnowledgeRecord=Readonly<KnowledgeCandidateCore&{disposition:KnowledgeDisposition;verifiedAt?:string;}>;
 const SHA=/^[a-f0-9]{40}$/u;const hash=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 const sha=(v:string,n:string)=>{if(!SHA.test(v))throw new Error('KNOWLEDGE_'+n.toUpperCase()+'_SHA_INVALID');};
 export function createKnowledgeCandidate(i:{claim:string;content:string;targetSha:string;evidenceRefs:readonly string[];source:string;contradictions?:number;createdAt?:string}):KnowledgeCandidate{sha(i.targetSha,'target');if(!i.claim.trim()||!i.content.trim())throw new Error('KNOWLEDGE_CONTENT_REQUIRED');if(!i.source.trim()||!i.evidenceRefs.length)throw new Error('KNOWLEDGE_PROVENANCE_REQUIRED');return Object.freeze({id:'K-'+hash({claim:i.claim,content:i.content,targetSha:i.targetSha,source:i.source}).slice(0,24),claim:i.claim.trim(),content:i.content.trim(),targetSha:i.targetSha,evidenceRefs:Object.freeze([...i.evidenceRefs]),source:i.source.trim(),disposition:'PROPOSED',contradictions:i.contradictions??0,createdAt:i.createdAt??new Date().toISOString()});}

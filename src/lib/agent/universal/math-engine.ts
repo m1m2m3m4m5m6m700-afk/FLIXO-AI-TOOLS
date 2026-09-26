@@ -21,11 +21,11 @@ export type MathReceipt = Readonly<{
   engine: 'FLIXO-DETERMINISTIC-MATH-v1';
 }>;
 
-const TOKEN = /^(?:[0-9]+(?:\\.[0-9]+)?|[()+\\-*/%^])$/;
+const TOKEN = /^(?:[0-9]+(?:\.[0-9]+)?|[()+\-*/%^])$/u;
 
 function tokenize(expression: string): string[] {
-  const compact = expression.replace(/\\s+/g, '');
-  const raw = compact.match(/(?:[0-9]+(?:\\.[0-9]+)?|[()+\\-*/%^])/g) ?? [];
+  const compact = expression.replace(/\s+/g, '');
+  const raw = compact.match(/(?:[0-9]+(?:\.[0-9]+)?|[()+\-*/%^])/g) ?? [];
   if (raw.join('') !== compact || raw.some((token) => !TOKEN.test(token))) {
     throw new Error('MATH_EXPRESSION_UNSUPPORTED');
   }
@@ -47,7 +47,7 @@ function evaluateTokens(tokens: readonly string[]): number {
       return value;
     }
     const token = consume();
-    if (!token || !/^\\d+(?:\\.\\d+)?$/.test(token)) throw new Error('MATH_EXPECTED_NUMBER');
+    if (!token || !/^\d+(?:\.\d+)?$/.test(token)) throw new Error('MATH_EXPECTED_NUMBER');
     return Number(token);
   };
 
