@@ -3,6 +3,7 @@ import { parseExecutionPlan, type ExecutionPlanContract } from '@/lib/contracts/
 import { authorizeExecution } from './execution-gate';
 import { classifyExecutionFailure, deriveRecoveryMetadata } from './execution-observability';
 import { getCapability } from './capability-registry';
+import { evaluatePlanApproval } from './approval-policy';
 import { createTaskContext, transitionTask, confirmTask, cancelTask, assertExecutionAllowed, type TaskContext } from './task-state';
 import { getToolById } from '@/config/registry';
 import { getToolOutputContractForDefinition } from '@/lib/contracts/tool-output-contracts';
@@ -67,6 +68,10 @@ export function prepareExecution(
 ): PreparedExecution {
   const plan = parseExecutionPlan(planInput);
   assertPlanGuard(plan);
+  const approval = evaluatePlanApproval(plan);
+  if (approval.level === 'BLOCK') {
+    throw new Error('EXECUTION_BLOCKED_BY_APPROVAL_POLICY:' + approval.reasons.join(','));
+  }
   const base = createTaskContext(identity.taskId, identity.traceId);
   const planned = transitionTask(base, 'PLANNED');
   const awaitingConfirmation = transitionTask(planned, 'AWAITING_CONFIRMATION');
