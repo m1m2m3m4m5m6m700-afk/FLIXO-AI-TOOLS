@@ -9,7 +9,7 @@ import { getToolOutputContractForDefinition } from '@/lib/contracts/tool-output-
 import { getToolExecutor } from '@/lib/workflows/executor-registry';
 import { runWorkflowPipeline, type PipelineProgress } from '@/lib/workflows/pipeline-runner';
 import type { PipelineReceiptChain } from '@/lib/workflows/pipeline-receipt';
-import type { FlixoBotRunState } from './flixo-bot-openai-runtime';
+import { restoreFlixoBotRunState, type FlixoBotRunState } from './flixo-bot-openai-runtime';
 import {
   afterRuntimeTool,
   beforeRuntimeTool,
@@ -17,7 +17,9 @@ import {
   completeRuntimeExecution,
   confirmRuntimeExecution,
   failRuntimeExecution,
+  runtimeStatusToTaskState,
 } from './flixo-bot-task-bridge';
+import { requireFlixoBuildSha } from './build-identity';
 import { appendConversationEvent } from './conversation-event-store';
 
 export type PreparedExecution = Readonly<{ plan: ExecutionPlanContract; task: TaskContext; runtimeState?: FlixoBotRunState }>;
@@ -79,6 +81,25 @@ export function prepareExecution(
     toolIds: plan.steps.map((step) => step.toolId),
   });
   return Object.freeze({ plan, task: awaitingConfirmation, ...(identity.runtimeState ? { runtimeState: identity.runtimeState } : {}) });
+}
+
+export function restorePreparedExecution(
+  planInput: unknown,
+  runtimeResumeState: string,
+): PreparedExecution {
+  const plan = parseExecutionPlan(planInput);
+  assertPlanGuard(plan);
+  const runtimeState = restoreFlixoBotRunState(runtimeResumeState, requireFlixoBuildSha());
+  if (runtimeState.status !== 'WAITING_APPROVAL') {
+    throw new Error('FLIXO_BOT_RUNTIME_RESUME_NOT_APPROVAL_READY');
+  }
+  const base = createTaskContext(runtimeState.taskId, runtimeState.traceId);
+  const planned = transitionTask(base, 'PLANNED');
+  const awaitingConfirmation = transitionTask(planned, 'AWAITING_CONFIRMATION');
+  if (runtimeStatusToTaskState(runtimeState.status) !== awaitingConfirmation.state) {
+    throw new Error('FLIXO_BOT_RUNTIME_RESUME_TASK_STATE_MISMATCH');
+  }
+  return Object.freeze({ plan, task: awaitingConfirmation, runtimeState });
 }
 
 export function confirmPreparedExecution(prepared: PreparedExecution): PreparedExecution {
