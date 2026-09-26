@@ -183,15 +183,10 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     return true;
   };
 
-  const buildPlan = async (command: string, responseCopy = copy): Promise<ExecutionPlan | null> => {
+  const buildPlan = (command: string, responseCopy = copy): ExecutionPlan | null => {
     setError(null); setResult(null); setProgress(null);
     const contextualCommand = contextualizeCommand(command, memory);
-    const runtimeObservations = memory.turns.slice(-8).map((turn) => ({
-      kind: turn.role === 'user' ? 'INPUT' as const : 'RESULT' as const,
-      signature: turn.text,
-    }));
-    const runtime = await assessCognitiveRequestWithRuntimeControls(contextualCommand, undefined, runtimeObservations);
-    const cognitive = runtime.cognitive;
+    const cognitive = assessCognitiveRequest(contextualCommand);
     if (cognitive.decision === 'NEEDS_INPUT') {
       const missing = cognitive.intentPlan.missing[0];
       const question = cognitive.clarificationQuestion?.question ?? missing?.question ?? null;
@@ -208,16 +203,15 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       }));
       return null;
     }
-    if (cognitive.decision !== 'EXECUTE_READY' || !runtime.ready || !runtime.executionPlan) {
-      const runtimeFailure = runtime.delegation.find((item) => item.status !== 'COMPLETED')?.error;
-      const runtimeFailureMessage = runtimeFailure instanceof Error ? runtimeFailure.message : null;
+    if (cognitive.decision !== 'EXECUTE_READY' || !cognitive.executionPlan) {
       setPreparedExecution(null);
       setPlan(null);
       setState('error');
-      setError(runtimeFailureMessage || cognitive.intentPlan.explanation || cognitive.semantic.reasons.join(', ') || responseCopy.noSafePlan);
+      setError(cognitive.intentPlan.explanation || cognitive.semantic.reasons.join(', ') || responseCopy.noSafePlan);
       return null;
     }
-    const nextPlan = runtime.executionPlan;
+
+    const nextPlan = cognitive.executionPlan;
     const firstStep = nextPlan.steps[0];
     const prepared = prepareExecution(nextPlan);
     setMemory((current) => setConversationTask(current, {
@@ -231,7 +225,8 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     }));
     setPlan(prepared.plan);
     setPreparedExecution(prepared);
-    setState('ready'); return prepared.plan;
+    setState('ready');
+    return prepared.plan;
   };
 
   const runConversationalTurn = async (command: string, responseCopy = copy): Promise<boolean> => {
@@ -253,7 +248,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       // Deterministic fallback plans must use the same canonical local planner/runtime-control path.
       // Model-generated plans are validated separately below because they originate outside the deterministic planner.
       if (decision.fallback && decision.mode === 'plan' && decision.plan) {
-        const fallbackPlan = await buildPlan(command, responseCopy);
+        const fallbackPlan = buildPlan(command, responseCopy);
         if (!fallbackPlan) {
           pushMessage('agent', responseCopy.noSafePlan);
           return true;
@@ -448,7 +443,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       return;
     }
 
-    const nextPlan = await buildPlan(command, responseCopy);
+    const nextPlan = buildPlan(command, responseCopy);
     if (!nextPlan) {
       const latestMemory = loadConversationMemory();
       const pendingQuestion = latestMemory.pendingQuestion;
