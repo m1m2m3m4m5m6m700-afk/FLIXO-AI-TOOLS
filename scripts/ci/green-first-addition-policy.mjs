@@ -45,6 +45,7 @@ export const REQUIRED_GREEN_WORKFLOW_PATHS = Object.freeze({
   'Claude Security Review': '.github/workflows/claude-security-review.yml',
 });
 export const selectLatestCanonicalRun = (runs) => runs
+  .filter(r => r?.conclusion !== 'cancelled')
   .sort((a,b) => String(a?.updated_at ?? a?.completed_at ?? a?.started_at ?? '').localeCompare(String(b?.updated_at ?? b?.completed_at ?? b?.started_at ?? '')))
   .at(-1) ?? null;
 

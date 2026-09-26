@@ -24,18 +24,18 @@ const redDocumentationWithoutClassification = evaluateGreenFirstPolicy({
 });
 assert.equal(redDocumentationWithoutClassification.allowed, false);
 assert.equal(redDocumentationWithoutClassification.reason, 'RED_SCOPE_REQUIRES_EXPLICIT_CLASSIFICATION');
-const selected = selectLatestNonCancelled([
+const selected = selectLatestCanonicalRun([
   { conclusion: 'success', updated_at: '2026-09-26T17:25:00Z' },
   { conclusion: 'cancelled', updated_at: '2026-09-26T17:26:00Z' },
 ]);
-assert.equal(selected?.conclusion, 'cancelled');
+assert.equal(selected?.conclusion, 'success');
 
-const latestFailure = selectLatestNonCancelled([
+const latestFailure = selectLatestCanonicalRun([
   { conclusion: 'success', updated_at: '2026-09-26T17:25:00Z' },
   { conclusion: 'failure', updated_at: '2026-09-26T17:26:00Z' },
   { conclusion: 'cancelled', updated_at: '2026-09-26T17:27:00Z' },
 ]);
-assert.equal(latestFailure?.conclusion, 'cancelled');
+assert.equal(latestFailure?.conclusion, 'failure');
 
 const cancelledOnly = selectLatestCanonicalRun([{ conclusion: 'cancelled', updated_at: '2026-09-26T17:26:00Z' }]);
-assert.equal(cancelledOnly?.conclusion, 'cancelled');
+assert.equal(cancelledOnly, null);
