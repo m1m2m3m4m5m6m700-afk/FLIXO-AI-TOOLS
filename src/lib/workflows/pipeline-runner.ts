@@ -29,7 +29,17 @@ export type PipelineRuntimeHooks = Readonly<{
 
 export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; task: TaskContext; outputBlob?: Blob; retry?: number; receipt?: PipelineStepReceipt; receiptChain?: PipelineReceiptChain; auditEvents?: readonly ExecutionAuditEvent[]; }
 export class PipelineVerificationError extends Error {
-  constructor(message: string, readonly stableBlob: Blob, readonly failedStepIndex: number, readonly failedToolId: string) { super(message); this.name = 'PipelineVerificationError'; }
+  readonly stableBlob: Blob;
+  readonly failedStepIndex: number;
+  readonly failedToolId: string;
+
+  constructor(message: string, stableBlob: Blob, failedStepIndex: number, failedToolId: string) {
+    super(message);
+    this.name = 'PipelineVerificationError';
+    this.stableBlob = stableBlob;
+    this.failedStepIndex = failedStepIndex;
+    this.failedToolId = failedToolId;
+  }
 }
 type PipelineParams = CapabilityParameters;
 
