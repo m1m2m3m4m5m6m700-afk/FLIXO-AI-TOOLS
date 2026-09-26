@@ -50,9 +50,12 @@ const scoreMatch = (query: string, tool: ToolDefinition): number => {
     else if (candidate.includes(normalizedQuery)) score = Math.max(score, 85);
     else if (normalizedQuery.includes(candidate)) score = Math.max(score, 75);
     else {
-      const tokens = normalizedQuery.split(' ');
-      const hits = tokens.filter((token) => token.length > 1 && candidate.includes(token)).length;
-      if (hits) score = Math.max(score, Math.round((hits / tokens.length) * 70));
+      const tokens = normalizedQuery.split(' ').filter((token) => token.length > 1);
+      const stopwords = new Set(['the', 'this', 'that', 'from', 'into', 'with', 'for', 'and', 'to', 'of', 'a', 'an', 'is', 'on', 'in', 'لل', 'من', 'في', 'إلى', 'و', 'مع', 'هذه', 'هذا']);
+      const meaningful = tokens.filter((token) => !stopwords.has(token));
+      const hits = meaningful.filter((token) => candidate.includes(token)).length;
+      const denominator = meaningful.length || tokens.length;
+      if (hits) score = Math.max(score, Math.round((hits / denominator) * 70));
     }
   }
 

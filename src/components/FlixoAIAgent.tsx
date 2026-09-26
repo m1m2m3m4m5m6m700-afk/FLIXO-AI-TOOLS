@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { ExecutionPlan } from '@/lib/ai/planner';
+import { buildIntentPlan, toExecutionPlan } from '@/lib/agent/intent/intent-plan';
+import { verifyExecutionPlanSemantics } from '@/lib/agent/cognitive-orchestrator';
 import { assessCognitiveRequest, validateCanonicalExecutionPlanWithRuntimeControls } from '@/lib/agent/cognitive-orchestrator';
 import type { PipelineProgress } from '@/lib/workflows/pipeline-runner';
 import { cancelPreparedExecution, confirmPreparedExecution, executePreparedExecution, prepareExecution, restorePreparedExecution, type PreparedExecution } from '@/lib/agent/execution-integrator';
@@ -274,6 +276,32 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       }
     } catch {
       // Continue only when no local manual fallback can safely handle the request.
+    }
+
+    try {
+      const deterministicPlan = buildIntentPlan(contextualCommand);
+      const executionPlan = toExecutionPlan(deterministicPlan);
+      if (executionPlan && verifyExecutionPlanSemantics(deterministicPlan, executionPlan).ok) {
+        const prepared = prepareExecution(executionPlan);
+        setPlan(prepared.plan);
+        setPreparedExecution(prepared);
+        setState('ready');
+        setError(null);
+        setFilterHandoff(null);
+        setMemory((current) => setConversationTask(current, {
+          command: contextualCommand,
+          toolId: prepared.plan.steps[0]?.toolId ?? null,
+          pendingToolId: null,
+          pendingQuestion: null,
+          planReady: true,
+          plan: prepared.plan,
+          runtimeResumeState: null,
+        }));
+        pushMessage('agent', file ? responseCopy.execute : responseCopy.uploadThenExecute);
+        return true;
+      }
+    } catch {
+      // Advisory/cognitive layers must never become execution authority.
     }
 
     const localManualFallback = findToolIntent(contextualCommand, TOOL_CATALOG.ready)
