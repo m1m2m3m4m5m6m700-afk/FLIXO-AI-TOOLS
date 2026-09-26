@@ -134,7 +134,9 @@ const scoreLiveFilter = (query: string, filter: LiveFilterDefinition): number =>
   if (normalizeFilterQuery(filter.canonicalId) === normalized) return 100;
   if (normalizeFilterQuery(filter.label) === normalized) return 100;
 
-  const tokens = normalized.split(' ').filter((token) => token && !GENERIC_FILTER_TERMS.has(token));
+  const tokens = normalized
+    .split(' ')
+    .filter((token) => token && !GENERIC_FILTER_TERMS.has(token) && !/^\\d+$/u.test(token));
   if (tokens.length === 0) return 1;
 
   const labelTokens = normalizeFilterQuery(filter.label).split(' ').filter(Boolean);
