@@ -19,7 +19,7 @@ export const AgentRuntimeOptionsSchema = z.object({
   maxIterations: z.number().int().positive().max(20).default(5),
   useMockEngine: z.boolean().default(true),
 });
-export type AgentRuntimeOptions = z.infer<typeof AgentRuntimeOptionsSchema>;
+export type AgentRuntimeOptions = z.input<typeof AgentRuntimeOptionsSchema>;
 
 export class AgentRuntime {
   private readonly maxIterations: number;
@@ -61,7 +61,7 @@ export class AgentRuntime {
     const requestedCalls: ToolCallRequest[] = [];
     const results: ToolCallResult[] = [];
     let finalAssistantText = "";
-    let currentPrompt = `${systemPrompt}\n\nUSER REQUEST:\n${prompt}`;
+    let currentPrompt = prompt;
 
     for (let iteration = 1; iteration <= this.maxIterations; iteration += 1) {
       const llmResult = simulateLLMReasoning(currentPrompt, iteration);
@@ -110,6 +110,7 @@ export class AgentRuntime {
     });
 
     void history;
+    void systemPrompt;
     return response;
   }
 
