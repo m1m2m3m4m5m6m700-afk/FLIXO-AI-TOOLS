@@ -126,3 +126,26 @@ export async function getAgentTask(taskId: string): Promise<PersistedTaskRow | n
   if (!Array.isArray(body) || body.length === 0) return null;
   return singleRow<PersistedTaskRow>(body);
 }
+
+export async function listAgentTaskEvents(taskId: string, limit = 500): Promise<readonly PersistedEventRow[]> {
+  const boundedLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 5_000) : 500;
+  const body = await rest(
+    '/rest/v1/flixo_agent_task_events?task_id=eq.'
+      + encodeURIComponent(taskId)
+      + '&select=*&order=sequence.asc&limit='
+      + boundedLimit,
+  );
+  if (!Array.isArray(body)) throw new Error('agent_task_store_invalid_events_response');
+  return Object.freeze(body as PersistedEventRow[]);
+}
+
+export async function getAgentTaskReplay(taskId: string, limit = 500): Promise<Readonly<{
+  task: PersistedTaskRow | null;
+  events: readonly PersistedEventRow[];
+}>> {
+  const [task, events] = await Promise.all([
+    getAgentTask(taskId),
+    listAgentTaskEvents(taskId, limit),
+  ]);
+  return Object.freeze({ task, events });
+}
