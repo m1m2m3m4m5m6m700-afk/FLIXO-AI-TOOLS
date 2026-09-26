@@ -49,6 +49,18 @@ test('canonical executable capability registry is exact and executor-complete', 
   }
 });
 
+test('video capabilities have real canonical executors and WebM artifact contracts', () => {
+  for (const id of ['video-trimmer', 'video-cropper', 'video-resizer', 'video-compressor']) {
+    const tool = TOOL_REGISTRY.find((candidate) => candidate.id === id);
+    assert.ok(tool);
+    assert.equal(tool?.executionMode, 'LOCAL');
+    assert.equal(tool?.requirements.network, false);
+    assert.equal(tool?.operational.executorId, id);
+    assert.equal(TOOL_OUTPUT_CONTRACTS[id]?.variants[0]?.outputMimeTypes.includes('video/webm'), true);
+    assert.equal(TOOL_OUTPUT_CONTRACTS[id]?.variants[0]?.signatures?.includes('1a45dfa3'), true);
+  }
+});
+
 test('every ready tool is bound to a canonical output contract', () => {
   assert.doesNotThrow(() => assertReadyToolsHaveOutputContracts());
   const readyIds = new Set(TOOL_REGISTRY.filter((tool) => tool.isReady).map((tool) => tool.id));

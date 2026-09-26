@@ -53,6 +53,7 @@ function extensionForMime(mimeType: string): string {
     'image/svg+xml': 'svg',
     'text/plain': 'txt',
     'application/json': 'json',
+    'video/webm': 'webm',
   };
   return map[mimeType] ?? 'bin';
 }
@@ -140,6 +141,26 @@ async function readImageDimensions(blob: Blob, bytes: Uint8Array): Promise<{ wid
   }
 }
 
+async function mediaDimensions(blob: Blob): Promise<{ width: number; height: number } | undefined> {
+  if (!blob.type.startsWith('video/')) return undefined;
+  if (typeof document === 'undefined') return undefined;
+  const url = URL.createObjectURL(blob);
+  const video = document.createElement('video');
+  video.preload = 'metadata';
+  video.src = url;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      video.onloadedmetadata = () => resolve();
+      video.onerror = () => reject(new Error('Video metadata decode failed.'));
+    });
+    return { width: video.videoWidth, height: video.videoHeight };
+  } finally {
+    URL.revokeObjectURL(url);
+    video.removeAttribute('src');
+    video.load();
+  }
+}
+
 async function toOutputContractResult(toolId: string, outputBlob: Blob): Promise<ToolOutputResult> {
   const bytes = new Uint8Array(await outputBlob.arrayBuffer());
   return {
@@ -147,7 +168,7 @@ async function toOutputContractResult(toolId: string, outputBlob: Blob): Promise
     byteLength: outputBlob.size,
     bytes,
     filename: `flixo-${toolId}-output.${extensionForMime(outputBlob.type)}`,
-    dimensions: await readImageDimensions(outputBlob, bytes),
+    dimensions: (await mediaDimensions(outputBlob)) ?? (await readImageDimensions(outputBlob, bytes)),
   };
 }
 

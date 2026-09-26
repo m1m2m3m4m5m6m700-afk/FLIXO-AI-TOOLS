@@ -17,6 +17,7 @@ export const VideoTaskOperationSchema = z.object({
     'BACKGROUND_REPLACE',
     'ENHANCE',
   ]),
+  capabilityId: z.string().min(1).max(120).optional(),
   purpose: z.string().min(1).max(500),
   order: z.number().int().positive(),
 }).strict();
@@ -51,9 +52,16 @@ export function compileVideoTaskSpec(input: string): VideoTaskSpec | null {
   }];
 
   const add = (kind: z.infer<typeof VideoTaskOperationSchema>['kind'], purpose: string) => {
+    const capabilityMap: Partial<Record<z.infer<typeof VideoTaskOperationSchema>['kind'], string>> = {
+      TRIM: 'video-trimmer',
+      CROP: 'video-cropper',
+      RESIZE: 'video-resizer',
+      COMPRESS: 'video-compressor',
+    };
     operations.push({
       id: `step-${operations.length + 1}`,
       kind,
+      capabilityId: capabilityMap[kind],
       purpose,
       order: operations.length + 1,
     });
@@ -65,9 +73,9 @@ export function compileVideoTaskSpec(input: string): VideoTaskSpec | null {
   if (detect(goal, [/\bcompress\b|ضغط الفيديو|تصغير الحجم/iu])) add('COMPRESS', 'compress the video while respecting output quality constraints');
   if (detect(goal, [/\bsubtitle|captions?\b|ترجمه|ترجمة|ترجمات/iu])) add('SUBTITLES', 'generate or apply subtitles');
   if (detect(goal, [/\bburn.?in\b|حرق الترجمة|إظهار الترجمة/iu])) add('CAPTION_BURN_IN', 'burn captions into the rendered video');
-  if (detect(goal, [/\bblur background\b|طمس الخلفية|ضبابية الخلفية/iu])) add('BACKGROUND_BLUR', 'blur the background while preserving the tracked subject');
+  if (detect(goal, [/\bblur(?:\s+the)?\s+background\b|طمس الخلفية|ضبابية الخلفية/iu])) add('BACKGROUND_BLUR', 'blur the background while preserving the tracked subject');
   if (detect(goal, [/\btrack\b|تتبع|تتبّع/iu])) add('OBJECT_TRACK', 'track the requested subject or object over time');
-  if (detect(goal, [/\bremove object\b|إزالة عنصر|حذف عنصر/iu])) add('OBJECT_REMOVE', 'remove the requested object with temporal consistency');
+  if (detect(goal, [/\bremove(?:\s+the)?\s+object\b|إزالة عنصر|حذف عنصر/iu])) add('OBJECT_REMOVE', 'remove the requested object with temporal consistency');
   if (detect(goal, [/\breplace background\b|تغيير الخلفية|استبدال الخلفية/iu])) add('BACKGROUND_REPLACE', 'replace the background consistently across frames');
   if (detect(goal, [/\benhance\b|تحسين الجودة|رفع الجودة/iu])) add('ENHANCE', 'enhance the video while preserving temporal consistency');
 
