@@ -97,6 +97,8 @@ test.describe('FLIXO MVP mobile + Arabic journey', () => {
     await page.goto('/ar');
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
     await expect(page.getByTestId('flixo-agent-studio')).toBeVisible();
+    await expect(page.locator('.flixo-agent-composer')).toBeVisible();
+    await expect(page.locator('.flixo-agent-tools-panel')).toBeVisible();
 
     await page.locator('#flixo-agent-file').setInputFiles({
       name: 'mvp-agent-mobile-fixture.png',
