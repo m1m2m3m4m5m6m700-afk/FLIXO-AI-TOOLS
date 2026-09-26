@@ -149,10 +149,10 @@ function digest(value: string): string {
   return (h >>> 0).toString(16).padStart(8, '0');
 }
 
-function append(
-  state: FlixoBotRunState,
+function append<TContext>(
+  state: FlixoBotRunState<TContext>,
   event: Omit<FlixoBotRunEvent, 'seq' | 'at' | 'exactSha'>,
-): FlixoBotRunState {
+): FlixoBotRunState<TContext> {
   const next: FlixoBotRunEvent = Object.freeze({
     ...event,
     seq: state.events.length + 1,
@@ -162,11 +162,11 @@ function append(
   return Object.freeze({ ...state, events: Object.freeze([...state.events, next]) });
 }
 
-function withStatus(
-  state: FlixoBotRunState,
+function withStatus<TContext>(
+  state: FlixoBotRunState<TContext>,
   nextStatus: FlixoBotRunStatus,
   event: Omit<FlixoBotRunEvent, 'seq' | 'at' | 'exactSha'>,
-): FlixoBotRunState {
+): FlixoBotRunState<TContext> {
   return append(Object.freeze({ ...state, status: nextStatus }), event);
 }
 
