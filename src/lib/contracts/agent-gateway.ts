@@ -20,6 +20,8 @@ export const AgentRequestSchema = z.object({
   activePlan: z.unknown().nullable().optional(),
   activeCommand: z.string().trim().max(2_000).nullable().optional(),
   idempotencyKey: z.string().trim().min(1).max(512).optional(),
+  conversationId: z.string().trim().min(1).max(256).optional(),
+  taskId: z.string().trim().min(1).max(256).nullable().optional(),
   memory: LayeredMemorySchema.nullable().optional(),
 }).strict();
 
@@ -30,6 +32,8 @@ export type AgentRequestContract = Readonly<{
   activePlan?: ExecutionPlanContract | null;
   activeCommand?: string | null;
   idempotencyKey?: string;
+  conversationId?: string;
+  taskId?: string | null;
   memory?: LayeredMemorySnapshot | null;
 }>;
 
