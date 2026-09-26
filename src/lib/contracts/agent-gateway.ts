@@ -19,6 +19,7 @@ export const AgentRequestSchema = z.object({
   file: AgentFileSchema.nullable().optional(),
   activePlan: z.unknown().nullable().optional(),
   activeCommand: z.string().trim().max(2_000).nullable().optional(),
+  idempotencyKey: z.string().trim().min(1).max(512).optional(),
   memory: LayeredMemorySchema.nullable().optional(),
 }).strict();
 
@@ -28,6 +29,7 @@ export type AgentRequestContract = Readonly<{
   file?: z.infer<typeof AgentFileSchema> | null;
   activePlan?: ExecutionPlanContract | null;
   activeCommand?: string | null;
+  idempotencyKey?: string;
   memory?: LayeredMemorySnapshot | null;
 }>;
 
