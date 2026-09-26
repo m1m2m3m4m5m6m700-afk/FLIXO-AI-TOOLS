@@ -311,6 +311,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
 
     try {
       const decision = await askConversationalAgent({
+        idempotencyKey: crypto.randomUUID(),
         locale,
         messages: [
           ...messages.slice(-23).map((message) => ({
