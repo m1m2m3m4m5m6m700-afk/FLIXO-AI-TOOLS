@@ -75,6 +75,8 @@ const AgentDecisionEnvelopeSchema = z.object({
     exactSha: z.string().regex(/^[a-f0-9]{40}$/u),
     turnCount: z.number().int().nonnegative(),
     retryCount: z.number().int().nonnegative(),
+    maxToolCalls: z.number().int().positive(),
+    toolCallCount: z.number().int().nonnegative(),
     eventCount: z.number().int().nonnegative(),
     resumeState: z.string().max(100_000),
   }).nullable().optional(),
@@ -100,6 +102,8 @@ export type AgentDecisionContract = Readonly<{
     exactSha: string;
     turnCount: number;
     retryCount: number;
+    maxToolCalls: number;
+    toolCallCount: number;
     eventCount: number;
     resumeState: string;
   } | null;
