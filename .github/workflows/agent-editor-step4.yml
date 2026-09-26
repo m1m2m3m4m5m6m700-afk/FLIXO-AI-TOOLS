@@ -1,0 +1,34 @@
+name: FLIXO Agent Editor - STEP 4
+
+on:
+  pull_request:
+    branches: [execution, main]
+  push:
+    branches: [feat/step4-agent-runtime]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-agent-editor:
+    name: STEP 4 verification gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.x
+          cache: npm
+      - name: Install isolated app dependencies
+        run: npm install --no-audit --no-fund
+        working-directory: apps/agent-editor
+      - name: Type-check
+        run: npm --prefix apps/agent-editor run type-check
+      - name: Lint
+        run: npm --prefix apps/agent-editor run lint
+      - name: Runtime tests
+        run: cd apps/agent-editor && npx vitest run __tests__/agent-runtime.test.ts
+      - name: Production build
+        run: npm --prefix apps/agent-editor run build
