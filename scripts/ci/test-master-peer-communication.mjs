@@ -36,6 +36,13 @@ const base = {
   createdAt: new Date().toISOString(),
   source: 'MASTER_PEER_CONTRACT_TEST',
   administrativeInstruction: true,
+  transportIdentity: {
+    provider: 'github-actions',
+    actor: 'github-actions[bot]',
+    repository: process.env.GITHUB_REPOSITORY ?? 'm1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS',
+    runId: process.env.GITHUB_RUN_ID ?? '1',
+    testHarness: true,
+  },
   payload: {
     peerMessage: true,
     automaticDelivery: true,
