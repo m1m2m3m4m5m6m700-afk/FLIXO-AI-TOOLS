@@ -6,6 +6,7 @@
     "node": "22.x"
   },
   "scripts": {
+    "test:agent-definition": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-definition-contract.mjs",
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "npm run ensure:agent-locales && npm run validate:site-origin && vite build && node scripts/ci/validate-build-chunk-boundaries.mjs && node scripts/validate-performance-budget.mjs && FLIXO_GENERATED_OUTPUT_DIR=dist npm run generate:robots && FLIXO_GENERATED_OUTPUT_DIR=dist npm run generate:sitemap && node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-static-route-entries.mjs",
     "build:runtime": "vite build",
