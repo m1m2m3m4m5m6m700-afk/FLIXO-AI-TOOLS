@@ -13,6 +13,9 @@ export type ConversationalAgentRequest = Readonly<{
   file?: { name: string; type: string; size: number } | null;
   activePlan?: ExecutionPlan | null;
   activeCommand?: string | null;
+  conversationId?: string;
+  taskId?: string;
+  idempotencyKey?: string;
 }>;
 
 export type ConversationalAgentDecision = Readonly<{
@@ -25,6 +28,10 @@ export type ConversationalAgentDecision = Readonly<{
   provider?: string;
   fallback?: boolean;
   reason?: string;
+  approval?: {
+    level: 'AUTO' | 'CONFIRM' | 'BLOCK';
+    reasons: readonly string[];
+  } | null;
   runtime?: {
     protocol: string;
     runId: string;
