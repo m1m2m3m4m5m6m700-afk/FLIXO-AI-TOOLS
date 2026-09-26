@@ -158,10 +158,6 @@ export class AgentRuntime {
       }
     }
 
-    const validatedResults = executedResults.map((result) =>
-      ToolCallResultSchema.parse(result),
-    );
-
     void parsedHistory;
     void systemPrompt;
 
