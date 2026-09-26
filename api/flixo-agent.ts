@@ -466,6 +466,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           activeCommand: body.activeCommand ?? null,
           activePlan: body.activePlan ?? null,
           catalog: executableCatalog(),
+          layeredMemory: body.memory,
           workflowCatalog: WORKFLOW_TOOL_CATALOG.map((tool) => ({
             id: tool.id,
             title: tool.title,
