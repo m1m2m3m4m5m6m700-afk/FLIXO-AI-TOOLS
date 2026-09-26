@@ -16,6 +16,7 @@ export const WorkflowToolSchema = z.object({
   executable: z.boolean(),
   stepCount: z.number().int().min(0).max(32),
   toolIds: z.array(z.string().min(1)).max(32),
+  catalogFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
 }).strict();
 
 export type WorkflowTool = z.infer<typeof WorkflowToolSchema>;
@@ -43,6 +44,7 @@ export function buildWorkflowToolCatalog(): readonly WorkflowTool[] {
     executable: workflowIsExecutable(workflow),
     stepCount: workflow.steps.length,
     toolIds: workflow.steps.map((step) => step.toolId),
+    catalogFingerprint: TOOL_CATALOG.fingerprint,
   })));
 }
 
