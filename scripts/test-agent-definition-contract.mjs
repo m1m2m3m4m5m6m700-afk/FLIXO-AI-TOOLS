@@ -18,12 +18,8 @@ for (const definition of AGENT_DEFINITIONS) {
   assert.equal(getAgentDefinition(definition.id)?.id, definition.id);
 }
 
-const execution = createAgentDefinition('executionAgent', {
-  handoffDescription: 'Canonical verified user-intent execution.',
-});
-assert.equal(execution.id, 'executionAgent');
-assert.equal(execution.handoffDescription, 'Canonical verified user-intent execution.');
-
+const execution = createAgentDefinition('executionAgent');
+assert.deepEqual(execution, getAgentDefinition('executionAgent'));
 assert.throws(
   () => createAgentDefinition('missing-agent'),
   /UNKNOWN_AGENT_PROFILE/,
