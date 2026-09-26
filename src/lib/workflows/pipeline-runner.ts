@@ -210,12 +210,12 @@ export async function runWorkflowPipeline(
         inputBlob: stableBlob,
       });
       params = authorization.parameters;
-      await runtimeHooks?.beforeTool({
+      await runtimeHooks?.beforeTool?.({
         toolId: step.toolId,
         stepIndex: i + 1,
         attempt,
       });
-      let auditEventsForAttempt: readonly ExecutionAuditEvent[];
+      let auditEventsForAttempt: readonly ExecutionAuditEvent[] = Object.freeze([authorization.audit]);
       onProgress({
         currentStepIndex: i + 1,
         totalSteps: plan.steps.length,
@@ -256,7 +256,7 @@ export async function runWorkflowPipeline(
           receiptChain = await appendPipelineStepReceipt(receiptChain, receipt);
           currentBlob = output;
           runtimeAfterToolInvoked = true;
-          await runtimeHooks?.afterTool({
+          await runtimeHooks?.afterTool?.({
             toolId: step.toolId,
             stepIndex: i + 1,
             attempt,
@@ -277,7 +277,7 @@ export async function runWorkflowPipeline(
       if (attemptExecutionError) {
         const error = attemptExecutionError;
         runtimeAfterToolInvoked = true;
-        await runtimeHooks?.afterTool({
+        await runtimeHooks?.afterTool?.({
           toolId: step.toolId,
           stepIndex: i + 1,
           attempt,
@@ -308,7 +308,7 @@ export async function runWorkflowPipeline(
         if (attempt === maxAttempts - 1) throw new PipelineVerificationError(message, stableBlob, i, step.toolId);
       } else if (!verified) {
         runtimeAfterToolInvoked = true;
-        await runtimeHooks?.afterTool({
+        await runtimeHooks?.afterTool?.({
           toolId: step.toolId,
           stepIndex: i + 1,
           attempt,
