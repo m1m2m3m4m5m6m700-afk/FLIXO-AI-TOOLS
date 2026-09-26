@@ -307,6 +307,16 @@ export async function runWorkflowPipeline(
         });
         if (attempt === maxAttempts - 1) throw new PipelineVerificationError(message, stableBlob, i, step.toolId);
       } else if (!verified) {
+        runtimeAfterToolInvoked = true;
+        await runtimeHooks?.afterTool({
+          toolId: step.toolId,
+          stepIndex: i + 1,
+          attempt,
+          success: false,
+          outputBlob: attemptOutput,
+          receipt: attemptReceipt,
+          receiptChain,
+        });
       }
 
       if (!verified && attempt < maxAttempts - 1) {
