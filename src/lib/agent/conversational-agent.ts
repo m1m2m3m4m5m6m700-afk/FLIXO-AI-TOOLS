@@ -15,10 +15,15 @@ export type ConversationalAgentRequest = Readonly<{
   activePlan?: ExecutionPlan | null;
   activeCommand?: string | null;
   idempotencyKey?: string;
+  conversationId?: string;
+  taskId?: string | null;
   memory?: LayeredMemorySnapshot | null;
 }>;
 
 export type ConversationalAgentDecision = Readonly<{
+  conversationId?: string;
+  taskId?: string;
+  approval?: { level: 'AUTO' | 'CONFIRM' | 'BLOCK'; reasons: readonly string[] } | null;
   mode: 'chat' | 'clarify' | 'plan';
   reply: string;
   question: string | null;

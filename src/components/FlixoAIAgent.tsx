@@ -312,6 +312,8 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     try {
       const decision = await askConversationalAgent({
         idempotencyKey: crypto.randomUUID(),
+        conversationId: memory.conversationId,
+        taskId: memory.taskId,
         locale,
         messages: [
           ...messages.slice(-23).map((message) => ({
@@ -366,6 +368,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           toolId: validatedPlan.steps[0]?.toolId ?? null,
           planReady: true,
           plan: prepared.plan,
+          taskId: decision.runtime?.taskId ?? memory.taskId,
           runtimeResumeState: prepared.runtimeState ? JSON.stringify(prepared.runtimeState) : null,
         }));
         pushMessage(
