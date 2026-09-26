@@ -59,6 +59,133 @@
     "re_evaluation": "New authoritative evidence, SHA movement, counterexample, contradiction, or failed verification invalidates dependent reasoning and requires re-evaluation.",
     "cell_lab": "CELL-LAB is the shared engineering laboratory. Before any material mutation, Masters/Agents/Bots exchange opinions, questions and challenges through Canonical Agent Communication, resolve disagreements, synthesize one integrated plan, and record explicit agreement bound to the current exact SHA. Cell-Lab agreement never grants mutation or certification authority; existing role gates remain authoritative."
   },
+  "operationalOwnership": {
+    "schemaVersion": 1,
+    "status": "ACTIVE",
+    "policy": "ONE_CANONICAL_AGENT_OWNER_PER_OPERATION",
+    "objective": "Keep the repository operating with a small professional runtime team. Specialization changes routing focus; it never creates a second authority path.",
+    "residentAgents": [
+      {
+        "agentId": "assistantController",
+        "operation": "ORCHESTRATION",
+        "scope": "assignment, priority, conflict arbitration, final handoff",
+        "mutation": false,
+        "certification": false,
+        "alwaysResident": true
+      },
+      {
+        "agentId": "codeScout",
+        "operation": "REPOSITORY_INVESTIGATION",
+        "scope": "read-only dependency/file/change-surface analysis",
+        "mutation": false,
+        "certification": false,
+        "alwaysResident": false
+      },
+      {
+        "agentId": "errorAgent",
+        "operation": "RCA_AND_FAILURE_INTAKE",
+        "scope": "failure classification, fingerprinting, causal analysis, evidence correlation",
+        "mutation": false,
+        "certification": false,
+        "alwaysResident": false
+      },
+      {
+        "agentId": "actionRepairBot",
+        "operation": "REPAIR",
+        "scope": "bounded source repair on execution through the canonical Repair Protocol",
+        "mutation": true,
+        "certification": false,
+        "alwaysResident": true
+      },
+      {
+        "agentId": "testAgent",
+        "operation": "BUILD_AND_VERIFICATION",
+        "scope": "canonical verify engine, build, targeted regression, browser verification and test coverage",
+        "mutation": false,
+        "certification": false,
+        "alwaysResident": true
+      },
+      {
+        "agentId": "securityAgent",
+        "operation": "SECURITY_AND_ADVERSARIAL_REVIEW",
+        "scope": "security boundaries, red-team review and adversarial challenge",
+        "mutation": false,
+        "certification": false,
+        "alwaysResident": false
+      },
+      {
+        "agentId": "certificationAuthority",
+        "operation": "CERTIFICATION",
+        "scope": "independent exact-SHA certification and release evidence",
+        "mutation": false,
+        "certification": true,
+        "alwaysResident": false
+      }
+    ],
+    "conditionalAgents": [
+      {
+        "agentId": "executionAgent",
+        "operation": "PRODUCT_EXECUTION",
+        "condition": "only for admitted product/runtime implementation work distinct from repair"
+      },
+      {
+        "agentId": "performanceAgent",
+        "operation": "PERFORMANCE_SPECIALIST",
+        "condition": "invoked only when the changed scope has a measurable performance contract"
+      },
+      {
+        "agentId": "reviewAgent",
+        "operation": "INDEPENDENT_CHALLENGE",
+        "condition": "invoked only when an independent review is required and its challenge cannot be absorbed by securityAgent/testAgent"
+      },
+      {
+        "agentId": "assistantRepairAgent",
+        "operation": "REPAIR_FALLBACK",
+        "condition": "fallback only when repairAgent and executionAgent are unavailable and the existing fallback admission contract passes"
+      },
+      {
+        "agentId": "execution-agent-clone-v1",
+        "operation": "LEARNING_MIRROR",
+        "condition": "shared-learning consumer only; never a new runtime seat or authority path"
+      }
+    ],
+    "operationOwners": {
+      "build": "testAgent",
+      "targetedVerification": "testAgent",
+      "browserVerification": "testAgent",
+      "RCA": "errorAgent",
+      "repositoryScouting": "codeScout",
+      "repair": "actionRepairBot",
+      "security": "securityAgent",
+      "certification": "certificationAuthority",
+      "releasePreparation": "certificationAuthority",
+      "finalIntegrationAndPublicationDecision": "assistantController",
+      "livenessAndRecovery": "agent-repair-heartbeat + canonical latest-execution cleanup"
+    },
+    "nonResidentPolicy": "Conditional agents do not maintain independent queues, timers, mutation loops or autonomous wake paths. They are activated only through the existing communication/control plane.",
+    "retiredPools": [
+      "CELL-001..CELL-200",
+      "ACTION-WAKE"
+    ],
+    "nonGoals": [
+      "second orchestrator",
+      "second certification authority",
+      "parallel repair mutation lane",
+      "per-agent work branch",
+      "per-agent memory registry",
+      "always-on duplicate reviewer loops"
+    ],
+    "continuity": {
+      "heartbeatSeconds": 60,
+      "recovery": "missed heartbeat or workflow termination re-enters the canonical wake/recovery path",
+      "noSleepWhileOpenWork": true,
+      "noIdleWhileOpenWork": true,
+      "newShaInvalidatesDependentEvidence": true,
+      "oneOwnerPerMutableScope": true,
+      "canonicalBranch": "execution",
+      "promotionPath": "execution -> main"
+    }
+  },
   "messageEnvelope": {
     "required": [
       "messageId",
@@ -101,6 +228,7 @@
   "roles": {
     "assistantController": "Plans, prioritizes, interprets user intent, assigns bounded work, reviews evidence and decides continue, narrow, escalate or close.",
     "codeScout": "Reads repository state and produces investigation reports only. It has no source-mutation, commit, push, merge, deployment or approval authority.",
+    "errorAgent": "Owns failure intake, deterministic fingerprinting, root-cause analysis and evidence correlation; it never mutates source or certifies.",
     "executionAgent": "Investigates, challenges unsafe instructions, performs bounded mutations, verifies, records provenance and reports machine-readable evidence.",
     "reviewAgent": "Independently challenges the causal explanation, scope and verification result for changes requiring review.",
     "testAgent": "Owns targeted and affected-contract verification according to canonical test ownership; it does not redefine requirements to obtain PASS.",

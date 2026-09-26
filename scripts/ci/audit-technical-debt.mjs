@@ -16,12 +16,29 @@ const read = (path) => {
   return existsSync(file) ? readFileSync(file, 'utf8') : '';
 };
 const grep = (pattern, files = tracked.filter((p) => existsSync(resolve(ROOT, p)))) => {
-  try {
-    return run(['grep', '-n', '-I', '-E', '-e', pattern, '--', ...files]).trim();
-  } catch (error) {
-    if (error?.status === 1) return '';
-    throw error;
+  const results = [];
+  const maxArgBytes = 24_000;
+  let batch = [];
+  let batchBytes = 0;
+  const flush = () => {
+    if (!batch.length) return;
+    try {
+      const output = run(['grep', '-n', '-I', '-E', '-e', pattern, '--', ...batch]).trim();
+      if (output) results.push(output);
+    } catch (error) {
+      if (error?.status !== 1) throw error;
+    }
+    batch = [];
+    batchBytes = 0;
+  };
+  for (const file of files) {
+    const bytes = Buffer.byteLength(file) + 1;
+    if (batch.length && batchBytes + bytes > maxArgBytes) flush();
+    batch.push(file);
+    batchBytes += bytes;
   }
+  flush();
+  return results.join('\n').trim();
 };
 const findings = [];
 const findingFingerprint = (finding) => createHash('sha256').update(JSON.stringify({

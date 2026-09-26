@@ -20,11 +20,14 @@ assert.deepEqual(
   closure.entries.map((entry) => entry.commitSha).sort(),
   [
     '0fd64bfe30548a13b80ce715f678d81dffd098ad',
+    '1b3e4fb2b9258ca205dbb50786691175054c69f5',
+    '5e95ee09878d63221de878d1840f1a2fff02f85b',
     '664326d970bb03d6aa1d82094e100437cac7a896',
     '6b622ec03cd9de100b065abb5ab89530a9cc444d',
     '846fffc9ef484f7bf1ea3d3c05c3b9adc9ba9e17',
     '9875f961089f93529b3ab5e8ae83cfc3163f377d',
     '9bad17db7eccc9e4b0efb252fa261b1b831b6ec2',
+    '9db06eac2e6eb907b42c5382f6dc6a165cf4d368',
     'baa6a6a8b3090a2168b2203afee462bf0a107d8b',
     'cef267a95acb19e4ab49defb1cf5e725775f0031',
   ],
@@ -51,20 +54,29 @@ for (const entry of closure.entries) {
           ? 'supabase/functions/flixo-council-runtime/index.ts'
           : 'scripts/ci/council-directive.mjs',
     ]);
-  } else if (entry.commitSha === 'cef267a95acb19e4ab49defb1cf5e725775f0031' ||
+  } else if (entry.commitSha === '9db06eac2e6eb907b42c5382f6dc6a165cf4d368' ||
+             entry.commitSha === '1b3e4fb2b9258ca205dbb50786691175054c69f5' ||
+             entry.commitSha === '5e95ee09878d63221de878d1840f1a2fff02f85b' ||
+             entry.commitSha === 'cef267a95acb19e4ab49defb1cf5e725775f0031' ||
              entry.commitSha === '664326d970bb03d6aa1d82094e100437cac7a896') {
     assert.equal(entry.evidence.workflow,'Repository Security Baseline');
     assert.deepEqual(entry.evidence.requiredSteps,['Verify exact SHA','Validate source-controlled Council RPC contract','Run repository security baseline']);
-    assert.equal(entry.commitSha === 'cef267a95acb19e4ab49defb1cf5e725775f0031'
-      ? entry.evidence.verifiedHeadSha
-      : entry.evidence.verifiedHeadSha, entry.commitSha === 'cef267a95acb19e4ab49defb1cf5e725775f0031'
-        ? '7903729fda9cb77d8c397775ca106c5aad36ae96'
-        : '664326d970bb03d6aa1d82094e100437cac7a896');
-    assert.deepEqual(entry.sensitivePaths,[
-      entry.commitSha === 'cef267a95acb19e4ab49defb1cf5e725775f0031'
-        ? 'docs/agents/ACTION-REPAIR-SQUAD-REGISTRY.json'
-        : 'docs/agents/CELL-BOT-REGISTRY.json',
-    ]);
+    const expectedVerifiedHeadSha = {
+      '9db06eac2e6eb907b42c5382f6dc6a165cf4d368': '9db06eac2e6eb907b42c5382f6dc6a165cf4d368',
+      '1b3e4fb2b9258ca205dbb50786691175054c69f5': '1b3e4fb2b9258ca205dbb50786691175054c69f5',
+      '5e95ee09878d63221de878d1840f1a2fff02f85b': '5e95ee09878d63221de878d1840f1a2fff02f85b',
+      'cef267a95acb19e4ab49defb1cf5e725775f0031': '7903729fda9cb77d8c397775ca106c5aad36ae96',
+      '664326d970bb03d6aa1d82094e100437cac7a896': '664326d970bb03d6aa1d82094e100437cac7a896',
+    };
+    const expectedSensitivePaths = {
+      '9db06eac2e6eb907b42c5382f6dc6a165cf4d368': ['scripts/ci/wake-compliance.mjs'],
+      '1b3e4fb2b9258ca205dbb50786691175054c69f5': ['scripts/ci/wake-compliance.mjs'],
+      '5e95ee09878d63221de878d1840f1a2fff02f85b': ['scripts/ci/wake-compliance.mjs'],
+      'cef267a95acb19e4ab49defb1cf5e725775f0031': ['docs/agents/ACTION-REPAIR-SQUAD-REGISTRY.json'],
+      '664326d970bb03d6aa1d82094e100437cac7a896': ['docs/agents/CELL-BOT-REGISTRY.json'],
+    };
+    assert.equal(entry.evidence.verifiedHeadSha,expectedVerifiedHeadSha[entry.commitSha]);
+    assert.deepEqual(entry.sensitivePaths,expectedSensitivePaths[entry.commitSha]);
   } else {
     assert.equal(entry.evidence.workflow,'FLIXO Advanced Repair Contract');
     assert.deepEqual(entry.sensitivePaths,['api/council/external-runtime.ts']);

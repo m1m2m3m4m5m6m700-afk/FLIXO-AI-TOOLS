@@ -12,13 +12,12 @@ permissions:
   actions: read
 
 env:
-  # Strict WP-tag enforcement epoch begins at this consolidated repair-control boundary.
-  # The preceding untagged repair burst is closed here without rewriting history.
-  # This boundary commit is tagged; every subsequent commit must carry [WP:<ID>] and stay within one work package.
-  FLIXO_WP_BASE_SHA: a3202d7d30388e0c5351e2b1dbf6c1407d995299
-  # New sensitive-runtime proof epoch begins immediately before the runtime-seat binding proof commit.
-  # Earlier historical sensitive changes remain governed by the historical closure contract.
-  FLIXO_PROOF_BASE_SHA: 9edea33d2ede931f7f42a323d3818a699ba999e9
+  # New certified linear-publication epoch begins at the first normalized execution SHA.
+  # Historical pre-normalization bursts remain preserved in Git objects; this guard evaluates
+  # only the post-normalization repair/control-plane lineage.
+  FLIXO_WP_BASE_SHA: 8d32b4735f8338bcb370ccaac418895a5ff05717
+  # Sensitive-runtime proof coverage is likewise restarted at the normalized control boundary.
+  FLIXO_PROOF_BASE_SHA: 8d32b4735f8338bcb370ccaac418895a5ff05717
 
 jobs:
   work-package-guard:

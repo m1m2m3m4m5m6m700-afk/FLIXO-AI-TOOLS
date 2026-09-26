@@ -37,4 +37,6 @@ console.log('COUNCIL_WAKE_EXTERNAL_ROUTE=PASS');
 assert.throws(() => buildWakePlan({ comment: base, currentExecutionSha: 'b'.repeat(40) }), /COUNCIL_WAKE_STALE_SHA/);
 assert.throws(() => buildWakePlan({ comment: base.replace(PRESIDENT_WAKE_MARKER, ''), currentExecutionSha: sha }), /COUNCIL_WAKE_MARKER_MISSING/);
 assert.throws(() => buildWakePlan({ comment: base.replace('WORK PACKAGE: CODE-SCOUT-CURRENT-TRUTH-001', 'WORK PACKAGE: X'), currentExecutionSha: sha }), /COUNCIL_WAKE_WORK_PACKAGE_INVALID/);
+assert.throws(() => buildWakePlan({ comment: base.replace(/\nWORK PACKAGE:[^\n]*/u, ''), currentExecutionSha: sha }), /COUNCIL_WAKE_WORK_PACKAGE_MISSING/);
+assert.throws(() => buildWakePlan({ comment: base.replace('WORK PACKAGE: CODE-SCOUT-CURRENT-TRUTH-001', 'WORK PACKAGE:'), currentExecutionSha: sha }), /COUNCIL_WAKE_WORK_PACKAGE_INVALID/);
 console.log('COUNCIL_WAKE_FAIL_CLOSED=PASS');

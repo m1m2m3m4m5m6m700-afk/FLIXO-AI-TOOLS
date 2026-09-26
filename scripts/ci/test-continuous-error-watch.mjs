@@ -807,6 +807,8 @@ assert.ok(dailyGateWorkflow.includes('headBranch: (.headBranch // .head_branch /
 assert.ok(dailyGateWorkflow.includes('updatedAt: (.updatedAt // .updated_at // .completed_at // .started_at // "")'));
 assert.ok(dailyGateWorkflow.includes('if type == "array" then . elif (.workflow_runs | type) == "array" then .workflow_runs else [] end'));
 assert.ok(dailyGateWorkflow.includes("jq -e 'type == \"array\" and all(.[];"));
+assert.ok(dailyGateWorkflow.includes('[.[] | select(.workflowName == "FLIXO Test System" and .workflowPath == ".github/workflows/ci.yml" and .headSha == $sha'));
+assert.doesNotMatch(dailyGateWorkflow, /\.workflow_runs\[\]/u);
 assert.ok(dailyGateWorkflow.includes('Ensure exact-SHA required CI is resident'));
 assert.ok(!dailyGateWorkflow.includes('/actions/workflows/$FILE/dispatches'));
 assert.ok(!dailyGateWorkflow.includes('Maintain 24/7 Repair Bot resident pulse'));

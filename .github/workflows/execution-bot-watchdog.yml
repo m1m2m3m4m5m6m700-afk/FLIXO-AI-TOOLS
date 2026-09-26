@@ -102,7 +102,8 @@ jobs:
             SOURCE_WORKFLOW="${{ github.event.workflow_run.name || '' }}"
             SOURCE_PATH="${{ github.event.workflow_run.path || '' }}"
             case "$SOURCE_WORKFLOW:$SOURCE_PATH" in
-              "FLIXO Test System:.github/workflows/ci.yml"|"FLIXO WP0 Trust Baseline:.github/workflows/wp0-trust-baseline.yml"|"FLIXO Test Impact:.github/workflows/test-impact.yml"|"FLIXO Test Impact Execution:.github/workflows/test-impact-execution.yml"|"FLIXO Auto Repair Bot:.github/workflows/auto-repair.yml"|"FLIXO Agent Repair Heartbeat:.github/workflows/agent-repair-heartbeat.yml"|"Repository Security Baseline:.github/workflows/repository-security-baseline.yml"|"Claude Security Review:.github/workflows/claude-security-review.yml") ;;
+            # Heartbeat run names carry the database run id suffix via `run-name`; accept that exact canonical workflow prefix while preserving the path allowlist.
+              "FLIXO Test System:.github/workflows/ci.yml"|"FLIXO WP0 Trust Baseline:.github/workflows/wp0-trust-baseline.yml"|"FLIXO Test Impact:.github/workflows/test-impact.yml"|"FLIXO Test Impact Execution:.github/workflows/test-impact-execution.yml"|"FLIXO Auto Repair Bot:.github/workflows/auto-repair.yml"|"FLIXO Agent Repair Heartbeat:.github/workflows/agent-repair-heartbeat.yml"|"FLIXO Agent Repair Heartbeat ".*:.github/workflows/agent-repair-heartbeat.yml"|"Repository Security Baseline:.github/workflows/repository-security-baseline.yml"|"Claude Security Review:.github/workflows/claude-security-review.yml") ;;
               *) echo "FAIL CLOSED: watchdog source workflow/path is outside the canonical observer perimeter: $SOURCE_WORKFLOW path=$SOURCE_PATH"; exit 1 ;;
             esac
             test -n "$SOURCE_RUN_SHA"

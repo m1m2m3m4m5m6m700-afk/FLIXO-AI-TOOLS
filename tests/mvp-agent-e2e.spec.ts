@@ -4,27 +4,9 @@ import { PNG } from './helpers/image-tool-fixture';
 test.describe('FLIXO MVP agent full journey', () => {
   test('upload → natural request → plan → execute → verify → result → save', async ({ page }) => {
     await page.addInitScript(() => {
-      type SavePickerStub = (options: {
-        suggestedName: string;
-        types: Array<{ description: string; accept: Record<string, string[]> }>;
-      }) => Promise<{
-        createWritable: () => Promise<{
-          write: (data: Blob) => Promise<void>;
-          close: () => Promise<void>;
-        }>;
-      }>;
-      const state = window as Window & {
-        __flixoSavedResult?: { type: string; size: number };
-        showSaveFilePicker?: SavePickerStub;
-      };
-      state.__flixoSavedResult = undefined;
-      state.showSaveFilePicker = async () => ({
-        createWritable: async () => ({
-          write: async (data: Blob) => {
-            state.__flixoSavedResult = { type: data.type, size: data.size };
-          },
-          close: async () => {},
-        }),
+      Object.defineProperty(window, 'showSaveFilePicker', {
+        configurable: true,
+        value: undefined,
       });
     });
 
@@ -51,15 +33,15 @@ test.describe('FLIXO MVP agent full journey', () => {
     await expect(page.locator('.flixo-agent-success-card')).toBeVisible({ timeout: 30_000 });
     await expect(page.locator('.flixo-agent-inline-progress')).toContainText('image-compressor');
 
+    await expect(page.getByTestId('flixo-agent-result-preview')).toBeVisible();
+    await expect(page.getByTestId('flixo-agent-result-preview')).toHaveAttribute('src', /^blob:/);
+
+    const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download result' }).click();
+    const download = await downloadPromise;
 
-    const saved = await page.evaluate(() => (window as Window & {
-      __flixoSavedResult?: { type: string; size: number };
-    }).__flixoSavedResult);
-
-    expect(saved).not.toBeUndefined();
-    expect(saved?.type).toBe('image/webp');
-    expect(saved?.size ?? 0).toBeGreaterThan(0);
+    expect(await download.failure()).toBeNull();
+    expect(download.suggestedFilename()).toBe('flixo-agent-result.webp');
   });
 });
 

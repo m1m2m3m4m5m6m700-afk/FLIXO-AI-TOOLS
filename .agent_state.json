@@ -1,0 +1,8 @@
+{
+  "state": "STATE_02_EXECUTION",
+  "gate": "GATE_01_PASSED",
+  "active_branch": "execution",
+  "target_sha": "ffc003daf3f00142a3df4261526197492c38bb7d",
+  "status": "CERTIFIED_LINEAR_PUBLICATION_PENDING_CANONICAL_GREEN",
+  "timestamp": "2026-09-26T09:00:00+03:00"
+}

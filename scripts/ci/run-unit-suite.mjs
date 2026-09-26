@@ -2,6 +2,8 @@
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
+const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+
 const ROOT = process.cwd();
 const packageJson = JSON.parse(readFileSync(`${ROOT}/package.json`, 'utf8'));
 const scripts = [
@@ -44,9 +46,10 @@ const maxConcurrency = Number.isInteger(requested) && requested >= 1 && requeste
 
 const run = (name) => new Promise((resolve) => {
   const started = Date.now();
-  const child = spawn('npm', ['run', name], {
+  const child = spawn(npmCommand, ['run', name], {
     cwd: ROOT,
     env: process.env,
+    shell: process.platform === 'win32',
     stdio: 'inherit',
   });
   child.on('error', (error) => resolve({ name, code: 1, durationMs: Date.now() - started, error: error.message }));

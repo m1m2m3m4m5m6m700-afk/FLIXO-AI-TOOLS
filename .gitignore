@@ -53,3 +53,5 @@ PROJECT_STATUS.md
 .flixo/locks/
 !.flixo/locks/rejected-push-memory.jsonl
 .flixo/cache/
+
+.agent_state.json

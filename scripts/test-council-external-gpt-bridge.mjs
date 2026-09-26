@@ -21,6 +21,7 @@ const agentResult = () => ({
   selfCritique: 'test self-check',
   alternativesConsidered: ['alternative'],
   verificationPassed: true,
+  findings: ['test finding'],
   finding: ['test finding'],
   evidence: ['test evidence'],
   evidenceGrade: 'E4',
