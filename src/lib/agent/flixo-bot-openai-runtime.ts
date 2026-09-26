@@ -10,7 +10,7 @@
  */
 
 export const FLIXO_BOT_OPENAI_RUNTIME_PROTOCOL = 'FLIXO-BOT-OPENAI-RUNTIME-v1' as const;
-export const FLIXO_BOT_OPENAI_RUNTIME_SCHEMA_VERSION = '1.0' as const;
+export const FLIXO_BOT_OPENAI_RUNTIME_SCHEMA_VERSION = '1.1' as const;
 export const FLIXO_BOT_CANONICAL_BRANCH = 'execution' as const;
 
 export type FlixoBotRunStatus =
