@@ -49,6 +49,15 @@ export function assertMvpLocalExecutionBoundary(tool: MVPScopedTool): void {
   }
 }
 
+export function assertMvpManualAgentCoverage(tools: readonly MVPScopedTool[]): void {
+  const ready = tools.filter((tool) => tool.isReady);
+  for (const tool of ready) {
+    if (!tool.path.startsWith('/en/')) throw new Error(`Ready tool has no manual route: ${tool.id}`);
+    if (tool.capability.intents.length === 0) throw new Error(`Ready tool has no Agent intent registration: ${tool.id}`);
+    if (!tool.parameterSchema || !tool.verifier) throw new Error(`Ready tool has an incomplete programmatic interface: ${tool.id}`);
+    if (!tool.operational.outputContractId) throw new Error(`Ready tool has no output contract interface: ${tool.id}`);
+  }
+}
 export function assertMvpScope(
   tools: readonly MVPScopedTool[],
   executableIds: readonly string[],

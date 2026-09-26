@@ -22,7 +22,7 @@ const {
   TOOL_OUTPUT_CONTRACTS,
 } = await import('../src/lib/contracts/tool-output-contracts.ts');
 const { assertToolOutputContract } = await import('../src/lib/contracts/tool-output.ts');
-const { assertMvpScope, toAgentFileMetadata, FLIXO_MVP_SCOPE } = await import('../src/lib/contracts/mvp-scope.ts');
+const { assertMvpScope, assertMvpManualAgentCoverage, toAgentFileMetadata, FLIXO_MVP_SCOPE } = await import('../src/lib/contracts/mvp-scope.ts');
 const {
   assessVisualGoal,
   deriveVisualGoalSpec,
@@ -30,6 +30,7 @@ const {
 
 test('mandatory FLIXO MVP scope is enforced at the canonical registry boundary', () => {
   assertMvpScope(TOOL_REGISTRY, MVP_EXECUTABLE_TOOL_IDS);
+  assertMvpManualAgentCoverage(TOOL_REGISTRY);
   assert.equal(FLIXO_MVP_SCOPE.workflow.agentGuided, true);
   assert.equal(FLIXO_MVP_SCOPE.workflow.manualStandalone, true);
   assert.equal(FLIXO_MVP_SCOPE.processing.userFileBytesMayCrossNetwork, false);
@@ -45,6 +46,15 @@ test('agent gateway file payload is metadata-only and never contains file bytes'
   assert.equal(Object.prototype.hasOwnProperty.call(metadata ?? {}, 'arrayBuffer'), false);
   assert.equal(Object.prototype.hasOwnProperty.call(metadata ?? {}, 'bytes'), false);
 });
+test('all ready manual tools have an Agent-discoverable interface', () => {
+  assertMvpManualAgentCoverage(TOOL_REGISTRY);
+  for (const tool of TOOL_REGISTRY.filter((candidate) => candidate.isReady)) {
+    assert.ok(tool.capability.intents.length > 0, tool.id);
+    assert.ok(tool.path.startsWith('/en/'), tool.id);
+    assert.ok(tool.operational.outputContractId, tool.id);
+  }
+});
+
 test('canonical executable capability registry is exact and executor-complete', () => {
   const actual = [...getExecutableCapabilityIds()].sort();
   const expected = [...MVP_EXECUTABLE_TOOL_IDS].sort();
