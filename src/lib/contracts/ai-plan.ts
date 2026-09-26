@@ -6,7 +6,7 @@ export const MAX_PLAN_STEPS = 4;
 const scalar = z.union([z.string(), z.number().finite(), z.boolean()]);
 const executableToolId = z.string().trim().min(1).refine(
   (id) => getCapability(id)?.state === 'EXECUTABLE',
-  { message: 'Tool must be registered or executable.' },
+  { message: 'Tool is not executable or not registered.' },
 );
 
 export const ExecutionPlanSchema = z.object({
