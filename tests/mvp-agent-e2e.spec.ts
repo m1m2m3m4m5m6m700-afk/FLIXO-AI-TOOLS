@@ -61,3 +61,39 @@ test.describe('FLIXO agent-first navigation', () => {
     await expect(page.locator('.tool-page-modern__workspace')).toBeVisible();
   });
 });
+
+test.describe('FLIXO MVP mobile + Arabic journey', () => {
+  test('mobile RTL viewport preserves the agent journey through verified result', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => {
+      Object.defineProperty(window, 'showSaveFilePicker', {
+        configurable: true,
+        value: undefined,
+      });
+    });
+
+    await page.goto('/ar');
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+    await expect(page.getByTestId('flixo-agent-studio')).toBeVisible();
+
+    await page.locator('#flixo-agent-file').setInputFiles({
+      name: 'mvp-agent-mobile-fixture.png',
+      mimeType: 'image/png',
+      buffer: PNG,
+    });
+
+    await page.locator('#flixo-agent-command').fill('compress this image under 200KB and convert to WebP');
+    await page.locator('button.flixo-agent-ghost').click();
+
+    await expect(page.getByTestId('flixo-agent-plan-ready')).toBeVisible();
+    await expect(page.getByTestId('flixo-agent-plan-ready')).toContainText('2 steps');
+
+    await page.locator('#flixo-agent-command').fill('execute');
+    await page.locator('.flixo-agent-send').click();
+
+    await expect(page.locator('.flixo-agent-success-card')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('flixo-agent-result-preview')).toBeVisible();
+    await expect(page.getByTestId('flixo-agent-result-preview')).toHaveAttribute('src', /^blob:/);
+  });
+});
+
