@@ -3,9 +3,9 @@ import { parseExecutionPlan, MAX_PLAN_STEPS } from '@/lib/contracts/ai-plan';
 import { buildQuickFlowPlan } from '@/lib/quickflow';
 import type { ToolDefinition } from '@/config/canonical-tool-definition';
 import { getCapability } from '@/lib/agent/capability-registry';
-import { TOOL_REGISTRY } from '@/config/registry';
+import { TOOL_REGISTRY, TOOL_CATALOG } from '@/config/registry';
 import { getWorkflow } from '@/lib/workflows/registry';
-import { TOOL_CATALOG } from '@/config/registry';
+import type { ExecutionPlanContract } from '@/lib/contracts/ai-plan';
 
 export type ExecutionPlan = {
   workflowName: string;
@@ -29,6 +29,11 @@ export function planFromWorkflow(workflowId: string): ExecutionPlan | null {
   });
 }
 
+export function planFromWorkflowTool(toolId: string): ExecutionPlan | null {
+  if (!toolId.startsWith('workflow:')) return null;
+  return planFromWorkflow(toolId.slice('workflow:'.length));
+}
+
 export function planFromIntent(input: string): ExecutionPlan | null {
   const quickFlow = buildQuickFlowPlan(input, TOOL_REGISTRY);
   if (quickFlow) {
@@ -49,4 +54,4 @@ export function planFromIntent(input: string): ExecutionPlan | null {
   return null;
 }
 
-export function validateExecutionPlan(plan: unknown): ExecutionPlan { return parseExecutionPlan(plan) as ExecutionPlan; }
+export function validateExecutionPlan(plan: unknown): ExecutionPlan { return parseExecutionPlan(plan) as ExecutionPlanContract; }
