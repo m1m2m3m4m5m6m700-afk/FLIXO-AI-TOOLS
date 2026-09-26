@@ -1,6 +1,10 @@
 name: FLIXOAI Cloudflare Deployment
 
 on:
+  workflow_run:
+    workflows: ["FLIXO CI"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       sha:
