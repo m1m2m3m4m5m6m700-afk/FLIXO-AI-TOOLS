@@ -17,7 +17,8 @@ const {
   getWorkflowForTool,
   expandWorkflowTool,
 } = await import('../src/lib/agent/workflow-as-tool.ts');
-const { planFromIntent } = await import('../src/lib/ai/planner.ts');\nconst { evaluateCapabilityApproval, evaluatePlanApproval } = await import('../src/lib/agent/approval-policy.ts');
+const { planFromIntent } = await import('../src/lib/ai/planner.ts');
+const { evaluateCapabilityApproval, evaluatePlanApproval } = await import('../src/lib/agent/approval-policy.ts');
 
 
 
