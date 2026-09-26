@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { getCapability, getExecutableCapabilityIds } from '../src/lib/agent/capability-registry.ts';
 import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from '../src/lib/contracts/agent-gateway.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
@@ -8,6 +8,8 @@ import { isDeterministicPlanCompatible } from '../src/lib/ai/deterministic-bound
 import { selectModelForTask } from '../src/lib/agent/model-router.ts';
 import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
 import { createAgentEvent } from '../src/lib/agent/event-gateway.ts';
+import { evaluatePlanApproval } from '../src/lib/agent/approval-policy.ts';
+import { isDurableAgentTaskStoreConfigured, upsertAgentTask, appendAgentTaskEvent } from '../src/server/agent/durable-task-store.ts';
 import { WORKFLOW_TOOL_CATALOG } from '../src/lib/agent/workflow-as-tool.ts';
 import { createExternalAgentLearning, listExternalAgentLearning } from '../src/server/agent/learning-persistence.ts';
 import {
@@ -422,10 +424,15 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       return;
     }
     const locale = body.locale ?? 'en';
+    const conversationId = body.conversationId ?? 'UI-CONVERSATION:' + randomUUID();
+    const taskId = body.taskId ?? 'UI-FLIXO-TASK:' + randomUUID();
+    const idempotencyKey = body.idempotencyKey ?? 'chat:' + conversationId + ':' + taskId + ':' + messages.length;
     const inboundEvent = createAgentEvent({
-      source: 'USER_MESSAGE',
+      source: body.file ? 'FILE_UPLOAD' : 'USER_MESSAGE',
       eventType: 'chat.message',
-      idempotencyKey: body.idempotencyKey,
+      idempotencyKey,
+      conversationId,
+      taskId,
       payload: {
         locale,
         messageDigest: createHash('sha256').update(userMessage, 'utf8').digest('hex'),
@@ -440,11 +447,41 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const targetSha = exactSha();
     let botRuntime: FlixoBotGatewayRuntime | null = targetSha
       ? beginFlixoBotGatewayRuntime({
-        taskId: `UI-FLIXO-BOT:${targetSha.slice(0, 12)}:${inboundEvent.eventId}`,
+        taskId,
         exactSha: targetSha,
         request: userMessage,
       })
       : null;
+
+    const persistTaskEvent = async (
+      event: ReturnType<typeof createAgentEvent>,
+      state: { lifecycle: 'QUEUED' | 'PLANNED' | 'AWAITING_CONFIRMATION' | 'RUNNING' | 'VERIFYING' | 'RECOVERING' | 'RESUMED' | 'COMPLETED' | 'FAILED' | 'CANCELLED'; taskState: 'IDLE' | 'NEEDS_INPUT' | 'PLANNED' | 'AWAITING_CONFIRMATION' | 'EXECUTING' | 'VERIFYING' | 'RECOVERING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'; confirmationRequired: boolean; revision: number; plan?: unknown | null; runtime?: unknown | null; lastError?: string | null },
+    ): Promise<void> => {
+      if (!isDurableAgentTaskStoreConfigured()) return;
+      await upsertAgentTask({
+        taskId,
+        conversationId,
+        ownerId: conversationId,
+        lifecycle: state.lifecycle,
+        state: state.taskState,
+        revision: state.revision,
+        confirmationRequired: state.confirmationRequired,
+        request: userMessage,
+        plan: state.plan ?? null,
+        runtime: state.runtime ?? null,
+        lastError: state.lastError ?? null,
+      });
+      await appendAgentTaskEvent(event);
+    };
+
+    await persistTaskEvent(
+      inboundEvent,
+      { lifecycle: 'QUEUED', taskState: 'IDLE', confirmationRequired: false, revision: 0 },
+    ).catch((error) => {
+      console.warn('[flixo-agent] durable input persistence warning', {
+        error: error instanceof Error ? error.name : 'unknown',
+      });
+    });
     const remoteLearning = targetSha ? await listExternalAgentLearning(targetSha, 48).catch(() => []) : [];
     const remoteLessons = remoteLearning.filter((item) => item.kind === 'LESSON');
     const remoteAntiLessons = remoteLearning.filter((item) => item.kind === 'ANTI_LESSON');
@@ -507,7 +544,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       }
     };
 
-    const respondWithRuntime = (decision: ReturnType<typeof parseAgentDecision>, extra: Record<string, unknown> = {}) => {
+    const respondWithRuntime = async (decision: ReturnType<typeof parseAgentDecision>, extra: Record<string, unknown> = {}) => {
       if (botRuntime) {
         try {
           const currentSha = exactSha();
@@ -527,14 +564,61 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       } else {
         extra.runtime = null;
       }
-      json(res, 200, { ...decision, ...extra });
+
+      const approval = decision.plan ? evaluatePlanApproval(decision.plan) : null;
+      const responseDecision = Object.freeze({
+        ...decision,
+        approval,
+      });
+
+      const runtimeSummary = extra.runtime ?? null;
+      const taskState = responseDecision.mode === 'plan'
+        ? 'AWAITING_CONFIRMATION'
+        : responseDecision.mode === 'clarify'
+          ? 'NEEDS_INPUT'
+          : 'IDLE';
+      const lifecycle = responseDecision.mode === 'plan'
+        ? 'AWAITING_CONFIRMATION'
+        : 'QUEUED';
+
+      await persistTaskEvent(
+        createAgentEvent({
+          source: 'SYSTEM',
+          eventType: responseDecision.mode === 'plan' ? 'agent.plan' : 'agent.decision',
+          idempotencyKey: idempotencyKey + ':decision:' + responseDecision.mode,
+          conversationId,
+          taskId,
+          traceId: botRuntime?.state.traceId ?? null,
+          payload: {
+            mode: responseDecision.mode,
+            confidence: responseDecision.confidence,
+            approval,
+            provider: responseDecision.provider ?? extra.provider ?? null,
+            model: extra.model ?? null,
+          },
+        }),
+        {
+          lifecycle,
+          taskState,
+          confirmationRequired: responseDecision.mode === 'plan',
+          revision: responseDecision.mode === 'plan' ? 2 : 1,
+          plan: responseDecision.plan,
+          runtime: runtimeSummary,
+        },
+      ).catch((error) => {
+        console.warn('[flixo-agent] durable decision persistence warning', {
+          error: error instanceof Error ? error.name : 'unknown',
+        });
+      });
+
+      json(res, 200, { ...responseDecision, ...extra, approval, taskId, conversationId });
     };
     try {
       const raw = await invoke(provider);
       const decision = parseAgentDecision(parseJsonObject(raw));
       const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
       await persistLearningCandidate(boundedDecision, userMessage, locale, provider);
-      respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider, model: lastModel });
+      await respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider, model: lastModel });
     } catch (providerError) {
       if (botRuntime) botRuntime = noteProviderFailure(botRuntime, `${provider}:${providerError instanceof Error ? providerError.name : 'UNKNOWN_ERROR'}`);
       if (runtime.fallbackProvider) {
@@ -543,7 +627,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           const decision = parseAgentDecision(parseJsonObject(raw));
           const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
           await persistLearningCandidate(boundedDecision, userMessage, locale, runtime.fallbackProvider);
-          respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider: runtime.fallbackProvider, model: lastModel, fallback: true });
+          await respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider: runtime.fallbackProvider, model: lastModel, fallback: true });
           return;
         } catch (fallbackError) {
           if (botRuntime) botRuntime = noteProviderFailure(botRuntime, `${runtime.fallbackProvider}:${fallbackError instanceof Error ? fallbackError.name : 'UNKNOWN_ERROR'}`);
@@ -562,7 +646,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       }
       const decision = fallbackDecision(userMessage, body.file, locale);
       const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
-      respondWithRuntime(boundedDecision, { fallback: true });
+      await respondWithRuntime(boundedDecision, { fallback: true });
     }
   } catch (error) {
     if (error instanceof Error && (
