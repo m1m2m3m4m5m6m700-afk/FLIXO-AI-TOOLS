@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { assessCognitiveRequest, assessCognitiveRequestWithRuntimeControls, decideRecovery, proposeBoundedReplan, validateExecutionPlanWithRuntimeControls, verifyExecutionPlanSemantics } from '../src/lib/agent/cognitive-orchestrator.ts';
+import { planFromIntent } from '../src/lib/ai/planner.ts';
+import { assessCognitiveRequest, assessCognitiveRequestWithRuntimeControls, decideRecovery, proposeBoundedReplan, validateCanonicalExecutionPlanWithRuntimeControls, validateExecutionPlanWithRuntimeControls, verifyExecutionPlanSemantics } from '../src/lib/agent/cognitive-orchestrator.ts';
 import { buildAgentOutcome } from '../src/lib/agent/cognitive-outcome.ts';
 
 const compress = assessCognitiveRequest('compress the image');
@@ -39,6 +40,15 @@ assert.equal(runtime.goal?.stuck.severity, 'NONE');
 assert.ok(runtime.executionPlan);
 assert.equal(runtime.delegation.length, runtime.executionPlan.steps.length);
 assert.ok(runtime.delegation.every((entry) => entry.status === 'COMPLETED'));
+
+const deterministicPlan = planFromIntent('compress this image under 200KB and convert to WebP');
+assert.ok(deterministicPlan);
+const canonicalRuntime = await validateCanonicalExecutionPlanWithRuntimeControls(deterministicPlan);
+assert.equal(canonicalRuntime.ready, true);
+assert.equal(canonicalRuntime.goal.status, 'SATISFIED');
+assert.equal(canonicalRuntime.goal.assessments.at(-1)?.reason, 'CANONICAL_EXECUTION_CONTRACT_VALID');
+assert.equal(canonicalRuntime.delegation.length, deterministicPlan.steps.length);
+assert.ok(canonicalRuntime.delegation.every((entry) => entry.status === 'COMPLETED'));
 
 const blockedRuntime = await validateExecutionPlanWithRuntimeControls(
   cloudLeak.intentPlan,
