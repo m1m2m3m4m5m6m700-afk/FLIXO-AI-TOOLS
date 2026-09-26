@@ -32,7 +32,7 @@ export class ToolRegistry {
     if (this.tools.has(parsedMeta.name)) {
       throw new Error(`Tool with name '${parsedMeta.name}' is already registered.`);
     }
-    this.tools.set(parsedMeta.name, tool as StoredTool);
+    this.tools.set(parsedMeta.name, tool as unknown as StoredTool);
   }
 
   get(name: string): StoredTool {
