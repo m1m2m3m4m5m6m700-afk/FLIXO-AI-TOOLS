@@ -285,20 +285,39 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       if (decision.fallback && !(decision.mode === 'plan' && decision.plan)) return false;
 
       if (decision.mode === 'plan' && decision.plan) {
+        // The API gateway already enforces the deterministic QuickFlow boundary.
+        // Validate the returned canonical execution plan without rebuilding the intent/world-model.
+        const runtimeObservations = messages.slice(-8).map((message) => ({
+          kind: message.role === 'user' ? 'INPUT' as const : 'RESULT' as const,
+          signature: message.text,
+        }));
         const conversationalPlan = decision.plan as ExecutionPlan;
-        const prepared = decision.runtime?.resumeState
-          ? restorePreparedExecution(conversationalPlan, decision.runtime.resumeState)
-          : prepareExecution(conversationalPlan, { runtimeRequest: contextualCommand });
+        const runtime = await validateCanonicalExecutionPlanWithRuntimeControls(
+          conversationalPlan,
+          runtimeObservations,
+        );
+        if (!runtime.ready || !runtime.executionPlan) {
+          setPreparedExecution(null);
+          setPlan(null);
+          setState('error');
+          const reason = runtime.goal.assessments.at(-1)?.reason ?? responseCopy.noSafePlan;
+          setError(reason);
+          pushMessage('agent', responseCopy.noSafePlan);
+          return true;
+        }
+        const validatedPlan = runtime.executionPlan;
+        const wasReplanned = JSON.stringify(validatedPlan.steps) !== JSON.stringify(conversationalPlan.steps);
+        const prepared = decision.runtime?.resumeState && !wasReplanned
+          ? restorePreparedExecution(validatedPlan, decision.runtime.resumeState)
+          : prepareExecution(validatedPlan);
         setPlan(prepared.plan);
         setPreparedExecution(prepared);
         setState('ready');
         setError(null);
         setFilterHandoff(null);
         setMemory((current) => setConversationTask(current, {
-          command: contextualCommand,
-          toolId: conversationalPlan.steps[0]?.toolId ?? null,
-          pendingToolId: null,
-          pendingQuestion: null,
+          command: contextualizeCommand(command, memory),
+          toolId: validatedPlan.steps[0]?.toolId ?? null,
           planReady: true,
           plan: prepared.plan,
           runtimeResumeState: prepared.runtimeState ? JSON.stringify(prepared.runtimeState) : null,
@@ -306,8 +325,8 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         pushMessage(
           'agent',
           file
-            ? `${decision.reply} ${responseCopy.execute}`
-            : `${decision.reply} ${responseCopy.uploadThenExecute}`,
+            ? decision.reply + ' ' + responseCopy.execute
+            : decision.reply + ' ' + responseCopy.uploadThenExecute,
         );
         return true;
       }
