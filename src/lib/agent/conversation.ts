@@ -189,11 +189,12 @@ export function setConversationTask(
     planReady: boolean;
     plan?: ExecutionPlanContract | null;
     runtimeResumeState?: string | null;
+    taskId?: string | null;
   },
 ): ConversationMemory {
   const next: ConversationMemory = {
     ...memory,
-    taskId: task.planReady ? memory.taskId ?? crypto.randomUUID() : memory.taskId,
+    taskId: task.planReady ? task.taskId ?? memory.taskId ?? crypto.randomUUID() : memory.taskId,
     activeCommand: task.command,
     activeToolId: task.toolId ?? memory.activeToolId,
     pendingToolId: task.pendingToolId ?? null,
