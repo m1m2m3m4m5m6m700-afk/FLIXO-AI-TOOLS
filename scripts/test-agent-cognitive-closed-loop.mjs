@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { planFromIntent } from '../src/lib/ai/planner.ts';
-import { assessCognitiveRequest, assessCognitiveRequestWithRuntimeControls, decideRecovery, planFromIntent, proposeBoundedReplan, validateCanonicalExecutionPlanWithRuntimeControls, validateExecutionPlanWithRuntimeControls, verifyExecutionPlanSemantics } from '../src/lib/agent/cognitive-orchestrator.ts';
+import { assessCognitiveRequest, assessCognitiveRequestWithRuntimeControls, decideRecovery, proposeBoundedReplan, validateCanonicalExecutionPlanWithRuntimeControls, validateExecutionPlanWithRuntimeControls, verifyExecutionPlanSemantics } from '../src/lib/agent/cognitive-orchestrator.ts';
 import { buildAgentOutcome } from '../src/lib/agent/cognitive-outcome.ts';
 
 const compress = assessCognitiveRequest('compress the image');
