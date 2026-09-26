@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { ExecutionPlan } from '@/lib/ai/planner';
-import { assessCognitiveRequest, validateExecutionPlanWithRuntimeControls } from '@/lib/agent/cognitive-orchestrator';
+import { assessCognitiveRequest } from '@/lib/agent/cognitive-orchestrator';
 import type { PipelineProgress } from '@/lib/workflows/pipeline-runner';
 import { cancelPreparedExecution, confirmPreparedExecution, executePreparedExecution, prepareExecution, restorePreparedExecution, type PreparedExecution } from '@/lib/agent/execution-integrator';
 import { TOOL_CATALOG } from '@/config/registry';
