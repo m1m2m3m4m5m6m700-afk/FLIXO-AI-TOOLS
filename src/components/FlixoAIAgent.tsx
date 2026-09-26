@@ -314,11 +314,16 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const execute = async (prepared = preparedExecution, responseCopy = copy) => {
     if (!file || !prepared) return;
     setState('running'); setError(null);
-    setMemory((current) => setConversationTask(current, { command: current.activeCommand ?? '', planReady: false }));
     pushMessage('agent', `${responseCopy.success} ${prepared.plan.steps.length} ${responseCopy.step}.`);
-    const confirmed = confirmPreparedExecution(prepared);
-    setPreparedExecution(confirmed);
     try {
+      const confirmed = await confirmPreparedExecution(prepared);
+      setPreparedExecution(confirmed);
+      setMemory((current) => setConversationTask(current, {
+        command: current.activeCommand ?? '',
+        planReady: false,
+        plan: null,
+        runtimeResumeState: null,
+      }));
       const result = await executePreparedExecution(confirmed, file, setProgress);
       setResult(result.output); setState('success');
       pushMessage('agent', responseCopy.success);
