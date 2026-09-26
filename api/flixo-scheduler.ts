@@ -1,5 +1,4 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { randomUUID } from 'node:crypto';
 import { createAgentEvent } from '../src/lib/agent/event-gateway.ts';
 import { claimDueSchedules, markScheduleRun } from '../src/server/agent/schedule-persistence.ts';
 
