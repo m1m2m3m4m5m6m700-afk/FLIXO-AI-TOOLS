@@ -12,12 +12,20 @@ const AgentFileSchema = z.object({
   size: z.number().int().nonnegative().max(256 * 1024 * 1024),
 }).strict();
 
+const ApprovalSchema = z.object({
+  level: z.enum(['AUTO', 'CONFIRM', 'BLOCK']),
+  reasons: z.array(z.string().trim().min(1).max(512)).max(64),
+}).strict();
+
 export const AgentRequestSchema = z.object({
   locale: z.string().trim().min(2).max(16).optional(),
   messages: z.array(ChatMessageSchema).max(120).optional(),
   file: AgentFileSchema.nullable().optional(),
   activePlan: z.unknown().nullable().optional(),
   activeCommand: z.string().trim().max(2_000).nullable().optional(),
+  conversationId: z.string().trim().min(1).max(256).optional(),
+  taskId: z.string().trim().min(1).max(256).optional(),
+  idempotencyKey: z.string().trim().min(8).max(256).optional(),
 }).strict();
 
 export type AgentRequestContract = Readonly<{
@@ -26,6 +34,9 @@ export type AgentRequestContract = Readonly<{
   file?: z.infer<typeof AgentFileSchema> | null;
   activePlan?: ExecutionPlanContract | null;
   activeCommand?: string | null;
+  conversationId?: string;
+  taskId?: string;
+  idempotencyKey?: string;
 }>;
 
 export function parseAgentRequest(value: unknown): AgentRequestContract {
@@ -62,6 +73,7 @@ const AgentDecisionEnvelopeSchema = z.object({
   fallback: z.boolean().optional(),
   reason: z.string().trim().max(4_000).optional(),
   learning: AgentLearningCandidateSchema.nullable().optional(),
+  approval: ApprovalSchema.nullable().optional(),
   runtime: z.object({
     protocol: z.string().trim().min(1).max(128),
     runId: z.string().trim().min(1).max(256),
@@ -87,6 +99,7 @@ export type AgentDecisionContract = Readonly<{
   fallback?: boolean;
   reason?: string;
   learning?: AgentLearningCandidate | null;
+  approval?: z.infer<typeof ApprovalSchema> | null;
   runtime?: {
     protocol: string;
     runId: string;
@@ -106,6 +119,15 @@ export function parseAgentDecision(value: unknown): AgentDecisionContract {
   if (envelope.mode === 'clarify' && !envelope.question) {
     throw new Error('Clarification mode requires a question.');
   }
+  const common = {
+    ...(envelope.latencyMs === undefined ? {} : { latencyMs: envelope.latencyMs }),
+    ...(envelope.provider === undefined ? {} : { provider: envelope.provider }),
+    ...(envelope.fallback === undefined ? {} : { fallback: envelope.fallback }),
+    ...(envelope.reason === undefined ? {} : { reason: envelope.reason }),
+    ...(envelope.learning === undefined ? {} : { learning: envelope.learning }),
+    ...(envelope.approval === undefined ? {} : { approval: envelope.approval }),
+    ...(envelope.runtime === undefined ? {} : { runtime: envelope.runtime }),
+  };
   if (envelope.mode !== 'plan') {
     if (envelope.plan !== null) throw new Error('Non-plan AI decisions must not contain a plan.');
     return Object.freeze({
@@ -114,12 +136,7 @@ export function parseAgentDecision(value: unknown): AgentDecisionContract {
       question: envelope.question,
       plan: null,
       confidence: envelope.confidence,
-      ...(envelope.latencyMs === undefined ? {} : { latencyMs: envelope.latencyMs }),
-      ...(envelope.provider === undefined ? {} : { provider: envelope.provider }),
-      ...(envelope.fallback === undefined ? {} : { fallback: envelope.fallback }),
-      ...(envelope.reason === undefined ? {} : { reason: envelope.reason }),
-      ...(envelope.learning === undefined ? {} : { learning: envelope.learning }),
-      ...(envelope.runtime === undefined ? {} : { runtime: envelope.runtime }),
+      ...common,
     });
   }
   const plan = parseExecutionPlan(envelope.plan);
@@ -129,11 +146,6 @@ export function parseAgentDecision(value: unknown): AgentDecisionContract {
     question: null,
     plan,
     confidence: envelope.confidence,
-    ...(envelope.latencyMs === undefined ? {} : { latencyMs: envelope.latencyMs }),
-    ...(envelope.provider === undefined ? {} : { provider: envelope.provider }),
-    ...(envelope.fallback === undefined ? {} : { fallback: envelope.fallback }),
-    ...(envelope.reason === undefined ? {} : { reason: envelope.reason }),
-    ...(envelope.learning === undefined ? {} : { learning: envelope.learning }),
-    ...(envelope.runtime === undefined ? {} : { runtime: envelope.runtime }),
+    ...common,
   });
 }
