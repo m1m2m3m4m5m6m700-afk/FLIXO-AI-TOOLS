@@ -73,9 +73,18 @@ const main=async()=>{
   }
 
   const latest=recentScheduleRuns.at(-1) ?? null;
+  const previous=recentScheduleRuns.at(-2) ?? null;
   const latestAgeMs=latest ? Math.max(0,now-Date.parse(latest.startedAt)) : null;
   const latestStale=latest ? latestAgeMs>maxGapMs : true;
-  const sampleState=scheduleRuns.length<2 ? 'BASELINE_REQUIRED' : gaps.length===0 && !latestStale ? 'PASS' : 'WAKE_GAP_RED';
+  const currentCadenceGapMs=latest && previous
+    ? Math.max(0,Date.parse(latest.startedAt)-Date.parse(previous.startedAt))
+    : null;
+  const currentCadenceGapRed=currentCadenceGapMs===null ? false : currentCadenceGapMs>maxGapMs;
+  const sampleState=scheduleRuns.length<2
+    ? 'BASELINE_REQUIRED'
+    : !latestStale && !currentCadenceGapRed
+      ? 'PASS'
+      : 'WAKE_GAP_RED';
 
   const report={
     schemaVersion:1,
@@ -89,6 +98,9 @@ const main=async()=>{
     latest,
     latestAgeMs,
     latestAgeMinutes:latestAgeMs===null?null:Number((latestAgeMs/60000).toFixed(3)),
+    currentCadenceGapMs,
+    currentCadenceGapMinutes:currentCadenceGapMs===null?null:Number((currentCadenceGapMs/60000).toFixed(3)),
+    currentCadenceGapRed,
     gaps,
     status:sampleState,
     exactScheduleRequired:'*/5 * * * *',
