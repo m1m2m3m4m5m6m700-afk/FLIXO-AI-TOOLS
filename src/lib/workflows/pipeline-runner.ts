@@ -227,6 +227,7 @@ export async function runWorkflowPipeline(
       let attemptOutput: Blob = stableBlob;
       let attemptReceipt: PipelineStepReceipt | undefined;
       let attemptExecutionError: unknown = null;
+      let runtimeAfterToolInvoked = false;
       try {
         const output = await executor({ tool, inputBlob: stableBlob, parameters: params });
         attemptOutput = output;
@@ -254,16 +255,28 @@ export async function runWorkflowPipeline(
         if (verified) {
           receiptChain = await appendPipelineStepReceipt(receiptChain, receipt);
           currentBlob = output;
+          runtimeAfterToolInvoked = true;
+          await runtimeHooks?.afterTool({
+            toolId: step.toolId,
+            stepIndex: i + 1,
+            attempt,
+            success: true,
+            outputBlob: output,
+            receipt,
+            receiptChain,
+          });
           onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, outputBlob: output, retry: attempt, receipt, receiptChain, auditEvents: auditEventsForAttempt });
           break;
         }
         onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, retry: attempt, auditEvents: auditEventsForAttempt });
       } catch (error) {
+        if (runtimeAfterToolInvoked) throw error;
         attemptExecutionError = error;
       }
 
       if (attemptExecutionError) {
         const error = attemptExecutionError;
+        runtimeAfterToolInvoked = true;
         await runtimeHooks?.afterTool({
           toolId: step.toolId,
           stepIndex: i + 1,
@@ -293,16 +306,7 @@ export async function runWorkflowPipeline(
           auditEvents: auditEventsForAttempt,
         });
         if (attempt === maxAttempts - 1) throw new PipelineVerificationError(message, stableBlob, i, step.toolId);
-      } else {
-        await runtimeHooks?.afterTool({
-          toolId: step.toolId,
-          stepIndex: i + 1,
-          attempt,
-          success: verified,
-          outputBlob: attemptOutput,
-          receipt: attemptReceipt,
-          receiptChain,
-        });
+      } else if (!verified) {
       }
 
       if (!verified && attempt < maxAttempts - 1) {
