@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   FLIXO_BOT_CANONICAL_BRANCH,
   applyNextStep,
+  approveRun,
   assertCurrentRunSha,
   buildNestedAgentToolDescriptor,
   cancelRun,
@@ -112,11 +113,37 @@ assert.deepEqual(
   evaluateToolRequest({ ...request, certification: true }, { mutationAuthority: false, certificationAuthority: false }),
   { allowed: false, reason: 'CERTIFICATION_FORBIDDEN' },
 );
-const approval = recordToolCall(
-  running, SHA_A, { ...request, requiresApproval: true },
-  { mutationAuthority: false, certificationAuthority: false },
+const approval = applyNextStep(running, SHA_A, {
+  type: 'INTERRUPTION',
+  reason: 'explicit user confirmation required',
+  requiresApproval: true,
+});
+assert.equal(approval.status, 'WAITING_APPROVAL');
+assert.ok(approval.pendingApproval?.approvalId);
+
+const approved = approveRun(approval, SHA_A);
+assert.equal(approved.status, 'RUNNING');
+assert.equal(approved.pendingApproval, null);
+assert.throws(() => approveRun(approved, SHA_A), /FLIXO_BOT_APPROVAL_INVALID_STATE/);
+
+const evidenced = recordToolResult(
+  approved,
+  SHA_A,
+  approved.currentOwner,
+  nested.toolId,
+  true,
+  { byteLength: 10, mimeType: 'image/png' },
+  {
+    inputSha256: '1'.repeat(64),
+    outputSha256: '2'.repeat(64),
+    verified: true,
+    receiptChainSha256: '3'.repeat(64),
+    executorId: nested.toolId,
+    executionMode: 'LOCAL',
+    attempt: 0,
+  },
 );
-assert.equal(approval.state.status, 'WAITING_APPROVAL');
+assert.equal(evidenced.events.at(-1)?.detail?.outputSha256, '2'.repeat(64));
 
 assert.deepEqual(
   evaluateToolRequest({ ...request, branch: 'main' }, { mutationAuthority: false, certificationAuthority: false }),
