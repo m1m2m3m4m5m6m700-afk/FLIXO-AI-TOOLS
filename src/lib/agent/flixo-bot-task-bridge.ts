@@ -1,5 +1,8 @@
 import {
   approveRun,
+  applyNextStep,
+  cancelRun,
+  failRun,
   recordToolCall,
   recordToolResult,
   restoreFlixoBotRunState,
@@ -100,4 +103,41 @@ export function afterRuntimeTool(
   const currentSha = requireFlixoBuildSha();
   assertRuntimeTaskIdentity(runtime, task);
   return recordToolResult(runtime, currentSha, runtime.currentOwner, toolId, success, output, evidence);
+}
+
+
+export function completeRuntimeExecution(
+  runtime: FlixoBotRunState,
+  task: TaskContext,
+  result: Readonly<{ byteLength: number; mimeType: string }>,
+): FlixoBotRunState {
+  const currentSha = requireFlixoBuildSha();
+  assertRuntimeTaskIdentity(runtime, task);
+  return applyNextStep(runtime, currentSha, {
+    type: 'FINAL',
+    output: {
+      byteLength: result.byteLength,
+      mimeType: result.mimeType,
+    },
+  });
+}
+
+export function failRuntimeExecution(
+  runtime: FlixoBotRunState,
+  task: TaskContext,
+  reason: string,
+): FlixoBotRunState {
+  const currentSha = requireFlixoBuildSha();
+  assertRuntimeTaskIdentity(runtime, task);
+  return failRun(runtime, currentSha, reason);
+}
+
+export function cancelRuntimeExecution(
+  runtime: FlixoBotRunState,
+  task: TaskContext,
+  reason: string,
+): FlixoBotRunState {
+  const currentSha = requireFlixoBuildSha();
+  assertRuntimeTaskIdentity(runtime, task);
+  return cancelRun(runtime, currentSha, reason);
 }
