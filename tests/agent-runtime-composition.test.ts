@@ -24,8 +24,7 @@ import {
 import { createExecutionBudget, consumeCost } from '../src/lib/agent/execution-budget.ts';
 import { evaluatePlanApproval } from '../src/lib/agent/approval-policy.ts';
 import { deriveLayeredMemorySnapshot } from '../src/lib/agent/layered-memory.ts';
-import { WORKFLOW_TOOL_CATALOG, getWorkflowTool } from '../src/lib/agent/workflow-as-tool.ts';
-import { parseExecutionPlan } from '../src/lib/contracts/ai-plan.ts';
+import { WORKFLOW_TOOL_CATALOG, getWorkflowTool, expandWorkflowTool } from '../src/lib/agent/workflow-as-tool.ts';
 
 test('scheduler is durable-state friendly and advances recurring jobs deterministically', () => {
   const job = createScheduledAgentJob({
@@ -109,12 +108,8 @@ test('workflow-as-a-tool exposes first-class contracts and approval semantics', 
   assert.equal(workflow?.kind, 'WORKFLOW_TOOL');
   assert.ok(workflow?.inputSchema);
   assert.ok(workflow?.outputSchema);
-  const plan = parseExecutionPlan({
-    workflowName: 'Cloud future test',
-    confidence: 1,
-    catalogFingerprint: 'a'.repeat(64),
-    steps: [{ toolId: 'image-compressor', params: { quality: 0.8 } }],
-  });
+  const plan = expandWorkflowTool('workflow:product-ready');
+  assert.ok(plan);
   assert.equal(evaluatePlanApproval(plan).level, 'AUTO');
 });
 
