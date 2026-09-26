@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { AgentRuntime, hasLiveLlmKey } from "@/lib/agent/runtime";
+import { AgentRuntime } from "@/lib/agent/runtime";
 import { createDefaultToolRegistry } from "@/lib/tools";
 import {
   AgentResponseSchema,
@@ -43,7 +43,7 @@ export async function POST(request: Request): Promise<Response> {
     const runtime = new AgentRuntime({
       registry: createDefaultToolRegistry(),
       maxIterations: 5,
-      useMockEngine: hasLiveLlmKey() ? true : undefined,
+      useMockEngine: true,
     });
 
     const response = AgentResponseSchema.parse(
