@@ -38,8 +38,20 @@ function normalizeText(value: string, code: string, maxLength = 256): string {
   return normalized;
 }
 
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, nested]) => [key, canonicalize(nested)]),
+    );
+  }
+  return value;
+}
+
 function canonicalPayload(payload: Readonly<Record<string, unknown>>): string {
-  return JSON.stringify(payload, Object.keys(payload).sort());
+  return JSON.stringify(canonicalize(payload));
 }
 
 export function deriveEventIdempotencyKey(input: {
@@ -122,10 +134,18 @@ export function assertAgentEvent(event: AgentEventEnvelope): void {
 export class AgentEventInbox {
   private readonly seen = new Set<string>();
 
+  constructor(private readonly maxKeys = 10_000) {
+    if (!Number.isInteger(maxKeys) || maxKeys < 1 || maxKeys > 100_000) throw new Error('AGENT_EVENT_INBOX_LIMIT_INVALID');
+  }
+
   accept(event: AgentEventEnvelope): boolean {
     assertAgentEvent(event);
     if (this.seen.has(event.idempotencyKey)) return false;
     this.seen.add(event.idempotencyKey);
+    if (this.seen.size > this.maxKeys) {
+      const oldest = this.seen.values().next().value as string | undefined;
+      if (oldest) this.seen.delete(oldest);
+    }
     return true;
   }
 
