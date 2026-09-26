@@ -78,6 +78,7 @@ test('agent workflow tools expand only through the canonical workflow registry',
   assert.ok(product);
   assert.equal(product?.kind, 'workflow');
   assert.equal(product?.executable, true);
+  assert.equal(product?.catalogFingerprint.length, 64);
   const expanded = expandWorkflowTool('workflow:product-ready');
   assert.ok(expanded);
   assert.ok((expanded?.steps.length ?? 0) >= 1);
