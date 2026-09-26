@@ -75,8 +75,8 @@ const loadCellBotIds = () => {
   return new Set(Array.isArray(registry.bots) ? registry.bots.map((bot) => String(bot.id)) : []);
 };
 const assertActorKnown = (actor) => {
-  if (/^CELL-\\d{3}$/u.test(actor) && !loadCellBotIds().has(actor)) throw new Error('AGENT_MESSAGE_UNKNOWN_CELL_BOT=' + actor);
-  if (/^MASTER-\\d+$/u.test(actor) && !masterIds.has(actor)) throw new Error('AGENT_MESSAGE_UNKNOWN_MASTER=' + actor);
+  if (/^CELL-\d{3}$/u.test(actor) && !loadCellBotIds().has(actor)) throw new Error('AGENT_MESSAGE_UNKNOWN_CELL_BOT=' + actor);
+  if (/^MASTER-\d+$/u.test(actor) && !masterIds.has(actor)) throw new Error('AGENT_MESSAGE_UNKNOWN_MASTER=' + actor);
 };
 const required = ['messageId','actor','recipient','intent','taskId','scope','entrySha','risk','dependencies','expectedEvidence','stopConditions','proofObligations','createdAt'];
 const COUNCIL_RECIPIENTS = new Set(['assistantController','verification','analysis']);
@@ -501,7 +501,7 @@ try {
     const risk = arg('risk', 'MEDIUM').toUpperCase();
     const exactSha = arg('sha', currentSha());
     const payloadText = arg('payload', '{}');
-    if (!/^CELL-\\d{3}$/u.test(actor)) throw new Error('CELL_DIRECT_MASTER_AGENT_INVALID');
+    if (!/^CELL-\d{3}$/u.test(actor)) throw new Error('CELL_DIRECT_MASTER_AGENT_INVALID');
     assertActorKnown(actor);
     if (!taskId) throw new Error('CELL_DIRECT_MASTER_TASK_REQUIRED');
     if (!['LOW','MEDIUM','HIGH','CRITICAL'].includes(risk)) throw new Error('CELL_DIRECT_MASTER_RISK_INVALID');
@@ -537,7 +537,7 @@ try {
     const evidence = String(args.get('evidence') ?? '').split(',').map((value) => value.trim()).filter(Boolean);
     const blocking = String(args.get('blocking', 'true')).toLowerCase() !== 'false';
     const exactSha = arg('sha', currentSha());
-    if (!/^CELL-\\d{3}$/u.test(bot)) throw new Error('AGENT_PRESENCE_BOT_INVALID');
+    if (!/^CELL-\d{3}$/u.test(bot)) throw new Error('AGENT_PRESENCE_BOT_INVALID');
     assertActorKnown(bot);
     if (!['P0','P1','P2','P3'].includes(priority)) throw new Error('AGENT_PRESENCE_PRIORITY_INVALID');
     if (!taskId) throw new Error('AGENT_PRESENCE_TASK_REQUIRED');
