@@ -196,7 +196,7 @@ function parseJsonObject(text: string): unknown {
   }
 }
 
-function enforceDeterministicExecutionBoundary(
+export function enforceDeterministicExecutionBoundary(
   input: string,
   decision: ReturnType<typeof parseAgentDecision>,
 ): ReturnType<typeof parseAgentDecision> {
