@@ -1,4 +1,5 @@
 import { appendConversationEvent } from './conversation-event-store';
+import { parseExecutionPlan, type ExecutionPlanContract } from '@/lib/contracts/ai-plan';
 
 export type ConversationTurn = Readonly<{
   role: 'user' | 'agent';
@@ -13,6 +14,8 @@ export type ConversationMemory = {
   pendingToolId: string | null;
   pendingQuestion: string | null;
   lastPlanReady: boolean;
+  activePlan: ExecutionPlanContract | null;
+  runtimeResumeState: string | null;
 };
 
 const MAX_MEMORY_TURNS = 80;
@@ -73,6 +76,8 @@ export function createConversationMemory(): ConversationMemory {
     pendingToolId: null,
     pendingQuestion: null,
     lastPlanReady: false,
+    activePlan: null,
+    runtimeResumeState: null,
   };
 }
 
@@ -95,6 +100,13 @@ export function loadConversationMemory(): ConversationMemory {
       pendingToolId: typeof parsed.pendingToolId === 'string' ? parsed.pendingToolId : null,
       pendingQuestion: typeof parsed.pendingQuestion === 'string' ? parsed.pendingQuestion : null,
       lastPlanReady: parsed.lastPlanReady === true,
+      activePlan: (() => {
+        if (parsed.activePlan == null) return null;
+        try { return parseExecutionPlan(parsed.activePlan); } catch { return null; }
+      })(),
+      runtimeResumeState: typeof parsed.runtimeResumeState === 'string' && parsed.runtimeResumeState.length <= 100_000
+        ? parsed.runtimeResumeState
+        : null,
     };
   } catch {
     return createConversationMemory();
@@ -164,6 +176,8 @@ export function setConversationTask(
     pendingToolId?: string | null;
     pendingQuestion?: string | null;
     planReady: boolean;
+    plan?: ExecutionPlanContract | null;
+    runtimeResumeState?: string | null;
   },
 ): ConversationMemory {
   const next: ConversationMemory = {
@@ -173,6 +187,12 @@ export function setConversationTask(
     pendingToolId: task.pendingToolId ?? null,
     pendingQuestion: task.pendingQuestion ?? null,
     lastPlanReady: task.planReady,
+    activePlan: task.plan !== undefined ? task.plan : task.planReady ? memory.activePlan : null,
+    runtimeResumeState: task.runtimeResumeState !== undefined
+      ? task.runtimeResumeState
+      : task.planReady
+        ? memory.runtimeResumeState
+        : null,
   };
   saveConversationMemory(next);
   void appendConversationEvent('TASK_STATE', {
@@ -192,6 +212,8 @@ export function clearConversationTask(memory: ConversationMemory): ConversationM
     pendingToolId: null,
     pendingQuestion: null,
     lastPlanReady: false,
+    activePlan: null,
+    runtimeResumeState: null,
   };
   saveConversationMemory(next);
   void appendConversationEvent('CANCELLED', { reason: 'conversation_task_cleared' });
