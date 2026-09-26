@@ -31,6 +31,8 @@ export type FlixoBotRuntimeSummary = Readonly<{
   exactSha: string;
   turnCount: number;
   retryCount: number;
+  maxToolCalls: number;
+  toolCallCount: number;
   eventCount: number;
   resumeState: string;
 }>;
@@ -151,6 +153,8 @@ export function toFlixoBotRuntimeSummary(
     exactSha: runtime.state.exactSha,
     turnCount: runtime.state.turnCount,
     retryCount: runtime.state.retryCount,
+    maxToolCalls: runtime.state.maxToolCalls,
+    toolCallCount: runtime.state.toolCallCount,
     eventCount: runtime.state.events.length,
     resumeState: serializeFlixoBotRunState(runtime.state),
   });
