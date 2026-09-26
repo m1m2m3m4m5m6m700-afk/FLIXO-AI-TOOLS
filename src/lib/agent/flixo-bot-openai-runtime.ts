@@ -78,7 +78,7 @@ export type FlixoBotToolDecision = Readonly<{
   allowed: boolean;
   reason:
     | 'ALLOW' | 'INVALID_SHA' | 'STALE_SHA' | 'WRONG_WORK_PATH'
-    | 'AUTHORITY_REQUIRED' | 'CERTIFICATION_FORBIDDEN' | 'APPROVAL_REQUIRED';
+    | 'AUTHORITY_REQUIRED' | 'CERTIFICATION_FORBIDDEN' | 'APPROVAL_REQUIRED' | 'BUDGET_EXCEEDED';
 }>;
 
 export type FlixoBotAuthority = Readonly<{
@@ -257,7 +257,7 @@ export function recordToolCall(
     );
     return Object.freeze({
       state: blockedState,
-      decision: { allowed: false, reason: 'AUTHORITY_REQUIRED' },
+      decision: { allowed: false, reason: 'BUDGET_EXCEEDED' },
     });
   }
   const decision = evaluateToolRequest(request, authority);
