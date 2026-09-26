@@ -30,6 +30,7 @@ assert.deepEqual(
     '9db06eac2e6eb907b42c5382f6dc6a165cf4d368',
     'baa6a6a8b3090a2168b2203afee462bf0a107d8b',
     'cef267a95acb19e4ab49defb1cf5e725775f0031',
+    '5da8ba9ddf91eb353a58dd09ac652e4750922899',
   ],
 );
 for (const entry of closure.entries) {
