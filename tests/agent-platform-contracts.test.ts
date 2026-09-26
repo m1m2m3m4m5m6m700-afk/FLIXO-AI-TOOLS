@@ -121,3 +121,75 @@ test('runtime rejects the first tool call beyond the canonical call budget', asy
   assert.equal(blocked.decision.reason, 'BUDGET_EXCEEDED');
   assert.equal(blocked.state.status, 'BLOCKED');
 });
+
+
+test('layered memory preserves source/state distinctions and stays prompt-bounded', async () => {
+  const {
+    createLayeredMemory,
+    deriveLayeredMemorySnapshot,
+    parseLayeredMemory,
+    rememberMemory,
+    toPromptMemory,
+  } = await import('../src/lib/agent/layered-memory.ts');
+
+  let memory = createLayeredMemory('task-memory');
+  memory = rememberMemory(memory, {
+    layer: 'USER',
+    key: 'taste',
+    value: 'prefer square outputs',
+    source: 'USER',
+    state: 'VERIFIED',
+    confidence: 1,
+    evidenceRefs: ['turn-1'],
+  });
+  assert.equal(memory.items[0]?.state, 'VERIFIED');
+
+  const derived = deriveLayeredMemorySnapshot({
+    taskId: 'task-memory',
+    activeCommand: 'make it square',
+    activeToolId: 'image-cropper',
+    pendingQuestion: null,
+    turns: [{ role: 'user', text: 'make it square' }],
+  });
+  assert.ok(derived.items.some((item) => item.layer === 'TASK' && item.key === 'active.command'));
+  assert.ok(derived.items.some((item) => item.layer === 'CONVERSATION' && item.source === 'USER'));
+
+  const parsed = parseLayeredMemory(derived);
+  assert.equal(parsed.taskId, 'task-memory');
+  assert.ok(toPromptMemory(parsed).length > 0);
+  assert.throws(
+    () => parseLayeredMemory({
+      ...derived,
+      items: [{
+        ...derived.items[0],
+        value: 'x'.repeat(8_001),
+      }],
+    }),
+    /too_big|String must contain at most 8000 character/,
+  );
+});
+
+test('chat gateway accepts layered memory but keeps it advisory', async () => {
+  const { parseAgentRequest } = await import('../src/lib/contracts/agent-gateway.ts');
+  const request = parseAgentRequest({
+    locale: 'en',
+    messages: [{ role: 'user', content: 'same as before' }],
+    activeCommand: 'prepare product image',
+    memory: {
+      version: 1,
+      taskId: 'task-1',
+      items: [{
+        id: 'task:active.command',
+        layer: 'TASK',
+        key: 'active.command',
+        value: 'prepare product image',
+        source: 'MEMORY',
+        state: 'PROBABLE',
+        confidence: 0.95,
+        evidenceRefs: ['conversation.activeCommand'],
+        updatedAt: '2026-09-26T20:00:00.000Z',
+      }],
+    },
+  });
+  assert.equal(request.memory?.items[0]?.state, 'PROBABLE');
+});
