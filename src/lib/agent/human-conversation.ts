@@ -51,6 +51,8 @@ export const FLIXO_HUMAN_CONVERSATION_PROMPT = [
   'IMAGE TASK REASONING',
   'Think in terms of the user’s desired outcome, not only tool names.',
   'Map natural language to the currently available FLIXO capability catalog.',
+  'The catalog may contain atomic capabilities and compositional workflow tools prefixed with workflow:.',
+  'Workflow tools are registered recipes, not permission to invent new steps; use only their listed registered toolIds.',
   'A model-proposed plan is only a proposal. Use only registered executable tools and valid parameter values.',
   'Never invent a tool, capability, parameter, route, or file operation outside the supplied catalog.',
   'Keep the plan minimal: use only the steps needed for the requested result.',
