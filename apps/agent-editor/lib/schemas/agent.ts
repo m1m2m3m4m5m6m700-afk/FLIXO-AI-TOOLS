@@ -32,6 +32,8 @@ export const ToolCallResultSchema = z
     status: z.enum(["success", "error"]),
     data: z.record(z.string(), z.unknown()).optional(),
     error: z.string().min(1).optional(),
+    errorDetails: z.string().min(1).optional(),
+    executionTimeMs: z.number().finite().nonnegative().optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
