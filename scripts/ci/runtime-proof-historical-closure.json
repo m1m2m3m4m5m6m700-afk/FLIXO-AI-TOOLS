@@ -232,6 +232,26 @@
         ]
       },
       "reason": "Historical runtime-proof closure for cef267a95acb19e4ab49defb1cf5e725775f0031: the independent Repository Security Baseline succeeded on exact descendant head 7903729fda9cb77d8c397775ca106c5aad36ae96 and revalidated the resulting source-controlled trust perimeter, including ACTION-REPAIR-SQUAD-REGISTRY.json."
+    },
+    {
+      "commitSha": "5da8ba9ddf91eb353a58dd09ac652e4750922899",
+      "sensitivePaths": [
+        "scripts/ci/wake-compliance.mjs"
+      ],
+      "evidence": {
+        "workflow": "Repository Security Baseline",
+        "runId": 36234417550,
+        "jobId": 108383497166,
+        "conclusion": "success",
+        "independent": true,
+        "verifiedHeadSha": "5da8ba9ddf91eb353a58dd09ac652e4750922899",
+        "requiredSteps": [
+          "Verify exact SHA",
+          "Validate source-controlled Council RPC contract",
+          "Run repository security baseline"
+        ]
+      },
+      "reason": "Historical exact-SHA closure for the wake-compliance recovery change. The independent Repository Security Baseline completed successfully on the exact sensitive commit and verified the source-controlled trust perimeter; this closure satisfies the per-commit proof obligation without certifying any later execution head."
     }
   ]
 }

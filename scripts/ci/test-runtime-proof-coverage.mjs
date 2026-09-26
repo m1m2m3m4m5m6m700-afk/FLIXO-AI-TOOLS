@@ -21,6 +21,7 @@ assert.deepEqual(
   [
     '0fd64bfe30548a13b80ce715f678d81dffd098ad',
     '1b3e4fb2b9258ca205dbb50786691175054c69f5',
+    '5da8ba9ddf91eb353a58dd09ac652e4750922899',
     '5e95ee09878d63221de878d1840f1a2fff02f85b',
     '664326d970bb03d6aa1d82094e100437cac7a896',
     '6b622ec03cd9de100b065abb5ab89530a9cc444d',
@@ -58,7 +59,8 @@ for (const entry of closure.entries) {
              entry.commitSha === '1b3e4fb2b9258ca205dbb50786691175054c69f5' ||
              entry.commitSha === '5e95ee09878d63221de878d1840f1a2fff02f85b' ||
              entry.commitSha === 'cef267a95acb19e4ab49defb1cf5e725775f0031' ||
-             entry.commitSha === '664326d970bb03d6aa1d82094e100437cac7a896') {
+             entry.commitSha === '664326d970bb03d6aa1d82094e100437cac7a896' ||
+             entry.commitSha === '5da8ba9ddf91eb353a58dd09ac652e4750922899') {
     assert.equal(entry.evidence.workflow,'Repository Security Baseline');
     assert.deepEqual(entry.evidence.requiredSteps,['Verify exact SHA','Validate source-controlled Council RPC contract','Run repository security baseline']);
     const expectedVerifiedHeadSha = {
@@ -67,6 +69,7 @@ for (const entry of closure.entries) {
       '5e95ee09878d63221de878d1840f1a2fff02f85b': '5e95ee09878d63221de878d1840f1a2fff02f85b',
       'cef267a95acb19e4ab49defb1cf5e725775f0031': '7903729fda9cb77d8c397775ca106c5aad36ae96',
       '664326d970bb03d6aa1d82094e100437cac7a896': '664326d970bb03d6aa1d82094e100437cac7a896',
+      '5da8ba9ddf91eb353a58dd09ac652e4750922899': '5da8ba9ddf91eb353a58dd09ac652e4750922899',
     };
     const expectedSensitivePaths = {
       '9db06eac2e6eb907b42c5382f6dc6a165cf4d368': ['scripts/ci/wake-compliance.mjs'],
@@ -74,6 +77,7 @@ for (const entry of closure.entries) {
       '5e95ee09878d63221de878d1840f1a2fff02f85b': ['scripts/ci/wake-compliance.mjs'],
       'cef267a95acb19e4ab49defb1cf5e725775f0031': ['docs/agents/ACTION-REPAIR-SQUAD-REGISTRY.json'],
       '664326d970bb03d6aa1d82094e100437cac7a896': ['docs/agents/CELL-BOT-REGISTRY.json'],
+      '5da8ba9ddf91eb353a58dd09ac652e4750922899': ['scripts/ci/wake-compliance.mjs'],
     };
     assert.equal(entry.evidence.verifiedHeadSha,expectedVerifiedHeadSha[entry.commitSha]);
     assert.deepEqual(entry.sensitivePaths,expectedSensitivePaths[entry.commitSha]);
