@@ -5,16 +5,18 @@
 The repository uses two operational branches only:
 
 - `main` — production/reference branch. Changes reach it through a pull request after the required certification gates pass.
-- `experimental` — the single development and experimentation line. New work is consolidated here; no additional long-lived development branches should be created.
+- `execution` — the sole development, repair, testing, and integration line.
+- No other development, repair, test, diagnostic, agent, or temporary branch may be created or used.
+- `main` is the production/reference destination and is never mutated directly.
 
-Temporary GitHub refs may exist only for automation and cleanup purposes and must not become alternate development lines.
+Promotion is exclusively `execution → main`. Historical refs are not execution paths.
 
 ## Delivery lifecycle
 
 `Implement → Verify → Certify → Freeze → Promote`
 
 ```text
-experimental
+execution
     ↓
 Implement
     ↓
