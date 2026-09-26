@@ -292,6 +292,14 @@ export function recordToolResult(
 ): FlixoBotRunState {
   assertCurrentRunSha(state, currentSha);
   if (!['RUNNING', 'RETRYING'].includes(state.status)) throw new Error('FLIXO_BOT_TOOL_RESULT_INVALID_STATE');
+  if (success && evidence.verified !== true) {
+    throw new Error('FLIXO_BOT_TOOL_SUCCESS_REQUIRES_VERIFIED_EVIDENCE');
+  }
+  if (success && (!/^[a-f0-9]{64}$/u.test(String(evidence.inputSha256 ?? ''))
+    || !/^[a-f0-9]{64}$/u.test(String(evidence.outputSha256 ?? ''))
+    || !/^[a-f0-9]{64}$/u.test(String(evidence.receiptChainSha256 ?? '')))) {
+    throw new Error('FLIXO_BOT_TOOL_SUCCESS_EVIDENCE_INCOMPLETE');
+  }
   return append(
     Object.freeze({
       ...state,
