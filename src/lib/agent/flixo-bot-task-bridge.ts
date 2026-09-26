@@ -73,7 +73,6 @@ export function beforeRuntimeTool(
   task: TaskContext,
   toolId: string,
   callId: string,
-  attempt: number,
 ): FlixoBotRunState {
   const currentSha = requireFlixoBuildSha();
   assertRuntimeTaskIdentity(runtime, task);
