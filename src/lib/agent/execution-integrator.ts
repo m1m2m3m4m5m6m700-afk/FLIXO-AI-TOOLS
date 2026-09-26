@@ -7,7 +7,8 @@ import { createTaskContext, transitionTask, confirmTask, cancelTask, assertExecu
 import { getToolById } from '@/config/registry';
 import { getToolOutputContractForDefinition } from '@/lib/contracts/tool-output-contracts';
 import { getToolExecutor } from '@/lib/workflows/executor-registry';
-import { runWorkflowPipeline, type PipelineProgress, type PipelineReceiptChain } from '@/lib/workflows/pipeline-runner';
+import { runWorkflowPipeline, type PipelineProgress } from '@/lib/workflows/pipeline-runner';
+import type { PipelineReceiptChain } from '@/lib/workflows/pipeline-receipt';
 import type { FlixoBotRunState } from './flixo-bot-openai-runtime';
 import {
   afterRuntimeTool,
