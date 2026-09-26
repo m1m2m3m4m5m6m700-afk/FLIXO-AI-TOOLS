@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import { assessCognitiveRequest } from '@/lib/agent/cognitive-orchestrator';
 import type { PipelineProgress } from '@/lib/workflows/pipeline-runner';
-import { cancelPreparedExecution, confirmPreparedExecution, executePreparedExecution, prepareExecution, type PreparedExecution } from '@/lib/agent/execution-integrator';
+import { cancelPreparedExecution, confirmPreparedExecution, executePreparedExecution, prepareExecution, restorePreparedExecution, type PreparedExecution } from '@/lib/agent/execution-integrator';
 import { TOOL_CATALOG } from '@/config/registry';
 import { findToolIntent } from '@/lib/intent-router';
 import { detectAgentLocale } from '@/lib/agent/language-detector';
@@ -115,13 +115,23 @@ const conversationalReply = (
 };
 
 
+function loadRestoredAgentExecution(): PreparedExecution | null {
+  const saved = loadConversationMemory();
+  if (!saved.activePlan || !saved.runtimeResumeState) return null;
+  try {
+    return restorePreparedExecution(saved.activePlan, saved.runtimeResumeState);
+  } catch {
+    return null;
+  }
+}
+
 export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const copy = AGENT_I18N[locale] ?? AGENT_I18N.en;
   const [query, setQuery] = useState('');
   const [file, setFile] = useState<File | null>(null);
-  const [state, setState] = useState<AgentState>('idle');
-  const [plan, setPlan] = useState<ExecutionPlan | null>(null);
-  const [preparedExecution, setPreparedExecution] = useState<PreparedExecution | null>(null);
+  const [plan, setPlan] = useState<ExecutionPlan | null>(() => loadConversationMemory().activePlan);
+  const [preparedExecution, setPreparedExecution] = useState<PreparedExecution | null>(() => loadRestoredAgentExecution());
+  const [state, setState] = useState<AgentState>(() => loadRestoredAgentExecution() ? 'ready' : 'idle');
   const [progress, setProgress] = useState<PipelineProgress | null>(null);
   const [result, setResult] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -208,6 +218,8 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       pendingToolId: null,
       pendingQuestion: null,
       planReady: true,
+      plan: prepared.plan,
+      runtimeResumeState: null,
     }));
     const prepared = prepareExecution(nextPlan);
     setPlan(prepared.plan);
@@ -243,7 +255,9 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         const contextualCommand = contextualizeCommand(command, memory);
         const conversationalPlan = decision.plan as ExecutionPlan;
 
-        const prepared = prepareExecution(conversationalPlan);
+        const prepared = decision.runtime?.resumeState
+          ? restorePreparedExecution(conversationalPlan, decision.runtime.resumeState)
+          : prepareExecution(conversationalPlan);
         setPlan(prepared.plan);
         setPreparedExecution(prepared);
         setState('ready');
@@ -253,6 +267,8 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           command: contextualCommand,
           toolId: conversationalPlan.steps[0]?.toolId ?? null,
           planReady: true,
+          plan: prepared.plan,
+          runtimeResumeState: prepared.runtimeState ? JSON.stringify(prepared.runtimeState) : null,
         }));
         pushMessage(
           'agent',
@@ -425,6 +441,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       file={file}
       onFileChange={(nextFile) => {
         setFile(nextFile);
+        setMemory((current) => clearConversationTask(current));
         setPlan(null);
         setPreparedExecution(null);
         setResult(null);
