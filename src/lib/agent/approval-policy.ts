@@ -1,6 +1,6 @@
-import type { ExecutionPlanContract } from '@/lib/contracts/ai-plan';
+import type { ExecutionPlanContract } from '../contracts/ai-plan';
 import { getCapability } from './capability-registry';
-import { getToolById } from '@/config/registry';
+import { getToolById } from '../../config/registry';
 
 export type ApprovalLevel = 'AUTO' | 'CONFIRM' | 'BLOCK';
 
