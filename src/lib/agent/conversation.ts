@@ -1,5 +1,6 @@
 import { appendConversationEvent } from './conversation-event-store';
 import { parseExecutionPlan, type ExecutionPlanContract } from '@/lib/contracts/ai-plan';
+import { deriveLayeredMemorySnapshot, type LayeredMemorySnapshot } from './layered-memory.ts';
 
 export type ConversationTurn = Readonly<{
   role: 'user' | 'agent';
@@ -226,4 +227,15 @@ export function isQuestion(text: string): boolean {
   const normalized = normalizeAgentText(text);
   return /(?:\?|؟)$/.test(normalized)
     || /^(?:هل|ماذا|ما|كيف|ليه|لماذا|فين|اين|أين|متى|what|why|how|where|when|can|do|does|is|are)\b/iu.test(normalized);
+}
+
+
+export function buildLayeredMemorySnapshot(memory: ConversationMemory): LayeredMemorySnapshot {
+  return deriveLayeredMemorySnapshot({
+    activeCommand: memory.activeCommand,
+    activeToolId: memory.activeToolId,
+    pendingQuestion: memory.pendingQuestion,
+    turns: memory.turns,
+    activePlan: memory.activePlan,
+  });
 }
