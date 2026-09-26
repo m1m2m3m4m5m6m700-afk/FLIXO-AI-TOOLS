@@ -6,7 +6,6 @@ import { getCapability } from '@/lib/agent/capability-registry';
 import { TOOL_REGISTRY } from '@/config/registry';
 import { getWorkflow } from '@/lib/workflows/registry';
 import { TOOL_CATALOG } from '@/config/registry';
-import { getWorkflowForTool, resolveWorkflowTool } from '@/lib/agent/workflow-as-tool';
 
 export type ExecutionPlan = {
   workflowName: string;
@@ -31,12 +30,6 @@ export function planFromWorkflow(workflowId: string): ExecutionPlan | null {
 }
 
 export function planFromIntent(input: string): ExecutionPlan | null {
-  const workflowTool = resolveWorkflowTool(input);
-  if (workflowTool) {
-    const workflow = getWorkflowForTool(workflowTool.id);
-    if (workflow) return planFromWorkflow(workflow.id);
-  }
-
   const quickFlow = buildQuickFlowPlan(input, TOOL_REGISTRY);
   if (quickFlow) {
     const intent = resolveIntent(input);
