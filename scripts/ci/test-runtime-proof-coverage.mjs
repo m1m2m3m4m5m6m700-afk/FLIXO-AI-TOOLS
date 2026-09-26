@@ -67,6 +67,7 @@ for (const entry of closure.entries) {
       '5e95ee09878d63221de878d1840f1a2fff02f85b': '5e95ee09878d63221de878d1840f1a2fff02f85b',
       'cef267a95acb19e4ab49defb1cf5e725775f0031': '7903729fda9cb77d8c397775ca106c5aad36ae96',
       '664326d970bb03d6aa1d82094e100437cac7a896': '664326d970bb03d6aa1d82094e100437cac7a896',
+      '5da8ba9ddf91eb353a58dd09ac652e4750922899': '5da8ba9ddf91eb353a58dd09ac652e4750922899',
     };
     const expectedSensitivePaths = {
       '9db06eac2e6eb907b42c5382f6dc6a165cf4d368': ['scripts/ci/wake-compliance.mjs'],
@@ -74,6 +75,7 @@ for (const entry of closure.entries) {
       '5e95ee09878d63221de878d1840f1a2fff02f85b': ['scripts/ci/wake-compliance.mjs'],
       'cef267a95acb19e4ab49defb1cf5e725775f0031': ['docs/agents/ACTION-REPAIR-SQUAD-REGISTRY.json'],
       '664326d970bb03d6aa1d82094e100437cac7a896': ['docs/agents/CELL-BOT-REGISTRY.json'],
+      '5da8ba9ddf91eb353a58dd09ac652e4750922899': ['scripts/ci/wake-compliance.mjs'],
     };
     assert.equal(entry.evidence.verifiedHeadSha,expectedVerifiedHeadSha[entry.commitSha]);
     assert.deepEqual(entry.sensitivePaths,expectedSensitivePaths[entry.commitSha]);
