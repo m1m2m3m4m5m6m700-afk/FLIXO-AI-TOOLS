@@ -36,7 +36,10 @@ for (const [name, source] of [['registry', registry], ['manifest', manifest], ['
   if (source.includes('tool-definitions/image')) failures.push(`${name} still references the legacy image definition source.`);
 }
 if (canonical.includes("from './tool-definitions/image.ts'")) failures.push('Canonical definition still imports the legacy image source.');
-if (!canonical.includes("const EXECUTABLE_IDS = new Set")) failures.push('Canonical capability state rules are missing.');
+if (!canonical.includes('const EXECUTABLE_IDS: ReadonlySet<string> = new Set(MVP_EXECUTABLE_TOOL_IDS)') &&
+    !canonical.includes('const EXECUTABLE_IDS = new Set(MVP_EXECUTABLE_TOOL_IDS)')) {
+  failures.push('Canonical capability state rules are missing.');
+}
 if (!canonical.includes('ToolOperationalProfile')) failures.push('Canonical operational profile type is missing.');
 if (!canonical.includes('recovery: ToolRecoveryPolicy')) failures.push('Canonical recovery policy is missing.');
 if (!canonical.includes('outputContractId: tool.isReady ? tool.id : null')) failures.push('Canonical output contract binding is missing.');

@@ -1,4 +1,5 @@
 import { assertExecutionResourceBudget, validateCapabilityParameters, getCapability } from './capability-registry.ts';
+import { authorizeCapabilityAccess } from './capability-access.ts';
 import { assertExecutionAllowed, type TaskContext } from './task-state.ts';
 import { getToolDefinition } from '@/config/canonical-tool-definition.ts';
 import { assertExecutionPermission, assertExecutionSecurityBoundary, createExecutionAuditEvent, deriveRecoveryMetadata, deriveToolSecurityProfile, type ExecutionAuditEvent } from './execution-observability.ts';
@@ -38,6 +39,7 @@ export async function authorizeExecution(input: ExecutionGateInput): Promise<Exe
   if (!tool) throw new Error(`Unknown tool definition: ${input.capabilityId}`);
   assertExecutionSecurityBoundary(tool);
   assertExecutionPermission(tool, 'EXECUTE');
+  authorizeCapabilityAccess({ capabilityId: input.capabilityId, requestedPermission: 'EXECUTE', actorTrust: 'CORE', parameters });
   const security = deriveToolSecurityProfile(tool);
   const recovery = deriveRecoveryMetadata(tool);
   const audit = await createExecutionAuditEvent({ task: input.task, capabilityId: input.capabilityId, tool, stage: 'AUTHORIZATION', outcome: 'ALLOW' });

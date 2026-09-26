@@ -2,7 +2,12 @@ import { expect, test } from './fixtures/universal-runtime-evidence';
 import { PNG } from './helpers/image-tool-fixture';
 
 test.describe('FLIXO MVP agent full journey', () => {
-  test('upload → natural request → plan → execute → verify → result → save', async ({ page }) => {
+  test('upload → natural request → plan → execute → verify → result → save stays local when agent API is unavailable', async ({ page }) => {
+    let conversationalApiCalls = 0;
+    await page.route('**/api/flixo-agent', async (route) => {
+      conversationalApiCalls += 1;
+      await route.abort();
+    });
     await page.addInitScript(() => {
       Object.defineProperty(window, 'showSaveFilePicker', {
         configurable: true,
@@ -42,6 +47,23 @@ test.describe('FLIXO MVP agent full journey', () => {
 
     expect(await download.failure()).toBeNull();
     expect(download.suggestedFilename()).toBe('flixo-agent-result.webp');
+    expect(conversationalApiCalls).toBe(0);
+  });
+
+  test('unsupported executable intent falls back to the matching local manual tool without provider access', async ({ page }) => {
+    let conversationalApiCalls = 0;
+    await page.route('**/api/flixo-agent', async (route) => {
+      conversationalApiCalls += 1;
+      await route.abort();
+    });
+    await page.goto('/');
+
+    await page.locator('#flixo-agent-command').fill('remove the object from this image');
+    await page.locator('.flixo-agent-send').click();
+
+    await expect(page.getByTestId('flixo-agent-manual-fallback')).toBeVisible();
+    await expect(page.getByTestId('flixo-agent-manual-fallback-link')).toHaveAttribute('href', '/en/object-remover');
+    expect(conversationalApiCalls).toBe(0);
   });
 });
 
@@ -75,6 +97,8 @@ test.describe('FLIXO MVP mobile + Arabic journey', () => {
     await page.goto('/ar');
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
     await expect(page.getByTestId('flixo-agent-studio')).toBeVisible();
+    await expect(page.locator('.flixo-agent-composer')).toBeVisible();
+    await expect(page.locator('.flixo-agent-tools-panel')).toBeVisible();
 
     await page.locator('#flixo-agent-file').setInputFiles({
       name: 'mvp-agent-mobile-fixture.png',

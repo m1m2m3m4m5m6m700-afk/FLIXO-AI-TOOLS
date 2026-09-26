@@ -117,8 +117,8 @@ const normalizeFilterQuery = (value: string): string =>
   value
     .toLocaleLowerCase()
     .normalize('NFKC')
-    .replace(/[^\\p{L}\\p{N}\\s-]/gu, ' ')
-    .replace(/\\s+/g, ' ')
+    .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 
 const GENERIC_FILTER_TERMS = new Set([
@@ -134,8 +134,17 @@ const scoreLiveFilter = (query: string, filter: LiveFilterDefinition): number =>
   if (normalizeFilterQuery(filter.canonicalId) === normalized) return 100;
   if (normalizeFilterQuery(filter.label) === normalized) return 100;
 
-  const tokens = normalized.split(' ').filter((token) => token && !GENERIC_FILTER_TERMS.has(token));
+  const tokens = normalized
+    .split(' ')
+    .filter((token) => token && !GENERIC_FILTER_TERMS.has(token) && !/^\d+$/u.test(token));
   if (tokens.length === 0) return 1;
+
+  const labelTokens = normalizeFilterQuery(filter.label).split(' ').filter(Boolean);
+  if (tokens.length === labelTokens.length && tokens.every((token, index) => token === labelTokens[index])) return 90 + tokens.length;
+
+  const canonicalTokens = normalizeFilterQuery(filter.canonicalId.replace(/^effect\./, '')).split(' ').filter(Boolean);
+  if (tokens.length === canonicalTokens.length && tokens.every((token, index) => token === canonicalTokens[index])) return 80 + tokens.length;
+
   const hits = tokens.filter((token) => target.includes(token)).length;
   return hits === tokens.length ? 50 + hits : hits;
 };

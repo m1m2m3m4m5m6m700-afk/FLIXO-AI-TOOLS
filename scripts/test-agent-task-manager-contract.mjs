@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import { AgentTaskManager, createAgentTaskRecord, transitionAgentTask, resumeAgentTask } from '../src/lib/agent/agent-task-manager.ts';
+
+const base = createAgentTaskRecord({ taskId: 'task-contract', traceId: 'trace-contract', ownerId: 'executionAgent' });
+assert.equal(base.lifecycle, 'QUEUED');
+let planned = transitionAgentTask(base, 'PLANNED');
+let awaiting = transitionAgentTask(planned, 'AWAITING_CONFIRMATION');
+let running = transitionAgentTask(awaiting, 'EXECUTING');
+assert.equal(running.lifecycle, 'RUNNING');
+let recovering = transitionAgentTask(running, 'VERIFYING');
+recovering = transitionAgentTask(recovering, 'RECOVERING');
+const resumed = resumeAgentTask(recovering);
+assert.equal(resumed.lifecycle, 'RESUMED');
+assert.equal(resumed.resumeCount, 1);
+assert.equal(resumed.context.state, 'PLANNED');
+const manager = new AgentTaskManager();
+assert.equal(manager.create({ taskId: 'managed', ownerId: 'executionAgent' }).lifecycle, 'QUEUED');
+assert.throws(() => manager.create({ taskId: 'managed', ownerId: 'executionAgent' }), /AGENT_TASK_ID_COLLISION/);
+manager.transition('managed', 'PLANNED');
+manager.transition('managed', 'AWAITING_CONFIRMATION');
+manager.transition('managed', 'EXECUTING');
+manager.transition('managed', 'VERIFYING');
+manager.transition('managed', 'RECOVERING');
+assert.equal(manager.resume('managed').lifecycle, 'RESUMED');
+console.log('Agent task manager contract passed.');

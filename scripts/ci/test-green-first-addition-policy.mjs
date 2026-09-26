@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { evaluateGreenFirstPolicy } from './green-first-addition-policy.mjs';
+import { evaluateGreenFirstPolicy, selectLatestCanonicalRun } from './green-first-addition-policy.mjs';
 const greenFeature = evaluateGreenFirstPolicy({ parentGreen: true, subject: 'feat(image): add visual critic', changedFiles: ['src/lib/agent/visual-critic.ts'] });
 assert.equal(greenFeature.allowed, true);
 assert.equal(greenFeature.state, 'OPEN');
@@ -24,3 +24,18 @@ const redDocumentationWithoutClassification = evaluateGreenFirstPolicy({
 });
 assert.equal(redDocumentationWithoutClassification.allowed, false);
 assert.equal(redDocumentationWithoutClassification.reason, 'RED_SCOPE_REQUIRES_EXPLICIT_CLASSIFICATION');
+const selected = selectLatestCanonicalRun([
+  { conclusion: 'success', updated_at: '2026-09-26T17:25:00Z' },
+  { conclusion: 'cancelled', updated_at: '2026-09-26T17:26:00Z' },
+]);
+assert.equal(selected?.conclusion, 'cancelled');
+
+const latestFailure = selectLatestCanonicalRun([
+  { conclusion: 'success', updated_at: '2026-09-26T17:25:00Z' },
+  { conclusion: 'failure', updated_at: '2026-09-26T17:26:00Z' },
+  { conclusion: 'cancelled', updated_at: '2026-09-26T17:27:00Z' },
+]);
+assert.equal(latestFailure?.conclusion, 'cancelled');
+
+const cancelledOnly = selectLatestCanonicalRun([{ conclusion: 'cancelled', updated_at: '2026-09-26T17:26:00Z' }]);
+assert.equal(cancelledOnly?.conclusion, 'cancelled');

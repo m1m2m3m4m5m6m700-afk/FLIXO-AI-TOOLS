@@ -5,6 +5,7 @@ import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from
 import { TOOL_CATALOG } from '../src/config/registry.ts';
 import { planFromIntent } from '../src/lib/ai/planner.ts';
 import { isDeterministicPlanCompatible } from '../src/lib/ai/deterministic-boundary.ts';
+import { selectModelForTask } from '../src/lib/agent/model-router.ts';
 import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
 import { buildSharedLearningContext } from '../scripts/ci/shared-operational-memory.mjs';
 import { createExternalAgentLearning, listExternalAgentLearning } from '../src/server/agent/learning-persistence.ts';
@@ -231,11 +232,12 @@ async function callOpenAI(
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
   timeoutMs: number,
   maxTokens: number,
+  modelOverride?: string,
 ): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('OPENAI_API_KEY is not configured.');
   const base = PROVIDER_BASE_URLS.openai;
-  const model = process.env.OPENAI_MODEL;
+  const model = modelOverride || process.env.OPENAI_MODEL;
   if (!model) throw new Error('OPENAI_MODEL is not configured.');
   const response = await fetchWithTimeout(`${base}/chat/completions`, {
     method: 'POST',
@@ -259,11 +261,12 @@ async function callOpenRouter(
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
   timeoutMs: number,
   maxTokens: number,
+  modelOverride?: string,
 ): Promise<string> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured.');
   const base = PROVIDER_BASE_URLS.openrouter;
-  const model = process.env.OPENROUTER_MODEL || process.env.OPENROUTER_FREE_MODEL || 'openrouter/free';
+  const model = modelOverride || process.env.OPENROUTER_MODEL || process.env.OPENROUTER_FREE_MODEL || 'openrouter/free';
   const response = await fetchWithTimeout(`${base}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -291,11 +294,12 @@ async function callGemini(
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
   timeoutMs: number,
   maxTokens: number,
+  modelOverride?: string,
 ): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured.');
   const base = PROVIDER_BASE_URLS.gemini;
-  const model = process.env.GEMINI_MODEL;
+  const model = modelOverride || process.env.GEMINI_MODEL;
   if (!model) throw new Error('GEMINI_MODEL is not configured.');
   const system = messages.find((message) => message.role === 'system')?.content ?? '';
   const contents = messages.filter((message) => message.role !== 'system').map((message) => ({
@@ -327,10 +331,11 @@ async function callProvider(
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
   timeoutMs: number,
   maxTokens: number,
+  modelOverride?: string,
 ): Promise<string> {
-  if (provider === 'gemini') return callGemini(messages, timeoutMs, maxTokens);
-  if (provider === 'openrouter') return callOpenRouter(messages, timeoutMs, maxTokens);
-  if (provider === 'openai') return callOpenAI(messages, timeoutMs, maxTokens);
+  if (provider === 'gemini') return callGemini(messages, timeoutMs, maxTokens, modelOverride);
+  if (provider === 'openrouter') return callOpenRouter(messages, timeoutMs, maxTokens, modelOverride);
+  if (provider === 'openai') return callOpenAI(messages, timeoutMs, maxTokens, modelOverride);
   throw new Error('Unsupported AI provider.');
 }
 
@@ -463,14 +468,17 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     ];
     const started = Date.now();
     let providerCalls = 0;
+    let lastModel: string | null = null;
     const invoke = async (selectedProvider: SupportedProvider): Promise<string> => {
       if (providerCalls >= MAX_PROVIDER_CALLS) throw new Error('AI provider call budget exhausted.');
       providerCalls += 1;
-      if (!botRuntime) return callProvider(selectedProvider, promptMessages, runtime.timeoutMs, runtime.maxTokens);
+      const modelSelection = selectModelForTask({ taskInput: userMessage, provider: selectedProvider });
+      lastModel = modelSelection.model;
+      if (!botRuntime) return callProvider(selectedProvider, promptMessages, runtime.timeoutMs, runtime.maxTokens, modelSelection.model);
       const turn = beginModelTurn(botRuntime, selectedProvider);
       botRuntime = turn.runtime;
       try {
-        const raw = await callProvider(selectedProvider, promptMessages, runtime.timeoutMs, runtime.maxTokens);
+        const raw = await callProvider(selectedProvider, promptMessages, runtime.timeoutMs, runtime.maxTokens, modelSelection.model);
         botRuntime = finishModelTurn(botRuntime, turn.spanId, 'success');
         return raw;
       } catch (error) {
@@ -506,7 +514,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       const decision = parseAgentDecision(parseJsonObject(raw));
       const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
       await persistLearningCandidate(boundedDecision, userMessage, locale, provider);
-      respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider });
+      respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider, model: lastModel });
     } catch (providerError) {
       if (botRuntime) botRuntime = noteProviderFailure(botRuntime, `${provider}:${providerError instanceof Error ? providerError.name : 'UNKNOWN_ERROR'}`);
       if (runtime.fallbackProvider) {
@@ -515,7 +523,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           const decision = parseAgentDecision(parseJsonObject(raw));
           const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
           await persistLearningCandidate(boundedDecision, userMessage, locale, runtime.fallbackProvider);
-          respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider: runtime.fallbackProvider, fallback: true });
+          respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider: runtime.fallbackProvider, model: lastModel, fallback: true });
           return;
         } catch (fallbackError) {
           if (botRuntime) botRuntime = noteProviderFailure(botRuntime, `${runtime.fallbackProvider}:${fallbackError instanceof Error ? fallbackError.name : 'UNKNOWN_ERROR'}`);

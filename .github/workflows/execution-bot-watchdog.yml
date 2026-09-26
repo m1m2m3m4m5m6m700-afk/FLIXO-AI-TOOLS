@@ -101,11 +101,21 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
             SOURCE_WORKFLOW="${{ github.event.workflow_run.name || '' }}"
             SOURCE_PATH="${{ github.event.workflow_run.path || '' }}"
-            case "$SOURCE_WORKFLOW:$SOURCE_PATH" in
-            # Heartbeat run names carry the database run id suffix via `run-name`; accept that exact canonical workflow prefix while preserving the path allowlist.
-              "FLIXO Test System:.github/workflows/ci.yml"|"FLIXO WP0 Trust Baseline:.github/workflows/wp0-trust-baseline.yml"|"FLIXO Test Impact:.github/workflows/test-impact.yml"|"FLIXO Test Impact Execution:.github/workflows/test-impact-execution.yml"|"FLIXO Auto Repair Bot:.github/workflows/auto-repair.yml"|"FLIXO Agent Repair Heartbeat:.github/workflows/agent-repair-heartbeat.yml"|"FLIXO Agent Repair Heartbeat ".*:.github/workflows/agent-repair-heartbeat.yml"|"Repository Security Baseline:.github/workflows/repository-security-baseline.yml"|"Claude Security Review:.github/workflows/claude-security-review.yml") ;;
-              *) echo "FAIL CLOSED: watchdog source workflow/path is outside the canonical observer perimeter: $SOURCE_WORKFLOW path=$SOURCE_PATH"; exit 1 ;;
+            case "$SOURCE_WORKFLOW" in
+              "FLIXO Test System") EXPECTED_SOURCE_PATH=".github/workflows/ci.yml" ;;
+              "FLIXO WP0 Trust Baseline") EXPECTED_SOURCE_PATH=".github/workflows/wp0-trust-baseline.yml" ;;
+              "FLIXO Test Impact") EXPECTED_SOURCE_PATH=".github/workflows/test-impact.yml" ;;
+              "FLIXO Test Impact Execution") EXPECTED_SOURCE_PATH=".github/workflows/test-impact-execution.yml" ;;
+              "FLIXO Auto Repair Bot") EXPECTED_SOURCE_PATH=".github/workflows/auto-repair.yml" ;;
+              "FLIXO Agent Repair Heartbeat"|"FLIXO Agent Repair Heartbeat "*) EXPECTED_SOURCE_PATH=".github/workflows/agent-repair-heartbeat.yml" ;;
+              "Repository Security Baseline") EXPECTED_SOURCE_PATH=".github/workflows/repository-security-baseline.yml" ;;
+              "Claude Security Review") EXPECTED_SOURCE_PATH=".github/workflows/claude-security-review.yml" ;;
+              *) echo "FAIL CLOSED: watchdog source workflow is outside the canonical observer perimeter: $SOURCE_WORKFLOW path=$SOURCE_PATH"; exit 1 ;;
             esac
+            test "$SOURCE_PATH" = "$EXPECTED_SOURCE_PATH" || {
+              echo "FAIL CLOSED: watchdog source workflow/path mismatch: $SOURCE_WORKFLOW path=$SOURCE_PATH expected=$EXPECTED_SOURCE_PATH"
+              exit 1
+            }
             test -n "$SOURCE_RUN_SHA"
             LIVE_EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
             test -n "$LIVE_EXECUTION_SHA"

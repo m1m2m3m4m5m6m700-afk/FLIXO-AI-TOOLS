@@ -202,6 +202,9 @@ export async function runWorkflowPipeline(
     if (!capability || capability.state !== 'EXECUTABLE') throw new Error(`Capability '${step.toolId}' is not executable by the local pipeline.`);
     const tool = getToolById(step.toolId);
     if (!tool) throw new Error(`Registered tool '${step.toolId}' could not be loaded.`);
+    if (tool.executionMode !== 'LOCAL' || tool.requirements.network) {
+      throw new Error(`MVP local-only execution boundary rejected '${step.toolId}'.`);
+    }
 
     const executor = getToolExecutor(tool);
     const stableBlob = currentBlob;

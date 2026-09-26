@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
-import type { ExecutionPlan } from '@/lib/ai/planner';
+import { planFromIntent, type ExecutionPlan } from '@/lib/ai/planner';
+import { buildIntentPlan, toExecutionPlan } from '@/lib/agent/intent/intent-plan';
+import { verifyExecutionPlanSemantics } from '@/lib/agent/cognitive-orchestrator';
 import { assessCognitiveRequest, validateCanonicalExecutionPlanWithRuntimeControls } from '@/lib/agent/cognitive-orchestrator';
 import type { PipelineProgress } from '@/lib/workflows/pipeline-runner';
 import { cancelPreparedExecution, confirmPreparedExecution, executePreparedExecution, prepareExecution, restorePreparedExecution, type PreparedExecution } from '@/lib/agent/execution-integrator';
@@ -151,6 +153,18 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     return assessCognitiveRequest(contextualQuery).executionPlan;
   }, [contextualQuery]);
   const filterMaskMatch = intent?.tool.id === 'filter-mask';
+  const manualFallback = useMemo(() => {
+    const latestUserCommand = [...messages].reverse().find((message) => message.role === 'user')?.text ?? '';
+    if (!latestUserCommand.trim()) return null;
+    const candidate = findToolIntent(latestUserCommand, TOOL_CATALOG.ready)
+      .find(({ tool }) => tool.executionMode === 'LOCAL' && !tool.requirements.network)?.tool;
+    if (!candidate) return null;
+    return Object.freeze({
+      id: candidate.id,
+      title: candidate.title,
+      path: candidate.routes[locale] ?? candidate.path,
+    });
+  }, [messages, locale]);
 
   const resolveFilterMaskHandoff = (command: string) => resolveFilterMaskSelection(command);
 
@@ -237,7 +251,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     try {
       const deterministic = assessCognitiveRequest(contextualCommand);
       if (deterministic.decision === 'EXECUTE_READY' && deterministic.executionPlan) {
-        const prepared = prepareExecution(deterministic.executionPlan, { runtimeRequest: contextualCommand });
+        const prepared = prepareExecution(deterministic.executionPlan);
         setPlan(prepared.plan);
         setPreparedExecution(prepared);
         setState('ready');
@@ -261,9 +275,38 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         return true;
       }
     } catch {
-      // Continue to the conversational provider path only when the deterministic
-      // planner cannot produce a safe executable plan.
+      // Continue only when no local manual fallback can safely handle the request.
     }
+
+    try {
+      const deterministicPlan = buildIntentPlan(contextualCommand);
+      const executionPlan = toExecutionPlan(deterministicPlan);
+      if (executionPlan && verifyExecutionPlanSemantics(deterministicPlan, executionPlan).ok) {
+        const prepared = prepareExecution(executionPlan);
+        setPlan(prepared.plan);
+        setPreparedExecution(prepared);
+        setState('ready');
+        setError(null);
+        setFilterHandoff(null);
+        setMemory((current) => setConversationTask(current, {
+          command: contextualCommand,
+          toolId: prepared.plan.steps[0]?.toolId ?? null,
+          pendingToolId: null,
+          pendingQuestion: null,
+          planReady: true,
+          plan: prepared.plan,
+          runtimeResumeState: null,
+        }));
+        pushMessage('agent', file ? responseCopy.execute : responseCopy.uploadThenExecute);
+        return true;
+      }
+    } catch {
+      // Advisory/cognitive layers must never become execution authority.
+    }
+
+    const localManualFallback = findToolIntent(contextualCommand, TOOL_CATALOG.ready)
+      .some(({ tool }) => tool.executionMode === 'LOCAL' && !tool.requirements.network);
+    if (localManualFallback) return false;
 
     try {
       const decision = await askConversationalAgent({
@@ -452,6 +495,16 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
 
     if (await runConversationalTurn(command, responseCopy)) return;
 
+    const localManualFallback = findToolIntent(command, TOOL_CATALOG.ready)
+      .some(({ tool }) => tool.executionMode === 'LOCAL' && !tool.requirements.network);
+    if (localManualFallback) {
+      setPlan(null);
+      setPreparedExecution(null);
+      setState('error');
+      setError(responseCopy.noSafePlan);
+      return;
+    }
+
     const conversationKind = classifyConversation(command);
     const naturalReply = conversationalReply(conversationKind, responseCopy);
     if (naturalReply) {
@@ -505,6 +558,35 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     const responseCopy = AGENT_I18N[detectedLocale] ?? copy;
     pushMessage('user', command); setQuery('');
     if (filterMaskMatch && applyFilterMaskHandoff(command, detectedLocale)) return;
+
+    // The Analyze action is a deterministic local planning boundary. Resolve the
+    // canonical QuickFlow first so advisory/runtime/provider layers cannot block
+    // a locally executable MVP request.
+    try {
+      const deterministicPlan = planFromIntent(contextualizeCommand(command, memory));
+      if (deterministicPlan) {
+        const prepared = prepareExecution(deterministicPlan);
+        const contextualCommand = contextualizeCommand(command, memory);
+        setPlan(prepared.plan);
+        setPreparedExecution(prepared);
+        setState('ready');
+        setError(null);
+        setMemory((current) => setConversationTask(current, {
+          command: contextualCommand,
+          toolId: prepared.plan.steps[0]?.toolId ?? null,
+          pendingToolId: null,
+          pendingQuestion: null,
+          planReady: true,
+          plan: prepared.plan,
+          runtimeResumeState: null,
+        }));
+        pushMessage('agent', file ? responseCopy.execute : responseCopy.uploadThenExecute);
+        return;
+      }
+    } catch {
+      // Fall through to the full cognitive/recovery path.
+    }
+
     if (await runConversationalTurn(command, responseCopy)) return;
     const naturalReply = conversationalReply(classifyConversation(command), responseCopy);
     if (naturalReply) { pushMessage('agent', naturalReply); return; }
@@ -545,6 +627,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       error={error}
       result={result}
       filterHandoff={filterHandoff}
+      manualFallback={manualFallback}
       tools={TOOL_CATALOG.ready}
       onDownload={() => {
         if (!result) return;

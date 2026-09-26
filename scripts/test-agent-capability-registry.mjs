@@ -22,6 +22,14 @@ assert.deepEqual(
   [...EXECUTABLE_PIPELINE_TOOL_IDS].sort(),
   'Executable capability registry and pipeline executor allowlist have drifted.',
 );
+for (const toolId of getExecutableCapabilityIds()) {
+  const tool = TOOL_DEFINITIONS.find((candidate) => candidate.id === toolId);
+  assert.ok(tool, `Executable capability is missing its canonical tool definition: ${toolId}`);
+  assert.equal(tool?.executionMode, 'LOCAL', `MVP executable capability must be local: ${toolId}`);
+  assert.equal(tool?.requirements.network, false, `MVP executable capability must not require network: ${toolId}`);
+  assert.equal(tool?.operational.executorId, toolId, `MVP executable capability must bind its canonical executor: ${toolId}`);
+  assert.equal(tool?.operational.outputContractId, toolId, `MVP executable capability must bind its output contract: ${toolId}`);
+}
 
 assert.equal(getCapability('photo-colorizer')?.state, 'UNAVAILABLE');
 assert.throws(() => validateCapabilityParameters('photo-colorizer', {}), /not executable/);
