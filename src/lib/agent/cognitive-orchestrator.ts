@@ -2,6 +2,7 @@ import { buildIntentPlan, toExecutionPlan, type IntentPlan } from '@/lib/agent/i
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import { getCapability } from '@/lib/agent/capability-registry';
 import { getToolDefinition } from '@/config/canonical-tool-definition';
+import { TOOL_CATALOG } from '@/config/registry';
 import { deriveRecoveryMetadata, type RecoveryMetadata } from '@/lib/agent/execution-observability';
 import { buildCollectiveIntelligenceFrame, type CollectiveIntelligenceFrame } from '@/lib/agent/collective-intelligence';
 import { getToolExecutor } from '@/lib/workflows/executor-registry';
