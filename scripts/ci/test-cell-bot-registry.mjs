@@ -1,1 +1,0 @@
-import assert from 'node:assert/strict';import fs from 'node:fs';const r=JSON.parse(fs.readFileSync('docs/agents/CELL-BOT-REGISTRY.json','utf8'));assert.equal(r.status,'RETIRED');assert.equal(r.bots.length,0);console.log('CELL_BOT_POOL_RETIRED=PASS');

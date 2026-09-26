@@ -1,2 +1,0 @@
-create index if not exists flixo_automation_watchdog_events_watchdog_id_idx
-on public.flixo_automation_watchdog_events (watchdog_id);

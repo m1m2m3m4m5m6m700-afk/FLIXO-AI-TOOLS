@@ -4,12 +4,15 @@ export { getCanonicalSiteOrigin };
 
 export const SITE_ORIGIN = getCanonicalSiteOrigin();
 
-/** Runtime-supported public image-platform locale set. */
-export const LOCALES = ['ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi'] as const;
-export type CanonicalLocale = (typeof LOCALES)[number];
+export const CANONICAL_LOCALES = [
+  'ar','en','es','fr','de','hi','id','it','ja','ko',
+  'ms','nl','pl','pt','ru','sv','th','tr','uk','vi',
+] as const;
 
+export type CanonicalLocale = (typeof CANONICAL_LOCALES)[number];
 export type Locale = CanonicalLocale;
 
+export const LOCALES = CANONICAL_LOCALES;
 export const DEFAULT_LOCALE: CanonicalLocale = 'ar';
 export const X_DEFAULT_LOCALE: CanonicalLocale = 'en';
 
@@ -40,10 +43,10 @@ export const LOCALE_METADATA: Readonly<Record<CanonicalLocale, Readonly<{
 };
 
 export function isLocale(value: string): value is CanonicalLocale {
-  return (LOCALES as readonly string[]).includes(value);
+  return (CANONICAL_LOCALES as readonly string[]).includes(value);
 }
 
 export function normalizeLocale(value: string | null | undefined): CanonicalLocale {
-  const normalized = value?.toLowerCase().split('-')[0] ?? DEFAULT_LOCALE;
+  const normalized = value?.trim().toLowerCase().split('-')[0] ?? DEFAULT_LOCALE;
   return isLocale(normalized) ? normalized : DEFAULT_LOCALE;
 }

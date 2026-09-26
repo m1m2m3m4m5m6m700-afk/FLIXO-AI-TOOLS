@@ -1,3 +1,0 @@
-# FLIXO Agent Engineering Contract v1
-
-Large work is decomposed before delegation. Specialist agents are bounded and advisory. Capabilities use canonical schema, safety, verifier and executable bindings. MCP uses typed schemas, trust, permissions, timeouts, audit and output verification. Model routing is task-dependent and configuration-driven. Knowledge is PROPOSED until independently verified on the current exact SHA. Orchestrators coordinate; canonical executors mutate. Exact-SHA evidence remains authoritative.

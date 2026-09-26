@@ -91,7 +91,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && steps.freshness.outputs.is_current == 'true'
         env:
           DEPLOYMENT_SHA: ${{ steps.sha.outputs.sha }}
-          VITE_SITE_URL: ${{ env.FLIXOAI_PRODUCTION_ORIGIN }}
+          VITE_SITE_URL: https://flixoai.vercel.app
         shell: bash
         run: |
           set -euo pipefail

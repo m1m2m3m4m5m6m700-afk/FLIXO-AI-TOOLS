@@ -1,31 +1,26 @@
 import { z } from 'zod';
 
-/**
- * Deterministic math substrate for FLIXO BOT.
- *
- * The language model may classify or explain a math request, but it must not
- * be the source of truth for arithmetic. This module deliberately accepts a
- * small, auditable expression grammar and returns a structured receipt.
- */
-
 const requestSchema = z.object({
   expression: z.string().trim().min(1).max(512),
 }).strict();
 
-export type MathRequest = z.infer<typeof requestSchema>;
+export type MathSolveParams = z.infer<typeof requestSchema>;
+
 export type MathReceipt = Readonly<{
   expression: string;
   value: number;
+  timestamp: string;
   finite: true;
   exactInput: true;
   engine: 'FLIXO-DETERMINISTIC-MATH-v1';
 }>;
 
-const TOKEN = /^(?:[0-9]+(?:\.[0-9]+)?|[()+\-*/%^])$/u;
+const NUMBER = /^\d+(?:\.\d+)?$/u;
+const TOKEN = /^(?:\d+(?:\.\d+)?|[()+\-*/%^])$/u;
 
 function tokenize(expression: string): string[] {
   const compact = expression.replace(/\s+/g, '');
-  const raw = compact.match(/(?:[0-9]+(?:\.[0-9]+)?|[()+\-*/%^])/g) ?? [];
+  const raw = compact.match(/(?:\d+(?:\.\d+)?|[()+\-*/%^])/g) ?? [];
   if (raw.join('') !== compact || raw.some((token) => !TOKEN.test(token))) {
     throw new Error('MATH_EXPRESSION_UNSUPPORTED');
   }
@@ -47,16 +42,13 @@ function evaluateTokens(tokens: readonly string[]): number {
       return value;
     }
     const token = consume();
-    if (!token || !/^\d+(?:\.\d+)?$/.test(token)) throw new Error('MATH_EXPECTED_NUMBER');
+    if (!token || !NUMBER.test(token)) throw new Error('MATH_EXPECTED_NUMBER');
     return Number(token);
   };
 
   const power = (): number => {
     const left = primary();
-    if (peek() === '^') {
-      consume();
-      return left ** power();
-    }
+    if (peek() === '^') { consume(); return left ** power(); }
     return left;
   };
 
@@ -65,14 +57,12 @@ function evaluateTokens(tokens: readonly string[]): number {
     while (peek() === '*' || peek() === '/' || peek() === '%') {
       const operator = consume();
       const right = power();
-      if (operator === '*') value *= right;
-      else if (operator === '/') {
-        if (right === 0) throw new Error('MATH_DIVISION_BY_ZERO');
-        value /= right;
-      } else {
-        if (right === 0) throw new Error('MATH_DIVISION_BY_ZERO');
-        value %= right;
+      if ((operator === '/' || operator === '%') && right === 0) {
+        throw new Error('MATH_DIVISION_BY_ZERO');
       }
+      if (operator === '*') value *= right;
+      else if (operator === '/') value /= right;
+      else value %= right;
     }
     return value;
   };
@@ -92,14 +82,17 @@ function evaluateTokens(tokens: readonly string[]): number {
   return value;
 }
 
-export function solveMath(input: unknown): MathReceipt {
-  const request = requestSchema.parse(input);
-  const expression = request.expression;
-  const value = evaluateTokens(tokenize(expression));
+export function solveMath({ expression }: MathSolveParams): MathReceipt {
+  const request = requestSchema.parse({ expression });
+  const normalizedExpression = request.expression;
+  const value = evaluateTokens(tokenize(normalizedExpression));
+
   if (!Number.isFinite(value)) throw new Error('MATH_NON_FINITE_RESULT');
+
   return Object.freeze({
-    expression,
+    expression: normalizedExpression,
     value,
+    timestamp: new Date().toISOString(),
     finite: true,
     exactInput: true,
     engine: 'FLIXO-DETERMINISTIC-MATH-v1' as const,
@@ -107,9 +100,18 @@ export function solveMath(input: unknown): MathReceipt {
 }
 
 export function verifyMathReceipt(receipt: MathReceipt): boolean {
-  if (receipt.engine !== 'FLIXO-DETERMINISTIC-MATH-v1' || !receipt.finite || !receipt.exactInput) return false;
+  if (
+    receipt.engine !== 'FLIXO-DETERMINISTIC-MATH-v1' ||
+    !receipt.finite ||
+    !receipt.exactInput ||
+    typeof receipt.timestamp !== 'string'
+  ) return false;
+
   try {
-    return Object.is(solveMath({ expression: receipt.expression }).value, receipt.value);
+    return Object.is(
+      solveMath({ expression: receipt.expression }).value,
+      receipt.value,
+    );
   } catch {
     return false;
   }

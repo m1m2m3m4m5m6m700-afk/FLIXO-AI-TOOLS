@@ -7,7 +7,6 @@ import { planFromIntent } from '../src/lib/ai/planner.ts';
 import { isDeterministicPlanCompatible } from '../src/lib/ai/deterministic-boundary.ts';
 import { selectModelForTask } from '../src/lib/agent/model-router.ts';
 import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
-import { buildSharedLearningContext } from '../scripts/ci/shared-operational-memory.mjs';
 import { createExternalAgentLearning, listExternalAgentLearning } from '../src/server/agent/learning-persistence.ts';
 import {
   beginFlixoBotGatewayRuntime,
@@ -424,7 +423,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const runtime = configuredRuntime();
     const provider = runtime.provider;
     const recentMessages = messages.slice(-24);
-    const sharedLearning = buildSharedLearningContext({ botId: 'executionAgent', limit: 48 });
+    const sharedLearning = { lessons: [], antiLessons: [], advice: [], errors: [], obligations: [], counterexamples: [], verifications: [] };
     const targetSha = exactSha();
     let botRuntime: FlixoBotGatewayRuntime | null = targetSha
       ? beginFlixoBotGatewayRuntime({

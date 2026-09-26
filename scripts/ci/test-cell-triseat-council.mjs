@@ -1,1 +1,0 @@
-import assert from 'node:assert/strict';import fs from 'node:fs';const r=JSON.parse(fs.readFileSync('docs/agents/CELL-BOT-REGISTRY.json','utf8'));assert.equal(r.status,'RETIRED');assert.equal(r.bots.length,0);assert.equal(r.cellCouncil.controller,'assistantController');console.log('CELL_TRISEAT_NO_BOT_POOL=PASS');
