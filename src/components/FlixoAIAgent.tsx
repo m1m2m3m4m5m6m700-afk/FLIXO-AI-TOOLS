@@ -341,7 +341,19 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       pushMessage('agent', decision.reply);
       return true;
     } catch {
-      return false;
+      // Any gateway/runtime exception must fail over to the same canonical deterministic
+      // planner used by the explicit local path; never silently drop the user turn.
+      try {
+        const fallbackPlan = await buildPlan(command, responseCopy);
+        if (!fallbackPlan) return false;
+        pushMessage(
+          'agent',
+          file ? responseCopy.planReady : responseCopy.uploadThenExecute,
+        );
+        return true;
+      } catch {
+        return false;
+      }
     }
   };
 
