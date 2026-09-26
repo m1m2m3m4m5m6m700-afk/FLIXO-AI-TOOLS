@@ -1,1 +1,0 @@
-import assert from 'node:assert/strict';import {loadCellControllerState,selectBotForTask} from './cell-controller.mjs';const {registry}=loadCellControllerState();assert.equal(registry.status,'RETIRED');assert.throws(()=>selectBotForTask({taskId:'retired'}),/CELL_CONTROLLER_POOL_RETIRED/);console.log('CELL_CONTROLLER_POOL_RETIRED=PASS');

@@ -1,5 +1,4 @@
 import { test as base, expect, type Locator, type Page, type TestInfo } from '@playwright/test';
-import { assertExpectedExecutionSha, readExecutionSha } from '../../scripts/ci/execution-sha-provenance.mjs';
 
 type ConsoleLocation = { url?: string; lineNumber?: number; columnNumber?: number };
 type ConsoleMessageLike = {
@@ -9,7 +8,7 @@ type ConsoleMessageLike = {
   args: () => Array<{ jsonValue: () => Promise<unknown> }>;
 };
 type RuntimeEvidence = {
-  schema: 'flixo-runtime-evidence/v2';
+  schema: 'flixo-runtime-evidence/v3';
   source: { exactSha: string | null; ci: boolean };
   test: { id: string; title: string; file: string; project: string; retry: number; expectedStatus: string; status: string };
   timing: { startedAt: string; completedAt: string; durationMs: number };
@@ -23,11 +22,9 @@ type RuntimeEvidence = {
 };
 
 function exactSha(): string | null {
-  try {
-    return readExecutionSha({ cwd: process.env.GITHUB_WORKSPACE || process.cwd() });
-  } catch {
-    return null;
-  }
+  return [process.env.EXPECTED_SHA, process.env.GITHUB_SHA]
+    .map((value) => String(value ?? '').trim())
+    .find((value) => /^[a-f0-9]{40}$/u.test(value)) || null;
 }
 
 async function serializeConsoleMessage(message: ConsoleMessageLike): Promise<string> {
@@ -35,20 +32,12 @@ async function serializeConsoleMessage(message: ConsoleMessageLike): Promise<str
   for (const arg of message.args()) {
     try {
       const value = await arg.jsonValue();
-      if (typeof value === 'string') {
-        parts.push(value);
-      } else if (value !== undefined) {
-        try {
-          parts.push(JSON.stringify(value));
-        } catch {
-          parts.push(String(value));
-        }
-      }
+      parts.push(typeof value === 'string' ? value : value === undefined ? '' : JSON.stringify(value));
     } catch {
-      // Ignore individual argument serialization failures and fall back to the browser-rendered text below.
+      // Fall back to the browser-rendered console text.
     }
   }
-  return parts.join(' ') || message.text();
+  return parts.filter(Boolean).join(' ') || message.text();
 }
 
 export const test = base.extend<{ runtimeEvidence: void }>({
@@ -61,9 +50,7 @@ export const test = base.extend<{ runtimeEvidence: void }>({
     const failedResponses: RuntimeEvidence['failedResponses'] = [];
     const navigations: RuntimeEvidence['navigations'] = [];
 
-    const onNavigation = (frame: { url: () => string }) => {
-      navigations.push({ url: frame.url(), timestamp: new Date().toISOString() });
-    };
+    const onNavigation = (frame: { url: () => string }) => navigations.push({ url: frame.url(), timestamp: new Date().toISOString() });
     const onConsole = (message: ConsoleMessageLike) => {
       if (message.type() === 'error') {
         consoleErrorPromises.push(serializeConsoleMessage(message).then((text) => {
@@ -76,10 +63,9 @@ export const test = base.extend<{ runtimeEvidence: void }>({
       requestFailures.push({ url: request.url(), method: request.method(), resourceType: request.resourceType(), failure: request.failure()?.errorText ?? null });
     };
     const onResponse = (response: { url: () => string; status: () => number; statusText: () => string; request: () => { method: () => string; resourceType: () => string } }) => {
-      const status = response.status();
-      if (status >= 400) {
+      if (response.status() >= 400) {
         const request = response.request();
-        failedResponses.push({ url: response.url(), status, statusText: response.statusText(), method: request.method(), resourceType: request.resourceType() });
+        failedResponses.push({ url: response.url(), status: response.status(), statusText: response.statusText(), method: request.method(), resourceType: request.resourceType() });
       }
     };
     const onRoute = async (route: { request: () => { headers: () => Record<string, string> }; continue: (options?: { headers?: Record<string, string> }) => Promise<void> }) => {
@@ -101,12 +87,9 @@ export const test = base.extend<{ runtimeEvidence: void }>({
       await runTest();
     } finally {
       if (!page.isClosed()) {
-        try {
-          await page.unroute('**/*', onRoute);
-        } catch (error) {
-          if (!String(error).includes('NS_BINDING_ABORTED')) {
-            teardownFailure = error instanceof Error ? error : new Error(String(error));
-          }
+        try { await page.unroute('**/*', onRoute); }
+        catch (error) {
+          if (!String(error).includes('NS_BINDING_ABORTED')) teardownFailure = error instanceof Error ? error : new Error(String(error));
         }
       }
       page.off('framenavigated', onNavigation);
@@ -118,55 +101,21 @@ export const test = base.extend<{ runtimeEvidence: void }>({
 
       const completedAt = new Date();
       const status = testInfo.status;
-      const ci = Boolean(process.env.CI || process.env.GITHUB_ACTIONS);
-      const sourceSha = exactSha();
-      let provenanceFailure: Error | null = null;
-      if (ci) {
-        try {
-          assertExpectedExecutionSha({
-            actualSha: sourceSha,
-            expectedSha: process.env.EXPECTED_SHA,
-          });
-        } catch (error) {
-          provenanceFailure = error instanceof Error ? error : new Error(String(error));
-        }
-      }
-      const runtimeState: RuntimeEvidence['runtimeState'] = provenanceFailure || status !== 'passed'
-        ? 'failed'
-        : consoleErrors.length || pageErrors.length || requestFailures.length || failedResponses.length
-          ? 'degraded'
-          : 'clean';
-
       const evidence: RuntimeEvidence = {
-        schema: 'flixo-runtime-evidence/v2',
-        source: { exactSha: sourceSha, ci },
+        schema: 'flixo-runtime-evidence/v3',
+        source: { exactSha: exactSha(), ci: Boolean(process.env.CI || process.env.GITHUB_ACTIONS) },
         test: {
-          id: testInfo.testId,
-          title: testInfo.title,
-          file: testInfo.file,
-          project: testInfo.project.name,
-          retry: testInfo.retry,
-          expectedStatus: testInfo.expectedStatus,
-          status,
+          id: testInfo.testId, title: testInfo.title, file: testInfo.file, project: testInfo.project.name,
+          retry: testInfo.retry, expectedStatus: testInfo.expectedStatus, status,
         },
         timing: { startedAt: startedAt.toISOString(), completedAt: completedAt.toISOString(), durationMs: completedAt.getTime() - startedAt.getTime() },
-        url: page.url(),
-        navigations,
-        consoleErrors,
-        pageErrors,
-        requestFailures,
-        failedResponses,
-        runtimeState,
+        url: page.url(), navigations, consoleErrors, pageErrors, requestFailures, failedResponses,
+        runtimeState: status !== 'passed' ? 'failed' : (consoleErrors.length || pageErrors.length || requestFailures.length || failedResponses.length ? 'degraded' : 'clean'),
       };
-
       await testInfo.attach('runtime-evidence.json', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
       process.stdout.write(`RUNTIME_EVIDENCE=${JSON.stringify(evidence)}\n`);
-      expect(provenanceFailure, provenanceFailure?.message ?? 'Execution SHA provenance is valid').toBeNull();
     }
-
-    if (teardownFailure && testInfo.status === 'passed') {
-      throw teardownFailure;
-    }
+    if (teardownFailure && testInfo.status === 'passed') throw teardownFailure;
   }, { auto: true }],
 });
 

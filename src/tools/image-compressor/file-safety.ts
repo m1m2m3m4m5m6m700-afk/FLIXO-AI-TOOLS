@@ -12,13 +12,31 @@ const IMAGE_COMPRESSOR_ALLOWED_MIME = [
   'image/svg+xml',
 ] as const;
 
-function safetyError(failures: string[]) {
+export interface ImageDimensions {
+  width: number;
+  height: number;
+}
+
+export interface ImageSafetyInput {
+  name: string;
+  type: string;
+  size: number;
+}
+
+function safetyError(failures: string[]): Error {
   if (failures.some((failure) => failure.startsWith('unsupported input MIME type:'))) {
     return new Error('Unsupported image format');
   }
-  if (failures.includes('file exceeds the maximum size')) return new Error('File is larger than the 10 MB browser limit');
-  if (failures.includes('pixel count exceeds policy limit') || failures.includes('input exceeds the maximum pixel count')) {
-    return new Error('The source image is too large for safe browser processing. Reduce the dimensions and try again.');
+  if (failures.includes('file exceeds the maximum size')) {
+    return new Error('File is larger than the 10 MB browser limit');
+  }
+  if (
+    failures.includes('pixel count exceeds policy limit') ||
+    failures.includes('input exceeds the maximum pixel count')
+  ) {
+    return new Error(
+      'The source image is too large for safe browser processing. Reduce the dimensions and try again.',
+    );
   }
   if (failures.some((failure) => failure.includes('width') || failure.includes('height'))) {
     return new Error('The source image has invalid dimensions');
@@ -27,9 +45,16 @@ function safetyError(failures: string[]) {
 }
 
 export function assertSafeImageInput(
-  file: Pick<File, 'name' | 'type' | 'size'>,
-  dimensions?: { width: number; height: number },
-) {
+  file: ImageSafetyInput,
+  dimensions?: ImageDimensions,
+): void {
+  if (!file.name.trim()) {
+    throw new Error('Image file name is required');
+  }
+  if (!Number.isFinite(file.size) || file.size < 0) {
+    throw new Error('Invalid image file size');
+  }
+
   const result = validateFileSafety(
     {
       name: file.name,
@@ -45,5 +70,7 @@ export function assertSafeImageInput(
     },
   );
 
-  if (!result.safe) throw safetyError(result.failures);
+  if (!result.safe) {
+    throw safetyError(result.failures);
+  }
 }
