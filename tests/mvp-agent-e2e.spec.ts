@@ -20,6 +20,11 @@ test.describe('FLIXO MVP agent full journey', () => {
     const studio = page.getByTestId('flixo-agent-studio');
     await expect(studio).toBeVisible();
 
+  test('agent file picker accepts both images and videos', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#flixo-agent-file')).toHaveAttribute('accept', 'image/*,video/*');
+  });
+
     await page.locator('#flixo-agent-file').setInputFiles({
       name: 'mvp-agent-fixture.png',
       mimeType: 'image/png',

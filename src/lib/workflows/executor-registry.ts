@@ -2,6 +2,7 @@ import { compressImage } from '@/tools/image-compressor/engine';
 import { convertImage, cropResizeImage, imageInfo, removeBackground, resizeImage } from '@/tools/image-toolkit/engine';
 import type { CapabilityParameters } from '@/lib/agent/capability-registry';
 import type { ToolDefinition } from '@/config/canonical-tool-definition';
+import { getVideoToolExecutor } from '@/lib/video/video-tool-executors';
 
 export type ToolExecutorContext = Readonly<{
   tool: ToolDefinition;
@@ -85,6 +86,26 @@ const EXECUTORS: Readonly<Record<string, ToolExecutor>> = Object.freeze({
   ).blob,
   'image-converter': async ({ inputBlob, parameters }) => convertImage(inputBlob, String(parameters.format ?? 'image/webp') as 'image/webp' | 'image/jpeg' | 'image/png'),
   'image-effects': async ({ inputBlob, parameters }) => effects(inputBlob, parameters),
+  'video-trimmer': async ({ inputBlob, parameters, tool }) => {
+    const executor = getVideoToolExecutor(tool);
+    if (!executor) throw new Error('Video executor unavailable: video-trimmer');
+    return executor(inputBlob, parameters, tool);
+  },
+  'video-cropper': async ({ inputBlob, parameters, tool }) => {
+    const executor = getVideoToolExecutor(tool);
+    if (!executor) throw new Error('Video executor unavailable: video-cropper');
+    return executor(inputBlob, parameters, tool);
+  },
+  'video-resizer': async ({ inputBlob, parameters, tool }) => {
+    const executor = getVideoToolExecutor(tool);
+    if (!executor) throw new Error('Video executor unavailable: video-resizer');
+    return executor(inputBlob, parameters, tool);
+  },
+  'video-compressor': async ({ inputBlob, parameters, tool }) => {
+    const executor = getVideoToolExecutor(tool);
+    if (!executor) throw new Error('Video executor unavailable: video-compressor');
+    return executor(inputBlob, parameters, tool);
+  },
 });
 
 const REPAIRERS: Readonly<Record<string, ToolParameterRepairer>> = Object.freeze({

@@ -53,3 +53,10 @@ External/cloud processing remains explicit and permission-gated. MCP is an adapt
 ## Completion rule
 
 A mission is complete only when every task is completed and each task has verified evidence bound to the mission's exact SHA.
+
+## MVP scope invariants
+
+- `FLIXO_MVP_SCOPE` is the canonical runtime contract for dual workflow, client-only file execution, static hosting, and offline execution.
+- Every executable MVP capability must have both a manual route and registered agent intents, a canonical executor, output contract, and LOCAL/non-network execution.
+- The agent gateway may receive only file metadata (`name`, `type`, `size`); raw `File`/`Blob` bytes stay in the browser.
+- The local pipeline is the execution authority; provider calls may only assist planning and never receive user file bytes.

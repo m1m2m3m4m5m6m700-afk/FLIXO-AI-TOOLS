@@ -17,6 +17,7 @@ export const VideoTaskOperationSchema = z.object({
     'BACKGROUND_REPLACE',
     'ENHANCE',
   ]),
+  capabilityId: z.string().min(1).max(120).optional(),
   purpose: z.string().min(1).max(500),
   order: z.number().int().positive(),
 }).strict();
@@ -51,9 +52,16 @@ export function compileVideoTaskSpec(input: string): VideoTaskSpec | null {
   }];
 
   const add = (kind: z.infer<typeof VideoTaskOperationSchema>['kind'], purpose: string) => {
+    const capabilityMap: Partial<Record<z.infer<typeof VideoTaskOperationSchema>['kind'], string>> = {
+      TRIM: 'video-trimmer',
+      CROP: 'video-cropper',
+      RESIZE: 'video-resizer',
+      COMPRESS: 'video-compressor',
+    };
     operations.push({
       id: `step-${operations.length + 1}`,
       kind,
+      capabilityId: capabilityMap[kind],
       purpose,
       order: operations.length + 1,
     });

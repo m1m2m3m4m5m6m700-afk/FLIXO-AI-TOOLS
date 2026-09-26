@@ -4,6 +4,7 @@ import { authorizeExecution } from '@/lib/agent/execution-gate';
 import { classifyExecutionFailure, createExecutionAuditEvent, deriveRecoveryMetadata, type ExecutionAuditEvent } from '@/lib/agent/execution-observability';
 import { assertExecutionResourceBudget, getCapability, validateCapabilityParameters, type CapabilityParameters } from '@/lib/agent/capability-registry';
 import { getToolById, TOOL_CATALOG } from '@/config/registry';
+import { assertMvpLocalExecutionBoundary } from '@/lib/contracts/mvp-scope.ts';
 import { getToolExecutor, repairToolParameters } from '@/lib/workflows/executor-registry';
 import { getToolOutputContractForDefinition } from '@/lib/contracts/tool-output-contracts';
 import { assertToolOutputContract, type ToolOutputResult } from '@/lib/contracts/tool-output';
@@ -53,6 +54,7 @@ function extensionForMime(mimeType: string): string {
     'image/svg+xml': 'svg',
     'text/plain': 'txt',
     'application/json': 'json',
+    'video/webm': 'webm',
   };
   return map[mimeType] ?? 'bin';
 }
@@ -140,6 +142,26 @@ async function readImageDimensions(blob: Blob, bytes: Uint8Array): Promise<{ wid
   }
 }
 
+async function mediaDimensions(blob: Blob): Promise<{ width: number; height: number } | undefined> {
+  if (!blob.type.startsWith('video/')) return undefined;
+  if (typeof document === 'undefined') return undefined;
+  const url = URL.createObjectURL(blob);
+  const video = document.createElement('video');
+  video.preload = 'metadata';
+  video.src = url;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      video.onloadedmetadata = () => resolve();
+      video.onerror = () => reject(new Error('Video metadata decode failed.'));
+    });
+    return { width: video.videoWidth, height: video.videoHeight };
+  } finally {
+    URL.revokeObjectURL(url);
+    video.removeAttribute('src');
+    video.load();
+  }
+}
+
 async function toOutputContractResult(toolId: string, outputBlob: Blob): Promise<ToolOutputResult> {
   const bytes = new Uint8Array(await outputBlob.arrayBuffer());
   return {
@@ -147,7 +169,7 @@ async function toOutputContractResult(toolId: string, outputBlob: Blob): Promise
     byteLength: outputBlob.size,
     bytes,
     filename: `flixo-${toolId}-output.${extensionForMime(outputBlob.type)}`,
-    dimensions: await readImageDimensions(outputBlob, bytes),
+    dimensions: (await mediaDimensions(outputBlob)) ?? (await readImageDimensions(outputBlob, bytes)),
   };
 }
 
@@ -211,9 +233,7 @@ export async function runWorkflowPipeline(
     if (!capability || capability.state !== 'EXECUTABLE') throw new Error(`Capability '${step.toolId}' is not executable by the local pipeline.`);
     const tool = getToolById(step.toolId);
     if (!tool) throw new Error(`Registered tool '${step.toolId}' could not be loaded.`);
-    if (tool.executionMode !== 'LOCAL' || tool.requirements.network) {
-      throw new Error(`MVP local-only execution boundary rejected '${step.toolId}'.`);
-    }
+    assertMvpLocalExecutionBoundary(tool);
 
     const executor = getToolExecutor(tool);
     const stableBlob = currentBlob;

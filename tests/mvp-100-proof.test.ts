@@ -22,10 +22,38 @@ const {
   TOOL_OUTPUT_CONTRACTS,
 } = await import('../src/lib/contracts/tool-output-contracts.ts');
 const { assertToolOutputContract } = await import('../src/lib/contracts/tool-output.ts');
+const { assertMvpScope, assertMvpManualAgentCoverage, toAgentFileMetadata, FLIXO_MVP_SCOPE } = await import('../src/lib/contracts/mvp-scope.ts');
 const {
   assessVisualGoal,
   deriveVisualGoalSpec,
 } = await import('../src/lib/agent/visual-goal-verifier.ts');
+
+test('mandatory FLIXO MVP scope is enforced at the canonical registry boundary', () => {
+  assertMvpScope(TOOL_REGISTRY, MVP_EXECUTABLE_TOOL_IDS);
+  assertMvpManualAgentCoverage(TOOL_REGISTRY);
+  assert.equal(FLIXO_MVP_SCOPE.workflow.agentGuided, true);
+  assert.equal(FLIXO_MVP_SCOPE.workflow.manualStandalone, true);
+  assert.equal(FLIXO_MVP_SCOPE.processing.userFileBytesMayCrossNetwork, false);
+  assert.equal(FLIXO_MVP_SCOPE.processing.backendRequiredForFileExecution, false);
+  assert.equal(FLIXO_MVP_SCOPE.hosting.staticCdnOnly, true);
+  assert.equal(FLIXO_MVP_SCOPE.offline.executableAfterAssetsLoaded, true);
+});
+
+test('agent gateway file payload is metadata-only and never contains file bytes', () => {
+  const file = new File([Uint8Array.from([1, 2, 3, 4])], 'private.png', { type: 'image/png' });
+  const metadata = toAgentFileMetadata(file);
+  assert.deepEqual(metadata, { name: 'private.png', type: 'image/png', size: 4 });
+  assert.equal(Object.prototype.hasOwnProperty.call(metadata ?? {}, 'arrayBuffer'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(metadata ?? {}, 'bytes'), false);
+});
+test('all ready manual tools have an Agent-discoverable interface', () => {
+  assertMvpManualAgentCoverage(TOOL_REGISTRY);
+  for (const tool of TOOL_REGISTRY.filter((candidate) => candidate.isReady)) {
+    assert.ok(tool.capability.intents.length > 0, tool.id);
+    assert.ok(tool.path.startsWith('/en/'), tool.id);
+    assert.ok(tool.operational.outputContractId, tool.id);
+  }
+});
 
 test('canonical executable capability registry is exact and executor-complete', () => {
   const actual = [...getExecutableCapabilityIds()].sort();
@@ -49,6 +77,18 @@ test('canonical executable capability registry is exact and executor-complete', 
   }
 });
 
+test('video capabilities have real canonical executors and WebM artifact contracts', () => {
+  for (const id of ['video-trimmer', 'video-cropper', 'video-resizer', 'video-compressor']) {
+    const tool = TOOL_REGISTRY.find((candidate) => candidate.id === id);
+    assert.ok(tool);
+    assert.equal(tool?.executionMode, 'LOCAL');
+    assert.equal(tool?.requirements.network, false);
+    assert.equal(tool?.operational.executorId, id);
+    assert.equal(TOOL_OUTPUT_CONTRACTS[id]?.variants[0]?.outputMimeTypes.includes('video/webm'), true);
+    assert.equal(TOOL_OUTPUT_CONTRACTS[id]?.variants[0]?.signatures?.includes('1a45dfa3'), true);
+  }
+});
+
 test('every ready tool is bound to a canonical output contract', () => {
   assert.doesNotThrow(() => assertReadyToolsHaveOutputContracts());
   const readyIds = new Set(TOOL_REGISTRY.filter((tool) => tool.isReady).map((tool) => tool.id));
@@ -68,6 +108,10 @@ test('deterministic planner resolves representative English and Arabic intents',
   const arabic = planFromIntent('ضغط الصور');
   assert.ok(arabic);
   assert.equal(arabic?.steps[0]?.toolId, 'image-compressor');
+
+  const video = planFromIntent('ضغط الفيديو');
+  assert.ok(video);
+  assert.equal(video?.steps[0]?.toolId, 'video-compressor');
 
   const product = planFromIntent('prepare a product image for a shop, square');
   assert.ok(product);

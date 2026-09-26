@@ -85,6 +85,10 @@ const IMAGE_TOOL_CONFIGS: readonly ToolSource[] = Object.freeze([
   { id: 'pix', title: 'Pix Studio', path: '/en/pix', description: 'Professional browser-based image editor with tune, liquify, dispersion, text, history, and PNG export.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/pix')) },
   { id: 'ai-image-generator', title: 'AI Image Generator', path: '/en/ai-image-generator', description: 'Generate images through a configured image endpoint.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/ai-image-generator').then((m) => ({ default: m.AiImageGeneratorTool }))) },
   { id: 'photo-colorizer', title: 'Photo Colorizer', path: '/en/photo-colorizer', description: 'Colorize photos through a configured AI endpoint.', category: 'Images', isReady: false, component: lazy(() => import('@/tools/photo-colorizer')) },
+  { id: 'video-trimmer', title: 'Video Trimmer', path: '/en/video-trimmer', description: 'Trim a video locally in the browser with WebCodecs-compatible playback and MediaRecorder output.', family: 'video', category: 'Video', isReady: true, component: lazy(() => import('@/tools/video-local').then((m) => ({ default: m.VideoLocalTool }))) },
+  { id: 'video-cropper', title: 'Video Cropper', path: '/en/video-cropper', description: 'Crop a video locally to a deterministic rectangle.', family: 'video', category: 'Video', isReady: true, component: lazy(() => import('@/tools/video-local').then((m) => ({ default: m.VideoLocalTool }))) },
+  { id: 'video-resizer', title: 'Video Resizer', path: '/en/video-resizer', description: 'Resize a video locally to exact output dimensions.', family: 'video', category: 'Video', isReady: true, component: lazy(() => import('@/tools/video-local').then((m) => ({ default: m.VideoLocalTool }))) },
+  { id: 'video-compressor', title: 'Video Compressor', path: '/en/video-compressor', description: 'Compress a video locally with bounded browser recording bitrate.', family: 'video', category: 'Video', isReady: true, component: lazy(() => import('@/tools/video-local').then((m) => ({ default: m.VideoLocalTool }))) },
 ]);
 
 const DEFAULT_MAX_PIXELS = 16_000_000;
@@ -100,6 +104,10 @@ const PARAMETER_SCHEMAS: Readonly<Record<string, ZodType>> = {
   'image-compressor': z.object({ quality: z.number().finite().min(0.01).max(1).optional(), format: z.enum(MIME_TYPES).optional(), targetSizeKB: z.number().finite().int().positive().max(64 * 1024).optional(), maxWidth: z.number().int().positive().max(4000).optional(), maxHeight: z.number().int().positive().max(4000).optional() }).strict(),
   'image-converter': z.object({ format: z.enum(MIME_TYPES) }).strict(),
   'image-effects': z.object({ brightness: z.number().finite().min(0).max(200).optional(), contrast: z.number().finite().min(0).max(200).optional(), saturate: z.number().finite().min(0).max(200).optional(), grayscale: z.number().finite().min(0).max(100).optional() }).strict(),
+  'video-trimmer': z.object({ startSec: z.number().finite().min(0).max(86_400).optional(), endSec: z.number().finite().min(0).max(86_400).optional() }).strict(),
+  'video-cropper': z.object({ x: z.number().finite().min(0).max(20_000).optional(), y: z.number().finite().min(0).max(20_000).optional(), width: z.number().int().positive().max(20_000), height: z.number().int().positive().max(20_000) }).strict(),
+  'video-resizer': z.object({ width: z.number().int().positive().max(8000), height: z.number().int().positive().max(8000), fps: z.number().finite().positive().max(120).optional() }).strict(),
+  'video-compressor': z.object({ videoBitsPerSecond: z.number().int().positive().max(50_000_000).optional(), audioBitsPerSecond: z.number().int().positive().max(512_000).optional() }).strict(),
 };
 
 const TOOL_INTENTS: Readonly<Record<string, readonly string[]>> = {
@@ -111,12 +119,27 @@ const TOOL_INTENTS: Readonly<Record<string, readonly string[]>> = {
   'image-ocr': ['ocr', 'extract text', 'text from image', 'read text', 'استخراج النص', 'قراءة النص'],
   'image-cropper': ['crop', 'resize', 'dimensions', 'aspect ratio', 'قص الصورة', 'تغيير الحجم'],
   'image-effects': ['brightness', 'contrast', 'saturation', 'grayscale', 'adjust image', 'سطوع', 'تباين', 'تشبع'],
+  'image-to-svg': ['image to svg', 'raster to svg', 'convert image to svg', 'تحويل الصورة إلى svg', 'صورة إلى svg'],
+  'background-blur': ['background blur', 'blur background', 'طمس الخلفية', 'ضبابية الخلفية'],
+  'passport-photo-maker': ['passport photo', 'id photo', 'passport picture', 'صورة جواز سفر', 'صورة شخصية للهوية'],
+  'watermark-adder': ['add watermark', 'watermark text', 'إضافة علامة مائية', 'إضافة علامة على الصورة'],
+  'meme-generator': ['meme', 'meme generator', 'صورة ميم', 'ميم'],
+  'collage-maker': ['collage', 'photo collage', 'image collage', 'كولاج', 'دمج الصور'],
+  'exif-cleaner': ['remove exif', 'clean metadata', 'strip metadata', 'تنظيف البيانات الوصفية', 'إزالة exif'],
+  'svg-optimizer': ['optimize svg', 'minify svg', 'ضغط svg', 'تحسين svg'],
+  'mockup-generator': ['mockup', 'device mockup', 'نموذج عرض', 'موكاب'],
+  'seed': ['seed editor', 'gpu adjustments', 'image adjustments', 'تعديلات الصورة', 'تحسينات gpu'],
+  'pix': ['pix studio', 'photo editor', 'image editor', 'تحرير الصورة', 'محرر الصور'],
   'watermark-remover': ['remove watermark', 'erase watermark', 'إزالة العلامة المائية'],
   'object-remover': ['remove object', 'erase object', 'delete object', 'إزالة عنصر', 'حذف عنصر'],
   'ai-image-generator': ['generate image', 'create image with ai', 'text to image', 'make an image', 'إنشاء صورة بالذكاء الاصطناعي'],
+  'video-trimmer': ['trim video', 'cut video', 'video trim', 'قص الفيديو', 'اقتطاع الفيديو'],
+  'video-cropper': ['crop video', 'video crop', 'قص الفيديو من الاطراف', 'قص الفيديو من الأطراف'],
+  'video-resizer': ['resize video', 'change video resolution', 'video dimensions', 'تغيير حجم الفيديو', 'تغيير دقة الفيديو'],
+  'video-compressor': ['compress video', 'reduce video size', 'video compression', 'ضغط الفيديو', 'تصغير حجم الفيديو'],
 };
 
-export const MVP_EXECUTABLE_TOOL_IDS = Object.freeze(['background-remover', 'image-upscaler', 'image-cropper', 'image-compressor', 'image-converter', 'image-effects'] as const);
+export const MVP_EXECUTABLE_TOOL_IDS = Object.freeze(['background-remover', 'image-upscaler', 'image-cropper', 'image-compressor', 'image-converter', 'image-effects', 'video-trimmer', 'video-cropper', 'video-resizer', 'video-compressor'] as const);
 const EXECUTABLE_IDS: ReadonlySet<string> = new Set(MVP_EXECUTABLE_TOOL_IDS);
 const defaultVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, _parameters, signal) => !signal?.aborted && outputBlob.size > 0;
 const targetSizeVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, parameters, signal) => {
@@ -131,6 +154,26 @@ const formatVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, parame
 const verifierFor = (toolId: string): CapabilityVerifier => {
   if (toolId === 'image-compressor') return targetSizeVerifier;
   if (toolId === 'image-converter') return formatVerifier;
+  if (toolId.startsWith('video-')) return async (_inputBlob, outputBlob, _parameters, signal) => {
+    if (signal?.aborted || outputBlob.size <= 0 || outputBlob.type !== 'video/webm' || typeof document === 'undefined') return false;
+    const url = URL.createObjectURL(outputBlob);
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.src = url;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        video.onloadedmetadata = () => resolve();
+        video.onerror = () => reject(new Error('Video output metadata could not be decoded.'));
+      });
+      return Number.isFinite(video.duration) && video.duration > 0 && video.videoWidth > 0 && video.videoHeight > 0;
+    } catch {
+      return false;
+    } finally {
+      URL.revokeObjectURL(url);
+      video.removeAttribute('src');
+      video.load();
+    }
+  };
   return defaultVerifier;
 };
 
@@ -157,7 +200,9 @@ export function toToolDefinition(tool: ToolConfig): ToolDefinition {
   const capabilityState = stateFor(tool);
   const executionMode: ExecutionMode = tool.id === 'ai-image-generator' || tool.id === 'photo-colorizer' ? 'CLOUD' : 'LOCAL';
   const parameterSchema = PARAMETER_SCHEMAS[tool.id] ?? COMMON_PARAMETERS;
-  const safetyLimits = Object.freeze({ maxPixels: DEFAULT_MAX_PIXELS, maxFileSizeBytes: DEFAULT_MAX_FILE_SIZE_BYTES, timeoutMs: DEFAULT_TIMEOUT_MS });
+  const safetyLimits = Object.freeze(tool.id.startsWith('video-')
+    ? { maxPixels: 64_000_000, maxFileSizeBytes: 512 * 1024 * 1024, timeoutMs: 10 * 60 * 1000 }
+    : { maxPixels: DEFAULT_MAX_PIXELS, maxFileSizeBytes: DEFAULT_MAX_FILE_SIZE_BYTES, timeoutMs: DEFAULT_TIMEOUT_MS });
   const verifier = verifierFor(tool.id);
   const intents = Object.freeze(TOOL_INTENTS[tool.id] ?? []);
   const operational: ToolOperationalProfile = Object.freeze({
@@ -192,6 +237,7 @@ export function toToolDefinition(tool: ToolConfig): ToolDefinition {
     seo: Object.freeze({ title: `${tool.title} | FLIXO`, description: tool.description, robots: 'index,follow,max-image-preview:large' as const }),
   });
 }
+
 
 export const TOOL_DEFINITIONS: readonly ToolDefinition[] = Object.freeze(IMAGE_TOOL_CONFIGS.map(toToolDefinition));
 

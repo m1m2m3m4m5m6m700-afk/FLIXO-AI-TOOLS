@@ -1,6 +1,7 @@
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import type { ExecutionPlanContract } from '@/lib/contracts/ai-plan';
 import { parseAgentDecision } from '@/lib/contracts/agent-gateway';
+import { toAgentFileMetadata } from '@/lib/contracts/mvp-scope.ts';
 import type { LayeredMemorySnapshot } from './layered-memory.ts';
 
 export type ConversationalAgentMessage = Readonly<{
@@ -11,7 +12,7 @@ export type ConversationalAgentMessage = Readonly<{
 export type ConversationalAgentRequest = Readonly<{
   locale: string;
   messages: readonly ConversationalAgentMessage[];
-  file?: { name: string; type: string; size: number } | null;
+  file?: ReturnType<typeof toAgentFileMetadata>;
   activePlan?: ExecutionPlan | null;
   activeCommand?: string | null;
   idempotencyKey?: string;

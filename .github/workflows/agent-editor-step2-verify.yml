@@ -1,0 +1,57 @@
+name: Agent Editor Step 5-6 Verification
+
+on:
+  push:
+    branches:
+      - execution
+
+concurrency:
+  group: agent-editor-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/agent-editor
+    steps:
+      - name: Checkout exact pushed commit
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install root dependencies
+        working-directory: .
+        run: npm ci
+
+      - name: Install agent editor dependencies
+        run: npm install --no-package-lock
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit and API integration contracts
+        run: npm run test:unit
+
+      - name: Production build
+        run: npm run build
+
+      - name: Install Chromium for browser E2E
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser E2E
+        run: npm run test:e2e
+
+      - name: Exact-SHA evidence
+        working-directory: .
+        run: |
+          echo "EXACT_SHA=${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"

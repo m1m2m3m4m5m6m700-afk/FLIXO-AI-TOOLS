@@ -346,7 +346,7 @@ export function FlixoAIAgentStudio({
             id="flixo-agent-file"
             className="flixo-agent-file-input"
             type="file"
-            accept="image/*"
+            accept="image/*,video/*"
             onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
           />
           <div className="flixo-agent-secondary-actions">
