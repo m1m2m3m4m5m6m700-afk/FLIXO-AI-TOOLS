@@ -117,13 +117,15 @@ export function extractParameters(input: string): ExtractionResult {
   const grayscale = parseGrayscale(text);
   const upscaleScale = parseUpscaleScale(text);
   const hasUpscaleIntent = /(?:upscale|upscaled|increase\s+resolution|raise\s+resolution|رفع\s+الدقة|زيادة\s+الدقة|تكبير\s+الصورة|كبر\s+الصورة)/i.test(text);
-  const hasCompressionIntent = /(?:compress|compression|ضغط|تصغير)/i.test(text);
+  const hasVideoCompressionIntent = /(?:(?:compress|compression|ضغط|تصغير)[^\n]{0,40}(?:video|الفيديو|فيديو)|(?:video|الفيديو|فيديو)[^\n]{0,40}(?:compress|compression|ضغط|تصغير))/i.test(text);
+  const hasCompressionIntent = /(?:compress|compression|ضغط|تصغير)/i.test(text) && !hasVideoCompressionIntent;
   const hasConversionIntent = /(?:convert|conversion|تحويل|حول|حوّل)/i.test(text);
   const hasBackgroundRemovalIntent = /(?:remove\s+(?:the\s+)?background|background\s+removal|إزالة\s+الخلفية|ازالة\s+الخلفية|شيل\s+الخلفية|شيل\s+خلفية|بدون\s+خلفية|خلفية\s+شفافة)/i.test(text);
 
   if (hasBackgroundRemovalIntent) addOperation(operations, 'background-remover', {});
+  if (hasVideoCompressionIntent) addOperation(operations, 'video-compressor', {});
   if (hasCompressionIntent) addOperation(operations, 'image-compressor', targetSizeKB === undefined ? {} : { targetSizeKB });
-  else if (targetSizeKB !== undefined) addOperation(operations, 'image-compressor', { targetSizeKB });
+  else if (targetSizeKB !== undefined && !hasVideoCompressionIntent) addOperation(operations, 'image-compressor', { targetSizeKB });
   if (hasConversionIntent && format !== undefined) addOperation(operations, 'image-converter', { format });
   if (format !== undefined && !hasCompressionIntent && !hasConversionIntent) addOperation(operations, 'image-converter', { format });
   if (dimensions) addOperation(operations, 'image-cropper', { width: dimensions.width, height: dimensions.height, mode: 'exact' });
