@@ -10,6 +10,8 @@ import { getToolOutputContractForDefinition } from '@/lib/contracts/tool-output-
 import { runBoundedParallel, type AgentDelegatedTask, type AgentTaskResult } from './delegation';
 import { runBoundedGoalLoop, type GoalControllerResult } from './goal-controller';
 import type { AgentObservation } from './stuck-detector';
+import { decomposeTask, type TaskDecomposition } from './task-decomposer.ts';
+import { buildSpecialistPlan, assertSpecialistPlanSafety, type SpecialistPlan } from './specialist-orchestrator.ts';
 
 export type CognitiveDecision = 'EXECUTE_READY' | 'NEEDS_INPUT' | 'UNSUPPORTED' | 'UNSAFE';
 
@@ -28,6 +30,8 @@ export type CognitiveAssessment = Readonly<{
   semantic: SemanticPlanCheck;
   clarificationQuestion: IntentPlan['clarificationQuestion'];
   collectiveIntelligence: CollectiveIntelligenceFrame;
+  decomposition: TaskDecomposition;
+  specialists: SpecialistPlan;
 }>;
 
 type RuntimeContractTask = Readonly<{ stepIndex: number; toolId: string }>;
@@ -128,6 +132,9 @@ export function assessCognitiveRequest(
   identity?: { taskId?: string | null; traceId?: string | null },
 ): CognitiveAssessment {
   const intentPlan = buildIntentPlan(input, identity);
+  const decomposition = decomposeTask(input);
+  const specialists = buildSpecialistPlan({ taskInput: input, tasks: decomposition.tasks });
+  assertSpecialistPlanSafety(specialists);
   const baseCollectiveIntelligence = buildCollectiveIntelligenceFrame(input);
 
   if (intentPlan.status !== 'READY') {
@@ -148,6 +155,8 @@ export function assessCognitiveRequest(
       }),
       clarificationQuestion: intentPlan.clarificationQuestion ?? null,
       collectiveIntelligence: baseCollectiveIntelligence,
+      decomposition,
+      specialists,
     });
   }
 
@@ -166,6 +175,8 @@ export function assessCognitiveRequest(
       }),
       clarificationQuestion: intentPlan.clarificationQuestion ?? null,
       collectiveIntelligence: baseCollectiveIntelligence,
+      decomposition,
+      specialists,
     });
   }
 
@@ -181,6 +192,8 @@ export function assessCognitiveRequest(
     semantic,
     clarificationQuestion: intentPlan.clarificationQuestion ?? null,
     collectiveIntelligence,
+    decomposition,
+    specialists,
   });
 }
 
