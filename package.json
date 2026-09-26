@@ -281,7 +281,8 @@
     "test:openhands-repair-advisor": "node scripts/ci/auto-repair/test-openhands-repair-advisor.mjs",
     "test:visual-goal-verifier": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-visual-goal-verifier.mjs",
     "test:flixo-bot-deterministic-authority": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/ci/test-flixo-bot-deterministic-authority.mjs",
-    "test:agent-discovery": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-discovery-contract.mjs"
+    "test:agent-discovery": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-discovery-contract.mjs",
+    "test:agent-task-manager": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-task-manager-contract.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
