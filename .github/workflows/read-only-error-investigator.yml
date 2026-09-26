@@ -115,10 +115,16 @@ jobs:
           CODEQL_EXPECTED_ANNOTATIONS=0
           for attempt in $(seq 1 90); do
             CODEQL_JSON="$(gh api "repos/$GITHUB_REPOSITORY/commits/$OBSERVED_SHA/check-runs?per_page=100")"
+            CODEQL_MATCH_COUNT="$(printf '%s' "$CODEQL_JSON" | jq '[.check_runs[] | select(.name == "CodeQL" and .head_sha == $sha)] | length' --arg sha "$OBSERVED_SHA")"
             CODEQL_STATUS="$(printf '%s' "$CODEQL_JSON" | jq -r '[.check_runs[] | select(.name == "CodeQL" and .head_sha == $sha)] | sort_by(.completed_at // .started_at // "") | last | .status // empty' --arg sha "$OBSERVED_SHA")"
             CODEQL_CONCLUSION="$(printf '%s' "$CODEQL_JSON" | jq -r '[.check_runs[] | select(.name == "CodeQL" and .head_sha == $sha)] | sort_by(.completed_at // .started_at // "") | last | .conclusion // empty' --arg sha "$OBSERVED_SHA")"
             CODEQL_RUN_ID="$(printf '%s' "$CODEQL_JSON" | jq -r '[.check_runs[] | select(.name == "CodeQL" and .head_sha == $sha)] | sort_by(.completed_at // .started_at // "") | last | .id // empty' --arg sha "$OBSERVED_SHA")"
             CODEQL_EXPECTED_ANNOTATIONS="$(printf '%s' "$CODEQL_JSON" | jq -r '[.check_runs[] | select(.name == "CodeQL" and .head_sha == $sha)] | sort_by(.completed_at // .started_at // "") | last | .output.annotations_count // 0' --arg sha "$OBSERVED_SHA")"
+            if [ "$CODEQL_MATCH_COUNT" -eq 0 ]; then
+              echo "CODEQL_EXACT_SHA_STATUS=not_configured"
+              echo "CODEQL_NOT_CONFIGURED_NON_BLOCKING=true"
+              break
+            fi
             if [ "$CODEQL_STATUS" = "completed" ] && [ -n "$CODEQL_RUN_ID" ]; then
               ANNOTATION_JSON="$(gh api "repos/$GITHUB_REPOSITORY/check-runs/$CODEQL_RUN_ID/annotations?per_page=100")"
               ANNOTATION_COUNT="$(printf '%s' "$ANNOTATION_JSON" | jq 'length')"
