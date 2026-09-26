@@ -12,6 +12,12 @@ import {
 } from './flixo-bot-openai-runtime';
 import type { TaskContext, TaskState } from './task-state';
 import { requireFlixoBuildSha } from './build-identity';
+import {
+  appendConversationEvent,
+  loadConversationEvents,
+  verifyConversationEventChain,
+  type ConversationEvent,
+} from './conversation-event-store';
 
 export type FlixoBotExecutionTaskSnapshot = Readonly<{
   runtime: FlixoBotRunState;
@@ -22,6 +28,25 @@ export const RUNTIME_EXECUTION_AUTHORITY: FlixoBotAuthority = Object.freeze({
   mutationAuthority: false,
   certificationAuthority: false,
 });
+
+
+let approvalTransactionChain: Promise<unknown> = Promise.resolve();
+
+export function assertApprovalNotReplayed(
+  events: readonly ConversationEvent[],
+  runId: string,
+  approvalId: string,
+): void {
+  const replayed = events.some((event) => {
+    if (event.kind !== 'SYSTEM') return false;
+    const payload = event.payload;
+    return payload.type === 'FLIXO_BOT_APPROVAL_ACCEPTED'
+      && payload.runId === runId
+      && payload.approvalId === approvalId;
+  });
+  if (replayed) throw new Error('FLIXO_BOT_APPROVAL_REPLAY');
+}
+
 
 export function runtimeStatusToTaskState(status: FlixoBotRunState['status']): TaskState {
   if (status === 'WAITING_APPROVAL') return 'AWAITING_CONFIRMATION';
@@ -55,17 +80,41 @@ export function restoreRuntimeForExecution(
   return Object.freeze({ runtime, task });
 }
 
-export function confirmRuntimeExecution(
+export async function confirmRuntimeExecution(
   runtime: FlixoBotRunState,
   task: TaskContext,
-): FlixoBotExecutionTaskSnapshot {
-  const currentSha = requireFlixoBuildSha();
-  assertRuntimeTaskIdentity(runtime, task);
-  const nextRuntime = approveRun(runtime, currentSha);
-  if (runtimeStatusToTaskState(nextRuntime.status) !== 'EXECUTING') {
-    throw new Error('FLIXO_BOT_RUNTIME_APPROVAL_DID_NOT_ENTER_EXECUTION');
-  }
-  return Object.freeze({ runtime: nextRuntime, task });
+): Promise<FlixoBotExecutionTaskSnapshot> {
+  const transaction = approvalTransactionChain.then(async () => {
+    const currentSha = requireFlixoBuildSha();
+    assertRuntimeTaskIdentity(runtime, task);
+    const approvalId = runtime.pendingApproval?.approvalId;
+    if (!approvalId) throw new Error('FLIXO_BOT_APPROVAL_ID_MISSING');
+
+    const events = loadConversationEvents();
+    if (!(await verifyConversationEventChain(events))) {
+      throw new Error('FLIXO_BOT_APPROVAL_LEDGER_INVALID');
+    }
+    assertApprovalNotReplayed(events, runtime.runId, approvalId);
+
+    const nextRuntime = approveRun(runtime, currentSha, approvalId);
+    if (runtimeStatusToTaskState(nextRuntime.status) !== 'EXECUTING') {
+      throw new Error('FLIXO_BOT_RUNTIME_APPROVAL_DID_NOT_ENTER_EXECUTION');
+    }
+
+    const accepted = await appendConversationEvent('SYSTEM', {
+      type: 'FLIXO_BOT_APPROVAL_ACCEPTED',
+      runId: runtime.runId,
+      taskId: runtime.taskId,
+      approvalId,
+      exactSha: currentSha,
+    });
+    const persisted = loadConversationEvents().some((event) => event.eventId === accepted.eventId);
+    if (!persisted) throw new Error('FLIXO_BOT_APPROVAL_PERSISTENCE_FAILED');
+
+    return Object.freeze({ runtime: nextRuntime, task });
+  });
+  approvalTransactionChain = transaction.catch(() => undefined);
+  return transaction;
 }
 
 export function beforeRuntimeTool(
