@@ -36,7 +36,7 @@ export const AgentResponseSchema = z.object({
   content: z.string(),
   requestedToolCalls: z.array(ToolCallRequestSchema).default([]),
   toolResults: z.array(ToolCallResultSchema).default([]),
-  updatedProjectState: ProjectStateSchema.partial().optional(),
+  updatedProjectState: ProjectStateSchema.optional(),
   requiresUserConfirmation: z.boolean().default(false),
 });
 export type AgentResponse = z.infer<typeof AgentResponseSchema>;
