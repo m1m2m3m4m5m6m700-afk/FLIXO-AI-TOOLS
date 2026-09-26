@@ -1,8 +1,13 @@
 {
-  "state": "STATE_02_EXECUTION",
-  "gate": "GATE_01_PASSED",
+  "state": "STATE_01_INIT_AUDIT",
+  "gate": "GATE_01_PENDING",
   "active_branch": "execution",
-  "target_sha": "ffc003daf3f00142a3df4261526197492c38bb7d",
-  "status": "CERTIFIED_LINEAR_PUBLICATION_PENDING_CANONICAL_GREEN",
-  "timestamp": "2026-09-26T09:00:00+03:00"
+  "target_sha": "PENDING_COMMIT_SHA",
+  "project_goal": "Browser-first privacy-first image editing platform with integrated natural-language AI assistant.",
+  "tech_stack": ["React 19", "Vite", "TypeScript", "TanStack Router", "Playwright", "GitHub Actions", "Vercel"],
+  "identified_legacy_debt": "Legacy orchestration/repair workflows, historical branch inventory, and stale verification evidence require exact-SHA requalification; current repository already contains extensive contracts and validators.",
+  "target_mvp_spec": "Upload → Intent → Plan → Execute → Verify → Display → Download, deterministic-first planning with optional AI refinement, bounded retry, browser-first processing, i18n/RTL, security/privacy and resource-safety gates.",
+  "retry_budget": 3,
+  "last_local_test": "BLOCKED_EXTERNAL_DNS_GITHUB",
+  "last_updated": "2026-09-26T10:39:00+03:00"
 }
