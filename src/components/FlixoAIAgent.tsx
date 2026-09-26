@@ -249,7 +249,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     try {
       const deterministic = assessCognitiveRequest(contextualCommand);
       if (deterministic.decision === 'EXECUTE_READY' && deterministic.executionPlan) {
-        const prepared = prepareExecution(deterministic.executionPlan, { runtimeRequest: contextualCommand });
+        const prepared = prepareExecution(deterministic.executionPlan);
         setPlan(prepared.plan);
         setPreparedExecution(prepared);
         setState('ready');
@@ -466,6 +466,16 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     if (filterMaskMatch && applyFilterMaskHandoff(command, detectedLocale)) return;
 
     if (await runConversationalTurn(command, responseCopy)) return;
+
+    const localManualFallback = findToolIntent(command, TOOL_CATALOG.ready)
+      .some(({ tool }) => tool.executionMode === 'LOCAL' && !tool.requirements.network);
+    if (localManualFallback) {
+      setPlan(null);
+      setPreparedExecution(null);
+      setState('error');
+      setError(responseCopy.noSafePlan);
+      return;
+    }
 
     const conversationKind = classifyConversation(command);
     const naturalReply = conversationalReply(conversationKind, responseCopy);

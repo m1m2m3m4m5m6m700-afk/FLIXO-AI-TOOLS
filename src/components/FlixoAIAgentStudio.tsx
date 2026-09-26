@@ -279,7 +279,7 @@ export function FlixoAIAgentStudio({
 
           {error && <div className="flixo-agent-error" role="alert">{error}</div>}
 
-          {manualFallback && state === 'error' && !result && (
+          {manualFallback && !result && state !== 'running' && state !== 'success' && (
             <div className="flixo-agent-inline-card" data-testid="flixo-agent-manual-fallback">
               <div>
                 <strong>{copy.nearestTool} {manualFallback.title}</strong>
