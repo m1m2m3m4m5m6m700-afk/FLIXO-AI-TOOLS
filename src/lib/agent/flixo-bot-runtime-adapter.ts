@@ -87,6 +87,7 @@ export function finishModelTurn(
   spanId: string,
   _outcome: 'success' | 'failure',
 ): FlixoBotGatewayRuntime {
+  void outcome;
   const span = runtime.trace.spans.find((item) => item.spanId === spanId);
   if (!span || span.endedAt) return runtime;
   return Object.freeze({
