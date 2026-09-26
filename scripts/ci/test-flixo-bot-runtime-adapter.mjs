@@ -9,10 +9,7 @@ import {
   markFlixoBotGatewayRuntimeStale,
   toFlixoBotRuntimeSummary,
 } from '../../src/lib/agent/flixo-bot-runtime-adapter.ts';
-import {
-  createFlixoBotRunState,
-  restoreFlixoBotRunState,
-} from '../../src/lib/agent/flixo-bot-openai-runtime.ts';
+import { restoreFlixoBotRunState } from '../../src/lib/agent/flixo-bot-openai-runtime.ts';
 
 const SHA = 'a'.repeat(40);
 const runtime0 = beginFlixoBotGatewayRuntime({
