@@ -251,6 +251,89 @@ export async function validateExecutionPlanWithRuntimeControls(
   });
 }
 
+export async function validateCanonicalExecutionPlanWithRuntimeControls(
+  executionPlan: ExecutionPlan,
+  observations: readonly AgentObservation[] = [],
+): Promise<RuntimePlanValidation> {
+  const judge = (candidate: ExecutionPlan) => {
+    const reasons: string[] = [];
+    if (candidate.catalogFingerprint !== TOOL_CATALOG.fingerprint) reasons.push('CATALOG_FINGERPRINT_MISMATCH');
+    if (candidate.steps.length < 1 || candidate.steps.length > 4) reasons.push('PLAN_STEP_COUNT_INVALID');
+    for (const step of candidate.steps) {
+      const capability = getCapability(step.toolId);
+      const tool = getToolDefinition(step.toolId);
+      if (!capability || capability.state !== 'EXECUTABLE') reasons.push('CAPABILITY_NOT_EXECUTABLE:' + step.toolId);
+      if (!tool?.verifier) reasons.push('VERIFIER_MISSING:' + step.toolId);
+      if (tool && !tool.operational.executorId) reasons.push('EXECUTOR_BINDING_MISSING:' + step.toolId);
+      if (tool && !getToolOutputContractForDefinition(tool)) reasons.push('OUTPUT_CONTRACT_MISSING:' + step.toolId);
+      try {
+        if (tool) getToolExecutor(tool);
+      } catch {
+        reasons.push('EXECUTOR_UNRESOLVED:' + step.toolId);
+      }
+    }
+    return {
+      satisfied: reasons.length === 0,
+      score: reasons.length === 0 ? 1 : Math.max(0, 1 - reasons.length / 8),
+      unmetCriteria: reasons,
+      reason: reasons.length === 0 ? 'CANONICAL_EXECUTION_CONTRACT_VALID' : reasons.join('|'),
+    };
+  };
+
+  const goal = runBoundedGoalLoop(
+    executionPlan,
+    judge,
+    () => null,
+    observations,
+    { maxRefinements: 0 },
+  );
+
+  const tasks: readonly AgentDelegatedTask<RuntimeContractTask>[] = goal.status === 'BLOCKED'
+    ? []
+    : goal.value.steps.map((step, stepIndex) => ({
+      id: `canonical-runtime-contract:${stepIndex}:${step.toolId}`,
+      input: Object.freeze({ stepIndex, toolId: step.toolId }),
+      resourceKeys: Object.freeze([`capability:${step.toolId}`]),
+    }));
+
+  const delegation = tasks.length === 0
+    ? Object.freeze([]) as readonly AgentTaskResult<RuntimeContractTask, RuntimeContractResult>[]
+    : await runBoundedParallel(
+      tasks,
+      async (task) => {
+        const capability = getCapability(task.input.toolId);
+        if (!capability || capability.state !== 'EXECUTABLE') {
+          throw new Error('Production runtime contract rejected non-executable capability: ' + task.input.toolId);
+        }
+        const tool = getToolDefinition(task.input.toolId);
+        if (!tool) throw new Error('Production runtime contract missing canonical tool: ' + task.input.toolId);
+        getToolExecutor(tool);
+        if (!tool.verifier) throw new Error('Production runtime contract missing verifier: ' + task.input.toolId);
+        if (!getToolOutputContractForDefinition(tool)) {
+          throw new Error('Production runtime contract missing output contract: ' + task.input.toolId);
+        }
+        return Object.freeze({
+          capabilityState: 'EXECUTABLE',
+          executorBound: true,
+          verifierBound: true,
+          outputContractBound: true,
+        });
+      },
+      { maxConcurrency: Math.min(4, Math.max(1, tasks.length)), maxContentionRetries: Math.max(4, tasks.length * 2) },
+    );
+
+  const ready = goal.status !== 'BLOCKED'
+    && delegation.length === goal.value.steps.length
+    && delegation.every((result) => result.status === 'COMPLETED');
+
+  return Object.freeze({
+    executionPlan: ready ? goal.value : null,
+    goal,
+    delegation,
+    ready,
+  });
+}
+
 export async function assessCognitiveRequestWithRuntimeControls(
   input: string,
   identity?: { taskId?: string | null; traceId?: string | null },
