@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { ExecutionPlan } from '@/lib/ai/planner';
-import { assessCognitiveRequest } from '@/lib/agent/cognitive-orchestrator';
+import { assessCognitiveRequest, assessCognitiveRequestWithRuntimeControls, validateExecutionPlanWithRuntimeControls } from '@/lib/agent/cognitive-orchestrator';
 import type { PipelineProgress } from '@/lib/workflows/pipeline-runner';
 import { cancelPreparedExecution, confirmPreparedExecution, executePreparedExecution, prepareExecution, restorePreparedExecution, type PreparedExecution } from '@/lib/agent/execution-integrator';
 import { TOOL_CATALOG } from '@/config/registry';
@@ -183,10 +183,15 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     return true;
   };
 
-  const buildPlan = (command: string, responseCopy = copy): ExecutionPlan | null => {
+  const buildPlan = async (command: string, responseCopy = copy): Promise<ExecutionPlan | null> => {
     setError(null); setResult(null); setProgress(null);
     const contextualCommand = contextualizeCommand(command, memory);
-    const cognitive = assessCognitiveRequest(contextualCommand);
+    const runtimeObservations = memory.turns.slice(-8).map((turn) => ({
+      kind: turn.role === 'user' ? 'INPUT' as const : 'RESULT' as const,
+      signature: turn.text,
+    }));
+    const runtime = await assessCognitiveRequestWithRuntimeControls(contextualCommand, undefined, runtimeObservations);
+    const cognitive = runtime.cognitive;
     if (cognitive.decision === 'NEEDS_INPUT') {
       const missing = cognitive.intentPlan.missing[0];
       const question = cognitive.clarificationQuestion?.question ?? missing?.question ?? null;
@@ -203,14 +208,16 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       }));
       return null;
     }
-    if (cognitive.decision !== 'EXECUTE_READY' || !cognitive.executionPlan) {
+    if (cognitive.decision !== 'EXECUTE_READY' || !runtime.ready || !runtime.executionPlan) {
+      const runtimeFailure = runtime.delegation.find((item) => item.status !== 'COMPLETED')?.error;
+      const runtimeFailureMessage = runtimeFailure instanceof Error ? runtimeFailure.message : null;
       setPreparedExecution(null);
       setPlan(null);
       setState('error');
-      setError(cognitive.intentPlan.explanation || cognitive.semantic.reasons.join(', ') || responseCopy.noSafePlan);
+      setError(runtimeFailureMessage || cognitive.intentPlan.explanation || cognitive.semantic.reasons.join(', ') || responseCopy.noSafePlan);
       return null;
     }
-    const nextPlan = cognitive.executionPlan;
+    const nextPlan = runtime.executionPlan;
     const firstStep = nextPlan.steps[0];
     const prepared = prepareExecution(nextPlan);
     setMemory((current) => setConversationTask(current, {
@@ -248,16 +255,34 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       if (decision.fallback && !(decision.mode === 'plan' && decision.plan)) return false;
 
       if (decision.mode === 'plan' && decision.plan) {
-        // The model is allowed to understand natural conversation and propose a plan,
-        // but the parsed decision has already crossed the canonical execution-plan
-        // contract: registered executable tools, valid parameters and current catalog
-        // fingerprint. It still cannot execute; explicit user confirmation is required.
         const contextualCommand = contextualizeCommand(command, memory);
+        const cognitiveContext = assessCognitiveRequest(contextualCommand);
+        const runtimeObservations = messages.slice(-8).map((message) => ({
+          kind: message.role === 'user' ? 'INPUT' as const : 'RESULT' as const,
+          signature: message.text,
+        }));
         const conversationalPlan = decision.plan as ExecutionPlan;
-
-        const prepared = decision.runtime?.resumeState
-          ? restorePreparedExecution(conversationalPlan, decision.runtime.resumeState)
-          : prepareExecution(conversationalPlan);
+        const runtime = cognitiveContext.decision === 'EXECUTE_READY'
+          ? await validateExecutionPlanWithRuntimeControls(
+              cognitiveContext.intentPlan,
+              conversationalPlan,
+              contextualCommand,
+              runtimeObservations,
+            )
+          : null;
+        if (!runtime?.ready || !runtime.executionPlan) {
+          setPreparedExecution(null);
+          setPlan(null);
+          setState('error');
+          setError(responseCopy.noSafePlan);
+          pushMessage('agent', responseCopy.noSafePlan);
+          return true;
+        }
+        const validatedPlan = runtime.executionPlan;
+        const wasReplanned = JSON.stringify(validatedPlan.steps) !== JSON.stringify(conversationalPlan.steps);
+        const prepared = decision.runtime?.resumeState && !wasReplanned
+          ? restorePreparedExecution(validatedPlan, decision.runtime.resumeState)
+          : prepareExecution(validatedPlan);
         setPlan(prepared.plan);
         setPreparedExecution(prepared);
         setState('ready');
@@ -265,7 +290,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         setFilterHandoff(null);
         setMemory((current) => setConversationTask(current, {
           command: contextualCommand,
-          toolId: conversationalPlan.steps[0]?.toolId ?? null,
+          toolId: validatedPlan.steps[0]?.toolId ?? null,
           planReady: true,
           plan: prepared.plan,
           runtimeResumeState: prepared.runtimeState ? JSON.stringify(prepared.runtimeState) : null,
@@ -273,8 +298,8 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         pushMessage(
           'agent',
           file
-            ? `${decision.reply} ${responseCopy.execute}`
-            : `${decision.reply} ${responseCopy.uploadThenExecute}`,
+            ? decision.reply + ' ' + responseCopy.execute
+            : decision.reply + ' ' + responseCopy.uploadThenExecute,
         );
         return true;
       }
@@ -402,7 +427,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       return;
     }
 
-    const nextPlan = buildPlan(command, responseCopy);
+    const nextPlan = await buildPlan(command, responseCopy);
     if (!nextPlan) {
       const latestMemory = loadConversationMemory();
       const pendingQuestion = latestMemory.pendingQuestion;
