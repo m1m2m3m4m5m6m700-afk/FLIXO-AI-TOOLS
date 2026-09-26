@@ -237,7 +237,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     try {
       const deterministic = assessCognitiveRequest(contextualCommand);
       if (deterministic.decision === 'EXECUTE_READY' && deterministic.executionPlan) {
-        const prepared = prepareExecution(deterministic.executionPlan);
+        const prepared = prepareExecution(deterministic.executionPlan, { runtimeRequest: contextualCommand });
         setPlan(prepared.plan);
         setPreparedExecution(prepared);
         setState('ready');
@@ -379,7 +379,15 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         },
       );
       setResult(result.output); setState('success');
-      setMemory((current) => clearConversationTask(current));
+      setMemory((current) => setConversationTask(current, {
+        command: current.activeCommand ?? '',
+        toolId: null,
+        pendingToolId: null,
+        pendingQuestion: null,
+        planReady: false,
+        plan: null,
+        runtimeResumeState: null,
+      }));
       pushMessage('agent', responseCopy.success);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Execution failed.';
