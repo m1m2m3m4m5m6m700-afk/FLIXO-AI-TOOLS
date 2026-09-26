@@ -20,7 +20,16 @@ function vendorChunk(id: string): string | undefined {
   return 'vendor-common';
 }
 
+const buildSha = [
+  process.env.VERCEL_GIT_COMMIT_SHA,
+  process.env.GITHUB_SHA,
+  process.env.FLIXO_TARGET_SHA,
+].find((value) => /^[a-f0-9]{40}$/u.test(String(value ?? '').trim()))?.trim() ?? '';
+
 export default defineConfig({
+  define: {
+    __FLIXO_BUILD_SHA__: JSON.stringify(buildSha),
+  },
   plugins: [react()],
   resolve: {
     alias: {
