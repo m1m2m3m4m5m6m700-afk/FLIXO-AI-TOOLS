@@ -226,6 +226,7 @@ async function persistAgentOrchestration(input: {
   userMessage: string;
   decision: ReturnType<typeof parseAgentDecision>;
   runtime: FlixoBotGatewayRuntime | null;
+  idempotencyKey: string;
 }): Promise<void> {
   if (!isDurableAgentTaskStoreConfigured()) return;
 
@@ -260,7 +261,7 @@ async function persistAgentOrchestration(input: {
     type: eventType,
     conversationId: input.conversationId,
     taskId: input.taskId,
-    idempotencyKey: 'decision:' + input.taskId + ':' + input.decision.mode,
+    idempotencyKey: input.idempotencyKey + ':decision:' + input.decision.mode,
     payload: {
       mode: input.decision.mode,
       confidence: input.decision.confidence,
@@ -496,6 +497,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const locale = body.locale ?? 'en';
     const conversationId = body.conversationId ?? 'UI-CONVERSATION:' + randomUUID();
     const taskId = body.taskId ?? 'UI-FLIXO-TASK:' + randomUUID();
+    const idempotencyKey = body.idempotencyKey ?? 'chat:' + conversationId + ':' + messages.length + ':' + taskId;
     const runtime = configuredRuntime();
 
     if (isDurableAgentTaskStoreConfigured()) {
@@ -514,7 +516,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         type: 'INPUT_RECEIVED',
         conversationId,
         taskId,
-        idempotencyKey: body.idempotencyKey ?? 'input:' + taskId + ':' + userMessage.slice(0, 64),
+        idempotencyKey,
         payload: {
           locale,
           messageLength: userMessage.length,
@@ -623,6 +625,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         userMessage,
         decision,
         runtime: botRuntime,
+        idempotencyKey,
       }).catch((persistError) => {
         console.warn('[flixo-agent] durable task persistence warning', {
           error: persistError instanceof Error ? persistError.name : 'unknown',
@@ -650,7 +653,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           const approvedDecision = boundedDecision.plan
             ? { ...boundedDecision, approval: evaluatePlanApproval(boundedDecision.plan) }
             : boundedDecision;
-          if (approvedDecision.approval?.level === 'BLOCK') throw new Error('EXECUTION_BLOCKED_BY_APPROVAL_POLICY', { cause: fallbackError });
+          if (approvedDecision.approval?.level === 'BLOCK') throw new Error('EXECUTION_BLOCKED_BY_APPROVAL_POLICY', { cause: providerError });
           await persistLearningCandidate(approvedDecision, userMessage, locale, runtime.fallbackProvider);
           await respondWithRuntime(approvedDecision, { latencyMs: Date.now() - started, provider: runtime.fallbackProvider, model: lastModel, fallback: true });
           return;
