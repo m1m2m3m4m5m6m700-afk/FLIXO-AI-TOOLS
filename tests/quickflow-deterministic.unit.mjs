@@ -3,7 +3,7 @@ import { buildQuickFlowPlan } from '../src/lib/quickflow.ts';
 import { TOOL_REGISTRY } from '../src/config/registry.ts';
 
 const cases = [
-  ['compress image', [{ toolId: 'image-compressor', params: undefined }]],
+  ['compress image', [{ toolId: 'image-compressor', params: {} }]],
   ['compress this image under 200KB', [{ toolId: 'image-compressor', params: { targetSizeKB: 200 } }]],
   ['prepare product image for store', [
     { toolId: 'background-remover', params: {} },
