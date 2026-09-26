@@ -6,6 +6,7 @@ import {
   finalizeFlixoBotGatewayRuntime,
   finishModelTurn,
   noteProviderFailure,
+  markFlixoBotGatewayRuntimeStale,
   toFlixoBotRuntimeSummary,
 } from '../../src/lib/agent/flixo-bot-runtime-adapter.ts';
 import {
@@ -59,3 +60,7 @@ assert.equal(parsed.runtime?.runId, summary.runId);
 assert.equal(parsed.runtime?.status, 'WAITING_APPROVAL');
 
 console.log('FLIXO BOT gateway runtime integration contract passed.');
+
+const stale = markFlixoBotGatewayRuntimeStale(completed, 'b'.repeat(40));
+assert.equal(stale.state.status, 'STALE');
+assert.equal(toFlixoBotRuntimeSummary(stale).status, 'STALE');

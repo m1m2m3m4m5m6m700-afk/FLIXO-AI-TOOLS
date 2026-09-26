@@ -13,6 +13,7 @@ import {
   beginModelTurn,
   finalizeFlixoBotGatewayRuntime,
   finishModelTurn,
+  markFlixoBotGatewayRuntimeStale,
   noteProviderFailure,
   toFlixoBotRuntimeSummary,
   type FlixoBotGatewayRuntime,
@@ -458,7 +459,13 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const respondWithRuntime = (decision: ReturnType<typeof parseAgentDecision>, extra: Record<string, unknown> = {}) => {
       if (botRuntime) {
         try {
-          botRuntime = finalizeFlixoBotGatewayRuntime(botRuntime, decision.mode, decision);
+          const currentSha = exactSha();
+          if (currentSha && currentSha !== botRuntime.state.exactSha) {
+            botRuntime = markFlixoBotGatewayRuntimeStale(botRuntime, currentSha);
+            extra.runtimeStale = true;
+          } else {
+            botRuntime = finalizeFlixoBotGatewayRuntime(botRuntime, decision.mode, decision);
+          }
           extra.runtime = toFlixoBotRuntimeSummary(botRuntime);
         } catch (runtimeError) {
           console.warn('[flixo-agent] runtime finalization warning', {
