@@ -23,6 +23,7 @@ import {
 } from '../src/lib/agent/flixo-bot-openai-runtime.ts';
 import { createExecutionBudget, consumeCost } from '../src/lib/agent/execution-budget.ts';
 import { evaluatePlanApproval } from '../src/lib/agent/approval-policy.ts';
+import { deriveLayeredMemorySnapshot } from '../src/lib/agent/layered-memory.ts';
 import { WORKFLOW_TOOL_CATALOG, getWorkflowTool } from '../src/lib/agent/workflow-as-tool.ts';
 import { parseExecutionPlan } from '../src/lib/contracts/ai-plan.ts';
 
@@ -115,6 +116,21 @@ test('workflow-as-a-tool exposes first-class contracts and approval semantics', 
     steps: [{ toolId: 'image-compressor', params: { quality: 0.8 } }],
   });
   assert.equal(evaluatePlanApproval(plan).level, 'AUTO');
+});
+
+test('layered memory separates current turn from verified system knowledge', () => {
+  const memory = deriveLayeredMemorySnapshot({
+    taskId: 'task-memory',
+    turns: [
+      { role: 'user', text: 'old request' },
+      { role: 'user', text: 'current request' },
+    ],
+    verifiedKnowledge: [
+      { key: 'system.rule', value: 'canonical contracts are authoritative', evidenceRefs: ['contract:1'] },
+    ],
+  });
+  assert.ok(memory.items.some((item) => item.layer === 'CURRENT_TURN' && item.key === 'current.turn'));
+  assert.ok(memory.items.some((item) => item.layer === 'SYSTEM_KNOWLEDGE' && item.key === 'system.rule'));
 });
 
 test('execution budgets enforce monetary ceilings', () => {

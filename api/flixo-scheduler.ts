@@ -32,6 +32,7 @@ async function invokeAgent(input: Readonly<{
   locale: string;
   prompt: string;
   idempotencyKey: string;
+  taskId: string;
 }>): Promise<Response> {
   return fetch(agentUrl(), {
     method: 'POST',
@@ -42,9 +43,13 @@ async function invokeAgent(input: Readonly<{
     body: JSON.stringify({
       userId: input.ownerId,
       conversationId: input.conversationId,
+      userId: input.ownerId,
       locale: input.locale,
+      triggerSource: 'SCHEDULE',
+      taskId: input.taskId,
       messages: [{ role: 'user', content: input.prompt }],
       idempotencyKey: input.idempotencyKey,
+      ...(input.conversationId ? { conversationId: input.conversationId } : {}),
     }),
   });
 }
@@ -72,6 +77,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         idempotencyKey: \`schedule:\${job.scheduleId}:\${job.runCount + 1}\`,
         userId: job.ownerId,
         conversationId: job.conversationId,
+        taskId: `SCHEDULE:${job.scheduleId}:${job.runCount + 1}`,
         payload: {
           scheduleId: job.scheduleId,
           runNumber: job.runCount + 1,
@@ -85,6 +91,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           locale: job.locale,
           prompt: job.prompt,
           idempotencyKey: runEvent.idempotencyKey,
+          taskId: runEvent.taskId ?? `SCHEDULE:${job.scheduleId}:${job.runCount + 1}`,
         });
         const bodyText = await response.text();
         const updated = response.ok

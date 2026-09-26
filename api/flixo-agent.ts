@@ -8,6 +8,7 @@ import { isDeterministicPlanCompatible } from '../src/lib/ai/deterministic-bound
 import { selectModelForTask } from '../src/lib/agent/model-router.ts';
 import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
 import { createAgentEvent } from '../src/lib/agent/event-gateway.ts';
+import { ingestionFromAgentEvent, normalizeIngestion } from '../src/lib/agent/ingestion-pipeline.ts';
 import { evaluatePlanApproval } from '../src/lib/agent/approval-policy.ts';
 import { isDurableAgentTaskStoreConfigured, upsertAgentTask, appendAgentTaskEvent } from '../src/server/agent/durable-task-store.ts';
 import { WORKFLOW_TOOL_CATALOG } from '../src/lib/agent/workflow-as-tool.ts';
@@ -427,9 +428,11 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const conversationId = body.conversationId ?? 'UI-CONVERSATION:' + randomUUID();
     const userId = body.userId ?? conversationId;
     const taskId = body.taskId ?? 'UI-FLIXO-TASK:' + randomUUID();
+    const requestedSource = body.triggerSource ?? (body.file ? 'FILE_UPLOAD' : 'USER_MESSAGE');
+    const eventSource = requestedSource === 'SCHEDULE' && req.headers['x-flixo-scheduled-run'] !== '1' ? 'USER_MESSAGE' : requestedSource;
     const idempotencyKey = body.idempotencyKey ?? 'chat:' + conversationId + ':' + taskId + ':' + messages.length;
     const inboundEvent = createAgentEvent({
-      source: body.file ? 'FILE_UPLOAD' : 'USER_MESSAGE',
+      source: eventSource,
       eventType: 'chat.message',
       idempotencyKey,
       conversationId,
@@ -440,6 +443,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         messageDigest: createHash('sha256').update(userMessage, 'utf8').digest('hex'),
         messageLength: userMessage.length,
         hasFile: Boolean(body.file),
+        text: userMessage,
+        mimeType: body.file?.type ?? null,
+        bytes: body.file?.size ?? 0,
       },
     });
     const runtime = configuredRuntime();
@@ -484,7 +490,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         error: error instanceof Error ? error.name : 'unknown',
       });
     });
-    const remoteLearning = targetSha ? await listExternalAgentLearning(targetSha, 48).catch(() => []) : [];
+    const ingestion = normalizeIngestion(ingestionFromAgentEvent(inboundEvent));
+    const normalizedUserMessage = ingestion.normalizedText || userMessage;
+        const remoteLearning = targetSha ? await listExternalAgentLearning(targetSha, 48).catch(() => []) : [];
     const remoteLessons = remoteLearning.filter((item) => item.kind === 'LESSON');
     const remoteAntiLessons = remoteLearning.filter((item) => item.kind === 'ANTI_LESSON');
     const remoteAdvice = remoteLearning.filter((item) => item.kind === 'ADVICE');
@@ -494,7 +502,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         role: 'system' as const,
         content: buildFlixoHumanConversationPrompt({
           locale,
-          currentMessage: userMessage,
+          currentMessage: normalizedUserMessage,
           collectiveLearning: {
             authority: 'CONTEXT_ONLY',
             mutationAuthority: false,

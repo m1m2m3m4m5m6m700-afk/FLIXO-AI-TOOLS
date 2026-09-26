@@ -3,7 +3,7 @@ import type { ExecutionPlanContract } from '@/lib/contracts/ai-plan.ts';
 
 export const LAYERED_MEMORY_VERSION = 1 as const;
 
-export type MemoryLayer = 'TASK' | 'CONVERSATION' | 'USER' | 'PROJECT' | 'VERIFIED';
+export type MemoryLayer = 'CURRENT_TURN' | 'TASK' | 'CONVERSATION' | 'USER' | 'PROJECT' | 'VERIFIED' | 'SYSTEM_KNOWLEDGE';
 export type MemorySource = 'USER' | 'TOOL' | 'SYSTEM' | 'MEMORY' | 'MODEL';
 export type MemoryState = 'VERIFIED' | 'PROBABLE' | 'INFERRED' | 'UNKNOWN' | 'CONFLICTED';
 
@@ -27,7 +27,7 @@ export type LayeredMemorySnapshot = Readonly<{
 
 const MemoryItemSchema = z.object({
   id: z.string().trim().min(1).max(256),
-  layer: z.enum(['TASK', 'CONVERSATION', 'USER', 'PROJECT', 'VERIFIED']),
+  layer: z.enum(['CURRENT_TURN', 'TASK', 'CONVERSATION', 'USER', 'PROJECT', 'VERIFIED', 'SYSTEM_KNOWLEDGE']),
   key: z.string().trim().min(1).max(256),
   value: z.string().trim().max(8_000),
   source: z.enum(['USER', 'TOOL', 'SYSTEM', 'MEMORY', 'MODEL']),
@@ -95,6 +95,7 @@ export function deriveLayeredMemorySnapshot(input: {
   taskId?: string | null;
   turns?: readonly Readonly<{ role: 'user' | 'agent'; text: string }>[];
   activePlan?: ExecutionPlanContract | null;
+  verifiedKnowledge?: readonly Readonly<{ key: string; value: string; evidenceRefs: readonly string[] }>[];
 }): LayeredMemorySnapshot {
   let snapshot = createLayeredMemory(input.taskId ?? null);
 
@@ -151,6 +152,18 @@ export function deriveLayeredMemorySnapshot(input: {
   }
 
   const turns = input.turns ?? [];
+  const currentTurn = turns[turns.length - 1];
+  if (currentTurn?.text?.trim()) {
+    snapshot = rememberMemory(snapshot, {
+      layer: 'CURRENT_TURN',
+      key: 'current.turn',
+      value: currentTurn.text,
+      source: currentTurn.role === 'user' ? 'USER' : 'MODEL',
+      state: 'VERIFIED',
+      confidence: 1,
+      evidenceRefs: ['conversation.currentTurn'],
+    });
+  }
   const recentUserTurns = turns.filter((turn) => turn.role === 'user').slice(-6);
   for (let index = 0; index < recentUserTurns.length; index += 1) {
     const turn = recentUserTurns[index];
@@ -162,6 +175,19 @@ export function deriveLayeredMemorySnapshot(input: {
       state: 'VERIFIED',
       confidence: 1,
       evidenceRefs: [`conversation.turn.${index + 1}`],
+    });
+  }
+
+  for (const knowledge of input.verifiedKnowledge ?? []) {
+    if (!knowledge.key.trim() || !knowledge.value.trim()) continue;
+    snapshot = rememberMemory(snapshot, {
+      layer: 'SYSTEM_KNOWLEDGE',
+      key: knowledge.key,
+      value: knowledge.value,
+      source: 'SYSTEM',
+      state: 'VERIFIED',
+      confidence: 1,
+      evidenceRefs: [...knowledge.evidenceRefs].slice(0, 32),
     });
   }
 
