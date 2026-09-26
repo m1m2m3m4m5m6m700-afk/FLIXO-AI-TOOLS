@@ -39,3 +39,8 @@ The approval ledger reuses the existing hash-linked conversation event store; no
 Canonical test coverage remains inside the repository's existing test surfaces so the governance plane does not require adding parallel standalone test registries while canonical GREEN is pending.
 
 The transactional confirmation compatibility change is governed by `AIOS-RESEARCH-EXEC-001` and does not create a new authority, registry, or persistence plane.
+
+
+## Deterministic execution authority
+
+For execution-capable natural-language requests, the canonical QuickFlow plan is the execution authority. A model response may explain or refine presentation, but it may not replace a deterministic executable plan with chat or clarify, and any model-supplied executable plan must be byte-compatible with the canonical deterministic plan. This keeps provider variance from changing tool selection or execution scope.
