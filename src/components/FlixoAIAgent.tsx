@@ -213,7 +213,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
 
     const nextPlan = cognitive.executionPlan;
     const firstStep = nextPlan.steps[0];
-    const prepared = prepareExecution(nextPlan);
+    const prepared = prepareExecution(nextPlan, { runtimeRequest: contextualCommand });
     setMemory((current) => setConversationTask(current, {
       command: contextualCommand,
       toolId: firstStep?.toolId ?? null,
@@ -288,7 +288,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         const conversationalPlan = decision.plan as ExecutionPlan;
         const prepared = decision.runtime?.resumeState
           ? restorePreparedExecution(conversationalPlan, decision.runtime.resumeState)
-          : prepareExecution(conversationalPlan);
+          : prepareExecution(conversationalPlan, { runtimeRequest: contextualCommand });
         setPlan(prepared.plan);
         setPreparedExecution(prepared);
         setState('ready');
@@ -361,11 +361,25 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       setMemory((current) => setConversationTask(current, {
         command: current.activeCommand ?? '',
         planReady: false,
-        plan: null,
-        runtimeResumeState: null,
+        plan: confirmed.plan,
+        runtimeResumeState: confirmed.runtimeState ? JSON.stringify(confirmed.runtimeState) : null,
       }));
-      const result = await executePreparedExecution(confirmed, file, setProgress);
+      const result = await executePreparedExecution(
+        confirmed,
+        file,
+        setProgress,
+        (runtime) => {
+          setPreparedExecution((current) => current ? { ...current, runtimeState: runtime } : current);
+          setMemory((current) => setConversationTask(current, {
+            command: current.activeCommand ?? '',
+            planReady: false,
+            plan: confirmed.plan,
+            runtimeResumeState: JSON.stringify(runtime),
+          }));
+        },
+      );
       setResult(result.output); setState('success');
+      setMemory((current) => clearConversationTask(current));
       pushMessage('agent', responseCopy.success);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Execution failed.';
