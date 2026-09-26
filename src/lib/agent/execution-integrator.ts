@@ -102,10 +102,10 @@ export function restorePreparedExecution(
   return Object.freeze({ plan, task: awaitingConfirmation, runtimeState });
 }
 
-export function confirmPreparedExecution(prepared: PreparedExecution): PreparedExecution {
+export async function confirmPreparedExecution(prepared: PreparedExecution): Promise<PreparedExecution> {
   const nextTask = confirmTask(prepared.task);
   const nextRuntime = prepared.runtimeState
-    ? confirmRuntimeExecution(prepared.runtimeState, nextTask)
+    ? await confirmRuntimeExecution(prepared.runtimeState, nextTask)
     : null;
   void appendConversationEvent('TASK_STATE', {
     taskId: nextTask.taskId,
