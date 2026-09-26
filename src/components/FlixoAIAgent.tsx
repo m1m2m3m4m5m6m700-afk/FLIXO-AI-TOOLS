@@ -321,6 +321,9 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         file: file ? { name: file.name, type: file.type, size: file.size } : null,
         activePlan: plan,
         activeCommand: memory.activeCommand,
+        conversationId: memory.conversationId,
+        taskId: memory.taskId ?? undefined,
+        idempotencyKey: `chat:${memory.conversationId}:${messages.length + 1}`,
       });
 
       // Provider-generated execution plans are still bounded by the same
@@ -363,6 +366,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           toolId: validatedPlan.steps[0]?.toolId ?? null,
           planReady: true,
           plan: prepared.plan,
+          taskId: decision.runtime?.taskId ?? memory.taskId,
           runtimeResumeState: prepared.runtimeState ? JSON.stringify(prepared.runtimeState) : null,
         }));
         pushMessage(
