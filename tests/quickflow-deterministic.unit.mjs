@@ -19,7 +19,11 @@ for (const [input, expected] of cases) {
   assert.deepEqual(second, first);
 }
 
-assert.equal(buildQuickFlowPlan('crop image', TOOL_REGISTRY), null);
+assert.deepEqual(buildQuickFlowPlan('crop image', TOOL_REGISTRY), {
+  version: 2,
+  intent: 'crop image',
+  steps: [{ toolId: 'image-cropper', path: '/en/image-cropper' }],
+});
 assert.equal(buildQuickFlowPlan('   ', TOOL_REGISTRY), null);
 
 console.log('QUICKFLOW_DETERMINISTIC_UNIT=PASS');

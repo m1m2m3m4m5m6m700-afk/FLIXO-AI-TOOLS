@@ -123,7 +123,7 @@ jobs:
             if [ "$CODEQL_MATCH_COUNT" -eq 0 ]; then
               echo "CODEQL_EXACT_SHA_STATUS=not_configured"
               echo "CODEQL_NOT_CONFIGURED_NON_BLOCKING=true"
-              break
+              exit 0
             fi
             if [ "$CODEQL_STATUS" = "completed" ] && [ -n "$CODEQL_RUN_ID" ]; then
               ANNOTATION_JSON="$(gh api "repos/$GITHUB_REPOSITORY/check-runs/$CODEQL_RUN_ID/annotations?per_page=100")"
