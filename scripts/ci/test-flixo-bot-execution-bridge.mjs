@@ -38,6 +38,7 @@ assert.match(conversation, /runtimeResumeState: string \| null/u);
 assert.match(ui, /restorePreparedExecution/u);
 assert.match(ui, /decision\.runtime\?\.resumeState/u);
 assert.match(ui, /runtimeResumeState: prepared\.runtimeState/u);
+assert.match(ui, /setConversationTask\([\s\S]*planReady: false[\s\S]*plan: null[\s\S]*runtimeResumeState: null/u);
 assert.match(ui, /runtimeRequest: contextualCommand/u);
 assert.match(ui, /onRuntimeState/u);
 assert.match(vite, /__FLIXO_BUILD_SHA__/u);
