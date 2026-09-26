@@ -16,6 +16,7 @@ import {
   rememberTurn,
   setConversationTask,
   clearConversationTask,
+  buildLayeredMemorySnapshot,
   type ConversationMemory,
 } from '@/lib/agent/conversation';
 import { AGENT_I18N } from '@/data/agent-locales';
@@ -310,6 +311,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
 
     try {
       const decision = await askConversationalAgent({
+        idempotencyKey: crypto.randomUUID(),
         locale,
         messages: [
           ...messages.slice(-23).map((message) => ({
@@ -321,6 +323,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         file: file ? { name: file.name, type: file.type, size: file.size } : null,
         activePlan: plan,
         activeCommand: memory.activeCommand,
+        memory: buildLayeredMemorySnapshot(memory),
       });
 
       // Provider-generated execution plans are still bounded by the same

@@ -9,6 +9,7 @@ import { getToolOutputContractForDefinition } from '@/lib/contracts/tool-output-
 import { assertToolOutputContract, type ToolOutputResult } from '@/lib/contracts/tool-output';
 import { verifyVisualGoal } from '@/lib/agent/visual-goal-verifier';
 import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelinePlanFingerprint, createPipelineReceiptChain, createPipelineStepReceipt, type PipelineReceiptChain, type PipelineStepReceipt } from '@/lib/workflows/pipeline-receipt';
+import { assertExecutionBudgetAlive, consumeOutputBytes, consumeRetry, consumeStep, consumeToolCall, createExecutionBudget, type ExecutionBudget } from '@/lib/agent/execution-budget';
 
 export type PipelineRuntimeHooks = Readonly<{
   beforeTool?: (input: Readonly<{
@@ -193,10 +194,17 @@ export async function runWorkflowPipeline(
   if (plan.catalogFingerprint !== TOOL_CATALOG.fingerprint) throw new Error('Execution plan is stale because the canonical tool catalog changed.');
   if (plan.steps.length === 0 || plan.steps.length > 4) throw new Error('FLIXO plans must contain 1 to 4 steps.');
   let currentBlob: Blob = initialFile;
+  let budget: ExecutionBudget = createExecutionBudget({
+    maxSteps: plan.steps.length,
+    maxToolCalls: Math.min(32, plan.steps.length * 3),
+    maxRetries: Math.max(0, plan.steps.length * 2),
+  });
   const planFingerprint = await createPipelinePlanFingerprint(plan);
   let receiptChain = createPipelineReceiptChain(TOOL_CATALOG.fingerprint, planFingerprint, task.taskId, task.traceId, task.revision);
 
   for (let i = 0; i < plan.steps.length; i += 1) {
+    budget = consumeStep(budget);
+    assertExecutionBudgetAlive(budget);
     const step = plan.steps[i];
     const capability = getCapability(step.toolId);
     if (!capability || capability.state !== 'EXECUTABLE') throw new Error(`Capability '${step.toolId}' is not executable by the local pipeline.`);
@@ -216,6 +224,8 @@ export async function runWorkflowPipeline(
     const maxAttempts = Math.max(1, recoveryMetadata.maxAttempts);
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      budget = consumeToolCall(budget);
+      assertExecutionBudgetAlive(budget);
       const authorization = await authorizeExecution({
         task,
         capabilityId: step.toolId,
@@ -287,6 +297,7 @@ export async function runWorkflowPipeline(
         attemptExecutionError = error;
       }
 
+      budget = consumeOutputBytes(budget, attemptOutput.size);
       if (attemptExecutionError) {
         const error = attemptExecutionError;
         await runtimeHooks?.afterTool?.({
@@ -331,6 +342,8 @@ export async function runWorkflowPipeline(
       }
 
       if (!verified && attempt < maxAttempts - 1) {
+        budget = consumeRetry(budget);
+        assertExecutionBudgetAlive(budget);
         const recoveryAudit = await createExecutionAuditEvent({
           task,
           capabilityId: step.toolId,

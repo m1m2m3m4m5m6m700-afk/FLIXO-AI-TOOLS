@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { parseExecutionPlan, type ExecutionPlanContract } from './ai-plan.ts';
+import { LayeredMemorySchema, type LayeredMemorySnapshot } from '@/lib/agent/layered-memory.ts';
 
 const ChatMessageSchema = z.object({
   role: z.enum(['user', 'assistant']),
@@ -18,6 +19,8 @@ export const AgentRequestSchema = z.object({
   file: AgentFileSchema.nullable().optional(),
   activePlan: z.unknown().nullable().optional(),
   activeCommand: z.string().trim().max(2_000).nullable().optional(),
+  idempotencyKey: z.string().trim().min(1).max(512).optional(),
+  memory: LayeredMemorySchema.nullable().optional(),
 }).strict();
 
 export type AgentRequestContract = Readonly<{
@@ -26,6 +29,8 @@ export type AgentRequestContract = Readonly<{
   file?: z.infer<typeof AgentFileSchema> | null;
   activePlan?: ExecutionPlanContract | null;
   activeCommand?: string | null;
+  idempotencyKey?: string;
+  memory?: LayeredMemorySnapshot | null;
 }>;
 
 export function parseAgentRequest(value: unknown): AgentRequestContract {
@@ -34,6 +39,7 @@ export function parseAgentRequest(value: unknown): AgentRequestContract {
   return Object.freeze({
     ...parsed,
     activePlan,
+    memory: parsed.memory ?? null,
   });
 }
 
@@ -71,6 +77,8 @@ const AgentDecisionEnvelopeSchema = z.object({
     exactSha: z.string().regex(/^[a-f0-9]{40}$/u),
     turnCount: z.number().int().nonnegative(),
     retryCount: z.number().int().nonnegative(),
+    maxToolCalls: z.number().int().positive(),
+    toolCallCount: z.number().int().nonnegative(),
     eventCount: z.number().int().nonnegative(),
     resumeState: z.string().max(100_000),
   }).nullable().optional(),
@@ -96,6 +104,8 @@ export type AgentDecisionContract = Readonly<{
     exactSha: string;
     turnCount: number;
     retryCount: number;
+    maxToolCalls: number;
+    toolCallCount: number;
     eventCount: number;
     resumeState: string;
   } | null;

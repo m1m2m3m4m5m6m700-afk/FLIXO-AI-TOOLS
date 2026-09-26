@@ -1,6 +1,7 @@
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import type { ExecutionPlanContract } from '@/lib/contracts/ai-plan';
 import { parseAgentDecision } from '@/lib/contracts/agent-gateway';
+import type { LayeredMemorySnapshot } from './layered-memory.ts';
 
 export type ConversationalAgentMessage = Readonly<{
   role: 'user' | 'assistant';
@@ -13,6 +14,8 @@ export type ConversationalAgentRequest = Readonly<{
   file?: { name: string; type: string; size: number } | null;
   activePlan?: ExecutionPlan | null;
   activeCommand?: string | null;
+  idempotencyKey?: string;
+  memory?: LayeredMemorySnapshot | null;
 }>;
 
 export type ConversationalAgentDecision = Readonly<{

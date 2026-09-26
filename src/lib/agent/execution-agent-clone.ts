@@ -103,6 +103,7 @@ export function buildExecutionAgentCloneOutcome(input: {
   missionId: string;
   botId?: string;
   exactSha: string;
+  currentSha: string;
   outcome: 'SUCCESS' | 'FAILURE' | 'BLOCKED_EXTERNAL' | 'BLOCKED_INTERNAL' | 'PROPOSED' | 'REVERTED';
   capabilityId?: string;
   verified: boolean;
@@ -117,6 +118,7 @@ export function buildExecutionAgentCloneOutcome(input: {
     taskId: input.missionId,
     botId: input.botId ?? EXECUTION_AGENT_CLONE_ID,
     exactSha: input.exactSha,
+    currentSha: input.currentSha,
     outcome: input.outcome,
     capabilityId: input.capabilityId ?? 'execution-agent-clone',
     inputDescription: input.capabilityId ?? 'execution-agent-clone',

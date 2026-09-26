@@ -2,7 +2,9 @@
   "name": "flixo-tools",
   "private": true,
   "type": "module",
-  "engines": { "node": "22.x" },
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "npm run typecheck && npm run lint && vite build && FLIXO_GENERATED_OUTPUT_DIR=dist npm run generate:robots && FLIXO_GENERATED_OUTPUT_DIR=dist npm run generate:sitemap && npm run generate:static-routes",
@@ -15,7 +17,7 @@
     "generate:robots": "node scripts/generate-robots.mjs",
     "generate:sitemap": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-sitemap.mjs",
     "generate:static-routes": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-static-route-entries.mjs",
-    "test:core": "node --test --experimental-strip-types tests/core-contracts.test.ts",
+    "test:core": "node --import=./scripts/register-node-resolver.mjs --test --experimental-strip-types tests/core-contracts.test.ts tests/mvp-100-proof.test.ts",
     "test:e2e": "playwright test",
     "test": "npm run typecheck && npm run lint && npm run test:core",
     "ci": "npm run test && npm run build"
