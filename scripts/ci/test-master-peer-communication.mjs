@@ -3,11 +3,13 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import {
+process.env.NODE_ENV = 'test';
+
+const {
   MASTER_IDS,
   MASTER_GROUP,
   validateMessage,
-} from './agent-communication.mjs';
+} = await import('./agent-communication.mjs');
 
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 const masterPeerSource = fs.readFileSync(path.resolve(process.cwd(), 'scripts/ci/master-peer-communication.mjs'), 'utf8');
