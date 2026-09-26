@@ -26,11 +26,11 @@ export function VideoLocalTool() {
     }
   };
 
-  return <main style={{ maxWidth: 900, margin: '0 auto', padding: 24 }}>
-    <h1>FLIXO Video Tool</h1>
+  return <section aria-label="Local video processing" style={{ maxWidth: 900, margin: '0 auto', padding: 24 }}>
+    <h2>Local video processing</h2>
     <p>Local browser video execution. The original file is not modified.</p>
     <input aria-label="Choose video" type="file" accept="video/*" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
     <button type="button" disabled={!file || busy} onClick={() => void run()}>{busy ? 'Processing…' : 'Process video'}</button>
     {result && <a download="flixo-video-output.webm" href={URL.createObjectURL(result)}>Download result</a>}
-  </main>;
+  </section>;
 }
