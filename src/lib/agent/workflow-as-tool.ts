@@ -61,3 +61,19 @@ export function getWorkflowForTool(toolId: string) {
     : toolId;
   return WORKFLOW_REGISTRY.find((workflow) => workflow.id === workflowId);
 }
+
+
+export function expandWorkflowTool(toolId: string): ExecutionPlanContract | null {
+  const workflow = getWorkflowForTool(toolId);
+  if (!workflow) return null;
+
+  return parseExecutionPlan({
+    workflowName: workflow.title,
+    confidence: 0.99,
+    catalogFingerprint: TOOL_CATALOG.fingerprint,
+    steps: workflow.steps.map((step) => ({
+      toolId: step.toolId,
+      params: step.params,
+    })),
+  });
+}
