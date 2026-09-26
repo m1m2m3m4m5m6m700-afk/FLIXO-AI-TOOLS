@@ -9,6 +9,8 @@ export type ConversationTurn = Readonly<{
 
 export type ConversationMemory = {
   version: 1;
+  conversationId: string;
+  taskId: string | null;
   turns: ConversationTurn[];
   activeCommand: string | null;
   activeToolId: string | null;
@@ -71,7 +73,10 @@ export type ConversationKind = 'greeting' | 'thanks' | 'farewell' | 'capability'
 export function createConversationMemory(): ConversationMemory {
   return {
     version: 1,
+    conversationId: crypto.randomUUID(),
+    taskId: null,
     turns: [],
+    taskId: null,
     activeCommand: null,
     activeToolId: null,
     pendingToolId: null,
@@ -91,6 +96,8 @@ export function loadConversationMemory(): ConversationMemory {
     if (parsed.version !== 1 || !Array.isArray(parsed.turns)) return createConversationMemory();
     return {
       version: 1,
+      conversationId: typeof parsed.conversationId === 'string' && parsed.conversationId.trim() ? parsed.conversationId : crypto.randomUUID(),
+      taskId: typeof parsed.taskId === 'string' && parsed.taskId.trim() ? parsed.taskId : null,
       turns: parsed.turns.slice(-MAX_MEMORY_TURNS).filter((turn): turn is ConversationTurn =>
         Boolean(turn) &&
         (turn as ConversationTurn).role !== undefined &&
@@ -183,6 +190,8 @@ export function setConversationTask(
 ): ConversationMemory {
   const next: ConversationMemory = {
     ...memory,
+    conversationId: memory.conversationId,
+    taskId: task.planReady ? task.taskId ?? memory.taskId ?? crypto.randomUUID() : memory.taskId,
     activeCommand: task.command,
     activeToolId: task.toolId ?? memory.activeToolId,
     pendingToolId: task.pendingToolId ?? null,
