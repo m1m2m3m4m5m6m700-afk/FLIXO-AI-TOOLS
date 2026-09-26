@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { parseExecutionPlan, type ExecutionPlanContract } from './ai-plan.ts';
+import { LayeredMemorySchema, type LayeredMemorySnapshot } from '@/lib/agent/layered-memory.ts';
 
 const ChatMessageSchema = z.object({
   role: z.enum(['user', 'assistant']),
@@ -18,6 +19,7 @@ export const AgentRequestSchema = z.object({
   file: AgentFileSchema.nullable().optional(),
   activePlan: z.unknown().nullable().optional(),
   activeCommand: z.string().trim().max(2_000).nullable().optional(),
+  memory: LayeredMemorySchema.nullable().optional(),
 }).strict();
 
 export type AgentRequestContract = Readonly<{
@@ -26,6 +28,7 @@ export type AgentRequestContract = Readonly<{
   file?: z.infer<typeof AgentFileSchema> | null;
   activePlan?: ExecutionPlanContract | null;
   activeCommand?: string | null;
+  memory?: LayeredMemorySnapshot | null;
 }>;
 
 export function parseAgentRequest(value: unknown): AgentRequestContract {
@@ -34,6 +37,7 @@ export function parseAgentRequest(value: unknown): AgentRequestContract {
   return Object.freeze({
     ...parsed,
     activePlan,
+    memory: parsed.memory ?? null,
   });
 }
 
