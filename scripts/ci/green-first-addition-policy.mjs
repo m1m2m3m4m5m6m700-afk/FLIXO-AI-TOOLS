@@ -47,7 +47,8 @@ export const REQUIRED_GREEN_WORKFLOW_PATHS = Object.freeze({
 const latestWorkflow = (name) => {
   const workflowPath = REQUIRED_GREEN_WORKFLOW_PATHS[name];
   if (!workflowPath) return null;
-  const workflowRuns = runGhJson('repos/' + repository + '/actions/workflows/' + workflowPath + '/runs?head_sha=' + parentSha + '&per_page=5').workflow_runs ?? [];
+  const workflowId = workflowPath.split('/').at(-1);
+  const workflowRuns = runGhJson('repos/' + repository + '/actions/workflows/' + workflowId + '/runs?head_sha=' + parentSha + '&per_page=5').workflow_runs ?? [];
   return workflowRuns
     .filter(r => r?.name === name && r?.head_sha === parentSha)
     .sort((a,b) => String(a?.updated_at ?? '').localeCompare(String(b?.updated_at ?? '')))
