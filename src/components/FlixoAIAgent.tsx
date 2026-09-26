@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { ExecutionPlan } from '@/lib/ai/planner';
+import { planFromIntent, type ExecutionPlan } from '@/lib/ai/planner';
 import { buildIntentPlan, toExecutionPlan } from '@/lib/agent/intent/intent-plan';
 import { verifyExecutionPlanSemantics } from '@/lib/agent/cognitive-orchestrator';
 import { assessCognitiveRequest, validateCanonicalExecutionPlanWithRuntimeControls } from '@/lib/agent/cognitive-orchestrator';
@@ -558,6 +558,35 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     const responseCopy = AGENT_I18N[detectedLocale] ?? copy;
     pushMessage('user', command); setQuery('');
     if (filterMaskMatch && applyFilterMaskHandoff(command, detectedLocale)) return;
+
+    // The Analyze action is a deterministic local planning boundary. Resolve the
+    // canonical QuickFlow first so advisory/runtime/provider layers cannot block
+    // a locally executable MVP request.
+    try {
+      const deterministicPlan = planFromIntent(contextualizeCommand(command, memory));
+      if (deterministicPlan) {
+        const prepared = prepareExecution(deterministicPlan);
+        const contextualCommand = contextualizeCommand(command, memory);
+        setPlan(prepared.plan);
+        setPreparedExecution(prepared);
+        setState('ready');
+        setError(null);
+        setMemory((current) => setConversationTask(current, {
+          command: contextualCommand,
+          toolId: prepared.plan.steps[0]?.toolId ?? null,
+          pendingToolId: null,
+          pendingQuestion: null,
+          planReady: true,
+          plan: prepared.plan,
+          runtimeResumeState: null,
+        }));
+        pushMessage('agent', file ? responseCopy.execute : responseCopy.uploadThenExecute);
+        return;
+      }
+    } catch {
+      // Fall through to the full cognitive/recovery path.
+    }
+
     if (await runConversationalTurn(command, responseCopy)) return;
     const naturalReply = conversationalReply(classifyConversation(command), responseCopy);
     if (naturalReply) { pushMessage('agent', naturalReply); return; }
