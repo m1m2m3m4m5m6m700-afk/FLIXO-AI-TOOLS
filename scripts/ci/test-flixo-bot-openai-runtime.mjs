@@ -153,10 +153,12 @@ const approval = applyNextStep(running, SHA_A, {
 assert.equal(approval.status, 'WAITING_APPROVAL');
 assert.ok(approval.pendingApproval?.approvalId);
 
-const approved = approveRun(approval, SHA_A);
+assert.throws(() => approveRun(approval, SHA_A, 'wrong-approval-id'), /FLIXO_BOT_APPROVAL_ID_MISMATCH/);
+const approved = approveRun(approval, SHA_A, approval.pendingApproval.approvalId);
 assert.equal(approved.status, 'RUNNING');
 assert.equal(approved.pendingApproval, null);
-assert.throws(() => approveRun(approved, SHA_A), /FLIXO_BOT_APPROVAL_INVALID_STATE/);
+assert.equal(approved.events.at(-1)?.detail?.approvalId, approval.pendingApproval.approvalId);
+assert.throws(() => approveRun(approved, SHA_A, approval.pendingApproval.approvalId), /FLIXO_BOT_APPROVAL_INVALID_STATE/);
 
 const evidenced = recordToolResult(
   approved,
