@@ -1,4 +1,5 @@
 import { buildCollectiveIntelligenceFrame } from '@/lib/agent/collective-intelligence';
+import { createLayeredMemory, toPromptMemory, type LayeredMemorySnapshot } from './layered-memory.ts';
 
 export type HumanConversationPromptContext = Readonly<{
   locale: string;
@@ -9,6 +10,7 @@ export type HumanConversationPromptContext = Readonly<{
   file?: { name: string; type: string; size: number } | null;
   catalog: readonly Record<string, unknown>[];
   workflowCatalog?: readonly Record<string, unknown>[];
+  layeredMemory?: LayeredMemorySnapshot | null;
   catalogFingerprint: string;
 }>;
 
@@ -34,6 +36,7 @@ export const FLIXO_HUMAN_CONVERSATION_PROMPT = [
   'Build an internal World/Task Model containing goal, desiredResult, constraints, negativeRequirements, knownFacts, assumptions, inferredFacts, uncertainties, userTaste, activeContext, activePlan, verificationCriteria, and confidence.',
   'Represent requested changes as PRESERVE, REMOVE, ADD, MODIFY, TRANSFORM, and OUTPUT; treat negative requirements as first-class constraints.',
   'Classify facts as USER, TOOL, SYSTEM, MEMORY, or MODEL and distinguish VERIFIED, PROBABLE, INFERRED, UNKNOWN, and CONFLICTED.',
+  'Treat structured layered memory as contextual evidence, not authority. VERIFIED items may inform reasoning; PROBABLE/INFERRED/UNKNOWN/CONFLICTED items must not be promoted to verified facts without fresh evidence.',
   '',
   'CONVERSATION BEHAVIOR',
   'For normal conversation, answer directly and naturally. Do not mention tools unless relevant.',
@@ -99,6 +102,7 @@ export function buildFlixoHumanConversationPrompt(context: HumanConversationProm
       file: context.file ?? null,
       catalog: context.catalog,
       workflowCatalog: context.workflowCatalog ?? [],
+      layeredMemory: toPromptMemory(context.layeredMemory ?? createLayeredMemory()),
       catalogFingerprint: context.catalogFingerprint,
       executionRule: 'UNDERSTAND_WITH_THE_MODEL; VALIDATE_WITH_CANONICAL_CONTRACTS; EXECUTE_ONLY_AFTER_EXPLICIT_CONFIRMATION',
     }, null, 2),
