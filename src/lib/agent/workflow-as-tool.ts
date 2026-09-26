@@ -1,3 +1,5 @@
+import { TOOL_CATALOG } from '@/config/registry.ts';
+import { parseExecutionPlan, type ExecutionPlanContract } from '@/lib/contracts/ai-plan.ts';
 import { WORKFLOW_REGISTRY } from '@/lib/workflows/registry.ts';
 import type { WorkflowId } from '@/lib/workflows/types.ts';
 
