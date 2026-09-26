@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { createHash } from 'node:crypto';
 import { getCapability, getExecutableCapabilityIds } from '../src/lib/agent/capability-registry.ts';
 import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from '../src/lib/contracts/agent-gateway.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
@@ -424,7 +425,13 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const inboundEvent = createAgentEvent({
       source: 'USER_MESSAGE',
       eventType: 'chat.message',
-      payload: { locale, messageLength: userMessage.length, hasFile: Boolean(body.file) },
+      idempotencyKey: body.idempotencyKey,
+      payload: {
+        locale,
+        messageDigest: createHash('sha256').update(userMessage, 'utf8').digest('hex'),
+        messageLength: userMessage.length,
+        hasFile: Boolean(body.file),
+      },
     });
     const runtime = configuredRuntime();
     const provider = runtime.provider;
