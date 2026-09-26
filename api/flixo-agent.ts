@@ -650,7 +650,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           const approvedDecision = boundedDecision.plan
             ? { ...boundedDecision, approval: evaluatePlanApproval(boundedDecision.plan) }
             : boundedDecision;
-          if (approvedDecision.approval?.level === 'BLOCK') throw new Error('EXECUTION_BLOCKED_BY_APPROVAL_POLICY');
+          if (approvedDecision.approval?.level === 'BLOCK') throw new Error('EXECUTION_BLOCKED_BY_APPROVAL_POLICY', { cause: fallbackError });
           await persistLearningCandidate(approvedDecision, userMessage, locale, runtime.fallbackProvider);
           await respondWithRuntime(approvedDecision, { latencyMs: Date.now() - started, provider: runtime.fallbackProvider, model: lastModel, fallback: true });
           return;
