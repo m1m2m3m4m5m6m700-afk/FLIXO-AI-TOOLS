@@ -40,7 +40,7 @@ const base = {
     provider: 'github-actions',
     actor: 'github-actions[bot]',
     repository: process.env.GITHUB_REPOSITORY ?? 'm1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS',
-    runId: process.env.GITHUB_RUN_ID ?? '1',
+    runId: /^\d+$/u.test(String(process.env.GITHUB_RUN_ID ?? '')) ? String(process.env.GITHUB_RUN_ID) : '1',
     testHarness: true,
   },
   payload: {
