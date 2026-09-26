@@ -10,12 +10,20 @@ import {
 } from './agent-communication.mjs';
 
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-const masterPeerSource=fs.readFileSync(path.resolve(process.cwd(),'scripts/ci/master-peer-communication.mjs'),'utf8');
-assert.match(masterPeerSource,/--session=<active-master-session>/u);
-assert.match(masterPeerSource,/MASTER_PEER_ACTIVE_SESSION_REQUIRED/u);
-assert.match(masterPeerSource,/MASTER_PEER_SESSION_IDENTITY_INVALID/u);
-assert.match(masterPeerSource,/MASTER_PEER_45M_RESIDENCY_POLICY_INVALID/u);
-assert.match(masterPeerSource,/MASTER_PEER_MASTER_SESSION_HEARTBEAT_STALE/u);
+const masterPeerSource = fs.readFileSync(path.resolve(process.cwd(), 'scripts/ci/master-peer-communication.mjs'), 'utf8');
+const normalizeTransportRunId = (value) => /^\d+$/u.test(String(value ?? '')) ? String(value) : '1';
+
+assert.equal(normalizeTransportRunId('42'), '42');
+assert.equal(normalizeTransportRunId('00042'), '00042');
+assert.equal(normalizeTransportRunId(''), '1');
+assert.equal(normalizeTransportRunId('not-a-run-id'), '1');
+assert.equal(normalizeTransportRunId(undefined), '1');
+
+assert.match(masterPeerSource, /--session=<active-master-session>/u);
+assert.match(masterPeerSource, /MASTER_PEER_ACTIVE_SESSION_REQUIRED/u);
+assert.match(masterPeerSource, /MASTER_PEER_SESSION_IDENTITY_INVALID/u);
+assert.match(masterPeerSource, /MASTER_PEER_45M_RESIDENCY_POLICY_INVALID/u);
+assert.match(masterPeerSource, /MASTER_PEER_MASTER_SESSION_HEARTBEAT_STALE/u);
 
 const base = {
   schemaVersion: 1,
@@ -36,6 +44,13 @@ const base = {
   createdAt: new Date().toISOString(),
   source: 'MASTER_PEER_CONTRACT_TEST',
   administrativeInstruction: true,
+  transportIdentity: {
+    provider: 'github-actions',
+    actor: 'github-actions[bot]',
+    repository: process.env.GITHUB_REPOSITORY ?? 'm1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS',
+    runId: normalizeTransportRunId(process.env.GITHUB_RUN_ID),
+    testHarness: true,
+  },
   payload: {
     peerMessage: true,
     automaticDelivery: true,
@@ -114,3 +129,4 @@ console.log('MASTER_PEER_SELF_ROUTE_FAIL_CLOSED=PASS');
 console.log('MASTER_PEER_ADMIN_CHANNEL_REQUIRED=PASS');
 console.log('MASTER_PEER_UNKNOWN_MASTER_FAIL_CLOSED=PASS');
 console.log('MASTER_PEER_EXACT_SHA_VALIDATION=PASS');
+console.log('MASTER_PEER_RUN_ID_NORMALIZATION=PASS');

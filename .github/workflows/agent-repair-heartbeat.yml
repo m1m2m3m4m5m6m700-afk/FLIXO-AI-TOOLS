@@ -86,8 +86,8 @@ jobs:
             [[ "$LIVE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
             SHA="$LIVE_SHA"
             if [ "$WORKTREE_SHA" != "$SHA" ]; then
-              git fetch origin "refs/heads/execution:refs/remotes/origin/execution" --depth=1
-              FETCHED_SHA="$(git rev-parse refs/remotes/origin/execution)"
+              git fetch origin --depth=1 refs/heads/execution
+              FETCHED_SHA="$(git rev-parse FETCH_HEAD)"
               [[ "$FETCHED_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
               SHA="$FETCHED_SHA"
               if [ -e "$WORKTREE_PATH/.git" ]; then git worktree remove --force "$WORKTREE_PATH"; elif [ -d "$WORKTREE_PATH" ]; then rm -rf "$WORKTREE_PATH"; fi
