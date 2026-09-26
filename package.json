@@ -148,6 +148,7 @@
     "test:in-repo-repair-v2": "node scripts/ci/test-in-repo-repair-v2.mjs",
     "test:post-patch-adversarial-v2": "node scripts/ci/test-post-patch-adversarial-v2.mjs",
     "test:agent-conversation": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-conversation.mjs",
+    "test:flixo-bot-runtime-adapter": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/ci/test-flixo-bot-runtime-adapter.mjs",
     "test:tool-platform-autodiscovery": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-tool-platform-autodiscovery.mjs",
     "test:repair-execution-prompts": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/ci/test-repair-execution-prompts.mjs",
     "test:repair-execution-prompt-integration": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/ci/test-repair-execution-prompt-integration.mjs",

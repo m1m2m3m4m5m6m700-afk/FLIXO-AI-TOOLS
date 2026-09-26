@@ -62,7 +62,18 @@ const AgentDecisionEnvelopeSchema = z.object({
   fallback: z.boolean().optional(),
   reason: z.string().trim().max(4_000).optional(),
   learning: AgentLearningCandidateSchema.nullable().optional(),
-}).strict();
+  runtime: z.object({
+    protocol: z.string().trim().min(1).max(128),
+    runId: z.string().trim().min(1).max(256),
+    taskId: z.string().trim().min(1).max(256),
+    status: z.enum(['CREATED', 'RUNNING', 'WAITING_APPROVAL', 'RETRYING', 'SUCCEEDED', 'FAILED', 'STALE', 'CANCELLED', 'BLOCKED']),
+    traceId: z.string().trim().min(1).max(256),
+    exactSha: z.string().regex(/^[a-f0-9]{40}$/u),
+    turnCount: z.number().int().nonnegative(),
+    retryCount: z.number().int().nonnegative(),
+    eventCount: z.number().int().nonnegative(),
+    resumeState: z.string().max(100_000),
+  }).nullable().optional(),\n}).strict();
 
 export type AgentDecisionContract = Readonly<{
   mode: 'chat' | 'clarify' | 'plan';
@@ -75,6 +86,18 @@ export type AgentDecisionContract = Readonly<{
   fallback?: boolean;
   reason?: string;
   learning?: AgentLearningCandidate | null;
+  runtime?: {
+    protocol: string;
+    runId: string;
+    taskId: string;
+    status: 'CREATED' | 'RUNNING' | 'WAITING_APPROVAL' | 'RETRYING' | 'SUCCEEDED' | 'FAILED' | 'STALE' | 'CANCELLED' | 'BLOCKED';
+    traceId: string;
+    exactSha: string;
+    turnCount: number;
+    retryCount: number;
+    eventCount: number;
+    resumeState: string;
+  } | null;
 }>;
 
 export function parseAgentDecision(value: unknown): AgentDecisionContract {
@@ -95,6 +118,7 @@ export function parseAgentDecision(value: unknown): AgentDecisionContract {
       ...(envelope.fallback === undefined ? {} : { fallback: envelope.fallback }),
       ...(envelope.reason === undefined ? {} : { reason: envelope.reason }),
       ...(envelope.learning === undefined ? {} : { learning: envelope.learning }),
+      ...(envelope.runtime === undefined ? {} : { runtime: envelope.runtime }),
     });
   }
   const plan = parseExecutionPlan(envelope.plan);
@@ -109,5 +133,6 @@ export function parseAgentDecision(value: unknown): AgentDecisionContract {
     ...(envelope.fallback === undefined ? {} : { fallback: envelope.fallback }),
     ...(envelope.reason === undefined ? {} : { reason: envelope.reason }),
     ...(envelope.learning === undefined ? {} : { learning: envelope.learning }),
+    ...(envelope.runtime === undefined ? {} : { runtime: envelope.runtime }),
   });
 }

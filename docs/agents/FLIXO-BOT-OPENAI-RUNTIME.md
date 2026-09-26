@@ -1,29 +1,28 @@
-# FLIXO BOT — isolated OpenAI-derived runtime
+# FLIXO BOT — OpenAI-derived runtime integration
 
-## Scope
+The isolated runtime is now a real execution substrate for the existing FLIXO BOT gateway.
 
-This is an isolated runtime substrate for FLIXO BOT. It adopts selected execution patterns from the supplied OpenAI Agents Python reference without importing that project as a framework.
+Canonical flow:
 
-Canonical implementation:
-src/lib/agent/flixo-bot-openai-runtime.ts
+\`request → RunState → model turn trace → existing FLIXO planner/contract validation → final/approval state → response\`
 
-Targeted regression:
-scripts/ci/test-flixo-bot-openai-runtime.mjs
+The integration deliberately keeps these existing components authoritative:
 
-## Adopted patterns
+- FLIXO deterministic planner and execution-plan contract.
+- Existing capability registry and tool definitions.
+- Existing shared operational memory.
+- Existing execution/verification gates.
+- Existing mutation and certification boundaries.
 
-- Durable RunState with schema and protocol identity.
-- Explicit next-step semantics: run-again, handoff, final output, interruption.
-- Tool input boundary checks with fail-closed decisions.
-- Bounded retry budget; no blind retry.
-- Exact-SHA freshness checks during resume and tool invocation.
-- Agent-as-tool delegation without transfer of mutation or certification authority.
-- Local trace/span lifecycle and append-only run events.
+The new runtime contributes:
 
-## Isolation constraints
+- exact-SHA-bound RunState;
+- explicit run lifecycle state;
+- bounded provider retry accounting;
+- model/tool-style trace spans;
+- fail-closed runtime boundaries;
+- serializable resume state returned with every gateway response;
+- \`WAITING_APPROVAL\` for plan responses rather than falsely marking a plan as executed;
+- no authority transfer from Agent-as-tool / handoff semantics.
 
-This layer does not create a second planner, world model, capability registry, memory store, event store, governance plane, mutation owner, or certification authority.
-
-It is intentionally not wired into the existing FLIXO human-facing request path. The current FLIXO planner, registry, shared memory, verification, and execution gates remain canonical.
-
-The runtime accepts only the canonical execution work path. A changed exact SHA invalidates the run before it can resume.
+No second planner, memory, event store, capability registry, governance plane, or mutation authority was introduced.
