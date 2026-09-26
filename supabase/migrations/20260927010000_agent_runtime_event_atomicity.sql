@@ -16,10 +16,39 @@ declare
   previous_event record;
   inserted_event public.flixo_agent_task_events%rowtype;
   event_hash text;
+  db_event_type text;
+  db_source text;
+  stored_payload jsonb;
 begin
   if p_task_id is null or char_length(trim(p_task_id)) = 0 then
     raise exception 'TASK_ID_REQUIRED';
   end if;
+
+  db_event_type := case
+    when p_event_type = 'chat.message' then 'USER_MESSAGE'
+    when p_event_type in ('agent.plan','agent.decision') then 'AGENT_DECISION'
+    when p_event_type = 'approval.requested' then 'APPROVAL_REQUESTED'
+    when p_event_type = 'approval.granted' then 'APPROVAL_GRANTED'
+    when p_event_type = 'approval.denied' then 'APPROVAL_DENIED'
+    when p_event_type = 'workflow.started' then 'WORKFLOW_STARTED'
+    when p_event_type = 'workflow.step' then 'WORKFLOW_STEP'
+    when p_event_type = 'execution.started' then 'EXECUTION_STARTED'
+    when p_event_type = 'execution.finished' then 'EXECUTION_FINISHED'
+    when p_event_type = 'execution.failed' then 'EXECUTION_FAILED'
+    when p_event_type = 'task.cancelled' then 'TASK_CANCELLED'
+    else 'SYSTEM'
+  end;
+
+  db_source := case p_source
+    when 'USER_MESSAGE' then 'CHAT'
+    when 'FILE_UPLOAD' then 'UPLOAD'
+    when 'SCHEDULE' then 'SCHEDULE'
+    when 'WEBHOOK' then 'WEBHOOK'
+    when 'TOOL_RESULT' then 'TOOL'
+    else 'SYSTEM'
+  end;
+
+  stored_payload := jsonb_build_object('_eventType', p_event_type, '_source', p_source) || coalesce(p_payload, '{}'::jsonb);
 
   perform 1 from public.flixo_agent_tasks where task_id = p_task_id for update;
 
@@ -44,10 +73,10 @@ begin
           'event_id', p_event_id,
           'task_id', p_task_id,
           'sequence', coalesce(previous_event.sequence, 0) + 1,
-          'event_type', p_event_type,
-          'source', p_source,
+          'event_type', db_event_type,
+          'source', db_source,
           'idempotency_key', p_idempotency_key,
-          'payload', p_payload,
+          'payload', stored_payload,
           'previous_hash', previous_event.hash,
           'occurred_at', p_occurred_at
         )::text,
@@ -64,8 +93,8 @@ begin
   )
   values (
     p_event_id, p_task_id, coalesce(previous_event.sequence, 0) + 1,
-    p_event_type, p_source, p_idempotency_key,
-    coalesce(p_payload, '{}'::jsonb), previous_event.hash, event_hash, p_occurred_at
+    db_event_type, db_source, p_idempotency_key,
+    stored_payload, previous_event.hash, event_hash, p_occurred_at
   )
   returning * into inserted_event;
 
