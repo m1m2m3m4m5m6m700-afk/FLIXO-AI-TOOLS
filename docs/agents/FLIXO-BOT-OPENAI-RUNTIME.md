@@ -37,3 +37,5 @@ The approval identifier is bound to the runtime state and exact SHA. A mismatche
 The approval ledger reuses the existing hash-linked conversation event store; no second persistence or memory system is introduced. The browser session can therefore resume plan/approval metadata without persisting user image bytes. Because the image input itself remains a local `File`, a browser reload cannot reconstruct an already-running image mutation from metadata alone; resumability is intentionally limited to the pre-execution approval boundary.
 
 Canonical test coverage remains inside the repository's existing test surfaces so the governance plane does not require adding parallel standalone test registries while canonical GREEN is pending.
+
+The transactional confirmation compatibility change is governed by `AIOS-RESEARCH-EXEC-001` and does not create a new authority, registry, or persistence plane.
