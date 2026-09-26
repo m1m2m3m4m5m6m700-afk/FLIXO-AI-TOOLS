@@ -96,11 +96,18 @@ export const test = base.extend<{ runtimeEvidence: void }>({
     page.on('response', onResponse);
     await page.route('**/*', onRoute);
 
+    let teardownFailure: Error | null = null;
     try {
       await runTest();
     } finally {
       if (!page.isClosed()) {
-        await page.unroute('**/*', onRoute);
+        try {
+          await page.unroute('**/*', onRoute);
+        } catch (error) {
+          if (!String(error).includes('NS_BINDING_ABORTED')) {
+            teardownFailure = error instanceof Error ? error : new Error(String(error));
+          }
+        }
       }
       page.off('framenavigated', onNavigation);
       page.off('console', onConsole);
@@ -155,6 +162,10 @@ export const test = base.extend<{ runtimeEvidence: void }>({
       await testInfo.attach('runtime-evidence.json', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
       process.stdout.write(`RUNTIME_EVIDENCE=${JSON.stringify(evidence)}\n`);
       expect(provenanceFailure, provenanceFailure?.message ?? 'Execution SHA provenance is valid').toBeNull();
+    }
+
+    if (teardownFailure && testInfo.status === 'passed') {
+      throw teardownFailure;
     }
   }, { auto: true }],
 });

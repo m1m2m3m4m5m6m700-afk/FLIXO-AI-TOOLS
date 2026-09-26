@@ -129,7 +129,7 @@ jobs:
         run: |
           set -euo pipefail
           GUARDIAN_RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/council-external-lease-watch.yml/runs?branch=main&per_page=20")"
-          LATEST="$(printf '%s' "$GUARDIAN_RUNS" | jq -c '[.workflow_runs[] | select(.status == "completed")] | sort_by(.updated_at) | last // empty')"
+          LATEST="$(printf '%s' "$GUARDIAN_RUNS" | jq -c '[.workflow_runs | map(select(.status == "completed"))[]] | sort_by(.updated_at) | last // empty')"
           if [ -z "$LATEST" ]; then
             echo 'FAIL CLOSED: no completed external agent guardian evidence exists.'
             exit 1
@@ -181,7 +181,7 @@ jobs:
             MISSING=0
             for WORKFLOW in "FLIXO Test System" "FLIXO WP0 Trust Baseline" "FLIXO Test Impact" "FLIXO Test Impact Execution" "Repository Security Baseline" "Claude Security Review"; do
               FILE="${REQUIRED_FILES[$WORKFLOW]}"
-              RUN_COUNT="$(jq --arg name "$WORKFLOW" --arg file "$FILE" --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == $name and .path == (".github/workflows/" + $file) and .head_sha == $sha)] | length' /tmp/flixo-watch/workflow-runs.json)"
+              RUN_COUNT="$(jq --arg name "$WORKFLOW" --arg file "$FILE" --arg sha "$EXECUTION_SHA" '[.workflow_runs | map(select(.name == $name and .path == (".github/workflows/" + $file) and .head_sha == $sha))[]] | length' /tmp/flixo-watch/workflow-runs.json)"
               if [ "$RUN_COUNT" -eq 0 ]; then
                 echo "REQUIRED_CI_MISSING workflow=$WORKFLOW file=$FILE sha=$EXECUTION_SHA poll=$poll"
                 MISSING=1
@@ -234,7 +234,7 @@ jobs:
             FAILED=false
             for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
               FILE="${REQUIRED_FILES[$workflow]}"
-              RUN_JSON="$(jq -c --arg name "$workflow" --arg path ".github/workflows/$FILE" --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == $name and .path == $path and .head_sha == $sha)] | sort_by(.updated_at) | last // empty' /tmp/flixo-watch/workflow-runs.json)"
+              RUN_JSON="$(jq -c --arg name "$workflow" --arg path ".github/workflows/$FILE" --arg sha "$EXECUTION_SHA" '[.workflow_runs | map(select(.name == $name and .path == $path and .head_sha == $sha))[]] | sort_by(.updated_at) | last // empty' /tmp/flixo-watch/workflow-runs.json)"
               if [ -z "$RUN_JSON" ]; then
                 echo "SETTLEMENT_WAITING poll=$poll workflow=$workflow state=MISSING"
                 WAITING=true
@@ -293,7 +293,7 @@ jobs:
         run: |
           set -euo pipefail
           EXECUTION_SHA="$(cat /tmp/flixo-watch/execution-sha)"
-          RUN_JSON="$(jq -c --arg sha "$EXECUTION_SHA" '[.workflow_runs[] | select(.name == "FLIXO Test System" and .path == ".github/workflows/ci.yml" and .head_sha == $sha and .status == "completed" and .conclusion == "success")] | sort_by(.updated_at) | last // empty' /tmp/flixo-watch/workflow-runs.json)"
+          RUN_JSON="$(jq -c --arg sha "$EXECUTION_SHA" '[.[] | select(.workflowName == "FLIXO Test System" and .workflowPath == ".github/workflows/ci.yml" and .headSha == $sha and .status == "completed" and .conclusion == "success")] | sort_by(.updatedAt) | last // empty' /tmp/flixo-watch/workflow-runs.json)"
           test -n "$RUN_JSON" || { echo "FAIL CLOSED: no successful FLIXO Test System run for exact SHA=$EXECUTION_SHA"; exit 1; }
           TEST_RUN_ID="$(printf '%s' "$RUN_JSON" | jq -r '.databaseId')"
           ARTIFACT_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TEST_RUN_ID/artifacts?per_page=100" --jq '[.artifacts[] | select(.expired == false and .name == ("flixo-canonical-assurance-" + ($TEST_RUN_ID|tostring)))] | last.id // empty')"

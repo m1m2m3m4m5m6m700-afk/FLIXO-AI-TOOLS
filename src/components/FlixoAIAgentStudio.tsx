@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Link } from '@tanstack/react-router';
 import type { ExecutionPlan } from '@/lib/ai/planner';
@@ -118,6 +118,15 @@ export function FlixoAIAgentStudio({
   const [activeCategory, setActiveCategory] = useState<'all' | 'image' | 'video' | 'filter'>('all');
   const normalizedSearch = toolSearch.trim().toLowerCase();
   const ui = AGENT_UI_COPY[locale];
+  const resultPreviewUrl = useMemo(
+    () => (result ? URL.createObjectURL(result) : null),
+    [result],
+  );
+
+  useEffect(() => {
+    if (!resultPreviewUrl) return;
+    return () => URL.revokeObjectURL(resultPreviewUrl);
+  }, [resultPreviewUrl]);
 
   const localizedTools = useMemo(
     () => tools.map((tool) => {
@@ -269,8 +278,18 @@ export function FlixoAIAgentStudio({
           {error && <div className="flixo-agent-error" role="alert">{error}</div>}
 
           {state === 'success' && result && (
-            <div className="flixo-agent-success-card">
-              <div>
+            <div className="flixo-agent-success-card" data-testid="flixo-agent-result">
+              <div className="flixo-agent-result-preview-frame">
+                {resultPreviewUrl ? (
+                  <img
+                    data-testid="flixo-agent-result-preview"
+                    className="flixo-agent-result-preview"
+                    src={resultPreviewUrl}
+                    alt={copy.success}
+                  />
+                ) : null}
+              </div>
+              <div className="flixo-agent-result-meta">
                 <strong>{copy.success}</strong>
                 <span>{copy.success}</span>
               </div>

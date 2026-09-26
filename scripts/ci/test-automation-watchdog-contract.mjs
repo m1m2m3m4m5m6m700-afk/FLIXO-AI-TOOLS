@@ -7,8 +7,8 @@ const externalLeaseWatcher = read('.github/workflows/council-external-lease-watc
 const heartbeat = read('.github/workflows/agent-repair-heartbeat.yml');
 const liveness = read('scripts/ci/agent-liveness-protocol.mjs');
 
-assert.match(migration, /create table if not exists public\.flix_automation_watchdog/u);
-assert.match(migration, /create table if not exists public\.flix_automation_watchdog_events/u);
+assert.match(migration, /create table if not exists public\.flixo_automation_watchdog/u);
+assert.match(migration, /create table if not exists public\.flixo_automation_watchdog_events/u);
 assert.match(migration, /security definer/u);
 assert.match(migration, /set search_path = public, pg_catalog/u);
 assert.match(migration, /pg_try_advisory_xact_lock/u);

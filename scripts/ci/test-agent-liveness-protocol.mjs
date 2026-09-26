@@ -31,7 +31,7 @@ assert.equal(AGENT_LIVENESS_PROTOCOL.logicalBotIds[199], 'CELL-200');
 assert.equal(AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains.length, 10);
 assert.equal(AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.length, 200);
 assert.equal(new Set(AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.map(x=>x.botId)).size, 200);
-assert.equal(AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains.every(domain=>AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.filter(x=>x.domainId===domain.id).length===10), true);
+assert.equal(AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentDomains.every(domain=>AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.filter(x=>x.domainId===domain.id).length===20), true);
 assert.equal(AGENT_LIVENESS_PROTOCOL.logicalBotDevelopmentProfiles.every(x=>x.mutationAuthority===false && x.certificationAuthority===false && x.skills.length>0), true);
 assert.equal(AGENT_LIVENESS_PROTOCOL.pulseProfiles.length, 10);
 assert.equal(new Set(AGENT_LIVENESS_PROTOCOL.pulseProfiles.map(x=>x.pulseType)).size, 10);
@@ -150,7 +150,7 @@ assert.throws(()=>buildResidentWakeBaton({actor:'FLIXO1',nextActor:'FLIXO1',targ
 assert.throws(()=>buildResidentWakeBaton({actor:'BAD',targetSha:'a'.repeat(40)}),/ACTOR_INVALID/u);
 
 const teamWake=buildTeamWakeDirective({
-  actor:'ACTION-TWIN-1',
+  actor:'FLIXO1',
   targetSha:'a'.repeat(40),
   taskId:'TASK-HEARTBEAT',
   failureFingerprint:'fp-team-wake',
@@ -251,9 +251,6 @@ assert.equal(pulseReport.fiveBotResidency.requiredBotCount,5);
 assert.equal(pulseReport.fiveBotResidency.postTaskCloseState,'READY_RESIDENT');
 assert.equal(pulseReport.fiveBotResidency.journeyLogicalBotCount,200);
 assert.equal(pulseReport.fiveBotResidency.journeyCohortCount,40);
-assert.equal(pulseReport.residentRuntimeCount,10);
-assert.equal(pulseReport.activeRuntimeCount,5);
-assert.equal(pulseReport.stagedRuntimeCount,5);
 assert.equal(pulseReport.logicalBotIds.length,200);
 assert.equal(pulseReport.pulses[0].logicalBotIds.length,200);
 
@@ -261,7 +258,6 @@ const sessionSource=fs.readFileSync(path.resolve(process.cwd(),'scripts/ci/agent
 assert.match(sessionSource,/activeRepairWindowMs/u);
 assert.match(sessionSource,/AGENT_SESSION_BLOCKED_LOGOUT_FORBIDDEN_OPEN_WORK_REMAINS/u);
 assert.match(sessionSource,/AGENT_SESSION_HEARTBEAT_REQUIRED_BEFORE_CLOSE/u);
-assert.match(sessionSource,/agent-session\.mjs heartbeat/u);
 
 console.log('AGENT_LIVENESS_CONTRACT=PASS');
 

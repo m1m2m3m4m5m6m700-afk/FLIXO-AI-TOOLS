@@ -28,7 +28,7 @@ export function buildWakePlan({ comment, currentExecutionSha, repository = '' } 
   if (!body.includes(PRESIDENT_WAKE_MARKER)) throw new Error('COUNCIL_WAKE_MARKER_MISSING');
   const entrySha = extract(body, /ENTRY SHA:\s*([a-f0-9]{40})/iu, 'ENTRY_SHA');
   const role = extract(body, /ROLE:\s*([A-Z]+)/u, 'ROLE').toUpperCase();
-  const workPackageId = extract(body, /WORK PACKAGE:\s*([A-Z][A-Z0-9_-]{3,80})/u, 'WORK_PACKAGE');
+  const workPackageId = extract(body, /WORK PACKAGE:\s*([^\r\n]*)/u, 'WORK_PACKAGE');
   if (!SHA_RE.test(entrySha)) throw new Error('COUNCIL_WAKE_ENTRY_SHA_INVALID');
   if (!SHA_RE.test(String(currentExecutionSha ?? ''))) throw new Error('COUNCIL_WAKE_CURRENT_SHA_INVALID');
   if (entrySha !== currentExecutionSha) throw new Error('COUNCIL_WAKE_STALE_SHA');

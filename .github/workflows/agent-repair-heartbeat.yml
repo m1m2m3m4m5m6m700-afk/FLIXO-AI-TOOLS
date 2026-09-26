@@ -30,8 +30,9 @@ jobs:
       - name: Checkout liveness contract
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          # The heartbeat is read-only; privileged recovery remains with trusted canonical observers.
-          ref: main
+          # Read-only heartbeat follows the exact execution SHA so its compliance verifier
+          # includes the canonical watchdog schedule evidence for the active execution head.
+          ref: execution
           fetch-depth: 1
           persist-credentials: false
 

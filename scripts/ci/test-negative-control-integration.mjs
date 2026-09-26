@@ -7,6 +7,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
 const repoRoot = process.cwd();
+const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const actualSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 const corruptedSha = '0000000000000000000000000000000000000000';
 const runId = `negative-control-${Date.now()}`;
@@ -148,7 +149,7 @@ writeJson('evidence/static-build/run-identity.json', {
   testPlanSha256: digest('scripts/ci/test-plan.json'),
   assertionRegistrySha256: digest('scripts/ci/assertion-registry.json'),
   packageLockSha256: digest('package-lock.json'),
-  runtime: { node: process.version, npm: execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim() },
+  runtime: { node: process.version, npm: execFileSync(npmCommand, ['--version'], { encoding: 'utf8', shell: process.platform === 'win32' }).trim() },
   runId, workflowName: 'FLIXO Test System', eventName: 'test',
 });
 writeJson('evidence/static-build/static.json', { evidenceClass: 'PRIMARY_EXECUTION', status: 'PASS', sha: actualSha });

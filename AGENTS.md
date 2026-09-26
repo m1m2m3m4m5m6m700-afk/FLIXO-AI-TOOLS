@@ -302,6 +302,34 @@ When protocol rules conflict, precedence is: P00 Supreme Universal Agent Executi
 
 No new standalone protocol may be introduced unless a recurring failure class is proven, existing controls are insufficient, the invariant and authoritative enforcement boundary are named, a regression/enforcement test is defined, and duplication/conflict analysis passes. Extend an existing protocol when it can absorb the requirement without ambiguity.
 
+## OPERATIONAL AGENT TEAM — CANONICAL ROSTER
+
+The repository uses a small professional operational team. Specialization is routing metadata, not a new authority layer.
+
+Resident operations:
+- `assistantController` owns orchestration, priority, conflict arbitration, and final integration/publication decisions.
+- `actionRepairBot` owns admitted source repair on `execution`; it never self-certifies and never mutates `main`.
+- `testAgent` owns build, targeted verification, affected-contract verification, browser verification, and test-system evidence.
+- `agent-repair-heartbeat` plus the existing latest-execution cleanup lane own continuous liveness/recovery.
+
+Specialist operations are activated only through Canonical Agent Communication and only when their scope is required:
+- `codeScout` → repository investigation and dependency/change-surface analysis.
+- `errorAgent` → RCA, failure classification, and evidence correlation.
+- `securityAgent` → security and adversarial review.
+- `certificationAuthority` → independent exact-SHA certification and release evidence.
+- `executionAgent` → admitted product/runtime implementation outside repair.
+- `performanceAgent` → measurable performance scope only.
+- `reviewAgent` → independent challenge only when a distinct review is required.
+- `assistantRepairAgent` → emergency fallback only under its existing learned-rule admission contract.
+- `execution-agent-clone-v1` → shared-learning consumer only; never a runtime seat or mutation authority.
+
+Retired/non-runtime identities are not executable agents: `CELL-001..CELL-200` and `ACTION-WAKE`. Existing `FLIXO1..FLIXO10`, ACTION specialists, and 200 cognitive identities remain logical/shared-intelligence identities unless explicitly admitted to a runtime seat; they do not create parallel mutation lanes.
+
+Operation ownership is single-owner by default:
+`BUILD/VERIFY=testAgent` · `RCA=errorAgent` · `SCOUT=codeScout` · `REPAIR=actionRepairBot` · `SECURITY=securityAgent` · `CERTIFICATION=certificationAuthority` · `FINAL_INTEGRATION=assistantController`.
+
+No specialist may create an independent queue, timer, self-wake loop, memory registry, branch, merge path, or certification path. Open work remains resident through the existing heartbeat/recovery protocol; a missed heartbeat causes recovery, not task termination.
+
 ## OWNERSHIP
 
 Each active agent MUST declare its RCA and file/contract scope. One active owner per RCA and one active owner per mutable scope unless an explicit handoff transfers ownership.

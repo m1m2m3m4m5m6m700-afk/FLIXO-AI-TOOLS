@@ -237,7 +237,14 @@ export function runGate(root = ROOT) {
   if (intelligence) errors.push(...validateThreeBotIntelligence(intelligence, profiles));
   const masterProtocolFile = path.resolve(root, 'docs/AGENT-COLLABORATION-PROTOCOL.md');
   const vaultProtocolFile = path.resolve(root, 'diagnostics/auto-repair/action-vault/ACTION-VAULT-SUPERVISORY-LEARNING-PROTOCOL.md');
-  const canonicalBlock = (file) => fs.existsSync(file) ? fs.readFileSync(file, 'utf8').match(/<!-- ACTION_VAULT_CANONICAL_PROTOCOL_START -->[\s\S]*?<!-- ACTION_VAULT_CANONICAL_PROTOCOL_END -->/u)?.[0] ?? null : null;
+  const canonicalBlock = (file) => {
+    if (!fs.existsSync(file)) return null;
+    const text = fs.readFileSync(file, 'utf8').replaceAll(String.fromCharCode(13)+String.fromCharCode(10), String.fromCharCode(10));
+    const start = text.indexOf('<!-- ACTION_VAULT_CANONICAL_PROTOCOL_START -->');
+    const endMarker = '<!-- ACTION_VAULT_CANONICAL_PROTOCOL_END -->';
+    const end = text.indexOf(endMarker, start);
+    return start >= 0 && end >= 0 ? text.slice(start, end + endMarker.length) : null;
+  };
   const masterBlock = canonicalBlock(masterProtocolFile);
   const vaultBlock = canonicalBlock(vaultProtocolFile);
   if (!masterBlock) err(errors, 'ACTION_VAULT_PROTOCOL_MASTER_BLOCK_MISSING');
@@ -245,7 +252,7 @@ export function runGate(root = ROOT) {
   if (masterBlock && vaultBlock && masterBlock !== vaultBlock) err(errors, 'ACTION_VAULT_PROTOCOL_MASTER_MISMATCH');
   for (const bot of EXPECTED_BOTS) {
     const profile=profiles.find((x)=>x.botId===bot);
-    if (!profile?.canonicalVaultProtocolMirror?.content || profile.canonicalVaultProtocolMirror.content !== masterBlock) err(errors, 'ACTION_VAULT_BOT_PROTOCOL_MIRROR_MISMATCH', bot);
+    if (!profile?.canonicalVaultProtocolMirror?.content || profile.canonicalVaultProtocolMirror.content.replaceAll(String.fromCharCode(13)+String.fromCharCode(10), String.fromCharCode(10)) !== masterBlock) err(errors, 'ACTION_VAULT_BOT_PROTOCOL_MIRROR_MISMATCH', bot);
   }
   if (intelligence?.canonicalVaultProtocol?.protocolId !== 'ACTION-VAULT-CANONICAL-BOT-PROTOCOL-v1' || intelligence?.canonicalVaultProtocol?.sourceOfTruth !== 'MASTER_BLOCK') err(errors, 'ACTION_VAULT_PROTOCOL_CANONICAL_BINDING_MISSING');
 

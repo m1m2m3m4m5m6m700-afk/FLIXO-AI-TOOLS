@@ -26,7 +26,8 @@ const git = (a) => {
 };
 const exec = (check) => new Promise((resolveResult) => {
   const started = now();
-  const child = spawn(check.command, check.args ?? [], { cwd: ROOT, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const command = process.platform === 'win32' && check.command === 'npm' ? 'npm.cmd' : check.command;
+  const child = spawn(command, check.args ?? [], { cwd: ROOT, env: process.env, shell: process.platform === 'win32' && command === 'npm.cmd', stdio: ['ignore', 'pipe', 'pipe'] });
   let out = '', err = '';
   child.stdout.on('data', (d) => { const s = d.toString(); out += s; process.stdout.write(s); });
   child.stderr.on('data', (d) => { const s = d.toString(); err += s; process.stderr.write(s); });

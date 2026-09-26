@@ -57,7 +57,16 @@ const getSaveFilePicker = (): SaveFilePicker | undefined => {
 const saveResultToFile = async (blob: Blob): Promise<void> => {
   const showSaveFilePicker = getSaveFilePicker();
   if (!showSaveFilePicker) {
-    throw new Error('Direct file saving is unavailable in this browser.');
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = getDownloadFilename(blob.type);
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    return;
   }
 
   const handle = await showSaveFilePicker({

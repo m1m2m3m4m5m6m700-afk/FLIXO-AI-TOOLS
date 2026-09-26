@@ -100,6 +100,20 @@ LIVE AUTOMATION RCA = continuous-error-watch input artifact missing on main auto
 ADMIN PROVENANCE = production Vercel→Supabase binding not proven
 ```
 
+## MVP PRODUCT PROJECTION
+
+### MVP-002 — CORE USER JOURNEY
+STATUS = REMAINING / READY FOR VERIFICATION
+OWNER = Product/MVP
+IMPLEMENTATION = Agent runtime now provides verified-result preview and browser-native download fallback; canonical E2E covers upload → intent → plan → execute → verify → preview → download.
+NEXT = fresh exact-SHA browser/runtime verification; independent verification remains external to Product.
+
+### MVP-005..007 — EXECUTION FOUNDATION
+STATUS = IMPLEMENTED / VERIFICATION REQUIRED
+OWNER = Product/MVP + Verification
+SCOPE = deterministic planner fallback, unified capability registry, execution and post-execution verification are implemented; remaining work is targeted/current-SHA verification and acceptance evidence, not a new registry or execution path.
+NEXT = verify fallback behavior, registry uniqueness, executor/verifier contracts, and fail-closed terminal handling on the current execution head.
+
 ## TASK QUEUE
 
 | ID | Status | Next deterministic action |
@@ -116,6 +130,7 @@ ADMIN PROVENANCE = production Vercel→Supabase binding not proven
 | BUILD-002 | CLOSED / VERIFIED | Preserve canonical artifact identity producer/consumer contract |
 | TEST-001 | CLOSED / VERIFIED | Preserve deterministic ownership registry and validator |
 | AGENT-PROTOCOL-003 | CLOSED / VERIFIED | Preserve proof-driven fail-closed repair lifecycle and learning/prevention contracts |
+| AGENT-OPS-ROSTER-001 | IMPLEMENTED / VERIFICATION PENDING | Canonical single-owner operational roster for orchestration, RCA, repair, build/verify, security, certification, and 24/7 liveness recovery | Fresh exact-SHA canonical CI and certification on the current execution head |
 | CELL-EXEC-GOV-001 | IMPLEMENTED / VERIFICATION PENDING | Run current governance regression, then certify current execution head as required |
 | AGENT-PROMPT-INTEL-001 | CONSOLIDATED / VERIFICATION PENDING | Shared Prompt Registry + causal deduplication + quality gate + Task Agent prompt provenance | Run current main canonical static/contract verification; reconcile execution exact-SHA before promotion |
 | DEBT-001 | BLOCKED_EXTERNAL | Deterministic validator delivered; required exact-head external security/Vercel gates are unresolved |
