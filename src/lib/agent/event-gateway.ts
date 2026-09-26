@@ -135,9 +135,11 @@ export function assertAgentEvent(event: AgentEventEnvelope): void {
 
 export class AgentEventInbox {
   private readonly seen = new Set<string>();
+  private readonly maxKeys: number;
 
-  constructor(private readonly maxKeys = 10_000) {
+  constructor(maxKeys = 10_000) {
     if (!Number.isInteger(maxKeys) || maxKeys < 1 || maxKeys > 100_000) throw new Error('AGENT_EVENT_INBOX_LIMIT_INVALID');
+    this.maxKeys = maxKeys;
   }
 
   accept(event: AgentEventEnvelope): boolean {
