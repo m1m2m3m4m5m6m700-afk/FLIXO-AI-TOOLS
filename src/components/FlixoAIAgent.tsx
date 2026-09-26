@@ -250,9 +250,18 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         activeCommand: memory.activeCommand,
       });
 
-      // A fallback is executable when the gateway supplied a contract-valid deterministic plan.
-      // Only fall back to the legacy local path when the gateway has no usable plan.
-      if (decision.fallback && !(decision.mode === 'plan' && decision.plan)) return false;
+      // Deterministic fallback plans must use the same canonical local planner/runtime-control path.
+      // Model-generated plans are validated separately below because they originate outside the deterministic planner.
+      if (decision.fallback && decision.mode === 'plan' && decision.plan) {
+        const fallbackPlan = await buildPlan(command, responseCopy);
+        if (!fallbackPlan) {
+          pushMessage('agent', responseCopy.noSafePlan);
+          return true;
+        }
+        pushMessage('agent', file ? responseCopy.planReady : responseCopy.uploadThenExecute);
+        return true;
+      }
+      if (decision.fallback) return false;
 
       if (decision.mode === 'plan' && decision.plan) {
         const contextualCommand = contextualizeCommand(command, memory);
