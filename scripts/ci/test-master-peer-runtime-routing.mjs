@@ -29,7 +29,7 @@ assert.match(relay, /RECIPIENT_MASTER=/);
 assert.match(relay, /TOP_RECIPIENT=/);
 assert.match(relay, /administrativeBroadcast/);
 assert.match(relay, /MASTER-1","MASTER-2","MASTER-3/);
-assert.match(relay, /FAIL CLOSED: unknown recipientMaster/);
+assert.match(relay, /FAIL CLOSED: unknown recipientMaster=[^\\n\"]+/u);
 assert.match(relay, /FAIL CLOSED: unknown senderMaster/);
 assert.match(relay, /requestedByAccountId:"SYSTEM"/);
 assert.match(relay, /masterPeerMessage:/);
