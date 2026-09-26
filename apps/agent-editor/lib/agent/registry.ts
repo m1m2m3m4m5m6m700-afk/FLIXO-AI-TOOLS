@@ -1,26 +1,11 @@
 import { z } from "zod";
-import {
+import { ToolCallRequestSchema, ToolCallResultSchema } from "../schemas/agent";
+import type {
+  RegisteredTool as RegisteredToolMeta,
   ToolDefinition,
-  RegisteredTool,
-  ToolMeta,
 } from "../schemas/tools";
-import { ToolCallResultSchema, type ToolCallResult } from "../schemas/agent";
 
 type StoredTool = ToolDefinition<z.ZodTypeAny, z.ZodTypeAny>;
-
-export class ToolNotFoundError extends Error {
-  constructor(toolName: string) {
-    super(`Tool '${toolName}' is not registered in the ToolRegistry.`);
-    this.name = "ToolNotFoundError";
-  }
-}
-
-export class ToolExecutionError extends Error {
-  constructor(toolName: string, message: string, public readonly details?: unknown) {
-    super(`Execution failed for tool '${toolName}': ${message}`);
-    this.name = "ToolExecutionError";
-  }
-}
 
 export class ToolRegistry {
   private readonly tools = new Map<string, StoredTool>();
@@ -28,26 +13,42 @@ export class ToolRegistry {
   register<TSchemaIn extends z.ZodTypeAny, TSchemaOut extends z.ZodTypeAny>(
     tool: ToolDefinition<TSchemaIn, TSchemaOut>,
   ): void {
-    const parsedMeta = this.parseMeta(tool.meta);
-    if (this.tools.has(parsedMeta.name)) {
-      throw new Error(`Tool with name '${parsedMeta.name}' is already registered.`);
+    const meta = z
+      .object({
+        name: z.string().min(1).max(128),
+        description: z.string().min(1).max(4_000),
+        category: z.enum([
+          "image_editing",
+          "video_editing",
+          "audio_processing",
+          "utilities",
+        ]),
+        executionMode: z.enum(["sync", "async_worker", "client_wasm"]),
+        estimatedCostCredits: z.number().finite().nonnegative(),
+        estimatedLatencyMs: z.number().finite().nonnegative(),
+        supportedMediaTypes: z.array(z.enum(["image", "video", "audio"])),
+      })
+      .strict()
+      .parse(tool.meta);
+
+    if (this.tools.has(meta.name)) {
+      throw new Error("TOOL_ALREADY_REGISTERED:" + meta.name);
     }
-    this.tools.set(parsedMeta.name, tool as StoredTool);
+
+    this.tools.set(meta.name, tool as StoredTool);
   }
 
-  get(name: string): StoredTool {
-    const tool = this.tools.get(name);
-    if (!tool) {
-      throw new ToolNotFoundError(name);
-    }
-    return tool;
+  get(name: string): StoredTool | undefined {
+    return this.tools.get(name);
   }
 
-  list(): RegisteredTool[] {
-    return Array.from(this.tools.entries(), ([name, tool]) => ({
-      name,
-      meta: this.parseMeta(tool.meta),
-      jsonSchemaInput: this.describeInputSchema(tool.inputSchema),
+  list(): RegisteredToolMeta[] {
+    return Array.from(this.tools.values(), (tool) => ({
+      name: tool.meta.name,
+      meta: {
+        description: tool.meta.description,
+        category: this.toPromptCategory(tool.meta.category),
+      },
     }));
   }
 
@@ -55,88 +56,96 @@ export class ToolRegistry {
     callId: string,
     toolName: string,
     rawInput: unknown,
-  ): Promise<ToolCallResult> {
-    const startTime = Date.now();
+  ) {
+    const request = ToolCallRequestSchema.parse({
+      callId,
+      toolName,
+      parameters: rawInput,
+    });
+
+    const tool = this.get(request.toolName);
+    if (!tool) {
+      return ToolCallResultSchema.parse({
+        callId: request.callId,
+        toolName: request.toolName,
+        status: "error",
+        error: "UNKNOWN_TOOL",
+      });
+    }
+
+    const parsedInput = tool.inputSchema.safeParse(request.parameters);
+    if (!parsedInput.success) {
+      return ToolCallResultSchema.parse({
+        callId: request.callId,
+        toolName: request.toolName,
+        status: "error",
+        error: "TOOL_INPUT_SCHEMA_INVALID",
+      });
+    }
 
     try {
-      const tool = this.get(toolName);
-      const parsedInput = tool.inputSchema.safeParse(rawInput);
-
-      if (!parsedInput.success) {
-        return this.result({
-          callId,
-          toolName,
-          status: "error",
-          errorDetails: `Invalid Tool Input Schema: ${parsedInput.error.message}`,
-          executionTimeMs: Date.now() - startTime,
-        });
-      }
-
       const rawOutput = await tool.execute(parsedInput.data);
       const parsedOutput = tool.outputSchema.safeParse(rawOutput);
 
       if (!parsedOutput.success) {
-        return this.result({
-          callId,
-          toolName,
+        return ToolCallResultSchema.parse({
+          callId: request.callId,
+          toolName: request.toolName,
           status: "error",
-          errorDetails: `Invalid Tool Output Schema: ${parsedOutput.error.message}`,
-          executionTimeMs: Date.now() - startTime,
+          error: "TOOL_OUTPUT_SCHEMA_INVALID",
         });
       }
 
-      if (!this.isRecord(parsedOutput.data)) {
-        throw new ToolExecutionError(
-          toolName,
-          "Tool output must be an object for ToolCallResult.data.",
-        );
+      if (
+        !parsedOutput.data ||
+        typeof parsedOutput.data !== "object" ||
+        Array.isArray(parsedOutput.data)
+      ) {
+        return ToolCallResultSchema.parse({
+          callId: request.callId,
+          toolName: request.toolName,
+          status: "error",
+          error: "TOOL_OUTPUT_NOT_OBJECT",
+        });
       }
 
-      return this.result({
-        callId,
-        toolName,
+      return ToolCallResultSchema.parse({
+        callId: request.callId,
+        toolName: request.toolName,
         status: "success",
-        data: parsedOutput.data,
-        executionTimeMs: Date.now() - startTime,
+        data: parsedOutput.data as Record<string, unknown>,
       });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown tool execution failure.";
-      return this.result({
-        callId,
-        toolName,
+    } catch {
+      return ToolCallResultSchema.parse({
+        callId: request.callId,
+        toolName: request.toolName,
         status: "error",
-        errorDetails: errorMessage,
-        executionTimeMs: Date.now() - startTime,
+        error: "TOOL_EXECUTION_FAILED",
       });
     }
   }
 
-  get size(): number {
-    return this.tools.size;
+  parseToolOutput(toolName: string, data: unknown): Record<string, unknown> {
+    const tool = this.get(toolName);
+    if (!tool) {
+      throw new Error("UNKNOWN_TOOL:" + toolName);
+    }
+
+    const parsed = tool.outputSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new Error("TOOL_OUTPUT_SCHEMA_INVALID:" + toolName);
+    }
+
+    if (!parsed.data || typeof parsed.data !== "object" || Array.isArray(parsed.data)) {
+      throw new Error("TOOL_OUTPUT_NOT_OBJECT:" + toolName);
+    }
+
+    return parsed.data as Record<string, unknown>;
   }
 
-  private parseMeta(meta: ToolMeta): ToolMeta {
-    return {
-      ...meta,
-      name: meta.name.trim(),
-      description: meta.description.trim(),
-      supportedMediaTypes: [...meta.supportedMediaTypes],
-    };
-  }
-
-  private describeInputSchema(schema: z.ZodTypeAny): Record<string, unknown> {
-    return {
-      type: "object",
-      description: "Input schema is validated by Zod at runtime.",
-      schemaName: schema.constructor.name,
-    };
-  }
-
-  private isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-  }
-
-  private result(value: ToolCallResult): ToolCallResult {
-    return ToolCallResultSchema.parse(value);
+  private toPromptCategory(
+    category: z.infer<typeof z.enum>,
+  ): "image_editing" | "video_editing" | "audio_processing" | "utilities" {
+    return category;
   }
 }
