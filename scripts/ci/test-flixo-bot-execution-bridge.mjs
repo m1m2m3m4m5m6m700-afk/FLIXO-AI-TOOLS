@@ -22,6 +22,9 @@ assert.match(bridge, /restoreFlixoBotRunState/u);
 assert.match(bridge, /cancelRuntimeExecution/u);
 assert.match(bridge, /completeRuntimeExecution/u);
 assert.match(integrator, /runtimeState\?\: FlixoBotRunState/u);
+assert.match(integrator, /runtimeRequest\?\: string/u);
+assert.match(integrator, /beginFlixoBotGatewayRuntime/u);
+assert.match(integrator, /onRuntimeState\?\:/u);
 assert.match(integrator, /confirmRuntimeExecution/u);
 assert.match(integrator, /runWorkflowPipeline\([\s\S]*runtimeHooks/u);
 assert.match(integrator, /try \{[\s\S]*authorizeExecution\([\s\S]*catch \(cause\)/u);
@@ -35,6 +38,8 @@ assert.match(conversation, /runtimeResumeState: string \| null/u);
 assert.match(ui, /restorePreparedExecution/u);
 assert.match(ui, /decision\.runtime\?\.resumeState/u);
 assert.match(ui, /runtimeResumeState: prepared\.runtimeState/u);
+assert.match(ui, /runtimeRequest: contextualCommand/u);
+assert.match(ui, /onRuntimeState/u);
 assert.match(vite, /__FLIXO_BUILD_SHA__/u);
 assert.match(vite, /VERCEL_GIT_COMMIT_SHA/u);
 
