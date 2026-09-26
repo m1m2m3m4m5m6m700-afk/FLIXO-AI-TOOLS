@@ -4,6 +4,8 @@ import { getReadyToolConfigs } from '@/config/tools';
 import { getBestToolIntent } from '@/lib/intent-router';
 import { addToolToChain, getToolChain } from '@/lib/tool-chain';
 import { ToolChainPanel } from './tool-chain-panel';
+import { AgentPlanCard } from './agent-plan-card';
+import { compileVisualTaskSpec } from '@/lib/agent/visual-task-spec';
 import './agent-workbench.css';
 
 type Props = { readonly locale?: string };
@@ -34,6 +36,12 @@ export function AgentWorkbench({ locale = 'en' }: Props) {
   const activeTool = useMemo(() => tools.find((tool) => tool.id === activeToolId) ?? match?.tool ?? null, [activeToolId, match, tools]);
   const visibleTools = useMemo(() => tools.filter((tool) => ['image-compressor', 'image-converter', 'background-remover', 'image-ocr', 'image-upscaler', 'image-cropper'].includes(tool.id)).slice(0, 6), [tools]);
   const chainCount = getToolChain().length;
+  const visualSpec = useMemo(() => compileVisualTaskSpec(query, match ? {
+    workflowName: query.trim(),
+    confidence: 1,
+    catalogFingerprint: '0'.repeat(64),
+    steps: [{ toolId: match.tool.id, params: {} }],
+  } : null), [query, match]);
 
   const selectTool = (toolId: string) => {
     setActiveToolId(toolId);
@@ -52,6 +60,7 @@ export function AgentWorkbench({ locale = 'en' }: Props) {
           <label className="sr-only" htmlFor="flixo-agent-prompt">{t.prompt}</label>
           <textarea id="flixo-agent-prompt" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.placeholder} rows={3} />
           <div className="agent-workbench__prompt-actions"><span>{t.local}</span><button type="button" onClick={() => setQuery((value) => value.trim())} disabled={!query.trim()}>{t.analyze}</button></div>
+          <AgentPlanCard spec={visualSpec} locale={locale} />
           {match && <div className="agent-workbench__result"><div><span>{t.suggested}</span><strong>{match.tool.title}</strong><small>{match.tool.description}</small></div><div className="agent-workbench__result-actions"><button type="button" onClick={() => selectTool(match.tool.id)}>{t.chain}</button><Link to={match.tool.path}>{t.open}</Link></div></div>}
           {activeTool && <div className="agent-workbench__active"><span>{t.selected}</span><strong>{activeTool.title}</strong><small>{t.file} {chainCount ? '(' + chainCount + '/8)' : ''}</small></div>}
         </div>
