@@ -100,6 +100,23 @@ const retry = scheduleRetry(again, SHA_A, 'transient provider error');
 assert.equal(retry.status, 'RETRYING');
 assert.equal(retry.retryCount, 1);
 
+const retryExhausted = scheduleRetry(retry, SHA_A, 'second transient provider error');
+assert.equal(retryExhausted.status, 'RETRYING');
+const retryFailed = scheduleRetry(retryExhausted, SHA_A, 'retry budget exhausted');
+assert.equal(retryFailed.status, 'FAILED');
+assert.throws(
+  () => applyNextStep(retryFailed, SHA_A, { type: 'FINAL', output: { verified: true } }),
+  /FLIXO_BOT_FINAL_INVALID_STATE/,
+);
+assert.throws(
+  () => applyNextStep(retryFailed, SHA_A, {
+    type: 'INTERRUPTION',
+    reason: 'cannot resurrect failed run',
+    requiresApproval: true,
+  }),
+  /FLIXO_BOT_INTERRUPTION_INVALID_STATE/,
+);
+
 const final = applyNextStep(retry, SHA_A, { type: 'FINAL', output: { verified: true } });
 assert.equal(final.status, 'SUCCEEDED');
 
