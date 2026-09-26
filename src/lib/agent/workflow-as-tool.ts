@@ -8,7 +8,7 @@ import type { WorkflowId } from '@/lib/workflows/types.ts';
 export const WORKFLOW_TOOL_PREFIX = 'workflow:' as const;
 export const WORKFLOW_TOOL_CONTRACT_VERSION = 1 as const;
 
-export type WorkflowToolId = \`workflow:\${WorkflowId}\`;
+export type WorkflowToolId = 'workflow:' & string;
 
 export type WorkflowToolDescriptor = Readonly<{
   contractVersion: typeof WORKFLOW_TOOL_CONTRACT_VERSION;
@@ -54,16 +54,19 @@ export function toWorkflowTool(
   const stepToolIds = Object.freeze(workflow.steps.map((step) => step.toolId));
   const riskLevel = deriveWorkflowRisk(stepToolIds);
   const requiresConfirmation = riskLevel === 'MEDIUM' || riskLevel === 'HIGH';
+
   const inputEntries = workflow.steps.flatMap((step) =>
     Object.keys(step.params ?? {}).map((key) => [
       key,
       { type: typeof (step.params ?? {})[key], required: !step.optional },
     ] as const)
   );
+
   const inputSchema = Object.freeze({
     type: 'object' as const,
     properties: Object.freeze(Object.fromEntries(inputEntries)),
   });
+
   const outputSchema = Object.freeze({
     type: 'object' as const,
     properties: Object.freeze({
@@ -75,7 +78,7 @@ export function toWorkflowTool(
 
   return Object.freeze({
     contractVersion: WORKFLOW_TOOL_CONTRACT_VERSION,
-    id: \`\${WORKFLOW_TOOL_PREFIX}\${workflow.id}\` as WorkflowToolId,
+    id: (WORKFLOW_TOOL_PREFIX + workflow.id) as WorkflowToolId,
     title: workflow.title,
     description: workflow.description,
     intents: Object.freeze([...workflow.intentPatterns]),
@@ -128,6 +131,7 @@ export function getWorkflowForTool(toolId: string) {
 export function expandWorkflowTool(toolId: string): ExecutionPlanContract | null {
   const workflow = getWorkflowForTool(toolId);
   if (!workflow) return null;
+
   return parseExecutionPlan({
     workflowName: workflow.title,
     confidence: 0.99,

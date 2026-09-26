@@ -3,7 +3,7 @@ import { advanceScheduledAgentJob, type ScheduledAgentJob } from '@/lib/agent/sc
 type PersistenceConfig = Readonly<{ url: string; key: string }>;
 
 function config(): PersistenceConfig | null {
-  const url = process.env.SUPABASE_URL?.trim().replace(/\\/$/u, '');
+  const url = process.env.SUPABASE_URL?.trim().replace(/\/$/u, '');
   const key = (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)?.trim();
   if (!url || !key) return null;
   return { url, key };
@@ -12,17 +12,28 @@ function config(): PersistenceConfig | null {
 async function request(path: string, init: RequestInit = {}): Promise<unknown> {
   const cfg = config();
   if (!cfg) throw new Error('AGENT_SCHEDULE_PERSISTENCE_NOT_CONFIGURED');
+
   const headers = new Headers(init.headers);
   headers.set('apikey', cfg.key);
-  headers.set('Authorization', \`Bearer \${cfg.key}\`);
+  headers.set('Authorization', 'Bearer ' + cfg.key);
   headers.set('Accept', 'application/json');
-  const response = await fetch(\`\${cfg.url}\${path}\`, { ...init, headers });
+
+  const response = await fetch(cfg.url + path, { ...init, headers });
   const bodyText = await response.text();
+
   let body: unknown = null;
   if (bodyText) {
-    try { body = JSON.parse(bodyText); } catch { body = bodyText; }
+    try {
+      body = JSON.parse(bodyText);
+    } catch {
+      body = bodyText;
+    }
   }
-  if (!response.ok) throw new Error(\`AGENT_SCHEDULE_PERSISTENCE_FAILED:http_\${response.status}\`);
+
+  if (!response.ok) {
+    throw new Error('AGENT_SCHEDULE_PERSISTENCE_FAILED:http_' + response.status);
+  }
+
   return body;
 }
 
@@ -49,10 +60,15 @@ function rowToJob(row: Record<string, unknown>): ScheduledAgentJob {
   };
 }
 
-export async function createPersistedSchedule(job: ScheduledAgentJob): Promise<ScheduledAgentJob> {
+export async function createPersistedSchedule(
+  job: ScheduledAgentJob,
+): Promise<ScheduledAgentJob> {
   const body = await request('/rest/v1/flixo_agent_schedules', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Prefer: 'return=representation' },
+    headers: {
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation',
+    },
     body: JSON.stringify({
       schedule_id: job.scheduleId,
       owner_id: job.ownerId,
@@ -70,27 +86,50 @@ export async function createPersistedSchedule(job: ScheduledAgentJob): Promise<S
       metadata: job.metadata,
     }),
   });
-  if (!Array.isArray(body) || !body[0] || typeof body[0] !== 'object') throw new Error('AGENT_SCHEDULE_CREATE_RESPONSE_INVALID');
+
+  if (!Array.isArray(body) || !body[0] || typeof body[0] !== 'object') {
+    throw new Error('AGENT_SCHEDULE_CREATE_RESPONSE_INVALID');
+  }
+
   return rowToJob(body[0] as Record<string, unknown>);
 }
 
-export async function claimDueSchedules(limit = 16, now = new Date().toISOString()): Promise<readonly ScheduledAgentJob[]> {
+export async function claimDueSchedules(
+  limit = 16,
+  now = new Date().toISOString(),
+): Promise<readonly ScheduledAgentJob[]> {
   const body = await request('/rest/v1/rpc/flixo_claim_due_agent_schedules', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ p_limit: limit, p_now: now }),
   });
+
   if (!Array.isArray(body)) throw new Error('AGENT_SCHEDULE_CLAIM_RESPONSE_INVALID');
-  return Object.freeze(body.filter((item): item is Record<string, unknown> =>
-    Boolean(item && typeof item === 'object')
-  ).map(rowToJob));
+
+  return Object.freeze(
+    body
+      .filter((item): item is Record<string, unknown> =>
+        Boolean(item && typeof item === 'object'))
+      .map(rowToJob),
+  );
 }
 
-export async function markScheduleRun(job: ScheduledAgentJob, ranAt: string, eventId: string): Promise<ScheduledAgentJob> {
+export async function markScheduleRun(
+  job: ScheduledAgentJob,
+  ranAt: string,
+  eventId: string,
+): Promise<ScheduledAgentJob> {
   const next = advanceScheduledAgentJob(job, ranAt, eventId);
-  const body = await request(\`/rest/v1/flixo_agent_schedules?schedule_id=eq.\${encodeURIComponent(job.scheduleId)}\`, {
+  const path =
+    '/rest/v1/flixo_agent_schedules?schedule_id=eq.' +
+    encodeURIComponent(job.scheduleId);
+
+  const body = await request(path, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', Prefer: 'return=representation' },
+    headers: {
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation',
+    },
     body: JSON.stringify({
       active: next.active,
       next_run_at: next.nextRunAt,
@@ -101,6 +140,10 @@ export async function markScheduleRun(job: ScheduledAgentJob, ranAt: string, eve
       metadata: next.metadata,
     }),
   });
-  if (!Array.isArray(body) || !body[0] || typeof body[0] !== 'object') throw new Error('AGENT_SCHEDULE_UPDATE_RESPONSE_INVALID');
+
+  if (!Array.isArray(body) || !body[0] || typeof body[0] !== 'object') {
+    throw new Error('AGENT_SCHEDULE_UPDATE_RESPONSE_INVALID');
+  }
+
   return rowToJob(body[0] as Record<string, unknown>);
 }

@@ -30,12 +30,13 @@ export type IngestionHandlers = Readonly<{
 }>;
 
 function normalizeText(text: string | null): string {
-  return (text ?? '').replace(/\\u0000/g, '').replace(/\\s+/g, ' ').trim().slice(0, 100_000);
+  return (text ?? '').replace(/\u0000/g, '').replace(/\s+/g, ' ').trim().slice(0, 100_000);
 }
 
 export function normalizeIngestion(document: IngestionDocument): NormalizedIngestion {
   if (!document.locator.trim()) throw new Error('INGESTION_LOCATOR_REQUIRED');
   if (!Number.isInteger(document.bytes) || document.bytes < 0) throw new Error('INGESTION_BYTES_INVALID');
+
   return Object.freeze({
     version: INGESTION_PIPELINE_VERSION,
     document: Object.freeze({
@@ -61,7 +62,9 @@ export async function runIngestionPipeline(
   let current = normalizeIngestion(document);
   if (handlers.understand) current = Object.freeze(await handlers.understand(current));
   if (handlers.transform) current = Object.freeze(await handlers.transform(current));
-  if (handlers.verify && !(await handlers.verify(current))) throw new Error('INGESTION_VERIFICATION_FAILED');
+  if (handlers.verify && !(await handlers.verify(current))) {
+    throw new Error('INGESTION_VERIFICATION_FAILED');
+  }
   if (handlers.deliver) await handlers.deliver(current);
   return current;
 }
@@ -73,9 +76,10 @@ export function ingestionFromAgentEvent(event: AgentEventEnvelope): IngestionDoc
     event.source === 'WEBHOOK' ? 'API' :
     event.source === 'SYSTEM' ? 'DATABASE' :
     'CONVERSATION';
+
   return {
     source,
-    locator: \`\${event.source}:\${event.eventId}\`,
+    locator: event.source + ':' + event.eventId,
     mimeType: typeof event.payload.mimeType === 'string' ? event.payload.mimeType : null,
     text: typeof event.payload.text === 'string' ? event.payload.text : null,
     bytes: typeof event.payload.bytes === 'number' ? event.payload.bytes : 0,
