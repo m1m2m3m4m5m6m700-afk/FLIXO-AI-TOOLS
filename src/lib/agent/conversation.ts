@@ -76,7 +76,6 @@ export function createConversationMemory(): ConversationMemory {
     conversationId: crypto.randomUUID(),
     taskId: null,
     turns: [],
-    taskId: null,
     activeCommand: null,
     activeToolId: null,
     pendingToolId: null,
@@ -186,11 +185,11 @@ export function setConversationTask(
     planReady: boolean;
     plan?: ExecutionPlanContract | null;
     runtimeResumeState?: string | null;
+    taskId?: string | null;
   },
 ): ConversationMemory {
   const next: ConversationMemory = {
     ...memory,
-    conversationId: memory.conversationId,
     taskId: task.planReady ? task.taskId ?? memory.taskId ?? crypto.randomUUID() : memory.taskId,
     activeCommand: task.command,
     activeToolId: task.toolId ?? memory.activeToolId,
@@ -217,6 +216,7 @@ export function setConversationTask(
 export function clearConversationTask(memory: ConversationMemory): ConversationMemory {
   const next: ConversationMemory = {
     ...memory,
+    taskId: null,
     activeCommand: null,
     activeToolId: null,
     pendingToolId: null,
