@@ -1,4 +1,4 @@
-import { WORKFLOW_REGISTRY, getWorkflow } from '@/lib/workflows/registry.ts';
+import { WORKFLOW_REGISTRY } from '@/lib/workflows/registry.ts';
 import type { WorkflowId } from '@/lib/workflows/types.ts';
 
 export const WORKFLOW_TOOL_PREFIX = 'workflow:' as const;
@@ -61,5 +61,5 @@ export function getWorkflowForTool(toolId: string) {
   const workflowId = toolId.startsWith(WORKFLOW_TOOL_PREFIX)
     ? toolId.slice(WORKFLOW_TOOL_PREFIX.length)
     : toolId;
-  return getWorkflow(workflowId);
+  return WORKFLOW_REGISTRY.find((workflow) => workflow.id === workflowId);
 }
