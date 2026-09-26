@@ -139,6 +139,7 @@
     "test:agent-knowledge-foundation": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-knowledge-foundation.mjs",
     "test:agent-knowledge-expansion": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-knowledge-expansion.mjs",
     "test:agent-cognitive": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-cognitive-session.mjs",
+    "test:universal-math-engine": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-universal-math-engine.mjs",
     "ci": "npm run check && npm run test:unit && npm run test:e2e",
     "ci:target": "npm run verify:fast",
     "ci:repair": "npm run test:auto-repair && npm run validate:auto-repair-memory",
