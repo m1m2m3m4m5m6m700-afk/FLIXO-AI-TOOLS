@@ -6,8 +6,8 @@ export const ChatInterfacePropsSchema = z.object({
   messages: z.array(ChatMessageSchema),
   isStreaming: z.boolean(),
   activeTool: z.string().nullable(),
-  onSendMessage: z.function().args(z.string()).returns(z.void()),
-  onStop: z.function().args().returns(z.void()),
+  onSendMessage: z.function().args(z.string()).returns(z.unknown()),
+  onStop: z.function().args().returns(z.unknown()),
 });
 
 export const MediaCanvasPropsSchema = z.object({
