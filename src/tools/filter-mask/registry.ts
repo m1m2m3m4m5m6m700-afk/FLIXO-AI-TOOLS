@@ -117,8 +117,8 @@ const normalizeFilterQuery = (value: string): string =>
   value
     .toLocaleLowerCase()
     .normalize('NFKC')
-    .replace(/[^\\p{L}\\p{N}\\s-]/gu, ' ')
-    .replace(/\\s+/g, ' ')
+    .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 
 const GENERIC_FILTER_TERMS = new Set([
