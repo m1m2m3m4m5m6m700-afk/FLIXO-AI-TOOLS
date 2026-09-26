@@ -26,6 +26,7 @@ export type MissionResultContract = Readonly<{
   taskId: string;
   botId: string;
   exactSha: string;
+  currentSha: string;
   outcome: MissionOutcome;
   strategyId: string | null;
   failureFingerprint: string | null;
@@ -158,6 +159,7 @@ export type AgentOutcome = Readonly<{
 }>;
 
 export function buildAgentOutcome(input: AgentOutcomeInput): AgentOutcome {
+  if (!SHA40.test(input.currentSha)) throw new Error('MISSION_CURRENT_SHA_INVALID');
   const isFailure = input.outcome === 'FAILURE' || input.error !== undefined;
   const failureFingerprint = isFailure
     ? fingerprintFailure({
@@ -197,7 +199,7 @@ export function buildAgentOutcome(input: AgentOutcomeInput): AgentOutcome {
   const learning = learningDecision({
     ...mission,
     validationPassed: input.validationPassed,
-    currentSha: input.exactSha,
+    currentSha: input.currentSha,
     contradictions: input.contradictions ?? 0,
   });
 
