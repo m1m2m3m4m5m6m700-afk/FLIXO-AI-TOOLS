@@ -73,7 +73,8 @@ const AgentDecisionEnvelopeSchema = z.object({
     retryCount: z.number().int().nonnegative(),
     eventCount: z.number().int().nonnegative(),
     resumeState: z.string().max(100_000),
-  }).nullable().optional(),\n}).strict();
+  }).nullable().optional(),
+}).strict();
 
 export type AgentDecisionContract = Readonly<{
   mode: 'chat' | 'clarify' | 'plan';
