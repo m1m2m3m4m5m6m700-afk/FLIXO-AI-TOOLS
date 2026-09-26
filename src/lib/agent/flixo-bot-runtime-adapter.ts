@@ -1,6 +1,6 @@
+import * as FlixoBotRuntime from './flixo-bot-openai-runtime';
 import {
   applyNextStep,
-  createFlixoBotRunState,
   createTrace,
   finishTraceSpan,
   markRunStale,
@@ -40,7 +40,7 @@ export function beginFlixoBotGatewayRuntime(input: Readonly<{
   exactSha: string;
   request: string;
 }>): FlixoBotGatewayRuntime {
-  const state = startRun(createFlixoBotRunState({
+  const state = startRun(FlixoBotRuntime.createFlixoBotRunState({
     taskId: input.taskId,
     agentId: FLIXO_BOT_GATEWAY_AGENT_ID,
     exactSha: input.exactSha,
