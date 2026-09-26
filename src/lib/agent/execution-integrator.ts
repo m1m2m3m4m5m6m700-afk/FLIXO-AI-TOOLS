@@ -155,6 +155,7 @@ export async function executePreparedExecution(
   prepared: PreparedExecution,
   inputFile: File,
   onProgress: (progress: PipelineProgress) => void,
+  onRuntimeState?: (runtime: FlixoBotRunState) => void,
 ): Promise<ExecutionIntegrationResult> {
   assertExecutionAllowed(prepared.task);
   let runtimeState = prepared.runtimeState;
