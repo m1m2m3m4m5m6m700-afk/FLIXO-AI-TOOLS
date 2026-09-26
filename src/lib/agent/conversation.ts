@@ -152,6 +152,7 @@ export function classifyConversation(text: string): ConversationKind {
   if (!normalized) return 'conversation';
   if (hasAny(normalized, GREETING_PATTERNS)) return 'greeting';
   if (hasAny(normalized, THANKS_PATTERNS)) return 'thanks';
+  if (hasAny(normalized, FAREWELL_PATTERNS)) return 'farewell';
   if (hasAny(normalized, CONVERSATIONAL_PATTERNS)) {
     if (/(?:ما|ماذا|ايه|ما الذي|what)\s+(?:تستطيع|تقدر|can you)/i.test(normalized)) return 'capability';
     return 'conversation';
