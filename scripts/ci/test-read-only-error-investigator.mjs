@@ -46,3 +46,5 @@ assert.match(readOnlyWorkflow, /group: flixo-read-only-error-investigator-\$\{\{
 assert.match(readOnlyWorkflow, /Reconfirm live observation SHA before analysis/u);
 assert.match(readOnlyWorkflow, /LIVE_OBSERVED_SHA=/u);
 assert.match(readOnlyWorkflow, /FAIL CLOSED: observed SHA moved before read-only analysis/u);
+assert.match(readOnlyWorkflow, /CODEQL_EXACT_SHA_STATUS=not_configured/u);
+assert.match(readOnlyWorkflow, /CODEQL_NOT_CONFIGURED_NON_BLOCKING=true/u);
