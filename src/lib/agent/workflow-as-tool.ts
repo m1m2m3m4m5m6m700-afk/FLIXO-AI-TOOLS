@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { TOOL_CATALOG } from '@/config/registry';
+import { TOOL_CATALOG } from '../../config/registry';
 import { getCapability } from './capability-registry';
-import { getWorkflow, WORKFLOW_REGISTRY } from '@/lib/workflows/registry';
+import { getWorkflow, WORKFLOW_REGISTRY } from '../workflows/registry';
 import type { Workflow } from '@/lib/workflows/types';
 
 export const WORKFLOW_TOOL_PREFIX = 'workflow:';
