@@ -133,6 +133,11 @@ export function validateMessage(message, observedSha = currentSha()) {
   assertActorKnown(String(message.actor));
   if (!recipientKnown(String(message.recipient))) throw new Error('AGENT_MESSAGE_RECIPIENT_INVALID');
   if (typeof message.entrySha !== 'string' || !/^[0-9a-f]{40}$/u.test(message.entrySha)) throw new Error('AGENT_MESSAGE_ENTRY_SHA_INVALID');
+  try {
+    execFileSync('git', ['cat-file', '-e', message.entrySha + '^{commit}'], { cwd: ROOT, stdio: 'ignore' });
+  } catch {
+    throw new Error('AGENT_MESSAGE_ENTRY_SHA_INVALID');
+  }
   const masterPeerMessage = isMasterPeerMessage(message);
   if (masterPeerMessage && message.entrySha !== observedSha) {
     throw new Error('AGENT_MESSAGE_ENTRY_SHA_MISMATCH');
