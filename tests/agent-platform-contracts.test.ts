@@ -70,3 +70,54 @@ test('workflow tools are derived from the canonical workflow registry', () => {
   assert.ok(plan);
   assert.equal(plan?.steps[0]?.toolId, 'background-remover');
 });
+
+
+test('runtime rejects the first tool call beyond the canonical call budget', async () => {
+  const {
+    createFlixoBotRunState,
+    startRun,
+    recordToolCall,
+  } = await import('../src/lib/agent/flixo-bot-openai-runtime.ts');
+
+  const sha = 'a'.repeat(40);
+  let state = createFlixoBotRunState({
+    taskId: 'budget-task',
+    agentId: 'test-agent',
+    exactSha: sha,
+    request: 'test budget',
+    maxToolCalls: 2,
+  });
+  state = startRun(state, sha);
+
+  for (let index = 0; index < 2; index += 1) {
+    const result = recordToolCall(state, sha, {
+      toolId: 'image-compressor',
+      callId: `call-${index}`,
+      actorId: 'test-agent',
+      branch: 'execution',
+      exactSha: sha,
+      expectedSha: sha,
+      mutation: false,
+      certification: false,
+      requiresApproval: false,
+    }, { mutationAuthority: true, certificationAuthority: false });
+    assert.equal(result.decision.allowed, true);
+    state = result.state;
+  }
+
+  const blocked = recordToolCall(state, sha, {
+    toolId: 'image-compressor',
+    callId: 'call-3',
+    actorId: 'test-agent',
+    branch: 'execution',
+    exactSha: sha,
+    expectedSha: sha,
+    mutation: false,
+    certification: false,
+    requiresApproval: false,
+  }, { mutationAuthority: true, certificationAuthority: false });
+
+  assert.equal(blocked.decision.allowed, false);
+  assert.equal(blocked.decision.reason, 'BUDGET_EXCEEDED');
+  assert.equal(blocked.state.status, 'BLOCKED');
+});
