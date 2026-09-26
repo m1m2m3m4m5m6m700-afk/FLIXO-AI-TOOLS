@@ -48,9 +48,14 @@ export function createToolDefinition<
   };
 }
 
-export const RegisteredToolSchema = z.object({
-  name: z.string().min(1),
-  meta: ToolMetaSchema,
-  jsonSchemaInput: z.record(z.string(), z.unknown()),
-});
+export const RegisteredToolSchema = z
+  .object({
+    name: z.string().min(1),
+    meta: z.object({
+      description: z.string().min(1),
+      category: ToolCategorySchema,
+    }).strict(),
+    jsonSchemaInput: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();
 export type RegisteredTool = z.infer<typeof RegisteredToolSchema>;
