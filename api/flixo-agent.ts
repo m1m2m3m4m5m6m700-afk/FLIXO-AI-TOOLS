@@ -1,6 +1,15 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { getCapability, getExecutableCapabilityIds } from '../src/lib/agent/capability-registry.ts';
+import { buildWorkflowToolCatalog } from '../src/lib/agent/workflow-as-tool.ts';
+import { createAgentEvent } from '../src/lib/agent/event-envelope.ts';
+import { createTaskBudget, assertWithinTaskBudget } from '../src/lib/agent/task-budget.ts';
+import { evaluatePlanApproval } from '../src/lib/agent/approval-policy.ts';
+import {
+  appendAgentTaskEvent,
+  isDurableAgentTaskStoreConfigured,
+  upsertAgentTask,
+} from '../src/server/agent/durable-task-store.ts';
 import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from '../src/lib/contracts/agent-gateway.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
 import { planFromIntent } from '../src/lib/ai/planner.ts';
@@ -129,11 +138,12 @@ async function readBody(req: IncomingMessage): Promise<AgentRequestContract> {
 }
 
 function executableCatalog(): Array<Record<string, unknown>> {
-  return getExecutableCapabilityIds().map((id) => {
+  const capabilities = getExecutableCapabilityIds().map((id) => {
     const capability = getCapability(id);
     if (!capability) return null;
     const schema = capability.parameterSchema as { shape?: Record<string, unknown> };
     return {
+      kind: 'capability',
       id,
       title: capability.title,
       description: capability.description,
@@ -142,6 +152,20 @@ function executableCatalog(): Array<Record<string, unknown>> {
       executionMode: capability.executionMode,
     };
   }).filter(Boolean) as Array<Record<string, unknown>>;
+
+  const workflows = buildWorkflowToolCatalog()
+    .filter((workflow) => workflow.executable)
+    .map((workflow) => ({
+      kind: 'workflow',
+      id: workflow.id,
+      title: workflow.title,
+      description: workflow.description,
+      stepCount: workflow.stepCount,
+      toolIds: workflow.toolIds,
+      executionMode: 'COMPOSITE',
+    }));
+
+  return [...capabilities, ...workflows];
 }
 
 const exactSha = (): string | null => {
@@ -194,6 +218,56 @@ function parseJsonObject(text: string): unknown {
   } catch {
     throw new Error('AI response was not valid JSON.');
   }
+}
+
+async function persistAgentOrchestration(input: {
+  conversationId: string;
+  taskId: string;
+  userMessage: string;
+  decision: ReturnType<typeof parseAgentDecision>;
+  runtime: FlixoBotGatewayRuntime | null;
+}): Promise<void> {
+  if (!isDurableAgentTaskStoreConfigured()) return;
+
+  const state = input.decision.mode === 'plan'
+    ? 'AWAITING_CONFIRMATION'
+    : input.decision.mode === 'clarify'
+      ? 'NEEDS_INPUT'
+      : 'IDLE';
+  const lifecycle = input.decision.mode === 'plan'
+    ? 'AWAITING_CONFIRMATION'
+    : 'QUEUED';
+  const runtimeSummary = input.runtime ? toFlixoBotRuntimeSummary(input.runtime) : null;
+  const eventType = input.decision.mode === 'plan'
+    ? 'APPROVAL_REQUESTED'
+    : 'AGENT_DECISION';
+
+  await upsertAgentTask({
+    taskId: input.taskId,
+    conversationId: input.conversationId,
+    ownerId: input.conversationId,
+    lifecycle,
+    state,
+    revision: input.decision.mode === 'plan' ? 2 : 1,
+    confirmationRequired: input.decision.mode === 'plan',
+    request: input.userMessage,
+    plan: input.decision.plan,
+    runtime: runtimeSummary,
+  });
+
+  await appendAgentTaskEvent(createAgentEvent({
+    source: 'CHAT',
+    type: eventType,
+    conversationId: input.conversationId,
+    taskId: input.taskId,
+    idempotencyKey: 'decision:' + input.taskId + ':' + input.decision.mode,
+    payload: {
+      mode: input.decision.mode,
+      confidence: input.decision.confidence,
+      approval: input.decision.approval ?? null,
+      runtimeStatus: runtimeSummary?.status ?? null,
+    },
+  }));
 }
 
 export function enforceDeterministicExecutionBoundary(
@@ -420,14 +494,41 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       return;
     }
     const locale = body.locale ?? 'en';
+    const conversationId = body.conversationId ?? 'UI-CONVERSATION:' + randomUUID();
+    const taskId = body.taskId ?? 'UI-FLIXO-TASK:' + randomUUID();
     const runtime = configuredRuntime();
+
+    if (isDurableAgentTaskStoreConfigured()) {
+      await upsertAgentTask({
+        taskId,
+        conversationId,
+        ownerId: conversationId,
+        lifecycle: 'QUEUED',
+        state: 'IDLE',
+        revision: 0,
+        confirmationRequired: false,
+        request: userMessage,
+      });
+      await appendAgentTaskEvent(createAgentEvent({
+        source: body.file ? 'UPLOAD' : 'CHAT',
+        type: 'INPUT_RECEIVED',
+        conversationId,
+        taskId,
+        idempotencyKey: body.idempotencyKey ?? 'input:' + taskId + ':' + userMessage.slice(0, 64),
+        payload: {
+          locale,
+          messageLength: userMessage.length,
+          hasFile: Boolean(body.file),
+        },
+      }));
+    }
     const provider = runtime.provider;
     const recentMessages = messages.slice(-24);
     const sharedLearning = { lessons: [], antiLessons: [], advice: [], errors: [], obligations: [], counterexamples: [], verifications: [] };
     const targetSha = exactSha();
     let botRuntime: FlixoBotGatewayRuntime | null = targetSha
       ? beginFlixoBotGatewayRuntime({
-        taskId: `UI-FLIXO-BOT:${targetSha.slice(0, 12)}:${randomUUID()}`,
+        taskId,
         exactSha: targetSha,
         request: userMessage,
       })
@@ -466,11 +567,21 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       ...recentMessages,
     ];
     const started = Date.now();
+    const budget = createTaskBudget({ maxProviderCalls: MAX_PROVIDER_CALLS });
+    let budgetUsage = {
+      steps: 0,
+      toolCalls: 0,
+      providerCalls: 0,
+      retries: 0,
+      startedAtMs: started,
+    };
     let providerCalls = 0;
     let lastModel: string | null = null;
     const invoke = async (selectedProvider: SupportedProvider): Promise<string> => {
+      assertWithinTaskBudget(budget, budgetUsage, { providerCalls: 1 });
       if (providerCalls >= MAX_PROVIDER_CALLS) throw new Error('AI provider call budget exhausted.');
       providerCalls += 1;
+      budgetUsage = { ...budgetUsage, providerCalls };
       const modelSelection = selectModelForTask({ taskInput: userMessage, provider: selectedProvider });
       lastModel = modelSelection.model;
       if (!botRuntime) return callProvider(selectedProvider, promptMessages, runtime.timeoutMs, runtime.maxTokens, modelSelection.model);
@@ -486,7 +597,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       }
     };
 
-    const respondWithRuntime = (decision: ReturnType<typeof parseAgentDecision>, extra: Record<string, unknown> = {}) => {
+    const respondWithRuntime = async (decision: ReturnType<typeof parseAgentDecision>, extra: Record<string, unknown> = {}) => {
       if (botRuntime) {
         try {
           const currentSha = exactSha();
@@ -506,14 +617,29 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       } else {
         extra.runtime = null;
       }
+      await persistAgentOrchestration({
+        conversationId,
+        taskId,
+        userMessage,
+        decision,
+        runtime: botRuntime,
+      }).catch((persistError) => {
+        console.warn('[flixo-agent] durable task persistence warning', {
+          error: persistError instanceof Error ? persistError.name : 'unknown',
+        });
+      });
       json(res, 200, { ...decision, ...extra });
     };
     try {
       const raw = await invoke(provider);
       const decision = parseAgentDecision(parseJsonObject(raw));
       const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
-      await persistLearningCandidate(boundedDecision, userMessage, locale, provider);
-      respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider, model: lastModel });
+      const approvedDecision = boundedDecision.plan
+        ? { ...boundedDecision, approval: evaluatePlanApproval(boundedDecision.plan) }
+        : boundedDecision;
+      if (approvedDecision.approval?.level === 'BLOCK') throw new Error('EXECUTION_BLOCKED_BY_APPROVAL_POLICY');
+      await persistLearningCandidate(approvedDecision, userMessage, locale, provider);
+      await respondWithRuntime(approvedDecision, { latencyMs: Date.now() - started, provider, model: lastModel });
     } catch (providerError) {
       if (botRuntime) botRuntime = noteProviderFailure(botRuntime, `${provider}:${providerError instanceof Error ? providerError.name : 'UNKNOWN_ERROR'}`);
       if (runtime.fallbackProvider) {
@@ -521,8 +647,12 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           const raw = await invoke(runtime.fallbackProvider);
           const decision = parseAgentDecision(parseJsonObject(raw));
           const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
-          await persistLearningCandidate(boundedDecision, userMessage, locale, runtime.fallbackProvider);
-          respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider: runtime.fallbackProvider, model: lastModel, fallback: true });
+          const approvedDecision = boundedDecision.plan
+            ? { ...boundedDecision, approval: evaluatePlanApproval(boundedDecision.plan) }
+            : boundedDecision;
+          if (approvedDecision.approval?.level === 'BLOCK') throw new Error('EXECUTION_BLOCKED_BY_APPROVAL_POLICY');
+          await persistLearningCandidate(approvedDecision, userMessage, locale, runtime.fallbackProvider);
+          await respondWithRuntime(approvedDecision, { latencyMs: Date.now() - started, provider: runtime.fallbackProvider, model: lastModel, fallback: true });
           return;
         } catch (fallbackError) {
           if (botRuntime) botRuntime = noteProviderFailure(botRuntime, `${runtime.fallbackProvider}:${fallbackError instanceof Error ? fallbackError.name : 'UNKNOWN_ERROR'}`);
@@ -541,7 +671,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       }
       const decision = fallbackDecision(userMessage, body.file, locale);
       const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
-      respondWithRuntime(boundedDecision, { fallback: true });
+      const approvedDecision = boundedDecision.plan
+        ? { ...boundedDecision, approval: evaluatePlanApproval(boundedDecision.plan) }
+        : boundedDecision;
+      await respondWithRuntime(approvedDecision, { fallback: true });
     }
   } catch (error) {
     if (error instanceof Error && (
