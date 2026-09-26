@@ -35,6 +35,7 @@ export const AgentResponseSchema = z.object({
   messageId: z.string().uuid(),
   content: z.string(),
   requestedToolCalls: z.array(ToolCallRequestSchema).default([]),
+  toolResults: z.array(ToolCallResultSchema).default([]),
   updatedProjectState: ProjectStateSchema.partial().optional(),
   requiresUserConfirmation: z.boolean().default(false),
 });

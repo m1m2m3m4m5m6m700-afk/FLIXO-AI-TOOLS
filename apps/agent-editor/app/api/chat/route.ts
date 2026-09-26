@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { AgentRuntime } from "@/lib/agent/runtime";
 import { createDefaultToolRegistry } from "@/lib/tools";
-import {
-  AgentResponseSchema,
-  ChatMessageSchema,
-} from "@/lib/schemas/agent";
+import { AgentResponseSchema, ChatMessageSchema } from "@/lib/schemas/agent";
 import { ProjectStateSchema } from "@/lib/schemas/project";
 
 const RequestBodySchema = z.object({
@@ -19,15 +16,62 @@ const ErrorResponseSchema = z.object({
   details: z.unknown().optional(),
 });
 
-function eventStream(response: z.infer<typeof AgentResponseSchema>): Response {
+function encodeEvent(event: string, data: unknown): Uint8Array {
   const encoder = new TextEncoder();
+  return encoder.encode(
+    "event: " + event + "\ndata: " + JSON.stringify(data) + "\n\n",
+  );
+}
+
+function createAgentStream(response: z.infer<typeof AgentResponseSchema>, signal: AbortSignal): Response {
   const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(
-        encoder.encode(`event: agent_response\ndata: ${JSON.stringify(response)}\n\n`),
-      );
-      controller.enqueue(encoder.encode("event: done\ndata: [DONE]\n\n"));
-      controller.close();
+    async start(controller) {
+      try {
+        for (const call of response.requestedToolCalls) {
+          if (signal.aborted) {
+            controller.close();
+            return;
+          }
+          controller.enqueue(
+            encodeEvent("tool_call_start", {
+              callId: call.callId,
+              toolName: call.toolName,
+              parameters: call.parameters,
+            }),
+          );
+        }
+
+        for (const result of response.toolResults) {
+          if (signal.aborted) {
+            controller.close();
+            return;
+          }
+          controller.enqueue(encodeEvent("tool_call_end", result));
+        }
+
+        if (response.updatedProjectState) {
+          controller.enqueue(
+            encodeEvent("state_update", {
+              projectState: response.updatedProjectState,
+            }),
+          );
+        }
+
+        for (const token of response.content.split(/(?=\s)|(?<=\s)/).filter(Boolean)) {
+          if (signal.aborted) {
+            controller.close();
+            return;
+          }
+          controller.enqueue(encodeEvent("token", { text: token }));
+          await new Promise((resolve) => setTimeout(resolve, 5));
+        }
+
+        controller.enqueue(encodeEvent("agent_response", response));
+        controller.enqueue(encodeEvent("done", { messageId: response.messageId }));
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
     },
   });
 
@@ -47,11 +91,13 @@ export async function POST(request: Request): Promise<Response> {
     const parsed = RequestBodySchema.safeParse(rawBody);
 
     if (!parsed.success) {
-      const body = ErrorResponseSchema.parse({
-        error: "Invalid Request Schema",
-        details: parsed.error.format(),
-      });
-      return NextResponse.json(body, { status: 400 });
+      return NextResponse.json(
+        ErrorResponseSchema.parse({
+          error: "Invalid Request Schema",
+          details: parsed.error.format(),
+        }),
+        { status: 400 },
+      );
     }
 
     const runtime = new AgentRuntime(createDefaultToolRegistry(), {
@@ -66,11 +112,13 @@ export async function POST(request: Request): Promise<Response> {
       ),
     );
 
-    return eventStream(agentResponse);
+    return createAgentStream(agentResponse, request.signal);
   } catch (error) {
-    const body = ErrorResponseSchema.parse({
-      error: error instanceof Error ? error.message : "Internal Agent Error",
-    });
-    return NextResponse.json(body, { status: 500 });
+    return NextResponse.json(
+      ErrorResponseSchema.parse({
+        error: error instanceof Error ? error.message : "Internal Agent Error",
+      }),
+      { status: 500 },
+    );
   }
 }

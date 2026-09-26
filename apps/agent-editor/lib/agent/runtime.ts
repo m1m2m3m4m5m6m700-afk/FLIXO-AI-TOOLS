@@ -105,6 +105,7 @@ export class AgentRuntime {
       messageId: crypto.randomUUID(),
       content: finalAssistantText,
       requestedToolCalls: requestedCalls,
+      toolResults: results,
       updatedProjectState: workingProjectState,
       requiresUserConfirmation: false,
     });

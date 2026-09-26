@@ -1,4 +1,4 @@
-name: Agent Editor Step 2 Verification
+name: Agent Editor Step 5-6 Verification
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - ".github/workflows/agent-editor-step2-verify.yml"
 
 concurrency:
-  group: agent-editor-step2-${{ github.ref }}
+  group: agent-editor-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -27,9 +27,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: apps/agent-editor/package.json
 
-      - name: Install root test dependencies
+      - name: Install root dependencies
         working-directory: .
         run: npm ci
 
@@ -42,62 +41,20 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Unit and API integration contracts
+        run: npm run test:unit
+
       - name: Production build
         run: npm run build
 
-      - name: Step 3 unit contracts
-        run: npm run test:unit
-
-      - name: Install Chromium for browser verification
-        working-directory: .
+      - name: Install Chromium for browser E2E
         run: npx playwright install --with-deps chromium
 
-      - name: Start dev server
-        run: |
-          nohup npm run dev -- --hostname 127.0.0.1 --port 3001 > /tmp/flixo-agent-editor.log 2>&1 &
-          echo $! > /tmp/flixo-agent-editor.pid
+      - name: Browser E2E
+        run: npm run test:e2e
 
-      - name: Browser verification
+      - name: Exact-SHA evidence
         working-directory: .
         run: |
-          node --input-type=module <<'NODE'
-          import { chromium } from "@playwright/test";
-
-          const browser = await chromium.launch();
-          const page = await browser.newPage();
-          const errors = [];
-
-          page.on("console", (message) => {
-            if (message.type() === "error") errors.push(message.text());
-          });
-          page.on("pageerror", (error) => errors.push(error.message));
-
-          await page.goto("http://127.0.0.1:3001", {
-            waitUntil: "networkidle",
-            timeout: 30000,
-          });
-
-          await page.getByRole("heading", { name: "Chat workspace" }).waitFor();
-          await page.getByRole("heading", { name: "Untitled Creative Project" }).waitFor();
-          await page.getByRole("button", { name: "Video" }).click();
-          await page.getByRole("button", { name: "Stop" }).count();
-
-          await page.getByLabel("Describe the edit").fill("remove the background");
-          await page.getByRole("button", { name: "Send" }).click();
-          await page.getByTestId("chat-loading").waitFor();
-          await page.getByRole("button", { name: "Stop" }).click();
-
-          const bodyText = await page.locator("body").innerText();
-          if (!bodyText.includes("MEDIA CANVAS")) {
-            throw new Error("Expected MEDIA CANVAS content was not rendered.");
-          }
-          if (errors.length > 0) {
-            throw new Error(`Browser console errors: ${errors.join(" | ")}`);
-          }
-
-          await browser.close();
-          NODE
-
-      - name: Print server log on failure
-        if: failure()
-        run: cat /tmp/flixo-agent-editor.log
+          echo "EXACT_SHA=${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
