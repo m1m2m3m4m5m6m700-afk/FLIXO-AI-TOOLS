@@ -14,6 +14,7 @@ export type ConversationalAgentRequest = Readonly<{
   file?: { name: string; type: string; size: number } | null;
   activePlan?: ExecutionPlan | null;
   activeCommand?: string | null;
+  idempotencyKey?: string;
   memory?: LayeredMemorySnapshot | null;
 }>;
 
