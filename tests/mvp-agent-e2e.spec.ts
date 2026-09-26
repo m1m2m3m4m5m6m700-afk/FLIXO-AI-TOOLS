@@ -25,7 +25,7 @@ test.describe('FLIXO MVP agent full journey', () => {
     await page.getByRole('button', { name: 'Analyze plan' }).click();
 
     await expect(page.getByTestId('flixo-agent-plan-ready')).toBeVisible();
-    await expect(page.getByTestId('flixo-agent-plan-ready')).toHaveText(/^\s*2\b/u);
+    await expect(page.getByTestId('flixo-agent-plan-ready').locator('span').first()).toHaveText(/^\s*2\b/u);
 
     await page.locator('#flixo-agent-command').fill('execute');
     await page.locator('.flixo-agent-send').click();
@@ -86,7 +86,7 @@ test.describe('FLIXO MVP mobile + Arabic journey', () => {
     await page.locator('button.flixo-agent-ghost').click();
 
     await expect(page.getByTestId('flixo-agent-plan-ready')).toBeVisible();
-    await expect(page.getByTestId('flixo-agent-plan-ready')).toHaveText(/^\s*2\b/u);
+    await expect(page.getByTestId('flixo-agent-plan-ready').locator('span').first()).toHaveText(/^\s*2\b/u);
 
     await page.locator('#flixo-agent-command').fill('execute');
     await page.locator('.flixo-agent-send').click();
