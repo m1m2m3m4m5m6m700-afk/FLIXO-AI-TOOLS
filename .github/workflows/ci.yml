@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: flixo-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   VITE_SITE_URL: https://flixoai.vercel.app
   VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
@@ -30,6 +34,17 @@ jobs:
       - run: npm test
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run build
+      - name: Stamp exact build identity
+        shell: bash
+        env:
+          BUILD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BUILD_SHA"
+          printf '%s\n' "$BUILD_SHA" > dist/flixo-head-sha.txt
+          printf '%s\n' "$BUILD_SHA" > "dist/__flixo-identity-$BUILD_SHA.txt"
+          mkdir -p "dist/__flixo/identity/$BUILD_SHA"
+          printf '%s\n' "$BUILD_SHA" > "dist/__flixo/identity/$BUILD_SHA/index.txt"
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
@@ -43,6 +58,8 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -56,6 +73,16 @@ jobs:
           path: dist
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e -- --project=chromium
+      - name: Upload browser runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flixo-browser-evidence-${{ github.run_id }}
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 14
 
   trust-gate:
     name: trust-gate

@@ -210,6 +210,24 @@ jobs:
           echo "Production root returned HTML"
           echo "PRODUCTION_IDENTITY=PASS"
 
+      - name: Install Node dependencies for production browser verification
+        if: steps.freshness.outputs.is_current == 'true'
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Install Chromium for production browser verification
+        if: steps.freshness.outputs.is_current == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify deployed production UI with browser
+        if: steps.freshness.outputs.is_current == 'true'
+        env:
+          EXPECTED_SHA: ${{ steps.sha.outputs.sha }}
+          PLAYWRIGHT_TEST_BASE_URL: ${{ env.FLIXOAI_PRODUCTION_ORIGIN }}
+          PLAYWRIGHT_REUSE_SERVER: "true"
+        run: |
+          set -euo pipefail
+          npm run test:e2e -- --project=chromium tests/official/production-browser-smoke.spec.ts
+
       - name: Write deployment evidence
         if: always()
         env:
