@@ -12,7 +12,7 @@ assert.throws(()=>prepareExecution({...validPlan,catalogFingerprint:'a'.repeat(6
 assert.throws(()=>prepareExecution({...validPlan,steps:[{toolId:'photo-colorizer',params:{}}]}),/not executable/i);
 assert.throws(()=>prepareExecution({...validPlan,steps:[{toolId:'image-compressor',params:{quality:9}}]}),/schema validation|unsupported parameters/i);
 assert.equal(cancelPreparedExecution(prepared).task.state,'CANCELLED');
-const confirmed=confirmPreparedExecution(prepared);
+const confirmed=await confirmPreparedExecution(prepared);
 assert.equal(confirmed.task.state,'EXECUTING');
 await assert.rejects(executePreparedExecution(prepared,new File([new Uint8Array([1])],'sample.png',{type:'image/png'}),()=>undefined),/explicit confirmation/i);
 await assert.rejects(executePreparedExecution(confirmed,new File([],'empty.png',{type:'image/png'}),()=>undefined),/input file is empty/i);
