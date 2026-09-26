@@ -17,7 +17,9 @@ const {
   getWorkflowForTool,
   expandWorkflowTool,
 } = await import('../src/lib/agent/workflow-as-tool.ts');
-const { planFromIntent } = await import('../src/lib/ai/planner.ts');
+const { planFromIntent } = await import('../src/lib/ai/planner.ts');\nconst { evaluateCapabilityApproval, evaluatePlanApproval } = await import('../src/lib/agent/approval-policy.ts');
+
+
 
 test('agent event envelope is canonical and idempotent', () => {
   const firstKey = deriveEventIdempotencyKey({
@@ -194,4 +196,17 @@ test('chat gateway accepts layered memory but keeps it advisory', async () => {
     },
   });
   assert.equal(request.memory?.items[0]?.state, 'PROBABLE');
+});
+
+
+test('approval policy is fail-closed for non-executable capabilities and explicit for network work', async () => {
+  assert.equal(evaluateCapabilityApproval('image-compressor').level, 'AUTO');
+  const cloud = evaluateCapabilityApproval('ai-image-generator');
+  assert.equal(cloud.level, 'CONFIRM');
+  assert.ok(cloud.reasons.length > 0);
+
+  const plan = planFromIntent('compress this image');
+  assert.ok(plan);
+  assert.equal(evaluatePlanApproval(plan!).level, 'AUTO');
+  assert.ok(evaluatePlanApproval(plan!).reasons.length > 0);
 });
