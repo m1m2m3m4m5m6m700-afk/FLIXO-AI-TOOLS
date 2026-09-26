@@ -59,7 +59,8 @@ for (const entry of closure.entries) {
              entry.commitSha === '1b3e4fb2b9258ca205dbb50786691175054c69f5' ||
              entry.commitSha === '5e95ee09878d63221de878d1840f1a2fff02f85b' ||
              entry.commitSha === 'cef267a95acb19e4ab49defb1cf5e725775f0031' ||
-             entry.commitSha === '664326d970bb03d6aa1d82094e100437cac7a896') {
+             entry.commitSha === '664326d970bb03d6aa1d82094e100437cac7a896' ||
+             entry.commitSha === '5da8ba9ddf91eb353a58dd09ac652e4750922899') {
     assert.equal(entry.evidence.workflow,'Repository Security Baseline');
     assert.deepEqual(entry.evidence.requiredSteps,['Verify exact SHA','Validate source-controlled Council RPC contract','Run repository security baseline']);
     const expectedVerifiedHeadSha = {
