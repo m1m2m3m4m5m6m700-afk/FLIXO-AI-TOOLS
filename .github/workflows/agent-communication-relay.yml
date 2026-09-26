@@ -451,7 +451,7 @@ jobs:
               MASTER-1) PRIMARY_ACCOUNT=CHIEF; FALLBACK_ACCOUNT=CHIEF ;;
               MASTER-2) PRIMARY_ACCOUNT=WORKER_A; FALLBACK_ACCOUNT=WORKER_B ;;
               MASTER-3) PRIMARY_ACCOUNT=WORKER_B; FALLBACK_ACCOUNT=WORKER_A ;;
-              *) echo "FAIL CLOSED: unknown delivery master=$DELIVERY_MASTER"; exit 1 ;;
+              *) echo "FAIL CLOSED: unknown recipientMaster=$DELIVERY_MASTER"; exit 1 ;;
             esac
 
             DELIVERY_ID="${MESSAGE_ID}:${DELIVERY_MASTER}"

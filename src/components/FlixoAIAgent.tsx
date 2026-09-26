@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import { assessCognitiveRequest } from '@/lib/agent/cognitive-orchestrator';
 import type { PipelineProgress } from '@/lib/workflows/pipeline-runner';
-import { cancelPreparedExecution, confirmPreparedExecution, executePreparedExecution, prepareExecution, type PreparedExecution } from '@/lib/agent/execution-integrator';
+import { cancelPreparedExecution, confirmPreparedExecution, executePreparedExecution, prepareExecution, restorePreparedExecution, type PreparedExecution } from '@/lib/agent/execution-integrator';
 import { TOOL_CATALOG } from '@/config/registry';
 import { findToolIntent } from '@/lib/intent-router';
 import { detectAgentLocale } from '@/lib/agent/language-detector';
@@ -115,13 +115,23 @@ const conversationalReply = (
 };
 
 
+function loadRestoredAgentExecution(): PreparedExecution | null {
+  const saved = loadConversationMemory();
+  if (!saved.activePlan || !saved.runtimeResumeState) return null;
+  try {
+    return restorePreparedExecution(saved.activePlan, saved.runtimeResumeState);
+  } catch {
+    return null;
+  }
+}
+
 export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const copy = AGENT_I18N[locale] ?? AGENT_I18N.en;
   const [query, setQuery] = useState('');
   const [file, setFile] = useState<File | null>(null);
-  const [state, setState] = useState<AgentState>('idle');
-  const [plan, setPlan] = useState<ExecutionPlan | null>(null);
-  const [preparedExecution, setPreparedExecution] = useState<PreparedExecution | null>(null);
+  const [plan, setPlan] = useState<ExecutionPlan | null>(() => loadConversationMemory().activePlan);
+  const [preparedExecution, setPreparedExecution] = useState<PreparedExecution | null>(() => loadRestoredAgentExecution());
+  const [state, setState] = useState<AgentState>(() => loadRestoredAgentExecution() ? 'ready' : 'idle');
   const [progress, setProgress] = useState<PipelineProgress | null>(null);
   const [result, setResult] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -200,22 +210,61 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       setError(cognitive.intentPlan.explanation || cognitive.semantic.reasons.join(', ') || responseCopy.noSafePlan);
       return null;
     }
+
     const nextPlan = cognitive.executionPlan;
     const firstStep = nextPlan.steps[0];
+    const prepared = prepareExecution(nextPlan, { runtimeRequest: contextualCommand });
     setMemory((current) => setConversationTask(current, {
       command: contextualCommand,
       toolId: firstStep?.toolId ?? null,
       pendingToolId: null,
       pendingQuestion: null,
       planReady: true,
+      plan: prepared.plan,
+      runtimeResumeState: null,
     }));
-    const prepared = prepareExecution(nextPlan);
     setPlan(prepared.plan);
     setPreparedExecution(prepared);
-    setState('ready'); return prepared.plan;
+    setState('ready');
+    return prepared.plan;
   };
 
   const runConversationalTurn = async (command: string, responseCopy = copy): Promise<boolean> => {
+    const contextualCommand = contextualizeCommand(command, memory);
+
+    // Deterministic QuickFlow is the primary execution path. It must not depend
+    // on provider availability or runtime-delegation latency.
+    try {
+      const deterministic = assessCognitiveRequest(contextualCommand);
+      if (deterministic.decision === 'EXECUTE_READY' && deterministic.executionPlan) {
+        const prepared = prepareExecution(deterministic.executionPlan, { runtimeRequest: contextualCommand });
+        setPlan(prepared.plan);
+        setPreparedExecution(prepared);
+        setState('ready');
+        setError(null);
+        setFilterHandoff(null);
+        setMemory((current) => setConversationTask(current, {
+          command: contextualCommand,
+          toolId: prepared.plan.steps[0]?.toolId ?? null,
+          pendingToolId: null,
+          pendingQuestion: null,
+          planReady: true,
+          plan: prepared.plan,
+          runtimeResumeState: null,
+        }));
+        pushMessage(
+          'agent',
+          file
+            ? responseCopy.execute
+            : responseCopy.uploadThenExecute,
+        );
+        return true;
+      }
+    } catch {
+      // Continue to the conversational provider path only when the deterministic
+      // planner cannot produce a safe executable plan.
+    }
+
     try {
       const decision = await askConversationalAgent({
         locale,
@@ -231,19 +280,15 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         activeCommand: memory.activeCommand,
       });
 
-      // A fallback is executable when the gateway supplied a contract-valid deterministic plan.
-      // Only fall back to the legacy local path when the gateway has no usable plan.
+      // Provider-generated execution plans are still bounded by the same
+      // deterministic planner/runtime contracts before they can execute.
       if (decision.fallback && !(decision.mode === 'plan' && decision.plan)) return false;
 
       if (decision.mode === 'plan' && decision.plan) {
-        // The model is allowed to understand natural conversation and propose a plan,
-        // but the parsed decision has already crossed the canonical execution-plan
-        // contract: registered executable tools, valid parameters and current catalog
-        // fingerprint. It still cannot execute; explicit user confirmation is required.
-        const contextualCommand = contextualizeCommand(command, memory);
         const conversationalPlan = decision.plan as ExecutionPlan;
-
-        const prepared = prepareExecution(conversationalPlan);
+        const prepared = decision.runtime?.resumeState
+          ? restorePreparedExecution(conversationalPlan, decision.runtime.resumeState)
+          : prepareExecution(conversationalPlan, { runtimeRequest: contextualCommand });
         setPlan(prepared.plan);
         setPreparedExecution(prepared);
         setState('ready');
@@ -252,7 +297,11 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         setMemory((current) => setConversationTask(current, {
           command: contextualCommand,
           toolId: conversationalPlan.steps[0]?.toolId ?? null,
+          pendingToolId: null,
+          pendingQuestion: null,
           planReady: true,
+          plan: prepared.plan,
+          runtimeResumeState: prepared.runtimeState ? JSON.stringify(prepared.runtimeState) : null,
         }));
         pushMessage(
           'agent',
@@ -271,7 +320,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
 
       if (decision.mode === 'clarify') {
         setMemory((current) => setConversationTask(current, {
-          command,
+          command: contextualCommand,
           toolId: current.activeToolId,
           pendingQuestion: decision.question,
           planReady: false,
@@ -291,20 +340,54 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       pushMessage('agent', decision.reply);
       return true;
     } catch {
-      return false;
+      try {
+        const fallbackPlan = buildPlan(contextualCommand, responseCopy);
+        if (!fallbackPlan) return false;
+        pushMessage('agent', file ? responseCopy.planReady : responseCopy.uploadThenExecute);
+        return true;
+      } catch {
+        return false;
+      }
     }
   };
 
   const execute = async (prepared = preparedExecution, responseCopy = copy) => {
     if (!file || !prepared) return;
     setState('running'); setError(null);
-    setMemory((current) => setConversationTask(current, { command: current.activeCommand ?? '', planReady: false }));
     pushMessage('agent', `${responseCopy.success} ${prepared.plan.steps.length} ${responseCopy.step}.`);
-    const confirmed = confirmPreparedExecution(prepared);
-    setPreparedExecution(confirmed);
     try {
-      const result = await executePreparedExecution(confirmed, file, setProgress);
+      const confirmed = await confirmPreparedExecution(prepared);
+      setPreparedExecution(confirmed);
+      setMemory((current) => setConversationTask(current, {
+        command: current.activeCommand ?? '',
+        planReady: false,
+        plan: confirmed.plan,
+        runtimeResumeState: confirmed.runtimeState ? JSON.stringify(confirmed.runtimeState) : null,
+      }));
+      const result = await executePreparedExecution(
+        confirmed,
+        file,
+        setProgress,
+        (runtime) => {
+          setPreparedExecution((current) => current ? { ...current, runtimeState: runtime } : current);
+          setMemory((current) => setConversationTask(current, {
+            command: current.activeCommand ?? '',
+            planReady: false,
+            plan: confirmed.plan,
+            runtimeResumeState: JSON.stringify(runtime),
+          }));
+        },
+      );
       setResult(result.output); setState('success');
+      setMemory((current) => setConversationTask(current, {
+        command: current.activeCommand ?? '',
+        toolId: null,
+        pendingToolId: null,
+        pendingQuestion: null,
+        planReady: false,
+        plan: null,
+        runtimeResumeState: null,
+      }));
       pushMessage('agent', responseCopy.success);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Execution failed.';
@@ -411,7 +494,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       pushMessage('agent', detectedLocale === 'ar' ? 'مفهوم. أعطني النسبة أو الأبعاد وسأجهز خطة القص.' : 'Understood. Give me the ratio or dimensions and I will prepare the crop plan.');
       return;
     }
-    const nextPlan = buildPlan(command, responseCopy);
+    const nextPlan = await buildPlan(command, responseCopy);
     if (nextPlan) pushMessage('agent', file ? `${responseCopy.planReady} ${responseCopy.execute}` : `${responseCopy.planReady} ${responseCopy.uploadThenExecute}`);
   };
 
@@ -425,6 +508,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       file={file}
       onFileChange={(nextFile) => {
         setFile(nextFile);
+        setMemory((current) => clearConversationTask(current));
         setPlan(null);
         setPreparedExecution(null);
         setResult(null);

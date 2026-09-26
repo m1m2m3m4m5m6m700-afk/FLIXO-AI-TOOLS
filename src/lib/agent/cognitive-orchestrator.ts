@@ -4,6 +4,11 @@ import { getCapability } from '@/lib/agent/capability-registry';
 import { getToolDefinition } from '@/config/canonical-tool-definition';
 import { deriveRecoveryMetadata, type RecoveryMetadata } from '@/lib/agent/execution-observability';
 import { buildCollectiveIntelligenceFrame, type CollectiveIntelligenceFrame } from '@/lib/agent/collective-intelligence';
+import { getToolExecutor } from '@/lib/workflows/executor-registry';
+import { getToolOutputContractForDefinition } from '@/lib/contracts/tool-output-contracts';
+import { runBoundedParallel, type AgentDelegatedTask, type AgentTaskResult } from './delegation';
+import { runBoundedGoalLoop, type GoalControllerResult } from './goal-controller';
+import type { AgentObservation } from './stuck-detector';
 
 export type CognitiveDecision = 'EXECUTE_READY' | 'NEEDS_INPUT' | 'UNSUPPORTED' | 'UNSAFE';
 
@@ -22,6 +27,29 @@ export type CognitiveAssessment = Readonly<{
   semantic: SemanticPlanCheck;
   clarificationQuestion: IntentPlan['clarificationQuestion'];
   collectiveIntelligence: CollectiveIntelligenceFrame;
+}>;
+
+type RuntimeContractTask = Readonly<{ stepIndex: number; toolId: string }>;
+type RuntimeContractResult = Readonly<{
+  capabilityState: 'EXECUTABLE';
+  executorBound: true;
+  verifierBound: true;
+  outputContractBound: true;
+}>;
+
+export type RuntimePlanValidation = Readonly<{
+  executionPlan: ExecutionPlan | null;
+  goal: GoalControllerResult<ExecutionPlan>;
+  delegation: readonly AgentTaskResult<RuntimeContractTask, RuntimeContractResult>[];
+  ready: boolean;
+}>;
+
+export type CognitiveRuntimeAssessment = Readonly<{
+  cognitive: CognitiveAssessment;
+  executionPlan: ExecutionPlan | null;
+  goal: GoalControllerResult<ExecutionPlan> | null;
+  delegation: readonly AgentTaskResult<RuntimeContractTask, RuntimeContractResult>[];
+  ready: boolean;
 }>;
 
 export type RecoveryDecision =
@@ -152,6 +180,105 @@ export function assessCognitiveRequest(
     semantic,
     clarificationQuestion: intentPlan.clarificationQuestion ?? null,
     collectiveIntelligence,
+  });
+}
+
+export async function validateExecutionPlanWithRuntimeControls(
+  intentPlan: IntentPlan,
+  executionPlan: ExecutionPlan,
+  originalInput = intentPlan.input,
+  observations: readonly AgentObservation[] = [],
+): Promise<RuntimePlanValidation> {
+  const goal = runBoundedGoalLoop(
+    executionPlan,
+    (candidate) => {
+      const semantic = verifyExecutionPlanSemantics(intentPlan, candidate);
+      return {
+        satisfied: semantic.ok,
+        score: semantic.ok ? 1 : Math.max(0, 1 - semantic.reasons.length / 8),
+        unmetCriteria: semantic.reasons,
+        reason: semantic.ok ? 'EXECUTION_PLAN_SEMANTICS_VALID' : semantic.reasons.join('|'),
+      };
+    },
+    (candidate) => proposeBoundedReplan(originalInput, candidate),
+    observations,
+    { maxRefinements: 1 },
+  );
+
+  const tasks: readonly AgentDelegatedTask<RuntimeContractTask>[] = goal.status === 'BLOCKED'
+    ? []
+    : goal.value.steps.map((step, stepIndex) => ({
+      id: `runtime-contract:${stepIndex}:${step.toolId}`,
+      input: Object.freeze({ stepIndex, toolId: step.toolId }),
+      resourceKeys: Object.freeze([`capability:${step.toolId}`]),
+    }));
+
+  const delegation = tasks.length === 0
+    ? Object.freeze([]) as readonly AgentTaskResult<RuntimeContractTask, RuntimeContractResult>[]
+    : await runBoundedParallel(
+      tasks,
+      async (task) => {
+        const capability = getCapability(task.input.toolId);
+        if (!capability || capability.state !== 'EXECUTABLE') {
+          throw new Error('Production runtime contract rejected non-executable capability: ' + task.input.toolId);
+        }
+        const tool = getToolDefinition(task.input.toolId);
+        if (!tool) throw new Error('Production runtime contract missing canonical tool: ' + task.input.toolId);
+        getToolExecutor(tool);
+        if (!tool.verifier) throw new Error('Production runtime contract missing verifier: ' + task.input.toolId);
+        if (!getToolOutputContractForDefinition(tool)) {
+          throw new Error('Production runtime contract missing output contract: ' + task.input.toolId);
+        }
+        return Object.freeze({
+          capabilityState: 'EXECUTABLE',
+          executorBound: true,
+          verifierBound: true,
+          outputContractBound: true,
+        });
+      },
+      { maxConcurrency: Math.min(4, Math.max(1, tasks.length)), maxContentionRetries: Math.max(4, tasks.length * 2) },
+    );
+
+  const ready = goal.status !== 'BLOCKED'
+    && delegation.length === goal.value.steps.length
+    && delegation.every((result) => result.status === 'COMPLETED');
+
+  return Object.freeze({
+    executionPlan: ready ? goal.value : null,
+    goal,
+    delegation,
+    ready,
+  });
+}
+
+export async function assessCognitiveRequestWithRuntimeControls(
+  input: string,
+  identity?: { taskId?: string | null; traceId?: string | null },
+  observations: readonly AgentObservation[] = [],
+): Promise<CognitiveRuntimeAssessment> {
+  const cognitive = assessCognitiveRequest(input, identity);
+  if (cognitive.decision !== 'EXECUTE_READY' || !cognitive.executionPlan) {
+    return Object.freeze({
+      cognitive,
+      executionPlan: null,
+      goal: null,
+      delegation: Object.freeze([]),
+      ready: false,
+    });
+  }
+
+  const runtime = await validateExecutionPlanWithRuntimeControls(
+    cognitive.intentPlan,
+    cognitive.executionPlan,
+    input,
+    observations,
+  );
+  return Object.freeze({
+    cognitive,
+    executionPlan: runtime.executionPlan,
+    goal: runtime.goal,
+    delegation: runtime.delegation,
+    ready: runtime.ready,
   });
 }
 

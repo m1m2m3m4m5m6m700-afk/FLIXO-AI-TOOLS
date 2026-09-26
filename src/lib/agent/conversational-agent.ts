@@ -25,6 +25,18 @@ export type ConversationalAgentDecision = Readonly<{
   provider?: string;
   fallback?: boolean;
   reason?: string;
+  runtime?: {
+    protocol: string;
+    runId: string;
+    taskId: string;
+    status: string;
+    traceId: string;
+    exactSha: string;
+    turnCount: number;
+    retryCount: number;
+    eventCount: number;
+    resumeState: string;
+  } | null;
 }>;
 
 export async function askConversationalAgent(request: ConversationalAgentRequest): Promise<ConversationalAgentDecision> {

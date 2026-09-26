@@ -10,9 +10,36 @@ import { assertToolOutputContract, type ToolOutputResult } from '@/lib/contracts
 import { verifyVisualGoal } from '@/lib/agent/visual-goal-verifier';
 import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelinePlanFingerprint, createPipelineReceiptChain, createPipelineStepReceipt, type PipelineReceiptChain, type PipelineStepReceipt } from '@/lib/workflows/pipeline-receipt';
 
+export type PipelineRuntimeHooks = Readonly<{
+  beforeTool?: (input: Readonly<{
+    toolId: string;
+    stepIndex: number;
+    attempt: number;
+  }>) => void | Promise<void>;
+  afterTool?: (input: Readonly<{
+    toolId: string;
+    stepIndex: number;
+    attempt: number;
+    success: boolean;
+    outputBlob: Blob;
+    receipt?: PipelineStepReceipt;
+    receiptChain: PipelineReceiptChain;
+  }>) => void | Promise<void>;
+}>;
+
 export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; task: TaskContext; outputBlob?: Blob; retry?: number; receipt?: PipelineStepReceipt; receiptChain?: PipelineReceiptChain; auditEvents?: readonly ExecutionAuditEvent[]; }
 export class PipelineVerificationError extends Error {
-  constructor(message: string, readonly stableBlob: Blob, readonly failedStepIndex: number, readonly failedToolId: string) { super(message); this.name = 'PipelineVerificationError'; }
+  readonly stableBlob: Blob;
+  readonly failedStepIndex: number;
+  readonly failedToolId: string;
+
+  constructor(message: string, stableBlob: Blob, failedStepIndex: number, failedToolId: string) {
+    super(message);
+    this.name = 'PipelineVerificationError';
+    this.stableBlob = stableBlob;
+    this.failedStepIndex = failedStepIndex;
+    this.failedToolId = failedToolId;
+  }
 }
 type PipelineParams = CapabilityParameters;
 
@@ -155,7 +182,13 @@ export async function verifyPipelineOutput(toolId: string, inputBlob: Blob, outp
   }
 }
 
-export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan, task: TaskContext, onProgress: (progress: PipelineProgress) => void): Promise<Blob> {
+export async function runWorkflowPipeline(
+  initialFile: File,
+  plan: ExecutionPlan,
+  task: TaskContext,
+  onProgress: (progress: PipelineProgress) => void,
+  runtimeHooks?: PipelineRuntimeHooks,
+): Promise<Blob> {
   assertExecutionAllowed(task);
   if (plan.catalogFingerprint !== TOOL_CATALOG.fingerprint) throw new Error('Execution plan is stale because the canonical tool catalog changed.');
   if (plan.steps.length === 0 || plan.steps.length > 4) throw new Error('FLIXO plans must contain 1 to 4 steps.');
@@ -187,7 +220,12 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
         inputBlob: stableBlob,
       });
       params = authorization.parameters;
-      let auditEventsForAttempt: readonly ExecutionAuditEvent[];
+      await runtimeHooks?.beforeTool?.({
+        toolId: step.toolId,
+        stepIndex: i + 1,
+        attempt,
+      });
+      let auditEventsForAttempt: readonly ExecutionAuditEvent[] = Object.freeze([authorization.audit]);
       onProgress({
         currentStepIndex: i + 1,
         totalSteps: plan.steps.length,
@@ -196,8 +234,13 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
         retry: attempt,
         auditEvents: [authorization.audit],
       });
+      let attemptOutput: Blob = stableBlob;
+      let attemptReceipt: PipelineStepReceipt | undefined;
+      let attemptExecutionError: unknown = null;
+      let runtimeAfterToolInvoked = false;
       try {
         const output = await executor({ tool, inputBlob: stableBlob, parameters: params });
+        attemptOutput = output;
         const executionAudit = await createExecutionAuditEvent({
           task,
           capabilityId: step.toolId,
@@ -217,15 +260,41 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
           message: verified ? undefined : `Output verification failed for '${step.toolId}'.`,
         });
         const receipt = await createPipelineStepReceipt({ toolId: step.toolId, stepIndex: i + 1, attempt, inputBlob: stableBlob, outputBlob: output, catalogFingerprint: TOOL_CATALOG.fingerprint, verified });
+        attemptReceipt = receipt;
         auditEventsForAttempt = Object.freeze([authorization.audit, executionAudit, verificationAudit]);
         if (verified) {
           receiptChain = await appendPipelineStepReceipt(receiptChain, receipt);
           currentBlob = output;
+          runtimeAfterToolInvoked = true;
+          await runtimeHooks?.afterTool?.({
+            toolId: step.toolId,
+            stepIndex: i + 1,
+            attempt,
+            success: true,
+            outputBlob: output,
+            receipt,
+            receiptChain,
+          });
           onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, outputBlob: output, retry: attempt, receipt, receiptChain, auditEvents: auditEventsForAttempt });
           break;
         }
         onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, retry: attempt, auditEvents: auditEventsForAttempt });
       } catch (error) {
+        if (runtimeAfterToolInvoked) throw error;
+        attemptExecutionError = error;
+      }
+
+      if (attemptExecutionError) {
+        const error = attemptExecutionError;
+        await runtimeHooks?.afterTool?.({
+          toolId: step.toolId,
+          stepIndex: i + 1,
+          attempt,
+          success: false,
+          outputBlob: attemptOutput,
+          receipt: attemptReceipt,
+          receiptChain,
+        });
         const message = error instanceof Error ? error.message : `Step '${step.toolId}' failed.`;
         const failureAudit = await createExecutionAuditEvent({
           task,
@@ -246,6 +315,16 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
           auditEvents: auditEventsForAttempt,
         });
         if (attempt === maxAttempts - 1) throw new PipelineVerificationError(message, stableBlob, i, step.toolId);
+      } else if (!verified) {
+        await runtimeHooks?.afterTool?.({
+          toolId: step.toolId,
+          stepIndex: i + 1,
+          attempt,
+          success: false,
+          outputBlob: attemptOutput,
+          receipt: attemptReceipt,
+          receiptChain,
+        });
       }
 
       if (!verified && attempt < maxAttempts - 1) {

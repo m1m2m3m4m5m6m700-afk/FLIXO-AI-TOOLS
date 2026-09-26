@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { getCapability, getExecutableCapabilityIds } from '../src/lib/agent/capability-registry.ts';
 import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from '../src/lib/contracts/agent-gateway.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
@@ -7,11 +8,21 @@ import { isDeterministicPlanCompatible } from '../src/lib/ai/deterministic-bound
 import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
 import { buildSharedLearningContext } from '../scripts/ci/shared-operational-memory.mjs';
 import { createExternalAgentLearning, listExternalAgentLearning } from '../src/server/agent/learning-persistence.ts';
+import {
+  beginFlixoBotGatewayRuntime,
+  beginModelTurn,
+  finalizeFlixoBotGatewayRuntime,
+  finishModelTurn,
+  markFlixoBotGatewayRuntimeStale,
+  noteProviderFailure,
+  toFlixoBotRuntimeSummary,
+  type FlixoBotGatewayRuntime,
+} from '../src/lib/agent/flixo-bot-runtime-adapter.ts';
 
 const MAX_MESSAGES = 80;
 const MAX_REQUEST_BODY_BYTES = 512 * 1024;
 const MAX_PROVIDER_CALLS = 2;
-const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_TIMEOUT_MS = 4_000;
 const MAX_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_TOKENS = 900;
 const MAX_RESPONSE_TOKENS = 4_096;
@@ -185,12 +196,35 @@ function parseJsonObject(text: string): unknown {
   }
 }
 
-function assertDeterministicPlanBoundary(input: string, decision: ReturnType<typeof parseAgentDecision>): void {
-  if (decision.mode !== 'plan' || !decision.plan) return;
+export function enforceDeterministicExecutionBoundary(
+  input: string,
+  decision: ReturnType<typeof parseAgentDecision>,
+): ReturnType<typeof parseAgentDecision> {
   const deterministic = planFromIntent(input);
-  if (!isDeterministicPlanCompatible(decision.plan, deterministic)) {
-    throw new Error('AI_PLAN_CONFLICTS_WITH_DETERMINISTIC_QUICKFLOW');
+
+  if (!deterministic) {
+    if (decision.mode === 'plan' && decision.plan && !isDeterministicPlanCompatible(decision.plan, deterministic)) {
+      throw new Error('AI_PLAN_CONFLICTS_WITH_DETERMINISTIC_QUICKFLOW');
+    }
+    return decision;
   }
+
+  if (decision.mode === 'plan' && decision.plan) {
+    if (!isDeterministicPlanCompatible(decision.plan, deterministic)) {
+      throw new Error('AI_PLAN_CONFLICTS_WITH_DETERMINISTIC_QUICKFLOW');
+    }
+    return decision;
+  }
+
+  return {
+    ...decision,
+    mode: 'plan',
+    reply: decision.reply,
+    question: null,
+    plan: deterministic,
+    confidence: deterministic.confidence,
+    reason: 'DETERMINISTIC_QUICKFLOW_AUTHORITY',
+  };
 }
 
 async function callOpenAI(
@@ -387,6 +421,13 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const recentMessages = messages.slice(-24);
     const sharedLearning = buildSharedLearningContext({ botId: 'executionAgent', limit: 48 });
     const targetSha = exactSha();
+    let botRuntime: FlixoBotGatewayRuntime | null = targetSha
+      ? beginFlixoBotGatewayRuntime({
+        taskId: `UI-FLIXO-BOT:${targetSha.slice(0, 12)}:${randomUUID()}`,
+        exactSha: targetSha,
+        request: userMessage,
+      })
+      : null;
     const remoteLearning = targetSha ? await listExternalAgentLearning(targetSha, 48).catch(() => []) : [];
     const remoteLessons = remoteLearning.filter((item) => item.kind === 'LESSON');
     const remoteAntiLessons = remoteLearning.filter((item) => item.kind === 'ANTI_LESSON');
@@ -425,24 +466,59 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const invoke = async (selectedProvider: SupportedProvider): Promise<string> => {
       if (providerCalls >= MAX_PROVIDER_CALLS) throw new Error('AI provider call budget exhausted.');
       providerCalls += 1;
-      return callProvider(selectedProvider, promptMessages, runtime.timeoutMs, runtime.maxTokens);
+      if (!botRuntime) return callProvider(selectedProvider, promptMessages, runtime.timeoutMs, runtime.maxTokens);
+      const turn = beginModelTurn(botRuntime, selectedProvider);
+      botRuntime = turn.runtime;
+      try {
+        const raw = await callProvider(selectedProvider, promptMessages, runtime.timeoutMs, runtime.maxTokens);
+        botRuntime = finishModelTurn(botRuntime, turn.spanId, 'success');
+        return raw;
+      } catch (error) {
+        botRuntime = finishModelTurn(botRuntime, turn.spanId, 'failure');
+        throw error;
+      }
+    };
+
+    const respondWithRuntime = (decision: ReturnType<typeof parseAgentDecision>, extra: Record<string, unknown> = {}) => {
+      if (botRuntime) {
+        try {
+          const currentSha = exactSha();
+          if (currentSha && currentSha !== botRuntime.state.exactSha) {
+            botRuntime = markFlixoBotGatewayRuntimeStale(botRuntime, currentSha);
+            extra.runtimeStale = true;
+          } else {
+            botRuntime = finalizeFlixoBotGatewayRuntime(botRuntime, decision.mode, decision);
+          }
+          extra.runtime = toFlixoBotRuntimeSummary(botRuntime);
+        } catch (runtimeError) {
+          console.warn('[flixo-agent] runtime finalization warning', {
+            error: runtimeError instanceof Error ? runtimeError.name : 'unknown',
+          });
+          extra.runtime = botRuntime ? toFlixoBotRuntimeSummary(botRuntime) : null;
+        }
+      } else {
+        extra.runtime = null;
+      }
+      json(res, 200, { ...decision, ...extra });
     };
     try {
       const raw = await invoke(provider);
       const decision = parseAgentDecision(parseJsonObject(raw));
-      assertDeterministicPlanBoundary(userMessage, decision);
-      await persistLearningCandidate(decision, userMessage, locale, provider);
-      json(res, 200, { ...decision, latencyMs: Date.now() - started, provider });
+      const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
+      await persistLearningCandidate(boundedDecision, userMessage, locale, provider);
+      respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider });
     } catch (providerError) {
+      if (botRuntime) botRuntime = noteProviderFailure(botRuntime, `${provider}:${providerError instanceof Error ? providerError.name : 'UNKNOWN_ERROR'}`);
       if (runtime.fallbackProvider) {
         try {
           const raw = await invoke(runtime.fallbackProvider);
           const decision = parseAgentDecision(parseJsonObject(raw));
-          assertDeterministicPlanBoundary(userMessage, decision);
-          await persistLearningCandidate(decision, userMessage, locale, runtime.fallbackProvider);
-          json(res, 200, { ...decision, latencyMs: Date.now() - started, provider: runtime.fallbackProvider, fallback: true });
+          const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
+          await persistLearningCandidate(boundedDecision, userMessage, locale, runtime.fallbackProvider);
+          respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider: runtime.fallbackProvider, fallback: true });
           return;
         } catch (fallbackError) {
+          if (botRuntime) botRuntime = noteProviderFailure(botRuntime, `${runtime.fallbackProvider}:${fallbackError instanceof Error ? fallbackError.name : 'UNKNOWN_ERROR'}`);
           console.error('[flixo-agent] provider failure', {
             primary: provider,
             fallback: runtime.fallbackProvider,
@@ -457,7 +533,8 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         });
       }
       const decision = fallbackDecision(userMessage, body.file, locale);
-      json(res, 200, { ...decision, fallback: true });
+      const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
+      respondWithRuntime(boundedDecision, { fallback: true });
     }
   } catch (error) {
     if (error instanceof Error && (

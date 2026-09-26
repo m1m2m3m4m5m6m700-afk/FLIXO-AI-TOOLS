@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createFlixoBotRunState, startRun, recordToolCall, restoreFlixoBotRunState, approveRun } from '../src/lib/agent/flixo-bot-openai-runtime.ts';
 import fs from 'node:fs';
 import { EXECUTION_AGENT_CLONE_ID, EXECUTION_AGENT_CLONE_IDENTITY, buildExecutionAgentCloneOutcome, cancelExecutionAgentClone, cloneDecision, confirmExecutionAgentClone, createExecutionAgentCloneSession, recoverExecutionAgentClone, refreshExecutionAgentCloneSession } from '../src/lib/agent/execution-agent-clone.ts';
 
@@ -20,7 +21,7 @@ assert.equal(refreshed.taskId, ready.taskId);
 assert.equal(refreshed.traceId, ready.traceId);
 assert.equal(cloneDecision(refreshed), 'EXECUTE_READY');
 
-const confirmed = confirmExecutionAgentClone(ready);
+const confirmed = await confirmExecutionAgentClone(ready);
 assert.equal(confirmed.prepared?.task.state, 'EXECUTING');
 
 const cancelled = cancelExecutionAgentClone(ready);
@@ -42,5 +43,43 @@ const source = fs.readFileSync(new URL('../src/lib/agent/execution-agent-clone.t
 assert.doesNotMatch(source, /executor-registry/u);
 assert.doesNotMatch(source, /git\s+(add|commit|push)/u);
 assert.doesNotMatch(source, /refs\/heads\/(?:main|execution)/u);
+
+
+const EXACT_SHA = 'a'.repeat(40);
+const runtimeCreated = createFlixoBotRunState({
+  taskId: 'fixture-task',
+  agentId: 'FLIXO-BOT',
+  exactSha: EXACT_SHA,
+  request: 'fixture approval',
+  maxTurns: 6,
+  maxRetries: 2,
+});
+const runtimeRunning = startRun(runtimeCreated, EXACT_SHA);
+const approvalCall = recordToolCall(
+  runtimeRunning,
+  EXACT_SHA,
+  {
+    toolId: 'image-compressor',
+    callId: 'fixture-call',
+    actorId: 'assistantController',
+    branch: 'execution',
+    exactSha: EXACT_SHA,
+    expectedSha: EXACT_SHA,
+    mutation: false,
+    certification: false,
+    requiresApproval: true,
+  },
+  { mutationAuthority: false, certificationAuthority: false },
+);
+assert.equal(approvalCall.decision.reason, 'APPROVAL_REQUIRED');
+const approvalFixture = approvalCall.state;
+assert.equal(approvalFixture.status, 'WAITING_APPROVAL');
+assert.ok(approvalFixture.pendingApproval);
+assert.throws(() => approveRun(approvalFixture, EXACT_SHA, 'wrong-id'), /FLIXO_BOT_APPROVAL_ID_MISMATCH/);
+const runtimeApproved = approveRun(approvalFixture, EXACT_SHA, approvalFixture.pendingApproval.approvalId);
+assert.equal(runtimeApproved.status, 'RUNNING');
+assert.equal(runtimeApproved.events.at(-1)?.detail?.approvalId, approvalFixture.pendingApproval.approvalId);
+const restored = restoreFlixoBotRunState(JSON.stringify(runtimeApproved), EXACT_SHA);
+assert.equal(restored.runId, runtimeApproved.runId);
 
 console.log('Execution agent clone tests passed.');

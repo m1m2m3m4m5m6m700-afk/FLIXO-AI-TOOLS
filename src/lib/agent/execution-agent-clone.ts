@@ -74,9 +74,9 @@ export function refreshExecutionAgentCloneSession(session: ExecutionAgentCloneSe
   return createExecutionAgentCloneSession(session.request, { taskId: session.taskId, traceId: session.traceId });
 }
 
-export function confirmExecutionAgentClone(session: ExecutionAgentCloneSession): ExecutionAgentCloneSession {
+export async function confirmExecutionAgentClone(session: ExecutionAgentCloneSession): Promise<ExecutionAgentCloneSession> {
   if (!session.prepared) throw new Error('EXECUTION_AGENT_CLONE_NOT_EXECUTABLE');
-  return Object.freeze({ ...session, prepared: confirmPreparedExecution(session.prepared) });
+  return Object.freeze({ ...session, prepared: await confirmPreparedExecution(session.prepared) });
 }
 
 export function cancelExecutionAgentClone(session: ExecutionAgentCloneSession): ExecutionAgentCloneSession {

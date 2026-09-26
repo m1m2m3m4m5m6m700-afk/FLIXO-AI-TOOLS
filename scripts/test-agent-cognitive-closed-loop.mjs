@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { assessCognitiveRequest, decideRecovery, proposeBoundedReplan, verifyExecutionPlanSemantics } from '../src/lib/agent/cognitive-orchestrator.ts';
+import { assessCognitiveRequest, assessCognitiveRequestWithRuntimeControls, decideRecovery, proposeBoundedReplan, validateExecutionPlanWithRuntimeControls, verifyExecutionPlanSemantics } from '../src/lib/agent/cognitive-orchestrator.ts';
 import { buildAgentOutcome } from '../src/lib/agent/cognitive-outcome.ts';
 
 const compress = assessCognitiveRequest('compress the image');
@@ -31,6 +31,32 @@ assert.equal(failClosed.action, 'FAIL_CLOSED');
 
 const replan = proposeBoundedReplan('compress the image', compress.executionPlan);
 assert.equal(replan, null);
+
+const runtime = await assessCognitiveRequestWithRuntimeControls('compress the image');
+assert.equal(runtime.ready, true);
+assert.equal(runtime.goal?.status, 'SATISFIED');
+assert.equal(runtime.goal?.stuck.severity, 'NONE');
+assert.ok(runtime.executionPlan);
+assert.equal(runtime.delegation.length, runtime.executionPlan.steps.length);
+assert.ok(runtime.delegation.every((entry) => entry.status === 'COMPLETED'));
+
+const blockedRuntime = await validateExecutionPlanWithRuntimeControls(
+  cloudLeak.intentPlan,
+  fakeCloudPlan,
+  'compress the image',
+  [
+    { kind: 'TOOL', signature: 'tool:A' },
+    { kind: 'TOOL', signature: 'tool:B' },
+    { kind: 'TOOL', signature: 'tool:A' },
+    { kind: 'TOOL', signature: 'tool:B' },
+    { kind: 'TOOL', signature: 'tool:A' },
+    { kind: 'TOOL', signature: 'tool:B' },
+  ],
+);
+assert.equal(blockedRuntime.ready, false);
+assert.equal(blockedRuntime.goal.status, 'BLOCKED');
+assert.equal(blockedRuntime.goal.stuck.severity, 'STUCK');
+assert.equal(blockedRuntime.goal.stuck.recommendation, 'REPLAN');
 
 const exactSha = 'a'.repeat(40);
 const success = buildAgentOutcome({
