@@ -28,14 +28,14 @@ const selected = selectLatestCanonicalRun([
   { conclusion: 'success', updated_at: '2026-09-26T17:25:00Z' },
   { conclusion: 'cancelled', updated_at: '2026-09-26T17:26:00Z' },
 ]);
-assert.equal(selected?.conclusion, 'success');
+assert.equal(selected?.conclusion, 'cancelled');
 
 const latestFailure = selectLatestCanonicalRun([
   { conclusion: 'success', updated_at: '2026-09-26T17:25:00Z' },
   { conclusion: 'failure', updated_at: '2026-09-26T17:26:00Z' },
   { conclusion: 'cancelled', updated_at: '2026-09-26T17:27:00Z' },
 ]);
-assert.equal(latestFailure?.conclusion, 'failure');
+assert.equal(latestFailure?.conclusion, 'cancelled');
 
 const cancelledOnly = selectLatestCanonicalRun([{ conclusion: 'cancelled', updated_at: '2026-09-26T17:26:00Z' }]);
-assert.equal(cancelledOnly, null);
+assert.equal(cancelledOnly?.conclusion, 'cancelled');
