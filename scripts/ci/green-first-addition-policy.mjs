@@ -53,17 +53,15 @@ const latestWorkflow = (name) => {
   const workflowPath = REQUIRED_GREEN_WORKFLOW_PATHS[name];
   if (!workflowPath) return null;
   const workflowId = workflowPath.split('/').at(-1);
-  const workflowRuns = runGhJson('repos/' + repository + '/actions/workflows/' + workflowId + '/runs?head_sha=' + parentSha + '&per_page=5').workflow_runs ?? [];
-  return workflowRuns
-    .filter(r => r?.name === name && r?.head_sha === parentSha)
-    .sort((a,b) => String(a?.updated_at ?? '').localeCompare(String(b?.updated_at ?? '')))
-    .at(-1) ?? null;
+  const workflowRuns = runGhJson('repos/' + repository + '/actions/workflows/' + workflowId + '/runs?head_sha=' + parentSha + '&per_page=20').workflow_runs ?? [];
+  return selectLatestNonCancelled(
+    workflowRuns.filter(r => r?.name === name && r?.head_sha === parentSha),
+  );
 };
 const checkRuns = runGhJson('repos/' + repository + '/commits/' + parentSha + '/check-runs?per_page=100').check_runs ?? [];
-const latestCheck = (name) => checkRuns
-  .filter(r => r?.name === name && r?.head_sha === parentSha)
-  .sort((a,b) => String(a?.completed_at ?? a?.started_at ?? '').localeCompare(String(b?.completed_at ?? b?.started_at ?? '')))
-  .at(-1);
+const latestCheck = (name) => selectLatestNonCancelled(
+  checkRuns.filter(r => r?.name === name && r?.head_sha === parentSha),
+);
 const workflowFailures = REQUIRED_GREEN_WORKFLOWS.flatMap(name => { const r = latestWorkflow(name); if (!r) return ['WORKFLOW_MISSING=' + name]; if (r.status !== 'completed' || r.conclusion !== 'success') return ['WORKFLOW_NOT_GREEN=' + name + ':' + r.status + ':' + r.conclusion]; return []; });
 const checkFailures = REQUIRED_GREEN_CHECKS.flatMap(name => { const r = latestCheck(name); if (!r) return ['CHECK_MISSING=' + name]; if (r.status !== 'completed' || r.conclusion !== 'success') return ['CHECK_NOT_GREEN=' + name + ':' + r.status + ':' + r.conclusion]; return []; });
 const parentGreen = workflowFailures.length === 0 && checkFailures.length === 0;

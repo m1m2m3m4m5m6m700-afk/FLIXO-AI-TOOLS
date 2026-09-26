@@ -23,4 +23,16 @@ const redDocumentationWithoutClassification = evaluateGreenFirstPolicy({
   changedFiles: ['CONTRIBUTING.md', 'docs/governance/FLIXO-GREEN-FIRST-ADDITION-POLICY.md'],
 });
 assert.equal(redDocumentationWithoutClassification.allowed, false);
-assert.equal(redDocumentationWithoutClassification.reason, 'RED_SCOPE_REQUIRES_EXPLICIT_CLASSIFICATION');\nconst selected = selectLatestNonCancelled([\n  { conclusion: 'success', updated_at: '2026-09-26T17:25:00Z' },\n  { conclusion: 'cancelled', updated_at: '2026-09-26T17:26:00Z' },\n]);\nassert.equal(selected?.conclusion, 'success');\n\nconst latestFailure = selectLatestNonCancelled([\n  { conclusion: 'success', updated_at: '2026-09-26T17:25:00Z' },\n  { conclusion: 'failure', updated_at: '2026-09-26T17:26:00Z' },\n  { conclusion: 'cancelled', updated_at: '2026-09-26T17:27:00Z' },\n]);\nassert.equal(latestFailure?.conclusion, 'failure');\n
+assert.equal(redDocumentationWithoutClassification.reason, 'RED_SCOPE_REQUIRES_EXPLICIT_CLASSIFICATION');
+const selected = selectLatestNonCancelled([
+  { conclusion: 'success', updated_at: '2026-09-26T17:25:00Z' },
+  { conclusion: 'cancelled', updated_at: '2026-09-26T17:26:00Z' },
+]);
+assert.equal(selected?.conclusion, 'success');
+
+const latestFailure = selectLatestNonCancelled([
+  { conclusion: 'success', updated_at: '2026-09-26T17:25:00Z' },
+  { conclusion: 'failure', updated_at: '2026-09-26T17:26:00Z' },
+  { conclusion: 'cancelled', updated_at: '2026-09-26T17:27:00Z' },
+]);
+assert.equal(latestFailure?.conclusion, 'failure');
