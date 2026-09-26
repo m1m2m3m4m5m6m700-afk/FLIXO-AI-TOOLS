@@ -5,7 +5,7 @@ const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === 'true';
 const testOrigin = process.env.VITE_TEST_ORIGIN || 'http://127.0.0.1:3000';
 
 export default defineConfig({
-  testDir: './tests',
+  testDir: './tests/official',
   fullyParallel: true,
   forbidOnly: isCi,
   workers: isCi ? 3 : undefined,
@@ -33,7 +33,7 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: 'npm run build:runtime && npm run preview -- --host 127.0.0.1 --port 3000',
+          command: isCi ? 'npm run preview -- --host 127.0.0.1 --port 3000' : 'npm run build && npm run preview -- --host 127.0.0.1 --port 3000',
           url: 'http://127.0.0.1:3000',
           timeout: 120_000,
           reuseExistingServer,
