@@ -10,7 +10,13 @@ import {
   buildCollectiveIntelligenceFrame,
   summarizeCollectiveIntelligence,
 } from '../src/lib/agent/collective-intelligence.ts';
-import { getAgentProfile, listAgentProfiles, profilesForLenses } from '../src/lib/agent/agent-profile.ts';
+import {
+  AUTONOMOUS_EXECUTION_SQUAD,
+  assertAutonomousExecutionSquadSafety,
+  getAgentProfile,
+  listAgentProfiles,
+  profilesForLenses,
+} from '../src/lib/agent/agent-profile.ts';
 import { assessAgentStuck } from '../src/lib/agent/stuck-detector.ts';
 import { runBoundedGoalLoop } from '../src/lib/agent/goal-controller.ts';
 import { AgentResourceLockManager, runBoundedParallel } from '../src/lib/agent/delegation.ts';
@@ -88,6 +94,14 @@ assert.equal(executionProfile.doesNotGrantAuthority, true);
 assert.equal(executionProfile.authorityBinding, 'CANONICAL_CONTROL_PLANE');
 assert.ok(listAgentProfiles().length >= 15);
 assert.ok(profilesForLenses(['ADVERSARIAL_FALSIFICATION']).some((profile) => profile.id === 'reviewAgent'));
+assertAutonomousExecutionSquadSafety();
+assert.equal(AUTONOMOUS_EXECUTION_SQUAD.length, 8);
+assert.equal(AUTONOMOUS_EXECUTION_SQUAD.filter((seat) => seat.mode === 'CANONICAL_MUTATION').length, 1);
+assert.deepEqual(
+  AUTONOMOUS_EXECUTION_SQUAD.map((seat) => seat.profileId),
+  ['codeScout', 'errorAgent', 'reviewAgent', 'actionRepairBot', 'testAgent', 'securityAgent', 'actionHistorian', 'certificationAuthority'],
+);
+
 
 const repeated = assessAgentStuck([
   { kind: 'TOOL', signature: 'image-compressor:{}' },
