@@ -14,8 +14,9 @@ const {
   WORKFLOW_TOOL_CATALOG,
   getWorkflowTool,
   resolveWorkflowTool,
-  planFromWorkflowTool,
+  getWorkflowForTool,
 } = await import('../src/lib/agent/workflow-as-tool.ts');
+const { planFromIntent } = await import('../src/lib/ai/planner.ts');
 
 test('agent event envelope is canonical and idempotent', () => {
   const firstKey = deriveEventIdempotencyKey({
@@ -64,7 +65,8 @@ test('workflow tools are derived from the canonical workflow registry', () => {
   assert.ok(product?.stepToolIds.includes('background-remover'));
 
   assert.equal(resolveWorkflowTool('prepare a product image for a store')?.id, 'workflow:product-ready');
-  const plan = planFromWorkflowTool('workflow:product-ready');
+  const plan = planFromIntent('prepare a product image for a store');
+  assert.ok(getWorkflowForTool('workflow:product-ready'));
   assert.ok(plan);
   assert.equal(plan?.steps[0]?.toolId, 'background-remover');
 });
