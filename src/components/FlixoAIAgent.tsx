@@ -212,6 +212,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     }
     const nextPlan = cognitive.executionPlan;
     const firstStep = nextPlan.steps[0];
+    const prepared = prepareExecution(nextPlan);
     setMemory((current) => setConversationTask(current, {
       command: contextualCommand,
       toolId: firstStep?.toolId ?? null,
@@ -221,7 +222,6 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       plan: prepared.plan,
       runtimeResumeState: null,
     }));
-    const prepared = prepareExecution(nextPlan);
     setPlan(prepared.plan);
     setPreparedExecution(prepared);
     setState('ready'); return prepared.plan;
