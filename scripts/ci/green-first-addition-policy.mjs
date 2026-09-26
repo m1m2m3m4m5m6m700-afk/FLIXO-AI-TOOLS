@@ -44,7 +44,12 @@ export const REQUIRED_GREEN_WORKFLOW_PATHS = Object.freeze({
   'Repository Security Baseline': '.github/workflows/repository-security-baseline.yml',
   'Claude Security Review': '.github/workflows/claude-security-review.yml',
 });
-export const selectLatestNonCancelled = (runs) => runs\n  .filter(r => r?.conclusion !== 'cancelled')\n  .sort((a,b) => String(a?.updated_at ?? a?.completed_at ?? a?.started_at ?? '').localeCompare(String(b?.updated_at ?? b?.completed_at ?? b?.started_at ?? '')))\n  .at(-1) ?? null;\n\nconst latestWorkflow = (name) => {
+export const selectLatestNonCancelled = (runs) => runs
+  .filter(r => r?.conclusion !== 'cancelled')
+  .sort((a,b) => String(a?.updated_at ?? a?.completed_at ?? a?.started_at ?? '').localeCompare(String(b?.updated_at ?? b?.completed_at ?? b?.started_at ?? '')))
+  .at(-1) ?? null;
+
+const latestWorkflow = (name) => {
   const workflowPath = REQUIRED_GREEN_WORKFLOW_PATHS[name];
   if (!workflowPath) return null;
   const workflowId = workflowPath.split('/').at(-1);
