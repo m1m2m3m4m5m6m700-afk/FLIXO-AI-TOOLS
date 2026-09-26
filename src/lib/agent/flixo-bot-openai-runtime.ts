@@ -321,10 +321,15 @@ export function recordToolResult(
 export function approveRun(
   state: FlixoBotRunState,
   currentSha: string,
+  approvalId: string,
 ): FlixoBotRunState {
   assertCurrentRunSha(state, currentSha);
   if (state.status !== 'WAITING_APPROVAL' || !state.pendingApproval) {
     throw new Error('FLIXO_BOT_APPROVAL_INVALID_STATE');
+  }
+  const requestedApprovalId = required(approvalId, 'APPROVAL_ID');
+  if (requestedApprovalId !== state.pendingApproval.approvalId) {
+    throw new Error('FLIXO_BOT_APPROVAL_ID_MISMATCH');
   }
 
   return withStatus(
@@ -339,7 +344,7 @@ export function approveRun(
       type: 'APPROVAL_ACCEPTED',
       actorId: state.currentOwner,
       detail: {
-        approvalId: state.pendingApproval.approvalId,
+        approvalId: requestedApprovalId,
         toolId: state.pendingApproval.toolId,
         callId: state.pendingApproval.callId,
       },
