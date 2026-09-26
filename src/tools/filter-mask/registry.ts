@@ -136,6 +136,13 @@ const scoreLiveFilter = (query: string, filter: LiveFilterDefinition): number =>
 
   const tokens = normalized.split(' ').filter((token) => token && !GENERIC_FILTER_TERMS.has(token));
   if (tokens.length === 0) return 1;
+
+  const labelTokens = normalizeFilterQuery(filter.label).split(' ').filter(Boolean);
+  if (tokens.length === labelTokens.length && tokens.every((token, index) => token === labelTokens[index])) return 90 + tokens.length;
+
+  const canonicalTokens = normalizeFilterQuery(filter.canonicalId.replace(/^effect\\./, '')).split(' ').filter(Boolean);
+  if (tokens.length === canonicalTokens.length && tokens.every((token, index) => token === canonicalTokens[index])) return 80 + tokens.length;
+
   const hits = tokens.filter((token) => target.includes(token)).length;
   return hits === tokens.length ? 50 + hits : hits;
 };
