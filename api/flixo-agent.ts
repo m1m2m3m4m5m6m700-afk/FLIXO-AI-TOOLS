@@ -196,12 +196,35 @@ function parseJsonObject(text: string): unknown {
   }
 }
 
-function assertDeterministicPlanBoundary(input: string, decision: ReturnType<typeof parseAgentDecision>): void {
-  if (decision.mode !== 'plan' || !decision.plan) return;
+function enforceDeterministicExecutionBoundary(
+  input: string,
+  decision: ReturnType<typeof parseAgentDecision>,
+): ReturnType<typeof parseAgentDecision> {
   const deterministic = planFromIntent(input);
-  if (!isDeterministicPlanCompatible(decision.plan, deterministic)) {
-    throw new Error('AI_PLAN_CONFLICTS_WITH_DETERMINISTIC_QUICKFLOW');
+
+  if (!deterministic) {
+    if (decision.mode === 'plan' && decision.plan && !isDeterministicPlanCompatible(decision.plan, deterministic)) {
+      throw new Error('AI_PLAN_CONFLICTS_WITH_DETERMINISTIC_QUICKFLOW');
+    }
+    return decision;
   }
+
+  if (decision.mode === 'plan' && decision.plan) {
+    if (!isDeterministicPlanCompatible(decision.plan, deterministic)) {
+      throw new Error('AI_PLAN_CONFLICTS_WITH_DETERMINISTIC_QUICKFLOW');
+    }
+    return decision;
+  }
+
+  return {
+    ...decision,
+    mode: 'plan',
+    reply: decision.reply,
+    question: null,
+    plan: deterministic,
+    confidence: deterministic.confidence,
+    reason: 'DETERMINISTIC_QUICKFLOW_AUTHORITY',
+  };
 }
 
 async function callOpenAI(
@@ -481,18 +504,18 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     try {
       const raw = await invoke(provider);
       const decision = parseAgentDecision(parseJsonObject(raw));
-      assertDeterministicPlanBoundary(userMessage, decision);
-      await persistLearningCandidate(decision, userMessage, locale, provider);
-      respondWithRuntime(decision, { latencyMs: Date.now() - started, provider });
+      const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
+      await persistLearningCandidate(boundedDecision, userMessage, locale, provider);
+      respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider });
     } catch (providerError) {
       if (botRuntime) botRuntime = noteProviderFailure(botRuntime, `${provider}:${providerError instanceof Error ? providerError.name : 'UNKNOWN_ERROR'}`);
       if (runtime.fallbackProvider) {
         try {
           const raw = await invoke(runtime.fallbackProvider);
           const decision = parseAgentDecision(parseJsonObject(raw));
-          assertDeterministicPlanBoundary(userMessage, decision);
-          await persistLearningCandidate(decision, userMessage, locale, runtime.fallbackProvider);
-          respondWithRuntime(decision, { latencyMs: Date.now() - started, provider: runtime.fallbackProvider, fallback: true });
+          const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
+          await persistLearningCandidate(boundedDecision, userMessage, locale, runtime.fallbackProvider);
+          respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider: runtime.fallbackProvider, fallback: true });
           return;
         } catch (fallbackError) {
           if (botRuntime) botRuntime = noteProviderFailure(botRuntime, `${runtime.fallbackProvider}:${fallbackError instanceof Error ? fallbackError.name : 'UNKNOWN_ERROR'}`);
@@ -510,7 +533,8 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         });
       }
       const decision = fallbackDecision(userMessage, body.file, locale);
-      respondWithRuntime(decision, { fallback: true });
+      const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
+      respondWithRuntime(boundedDecision, { fallback: true });
     }
   } catch (error) {
     if (error instanceof Error && (
