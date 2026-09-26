@@ -29,8 +29,6 @@ export const WORKFLOW_TOOL_CATALOG: readonly WorkflowToolDescriptor[] = Object.f
   WORKFLOW_REGISTRY.map(toWorkflowTool),
 );
 
-const byId = new Map(WORKFLOW_TOOL_CATALOG.map((tool) => [tool.id, tool]));
-
 export function getWorkflowTool(id: string): WorkflowToolDescriptor | undefined {
   return WORKFLOW_TOOL_CATALOG.find((tool) => tool.id === id);
 }
