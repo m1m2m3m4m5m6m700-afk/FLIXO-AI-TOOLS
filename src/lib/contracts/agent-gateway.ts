@@ -62,6 +62,8 @@ export type AgentLearningCandidate = Readonly<{
 }>;
 
 const AgentDecisionEnvelopeSchema = z.object({
+  conversationId: z.string().trim().min(1).max(256).optional(),
+  taskId: z.string().trim().min(1).max(256).optional(),
   mode: z.enum(['chat', 'clarify', 'plan']),
   reply: z.string().trim().min(1).max(20_000),
   question: z.string().trim().max(8_000).nullable(),
@@ -90,6 +92,8 @@ const AgentDecisionEnvelopeSchema = z.object({
 }).strict();
 
 export type AgentDecisionContract = Readonly<{
+  conversationId?: string;
+  taskId?: string;
   mode: 'chat' | 'clarify' | 'plan';
   reply: string;
   question: string | null;
@@ -125,6 +129,8 @@ export function parseAgentDecision(value: unknown): AgentDecisionContract {
   if (envelope.mode !== 'plan') {
     if (envelope.plan !== null) throw new Error('Non-plan AI decisions must not contain a plan.');
     return Object.freeze({
+      ...(envelope.conversationId === undefined ? {} : { conversationId: envelope.conversationId }),
+      ...(envelope.taskId === undefined ? {} : { taskId: envelope.taskId }),
       mode: envelope.mode,
       reply: envelope.reply,
       question: envelope.question,
@@ -141,6 +147,8 @@ export function parseAgentDecision(value: unknown): AgentDecisionContract {
   }
   const plan = parseExecutionPlan(envelope.plan);
   return Object.freeze({
+    ...(envelope.conversationId === undefined ? {} : { conversationId: envelope.conversationId }),
+    ...(envelope.taskId === undefined ? {} : { taskId: envelope.taskId }),
     mode: 'plan',
     reply: envelope.reply,
     question: null,
