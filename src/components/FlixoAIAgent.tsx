@@ -24,6 +24,7 @@ import type { Locale } from '@/lib/i18n';
 import { type FilterMaskHandoff } from '@/tools/filter-mask/handoff';
 import { askConversationalAgent } from '@/lib/agent/conversational-agent';
 import { getLiveFilter } from '@/tools/filter-mask/registry';
+import { toAgentFileMetadata } from '@/lib/contracts/mvp-scope';
 import { resolveFilterMaskSelection } from '@/lib/intent/resolver';
 import { FlixoAIAgentStudio } from './FlixoAIAgentStudio';
 import './FlixoAIAgentStudio.css';
@@ -322,7 +323,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           })),
           { role: 'user' as const, content: command },
         ],
-        file: file ? { name: file.name, type: file.type, size: file.size } : null,
+        file: toAgentFileMetadata(file),
         activePlan: plan,
         activeCommand: memory.activeCommand,
         memory: buildLayeredMemorySnapshot(memory),

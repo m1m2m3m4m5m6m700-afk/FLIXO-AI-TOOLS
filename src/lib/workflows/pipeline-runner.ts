@@ -4,6 +4,7 @@ import { authorizeExecution } from '@/lib/agent/execution-gate';
 import { classifyExecutionFailure, createExecutionAuditEvent, deriveRecoveryMetadata, type ExecutionAuditEvent } from '@/lib/agent/execution-observability';
 import { assertExecutionResourceBudget, getCapability, validateCapabilityParameters, type CapabilityParameters } from '@/lib/agent/capability-registry';
 import { getToolById, TOOL_CATALOG } from '@/config/registry';
+import { assertMvpLocalExecutionBoundary } from '@/lib/contracts/mvp-scope.ts';
 import { getToolExecutor, repairToolParameters } from '@/lib/workflows/executor-registry';
 import { getToolOutputContractForDefinition } from '@/lib/contracts/tool-output-contracts';
 import { assertToolOutputContract, type ToolOutputResult } from '@/lib/contracts/tool-output';
@@ -232,9 +233,7 @@ export async function runWorkflowPipeline(
     if (!capability || capability.state !== 'EXECUTABLE') throw new Error(`Capability '${step.toolId}' is not executable by the local pipeline.`);
     const tool = getToolById(step.toolId);
     if (!tool) throw new Error(`Registered tool '${step.toolId}' could not be loaded.`);
-    if (tool.executionMode !== 'LOCAL' || tool.requirements.network) {
-      throw new Error(`MVP local-only execution boundary rejected '${step.toolId}'.`);
-    }
+    assertMvpLocalExecutionBoundary(tool);
 
     const executor = getToolExecutor(tool);
     const stableBlob = currentBlob;
