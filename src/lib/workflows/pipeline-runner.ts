@@ -7,7 +7,8 @@ import { getToolById, TOOL_CATALOG } from '@/config/registry';
 import { getToolExecutor, repairToolParameters } from '@/lib/workflows/executor-registry';
 import { getToolOutputContractForDefinition } from '@/lib/contracts/tool-output-contracts';
 import { assertToolOutputContract, type ToolOutputResult } from '@/lib/contracts/tool-output';
-import { verifyVisualGoal } from '@/lib/agent/visual-goal-verifier';
+import { verifyVisualGoal, deriveVisualGoalSpec } from '@/lib/agent/visual-goal-verifier';
+import { reviewOutputBasics, type OutputReview } from '@/lib/agent/output-review';
 import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelinePlanFingerprint, createPipelineReceiptChain, createPipelineStepReceipt, type PipelineReceiptChain, type PipelineStepReceipt } from '@/lib/workflows/pipeline-receipt';
 import { assertExecutionBudgetAlive, consumeOutputBytes, consumeRetry, consumeStep, consumeToolCall, createExecutionBudget, type ExecutionBudget } from '@/lib/agent/execution-budget';
 
@@ -28,7 +29,7 @@ export type PipelineRuntimeHooks = Readonly<{
   }>) => void | Promise<void>;
 }>;
 
-export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; task: TaskContext; outputBlob?: Blob; retry?: number; receipt?: PipelineStepReceipt; receiptChain?: PipelineReceiptChain; auditEvents?: readonly ExecutionAuditEvent[]; }
+export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; task: TaskContext; outputBlob?: Blob; retry?: number; receipt?: PipelineStepReceipt; receiptChain?: PipelineReceiptChain; auditEvents?: readonly ExecutionAuditEvent[]; review?: OutputReview; }
 export class PipelineVerificationError extends Error {
   readonly stableBlob: Blob;
   readonly failedStepIndex: number;
@@ -263,6 +264,11 @@ export async function runWorkflowPipeline(
         });
         lastOutput = output;
         verified = await verifyPipelineOutput(step.toolId, stableBlob, output, params);
+        const visualSpec = deriveVisualGoalSpec(step.toolId, params);
+        const review = reviewOutputBasics(stableBlob, output, {
+          preserveSubject: false,
+          requireVisibleChange: visualSpec.requireVisibleChange,
+        });
         const verificationAudit = await createExecutionAuditEvent({
           task,
           capabilityId: step.toolId,
@@ -288,10 +294,10 @@ export async function runWorkflowPipeline(
             receipt,
             receiptChain,
           });
-          onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, outputBlob: output, retry: attempt, receipt, receiptChain, auditEvents: auditEventsForAttempt });
+          onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, outputBlob: output, retry: attempt, receipt, receiptChain, auditEvents: auditEventsForAttempt, review });
           break;
         }
-        onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, retry: attempt, auditEvents: auditEventsForAttempt });
+        onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, retry: attempt, auditEvents: auditEventsForAttempt, review });
       } catch (error) {
         if (runtimeAfterToolInvoked) throw error;
         attemptExecutionError = error;
