@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { timingSafeEqual } from 'node:crypto';
 import { assertAgentEvent, createAgentEvent } from '../src/lib/agent/event-gateway.ts';
 import { appendAgentTaskEvent, isDurableAgentTaskStoreConfigured } from '../src/server/agent/durable-task-store.ts';
 
@@ -14,7 +15,10 @@ function json(res: ServerResponse, status: number, body: unknown): void {
 function hasValidSecret(value: string | string[] | undefined): boolean {
   const expected = process.env.FLIXO_EVENT_GATEWAY_SECRET?.trim();
   const provided = Array.isArray(value) ? value[0] : value;
-  return Boolean(expected && provided && provided.trim() === expected);
+  if (!expected || !provided) return false;
+  const left = Buffer.from(provided.trim());
+  const right = Buffer.from(expected);
+  return left.length === right.length && timingSafeEqual(left, right);
 }
 
 async function readJson(req: IncomingMessage): Promise<unknown> {
