@@ -20,6 +20,7 @@ import {
   runtimeStatusToTaskState,
 } from './flixo-bot-task-bridge';
 import { requireFlixoBuildSha } from './build-identity';
+import { beginFlixoBotGatewayRuntime, finalizeFlixoBotGatewayRuntime } from './flixo-bot-runtime-adapter';
 import { appendConversationEvent } from './conversation-event-store';
 
 export type PreparedExecution = Readonly<{ plan: ExecutionPlanContract; task: TaskContext; runtimeState?: FlixoBotRunState }>;
@@ -62,17 +63,30 @@ function assertPlanGuard(plan: ExecutionPlanContract): void {
 
 export function prepareExecution(
   planInput: unknown,
-  identity: Readonly<{ taskId?: string; traceId?: string; runtimeState?: FlixoBotRunState }> = {},
+  identity: Readonly<{ taskId?: string; traceId?: string; runtimeState?: FlixoBotRunState; runtimeRequest?: string }> = {},
 ): PreparedExecution {
   const plan = parseExecutionPlan(planInput);
   assertPlanGuard(plan);
   const base = createTaskContext(identity.taskId, identity.traceId);
   const planned = transitionTask(base, 'PLANNED');
   const awaitingConfirmation = transitionTask(planned, 'AWAITING_CONFIRMATION');
-  if (identity.runtimeState) {
-    if (identity.runtimeState.taskId !== awaitingConfirmation.taskId) throw new Error('FLIXO_BOT_RUNTIME_TASK_ID_MISMATCH');
-    if (identity.runtimeState.traceId !== awaitingConfirmation.traceId) throw new Error('FLIXO_BOT_RUNTIME_TRACE_ID_MISMATCH');
-    if (identity.runtimeState.status !== 'WAITING_APPROVAL') throw new Error('FLIXO_BOT_RUNTIME_PLAN_NOT_AWAITING_APPROVAL');
+  let runtimeState = identity.runtimeState;
+  if (runtimeState) {
+    if (runtimeState.taskId !== awaitingConfirmation.taskId) throw new Error('FLIXO_BOT_RUNTIME_TASK_ID_MISMATCH');
+    if (runtimeState.traceId !== awaitingConfirmation.traceId) throw new Error('FLIXO_BOT_RUNTIME_TRACE_ID_MISMATCH');
+    if (runtimeState.status !== 'WAITING_APPROVAL') throw new Error('FLIXO_BOT_RUNTIME_PLAN_NOT_AWAITING_APPROVAL');
+  } else if (identity.runtimeRequest) {
+    const exactSha = requireFlixoBuildSha();
+    const runtime = beginFlixoBotGatewayRuntime({
+      taskId: awaitingConfirmation.taskId,
+      exactSha,
+      request: identity.runtimeRequest,
+    });
+    runtimeState = finalizeFlixoBotGatewayRuntime(runtime, 'plan', {
+      mode: 'plan',
+      source: 'deterministic-local-planner',
+      toolIds: plan.steps.map((step) => step.toolId),
+    }).state;
   }
   void appendConversationEvent('PLAN_READY', {
     taskId: awaitingConfirmation.taskId,
@@ -80,7 +94,7 @@ export function prepareExecution(
     stepCount: plan.steps.length,
     toolIds: plan.steps.map((step) => step.toolId),
   });
-  return Object.freeze({ plan, task: awaitingConfirmation, ...(identity.runtimeState ? { runtimeState: identity.runtimeState } : {}) });
+  return Object.freeze({ plan, task: awaitingConfirmation, ...(runtimeState ? { runtimeState } : {}) });
 }
 
 export function restorePreparedExecution(
@@ -144,6 +158,10 @@ export async function executePreparedExecution(
 ): Promise<ExecutionIntegrationResult> {
   assertExecutionAllowed(prepared.task);
   let runtimeState = prepared.runtimeState;
+  const publishRuntimeState = (): void => {
+    if (runtimeState) onRuntimeState?.(runtimeState);
+  };
+  publishRuntimeState();
   if (runtimeState && runtimeState.status !== 'RUNNING') {
     throw new Error('FLIXO_BOT_RUNTIME_EXECUTION_NOT_STARTED');
   }
@@ -168,6 +186,7 @@ export async function executePreparedExecution(
           toolId,
           `tool:${stepIndex}:${attempt}:${toolId}`,
         );
+        publishRuntimeState();
       },
       afterTool: async ({ toolId, success, outputBlob, receipt, receiptChain }: {
         toolId: string;
@@ -193,6 +212,7 @@ export async function executePreparedExecution(
             receiptChainSha256: receiptChain.chainSha256,
           } : undefined,
         );
+        publishRuntimeState();
       },
     }
     : undefined;
@@ -224,6 +244,7 @@ export async function executePreparedExecution(
         byteLength: output.size,
         mimeType: output.type,
       });
+      publishRuntimeState();
     }
     void appendConversationEvent('EXECUTION_FINISHED', {
       taskId: completed.taskId,
@@ -247,6 +268,7 @@ export async function executePreparedExecution(
         prepared.task,
         cause instanceof Error ? cause.message : 'FLIXO_EXECUTION_FAILED',
       );
+      publishRuntimeState();
     }
     if (failedTask.state === 'EXECUTING' || failedTask.state === 'VERIFYING' || failedTask.state === 'RECOVERING') {
       try { failedTask = transitionTask(failedTask, 'FAILED'); } catch { /* preserve original failure */ }
