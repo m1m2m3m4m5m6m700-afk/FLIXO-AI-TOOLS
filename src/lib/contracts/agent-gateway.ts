@@ -72,6 +72,7 @@ const AgentDecisionEnvelopeSchema = z.object({
   fallback: z.boolean().optional(),
   reason: z.string().trim().max(4_000).optional(),
   learning: AgentLearningCandidateSchema.nullable().optional(),
+  approval: z.object({ level: z.enum(['AUTO', 'CONFIRM', 'BLOCK']), reasons: z.array(z.string().trim().min(1).max(512)).max(64) }).strict().nullable().optional(),
   runtime: z.object({
     protocol: z.string().trim().min(1).max(128),
     runId: z.string().trim().min(1).max(256),
@@ -99,6 +100,7 @@ export type AgentDecisionContract = Readonly<{
   fallback?: boolean;
   reason?: string;
   learning?: AgentLearningCandidate | null;
+  approval?: { level: 'AUTO' | 'CONFIRM' | 'BLOCK'; reasons: readonly string[] } | null;
   runtime?: {
     protocol: string;
     runId: string;
@@ -133,6 +135,7 @@ export function parseAgentDecision(value: unknown): AgentDecisionContract {
       ...(envelope.fallback === undefined ? {} : { fallback: envelope.fallback }),
       ...(envelope.reason === undefined ? {} : { reason: envelope.reason }),
       ...(envelope.learning === undefined ? {} : { learning: envelope.learning }),
+      ...(envelope.approval === undefined ? {} : { approval: envelope.approval }),
       ...(envelope.runtime === undefined ? {} : { runtime: envelope.runtime }),
     });
   }
@@ -148,6 +151,7 @@ export function parseAgentDecision(value: unknown): AgentDecisionContract {
     ...(envelope.fallback === undefined ? {} : { fallback: envelope.fallback }),
     ...(envelope.reason === undefined ? {} : { reason: envelope.reason }),
     ...(envelope.learning === undefined ? {} : { learning: envelope.learning }),
+    ...(envelope.approval === undefined ? {} : { approval: envelope.approval }),
     ...(envelope.runtime === undefined ? {} : { runtime: envelope.runtime }),
   });
 }
