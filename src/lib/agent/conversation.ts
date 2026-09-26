@@ -41,7 +41,7 @@ const hasAny = (text: string, patterns: readonly RegExp[]) => patterns.some((pat
 const CONTINUATION_PATTERNS: readonly RegExp[] = [
   /(?:^|\s)(?:و|ثم|وبعدين|بعدها|كمان|أيضا|ايضا|برضه|برضو|دلوقتي|الان|الآن)(?:\s|$)/i,
   /(?:هذا|هذه|ذلك|تلك|ها|عليه|عليها|منها|فيها|به|بها|نفسها|نفسه)/i,
-  /^(?:مربع|مربعه|square|1[:\/]1|\d{2,5}\s*[x×]\s*\d{2,5})$/i,
+  /^(?:مربع|مربعه|square|1[:/]1|\d{2,5}\s*[x×]\s*\d{2,5})$/i,
 ];
 
 const GREETING_PATTERNS: readonly RegExp[] = [
