@@ -398,6 +398,7 @@ export function applyNextStep(
   }
 
   if (step.type === 'HANDOFF') {
+    if (!['RUNNING', 'RETRYING'].includes(state.status)) throw new Error('FLIXO_BOT_HANDOFF_INVALID_STATE');
     const target = required(step.targetAgentId, 'HANDOFF_TARGET_AGENT_ID');
     return withStatus(
       Object.freeze({
@@ -412,6 +413,7 @@ export function applyNextStep(
   }
 
   if (step.type === 'FINAL') {
+    if (!['RUNNING', 'RETRYING'].includes(state.status)) throw new Error('FLIXO_BOT_FINAL_INVALID_STATE');
     return withStatus(
       Object.freeze({ ...state, lastOutput: step.output, stepIndex: state.stepIndex + 1 }),
       'SUCCEEDED',
@@ -419,6 +421,7 @@ export function applyNextStep(
     );
   }
 
+  if (!['RUNNING', 'RETRYING'].includes(state.status)) throw new Error('FLIXO_BOT_INTERRUPTION_INVALID_STATE');
   return withStatus(
     Object.freeze({
       ...state,
