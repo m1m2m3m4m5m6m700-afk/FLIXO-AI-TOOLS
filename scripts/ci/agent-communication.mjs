@@ -133,11 +133,14 @@ export function validateMessage(message, observedSha = currentSha()) {
   assertActorKnown(String(message.actor));
   if (!recipientKnown(String(message.recipient))) throw new Error('AGENT_MESSAGE_RECIPIENT_INVALID');
   if (typeof message.entrySha !== 'string' || !/^[0-9a-f]{40}$/u.test(message.entrySha)) throw new Error('AGENT_MESSAGE_ENTRY_SHA_INVALID');
+  const masterPeerMessage = isMasterPeerMessage(message);
+  if (masterPeerMessage && message.entrySha !== observedSha) {
+    throw new Error('AGENT_MESSAGE_ENTRY_SHA_MISMATCH');
+  }
   for (const field of ['scope','dependencies','expectedEvidence','stopConditions','proofObligations']) asArray(message[field], field);
   if (!['LOW','MEDIUM','HIGH','CRITICAL'].includes(String(message.risk))) throw new Error('AGENT_MESSAGE_RISK_INVALID');
   if (typeof message.intent !== 'string' || !message.intent.trim()) throw new Error('AGENT_MESSAGE_INTENT_INVALID');
   validatePrivilegedTransportIdentity(message);
-  const masterPeerMessage = isMasterPeerMessage(message);
   if (masterPeerMessage) {
     if (!masterIds.has(String(message.actor))) throw new Error('MASTER_PEER_ACTOR_INVALID');
     if (!(masterIds.has(String(message.recipient)) || String(message.recipient) === MASTER_GROUP)) throw new Error('MASTER_PEER_RECIPIENT_INVALID');

@@ -121,7 +121,7 @@ assert.throws(
     ...base,
     entrySha: '0'.repeat(40),
   }, sha),
-  /AGENT_MESSAGE_ENTRY_SHA_INVALID/
+  /AGENT_MESSAGE_ENTRY_SHA_(INVALID|MISMATCH)/
 );
 
 console.log('MASTER_PEER_IDS=PASS');
