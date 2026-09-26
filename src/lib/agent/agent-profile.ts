@@ -54,6 +54,104 @@ export const AGENT_PROFILES: readonly AgentProfile[] = Object.freeze([
   define('MASTER-3', 'Consultative architecture and evidence synthesis.', ['MULTI_AGENT_SYNTHESIS', 'PROVENANCE_GRAPH_REASONING', 'KNOWLEDGE_RETRIEVAL'], ['consulting', 'architecture-review']),
 ]);
 
+
+export type AgentDefinition = Readonly<{
+  id: string;
+  name: string;
+  profileId: string;
+  purpose: string;
+  handoffDescription: string;
+  runtimeMode: AgentRuntimeMode;
+  lenses: readonly string[];
+  skills: readonly string[];
+  authorityBinding: AgentAuthorityBinding;
+  doesNotGrantAuthority: true;
+}>;
+
+export type AgentDefinitionOverrides = Readonly<{
+  name?: string;
+  handoffDescription?: string;
+}>;
+
+function buildAgentDefinition(
+  profile: AgentProfile,
+  overrides: AgentDefinitionOverrides = {},
+): AgentDefinition {
+  const name = String(overrides.name ?? profile.id).trim();
+  const handoffDescription = String(
+    overrides.handoffDescription ?? profile.purpose,
+  ).trim();
+  if (!name) throw new Error('AGENT_DEFINITION_NAME_REQUIRED');
+  if (!handoffDescription) throw new Error('AGENT_DEFINITION_HANDOFF_DESCRIPTION_REQUIRED');
+  assertAgentProfileSafety(profile);
+  return Object.freeze({
+    id: profile.id,
+    name,
+    profileId: profile.id,
+    purpose: profile.purpose,
+    handoffDescription,
+    runtimeMode: profile.runtimeMode,
+    lenses: profile.lenses,
+    skills: profile.skills,
+    authorityBinding: profile.authorityBinding,
+    doesNotGrantAuthority: true,
+  });
+}
+
+function assertAgentDefinitionCatalogSafety(
+  definitions: readonly AgentDefinition[],
+): void {
+  const ids = new Set<string>();
+  const names = new Set<string>();
+  for (const definition of definitions) {
+    if (ids.has(definition.id)) throw new Error(`AGENT_DEFINITION_ID_COLLISION=${definition.id}`);
+    if (names.has(definition.name)) throw new Error(`AGENT_DEFINITION_NAME_COLLISION=${definition.name}`);
+    ids.add(definition.id);
+    names.add(definition.name);
+    if (definition.profileId !== definition.id) {
+      throw new Error(`AGENT_DEFINITION_PROFILE_BINDING_INVALID=${definition.id}`);
+    }
+    if (definition.doesNotGrantAuthority !== true) {
+      throw new Error(`AGENT_DEFINITION_AUTHORITY_BOUNDARY_INVALID=${definition.id}`);
+    }
+  }
+}
+
+export const AGENT_DEFINITIONS: readonly AgentDefinition[] = Object.freeze(
+  AGENT_PROFILES.map((profile) => buildAgentDefinition(profile)),
+);
+
+assertAgentDefinitionCatalogSafety(AGENT_DEFINITIONS);
+
+const DEFINITIONS_BY_ID = new Map(
+  AGENT_DEFINITIONS.map((definition) => [definition.id, definition]),
+);
+
+export function createAgentDefinition(
+  profileId: string,
+  overrides: AgentDefinitionOverrides = {},
+): AgentDefinition {
+  const profile = getAgentProfile(profileId);
+  if (!profile) throw new Error(`UNKNOWN_AGENT_PROFILE=${profileId}`);
+  const definition = buildAgentDefinition(profile, overrides);
+  const existing = DEFINITIONS_BY_ID.get(definition.id);
+  if (existing && (
+    existing.name !== definition.name
+    || existing.handoffDescription !== definition.handoffDescription
+  )) {
+    throw new Error(`AGENT_DEFINITION_COLLISION=${definition.id}`);
+  }
+  return definition;
+}
+
+export function getAgentDefinition(id: string): AgentDefinition | undefined {
+  return DEFINITIONS_BY_ID.get(String(id).trim());
+}
+
+export function listAgentDefinitions(): readonly AgentDefinition[] {
+  return AGENT_DEFINITIONS;
+}
+
 const BY_ID = new Map(AGENT_PROFILES.map((profile) => [profile.id, profile]));
 
 export function getAgentProfile(id: string): AgentProfile | undefined {
