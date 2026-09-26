@@ -7,7 +7,7 @@ export type SpecialistAssignment=Readonly<{id:string;taskId:string;profileId:str
 export type SpecialistPlan=Readonly<{version:typeof SPECIALIST_ORCHESTRATOR_VERSION;specialists:readonly SpecialistAssignment[];lenses:readonly SpecialistLens[];}>;
 const ROLE:Readonly<Record<DecomposedTaskKind,string>>=Object.freeze({UNDERSTAND:'analysis',PLAN:'ACTION-CODE-MENTOR',EXECUTE:'executionAgent',VERIFY:'testAgent',REVIEW:'reviewAgent'});
 const normalizeLenses=(input:{taskInput:string;requiredLenses?:readonly string[]}):readonly SpecialistLens[]=>{
- const explicit=new Set(input.requiredLenses?.filter((value):(value is SpecialistLens)=>value==='browser-observation'||value==='react-performance'||value==='frontend-design')??[]);
+ const explicit=new Set(input.requiredLenses?.filter((value): value is SpecialistLens =>value==='browser-observation'||value==='react-performance'||value==='frontend-design')??[]);
  const text=input.taskInput;
  if(/(?:browser|runtime|console|network|devtools|playwright|متصفح|تشغيل|كونسول|شبكة)/iu.test(text))explicit.add('browser-observation');
  if(/(?:react|vite|render|rerender|bundle|performance|lcp|inp|cls|أداء|ريآكت|حزمة)/iu.test(text))explicit.add('react-performance');
