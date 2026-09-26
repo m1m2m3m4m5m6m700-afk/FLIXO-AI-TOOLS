@@ -18,6 +18,7 @@ try {
 } catch (error) {
   throw new Error(
     `Invalid SITE_ORIGIN/VITE_SITE_URL: ${error instanceof Error ? error.message : String(error)}`,
+    { cause: error },
   );
 }
 
