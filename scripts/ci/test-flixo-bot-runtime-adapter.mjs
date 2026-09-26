@@ -48,8 +48,8 @@ assert.equal(restored.runId, summary.runId);
 assert.equal(restored.status, 'WAITING_APPROVAL');
 
 const parsed = parseAgentDecision({
-  mode: 'plan',
-  reply: 'plan ready',
+  mode: 'chat',
+  reply: 'runtime attached',
   question: null,
   plan: null,
   confidence: 0.8,

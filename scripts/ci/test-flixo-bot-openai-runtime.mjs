@@ -156,5 +156,3 @@ assert.equal(cancelled.status, 'CANCELLED');
 console.log('FLIXO BOT isolated OpenAI-derived runtime contract tests passed.');
 
 
-// Gateway adapter integration.
-await import('./test-flixo-bot-runtime-adapter.mjs');
