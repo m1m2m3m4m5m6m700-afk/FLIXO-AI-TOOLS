@@ -26,7 +26,6 @@ export type MissionResultContract = Readonly<{
   taskId: string;
   botId: string;
   exactSha: string;
-  currentSha: string;
   outcome: MissionOutcome;
   strategyId: string | null;
   failureFingerprint: string | null;
@@ -139,6 +138,7 @@ export type AgentOutcomeInput = Readonly<{
   taskId: string;
   botId: string;
   exactSha: string;
+  currentSha: string;
   outcome: MissionOutcome;
   capabilityId: string;
   inputDescription: string;

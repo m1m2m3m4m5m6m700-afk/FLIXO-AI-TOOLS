@@ -1,2 +1,0 @@
-export type EvaluationMetrics={knowledgeAccuracy:number,retrievalRecall:number,citationAccuracy:number,toolSelection:number,planningAccuracy:number,hallucinationRate:number,taskCompletion:number};
-export function validateEvaluation(m:EvaluationMetrics){for(const [k,v] of Object.entries(m)){if(!Number.isFinite(v)||v<0||v>1)throw new Error(`Invalid evaluation metric: ${k}`);}return Object.freeze({...m});}
