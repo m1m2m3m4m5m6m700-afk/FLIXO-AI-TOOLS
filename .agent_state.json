@@ -1,35 +1,64 @@
 {
-  "state": "STATE_02_REFACTOR_CONTRACTS",
-  "gate": "GATE_01_PASSED",
+  "state": "STATE_03_WORKER_DISPATCH",
+  "gate": "GATE_02_PASSED",
   "active_branch": "execution",
-  "audited_sha": "eadcf249a515a328b71482319de8c1dd657fa018",
-  "status": "AUDIT_COMPLETE_VALIDATION_PENDING",
-  "project_goal": "Browser-first privacy-first image editing platform with integrated natural-language AI assistant.",
-  "tech_stack": ["React 19", "Vite", "TypeScript", "TanStack Router", "Playwright", "GitHub Actions", "Vercel"],
-  "identified_legacy_debt": [
-    "Historical third-party branches exist in Git history but are not valid execution paths.",
-    "Large orchestration/repair workflow surface requires contract-level consolidation and exact-SHA verification.",
-    "Existing verification evidence is SHA-sensitive and must be requalified for the current execution head.",
-    "Local test execution is externally blocked because the tool runtime cannot resolve github.com."
+  "verified_parent_sha": "2ac269224d5264178af9a65a7acae9eab9a43478",
+  "status": "WORKER_SCOPES_ACTIVE_EXACT_SHA_REVALIDATION_REQUIRED",
+  "active_contracts": [
+    "api/contracts.ts",
+    "src/lib/contracts/agent-gateway.ts",
+    "src/lib/contracts/ai-plan.ts",
+    "src/lib/contracts/browser-file-safety.ts",
+    "src/lib/contracts/evidence-ledger.ts",
+    "schemas/in-repo-repair-v2.schema.json",
+    "config/output-integrity.schema.json",
+    "config/release-evidence.schema.json",
+    "scripts/ci/test-plan.json",
+    "scripts/ci/assertion-registry.json"
   ],
-  "target_mvp_spec": "Upload → Intent → Plan → Execute → Verify → Display → Download; deterministic-first planning with optional AI refinement; bounded retry; browser-first processing; i18n/RTL; security/privacy and resource safety.",
-  "inventory": {
-    "tree_entries": 2204,
-    "files": 2034,
-    "directories": 170,
-    "workflows": 53,
-    "test_like_files": 360,
-    "contract_or_schema_files": 108
+  "worker_dispatch": {
+    "DEV_AGENT": {
+      "mode": "read-write_candidate_only",
+      "scope": "Product/MVP runtime and domain implementation required by currently authorized execution tasks.",
+      "forbidden_scope": ["governance contracts", "security certification", "CI certification"],
+      "deliverable": "Production-grade implementation only; no stubs, TODO/FIXME, mocks, or parallel registry."
+    },
+    "QA_AGENT": {
+      "mode": "read-only",
+      "scope": "Unit/integration/E2E and failure-mode vectors for the current MVP journey.",
+      "forbidden_scope": ["source mutation", "certification"],
+      "deliverable": "Falsifiable test vectors and exact-SHA evidence requirements."
+    },
+    "SEC_AGENT": {
+      "mode": "read-only",
+      "scope": "Threat model, input/output boundaries, dependency vulnerability posture, resource exhaustion and browser privacy boundaries.",
+      "forbidden_scope": ["source mutation", "security waiver"],
+      "deliverable": "Attack matrix and blockers with evidence."
+    },
+    "OPS_AGENT": {
+      "mode": "read-only",
+      "scope": "Build/toolchain/workflow/environment correctness and warning/error accounting.",
+      "forbidden_scope": ["branch creation", "main mutation", "source mutation"],
+      "deliverable": "Operational verification matrix and exact-SHA release conditions."
+    }
   },
-  "gate_01": {
-    "project_goal": "PASS",
-    "tech_stack": "PASS",
-    "legacy_debt": "PASS",
-    "target_mvp_spec": "PASS",
-    "structural_inventory": "PASS",
-    "runtime_validation": "PENDING"
+  "technical_debt_policy": {
+    "direct_ci_blockers": 0,
+    "latent_ci_debt": 0,
+    "unproven_candidates": 14,
+    "decision": "Do not delete candidates merely from name/pattern evidence; require dependency/reference proof. In particular, retain @types/node, @types/react, @types/react-dom and eslint until removal is proven non-breaking."
   },
-  "next_state": "STATE_02_REFACTOR_CONTRACTS",
   "retry_budget_per_module": 3,
-  "last_updated": "2026-09-26T10:42:00+03:00"
+  "last_verified_gate": {
+    "gate": "STATIC",
+    "sha": "2ac269224d5264178af9a65a7acae9eab9a43478",
+    "checks_expected": 28,
+    "checks_passed": 28,
+    "failures": 0,
+    "blocked": 0,
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "unit": "PASS"
+  },
+  "last_updated": "2026-09-26T10:49:00+03:00"
 }
