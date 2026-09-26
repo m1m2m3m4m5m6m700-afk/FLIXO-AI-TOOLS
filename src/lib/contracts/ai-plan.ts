@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { getCapability, validateCapabilityParameters } from '@/lib/agent/capability-registry';
-import { TOOL_CATALOG } from '@/config/registry';
+import { getCapability, validateCapabilityParameters } from '../agent/capability-registry';
+import { TOOL_CATALOG } from '../../config/registry';
 
 export const MAX_PLAN_STEPS = 4;
 const scalar = z.union([z.string(), z.number().finite(), z.boolean()]);
