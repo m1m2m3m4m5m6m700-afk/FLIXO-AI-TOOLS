@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - execution
-    paths:
-      - "apps/agent-editor/**"
-      - ".github/workflows/agent-editor-step2-verify.yml"
 
 concurrency:
   group: agent-editor-${{ github.ref }}
