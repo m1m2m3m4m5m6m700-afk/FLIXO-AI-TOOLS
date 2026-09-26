@@ -7,34 +7,33 @@ import type {
 
 type StoredTool = ToolDefinition<z.ZodTypeAny, z.ZodTypeAny>;
 
+const ToolMetaRuntimeSchema = z
+  .object({
+    name: z.string().min(1).max(128),
+    description: z.string().min(1).max(4_000),
+    category: z.enum([
+      "image_editing",
+      "video_editing",
+      "audio_processing",
+      "utilities",
+    ]),
+    executionMode: z.enum(["sync", "async_worker", "client_wasm"]),
+    estimatedCostCredits: z.number().finite().nonnegative(),
+    estimatedLatencyMs: z.number().finite().nonnegative(),
+    supportedMediaTypes: z.array(z.enum(["image", "video", "audio"])),
+  })
+  .strict();
+
 export class ToolRegistry {
   private readonly tools = new Map<string, StoredTool>();
 
   register<TSchemaIn extends z.ZodTypeAny, TSchemaOut extends z.ZodTypeAny>(
     tool: ToolDefinition<TSchemaIn, TSchemaOut>,
   ): void {
-    const meta = z
-      .object({
-        name: z.string().min(1).max(128),
-        description: z.string().min(1).max(4_000),
-        category: z.enum([
-          "image_editing",
-          "video_editing",
-          "audio_processing",
-          "utilities",
-        ]),
-        executionMode: z.enum(["sync", "async_worker", "client_wasm"]),
-        estimatedCostCredits: z.number().finite().nonnegative(),
-        estimatedLatencyMs: z.number().finite().nonnegative(),
-        supportedMediaTypes: z.array(z.enum(["image", "video", "audio"])),
-      })
-      .strict()
-      .parse(tool.meta);
-
+    const meta = ToolMetaRuntimeSchema.parse(tool.meta);
     if (this.tools.has(meta.name)) {
       throw new Error("TOOL_ALREADY_REGISTERED:" + meta.name);
     }
-
     this.tools.set(meta.name, tool as StoredTool);
   }
 
@@ -45,18 +44,15 @@ export class ToolRegistry {
   list(): RegisteredToolMeta[] {
     return Array.from(this.tools.values(), (tool) => ({
       name: tool.meta.name,
-      meta: {
-        description: tool.meta.description,
-        category: this.toPromptCategory(tool.meta.category),
+      meta: ToolMetaRuntimeSchema.parse(tool.meta),
+      jsonSchemaInput: {
+        type: "object",
+        description: "Input is enforced by the registered Zod schema.",
       },
     }));
   }
 
-  async execute(
-    callId: string,
-    toolName: string,
-    rawInput: unknown,
-  ) {
+  async execute(callId: string, toolName: string, rawInput: unknown) {
     const request = ToolCallRequestSchema.parse({
       callId,
       toolName,
@@ -86,7 +82,6 @@ export class ToolRegistry {
     try {
       const rawOutput = await tool.execute(parsedInput.data);
       const parsedOutput = tool.outputSchema.safeParse(rawOutput);
-
       if (!parsedOutput.success) {
         return ToolCallResultSchema.parse({
           callId: request.callId,
@@ -95,7 +90,6 @@ export class ToolRegistry {
           error: "TOOL_OUTPUT_SCHEMA_INVALID",
         });
       }
-
       if (
         !parsedOutput.data ||
         typeof parsedOutput.data !== "object" ||
@@ -108,7 +102,6 @@ export class ToolRegistry {
           error: "TOOL_OUTPUT_NOT_OBJECT",
         });
       }
-
       return ToolCallResultSchema.parse({
         callId: request.callId,
         toolName: request.toolName,
@@ -130,22 +123,17 @@ export class ToolRegistry {
     if (!tool) {
       throw new Error("UNKNOWN_TOOL:" + toolName);
     }
-
     const parsed = tool.outputSchema.safeParse(data);
     if (!parsed.success) {
       throw new Error("TOOL_OUTPUT_SCHEMA_INVALID:" + toolName);
     }
-
-    if (!parsed.data || typeof parsed.data !== "object" || Array.isArray(parsed.data)) {
+    if (
+      !parsed.data ||
+      typeof parsed.data !== "object" ||
+      Array.isArray(parsed.data)
+    ) {
       throw new Error("TOOL_OUTPUT_NOT_OBJECT:" + toolName);
     }
-
     return parsed.data as Record<string, unknown>;
-  }
-
-  private toPromptCategory(
-    category: z.infer<typeof z.enum>,
-  ): "image_editing" | "video_editing" | "audio_processing" | "utilities" {
-    return category;
   }
 }
