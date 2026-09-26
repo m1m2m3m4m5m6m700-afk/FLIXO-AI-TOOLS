@@ -76,3 +76,33 @@ export function assertAgentProfileSafety(profile: AgentProfile): void {
     throw new Error('Agent profile is not bound to the canonical control plane.');
   }
 }
+
+
+/**
+ * Canonical bounded helper-agent composition for autonomous execution.
+ *
+ * This is a composition of existing profiles, not a second registry or authority.
+ * Mutation ownership remains with the canonical execution gate and control plane.
+ */
+export const AUTONOMOUS_EXECUTION_SQUAD = Object.freeze([
+  Object.freeze({ seat: 'SCOUT', profileId: 'codeScout', mode: 'READ_ONLY' as const }),
+  Object.freeze({ seat: 'RCA', profileId: 'errorAgent', mode: 'READ_ONLY' as const }),
+  Object.freeze({ seat: 'FALSIFIER', profileId: 'reviewAgent', mode: 'READ_ONLY' as const }),
+  Object.freeze({ seat: 'REPAIR', profileId: 'actionRepairBot', mode: 'CANONICAL_MUTATION' as const }),
+  Object.freeze({ seat: 'TEST', profileId: 'testAgent', mode: 'VERIFY' as const }),
+  Object.freeze({ seat: 'SECURITY', profileId: 'securityAgent', mode: 'READ_ONLY' as const }),
+  Object.freeze({ seat: 'LEARN', profileId: 'actionHistorian', mode: 'LEARNING' as const }),
+  Object.freeze({ seat: 'CERTIFY', profileId: 'certificationAuthority', mode: 'READ_ONLY' as const }),
+] as const);
+
+export function assertAutonomousExecutionSquadSafety(): void {
+  const mutationSeats = AUTONOMOUS_EXECUTION_SQUAD.filter((seat) => seat.mode === 'CANONICAL_MUTATION');
+  if (mutationSeats.length !== 1 || mutationSeats[0]?.profileId !== 'actionRepairBot') {
+    throw new Error('AUTONOMOUS_SQUAD_MUTATION_AUTHORITY_INVALID');
+  }
+  for (const seat of AUTONOMOUS_EXECUTION_SQUAD) {
+    const profile = getAgentProfile(seat.profileId);
+    if (!profile) throw new Error(`AUTONOMOUS_SQUAD_PROFILE_MISSING=${seat.profileId}`);
+    assertAgentProfileSafety(profile);
+  }
+}
