@@ -178,7 +178,6 @@ export async function executePreparedExecution(
           prepared.task,
           toolId,
           `tool:${stepIndex}:${attempt}:${toolId}`,
-          attempt,
         );
       },
       afterTool: async ({ toolId, success, outputBlob, receipt, receiptChain }: {
