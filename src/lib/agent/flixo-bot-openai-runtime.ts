@@ -50,6 +50,8 @@ export type FlixoBotRunState<TContext = unknown> = Readonly<{
   retryCount: number;
   maxTurns: number;
   maxRetries: number;
+  maxToolCalls: number;
+  toolCallCount: number;
   currentOwner: string;
   traceId: string;
   inputDigest: string;
@@ -110,6 +112,7 @@ export type CreateRunInput<TContext = unknown> = Readonly<{
   context?: TContext | null;
   maxTurns?: number;
   maxRetries?: number;
+  maxToolCalls?: number;
 }>;
 
 let sequence = 0;
@@ -186,6 +189,8 @@ export function createFlixoBotRunState<TContext = unknown>(
     status: 'CREATED', stepIndex: 0, turnCount: 0, retryCount: 0,
     maxTurns: bounded(input.maxTurns, 24, 1, 128, 'MAX_TURNS'),
     maxRetries: bounded(input.maxRetries, 3, 0, 12, 'MAX_RETRIES'),
+    maxToolCalls: bounded(input.maxToolCalls, 8, 1, 32, 'MAX_TOOL_CALLS'),
+    toolCallCount: 0,
     currentOwner: agentId, traceId: id('trace'), inputDigest: digest(request),
     context: input.context ?? null, pendingApproval: null,
     lastError: null, lastOutput: null, events: [],
@@ -240,6 +245,21 @@ export function recordToolCall(
 ): Readonly<{ state: FlixoBotRunState; decision: FlixoBotToolDecision }> {
   assertCurrentRunSha(state, currentSha);
   if (!['RUNNING', 'RETRYING'].includes(state.status)) throw new Error('FLIXO_BOT_TOOL_CALL_INVALID_STATE');
+  if (state.toolCallCount >= state.maxToolCalls) {
+    const blockedState = withStatus(
+      Object.freeze({ ...state, lastError: 'MAX_TOOL_CALLS_EXCEEDED' }),
+      'BLOCKED',
+      {
+        type: 'GUARDRAIL_REJECT',
+        actorId: request.actorId,
+        detail: { toolId: request.toolId, callId: request.callId, reason: 'MAX_TOOL_CALLS_EXCEEDED' },
+      },
+    );
+    return Object.freeze({
+      state: blockedState,
+      decision: { allowed: false, reason: 'AUTHORITY_REQUIRED' },
+    });
+  }
   const decision = evaluateToolRequest(request, authority);
   if (!decision.allowed) {
     const approval = decision.reason === 'APPROVAL_REQUIRED';
@@ -262,7 +282,7 @@ export function recordToolCall(
     });
   }
   return Object.freeze({
-    state: append(state, {
+    state: append(Object.freeze({ ...state, toolCallCount: state.toolCallCount + 1 }), {
       type: 'TOOL_CALL',
       actorId: request.actorId,
       detail: { toolId: request.toolId, callId: request.callId, mutation: request.mutation },
@@ -484,11 +504,14 @@ export function restoreFlixoBotRunState<TContext = unknown>(
   serialized: string,
   currentSha: string,
 ): FlixoBotRunState<TContext> {
-  const parsed = JSON.parse(serialized) as FlixoBotRunState<TContext>;
+  const parsed = JSON.parse(serialized) as FlixoBotRunState<TContext> & Partial<Pick<FlixoBotRunState<TContext>, 'maxToolCalls' | 'toolCallCount'>>;
   if (parsed.protocol !== FLIXO_BOT_OPENAI_RUNTIME_PROTOCOL) throw new Error('FLIXO_BOT_RUN_PROTOCOL_MISMATCH');
   if (parsed.schemaVersion !== FLIXO_BOT_OPENAI_RUNTIME_SCHEMA_VERSION) throw new Error('FLIXO_BOT_RUN_SCHEMA_MISMATCH');
   if (parsed.branch !== FLIXO_BOT_CANONICAL_BRANCH) throw new Error('FLIXO_BOT_RUN_BRANCH_MISMATCH');
   assertExactSha(parsed.exactSha);
+  const normalizedMaxToolCalls = Number.isInteger(parsed.maxToolCalls) && parsed.maxToolCalls > 0 ? parsed.maxToolCalls : 8;
+  const normalizedToolCallCount = Number.isInteger(parsed.toolCallCount) && parsed.toolCallCount >= 0 ? parsed.toolCallCount : 0;
+  if (normalizedToolCallCount > normalizedMaxToolCalls) throw new Error('FLIXO_BOT_RUN_TOOL_BUDGET_INVALID');
   if (!Array.isArray(parsed.events)) throw new Error('FLIXO_BOT_RUN_EVENTS_INVALID');
   if (parsed.pendingApproval) {
     required(parsed.pendingApproval.approvalId, 'APPROVAL_ID');
@@ -499,7 +522,7 @@ export function restoreFlixoBotRunState<TContext = unknown>(
     }
   });
   assertCurrentRunSha(parsed, currentSha);
-  return Object.freeze({ ...parsed, events: Object.freeze(parsed.events.map((event) => Object.freeze({ ...event }))) });
+  return Object.freeze({ ...parsed, maxToolCalls: normalizedMaxToolCalls, toolCallCount: normalizedToolCallCount, events: Object.freeze(parsed.events.map((event) => Object.freeze({ ...event }))) });
 }
 
 export function createTrace(traceId = id('trace')): FlixoBotTrace {
