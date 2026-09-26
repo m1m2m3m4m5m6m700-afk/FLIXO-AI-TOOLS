@@ -91,6 +91,7 @@ export type FlixoAgentFileMetadata = Readonly<{
 }>;
 
 /**
+ * MVP promotion is recorded only after canonical gates pass on the exact execution head.
  * Only non-content file metadata may be sent to an optional agent gateway.
  * Raw File/Blob bytes are never part of the agent request contract.
  */
