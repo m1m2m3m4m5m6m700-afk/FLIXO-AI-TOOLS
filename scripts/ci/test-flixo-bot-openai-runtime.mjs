@@ -73,8 +73,23 @@ const called = recordToolCall(running, SHA_A, request, {
 assert.equal(called.decision.allowed, true);
 assert.equal(called.state.events.at(-1)?.type, 'TOOL_CALL');
 
+assert.throws(
+  () => recordToolResult(
+    called.state, SHA_A, running.currentOwner, nested.toolId, true, { finding: 'unverified source' },
+  ),
+  /FLIXO_BOT_TOOL_SUCCESS_REQUIRES_VERIFIED_EVIDENCE/,
+);
+
 const toolDone = recordToolResult(
-  called.state, SHA_A, running.currentOwner, nested.toolId, true, { finding: 'causal source' },
+  called.state, SHA_A, running.currentOwner, nested.toolId, true, { finding: 'causal source' }, {
+    inputSha256: '1'.repeat(64),
+    outputSha256: '2'.repeat(64),
+    verified: true,
+    receiptChainSha256: '3'.repeat(64),
+    executorId: nested.toolId,
+    executionMode: 'LOCAL',
+    attempt: 0,
+  },
 );
 assert.equal(toolDone.lastError, null);
 
