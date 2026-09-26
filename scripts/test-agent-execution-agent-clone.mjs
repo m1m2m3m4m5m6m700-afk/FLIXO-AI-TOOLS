@@ -10,7 +10,7 @@ assert.equal(EXECUTION_AGENT_CLONE_IDENTITY.executorAuthority, 'PIPELINE_RUNNER_
 const ready = createExecutionAgentCloneSession('compress the image', { taskId: 'clone-task-1', traceId: 'clone-trace-1' });
 assert.equal(cloneDecision(ready), 'EXECUTE_READY');
 assert.ok(ready.prepared);
-assert.equal(ready.assessment.collectiveIntelligence.version, 'FLIXO-BOT-BRAIN-v1');
+assert.equal(ready.assessment.collectiveIntelligence.version, 'FLIXO-BOT-BRAIN-v2');
 assert.equal(ready.assessment.collectiveIntelligence.authority, 'ADVISORY_ONLY');
 assert.equal(ready.assessment.collectiveIntelligence.mutationAuthority, false);
 assert.equal(ready.assessment.collectiveIntelligence.certificationAuthority, false);
