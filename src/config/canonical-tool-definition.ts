@@ -228,14 +228,6 @@ export function toToolDefinition(tool: ToolConfig): ToolDefinition {
   });
 }
 
-  if (toolId.startsWith('video-')) {
-    return Object.freeze({
-      toolId,
-      dimensions: { kind: 'PRESERVE' } satisfies VisualDimensionRule,
-      requireVisibleChange: false,
-      minVisibleChangeScore: 0,
-    });
-  }
 
 export const TOOL_DEFINITIONS: readonly ToolDefinition[] = Object.freeze(IMAGE_TOOL_CONFIGS.map(toToolDefinition));
 

@@ -10,6 +10,10 @@ export type VideoRenderOptions = Readonly<{
 }>;
 
 type MediaRecorderConstructor = typeof MediaRecorder;
+type CaptureStreamVideoElement = HTMLVideoElement & {
+  captureStream?: () => MediaStream;
+};
+
 
 function supportedMimeType(): string {
   const ctor = globalThis.MediaRecorder as MediaRecorderConstructor | undefined;
@@ -99,7 +103,8 @@ export async function renderVideoToWebm(inputBlob: Blob, options: VideoRenderOpt
 
     const fps = Math.max(1, Math.min(120, Number(options.fps ?? 30)));
     const canvasStream = canvas.captureStream(fps);
-    const sourceStream = typeof video.captureStream === 'function' ? video.captureStream() : null;
+    const captureVideo = video as CaptureStreamVideoElement;
+    const sourceStream = typeof captureVideo.captureStream === 'function' ? captureVideo.captureStream() : null;
     if (sourceStream) {
       for (const track of sourceStream.getAudioTracks()) {
         try { canvasStream.addTrack(track); } catch { /* track is already attached */ }

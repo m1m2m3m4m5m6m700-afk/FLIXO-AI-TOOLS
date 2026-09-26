@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
-  { ignores: ['dist', 'playwright-report', 'test-results', 'node_modules'] },
+  { ignores: ['dist', 'playwright-report', 'test-results', 'node_modules', 'apps/agent-editor/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
