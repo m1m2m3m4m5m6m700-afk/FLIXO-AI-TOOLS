@@ -10,7 +10,7 @@ create or replace function public.flixo_append_agent_task_event(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public, pg_catalog
+set search_path = public, extensions, pg_catalog
 as $$
 declare
   previous_event record;
@@ -67,7 +67,7 @@ begin
   end if;
 
   event_hash := encode(
-    digest(
+    extensions.digest(
       convert_to(
         jsonb_build_object(
           'event_id', p_event_id,
