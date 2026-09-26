@@ -566,3 +566,70 @@ export function buildNestedAgentToolDescriptor(input: Readonly<{
     handoffTransfersAuthority: false as const,
   });
 }
+
+
+export function serializeFlixoBotTrace(trace: FlixoBotTrace): string {
+  return JSON.stringify(trace);
+}
+
+export function restoreFlixoBotTrace(serialized: string): FlixoBotTrace {
+  const parsed = JSON.parse(serialized) as FlixoBotTrace;
+  if (!parsed || typeof parsed !== 'object' || typeof parsed.traceId !== 'string' || !parsed.traceId.trim()) {
+    throw new Error('FLIXO_BOT_TRACE_INVALID');
+  }
+  if (!Array.isArray(parsed.spans)) throw new Error('FLIXO_BOT_TRACE_SPANS_INVALID');
+  for (const span of parsed.spans) {
+    if (!span || typeof span !== 'object' || span.traceId !== parsed.traceId || !span.spanId || !span.startedAt) {
+      throw new Error('FLIXO_BOT_TRACE_SPAN_INVALID');
+    }
+  }
+  return Object.freeze({
+    traceId: parsed.traceId,
+    spans: Object.freeze(parsed.spans.map((span) => Object.freeze({ ...span }))),
+  });
+}
+
+export function replayFlixoBotEvents(events: readonly FlixoBotRunEvent[]): Readonly<{
+  status: FlixoBotRunStatus;
+  lastSeq: number;
+  runCount: number;
+  toolCallCount: number;
+  retryCount: number;
+}> {
+  let status: FlixoBotRunStatus = 'CREATED';
+  let runCount = 0;
+  let toolCallCount = 0;
+  let retryCount = 0;
+
+  events.forEach((event, index) => {
+    if (event.seq !== index + 1) throw new Error('FLIXO_BOT_REPLAY_SEQUENCE_INVALID');
+    if (!/^[a-f0-9]{40}$/u.test(event.exactSha)) throw new Error('FLIXO_BOT_REPLAY_SHA_INVALID');
+    if (event.type === 'RUN_CREATED') status = 'CREATED';
+    else if (event.type === 'MODEL_TURN') {
+      status = 'RUNNING';
+      runCount += 1;
+    } else if (event.type === 'TOOL_CALL') {
+      status = 'RUNNING';
+      toolCallCount += 1;
+    } else if (event.type === 'APPROVAL_REQUIRED' || (event.type === 'INTERRUPTION' && event.detail?.requiresApproval === true)) {
+      status = 'WAITING_APPROVAL';
+    } else if (event.type === 'APPROVAL_ACCEPTED') {
+      status = 'RUNNING';
+    } else if (event.type === 'RETRY_SCHEDULED') {
+      status = 'RETRYING';
+      retryCount += 1;
+    } else if (event.type === 'FINAL_OUTPUT') status = 'SUCCEEDED';
+    else if (event.type === 'RUN_FAILED') status = 'FAILED';
+    else if (event.type === 'RUN_CANCELLED') status = 'CANCELLED';
+    else if (event.type === 'RUN_STALE') status = 'STALE';
+    else if (event.type === 'GUARDRAIL_REJECT') status = 'BLOCKED';
+  });
+
+  return Object.freeze({
+    status,
+    lastSeq: events.length,
+    runCount,
+    toolCallCount,
+    retryCount,
+  });
+}

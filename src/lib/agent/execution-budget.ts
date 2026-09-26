@@ -7,6 +7,7 @@ export type ExecutionBudgetLimits = Readonly<{
   maxElapsedMs: number;
   maxOutputBytes: number;
   maxModelTokens: number;
+  maxCostMicrounits: number;
 }>;
 
 export type ExecutionBudgetUsage = Readonly<{
@@ -16,6 +17,7 @@ export type ExecutionBudgetUsage = Readonly<{
   elapsedMs: number;
   outputBytes: number;
   modelTokens: number;
+  costMicrounits: number;
 }>;
 
 export type ExecutionBudget = Readonly<{
@@ -32,6 +34,7 @@ export const DEFAULT_EXECUTION_BUDGET: ExecutionBudgetLimits = Object.freeze({
   maxElapsedMs: 120_000,
   maxOutputBytes: 64 * 1024 * 1024,
   maxModelTokens: 16_000,
+  maxCostMicrounits: 100_000,
 });
 
 export function createExecutionBudget(
@@ -59,6 +62,7 @@ export function createExecutionBudget(
       elapsedMs: 0,
       outputBytes: 0,
       modelTokens: 0,
+      costMicrounits: 0,
     }),
     startedAtMs,
   });
@@ -72,6 +76,7 @@ function next(budget: ExecutionBudget, delta: Partial<ExecutionBudgetUsage>): Ex
     elapsedMs: Math.max(0, Date.now() - budget.startedAtMs),
     outputBytes: budget.usage.outputBytes + (delta.outputBytes ?? 0),
     modelTokens: budget.usage.modelTokens + (delta.modelTokens ?? 0),
+    costMicrounits: budget.usage.costMicrounits + (delta.costMicrounits ?? 0),
   });
 
   const checks: Array<[keyof ExecutionBudgetLimits, number, keyof ExecutionBudgetUsage]> = [
@@ -81,6 +86,7 @@ function next(budget: ExecutionBudget, delta: Partial<ExecutionBudgetUsage>): Ex
     ['maxElapsedMs', usage.elapsedMs, 'elapsedMs'],
     ['maxOutputBytes', usage.outputBytes, 'outputBytes'],
     ['maxModelTokens', usage.modelTokens, 'modelTokens'],
+    ['maxCostMicrounits', usage.costMicrounits, 'costMicrounits'],
   ];
 
   for (const [limitKey, actual, usageKey] of checks) {
@@ -112,6 +118,11 @@ export function consumeOutputBytes(budget: ExecutionBudget, byteLength: number):
 export function consumeModelTokens(budget: ExecutionBudget, tokenCount: number): ExecutionBudget {
   if (!Number.isInteger(tokenCount) || tokenCount < 0) throw new Error('EXECUTION_BUDGET_TOKEN_COUNT_INVALID');
   return next(budget, { modelTokens: tokenCount });
+}
+
+export function consumeCost(budget: ExecutionBudget, costMicrounits: number): ExecutionBudget {
+  if (!Number.isInteger(costMicrounits) || costMicrounits < 0) throw new Error('EXECUTION_BUDGET_COST_INVALID');
+  return next(budget, { costMicrounits });
 }
 
 export function assertExecutionBudgetAlive(budget: ExecutionBudget): void {

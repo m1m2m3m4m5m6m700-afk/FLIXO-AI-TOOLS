@@ -15,6 +15,7 @@ const AgentFileSchema = z.object({
 
 export const AgentRequestSchema = z.object({
   locale: z.string().trim().min(2).max(16).optional(),
+  userId: z.string().trim().min(1).max(256).optional(),
   messages: z.array(ChatMessageSchema).max(120).optional(),
   file: AgentFileSchema.nullable().optional(),
   activePlan: z.unknown().nullable().optional(),
@@ -27,6 +28,7 @@ export const AgentRequestSchema = z.object({
 
 export type AgentRequestContract = Readonly<{
   locale?: string;
+  userId?: string;
   messages?: readonly z.infer<typeof ChatMessageSchema>[];
   file?: z.infer<typeof AgentFileSchema> | null;
   activePlan?: ExecutionPlanContract | null;

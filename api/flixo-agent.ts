@@ -425,6 +425,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     }
     const locale = body.locale ?? 'en';
     const conversationId = body.conversationId ?? 'UI-CONVERSATION:' + randomUUID();
+    const userId = body.userId ?? conversationId;
     const taskId = body.taskId ?? 'UI-FLIXO-TASK:' + randomUUID();
     const idempotencyKey = body.idempotencyKey ?? 'chat:' + conversationId + ':' + taskId + ':' + messages.length;
     const inboundEvent = createAgentEvent({
@@ -433,6 +434,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       idempotencyKey,
       conversationId,
       taskId,
+      userId,
       payload: {
         locale,
         messageDigest: createHash('sha256').update(userMessage, 'utf8').digest('hex'),
@@ -461,7 +463,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       await upsertAgentTask({
         taskId,
         conversationId,
-        ownerId: conversationId,
+        ownerId: userId,
         lifecycle: state.lifecycle,
         state: state.taskState,
         revision: state.revision,
@@ -588,6 +590,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           idempotencyKey: idempotencyKey + ':decision:' + responseDecision.mode,
           conversationId,
           taskId,
+          userId,
           traceId: botRuntime?.state.traceId ?? null,
           payload: {
             mode: responseDecision.mode,
