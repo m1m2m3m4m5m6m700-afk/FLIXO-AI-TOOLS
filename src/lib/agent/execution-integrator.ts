@@ -181,10 +181,8 @@ export async function executePreparedExecution(
           attempt,
         );
       },
-      afterTool: async ({ toolId, stepIndex, attempt, success, outputBlob, receipt, receiptChain }: {
+      afterTool: async ({ toolId, success, outputBlob, receipt, receiptChain }: {
         toolId: string;
-        stepIndex: number;
-        attempt: number;
         success: boolean;
         outputBlob: Blob;
         receipt?: PipelineProgress['receipt'];
