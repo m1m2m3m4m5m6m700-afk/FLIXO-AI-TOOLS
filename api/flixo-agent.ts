@@ -7,6 +7,8 @@ import { planFromIntent } from '../src/lib/ai/planner.ts';
 import { isDeterministicPlanCompatible } from '../src/lib/ai/deterministic-boundary.ts';
 import { selectModelForTask } from '../src/lib/agent/model-router.ts';
 import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
+import { createAgentEvent } from '../src/lib/agent/event-gateway.ts';
+import { WORKFLOW_TOOL_CATALOG } from '../src/lib/agent/workflow-as-tool.ts';
 import { createExternalAgentLearning, listExternalAgentLearning } from '../src/server/agent/learning-persistence.ts';
 import {
   beginFlixoBotGatewayRuntime,
@@ -420,6 +422,11 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       return;
     }
     const locale = body.locale ?? 'en';
+    const inboundEvent = createAgentEvent({
+      source: 'USER_MESSAGE',
+      eventType: 'chat.message',
+      payload: { locale, messageLength: userMessage.length, hasFile: Boolean(body.file) },
+    });
     const runtime = configuredRuntime();
     const provider = runtime.provider;
     const recentMessages = messages.slice(-24);
@@ -427,7 +434,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const targetSha = exactSha();
     let botRuntime: FlixoBotGatewayRuntime | null = targetSha
       ? beginFlixoBotGatewayRuntime({
-        taskId: `UI-FLIXO-BOT:${targetSha.slice(0, 12)}:${randomUUID()}`,
+        taskId: `UI-FLIXO-BOT:${targetSha.slice(0, 12)}:${inboundEvent.eventId}`,
         exactSha: targetSha,
         request: userMessage,
       })
@@ -460,6 +467,13 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           activeCommand: body.activeCommand ?? null,
           activePlan: body.activePlan ?? null,
           catalog: executableCatalog(),
+          workflowCatalog: WORKFLOW_TOOL_CATALOG.map((tool) => ({
+            id: tool.id,
+            title: tool.title,
+            description: tool.description,
+            intents: tool.intents,
+            stepToolIds: tool.stepToolIds,
+          })),
           catalogFingerprint: TOOL_CATALOG.fingerprint,
         }),
       },
