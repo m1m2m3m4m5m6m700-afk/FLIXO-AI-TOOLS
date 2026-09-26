@@ -15,6 +15,7 @@ const {
   getWorkflowTool,
   resolveWorkflowTool,
   getWorkflowForTool,
+  expandWorkflowTool,
 } = await import('../src/lib/agent/workflow-as-tool.ts');
 const { planFromIntent } = await import('../src/lib/ai/planner.ts');
 
@@ -65,10 +66,11 @@ test('workflow tools are derived from the canonical workflow registry', () => {
   assert.ok(product?.stepToolIds.includes('background-remover'));
 
   assert.equal(resolveWorkflowTool('prepare a product image for a store')?.id, 'workflow:product-ready');
-  const plan = planFromIntent('prepare a product image for a store');
+  const expanded = expandWorkflowTool('workflow:product-ready');
   assert.ok(getWorkflowForTool('workflow:product-ready'));
-  assert.ok(plan);
-  assert.equal(plan?.steps[0]?.toolId, 'background-remover');
+  assert.ok(expanded);
+  assert.equal(expanded?.steps[0]?.toolId, 'background-remover');
+  assert.equal(planFromIntent('prepare a product image for a shop, square')?.steps[0]?.toolId, 'background-remover');
 });
 
 
