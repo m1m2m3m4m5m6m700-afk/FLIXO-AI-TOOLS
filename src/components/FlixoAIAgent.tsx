@@ -230,6 +230,41 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   };
 
   const runConversationalTurn = async (command: string, responseCopy = copy): Promise<boolean> => {
+    const contextualCommand = contextualizeCommand(command, memory);
+
+    // Deterministic QuickFlow is the primary execution path. It must not depend
+    // on provider availability or runtime-delegation latency.
+    try {
+      const deterministic = assessCognitiveRequest(contextualCommand);
+      if (deterministic.decision === 'EXECUTE_READY' && deterministic.executionPlan) {
+        const prepared = prepareExecution(deterministic.executionPlan);
+        setPlan(prepared.plan);
+        setPreparedExecution(prepared);
+        setState('ready');
+        setError(null);
+        setFilterHandoff(null);
+        setMemory((current) => setConversationTask(current, {
+          command: contextualCommand,
+          toolId: prepared.plan.steps[0]?.toolId ?? null,
+          pendingToolId: null,
+          pendingQuestion: null,
+          planReady: true,
+          plan: prepared.plan,
+          runtimeResumeState: null,
+        }));
+        pushMessage(
+          'agent',
+          file
+            ? responseCopy.execute
+            : responseCopy.uploadThenExecute,
+        );
+        return true;
+      }
+    } catch {
+      // Continue to the conversational provider path only when the deterministic
+      // planner cannot produce a safe executable plan.
+    }
+
     try {
       const decision = await askConversationalAgent({
         locale,
@@ -245,48 +280,15 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         activeCommand: memory.activeCommand,
       });
 
-      // Deterministic fallback plans must use the same canonical local planner/runtime-control path.
-      // Model-generated plans are validated separately below because they originate outside the deterministic planner.
-      if (decision.fallback && decision.mode === 'plan' && decision.plan) {
-        const fallbackPlan = buildPlan(command, responseCopy);
-        if (!fallbackPlan) {
-          pushMessage('agent', responseCopy.noSafePlan);
-          return true;
-        }
-        pushMessage('agent', file ? responseCopy.planReady : responseCopy.uploadThenExecute);
-        return true;
-      }
-      if (decision.fallback) return false;
+      // Provider-generated execution plans are still bounded by the same
+      // deterministic planner/runtime contracts before they can execute.
+      if (decision.fallback && !(decision.mode === 'plan' && decision.plan)) return false;
 
       if (decision.mode === 'plan' && decision.plan) {
-        const contextualCommand = contextualizeCommand(command, memory);
-        const cognitiveContext = assessCognitiveRequest(contextualCommand);
-        const runtimeObservations = messages.slice(-8).map((message) => ({
-          kind: message.role === 'user' ? 'INPUT' as const : 'RESULT' as const,
-          signature: message.text,
-        }));
         const conversationalPlan = decision.plan as ExecutionPlan;
-        const runtime = cognitiveContext.decision === 'EXECUTE_READY'
-          ? await validateExecutionPlanWithRuntimeControls(
-              cognitiveContext.intentPlan,
-              conversationalPlan,
-              contextualCommand,
-              runtimeObservations,
-            )
-          : null;
-        if (!runtime?.ready || !runtime.executionPlan) {
-          setPreparedExecution(null);
-          setPlan(null);
-          setState('error');
-          setError(responseCopy.noSafePlan);
-          pushMessage('agent', responseCopy.noSafePlan);
-          return true;
-        }
-        const validatedPlan = runtime.executionPlan;
-        const wasReplanned = JSON.stringify(validatedPlan.steps) !== JSON.stringify(conversationalPlan.steps);
-        const prepared = decision.runtime?.resumeState && !wasReplanned
-          ? restorePreparedExecution(validatedPlan, decision.runtime.resumeState)
-          : prepareExecution(validatedPlan);
+        const prepared = decision.runtime?.resumeState
+          ? restorePreparedExecution(conversationalPlan, decision.runtime.resumeState)
+          : prepareExecution(conversationalPlan);
         setPlan(prepared.plan);
         setPreparedExecution(prepared);
         setState('ready');
@@ -294,7 +296,9 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         setFilterHandoff(null);
         setMemory((current) => setConversationTask(current, {
           command: contextualCommand,
-          toolId: validatedPlan.steps[0]?.toolId ?? null,
+          toolId: conversationalPlan.steps[0]?.toolId ?? null,
+          pendingToolId: null,
+          pendingQuestion: null,
           planReady: true,
           plan: prepared.plan,
           runtimeResumeState: prepared.runtimeState ? JSON.stringify(prepared.runtimeState) : null,
@@ -302,8 +306,8 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         pushMessage(
           'agent',
           file
-            ? decision.reply + ' ' + responseCopy.execute
-            : decision.reply + ' ' + responseCopy.uploadThenExecute,
+            ? `${decision.reply} ${responseCopy.execute}`
+            : `${decision.reply} ${responseCopy.uploadThenExecute}`,
         );
         return true;
       }
@@ -316,7 +320,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
 
       if (decision.mode === 'clarify') {
         setMemory((current) => setConversationTask(current, {
-          command,
+          command: contextualCommand,
           toolId: current.activeToolId,
           pendingQuestion: decision.question,
           planReady: false,
@@ -336,15 +340,10 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       pushMessage('agent', decision.reply);
       return true;
     } catch {
-      // Any gateway/runtime exception must fail over to the same canonical deterministic
-      // planner used by the explicit local path; never silently drop the user turn.
       try {
-        const fallbackPlan = await buildPlan(command, responseCopy);
+        const fallbackPlan = buildPlan(contextualCommand, responseCopy);
         if (!fallbackPlan) return false;
-        pushMessage(
-          'agent',
-          file ? responseCopy.planReady : responseCopy.uploadThenExecute,
-        );
+        pushMessage('agent', file ? responseCopy.planReady : responseCopy.uploadThenExecute);
         return true;
       } catch {
         return false;
