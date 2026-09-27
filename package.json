@@ -26,7 +26,9 @@
     "verify:architecture": "node scripts/verify-architecture.mjs",
     "verify:contracts": "node scripts/verify-contract-boundary.mjs",
     "typecheck:contracts": "npx tsc -p packages/contracts/tsconfig.json --noEmit",
-    "typecheck:agent-runtime": "npx tsc -p packages/agent-runtime/tsconfig.json --noEmit"
+    "typecheck:agent-runtime": "npx tsc -p packages/agent-runtime/tsconfig.json --noEmit",
+    "typecheck:agent-orchestrator": "npx tsc -p packages/agent-orchestrator/tsconfig.json --noEmit",
+    "test:agent-orchestrator": "npm run test --workspace=@flixo/agent-orchestrator"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
@@ -36,7 +38,8 @@
     "motion": "^12.43.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "zod": "^3.24.2"
+    "zod": "^3.24.2",
+    "@flixo/agent-orchestrator": "0.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -57,6 +60,7 @@
   "workspaces": [
     "apps/agent-editor",
     "packages/contracts",
-    "packages/agent-runtime"
+    "packages/agent-runtime",
+    "packages/agent-orchestrator"
   ]
 }
