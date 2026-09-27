@@ -1,10 +1,9 @@
 import { z } from 'zod';
-import { zodToJsonSchema } from './zod-json-schema.ts';
+import { zodToJsonSchema, type JsonValue } from './zod-json-schema.ts';
 
 export type LLMRole = 'system' | 'user' | 'assistant' | 'tool';
 export type Role = LLMRole;
 
-type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() => z.union([
   z.string(),
   z.number().finite(),
@@ -14,6 +13,7 @@ const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() => z.union([
   z.record(z.string(), JsonValueSchema),
 ]));
 const JsonObjectSchema = z.record(z.string(), JsonValueSchema);
+export type JsonObject = Record<string, JsonValue>;
 
 const LLMMessageSchema = z.object({
   role: z.enum(['system', 'user', 'assistant', 'tool']),
