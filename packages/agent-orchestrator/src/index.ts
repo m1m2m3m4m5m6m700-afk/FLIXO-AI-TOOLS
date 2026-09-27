@@ -1,4 +1,5 @@
 import { AgentCapability, AgentHeartbeat, AgentNetworkControlPlane, AgentNetworkSnapshot } from "./network.ts";
+export * from "./network.ts";
 
 export type CommandAuthority = Readonly<{
   commandId: string;
@@ -59,7 +60,6 @@ export class DirectCommandOrchestrator {
   constructor(
     private readonly planner: AgentPlanner,
     private readonly observer: AgentObserver = {
-
       onDispatch: () => undefined,
       onReport: () => undefined,
     },
@@ -144,6 +144,8 @@ export class DirectCommandOrchestrator {
           if (report.commandId !== command.commandId || report.stepId !== step.stepId) {
             throw new Error("WORKER_REPORT_IDENTITY_MISMATCH");
           }
+          this.network.report(command.commandId, step.stepId, step.role, report.status, report.summary);
+          this.network.report(command.commandId, step.stepId, step.role, report.status, report.summary);
           this.observer.onReport(report);
           return report;
         }));
