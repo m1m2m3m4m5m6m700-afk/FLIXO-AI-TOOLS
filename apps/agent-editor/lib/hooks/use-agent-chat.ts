@@ -110,6 +110,20 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
           if (parsed.success) setProjectState(parsed.data);
           return;
         }
+        if (event.event === "error") {
+          const payload = z.object({
+            error: z.literal("AGENT_STREAM_ERROR"),
+          }).parse(JSON.parse(event.data));
+          void payload;
+          setMessages((previous) =>
+            previous.map((message) =>
+              message.id === assistantMessageId
+                ? { ...message, content: "The agent connection was interrupted. Please retry the request." }
+                : message,
+            ),
+          );
+          return;
+        }
         if (event.event === "agent_response") {
           const response = AgentResponseSchema.parse(JSON.parse(event.data));
           setMessages((previous) =>
