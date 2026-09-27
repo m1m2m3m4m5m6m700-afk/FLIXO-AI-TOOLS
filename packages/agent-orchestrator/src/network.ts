@@ -109,6 +109,14 @@ export class AgentNetworkControlPlane {
   register(descriptor: AgentDescriptor): void {
     if (!descriptor.id.trim()) throw new Error("AGENT_ID_REQUIRED");
     if (descriptor.autonomous || descriptor.canDelegate) throw new Error("AUTONOMOUS_AGENT_FORBIDDEN");
+    const policy = DEFAULT_AGENT_NETWORK.find((candidate) => candidate.id === descriptor.id);
+    if (!policy || descriptor.role !== policy.role
+      || descriptor.capabilities.length !== policy.capabilities.length
+      || descriptor.permissions.length !== policy.permissions.length
+      || descriptor.capabilities.some((value) => !policy.capabilities.includes(value))
+      || descriptor.permissions.some((value) => !policy.permissions.includes(value))) {
+      throw new Error(`AGENT_POLICY_ESCALATION_FORBIDDEN:${descriptor.id}`);
+    }
     if (this.agents.has(descriptor.id)) throw new Error(`AGENT_ALREADY_REGISTERED:${descriptor.id}`);
     this.agents.set(descriptor.id, Object.freeze({ ...descriptor }));
   }
@@ -220,6 +228,14 @@ export class SupervisedAgentRegistry {
   register(adapter: SupervisedAgentAdapter): void {
     if (adapter.descriptor.autonomous || adapter.descriptor.canDelegate) {
       throw new Error("AUTONOMOUS_AGENT_FORBIDDEN");
+    }
+    const policy = DEFAULT_AGENT_NETWORK.find((candidate) => candidate.id === adapter.descriptor.id);
+    if (!policy || adapter.descriptor.role !== policy.role
+      || adapter.descriptor.capabilities.length !== policy.capabilities.length
+      || adapter.descriptor.permissions.length !== policy.permissions.length
+      || adapter.descriptor.capabilities.some((value) => !policy.capabilities.includes(value))
+      || adapter.descriptor.permissions.some((value) => !policy.permissions.includes(value))) {
+      throw new Error(`AGENT_POLICY_ESCALATION_FORBIDDEN:${adapter.descriptor.id}`);
     }
     if (this.adapters.has(adapter.descriptor.id)) {
       throw new Error(`AGENT_ALREADY_REGISTERED:${adapter.descriptor.id}`);
