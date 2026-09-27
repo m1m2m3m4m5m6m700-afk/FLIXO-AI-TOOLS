@@ -104,3 +104,32 @@ test("failed supervised execution changes the next curriculum focus", async () =
   const curriculum = new ContinualLearningEngine(store).curriculum("tester", "verify and repair the change");
   assert.equal(curriculum[0]?.focus, "verification-test-failure");
 });
+
+
+test("red team adjudication reward is persisted as a secondary learning lane", () => {
+  const store = new InMemoryExperienceStore();
+  const observer = new AgentLearningObserver(store);
+  observer.onDispatch({
+    stepId: "step-red-learning", commandId: "cmd-red-learning", role: "red-team",
+    objective: "attack change", constraints: [], context: {},
+  });
+  observer.onReport({
+    stepId: "step-red-learning", commandId: "cmd-red-learning", status: "completed",
+    summary: "red team result",
+    evidence: {
+      testsPassed: 1, testsFailed: 0, evidenceVerified: true,
+      redTeamReward: {
+        score: 88,
+        penalty: 0,
+        signals: {
+          correctness: 1, verification: 1, quality: 1, evidence: 1, efficiency: 1,
+          policyDiscipline: 1, adversarialDiscovery: 0.5, adversarialPrecision: 1,
+        },
+        reasons: ["adversarial-reward-earned"],
+      },
+    },
+  });
+  assert.equal(store.byAgent("red-team").length, 2);
+  assert.equal(store.byAgent("red-team")[1]?.lane, "red-team");
+  assert.equal(store.byAgent("red-team")[1]?.reward.score, 88);
+});
