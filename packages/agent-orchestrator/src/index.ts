@@ -128,6 +128,7 @@ export class DirectCommandOrchestrator {
     this.activeCommandId = command.commandId;
     this.network.begin(command.commandId, command.issuedBy);
     await this.persistLatestAuditEvent();
+    let commandOutcome: "completed" | "failed" = "failed";
     try {
       const plan = await this.planner.plan(command, objective);
       this.assertPlan(plan, command);
@@ -243,9 +244,14 @@ export class DirectCommandOrchestrator {
         }
       }
 
+      commandOutcome = "completed";
       return Object.freeze([...reports.values()]);
     } finally {
-      if (this.auditSink) await this.auditSink.persist(this.network.snapshot().events);
+      if (this.auditSink) {
+        const snapshot = this.network.snapshot();
+        await this.auditSink.persist(snapshot.events);
+        await this.auditSink.finalize(commandOutcome, snapshot.events);
+      }
       this.network.end(command.commandId);
       this.activeCommandId = null;
     }
