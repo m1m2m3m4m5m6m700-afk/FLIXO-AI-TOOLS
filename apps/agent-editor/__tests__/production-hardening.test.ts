@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { getProviderApiKey } from "../lib/llm/credentials";
 import { AnthropicProvider } from "../lib/llm/providers/anthropic";
 import { OpenAIProvider } from "../lib/llm/providers/openai";
@@ -33,31 +33,17 @@ const validProject = {
 
 describe("production hardening", () => {
   it("fails closed for plaintext provider credentials in production", () => {
-    const previous = {
-      nodeEnv: process.env.NODE_ENV,
-      openai: process.env.OPENAI_API_KEY,
-      encrypted: process.env.FLIXO_LLM_KEYS_ENCRYPTED,
-      encryptionKey: process.env.FLIXO_LLM_KEY_ENCRYPTION_KEY,
-    };
-
-    process.env.NODE_ENV = "production";
-    process.env.OPENAI_API_KEY = "plaintext-test-key";
-    delete process.env.FLIXO_LLM_KEYS_ENCRYPTED;
-    delete process.env.FLIXO_LLM_KEY_ENCRYPTION_KEY;
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("OPENAI_API_KEY", "plaintext-test-key");
+    vi.stubEnv("FLIXO_LLM_KEYS_ENCRYPTED", "");
+    vi.stubEnv("FLIXO_LLM_KEY_ENCRYPTION_KEY", "");
 
     try {
       expect(() => getProviderApiKey("openai")).toThrow(
         "PLAINTEXT_LLM_CREDENTIAL_DISABLED",
       );
     } finally {
-      if (previous.nodeEnv === undefined) delete process.env.NODE_ENV;
-      else process.env.NODE_ENV = previous.nodeEnv;
-      if (previous.openai === undefined) delete process.env.OPENAI_API_KEY;
-      else process.env.OPENAI_API_KEY = previous.openai;
-      if (previous.encrypted === undefined) delete process.env.FLIXO_LLM_KEYS_ENCRYPTED;
-      else process.env.FLIXO_LLM_KEYS_ENCRYPTED = previous.encrypted;
-      if (previous.encryptionKey === undefined) delete process.env.FLIXO_LLM_KEY_ENCRYPTION_KEY;
-      else process.env.FLIXO_LLM_KEY_ENCRYPTION_KEY = previous.encryptionKey;
+      vi.unstubAllEnvs();
     }
   });
 
