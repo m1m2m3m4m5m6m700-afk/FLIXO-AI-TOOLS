@@ -33,7 +33,8 @@
       "@flixo/agent-runtime": [
         "../../packages/agent-runtime/src/index.ts"
       ]
-    }
+    },
+    "allowImportingTsExtensions": true
   },
   "include": [
     "next-env.d.ts",
