@@ -24,7 +24,7 @@ type GeminiChunk = {
   }>;
 };
 
-function toContents(messages: readonly LLMMessage[]) {
+function toContents(messages: readonly LLMMessage[]): unknown[] {
   return messages.flatMap((message) => {
     if (message.role === "tool") {
       return [{
