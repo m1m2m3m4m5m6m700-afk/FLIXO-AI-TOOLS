@@ -5,6 +5,7 @@ import { CANONICAL_AGENT_TOOLS } from "@/lib/tools/canonical";
 import { AgentResponseSchema } from "@/lib/schemas/agent";
 import { createDefaultLLMRouter } from "@/lib/llm";
 import { ChatRequestSchema, sanitizeChatRequest } from "@/lib/security/request";
+import { RequestBodyTooLargeError, readRequestBodyWithLimit } from "@/lib/security/raw-body";
 
 const canonicalAgentTools = CANONICAL_AGENT_TOOLS;
 const llmRouter = createDefaultLLMRouter();
@@ -166,7 +167,29 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    const rawBody: unknown = await request.json();
+    let rawBody: unknown;
+    try {
+      const rawText = await readRequestBodyWithLimit(request, MAX_BODY_BYTES);
+      rawBody = JSON.parse(rawText);
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) {
+        return NextResponse.json(
+          ErrorResponseSchema.parse({
+            error: "REQUEST_TOO_LARGE",
+            requestId,
+          }),
+          { status: 413 },
+        );
+      }
+      return NextResponse.json(
+        ErrorResponseSchema.parse({
+          error: "INVALID_JSON",
+          requestId,
+        }),
+        { status: 400 },
+      );
+    }
+
     const schemaCheck = ChatRequestSchema.safeParse(rawBody);
     if (!schemaCheck.success) {
       return NextResponse.json(
