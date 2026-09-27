@@ -51,16 +51,21 @@ const unitInterval = (value: number, name: string): number => {
 
 export class AgentRewardEngine {
   calculate(evidence: EvaluationEvidence): RewardResult {
-    const tests = (evidence.testsPassed ?? 0) + (evidence.testsFailed ?? 0);
-    const testRate = tests > 0 ? (evidence.testsPassed ?? 0) / tests : 0;
+    const testsPassed = nonNegativeInteger(evidence.testsPassed, "testsPassed");
+    const testsFailed = nonNegativeInteger(evidence.testsFailed, "testsFailed");
+    const reviewFindings = nonNegativeInteger(evidence.reviewFindings, "reviewFindings");
+    const securityFindings = nonNegativeInteger(evidence.securityFindings, "securityFindings");
+    const performanceRegressions = nonNegativeInteger(evidence.performanceRegressions, "performanceRegressions");
+    const outOfScope = nonNegativeInteger(evidence.outOfScopeActions, "outOfScopeActions");
+    const delegated = nonNegativeInteger(evidence.delegatedTasks, "delegatedTasks");
+    const tests = testsPassed + testsFailed;
+    const testRate = tests > 0 ? testsPassed / tests : 0;
     const artifacts = evidence.requiredArtifacts?.length ?? 0;
     const completedArtifacts = evidence.completedArtifacts?.length ?? 0;
     const artifactRate = artifacts > 0 ? completedArtifacts / artifacts : 0;
-    const reviewQuality = clamp(1 - (evidence.reviewFindings ?? 0) / 10);
-    const securityQuality = clamp(1 - (evidence.securityFindings ?? 0) / 10);
-    const performanceQuality = clamp(1 - (evidence.performanceRegressions ?? 0) / 10);
-    const outOfScope = evidence.outOfScopeActions ?? 0;
-    const delegated = evidence.delegatedTasks ?? 0;
+    const reviewQuality = clamp(1 - reviewFindings / 10);
+    const securityQuality = clamp(1 - securityFindings / 10);
+    const performanceQuality = clamp(1 - performanceRegressions / 10);
 
     const signals: RewardSignals = Object.freeze({
       correctness: clamp(testRate * 0.7 + artifactRate * 0.3),
@@ -121,11 +126,11 @@ export class AgentRewardEngine {
   }
 
   calculateAdversarial(signals: AdversarialRewardSignals): RewardResult {
-    const verifiedFindings = nonNegativeInteger(verifiedFindings, "verifiedFindings");
-    const falsePositiveFindings = nonNegativeInteger(falsePositiveFindings, "falsePositiveFindings");
-    const resolvedDisputes = nonNegativeInteger(resolvedDisputes, "resolvedDisputes");
-    const unresolvedDisputes = nonNegativeInteger(unresolvedDisputes, "unresolvedDisputes");
-    const agreement = unitInterval(agreement, "agreement");
+    const verifiedFindings = nonNegativeInteger(signals.verifiedFindings, "verifiedFindings");
+    const falsePositiveFindings = nonNegativeInteger(signals.falsePositiveFindings, "falsePositiveFindings");
+    const resolvedDisputes = nonNegativeInteger(signals.resolvedDisputes, "resolvedDisputes");
+    const unresolvedDisputes = nonNegativeInteger(signals.unresolvedDisputes, "unresolvedDisputes");
+    const agreement = unitInterval(signals.agreement, "agreement");
     const verified = clamp(
       verifiedFindings / Math.max(1, verifiedFindings + falsePositiveFindings),
     );
