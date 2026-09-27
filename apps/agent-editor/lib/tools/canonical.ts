@@ -15,7 +15,6 @@ export type CanonicalAgentTool = Readonly<{
   outputContractId:string;
 }>;
 
-const EXECUTABLE_IDS=new Set<string>(MVP_EXECUTABLE_TOOL_IDS);
 
 function toJsonSchema(schema:ToolDefinition["parameterSchema"]):Record<string,unknown>{
   const value=zodToJsonSchema(schema,{$refStrategy:"none",target:"jsonSchema7"}) as Record<string,unknown>;
@@ -23,19 +22,21 @@ function toJsonSchema(schema:ToolDefinition["parameterSchema"]):Record<string,un
   return value;
 }
 
+const DEFINITIONS_BY_ID=new Map(TOOL_DEFINITIONS.map((tool)=>[tool.id,tool]));
+
 export const CANONICAL_AGENT_TOOLS:readonly CanonicalAgentTool[]=Object.freeze(
-  TOOL_DEFINITIONS
-    .filter((tool)=>EXECUTABLE_IDS.has(tool.id)&&tool.capability.state==="EXECUTABLE")
-    .map((tool)=>{
-      if(!tool.operational.executorId||!tool.operational.outputContractId) throw new Error(`Canonical executable tool is missing an execution binding: ${tool.id}`);
-      return Object.freeze({
-        id:tool.id,name:tool.id,description:tool.description,category:tool.category,
-        jsonSchemaInput:toJsonSchema(tool.parameterSchema),parameterSchema:tool.parameterSchema,
-        executionMode:tool.executionMode,executorId:tool.operational.executorId,
-        maxPixels:tool.safetyLimits.maxPixels,maxFileSizeBytes:tool.safetyLimits.maxFileSizeBytes,
-        outputContractId:tool.operational.outputContractId,
-      });
-    }),
+  MVP_EXECUTABLE_TOOL_IDS.map((id)=>{
+    const tool=DEFINITIONS_BY_ID.get(id);
+    if(!tool||tool.capability.state!=="EXECUTABLE") throw new Error(`Canonical executable tool is missing: ${id}`);
+    if(!tool.operational.executorId||!tool.operational.outputContractId) throw new Error(`Canonical executable tool is missing an execution binding: ${id}`);
+    return Object.freeze({
+      id:tool.id,name:tool.id,description:tool.description,category:tool.category,
+      jsonSchemaInput:toJsonSchema(tool.parameterSchema),parameterSchema:tool.parameterSchema,
+      executionMode:tool.executionMode,executorId:tool.operational.executorId,
+      maxPixels:tool.safetyLimits.maxPixels,maxFileSizeBytes:tool.safetyLimits.maxFileSizeBytes,
+      outputContractId:tool.operational.outputContractId,
+    });
+  }),
 );
 
 if(CANONICAL_AGENT_TOOLS.length!==MVP_EXECUTABLE_TOOL_IDS.length) throw new Error(`Canonical Agent Tool projection mismatch: expected ${MVP_EXECUTABLE_TOOL_IDS.length}, got ${CANONICAL_AGENT_TOOLS.length}.`);
