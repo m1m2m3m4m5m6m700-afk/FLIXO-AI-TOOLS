@@ -34,6 +34,10 @@ jobs:
           node-version: 22.x
           cache: npm
 
+      - name: Install root dependencies
+        working-directory: .
+        run: npm ci --no-audit --no-fund
+
       - name: Install agent editor dependencies
         run: npm install --no-audit --no-fund
 
