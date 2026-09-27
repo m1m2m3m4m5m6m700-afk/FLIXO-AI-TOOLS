@@ -25,10 +25,17 @@ const userLimiter = redis
     })
   : null;
 
+const TRUSTED_IP_HEADER =
+  process.env.FLIXO_TRUSTED_IP_HEADER === "cf-connecting-ip"
+    ? "cf-connecting-ip"
+    : "x-vercel-forwarded-for";
+
 function getClientIp(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
-  return request.headers.get("x-real-ip")?.trim() || "unknown";
+  const edgeIp = request.headers.get(TRUSTED_IP_HEADER)?.trim();
+  if (edgeIp) return edgeIp.split(",")[0]?.trim() || "unknown";
+  const fallback = request.headers.get("cf-connecting-ip")?.trim();
+  if (fallback) return fallback;
+  return "unknown";
 }
 
 async function hashIdentifier(value: string): Promise<string> {
