@@ -1,5 +1,9 @@
 name: FLIXO Agent Editor - STEP 4
 
+concurrency:
+  group: agent-editor-step4-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   pull_request:
     branches: [execution, main]
