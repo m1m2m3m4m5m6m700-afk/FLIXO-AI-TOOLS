@@ -201,7 +201,7 @@ Tasks:
 - P8.4 Wire persistent storage only after schema/security verification. PENDING.
 - P8.5 Add observability and rollback. PENDING.
 
-Exit condition: production execution remains human-command-gated and every material action is auditable. Current P8.1 source is verified; runtime registration and CI execution remain unobserved.
+Exit condition: production execution remains human-command-gated and every material action is auditable. P8.1–P8.3 source is verified; runtime registration, provider integration, and CI execution remain unobserved.
 
 ### P9 — Full verification
 Status: PLANNED
@@ -235,7 +235,9 @@ Never write “production-ready” while required verification is missing.
 
 ## 6. Current Next Action
 
-Execute P8.2: inspect the existing FLIXO provider/model routing layer and adapt it to `AgentModelInvoker`. Do not add a second provider stack.
+Execute P8.4: wire persistent learning storage only after schema/security verification, using the repository’s existing durable learning/task persistence rather than creating an unbounded new memory store.
+
+Fine-tuning track: verified experiences remain the only eligible training-data source; model-weight updates are still gated behind dataset provenance, benchmark, sandbox, and human promotion controls.
 
 Fine-tuning track: treat verified experiences as the only eligible training-data source; do not introduce model-weight updates until dataset provenance, objective verification, benchmark gates, sandboxing, and human promotion controls are implemented.
 
