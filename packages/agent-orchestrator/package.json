@@ -1,0 +1,17 @@
+{
+  "name": "@flixo/agent-orchestrator",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@flixo/contracts": "0.1.0",
+    "@flixo/agent-runtime": "0.1.0"
+  },
+  "scripts": {
+    "test": "node --import=../../scripts/register-node-resolver.mjs --test --experimental-strip-types tests/network.test.ts tests/evaluation.test.ts tests/reward.test.ts tests/learning.test.ts tests/model-adapter.test.ts tests/continual-learning.test.ts tests/http-model-invoker.test.ts tests/adversarial.test.ts tests/red-team.test.ts tests/agent-learning-lab.test.ts tests/cognitive.test.ts tests/objective-verifier.test.ts tests/evolution-governor.test.ts tests/learning-persistence-port.test.ts",
+    "typecheck": "npx tsc -p tsconfig.json --noEmit"
+  }
+}
