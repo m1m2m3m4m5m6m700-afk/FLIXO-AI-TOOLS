@@ -126,10 +126,12 @@ export class DirectCommandOrchestrator {
     if (this.activeCommandId !== null) throw new Error("COMMAND_ALREADY_ACTIVE");
 
     this.activeCommandId = command.commandId;
-    this.network.begin(command.commandId, command.issuedBy);
-    await this.persistLatestAuditEvent();
+    let networkStarted = false;
     let commandOutcome: "completed" | "failed" = "failed";
     try {
+      this.network.begin(command.commandId, command.issuedBy);
+      networkStarted = true;
+      await this.persistLatestAuditEvent();
       const plan = await this.planner.plan(command, objective);
       this.assertPlan(plan, command);
 
@@ -247,13 +249,19 @@ export class DirectCommandOrchestrator {
       commandOutcome = "completed";
       return Object.freeze([...reports.values()]);
     } finally {
-      if (this.auditSink) {
-        const snapshot = this.network.snapshot();
-        await this.auditSink.persist(snapshot.events);
-        await this.auditSink.finalize(commandOutcome, snapshot.events);
+      try {
+        if (networkStarted && this.auditSink) {
+          const snapshot = this.network.snapshot();
+          await this.auditSink.persist(snapshot.events);
+          await this.auditSink.finalize(commandOutcome, snapshot.events);
+        }
+      } finally {
+        try {
+          if (networkStarted) this.network.end(command.commandId);
+        } finally {
+          this.activeCommandId = null;
+        }
       }
-      this.network.end(command.commandId);
-      this.activeCommandId = null;
     }
   }
 
