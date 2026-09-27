@@ -97,6 +97,9 @@ export class AgentNetworkControlPlane {
   private sequence = 0;
   private readonly agents = new Map<string, AgentDescriptor>();
   private readonly heartbeats = new Map<string, AgentHeartbeat>();
+  private readonly assignments = new Map<string, string>();
+  private readonly reportedSteps = new Set<string>();
+  private readonly seenCommandIds = new Set<string>();
   private readonly events: AgentNetworkEvent[] = [];
 
   constructor(descriptors: readonly AgentDescriptor[] = DEFAULT_AGENT_NETWORK) {
@@ -114,6 +117,8 @@ export class AgentNetworkControlPlane {
     if (!commandId.trim()) throw new Error("COMMAND_ID_REQUIRED");
     if (issuedBy !== "human") throw new Error("DIRECT_HUMAN_COMMAND_REQUIRED");
     if (this.activeCommandId !== null) throw new Error("COMMAND_ALREADY_ACTIVE");
+    if (this.seenCommandIds.has(commandId)) throw new Error("COMMAND_ID_REUSE_FORBIDDEN");
+    this.seenCommandIds.add(commandId);
     this.activeCommandId = commandId;
     this.emit("command", commandId, undefined, undefined, { issuedBy });
   }
@@ -127,12 +132,16 @@ export class AgentNetworkControlPlane {
     this.assertActive(commandId);
     const agent = this.agents.get(role);
     if (!agent) throw new Error(`AGENT_NOT_REGISTERED:${role}`);
+    if (!stepId.trim()) throw new Error("STEP_ID_REQUIRED");
+    const assignmentKey = commandId + ":" + stepId;
+    if (this.assignments.has(assignmentKey)) throw new Error("STEP_ALREADY_AUTHORIZED");
     if (!requiredCapabilities.every((capability) => agent.capabilities.includes(capability))) {
       throw new Error(`AGENT_CAPABILITY_DENIED:${role}`);
     }
     if (!requiredPermissions.every((permission) => agent.permissions.includes(permission))) {
       throw new Error(`AGENT_PERMISSION_DENIED:${role}`);
     }
+    this.assignments.set(assignmentKey, agent.id);
     this.emit("dispatch", commandId, stepId, agent.id, { role, requiredCapabilities, requiredPermissions });
     return agent;
   }
@@ -140,6 +149,10 @@ export class AgentNetworkControlPlane {
   report(commandId: string, stepId: string, agentId: string, status: "completed" | "failed" | "blocked", summary: string): void {
     this.assertActive(commandId);
     if (!this.agents.has(agentId)) throw new Error(`AGENT_NOT_REGISTERED:${agentId}`);
+    const assignmentKey = commandId + ":" + stepId;
+    if (this.assignments.get(assignmentKey) !== agentId) throw new Error("AGENT_STEP_ASSIGNMENT_MISMATCH");
+    if (this.reportedSteps.has(assignmentKey)) throw new Error("STEP_ALREADY_REPORTED");
+    this.reportedSteps.add(assignmentKey);
     this.emit(status === "blocked" ? "blocked" : status === "failed" ? "failure" : "report", commandId, stepId, agentId, { status, summary });
   }
 
@@ -147,7 +160,8 @@ export class AgentNetworkControlPlane {
     this.assertActive(heartbeat.commandId);
     if (!this.agents.has(heartbeat.agentId)) throw new Error(`AGENT_NOT_REGISTERED:${heartbeat.agentId}`);
     if (heartbeat.progressPercent < 0 || heartbeat.progressPercent > 100) throw new Error("INVALID_PROGRESS_PERCENT");
-    const key = `${heartbeat.commandId}:${heartbeat.stepId}`;
+    const key = heartbeat.commandId + ":" + heartbeat.stepId;
+    if (this.assignments.get(key) !== heartbeat.agentId) throw new Error("AGENT_STEP_ASSIGNMENT_MISMATCH");
     this.heartbeats.set(key, Object.freeze({ ...heartbeat }));
     this.emit("heartbeat", heartbeat.commandId, heartbeat.stepId, heartbeat.agentId, heartbeat);
   }
