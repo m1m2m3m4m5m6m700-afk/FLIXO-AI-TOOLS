@@ -1,6 +1,6 @@
 import { lazy } from 'react';
 import { z, type ZodType } from 'zod';
-import { LOCALES, type Locale } from '@/lib/i18n/config.ts';
+import { LOCALES, type Locale } from '../lib/i18n/config.ts';
 import type { ComponentType, LazyExoticComponent } from 'react';
 
 export type ToolFamily = 'image' | 'video' | 'audio' | 'ai' | 'editor';
