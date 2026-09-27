@@ -84,11 +84,14 @@ export class GeminiProvider implements LLMProvider {
   }
 
   async *stream(request: LLMStreamRequest): AsyncGenerator<LLMStreamEvent> {
-    const url = `${this.baseUrl}/models/${encodeURIComponent(request.model)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(this.apiKey)}`;
+    const url = `${this.baseUrl}/models/${encodeURIComponent(request.model)}:streamGenerateContent?alt=sse`;
 
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": this.apiKey,
+      },
       body: JSON.stringify({
         systemInstruction: {
           parts: [{ text: request.systemPrompt }],
