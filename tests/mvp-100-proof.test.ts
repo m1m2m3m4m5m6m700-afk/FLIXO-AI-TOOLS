@@ -33,6 +33,7 @@ const {
 const {
   assessVisualGoal,
   deriveVisualGoalSpec,
+  verifyVisualGoal,
 } = await import('../src/lib/agent/visual-goal-verifier.ts');
 
 test('mandatory FLIXO MVP scope is enforced at the canonical registry boundary', () => {
@@ -65,6 +66,15 @@ test('deterministic MVP standard-intent suite is 100% exact', () => {
 test('ambiguous effect requests fail closed instead of guessing an adjustment', () => {
   assert.equal(planFromIntent('ارفع التباين'), null);
   assert.equal(planFromIntent('increase contrast'), null);
+});
+
+test('visual goal verification fails closed when a browser decoder is unavailable', async () => {
+  if (typeof document !== 'undefined' && typeof createImageBitmap === 'function') return;
+  const input = new Blob([Uint8Array.from([1, 2, 3])], { type: 'image/png' });
+  const output = new Blob([Uint8Array.from([4, 5, 6])], { type: 'image/png' });
+  const report = await verifyVisualGoal(input, output, 'image-effects', { brightness: 150 });
+  assert.equal(report.verified, false);
+  assert.equal(report.mode, 'NO_BROWSER_DECODER');
 });
 
 test('agent gateway file payload is metadata-only and never contains file bytes', () => {
