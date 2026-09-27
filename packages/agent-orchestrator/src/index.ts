@@ -150,7 +150,14 @@ export class DirectCommandOrchestrator {
           reports.set(step.stepId, report);
           pending.delete(step.stepId);
           this.observer.onReport(report);
-          this.cognitiveLedger.observe(report.commandId, report.stepId, step.role, report.summary);\n          const evaluationEvidence = report.evidence as EvaluationEvidence | undefined;\n          if (evaluationEvidence) {\n            const verified = evaluationEvidence.evidenceVerified === true && (evaluationEvidence.testsFailed ?? 0) === 0 && (evaluationEvidence.outOfScopeActions ?? 0) === 0;\n            this.failureIntelligence.classify(report.commandId, report.stepId, step.role, evaluationEvidence);\n            const state = this.cognitiveLedger.snapshot().states.find((item) => item.commandId === report.commandId && item.stepId === report.stepId);\n            this.confidenceCalibrator.record(step.role, state?.confidence ?? 0.5, verified);\n          }
+          this.cognitiveLedger.observe(report.commandId, report.stepId, step.role, report.summary);
+          const evaluationEvidence = report.evidence as EvaluationEvidence | undefined;
+          if (evaluationEvidence) {
+            const verified = evaluationEvidence.evidenceVerified === true && (evaluationEvidence.testsFailed ?? 0) === 0 && (evaluationEvidence.outOfScopeActions ?? 0) === 0;
+            this.failureIntelligence.classify(report.commandId, report.stepId, step.role, evaluationEvidence);
+            const state = this.cognitiveLedger.snapshot().states.find((item) => item.commandId === report.commandId && item.stepId === report.stepId);
+            this.confidenceCalibrator.record(step.role, state?.confidence ?? 0.5, verified);
+          }
         }
 
         if (!ready.length) {
@@ -206,6 +213,15 @@ export class DirectCommandOrchestrator {
           this.network.report(command.commandId, step.stepId, step.role, report.status, report.summary);
           this.observer.onReport(report);
           this.cognitiveLedger.observe(report.commandId, report.stepId, step.role, report.summary);
+          const evaluationEvidence = report.evidence as EvaluationEvidence | undefined;
+          if (evaluationEvidence) {
+            const verified = evaluationEvidence.evidenceVerified === true
+              && (evaluationEvidence.testsFailed ?? 0) === 0
+              && (evaluationEvidence.outOfScopeActions ?? 0) === 0;
+            this.failureIntelligence.classify(report.commandId, report.stepId, step.role, evaluationEvidence);
+            const state = this.cognitiveLedger.snapshot().states.find((item) => item.commandId === report.commandId && item.stepId === report.stepId);
+            this.confidenceCalibrator.record(step.role, state?.confidence ?? 0.5, verified);
+          }
           return report;
         }));
 
@@ -230,7 +246,11 @@ export class DirectCommandOrchestrator {
     return this.network.snapshot();
   }
 
-  failureRecords(agentId?: string) { return this.failureIntelligence.list(agentId); }\n\n  confidenceProfile(agentId: string) { return this.confidenceCalibrator.summarize(agentId); }\n\n  cognitiveSnapshot(): import("./cognitive.ts").AgentCognitiveSnapshot {
+  failureRecords(agentId?: string) { return this.failureIntelligence.list(agentId); }
+
+  confidenceProfile(agentId: string) { return this.confidenceCalibrator.summarize(agentId); }
+
+  cognitiveSnapshot(): import("./cognitive.ts").AgentCognitiveSnapshot {
     return this.cognitiveLedger.snapshot();
   }
 
