@@ -1,5 +1,5 @@
-import type { CapabilityParameters, ToolDefinition } from '@/config/canonical-tool-definition';
-import { renderVideoToWebm } from '@/lib/video/video-executor';
+import type { CapabilityParameters, ToolDefinition } from '../../config/canonical-tool-definition';
+import { renderVideoToWebm } from './video-executor';
 
 export type VideoToolExecutor = (inputBlob: Blob, parameters: CapabilityParameters, tool: ToolDefinition) => Promise<Blob>;
 
