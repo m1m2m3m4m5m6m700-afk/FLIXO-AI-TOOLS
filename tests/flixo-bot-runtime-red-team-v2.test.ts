@@ -67,3 +67,20 @@ test("runtime restore keeps valid bounded state intact", () => {
   assert.equal(restored.maxToolCalls, state.maxToolCalls);
   assert.equal(restored.events.length, state.events.length);
 });
+
+
+test("runtime restore fails closed on missing events, invalid status, and oversized payloads", () => {
+  const state = runningState();
+  assert.throws(
+    () => restoreFlixoBotRunState(JSON.stringify({ ...state, events: undefined }), sha),
+    /FLIXO_BOT_RUN_EVENTS_INVALID/,
+  );
+  assert.throws(
+    () => restoreFlixoBotRunState(JSON.stringify({ ...state, status: "IMAGINARY" }), sha),
+    /FLIXO_BOT_RUN_STATUS_INVALID/,
+  );
+  assert.throws(
+    () => restoreFlixoBotRunState("x".repeat(256_001), sha),
+    /FLIXO_BOT_RUN_SERIALIZED_STATE_INVALID/,
+  );
+});
