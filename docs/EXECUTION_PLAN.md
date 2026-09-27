@@ -180,16 +180,16 @@ Tasks:
 Exit condition: adversarial feedback changes subsequent evaluation while isolation remains intact. Implementation and regression coverage are source-verified; runtime test/CI success remains unobserved.
 
 ### P7 — Evolution governor
-Status: PLANNED
+Status: COMPLETE
 Goal: allow bounded improvement proposals without granting production authority.
 Tasks:
-- P7.1 Define proposal/archive contract.
-- P7.2 Sandbox mutation model.
-- P7.3 Benchmark gate.
-- P7.4 Human promotion gate.
-- P7.5 Rollback metadata.
+- P7.1 Define proposal/archive contract. COMPLETE — shared proposal, benchmark, promotion, and rollback contracts added.
+- P7.2 Sandbox mutation model. COMPLETE — evolution proposals require a declarative `sandbox-only`, `dryRun` mutation plan with path and file-count validation; the governor has no mutation/write API.
+- P7.3 Benchmark gate. COMPLETE — promotion requires a passed benchmark at/above threshold.
+- P7.4 Human promotion gate. COMPLETE — approve requires `approvedBy: "human"` and matching command identity.
+- P7.5 Rollback metadata. COMPLETE — applied proposals record an explicit human-authorized rollback revision.
 
-Exit condition: no evolved change can reach production without explicit promotion.
+Exit condition: no evolved change can reach production without explicit promotion. Implementation is source-verified; runtime test/CI success remains unobserved.
 
 ### P8 — Production integration
 Status: PLANNED
@@ -235,7 +235,9 @@ Never write “production-ready” while required verification is missing.
 
 ## 6. Current Next Action
 
-Execute P7.1: define the evolution proposal/promotion contract and governor state machine. Proposals may be created and benchmarked by supervised agents, but only a human authority may approve, apply, or roll back a change.
+Execute P8.1: map real FLIXO tools to supervised workers. First inspect the existing Agent Editor runtime/registry and reuse its canonical tool contracts; do not duplicate tool execution logic inside the orchestrator.
+
+Fine-tuning track: treat verified experiences as the only eligible training-data source; do not introduce model-weight updates until dataset provenance, objective verification, benchmark gates, sandboxing, and human promotion controls are implemented.
 
 Fine-tuning track: treat verified experiences as the only eligible training-data source; do not introduce model-weight updates until dataset provenance, objective verification, benchmark gates, sandboxing, and human promotion controls are implemented.
 
