@@ -28,12 +28,12 @@ jobs:
         working-directory: apps/agent-editor
     steps:
       - name: Checkout exact pushed commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
