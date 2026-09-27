@@ -37,6 +37,7 @@ jobs:
       - run: npm run verify:contracts
       - run: npm run typecheck:contracts
       - run: npm run typecheck:agent-runtime
+      - run: npm run typecheck:agent-orchestrator
       - run: npm run build
       - name: Stamp exact build identity
         shell: bash
