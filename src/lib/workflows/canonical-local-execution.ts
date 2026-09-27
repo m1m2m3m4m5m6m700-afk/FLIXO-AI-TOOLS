@@ -27,6 +27,30 @@ function extensionForMime(mimeType: string): string {
   return "bin";
 }
 
+async function decodedDimensions(blob:Blob):Promise<{width:number;height:number}|undefined>{
+  if(blob.type.startsWith("image/")&&typeof createImageBitmap==="function"){
+    const bitmap=await createImageBitmap(blob);
+    try{return {width:bitmap.width,height:bitmap.height};}finally{bitmap.close();}
+  }
+  if(blob.type.startsWith("video/")&&typeof document!=="undefined"){
+    const url=URL.createObjectURL(blob); const video=document.createElement("video"); video.preload="metadata"; video.src=url;
+    try{await new Promise<void>((resolve,reject)=>{video.onloadedmetadata=()=>resolve();video.onerror=()=>reject(new Error("CANONICAL_VIDEO_METADATA_INVALID"));});return {width:video.videoWidth,height:video.videoHeight};}
+    finally{URL.revokeObjectURL(url);video.removeAttribute("src");video.load();}
+  }
+  return undefined;
+}
+async function assertDecodedInputWithinBudget(toolId:string,blob:Blob,maxPixels:number):Promise<void>{
+  const dimensions=await decodedDimensions(blob);
+  if(dimensions&& (dimensions.width<1||dimensions.height<1||dimensions.width*dimensions.height>maxPixels)) throw new Error("CANONICAL_INPUT_PIXEL_LIMIT_EXCEEDED:"+toolId);
+}
+function timeoutError(toolId:string):Error{const error=new Error("CANONICAL_TOOL_TIMEOUT:"+toolId);error.name="TimeoutError";return error;}
+async function runWithTimeout<T>(toolId:string,timeoutMs:number,operation:(signal:AbortSignal)=>Promise<T>,externalSignal?:AbortSignal):Promise<T>{
+  const controller=new AbortController(); const onExternalAbort=()=>controller.abort(); externalSignal?.addEventListener("abort",onExternalAbort,{once:true});
+  let timer:ReturnType<typeof setTimeout>|undefined;
+  const timeout=new Promise<never>((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(timeoutError(toolId));},timeoutMs);});
+  try{if(externalSignal?.aborted)throw new DOMException("Execution aborted.","AbortError");return await Promise.race([operation(controller.signal),timeout]);}
+  finally{if(timer)clearTimeout(timer);externalSignal?.removeEventListener("abort",onExternalAbort);}
+}
 async function dimensionsFor(
   blob: Blob,
 ): Promise<{ width: number; height: number } | undefined> {
@@ -46,6 +70,7 @@ export async function executeCanonicalLocalTool(
   binding: CanonicalLocalExecutionBinding,
   inputBlob: Blob,
   rawParameters: unknown,
+  signal?: AbortSignal,
 ): Promise<{ toolId: string; blob: Blob }> {
   const capability = getCapability(binding.toolId);
 
@@ -77,28 +102,23 @@ export async function executeCanonicalLocalTool(
     throw new Error(`CANONICAL_OUTPUT_CONTRACT_ID_MISMATCH:${binding.toolId}`);
   }
 
-  if (!(inputBlob instanceof Blob) || inputBlob.size <= 0) {
-    throw new Error(`CANONICAL_INPUT_INVALID:${binding.toolId}`);
-  }
+  if (!(inputBlob instanceof Blob) || inputBlob.size <= 0) throw new Error(`CANONICAL_INPUT_INVALID:${binding.toolId}`);
+  if (inputBlob.size > capability.safetyLimits.maxFileSizeBytes) throw new Error(`CANONICAL_INPUT_FILE_LIMIT_EXCEEDED:${binding.toolId}`);
+  if (signal?.aborted) throw new DOMException("Execution aborted.","AbortError");
 
   const parameters = validateCapabilityParameters(binding.toolId, rawParameters);
   assertExecutionResourceBudget(binding.toolId, inputBlob);
+  await assertDecodedInputWithinBudget(binding.toolId, inputBlob, capability.safetyLimits.maxPixels);
 
-  const outputBlob = await getToolExecutor(capability)({
-    tool: capability,
-    inputBlob,
-    parameters,
-  });
+  const outputBlob = await runWithTimeout(binding.toolId, capability.safetyLimits.timeoutMs,
+    (executionSignal)=>getToolExecutor(capability)({ tool: capability, inputBlob, parameters, signal: executionSignal }), signal);
 
   if (!(outputBlob instanceof Blob) || outputBlob.size <= 0) {
     throw new Error(`CANONICAL_TOOL_EMPTY_OUTPUT:${binding.toolId}`);
   }
 
-  const verifiedByCanonicalVerifier = await capability.verifier(
-    inputBlob,
-    outputBlob,
-    parameters,
-  );
+  const verifiedByCanonicalVerifier = await runWithTimeout(binding.toolId, capability.safetyLimits.timeoutMs,
+    (verificationSignal)=>capability.verifier(inputBlob, outputBlob, parameters, verificationSignal), signal);
   if (!verifiedByCanonicalVerifier) {
     throw new Error(`CANONICAL_TOOL_VERIFICATION_FAILED:${binding.toolId}`);
   }
@@ -117,7 +137,7 @@ export async function executeCanonicalLocalTool(
     mimeType: outputBlob.type,
     byteLength: outputBlob.size,
     bytes: new Uint8Array(await outputBlob.arrayBuffer()),
-    filename: `flixo-${binding.toolId}.${extensionForMime(outputBlob.type)}`,
+    filename: "flixo-"+binding.toolId+"."+extensionForMime(outputBlob.type),
     dimensions: await dimensionsFor(outputBlob),
   };
 
