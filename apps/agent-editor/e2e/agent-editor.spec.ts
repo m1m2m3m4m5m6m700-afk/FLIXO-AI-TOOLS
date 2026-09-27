@@ -40,11 +40,17 @@ test.describe("FLIXO Agent Editor end-to-end", () => {
   });
 
   test("Stop aborts the active SSE request without losing the last valid state", async ({ page }) => {
+    await page.route("**/api/chat", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await route.continue();
+    });
     await page.goto("/");
     await page.getByLabel("Describe the edit").fill("Remove background from image");
     await page.getByRole("button", { name: "Send" }).click();
-    await expect(page.getByRole("button", { name: "Stop" })).toBeVisible();
-    await page.getByRole("button", { name: "Stop" }).click();
+    const stopButton = page.getByRole("button", { name: "Stop" });
+    await expect(stopButton).toBeVisible();
+    await expect(stopButton).toBeEnabled();
+    await stopButton.click();
     await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
     await expect(page.getByText("Untitled Creative Project", { exact: false })).toBeVisible();
   });
