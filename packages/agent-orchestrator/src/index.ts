@@ -275,8 +275,9 @@ export class DirectCommandOrchestrator {
         }
       }
 
-      commandOutcome = "completed";
-      return Object.freeze([...reports.values()]);
+      const finalReports = Object.freeze([...reports.values()]);
+      commandOutcome = finalReports.every((report) => report.status === "completed") ? "completed" : "failed";
+      return finalReports;
     } finally {
       try {
         if (networkStarted && this.auditSink) {
