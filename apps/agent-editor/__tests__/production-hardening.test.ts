@@ -65,7 +65,7 @@ describe("production hardening", () => {
     const previousFetch = globalThis.fetch;
     globalThis.fetch = (async () =>
       sseResponse(
-        'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-1","function":{"name":"remove_background","arguments":"{"}}]}}]}]}\n\ndata: [DONE]\n\n',
+        'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-1","function":{"name":"remove_background","arguments":"{"}}]}}]}\n\ndata: [DONE]\n\n',
       )) as typeof fetch;
 
     try {
@@ -108,7 +108,14 @@ describe("production hardening", () => {
           visible: true,
           locked: false,
           opacity: 1,
-          transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 0 },
+          transform: {
+            x: 0,
+            y: 0,
+            scaleX: 1,
+            scaleY: 1,
+            rotation: 0,
+            zIndex: 0,
+          },
           metadata: { payload: "x".repeat(140 * 1024) },
         },
       ],
