@@ -157,7 +157,7 @@ export class DirectCommandOrchestrator {
           this.cognitiveLedger.observe(verifiedReport.commandId, verifiedReport.stepId, step.role, verifiedReport.summary);
           const evaluationEvidence = verifiedReport.evidence as EvaluationEvidence | undefined;
           if (evaluationEvidence) {
-            const verified = evaluationEvidence.evidenceVerified === true && (evaluationEvidence.testsFailed ?? 0) === 0 && (evaluationEvidence.outOfScopeActions ?? 0) === 0;
+            const verified = verifiedReport.verification?.status === "verified";
             this.failureIntelligence.classify(report.commandId, report.stepId, step.role, evaluationEvidence);
             const state = this.cognitiveLedger.snapshot().states.find((item) => item.commandId === report.commandId && item.stepId === report.stepId);
             this.confidenceCalibrator.record(step.role, state?.confidence ?? 0.5, verified);
@@ -218,6 +218,8 @@ export class DirectCommandOrchestrator {
           this.network.report(command.commandId, step.stepId, step.role, report.status, report.summary);
           this.observer.onReport(report);
           this.cognitiveLedger.observe(report.commandId, report.stepId, step.role, report.summary);
+          const currentState = this.cognitiveLedger.snapshot().states.find((item) => item.commandId === report.commandId && item.stepId === report.stepId);
+          this.cognitiveLedger.upsertState({ commandId: report.commandId, stepId: report.stepId, agentId: step.role, goal: currentState?.goal ?? step.objective, hypotheses: currentState?.hypotheses ?? [], assumptions: currentState?.assumptions ?? step.constraints, plannedActions: currentState?.plannedActions ?? [], observations: currentState?.observations ?? [report.summary], evidence: currentState?.evidence ?? [], uncertainties: currentState?.uncertainties ?? [], detectedRisks: currentState?.detectedRisks ?? [], rejectedApproaches: currentState?.rejectedApproaches ?? [], confidence: currentState?.confidence ?? 0.5, verificationState: report.verification?.status ?? "unresolved" });
           const evaluationEvidence = report.evidence as EvaluationEvidence | undefined;
           if (evaluationEvidence) {
             const verified = report.verification?.status === "verified";
