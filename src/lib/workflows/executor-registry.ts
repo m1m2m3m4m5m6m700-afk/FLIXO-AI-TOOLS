@@ -1,10 +1,23 @@
 import { compressImage } from '../../tools/image-compressor/engine';
 import { convertImage, cropResizeImage, imageInfo, removeBackground, resizeImage } from '../../tools/image-toolkit/engine';
 import type { CapabilityParameters } from '../agent/capability-registry';
-import type { ToolDefinition } from '../../config/canonical-tool-definition';
 import { getVideoToolExecutor } from '../video/video-tool-executors';
 
-export type ExecutableToolView = Pick<ToolDefinition, "id" | "operational" | "safetyLimits">;
+export type ExecutableToolView = Readonly<{
+  id: string;
+  operational: Readonly<{ executorId: string | null }>;
+  safetyLimits: Readonly<{
+    maxPixels: number;
+    maxFileSizeBytes: number;
+    timeoutMs: number;
+  }>;
+}>;
+
+type ExecutorCoverageTool = Readonly<{
+  id: string;
+  capability: Readonly<{ state: string }>;
+  operational: Readonly<{ executorId: string | null }>;
+}>;
 
 export type ToolExecutorContext = Readonly<{
   tool: ExecutableToolView;
@@ -131,7 +144,7 @@ export function repairToolParameters(tool: ExecutableToolView, parameters: Capab
   return executorId ? REPAIRERS[executorId]?.(parameters, attempt) ?? null : null;
 }
 
-export function assertExecutorCoverage(tools: readonly ToolDefinition[]): void {
+export function assertExecutorCoverage(tools: readonly ExecutorCoverageTool[]): void {
   const executable = tools.filter((tool) => tool.capability.state === 'EXECUTABLE');
   const missingIds = executable.filter((tool) => !tool.operational.executorId).map((tool) => tool.id);
   const referencedIds = new Set(executable.map((tool) => tool.operational.executorId).filter((id): id is string => Boolean(id)));
