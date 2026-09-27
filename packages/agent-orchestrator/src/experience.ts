@@ -11,6 +11,7 @@ export type AgentExperience = Readonly<{
 
 export interface AgentExperiencePersistence {
   persist(experience: AgentExperience): Promise<void>;
+  load(): Promise<readonly AgentExperience[]>;
 }
 
 export interface ExperienceStore {
