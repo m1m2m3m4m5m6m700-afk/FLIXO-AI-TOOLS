@@ -15,6 +15,7 @@ import {
 export const FLIXO_BOT_GATEWAY_AGENT_ID = 'execution-agent-clone-v1' as const;
 export const FLIXO_BOT_GATEWAY_MAX_TURNS = 6 as const;
 export const FLIXO_BOT_GATEWAY_MAX_RETRIES = 2 as const;
+export const FLIXO_BOT_GATEWAY_MAX_TOOL_CALLS = 8 as const;
 
 export type FlixoBotGatewayRuntime = Readonly<{
   state: FlixoBotRunState;
