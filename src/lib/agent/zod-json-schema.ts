@@ -3,8 +3,11 @@ import { z } from 'zod';
 export type JsonSchema = Record<string, unknown>;
 
 function unwrap(schema: z.ZodTypeAny): z.ZodTypeAny {
-  if (schema instanceof z.ZodOptional || schema instanceof z.ZodNullable || schema instanceof z.ZodDefault) {
-    return unwrap(schema.unwrap ? schema.unwrap() : schema._def.innerType ?? schema._def.type);
+  if (schema instanceof z.ZodOptional || schema instanceof z.ZodNullable) {
+    return unwrap(schema.unwrap());
+  }
+  if (schema instanceof z.ZodDefault) {
+    return unwrap(schema._def.innerType);
   }
   if (schema instanceof z.ZodEffects) {
     return unwrap(schema.innerType());
