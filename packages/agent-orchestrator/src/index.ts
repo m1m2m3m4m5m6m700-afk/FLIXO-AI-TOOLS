@@ -44,6 +44,16 @@ export interface AgentWorker {
   run(instruction: AgentInstruction): Promise<AgentReport>;
 }
 
+export type AgentAdapterFactory = (descriptor: Readonly<{ id: string; role: string }>) => AgentWorker;
+
+export const createSupervisedWorker = (
+  descriptor: Readonly<{ id: string; role: string }>,
+  execute: (instruction: AgentInstruction) => Promise<AgentReport>,
+): AgentWorker => Object.freeze({
+  id: descriptor.role,
+  run: execute,
+});
+
 export interface AgentPlanner {
   plan(command: CommandAuthority, objective: string): Promise<AgentPlan>;
 }
