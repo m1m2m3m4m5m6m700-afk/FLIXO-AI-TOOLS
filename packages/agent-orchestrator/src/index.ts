@@ -192,3 +192,7 @@ export class DirectCommandOrchestrator {
     }
   }
 }
+
+export * from "./reward.ts";
+export * from "./experience.ts";
+export * from "./learning.ts";
