@@ -9,7 +9,7 @@ const {
   consumeToolCall,
   consumeRetry,
   consumeOutputBytes,
-} = await import('../src/lib/agent/execution-budget.ts');
+} = await import('../packages/agent-runtime/src/execution-budget.ts');
 const {
   WORKFLOW_TOOL_CATALOG,
   getWorkflowTool,
