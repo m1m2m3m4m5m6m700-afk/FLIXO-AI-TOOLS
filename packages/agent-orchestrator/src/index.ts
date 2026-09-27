@@ -1,4 +1,5 @@
-import { AgentCapability, AgentHeartbeat, AgentNetworkControlPlane, AgentNetworkSnapshot } from "./network.ts";
+import { AgentCapability, AgentHeartbeat, AgentNetworkControlPlane, AgentNetworkSnapshot, DEFAULT_AGENT_NETWORK } from "./network.ts";
+import { AdversarialTwinWorker } from "./adversarial.ts";
 export * from "./network.ts";
 export * from "./evaluation.ts";
 
@@ -67,6 +68,7 @@ export interface AgentObserver {
 export class DirectCommandOrchestrator {
   private activeCommandId: string | null = null;
   private readonly workers = new Map<string, AgentWorker>();
+  private readonly adversarialRoles = new Set<string>();
 
   constructor(
     private readonly planner: AgentPlanner,
@@ -81,6 +83,25 @@ export class DirectCommandOrchestrator {
     if (!worker.id.trim()) throw new Error("WORKER_ID_REQUIRED");
     if (this.workers.has(worker.id)) throw new Error(`WORKER_ALREADY_REGISTERED:${worker.id}`);
     this.workers.set(worker.id, worker);
+  }
+
+  registerAdversarialWorker(role: string, worker: AgentWorker): void {
+    if (!role.trim()) throw new Error("ADVERSARIAL_ROLE_REQUIRED");
+    if (this.adversarialRoles.has(role)) throw new Error(`ADVERSARIAL_ALREADY_REGISTERED:${role}`);
+    if (worker.id !== role) throw new Error("ADVERSARIAL_ROLE_ID_MISMATCH");
+    this.workers.set(role, worker);
+    this.adversarialRoles.add(role);
+  }
+
+  enableDefaultAdversarialMode(invoker: import("./model-adapter.ts").AgentModelInvoker): void {
+    for (const descriptor of DEFAULT_AGENT_NETWORK) {
+      if (!this.adversarialRoles.has(descriptor.role)) {
+        this.registerAdversarialWorker(
+          descriptor.role,
+          new AdversarialTwinWorker({ id: descriptor.id, role: descriptor.role }, { invoker }),
+        );
+      }
+    }
   }
 
   async dispatch(command: CommandAuthority, objective: string): Promise<readonly AgentReport[]> {
