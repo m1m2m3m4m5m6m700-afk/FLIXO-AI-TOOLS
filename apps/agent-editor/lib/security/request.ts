@@ -34,20 +34,23 @@ export function sanitizeChatRequest(raw: unknown): ChatRequest {
       throw new Error("HISTORY_TOO_LARGE");
     }
 
+    if (message.role !== "user" && message.role !== "assistant") {
+      return null;
+    }
+
     return {
-      ...message,
+      id: message.id,
+      role: message.role,
       content,
-      toolCalls: message.toolCalls?.slice(0, 8),
-      toolResults: message.toolResults?.slice(0, 8).map((result) => ({
-        ...result,
-        errorDetails: undefined,
-      })),
+      timestamp: message.timestamp,
     };
   });
 
   return {
     message: sanitizeText(parsed.message, MAX_MESSAGE_CHARS),
-    history,
+    history: history.filter(
+      (message): message is NonNullable<typeof message> => message !== null,
+    ),
     projectState: parsed.projectState,
   };
 }
