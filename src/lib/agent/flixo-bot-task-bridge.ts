@@ -11,6 +11,12 @@ import {
   type FlixoBotToolEvidence,
 } from './flixo-bot-openai-runtime';
 import type { TaskContext, TaskState } from '@flixo/agent-runtime';
+import {
+  FLIXO_BOT_GATEWAY_AGENT_ID,
+  FLIXO_BOT_GATEWAY_MAX_TURNS,
+  FLIXO_BOT_GATEWAY_MAX_RETRIES,
+  FLIXO_BOT_GATEWAY_MAX_TOOL_CALLS,
+} from './flixo-bot-runtime-adapter';
 import { requireFlixoBuildSha } from './build-identity';
 import {
   appendConversationEvent,
@@ -71,7 +77,12 @@ export function restoreRuntimeForExecution(
   task: TaskContext,
 ): FlixoBotExecutionTaskSnapshot {
   const currentSha = requireFlixoBuildSha();
-  const runtime = restoreFlixoBotRunState(serialized, currentSha);
+  const runtime = restoreFlixoBotRunState(serialized, currentSha, {
+    agentId: FLIXO_BOT_GATEWAY_AGENT_ID,
+    maxTurns: FLIXO_BOT_GATEWAY_MAX_TURNS,
+    maxRetries: FLIXO_BOT_GATEWAY_MAX_RETRIES,
+    maxToolCalls: FLIXO_BOT_GATEWAY_MAX_TOOL_CALLS,
+  });
   assertRuntimeTaskIdentity(runtime, task);
   const expected = runtimeStatusToTaskState(runtime.status);
   if (task.state !== expected && !(runtime.status === 'RUNNING' && task.state === 'EXECUTING')) {
