@@ -31,3 +31,5 @@ test("adversarial reward favors verified findings and penalizes false positives"
   assert.ok(verified.reasons.includes("verified-defect-discovery"));
   assert.ok(noisy.reasons.includes("false-positive-adversarial-finding"));
 });
+
+test("verified reward gate rejects unverified outcomes",()=>{const engine=new AgentRewardEngine();const verification={status:"unresolved",id:"v",commandId:"c",stepId:"s",agentId:"tester",checks:[],evidence:[],reason:"insufficient",verifiedAt:new Date().toISOString()} as const;const result=engine.calculateVerified({testsPassed:10,testsFailed:0,evidenceVerified:true},verification);assert.equal(result.score,0);assert.ok(result.reasons.includes("unverified-objective"));});
