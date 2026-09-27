@@ -5,13 +5,14 @@ const SHA256 = /^[a-f0-9]{64}$/u;
 const LEARNING_KINDS = new Set(['LESSON', 'ANTI_LESSON', 'ADVICE', 'COUNTEREXAMPLE']);
 
 type LearningConfig = { url: string; key: string };
+export type ExternalAgentLearningStatus = 'PROPOSED' | 'VERIFIED' | 'BLOCKED' | 'SUPERSEDED';
 
 export type ExternalAgentLearning = Readonly<{
   learning_id: string;
   source_agent: string;
   source_role: string;
   kind: 'LESSON' | 'ANTI_LESSON' | 'ADVICE' | 'COUNTEREXAMPLE';
-  status: 'PROPOSED' | 'VERIFIED' | 'BLOCKED' | 'SUPERSEDED';
+  status: ExternalAgentLearningStatus;
   task_id: string;
   target_sha: string;
   claim: string;
@@ -33,6 +34,7 @@ export type ExternalLearningCandidateInput = Readonly<{
   content: string;
   evidenceRefs?: readonly string[];
   provenance?: Record<string, unknown>;
+  status?: ExternalAgentLearningStatus;
 }>;
 
 const config = (): LearningConfig | null => {
@@ -97,7 +99,7 @@ export async function createExternalAgentLearning(input: ExternalLearningCandida
     source_agent: String(input.sourceAgent).trim(),
     source_role: String(input.sourceRole).trim(),
     kind: input.kind,
-    status: 'PROPOSED',
+    status: input.status ?? 'PROPOSED',
     task_id: String(input.taskId).trim(),
     target_sha: String(input.targetSha),
     claim: String(input.claim).trim(),
@@ -114,6 +116,22 @@ export async function createExternalAgentLearning(input: ExternalLearningCandida
   });
   const row = Array.isArray(body) ? body[0] : null;
   return row && typeof row === 'object' ? row as ExternalAgentLearning : null;
+}
+
+export async function listAllExternalAgentLearning(limit = 128): Promise<readonly ExternalAgentLearning[]> {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 256) throw new Error('EXTERNAL_AGENT_LEARNING_LIMIT_INVALID');
+  const body = await request(
+    `/rest/v1/flixo_agent_learning_events?status=neq.BLOCKED&select=*&order=created_at.desc&limit=${limit}`,
+  );
+  if (!Array.isArray(body)) throw new Error('EXTERNAL_AGENT_LEARNING_RESPONSE_INVALID');
+  return Object.freeze(body.filter((item): item is ExternalAgentLearning => {
+    if (!item || typeof item !== 'object') return false;
+    const record = item as Partial<ExternalAgentLearning>;
+    return SHA256.test(String(record.fingerprint ?? ''))
+      && SHA40.test(String(record.target_sha ?? ''))
+      && LEARNING_KINDS.has(String(record.kind ?? ''))
+      && String(record.claim ?? '').trim().length > 0;
+  }));
 }
 
 export async function listExternalAgentLearning(targetSha: string, limit = 64): Promise<readonly ExternalAgentLearning[]> {

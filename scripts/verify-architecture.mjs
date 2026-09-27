@@ -9,6 +9,7 @@ const requiredWorkspaces = [
   "apps/agent-editor",
   "packages/contracts",
   "packages/agent-runtime",
+  "packages/agent-orchestrator",
 ];
 
 if (!Array.isArray(workspace) || !requiredWorkspaces.every((entry) => workspace.includes(entry))) {
@@ -34,7 +35,7 @@ if (!pkg.scripts["test:agent-editor"] || !pkg.scripts["build:agent-editor"]) {
   process.exit(1);
 }
 
-if (!pkg.scripts["typecheck:contracts"] || !pkg.scripts["typecheck:agent-runtime"]) {
+if (!pkg.scripts["typecheck:contracts"] || !pkg.scripts["typecheck:agent-runtime"] || !pkg.scripts["typecheck:agent-orchestrator"]) {
   console.error("Architecture gate: canonical package typechecks are missing.");
   process.exit(1);
 }
@@ -55,6 +56,24 @@ const migratedLegacyImports = [
 
 const sourceRoots = ["src", "apps", "packages"];
 const importViolations = [];
+const boundaryViolations = [];
+function checkDependencyBoundary(path, source) {
+  const lines = source.split("
+");
+  const appMatch = path.match(/^apps\/([^/]+)\//u);
+  for (const line of lines) {
+    const imported = line.match(/(?:from|import)\s*[("']([^"')]+)["')]/u)?.[1];
+    if (!imported) continue;
+    if (path.startsWith("packages/") && (imported.includes("/apps/") || imported.startsWith("@/apps/"))) {
+      boundaryViolations.push(path + " -> " + imported);
+    }
+    if (appMatch && imported.startsWith("apps/") && !imported.startsWith("apps/" + appMatch[1] + "/")) {
+      boundaryViolations.push(path + " -> " + imported);
+    }
+  }
+}
+
+
 
 function walk(dir) {
   for (const entry of readdirSync(dir)) {
@@ -62,6 +81,7 @@ function walk(dir) {
     if (statSync(path).isDirectory()) walk(path);
     else if (/\.(ts|tsx|js|jsx|mjs|cjs)$/u.test(path)) {
       const source = readFileSync(path, "utf8");
+      checkDependencyBoundary(path, source);
       for (const legacyImport of migratedLegacyImports) {
         if (source.includes(legacyImport)) importViolations.push(path + " -> " + legacyImport);
       }
@@ -71,6 +91,12 @@ function walk(dir) {
 
 for (const root of sourceRoots) {
   if (existsSync(root)) walk(root);
+}
+
+if (boundaryViolations.length) {
+  console.error("Architecture gate: forbidden dependency boundary violation.");
+  for (const violation of boundaryViolations) console.error(violation);
+  process.exit(1);
 }
 
 if (importViolations.length) {
