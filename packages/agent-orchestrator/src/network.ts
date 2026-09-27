@@ -9,6 +9,7 @@ export const AGENT_CAPABILITIES = [
   "performance",
   "ui-ux",
   "integration",
+  "red-team",
 ] as const;
 
 export type AgentCapability = (typeof AGENT_CAPABILITIES)[number];
@@ -83,6 +84,7 @@ export const DEFAULT_AGENT_NETWORK: readonly AgentDescriptor[] = Object.freeze([
   { id: "performance", role: "performance", capabilities: ["performance"], permissions: ["inspect", "run-tests"], autonomous: false, canDelegate: false },
   { id: "ui-ux", role: "ui-ux", capabilities: ["ui-ux"], permissions: ["inspect", "propose", "write-code"], autonomous: false, canDelegate: false },
   { id: "integrator", role: "integrator", capabilities: ["integration"], permissions: ["inspect", "execute", "write-code", "run-tests"], autonomous: false, canDelegate: false },
+  { id: "red-team", role: "red-team", capabilities: ["red-team"], permissions: ["inspect", "review", "run-tests", "network"], autonomous: false, canDelegate: false },
 ]);
 
 export class AgentNetworkControlPlane {
