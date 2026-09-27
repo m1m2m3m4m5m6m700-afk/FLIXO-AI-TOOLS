@@ -76,7 +76,25 @@ export class AgentRuntime {
       throw new Error(`RUNTIME_EXECUTION_BLOCKED:${this.snapshot.state}`);
     }
 
+    const executionRevision = this.snapshot.revision;
     const result = await this.registry.execute(request.toolCall);
+    if (this.snapshot.revision !== executionRevision || this.snapshot.state !== "EXECUTING") {
+      return Object.freeze({
+        requestId: request.requestId,
+        taskId: request.taskId,
+        traceId: request.traceId,
+        result: {
+          callId: request.toolCall.callId,
+          toolId: request.toolCall.toolId,
+          status: "error" as const,
+          error: {
+            code: "EXECUTION_REJECTED" as const,
+            message: "Execution result was superseded by a runtime state change.",
+            retryable: false,
+          },
+        },
+      });
+    }
     if (result.status === "error") this.fail();
     return Object.freeze({
       requestId: request.requestId,
