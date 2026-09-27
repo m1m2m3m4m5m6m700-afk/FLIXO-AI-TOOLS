@@ -33,3 +33,26 @@ test("adversarial reward favors verified findings and penalizes false positives"
 });
 
 test("verified reward gate rejects unverified outcomes",()=>{const engine=new AgentRewardEngine();const verification={status:"unresolved",id:"v",commandId:"c",stepId:"s",agentId:"tester",checks:[],evidence:[],reason:"insufficient",verifiedAt:new Date().toISOString()} as const;const result=engine.calculateVerified({testsPassed:10,testsFailed:0,evidenceVerified:true},verification);assert.equal(result.score,0);assert.ok(result.reasons.includes("unverified-objective"));});
+
+
+test("reward engine rejects non-finite and negative numeric evidence", () => {
+  const engine = new AgentRewardEngine();
+  assert.throws(
+    () => engine.calculate({ testsPassed: Number.NaN, testsFailed: 0, evidenceVerified: true }),
+    /INVALID_REWARD_SIGNAL:testsPassed/,
+  );
+  assert.throws(
+    () => engine.calculate({ testsPassed: -1, testsFailed: 0, evidenceVerified: true }),
+    /INVALID_REWARD_SIGNAL:testsPassed/,
+  );
+  assert.throws(
+    () => engine.calculateAdversarial({
+      verifiedFindings: 1,
+      falsePositiveFindings: 0,
+      resolvedDisputes: 0,
+      unresolvedDisputes: 0,
+      agreement: Number.POSITIVE_INFINITY,
+    }),
+    /INVALID_REWARD_SIGNAL:agreement/,
+  );
+});
