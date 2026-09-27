@@ -1,8 +1,18 @@
 import { z } from 'zod';
 
 export type LLMRole = 'system' | 'user' | 'assistant' | 'tool';
+export type Role = LLMRole;
 
-const JsonObjectSchema = z.record(z.string(), z.unknown());
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() => z.union([
+  z.string(),
+  z.number().finite(),
+  z.boolean(),
+  z.null(),
+  z.array(JsonValueSchema),
+  z.record(z.string(), JsonValueSchema),
+]));
+const JsonObjectSchema = z.record(z.string(), JsonValueSchema);
 
 const LLMMessageSchema = z.object({
   role: z.enum(['system', 'user', 'assistant', 'tool']),
