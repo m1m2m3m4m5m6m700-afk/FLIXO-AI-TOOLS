@@ -78,6 +78,11 @@ export const DEFAULT_AGENT_MODEL_PROFILES: readonly AgentModelProfile[] = Object
     "Integrate authorized changes and verify the complete system.",
     "Act as the integration specialist. Resolve integration issues, preserve boundaries, run end-to-end verification, and report the exact final state. Never initiate work outside the active human command.",
   ),
+  profile(
+    { id: "red-team", role: "red-team", capabilities: ["red-team"], permissions: ["inspect", "review", "run-tests", "network"], autonomous: false, canDelegate: false },
+    "Attack proposed solutions and expose verified defects, unsafe assumptions, and missing evidence.",
+    "Act as the supervised RED TEAM. Independently attack assumptions, security boundaries, reliability, evidence quality, and regressions. Never mutate the target. Reward only verified findings and penalize false positives.",
+  ),
 ]);
 
 export function getAgentModelProfile(
