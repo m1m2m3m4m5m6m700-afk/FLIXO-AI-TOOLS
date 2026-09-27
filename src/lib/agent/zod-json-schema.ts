@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-export type JsonSchema = Record<string, unknown>;
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type JsonSchema = { [key: string]: JsonValue };
 
 function unwrap(schema: z.ZodTypeAny): z.ZodTypeAny {
   if (schema instanceof z.ZodOptional || schema instanceof z.ZodNullable) {
@@ -15,8 +16,8 @@ function unwrap(schema: z.ZodTypeAny): z.ZodTypeAny {
   return schema;
 }
 
-function checks(schema: z.ZodTypeAny): Record<string, unknown> {
-  const output: Record<string, unknown> = {};
+function checks(schema: z.ZodTypeAny): Record<string, JsonValue> {
+  const output: Record<string, JsonValue> = {};
   const raw = schema._def.checks as Array<Record<string, unknown>> | undefined;
   for (const check of raw ?? []) {
     if (schema instanceof z.ZodString) {
@@ -51,7 +52,7 @@ export function zodToJsonSchema(schema: z.ZodTypeAny): JsonSchema {
 
   if (schema instanceof z.ZodObject) {
     const shape = schema.shape;
-    const properties: Record<string, unknown> = {};
+    const properties: Record<string, JsonValue> = {};
     const required: string[] = [];
 
     for (const key of Object.keys(shape)) {
@@ -103,7 +104,11 @@ export function zodToJsonSchema(schema: z.ZodTypeAny): JsonSchema {
   }
 
   if (schema instanceof z.ZodLiteral) {
-    return { const: schema.value };
+    const value = schema.value;
+    if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return { const: value };
+    }
+    return {};
   }
 
   if (schema instanceof z.ZodUnion) {
