@@ -1,3 +1,7 @@
+type RuntimeGlobal = typeof globalThis & { process?: { env?: Record<string, string | undefined> } };
+
+const runtimeEnv = (): Record<string, string | undefined> => (globalThis as RuntimeGlobal).process?.env ?? {};
+
 export type ModelProvider = "openai" | "openrouter" | "gemini";
 
 export type ProviderMessage = Readonly<{
@@ -80,18 +84,19 @@ export class ModelProviderClient {
   }
 
   async complete(messages: readonly ProviderMessage[]): Promise<string> {
+    const env = runtimeEnv();
     const model = required(
       this.model
-        ?? (this.provider === "openai" ? process.env.OPENAI_MODEL : undefined)
-        ?? (this.provider === "openrouter" ? (process.env.OPENROUTER_MODEL ?? process.env.OPENROUTER_FREE_MODEL) : undefined)
-        ?? (this.provider === "gemini" ? process.env.GEMINI_MODEL : undefined),
+        ?? (this.provider === "openai" ? env.OPENAI_MODEL : undefined)
+        ?? (this.provider === "openrouter" ? (env.OPENROUTER_MODEL ?? env.OPENROUTER_FREE_MODEL) : undefined)
+        ?? (this.provider === "gemini" ? env.GEMINI_MODEL : undefined),
       "MODEL_PROVIDER_MODEL",
     );
     const apiKey = required(
       this.apiKey
-        ?? (this.provider === "openai" ? process.env.OPENAI_API_KEY : undefined)
-        ?? (this.provider === "openrouter" ? process.env.OPENROUTER_API_KEY : undefined)
-        ?? (this.provider === "gemini" ? process.env.GEMINI_API_KEY : undefined),
+        ?? (this.provider === "openai" ? env.OPENAI_API_KEY : undefined)
+        ?? (this.provider === "openrouter" ? env.OPENROUTER_API_KEY : undefined)
+        ?? (this.provider === "gemini" ? env.GEMINI_API_KEY : undefined),
       "MODEL_PROVIDER_API_KEY",
     );
 
@@ -128,7 +133,7 @@ export class ModelProviderClient {
           "content-type": "application/json",
           authorization: `Bearer ${apiKey}`,
           ...(this.provider === "openrouter" ? {
-            "HTTP-Referer": process.env.VITE_SITE_URL ?? "https://flixoai.vercel.app",
+            "HTTP-Referer": env.VITE_SITE_URL ?? "https://flixoai.vercel.app",
             "X-Title": "FLIXO AI Agent Network",
           } : {}),
         },
