@@ -2,7 +2,7 @@ import {
   AGENT_DEFINITIONS,
   type AgentDefinition,
   type AgentRuntimeMode,
-} from './agent-profile.ts';
+} from './agent-profile';
 
 export type AgentDiscoveryRequest = Readonly<{
   query?: string;
