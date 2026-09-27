@@ -139,3 +139,40 @@ export type ObjectiveVerificationContract = Readonly<{
   reason: string;
   verifiedAt: string;
 }>;
+
+
+export type EvolutionProposalStatus = "proposed" | "benchmarked" | "awaiting_human_approval" | "approved" | "applied" | "rejected" | "rolled_back";
+
+export type EvolutionBenchmarkContract = Readonly<{
+  score: number;
+  threshold: number;
+  passed: boolean;
+  revision: string;
+  verifiedAt: string;
+}>;
+
+export type EvolutionProposalContract = Readonly<{
+  id: string;
+  commandId: string;
+  agentId: string;
+  target: string;
+  summary: string;
+  baseRevision: string;
+  status: EvolutionProposalStatus;
+  objectiveVerificationId: string;
+  objectiveVerificationStatus: ObjectiveVerificationStatus;
+  benchmark?: EvolutionBenchmarkContract;
+  appliedRevision?: string;
+  rollbackRevision?: string;
+  createdAt: string;
+  updatedAt: string;
+}>;
+
+export type EvolutionPromotionContract = Readonly<{
+  proposalId: string;
+  commandId: string;
+  approvedBy: "human";
+  approvedAt: string;
+  reason: string;
+  action: "approve" | "rollback";
+}>;
