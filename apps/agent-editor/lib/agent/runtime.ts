@@ -142,6 +142,10 @@ export class AgentRuntime {
         }
       }
 
+      for (const token of mockResult.content.split(/(?=\s)|(?<=\s)/).filter(Boolean)) {
+        yield { type: "token", text: token };
+      }
+
       const response = this.buildResponse(
         mockResult.content,
         requestedCalls,
