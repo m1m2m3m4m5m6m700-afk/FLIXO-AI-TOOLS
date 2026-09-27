@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { AgentLearningEngine } from "../src/learning.ts";
+import { AgentLearningEngine, AgentLearningObserver } from "../src/learning.ts";
 import { InMemoryExperienceStore } from "../src/experience.ts";
 import { DEFAULT_AGENT_NETWORK } from "../src/network.ts";
 import type { AgentExperience } from "../src/experience.ts";
@@ -36,4 +36,24 @@ test("learning recommends agents from observed experience without executing them
   assert.equal(recommendations[0].agentId, "implementer");
   assert.equal(recommendations[0].sampleCount, 3);
   assert.equal(recommendations[0].exploration, false);
+});
+
+test("learning observer converts supervised reports into durable experience", () => {
+  const store = new InMemoryExperienceStore();
+  const engine = new AgentLearningEngine(DEFAULT_AGENT_NETWORK, store);
+  const observer = new AgentLearningObserver(store);
+  observer.onDispatch({
+    stepId: "step-observe", commandId: "cmd-observe", role: "implementer",
+    objective: "implement scoped change with tests", constraints: [], context: {},
+  });
+  observer.onReport({
+    stepId: "step-observe", commandId: "cmd-observe", status: "completed",
+    summary: "verified", evidence: {
+      testsPassed: 10, testsFailed: 0,
+      requiredArtifacts: ["code"], completedArtifacts: ["code"], evidenceVerified: true,
+    },
+  });
+  assert.equal(store.byAgent("implementer").length, 1);
+  assert.equal(store.byAgent("implementer")[0]?.reward.score, 100);
+  assert.equal(engine.recommend("implement scoped change with tests", 0.99)[0]?.agentId, "implementer");
 });
