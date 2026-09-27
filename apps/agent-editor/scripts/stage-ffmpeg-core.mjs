@@ -7,9 +7,12 @@ const require = createRequire(import.meta.url);
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(scriptDir, "../public/ffmpeg");
 const resolvedCore = require.resolve("@ffmpeg/core");
-const sourceDir = path.dirname(resolvedCore).endsWith(path.join("dist", "esm"))
-  ? path.dirname(resolvedCore)
-  : path.resolve(path.dirname(resolvedCore), "dist", "esm");
+const resolvedDir = path.dirname(resolvedCore);
+const sourceDir = resolvedDir.endsWith(path.join("dist", "umd"))
+  ? path.resolve(resolvedDir, "../esm")
+  : resolvedDir.endsWith(path.join("dist", "esm"))
+    ? resolvedDir
+    : path.resolve(resolvedDir, "../esm");
 
 const requiredFiles = ["ffmpeg-core.js", "ffmpeg-core.wasm"];
 const optionalFiles = ["ffmpeg-core.worker.js"];
@@ -26,6 +29,7 @@ for (const fileName of requiredFiles) {
 for (const fileName of optionalFiles) {
   const source = path.join(sourceDir, fileName);
   const destination = path.join(publicDir, fileName);
+
   try {
     await fs.access(source);
     await fs.copyFile(source, destination);
