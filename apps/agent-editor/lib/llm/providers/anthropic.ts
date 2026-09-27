@@ -23,7 +23,7 @@ type AnthropicEvent = {
   };
 };
 
-function toMessages(messages: readonly LLMMessage[]) {
+function toMessages(messages: readonly LLMMessage[]): unknown[] {
   return messages.flatMap((message) => {
     if (message.role === "tool") {
       return [{
