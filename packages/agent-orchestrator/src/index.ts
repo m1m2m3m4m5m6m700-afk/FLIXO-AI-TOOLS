@@ -1,5 +1,3 @@
-import type { AgentRole } from "@flixo/contracts";
-
 export type CommandAuthority = Readonly<{
   commandId: string;
   issuedBy: "human" | "system";
@@ -9,7 +7,7 @@ export type CommandAuthority = Readonly<{
 export type AgentInstruction = Readonly<{
   stepId: string;
   commandId: string;
-  role: AgentRole;
+  role: string;
   objective: string;
   constraints: readonly string[];
   context: Readonly<Record<string, unknown>>;
@@ -17,7 +15,7 @@ export type AgentInstruction = Readonly<{
 
 export type AgentStep = Readonly<{
   stepId: string;
-  role: AgentRole;
+  role: string;
   objective: string;
   dependsOn: readonly string[];
   constraints: readonly string[];
