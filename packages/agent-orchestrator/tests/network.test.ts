@@ -148,3 +148,48 @@ test("direct command waits for durable audit persistence and finalization", asyn
   assert.ok(events.some((entry) => entry.startsWith("persist:")));
   assert.equal(events.at(-1), "finalize:completed");
 });
+
+
+test("audit failure does not strand the active command", async () => {
+  let persistCalls = 0;
+  const orchestrator = new DirectCommandOrchestrator(
+    {
+      async plan(command, objective) {
+        return {
+          commandId: command.commandId,
+          objective,
+          steps: [{ stepId: "step-audit-fail", role: "tester", objective, dependsOn: [], constraints: [] }],
+        };
+      },
+    },
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      async persist() {
+        persistCalls += 1;
+        if (persistCalls === 1) throw new Error("AUDIT_WRITE_FAILED");
+      },
+      async finalize() {},
+    },
+  );
+  orchestrator.registerWorker({
+    id: "tester",
+    async run(instruction) {
+      return { stepId: instruction.stepId, commandId: instruction.commandId, status: "completed", summary: "ok", evidence: {} };
+    },
+  });
+
+  await assert.rejects(
+    () => orchestrator.dispatch({ commandId: "cmd-audit-fail", issuedBy: "human", issuedAt: new Date().toISOString() }, "test cleanup"),
+    /AUDIT_WRITE_FAILED/,
+  );
+
+  const reports = await orchestrator.dispatch(
+    { commandId: "cmd-audit-retry", issuedBy: "human", issuedAt: new Date().toISOString() },
+    "second command after audit failure",
+  );
+  assert.equal(reports.length, 1);
+});
