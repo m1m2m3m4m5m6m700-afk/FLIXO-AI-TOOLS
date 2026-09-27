@@ -6,6 +6,8 @@ import { DEFAULT_AGENT_NETWORK } from "../src/network.ts";
 import type { AgentExperience } from "../src/experience.ts";
 import type { AgentReport } from "../src/index.ts";
 import type { RewardResult } from "../src/reward.ts";
+import { DirectCommandOrchestrator } from "../src/index.ts";
+import { ContinualLearningEngine } from "../src/continual-learning.ts";
 
 const report: AgentReport = { stepId: "step-1", commandId: "cmd-1", status: "completed", summary: "done" };
 const reward: RewardResult = {
@@ -56,4 +58,49 @@ test("learning observer converts supervised reports into durable experience", ()
   assert.equal(store.byAgent("implementer").length, 1);
   assert.equal(store.byAgent("implementer")[0]?.reward.score, 100);
   assert.equal(engine.recommend("implement scoped change with tests", 0.99)[0]?.agentId, "implementer");
+});
+
+
+test("failed supervised execution changes the next curriculum focus", async () => {
+  const store = new InMemoryExperienceStore();
+  const observer = new AgentLearningObserver(store);
+  const orchestrator = new DirectCommandOrchestrator({
+    async plan(command, objective) {
+      return {
+        commandId: command.commandId,
+        objective,
+        steps: [{ stepId: "step-failure-loop", role: "tester", objective, dependsOn: [], constraints: [] }],
+      };
+    },
+  }, observer);
+
+  orchestrator.registerWorker({
+    id: "tester",
+    async run(instruction) {
+      return {
+        stepId: instruction.stepId,
+        commandId: instruction.commandId,
+        status: "failed",
+        summary: "verification failed",
+        evidence: {
+          testsPassed: 1,
+          testsFailed: 3,
+          evidenceVerified: false,
+          outOfScopeActions: 0,
+          delegatedTasks: 0,
+        },
+      };
+    },
+  });
+
+  const reports = await orchestrator.dispatch(
+    { commandId: "cmd-learning-loop", issuedBy: "human", issuedAt: new Date().toISOString() },
+    "verify and repair the change",
+  );
+  assert.equal(reports[0]?.verification?.status, "rejected");
+  assert.equal(store.byAgent("tester").length, 1);
+  assert.equal(store.byAgent("tester")[0]?.reward.score, 0);
+
+  const curriculum = new ContinualLearningEngine(store).curriculum("tester", "verify and repair the change");
+  assert.equal(curriculum[0]?.focus, "verification-test-failure");
 });
