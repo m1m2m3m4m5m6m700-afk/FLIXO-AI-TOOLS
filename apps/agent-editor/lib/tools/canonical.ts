@@ -14,7 +14,9 @@ const toJsonSchema=(schema:typeof CAPABILITY_REGISTRY[number]["parameterSchema"]
   delete value.$schema; return value;
 };
 export const CANONICAL_AGENT_TOOLS:readonly CanonicalAgentTool[]=Object.freeze(
-  CAPABILITY_REGISTRY.map((tool)=>Object.freeze({
+  CAPABILITY_REGISTRY
+    .filter((tool)=>tool.state==="EXECUTABLE")
+    .map((tool)=>Object.freeze({
     id:tool.id,name:tool.id,description:tool.description,category:tool.category,
     jsonSchemaInput:toJsonSchema(tool.parameterSchema),parameterSchema:tool.parameterSchema,
     executionMode:tool.executionMode,executorId:tool.operational.executorId,
