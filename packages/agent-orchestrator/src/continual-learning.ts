@@ -1,5 +1,6 @@
 import type { AgentExperience, ExperienceStore } from "./experience.ts";
 import { AgentRewardEngine, type RewardResult } from "./reward.ts";
+import { ObjectiveVerifier } from "./objective-verifier.ts";
 
 export type SkillRecord = Readonly<{
   id: string;
@@ -53,12 +54,14 @@ export class ContinualLearningEngine {
   constructor(
     private readonly store: ExperienceStore,
     private readonly rewardEngine = new AgentRewardEngine(),
+    private readonly verifier = new ObjectiveVerifier(),
     private readonly policy: ContinualLearningPolicy = DEFAULT_CONTINUAL_LEARNING_POLICY,
   ) {}
 
   record(experience: AgentExperience): RewardResult {
-    const reward = this.rewardEngine.calculate(experience.report.evidence ?? {});
-    const persisted = Object.freeze({ ...experience, reward });
+    const verification = experience.report.verification ?? this.verifier.verify({ id: `${experience.commandId}:${experience.stepId}`, commandId: experience.commandId, stepId: experience.stepId, agentId: experience.agentId, evidence: experience.report.evidence ?? {} });
+    const reward = this.rewardEngine.calculateVerified(experience.report.evidence ?? {}, verification);
+    const persisted = Object.freeze({ ...experience, report: Object.freeze({ ...experience.report, verification }), reward });
     this.store.append(persisted);
     return reward;
   }
