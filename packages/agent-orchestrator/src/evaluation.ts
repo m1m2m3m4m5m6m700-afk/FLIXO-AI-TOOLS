@@ -35,7 +35,7 @@ export const AGENT_TRAINING_CASES: readonly TrainingCase[] = Object.freeze([
     ["performance", "performance", "Detect performance regressions and bottlenecks."],
     ["ui-ux", "ui-ux", "Propose an accessible, coherent interface change."],
     ["integrator", "integration", "Integrate changes and verify the complete system."],
-  ] as const).map(([agentId, capability, objective]) => ({
+  ] as const).map(([agentId, , objective]) => ({
     id: `benchmark-${agentId}`,
     agentId,
     objective,
