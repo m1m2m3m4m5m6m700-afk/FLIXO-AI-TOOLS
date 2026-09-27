@@ -68,6 +68,15 @@ export function canTransition(from: RuntimeState, to: RuntimeState): boolean {
   return TRANSITIONS[from].includes(to);
 }
 
+export function transition(from: RuntimeState, to: RuntimeState): RuntimeState {
+  if (!canTransition(from, to)) throw new TaskStateTransitionError(from, to);
+  return to;
+}
+
+export function isTerminal(state: RuntimeState): boolean {
+  return TERMINAL_STATES.has(state);
+}
+
 export function transitionTask(context: TaskContext, next: TaskState): TaskContext {
   if (!canTransition(context.state, next)) {
     throw new TaskStateTransitionError(context.state, next);
