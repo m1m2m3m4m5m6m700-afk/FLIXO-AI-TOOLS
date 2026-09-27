@@ -427,7 +427,7 @@ export function applyNextStep(
     const target = required(step.targetAgentId, 'HANDOFF_TARGET_AGENT_ID');
     return withStatus(
       Object.freeze({
-        ...state, currentOwner: target,
+        ...state,
         stepIndex: state.stepIndex + 1, turnCount: state.turnCount + 1,
       }),
       'RUNNING',
