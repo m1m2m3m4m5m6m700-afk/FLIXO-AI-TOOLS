@@ -2,7 +2,6 @@ import {
   CAPABILITY_DEFINITIONS,
   getCanonicalCapabilityDefinition,
   MVP_EXECUTABLE_TOOL_IDS,
-  type CanonicalCapabilityDefinition,
   type CanonicalCapabilityLimits,
   type CanonicalCapabilityParameters,
   type CanonicalCapabilityState,
