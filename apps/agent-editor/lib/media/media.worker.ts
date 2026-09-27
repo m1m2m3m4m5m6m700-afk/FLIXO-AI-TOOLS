@@ -115,7 +115,6 @@ async function ensureFfmpegLoaded(jobId: string): Promise<FFmpeg> {
   await instance.load({
     coreURL: activeFfmpegBasePath + "/ffmpeg-core.js",
     wasmURL: activeFfmpegBasePath + "/ffmpeg-core.wasm",
-    workerURL: activeFfmpegBasePath + "/ffmpeg-core.worker.js",
   });
 
   ffmpegState = instance;
