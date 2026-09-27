@@ -21,8 +21,8 @@ During migration:
 1. New shared Agent contracts belong in `packages/contracts/`.
 2. Shared Agent runtime belongs in `packages/agent-runtime/`.
 3. New shared Agent state/profile/discovery/task lifecycle code must not be added to `src/lib/agent/`.
-3. Application adapters remain inside their owning app.
-4. Legacy modules are deleted only after import consumers and tests have been migrated.
+4. Application adapters remain inside their owning app.
+5. Migrated runtime compatibility shims are not valid import targets; consumers must import from `@flixo/agent-runtime`.
 
 ## Dependency direction
 

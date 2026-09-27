@@ -1,5 +1,5 @@
 import type { ExecutionPlan } from '@/lib/ai/planner';
-import { assertExecutionAllowed, type TaskContext } from '@/lib/agent/task-state';
+import { assertExecutionAllowed, type TaskContext } from '@flixo/agent-runtime';
 import { authorizeExecution } from '@/lib/agent/execution-gate';
 import { classifyExecutionFailure, createExecutionAuditEvent, deriveRecoveryMetadata, type ExecutionAuditEvent } from '@/lib/agent/execution-observability';
 import { assertExecutionResourceBudget, getCapability, validateCapabilityParameters, type CapabilityParameters } from '@/lib/agent/capability-registry';
@@ -11,7 +11,7 @@ import { assertToolOutputContract, type ToolOutputResult } from '@/lib/contracts
 import { verifyVisualGoal, deriveVisualGoalSpec } from '@/lib/agent/visual-goal-verifier';
 import { reviewOutputBasics, type OutputReview } from '@/lib/agent/output-review';
 import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelinePlanFingerprint, createPipelineReceiptChain, createPipelineStepReceipt, type PipelineReceiptChain, type PipelineStepReceipt } from '@/lib/workflows/pipeline-receipt';
-import { assertExecutionBudgetAlive, consumeOutputBytes, consumeRetry, consumeStep, consumeToolCall, createExecutionBudget, type ExecutionBudget } from '@/lib/agent/execution-budget';
+import { assertExecutionBudgetAlive, consumeOutputBytes, consumeRetry, consumeStep, consumeToolCall, createExecutionBudget, type ExecutionBudget } from '@flixo/agent-runtime';
 
 export type PipelineRuntimeHooks = Readonly<{
   beforeTool?: (input: Readonly<{

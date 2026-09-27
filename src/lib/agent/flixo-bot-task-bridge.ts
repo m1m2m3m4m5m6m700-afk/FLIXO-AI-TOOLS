@@ -10,7 +10,7 @@ import {
   type FlixoBotRunState,
   type FlixoBotToolEvidence,
 } from './flixo-bot-openai-runtime';
-import type { TaskContext, TaskState } from './task-state';
+import type { TaskContext, TaskState } from '@flixo/agent-runtime';
 import { requireFlixoBuildSha } from './build-identity';
 import {
   appendConversationEvent,

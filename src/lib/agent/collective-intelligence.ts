@@ -6,7 +6,7 @@
  * execution, merge, or certification authority.
  */
 
-import { listAgentProfiles } from '@/lib/agent/agent-profile';
+import { listAgentProfiles } from '@flixo/agent-runtime';
 
 export const COLLECTIVE_INTELLIGENCE_VERSION = 'FLIXO-BOT-BRAIN-v2' as const;
 export const COLLECTIVE_INTELLIGENCE_SOURCE = 'docs/agents/FLIXO-BOT.json' as const;

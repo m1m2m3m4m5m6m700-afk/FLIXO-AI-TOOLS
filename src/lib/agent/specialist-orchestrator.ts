@@ -1,5 +1,5 @@
-import { getAgentProfile } from './agent-profile.ts';
-import type { DecomposedTask, DecomposedTaskKind } from './task-decomposer.ts';
+import { getAgentProfile } from '@flixo/agent-runtime';
+import type { DecomposedTask, DecomposedTaskKind } from '@flixo/agent-runtime';
 export const SPECIALIST_ORCHESTRATOR_VERSION=2 as const;
 const MAX_SPECIALISTS=6;
 export type SpecialistLens='browser-observation'|'react-performance'|'frontend-design';

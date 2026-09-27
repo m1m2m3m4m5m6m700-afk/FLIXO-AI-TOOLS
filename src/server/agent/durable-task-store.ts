@@ -1,4 +1,4 @@
-import type { AgentTaskRecord } from '@/lib/agent/agent-task-manager';
+import type { AgentTaskRecord } from '@flixo/agent-runtime';
 import type { AgentEventEnvelope } from '@/lib/agent/event-gateway';
 
 type PersistedTaskRow = {
