@@ -32,9 +32,6 @@ jobs:
     env:
       EXPECTED_SHA: ${{ inputs.exact_sha }}
       MSWEA_MODEL_NAME: ${{ inputs.model }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
       - name: Assert execution branch
         shell: bash
@@ -58,6 +55,10 @@ jobs:
 
       - name: Verify provider credentials are available
         shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           set -euo pipefail
           test -n "${OPENAI_API_KEY:-}" -o -n "${ANTHROPIC_API_KEY:-}" -o -n "${GEMINI_API_KEY:-}"
@@ -80,6 +81,10 @@ jobs:
 
       - name: Run mini-SWE-agent in disposable workspace
         shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           set +e
           uvx --from "mini-swe-agent==2.4.6" mini -y -t "$(cat "$RUNNER_TEMP/flixo-mini-swe-task.md")" -m "$MSWEA_MODEL_NAME"
