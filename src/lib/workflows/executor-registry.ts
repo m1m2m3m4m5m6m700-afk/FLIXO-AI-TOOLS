@@ -4,8 +4,10 @@ import type { CapabilityParameters } from '../agent/capability-registry';
 import type { ToolDefinition } from '../../config/canonical-tool-definition';
 import { getVideoToolExecutor } from '../video/video-tool-executors';
 
+export type ExecutableToolView = Pick<ToolDefinition, "id" | "operational" | "safetyLimits">;
+
 export type ToolExecutorContext = Readonly<{
-  tool: ToolDefinition;
+  tool: ExecutableToolView;
   inputBlob: Blob;
   parameters: CapabilityParameters;
 }>;
@@ -116,7 +118,7 @@ const REPAIRERS: Readonly<Record<string, ToolParameterRepairer>> = Object.freeze
   },
 });
 
-export function getToolExecutor(tool: ToolDefinition): ToolExecutor {
+export function getToolExecutor(tool: ExecutableToolView): ToolExecutor {
   const executorId = tool.operational.executorId;
   if (!executorId) throw new Error(`Tool '${tool.id}' has no executor binding.`);
   const executor = EXECUTORS[executorId];
@@ -124,7 +126,7 @@ export function getToolExecutor(tool: ToolDefinition): ToolExecutor {
   return executor;
 }
 
-export function repairToolParameters(tool: ToolDefinition, parameters: CapabilityParameters, attempt: number): CapabilityParameters | null {
+export function repairToolParameters(tool: ExecutableToolView, parameters: CapabilityParameters, attempt: number): CapabilityParameters | null {
   const executorId = tool.operational.executorId;
   return executorId ? REPAIRERS[executorId]?.(parameters, attempt) ?? null : null;
 }
