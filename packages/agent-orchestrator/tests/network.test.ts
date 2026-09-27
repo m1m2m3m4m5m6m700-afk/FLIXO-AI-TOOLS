@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { DirectCommandOrchestrator } from "../src/index.ts";
 import {
   DEFAULT_AGENT_NETWORK,
   AgentNetworkControlPlane,
