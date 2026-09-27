@@ -1,4 +1,5 @@
-import { AgentCapability, AgentHeartbeat, AgentNetworkControlPlane, AgentNetworkSnapshot, AgentPermission, DEFAULT_AGENT_NETWORK, type AgentAuditSink } from "./network.ts";
+import { AgentNetworkControlPlane, DEFAULT_AGENT_NETWORK, type AgentAuditSink } from "./network.ts";
+import type { AgentCapability, AgentHeartbeat, AgentNetworkSnapshot, AgentPermission } from "./network.ts";
 import { AdversarialTwinWorker } from "./adversarial.ts";
 import { RedTeamWorker } from "./red-team.ts";
 import { AgentCognitiveLedger, FailureIntelligence, ConfidenceCalibrator } from "./cognitive.ts";
