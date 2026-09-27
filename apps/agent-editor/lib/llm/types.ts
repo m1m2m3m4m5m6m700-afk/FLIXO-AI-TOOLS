@@ -1,7 +1,7 @@
 export const LLM_PROVIDER_NAMES = ["openai", "anthropic", "gemini"] as const;
 export type LLMProviderName = (typeof LLM_PROVIDER_NAMES)[number];
 
-export type LLMMessageRole = "user" | "assistant" | "tool";
+export type LLMMessageRole = "system" | "user" | "assistant" | "tool";
 
 export type LLMToolDefinition = Readonly<{
   name: string;
