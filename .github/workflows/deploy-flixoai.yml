@@ -208,7 +208,7 @@ jobs:
           echo "Root endpoint HTTP status: $root_status"
           if [ "$root_status" != "200" ] || ! grep -Eiq '<html[[:space:]>]' /tmp/flixo-production.html; then
             echo "Production root HTML verification failed"
-            sed -n '1,40p' /tmp/flixo-production.html || true
+            sed -n '1,40p' /tmp/flixo-production.html
             exit 1
           fi
           echo "Production root returned HTML"
