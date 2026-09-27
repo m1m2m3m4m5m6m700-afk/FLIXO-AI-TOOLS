@@ -62,6 +62,15 @@ export class ToolRegistry {
     toolName: string,
     rawInput: unknown,
   ): Promise<ToolCallResult> {
+    if (!this.tools.has(toolName)) {
+      return this.result({
+        callId,
+        toolName,
+        status: "error",
+        errorDetails: `Tool '${toolName}' is not registered in the ToolRegistry.`,
+        executionTimeMs: 0,
+      });
+    }
     const result = await this.runtimeRegistry.execute({
       callId,
       toolId: toolName,
