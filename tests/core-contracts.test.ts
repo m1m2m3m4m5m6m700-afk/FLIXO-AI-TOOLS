@@ -13,7 +13,7 @@ const {
   IMAGE_COMPRESSOR_MAX_PIXELS,
 } = await import('../src/tools/image-compressor/file-safety.ts');
 const { solveMath, verifyMathReceipt } =
-  await import('../src/lib/agent/universal/math-engine.ts');
+  await import('../packages/agent-runtime/src/math-engine.ts');
 const { decomposeTask } = await import('../src/lib/agent/task-decomposer.ts');
 const {
   createMissionContract,
