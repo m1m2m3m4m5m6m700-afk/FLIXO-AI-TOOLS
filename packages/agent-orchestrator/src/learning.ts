@@ -2,6 +2,7 @@ import type { AgentDescriptor } from "./network.ts";
 import type { AgentExperience, ExperienceStore } from "./experience.ts";
 import { AgentRewardEngine, type RewardResult } from "./reward.ts";
 import { ObjectiveVerifier } from "./objective-verifier.ts";
+import { FailureIntelligence } from "./cognitive.ts";
 import type { AgentInstruction, AgentObserver, AgentReport } from "./index.ts";
 
 export type AgentLearningRecommendation = Readonly<{
@@ -59,6 +60,7 @@ export class AgentLearningObserver implements AgentObserver {
     private readonly store: ExperienceStore,
     private readonly rewardEngine = new AgentRewardEngine(),
     private readonly verifier = new ObjectiveVerifier(),
+    private readonly failureIntelligence = new FailureIntelligence(),
   ) {}
   onDispatch(instruction: AgentInstruction): void {
     this.instructions.set(instruction.stepId, instruction);
@@ -67,7 +69,9 @@ export class AgentLearningObserver implements AgentObserver {
     const instruction = this.instructions.get(report.stepId);
     if (!instruction || instruction.commandId !== report.commandId) return;
     const verification = report.verification ?? this.verifier.verify({ id: `${report.commandId}:${report.stepId}`, commandId: report.commandId, stepId: report.stepId, agentId: instruction.role, evidence: (report.evidence ?? {}) as Parameters<ObjectiveVerifier["verify"]>[0]["evidence"] });
-    const reward = this.rewardEngine.calculateVerified((report.evidence ?? {}) as Parameters<AgentRewardEngine["calculate"]>[0], verification);
+    const evidence = (report.evidence ?? {}) as Parameters<AgentRewardEngine["calculate"]>[0];
+    const reward = this.rewardEngine.calculateVerified(evidence, verification);
+    const failures = this.failureIntelligence.classify(report.commandId, report.stepId, instruction.role, evidence);
     const experience: AgentExperience = Object.freeze({
       id: report.commandId + ":" + report.stepId,
       commandId: report.commandId,
@@ -76,6 +80,7 @@ export class AgentLearningObserver implements AgentObserver {
       objective: instruction.objective,
       report: Object.freeze({ ...report, verification }),
       reward,
+      failurePatterns: Object.freeze(failures.map((failure) => failure.pattern)),
       timestamp: new Date().toISOString(),
     });
     this.store.append(experience);
