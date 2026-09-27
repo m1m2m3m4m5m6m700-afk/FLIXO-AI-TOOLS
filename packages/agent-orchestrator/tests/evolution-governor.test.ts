@@ -14,9 +14,9 @@ const verification = {
   verifiedAt: new Date().toISOString(),
 };
 
-test("evolution governor blocks promotion until benchmark and human approval", () => {
+test("evolution governor blocks promotion until benchmark and human approval", async () => {
   const governor = new EvolutionGovernor();
-  governor.propose({
+  await governor.propose({
     id: "proposal-1",
     commandId: "cmd-evolution",
     agentId: "implementer",
@@ -29,11 +29,11 @@ test("evolution governor blocks promotion until benchmark and human approval", (
 
   assert.throws(() => governor.requestPromotion("proposal-1"), /EVOLUTION_REQUIRES_BENCHMARK/);
 
-  governor.benchmark("proposal-1", { score: 92, threshold: 80, passed: true, revision: "bench-1" });
-  governor.requestPromotion("proposal-1");
+  await governor.benchmark("proposal-1", { score: 92, threshold: 80, passed: true, revision: "bench-1" });
+  await governor.requestPromotion("proposal-1");
 
   assert.throws(() => governor.recordApplied("proposal-1", "applied-1"), /EVOLUTION_NOT_APPROVED/);
-  governor.approve({
+  await governor.approve({
     proposalId: "proposal-1",
     commandId: "cmd-evolution",
     approvedBy: "human",
@@ -42,13 +42,13 @@ test("evolution governor blocks promotion until benchmark and human approval", (
     action: "approve",
   });
 
-  const applied = governor.recordApplied("proposal-1", "applied-1");
+  const applied = await governor.recordApplied("proposal-1", "applied-1");
   assert.equal(applied.status, "applied");
 });
 
-test("evolution rollback requires explicit human authorization", () => {
+test("evolution rollback requires explicit human authorization", async () => {
   const governor = new EvolutionGovernor();
-  governor.propose({
+  await governor.propose({
     id: "proposal-2",
     commandId: "cmd-evolution-2",
     agentId: "tester",
@@ -58,9 +58,9 @@ test("evolution rollback requires explicit human authorization", () => {
     objectiveVerification: { ...verification, id: "verification-2", commandId: "cmd-evolution-2" },
     mutationPlan: { executionBoundary: "sandbox-only", sandboxId: "sandbox-2", targetPaths: ["sandbox/module.ts"], maxFiles: 4, dryRun: true },
   });
-  governor.benchmark("proposal-2", { score: 95, threshold: 80, passed: true, revision: "bench-2" });
-  governor.requestPromotion("proposal-2");
-  governor.approve({
+  await governor.benchmark("proposal-2", { score: 95, threshold: 80, passed: true, revision: "bench-2" });
+  await governor.requestPromotion("proposal-2");
+  await governor.approve({
     proposalId: "proposal-2",
     commandId: "cmd-evolution-2",
     approvedBy: "human",
@@ -68,7 +68,7 @@ test("evolution rollback requires explicit human authorization", () => {
     reason: "approve test",
     action: "approve",
   });
-  governor.recordApplied("proposal-2", "applied-2");
+  await governor.recordApplied("proposal-2", "applied-2");
 
   assert.throws(() => governor.rollback({
     proposalId: "proposal-2",
@@ -79,7 +79,7 @@ test("evolution rollback requires explicit human authorization", () => {
     action: "approve",
   }, "rollback-2"), /EVOLUTION_HUMAN_ROLLBACK_REQUIRED/);
 
-  const rolledBack = governor.rollback({
+  const rolledBack = await governor.rollback({
     proposalId: "proposal-2",
     commandId: "cmd-evolution-2",
     approvedBy: "human",
@@ -91,9 +91,9 @@ test("evolution rollback requires explicit human authorization", () => {
   assert.equal(rolledBack.rollbackRevision, "rollback-2");
 });
 
-test("unverified objective cannot request evolution promotion", () => {
+test("unverified objective cannot request evolution promotion", async () => {
   const governor = new EvolutionGovernor();
-  governor.propose({
+  await governor.propose({
     id: "proposal-3",
     commandId: "cmd-evolution-3",
     agentId: "implementer",
@@ -103,8 +103,8 @@ test("unverified objective cannot request evolution promotion", () => {
     objectiveVerification: { ...verification, id: "verification-3", commandId: "cmd-evolution-3", status: "unresolved" },
     mutationPlan: { executionBoundary: "sandbox-only", sandboxId: "sandbox-3", targetPaths: ["sandbox/module.ts"], maxFiles: 4, dryRun: true },
   });
-  governor.benchmark("proposal-3", { score: 99, threshold: 80, passed: true, revision: "bench-3" });
-  assert.throws(() => governor.requestPromotion("proposal-3"), /EVOLUTION_OBJECTIVE_NOT_VERIFIED/);
+  await governor.benchmark("proposal-3", { score: 99, threshold: 80, passed: true, revision: "bench-3" });
+  await assert.rejects(() => governor.requestPromotion("proposal-3"), /EVOLUTION_OBJECTIVE_NOT_VERIFIED/);
 });
 
 
@@ -126,4 +126,25 @@ test("evolution governor rejects unsafe mutation targets", () => {
       dryRun: true,
     },
   }), /EVOLUTION_UNSAFE_TARGET_PATH/);
+});
+
+
+test("evolution transitions wait for durable audit persistence", async () => {
+  const events: string[] = [];
+  const governor = new EvolutionGovernor({
+    async persist(event) { events.push(event); },
+  });
+  await governor.propose({
+    id: "proposal-audit",
+    commandId: "cmd-audit",
+    agentId: "implementer",
+    target: "sandbox/module",
+    summary: "audited proposal",
+    baseRevision: "base-audit",
+    objectiveVerification: verification,
+    mutationPlan: { executionBoundary: "sandbox-only", sandboxId: "sandbox-audit", targetPaths: ["sandbox/module.ts"], maxFiles: 1, dryRun: true },
+  });
+  await governor.benchmark("proposal-audit", { score: 91, threshold: 80, passed: true, revision: "bench-audit" });
+  await governor.requestPromotion("proposal-audit");
+  assert.deepEqual(events, ["proposed", "benchmarked", "awaiting_human_approval"]);
 });
