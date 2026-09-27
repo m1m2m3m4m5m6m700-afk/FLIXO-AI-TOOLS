@@ -23,7 +23,8 @@
     "ci": "npm run test && npm run build",
     "test:agent-editor": "npm install --prefix apps/agent-editor --no-audit --no-fund && npm run type-check --prefix apps/agent-editor && npm run test:unit --prefix apps/agent-editor",
     "build:agent-editor": "npm install --prefix apps/agent-editor --no-audit --no-fund && npm run build --prefix apps/agent-editor",
-    "verify:architecture": "node scripts/verify-architecture.mjs"
+    "verify:architecture": "node scripts/verify-architecture.mjs",
+    "verify:contracts": "node scripts/verify-contract-boundary.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
