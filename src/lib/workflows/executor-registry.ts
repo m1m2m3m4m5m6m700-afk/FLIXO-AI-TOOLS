@@ -31,23 +31,6 @@ export type ToolParameterRepairer = (parameters: CapabilityParameters, attempt: 
 
 const asFile = (blob: Blob) => new File([blob], 'flixo-pipeline-input.png', { type: blob.type || 'image/png' });
 
-async function imageBitmap(blob: Blob) {
-  if (typeof createImageBitmap === 'function') return createImageBitmap(blob);
-  const url = URL.createObjectURL(blob);
-  const image = new Image();
-  try {
-    image.src = url;
-    await image.decode();
-    return image;
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
-function canvasToBlob(canvas: HTMLCanvasElement, type = 'image/png', quality = 0.94) {
-  return new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Image encoding failed.')), type, quality));
-}
-
 async function effects(blob: Blob, params: CapabilityParameters, signal?: AbortSignal): Promise<Blob> {
   if (typeof Worker === 'undefined') throw new Error('Image Effects Worker is unavailable.');
   if (signal?.aborted) throw new DOMException('Execution aborted.', 'AbortError');
