@@ -8,11 +8,46 @@ const MAX_HISTORY_CHARS = 4_000;
 const MAX_TOTAL_HISTORY_CHARS = 32_000;
 const MAX_PROJECT_STATE_BYTES = 128 * 1024;
 
+const MetadataOnlyProjectStateSchema = ProjectStateSchema.superRefine((projectState, ctx) => {
+  projectState.layers.forEach((layer, index) => {
+    const source = layer as unknown as Record<string, unknown>;
+    if ("url" in source) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["layers", index, "url"],
+        message: "Raw media URLs are not accepted by the agent gateway.",
+      });
+    }
+    if ("content" in source) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["layers", index, "content"],
+        message: "Layer content is not accepted by the agent gateway.",
+      });
+    }
+    if ("metadata" in source && Object.keys(layer.metadata).length > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["layers", index, "metadata"],
+        message: "Layer metadata is not accepted by the agent gateway.",
+      });
+    }
+  });
+
+  if (projectState.timeline.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["timeline"],
+      message: "Timeline snapshots are not accepted by the agent gateway.",
+    });
+  }
+});
+
 export const ChatRequestSchema = z
   .object({
     message: z.string().trim().min(1).max(MAX_MESSAGE_CHARS),
     history: z.array(ChatMessageSchema).max(MAX_HISTORY_MESSAGES).default([]),
-    projectState: ProjectStateSchema.optional(),
+    projectState: MetadataOnlyProjectStateSchema.optional(),
   })
   .strict();
 
@@ -62,6 +97,15 @@ export function sanitizeChatRequest(raw: unknown): ChatRequest {
     history: history.filter(
       (message): message is NonNullable<typeof message> => message !== null,
     ),
-    projectState: parsed.projectState,
+    projectState: parsed.projectState
+      ? ProjectStateSchema.parse({
+          ...parsed.projectState,
+          layers: parsed.projectState.layers.map(({ metadata: _metadata, ...layer }) => ({
+            ...layer,
+            metadata: {},
+          })),
+          timeline: [],
+        })
+      : undefined,
   };
 }
