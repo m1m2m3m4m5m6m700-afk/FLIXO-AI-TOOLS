@@ -15,6 +15,13 @@ export function simulateLLMReasoning(
   const normalized = prompt.trim().toLowerCase();
   const callId = `mock_call_${stableToken([normalized, String(callIndex)])}`;
 
+  if (callIndex > 1) {
+    return MockLLMResultSchema.parse({
+      content: "The requested registered operation has been completed.",
+      toolCalls: [],
+    });
+  }
+
   const result: { content: string; toolCalls: ToolCallRequest[] } =
     normalized.includes("remove background") || normalized.includes("background")
       ? {
