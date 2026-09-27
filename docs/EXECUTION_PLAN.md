@@ -201,7 +201,7 @@ Tasks:
 - P8.4 Wire persistent storage only after schema/security verification. COMPLETE — `AgentExperiencePersistence` now supports awaited write-through and hydration; `SupabaseAgentExperiencePersistence` stores full verified/unverified experiences in the existing `flixo_agent_learning_events` substrate. The database migration was applied to the connected project and verified with RLS/policy/grant checks plus a transactional insert/read/rollback test.
 - P8.5 Add observability and rollback. COMPLETE — `AgentAuditSink` now persists network events and final command state; `SupabaseAgentNetworkAuditSink` maps events to the existing hash-chained durable task-event channel. `EvolutionAuditSink` persists proposal/benchmark/approval/apply/rollback transitions, including rollback metadata, before state is committed in memory.
 
-Exit condition: production execution remains human-command-gated and every material action is auditable. P8.1–P8.5 source is verified and the connected Supabase persistence substrate was exercised; CI for the current PR head remains unobserved.
+Exit condition: production execution remains human-command-gated and every material action is auditable. P8.1–P8.5 source is verified; Supabase persistence was exercised; the audit fail-closed cleanup path was regression-tested at source level. Runtime/CI success remains unobserved.
 
 ### P9 — Full verification
 Status: PLANNED
@@ -235,7 +235,11 @@ Never write “production-ready” while required verification is missing.
 
 ## 6. Current Next Action
 
-Execute P9.1: run the complete repository verification chain against the current PR head when CI becomes available, then reconcile any failures before claiming completion. Verification must include typecheck, architecture gates, contracts, orchestrator tests, agent-editor unit/E2E, build, and Supabase schema/security checks.
+Execute P9.1: run the complete repository verification chain against the current PR head. Current status is BLOCKED by execution infrastructure: the only registered Remote Desktop device is offline, and GitHub reports zero workflow runs/checks for the current PR head. Do not mark P9 complete until at least one full runtime/CI verification is observed.
+
+Verification command set: typecheck, lint, architecture gates, contracts, orchestrator tests, agent-editor unit/E2E, build, and Supabase schema/security checks.
+
+Fine-tuning track: verified experiences remain the only eligible training-data source; model-weight updates are still gated behind dataset provenance, benchmark, sandbox, and human promotion controls.
 
 Fine-tuning track: verified experiences remain the only eligible training-data source; model-weight updates are still gated behind dataset provenance, benchmark, sandbox, and human promotion controls.
 
