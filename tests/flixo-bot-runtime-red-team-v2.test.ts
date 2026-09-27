@@ -21,27 +21,29 @@ function runningState(): FlixoBotRunState {
   return state;
 }
 
-test("runtime blocks tool calls from a non-owner actor", () => {
-  const result = recordToolCall(
-    runningState(),
-    sha,
-    {
-      toolId: "image-compressor",
-      callId: "call-owner-mismatch",
-      actorId: "attacker-agent",
-      branch: "execution",
-      exactSha: sha,
-      expectedSha: sha,
-      mutation: false,
-      certification: false,
-      requiresApproval: false,
-    },
-    { mutationAuthority: false, certificationAuthority: false },
+test("runtime rejects non-owner tool calls without mutating the run", () => {
+  const state = runningState();
+  assert.throws(
+    () => recordToolCall(
+      state,
+      sha,
+      {
+        toolId: "image-compressor",
+        callId: "call-owner-mismatch",
+        actorId: "attacker-agent",
+        branch: "execution",
+        exactSha: sha,
+        expectedSha: sha,
+        mutation: false,
+        certification: false,
+        requiresApproval: false,
+      },
+      { mutationAuthority: false, certificationAuthority: false },
+    ),
+    /FLIXO_BOT_TOOL_OWNER_MISMATCH/,
   );
-
-  assert.equal(result.decision.allowed, false);
-  assert.equal(result.decision.reason, "OWNER_REQUIRED");
-  assert.equal(result.state.status, "BLOCKED");
+  assert.equal(state.status, "RUNNING");
+  assert.equal(state.toolCallCount, 0);
 });
 
 test("runtime restore rejects inflated execution budgets and malformed state", () => {
