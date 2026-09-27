@@ -176,6 +176,89 @@ test("direct command waits for durable audit persistence and finalization", asyn
 });
 
 
+test("rejects tool execution plans without explicit execute permission", async () => {
+  const orchestrator = new DirectCommandOrchestrator({
+    async plan(command, objective) {
+      return {
+        commandId: command.commandId,
+        objective,
+        steps: [{
+          stepId: "step-execute",
+          role: "implementer",
+          objective,
+          dependsOn: [],
+          constraints: [],
+          execution: { toolId: "echo", parameters: {} },
+        }],
+      };
+    },
+  });
+  await assert.rejects(
+    () => orchestrator.dispatch(
+      { commandId: "cmd-missing-execute", issuedBy: "human", issuedAt: new Date().toISOString() },
+      "execute a tool",
+    ),
+    /EXECUTION_PERMISSION_REQUIRED/,
+  );
+});
+
+test("waits for all parallel workers and marks the command failed when one worker throws", async () => {
+  const timeline: string[] = [];
+  const orchestrator = new DirectCommandOrchestrator(
+    {
+      async plan(command, objective) {
+        return {
+          commandId: command.commandId,
+          objective,
+          steps: [
+            { stepId: "step-fail", role: "tester", objective, dependsOn: [], constraints: [] },
+            { stepId: "step-slow", role: "performance", objective, dependsOn: [], constraints: [] },
+          ],
+        };
+      },
+    },
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      async persist() {},
+      async finalize(status) { timeline.push("finalize:" + status); },
+    },
+  );
+  orchestrator.registerWorker({
+    id: "tester",
+    async run(instruction) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      throw new Error("WORKER_FAILURE");
+    },
+  });
+  orchestrator.registerWorker({
+    id: "performance",
+    async run(instruction) {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      timeline.push("slow-finished");
+      return {
+        stepId: instruction.stepId,
+        commandId: instruction.commandId,
+        status: "completed",
+        summary: "ok",
+        evidence: { testsPassed: 1, testsFailed: 0, evidenceVerified: true, outOfScopeActions: 0, delegatedTasks: 0 },
+      };
+    },
+  });
+
+  const reports = await orchestrator.dispatch(
+    { commandId: "cmd-parallel-failure", issuedBy: "human", issuedAt: new Date().toISOString() },
+    "exercise failure containment",
+  );
+
+  assert.equal(reports.find((report) => report.stepId === "step-fail")?.status, "failed");
+  assert.equal(reports.find((report) => report.stepId === "step-slow")?.status, "completed");
+  assert.deepEqual(timeline, ["slow-finished", "finalize:failed"]);
+});
+
 test("audit failure does not strand the active command", async () => {
   let persistCalls = 0;
   const orchestrator = new DirectCommandOrchestrator(
