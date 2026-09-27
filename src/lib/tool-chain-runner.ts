@@ -1,4 +1,4 @@
-import { createTaskContext, transitionTask, type TaskContext } from './agent/task-state';
+import { createTaskContext, transitionTask, type TaskContext } from '@flixo/agent-runtime';
 import { executeToolChain, getToolChainAdapter, type ChainInput, type ChainOutput } from './tool-chain-adapters';
 import { validateToolChain } from './tool-chain-compatibility';
 
