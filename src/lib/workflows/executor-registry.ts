@@ -1,8 +1,8 @@
-import { compressImage } from '@/tools/image-compressor/engine';
-import { convertImage, cropResizeImage, imageInfo, removeBackground, resizeImage } from '@/tools/image-toolkit/engine';
-import type { CapabilityParameters } from '@/lib/agent/capability-registry';
-import type { ToolDefinition } from '@/config/canonical-tool-definition';
-import { getVideoToolExecutor } from '@/lib/video/video-tool-executors';
+import { compressImage } from '../../tools/image-compressor/engine';
+import { convertImage, cropResizeImage, imageInfo, removeBackground, resizeImage } from '../../tools/image-toolkit/engine';
+import type { CapabilityParameters } from '../agent/capability-registry';
+import type { ToolDefinition } from '../../config/canonical-tool-definition';
+import { getVideoToolExecutor } from '../video/video-tool-executors';
 
 export type ToolExecutorContext = Readonly<{
   tool: ToolDefinition;
