@@ -41,7 +41,7 @@ jobs:
       - name: Stamp exact build identity
         shell: bash
         env:
-          BUILD_SHA: ${{ github.sha }}
+          BUILD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$BUILD_SHA"
