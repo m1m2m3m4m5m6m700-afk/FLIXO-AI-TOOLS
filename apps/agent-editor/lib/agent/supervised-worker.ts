@@ -10,7 +10,6 @@ export type ToolBackedWorkerOptions = Readonly<{
   role: string;
   toolRegistry: ToolRegistry;
   allowedToolIds: readonly string[];
-  runtime?: CanonicalAgentRuntime;
 }>;
 
 export const createToolBackedWorker = (options: ToolBackedWorkerOptions): AgentWorker => {
@@ -39,7 +38,7 @@ export const createToolBackedWorker = (options: ToolBackedWorkerOptions): AgentW
         });
       }
 
-      const runtime = options.runtime ?? new CanonicalAgentRuntime(
+      const runtime = new CanonicalAgentRuntime(
         options.toolRegistry.toRuntimeRegistry(),
         {
           taskId: instruction.commandId,
