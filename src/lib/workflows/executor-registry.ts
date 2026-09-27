@@ -110,17 +110,17 @@ const EXECUTORS: Readonly<Record<string, ToolExecutor>> = Object.freeze({
   'video-cropper': async ({ inputBlob, parameters, tool, signal }) => {
     const executor = getVideoToolExecutor(tool);
     if (!executor) throw new Error('Video executor unavailable: video-cropper');
-    return executor(inputBlob, parameters, tool);
+    return executor(inputBlob, parameters, tool, signal);
   },
   'video-resizer': async ({ inputBlob, parameters, tool, signal }) => {
     const executor = getVideoToolExecutor(tool);
     if (!executor) throw new Error('Video executor unavailable: video-resizer');
-    return executor(inputBlob, parameters, tool);
+    return executor(inputBlob, parameters, tool, signal);
   },
   'video-compressor': async ({ inputBlob, parameters, tool, signal }) => {
     const executor = getVideoToolExecutor(tool);
     if (!executor) throw new Error('Video executor unavailable: video-compressor');
-    return executor(inputBlob, parameters, tool);
+    return executor(inputBlob, parameters, tool, signal);
   },
 });
 
