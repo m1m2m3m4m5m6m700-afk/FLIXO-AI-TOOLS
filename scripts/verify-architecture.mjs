@@ -21,7 +21,7 @@ if (!existsSync("package-lock.json") || lock.lockfileVersion !== 3) {
 }
 
 for (const entry of requiredWorkspaces) {
-  const packageKey = `node_modules/${entry}`;
+  const packageKey = entry;
   if (!lock.packages?.[packageKey]) {
     console.error(`Architecture gate: workspace is missing from lockfile: ${entry}`);
     process.exit(1);
