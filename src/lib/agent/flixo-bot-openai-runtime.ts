@@ -102,6 +102,13 @@ export type FlixoBotTrace = Readonly<{
   spans: readonly FlixoBotTraceSpan[];
 }>;
 
+export type FlixoBotRestoreTrustBoundary = Readonly<{
+  agentId: string;
+  maxTurns: number;
+  maxRetries: number;
+  maxToolCalls: number;
+}>;
+
 export type CreateRunInput<TContext = unknown> = Readonly<{
   runId?: string;
   taskId: string;
@@ -503,6 +510,7 @@ export function serializeFlixoBotRunState(state: FlixoBotRunState): string {
 export function restoreFlixoBotRunState<TContext = unknown>(
   serialized: string,
   currentSha: string,
+  trustBoundary: FlixoBotRestoreTrustBoundary,
 ): FlixoBotRunState<TContext> {
   if (typeof serialized !== 'string' || serialized.length === 0 || serialized.length > 256_000) {
     throw new Error('FLIXO_BOT_RUN_SERIALIZED_STATE_INVALID');
@@ -520,21 +528,28 @@ export function restoreFlixoBotRunState<TContext = unknown>(
     throw new Error('FLIXO_BOT_RUN_STATUS_INVALID');
   }
   assertExactSha(parsed.exactSha);
+  const expectedAgentId = required(trustBoundary.agentId, 'EXPECTED_AGENT_ID');
+  const expectedMaxTurns = bounded(trustBoundary.maxTurns, 24, 1, 128, 'EXPECTED_MAX_TURNS');
+  const expectedMaxRetries = bounded(trustBoundary.maxRetries, 3, 0, 12, 'EXPECTED_MAX_RETRIES');
+  const expectedMaxToolCalls = bounded(trustBoundary.maxToolCalls, 8, 1, 32, 'EXPECTED_MAX_TOOL_CALLS');
   required(parsed.runId, 'RUN_ID');
   required(parsed.taskId, 'TASK_ID');
   required(parsed.agentId, 'AGENT_ID');
   required(parsed.currentOwner, 'CURRENT_OWNER');
   required(parsed.traceId, 'TRACE_ID');
+  if (parsed.agentId !== expectedAgentId || parsed.currentOwner !== expectedAgentId) {
+    throw new Error('FLIXO_BOT_RUN_OWNER_TRUST_BOUNDARY_VIOLATION');
+  }
   if (!Number.isInteger(parsed.stepIndex) || parsed.stepIndex < 0 || parsed.stepIndex > 128) throw new Error('FLIXO_BOT_RUN_STEP_INDEX_INVALID');
-  if (!Number.isInteger(parsed.maxTurns) || parsed.maxTurns < 1 || parsed.maxTurns > 128
+  if (parsed.maxTurns !== expectedMaxTurns
     || !Number.isInteger(parsed.turnCount) || parsed.turnCount < 0 || parsed.turnCount > parsed.maxTurns) {
     throw new Error('FLIXO_BOT_RUN_TURN_BUDGET_INVALID');
   }
-  if (!Number.isInteger(parsed.maxRetries) || parsed.maxRetries < 0 || parsed.maxRetries > 12
+  if (parsed.maxRetries !== expectedMaxRetries
     || !Number.isInteger(parsed.retryCount) || parsed.retryCount < 0 || parsed.retryCount > parsed.maxRetries) {
     throw new Error('FLIXO_BOT_RUN_RETRY_BUDGET_INVALID');
   }
-  if (!Number.isInteger(parsed.maxToolCalls) || parsed.maxToolCalls < 1 || parsed.maxToolCalls > 32
+  if (parsed.maxToolCalls !== expectedMaxToolCalls
     || !Number.isInteger(parsed.toolCallCount) || parsed.toolCallCount < 0 || parsed.toolCallCount > parsed.maxToolCalls) {
     throw new Error('FLIXO_BOT_RUN_TOOL_BUDGET_INVALID');
   }
