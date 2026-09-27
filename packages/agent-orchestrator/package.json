@@ -10,7 +10,7 @@
     "@flixo/contracts": "0.1.0"
   },
   "scripts": {
-    "test": "node --import=../../scripts/register-node-resolver.mjs --test --experimental-strip-types tests/network.test.ts",
+    "test": "node --import=../../scripts/register-node-resolver.mjs --test --experimental-strip-types tests/network.test.ts tests/evaluation.test.ts",
     "typecheck": "npx tsc -p tsconfig.json --noEmit"
   }
 }
