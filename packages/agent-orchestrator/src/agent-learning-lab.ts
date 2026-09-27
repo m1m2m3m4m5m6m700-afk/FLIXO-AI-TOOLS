@@ -198,7 +198,7 @@ export class AgentLearningLab {
   constructor(
     private readonly factory: LabChallengeFactory = new DefaultLabChallengeFactory(),
     private readonly rewardEngine: AgentRewardEngine = new AgentRewardEngine(),
-    private readonly idleGate: LabIdleGate = () => true,
+    private readonly idleGate: LabIdleGate = () => false,
     private readonly scorer: LabScorer = new ObjectiveLabScorer(),
   ) {}
 
@@ -310,11 +310,12 @@ export const createLabParticipant = (
         challenge,
       }),
     }));
+    const completed = report.status === "completed";
     return Object.freeze({
       challengeId: challenge.id,
       agentId: worker.id,
-      answer: report.summary,
-      evidence: report.evidence ? [JSON.stringify(report.evidence)] : [],
+      answer: completed ? report.summary : "",
+      evidence: completed && report.evidence ? [JSON.stringify(report.evidence)] : [],
     });
   },
 });
