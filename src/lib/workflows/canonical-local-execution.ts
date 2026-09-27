@@ -1,6 +1,6 @@
-import { getCapability } from "../agent/capability-registry";
 import {
   assertExecutionResourceBudget,
+  getCapability,
   validateCapabilityParameters,
 } from "../agent/capability-registry";
 import {
@@ -84,8 +84,8 @@ export async function executeCanonicalLocalTool(
   const parameters = validateCapabilityParameters(binding.toolId, rawParameters);
   assertExecutionResourceBudget(binding.toolId, inputBlob);
 
-  const outputBlob = await getToolExecutor(tool)({
-    tool,
+  const outputBlob = await getToolExecutor(capability)({
+    tool: capability,
     inputBlob,
     parameters,
   });
@@ -94,7 +94,7 @@ export async function executeCanonicalLocalTool(
     throw new Error(`CANONICAL_TOOL_EMPTY_OUTPUT:${binding.toolId}`);
   }
 
-  const verifiedByCanonicalVerifier = await tool.verifier(
+  const verifiedByCanonicalVerifier = await capability.verifier(
     inputBlob,
     outputBlob,
     parameters,
@@ -103,7 +103,7 @@ export async function executeCanonicalLocalTool(
     throw new Error(`CANONICAL_TOOL_VERIFICATION_FAILED:${binding.toolId}`);
   }
 
-  const contractId = tool.operational.outputContractId;
+  const contractId = capability.operational.outputContractId;
   if (!contractId) {
     throw new Error(`CANONICAL_OUTPUT_CONTRACT_NOT_BOUND:${binding.toolId}`);
   }
