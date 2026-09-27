@@ -13,13 +13,14 @@ This document defines the dependency direction for the repository while the mono
 
 ## Agent ownership
 
-The canonical Agent domain is the existing `src/lib/agent/` implementation until its extraction is completed.
+The canonical Agent domain is `packages/agent-runtime/`. The legacy `src/lib/agent/` surface is migration-only and receives no new shared runtime features.
 
 `apps/agent-editor/lib/agent/` is application-local orchestration code and must not become a second canonical Agent runtime.
 
 During migration:
-1. New shared Agent contracts belong in a future `packages/contracts/`.
-2. Shared Agent runtime belongs in a future `packages/agent-runtime/`.
+1. New shared Agent contracts belong in `packages/contracts/`.
+2. Shared Agent runtime belongs in `packages/agent-runtime/`.
+3. New shared Agent state/profile/discovery/task lifecycle code must not be added to `src/lib/agent/`.
 3. Application adapters remain inside their owning app.
 4. Legacy modules are deleted only after import consumers and tests have been migrated.
 
