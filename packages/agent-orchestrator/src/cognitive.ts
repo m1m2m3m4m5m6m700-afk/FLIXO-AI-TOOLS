@@ -1,6 +1,7 @@
-export type VerificationState = "pending" | "verified" | "rejected" | "unresolved";
-export type AgentCognitiveState = Readonly<{ commandId:string; stepId:string; agentId:string; goal:string; hypotheses:readonly string[]; assumptions:readonly string[]; plannedActions:readonly string[]; observations:readonly string[]; evidence:readonly string[]; uncertainties:readonly string[]; detectedRisks:readonly string[]; rejectedApproaches:readonly string[]; decision?:string; confidence:number; verificationState:VerificationState; updatedAt:string; }>;
-export type DecisionRecord = Readonly<{ id:string; commandId:string; stepId:string; agentId:string; decision:string; alternatives:readonly string[]; evidence:readonly string[]; confidence:number; verificationState:VerificationState; outcome?:string; reward?:number; timestamp:string; }>;
+import type { AgentCognitiveStateContract, AgentDecisionContract, CognitiveVerificationState } from "@flixo/contracts";
+export type VerificationState = CognitiveVerificationState;
+export type AgentCognitiveState = AgentCognitiveStateContract;
+export type DecisionRecord = AgentDecisionContract;
 export type CognitiveTraceEvent = Readonly<{ sequence:number; type:"state"|"decision"|"verification"|"observation"; commandId:string; stepId:string; agentId:string; timestamp:string; data:Readonly<Record<string,unknown>>; }>;
 export type AgentCognitiveSnapshot = Readonly<{ states:readonly AgentCognitiveState[]; decisions:readonly DecisionRecord[]; events:readonly CognitiveTraceEvent[]; }>;
 const bounded=(v:number)=>Math.min(1,Math.max(0,v));
