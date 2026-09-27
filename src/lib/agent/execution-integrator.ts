@@ -20,7 +20,14 @@ import {
   runtimeStatusToTaskState,
 } from './flixo-bot-task-bridge';
 import { requireFlixoBuildSha } from './build-identity';
-import { beginFlixoBotGatewayRuntime, finalizeFlixoBotGatewayRuntime } from './flixo-bot-runtime-adapter';
+import {
+  beginFlixoBotGatewayRuntime,
+  finalizeFlixoBotGatewayRuntime,
+  FLIXO_BOT_GATEWAY_AGENT_ID,
+  FLIXO_BOT_GATEWAY_MAX_TURNS,
+  FLIXO_BOT_GATEWAY_MAX_RETRIES,
+  FLIXO_BOT_GATEWAY_MAX_TOOL_CALLS,
+} from './flixo-bot-runtime-adapter';
 import { appendConversationEvent } from './conversation-event-store';
 
 export type PreparedExecution = Readonly<{ plan: ExecutionPlanContract; task: TaskContext; runtimeState?: FlixoBotRunState }>;
@@ -103,7 +110,12 @@ export function restorePreparedExecution(
 ): PreparedExecution {
   const plan = parseExecutionPlan(planInput);
   assertPlanGuard(plan);
-  const runtimeState = restoreFlixoBotRunState(runtimeResumeState, requireFlixoBuildSha());
+  const runtimeState = restoreFlixoBotRunState(runtimeResumeState, requireFlixoBuildSha(), {
+    agentId: FLIXO_BOT_GATEWAY_AGENT_ID,
+    maxTurns: FLIXO_BOT_GATEWAY_MAX_TURNS,
+    maxRetries: FLIXO_BOT_GATEWAY_MAX_RETRIES,
+    maxToolCalls: FLIXO_BOT_GATEWAY_MAX_TOOL_CALLS,
+  });
   if (runtimeState.status !== 'WAITING_APPROVAL') {
     throw new Error('FLIXO_BOT_RUNTIME_RESUME_NOT_APPROVAL_READY');
   }
