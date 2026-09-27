@@ -1,7 +1,9 @@
 import importlib.util
 import sys
 
-spec=importlib.util.spec_from_file_location("critic","/mnt/data/three_critic_review.py")
+from pathlib import Path
+
+spec=importlib.util.spec_from_file_location("critic",str(Path(__file__).resolve().parents[1] / "scripts" / "three_critic_review.py"))
 mod=importlib.util.module_from_spec(spec)
 sys.modules[spec.name]=mod
 spec.loader.exec_module(mod)
