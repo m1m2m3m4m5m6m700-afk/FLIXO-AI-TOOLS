@@ -509,7 +509,7 @@ async function runExport(rawRequest: unknown): Promise<void> {
       fileName: sanitizeToken(project.title) + "." + request.format,
       buffer,
     };
-    self.postMessage(response, [buffer]);
+    workerSelf.postMessage(response, [buffer]);
   } finally {
     await cleanupWorkerMedia();
   }
