@@ -9,6 +9,10 @@ export type AgentExperience = Readonly<{
   failurePatterns?: readonly string[];
 }>;
 
+export interface AgentExperiencePersistence {
+  persist(experience: AgentExperience): Promise<void>;
+}
+
 export interface ExperienceStore {
   append(experience: AgentExperience): void;
   list(): readonly AgentExperience[];
