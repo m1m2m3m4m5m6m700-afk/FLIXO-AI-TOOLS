@@ -74,7 +74,7 @@ test('exposes the same converter for LLM tool parameters', () => {
   const parameters = createLLMToolParameters(z.object({ width: z.number().int().positive() }));
   assert.deepEqual(parameters, {
     type: 'object',
-    properties: { width: { type: 'number', minimum: 0, type: 'integer' } },
+    properties: { width: { type: 'integer', minimum: 0 } },
     required: ['width'],
     additionalProperties: false,
   });
