@@ -69,7 +69,7 @@ export function dedupeStreamingText(committed: string, candidate: string): strin
   }
 
   const maxOverlap = Math.min(normalizedCommitted.length, candidate.length, 512);
-  for (let size = maxOverlap; size >= 8; size -= 1) {
+  for (let size = maxOverlap; size >= 1; size -= 1) {
     if (normalizedCommitted.slice(-size) === candidate.slice(0, size)) {
       return candidate.slice(size);
     }
