@@ -66,6 +66,14 @@ export class AgentLearningObserver implements AgentObserver {
   onDispatch(instruction: AgentInstruction): void {
     this.instructions.set(instruction.stepId, instruction);
   }
+  async hydrate(): Promise<void> {
+    if (!this.persistence) return;
+    const known = new Set(this.store.list().map((item) => item.id));
+    for (const experience of await this.persistence.load()) {
+      if (!known.has(experience.id)) this.store.append(experience);
+    }
+  }
+
   async onReport(report: AgentReport): Promise<void> {
     const instruction = this.instructions.get(report.stepId);
     if (!instruction || instruction.commandId !== report.commandId) return;
