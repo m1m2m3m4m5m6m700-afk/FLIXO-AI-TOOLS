@@ -84,3 +84,39 @@ export function createContractFailure(
 ): NonNullable<ToolResult["error"]> {
   return Object.freeze({ code, message, retryable });
 }
+
+export type CognitiveVerificationState = "pending" | "verified" | "rejected" | "unresolved";
+
+export type AgentCognitiveStateContract = Readonly<{
+  commandId: string;
+  stepId: string;
+  agentId: string;
+  goal: string;
+  hypotheses: readonly string[];
+  assumptions: readonly string[];
+  plannedActions: readonly string[];
+  observations: readonly string[];
+  evidence: readonly string[];
+  uncertainties: readonly string[];
+  detectedRisks: readonly string[];
+  rejectedApproaches: readonly string[];
+  decision?: string;
+  confidence: number;
+  verificationState: CognitiveVerificationState;
+  updatedAt: string;
+}>;
+
+export type AgentDecisionContract = Readonly<{
+  id: string;
+  commandId: string;
+  stepId: string;
+  agentId: string;
+  decision: string;
+  alternatives: readonly string[];
+  evidence: readonly string[];
+  confidence: number;
+  verificationState: CognitiveVerificationState;
+  outcome?: string;
+  reward?: number;
+  timestamp: string;
+}>;
