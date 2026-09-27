@@ -276,7 +276,9 @@ export class DirectCommandOrchestrator {
       }
 
       const finalReports = Object.freeze([...reports.values()]);
-      commandOutcome = finalReports.every((report) => report.status === "completed") ? "completed" : "failed";
+      commandOutcome = finalReports.every((report) => report.status === "completed" && report.verification?.status === "verified")
+        ? "completed"
+        : "failed";
       return finalReports;
     } finally {
       try {
