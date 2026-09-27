@@ -26,6 +26,10 @@ const ALIASES: Record<string, readonly string[]> = {
   'image-to-svg': ['image to svg', 'convert image to svg', 'صورة إلى svg'],
   pix: ['photo editor', 'image editor', 'edit image', 'محرر الصور', 'تعديل الصور'],
   seed: ['gpu image editor', 'advanced image adjustments', 'تحسينات متقدمة للصورة'],
+  'video-trimmer': ['trim video', 'cut video', 'video trim', 'اقتطع الفيديو', 'اقتطاع الفيديو'],
+  'video-cropper': ['crop video', 'video crop', 'قص الفيديو من الأطراف', 'قص الفيديو من الاطراف'],
+  'video-resizer': ['resize video', 'change video resolution', 'video dimensions', 'تغيير حجم الفيديو', 'تغيير دقة الفيديو'],
+  'video-compressor': ['compress video', 'reduce video size', 'video compression', 'ضغط الفيديو', 'تصغير حجم الفيديو'],
 };
 
 const normalize = (value: string): string =>

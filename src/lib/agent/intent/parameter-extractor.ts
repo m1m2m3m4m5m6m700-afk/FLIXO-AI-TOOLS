@@ -43,7 +43,7 @@ function parseFormat(text: string): string | undefined {
 }
 
 function parseDimensions(text: string): { width: number; height: number } | undefined {
-  const match = text.match(/(?:resize|dimensions?|size|أبعاد|حجم|غيّر الحجم|غير الحجم)\s*(?:to|إلى|الى|لـ)?\s*(\d{1,5})\s*[x×]\s*(\d{1,5})/i);
+  const match = text.match(/(?:resize|crop|dimensions?|size|قص|أبعاد|حجم|غيّر الحجم|غير الحجم)\s*(?:image|photo|video|الفيديو|فيديو|الصورة|الصوره)?\s*(?:to|إلى|الى|لـ)?\s*(\d{1,5})\s*[x×]\s*(\d{1,5})/i);
   if (!match) return undefined;
   const width = Number(match[1]); const height = Number(match[2]);
   return Number.isInteger(width) && Number.isInteger(height) && width > 0 && height > 0 ? { width, height } : undefined;

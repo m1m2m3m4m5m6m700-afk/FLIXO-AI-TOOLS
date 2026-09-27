@@ -57,7 +57,7 @@ export const MVP_STANDARD_INTENT_SUITE: readonly MvpStandardIntentCase[] = Objec
   { id: 'crop-video-ar', request: 'قص الفيديو إلى 720×720', expectedToolIds: ['video-cropper'] },
   { id: 'resize-video-en', request: 'resize video to 1280x720', expectedToolIds: ['video-resizer'] },
   { id: 'resize-video-ar', request: 'غيّر حجم الفيديو إلى 1280×720', expectedToolIds: ['video-resizer'] },
-  { id: 'trim-video-ar', request: 'قص أول 5 ثواني من الفيديو', expectedToolIds: ['video-trimmer'] },
+  { id: 'trim-video-ar', request: 'اقتطع أول 5 ثواني من الفيديو', expectedToolIds: ['video-trimmer'] },
   { id: 'compress-video-ar', request: 'ضغط الفيديو', expectedToolIds: ['video-compressor'] },
   { id: 'compound-webp', request: 'compress this image under 200KB and convert to WebP', expectedToolIds: ['image-converter', 'image-compressor'] },
   { id: 'product-square', request: 'prepare a product image for a shop, square', expectedToolIds: ['background-remover', 'image-cropper'] },
