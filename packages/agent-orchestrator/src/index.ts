@@ -227,4 +227,4 @@ export * from "./model-adapter.ts";
 export * from "./continual-learning.ts";
 export * from "./http-model-invoker.ts";
 export * from "./adversarial.ts";
-export * from "./red-team.ts";
+export * from "./red-team.ts";\nexport * from "./agent-learning-lab.ts";
