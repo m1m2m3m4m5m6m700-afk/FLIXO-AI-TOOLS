@@ -153,19 +153,21 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
           if (response.localExecutionPlans.length > 0) {
             localExecutionPromise = localExecutionPromise.then(async () => {
               let working = ProjectStateSchema.parse(projectState);
+              let failedToolName: string | null = null;
               try {
                 for (const call of response.requestedToolCalls) {
                   const plan = response.localExecutionPlans.find((candidate) => candidate.callId === call.callId);
                   if (!plan) throw new Error("AGENT_EXECUTION_PLAN_MISSING");
+                  failedToolName = call.toolName;
                   setActiveTool(call.toolName);
                   working = await executeAgentToolLocally(working, call, plan);
                   setProjectState(working);
+                  failedToolName = null;
                 }
               } catch (error) {
-                const failedTool = response.requestedToolCalls.find((candidate) =>
-                  response.localExecutionPlans.some((planCandidate) => planCandidate.callId === candidate.callId),
-                )?.toolName;
-                if (failedTool) setManualFallbackPath("/en/tools/" + encodeURIComponent(failedTool));
+                if (failedToolName) {
+                  setManualFallbackPath("/en/tools/" + encodeURIComponent(failedToolName));
+                }
                 setMessages((previous) =>
                   previous.map((message) =>
                     message.id === assistantMessageId
