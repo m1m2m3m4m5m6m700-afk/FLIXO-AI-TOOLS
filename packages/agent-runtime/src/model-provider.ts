@@ -124,10 +124,13 @@ export class ModelProviderClient {
           parts: [{ text: message.content }],
         }));
       const response = await requestWithTimeout(
-        `${this.baseUrl}/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        `${this.baseUrl}/v1beta/models/${encodeURIComponent(model)}:generateContent`,
         {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: {
+            "content-type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: system }] },
             contents,
