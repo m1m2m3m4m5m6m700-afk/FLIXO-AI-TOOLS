@@ -98,3 +98,52 @@ test("enforces agent permissions before dispatch", () => {
   network.authorize("step-2", "cmd-permission", "implementer", ["implementation"], ["execute"]);
   network.end("cmd-permission");
 });
+
+
+test("direct command waits for durable audit persistence and finalization", async () => {
+  const events: string[] = [];
+  const orchestrator = new DirectCommandOrchestrator(
+    {
+      async plan(command, objective) {
+        return {
+          commandId: command.commandId,
+          objective,
+          steps: [{ stepId: "step-audit", role: "tester", objective, dependsOn: [], constraints: [], requiredCapabilities: ["testing"], requiredPermissions: ["run-tests"] }],
+        };
+      },
+    },
+    {
+      onDispatch: () => undefined,
+      async onReport() { events.push("report"); },
+    },
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      async persist(items) { events.push("persist:" + items.map((item) => item.type).join(",")); },
+      async finalize(status) { events.push("finalize:" + status); },
+    },
+  );
+  orchestrator.registerWorker({
+    id: "tester",
+    async run(instruction) {
+      return {
+        stepId: instruction.stepId,
+        commandId: instruction.commandId,
+        status: "completed",
+        summary: "verified",
+        evidence: { testsPassed: 1, testsFailed: 0, evidenceVerified: true, outOfScopeActions: 0, delegatedTasks: 0 },
+      };
+    },
+  });
+
+  const reports = await orchestrator.dispatch(
+    { commandId: "cmd-audit", issuedBy: "human", issuedAt: new Date().toISOString() },
+    "verify audit trail",
+  );
+
+  assert.equal(reports[0]?.verification?.status, "verified");
+  assert.ok(events.some((entry) => entry.startsWith("persist:")));
+  assert.equal(events.at(-1), "finalize:completed");
+});
