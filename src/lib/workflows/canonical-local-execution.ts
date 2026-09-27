@@ -108,7 +108,12 @@ export async function executeCanonicalLocalTool(
 
   const parameters = validateCapabilityParameters(binding.toolId, rawParameters);
   assertExecutionResourceBudget(binding.toolId, inputBlob);
-  await assertDecodedInputWithinBudget(binding.toolId, inputBlob, capability.safetyLimits.maxPixels);
+  await runWithTimeout(
+    binding.toolId,
+    capability.safetyLimits.timeoutMs,
+    async () => assertDecodedInputWithinBudget(binding.toolId, inputBlob, capability.safetyLimits.maxPixels),
+    signal,
+  );
 
   const outputBlob = await runWithTimeout(binding.toolId, capability.safetyLimits.timeoutMs,
     (executionSignal)=>getToolExecutor(capability)({ tool: capability, inputBlob, parameters, signal: executionSignal }), signal);
@@ -133,12 +138,31 @@ export async function executeCanonicalLocalTool(
     throw new Error(`CANONICAL_OUTPUT_CONTRACT_NOT_FOUND:${binding.toolId}`);
   }
 
+  const maxContractBytes = Math.max(
+    ...contract.variants.map((variant) => variant.maxOutputBytes ?? Number.POSITIVE_INFINITY),
+  );
+  if (Number.isFinite(maxContractBytes) && outputBlob.size > maxContractBytes) {
+    throw new Error("CANONICAL_OUTPUT_SIZE_LIMIT_EXCEEDED:"+binding.toolId);
+  }
+
+  const dimensions = await runWithTimeout(
+    binding.toolId,
+    capability.safetyLimits.timeoutMs,
+    async () => dimensionsFor(outputBlob),
+    signal,
+  );
+  const outputBytes = await runWithTimeout(
+    binding.toolId,
+    capability.safetyLimits.timeoutMs,
+    async () => new Uint8Array(await outputBlob.arrayBuffer()),
+    signal,
+  );
   const result: ToolOutputResult = {
     mimeType: outputBlob.type,
     byteLength: outputBlob.size,
-    bytes: new Uint8Array(await outputBlob.arrayBuffer()),
+    bytes: outputBytes,
     filename: "flixo-"+binding.toolId+"."+extensionForMime(outputBlob.type),
-    dimensions: await dimensionsFor(outputBlob),
+    dimensions,
   };
 
   assertToolOutputContract(contract, result);
