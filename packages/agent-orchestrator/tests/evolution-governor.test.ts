@@ -27,12 +27,12 @@ test("evolution governor blocks promotion until benchmark and human approval", a
     mutationPlan: { executionBoundary: "sandbox-only" as const, sandboxId: "sandbox-1", targetPaths: ["sandbox/module.ts"], maxFiles: 4, dryRun: true },
   });
 
-  assert.throws(() => governor.requestPromotion("proposal-1"), /EVOLUTION_REQUIRES_BENCHMARK/);
+  await assert.rejects(() => governor.requestPromotion("proposal-1"), /EVOLUTION_REQUIRES_BENCHMARK/);
 
   await governor.benchmark("proposal-1", { score: 92, threshold: 80, passed: true, revision: "bench-1" });
   await governor.requestPromotion("proposal-1");
 
-  assert.throws(() => governor.recordApplied("proposal-1", "applied-1"), /EVOLUTION_NOT_APPROVED/);
+  await assert.rejects(() => governor.recordApplied("proposal-1", "applied-1"), /EVOLUTION_NOT_APPROVED/);
   await governor.approve({
     proposalId: "proposal-1",
     commandId: "cmd-evolution",
@@ -108,9 +108,9 @@ test("unverified objective cannot request evolution promotion", async () => {
 });
 
 
-test("evolution governor rejects unsafe mutation targets", () => {
+test("evolution governor rejects unsafe mutation targets", async () => {
   const governor = new EvolutionGovernor();
-  assert.throws(() => governor.propose({
+  await assert.rejects(() => governor.propose({
     id: "proposal-unsafe",
     commandId: "cmd-unsafe",
     agentId: "implementer",
