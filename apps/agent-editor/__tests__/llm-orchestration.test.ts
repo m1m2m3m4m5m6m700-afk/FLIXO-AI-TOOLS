@@ -54,6 +54,26 @@ describe("production orchestration contracts", () => {
     })).toThrow();
   });
 
+  it("removes client-supplied tool traces from provider history", () => {
+    const sanitized = sanitizeChatRequest({
+      message: "continue",
+      history: [{
+        id: crypto.randomUUID(),
+        role: "tool",
+        content: "secret",
+        timestamp: "2026-09-27T00:00:00.000Z",
+        toolResults: [{
+          callId: "call-1",
+          toolName: "remove_background",
+          status: "success",
+          data: { processedImageUrl: "https://private.example/result.png" },
+        }],
+      }],
+    });
+
+    expect(sanitized.history).toHaveLength(0);
+  });
+
   it("keeps the execution path fail-closed for unknown tools", async () => {
     const registry: ToolRegistry = createDefaultToolRegistry();
     const result = await registry.execute("security-test", "non_existent_tool", {});
