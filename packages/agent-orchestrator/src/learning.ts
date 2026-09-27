@@ -69,7 +69,7 @@ export class AgentLearningObserver implements AgentObserver {
       id: report.commandId + ":" + report.stepId,
       commandId: report.commandId,
       stepId: report.stepId,
-      agentId: report.role ?? instruction.role,
+      agentId: instruction.role,
       objective: instruction.objective,
       report,
       reward,
