@@ -4,6 +4,8 @@ import { createAgentEvent } from "@/lib/agent/event-gateway";
 
 import type { AgentAuditContext } from "./orchestrator-audit.ts";
 
+const revisionFor = (status: EvolutionProposalContract["status"]): number => ({ proposed: 1, benchmarked: 2, awaiting_human_approval: 3, approved: 4, applied: 5, rejected: 6, rolled_back: 7 })[status];
+
 export class SupabaseAgentEvolutionAuditSink implements EvolutionAuditSink {
   constructor(private readonly context: AgentAuditContext) {}
 
@@ -15,7 +17,7 @@ export class SupabaseAgentEvolutionAuditSink implements EvolutionAuditSink {
       ownerId: this.context.ownerId,
       lifecycle: terminal ? "COMPLETED" : "VERIFYING",
       state: terminal ? "COMPLETED" : "VERIFYING",
-      revision: Date.parse(proposal.updatedAt) || 0,
+      revision: revisionFor(proposal.status),
       confirmationRequired: event === "awaiting_human_approval",
       request: this.context.request ?? null,
       runtime: { evolution: true, proposalId: proposal.id, status: proposal.status },
