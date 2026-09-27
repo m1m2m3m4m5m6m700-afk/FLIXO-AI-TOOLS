@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { AgentRuntime, type AgentRuntimeStreamEvent } from "@/lib/agent/runtime";
+import { AgentRuntime } from "@/lib/agent/runtime";
 import { createDefaultToolRegistry } from "@/lib/tools";
 import { AgentResponseSchema } from "@/lib/schemas/agent";
 import { createDefaultLLMRouter } from "@/lib/llm";
@@ -21,11 +21,7 @@ const ErrorResponseSchema = z
 
 const MAX_BODY_BYTES = 256 * 1024;
 
-function encodeSseEvent(
-  id: number,
-  event: string,
-  data: unknown,
-): Uint8Array {
+function encodeSseEvent(id: number, event: string, data: unknown): Uint8Array {
   const encoder = new TextEncoder();
   return encoder.encode(
     `id: ${id}\nevent: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
@@ -158,7 +154,9 @@ export async function POST(request: Request): Promise<Response> {
   const requestId = crypto.randomUUID();
 
   try {
-    if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+    if (
+      !request.headers.get("content-type")?.toLowerCase().includes("application/json")
+    ) {
       return NextResponse.json(
         ErrorResponseSchema.parse({
           error: "UNSUPPORTED_MEDIA_TYPE",
@@ -192,11 +190,24 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const body = sanitizeChatRequest(schemaCheck.data);
+    const mockRequested = process.env.FLIXO_ENABLE_MOCK_LLM === "true";
+    const providersAvailable = llmRouter.configuredProviders().length > 0;
+
+    if (process.env.NODE_ENV === "production" && mockRequested) {
+      return NextResponse.json(
+        ErrorResponseSchema.parse({
+          error: "MOCK_LLM_DISABLED_IN_PRODUCTION",
+          requestId,
+        }),
+        { status: 503 },
+      );
+    }
+
     const useMockEngine =
-      process.env.FLIXO_ENABLE_MOCK_LLM === "true" ||
-      (process.env.NODE_ENV !== "production" &&
-        llmRouter.configuredProviders().length === 0);
-    if (!useMockEngine && llmRouter.configuredProviders().length === 0) {
+      process.env.NODE_ENV !== "production" &&
+      (mockRequested || !providersAvailable);
+
+    if (!useMockEngine && !providersAvailable) {
       return NextResponse.json(
         ErrorResponseSchema.parse({
           error: "LLM_PROVIDER_UNAVAILABLE",
@@ -216,7 +227,9 @@ export async function POST(request: Request): Promise<Response> {
   } catch (error) {
     const isExpected =
       error instanceof Error &&
-      /^(HISTORY_TOO_LARGE|Invalid|Request body|Unexpected end|JSON)/.test(error.message);
+      /^(HISTORY_TOO_LARGE|PROJECT_STATE_TOO_LARGE|Invalid|Request body|Unexpected end|JSON)/.test(
+        error.message,
+      );
 
     console.error(
       `[FLIXO_AGENT_REQUEST_ERROR] requestId=${requestId} ${error instanceof Error ? error.name : "UnknownError"}`,

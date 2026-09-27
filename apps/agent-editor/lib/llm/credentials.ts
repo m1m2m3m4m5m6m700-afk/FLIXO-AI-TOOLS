@@ -61,6 +61,13 @@ export function getProviderApiKey(provider: LLMProviderName): string | undefined
 
   const directName = ENV_NAMES[provider];
   const direct = process.env[directName]?.trim();
+
+  if (process.env.NODE_ENV === "production" && direct) {
+    throw new Error(
+      `PLAINTEXT_LLM_CREDENTIAL_DISABLED: production provider key '${directName}' must be supplied through FLIXO_LLM_KEYS_ENCRYPTED.`,
+    );
+  }
+
   return direct || undefined;
 }
 

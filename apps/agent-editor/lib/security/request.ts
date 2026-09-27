@@ -6,6 +6,7 @@ const MAX_MESSAGE_CHARS = 8_000;
 const MAX_HISTORY_MESSAGES = 24;
 const MAX_HISTORY_CHARS = 4_000;
 const MAX_TOTAL_HISTORY_CHARS = 32_000;
+const MAX_PROJECT_STATE_BYTES = 128 * 1024;
 
 export const ChatRequestSchema = z
   .object({
@@ -28,6 +29,14 @@ export function sanitizeText(value: string, maxLength: number): string {
 export function sanitizeChatRequest(raw: unknown): ChatRequest {
   const parsed = ChatRequestSchema.parse(raw);
   let totalHistoryChars = 0;
+
+  if (parsed.projectState) {
+    const serializedProjectState = JSON.stringify(parsed.projectState);
+    const projectStateBytes = new TextEncoder().encode(serializedProjectState).byteLength;
+    if (projectStateBytes > MAX_PROJECT_STATE_BYTES) {
+      throw new Error("PROJECT_STATE_TOO_LARGE");
+    }
+  }
 
   const history = parsed.history.map((message) => {
     const content = sanitizeText(message.content, MAX_HISTORY_CHARS);

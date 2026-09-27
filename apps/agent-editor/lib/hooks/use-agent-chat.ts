@@ -13,16 +13,23 @@ export interface UseAgentChatOptions {
   initialProjectState?: ProjectState;
 }
 
-type SseEvent = { event: string; data: string };
+type SseEvent = { id: number | null; event: string; data: string };
 
 function parseSseBlock(block: string): SseEvent | null {
   let event = "message";
+  let id: number | null = null;
   const dataLines: string[] = [];
+
   for (const line of block.split(/\r?\n/)) {
+    if (line.startsWith("id:")) {
+      const parsed = Number(line.slice(3).trim());
+      if (Number.isSafeInteger(parsed) && parsed >= 0) id = parsed;
+    }
     if (line.startsWith("event:")) event = line.slice(6).trim();
     if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
   }
-  return dataLines.length ? { event, data: dataLines.join("\n") } : null;
+
+  return dataLines.length ? { id, event, data: dataLines.join("\n") } : null;
 }
 
 function appendAssistantText(
@@ -38,6 +45,9 @@ function appendAssistantText(
     ),
   );
 }
+
+const CONNECTION_INTERRUPTED_MESSAGE =
+  "The agent connection was interrupted. Please retry the request.";
 
 export function useAgentChat(options: UseAgentChatOptions = {}) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -85,47 +95,64 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
+      let lastEventId = 0;
+      let sawAgentResponse = false;
+      let sawDone = false;
 
       const applyEvent = (event: SseEvent) => {
+        if (event.id !== null && event.id <= lastEventId) return;
+        if (event.id !== null) lastEventId = event.id;
+
         if (event.event === "token") {
-          const payload = z.object({ text: z.string().min(1) }).parse(JSON.parse(event.data));
+          const payload = z
+            .object({ text: z.string().min(1) })
+            .parse(JSON.parse(event.data));
           appendAssistantText(setMessages, assistantMessageId, payload.text);
           return;
         }
+
         if (event.event === "tool_call_start") {
-          const payload = z.object({
-            callId: z.string().min(1),
-            toolName: z.string().min(1),
-          }).parse(JSON.parse(event.data));
+          const payload = z
+            .object({
+              callId: z.string().min(1),
+              toolName: z.string().min(1),
+            })
+            .parse(JSON.parse(event.data));
           setActiveTool(payload.toolName);
           return;
         }
+
         if (event.event === "tool_call_end") {
           setActiveTool(null);
           return;
         }
+
         if (event.event === "state_update") {
-          const payload = z.object({ projectState: z.unknown() }).parse(JSON.parse(event.data));
+          const payload = z
+            .object({ projectState: z.unknown() })
+            .parse(JSON.parse(event.data));
           const parsed = ProjectStateSchema.safeParse(payload.projectState);
           if (parsed.success) setProjectState(parsed.data);
           return;
         }
+
         if (event.event === "error") {
-          const payload = z.object({
-            error: z.literal("AGENT_STREAM_ERROR"),
-          }).parse(JSON.parse(event.data));
-          void payload;
+          z
+            .object({ error: z.literal("AGENT_STREAM_ERROR") })
+            .parse(JSON.parse(event.data));
           setMessages((previous) =>
             previous.map((message) =>
               message.id === assistantMessageId
-                ? { ...message, content: "The agent connection was interrupted. Please retry the request." }
+                ? { ...message, content: CONNECTION_INTERRUPTED_MESSAGE }
                 : message,
             ),
           );
           return;
         }
+
         if (event.event === "agent_response") {
           const response = AgentResponseSchema.parse(JSON.parse(event.data));
+          sawAgentResponse = true;
           setMessages((previous) =>
             previous.map((message) =>
               message.id === assistantMessageId
@@ -136,6 +163,26 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
           if (response.updatedProjectState) {
             const parsed = ProjectStateSchema.safeParse(response.updatedProjectState);
             if (parsed.success) setProjectState(parsed.data);
+          }
+          return;
+        }
+
+        if (event.event === "done") {
+          const payload = z
+            .object({
+              requestId: z.string().uuid(),
+              interrupted: z.boolean().optional(),
+            })
+            .parse(JSON.parse(event.data));
+          sawDone = true;
+          if (payload.interrupted && !sawAgentResponse) {
+            setMessages((previous) =>
+              previous.map((message) =>
+                message.id === assistantMessageId
+                  ? { ...message, content: CONNECTION_INTERRUPTED_MESSAGE }
+                  : message,
+              ),
+            );
           }
         }
       };
@@ -153,37 +200,46 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
         });
 
         if (!response.ok) {
-          const body = await response.text();
-          throw new Error(body || "Chat request failed with HTTP " + response.status);
+          throw new Error("CHAT_REQUEST_FAILED");
         }
 
         const contentType = response.headers.get("content-type") ?? "";
         if (contentType.includes("application/json")) {
           const result = AgentResponseSchema.parse(await response.json());
+          sawAgentResponse = true;
           setMessages((previous) =>
             previous.map((message) =>
-              message.id === assistantMessageId ? { ...message, content: result.content } : message,
+              message.id === assistantMessageId
+                ? { ...message, content: result.content }
+                : message,
             ),
           );
           if (result.updatedProjectState) {
             const parsed = ProjectStateSchema.safeParse(result.updatedProjectState);
             if (parsed.success) setProjectState(parsed.data);
           }
-        } else if (response.body) {
+          return;
+        }
+
+        if (response.body) {
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
           let buffer = "";
 
           const flush = (final: boolean) => {
             while (true) {
-              const separatorIndex = buffer.indexOf("\n\n");
-              if (separatorIndex === -1) break;
-              const block = buffer.slice(0, separatorIndex);
-              buffer = buffer.slice(separatorIndex + 2);
+              const separatorMatch = buffer.match(/\r?\n\r?\n/);
+              if (!separatorMatch || separatorMatch.index === undefined) break;
+              const block = buffer.slice(0, separatorMatch.index);
+              buffer = buffer.slice(
+                separatorMatch.index + separatorMatch[0].length,
+              );
               const parsed = parseSseBlock(block);
               if (parsed) applyEvent(parsed);
             }
-            if (final && buffer.trim()) {
+
+            if (final) {
+              buffer += decoder.decode();
               const parsed = parseSseBlock(buffer);
               if (parsed) applyEvent(parsed);
               buffer = "";
@@ -200,14 +256,22 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
             flush(false);
           }
         }
-      } catch (error: unknown) {
-        if (error instanceof Error && error.name === "AbortError") return;
-        const errorMessage =
-          error instanceof Error ? error.message : "Stream connection failed";
+
+        if (!sawDone && !sawAgentResponse) {
+          setMessages((previous) =>
+            previous.map((message) =>
+              message.id === assistantMessageId
+                ? { ...message, content: CONNECTION_INTERRUPTED_MESSAGE }
+                : message,
+            ),
+          );
+        }
+      } catch {
+        if (controller.signal.aborted) return;
         setMessages((previous) =>
           previous.map((message) =>
             message.id === assistantMessageId
-              ? { ...message, content: "Error: " + errorMessage }
+              ? { ...message, content: CONNECTION_INTERRUPTED_MESSAGE }
               : message,
           ),
         );

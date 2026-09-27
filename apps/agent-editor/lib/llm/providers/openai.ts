@@ -133,27 +133,51 @@ export class OpenAIProvider implements LLMProvider {
         }
       }
 
-      yield {
-        type: "turn_end",
-        toolCalls: Array.from(toolCalls.values()).flatMap((call) => {
-          if (!call.toolName) return [];
-          try {
-            const parsed = JSON.parse(call.arguments) as unknown;
-            if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return [];
-            return [{
-              callId: call.callId,
-              toolName: call.toolName,
-              arguments: parsed as Record<string, unknown>,
-            }];
-          } catch {
-            return [];
-          }
-        }),
-      };
+      const normalizedCalls = [];
+      for (const call of toolCalls.values()) {
+        if (!call.toolName) {
+          throw new LLMProviderError(
+            "openai",
+            "OpenAI returned a tool call without a function name.",
+            { retryable: true },
+          );
+        }
+
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(call.arguments) as unknown;
+        } catch {
+          throw new LLMProviderError(
+            "openai",
+            "OpenAI returned malformed tool arguments.",
+            { retryable: true },
+          );
+        }
+
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          throw new LLMProviderError(
+            "openai",
+            "OpenAI returned a non-object tool argument payload.",
+            { retryable: true },
+          );
+        }
+
+        normalizedCalls.push({
+          callId: call.callId,
+          toolName: call.toolName,
+          arguments: parsed as Record<string, unknown>,
+        });
+      }
+
+      yield { type: "turn_end", toolCalls: normalizedCalls };
     } catch (error) {
       if (error instanceof LLMProviderError) throw error;
       if (error instanceof Error && error.name === "AbortError") throw error;
-      throw new LLMProviderError("openai", "OpenAI streaming connection failed.", { retryable: true });
+      throw new LLMProviderError(
+        "openai",
+        "OpenAI streaming connection failed.",
+        { retryable: true },
+      );
     }
   }
 }
