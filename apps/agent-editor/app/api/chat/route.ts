@@ -1,76 +1,137 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { AgentRuntime } from "@/lib/agent/runtime";
+import { AgentRuntime, type AgentRuntimeStreamEvent } from "@/lib/agent/runtime";
 import { createDefaultToolRegistry } from "@/lib/tools";
-import { AgentResponseSchema, ChatMessageSchema } from "@/lib/schemas/agent";
-import { ProjectStateSchema } from "@/lib/schemas/project";
+import { AgentResponseSchema } from "@/lib/schemas/agent";
+import { createDefaultLLMRouter } from "@/lib/llm";
+import { ChatRequestSchema, sanitizeChatRequest } from "@/lib/security/request";
 
-const RequestBodySchema = z.object({
-  message: z.string().trim().min(1),
-  history: z.array(ChatMessageSchema).default([]),
-  projectState: ProjectStateSchema.optional(),
-});
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const ErrorResponseSchema = z.object({
   error: z.string().min(1),
-  details: z.unknown().optional(),
+  requestId: z.string().uuid(),
 });
 
-function encodeEvent(event: string, data: unknown): Uint8Array {
+const MAX_BODY_BYTES = 256 * 1024;
+
+function encodeSseEvent(
+  id: number,
+  event: string,
+  data: unknown,
+): Uint8Array {
   const encoder = new TextEncoder();
   return encoder.encode(
-    "event: " + event + "\ndata: " + JSON.stringify(data) + "\n\n",
+    `id: ${id}\nevent: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
   );
 }
 
-function createAgentStream(response: z.infer<typeof AgentResponseSchema>, signal: AbortSignal): Response {
+function encodeHeartbeat(): Uint8Array {
+  return new TextEncoder().encode(": ping\n\n");
+}
+
+function toPublicResponse(
+  response: z.infer<typeof AgentResponseSchema>,
+): z.infer<typeof AgentResponseSchema> {
+  return AgentResponseSchema.parse({
+    ...response,
+    requestedToolCalls: response.requestedToolCalls.map((call) => ({
+      callId: call.callId,
+      toolName: call.toolName,
+      parameters: {},
+    })),
+    toolResults: response.toolResults.map((result) => ({
+      callId: result.callId,
+      toolName: result.toolName,
+      status: result.status,
+      executionTimeMs: result.executionTimeMs,
+    })),
+  });
+}
+
+function createAgentStream(
+  runtime: AgentRuntime,
+  body: ReturnType<typeof sanitizeChatRequest>,
+  requestId: string,
+  signal: AbortSignal,
+): Response {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      let eventId = 0;
+      let heartbeat: ReturnType<typeof setInterval> | undefined;
+
+      const enqueue = (event: string, data: unknown) => {
+        if (signal.aborted) return false;
+        eventId += 1;
+        controller.enqueue(encodeSseEvent(eventId, event, data));
+        return true;
+      };
+
       try {
-        for (const call of response.requestedToolCalls) {
+        controller.enqueue(new TextEncoder().encode("retry: 3000\n\n"));
+        heartbeat = setInterval(() => {
           if (signal.aborted) {
-            controller.close();
+            if (heartbeat) clearInterval(heartbeat);
             return;
           }
-          controller.enqueue(
-            encodeEvent("tool_call_start", {
-              callId: call.callId,
-              toolName: call.toolName,
-              parameters: call.parameters,
-            }),
-          );
-        }
+          controller.enqueue(encodeHeartbeat());
+        }, 15_000);
 
-        for (const result of response.toolResults) {
-          if (signal.aborted) {
-            controller.close();
-            return;
+        for await (const event of runtime.streamUserMessage(
+          body.message,
+          body.history,
+          body.projectState,
+        )) {
+          if (signal.aborted) break;
+
+          switch (event.type) {
+            case "token":
+              enqueue("token", { text: event.text });
+              break;
+            case "tool_call_start":
+              enqueue("tool_call_start", {
+                callId: event.callId,
+                toolName: event.toolName,
+              });
+              break;
+            case "tool_call_end":
+              enqueue("tool_call_end", {
+                callId: event.result.callId,
+                toolName: event.result.toolName,
+                status: event.result.status,
+                executionTimeMs: event.result.executionTimeMs,
+              });
+              break;
+            case "state_update":
+              enqueue("state_update", { projectState: event.projectState });
+              break;
+            case "final":
+              enqueue("agent_response", toPublicResponse(event.response));
+              break;
           }
-          controller.enqueue(encodeEvent("tool_call_end", result));
         }
 
-        if (response.updatedProjectState) {
-          controller.enqueue(
-            encodeEvent("state_update", {
-              projectState: response.updatedProjectState,
-            }),
-          );
+        if (!signal.aborted) {
+          enqueue("done", { requestId });
+          controller.close();
+        } else {
+          controller.close();
         }
-
-        for (const token of response.content.split(/(?=\s)|(?<=\s)/).filter(Boolean)) {
-          if (signal.aborted) {
-            controller.close();
-            return;
-          }
-          controller.enqueue(encodeEvent("token", { text: token }));
-          await new Promise((resolve) => setTimeout(resolve, 5));
-        }
-
-        controller.enqueue(encodeEvent("agent_response", response));
-        controller.enqueue(encodeEvent("done", { messageId: response.messageId }));
-        controller.close();
       } catch (error) {
-        controller.error(error);
+        if (signal.aborted) {
+          controller.close();
+          return;
+        }
+
+        console.error(
+          `[FLIXO_AGENT_STREAM_ERROR] requestId=${requestId} ${error instanceof Error ? error.name : "UnknownError"}`,
+        );
+        enqueue("error", { error: "AGENT_STREAM_ERROR", requestId });
+        enqueue("done", { requestId, interrupted: true });
+        controller.close();
+      } finally {
+        if (heartbeat) clearInterval(heartbeat);
       }
     },
   });
@@ -81,44 +142,75 @@ function createAgentStream(response: z.infer<typeof AgentResponseSchema>, signal
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+      "X-Content-Type-Options": "nosniff",
+      "X-Request-ID": requestId,
     },
   });
 }
 
 export async function POST(request: Request): Promise<Response> {
-  try {
-    const rawBody: unknown = await request.json();
-    const parsed = RequestBodySchema.safeParse(rawBody);
+  const requestId = crypto.randomUUID();
 
-    if (!parsed.success) {
+  try {
+    if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
       return NextResponse.json(
         ErrorResponseSchema.parse({
-          error: "Invalid Request Schema",
-          details: parsed.error.format(),
+          error: "UNSUPPORTED_MEDIA_TYPE",
+          requestId,
+        }),
+        { status: 415 },
+      );
+    }
+
+    const contentLength = Number(request.headers.get("content-length") ?? 0);
+    if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
+      return NextResponse.json(
+        ErrorResponseSchema.parse({
+          error: "REQUEST_TOO_LARGE",
+          requestId,
+        }),
+        { status: 413 },
+      );
+    }
+
+    const rawBody: unknown = await request.json();
+    const schemaCheck = ChatRequestSchema.safeParse(rawBody);
+    if (!schemaCheck.success) {
+      return NextResponse.json(
+        ErrorResponseSchema.parse({
+          error: "INVALID_REQUEST_SCHEMA",
+          requestId,
         }),
         { status: 400 },
       );
     }
 
-    const runtime = new AgentRuntime(createDefaultToolRegistry(), {
-      useMockEngine: true,
-    });
-
-    const agentResponse = AgentResponseSchema.parse(
-      await runtime.processUserMessage(
-        parsed.data.message,
-        parsed.data.history,
-        parsed.data.projectState,
-      ),
+    const body = sanitizeChatRequest(schemaCheck.data);
+    const runtime = new AgentRuntime(
+      createDefaultToolRegistry(),
+      {
+        useMockEngine: process.env.FLIXO_ENABLE_MOCK_LLM === "true",
+      },
+      createDefaultLLMRouter(),
     );
 
-    return createAgentStream(agentResponse, request.signal);
+    return createAgentStream(runtime, body, requestId, request.signal);
   } catch (error) {
+    const isExpected =
+      error instanceof Error &&
+      /^(HISTORY_TOO_LARGE|Invalid|Request body|Unexpected end|JSON)/.test(error.message);
+
+    console.error(
+      `[FLIXO_AGENT_REQUEST_ERROR] requestId=${requestId} ${error instanceof Error ? error.name : "UnknownError"}`,
+    );
+
     return NextResponse.json(
       ErrorResponseSchema.parse({
-        error: error instanceof Error ? error.message : "Internal Agent Error",
+        error: isExpected ? "INVALID_REQUEST" : "INTERNAL_AGENT_ERROR",
+        requestId,
       }),
-      { status: 500 },
+      { status: isExpected ? 400 : 500 },
     );
   }
 }
