@@ -32,10 +32,13 @@ function message(role: AgentModelMessage["role"], content: string): AgentModelMe
   return Object.freeze({ role, content });
 }
 
-function positionPrompt(instruction: AgentInstruction, profile: AgentModelProfile, side: "primary" | "adversary"): readonly AgentModelMessage[] {
+type AdjudicationFeedback = Readonly<{ summary:string; agreement:number; disputes:readonly string[]; verifiedFindings:number; falsePositiveFindings:number; unresolvedDisputes:number }>;
+
+function positionPrompt(instruction: AgentInstruction, profile: AgentModelProfile, side: "primary" | "adversary", feedback?: AdjudicationFeedback): readonly AgentModelMessage[] {
   const stance = side === "primary"
     ? "Solve the task independently. Do not assume another agent exists. Commit to your best evidence-backed result."
     : "Act as the adversarial twin. Solve the same task independently. Search specifically for hidden assumptions, failure modes, missing evidence, regressions, and incorrect conclusions. Do not see the primary answer.";
+  const feedbackContext = feedback ? { previousAdjudication: feedback } : undefined;
   return Object.freeze([
     message("system", `${profile.systemPrompt}\n\n${stance}`),
     message("user", JSON.stringify({
@@ -45,6 +48,7 @@ function positionPrompt(instruction: AgentInstruction, profile: AgentModelProfil
       constraints: instruction.constraints,
       context: instruction.context,
       output: { result: "string", evidence: "object" },
+      ...(feedbackContext ? feedbackContext : {}),
     })),
   ]);
 }
@@ -66,19 +70,20 @@ export class AdversarialTwinWorker implements AgentWorker {
 
     let primary: AgentModelResponse | null = null;
     let adversary: AgentModelResponse | null = null;
+    let feedback: AdjudicationFeedback | undefined;
 
     for (let round = 1; round <= rounds; round += 1) {
       [primary, adversary] = await Promise.all([
         this.options.invoker.invoke(Object.freeze({
           instruction,
           profile,
-          messages: positionPrompt(instruction, profile, "primary"),
+          messages: positionPrompt(instruction, profile, "primary", feedback),
           turn: round,
         })),
         this.options.invoker.invoke(Object.freeze({
           instruction,
           profile,
-          messages: positionPrompt(instruction, profile, "adversary"),
+          messages: positionPrompt(instruction, profile, "adversary", feedback),
           turn: round,
         })),
       ]);
@@ -110,11 +115,19 @@ export class AdversarialTwinWorker implements AgentWorker {
       }));
 
       const decision = this.parseDecision(adjudication);
+      const numeric = (key: string): number => {
+        const value = decision.evidence[key];
+        return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
+      };
+      feedback = Object.freeze({
+        summary: decision.summary,
+        agreement: decision.agreement,
+        disputes: decision.disputes,
+        verifiedFindings: numeric("verifiedFindings"),
+        falsePositiveFindings: numeric("falsePositiveFindings"),
+        unresolvedDisputes: Math.max(numeric("unresolvedDisputes"), decision.disputes.length),
+      });
       if (decision.agreement >= 0.85 || round === rounds) {
-        const numeric = (key: string): number => {
-          const value = decision.evidence[key];
-          return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
-        };
         const adversarialReward = new AgentRewardEngine().calculateAdversarial({
           verifiedFindings: numeric("verifiedFindings"),
           falsePositiveFindings: numeric("falsePositiveFindings"),
