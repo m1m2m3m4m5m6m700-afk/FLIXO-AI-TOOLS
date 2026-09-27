@@ -19,7 +19,7 @@ export const ToolMetaSchema = z.object({
   estimatedCostCredits: z.number().nonnegative().default(0),
   estimatedLatencyMs: z.number().nonnegative().default(100),
   supportedMediaTypes: z.array(z.enum(["image", "video", "audio"])),
-});
+}).strict();
 export type ToolMeta = z.infer<typeof ToolMetaSchema>;
 
 export interface ToolDefinition<
