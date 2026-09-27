@@ -73,16 +73,13 @@ export class LLMRouter {
         const providerRequest: LLMStreamRequest = {
           ...request,
           model: provider.model,
-          systemPrompt: request.resumePrefix
+          systemPrompt: request.systemPrompt,
+          messages: request.resumePrefix
             ? [
-                request.systemPrompt,
-                "",
-                "RESUMED RESPONSE INSTRUCTION:",
-                "Continue the interrupted assistant response without repeating the already delivered text.",
-                "Already delivered prefix:",
-                request.resumePrefix.slice(-2048),
-              ].join("\n")
-            : request.systemPrompt,
+                ...request.messages,
+                { role: "assistant", content: request.resumePrefix.slice(-2048) },
+              ]
+            : request.messages,
         };
 
         for await (const event of provider.stream(providerRequest)) {
