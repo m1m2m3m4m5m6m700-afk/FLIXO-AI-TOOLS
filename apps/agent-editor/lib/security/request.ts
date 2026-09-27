@@ -62,16 +62,23 @@ export function sanitizeText(value: string, maxLength: number): string {
 }
 
 export function sanitizeChatRequest(raw: unknown): ChatRequest {
-  const parsed = ChatRequestSchema.parse(raw);
-  let totalHistoryChars = 0;
-
-  if (parsed.projectState) {
-    const serializedProjectState = JSON.stringify(parsed.projectState);
+  if (
+    raw !== null &&
+    typeof raw === "object" &&
+    "projectState" in raw &&
+    (raw as { projectState?: unknown }).projectState !== undefined
+  ) {
+    const serializedProjectState = JSON.stringify(
+      (raw as { projectState: unknown }).projectState,
+    );
     const projectStateBytes = new TextEncoder().encode(serializedProjectState).byteLength;
     if (projectStateBytes > MAX_PROJECT_STATE_BYTES) {
       throw new Error("PROJECT_STATE_TOO_LARGE");
     }
   }
+
+  const parsed = ChatRequestSchema.parse(raw);
+  let totalHistoryChars = 0;
 
   const history = parsed.history.map((message) => {
     const content = sanitizeText(message.content, MAX_HISTORY_CHARS);
