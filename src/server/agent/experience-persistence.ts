@@ -68,7 +68,7 @@ export class SupabaseAgentExperiencePersistence implements AgentExperiencePersis
   }
 
   async load(): Promise<readonly AgentExperience[]> {
-    const rows = await listAllExternalAgentLearning(256);
+    const rows = await listExternalAgentLearning(this.targetSha, 128);
     return Object.freeze(rows.map(parseEnvelope).filter((experience): experience is AgentExperience => experience !== null));
   }
 };
