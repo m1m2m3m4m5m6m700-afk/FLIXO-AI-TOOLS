@@ -137,7 +137,7 @@ jobs:
           set -euo pipefail
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
-          wrangler deploy --dry-run --config wrangler.jsonc --name "$WRANGLER_WORKER_NAME"
+          wrangler deploy --dry-run --config wrangler.jsonc --name "$WRANGLER_WORKER_NAME" --var "FLIXO_DEPLOYMENT_SHA:$DEPLOYMENT_SHA"
 
       - name: Deploy to Cloudflare (flixoai)
         if: steps.freshness.outputs.is_current == 'true'
@@ -146,7 +146,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          wrangler deploy --config wrangler.jsonc --name "$WRANGLER_WORKER_NAME"
+          wrangler deploy --config wrangler.jsonc --name "$WRANGLER_WORKER_NAME" --var "FLIXO_DEPLOYMENT_SHA:$DEPLOYMENT_SHA"
 
       - name: Verify production identity
         if: steps.freshness.outputs.is_current == 'true'
