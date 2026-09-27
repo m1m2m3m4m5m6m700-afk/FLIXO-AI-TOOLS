@@ -191,7 +191,6 @@ export class AgentRuntime {
         systemPrompt,
         messages,
         tools: llmTools,
-        resumePrefix: latestAssistantText.slice(-2048),
       })) {
         if (event.type === "text_delta") {
           latestAssistantText += event.text;
