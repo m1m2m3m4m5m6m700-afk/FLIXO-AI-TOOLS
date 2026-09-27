@@ -105,6 +105,9 @@ Tasks:
 P1.1 result: COMPLETE — added `ObjectiveVerificationContract` and `ObjectiveVerificationStatus` to `packages/contracts/src/index.ts` after inspecting the existing contract surface. No duplicate verifier implementation was added.
 Verification: GitHub file read confirmed the contract was written to the active branch.
 
+P1.2 result: COMPLETE — added deterministic `ObjectiveVerifier`, exported it from the orchestrator, and added dedicated tests for verified, rejected, and missing-evidence cases.
+Verification: source and test files were created and the package test script was updated. Runtime execution is not yet verified because no local shell runner has been established in this session.
+
 Exit condition:
 - no reward promotion without an explicit verification result;
 - unresolved results cannot be treated as success;
@@ -226,6 +229,6 @@ Never write “production-ready” while required verification is missing.
 
 ## 6. Current Next Action
 
-Execute P1.2: implement the deterministic Objective Verifier in `packages/agent-orchestrator` using the new shared contract.
+Execute P1.3: connect verifier results to cognitive verification state and reward decisions, without allowing raw agent evidence to bypass verification.
 
-Required before P1.3: inspect existing reward/evaluation evidence types and ensure verifier output is the only source used for verification state transitions.
+Required before P1.4: inspect all current verification-state and reward call sites; update only verified paths.
