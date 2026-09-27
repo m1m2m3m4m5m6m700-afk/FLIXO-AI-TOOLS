@@ -1,4 +1,5 @@
 import type { AgentInstruction, AgentReport, AgentWorker } from "./index.ts";
+import { getAgentModelProfile } from "./agent-profiles.ts";
 import type { AgentModelInvoker, AgentModelResponse } from "./model-adapter.ts";
 import { AgentRewardEngine } from "./reward.ts";
 
@@ -31,9 +32,11 @@ export class RedTeamWorker implements AgentWorker {
 
   async run(instruction: AgentInstruction): Promise<AgentReport> {
     const categories = ["security", "reliability", "evidence"] as const;
+    const profile = getAgentModelProfile(instruction.role);
     const positions = await Promise.all(categories.map((category) =>
       this.invoker.invoke({
         instruction,
+        profile,
         messages: [
           {
             role: "system",
@@ -55,6 +58,7 @@ export class RedTeamWorker implements AgentWorker {
 
     const adjudication = await this.invoker.invoke({
       instruction,
+      profile,
       messages: [
         {
           role: "system",
