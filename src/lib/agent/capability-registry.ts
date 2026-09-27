@@ -202,4 +202,4 @@ export function assertExecutionResourceBudget(
   }
 }
 
-export { getCanonicalCapabilityDefinition };
+export { CAPABILITY_DEFINITIONS, getCanonicalCapabilityDefinition };
