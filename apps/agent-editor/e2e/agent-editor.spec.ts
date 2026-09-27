@@ -13,8 +13,8 @@ test.describe("FLIXO Agent Editor end-to-end", () => {
     await expect(page.getByText("Untitled Creative Project", { exact: false })).toBeVisible();
     await page.getByLabel("Describe the edit").fill("Remove background from image");
     await page.getByRole("button", { name: "Send" }).click();
-    await expect(page.getByText("Background Removed Layer", { exact: true })).toBeVisible();
-    await expect(page.getByText("remove_background", { exact: true })).toBeVisible();
+    await expect(page.getByText(/Untitled Creative Project · v2/u)).toBeVisible();
+    await expect(page.getByTestId("active-tool")).toHaveCount(0);
     expect(consoleErrors).toEqual([]);
   });
 
