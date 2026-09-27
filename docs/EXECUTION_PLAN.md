@@ -120,15 +120,15 @@ Verification: source files re-read from the active branch after writes; dedicate
 Known limitation: `AgentRewardEngine.calculate()` remains available as a low-level raw calculation API for compatibility; production learning paths must use `calculateVerified()`.
 
 ### P2 — Failure intelligence hardening
-Status: PLANNED
+Status: COMPLETE
 Goal: turn failures into structured learning signals.
 Tasks:
-- P2.1 Normalize failure taxonomy.
-- P2.2 Add recurrence/severity aggregation.
-- P2.3 Connect recurring failures to curriculum focus.
-- P2.4 Add regression tests.
+- P2.1 Normalize failure taxonomy. COMPLETE — canonical `FailurePattern`, category, severity, and corrective-action taxonomy added.
+- P2.2 Add recurrence/severity aggregation. COMPLETE — `FailureIntelligence.aggregates()` tracks occurrences, affected agents, maximum severity, and last-seen time.
+- P2.3 Connect recurring failures to curriculum focus. COMPLETE — failure patterns are persisted with `AgentExperience` and prioritized by recurrence in `ContinualLearningEngine.curriculum()`.
+- P2.4 Add regression tests. COMPLETE — taxonomy aggregation and curriculum targeting tests added.
 
-Exit condition: curriculum can target a verified recurring failure pattern.
+Exit condition: curriculum can target a recorded recurring failure pattern. Implementation is source-verified; runtime test/CI success remains unobserved.
 
 ### P3 — Skill memory
 Status: PARTIAL / IMPLEMENTED
@@ -235,6 +235,8 @@ Never write “production-ready” while required verification is missing.
 
 ## 6. Current Next Action
 
-Execute P2.1: normalize failure taxonomy and connect verified failure patterns to curriculum focus. After that, implement P4/P5/P6 in sequence, then production integration and full verification.
+Execute P4.1: define a bounded adaptive challenge contract that carries objective acceptance criteria and provenance. Then implement P4.2–P4.6 against the existing isolated Agent Learning Lab.
+
+Fine-tuning track: treat verified experiences as the only eligible training-data source; do not introduce model-weight updates until dataset provenance, objective verification, benchmark gates, sandboxing, and human promotion controls are implemented.
 
 Fine-tuning track: treat verified experiences as the only eligible training-data source; do not introduce model-weight updates until dataset provenance, objective verification, benchmark gates, sandboxing, and human promotion controls are implemented.
