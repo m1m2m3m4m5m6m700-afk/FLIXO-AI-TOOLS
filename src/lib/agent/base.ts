@@ -24,4 +24,6 @@ export type {
   LLMToolArgumentValidator,
   LLMProvider,
   LLMProviderContractErrorCode,
+  JsonValue,
+  JsonObject,
 } from './llm-provider-contract.ts';
