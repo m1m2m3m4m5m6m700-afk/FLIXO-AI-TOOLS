@@ -35,6 +35,11 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - name: Three-critic local contract tests
+        run: |
+          set -euo pipefail
+          python3 scripts/three_critic_review.py --self-test
+          python3 tests/three_critic_review.test.py
       - run: npm test
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run build
