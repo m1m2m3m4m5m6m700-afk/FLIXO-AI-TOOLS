@@ -127,7 +127,7 @@ export class FailureIntelligence {
   classify(commandId:string,stepId:string,agentId:string,evidence:EvaluationEvidence): FailureRecord[] {
     const patterns = new Set<FailurePattern>();
     if ((evidence.testsFailed??0)>0) patterns.add("verification-test-failure");
-    if ((evidence.evidenceVerified??null) === undefined) patterns.add("verification-evidence-missing");
+    if (evidence.evidenceVerified === undefined) patterns.add("verification-evidence-missing");
     else if (evidence.evidenceVerified === false) patterns.add("verification-evidence-rejected");
 
     const required = evidence.requiredArtifacts ?? [];
