@@ -4,14 +4,12 @@ This file is an agent-harness entry point, not an independent authority source.
 
 ## Canonical authority
 
-Use the existing FLIXO runtime contracts as the source of truth:
+Use the canonical package boundaries as the source of truth:
 
-- Capability identity: `src/lib/agent/capability-registry.ts`
-- Execution boundary: `src/lib/agent/execution-gate.ts`
-- Task state: `src/lib/agent/task-state.ts`
-- Agent profiles: `src/lib/agent/agent-profile.ts`
-- Mission/task/evidence lifecycle: `src/lib/agent/mission-contract.ts`
-- Outcome and learning contract: `src/lib/agent/cognitive-outcome.ts`
+- Shared contracts: `packages/contracts/src/`
+- Agent runtime: `packages/agent-runtime/src/`
+- Application-local adapters: `apps/*/lib/`
+- Product-specific capability catalog: `src/config/` and `src/lib/agent/` until the capability package extraction gate is complete.
 
 Do not create a second tool registry, authority model, certification mechanism, or execution path.
 

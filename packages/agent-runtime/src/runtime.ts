@@ -16,11 +16,13 @@ export type RuntimeSnapshot = Readonly<{
 
 export class AgentRuntime {
   private snapshot: RuntimeSnapshot;
+  private readonly registry: RuntimeToolRegistry;
 
   constructor(
-    private readonly registry: RuntimeToolRegistry,
+    registry: RuntimeToolRegistry,
     identity: Readonly<{ taskId: string; traceId: string }>,
   ) {
+    this.registry = registry;
     if (!identity.taskId.trim() || !identity.traceId.trim()) {
       throw new Error("Runtime task identity is required.");
     }
