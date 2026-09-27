@@ -1,4 +1,5 @@
 import type { AgentCognitiveStateContract, AgentDecisionContract, CognitiveVerificationState } from "@flixo/contracts";
+import type { EvaluationEvidence } from "./evaluation.ts";
 export type VerificationState = CognitiveVerificationState;
 export type AgentCognitiveState = AgentCognitiveStateContract;
 export type DecisionRecord = AgentDecisionContract;
@@ -62,4 +63,21 @@ export class CognitiveTraceObserver {
     const agentId = typeof evidence.agentId === "string" ? evidence.agentId : "unknown";
     this.ledger.observe(report.commandId, report.stepId, agentId, report.summary);
   }
+}
+
+export type FailureCategory = "correctness" | "verification" | "quality" | "security" | "performance" | "policy" | "evidence" | "unknown";
+export type FailureRecord = Readonly<{ id:string; commandId:string; stepId:string; agentId:string; category:FailureCategory; severity:"low"|"medium"|"high"|"critical"; pattern:string; evidence:readonly string[]; correctiveAction:string; timestamp:string; }>;
+export class FailureIntelligence {
+  private readonly failures: FailureRecord[]=[];
+  classify(commandId:string,stepId:string,agentId:string,evidence:EvaluationEvidence): FailureRecord[] {
+    const findings: Array<{category:FailureCategory;severity:FailureRecord["severity"];pattern:string;correctiveAction:string}> = [];
+    if ((evidence.testsFailed??0)>0) findings.push({category:"correctness",severity:"high",pattern:"verification-test-failure",correctiveAction:"repair failing behavior and rerun the verification suite"});
+    if (evidence.evidenceVerified===false) findings.push({category:"evidence",severity:"medium",pattern:"evidence-not-verified",correctiveAction:"provide independently verifiable evidence"});
+    if ((evidence.securityFindings??0)>0) findings.push({category:"security",severity:"high",pattern:"security-findings-present",correctiveAction:"resolve security findings before promotion"});
+    if ((evidence.performanceRegressions??0)>0) findings.push({category:"performance",severity:"medium",pattern:"performance-regression",correctiveAction:"profile the regression and verify the fix"});
+    if ((evidence.outOfScopeActions??0)>0 || (evidence.delegatedTasks??0)>0) findings.push({category:"policy",severity:"critical",pattern:"policy-boundary-violation",correctiveAction:"enforce command scope and delegation policy"});
+    return findings.map((f,i)=>{const record:FailureRecord=Object.freeze({id:`${commandId}:${stepId}:failure-${i+1}`,commandId,stepId,agentId,...f,evidence:Object.freeze([evidence.notes??""]),timestamp:new Date().toISOString()}); this.failures.push(record); return record;});
+  }
+  list(agentId?:string):readonly FailureRecord[] { return Object.freeze(this.failures.filter(f=>!agentId||f.agentId===agentId)); }
+  patterns(agentId:string):readonly string[] { return Object.freeze([...new Set(this.list(agentId).map(f=>f.pattern))]); }
 }
