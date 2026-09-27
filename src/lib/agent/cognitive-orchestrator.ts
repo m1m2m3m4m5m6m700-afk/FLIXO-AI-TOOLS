@@ -8,9 +8,9 @@ import { buildCollectiveIntelligenceFrame, type CollectiveIntelligenceFrame } fr
 import { getToolExecutor } from '@/lib/workflows/executor-registry';
 import { getToolOutputContractForDefinition } from '@/lib/contracts/tool-output-contracts';
 import { runBoundedParallel, type AgentDelegatedTask, type AgentTaskResult } from './delegation';
-import { runBoundedGoalLoop, type GoalControllerResult } from './goal-controller';
-import type { AgentObservation } from './stuck-detector';
-import { decomposeTask, type TaskDecomposition } from './task-decomposer.ts';
+import { runBoundedGoalLoop, type GoalControllerResult } from '@flixo/agent-runtime';
+import type { AgentObservation } from '@flixo/agent-runtime';
+import { decomposeTask, type TaskDecomposition } from '@flixo/agent-runtime';
 import { buildSpecialistPlan, assertSpecialistPlanSafety, type SpecialistPlan } from './specialist-orchestrator.ts';
 
 export type CognitiveDecision = 'EXECUTE_READY' | 'NEEDS_INPUT' | 'UNSUPPORTED' | 'UNSAFE';
