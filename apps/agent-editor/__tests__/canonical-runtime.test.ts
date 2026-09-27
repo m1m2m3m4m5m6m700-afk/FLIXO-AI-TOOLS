@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   AgentRuntime,
   RuntimeToolRegistry,
-} from "../../packages/agent-runtime/src/index";
+} from "../../../packages/agent-runtime/src/index";
 
 describe("canonical Agent Runtime", () => {
   it("requires explicit planning and confirmation before execution", async () => {
