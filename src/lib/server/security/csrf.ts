@@ -39,8 +39,19 @@ export function getCsrfCookieName(): string { return CSRF_COOKIE_NAME; }
 interface RateLimiterOptions { capacity: number; refillPerSecond: number; }
 interface Bucket { tokens: number; lastRefill: number; }
 const buckets = new Map<string, Bucket>();
+const MAX_RATE_LIMIT_BUCKETS = 10_000;
 export function rateLimit(key: string, opts: RateLimiterOptions): { allowed: boolean; remaining: number } {
+  if (!key.trim() || !Number.isFinite(opts.capacity) || opts.capacity < 1 || !Number.isFinite(opts.refillPerSecond) || opts.refillPerSecond <= 0) {
+    throw new Error('INVALID_RATE_LIMIT_CONFIGURATION');
+  }
   const now = Date.now();
+  const expiryMs = (opts.capacity / opts.refillPerSecond) * 1_000;
+  if (buckets.size >= MAX_RATE_LIMIT_BUCKETS && !buckets.has(key)) {
+    for (const [bucketKey, bucketValue] of buckets) {
+      if (now - bucketValue.lastRefill > expiryMs) buckets.delete(bucketKey);
+    }
+    if (buckets.size >= MAX_RATE_LIMIT_BUCKETS) return { allowed: false, remaining: 0 };
+  }
   let bucket = buckets.get(key);
   if (!bucket) { bucket = { tokens: opts.capacity, lastRefill: now }; buckets.set(key, bucket); }
   const elapsed = (now - bucket.lastRefill) / 1000;
