@@ -80,37 +80,22 @@ export class ModelBackedAgentWorker implements AgentWorker {
         }),
       },
     ];
-
-    let lastResponse: AgentModelResponse | null = null;
-    for (let turn = 1; turn <= Math.min(this.maxTurns, profile.maxTurns); turn += 1) {
-      lastResponse = await this.invoker.invoke(Object.freeze({
-        instruction,
-        profile,
-        messages: Object.freeze([...messages]),
-        turn,
-      }));
-      const content = normalizeContent(lastResponse.content);
-      const status = /(?:blocked|cannot|unable|forbidden)/iu.test(content)
-        ? "blocked"
-        : "completed";
-      return Object.freeze({
-        stepId: instruction.stepId,
-        commandId: instruction.commandId,
-        status,
-        summary: content,
-        evidence: normalizeEvidence(lastResponse.evidence),
-      });
-    }
-
+    const response = await this.invoker.invoke(Object.freeze({
+      instruction,
+      profile,
+      messages: Object.freeze([...messages]),
+      turn: 1,
+    }));
+    const content = normalizeContent(response.content);
+    const status = /(?:blocked|cannot|unable|forbidden)/iu.test(content) ? "blocked" : "completed";
     return Object.freeze({
       stepId: instruction.stepId,
       commandId: instruction.commandId,
-      status: "failed",
-      summary: lastResponse ? normalizeContent(lastResponse.content) : "Agent model produced no response.",
-      evidence: normalizeEvidence(lastResponse?.evidence),
+      status,
+      summary: content,
+      evidence: normalizeEvidence(response.evidence),
     });
-  }
-}
+  }}
 
 export function createModelBackedWorker(
   descriptor: Readonly<{ id: string; role: string }>,
