@@ -11,6 +11,7 @@ import { evaluatePlanApproval } from '../src/lib/agent/approval-policy.ts';
 import { isDurableAgentTaskStoreConfigured, upsertAgentTask, appendAgentTaskEvent } from '../src/server/agent/durable-task-store.ts';
 import { WORKFLOW_TOOL_CATALOG } from '../src/lib/agent/workflow-as-tool.ts';
 import { listExternalAgentLearning } from '../src/server/agent/learning-persistence.ts';
+import { rateLimit, RATE_PRESETS } from '../src/lib/server/security/csrf.ts';
 import {
   beginFlixoBotGatewayRuntime,
   beginModelTurn,
@@ -29,6 +30,18 @@ const MAX_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_TOKENS = 900;
 const MAX_RESPONSE_TOKENS = 4_096;
 const SUPPORTED_PROVIDERS = ['openai', 'openrouter', 'gemini'] as const;
+const trustedProxyHeaders = () => process.env.FLIXO_TRUST_PROXY_HEADERS === 'true' || process.env.VERCEL === '1';
+
+export function agentClientKey(req: IncomingMessage): string {
+  if (trustedProxyHeaders()) {
+    const forwarded = req.headers['x-forwarded-for'];
+    const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(',').map((value) => value.trim()).filter(Boolean)[0];
+    if (first) return 'ip:' + first;
+    const real = req.headers['x-real-ip'];
+    if (typeof real === 'string' && real.trim()) return 'ip:' + real.trim();
+  }
+  return 'socket:' + (req.socket?.remoteAddress ?? 'unknown');
+}
 type SupportedProvider = (typeof SUPPORTED_PROVIDERS)[number];
 
 
@@ -169,6 +182,12 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   if (req.method !== 'POST') {
     res.setHeader('allow', 'POST');
     json(res, 405, { error: 'Method not allowed.' });
+    return;
+  }
+  const budget = rateLimit(agentClientKey(req), RATE_PRESETS.toolRequest);
+  if (!budget.allowed) {
+    res.setHeader('retry-after', '10');
+    json(res, 429, { error: 'Too many FLIXO agent requests.' });
     return;
   }
   try {
