@@ -1,5 +1,5 @@
-import { createTaskContext, transitionTask, type TaskContext, type TaskState } from './task-state.ts';
-import type { DecomposedTask, TaskDecomposition } from './task-decomposer.ts';
+import { createTaskContext, transitionTask, type TaskContext, type TaskState } from '@flixo/agent-runtime';
+import type { DecomposedTask, TaskDecomposition } from '@flixo/agent-runtime';
 
 const SHA40 = /^[a-f0-9]{40}$/u;
 
