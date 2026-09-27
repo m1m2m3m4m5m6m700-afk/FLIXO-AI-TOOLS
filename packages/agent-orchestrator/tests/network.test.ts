@@ -61,3 +61,28 @@ test("registry rejects autonomous adapters", () => {
     execute: async () => ({ status: "completed", summary: "x" }),
   }), /AUTONOMOUS_AGENT_FORBIDDEN/);
 });
+
+
+test("default adversarial mode covers all ten roles", async () => {
+  const { DirectCommandOrchestrator } = await import("../src/index.ts");
+  const { AgentNetworkControlPlane } = await import("../src/network.ts");
+  const orchestrator = new DirectCommandOrchestrator({
+    async plan(command, objective) {
+      return {
+        commandId: command.commandId,
+        objective,
+        steps: [{ stepId: "step-1", role: "tester", objective, dependsOn: [], constraints: [] }],
+      };
+    },
+  }, undefined, new AgentNetworkControlPlane());
+  orchestrator.enableDefaultAdversarialMode({
+    async invoke(request) {
+      const system = request.messages[0]?.content ?? "";
+      if (system.includes("neutral adjudicator")) return { content: JSON.stringify({ status: "completed", summary: "verified", agreement: 1, winningSide: "primary", disputes: [], evidence: { evidenceVerified: true } }) };
+      return { content: system.includes("adversarial twin") ? "challenge" : "primary", evidence: { evidenceVerified: true } };
+    },
+  });
+  const reports = await orchestrator.dispatch({ commandId: "cmd-adversarial", issuedBy: "human", issuedAt: new Date().toISOString() }, "verify");
+  assert.equal(reports.length, 1);
+  assert.equal((reports[0].evidence as { adversarial: boolean }).adversarial, true);
+});
