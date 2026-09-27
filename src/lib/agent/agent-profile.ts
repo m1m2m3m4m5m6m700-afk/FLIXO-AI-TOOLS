@@ -204,3 +204,20 @@ export function assertAutonomousExecutionSquadSafety(): void {
     assertAgentProfileSafety(profile);
   }
 }
+
+/** External development-plane adapters are role overlays over existing profiles. */
+export const EXTERNAL_AGENT_ADAPTERS = Object.freeze([
+  Object.freeze({id:'mini-swe-agent' as const, role:'REPAIR_WORKER' as const, profileId:'actionRepairBot' as const, runtimeMode:'EXTERNAL_ADAPTER' as const, authorityBinding:'CANONICAL_CONTROL_PLANE' as const, mutationAuthority:false as const, certificationAuthority:false as const, branchCreation:false as const, directPush:false as const, directPromotion:false as const}),
+  Object.freeze({id:'coderabbit' as const, role:'REVIEWER' as const, profileId:'reviewAgent' as const, runtimeMode:'EXTERNAL_ADAPTER' as const, authorityBinding:'CANONICAL_CONTROL_PLANE' as const, mutationAuthority:false as const, certificationAuthority:false as const, branchCreation:false as const, directPush:false as const, directPromotion:false as const}),
+] as const);
+
+export function assertExternalAgentAdapterCatalogSafety():void {
+  for(const adapter of EXTERNAL_AGENT_ADAPTERS){
+    const profile=getAgentProfile(adapter.profileId);
+    if(!profile) throw new Error('EXTERNAL_AGENT_PROFILE_MISSING='+adapter.profileId);
+    assertAgentProfileSafety(profile);
+    if(adapter.authorityBinding!=='CANONICAL_CONTROL_PLANE') throw new Error('EXTERNAL_AGENT_AUTHORITY_BINDING_INVALID='+adapter.id);
+    if(adapter.mutationAuthority||adapter.certificationAuthority||adapter.branchCreation||adapter.directPush||adapter.directPromotion) throw new Error('EXTERNAL_AGENT_AUTHORITY_ESCALATION='+adapter.id);
+  }
+}
+assertExternalAgentAdapterCatalogSafety();

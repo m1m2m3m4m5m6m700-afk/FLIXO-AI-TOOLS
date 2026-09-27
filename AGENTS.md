@@ -60,3 +60,12 @@ A mission is complete only when every task is completed and each task has verifi
 - Every executable MVP capability must have both a manual route and registered agent intents, a canonical executor, output contract, and LOCAL/non-network execution.
 - The agent gateway may receive only file metadata (`name`, `type`, `size`); raw `File`/`Blob` bytes stay in the browser.
 - The local pipeline is the execution authority; provider calls may only assist planning and never receive user file bytes.
+
+## External development-plane agents
+
+- mini-SWE-agent is the REPAIR_WORKER: disposable-workspace patch candidate only; no push, branch creation, merge, promotion, or certification.
+- CodeRabbit is the REVIEWER: review evidence only; no repository mutation or certification.
+- Both adapters require exact-SHA evidence; stale SHA evidence is rejected.
+- actionRepairBot remains the sole mutation seat and reviewAgent remains read-only.
+- Sweep is outside the governed FLIXO repair path.
+- The repair-worker workflow has GitHub read-only permissions and emits a patch artifact for the existing canonical control-plane path.

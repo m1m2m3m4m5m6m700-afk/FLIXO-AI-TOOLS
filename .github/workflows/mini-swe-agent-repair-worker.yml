@@ -1,0 +1,120 @@
+name: FLIXO mini-SWE repair worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      exact_sha:
+        description: "Exact execution SHA to inspect and repair."
+        required: true
+        type: string
+      task:
+        description: "Failure/RCA task for the sandbox repair worker."
+        required: true
+        type: string
+      model:
+        description: "mini-SWE-agent model identifier."
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: flixo-mini-swe-${{ inputs.exact_sha }}
+  cancel-in-progress: true
+
+jobs:
+  repair-worker:
+    name: mini-SWE repair worker (sandbox-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EXPECTED_SHA: ${{ inputs.exact_sha }}
+      MSWEA_MODEL_NAME: ${{ inputs.model }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Assert execution branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "execution"
+
+      - name: Checkout exact execution SHA without GitHub credentials
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.exact_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact base SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$EXPECTED_SHA" = "$(git rev-parse refs/remotes/origin/execution)"
+
+      - name: Verify provider credentials are available
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${OPENAI_API_KEY:-}" -o -n "${ANTHROPIC_API_KEY:-}" -o -n "${GEMINI_API_KEY:-}"
+          echo "::add-mask::${OPENAI_API_KEY:-}"
+          echo "::add-mask::${ANTHROPIC_API_KEY:-}"
+          echo "::add-mask::${GEMINI_API_KEY:-}"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
+        with:
+          version: latest-known
+
+      - name: Prepare repair prompt
+        shell: bash
+        env:
+          REPAIR_TASK: ${{ inputs.task }}
+        run: |
+          set -euo pipefail
+          { cat .github/mini-swe-agent/repair-prompt.md; printf '\n## Exact base SHA\n%s\n\n## Repair task\n%s\n' "$EXPECTED_SHA" "$REPAIR_TASK"; } > "$RUNNER_TEMP/flixo-mini-swe-task.md"
+
+      - name: Run mini-SWE-agent in disposable workspace
+        shell: bash
+        run: |
+          set +e
+          uvx --from "mini-swe-agent==2.4.6" mini -y -t "$(cat "$RUNNER_TEMP/flixo-mini-swe-task.md")" -m "$MSWEA_MODEL_NAME"
+          status=$?
+          set -e
+          printf '%s\n' "$status" > "$RUNNER_TEMP/mini-swe-agent.exit"
+          exit "$status"
+
+      - name: Capture exact-SHA patch candidate
+        if: ${{ always() }}
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.exact_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/mini-swe-agent
+          git diff --binary "$EXPECTED_SHA" > artifacts/mini-swe-agent/repair.patch
+          git diff --name-only "$EXPECTED_SHA" > artifacts/mini-swe-agent/changed-paths.txt
+          printf '%s\n' "$(cat "$RUNNER_TEMP/mini-swe-agent.exit" 2>/dev/null || printf '1')" > artifacts/mini-swe-agent/agent.exit
+          PATCH_SHA256="$(sha256sum artifacts/mini-swe-agent/repair.patch | awk '{print $1}')"
+          WORKSPACE_HEAD_SHA="$(git rev-parse HEAD)"
+          AGENT_EXIT="$(cat artifacts/mini-swe-agent/agent.exit)"
+          if [ -s artifacts/mini-swe-agent/repair.patch ] && [ "$AGENT_EXIT" = "0" ]; then STATUS=CANDIDATE; elif [ "$AGENT_EXIT" = "0" ]; then STATUS=NO_CHANGE; else STATUS=FAILED; fi
+          export EXPECTED_SHA PATCH_SHA256 WORKSPACE_HEAD_SHA STATUS
+          node <<'NODE'
+          const fs = require('node:fs');
+          const record = {adapter:'mini-swe-agent',role:'REPAIR_WORKER',baseSha:process.env.EXPECTED_SHA,workspaceHeadSha:process.env.WORKSPACE_HEAD_SHA,status:process.env.STATUS,patchPath:'artifacts/mini-swe-agent/repair.patch',patchSha256:process.env.PATCH_SHA256,changedPaths:fs.readFileSync('artifacts/mini-swe-agent/changed-paths.txt','utf8').split(/\r?\n/).filter(Boolean),authorityBinding:'CANONICAL_CONTROL_PLANE',mutationAuthority:false,certificationAuthority:false,branchCreation:false,directPush:false,directPromotion:false};
+          fs.writeFileSync('artifacts/mini-swe-agent/candidate.json',JSON.stringify(record,null,2)+'\n');
+          NODE
+
+      - name: Upload repair candidate
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: flixo-mini-swe-repair-${{ github.run_id }}
+          path: artifacts/mini-swe-agent
+          if-no-files-found: error
+          retention-days: 14
