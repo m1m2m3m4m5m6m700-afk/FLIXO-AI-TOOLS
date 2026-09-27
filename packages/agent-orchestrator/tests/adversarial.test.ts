@@ -20,7 +20,7 @@ test("adversarial twin keeps primary and adversary independent, then adjudicates
                 agreement: 0.7,
                 winningSide: "adversary",
                 disputes: ["verification"],
-                evidence: { testsPassed: 2, evidenceVerified: true },
+                evidence: { testsPassed: 2, evidenceVerified: true, verifiedFindings: 1, falsePositiveFindings: 0, resolvedDisputes: 1, unresolvedDisputes: 0 },
               }),
             };
           }
@@ -48,4 +48,5 @@ test("adversarial twin keeps primary and adversary independent, then adjudicates
   assert.equal(report.status, "completed");
   assert.equal((report.evidence as { winningSide: string }).winningSide, "adversary");
   assert.equal((report.evidence as { agreement: number }).agreement, 0.7);
+  assert.ok(((report.evidence as { adversarialReward: { score: number } }).adversarialReward).score > 0);
 });
