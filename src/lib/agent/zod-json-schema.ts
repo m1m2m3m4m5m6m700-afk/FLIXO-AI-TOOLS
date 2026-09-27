@@ -19,11 +19,19 @@ function checks(schema: z.ZodTypeAny): Record<string, unknown> {
   const output: Record<string, unknown> = {};
   const raw = schema._def.checks as Array<Record<string, unknown>> | undefined;
   for (const check of raw ?? []) {
-    if (check.kind === 'min') output.minimum = check.value;
-    if (check.kind === 'max') output.maximum = check.value;
-    if (check.kind === 'int') output.type = 'integer';
-    if (check.kind === 'email') output.format = 'email';
-    if (check.kind === 'url') output.format = 'uri';
+    if (schema instanceof z.ZodString) {
+      if (check.kind === 'min') output.minLength = check.value;
+      if (check.kind === 'max') output.maxLength = check.value;
+      if (check.kind === 'email') output.format = 'email';
+      if (check.kind === 'url') output.format = 'uri';
+    } else if (schema instanceof z.ZodNumber) {
+      if (check.kind === 'min') output.minimum = check.value;
+      if (check.kind === 'max') output.maximum = check.value;
+      if (check.kind === 'int') output.type = 'integer';
+    } else if (schema instanceof z.ZodArray) {
+      if (check.kind === 'min') output.minItems = check.value;
+      if (check.kind === 'max') output.maxItems = check.value;
+    }
   }
   return output;
 }
