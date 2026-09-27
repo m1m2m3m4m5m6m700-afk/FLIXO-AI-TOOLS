@@ -98,6 +98,10 @@ export class AgentRuntime {
     if (this.useMockEngine) {
       const mockResult = simulateLLMReasoning(prompt, 1);
       if (mockResult.toolCalls.length === 0) {
+        for (const token of mockResult.content.split(/(?=\s)|(?<=\s)/).filter(Boolean)) {
+          yield { type: "token", text: token };
+        }
+
         const response = this.buildResponse(
           mockResult.content,
           requestedCalls,
