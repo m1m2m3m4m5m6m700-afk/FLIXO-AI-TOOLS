@@ -2,50 +2,122 @@ import type { TaskState } from "@flixo/contracts";
 
 export const RUNTIME_STATES = [
   "IDLE",
+  "NEEDS_INPUT",
   "PLANNED",
   "AWAITING_CONFIRMATION",
   "EXECUTING",
   "VERIFYING",
+  "RECOVERING",
   "COMPLETED",
   "FAILED",
   "CANCELLED",
 ] as const;
 
 export type RuntimeState = (typeof RUNTIME_STATES)[number];
+export type TaskContext = Readonly<{
+  taskId: string;
+  traceId: string;
+  state: TaskState;
+  revision: number;
+  confirmationRequired: boolean;
+}>;
+
+const TERMINAL_STATES: ReadonlySet<RuntimeState> = new Set(["COMPLETED", "FAILED", "CANCELLED"]);
 
 const TRANSITIONS: Readonly<Record<RuntimeState, readonly RuntimeState[]>> = {
-  IDLE: ["PLANNED", "CANCELLED"],
-  PLANNED: ["AWAITING_CONFIRMATION", "CANCELLED"],
+  IDLE: ["NEEDS_INPUT", "PLANNED", "CANCELLED"],
+  NEEDS_INPUT: ["NEEDS_INPUT", "PLANNED", "CANCELLED"],
+  PLANNED: ["AWAITING_CONFIRMATION", "NEEDS_INPUT", "CANCELLED"],
   AWAITING_CONFIRMATION: ["EXECUTING", "CANCELLED"],
   EXECUTING: ["VERIFYING", "FAILED", "CANCELLED"],
-  VERIFYING: ["EXECUTING", "COMPLETED", "FAILED", "CANCELLED"],
+  VERIFYING: ["EXECUTING", "COMPLETED", "RECOVERING", "FAILED", "CANCELLED"],
+  RECOVERING: ["PLANNED", "AWAITING_CONFIRMATION", "EXECUTING", "FAILED", "CANCELLED"],
   COMPLETED: [],
   FAILED: [],
   CANCELLED: [],
 };
 
+export class TaskStateTransitionError extends Error {
+  readonly from: RuntimeState;
+  readonly to: RuntimeState;
+
+  constructor(from: RuntimeState, to: RuntimeState) {
+    super(`Invalid task state transition: ${from} -> ${to}.`);
+    this.name = "TaskStateTransitionError";
+    this.from = from;
+    this.to = to;
+  }
+}
+
+export function createTaskContext(
+  taskId: string = crypto.randomUUID(),
+  traceId: string = crypto.randomUUID(),
+): TaskContext {
+  if (!taskId || !traceId) throw new Error("taskId and traceId are required.");
+  return Object.freeze({
+    taskId,
+    traceId,
+    state: "IDLE",
+    revision: 0,
+    confirmationRequired: false,
+  });
+}
+
 export function canTransition(from: RuntimeState, to: RuntimeState): boolean {
   return TRANSITIONS[from].includes(to);
 }
 
-export function transition(from: RuntimeState, to: RuntimeState): RuntimeState {
-  if (!canTransition(from, to)) {
-    throw new Error(`Invalid runtime transition: ${from} -> ${to}`);
+export function transitionTask(context: TaskContext, next: TaskState): TaskContext {
+  if (!canTransition(context.state, next)) {
+    throw new TaskStateTransitionError(context.state, next);
   }
-  return to;
+  return Object.freeze({
+    ...context,
+    state: next,
+    revision: context.revision + 1,
+    confirmationRequired: next === "AWAITING_CONFIRMATION",
+  });
 }
 
-export function isTerminal(state: RuntimeState): boolean {
-  return state === "COMPLETED" || state === "FAILED" || state === "CANCELLED";
+export function interpretConfirmation(input: string): "CONFIRM" | "CANCEL" | "AMBIGUOUS" {
+  const normalized = input.trim().toLocaleLowerCase();
+  if (!normalized) return "AMBIGUOUS";
+  if (/^(?:yes|y|confirm|confirmed|start|execute|run|go|نعم|ايوه|أيوه|موافق|تأكيد|أكد|ابدأ|ابدا|نفذ|تنفيذ|شغل|شغّل)$/.test(normalized)) return "CONFIRM";
+  if (/^(?:no|n|cancel|stop|abort|لا|إلغاء|الغاء|إلغاء الأمر|الغاء الامر|توقف|أوقف|اوقف)$/.test(normalized)) return "CANCEL";
+  return "AMBIGUOUS";
+}
+
+export function confirmTask(context: TaskContext): TaskContext {
+  if (context.state !== "AWAITING_CONFIRMATION") {
+    throw new TaskStateTransitionError(context.state, "EXECUTING");
+  }
+  return transitionTask(context, "EXECUTING");
+}
+
+export function cancelTask(context: TaskContext): TaskContext {
+  if (TERMINAL_STATES.has(context.state) && context.state !== "CANCELLED") {
+    throw new TaskStateTransitionError(context.state, "CANCELLED");
+  }
+  if (context.state === "CANCELLED") return context;
+  return transitionTask(context, "CANCELLED");
+}
+
+export function assertExecutionAllowed(context: TaskContext): void {
+  if (!context.taskId.trim() || !context.traceId.trim()) {
+    throw new Error("Execution is blocked because task identity is missing.");
+  }
+  if (!Number.isInteger(context.revision) || context.revision < 0) {
+    throw new Error("Execution is blocked because task revision is invalid.");
+  }
+  if (context.state !== "EXECUTING" || context.confirmationRequired) {
+    throw new Error(`Execution is blocked until explicit confirmation. Current state: ${context.state}.`);
+  }
+}
+
+export function isTerminalTaskState(state: RuntimeState): boolean {
+  return TERMINAL_STATES.has(state);
 }
 
 export function toTaskState(state: RuntimeState): TaskState {
-  if (state === "PLANNED") return "PLANNED";
-  if (state === "AWAITING_CONFIRMATION") return "AWAITING_CONFIRMATION";
-  if (state === "EXECUTING") return "EXECUTING";
-  if (state === "VERIFYING") return "VERIFYING";
-  if (state === "COMPLETED") return "COMPLETED";
-  if (state === "FAILED") return "FAILED";
-  if (state === "CANCELLED") return "CANCELLED";
-  return "IDLE";
+  return state;
 }
