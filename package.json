@@ -57,6 +57,7 @@
   "workspaces": [
     "apps/agent-editor",
     "packages/contracts",
-    "packages/agent-runtime"
+    "packages/agent-runtime",
+    "packages/agent-orchestrator"
   ]
 }
