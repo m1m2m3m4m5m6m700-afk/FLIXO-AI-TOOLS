@@ -245,18 +245,7 @@ export function recordToolCall(
 ): Readonly<{ state: FlixoBotRunState; decision: FlixoBotToolDecision }> {
   assertCurrentRunSha(state, currentSha);
   if (!['RUNNING', 'RETRYING'].includes(state.status)) throw new Error('FLIXO_BOT_TOOL_CALL_INVALID_STATE');
-  if (request.actorId !== state.currentOwner) return Object.freeze({
-    state: withStatus(
-      Object.freeze({ ...state, lastError: 'CURRENT_OWNER_MISMATCH' }),
-      'BLOCKED',
-      {
-        type: 'GUARDRAIL_REJECT',
-        actorId: request.actorId,
-        detail: { toolId: request.toolId, callId: request.callId, reason: 'CURRENT_OWNER_MISMATCH' },
-      },
-    ),
-    decision: { allowed: false, reason: 'OWNER_REQUIRED' as const },
-  });  if (state.toolCallCount >= state.maxToolCalls) {
+  if (request.actorId !== state.currentOwner) throw new Error('FLIXO_BOT_TOOL_OWNER_MISMATCH');  if (state.toolCallCount >= state.maxToolCalls) {
     const blockedState = withStatus(
       Object.freeze({ ...state, lastError: 'MAX_TOOL_CALLS_EXCEEDED' }),
       'BLOCKED',
