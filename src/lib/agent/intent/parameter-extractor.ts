@@ -67,7 +67,7 @@ function parseBrightness(text: string): number | undefined {
 
 function parsePercentageAdjustment(text: string, subject: 'contrast' | 'saturation'): number | undefined {
   const pattern = subject === 'contrast'
-    ? /(?:increase|raise|boost|decrease|lower|رفع|ارفع|زيادة|تقليل|خفض|زِد)\s+(?:the\s+)?(?:contrast|تباين)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i
+    ? /(?:increase|raise|boost|decrease|lower|رفع|ارفع|زيادة|تقليل|خفض|زِد)\s+(?:the\s+)?(?:contrast|تباين|التباين)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i
     : /(?:increase|raise|boost|decrease|lower|رفع|ارفع|زيادة|تقليل|خفض|زِد)\s+(?:the\s+)?(?:saturation|saturate|تشبع|التشبع)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i;
   const match = text.match(pattern);
   if (!match) return undefined;
@@ -117,7 +117,7 @@ export function extractParameters(input: string): ExtractionResult {
   const grayscale = parseGrayscale(text);
   const upscaleScale = parseUpscaleScale(text);
   const hasUpscaleIntent = /(?:upscale|upscaled|increase\s+resolution|raise\s+resolution|رفع\s+الدقة|زيادة\s+الدقة|تكبير\s+الصورة|كبر\s+الصورة)/i.test(text);
-  const hasContrastIntent = /(?:contrast|تباين)/i.test(text);
+  const hasContrastIntent = /(?:contrast|تباين|التباين)/i.test(text);
   const hasBrightnessIntent = /(?:brightness|سطوع)/i.test(text);
   const hasSaturationIntent = /(?:saturation|saturate|تشبع|التشبع)/i.test(text);
   const hasEffectDirection = /(?:increase|raise|boost|decrease|lower|رفع|ارفع|زيادة|تقليل|خفض|زِد)/i;
