@@ -66,6 +66,10 @@ export type AgentNetworkEvent = Readonly<{
   data: Readonly<Record<string, unknown>>;
 }>;
 
+export interface AgentAuditSink {
+  persist(events: readonly AgentNetworkEvent[]): Promise<void>;
+}
+
 export type AgentNetworkSnapshot = Readonly<{
   activeCommandId: string | null;
   agents: readonly AgentDescriptor[];
