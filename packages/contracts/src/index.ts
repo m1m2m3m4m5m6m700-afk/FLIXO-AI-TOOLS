@@ -120,3 +120,22 @@ export type AgentDecisionContract = Readonly<{
   reward?: number;
   timestamp: string;
 }>;
+
+export type ObjectiveVerificationStatus = "verified" | "rejected" | "unresolved";
+
+export type ObjectiveVerificationContract = Readonly<{
+  id: string;
+  commandId: string;
+  stepId: string;
+  agentId: string;
+  status: ObjectiveVerificationStatus;
+  checks: readonly Readonly<{
+    id: string;
+    passed: boolean;
+    description: string;
+    evidence: readonly string[];
+  }>[];
+  evidence: readonly string[];
+  reason: string;
+  verifiedAt: string;
+}>;
