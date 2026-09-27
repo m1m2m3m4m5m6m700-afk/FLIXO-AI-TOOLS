@@ -7,9 +7,7 @@ const require = createRequire(import.meta.url);
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(scriptDir, "../public/ffmpeg");
 const resolvedCore = require.resolve("@ffmpeg/core");
-const sourceDir = path.basename(path.dirname(resolvedCore)) === "esm"
-  ? path.dirname(resolvedCore)
-  : path.resolve(path.dirname(resolvedCore), "dist", "esm");
+const sourceDir = path.dirname(resolvedCore);
 
 const requiredFiles = ["ffmpeg-core.js", "ffmpeg-core.wasm", "ffmpeg-core.worker.js"];
 
