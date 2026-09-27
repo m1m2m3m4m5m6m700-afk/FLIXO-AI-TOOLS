@@ -50,3 +50,58 @@ test("adversarial twin keeps primary and adversary independent, then adjudicates
   assert.equal((report.evidence as { agreement: number }).agreement, 0.7);
   assert.ok(((report.evidence as { adversarialReward: { score: number } }).adversarialReward).score > 0);
 });
+
+
+test("later adversarial rounds receive adjudication feedback without raw opponent output", async () => {
+  const positionMessages: string[] = [];
+  const worker = new AdversarialTwinWorker(
+    { id: "reviewer", role: "reviewer" },
+    {
+      maxRounds: 2,
+      invoker: {
+        async invoke(request) {
+          const system = request.messages[0]?.content ?? "";
+          const user = request.messages[1]?.content ?? "";
+          if (system.includes("neutral adjudicator")) {
+            const round = request.turn;
+            return {
+              content: JSON.stringify({
+                status: "completed",
+                summary: round === 1 ? "recheck the artifact boundary" : "boundary resolved",
+                agreement: round === 1 ? 0.2 : 0.9,
+                winningSide: "undetermined",
+                disputes: round === 1 ? ["artifact-boundary"] : [],
+                evidence: {
+                  verifiedFindings: round === 1 ? 0 : 1,
+                  falsePositiveFindings: 0,
+                  resolvedDisputes: round === 1 ? 0 : 1,
+                  unresolvedDisputes: round === 1 ? 1 : 0,
+                },
+              }),
+            };
+          }
+          positionMessages.push(user);
+          return system.includes("adversarial twin")
+            ? { content: "ADVERSARY_RAW_POSITION", evidence: {} }
+            : { content: "PRIMARY_RAW_POSITION", evidence: {} };
+        },
+      },
+    },
+  );
+
+  await worker.run({
+    stepId: "step-rounds",
+    commandId: "cmd-rounds",
+    role: "reviewer",
+    objective: "review artifact boundary",
+    constraints: [],
+    context: {},
+  });
+
+  const secondRoundPrimary = positionMessages[2] ?? "";
+  const secondRoundAdversary = positionMessages[3] ?? "";
+  assert.match(secondRoundPrimary, /recheck the artifact boundary/);
+  assert.match(secondRoundAdversary, /artifact-boundary/);
+  assert.doesNotMatch(secondRoundPrimary, /ADVERSARY_RAW_POSITION/);
+  assert.doesNotMatch(secondRoundAdversary, /PRIMARY_RAW_POSITION/);
+});
