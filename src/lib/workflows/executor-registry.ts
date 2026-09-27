@@ -48,22 +48,57 @@ function canvasToBlob(canvas: HTMLCanvasElement, type = 'image/png', quality = 0
   return new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Image encoding failed.')), type, quality));
 }
 
-async function effects(blob: Blob, params: CapabilityParameters) {
-  const image = await imageBitmap(blob);
-  const canvas = document.createElement('canvas');
-  canvas.width = image.width;
-  canvas.height = image.height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas is unavailable.');
-  const values = [Number(params.brightness ?? 100), Number(params.contrast ?? 100), Number(params.saturate ?? 100), Number(params.grayscale ?? 0)];
-  try {
-    if (!values.every(Number.isFinite)) throw new Error('Image effect parameters must be finite numbers.');
-    ctx.filter = `brightness(${values[0]}%) contrast(${values[1]}%) saturate(${values[2]}%) grayscale(${values[3]}%)`;
-    ctx.drawImage(image, 0, 0);
-    return canvasToBlob(canvas);
-  } finally {
-    if ('close' in image && typeof image.close === 'function') image.close();
-  }
+async function effects(blob: Blob, params: CapabilityParameters, signal?: AbortSignal): Promise<Blob> {
+  if (typeof Worker === 'undefined') throw new Error('Image Effects Worker is unavailable.');
+  if (signal?.aborted) throw new DOMException('Execution aborted.', 'AbortError');
+
+  const info = await imageInfo(blob);
+  const values = [
+    Number(params.brightness ?? 100),
+    Number(params.contrast ?? 100),
+    Number(params.saturate ?? 100),
+    Number(params.grayscale ?? 0),
+  ];
+  if (!values.every(Number.isFinite)) throw new Error('Image effect parameters must be finite numbers.');
+
+  return await new Promise<Blob>((resolve, reject) => {
+    const worker = new Worker(
+      new URL('../../tools/_shared/image-effects-worker.ts', import.meta.url),
+      { type: 'classic' },
+    );
+    let settled = false;
+    const cleanup = () => {
+      worker.terminate();
+      signal?.removeEventListener('abort', onAbort);
+    };
+    const finishError = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+    const onAbort = () => finishError(new DOMException('Execution aborted.', 'AbortError'));
+
+    signal?.addEventListener('abort', onAbort, { once: true });
+
+    worker.onmessage = (event: MessageEvent<{ ok: boolean; blob?: Blob; error?: string }>) => {
+      if (event.data.ok && event.data.blob instanceof Blob && event.data.blob.size > 0) {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(event.data.blob);
+        return;
+      }
+      finishError(new Error(event.data.error || 'Image Effects Worker failed.'));
+    };
+    worker.onerror = () => finishError(new Error('Image Effects Worker could not start.'));
+    worker.postMessage({ blob, width: info.width, height: info.height, ...Object.fromEntries([
+      ['brightness', values[0]],
+      ['contrast', values[1]],
+      ['saturate', values[2]],
+      ['grayscale', values[3]],
+    ]) });
+  });
 }
 
 const EXECUTORS: Readonly<Record<string, ToolExecutor>> = Object.freeze({
@@ -101,7 +136,7 @@ const EXECUTORS: Readonly<Record<string, ToolExecutor>> = Object.freeze({
     })
   ).blob,
   'image-converter': async ({ inputBlob, parameters }) => convertImage(inputBlob, String(parameters.format ?? 'image/webp') as 'image/webp' | 'image/jpeg' | 'image/png'),
-  'image-effects': async ({ inputBlob, parameters }) => effects(inputBlob, parameters),
+  'image-effects': async ({ inputBlob, parameters, signal }) => effects(inputBlob, parameters, signal),
   'video-trimmer': async ({ inputBlob, parameters, tool, signal }) => {
     const executor = getVideoToolExecutor(tool);
     if (!executor) throw new Error('Video executor unavailable: video-trimmer');

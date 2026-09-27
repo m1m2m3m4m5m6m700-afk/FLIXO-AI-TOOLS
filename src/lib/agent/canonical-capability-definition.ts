@@ -150,7 +150,7 @@ const videoVerifier: CanonicalCapabilityVerifier = async (_input, output, _param
 function createCapability(id:(typeof MVP_EXECUTABLE_TOOL_IDS)[number]):CanonicalCapabilityDefinition{
   const meta=META[id];
   const isVideo=id.startsWith("video-");
-  const execution=isVideo?"browser-worker":"browser-local";
+  const execution=(isVideo || id==="image-effects")?"browser-worker":"browser-local";
   const safetyLimits=Object.freeze(isVideo
     ? {maxPixels:64_000_000,maxFileSizeBytes:512*1024*1024,timeoutMs:10*60*1000}
     : {maxPixels:16_000_000,maxFileSizeBytes:64*1024*1024,timeoutMs:30_000});

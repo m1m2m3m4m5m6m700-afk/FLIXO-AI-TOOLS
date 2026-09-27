@@ -22,7 +22,14 @@ const {
   TOOL_OUTPUT_CONTRACTS,
 } = await import('../src/lib/contracts/tool-output-contracts.ts');
 const { assertToolOutputContract } = await import('../src/lib/contracts/tool-output.ts');
-const { assertMvpScope, assertMvpManualAgentCoverage, toAgentFileMetadata, FLIXO_MVP_SCOPE } = await import('../src/lib/contracts/mvp-scope.ts');
+const {
+  assertMvpScope,
+  assertMvpManualAgentCoverage,
+  toAgentFileMetadata,
+  FLIXO_MVP_SCOPE,
+  MVP_STANDARD_INTENT_SUITE,
+  MVP_STANDARD_INTENT_SUITE_VERSION,
+} = await import('../src/lib/contracts/mvp-scope.ts');
 const {
   assessVisualGoal,
   deriveVisualGoalSpec,
@@ -37,6 +44,22 @@ test('mandatory FLIXO MVP scope is enforced at the canonical registry boundary',
   assert.equal(FLIXO_MVP_SCOPE.processing.backendRequiredForFileExecution, false);
   assert.equal(FLIXO_MVP_SCOPE.hosting.staticCdnOnly, true);
   assert.equal(FLIXO_MVP_SCOPE.offline.executableAfterAssetsLoaded, true);
+});
+
+test('deterministic MVP standard-intent suite is 100% exact', () => {
+  assert.equal(MVP_STANDARD_INTENT_SUITE_VERSION, 1);
+  for (const testCase of MVP_STANDARD_INTENT_SUITE) {
+    const plan = planFromIntent(testCase.request);
+    assert.ok(plan, testCase.id);
+    assert.deepEqual(
+      plan?.steps.map((step) => step.toolId),
+      testCase.expectedToolIds,
+      testCase.id,
+    );
+    for (const step of plan?.steps ?? []) {
+      assert.ok(MVP_EXECUTABLE_TOOL_IDS.includes(step.toolId as typeof MVP_EXECUTABLE_TOOL_IDS[number]), testCase.id);
+    }
+  }
 });
 
 test('agent gateway file payload is metadata-only and never contains file bytes', () => {

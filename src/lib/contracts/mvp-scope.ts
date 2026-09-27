@@ -21,6 +21,37 @@ export const FLIXO_MVP_SCOPE = Object.freeze({
   }),
 } as const);
 
+export type MvpStandardIntentCase = Readonly<{
+  id: string;
+  request: string;
+  expectedToolIds: readonly string[];
+}>;
+
+export const MVP_STANDARD_INTENT_SUITE_VERSION = 1 as const;
+
+/**
+ * Versioned deterministic acceptance corpus. Every case must resolve to the exact
+ * canonical executable tool chain without a provider/network dependency.
+ */
+export const MVP_STANDARD_INTENT_SUITE: readonly MvpStandardIntentCase[] = Object.freeze([
+  { id: 'compress-en', request: 'compress my image', expectedToolIds: ['image-compressor'] },
+  { id: 'compress-ar', request: 'ضغط الصور', expectedToolIds: ['image-compressor'] },
+  { id: 'convert-webp-en', request: 'convert this image to webp', expectedToolIds: ['image-converter'] },
+  { id: 'convert-webp-ar', request: 'تحويل الصورة إلى webp', expectedToolIds: ['image-converter'] },
+  { id: 'upscale-en', request: 'upscale this image 2x', expectedToolIds: ['image-upscaler'] },
+  { id: 'upscale-ar', request: 'رفع جودة الصورة', expectedToolIds: ['image-upscaler'] },
+  { id: 'crop-en', request: 'crop this image to square', expectedToolIds: ['image-cropper'] },
+  { id: 'crop-ar', request: 'قص الصورة مربع', expectedToolIds: ['image-cropper'] },
+  { id: 'effects-en', request: 'increase contrast by 10%', expectedToolIds: ['image-effects'] },
+  { id: 'effects-ar', request: 'ارفع التباين 10%', expectedToolIds: ['image-effects'] },
+  { id: 'trim-video-en', request: 'trim this video', expectedToolIds: ['video-trimmer'] },
+  { id: 'crop-video-en', request: 'crop this video', expectedToolIds: ['video-cropper'] },
+  { id: 'resize-video-en', request: 'resize this video', expectedToolIds: ['video-resizer'] },
+  { id: 'compress-video-ar', request: 'ضغط الفيديو', expectedToolIds: ['video-compressor'] },
+  { id: 'compound-webp', request: 'compress this image under 200KB and convert to WebP', expectedToolIds: ['image-converter', 'image-compressor'] },
+  { id: 'product-square', request: 'prepare a product image for a shop, square', expectedToolIds: ['background-remover', 'image-cropper'] },
+] as const);
+
 type MVPScopedTool = Pick<
   ToolDefinition,
   'id' | 'isReady' | 'path' | 'capability' | 'executionMode' |
