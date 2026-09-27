@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { ModelProviderClient } from '@flixo/agent-runtime';
 import { createHash, randomUUID } from 'node:crypto';
-import { parseAgentDecision, type AgentRequestContract } from '../src/lib/contracts/agent-gateway.ts';
+import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from '../src/lib/contracts/agent-gateway.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
 import { planFromIntent } from '../src/lib/ai/planner.ts';
 import { selectModelForTask } from '../src/lib/agent/model-router.ts';
@@ -30,6 +30,7 @@ import {
 } from '../src/lib/agent/flixo-bot-runtime-adapter.ts';
 
 const MAX_MESSAGES = 80;
+const MAX_REQUEST_BODY_BYTES = 512 * 1024;
 const MAX_PROVIDER_CALLS = 2;
 const DEFAULT_TIMEOUT_MS = 4_000;
 const MAX_TIMEOUT_MS = 120_000;
@@ -72,6 +73,42 @@ function resolveProvider(value: string | undefined, fallback = 'openai'): Suppor
     throw new Error('Unsupported FLIXO AI provider configuration.');
   }
   return normalized as SupportedProvider;
+}
+
+function json(res: ServerResponse, status: number, body: unknown): void {
+  res.statusCode = status;
+  res.setHeader('content-type', 'application/json; charset=utf-8');
+  res.setHeader('cache-control', 'no-store');
+  res.end(JSON.stringify(body));
+}
+
+async function readBody(req: IncomingMessage): Promise<AgentRequestContract> {
+  const contentLength = req.headers['content-length'];
+  if (contentLength !== undefined) {
+    const declaredLength = Number(Array.isArray(contentLength) ? contentLength[0] : contentLength);
+    if (!Number.isFinite(declaredLength) || declaredLength < 0 || declaredLength > MAX_REQUEST_BODY_BYTES) {
+      throw new Error('Request body is too large.');
+    }
+  }
+
+  let raw = '';
+  let bytes = 0;
+  for await (const chunk of req) {
+    const text = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
+    bytes += Buffer.byteLength(text, 'utf8');
+    if (bytes > MAX_REQUEST_BODY_BYTES) throw new Error('Request body is too large.');
+    raw += text;
+  }
+  return parseAgentRequest(JSON.parse(raw));
+}
+
+const exactSha = (): string | null => {
+  const candidates = [
+    process.env.VERCEL_GIT_COMMIT_SHA,
+    process.env.GITHUB_SHA,
+    process.env.FLIXO_TARGET_SHA,
+  ];
+  return candidates.find((value) => /^[a-f0-9]{40}$/u.test(String(value ?? '').trim()))?.trim() ?? null;
 }
 
 function configuredRuntime(): {
