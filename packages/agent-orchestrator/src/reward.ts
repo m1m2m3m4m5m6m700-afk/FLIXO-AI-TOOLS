@@ -1,18 +1,31 @@
 import type { EvaluationEvidence } from "./evaluation.ts";
+import type { ObjectiveVerificationContract } from "@flixo/contracts";
 
 export const REWARD_WEIGHTS = Object.freeze({
-  correctness: 0.30, verification: 0.20, quality: 0.15,
-  evidence: 0.15, efficiency: 0.10, policyDiscipline: 0.10,
+  correctness: 0.30,
+  verification: 0.20,
+  quality: 0.15,
+  evidence: 0.15,
+  efficiency: 0.10,
+  policyDiscipline: 0.10,
 });
 
 export type RewardSignals = Readonly<{
-  correctness: number; verification: number; quality: number;
-  evidence: number; efficiency: number; policyDiscipline: number;
-  adversarialDiscovery: number; adversarialPrecision: number;
+  correctness: number;
+  verification: number;
+  quality: number;
+  evidence: number;
+  efficiency: number;
+  policyDiscipline: number;
+  adversarialDiscovery: number;
+  adversarialPrecision: number;
 }>;
 
 export type RewardResult = Readonly<{
-  score: number; signals: RewardSignals; penalty: number; reasons: readonly string[];
+  score: number;
+  signals: RewardSignals;
+  penalty: number;
+  reasons: readonly string[];
 }>;
 
 export type AdversarialRewardSignals = Readonly<{
@@ -37,6 +50,7 @@ export class AgentRewardEngine {
     const performanceQuality = clamp(1 - (evidence.performanceRegressions ?? 0) / 10);
     const outOfScope = evidence.outOfScopeActions ?? 0;
     const delegated = evidence.delegatedTasks ?? 0;
+
     const signals: RewardSignals = Object.freeze({
       correctness: clamp(testRate * 0.7 + artifactRate * 0.3),
       verification: clamp(testRate * 0.8 + (evidence.evidenceVerified ? 0.2 : 0)),
@@ -44,8 +58,12 @@ export class AgentRewardEngine {
       evidence: clamp((artifactRate + (evidence.evidenceVerified ? 1 : 0)) / 2),
       efficiency: clamp(1 - Math.max(0, evidence.performanceRegressions ?? 0) / 10),
       policyDiscipline: outOfScope === 0 && delegated === 0 ? 1 : 0,
+      adversarialDiscovery: 0,
+      adversarialPrecision: 0,
     });
-    const weighted = signals.correctness * REWARD_WEIGHTS.correctness
+
+    const weighted =
+      signals.correctness * REWARD_WEIGHTS.correctness
       + signals.verification * REWARD_WEIGHTS.verification
       + signals.quality * REWARD_WEIGHTS.quality
       + signals.evidence * REWARD_WEIGHTS.evidence
@@ -58,30 +76,74 @@ export class AgentRewardEngine {
       ...(delegated ? ["unauthorized-delegation"] : []),
       ...(score < 80 ? ["below-reward-threshold"] : ["verified-success"]),
     ];
-    return Object.freeze({ score, signals, penalty, reasons: Object.freeze(reasons) });
+
+    return Object.freeze({
+      score,
+      signals,
+      penalty,
+      reasons: Object.freeze(reasons),
+    });
   }
 
-  calculateVerified(evidence: EvaluationEvidence, verification: import("@flixo/contracts").ObjectiveVerificationContract): RewardResult {
+  calculateVerified(
+    evidence: EvaluationEvidence,
+    verification: ObjectiveVerificationContract,
+  ): RewardResult {
     const base = this.calculate(evidence);
     if (verification.status === "verified") return base;
-    return Object.freeze({ ...base, score: 0, signals: Object.freeze({ ...base.signals, verification: 0, evidence: 0 }), reasons: Object.freeze(["unverified-objective", verification.status === "unresolved" ? "objective-verification-unresolved" : "objective-verification-rejected"]) });
+
+    return Object.freeze({
+      ...base,
+      score: 0,
+      signals: Object.freeze({
+        ...base.signals,
+        verification: 0,
+        evidence: 0,
+      }),
+      reasons: Object.freeze([
+        "unverified-objective",
+        verification.status === "unresolved"
+          ? "objective-verification-unresolved"
+          : "objective-verification-rejected",
+      ]),
+    });
   }
 
   calculateAdversarial(signals: AdversarialRewardSignals): RewardResult {
-    const verified = clamp(signals.verifiedFindings / Math.max(1, signals.verifiedFindings + signals.falsePositiveFindings));
-    const precision = clamp(1 - signals.falsePositiveFindings / Math.max(1, signals.verifiedFindings + signals.falsePositiveFindings));
-    const resolution = clamp(signals.resolvedDisputes / Math.max(1, signals.resolvedDisputes + signals.unresolvedDisputes));
+    const verified = clamp(
+      signals.verifiedFindings
+      / Math.max(1, signals.verifiedFindings + signals.falsePositiveFindings),
+    );
+    const precision = clamp(
+      1
+      - signals.falsePositiveFindings
+        / Math.max(1, signals.verifiedFindings + signals.falsePositiveFindings),
+    );
+    const resolution = clamp(
+      signals.resolvedDisputes
+      / Math.max(1, signals.resolvedDisputes + signals.unresolvedDisputes),
+    );
     const evidence = clamp(signals.agreement * 0.4 + verified * 0.6);
     const discovery = clamp(Math.min(1, signals.verifiedFindings / 3));
-    const penalty = clamp(signals.falsePositiveFindings * 0.15 + signals.unresolvedDisputes * 0.05);
-    const weighted = discovery * 0.35 + precision * 0.30 + resolution * 0.20 + evidence * 0.15;
+    const penalty = clamp(
+      signals.falsePositiveFindings * 0.15
+      + signals.unresolvedDisputes * 0.05,
+    );
+    const weighted =
+      discovery * 0.35
+      + precision * 0.30
+      + resolution * 0.20
+      + evidence * 0.15;
     const score = Math.round(clamp(weighted - penalty) * 100);
     const reasons = [
       ...(signals.verifiedFindings ? ["verified-defect-discovery"] : []),
       ...(signals.falsePositiveFindings ? ["false-positive-adversarial-finding"] : []),
       ...(signals.unresolvedDisputes ? ["unresolved-dispute"] : []),
-      ...(score >= 80 ? ["adversarial-reward-earned"] : ["adversarial-reward-below-threshold"]),
+      ...(score >= 80
+        ? ["adversarial-reward-earned"]
+        : ["adversarial-reward-below-threshold"]),
     ];
+
     return Object.freeze({
       score,
       signals: Object.freeze({
@@ -97,7 +159,5 @@ export class AgentRewardEngine {
       penalty,
       reasons: Object.freeze(reasons),
     });
-  }
-
   }
 }
