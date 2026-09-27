@@ -1,4 +1,5 @@
 import type { TaskState } from "@flixo/contracts";
+export type { TaskState } from "@flixo/contracts";
 
 export const RUNTIME_STATES = [
   "IDLE",
