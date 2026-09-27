@@ -1,0 +1,119 @@
+import type {
+  EvolutionBenchmarkContract,
+  EvolutionPromotionContract,
+  EvolutionProposalContract,
+  EvolutionProposalStatus,
+  ObjectiveVerificationContract,
+} from "@flixo/contracts";
+
+export type EvolutionProposalInput = Readonly<{
+  id: string;
+  commandId: string;
+  agentId: string;
+  target: string;
+  summary: string;
+  baseRevision: string;
+  objectiveVerification: ObjectiveVerificationContract;
+}>;
+
+const now = (): string => new Date().toISOString();
+
+export class EvolutionGovernor {
+  private readonly proposals = new Map<string, EvolutionProposalContract>();
+
+  propose(input: EvolutionProposalInput): EvolutionProposalContract {
+    for (const value of [input.id, input.commandId, input.agentId, input.target, input.summary, input.baseRevision, input.objectiveVerification.id]) {
+      if (!value.trim()) throw new Error("EVOLUTION_PROPOSAL_FIELDS_REQUIRED");
+    }
+    if (this.proposals.has(input.id)) throw new Error("EVOLUTION_PROPOSAL_ALREADY_EXISTS");
+    const timestamp = now();
+    const proposal: EvolutionProposalContract = Object.freeze({
+      id: input.id,
+      commandId: input.commandId,
+      agentId: input.agentId,
+      target: input.target,
+      summary: input.summary,
+      baseRevision: input.baseRevision,
+      status: "proposed",
+      objectiveVerificationId: input.objectiveVerification.id,
+      objectiveVerificationStatus: input.objectiveVerification.status,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    this.proposals.set(proposal.id, proposal);
+    return proposal;
+  }
+
+  benchmark(
+    proposalId: string,
+    benchmark: Omit<EvolutionBenchmarkContract, "verifiedAt">,
+  ): EvolutionProposalContract {
+    const proposal = this.require(proposalId);
+    if (proposal.status !== "proposed" && proposal.status !== "benchmarked") throw new Error("EVOLUTION_INVALID_BENCHMARK_STATE");
+    if (!Number.isFinite(benchmark.score) || !Number.isFinite(benchmark.threshold)) throw new Error("EVOLUTION_INVALID_BENCHMARK");
+    const next: EvolutionProposalContract = Object.freeze({
+      ...proposal,
+      status: "benchmarked",
+      benchmark: Object.freeze({ ...benchmark, verifiedAt: now() }),
+      updatedAt: now(),
+    });
+    this.proposals.set(proposalId, next);
+    return next;
+  }
+
+  requestPromotion(proposalId: string): EvolutionProposalContract {
+    const proposal = this.require(proposalId);
+    if (proposal.status !== "benchmarked") throw new Error("EVOLUTION_REQUIRES_BENCHMARK");
+    if (!proposal.benchmark?.passed || proposal.benchmark.score < proposal.benchmark.threshold) throw new Error("EVOLUTION_BENCHMARK_NOT_PASSED");
+    if (proposal.objectiveVerificationStatus !== "verified") throw new Error("EVOLUTION_OBJECTIVE_NOT_VERIFIED");
+    const next: EvolutionProposalContract = Object.freeze({ ...proposal, status: "awaiting_human_approval", updatedAt: now() });
+    this.proposals.set(proposalId, next);
+    return next;
+  }
+
+  approve(promotion: EvolutionPromotionContract): EvolutionProposalContract {
+    if (promotion.action !== "approve" || promotion.approvedBy !== "human") throw new Error("EVOLUTION_HUMAN_APPROVAL_REQUIRED");
+    const proposal = this.require(promotion.proposalId);
+    if (proposal.status !== "awaiting_human_approval") throw new Error("EVOLUTION_NOT_AWAITING_APPROVAL");
+    if (promotion.commandId !== proposal.commandId) throw new Error("EVOLUTION_COMMAND_ID_MISMATCH");
+    const next: EvolutionProposalContract = Object.freeze({ ...proposal, status: "approved", updatedAt: promotion.approvedAt });
+    this.proposals.set(proposal.id, next);
+    return next;
+  }
+
+  recordApplied(proposalId: string, appliedRevision: string): EvolutionProposalContract {
+    const proposal = this.require(proposalId);
+    if (proposal.status !== "approved") throw new Error("EVOLUTION_NOT_APPROVED");
+    if (!appliedRevision.trim()) throw new Error("EVOLUTION_APPLIED_REVISION_REQUIRED");
+    const next: EvolutionProposalContract = Object.freeze({ ...proposal, status: "applied", appliedRevision, updatedAt: now() });
+    this.proposals.set(proposal.id, next);
+    return next;
+  }
+
+  rollback(promotion: EvolutionPromotionContract, rollbackRevision: string): EvolutionProposalContract {
+    if (promotion.action !== "rollback" || promotion.approvedBy !== "human") throw new Error("EVOLUTION_HUMAN_ROLLBACK_REQUIRED");
+    const proposal = this.require(promotion.proposalId);
+    if (proposal.status !== "applied") throw new Error("EVOLUTION_NOT_APPLIED");
+    if (promotion.commandId !== proposal.commandId) throw new Error("EVOLUTION_COMMAND_ID_MISMATCH");
+    if (!rollbackRevision.trim()) throw new Error("EVOLUTION_ROLLBACK_REVISION_REQUIRED");
+    const next: EvolutionProposalContract = Object.freeze({ ...proposal, status: "rolled_back", rollbackRevision, updatedAt: promotion.approvedAt });
+    this.proposals.set(proposal.id, next);
+    return next;
+  }
+
+  get(proposalId: string): EvolutionProposalContract {
+    return this.require(proposalId);
+  }
+
+  list(): readonly EvolutionProposalContract[] {
+    return Object.freeze([...this.proposals.values()]);
+  }
+
+  private require(proposalId: string): EvolutionProposalContract {
+    const proposal = this.proposals.get(proposalId);
+    if (!proposal) throw new Error("EVOLUTION_PROPOSAL_NOT_FOUND:" + proposalId);
+    return proposal;
+  }
+}
+
+export type EvolutionProposalStatusValue = EvolutionProposalStatus;
