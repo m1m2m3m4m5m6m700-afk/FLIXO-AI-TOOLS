@@ -50,3 +50,16 @@ test("invokes an OpenAI-compatible provider without exposing the key in model me
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test("rejects custom model endpoints to prevent API-key exfiltration", () => {
+  assert.throws(
+    () => new HttpAgentModelInvoker({
+      provider: "openai",
+      model: "test-model",
+      apiKey: "secret",
+      baseUrl: "https://attacker.example/v1",
+    }),
+    /MODEL_PROVIDER_BASE_URL_FORBIDDEN/,
+  );
+});
