@@ -84,3 +84,104 @@ export function createContractFailure(
 ): NonNullable<ToolResult["error"]> {
   return Object.freeze({ code, message, retryable });
 }
+
+export type CognitiveVerificationState = "pending" | "verified" | "rejected" | "unresolved";
+
+export type AgentCognitiveStateContract = Readonly<{
+  commandId: string;
+  stepId: string;
+  agentId: string;
+  goal: string;
+  hypotheses: readonly string[];
+  assumptions: readonly string[];
+  plannedActions: readonly string[];
+  observations: readonly string[];
+  evidence: readonly string[];
+  uncertainties: readonly string[];
+  detectedRisks: readonly string[];
+  rejectedApproaches: readonly string[];
+  decision?: string;
+  confidence: number;
+  verificationState: CognitiveVerificationState;
+  updatedAt: string;
+}>;
+
+export type AgentDecisionContract = Readonly<{
+  id: string;
+  commandId: string;
+  stepId: string;
+  agentId: string;
+  decision: string;
+  alternatives: readonly string[];
+  evidence: readonly string[];
+  confidence: number;
+  verificationState: CognitiveVerificationState;
+  outcome?: string;
+  reward?: number;
+  timestamp: string;
+}>;
+
+export type ObjectiveVerificationStatus = "verified" | "rejected" | "unresolved";
+
+export type ObjectiveVerificationContract = Readonly<{
+  id: string;
+  commandId: string;
+  stepId: string;
+  agentId: string;
+  status: ObjectiveVerificationStatus;
+  checks: readonly Readonly<{
+    id: string;
+    passed: boolean;
+    description: string;
+    evidence: readonly string[];
+  }>[];
+  evidence: readonly string[];
+  reason: string;
+  verifiedAt: string;
+}>;
+
+
+export type EvolutionProposalStatus = "proposed" | "benchmarked" | "awaiting_human_approval" | "approved" | "applied" | "rejected" | "rolled_back";
+
+export type EvolutionBenchmarkContract = Readonly<{
+  score: number;
+  threshold: number;
+  passed: boolean;
+  revision: string;
+  verifiedAt: string;
+}>;
+
+export type EvolutionMutationPlanContract = Readonly<{
+  executionBoundary: "sandbox-only";
+  sandboxId: string;
+  targetPaths: readonly string[];
+  maxFiles: number;
+  dryRun: true;
+}>;
+
+export type EvolutionProposalContract = Readonly<{
+  id: string;
+  commandId: string;
+  agentId: string;
+  target: string;
+  summary: string;
+  baseRevision: string;
+  status: EvolutionProposalStatus;
+  objectiveVerificationId: string;
+  objectiveVerificationStatus: ObjectiveVerificationStatus;
+  mutationPlan: EvolutionMutationPlanContract;
+  benchmark?: EvolutionBenchmarkContract;
+  appliedRevision?: string;
+  rollbackRevision?: string;
+  createdAt: string;
+  updatedAt: string;
+}>;
+
+export type EvolutionPromotionContract = Readonly<{
+  proposalId: string;
+  commandId: string;
+  approvedBy: "human";
+  approvedAt: string;
+  reason: string;
+  action: "approve" | "rollback";
+}>;
