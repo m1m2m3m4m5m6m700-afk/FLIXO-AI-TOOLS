@@ -3,7 +3,7 @@ import { parseExecutionPlan, type ExecutionPlanContract } from '@/lib/contracts/
 import { authorizeExecution } from './execution-gate';
 import { classifyExecutionFailure, deriveRecoveryMetadata } from './execution-observability';
 import { getCapability } from './capability-registry';
-import { createTaskContext, transitionTask, confirmTask, cancelTask, assertExecutionAllowed, type TaskContext } from './task-state';
+import { createTaskContext, transitionTask, confirmTask, cancelTask, assertExecutionAllowed, type TaskContext } from '@flixo/agent-runtime';
 import { getToolById } from '@/config/registry';
 import { getToolOutputContractForDefinition } from '@/lib/contracts/tool-output-contracts';
 import { getToolExecutor } from '@/lib/workflows/executor-registry';
