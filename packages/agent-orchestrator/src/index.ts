@@ -219,7 +219,7 @@ export class DirectCommandOrchestrator {
           }
           const report = this.verifyReport(rawReport, step.role);
           this.network.report(command.commandId, step.stepId, step.role, report.status, report.summary);
-          this.observer.onReport(report);
+          await this.observer.onReport(report);
           this.cognitiveLedger.observe(report.commandId, report.stepId, step.role, report.summary);
           const currentState = this.cognitiveLedger.snapshot().states.find((item) => item.commandId === report.commandId && item.stepId === report.stepId);
           this.cognitiveLedger.upsertState({ commandId: report.commandId, stepId: report.stepId, agentId: step.role, goal: currentState?.goal ?? step.objective, hypotheses: currentState?.hypotheses ?? [], assumptions: currentState?.assumptions ?? step.constraints, plannedActions: currentState?.plannedActions ?? [], observations: currentState?.observations ?? [report.summary], evidence: currentState?.evidence ?? [], uncertainties: currentState?.uncertainties ?? [], detectedRisks: currentState?.detectedRisks ?? [], rejectedApproaches: currentState?.rejectedApproaches ?? [], confidence: currentState?.confidence ?? 0.5, verificationState: report.verification?.status ?? "unresolved" });
