@@ -34,7 +34,6 @@ export type ExternalLearningCandidateInput = Readonly<{
   content: string;
   evidenceRefs?: readonly string[];
   provenance?: Record<string, unknown>;
-  status?: ExternalAgentLearningStatus;
 }>;
 
 const config = (): LearningConfig | null => {
@@ -99,7 +98,7 @@ export async function createExternalAgentLearning(input: ExternalLearningCandida
     source_agent: String(input.sourceAgent).trim(),
     source_role: String(input.sourceRole).trim(),
     kind: input.kind,
-    status: input.status ?? 'PROPOSED',
+    status: 'PROPOSED',
     task_id: String(input.taskId).trim(),
     target_sha: String(input.targetSha),
     claim: String(input.claim).trim(),
