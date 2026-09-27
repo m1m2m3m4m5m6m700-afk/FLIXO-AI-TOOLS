@@ -13,6 +13,12 @@ import { WORKFLOW_TOOL_CATALOG } from '../src/lib/agent/workflow-as-tool.ts';
 import { listExternalAgentLearning } from '../src/server/agent/learning-persistence.ts';
 import { rateLimit, RATE_PRESETS } from '../src/lib/server/security/csrf.ts';
 import {
+  AGENT_SESSION_COOKIE,
+  createAgentSessionId,
+  deriveAgentSessionIdentity,
+  parseAgentSessionCookie,
+} from '../src/lib/server/security/agent-session.ts';
+import {
   beginFlixoBotGatewayRuntime,
   beginModelTurn,
   finalizeFlixoBotGatewayRuntime,
@@ -199,9 +205,26 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       return;
     }
     const locale = body.locale ?? 'en';
-    const conversationId = body.conversationId ?? 'UI-CONVERSATION:' + randomUUID();
-    const taskId = body.taskId ?? 'UI-FLIXO-TASK:' + randomUUID();
-    const idempotencyKey = body.idempotencyKey ?? 'chat:' + conversationId + ':' + taskId + ':' + messages.length;
+    const existingSessionId = parseAgentSessionCookie(
+      Array.isArray(req.headers.cookie) ? req.headers.cookie[0] : req.headers.cookie,
+    );
+    const sessionId = existingSessionId ?? createAgentSessionId();
+    if (!existingSessionId) {
+      res.setHeader(
+        'set-cookie',
+        AGENT_SESSION_COOKIE + '=' + encodeURIComponent(sessionId) + '; Path=/api/flixo-agent; HttpOnly; SameSite=Lax; Max-Age=86400' + (process.env.NODE_ENV === 'production' ? '; Secure' : ''),
+      );
+    }
+    const identity = deriveAgentSessionIdentity({
+      sessionId,
+      conversationId: body.conversationId,
+      taskId: body.taskId,
+      idempotencyKey: body.idempotencyKey,
+      messageCount: messages.length,
+    });
+    const conversationId = identity.conversationId;
+    const taskId = identity.taskId;
+    const idempotencyKey = identity.idempotencyKey;
     const inboundEvent = createAgentEvent({
       source: body.file ? 'FILE_UPLOAD' : 'USER_MESSAGE',
       eventType: 'chat.message',
@@ -236,7 +259,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       await upsertAgentTask({
         taskId,
         conversationId,
-        ownerId: conversationId,
+        ownerId: 'ANON-SESSION:' + sessionId,
         lifecycle: state.lifecycle,
         state: state.taskState,
         revision: state.revision,
