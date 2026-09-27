@@ -20,18 +20,21 @@ function checks(schema: z.ZodTypeAny): Record<string, JsonValue> {
   const output: Record<string, JsonValue> = {};
   const raw = schema._def.checks as Array<Record<string, unknown>> | undefined;
   for (const check of raw ?? []) {
+    const numericValue = typeof check.value === 'number' && Number.isFinite(check.value)
+      ? check.value
+      : undefined;
     if (schema instanceof z.ZodString) {
-      if (check.kind === 'min') output.minLength = check.value;
-      if (check.kind === 'max') output.maxLength = check.value;
+      if (check.kind === 'min' && numericValue !== undefined) output.minLength = numericValue;
+      if (check.kind === 'max' && numericValue !== undefined) output.maxLength = numericValue;
       if (check.kind === 'email') output.format = 'email';
       if (check.kind === 'url') output.format = 'uri';
     } else if (schema instanceof z.ZodNumber) {
-      if (check.kind === 'min') output.minimum = check.value;
-      if (check.kind === 'max') output.maximum = check.value;
+      if (check.kind === 'min' && numericValue !== undefined) output.minimum = numericValue;
+      if (check.kind === 'max' && numericValue !== undefined) output.maximum = numericValue;
       if (check.kind === 'int') output.type = 'integer';
     } else if (schema instanceof z.ZodArray) {
-      if (check.kind === 'min') output.minItems = check.value;
-      if (check.kind === 'max') output.maxItems = check.value;
+      if (check.kind === 'min' && numericValue !== undefined) output.minItems = numericValue;
+      if (check.kind === 'max' && numericValue !== undefined) output.maxItems = numericValue;
     }
   }
   return output;
