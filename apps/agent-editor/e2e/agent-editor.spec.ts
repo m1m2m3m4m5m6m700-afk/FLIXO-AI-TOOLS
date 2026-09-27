@@ -27,16 +27,18 @@ test.describe("FLIXO Agent Editor end-to-end", () => {
     await expect(page.getByText("Frame 1 ·", { exact: false })).toBeVisible();
 
     const workerPromise = page.waitForEvent("worker");
-    const downloadPromise = page.waitForEvent("download");
 
     await page.getByRole("combobox", { name: "Export format" }).selectOption("png");
     await page.getByRole("button", { name: "Export" }).click();
 
     await workerPromise;
-    const download = await downloadPromise;
+    await expect(page.getByTestId("export-progress")).toContainText("Export ready.");
+    const downloadPromise = page.waitForEvent("download");
+    const download = await page.getByRole("link", { name: "Download export" }).click().then(
+      () => downloadPromise,
+    );
 
     expect(download.suggestedFilename()).toMatch(/\.png$/u);
-    await expect(page.getByTestId("export-progress")).toContainText("Export ready.");
   });
 
   test("Stop aborts the active SSE request without losing the last valid state", async ({ page }) => {
