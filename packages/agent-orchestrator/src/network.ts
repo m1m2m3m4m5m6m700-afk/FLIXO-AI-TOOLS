@@ -173,3 +173,41 @@ export class AgentNetworkControlPlane {
     }));
   }
 }
+
+
+export type SupervisedAgentAdapter = Readonly<{
+  descriptor: AgentDescriptor;
+  execute(instruction: Readonly<{
+    commandId: string;
+    stepId: string;
+    role: string;
+    objective: string;
+    constraints: readonly string[];
+  }>): Promise<{
+    status: "completed" | "failed" | "blocked";
+    summary: string;
+    evidence?: Readonly<Record<string, unknown>>;
+  }>;
+}>;
+
+export class SupervisedAgentRegistry {
+  private readonly adapters = new Map<string, SupervisedAgentAdapter>();
+
+  register(adapter: SupervisedAgentAdapter): void {
+    if (adapter.descriptor.autonomous || adapter.descriptor.canDelegate) {
+      throw new Error("AUTONOMOUS_AGENT_FORBIDDEN");
+    }
+    if (this.adapters.has(adapter.descriptor.id)) {
+      throw new Error(`AGENT_ALREADY_REGISTERED:${adapter.descriptor.id}`);
+    }
+    this.adapters.set(adapter.descriptor.id, adapter);
+  }
+
+  get(id: string): SupervisedAgentAdapter | undefined {
+    return this.adapters.get(id);
+  }
+
+  list(): readonly AgentDescriptor[] {
+    return Object.freeze([...this.adapters.values()].map((adapter) => adapter.descriptor));
+  }
+}
