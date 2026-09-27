@@ -1,4 +1,4 @@
-import { AgentCapability, AgentHeartbeat, AgentNetworkControlPlane, AgentNetworkSnapshot, DEFAULT_AGENT_NETWORK } from "./network.ts";
+import { AgentCapability, AgentHeartbeat, AgentNetworkControlPlane, AgentNetworkSnapshot, AgentPermission, DEFAULT_AGENT_NETWORK } from "./network.ts";
 import { AdversarialTwinWorker } from "./adversarial.ts";
 import { RedTeamWorker } from "./red-team.ts";
 import { AgentCognitiveLedger, FailureIntelligence, ConfidenceCalibrator } from "./cognitive.ts";
@@ -29,6 +29,8 @@ export type AgentStep = Readonly<{
   dependsOn: readonly string[];
   constraints: readonly string[];
   requiredCapabilities?: readonly AgentCapability[];
+  requiredPermissions?: readonly AgentPermission[];
+  execution?: Readonly<{ toolId: string; parameters: Readonly<Record<string, unknown>> }>;
 }>;
 
 export type AgentPlan = Readonly<{
@@ -171,7 +173,8 @@ export class DirectCommandOrchestrator {
 
         const batch = await Promise.all(ready.map(async (step) => {
           const requiredCapabilities = step.requiredCapabilities ?? [];
-          this.network.authorize(step.stepId, command.commandId, step.role, requiredCapabilities);
+          const requiredPermissions = step.requiredPermissions ?? [];
+          this.network.authorize(step.stepId, command.commandId, step.role, requiredCapabilities, requiredPermissions);
           const worker = this.workers.get(step.role);
           if (!worker) {
             const report: AgentReport = Object.freeze({
@@ -190,7 +193,7 @@ export class DirectCommandOrchestrator {
             role: step.role,
             objective: step.objective,
             constraints: step.constraints,
-            context: Object.freeze({ objective: plan.objective }),
+            context: Object.freeze({ objective: plan.objective, ...(step.execution ? { execution: step.execution } : {}) }),
           });
 
           this.observer.onDispatch(instruction);
