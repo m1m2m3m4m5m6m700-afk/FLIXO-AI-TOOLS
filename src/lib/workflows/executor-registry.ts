@@ -23,6 +23,7 @@ export type ToolExecutorContext = Readonly<{
   tool: ExecutableToolView;
   inputBlob: Blob;
   parameters: CapabilityParameters;
+  signal?: AbortSignal;
 }>;
 
 export type ToolExecutor = (context: ToolExecutorContext) => Promise<Blob>;
@@ -101,22 +102,22 @@ const EXECUTORS: Readonly<Record<string, ToolExecutor>> = Object.freeze({
   ).blob,
   'image-converter': async ({ inputBlob, parameters }) => convertImage(inputBlob, String(parameters.format ?? 'image/webp') as 'image/webp' | 'image/jpeg' | 'image/png'),
   'image-effects': async ({ inputBlob, parameters }) => effects(inputBlob, parameters),
-  'video-trimmer': async ({ inputBlob, parameters, tool }) => {
+  'video-trimmer': async ({ inputBlob, parameters, tool, signal }) => {
     const executor = getVideoToolExecutor(tool);
     if (!executor) throw new Error('Video executor unavailable: video-trimmer');
-    return executor(inputBlob, parameters, tool);
+    return executor(inputBlob, parameters, tool, signal);
   },
-  'video-cropper': async ({ inputBlob, parameters, tool }) => {
+  'video-cropper': async ({ inputBlob, parameters, tool, signal }) => {
     const executor = getVideoToolExecutor(tool);
     if (!executor) throw new Error('Video executor unavailable: video-cropper');
     return executor(inputBlob, parameters, tool);
   },
-  'video-resizer': async ({ inputBlob, parameters, tool }) => {
+  'video-resizer': async ({ inputBlob, parameters, tool, signal }) => {
     const executor = getVideoToolExecutor(tool);
     if (!executor) throw new Error('Video executor unavailable: video-resizer');
     return executor(inputBlob, parameters, tool);
   },
-  'video-compressor': async ({ inputBlob, parameters, tool }) => {
+  'video-compressor': async ({ inputBlob, parameters, tool, signal }) => {
     const executor = getVideoToolExecutor(tool);
     if (!executor) throw new Error('Video executor unavailable: video-compressor');
     return executor(inputBlob, parameters, tool);
