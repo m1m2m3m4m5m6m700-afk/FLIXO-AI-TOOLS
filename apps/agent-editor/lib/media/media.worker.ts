@@ -11,6 +11,12 @@ import {
 } from "./export-protocol";
 import { getLayerSourceTime, getRenderableLayers } from "./frame-sync";
 
+type WorkerMessageTarget = {
+  postMessage(message: unknown, transfer?: Transferable[]): void;
+};
+
+const workerSelf = self as unknown as WorkerMessageTarget;
+
 type DeviceMemoryNavigator = Navigator & { deviceMemory?: number };
 
 let ffmpegState: FFmpeg | null = null;
@@ -34,7 +40,7 @@ function emitProgress(jobId: string, phase: ExportProgress["phase"], progress: n
       message,
     },
   };
-  self.postMessage(response);
+  workerSelf.postMessage(response);
 }
 
 function throwIfCancelled(jobId: string): void {
@@ -441,7 +447,7 @@ async function runExport(rawRequest: unknown): Promise<void> {
           fileName: sanitizeToken(project.title) + ".png",
           buffer: bytes,
         };
-        self.postMessage(response, [bytes]);
+        workerSelf.postMessage(response, [bytes]);
         return;
       }
 
@@ -472,7 +478,7 @@ async function runExport(rawRequest: unknown): Promise<void> {
         fileName: sanitizeToken(project.title) + "-frames.zip",
         buffer,
       };
-      self.postMessage(response, [buffer]);
+      workerSelf.postMessage(response, [buffer]);
       return;
     }
 
@@ -535,7 +541,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   } catch (error) {
     const messageText =
       error instanceof Error ? error.message : "Unknown media export failure.";
-    self.postMessage({
+    workerSelf.postMessage({
       type: "error",
       jobId: message.request.jobId,
       message: cancelledJobs.has(message.request.jobId) ? "Export cancelled." : messageText,
