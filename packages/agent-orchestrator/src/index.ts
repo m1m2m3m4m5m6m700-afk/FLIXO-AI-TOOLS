@@ -1,4 +1,4 @@
-import { AgentCapability, AgentNetworkControlPlane } from "./network.ts";
+import { AgentCapability, AgentHeartbeat, AgentNetworkControlPlane, AgentNetworkSnapshot } from "./network.ts";
 
 export type CommandAuthority = Readonly<{
   commandId: string;
@@ -59,9 +59,11 @@ export class DirectCommandOrchestrator {
   constructor(
     private readonly planner: AgentPlanner,
     private readonly observer: AgentObserver = {
+
       onDispatch: () => undefined,
       onReport: () => undefined,
     },
+    private readonly network = new AgentNetworkControlPlane(),
   ) {}
 
   registerWorker(worker: AgentWorker): void {
@@ -76,8 +78,7 @@ export class DirectCommandOrchestrator {
     if (this.activeCommandId !== null) throw new Error("COMMAND_ALREADY_ACTIVE");
 
     this.activeCommandId = command.commandId;
-    const network = new AgentNetworkControlPlane();
-    network.begin(command.commandId, command.issuedBy);
+    this.network.begin(command.commandId, command.issuedBy);
     try {
       const plan = await this.planner.plan(command, objective);
       this.assertPlan(plan, command);
@@ -116,7 +117,7 @@ export class DirectCommandOrchestrator {
 
         const batch = await Promise.all(ready.map(async (step) => {
           const requiredCapabilities = step.requiredCapabilities ?? [];
-          network.authorize(step.stepId, command.commandId, step.role, requiredCapabilities);
+          this.network.authorize(step.stepId, command.commandId, step.role, requiredCapabilities);
           const worker = this.workers.get(step.role);
           if (!worker) {
             const report: AgentReport = Object.freeze({
@@ -155,9 +156,17 @@ export class DirectCommandOrchestrator {
 
       return Object.freeze([...reports.values()]);
     } finally {
-      network.end(command.commandId);
+      this.network.end(command.commandId);
       this.activeCommandId = null;
     }
+  }
+
+  heartbeat(heartbeat: AgentHeartbeat): void {
+    this.network.heartbeat(heartbeat);
+  }
+
+  snapshot(): AgentNetworkSnapshot {
+    return this.network.snapshot();
   }
 
   private assertPlan(plan: AgentPlan, command: CommandAuthority): void {
