@@ -127,6 +127,12 @@ export class AgentNetworkControlPlane {
     return agent;
   }
 
+  report(commandId: string, stepId: string, agentId: string, status: "completed" | "failed" | "blocked", summary: string): void {
+    this.assertActive(commandId);
+    if (!this.agents.has(agentId)) throw new Error(`AGENT_NOT_REGISTERED:${agentId}`);
+    this.emit(status === "blocked" ? "blocked" : status === "failed" ? "failure" : "report", commandId, stepId, agentId, { status, summary });
+  }
+
   heartbeat(heartbeat: AgentHeartbeat): void {
     this.assertActive(heartbeat.commandId);
     if (!this.agents.has(heartbeat.agentId)) throw new Error(`AGENT_NOT_REGISTERED:${heartbeat.agentId}`);
