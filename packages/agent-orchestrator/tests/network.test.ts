@@ -282,6 +282,51 @@ test("waits for all parallel workers and marks the command failed when one worke
   assert.deepEqual(timeline, ["slow-finished", "finalize:failed"]);
 });
 
+test("does not finalize the command when a completed report is unverified", async () => {
+  const finalized: string[] = [];
+  const orchestrator = new DirectCommandOrchestrator(
+    {
+      async plan(command, objective) {
+        return {
+          commandId: command.commandId,
+          objective,
+          steps: [{ stepId: "step-unverified", role: "tester", objective, dependsOn: [], constraints: [] }],
+        };
+      },
+    },
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      async persist() {},
+      async finalize(status) { finalized.push(status); },
+    },
+  );
+  orchestrator.registerWorker({
+    id: "tester",
+    async run(instruction) {
+      return {
+        stepId: instruction.stepId,
+        commandId: instruction.commandId,
+        status: "completed",
+        summary: "model claims success",
+        evidence: { testsPassed: 1, testsFailed: 0, evidenceVerified: false },
+      };
+    },
+  });
+
+  const reports = await orchestrator.dispatch(
+    { commandId: "cmd-unverified", issuedBy: "human", issuedAt: new Date().toISOString() },
+    "reject unverified completion",
+  );
+
+  assert.equal(reports[0]?.status, "completed");
+  assert.equal(reports[0]?.verification?.status, "unresolved");
+  assert.deepEqual(finalized, ["failed"]);
+});
+
 test("audit failure does not strand the active command", async () => {
   let persistCalls = 0;
   const orchestrator = new DirectCommandOrchestrator(
