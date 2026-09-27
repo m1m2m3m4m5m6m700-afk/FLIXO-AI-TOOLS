@@ -68,6 +68,7 @@ export type AgentNetworkEvent = Readonly<{
 
 export interface AgentAuditSink {
   persist(events: readonly AgentNetworkEvent[]): Promise<void>;
+  finalize(status: "completed" | "failed", events: readonly AgentNetworkEvent[]): Promise<void>;
 }
 
 export type AgentNetworkSnapshot = Readonly<{
