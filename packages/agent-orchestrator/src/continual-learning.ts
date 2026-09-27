@@ -71,11 +71,13 @@ export class ContinualLearningEngine {
     const buckets = new Map<string, AgentExperience[]>();
     for (const experience of experiences) {
       const capability = capabilityFrom(experience);
-      const pattern = experience.reward.reasons[0] ?? "general-execution";
-      const key = capability + ":" + pattern;
-      const bucket = buckets.get(key) ?? [];
-      bucket.push(experience);
-      buckets.set(key, bucket);
+      const patterns = experience.failurePatterns?.length ? experience.failurePatterns : [experience.reward.reasons[0] ?? "general-execution"];
+      for (const pattern of patterns) {
+        const key = capability + ":" + pattern;
+        const bucket = buckets.get(key) ?? [];
+        bucket.push(experience);
+        buckets.set(key, bucket);
+      }
     }
     return Object.freeze([...buckets.entries()].map(([key, items]) => {
       const proficiency = items.reduce((sum, item) => sum + item.reward.score, 0) / Math.max(1, items.length) / 100;
@@ -113,11 +115,16 @@ export class ContinualLearningEngine {
   curriculum(agentId: string, objective: string): readonly CurriculumItem[] {
     const snapshot = this.snapshot(agentId);
     const count = Math.max(1, Math.min(this.policy.curriculumSize, 32));
+    const failureCounts = new Map<string, number>();
+    for (const experience of this.store.byAgent(agentId)) {
+      for (const pattern of experience.failurePatterns ?? []) failureCounts.set(pattern, (failureCounts.get(pattern) ?? 0) + 1);
+    }
+    const failureFocus = [...failureCounts.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(([pattern])=>pattern);
     const weak = snapshot.skills.filter((skill) => skill.proficiency < this.policy.weaknessThreshold);
     const mastered = snapshot.skills.filter((skill) => skill.proficiency >= this.policy.masteryThreshold);
     const items: CurriculumItem[] = [];
     for (let index = 0; index < count; index += 1) {
-      const focus = weak[index % Math.max(1, weak.length)]?.pattern;
+      const focus = failureFocus[index % Math.max(1, failureFocus.length)] ?? weak[index % Math.max(1, weak.length)]?.pattern;
       const difficulty = Math.min(1, 0.35 + index * (0.65 / Math.max(1, count - 1)) + (mastered.length ? 0.1 : 0));
       const rationale = focus
         ? `Target recurring weakness: ${focus}.`
