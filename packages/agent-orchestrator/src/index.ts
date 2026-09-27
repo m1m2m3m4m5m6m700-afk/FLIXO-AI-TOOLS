@@ -324,7 +324,13 @@ export class DirectCommandOrchestrator {
   private verifyReport(report: AgentReport, agentId: string): AgentReport {
     const evidence = (report.evidence ?? {}) as EvaluationEvidence;
     const verification = this.objectiveVerifier.verify({ id: `${report.commandId}:${report.stepId}`, commandId: report.commandId, stepId: report.stepId, agentId, evidence });
-    return Object.freeze({ ...report, verification });
+    const status = report.status === "completed" && verification.status !== "verified"
+      ? "failed" as const
+      : report.status;
+    const summary = status === report.status
+      ? report.summary
+      : report.summary + " Verification did not reach a verified state.";
+    return Object.freeze({ ...report, status, summary, verification });
   }
 
   private assertPlan(plan: AgentPlan, command: CommandAuthority): void {
