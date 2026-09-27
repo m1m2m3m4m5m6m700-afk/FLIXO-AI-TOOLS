@@ -40,7 +40,19 @@ jobs:
           set -euo pipefail
           python3 scripts/three_critic_review.py --self-test
           python3 tests/three_critic_review.test.py
-      - run: npm test
+      - name: Run npm test
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee npm-test.log
+      - name: Upload npm test failure evidence
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: flixo-npm-test-failure-${{ github.run_id }}
+          path: npm-test.log
+          if-no-files-found: error
+          retention-days: 14
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run build
       - name: Stamp exact build identity
