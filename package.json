@@ -27,7 +27,8 @@
     "verify:contracts": "node scripts/verify-contract-boundary.mjs",
     "typecheck:contracts": "npx tsc -p packages/contracts/tsconfig.json --noEmit",
     "typecheck:agent-runtime": "npx tsc -p packages/agent-runtime/tsconfig.json --noEmit",
-    "typecheck:agent-orchestrator": "npx tsc -p packages/agent-orchestrator/tsconfig.json --noEmit"
+    "typecheck:agent-orchestrator": "npx tsc -p packages/agent-orchestrator/tsconfig.json --noEmit",
+    "test:agent-orchestrator": "npm run test --workspace=@flixo/agent-orchestrator"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
