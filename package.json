@@ -21,8 +21,8 @@
     "test:e2e": "playwright test",
     "test": "npm run typecheck && npm run lint && npm run test:core",
     "ci": "npm run test && npm run build",
-    "test:agent-editor": "npm install --prefix apps/agent-editor --no-audit --no-fund && npm run type-check --prefix apps/agent-editor && npm run test:unit --prefix apps/agent-editor",
-    "build:agent-editor": "npm install --prefix apps/agent-editor --no-audit --no-fund && npm run build --prefix apps/agent-editor",
+    "test:agent-editor": "npm run type-check --workspace=apps/agent-editor && npm run test:unit --workspace=apps/agent-editor",
+    "build:agent-editor": "npm run build --workspace=apps/agent-editor",
     "verify:architecture": "node scripts/verify-architecture.mjs",
     "verify:contracts": "node scripts/verify-contract-boundary.mjs",
     "typecheck:contracts": "npx tsc -p packages/contracts/tsconfig.json --noEmit",
@@ -53,5 +53,10 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^8.2.1"
-  }
+  },
+  "workspaces": [
+    "apps/agent-editor",
+    "packages/contracts",
+    "packages/agent-runtime"
+  ]
 }

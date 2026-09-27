@@ -1,8 +1,8 @@
 import {
   AgentRuntime as CanonicalAgentRuntime,
   RuntimeToolRegistry,
-} from "../../../../packages/agent-runtime/src/index";
-import type { ExecutionRequest } from "../../../../packages/contracts/src/index";
+} from "@flixo/agent-runtime";
+import type { ExecutionRequest } from "@flixo/contracts";
 import type { ToolRegistry } from "./registry";
 
 export function createCanonicalRuntime(
