@@ -504,6 +504,9 @@ export function restoreFlixoBotRunState<TContext = unknown>(
   serialized: string,
   currentSha: string,
 ): FlixoBotRunState<TContext> {
+  if (typeof serialized !== 'string' || serialized.length === 0 || serialized.length > 256_000) {
+    throw new Error('FLIXO_BOT_RUN_SERIALIZED_STATE_INVALID');
+  }
   let parsed: FlixoBotRunState<TContext>;
   try {
     parsed = JSON.parse(serialized) as FlixoBotRunState<TContext>;
@@ -513,6 +516,9 @@ export function restoreFlixoBotRunState<TContext = unknown>(
   if (!parsed || parsed.protocol !== FLIXO_BOT_OPENAI_RUNTIME_PROTOCOL) throw new Error('FLIXO_BOT_RUN_PROTOCOL_MISMATCH');
   if (parsed.schemaVersion !== FLIXO_BOT_OPENAI_RUNTIME_SCHEMA_VERSION) throw new Error('FLIXO_BOT_RUN_SCHEMA_MISMATCH');
   if (parsed.branch !== FLIXO_BOT_CANONICAL_BRANCH) throw new Error('FLIXO_BOT_RUN_BRANCH_MISMATCH');
+  if (!['CREATED', 'RUNNING', 'WAITING_APPROVAL', 'RETRYING', 'SUCCEEDED', 'FAILED', 'STALE', 'CANCELLED', 'BLOCKED'].includes(parsed.status)) {
+    throw new Error('FLIXO_BOT_RUN_STATUS_INVALID');
+  }
   assertExactSha(parsed.exactSha);
   required(parsed.runId, 'RUN_ID');
   required(parsed.taskId, 'TASK_ID');
@@ -532,7 +538,7 @@ export function restoreFlixoBotRunState<TContext = unknown>(
     || !Number.isInteger(parsed.toolCallCount) || parsed.toolCallCount < 0 || parsed.toolCallCount > parsed.maxToolCalls) {
     throw new Error('FLIXO_BOT_RUN_TOOL_BUDGET_INVALID');
   }
-  if (!Number.isInteger(parsed.events.length) || parsed.events.length > 256) throw new Error('FLIXO_BOT_RUN_EVENTS_INVALID');
+  if (!Array.isArray(parsed.events) || parsed.events.length > 256) throw new Error('FLIXO_BOT_RUN_EVENTS_INVALID');
   if (!parsed.inputDigest || !/^[a-f0-9]{8}$/u.test(parsed.inputDigest)) throw new Error('FLIXO_BOT_RUN_INPUT_DIGEST_INVALID');
   if (parsed.pendingApproval) {
     required(parsed.pendingApproval.approvalId, 'APPROVAL_ID');
