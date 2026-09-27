@@ -53,18 +53,14 @@ jobs:
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           test "$EXPECTED_SHA" = "$(git rev-parse refs/remotes/origin/execution)"
 
-      - name: Verify provider credentials are available
+      - name: Verify dedicated repair-worker credential is available
         shell: bash
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FLIXO_MINI_SWE_API_KEY: ${{ secrets.FLIXO_MINI_SWE_API_KEY }}
         run: |
           set -euo pipefail
-          test -n "${OPENAI_API_KEY:-}" -o -n "${ANTHROPIC_API_KEY:-}" -o -n "${GEMINI_API_KEY:-}"
-          echo "::add-mask::${OPENAI_API_KEY:-}"
-          echo "::add-mask::${ANTHROPIC_API_KEY:-}"
-          echo "::add-mask::${GEMINI_API_KEY:-}"
+          test -n "${FLIXO_MINI_SWE_API_KEY:-}"
+          echo "::add-mask::${FLIXO_MINI_SWE_API_KEY}"
 
       - name: Install uv
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
@@ -82,9 +78,7 @@ jobs:
       - name: Run mini-SWE-agent in disposable workspace
         shell: bash
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.FLIXO_MINI_SWE_API_KEY }}
         run: |
           set +e
           uvx --from "mini-swe-agent==2.4.6" mini -y -t "$(cat "$RUNNER_TEMP/flixo-mini-swe-task.md")" -m "$MSWEA_MODEL_NAME"
@@ -130,7 +124,7 @@ jobs:
         if: ${{ always() }}
         shell: bash
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FLIXO_MINI_SWE_API_KEY: ${{ secrets.FLIXO_MINI_SWE_API_KEY }}
           FLIXO_AGENT_MODEL: claude-sonnet-4-6
           CRITIC_REPO_ROOT: ${{ github.workspace }}
           CRITIC_TYPECHECK_CMD: npm run typecheck
