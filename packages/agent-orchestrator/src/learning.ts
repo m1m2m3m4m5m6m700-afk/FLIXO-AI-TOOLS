@@ -1,5 +1,5 @@
 import type { AgentDescriptor } from "./network.ts";
-import type { AgentExperience, ExperienceStore } from "./experience.ts";
+import type { AgentExperience, AgentExperiencePersistence, ExperienceStore } from "./experience.ts";
 import { AgentRewardEngine, type RewardResult } from "./reward.ts";
 import { ObjectiveVerifier } from "./objective-verifier.ts";
 import { FailureIntelligence } from "./cognitive.ts";
@@ -61,11 +61,12 @@ export class AgentLearningObserver implements AgentObserver {
     private readonly rewardEngine = new AgentRewardEngine(),
     private readonly verifier = new ObjectiveVerifier(),
     private readonly failureIntelligence = new FailureIntelligence(),
+    private readonly persistence?: AgentExperiencePersistence,
   ) {}
   onDispatch(instruction: AgentInstruction): void {
     this.instructions.set(instruction.stepId, instruction);
   }
-  onReport(report: AgentReport): void {
+  async onReport(report: AgentReport): Promise<void> {
     const instruction = this.instructions.get(report.stepId);
     if (!instruction || instruction.commandId !== report.commandId) return;
     const verification = report.verification ?? this.verifier.verify({ id: `${report.commandId}:${report.stepId}`, commandId: report.commandId, stepId: report.stepId, agentId: instruction.role, evidence: (report.evidence ?? {}) as Parameters<ObjectiveVerifier["verify"]>[0]["evidence"] });
@@ -84,15 +85,18 @@ export class AgentLearningObserver implements AgentObserver {
       timestamp: new Date().toISOString(),
     });
     this.store.append(experience);
+    if (this.persistence) await this.persistence.persist(experience);
     const extra = report.evidence?.redTeamReward;
     if (instruction.role === "red-team" && extra && typeof extra === "object" && "score" in extra) {
-      this.store.append(Object.freeze({
+      const secondary = Object.freeze({
         ...experience,
         id: experience.id + ":secondary",
         reward: extra as RewardResult,
         lane: "red-team",
         parentExperienceId: experience.id,
-      }));
+      });
+      this.store.append(secondary);
+      if (this.persistence) await this.persistence.persist(secondary);
     }
     this.instructions.delete(report.stepId);
   }
