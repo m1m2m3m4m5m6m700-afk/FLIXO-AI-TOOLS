@@ -1,7 +1,7 @@
 import type { CapabilityParameters, ToolDefinition } from '../../config/canonical-tool-definition';
 import { renderVideoToWebm } from './video-executor';
 
-export type VideoToolExecutor = (inputBlob: Blob, parameters: CapabilityParameters, tool: ToolDefinition) => Promise<Blob>;
+export type VideoToolExecutor = (inputBlob: Blob, parameters: CapabilityParameters, tool: Pick<ToolDefinition, 'id'>) => Promise<Blob>;
 
 const numberOr = (value: unknown, fallback: number): number => {
   const n = Number(value);
@@ -32,6 +32,6 @@ export const VIDEO_EXECUTORS: Readonly<Record<string, VideoToolExecutor>> = Obje
   }),
 });
 
-export function getVideoToolExecutor(tool: ToolDefinition): VideoToolExecutor | undefined {
+export function getVideoToolExecutor(tool: Pick<ToolDefinition, 'id'>): VideoToolExecutor | undefined {
   return VIDEO_EXECUTORS[tool.id];
 }
