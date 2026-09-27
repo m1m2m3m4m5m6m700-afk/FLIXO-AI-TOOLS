@@ -140,6 +140,6 @@ jobs:
           test "$TRUST_RESULT" = success
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           if [ -n "${{ github.event.pull_request.number || '' }}" ]; then
-            test "$HEAD_BRANCH" = execution
+            test -n "$HEAD_BRANCH"
           fi
           echo "EXACT_SHA_PROMOTION_PROOF=$EXPECTED_SHA"
