@@ -33,8 +33,6 @@ const TRUSTED_IP_HEADER =
 function getClientIp(request: NextRequest): string {
   const edgeIp = request.headers.get(TRUSTED_IP_HEADER)?.trim();
   if (edgeIp) return edgeIp.split(",")[0]?.trim() || "unknown";
-  const fallback = request.headers.get("cf-connecting-ip")?.trim();
-  if (fallback) return fallback;
   return "unknown";
 }
 
