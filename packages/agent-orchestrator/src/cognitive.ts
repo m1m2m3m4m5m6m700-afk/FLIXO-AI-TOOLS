@@ -66,18 +66,126 @@ export class CognitiveTraceObserver {
 }
 
 export type FailureCategory = "correctness" | "verification" | "quality" | "security" | "performance" | "policy" | "evidence" | "unknown";
-export type FailureRecord = Readonly<{ id:string; commandId:string; stepId:string; agentId:string; category:FailureCategory; severity:"low"|"medium"|"high"|"critical"; pattern:string; evidence:readonly string[]; correctiveAction:string; timestamp:string; }>;
+export type FailureSeverity = "low" | "medium" | "high" | "critical";
+export type FailurePattern =
+  | "verification-test-failure"
+  | "verification-evidence-missing"
+  | "verification-evidence-rejected"
+  | "artifact-missing"
+  | "quality-review-findings"
+  | "security-findings-present"
+  | "performance-regression"
+  | "policy-boundary-violation"
+  | "unknown-failure";
+
+export type FailureTaxonomyEntry = Readonly<{
+  pattern: FailurePattern;
+  category: FailureCategory;
+  severity: FailureSeverity;
+  correctiveAction: string;
+}>;
+
+export const FAILURE_TAXONOMY: Readonly<Record<FailurePattern, FailureTaxonomyEntry>> = Object.freeze({
+  "verification-test-failure": { pattern: "verification-test-failure", category: "correctness", severity: "high", correctiveAction: "repair failing behavior and rerun verification tests" },
+  "verification-evidence-missing": { pattern: "verification-evidence-missing", category: "verification", severity: "medium", correctiveAction: "produce independently verifiable evidence before promotion" },
+  "verification-evidence-rejected": { pattern: "verification-evidence-rejected", category: "evidence", severity: "medium", correctiveAction: "replace unsupported evidence with independently verifiable evidence" },
+  "artifact-missing": { pattern: "artifact-missing", category: "correctness", severity: "medium", correctiveAction: "complete missing required artifacts and verify them" },
+  "quality-review-findings": { pattern: "quality-review-findings", category: "quality", severity: "medium", correctiveAction: "resolve review findings and rerun quality checks" },
+  "security-findings-present": { pattern: "security-findings-present", category: "security", severity: "high", correctiveAction: "resolve security findings before promotion" },
+  "performance-regression": { pattern: "performance-regression", category: "performance", severity: "medium", correctiveAction: "profile the regression, repair it, and verify performance" },
+  "policy-boundary-violation": { pattern: "policy-boundary-violation", category: "policy", severity: "critical", correctiveAction: "enforce command scope and delegation boundaries" },
+  "unknown-failure": { pattern: "unknown-failure", category: "unknown", severity: "low", correctiveAction: "collect structured evidence and classify the failure" },
+});
+
+export type FailureRecord = Readonly<{
+  id:string;
+  commandId:string;
+  stepId:string;
+  agentId:string;
+  category:FailureCategory;
+  severity:FailureSeverity;
+  pattern:FailurePattern;
+  evidence:readonly string[];
+  correctiveAction:string;
+  timestamp:string;
+}>;
+
+export type FailureAggregate = Readonly<{
+  pattern: FailurePattern;
+  category: FailureCategory;
+  occurrences: number;
+  agents: number;
+  maxSeverity: FailureSeverity;
+  lastSeen: string;
+}>;
+
+const SEVERITY_RANK: Readonly<Record<FailureSeverity, number>> = Object.freeze({ low: 1, medium: 2, high: 3, critical: 4 });
+
 export class FailureIntelligence {
   private readonly failures: FailureRecord[]=[];
+
   classify(commandId:string,stepId:string,agentId:string,evidence:EvaluationEvidence): FailureRecord[] {
-    const findings: Array<{category:FailureCategory;severity:FailureRecord["severity"];pattern:string;correctiveAction:string}> = [];
-    if ((evidence.testsFailed??0)>0) findings.push({category:"correctness",severity:"high",pattern:"verification-test-failure",correctiveAction:"repair failing behavior and rerun the verification suite"});
-    if (evidence.evidenceVerified===false) findings.push({category:"evidence",severity:"medium",pattern:"evidence-not-verified",correctiveAction:"provide independently verifiable evidence"});
-    if ((evidence.securityFindings??0)>0) findings.push({category:"security",severity:"high",pattern:"security-findings-present",correctiveAction:"resolve security findings before promotion"});
-    if ((evidence.performanceRegressions??0)>0) findings.push({category:"performance",severity:"medium",pattern:"performance-regression",correctiveAction:"profile the regression and verify the fix"});
-    if ((evidence.outOfScopeActions??0)>0 || (evidence.delegatedTasks??0)>0) findings.push({category:"policy",severity:"critical",pattern:"policy-boundary-violation",correctiveAction:"enforce command scope and delegation policy"});
-    return findings.map((f,i)=>{const record:FailureRecord=Object.freeze({id:`${commandId}:${stepId}:failure-${i+1}`,commandId,stepId,agentId,...f,evidence:Object.freeze([evidence.notes??""]),timestamp:new Date().toISOString()}); this.failures.push(record); return record;});
+    const patterns = new Set<FailurePattern>();
+    if ((evidence.testsFailed??0)>0) patterns.add("verification-test-failure");
+    if ((evidence.evidenceVerified??null) === undefined) patterns.add("verification-evidence-missing");
+    else if (evidence.evidenceVerified === false) patterns.add("verification-evidence-rejected");
+
+    const required = evidence.requiredArtifacts ?? [];
+    const completed = new Set(evidence.completedArtifacts ?? []);
+    if (required.some((artifact) => !completed.has(artifact))) patterns.add("artifact-missing");
+    if ((evidence.reviewFindings??0)>0) patterns.add("quality-review-findings");
+    if ((evidence.securityFindings??0)>0) patterns.add("security-findings-present");
+    if ((evidence.performanceRegressions??0)>0) patterns.add("performance-regression");
+    if ((evidence.outOfScopeActions??0)>0 || (evidence.delegatedTasks??0)>0) patterns.add("policy-boundary-violation");
+
+    return [...patterns].map((pattern,index)=>{
+      const entry=FAILURE_TAXONOMY[pattern];
+      const record:FailureRecord=Object.freeze({
+        id:`${commandId}:${stepId}:failure-${index+1}`,
+        commandId,stepId,agentId,
+        category:entry.category,
+        severity:entry.severity,
+        pattern,
+        evidence:Object.freeze([
+          evidence.notes ? evidence.notes : "",
+          `testsFailed=${evidence.testsFailed??0}`,
+          `reviewFindings=${evidence.reviewFindings??0}`,
+          `securityFindings=${evidence.securityFindings??0}`,
+          `performanceRegressions=${evidence.performanceRegressions??0}`,
+        ].filter(Boolean)),
+        correctiveAction:entry.correctiveAction,
+        timestamp:new Date().toISOString()
+      });
+      this.failures.push(record);
+      return record;
+    });
   }
-  list(agentId?:string):readonly FailureRecord[] { return Object.freeze(this.failures.filter(f=>!agentId||f.agentId===agentId)); }
-  patterns(agentId:string):readonly string[] { return Object.freeze([...new Set(this.list(agentId).map(f=>f.pattern))]); }
+
+  list(agentId?:string):readonly FailureRecord[] {
+    return Object.freeze(this.failures.filter(f=>!agentId||f.agentId===agentId));
+  }
+
+  patterns(agentId:string):readonly FailurePattern[] {
+    return Object.freeze([...new Set(this.list(agentId).map(f=>f.pattern))]);
+  }
+
+  aggregates(agentId?:string):readonly FailureAggregate[] {
+    const groups=new Map<FailurePattern,FailureRecord[]>();
+    for(const failure of this.list(agentId)){
+      const bucket=groups.get(failure.pattern)??[];
+      bucket.push(failure);
+      groups.set(failure.pattern,bucket);
+    }
+    return Object.freeze([...groups.entries()].map(([pattern,items])=>{
+      const maxSeverity=items.reduce<FailureSeverity>((max,item)=>SEVERITY_RANK[item.severity]>SEVERITY_RANK[max]?item.severity:max,"low");
+      return Object.freeze({
+        pattern,
+        category:FAILURE_TAXONOMY[pattern].category,
+        occurrences:items.length,
+        agents:new Set(items.map(item=>item.agentId)).size,
+        maxSeverity,
+        lastSeen:items.at(-1)?.timestamp??new Date(0).toISOString(),
+      });
+    }).sort((a,b)=>b.occurrences-a.occurrences||SEVERITY_RANK[b.maxSeverity]-SEVERITY_RANK[a.maxSeverity]||a.pattern.localeCompare(b.pattern)));
+  }
 }
