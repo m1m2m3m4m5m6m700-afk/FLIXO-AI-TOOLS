@@ -78,7 +78,7 @@ export type FlixoBotToolDecision = Readonly<{
   allowed: boolean;
   reason:
     | 'ALLOW' | 'INVALID_SHA' | 'STALE_SHA' | 'WRONG_WORK_PATH'
-    | 'AUTHORITY_REQUIRED' | 'CERTIFICATION_FORBIDDEN' | 'APPROVAL_REQUIRED' | 'BUDGET_EXCEEDED';
+    | 'AUTHORITY_REQUIRED' | 'CERTIFICATION_FORBIDDEN' | 'APPROVAL_REQUIRED' | 'BUDGET_EXCEEDED' | 'OWNER_REQUIRED';
 }>;
 
 export type FlixoBotAuthority = Readonly<{
@@ -245,7 +245,18 @@ export function recordToolCall(
 ): Readonly<{ state: FlixoBotRunState; decision: FlixoBotToolDecision }> {
   assertCurrentRunSha(state, currentSha);
   if (!['RUNNING', 'RETRYING'].includes(state.status)) throw new Error('FLIXO_BOT_TOOL_CALL_INVALID_STATE');
-  if (state.toolCallCount >= state.maxToolCalls) {
+  if (request.actorId !== state.currentOwner) return Object.freeze({
+    state: withStatus(
+      Object.freeze({ ...state, lastError: 'CURRENT_OWNER_MISMATCH' }),
+      'BLOCKED',
+      {
+        type: 'GUARDRAIL_REJECT',
+        actorId: request.actorId,
+        detail: { toolId: request.toolId, callId: request.callId, reason: 'CURRENT_OWNER_MISMATCH' },
+      },
+    ),
+    decision: { allowed: false, reason: 'OWNER_REQUIRED' as const },
+  });  if (state.toolCallCount >= state.maxToolCalls) {
     const blockedState = withStatus(
       Object.freeze({ ...state, lastError: 'MAX_TOOL_CALLS_EXCEEDED' }),
       'BLOCKED',
@@ -312,7 +323,7 @@ export function recordToolResult(
 ): FlixoBotRunState {
   assertCurrentRunSha(state, currentSha);
   if (!['RUNNING', 'RETRYING'].includes(state.status)) throw new Error('FLIXO_BOT_TOOL_RESULT_INVALID_STATE');
-  if (success && evidence.verified !== true) {
+  if (actorId !== state.currentOwner) throw new Error('FLIXO_BOT_TOOL_RESULT_OWNER_MISMATCH');  if (success && evidence.verified !== true) {
     throw new Error('FLIXO_BOT_TOOL_SUCCESS_REQUIRES_VERIFIED_EVIDENCE');
   }
   if (success && (!/^[a-f0-9]{64}$/u.test(String(evidence.inputSha256 ?? ''))
@@ -504,25 +515,50 @@ export function restoreFlixoBotRunState<TContext = unknown>(
   serialized: string,
   currentSha: string,
 ): FlixoBotRunState<TContext> {
-  const parsed = JSON.parse(serialized) as FlixoBotRunState<TContext> & Partial<Pick<FlixoBotRunState<TContext>, 'maxToolCalls' | 'toolCallCount'>>;
-  if (parsed.protocol !== FLIXO_BOT_OPENAI_RUNTIME_PROTOCOL) throw new Error('FLIXO_BOT_RUN_PROTOCOL_MISMATCH');
+  let parsed: FlixoBotRunState<TContext>;
+  try {
+    parsed = JSON.parse(serialized) as FlixoBotRunState<TContext>;
+  } catch {
+    throw new Error('FLIXO_BOT_RUN_STATE_INVALID_JSON');
+  }
+  if (!parsed || parsed.protocol !== FLIXO_BOT_OPENAI_RUNTIME_PROTOCOL) throw new Error('FLIXO_BOT_RUN_PROTOCOL_MISMATCH');
   if (parsed.schemaVersion !== FLIXO_BOT_OPENAI_RUNTIME_SCHEMA_VERSION) throw new Error('FLIXO_BOT_RUN_SCHEMA_MISMATCH');
   if (parsed.branch !== FLIXO_BOT_CANONICAL_BRANCH) throw new Error('FLIXO_BOT_RUN_BRANCH_MISMATCH');
   assertExactSha(parsed.exactSha);
-  const normalizedMaxToolCalls = Number.isInteger(parsed.maxToolCalls) && parsed.maxToolCalls > 0 ? parsed.maxToolCalls : 8;
-  const normalizedToolCallCount = Number.isInteger(parsed.toolCallCount) && parsed.toolCallCount >= 0 ? parsed.toolCallCount : 0;
-  if (normalizedToolCallCount > normalizedMaxToolCalls) throw new Error('FLIXO_BOT_RUN_TOOL_BUDGET_INVALID');
-  if (!Array.isArray(parsed.events)) throw new Error('FLIXO_BOT_RUN_EVENTS_INVALID');
+  required(parsed.runId, 'RUN_ID');
+  required(parsed.taskId, 'TASK_ID');
+  required(parsed.agentId, 'AGENT_ID');
+  required(parsed.currentOwner, 'CURRENT_OWNER');
+  required(parsed.traceId, 'TRACE_ID');
+  if (!Number.isInteger(parsed.stepIndex) || parsed.stepIndex < 0 || parsed.stepIndex > 128) throw new Error('FLIXO_BOT_RUN_STEP_INDEX_INVALID');
+  if (!Number.isInteger(parsed.maxTurns) || parsed.maxTurns < 1 || parsed.maxTurns > 128
+    || !Number.isInteger(parsed.turnCount) || parsed.turnCount < 0 || parsed.turnCount > parsed.maxTurns) {
+    throw new Error('FLIXO_BOT_RUN_TURN_BUDGET_INVALID');
+  }
+  if (!Number.isInteger(parsed.maxRetries) || parsed.maxRetries < 0 || parsed.maxRetries > 12
+    || !Number.isInteger(parsed.retryCount) || parsed.retryCount < 0 || parsed.retryCount > parsed.maxRetries) {
+    throw new Error('FLIXO_BOT_RUN_RETRY_BUDGET_INVALID');
+  }
+  if (!Number.isInteger(parsed.maxToolCalls) || parsed.maxToolCalls < 1 || parsed.maxToolCalls > 32
+    || !Number.isInteger(parsed.toolCallCount) || parsed.toolCallCount < 0 || parsed.toolCallCount > parsed.maxToolCalls) {
+    throw new Error('FLIXO_BOT_RUN_TOOL_BUDGET_INVALID');
+  }
+  if (!Number.isInteger(parsed.events.length) || parsed.events.length > 256) throw new Error('FLIXO_BOT_RUN_EVENTS_INVALID');
+  if (!parsed.inputDigest || !/^[a-f0-9]{8}$/u.test(parsed.inputDigest)) throw new Error('FLIXO_BOT_RUN_INPUT_DIGEST_INVALID');
   if (parsed.pendingApproval) {
     required(parsed.pendingApproval.approvalId, 'APPROVAL_ID');
+    required(parsed.pendingApproval.reason, 'APPROVAL_REASON');
   }
   parsed.events.forEach((event, index) => {
-    if (event.seq !== index + 1 || event.exactSha !== parsed.exactSha) {
+    if (event.seq !== index + 1 || event.exactSha !== parsed.exactSha || !event.actorId || !event.type) {
       throw new Error('FLIXO_BOT_RUN_EVENT_PROVENANCE_INVALID');
     }
   });
   assertCurrentRunSha(parsed, currentSha);
-  return Object.freeze({ ...parsed, maxToolCalls: normalizedMaxToolCalls, toolCallCount: normalizedToolCallCount, events: Object.freeze(parsed.events.map((event) => Object.freeze({ ...event }))) });
+  return Object.freeze({
+    ...parsed,
+    events: Object.freeze(parsed.events.map((event) => Object.freeze({ ...event }))),
+  });
 }
 
 export function createTrace(traceId = id('trace')): FlixoBotTrace {
