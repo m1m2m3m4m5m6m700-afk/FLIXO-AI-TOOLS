@@ -76,6 +76,16 @@ export class AgentLearningObserver implements AgentObserver {
       timestamp: new Date().toISOString(),
     });
     this.store.append(experience);
+    const extra = report.evidence?.redTeamReward;
+    if (instruction.role === "red-team" && extra && typeof extra === "object" && "score" in extra) {
+      this.store.append(Object.freeze({
+        ...experience,
+        id: experience.id + ":secondary",
+        reward: extra as RewardResult,
+        lane: "red-team",
+        parentExperienceId: experience.id,
+      }));
+    }
     this.instructions.delete(report.stepId);
   }
 }
