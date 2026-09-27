@@ -290,3 +290,5 @@ export * from "./agent-learning-lab.ts";
 
 export * from "./cognitive.ts";
 export * from "./objective-verifier.ts";
+
+export * from "./evolution-governor.ts";
