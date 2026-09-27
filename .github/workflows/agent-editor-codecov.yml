@@ -1,6 +1,8 @@
 name: FLIXO Agent Editor Coverage
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [execution]
   workflow_dispatch:
@@ -45,9 +47,12 @@ jobs:
       - name: Generate coverage
         run: npm run test:coverage
 
-      - name: Upload coverage to Codecov via GitHub OIDC
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          use_oidc: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: ${{ secrets.CODECOV_TOKEN == '' }}
           files: apps/agent-editor/coverage/lcov.info
           fail_ci_if_error: true
