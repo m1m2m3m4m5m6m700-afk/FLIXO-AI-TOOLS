@@ -99,7 +99,8 @@ export class AnthropicProvider implements LLMProvider {
       signal: request.signal,
     });
 
-    if (!response.ok || !response.body) {
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!response.ok || !response.body || !contentType.includes("text/event-stream")) {
       throw new LLMProviderError(
         "anthropic",
         "Anthropic request was rejected.",
