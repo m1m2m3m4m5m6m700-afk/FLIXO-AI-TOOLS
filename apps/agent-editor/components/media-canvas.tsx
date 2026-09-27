@@ -43,12 +43,22 @@ export function MediaCanvas(props: MediaCanvasProps) {
   const [currentTimeSec, setCurrentTimeSec] = useState(0);
   const [exportFormat, setExportFormat] = useState<MediaExportFormat>("mp4");
   const [exportState, setExportState] = useState<ExportProgress | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [downloadName, setDownloadName] = useState<string | null>(null);
   const exportManagerRef = useRef<ClientMediaExportManager | null>(null);
 
   useEffect(() => {
     exportManagerRef.current = new ClientMediaExportManager();
-    return () => exportManagerRef.current?.dispose();
+    return () => {
+      exportManagerRef.current?.dispose();
+    };
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+    };
+  }, [downloadUrl]);
 
   const handleExport = useCallback(async () => {
     if (!parsed.projectState || !exportManagerRef.current) return;
@@ -69,7 +79,14 @@ export function MediaCanvas(props: MediaCanvasProps) {
           onProgress: setExportState,
         },
       );
-      triggerDownload(blob, fileNameFor(exportFormat, parsed.projectState.title));
+      const fileName = fileNameFor(exportFormat, parsed.projectState.title);
+      const nextDownloadUrl = URL.createObjectURL(blob);
+      setDownloadUrl((previousUrl) => {
+        if (previousUrl) URL.revokeObjectURL(previousUrl);
+        return nextDownloadUrl;
+      });
+      setDownloadName(fileName);
+      triggerDownload(blob, fileName);
       setExportState({
         jobId: "completed",
         phase: "completed",
@@ -173,6 +190,15 @@ export function MediaCanvas(props: MediaCanvasProps) {
             <strong>{Math.round(exportState.progress * 100)}%</strong>
           </div>
           <progress value={exportState.progress} max={1} />
+          {downloadUrl && downloadName && exportState.phase === "completed" ? (
+            <a
+              className="export-download"
+              href={downloadUrl}
+              download={downloadName}
+            >
+              Download export
+            </a>
+          ) : null}
         </div>
       ) : null}
 
