@@ -19,7 +19,7 @@ export function buildSystemPrompt(
         `Layers: ${currentProjectState.layers.length}`,
         ...currentProjectState.layers.map(
           (layer) =>
-            `- [${layer.type}] ${layer.id} | ${layer.name} | visible=${layer.visible} | url=${layer.url ?? "none"}`,
+            `- [${layer.type}] ${layer.id} | ${layer.name} | visible=${layer.visible}`,
         ),
       ].join("\n")
     : "No active project state loaded.";
@@ -29,6 +29,7 @@ export function buildSystemPrompt(
     "Translate user intent into registered deterministic tool calls.",
     "Never invent tools or parameters.",
     "Validate every tool request against its registered input contract.",
+    "The model is a planning layer only. Never request or infer raw File/Blob bytes, credentials, or authorization headers.",
     "Use clarification instead of guessing when the requested operation is ambiguous.",
     "",
     "AVAILABLE TOOLS:",
