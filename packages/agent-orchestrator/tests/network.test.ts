@@ -322,7 +322,7 @@ test("does not finalize the command when a completed report is unverified", asyn
     "reject unverified completion",
   );
 
-  assert.equal(reports[0]?.status, "completed");
+  assert.equal(reports[0]?.status, "failed");
   assert.equal(reports[0]?.verification?.status, "unresolved");
   assert.deepEqual(finalized, ["failed"]);
 });
