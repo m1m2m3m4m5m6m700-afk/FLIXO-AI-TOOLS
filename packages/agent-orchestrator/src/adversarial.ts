@@ -1,6 +1,7 @@
 import type { AgentInstruction, AgentReport, AgentWorker } from "./index.ts";
 import { getAgentModelProfile, type AgentModelProfile } from "./agent-profiles.ts";
 import type { AgentModelInvoker, AgentModelMessage, AgentModelResponse } from "./model-adapter.ts";
+import { AgentRewardEngine } from "./reward.ts";
 
 export type AdversarialPosition = Readonly<{
   side: "primary" | "adversary";
@@ -91,6 +92,10 @@ export class AdversarialTwinWorker implements AgentWorker {
             objective: instruction.objective,
             primary: { content: primary.content, evidence: evidence(primary.evidence) },
             adversary: { content: adversary.content, evidence: evidence(adversary.evidence) },
+            rewardContract: {
+              verifiedFindings: "number", falsePositiveFindings: "number",
+              resolvedDisputes: "number", unresolvedDisputes: "number",
+            },
             decisionContract: {
               status: "completed|failed|blocked",
               agreement: "0..1",
@@ -106,6 +111,17 @@ export class AdversarialTwinWorker implements AgentWorker {
 
       const decision = this.parseDecision(adjudication);
       if (decision.agreement >= 0.85 || round === rounds) {
+        const numeric = (key: string): number => {
+          const value = decision.evidence[key];
+          return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
+        };
+        const adversarialReward = new AgentRewardEngine().calculateAdversarial({
+          verifiedFindings: numeric("verifiedFindings"),
+          falsePositiveFindings: numeric("falsePositiveFindings"),
+          resolvedDisputes: numeric("resolvedDisputes"),
+          unresolvedDisputes: Math.max(numeric("unresolvedDisputes"), decision.disputes.length),
+          agreement: decision.agreement,
+        });
         return Object.freeze({
           stepId: instruction.stepId,
           commandId: instruction.commandId,
@@ -117,6 +133,7 @@ export class AdversarialTwinWorker implements AgentWorker {
             agreement: decision.agreement,
             disputes: decision.disputes,
             winningSide: decision.winningSide,
+            adversarialReward,
             primary: { content: primary.content, evidence: evidence(primary.evidence) },
             adversary: { content: adversary.content, evidence: evidence(adversary.evidence) },
           }),
