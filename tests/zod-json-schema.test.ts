@@ -39,7 +39,7 @@ test('converts arrays, unions, literals and nullable fields', () => {
 });
 
 test('converts records and native enums without losing JSON shape', () => {
-  enum Format { PNG = 'png', JPEG = 'jpeg' }
+  const Format = { PNG: 'png', JPEG: 'jpeg' } as const;
   const json = zodToJsonSchema(z.object({
     metadata: z.record(z.string()),
     format: z.nativeEnum(Format),
