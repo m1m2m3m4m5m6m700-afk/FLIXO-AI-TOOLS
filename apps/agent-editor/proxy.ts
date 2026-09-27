@@ -54,8 +54,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return NextResponse.next();
   }
 
+  const failClosed = process.env.FLIXO_RATE_LIMIT_FAIL_CLOSED !== "false";
   if (!redisConfigured) {
-    if (process.env.NODE_ENV === "production") {
+    if (process.env.NODE_ENV === "production" && failClosed) {
       return denyResponse(503, "RATE_LIMIT_UNAVAILABLE");
     }
     return NextResponse.next();
@@ -68,10 +69,20 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     hashIdentifier(anonymousId),
   ]);
 
-  const [ipResult, userResult] = await Promise.all([
-    ipLimiter!.limit(ipHash),
-    userLimiter!.limit(userHash),
-  ]);
+  let ipResult: Awaited<ReturnType<NonNullable<typeof ipLimiter>["limit"]>>;
+  let userResult: Awaited<ReturnType<NonNullable<typeof userLimiter>["limit"]>>;
+
+  try {
+    [ipResult, userResult] = await Promise.all([
+      ipLimiter!.limit(ipHash),
+      userLimiter!.limit(userHash),
+    ]);
+  } catch {
+    if (process.env.NODE_ENV === "production" && failClosed) {
+      return denyResponse(503, "RATE_LIMIT_UNAVAILABLE");
+    }
+    return NextResponse.next();
+  }
 
   if (!ipResult.success || !userResult.success) {
     const reset = Math.max(ipResult.reset, userResult.reset);
