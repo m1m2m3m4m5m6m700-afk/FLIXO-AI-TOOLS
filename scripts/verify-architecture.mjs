@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
-const forbiddenWorkspaceGlobs = ["apps/agent-editor"];
 const workspace = pkg.workspaces;
 
 if (workspace) {
