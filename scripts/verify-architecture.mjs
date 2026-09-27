@@ -79,4 +79,82 @@ if (importViolations.length) {
   process.exit(1);
 }
 
-console.log("ARCHITECTURE_BOUNDARY_GATE=PASS");
+console.log("ARCHITECTURE_BOUNDARY_GATE=PASS");\n
+const forbiddenEdges = [];
+const applicationRoots = ["src", "apps"];
+const packageRoot = "packages";
+
+for (const root of applicationRoots) {
+  if (!existsSync(root)) continue;
+  const files = [];
+  const collect = (dir) => {
+    for (const entry of readdirSync(dir)) {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) collect(path);
+      else if (/\.(ts|tsx|js|jsx|mjs|cjs)$/u.test(path)) files.push(path);
+    }
+  };
+  collect(root);
+
+  for (const path of files) {
+    const source = readFileSync(path, "utf8");
+    if (/from\s+["'](?:\.\.\/)+apps\//u.test(source) || /from\s+["']@\/\.\.\/apps\//u.test(source)) {
+      forbiddenEdges.push(path + " -> apps/*");
+    }
+    if (root === "apps" && /from\s+["'](?:\.\.\/)+src\//u.test(source)) {
+      forbiddenEdges.push(path + " -> src/*");
+    }
+  }
+}
+
+if (existsSync(packageRoot)) {
+  const packageFiles = [];
+  const collectPackages = (dir) => {
+    for (const entry of readdirSync(dir)) {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) collectPackages(path);
+      else if (/\.(ts|tsx|js|jsx|mjs|cjs)$/u.test(path)) packageFiles.push(path);
+    }
+  };
+  collectPackages(packageRoot);
+  for (const path of packageFiles) {
+    const source = readFileSync(path, "utf8");
+    if (/from\s+["'](?:\.\.\/)+(?:apps|src)\//u.test(source)) {
+      forbiddenEdges.push(path + " -> application implementation");
+    }
+  }
+}
+
+if (forbiddenEdges.length) {
+  console.error("Architecture gate: prohibited dependency direction detected.");
+  for (const violation of forbiddenEdges) console.error(violation);
+  process.exit(1);
+}
+
+const duplicateRuntimeRegistries = [];
+for (const root of ["src", "apps"]) {
+  if (!existsSync(root)) continue;
+  const scan = (dir) => {
+    for (const entry of readdirSync(dir)) {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) scan(path);
+      else if (/\.(ts|tsx|js|jsx|mjs|cjs)$/u.test(path)) {
+        const source = readFileSync(path, "utf8");
+        if (/new\s+RuntimeToolRegistry\s*\(/u.test(source) && !path.includes("__tests__")) {
+          duplicateRuntimeRegistries.push(path);
+        }
+      }
+    }
+  };
+  scan(root);
+}
+
+if (duplicateRuntimeRegistries.length) {
+  console.error("Architecture gate: RuntimeToolRegistry may only be instantiated inside packages/agent-runtime.");
+  for (const violation of duplicateRuntimeRegistries) console.error(violation);
+  process.exit(1);
+}
+
+console.log("DEPENDENCY_DIRECTION_GATE=PASS");
+console.log("CANONICAL_RUNTIME_REGISTRY_GATE=PASS");
+
