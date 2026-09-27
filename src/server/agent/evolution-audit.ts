@@ -1,10 +1,11 @@
-import type { EvolutionAuditSink, EvolutionProposalContract } from "@flixo/agent-orchestrator";
+import type { EvolutionAuditSink } from "@flixo/agent-orchestrator";
+import type { EvolutionProposalContract, EvolutionProposalStatus } from "@flixo/contracts";
 import { appendAgentTaskEvent, upsertAgentTask } from "./durable-task-store.ts";
 import { createAgentEvent } from "@/lib/agent/event-gateway";
 
 import type { AgentAuditContext } from "./orchestrator-audit.ts";
 
-const revisionFor = (status: EvolutionProposalContract["status"]): number => ({ proposed: 1, benchmarked: 2, awaiting_human_approval: 3, approved: 4, applied: 5, rejected: 6, rolled_back: 7 })[status];
+const revisionFor = (status: EvolutionProposalStatus): number => ({ proposed: 1, benchmarked: 2, awaiting_human_approval: 3, approved: 4, applied: 5, rejected: 6, rolled_back: 7 } as const)[status];
 
 export class SupabaseAgentEvolutionAuditSink implements EvolutionAuditSink {
   constructor(private readonly context: AgentAuditContext) {}
