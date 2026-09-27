@@ -55,7 +55,7 @@ export class EvolutionGovernor {
     return proposal;
   }
 
-  benchmark(
+  async benchmark(
     proposalId: string,
     benchmark: Omit<EvolutionBenchmarkContract, "verifiedAt">,
   ): Promise<EvolutionProposalContract> {
@@ -84,7 +84,7 @@ export class EvolutionGovernor {
     return next;
   }
 
-  async approve(promotion: EvolutionPromotionContract): EvolutionProposalContract {
+  async approve(promotion: EvolutionPromotionContract): Promise<EvolutionProposalContract> {
     if (promotion.action !== "approve" || promotion.approvedBy !== "human") throw new Error("EVOLUTION_HUMAN_APPROVAL_REQUIRED");
     const proposal = this.require(promotion.proposalId);
     if (proposal.status !== "awaiting_human_approval") throw new Error("EVOLUTION_NOT_AWAITING_APPROVAL");
@@ -95,7 +95,7 @@ export class EvolutionGovernor {
     return next;
   }
 
-  async recordApplied(proposalId: string, appliedRevision: string): EvolutionProposalContract {
+  async recordApplied(proposalId: string, appliedRevision: string): Promise<EvolutionProposalContract> {
     const proposal = this.require(proposalId);
     if (proposal.status !== "approved") throw new Error("EVOLUTION_NOT_APPROVED");
     if (!appliedRevision.trim()) throw new Error("EVOLUTION_APPLIED_REVISION_REQUIRED");
@@ -105,7 +105,7 @@ export class EvolutionGovernor {
     return next;
   }
 
-  async rollback(promotion: EvolutionPromotionContract, rollbackRevision: string): EvolutionProposalContract {
+  async rollback(promotion: EvolutionPromotionContract, rollbackRevision: string): Promise<EvolutionProposalContract> {
     if (promotion.action !== "rollback" || promotion.approvedBy !== "human") throw new Error("EVOLUTION_HUMAN_ROLLBACK_REQUIRED");
     const proposal = this.require(promotion.proposalId);
     if (proposal.status !== "applied") throw new Error("EVOLUTION_NOT_APPLIED");
