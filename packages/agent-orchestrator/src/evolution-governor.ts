@@ -73,7 +73,7 @@ export class EvolutionGovernor {
     return next;
   }
 
-  async requestPromotion(proposalId: string): EvolutionProposalContract {
+  async requestPromotion(proposalId: string): Promise<EvolutionProposalContract> {
     const proposal = this.require(proposalId);
     if (proposal.status !== "benchmarked") throw new Error("EVOLUTION_REQUIRES_BENCHMARK");
     if (!proposal.benchmark?.passed || proposal.benchmark.score < proposal.benchmark.threshold) throw new Error("EVOLUTION_BENCHMARK_NOT_PASSED");
