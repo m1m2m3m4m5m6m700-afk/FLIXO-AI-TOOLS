@@ -24,8 +24,8 @@ export class AgentRuntime {
 
   constructor(
     private readonly registry: ToolRegistry,
-    identity: Readonly<{ taskId?: string; traceId?: string }> = {},
     options: AgentRuntimeOptions = {},
+    identity: Readonly<{ taskId?: string; traceId?: string }> = {},
   ) {
     const parsed = AgentRuntimeOptionsSchema.parse(options);
     this.maxIterations = parsed.maxIterations;
