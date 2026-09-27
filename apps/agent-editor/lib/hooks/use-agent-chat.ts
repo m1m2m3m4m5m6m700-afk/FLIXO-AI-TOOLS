@@ -8,6 +8,7 @@ import {
   type ChatMessage,
 } from "@/lib/schemas/agent";
 import { ProjectStateSchema, type ProjectState } from "@/lib/schemas/project";
+import { executeAgentToolLocally } from "@/lib/tools/local-executor";
 
 export interface UseAgentChatOptions {
   initialProjectState?: ProjectState;
@@ -98,6 +99,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
       let lastEventId = 0;
       let sawAgentResponse = false;
       let sawDone = false;
+      let localExecutionPromise = Promise.resolve();
 
       const applyEvent = (event: SseEvent) => {
         if (event.id !== null && event.id <= lastEventId) return;
@@ -119,20 +121,6 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
             })
             .parse(JSON.parse(event.data));
           setActiveTool(payload.toolName);
-          return;
-        }
-
-        if (event.event === "tool_call_end") {
-          setActiveTool(null);
-          return;
-        }
-
-        if (event.event === "state_update") {
-          const payload = z
-            .object({ projectState: z.unknown() })
-            .parse(JSON.parse(event.data));
-          const parsed = ProjectStateSchema.safeParse(payload.projectState);
-          if (parsed.success) setProjectState(parsed.data);
           return;
         }
 
@@ -160,9 +148,29 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
                 : message,
             ),
           );
-          if (response.updatedProjectState) {
-            const parsed = ProjectStateSchema.safeParse(response.updatedProjectState);
-            if (parsed.success) setProjectState(parsed.data);
+          if (response.localExecutionPlans.length > 0) {
+            localExecutionPromise = localExecutionPromise.then(async () => {
+              let working = ProjectStateSchema.parse(projectState);
+              try {
+                for (const call of response.requestedToolCalls) {
+                  const plan = response.localExecutionPlans.find((candidate) => candidate.callId === call.callId);
+                  if (!plan) throw new Error("AGENT_EXECUTION_PLAN_MISSING");
+                  setActiveTool(call.toolName);
+                  working = await executeAgentToolLocally(working, call, plan);
+                  setProjectState(working);
+                }
+              } catch (error) {
+                setMessages((previous) =>
+                  previous.map((message) =>
+                    message.id === assistantMessageId
+                      ? { ...message, content: error instanceof Error ? error.message : "Local execution failed." }
+                      : message,
+                  ),
+                );
+              } finally {
+                setActiveTool(null);
+              }
+            });
           }
           return;
         }
@@ -256,6 +264,8 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
             flush(false);
           }
         }
+
+        await localExecutionPromise;
 
         if (!sawDone && !sawAgentResponse) {
           setMessages((previous) =>
