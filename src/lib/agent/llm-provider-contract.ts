@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { zodToJsonSchema } from './zod-json-schema.ts';
 
 export type LLMRole = 'system' | 'user' | 'assistant' | 'tool';
 export type Role = LLMRole;
@@ -40,6 +41,14 @@ const LLMToolSpecSchema = z.object({
 
 export type LLMToolSpec = z.infer<typeof LLMToolSpecSchema>;
 export const LLMToolSpecListSchema = z.array(LLMToolSpecSchema).max(256);
+
+export function createLLMToolSpec(
+  name: string,
+  description: string,
+  parameters: z.ZodTypeAny,
+): LLMToolSpec {
+  return { name, description, parameters: zodToJsonSchema(parameters) };
+}
 
 const ToolCallSchema = z.object({
   id: z.string().min(1).max(256),
