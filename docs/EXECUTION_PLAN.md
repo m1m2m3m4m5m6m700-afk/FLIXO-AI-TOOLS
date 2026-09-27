@@ -143,29 +143,29 @@ Tasks:
 Remaining: strengthen persistence/integration with failure and verification records.
 
 ### P4 — Adaptive challenge generation
-Status: PLANNED
+Status: COMPLETE
 Goal: generate bounded challenges from actual weaknesses and mastery.
 Tasks:
-- P4.1 Define challenge contract.
-- P4.2 Deterministic challenge templates.
-- P4.3 Difficulty adaptation.
-- P4.4 Objective scoring.
-- P4.5 Challenge provenance.
-- P4.6 Challenge tests.
+- P4.1 Define challenge contract. COMPLETE — challenge carries acceptance criteria, difficulty, and provenance.
+- P4.2 Deterministic challenge templates. COMPLETE — templates are bounded by game type and explicit criteria.
+- P4.3 Difficulty adaptation. COMPLETE — next challenges increase difficulty by a bounded 0.1 step.
+- P4.4 Objective scoring. COMPLETE — `ObjectiveLabScorer` evaluates machine-checkable criteria independently of participant self-reported score.
+- P4.5 Challenge provenance. COMPLETE — adaptive/template provenance is recorded on every challenge.
+- P4.6 Challenge tests. COMPLETE — isolated lab tests cover scoring, provenance, idle gating, and winner authorization.
 
-Exit condition: every generated challenge has objective acceptance criteria.
+Exit condition: every generated challenge has objective acceptance criteria. Implementation is source-verified; runtime test/CI success remains unobserved.
 
 ### P5 — Learning loop
-Status: PLANNED
+Status: COMPLETE
 Goal: close the loop: execution -> evidence -> verification -> reward -> skill/failure memory -> curriculum -> next challenge.
 Tasks:
-- P5.1 Persist verified experience.
-- P5.2 Feed verified failure patterns to curriculum.
-- P5.3 Calibrate confidence against verified outcomes.
-- P5.4 Prevent unverified experience from improving mastery.
-- P5.5 Add end-to-end learning tests.
+- P5.1 Persist verified experience. COMPLETE — execution reports are stored with explicit verification state and reward; durable external persistence remains a P8 concern.
+- P5.2 Feed verified failure patterns to curriculum. COMPLETE — normalized failure patterns are stored and prioritized by curriculum generation.
+- P5.3 Calibrate confidence against verified outcomes. COMPLETE — confidence calibration uses verifier status, not raw self-report.
+- P5.4 Prevent unverified experience from improving mastery. COMPLETE — `calculateVerified()` gates reward to zero for rejected/unresolved outcomes.
+- P5.5 Add end-to-end learning tests. COMPLETE — `learning.test.ts` now exercises human command → worker → verifier → experience → curriculum focus.
 
-Exit condition: a failed run measurably changes the next curriculum item.
+Exit condition: a failed run measurably changes the next curriculum item. Implementation and regression coverage are source-verified; runtime test/CI success remains unobserved.
 
 ### P6 — Adversarial learning
 Status: PARTIAL / IMPLEMENTED
@@ -235,7 +235,9 @@ Never write “production-ready” while required verification is missing.
 
 ## 6. Current Next Action
 
-Execute P4.1: define a bounded adaptive challenge contract that carries objective acceptance criteria and provenance. Then implement P4.2–P4.6 against the existing isolated Agent Learning Lab.
+Execute P6.2: feed prior adjudication feedback into subsequent adversarial rounds without exposing raw opponent output. Then complete P6.3–P6.5 and proceed to the evolution governor.
+
+Fine-tuning track: treat verified experiences as the only eligible training-data source; do not introduce model-weight updates until dataset provenance, objective verification, benchmark gates, sandboxing, and human promotion controls are implemented.
 
 Fine-tuning track: treat verified experiences as the only eligible training-data source; do not introduce model-weight updates until dataset provenance, objective verification, benchmark gates, sandboxing, and human promotion controls are implemented.
 
