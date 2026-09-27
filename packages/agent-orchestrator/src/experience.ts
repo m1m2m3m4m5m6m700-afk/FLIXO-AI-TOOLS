@@ -6,6 +6,7 @@ export type AgentExperience = Readonly<{
   report: AgentReport; reward: RewardResult; timestamp: string;
   lane?: "primary" | "adversary" | "red-team";
   parentExperienceId?: string;
+  failurePatterns?: readonly string[];
 }>;
 
 export interface ExperienceStore {
