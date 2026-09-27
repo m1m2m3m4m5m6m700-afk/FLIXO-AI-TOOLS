@@ -252,7 +252,7 @@ test("waits for all parallel workers and marks the command failed when one worke
   );
   orchestrator.registerWorker({
     id: "tester",
-    async run(instruction) {
+    async run() {
       await new Promise((resolve) => setTimeout(resolve, 10));
       throw new Error("WORKER_FAILURE");
     },
