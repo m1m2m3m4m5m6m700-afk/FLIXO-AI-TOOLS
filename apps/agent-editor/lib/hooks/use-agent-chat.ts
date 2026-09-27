@@ -60,6 +60,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
   );
   const [isStreaming, setIsStreaming] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [manualFallbackPath, setManualFallbackPath] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
 
@@ -93,6 +94,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
       setMessages((previous) => [...previous, userMessage, assistantMessage]);
       setIsStreaming(true);
       setActiveTool(null);
+      setManualFallbackPath(null);
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -160,6 +162,10 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
                   setProjectState(working);
                 }
               } catch (error) {
+                const failedTool = response.requestedToolCalls.find((candidate) =>
+                  response.localExecutionPlans.some((planCandidate) => planCandidate.callId === candidate.callId),
+                )?.toolName;
+                if (failedTool) setManualFallbackPath("/en/tools/" + encodeURIComponent(failedTool));
                 setMessages((previous) =>
                   previous.map((message) =>
                     message.id === assistantMessageId
@@ -311,6 +317,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
     projectState,
     isStreaming,
     activeTool,
+    manualFallbackPath,
     sendMessage,
     stopStreaming,
     setProjectState,
