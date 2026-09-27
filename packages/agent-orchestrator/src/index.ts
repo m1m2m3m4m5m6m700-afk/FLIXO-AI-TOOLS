@@ -278,3 +278,4 @@ export * from "./red-team.ts";
 export * from "./agent-learning-lab.ts";
 
 export * from "./cognitive.ts";
+export * from "./objective-verifier.ts";
