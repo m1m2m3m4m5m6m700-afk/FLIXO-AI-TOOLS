@@ -2,7 +2,7 @@ name: FLIXO CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, execution]
   push:
     branches: [main, execution]
   workflow_dispatch:
@@ -116,12 +116,24 @@ jobs:
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref || github.ref_name }}
+          ACTOR: ${{ github.actor }}
           TRUST_RESULT: ${{ needs.trust-gate.result }}
         run: |
           set -euo pipefail
           test "$TRUST_RESULT" = success
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-          if [ -n "${{ github.event.pull_request.number || '' }}" ]; then
-            test "$HEAD_BRANCH" = execution
+
+          if [ "$BASE_BRANCH" = "main" ]; then
+            if [ "$HEAD_BRANCH" != "execution" ] && [ "$ACTOR" != "dependabot[bot]" ]; then
+              echo "Unsupported main PR source: head=$HEAD_BRANCH actor=$ACTOR" >&2
+              exit 1
+            fi
+          elif [ "$BASE_BRANCH" = "execution" ]; then
+            test -n "$HEAD_BRANCH"
+          else
+            echo "Unsupported PR base branch: $BASE_BRANCH" >&2
+            exit 1
           fi
+
           echo "EXACT_SHA_PROMOTION_PROOF=$EXPECTED_SHA"
