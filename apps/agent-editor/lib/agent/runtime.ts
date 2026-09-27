@@ -20,7 +20,6 @@ export type AgentRuntimeOptions = z.input<typeof AgentRuntimeOptionsSchema>;
 export class AgentRuntime {
   private readonly maxIterations: number;
   private readonly useMockEngine: boolean;
-  private readonly canonical: CanonicalAgentRuntime;
 
   constructor(
     private readonly registry: ToolRegistry,
@@ -30,14 +29,13 @@ export class AgentRuntime {
     const parsed = AgentRuntimeOptionsSchema.parse(options);
     this.maxIterations = parsed.maxIterations;
     this.useMockEngine = parsed.useMockEngine;
-    this.canonical = new CanonicalAgentRuntime(
-      registry.toRuntimeRegistry(),
-      {
-        taskId: identity.taskId ?? crypto.randomUUID(),
-        traceId: identity.traceId ?? crypto.randomUUID(),
-      },
-    );
+    this.identity = {
+      taskId: identity.taskId ?? crypto.randomUUID(),
+      traceId: identity.traceId ?? crypto.randomUUID(),
+    };
   }
+
+  private readonly identity: Readonly<{ taskId: string; traceId: string }>;
 
   async processUserMessage(
     userMessage: string,
@@ -50,6 +48,7 @@ export class AgentRuntime {
       throw new Error("REAL_LLM_ENGINE_NOT_CONFIGURED: deterministic mock mode only.");
     }
 
+    const canonical = new CanonicalAgentRuntime(this.registry.toRuntimeRegistry(), this.identity);
     let workingProjectState = currentProjectState
       ? ProjectStateSchema.parse(structuredClone(currentProjectState))
       : undefined;
@@ -62,16 +61,16 @@ export class AgentRuntime {
       finalAssistantText = llmResult.content;
       if (llmResult.toolCalls.length === 0) break;
 
-      this.canonical.plan();
-      this.canonical.requestConfirmation();
-      this.canonical.confirm();
+      canonical.plan();
+      canonical.requestConfirmation();
+      canonical.confirm();
 
       for (const callRequest of llmResult.toolCalls) {
         requestedCalls.push(callRequest);
-        const execution = await this.canonical.execute({
+        const execution = await canonical.execute({
           requestId: crypto.randomUUID(),
-          taskId: this.canonical.state.taskId,
-          traceId: this.canonical.state.traceId,
+          taskId: canonical.state.taskId,
+          traceId: canonical.state.traceId,
           toolCall: {
             callId: callRequest.callId,
             toolId: callRequest.toolName,
@@ -97,10 +96,10 @@ export class AgentRuntime {
       if (results.some((result) => result.status === "error")) {
         finalAssistantText =
           "The requested operation could not be completed because one or more tool contracts rejected the execution request.";
-        this.canonical.fail();
+        canonical.fail();
       } else {
-        this.canonical.beginVerification();
-        this.canonical.complete();
+        canonical.beginVerification();
+        canonical.complete();
       }
       break;
     }
@@ -112,7 +111,7 @@ export class AgentRuntime {
       requestedToolCalls: requestedCalls,
       toolResults: results,
       updatedProjectState: workingProjectState,
-      requiresUserConfirmation: this.canonical.state.state === "AWAITING_CONFIRMATION",
+      requiresUserConfirmation: canonical.state.state === "AWAITING_CONFIRMATION",
     });
   }
 
