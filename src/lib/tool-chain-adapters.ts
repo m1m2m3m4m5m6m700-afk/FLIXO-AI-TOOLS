@@ -1,5 +1,5 @@
 import { authorizeExecution } from './agent/execution-gate';
-import type { TaskContext } from './agent/task-state';
+import type { TaskContext } from '@flixo/agent-runtime';
 import { convertImage, removeBackground, resizeImage } from '../tools/image-toolkit/engine';
 
 export type ChainInput = Readonly<{
