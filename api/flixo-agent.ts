@@ -239,10 +239,11 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       });
     });
     const remoteLearning = targetSha ? await listExternalAgentLearning(targetSha, 48).catch(() => []) : [];
-    const remoteLessons = remoteLearning.filter((item) => item.kind === 'LESSON');
-    const remoteAntiLessons = remoteLearning.filter((item) => item.kind === 'ANTI_LESSON');
-    const remoteAdvice = remoteLearning.filter((item) => item.kind === 'ADVICE');
-    const remoteCounterexamples = remoteLearning.filter((item) => item.kind === 'COUNTEREXAMPLE');
+    const trustedRemoteLearning = remoteLearning.filter((item) => item.status === 'VERIFIED' && item.canonical_green === true);
+    const remoteLessons = trustedRemoteLearning.filter((item) => item.kind === 'LESSON');
+    const remoteAntiLessons = trustedRemoteLearning.filter((item) => item.kind === 'ANTI_LESSON');
+    const remoteAdvice = trustedRemoteLearning.filter((item) => item.kind === 'ADVICE');
+    const remoteCounterexamples = trustedRemoteLearning.filter((item) => item.kind === 'COUNTEREXAMPLE');
     const promptMessages = [
       {
         role: 'system' as const,
@@ -260,7 +261,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
             obligations: sharedLearning.obligations,
             counterexamples: [...remoteCounterexamples, ...sharedLearning.counterexamples],
             verifications: sharedLearning.verifications,
-            externalLearningCandidates: remoteLearning.slice(0, 48),
+            externalLearningCandidates: [],
           },
           file: body.file ?? null,
           activeCommand: body.activeCommand ?? null,
