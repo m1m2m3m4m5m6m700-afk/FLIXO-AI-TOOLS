@@ -96,7 +96,9 @@ test('Gemini adapter blocks missing credentials before issuing network requests'
 
   await assert.rejects(
     async () => {
-      for await (const _chunk of adapter.streamChat([{ role: 'user', content: 'hello' }], [])) {}
+      for await (const chunk of adapter.streamChat([{ role: 'user', content: 'hello' }], [])) {
+        void chunk;
+      }
     },
     (error: unknown) => error instanceof GeminiAdapterError && /API key missing/.test(error.message),
   );
@@ -114,11 +116,13 @@ test('Gemini adapter propagates AbortSignal to fetch', async () => {
   });
   const controller = new AbortController();
 
-  for await (const _chunk of adapter.streamChat(
+  for await (const chunk of adapter.streamChat(
     [{ role: 'user', content: 'hello' }],
     [],
     { signal: controller.signal },
-  )) {}
+  )) {
+    void chunk;
+  }
 
   assert.equal(receivedSignal, controller.signal);
 });
