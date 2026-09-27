@@ -3,6 +3,7 @@ import type {
   EvolutionPromotionContract,
   EvolutionProposalContract,
   EvolutionProposalStatus,
+  EvolutionMutationPlanContract,
   ObjectiveVerificationContract,
 } from "@flixo/contracts";
 
@@ -14,6 +15,7 @@ export type EvolutionProposalInput = Readonly<{
   summary: string;
   baseRevision: string;
   objectiveVerification: ObjectiveVerificationContract;
+  mutationPlan: EvolutionMutationPlanContract;
 }>;
 
 const now = (): string => new Date().toISOString();
@@ -22,10 +24,11 @@ export class EvolutionGovernor {
   private readonly proposals = new Map<string, EvolutionProposalContract>();
 
   propose(input: EvolutionProposalInput): EvolutionProposalContract {
-    for (const value of [input.id, input.commandId, input.agentId, input.target, input.summary, input.baseRevision, input.objectiveVerification.id]) {
+    for (const value of [input.id, input.commandId, input.agentId, input.target, input.summary, input.baseRevision, input.objectiveVerification.id, input.mutationPlan.sandboxId]) {
       if (!value.trim()) throw new Error("EVOLUTION_PROPOSAL_FIELDS_REQUIRED");
     }
     if (this.proposals.has(input.id)) throw new Error("EVOLUTION_PROPOSAL_ALREADY_EXISTS");
+    this.validateMutationPlan(input.mutationPlan);
     const timestamp = now();
     const proposal: EvolutionProposalContract = Object.freeze({
       id: input.id,
@@ -37,6 +40,7 @@ export class EvolutionGovernor {
       status: "proposed",
       objectiveVerificationId: input.objectiveVerification.id,
       objectiveVerificationStatus: input.objectiveVerification.status,
+      mutationPlan: Object.freeze({ ...input.mutationPlan, targetPaths: Object.freeze([...input.mutationPlan.targetPaths]) }),
       createdAt: timestamp,
       updatedAt: timestamp,
     });
@@ -107,6 +111,15 @@ export class EvolutionGovernor {
 
   list(): readonly EvolutionProposalContract[] {
     return Object.freeze([...this.proposals.values()]);
+  }
+
+  private validateMutationPlan(plan: EvolutionMutationPlanContract): void {
+    if (plan.executionBoundary !== "sandbox-only" || plan.dryRun !== true) throw new Error("EVOLUTION_SANDBOX_ONLY_REQUIRED");
+    if (!plan.sandboxId.trim() || plan.maxFiles < 1 || !Number.isInteger(plan.maxFiles)) throw new Error("EVOLUTION_INVALID_MUTATION_PLAN");
+    if (plan.targetPaths.length > plan.maxFiles) throw new Error("EVOLUTION_MUTATION_FILE_LIMIT_EXCEEDED");
+    for (const path of plan.targetPaths) {
+      if (!path.trim() || path.startsWith("/") || path.includes("..") || path.startsWith(".git/")) throw new Error("EVOLUTION_UNSAFE_TARGET_PATH");
+    }
   }
 
   private require(proposalId: string): EvolutionProposalContract {
