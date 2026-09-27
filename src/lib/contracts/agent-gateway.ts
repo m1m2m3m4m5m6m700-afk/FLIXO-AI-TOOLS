@@ -29,11 +29,7 @@ export const AgentRequestSchema = z.object({
   const totalMessageChars = (value.messages ?? []).reduce((sum, message) => sum + message.content.length, 0);
   if (totalMessageChars > MAX_AGENT_MESSAGE_CHARS) {
     ctx.addIssue({
-      code: z.ZodIssueCode.too_big,
-      type: "string",
-      maximum: MAX_AGENT_MESSAGE_CHARS,
-      inclusive: true,
-      origin: "string",
+      code: z.ZodIssueCode.custom,
       path: ["messages"],
       message: "Agent message history exceeds the aggregate context budget.",
     });
