@@ -1,4 +1,4 @@
-import type { AgentReport, AgentWorker } from "./index.ts";
+import type { AgentWorker } from "./index.ts";
 import type { RewardResult } from "./reward.ts";
 import { AgentRewardEngine } from "./reward.ts";
 
