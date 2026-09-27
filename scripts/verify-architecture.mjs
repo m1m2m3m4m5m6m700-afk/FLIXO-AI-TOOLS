@@ -54,9 +54,11 @@ const migratedLegacyImports = [
 ];
 
 const sourceRoots = ["src", "apps", "packages"];
-const importViolations = [];\nconst boundaryViolations = [];
+const importViolations = [];
+const boundaryViolations = [];
 function checkDependencyBoundary(path, source) {
-  const lines = source.split("\n");
+  const lines = source.split("
+");
   const appMatch = path.match(/^apps\/([^/]+)\//u);
   for (const line of lines) {
     const imported = line.match(/(?:from|import)\s*[("']([^"')]+)["')]/u)?.[1];
@@ -77,7 +79,8 @@ function walk(dir) {
     const path = join(dir, entry);
     if (statSync(path).isDirectory()) walk(path);
     else if (/\.(ts|tsx|js|jsx|mjs|cjs)$/u.test(path)) {
-      const source = readFileSync(path, "utf8");\n      checkDependencyBoundary(path, source);
+      const source = readFileSync(path, "utf8");
+      checkDependencyBoundary(path, source);
       for (const legacyImport of migratedLegacyImports) {
         if (source.includes(legacyImport)) importViolations.push(path + " -> " + legacyImport);
       }
@@ -89,7 +92,13 @@ for (const root of sourceRoots) {
   if (existsSync(root)) walk(root);
 }
 
-if (boundaryViolations.length) {\n  console.error("Architecture gate: forbidden dependency boundary violation.");\n  for (const violation of boundaryViolations) console.error(violation);\n  process.exit(1);\n}\n\nif (importViolations.length) {
+if (boundaryViolations.length) {
+  console.error("Architecture gate: forbidden dependency boundary violation.");
+  for (const violation of boundaryViolations) console.error(violation);
+  process.exit(1);
+}
+
+if (importViolations.length) {
   console.error("Architecture gate: migrated Agent runtime compatibility imports are forbidden.");
   for (const violation of importViolations) console.error(violation);
   process.exit(1);
