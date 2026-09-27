@@ -1,7 +1,8 @@
 import { AgentCapability, AgentHeartbeat, AgentNetworkControlPlane, AgentNetworkSnapshot, DEFAULT_AGENT_NETWORK } from "./network.ts";
 import { AdversarialTwinWorker } from "./adversarial.ts";
 import { RedTeamWorker } from "./red-team.ts";
-import { AgentCognitiveLedger, FailureIntelligence } from "./cognitive.ts";
+import { AgentCognitiveLedger, FailureIntelligence, ConfidenceCalibrator } from "./cognitive.ts";
+import type { EvaluationEvidence } from "./evaluation.ts";
 export * from "./network.ts";
 export * from "./evaluation.ts";
 
@@ -81,6 +82,7 @@ export class DirectCommandOrchestrator {
     private readonly network = new AgentNetworkControlPlane(),
     private readonly cognitiveLedger = new AgentCognitiveLedger(),
     private readonly failureIntelligence = new FailureIntelligence(),
+    private readonly confidenceCalibrator = new ConfidenceCalibrator(),
   ) {}
 
   registerWorker(worker: AgentWorker): void {
@@ -148,7 +150,7 @@ export class DirectCommandOrchestrator {
           reports.set(step.stepId, report);
           pending.delete(step.stepId);
           this.observer.onReport(report);
-          this.cognitiveLedger.observe(report.commandId, report.stepId, step.role, report.summary);
+          this.cognitiveLedger.observe(report.commandId, report.stepId, step.role, report.summary);\n          const evaluationEvidence = report.evidence as EvaluationEvidence | undefined;\n          if (evaluationEvidence) {\n            const verified = evaluationEvidence.evidenceVerified === true && (evaluationEvidence.testsFailed ?? 0) === 0 && (evaluationEvidence.outOfScopeActions ?? 0) === 0;\n            this.failureIntelligence.classify(report.commandId, report.stepId, step.role, evaluationEvidence);\n            const state = this.cognitiveLedger.snapshot().states.find((item) => item.commandId === report.commandId && item.stepId === report.stepId);\n            this.confidenceCalibrator.record(step.role, state?.confidence ?? 0.5, verified);\n          }
         }
 
         if (!ready.length) {
@@ -228,7 +230,7 @@ export class DirectCommandOrchestrator {
     return this.network.snapshot();
   }
 
-  failureRecords(agentId?: string) { return this.failureIntelligence.list(agentId); }\n\n  cognitiveSnapshot(): import("./cognitive.ts").AgentCognitiveSnapshot {
+  failureRecords(agentId?: string) { return this.failureIntelligence.list(agentId); }\n\n  confidenceProfile(agentId: string) { return this.confidenceCalibrator.summarize(agentId); }\n\n  cognitiveSnapshot(): import("./cognitive.ts").AgentCognitiveSnapshot {
     return this.cognitiveLedger.snapshot();
   }
 
