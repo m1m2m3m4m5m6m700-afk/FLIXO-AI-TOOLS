@@ -14,6 +14,8 @@ assert mod.matrix(c,mod.Gates("PASS","SKIPPED","PASS","SKIPPED"))=="ESCALATE_TO_
 assert not mod.confidence_ready({**c,"security":{"verdict":"APPROVED","confidence":0.80}})
 assert mod.matrix({**c,"logic":{"verdict":"REJECTED","confidence":0.90}},green)=="SOFT_REJECT"
 assert mod.matrix({**c,"security":{"verdict":"REJECTED","confidence":0.91,"needsDeterministicConfirmation":False}},green)=="HARD_REJECT"
+
+# HARD_REJECT is a repair target, not an appeal: the fixer gets exactly the evidence-backed action.
 bad={"verdict":"APPROVED","confidence":2,"cveCategoriesFound":[],"secretLeakDetected":False,"findings":[],"falsePositiveRisk":"LOW","needsDeterministicConfirmation":False}
 try: mod.validate(bad,mod.SECURITY_SCHEMA,"security")
 except ValueError: pass

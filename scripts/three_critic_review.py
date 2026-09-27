@@ -201,7 +201,7 @@ def review_patch(patch,context="",goal="Review this FLIXO patch",run_fixer=True)
         final=verdict if (ready and gate_ready(gates)) or verdict not in {"APPROVED","APPROVED_WITH_WARNING"} else "ESCALATE_TO_HUMAN"
         result={"pipeline_id":"critic-"+sha(current)[:12],"patch_hash":sha(current),"iterations_used":iteration,"final_verdict":final,"decision_reason":"Applied fixed priority Security > Logic > Performance with deterministic gates and critic confidence thresholds.","critics":critics,"action_for_fixer":None,"deterministic_checks":gates.as_dict(),"deterministic_gate_ready":gate_ready(gates),"unconfigured_checks":[k for k,v in gates.as_dict().items() if v=="SKIPPED"]}
         if final in {"SOFT_REJECT","HARD_REJECT"}: result["action_for_fixer"]="Repair evidence-backed findings and add targeted regression coverage."
-        if final in {"APPROVED","APPROVED_WITH_WARNING","HARD_REJECT"}: return result
+        if final in {"APPROVED","APPROVED_WITH_WARNING"}: return result
         if not run_fixer: return result
         if iteration==MAX_ROUNDS:
             result["final_verdict"]="ESCALATE_TO_HUMAN"
