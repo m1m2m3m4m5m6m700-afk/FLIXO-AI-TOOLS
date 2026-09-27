@@ -3,6 +3,7 @@ import { AdversarialTwinWorker } from "./adversarial.ts";
 import { RedTeamWorker } from "./red-team.ts";
 import { AgentCognitiveLedger, FailureIntelligence, ConfidenceCalibrator } from "./cognitive.ts";
 import type { EvaluationEvidence } from "./evaluation.ts";
+import { ObjectiveVerifier } from "./objective-verifier.ts";
 export * from "./network.ts";
 export * from "./evaluation.ts";
 
@@ -42,6 +43,7 @@ export type AgentReport = Readonly<{
   status: "completed" | "failed" | "blocked";
   summary: string;
   evidence?: Readonly<Record<string, unknown>>;
+  verification?: import("@flixo/contracts").ObjectiveVerificationContract;
 }>;
 
 export interface AgentWorker {
@@ -72,6 +74,7 @@ export class DirectCommandOrchestrator {
   private activeCommandId: string | null = null;
   private readonly workers = new Map<string, AgentWorker>();
   private readonly adversarialRoles = new Set<string>();
+  private readonly objectiveVerifier = new ObjectiveVerifier();
 
   constructor(
     private readonly planner: AgentPlanner,
@@ -149,9 +152,10 @@ export class DirectCommandOrchestrator {
           });
           reports.set(step.stepId, report);
           pending.delete(step.stepId);
-          this.observer.onReport(report);
-          this.cognitiveLedger.observe(report.commandId, report.stepId, step.role, report.summary);
-          const evaluationEvidence = report.evidence as EvaluationEvidence | undefined;
+          const verifiedReport = this.verifyReport(report, step.role);
+          this.observer.onReport(verifiedReport);
+          this.cognitiveLedger.observe(verifiedReport.commandId, verifiedReport.stepId, step.role, verifiedReport.summary);
+          const evaluationEvidence = verifiedReport.evidence as EvaluationEvidence | undefined;
           if (evaluationEvidence) {
             const verified = evaluationEvidence.evidenceVerified === true && (evaluationEvidence.testsFailed ?? 0) === 0 && (evaluationEvidence.outOfScopeActions ?? 0) === 0;
             this.failureIntelligence.classify(report.commandId, report.stepId, step.role, evaluationEvidence);
@@ -206,18 +210,17 @@ export class DirectCommandOrchestrator {
             confidence: 0.5,
             verificationState: "pending",
           });
-          const report = await worker.run(instruction);
-          if (report.commandId !== command.commandId || report.stepId !== step.stepId) {
+          const rawReport = await worker.run(instruction);
+          if (rawReport.commandId !== command.commandId || rawReport.stepId !== step.stepId) {
             throw new Error("WORKER_REPORT_IDENTITY_MISMATCH");
           }
+          const report = this.verifyReport(rawReport, step.role);
           this.network.report(command.commandId, step.stepId, step.role, report.status, report.summary);
           this.observer.onReport(report);
           this.cognitiveLedger.observe(report.commandId, report.stepId, step.role, report.summary);
           const evaluationEvidence = report.evidence as EvaluationEvidence | undefined;
           if (evaluationEvidence) {
-            const verified = evaluationEvidence.evidenceVerified === true
-              && (evaluationEvidence.testsFailed ?? 0) === 0
-              && (evaluationEvidence.outOfScopeActions ?? 0) === 0;
+            const verified = report.verification?.status === "verified";
             this.failureIntelligence.classify(report.commandId, report.stepId, step.role, evaluationEvidence);
             const state = this.cognitiveLedger.snapshot().states.find((item) => item.commandId === report.commandId && item.stepId === report.stepId);
             this.confidenceCalibrator.record(step.role, state?.confidence ?? 0.5, verified);
@@ -252,6 +255,12 @@ export class DirectCommandOrchestrator {
 
   cognitiveSnapshot(): import("./cognitive.ts").AgentCognitiveSnapshot {
     return this.cognitiveLedger.snapshot();
+  }
+
+  private verifyReport(report: AgentReport, agentId: string): AgentReport {
+    const evidence = (report.evidence ?? {}) as EvaluationEvidence;
+    const verification = this.objectiveVerifier.verify({ id: `${report.commandId}:${report.stepId}`, commandId: report.commandId, stepId: report.stepId, agentId, evidence });
+    return Object.freeze({ ...report, verification });
   }
 
   private assertPlan(plan: AgentPlan, command: CommandAuthority): void {
