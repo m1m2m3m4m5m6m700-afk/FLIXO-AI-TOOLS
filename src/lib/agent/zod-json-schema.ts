@@ -3,19 +3,6 @@ import { z } from 'zod';
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 export type JsonSchema = { [key: string]: JsonValue };
 
-function unwrap(schema: z.ZodTypeAny): z.ZodTypeAny {
-  if (schema instanceof z.ZodOptional || schema instanceof z.ZodNullable) {
-    return unwrap(schema.unwrap());
-  }
-  if (schema instanceof z.ZodDefault) {
-    return unwrap(schema._def.innerType);
-  }
-  if (schema instanceof z.ZodEffects) {
-    return unwrap(schema.innerType());
-  }
-  return schema;
-}
-
 function checks(schema: z.ZodTypeAny): Record<string, JsonValue> {
   const output: Record<string, JsonValue> = {};
   const raw = schema._def.checks as Array<Record<string, unknown>> | undefined;
