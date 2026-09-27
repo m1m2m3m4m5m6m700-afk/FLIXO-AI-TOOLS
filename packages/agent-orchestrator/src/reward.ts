@@ -38,6 +38,17 @@ export type AdversarialRewardSignals = Readonly<{
 
 const clamp = (value: number): number => Math.min(1, Math.max(0, value));
 
+const nonNegativeInteger = (value: number | undefined, name: string): number => {
+  if (value === undefined) return 0;
+  if (!Number.isSafeInteger(value) || value < 0) throw new Error(`INVALID_REWARD_SIGNAL:${name}`);
+  return value;
+};
+
+const unitInterval = (value: number, name: string): number => {
+  if (!Number.isFinite(value) || value < 0 || value > 1) throw new Error(`INVALID_REWARD_SIGNAL:${name}`);
+  return value;
+};
+
 export class AgentRewardEngine {
   calculate(evidence: EvaluationEvidence): RewardResult {
     const tests = (evidence.testsPassed ?? 0) + (evidence.testsFailed ?? 0);
@@ -56,7 +67,7 @@ export class AgentRewardEngine {
       verification: clamp(testRate * 0.8 + (evidence.evidenceVerified ? 0.2 : 0)),
       quality: clamp(reviewQuality * 0.5 + securityQuality * 0.25 + performanceQuality * 0.25),
       evidence: clamp((artifactRate + (evidence.evidenceVerified ? 1 : 0)) / 2),
-      efficiency: clamp(1 - Math.max(0, evidence.performanceRegressions ?? 0) / 10),
+      efficiency: clamp(1 - performanceRegressions / 10),
       policyDiscipline: outOfScope === 0 && delegated === 0 ? 1 : 0,
       adversarialDiscovery: 0,
       adversarialPrecision: 0,
@@ -110,24 +121,24 @@ export class AgentRewardEngine {
   }
 
   calculateAdversarial(signals: AdversarialRewardSignals): RewardResult {
+    const verifiedFindings = nonNegativeInteger(verifiedFindings, "verifiedFindings");
+    const falsePositiveFindings = nonNegativeInteger(falsePositiveFindings, "falsePositiveFindings");
+    const resolvedDisputes = nonNegativeInteger(resolvedDisputes, "resolvedDisputes");
+    const unresolvedDisputes = nonNegativeInteger(unresolvedDisputes, "unresolvedDisputes");
+    const agreement = unitInterval(agreement, "agreement");
     const verified = clamp(
-      signals.verifiedFindings
-      / Math.max(1, signals.verifiedFindings + signals.falsePositiveFindings),
+      verifiedFindings / Math.max(1, verifiedFindings + falsePositiveFindings),
     );
     const precision = clamp(
-      1
-      - signals.falsePositiveFindings
-        / Math.max(1, signals.verifiedFindings + signals.falsePositiveFindings),
+      1 - falsePositiveFindings / Math.max(1, verifiedFindings + falsePositiveFindings),
     );
     const resolution = clamp(
-      signals.resolvedDisputes
-      / Math.max(1, signals.resolvedDisputes + signals.unresolvedDisputes),
+      resolvedDisputes / Math.max(1, resolvedDisputes + unresolvedDisputes),
     );
-    const evidence = clamp(signals.agreement * 0.4 + verified * 0.6);
-    const discovery = clamp(Math.min(1, signals.verifiedFindings / 3));
+    const evidence = clamp(agreement * 0.4 + verified * 0.6);
+    const discovery = clamp(Math.min(1, verifiedFindings / 3));
     const penalty = clamp(
-      signals.falsePositiveFindings * 0.15
-      + signals.unresolvedDisputes * 0.05,
+      falsePositiveFindings * 0.15 + unresolvedDisputes * 0.05,
     );
     const weighted =
       discovery * 0.35
@@ -136,9 +147,9 @@ export class AgentRewardEngine {
       + evidence * 0.15;
     const score = Math.round(clamp(weighted - penalty) * 100);
     const reasons = [
-      ...(signals.verifiedFindings ? ["verified-defect-discovery"] : []),
-      ...(signals.falsePositiveFindings ? ["false-positive-adversarial-finding"] : []),
-      ...(signals.unresolvedDisputes ? ["unresolved-dispute"] : []),
+      ...(verifiedFindings ? ["verified-defect-discovery"] : []),
+      ...(falsePositiveFindings ? ["false-positive-adversarial-finding"] : []),
+      ...(unresolvedDisputes ? ["unresolved-dispute"] : []),
       ...(score >= 80
         ? ["adversarial-reward-earned"]
         : ["adversarial-reward-below-threshold"]),
