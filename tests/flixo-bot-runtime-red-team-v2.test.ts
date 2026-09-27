@@ -84,3 +84,18 @@ test("runtime restore fails closed on missing events, invalid status, and oversi
     /FLIXO_BOT_RUN_SERIALIZED_STATE_INVALID/,
   );
 });
+
+test("runtime handoff does not transfer execution authority implicitly", async () => {
+  const { applyNextStep } = await import("../src/lib/agent/flixo-bot-openai-runtime.ts");
+  const state = runningState();
+  const next = applyNextStep(state, sha, {
+    type: "HANDOFF",
+    targetAgentId: "attacker-agent",
+    reason: "requested handoff",
+  });
+  assert.equal(next.currentOwner, state.currentOwner);
+  assert.equal(next.currentOwner, "execution-agent-clone-v1");
+  const handoff = next.events.at(-1);
+  assert.equal(handoff?.type, "HANDOFF");
+  assert.equal((handoff?.detail as { authorityTransferred?: boolean } | undefined)?.authorityTransferred, false);
+});
