@@ -115,6 +115,40 @@ jobs:
           fs.writeFileSync('artifacts/mini-swe-agent/candidate.json',JSON.stringify(record,null,2)+'\n');
           NODE
 
+      - name: Prepare Node environment for deterministic gates
+        if: ${{ always() }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install repository dependencies for deterministic gates
+        if: ${{ always() }}
+        shell: bash
+        run: npm ci
+
+      - name: Three-critic review of repair candidate
+        if: ${{ always() }}
+        shell: bash
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FLIXO_AGENT_MODEL: claude-sonnet-4-6
+          CRITIC_REPO_ROOT: ${{ github.workspace }}
+          CRITIC_TYPECHECK_CMD: npm run typecheck
+          CRITIC_LINT_CMD: npm run lint
+          CRITIC_UNIT_TEST_CMD: npm run test:core
+          CRITIC_CODEQL_CMD: ${{ vars.FLIXO_CODEQL_CMD }}
+          REPAIR_TASK: ${{ inputs.task }}
+        run: |
+          set -euo pipefail
+          if [ ! -s artifacts/mini-swe-agent/repair.patch ]; then
+            printf '%s\n' 'CRITIC_NOT_APPLICABLE=NO_PATCH_CANDIDATE' > artifacts/mini-swe-agent/critic-state.txt
+            exit 0
+          fi
+          test -n "${ANTHROPIC_API_KEY:-}"
+          uv run --with anthropic python scripts/three_critic_review.py \
+            --review-patch artifacts/mini-swe-agent/repair.patch \
+            --goal "$REPAIR_TASK" \
+            --artifact artifacts/mini-swe-agent/review-artifact.json
       - name: Upload repair candidate
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
