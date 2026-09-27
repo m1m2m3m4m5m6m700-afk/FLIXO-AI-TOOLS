@@ -13,3 +13,17 @@ updates:
         applies-to: security-updates
         patterns:
           - "*"
+
+  - package-ecosystem: npm
+    directory: "/apps/agent-editor"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    versioning-strategy: increase-if-necessary
+    labels:
+      - security
+    groups:
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
