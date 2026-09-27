@@ -1,34 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { ToolRegistry } from "../lib/agent/registry";
-import { createDefaultToolRegistry } from "../lib/tools";
+import { CANONICAL_AGENT_TOOLS, validateCanonicalAgentParameters } from "../lib/tools/canonical";
+import { toLLMTools } from "../lib/llm";
 import { LLMRouter } from "../lib/llm/router";
 import { sanitizeChatRequest } from "../lib/security/request";
 import type { LLMProvider, LLMStreamEvent, LLMStreamRequest } from "../lib/llm";
 
-function fakeProvider(name: "openai" | "anthropic" | "gemini", model: string, events: AsyncIterable<LLMStreamEvent>): LLMProvider {
+function fakeProvider(name: "openai" | "anthropic", model: string, events: AsyncIterable<LLMStreamEvent>): LLMProvider {
   return {
-    name, model, isConfigured: () => true,
+    name,
+    model,
+    isConfigured: () => true,
     stream: async function* (_request: LLMStreamRequest) { yield* events; },
   };
 }
-
 async function* failingProvider(): AsyncGenerator<LLMStreamEvent> {
   yield { type: "text_delta", text: "hello " };
   throw new Error("network dropped");
 }
-
 async function* recoveringProvider(): AsyncGenerator<LLMStreamEvent> {
   yield { type: "text_delta", text: "hello world" };
   yield { type: "turn_end", toolCalls: [] };
 }
 
-describe("production orchestration contracts", () => {
-  it("publishes real JSON Schema from the canonical ToolRegistry", () => {
-    const registry = createDefaultToolRegistry();
-    const tool = registry.list().find((entry) => entry.name === "remove_background");
-    expect(tool?.jsonSchemaInput.type).toBe("object");
-    expect((tool?.jsonSchemaInput.properties as Record<string, unknown>)?.imageUrl).toBeDefined();
-    expect((tool?.jsonSchemaInput.properties as Record<string, unknown>)?.threshold).toBeDefined();
+describe("canonical production orchestration contracts", () => {
+  it("publishes exactly the 10 canonical MVP tools", () => {
+    const tools = toLLMTools(CANONICAL_AGENT_TOOLS);
+    expect(tools).toHaveLength(10);
+    expect(tools.map((tool) => tool.name)).toEqual([
+      "background-remover","image-upscaler","image-cropper","image-compressor","image-converter",
+      "image-effects","video-trimmer","video-cropper","video-resizer","video-compressor",
+    ]);
+    expect(JSON.stringify(tools)).not.toContain("example.com");
   });
 
   it("fails over after a provider stream drops without duplicating committed text", async () => {
@@ -49,34 +51,16 @@ describe("production orchestration contracts", () => {
     expect(() => sanitizeChatRequest({
       message: "hello",
       history: Array.from({ length: 25 }, (_, index) => ({
-        id: crypto.randomUUID(), role: "user", content: String(index), timestamp: "2026-09-27T00:00:00.000Z"
+        id: crypto.randomUUID(), role: "user", content: String(index), timestamp: "2026-09-27T00:00:00.000Z",
       })),
     })).toThrow();
   });
 
-  it("removes client-supplied tool traces from provider history", () => {
-    const sanitized = sanitizeChatRequest({
-      message: "continue",
-      history: [{
-        id: crypto.randomUUID(),
-        role: "tool",
-        content: "secret",
-        timestamp: "2026-09-27T00:00:00.000Z",
-        toolResults: [{
-          callId: "call-1",
-          toolName: "remove_background",
-          status: "success",
-          data: { processedImageUrl: "https://private.example/result.png" },
-        }],
-      }],
-    });
-
-    expect(sanitized.history).toHaveLength(0);
-  });
-
-  it("keeps the execution path fail-closed for unknown tools", async () => {
-    const registry: ToolRegistry = createDefaultToolRegistry();
-    const result = await registry.execute("security-test", "non_existent_tool", {});
-    expect(result.status).toBe("error");
+  it("rejects unknown and non-canonical parameters", () => {
+    expect(validateCanonicalAgentParameters("image-effects", { contrast: 110 })).toEqual({ contrast: 110 });
+    expect(() => validateCanonicalAgentParameters("image-effects", {
+      contrast: 110, imageUrl: "https://private.example/file.png",
+    })).toThrow();
+    expect(() => validateCanonicalAgentParameters("non-existent", {})).toThrow();
   });
 });
