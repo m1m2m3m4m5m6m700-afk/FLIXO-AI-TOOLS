@@ -68,12 +68,10 @@ export class AdversarialTwinWorker implements AgentWorker {
     const profile = getAgentModelProfile(instruction.role, this.options.profiles?.length ? this.options.profiles : undefined);
     const rounds = Math.max(1, Math.min(4, Math.floor(this.options.maxRounds ?? 2)));
 
-    let primary: AgentModelResponse | null = null;
-    let adversary: AgentModelResponse | null = null;
     let feedback: AdjudicationFeedback | undefined;
 
     for (let round = 1; round <= rounds; round += 1) {
-      [primary, adversary] = await Promise.all([
+      const [primary, adversary] = await Promise.all([
         this.options.invoker.invoke(Object.freeze({
           instruction,
           profile,
