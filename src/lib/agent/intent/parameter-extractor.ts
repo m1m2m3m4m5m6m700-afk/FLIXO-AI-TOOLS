@@ -131,6 +131,8 @@ export function extractParameters(input: string): ExtractionResult {
     errors.push('Saturation adjustments require an explicit percentage.');
   }
   const hasVideoCompressionIntent = /(?:(?:compress|compression|ضغط|تصغير)[^\n]{0,40}(?:video|الفيديو|فيديو)|(?:video|الفيديو|فيديو)[^\n]{0,40}(?:compress|compression|ضغط|تصغير))/i.test(text);
+  const hasVideoCropIntent = /(?:(?:crop|قص)[^\n]{0,40}(?:video|الفيديو|فيديو)|(?:video|الفيديو|فيديو)[^\n]{0,40}(?:crop|قص))/i.test(text);
+  const hasVideoResizeIntent = /(?:(?:resize|dimensions?|size|تغيير\s+حجم|تغيير\s+دقة|حجم|أبعاد)[^\n]{0,40}(?:video|الفيديو|فيديو)|(?:video|الفيديو|فيديو)[^\n]{0,40}(?:resize|dimensions?|size|تغيير\s+حجم|تغيير\s+دقة|حجم|أبعاد))/i.test(text);
   const hasCompressionIntent = /(?:compress|compression|ضغط|تصغير)/i.test(text) && !hasVideoCompressionIntent;
   const hasConversionIntent = /(?:convert|conversion|تحويل|حول|حوّل)/i.test(text);
   const hasBackgroundRemovalIntent = /(?:remove\s+(?:the\s+)?background|background\s+removal|إزالة\s+الخلفية|ازالة\s+الخلفية|شيل\s+الخلفية|شيل\s+خلفية|بدون\s+خلفية|خلفية\s+شفافة)/i.test(text);
@@ -141,7 +143,11 @@ export function extractParameters(input: string): ExtractionResult {
   else if (targetSizeKB !== undefined && !hasVideoCompressionIntent) addOperation(operations, 'image-compressor', { targetSizeKB });
   if (hasConversionIntent && format !== undefined) addOperation(operations, 'image-converter', { format });
   if (format !== undefined && !hasCompressionIntent && !hasConversionIntent) addOperation(operations, 'image-converter', { format });
-  if (dimensions) addOperation(operations, 'image-cropper', { width: dimensions.width, height: dimensions.height, mode: 'exact' });
+  if (dimensions) {
+    if (hasVideoCropIntent) addOperation(operations, 'video-cropper', { width: dimensions.width, height: dimensions.height });
+    else if (hasVideoResizeIntent) addOperation(operations, 'video-resizer', { width: dimensions.width, height: dimensions.height });
+    else addOperation(operations, 'image-cropper', { width: dimensions.width, height: dimensions.height, mode: 'exact' });
+  }
   if (aspectRatio) addOperation(operations, 'image-cropper', { aspectRatio });
   if (brightness !== undefined) addOperation(operations, 'image-effects', { brightness });
   if (contrast !== undefined) addOperation(operations, 'image-effects', { contrast });
@@ -150,7 +156,10 @@ export function extractParameters(input: string): ExtractionResult {
   if (hasUpscaleIntent) addOperation(operations, 'image-upscaler', upscaleScale === undefined ? {} : { scale: upscaleScale });
   if (hasCompressionIntent && targetSizeKB === undefined) addOperation(operations, 'image-compressor', {});
   if (hasConversionIntent && format === undefined) errors.push('A target output format is required for image conversion.');
-  if (/\b(?:crop|قص)\b/i.test(text) && dimensions === undefined && aspectRatio === undefined) errors.push('Crop requests require explicit dimensions or an aspect ratio.');
+  if (/\b(?:crop|قص)\b/i.test(text) && dimensions === undefined && aspectRatio === undefined) {
+    errors.push(hasVideoCropIntent ? 'Video crop requests require explicit dimensions.' : 'Crop requests require explicit dimensions or an aspect ratio.');
+  }
+  if (hasVideoResizeIntent && dimensions === undefined) errors.push('Video resize requests require explicit dimensions.');
   for (const operation of operations) validateOperation(operation, errors);
 
   const knownSignal = /(?:compress|ضغط|convert|تحويل|حول|حوّل|webp|png|jpe?g|resize|dimensions|size|أبعاد|حجم|aspect\s+ratio|نسبة|square|مربع|مربعة|خلفية|background|remove|إزالة|ازالة|شيل|brightness|سطوع|contrast|تباين|saturation|saturate|تشبع|grayscale|grey\s*scale|black\s+and\s+white|أبيض\s*و\s*أسود|ابيض\s*و\s*اسود|upscale|upscaled|resolution|رفع\s+الدقة|زيادة\s+الدقة|تكبير\s+الصورة|\d+\s*[x×]\s*\d+|\d+(?:\.\d+)?\s*(?:kb|kib|mb|mib|كيلوبايت|ميجابايت))/i;
