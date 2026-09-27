@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { ModelProviderClient } from '@flixo/agent-runtime';
 import { createHash, randomUUID } from 'node:crypto';
 import { getCapability, getExecutableCapabilityIds } from '../src/lib/agent/capability-registry.ts';
 import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from '../src/lib/contracts/agent-gateway.ts';
@@ -33,11 +34,7 @@ const MAX_RESPONSE_TOKENS = 4_096;
 const SUPPORTED_PROVIDERS = ['openai', 'openrouter', 'gemini'] as const;
 type SupportedProvider = (typeof SUPPORTED_PROVIDERS)[number];
 
-const PROVIDER_BASE_URLS: Record<SupportedProvider, string> = Object.freeze({
-  openai: 'https://api.openai.com/v1',
-  openrouter: 'https://openrouter.ai/api/v1',
-  gemini: 'https://generativelanguage.googleapis.com',
-});
+
 
 function parseBoundedInteger(
   value: string | undefined,
@@ -88,247 +85,6 @@ function configuredRuntime(): {
   };
 }
 
-async function fetchWithTimeout(
-  input: string | URL,
-  init: RequestInit,
-  timeoutMs: number,
-): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(input, { ...init, signal: controller.signal });
-  } catch (error) {
-    if (controller.signal.aborted) throw new Error('AI provider request timed out.', { cause: error });
-    throw error;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-function json(res: ServerResponse, status: number, body: unknown): void {
-  res.statusCode = status;
-  res.setHeader('content-type', 'application/json; charset=utf-8');
-  res.setHeader('cache-control', 'no-store');
-  res.end(JSON.stringify(body));
-}
-
-async function readBody(req: IncomingMessage): Promise<AgentRequestContract> {
-  const contentLength = req.headers['content-length'];
-  if (contentLength !== undefined) {
-    const declaredLength = Number(Array.isArray(contentLength) ? contentLength[0] : contentLength);
-    if (!Number.isFinite(declaredLength) || declaredLength < 0 || declaredLength > MAX_REQUEST_BODY_BYTES) {
-      throw new Error('Request body is too large.');
-    }
-  }
-
-  let raw = '';
-  let bytes = 0;
-  for await (const chunk of req) {
-    const text = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
-    bytes += Buffer.byteLength(text, 'utf8');
-    if (bytes > MAX_REQUEST_BODY_BYTES) throw new Error('Request body is too large.');
-    raw += text;
-  }
-  return parseAgentRequest(JSON.parse(raw));
-}
-
-function executableCatalog(): Array<Record<string, unknown>> {
-  return getExecutableCapabilityIds().map((id) => {
-    const capability = getCapability(id);
-    if (!capability) return null;
-    const schema = capability.parameterSchema as { shape?: Record<string, unknown> };
-    return {
-      id,
-      title: capability.title,
-      description: capability.description,
-      intents: capability.intents,
-      parameterNames: schema.shape ? Object.keys(schema.shape) : ['tool-defined parameters'],
-      executionMode: capability.executionMode,
-    };
-  }).filter(Boolean) as Array<Record<string, unknown>>;
-}
-
-const exactSha = (): string | null => {
-  const candidates = [
-    process.env.VERCEL_GIT_COMMIT_SHA,
-    process.env.GITHUB_SHA,
-    process.env.FLIXO_TARGET_SHA,
-  ];
-  return candidates.find((value) => /^[a-f0-9]{40}$/u.test(String(value ?? '').trim()))?.trim() ?? null;
-};
-
-async function persistLearningCandidate(
-  decision: ReturnType<typeof parseAgentDecision>,
-  userMessage: string,
-  locale: string,
-  provider: string,
-): Promise<void> {
-  if (!decision.learning) return;
-  const targetSha = exactSha();
-  if (!targetSha) return;
-  try {
-    await createExternalAgentLearning({
-      sourceAgent: 'execution-agent-clone-v1',
-      sourceRole: 'executionAgent',
-      kind: decision.learning.kind,
-      taskId: `UI-LEARNING:${targetSha.slice(0, 12)}:${Date.now()}`,
-      targetSha,
-      claim: decision.learning.claim,
-      content: decision.learning.content,
-      evidenceRefs: decision.learning.evidenceRefs,
-      provenance: {
-        channel: 'external-ui-agent',
-        locale,
-        provider,
-        userMessage: userMessage.slice(0, 2000),
-        status: 'PROPOSED',
-      },
-    });
-  } catch (error) {
-    console.warn('[flixo-agent] learning persistence warning', {
-      error: error instanceof Error ? error.name : 'unknown',
-    });
-  }
-}
-
-function parseJsonObject(text: string): unknown {
-  const trimmed = text.trim().replace(/^\uFEFF/, '');
-  try {
-    return JSON.parse(trimmed) as unknown;
-  } catch {
-    throw new Error('AI response was not valid JSON.');
-  }
-}
-
-export function enforceDeterministicExecutionBoundary(
-  input: string,
-  decision: ReturnType<typeof parseAgentDecision>,
-): ReturnType<typeof parseAgentDecision> {
-  const deterministic = planFromIntent(input);
-
-  if (!deterministic) {
-    if (decision.mode === 'plan' && decision.plan && !isDeterministicPlanCompatible(decision.plan, deterministic)) {
-      throw new Error('AI_PLAN_CONFLICTS_WITH_DETERMINISTIC_QUICKFLOW');
-    }
-    return decision;
-  }
-
-  if (decision.mode === 'plan' && decision.plan) {
-    if (!isDeterministicPlanCompatible(decision.plan, deterministic)) {
-      throw new Error('AI_PLAN_CONFLICTS_WITH_DETERMINISTIC_QUICKFLOW');
-    }
-    return decision;
-  }
-
-  return {
-    ...decision,
-    mode: 'plan',
-    reply: decision.reply,
-    question: null,
-    plan: deterministic,
-    confidence: deterministic.confidence,
-    reason: 'DETERMINISTIC_QUICKFLOW_AUTHORITY',
-  };
-}
-
-async function callOpenAI(
-  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
-  timeoutMs: number,
-  maxTokens: number,
-  modelOverride?: string,
-): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error('OPENAI_API_KEY is not configured.');
-  const base = PROVIDER_BASE_URLS.openai;
-  const model = modelOverride || process.env.OPENAI_MODEL;
-  if (!model) throw new Error('OPENAI_MODEL is not configured.');
-  const response = await fetchWithTimeout(`${base}/chat/completions`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: 0.2,
-      max_tokens: maxTokens,
-      response_format: { type: 'json_object' },
-    }),
-  });
-  if (!response.ok) throw new Error(`OpenAI returned HTTP ${response.status}.`);
-  const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error('OpenAI returned no content.');
-  return content;
-}
-
-async function callOpenRouter(
-  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
-  timeoutMs: number,
-  maxTokens: number,
-  modelOverride?: string,
-): Promise<string> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured.');
-  const base = PROVIDER_BASE_URLS.openrouter;
-  const model = modelOverride || process.env.OPENROUTER_MODEL || process.env.OPENROUTER_FREE_MODEL || 'openrouter/free';
-  const response = await fetchWithTimeout(`${base}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${apiKey}`,
-      'HTTP-Referer': process.env.VITE_SITE_URL || 'https://flixoai.vercel.app',
-      'X-Title': 'FLIXO AI',
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: 0.2,
-      max_tokens: maxTokens,
-      response_format: { type: 'json_object' },
-    }),
-  });
-  if (!response.ok) throw new Error(`OpenRouter returned HTTP ${response.status}.`);
-  const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error('OpenRouter returned no content.');
-  return content;
-}
-
-async function callGemini(
-  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
-  timeoutMs: number,
-  maxTokens: number,
-  modelOverride?: string,
-): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY is not configured.');
-  const base = PROVIDER_BASE_URLS.gemini;
-  const model = modelOverride || process.env.GEMINI_MODEL;
-  if (!model) throw new Error('GEMINI_MODEL is not configured.');
-  const system = messages.find((message) => message.role === 'system')?.content ?? '';
-  const contents = messages.filter((message) => message.role !== 'system').map((message) => ({
-    role: message.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: message.content }],
-  }));
-  const response = await fetchWithTimeout(`${base}/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: system }] },
-      contents,
-      generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: maxTokens,
-        responseMimeType: 'application/json',
-      },
-    }),
-  });
-  if (!response.ok) throw new Error(`Gemini returned HTTP ${response.status}.`);
-  const data = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-  const content = data.candidates?.[0]?.content?.parts?.find((part) => typeof part.text === 'string')?.text;
-  if (!content) throw new Error('Gemini returned no content.');
-  return content;
-}
-
 async function callProvider(
   provider: SupportedProvider,
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
@@ -336,10 +92,13 @@ async function callProvider(
   maxTokens: number,
   modelOverride?: string,
 ): Promise<string> {
-  if (provider === 'gemini') return callGemini(messages, timeoutMs, maxTokens, modelOverride);
-  if (provider === 'openrouter') return callOpenRouter(messages, timeoutMs, maxTokens, modelOverride);
-  if (provider === 'openai') return callOpenAI(messages, timeoutMs, maxTokens, modelOverride);
-  throw new Error('Unsupported AI provider.');
+  const client = new ModelProviderClient({
+    provider,
+    model: modelOverride,
+    timeoutMs,
+    maxTokens,
+  });
+  return client.complete(messages);
 }
 
 export function fallbackDecision(
