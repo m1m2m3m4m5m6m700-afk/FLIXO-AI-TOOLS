@@ -63,6 +63,11 @@ test('deterministic MVP standard-intent suite is 100% exact', () => {
   }
 });
 
+test('Arabic crop intent is not confused with video trim', () => {
+  assert.deepEqual(planFromIntent('قص الفيديو إلى 720×720')?.steps.map((step) => step.toolId), ['video-cropper']);
+  assert.deepEqual(planFromIntent('اقتطع أول 5 ثواني من الفيديو')?.steps.map((step) => step.toolId), ['video-trimmer']);
+});
+
 test('video intent specificity prefers the video capability over generic image matches', () => {
   assert.deepEqual(planFromIntent('crop video to 720x720')?.steps.map((step) => step.toolId), ['video-cropper']);
   assert.deepEqual(planFromIntent('resize video to 1280x720')?.steps.map((step) => step.toolId), ['video-resizer']);

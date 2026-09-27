@@ -99,7 +99,7 @@ const INTENTS: Record<string, readonly string[]> = {
   "image-compressor": ["compress","smaller","reduce size","file size","lighter","ضغط الصور","تصغير حجم الصورة"],
   "image-converter": ["convert format","jpg to png","png to jpg","webp","change format","تحويل الصيغة","تحويل الصورة"],
   "image-effects": ["brightness","contrast","saturation","grayscale","adjust image","سطوع","تباين","تشبع"],
-  "video-trimmer": ["trim video","cut video","video trim","قص الفيديو","اقتطاع الفيديو"],
+  "video-trimmer": ["trim video","cut video","video trim","اقتطاع الفيديو","اقتطع الفيديو","قص أول"]
   "video-cropper": ["crop video","video crop","قص الفيديو من الاطراف","قص الفيديو من الأطراف"],
   "video-resizer": ["resize video","change video resolution","video dimensions","تغيير حجم الفيديو","تغيير دقة الفيديو"],
   "video-compressor": ["compress video","reduce video size","video compression","ضغط الفيديو","تصغير حجم الفيديو"],
