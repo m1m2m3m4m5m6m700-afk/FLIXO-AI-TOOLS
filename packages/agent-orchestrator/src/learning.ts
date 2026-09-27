@@ -1,6 +1,7 @@
 import type { AgentDescriptor } from "./network.ts";
 import type { AgentExperience, ExperienceStore } from "./experience.ts";
-import { AgentRewardEngine } from "./reward.ts";
+import { AgentRewardEngine, type RewardResult } from "./reward.ts";
+import { ObjectiveVerifier } from "./objective-verifier.ts";
 import type { AgentInstruction, AgentObserver, AgentReport } from "./index.ts";
 
 export type AgentLearningRecommendation = Readonly<{
@@ -57,6 +58,7 @@ export class AgentLearningObserver implements AgentObserver {
   constructor(
     private readonly store: ExperienceStore,
     private readonly rewardEngine = new AgentRewardEngine(),
+    private readonly verifier = new ObjectiveVerifier(),
   ) {}
   onDispatch(instruction: AgentInstruction): void {
     this.instructions.set(instruction.stepId, instruction);
@@ -64,14 +66,15 @@ export class AgentLearningObserver implements AgentObserver {
   onReport(report: AgentReport): void {
     const instruction = this.instructions.get(report.stepId);
     if (!instruction || instruction.commandId !== report.commandId) return;
-    const reward = this.rewardEngine.calculate((report.evidence ?? {}) as Parameters<AgentRewardEngine["calculate"]>[0]);
+    const verification = report.verification ?? this.verifier.verify({ id: `${report.commandId}:${report.stepId}`, commandId: report.commandId, stepId: report.stepId, agentId: instruction.role, evidence: (report.evidence ?? {}) as Parameters<ObjectiveVerifier["verify"]>[0]["evidence"] });
+    const reward = this.rewardEngine.calculateVerified((report.evidence ?? {}) as Parameters<AgentRewardEngine["calculate"]>[0], verification);
     const experience: AgentExperience = Object.freeze({
       id: report.commandId + ":" + report.stepId,
       commandId: report.commandId,
       stepId: report.stepId,
       agentId: instruction.role,
       objective: instruction.objective,
-      report,
+      report: Object.freeze({ ...report, verification }),
       reward,
       timestamp: new Date().toISOString(),
     });
