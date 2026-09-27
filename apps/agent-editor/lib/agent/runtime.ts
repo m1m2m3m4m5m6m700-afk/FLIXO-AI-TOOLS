@@ -14,24 +14,42 @@ import {
   type ProjectState,
 } from "../schemas/project";
 import { simulateLLMReasoning } from "./mock-llm";
+import {
+  LLMUnavailableError,
+  toLLMTools,
+  type LLMMessage,
+  type LLMRouter,
+  type LLMToolCall,
+} from "../llm";
 
 export const AgentRuntimeOptionsSchema = z.object({
-  maxIterations: z.number().int().positive().max(20).default(5),
-  useMockEngine: z.boolean().default(true),
+  maxIterations: z.number().int().positive().max(8).default(5),
+  useMockEngine: z.boolean().default(false),
 });
+
 export type AgentRuntimeOptions = z.input<typeof AgentRuntimeOptionsSchema>;
+
+export type AgentRuntimeStreamEvent =
+  | { type: "token"; text: string }
+  | { type: "tool_call_start"; callId: string; toolName: string }
+  | { type: "tool_call_end"; result: ToolCallResult }
+  | { type: "state_update"; projectState: ProjectState }
+  | { type: "final"; response: AgentResponse };
 
 export class AgentRuntime {
   private readonly maxIterations: number;
   private readonly useMockEngine: boolean;
+  private readonly llmRouter?: LLMRouter;
 
   constructor(
     private readonly registry: ToolRegistry,
     options: AgentRuntimeOptions = {},
+    llmRouter?: LLMRouter,
   ) {
     const parsed = AgentRuntimeOptionsSchema.parse(options);
     this.maxIterations = parsed.maxIterations;
     this.useMockEngine = parsed.useMockEngine;
+    this.llmRouter = llmRouter;
   }
 
   async processUserMessage(
@@ -39,15 +57,31 @@ export class AgentRuntime {
     history: readonly ChatMessage[],
     currentProjectState?: ProjectState,
   ): Promise<AgentResponse> {
+    let finalResponse: AgentResponse | undefined;
+
+    for await (const event of this.streamUserMessage(
+      userMessage,
+      history,
+      currentProjectState,
+    )) {
+      if (event.type === "final") finalResponse = event.response;
+    }
+
+    if (!finalResponse) {
+      throw new Error("Agent runtime ended without a final response.");
+    }
+
+    return finalResponse;
+  }
+
+  async *streamUserMessage(
+    userMessage: string,
+    history: readonly ChatMessage[],
+    currentProjectState?: ProjectState,
+  ): AsyncGenerator<AgentRuntimeStreamEvent> {
     const prompt = userMessage.trim();
     if (!prompt) {
       throw new Error("Agent user message must not be empty.");
-    }
-
-    if (!this.useMockEngine) {
-      throw new Error(
-        "REAL_LLM_ENGINE_NOT_CONFIGURED: the isolated MVP runtime currently supports deterministic mock mode only.",
-      );
     }
 
     const systemPrompt = buildSystemPrompt(
@@ -60,59 +94,217 @@ export class AgentRuntime {
       : undefined;
     const requestedCalls: ToolCallRequest[] = [];
     const results: ToolCallResult[] = [];
-    let finalAssistantText = "";
-    let currentPrompt = prompt;
 
-    for (let iteration = 1; iteration <= this.maxIterations; iteration += 1) {
-      const llmResult = simulateLLMReasoning(currentPrompt, iteration);
-      finalAssistantText = llmResult.content;
-
-      if (llmResult.toolCalls.length === 0) {
-        break;
+    if (this.useMockEngine) {
+      const mockResult = simulateLLMReasoning(prompt, 1);
+      if (mockResult.toolCalls.length === 0) {
+        const response = this.buildResponse(
+          mockResult.content,
+          requestedCalls,
+          results,
+          workingProjectState,
+        );
+        yield { type: "final", response };
+        return;
       }
 
-      for (const callRequest of llmResult.toolCalls) {
-        requestedCalls.push(callRequest);
+      const turnToolCalls = mockResult.toolCalls;
+      for (const call of turnToolCalls) {
+        requestedCalls.push(call);
+        yield { type: "tool_call_start", callId: call.callId, toolName: call.toolName };
+
         const result = await this.registry.execute(
-          callRequest.callId,
-          callRequest.toolName,
-          callRequest.parameters,
+          call.callId,
+          call.toolName,
+          call.parameters,
         );
         results.push(result);
+        yield { type: "tool_call_end", result };
 
-        if (result.status === "success" && workingProjectState && result.data) {
+        if (result.status === "error") {
+          const response = this.buildResponse(
+            "The requested operation could not be completed.",
+            requestedCalls,
+            results,
+            workingProjectState,
+          );
+          yield { type: "final", response };
+          return;
+        }
+
+        if (workingProjectState && result.data) {
           workingProjectState = this.applyToolResultToState(
-            callRequest.toolName,
+            call.toolName,
             result.data,
             workingProjectState,
           );
+          yield { type: "state_update", projectState: workingProjectState };
         }
       }
 
-      const failed = results.some((result) => result.status === "error");
-      if (failed) {
-        finalAssistantText =
-          "The requested operation could not be completed because one or more tool contracts rejected the execution request.";
-        break;
-      }
-
-      currentPrompt =
-        "Continue only if another distinct registered operation is explicitly required. Otherwise finish the response.";
-      break;
+      const response = this.buildResponse(
+        mockResult.content,
+        requestedCalls,
+        results,
+        workingProjectState,
+      );
+      yield { type: "final", response };
+      return;
     }
 
-    const response = AgentResponseSchema.parse({
-      messageId: crypto.randomUUID(),
-      content: finalAssistantText,
-      requestedToolCalls: requestedCalls,
-      toolResults: results,
-      updatedProjectState: workingProjectState,
-      requiresUserConfirmation: false,
+    if (!this.llmRouter) {
+      throw new LLMUnavailableError("REAL_LLM_ENGINE_NOT_CONFIGURED");
+    }
+
+    const messages: LLMMessage[] = history
+      .filter((message) => message.role !== "system")
+      .map((message) => ({
+        role: message.role === "tool" ? "tool" : message.role,
+        content: message.content,
+        toolCalls: message.toolCalls?.map((call) => ({
+          callId: call.callId,
+          toolName: call.toolName,
+          arguments: call.parameters,
+        })),
+        toolResults: message.toolResults?.map((result) => ({
+          callId: result.callId,
+          toolName: result.toolName,
+          result: result.data ?? { error: "tool_execution_failed" },
+          isError: result.status === "error",
+        })),
+      }));
+
+    messages.push({
+      role: "user",
+      content: prompt,
     });
 
-    void history;
-    void systemPrompt;
-    return response;
+    const llmTools = toLLMTools(this.registry.list());
+    let latestAssistantText = "";
+
+    for (let iteration = 1; iteration <= this.maxIterations; iteration += 1) {
+      latestAssistantText = "";
+      let turnToolCalls: readonly LLMToolCall[] = [];
+
+      for await (const event of this.llmRouter.stream({
+        model: "",
+        systemPrompt,
+        messages,
+        tools: llmTools,
+        resumePrefix: latestAssistantText.slice(-2048),
+      })) {
+        if (event.type === "text_delta") {
+          latestAssistantText += event.text;
+          yield { type: "token", text: event.text };
+          continue;
+        }
+
+        if (event.type === "turn_end") {
+          turnToolCalls = event.toolCalls;
+        }
+      }
+
+      if (turnToolCalls.length === 0) {
+        const response = this.buildResponse(
+          latestAssistantText || "I completed the requested operation.",
+          requestedCalls,
+          results,
+          workingProjectState,
+        );
+        yield { type: "final", response };
+        return;
+      }
+
+      messages.push({
+        role: "assistant",
+        content: latestAssistantText,
+        toolCalls: turnToolCalls,
+      });
+
+      for (const call of turnToolCalls) {
+        const request: ToolCallRequest = {
+          callId: call.callId,
+          toolName: call.toolName,
+          parameters: call.arguments,
+        };
+        requestedCalls.push(request);
+        yield {
+          type: "tool_call_start",
+          callId: call.callId,
+          toolName: call.toolName,
+        };
+
+        const result = await this.registry.execute(
+          call.callId,
+          call.toolName,
+          call.arguments,
+        );
+        results.push(result);
+        yield { type: "tool_call_end", result };
+
+        const toolResult = {
+          callId: call.callId,
+          toolName: call.toolName,
+          result: result.data ?? { error: "tool_execution_failed" },
+          isError: result.status === "error",
+        };
+
+        messages.push({
+          role: "tool",
+          content: "",
+          toolResults: [toolResult],
+        });
+
+        if (result.status === "error") {
+          const response = this.buildResponse(
+            "The requested operation could not be completed.",
+            requestedCalls,
+            results,
+            workingProjectState,
+          );
+          yield { type: "final", response };
+          return;
+        }
+
+        if (workingProjectState && result.data) {
+          workingProjectState = this.applyToolResultToState(
+            call.toolName,
+            result.data,
+            workingProjectState,
+          );
+          yield { type: "state_update", projectState: workingProjectState };
+        }
+      }
+
+      if (iteration === this.maxIterations) {
+        const response = this.buildResponse(
+          "The operation reached the safety iteration limit before a verified final response was produced.",
+          requestedCalls,
+          results,
+          workingProjectState,
+        );
+        yield { type: "final", response };
+        return;
+      }
+    }
+
+    throw new Error("Agent runtime exhausted without a terminal state.");
+  }
+
+  private buildResponse(
+    content: string,
+    requestedToolCalls: readonly ToolCallRequest[],
+    toolResults: readonly ToolCallResult[],
+    updatedProjectState?: ProjectState,
+  ): AgentResponse {
+    return AgentResponseSchema.parse({
+      messageId: crypto.randomUUID(),
+      content,
+      requestedToolCalls,
+      toolResults,
+      updatedProjectState,
+      requiresUserConfirmation: false,
+    });
   }
 
   private applyToolResultToState(
