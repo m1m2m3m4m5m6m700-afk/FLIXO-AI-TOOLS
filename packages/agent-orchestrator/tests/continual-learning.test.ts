@@ -14,6 +14,7 @@ const experience = (agentId: string, score: number, index: number) => Object.fre
     commandId: `command-${index}`,
     status: "completed" as const,
     summary: "verified",
+    evidence: Object.freeze(index === 30 ? { testsPassed: 3, testsFailed: 7, evidenceVerified: false, outOfScopeActions: 0, delegatedTasks: 0 } : { testsPassed: 10, testsFailed: 0, requiredArtifacts: ["code"], completedArtifacts: ["code"], evidenceVerified: true, outOfScopeActions: 0, delegatedTasks: 0 }),
   }),
   reward: Object.freeze({
     score,
@@ -45,4 +46,4 @@ test("continual learning grows with experiences and produces curriculum", () => 
   assert.ok(curriculum[0].priority > curriculum[7].priority);
 });
 
-test("skill memory identifies weak patterns and targets them in curriculum",()=>{ const store=new InMemoryExperienceStore(); const learning=new ContinualLearningEngine(store); learning.record(experience("tester",30,1)); const snapshot=learning.snapshot("tester"); assert.ok(snapshot.skills.length>0); assert.ok(snapshot.weaknesses.length>0); const item=learning.curriculum("tester","verify a change")[0]; assert.equal(item.focus,"below-reward-threshold"); assert.ok(item.difficulty>0); });
+test("skill memory identifies weak patterns and targets them in curriculum",()=>{ const store=new InMemoryExperienceStore(); const learning=new ContinualLearningEngine(store); learning.record(experience("tester",30,1)); const snapshot=learning.snapshot("tester"); assert.ok(snapshot.skills.length>0); assert.ok(snapshot.weaknesses.length>0); const item=learning.curriculum("tester","verify a change")[0]; assert.equal(item.focus,"verification-test-failure"); assert.ok(item.difficulty>0); });
