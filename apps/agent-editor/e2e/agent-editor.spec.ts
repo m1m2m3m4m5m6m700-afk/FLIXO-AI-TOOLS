@@ -18,6 +18,27 @@ test.describe("FLIXO Agent Editor end-to-end", () => {
     expect(consoleErrors).toEqual([]);
   });
 
+  test("scrubs by frame and exports the rendered canvas through a dedicated worker", async ({ page }) => {
+    await page.goto("/");
+    const scrubber = page.getByTestId("frame-scrubber");
+    await expect(scrubber).toBeVisible();
+    await scrubber.focus();
+    await scrubber.press("ArrowRight");
+    await expect(page.getByText("Frame 1 ·", { exact: false })).toBeVisible();
+
+    const workerPromise = page.waitForEvent("worker");
+    const downloadPromise = page.waitForEvent("download");
+
+    await page.getByRole("combobox", { name: "Export format" }).selectOption("png");
+    await page.getByRole("button", { name: "Export" }).click();
+
+    await workerPromise;
+    const download = await downloadPromise;
+
+    expect(download.suggestedFilename()).toMatch(/\.png$/u);
+    await expect(page.getByTestId("export-progress")).toContainText("Export ready.");
+  });
+
   test("Stop aborts the active SSE request without losing the last valid state", async ({ page }) => {
     await page.goto("/");
     await page.getByLabel("Describe the edit").fill("Remove background from image");
@@ -27,4 +48,5 @@ test.describe("FLIXO Agent Editor end-to-end", () => {
     await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
     await expect(page.getByText("Untitled Creative Project", { exact: false })).toBeVisible();
   });
-});
+}
+);
