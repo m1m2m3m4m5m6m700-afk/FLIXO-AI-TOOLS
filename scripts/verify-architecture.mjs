@@ -9,6 +9,7 @@ const requiredWorkspaces = [
   "apps/agent-editor",
   "packages/contracts",
   "packages/agent-runtime",
+  "packages/agent-orchestrator",
 ];
 
 if (!Array.isArray(workspace) || !requiredWorkspaces.every((entry) => workspace.includes(entry))) {
@@ -34,7 +35,7 @@ if (!pkg.scripts["test:agent-editor"] || !pkg.scripts["build:agent-editor"]) {
   process.exit(1);
 }
 
-if (!pkg.scripts["typecheck:contracts"] || !pkg.scripts["typecheck:agent-runtime"]) {
+if (!pkg.scripts["typecheck:contracts"] || !pkg.scripts["typecheck:agent-runtime"] || !pkg.scripts["typecheck:agent-orchestrator"]) {
   console.error("Architecture gate: canonical package typechecks are missing.");
   process.exit(1);
 }
