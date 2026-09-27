@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const lock = JSON.parse(readFileSync("package-lock.json", "utf8"));
@@ -35,6 +36,46 @@ if (!pkg.scripts["test:agent-editor"] || !pkg.scripts["build:agent-editor"]) {
 
 if (!pkg.scripts["typecheck:contracts"] || !pkg.scripts["typecheck:agent-runtime"]) {
   console.error("Architecture gate: canonical package typechecks are missing.");
+  process.exit(1);
+}
+
+const migratedLegacyImports = [
+  "@/lib/agent/agent-profile",
+  "@/lib/agent/agent-discovery",
+  "@/lib/agent/task-state",
+  "@/lib/agent/agent-task-manager",
+  "@/lib/agent/reasoning",
+  "@/lib/agent/task-decomposer",
+  "@/lib/agent/evaluation",
+  "@/lib/agent/execution-budget",
+  "@/lib/agent/goal-controller",
+  "@/lib/agent/stuck-detector",
+  "@/lib/agent/universal/math-engine",
+];
+
+const sourceRoots = ["src", "apps", "packages"];
+const importViolations = [];
+
+function walk(dir) {
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) walk(path);
+    else if (/\.(ts|tsx|js|jsx|mjs|cjs)$/u.test(path)) {
+      const source = readFileSync(path, "utf8");
+      for (const legacyImport of migratedLegacyImports) {
+        if (source.includes(legacyImport)) importViolations.push(path + " -> " + legacyImport);
+      }
+    }
+  }
+}
+
+for (const root of sourceRoots) {
+  if (existsSync(root)) walk(root);
+}
+
+if (importViolations.length) {
+  console.error("Architecture gate: migrated Agent runtime compatibility imports are forbidden.");
+  for (const violation of importViolations) console.error(violation);
   process.exit(1);
 }
 
