@@ -6,6 +6,9 @@ import { AgentResponseSchema } from "@/lib/schemas/agent";
 import { createDefaultLLMRouter } from "@/lib/llm";
 import { ChatRequestSchema, sanitizeChatRequest } from "@/lib/security/request";
 
+const toolRegistry = createDefaultToolRegistry();
+const llmRouter = createDefaultLLMRouter();
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -190,8 +193,6 @@ export async function POST(request: Request): Promise<Response> {
     const useMockEngine =
       process.env.NODE_ENV !== "production" &&
       process.env.FLIXO_ENABLE_MOCK_LLM === "true";
-    const llmRouter = createDefaultLLMRouter();
-
     if (!useMockEngine && llmRouter.configuredProviders().length === 0) {
       return NextResponse.json(
         ErrorResponseSchema.parse({
@@ -203,7 +204,7 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const runtime = new AgentRuntime(
-      createDefaultToolRegistry(),
+      toolRegistry,
       { useMockEngine },
       llmRouter,
     );
