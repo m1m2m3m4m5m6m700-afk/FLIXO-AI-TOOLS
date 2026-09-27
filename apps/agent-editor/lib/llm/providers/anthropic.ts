@@ -24,7 +24,7 @@ type AnthropicEvent = {
 };
 
 function toMessages(messages: readonly LLMMessage[]): unknown[] {
-  return messages.flatMap((message) => {
+  return messages.flatMap((message): unknown[] => {
     if (message.role === "tool") {
       return [{
         role: "user" as const,
