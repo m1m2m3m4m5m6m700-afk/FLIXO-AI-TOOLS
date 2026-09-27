@@ -7,11 +7,13 @@ const MAX_HISTORY_MESSAGES = 24;
 const MAX_HISTORY_CHARS = 4_000;
 const MAX_TOTAL_HISTORY_CHARS = 32_000;
 
-export const ChatRequestSchema = z.object({
-  message: z.string().trim().min(1).max(MAX_MESSAGE_CHARS),
-  history: z.array(ChatMessageSchema).max(MAX_HISTORY_MESSAGES).default([]),
-  projectState: ProjectStateSchema.optional(),
-});
+export const ChatRequestSchema = z
+  .object({
+    message: z.string().trim().min(1).max(MAX_MESSAGE_CHARS),
+    history: z.array(ChatMessageSchema).max(MAX_HISTORY_MESSAGES).default([]),
+    projectState: ProjectStateSchema.optional(),
+  })
+  .strict();
 
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 
