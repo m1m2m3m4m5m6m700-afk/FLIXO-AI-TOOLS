@@ -13,4 +13,9 @@ if (!pkg.scripts["test:agent-editor"] || !pkg.scripts["build:agent-editor"]) {
   process.exit(1);
 }
 
+if (!pkg.scripts["typecheck:contracts"] || !pkg.scripts["typecheck:agent-runtime"]) {
+  console.error("Architecture gate: canonical package typechecks are missing.");
+  process.exit(1);
+}
+
 console.log("ARCHITECTURE_BOUNDARY_GATE=PASS");

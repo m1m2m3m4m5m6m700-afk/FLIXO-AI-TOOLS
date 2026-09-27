@@ -35,6 +35,8 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run verify:architecture
       - run: npm run verify:contracts
+      - run: npm run typecheck:contracts
+      - run: npm run typecheck:agent-runtime
       - run: npm run build
       - name: Stamp exact build identity
         shell: bash
