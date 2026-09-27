@@ -51,14 +51,16 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$CODECOV_TOKEN" ]; then
+            echo "has_token=false" >> "$GITHUB_OUTPUT"
             echo "CODECOV_UPLOAD=SKIPPED_NO_TOKEN" >> "$GITHUB_STEP_SUMMARY"
             echo "CODECOV_TOKEN is not configured; coverage was generated but not uploaded."
           else
+            echo "has_token=true" >> "$GITHUB_OUTPUT"
             echo "CODECOV_UPLOAD=ENABLED" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload coverage to Codecov
-        if: ${{ steps.codecov_credentials.outcome == 'success' && secrets.CODECOV_TOKEN != '' }}
+        if: ${{ steps.codecov_credentials.outputs.has_token == 'true' }}
         uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
