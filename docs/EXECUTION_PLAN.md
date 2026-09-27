@@ -168,16 +168,16 @@ Tasks:
 Exit condition: a failed run measurably changes the next curriculum item. Implementation and regression coverage are source-verified; runtime test/CI success remains unobserved.
 
 ### P6 — Adversarial learning
-Status: PARTIAL / IMPLEMENTED
+Status: COMPLETE
 Goal: use independent critics without leaking opponent answers.
 Tasks:
-- P6.1 Preserve primary/adversary isolation.
-- P6.2 Feed adjudication feedback into later rounds without exposing raw opponent output.
-- P6.3 Evaluate critic false positives.
-- P6.4 Persist adversarial reward into learning memory.
-- P6.5 Add multi-round regression tests.
+- P6.1 Preserve primary/adversary isolation. COMPLETE — primary/adversary outputs remain isolated until neutral adjudication.
+- P6.2 Feed adjudication feedback into later rounds without exposing raw opponent output. COMPLETE — only structured adjudication feedback is passed to subsequent rounds.
+- P6.3 Evaluate critic false positives. COMPLETE — RED Team tests and adversarial reward distinguish verified findings from false positives.
+- P6.4 Persist adversarial reward into learning memory. COMPLETE — RED Team reward is stored in a secondary learning lane linked to the primary experience.
+- P6.5 Add multi-round regression tests. COMPLETE — regression test verifies round-two feedback presence and raw-opponent absence.
 
-Exit condition: adversarial feedback changes subsequent evaluation while isolation remains intact.
+Exit condition: adversarial feedback changes subsequent evaluation while isolation remains intact. Implementation and regression coverage are source-verified; runtime test/CI success remains unobserved.
 
 ### P7 — Evolution governor
 Status: PLANNED
@@ -235,7 +235,9 @@ Never write “production-ready” while required verification is missing.
 
 ## 6. Current Next Action
 
-Execute P6.2: feed prior adjudication feedback into subsequent adversarial rounds without exposing raw opponent output. Then complete P6.3–P6.5 and proceed to the evolution governor.
+Execute P7.1: define the evolution proposal/promotion contract and governor state machine. Proposals may be created and benchmarked by supervised agents, but only a human authority may approve, apply, or roll back a change.
+
+Fine-tuning track: treat verified experiences as the only eligible training-data source; do not introduce model-weight updates until dataset provenance, objective verification, benchmark gates, sandboxing, and human promotion controls are implemented.
 
 Fine-tuning track: treat verified experiences as the only eligible training-data source; do not introduce model-weight updates until dataset provenance, objective verification, benchmark gates, sandboxing, and human promotion controls are implemented.
 
