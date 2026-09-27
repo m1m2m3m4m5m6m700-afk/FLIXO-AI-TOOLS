@@ -69,3 +69,7 @@ A mission is complete only when every task is completed and each task has verifi
 - actionRepairBot remains the sole mutation seat and reviewAgent remains read-only.
 - Sweep is outside the governed FLIXO repair path.
 - The repair-worker workflow has GitHub read-only permissions and emits a patch artifact for the existing canonical control-plane path.
+
+## MVP scope decision
+
+The authoritative scope decision is documented in `docs/MVP-SCOPE-DECISION.md`. Agents must not add, remove, or reclassify executable MVP capabilities without changing the canonical contract and its tests.

@@ -81,3 +81,19 @@ External repair/review agents are workers only:
 MVP scope is limited to the explicitly executable capability set recorded by the canonical contract. Post-MVP systems must not become hidden dependencies of the MVP.
 
 When a requirement conflicts with the canonical runtime contract, stop and surface the contradiction instead of creating another parallel mechanism.
+
+## Canonical MVP executable scope
+
+The current executable MVP scope is exactly ten capabilities:
+- background-remover
+- image-upscaler
+- image-cropper
+- image-compressor
+- image-converter
+- image-effects
+- video-trimmer
+- video-cropper
+- video-resizer
+- video-compressor
+
+This scope is governed by the canonical capability/tool definition and formalized in `docs/MVP-SCOPE-DECISION.md`. An executable capability outside this set is a scope-contract failure.

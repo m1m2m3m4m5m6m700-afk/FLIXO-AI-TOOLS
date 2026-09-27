@@ -11,6 +11,7 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   coverage:
@@ -44,23 +45,9 @@ jobs:
       - name: Generate coverage
         run: npm run test:coverage
 
-      - name: Check Codecov credentials
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ -z "$CODECOV_TOKEN" ]; then
-            echo "CODECOV_UPLOAD=BLOCKED_NO_TOKEN" >> "$GITHUB_STEP_SUMMARY"
-            echo "CODECOV_TOKEN is required for Codecov coverage certification." >&2
-            exit 1
-          fi
-          echo "CODECOV_UPLOAD=ENABLED" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload coverage to Codecov
+      - name: Upload coverage to Codecov via GitHub OIDC
         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: apps/agent-editor/coverage/lcov.info
           fail_ci_if_error: true
