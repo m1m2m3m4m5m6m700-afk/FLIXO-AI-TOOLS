@@ -1,3 +1,18 @@
+export const TASK_STATES = [
+  "IDLE",
+  "NEEDS_INPUT",
+  "PLANNED",
+  "AWAITING_CONFIRMATION",
+  "EXECUTING",
+  "VERIFYING",
+  "RECOVERING",
+  "COMPLETED",
+  "FAILED",
+  "CANCELLED",
+] as const;
+
+export type TaskState = (typeof TASK_STATES)[number];
+
 export type AgentRole = "system" | "user" | "assistant" | "tool";
 
 export type AgentMessage = Readonly<{
