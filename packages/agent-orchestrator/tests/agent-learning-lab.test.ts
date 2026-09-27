@@ -63,15 +63,17 @@ test("learning lab fails closed when no trusted idle gate is supplied", async ()
   await assert.rejects(() => lab.runChallenge("puzzle", "a", "no-idle"), /LAB_REQUIRES_IDLE_NETWORK/);
 });
 
-test("failed participants cannot earn training credit", async () => {
+test("failed workers cannot earn training credit", async () => {
+  const { createLabParticipant } = await import("../src/agent-learning-lab.ts");
   const lab = new AgentLearningLab(undefined, undefined, () => true);
-  lab.register({
+  lab.register(createLabParticipant({
     id: "failed",
-    async propose(challenge) {
-      return { challengeId: challenge.id, agentId: "failed", answer: "should-not-count", evidence: ["should-not-count"] };
+    async run(instruction) {
+      return { stepId: instruction.stepId, commandId: instruction.commandId, status: "failed", summary: "tool failed", evidence: { evidenceVerified: true } };
     },
-  });
+  }));
   lab.register(participant("b"));
   const result = await lab.runChallenge("puzzle", "failed", "failed-seed");
-  expect(result.evaluations.failed.accepted).toBe(true);
+  expect(result.evaluations.failed.accepted).toBe(false);
+  expect(result.rewards.failed.score).toBeLessThan(80);
 });
