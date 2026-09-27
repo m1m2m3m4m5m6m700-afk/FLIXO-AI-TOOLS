@@ -1,6 +1,7 @@
 import { AgentCapability, AgentHeartbeat, AgentNetworkControlPlane, AgentNetworkSnapshot, DEFAULT_AGENT_NETWORK } from "./network.ts";
 import { AdversarialTwinWorker } from "./adversarial.ts";
 import { RedTeamWorker } from "./red-team.ts";
+import { AgentCognitiveLedger } from "./cognitive.ts";
 export * from "./network.ts";
 export * from "./evaluation.ts";
 
@@ -78,6 +79,7 @@ export class DirectCommandOrchestrator {
       onReport: () => undefined,
     },
     private readonly network = new AgentNetworkControlPlane(),
+    private readonly cognitiveLedger = new AgentCognitiveLedger(),
   ) {}
 
   registerWorker(worker: AgentWorker): void {
@@ -145,6 +147,7 @@ export class DirectCommandOrchestrator {
           reports.set(step.stepId, report);
           pending.delete(step.stepId);
           this.observer.onReport(report);
+          this.cognitiveLedger.observe(report.commandId, report.stepId, step.role, report.summary);
         }
 
         if (!ready.length) {
@@ -177,6 +180,22 @@ export class DirectCommandOrchestrator {
           });
 
           this.observer.onDispatch(instruction);
+          this.cognitiveLedger.upsertState({
+            commandId: instruction.commandId,
+            stepId: instruction.stepId,
+            agentId: instruction.role,
+            goal: instruction.objective,
+            hypotheses: [],
+            assumptions: instruction.constraints,
+            plannedActions: [],
+            observations: [],
+            evidence: [],
+            uncertainties: [],
+            detectedRisks: [],
+            rejectedApproaches: [],
+            confidence: 0.5,
+            verificationState: "pending",
+          });
           const report = await worker.run(instruction);
           if (report.commandId !== command.commandId || report.stepId !== step.stepId) {
             throw new Error("WORKER_REPORT_IDENTITY_MISMATCH");
@@ -205,6 +224,10 @@ export class DirectCommandOrchestrator {
 
   snapshot(): AgentNetworkSnapshot {
     return this.network.snapshot();
+  }
+
+  cognitiveSnapshot(): import("./cognitive.ts").AgentCognitiveSnapshot {
+    return this.cognitiveLedger.snapshot();
   }
 
   private assertPlan(plan: AgentPlan, command: CommandAuthority): void {
