@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 import {
   ToolDefinition,
   RegisteredTool,
@@ -125,11 +126,13 @@ export class ToolRegistry {
   }
 
   private describeInputSchema(schema: z.ZodTypeAny): Record<string, unknown> {
-    return {
-      type: "object",
-      description: "Input schema is validated by Zod at runtime.",
-      schemaName: schema.constructor.name,
-    };
+    const jsonSchema = zodToJsonSchema(schema, {
+      $refStrategy: "none",
+      target: "jsonSchema7",
+    }) as Record<string, unknown>;
+
+    delete jsonSchema.$schema;
+    return jsonSchema;
   }
 
   private isRecord(value: unknown): value is Record<string, unknown> {
