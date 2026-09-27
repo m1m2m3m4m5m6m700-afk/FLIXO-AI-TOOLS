@@ -1,5 +1,6 @@
 import { AgentCapability, AgentHeartbeat, AgentNetworkControlPlane, AgentNetworkSnapshot } from "./network.ts";
 export * from "./network.ts";
+export * from "./evaluation.ts";
 
 export type CommandAuthority = Readonly<{
   commandId: string;
