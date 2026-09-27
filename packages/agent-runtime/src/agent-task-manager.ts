@@ -3,7 +3,7 @@ import {
   transitionTask,
   type TaskContext,
   type TaskState,
-} from './task-state.ts';
+} from './task-state';
 
 export type AgentTaskLifecycle =
   | 'QUEUED'
