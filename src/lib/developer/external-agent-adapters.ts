@@ -14,8 +14,8 @@ function assertText(value:string, code:string):void { if(!value.trim()) throw ne
 function assertPatchPath(value:string):void { if(!/^artifacts\/mini-swe-agent\/[A-Za-z0-9._/-]+$/u.test(value)) throw new Error('MINI_SWE_PATCH_PATH_INVALID='+value); }
 
 const ALLOWED_ACTIONS:Readonly<Record<ExternalAgentId,readonly ExternalAgentAction[]>> = Object.freeze({
-  'mini-swe-agent': Object.freeze(['LOCAL_SANDBOX_WRITE','PROPOSE_PATCH']),
-  coderabbit: Object.freeze(['REVIEW_DIFF']),
+  'mini-swe-agent': Object.freeze(['LOCAL_SANDBOX_WRITE','PROPOSE_PATCH'] as ExternalAgentAction[]),
+  coderabbit: Object.freeze(['REVIEW_DIFF'] as ExternalAgentAction[]),
 });
 
 export function getExternalAgentAdapter(id:ExternalAgentId){ return EXTERNAL_AGENT_ADAPTERS.find((adapter)=>adapter.id===id); }
