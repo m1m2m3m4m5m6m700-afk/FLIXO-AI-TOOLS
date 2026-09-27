@@ -59,6 +59,8 @@ export class AgentRewardEngine {
       ...(score < 80 ? ["below-reward-threshold"] : ["verified-success"]),
     ];
     return Object.freeze({ score, signals, penalty, reasons: Object.freeze(reasons) });
+  }
+
   calculateAdversarial(signals: AdversarialRewardSignals): RewardResult {
     const verified = clamp(signals.verifiedFindings / Math.max(1, signals.verifiedFindings + signals.falsePositiveFindings));
     const precision = clamp(1 - signals.falsePositiveFindings / Math.max(1, signals.verifiedFindings + signals.falsePositiveFindings));
