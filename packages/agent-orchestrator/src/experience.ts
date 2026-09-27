@@ -4,6 +4,8 @@ import type { RewardResult } from "./reward.ts";
 export type AgentExperience = Readonly<{
   id: string; commandId: string; stepId: string; agentId: string; objective: string;
   report: AgentReport; reward: RewardResult; timestamp: string;
+  lane?: "primary" | "adversary" | "red-team";
+  parentExperienceId?: string;
 }>;
 
 export interface ExperienceStore {
