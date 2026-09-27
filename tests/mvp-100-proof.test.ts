@@ -62,6 +62,11 @@ test('deterministic MVP standard-intent suite is 100% exact', () => {
   }
 });
 
+test('ambiguous effect requests fail closed instead of guessing an adjustment', () => {
+  assert.equal(planFromIntent('ارفع التباين'), null);
+  assert.equal(planFromIntent('increase contrast'), null);
+});
+
 test('agent gateway file payload is metadata-only and never contains file bytes', () => {
   const file = new File([Uint8Array.from([1, 2, 3, 4])], 'private.png', { type: 'image/png' });
   const metadata = toAgentFileMetadata(file);

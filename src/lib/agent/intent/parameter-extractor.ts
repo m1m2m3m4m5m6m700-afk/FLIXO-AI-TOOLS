@@ -67,8 +67,8 @@ function parseBrightness(text: string): number | undefined {
 
 function parsePercentageAdjustment(text: string, subject: 'contrast' | 'saturation'): number | undefined {
   const pattern = subject === 'contrast'
-    ? /(?:increase|raise|boost|decrease|lower|رفع|زيادة|تقليل|خفض|زِد)\s+(?:the\s+)?(?:contrast|تباين)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i
-    : /(?:increase|raise|boost|decrease|lower|رفع|زيادة|تقليل|خفض|زِد)\s+(?:the\s+)?(?:saturation|saturate|تشبع|التشبع)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i;
+    ? /(?:increase|raise|boost|decrease|lower|رفع|ارفع|زيادة|تقليل|خفض|زِد)\s+(?:the\s+)?(?:contrast|تباين)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i
+    : /(?:increase|raise|boost|decrease|lower|رفع|ارفع|زيادة|تقليل|خفض|زِد)\s+(?:the\s+)?(?:saturation|saturate|تشبع|التشبع)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i;
   const match = text.match(pattern);
   if (!match) return undefined;
   const amount = Number(match[1]);
@@ -117,6 +117,19 @@ export function extractParameters(input: string): ExtractionResult {
   const grayscale = parseGrayscale(text);
   const upscaleScale = parseUpscaleScale(text);
   const hasUpscaleIntent = /(?:upscale|upscaled|increase\s+resolution|raise\s+resolution|رفع\s+الدقة|زيادة\s+الدقة|تكبير\s+الصورة|كبر\s+الصورة)/i.test(text);
+  const hasContrastIntent = /(?:contrast|تباين)/i.test(text);
+  const hasBrightnessIntent = /(?:brightness|سطوع)/i.test(text);
+  const hasSaturationIntent = /(?:saturation|saturate|تشبع|التشبع)/i.test(text);
+  const hasEffectDirection = /(?:increase|raise|boost|decrease|lower|رفع|ارفع|زيادة|تقليل|خفض|زِد)/i;
+  if (hasContrastIntent && hasEffectDirection.test(text) && contrast === undefined) {
+    errors.push('Contrast adjustments require an explicit percentage.');
+  }
+  if (hasBrightnessIntent && hasEffectDirection.test(text) && brightness === undefined) {
+    errors.push('Brightness adjustments require an explicit percentage.');
+  }
+  if (hasSaturationIntent && hasEffectDirection.test(text) && saturation === undefined) {
+    errors.push('Saturation adjustments require an explicit percentage.');
+  }
   const hasVideoCompressionIntent = /(?:(?:compress|compression|ضغط|تصغير)[^\n]{0,40}(?:video|الفيديو|فيديو)|(?:video|الفيديو|فيديو)[^\n]{0,40}(?:compress|compression|ضغط|تصغير))/i.test(text);
   const hasCompressionIntent = /(?:compress|compression|ضغط|تصغير)/i.test(text) && !hasVideoCompressionIntent;
   const hasConversionIntent = /(?:convert|conversion|تحويل|حول|حوّل)/i.test(text);
