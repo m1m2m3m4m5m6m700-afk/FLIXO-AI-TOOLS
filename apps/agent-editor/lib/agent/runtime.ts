@@ -405,24 +405,29 @@ export class AgentRuntime {
           description: "Created a new layer with background removed.",
         },
       ];
-    } else if (
-      toolName === "apply_color_lut" &&
-      typeof validatedOutput.renderedMediaUrl === "string"
-    ) {
+    } else if (toolName === "apply_color_lut") {
+      const renderedMediaUrl = validatedOutput.renderedMediaUrl;
+      const appliedLut = validatedOutput.appliedLut;
+      const intensityApplied = validatedOutput.intensityApplied;
       const target =
         updatedState.layers.find((layer) => layer.type === "video") ??
         updatedState.layers.find((layer) => layer.type === "image");
 
-      if (target) {
+      if (
+        target &&
+        typeof renderedMediaUrl === "string" &&
+        typeof appliedLut === "string" &&
+        typeof intensityApplied === "number"
+      ) {
         updatedState.layers = updatedState.layers.map((layer) =>
           layer.id === target.id
             ? {
                 ...layer,
-                url: validatedOutput.renderedMediaUrl,
+                url: renderedMediaUrl,
                 metadata: {
                   ...layer.metadata,
-                  appliedLut: validatedOutput.appliedLut,
-                  intensityApplied: validatedOutput.intensityApplied,
+                  appliedLut,
+                  intensityApplied,
                 },
               }
             : layer,
@@ -438,18 +443,20 @@ export class AgentRuntime {
           },
         ];
       }
-    } else if (
-      toolName === "trim_video" &&
-      typeof validatedOutput.trimmedVideoUrl === "string"
-    ) {
+    } else if (toolName === "trim_video") {
+      const trimmedVideoUrl = validatedOutput.trimmedVideoUrl;
+      const newDurationSec = validatedOutput.newDurationSec;
       const target = updatedState.layers.find((layer) => layer.type === "video");
-      updatedState.layers = updatedState.layers.map((layer) =>
-        target && layer.id === target.id
-          ? { ...layer, url: validatedOutput.trimmedVideoUrl }
-          : layer,
-      );
-      if (target && typeof validatedOutput.newDurationSec === "number") {
-        updatedState.durationSec = validatedOutput.newDurationSec;
+
+      if (target && typeof trimmedVideoUrl === "string") {
+        updatedState.layers = updatedState.layers.map((layer) =>
+          layer.id === target.id
+            ? { ...layer, url: trimmedVideoUrl }
+            : layer,
+        );
+      }
+      if (target && typeof newDurationSec === "number") {
+        updatedState.durationSec = newDurationSec;
       }
       if (target) {
         updatedState.timeline = [
