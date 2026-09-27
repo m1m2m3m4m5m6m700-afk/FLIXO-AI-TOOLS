@@ -1,6 +1,7 @@
 import {
   createValidatedLLMProvider,
   type LLMMessage,
+  type JsonObject,
   type LLMProvider,
   type LLMProviderOptions,
   type LLMToolSpec,
@@ -198,7 +199,7 @@ export class GeminiAdapter implements LLMProvider {
               const toolCall = {
                 id: `gemini-call-${sequence}`,
                 name: call.name,
-                args: isRecord(call.args) ? call.args : {},
+                args: isRecord(call.args) ? call.args as JsonObject : {},
               };
               yield { type: 'tool_call_start', toolCall };
               yield { type: 'tool_call_end', toolCall };
