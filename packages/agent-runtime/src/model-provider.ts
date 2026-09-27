@@ -93,7 +93,7 @@ export class ModelProviderClient {
     this.provider = options.provider;
     this.model = options.model;
     this.apiKey = options.apiKey;
-    this.baseUrl = (options.baseUrl ?? BASE_URLS[options.provider]).replace(/\/$/u, "");
+    this.baseUrl = normalizeBaseUrl(options.provider, options.baseUrl);
     this.timeoutMs = boundedTimeout(options.timeoutMs);
     this.maxTokens = boundedTokens(options.maxTokens);
   }
