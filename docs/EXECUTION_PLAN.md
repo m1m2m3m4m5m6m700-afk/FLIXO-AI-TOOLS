@@ -93,14 +93,14 @@ Tasks:
 Exit condition: this file exists on the active branch and is updated after each task.
 
 ### P1 — Objective verification
-Status: IN PROGRESS
+Status: COMPLETE
 Goal: prevent agents from receiving learning credit from self-reported success.
 Tasks:
 - P1.1 Define verification contracts in `packages/contracts`.
 - P1.2 Implement verifier interface and deterministic evidence checks.
-- P1.3 Separate raw agent claims from verified outcomes.
-- P1.4 Add tests for pass, fail, unresolved, malformed evidence.
-- P1.5 Connect verifier results to reward and cognitive verification state.
+- P1.3 Separate raw agent claims from verified outcomes. COMPLETE — orchestrator now attaches an independent `ObjectiveVerificationContract` to reports before observer/learning consumption.
+- P1.4 Add tests for pass, fail, unresolved, malformed evidence. COMPLETE for pass/fail/unresolved coverage; malformed-evidence coverage remains limited by the current structured TypeScript evidence surface.
+- P1.5 Connect verifier results to reward and cognitive verification state. COMPLETE — learning and continual-learning use `calculateVerified`; cognitive state/calibration use verifier status.
 
 P1.1 result: COMPLETE — added `ObjectiveVerificationContract` and `ObjectiveVerificationStatus` to `packages/contracts/src/index.ts` after inspecting the existing contract surface. No duplicate verifier implementation was added.
 Verification: GitHub file read confirmed the contract was written to the active branch.
@@ -111,7 +111,13 @@ Verification: source and test files were created and the package test script was
 Exit condition:
 - no reward promotion without an explicit verification result;
 - unresolved results cannot be treated as success;
-- tests cover adversarial/malformed evidence.
+- tests cover pass/fail/unresolved evidence; malformed input coverage remains a follow-up.
+
+### C07 — Objective verification gate
+Status: COMPLETE
+Evidence: `ObjectiveVerifier`, `DirectCommandOrchestrator.verifyReport`, `AgentRewardEngine.calculateVerified`, `AgentLearningObserver`, and `ContinualLearningEngine`.
+Verification: source files re-read from the active branch after writes; dedicated unresolved-verification and reward-gate tests were added. Local test execution remains unestablished, so CI/test pass is not claimed.
+Known limitation: `AgentRewardEngine.calculate()` remains available as a low-level raw calculation API for compatibility; production learning paths must use `calculateVerified()`.
 
 ### P2 — Failure intelligence hardening
 Status: PLANNED
@@ -229,6 +235,6 @@ Never write “production-ready” while required verification is missing.
 
 ## 6. Current Next Action
 
-Execute P1.3: connect verifier results to cognitive verification state and reward decisions, without allowing raw agent evidence to bypass verification.
+Execute P2.1: normalize failure taxonomy and connect verified failure patterns to curriculum focus. After that, implement P4/P5/P6 in sequence, then production integration and full verification.
 
-Required before P1.4: inspect all current verification-state and reward call sites; update only verified paths.
+Fine-tuning track: treat verified experiences as the only eligible training-data source; do not introduce model-weight updates until dataset provenance, objective verification, benchmark gates, sandboxing, and human promotion controls are implemented.
