@@ -199,3 +199,4 @@ export * from "./learning.ts";
 export * from "./agent-profiles.ts";
 export * from "./model-adapter.ts";
 export * from "./continual-learning.ts";
+export * from "./http-model-invoker.ts";
