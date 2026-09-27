@@ -44,8 +44,25 @@ jobs:
       - name: Generate coverage
         run: npm run test:coverage
 
+      - name: Check Codecov credentials
+        id: codecov_credentials
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CODECOV_TOKEN" ]; then
+            echo "CODECOV_UPLOAD=SKIPPED_NO_TOKEN" >> "$GITHUB_STEP_SUMMARY"
+            echo "CODECOV_TOKEN is not configured; coverage was generated but not uploaded."
+          else
+            echo "CODECOV_UPLOAD=ENABLED" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Upload coverage to Codecov
+        if: ${{ steps.codecov_credentials.outcome == 'success' && secrets.CODECOV_TOKEN != '' }}
         uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: apps/agent-editor/coverage/lcov.info
           fail_ci_if_error: true
