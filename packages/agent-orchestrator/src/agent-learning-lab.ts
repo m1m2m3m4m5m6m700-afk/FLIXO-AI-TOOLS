@@ -73,7 +73,7 @@ export class DefaultLabChallengeFactory implements LabChallengeFactory {
   }
 }
 
-export class AgentLearningLab {
+export type LabIdleGate = () => boolean;\n\nexport class AgentLearningLab {
   readonly isolation: LabIsolationPolicy = DEFAULT_LAB_ISOLATION;
   private readonly participants = new Map<string, AgentLabParticipant>();
   private readonly history: LabResult[] = [];
