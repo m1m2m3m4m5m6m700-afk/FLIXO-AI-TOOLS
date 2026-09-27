@@ -28,7 +28,7 @@ type OpenAIChunk = {
 function toMessages(systemPrompt: string, messages: readonly LLMMessage[]): unknown[] {
   return [
     { role: "system", content: systemPrompt },
-    ...messages.flatMap((message) => {
+    ...messages.flatMap((message): unknown[] => {
       if (message.role === "tool") {
         return (message.toolResults ?? []).map((result) => ({
           role: "tool" as const,
