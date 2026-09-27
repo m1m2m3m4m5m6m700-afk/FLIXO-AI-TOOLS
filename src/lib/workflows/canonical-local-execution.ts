@@ -1,4 +1,4 @@
-import { getToolById } from "../../config/registry";
+import { getCapability } from "../agent/capability-registry";
 import {
   assertExecutionResourceBudget,
   validateCapabilityParameters,
@@ -47,33 +47,33 @@ export async function executeCanonicalLocalTool(
   inputBlob: Blob,
   rawParameters: unknown,
 ): Promise<{ toolId: string; blob: Blob }> {
-  const tool = getToolById(binding.toolId);
+  const capability = getCapability(binding.toolId);
 
-  if (!tool) {
+  if (!capability) {
     throw new Error(`CANONICAL_TOOL_NOT_FOUND:${binding.toolId}`);
   }
 
-  if (tool.capability.state !== "EXECUTABLE") {
+  if (capability.state !== "EXECUTABLE") {
     throw new Error(`CANONICAL_TOOL_NOT_EXECUTABLE:${binding.toolId}`);
   }
 
-  if (tool.executionMode !== "LOCAL" || tool.requirements.network) {
+  if (capability.executionMode !== "LOCAL" || capability.requirements.network) {
     throw new Error(`CANONICAL_TOOL_NOT_LOCAL:${binding.toolId}`);
   }
 
-  if (binding.executorId !== tool.operational.executorId) {
+  if (binding.executorId !== capability.operational.executorId) {
     throw new Error(`CANONICAL_EXECUTOR_ID_MISMATCH:${binding.toolId}`);
   }
 
-  if (binding.maxPixels !== tool.safetyLimits.maxPixels) {
+  if (binding.maxPixels !== capability.safetyLimits.maxPixels) {
     throw new Error(`CANONICAL_PIXEL_LIMIT_MISMATCH:${binding.toolId}`);
   }
 
-  if (binding.maxFileSizeBytes !== tool.safetyLimits.maxFileSizeBytes) {
+  if (binding.maxFileSizeBytes !== capability.safetyLimits.maxFileSizeBytes) {
     throw new Error(`CANONICAL_FILE_LIMIT_MISMATCH:${binding.toolId}`);
   }
 
-  if (binding.outputContractId !== tool.operational.outputContractId) {
+  if (binding.outputContractId !== capability.operational.outputContractId) {
     throw new Error(`CANONICAL_OUTPUT_CONTRACT_ID_MISMATCH:${binding.toolId}`);
   }
 
@@ -81,11 +81,8 @@ export async function executeCanonicalLocalTool(
     throw new Error(`CANONICAL_INPUT_INVALID:${binding.toolId}`);
   }
 
-  const parameters = validateCapabilityParameters(
-    tool.id,
-    rawParameters,
-  );
-  assertExecutionResourceBudget(tool.id, inputBlob);
+  const parameters = validateCapabilityParameters(binding.toolId, rawParameters);
+  assertExecutionResourceBudget(binding.toolId, inputBlob);
 
   const outputBlob = await getToolExecutor(tool)({
     tool,
