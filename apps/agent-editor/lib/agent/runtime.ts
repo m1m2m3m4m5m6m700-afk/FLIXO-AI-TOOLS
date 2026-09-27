@@ -50,7 +50,6 @@ export class AgentRuntime{
       }
       for(const call of requestedCalls) yield {type:"tool_call_start",callId:call.callId,toolName:call.toolName};
     }
-    if(assistantText) yield {type:"token",text:assistantText};
     yield {type:"final",response:this.buildResponse(assistantText||"I prepared a canonical local execution plan.",requestedCalls,parsedProjectState)};
   }
   private validateToolCall(call:ToolCallRequest):ToolCallRequest{
