@@ -202,6 +202,7 @@ export class DirectCommandOrchestrator {
           }
           this.network.report(command.commandId, step.stepId, step.role, report.status, report.summary);
           this.observer.onReport(report);
+          this.cognitiveLedger.observe(report.commandId, report.stepId, step.role, report.summary);
           return report;
         }));
 
