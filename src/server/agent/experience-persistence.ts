@@ -1,5 +1,5 @@
 import type { AgentExperience, AgentExperiencePersistence } from "@flixo/agent-orchestrator";
-import { createExternalAgentLearning, listAllExternalAgentLearning, type ExternalAgentLearning } from "./learning-persistence.ts";
+import { createExternalAgentLearning, listExternalAgentLearning, type ExternalAgentLearning } from "./learning-persistence.ts";
 
 const SHA40 = /^[a-f0-9]{40}$/u;
 
