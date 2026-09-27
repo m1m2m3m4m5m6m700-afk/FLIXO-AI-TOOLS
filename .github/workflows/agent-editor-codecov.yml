@@ -1,0 +1,45 @@
+name: FLIXO Agent Editor Coverage
+
+on:
+  pull_request:
+    branches: [execution, main]
+  workflow_dispatch:
+
+concurrency:
+  group: agent-editor-codecov-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: Agent Editor coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/agent-editor
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Install agent editor dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Generate coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: apps/agent-editor/coverage/lcov.info
+          fail_ci_if_error: true
