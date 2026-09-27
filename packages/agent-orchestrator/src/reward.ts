@@ -61,6 +61,12 @@ export class AgentRewardEngine {
     return Object.freeze({ score, signals, penalty, reasons: Object.freeze(reasons) });
   }
 
+  calculateVerified(evidence: EvaluationEvidence, verification: import("@flixo/contracts").ObjectiveVerificationContract): RewardResult {
+    const base = this.calculate(evidence);
+    if (verification.status === "verified") return base;
+    return Object.freeze({ ...base, score: 0, signals: Object.freeze({ ...base.signals, verification: 0, evidence: 0 }), reasons: Object.freeze(["unverified-objective", verification.status === "unresolved" ? "objective-verification-unresolved" : "objective-verification-rejected"]) });
+  }
+
   calculateAdversarial(signals: AdversarialRewardSignals): RewardResult {
     const verified = clamp(signals.verifiedFindings / Math.max(1, signals.verifiedFindings + signals.falsePositiveFindings));
     const precision = clamp(1 - signals.falsePositiveFindings / Math.max(1, signals.verifiedFindings + signals.falsePositiveFindings));
