@@ -18,7 +18,12 @@ export type RedTeamDecision = Readonly<{
   disputes: readonly string[];
 }>;
 
-const clamp = (value: number): number => Math.min(1, Math.max(0, value));
+const clamp = (value: number): number => Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
+
+export type RedTeamFindingVerifier = (
+  finding: RedTeamFinding,
+  instruction: AgentInstruction,
+) => boolean | Promise<boolean>;
 
 export class RedTeamWorker implements AgentWorker {
   readonly id: string;
@@ -26,6 +31,7 @@ export class RedTeamWorker implements AgentWorker {
   constructor(
     private readonly invoker: AgentModelInvoker,
     id = "red-team",
+    private readonly independentVerifier: RedTeamFindingVerifier = async () => false,
   ) {
     this.id = id;
   }
@@ -87,8 +93,12 @@ export class RedTeamWorker implements AgentWorker {
     });
 
     const decision = this.parse(adjudication);
-    const verifiedFindings = decision.findings.filter((item) => item.verified).length;
-    const falsePositiveFindings = decision.findings.filter((item) => !item.verified).length;
+    const findings = Object.freeze(await Promise.all(decision.findings.map(async (finding) => Object.freeze({
+      ...finding,
+      verified: finding.verified && await this.independentVerifier(finding, instruction),
+    }))));
+    const verifiedFindings = findings.filter((item) => item.verified).length;
+    const falsePositiveFindings = findings.filter((item) => !item.verified).length;
     const reward = new AgentRewardEngine().calculateAdversarial({
       verifiedFindings,
       falsePositiveFindings,
@@ -119,11 +129,18 @@ export class RedTeamWorker implements AgentWorker {
     try {
       const raw = JSON.parse(response.content) as Partial<RedTeamDecision>;
       const findings = Array.isArray(raw.findings)
-        ? raw.findings.filter((item): item is RedTeamFinding =>
-          !!item && typeof item === "object"
-          && (item as RedTeamFinding).category !== undefined
-          && typeof (item as RedTeamFinding).content === "string"
-          && typeof (item as RedTeamFinding).verified === "boolean")
+        ? raw.findings.filter((item): item is RedTeamFinding => {
+          if (!item || typeof item !== "object") return false;
+          const value = item as Partial<RedTeamFinding>;
+          return (value.category === "security" || value.category === "reliability" || value.category === "evidence")
+            && typeof value.content === "string"
+            && value.content.trim().length > 0
+            && value.content.length <= 8_000
+            && typeof value.verified === "boolean"
+            && !!value.evidence
+            && typeof value.evidence === "object"
+            && !Array.isArray(value.evidence);
+        })
         : [];
       return Object.freeze({
         status: raw.status === "failed" || raw.status === "blocked" ? raw.status : "completed",
@@ -134,8 +151,8 @@ export class RedTeamWorker implements AgentWorker {
       });
     } catch {
       return Object.freeze({
-        status: "completed",
-        summary: response.content,
+        status: "failed",
+        summary: "RED TEAM adjudication was not structured; verification failed closed.",
         findings: Object.freeze([]),
         agreement: 0,
         disputes: Object.freeze(["RED TEAM adjudication was not structured; no finding was accepted as verified."]),
