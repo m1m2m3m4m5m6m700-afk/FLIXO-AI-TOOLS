@@ -93,7 +93,7 @@ export type LabIdleGate = () => boolean;\n\nexport class AgentLearningLab {
     return Object.freeze([...this.participants.keys()]);
   }
 
-  historyResults(): readonly LabResult[] {
+  canCreateNextChallenge(agentId: string): boolean {\n    const latest = this.history[this.history.length - 1];\n    return Boolean(latest?.nextChallengeCreatorIds.includes(agentId));\n  }\n\n  createNextChallenge(agentId: string, game: LabGameType, seed: string): LabChallenge {\n    if (!this.canCreateNextChallenge(agentId)) throw new Error("LAB_CHALLENGE_CREATOR_NOT_AUTHORIZED");\n    return this.factory.create(game, seed, agentId);\n  }\n\n  historyResults(): readonly LabResult[] {
     return Object.freeze([...this.history]);
   }
 
