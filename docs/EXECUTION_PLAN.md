@@ -192,16 +192,16 @@ Tasks:
 Exit condition: no evolved change can reach production without explicit promotion. Implementation is source-verified; runtime test/CI success remains unobserved.
 
 ### P8 — Production integration
-Status: PLANNED
+Status: IN PROGRESS
 Goal: connect the learning system to real FLIXO execution without weakening command authority.
 Tasks:
-- P8.1 Map real tools to supervised workers.
-- P8.2 Map provider/model router to model invoker.
-- P8.3 Replace duplicated provider HTTP logic where appropriate.
-- P8.4 Wire persistent storage only after schema/security verification.
-- P8.5 Add observability and rollback.
+- P8.1 Map real tools to supervised workers. COMPLETE — `apps/agent-editor/lib/agent/supervised-worker.ts` binds allowlisted tools to `AgentWorker`, while execution remains in canonical `ToolRegistry`; network dispatch now enforces required capabilities and permissions.
+- P8.2 Map provider/model router to model invoker. IN PROGRESS.
+- P8.3 Replace duplicated provider HTTP logic where appropriate. PENDING after P8.2 discovery.
+- P8.4 Wire persistent storage only after schema/security verification. PENDING.
+- P8.5 Add observability and rollback. PENDING.
 
-Exit condition: production execution remains human-command-gated and every material action is auditable.
+Exit condition: production execution remains human-command-gated and every material action is auditable. Current P8.1 source is verified; runtime registration and CI execution remain unobserved.
 
 ### P9 — Full verification
 Status: PLANNED
@@ -235,7 +235,7 @@ Never write “production-ready” while required verification is missing.
 
 ## 6. Current Next Action
 
-Execute P8.1: map real FLIXO tools to supervised workers. First inspect the existing Agent Editor runtime/registry and reuse its canonical tool contracts; do not duplicate tool execution logic inside the orchestrator.
+Execute P8.2: inspect the existing FLIXO provider/model routing layer and adapt it to `AgentModelInvoker`. Do not add a second provider stack.
 
 Fine-tuning track: treat verified experiences as the only eligible training-data source; do not introduce model-weight updates until dataset provenance, objective verification, benchmark gates, sandboxing, and human promotion controls are implemented.
 
