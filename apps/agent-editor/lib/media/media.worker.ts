@@ -410,7 +410,7 @@ async function runExport(rawRequest: unknown): Promise<void> {
   const project = ProjectStateSchema.parse(request.project);
 
   activeJobId = request.jobId;
-  activeFfmpegBasePath = request.ffmpegBasePath.replace(/\\/+$/u, "");
+  activeFfmpegBasePath = request.ffmpegBasePath.replace(/[\\/]+$/u, "");
 
   const frameCount = Math.max(1, request.frameEnd - request.frameStart + 1);
   assertMemoryBudget(project, frameCount, request.format);
