@@ -124,7 +124,7 @@ jobs:
         if: ${{ always() }}
         shell: bash
         env:
-          FLIXO_MINI_SWE_API_KEY: ${{ secrets.FLIXO_MINI_SWE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.FLIXO_THREE_CRITIC_API_KEY }}
           FLIXO_AGENT_MODEL: claude-sonnet-4-6
           CRITIC_REPO_ROOT: ${{ github.workspace }}
           CRITIC_TYPECHECK_CMD: npm run typecheck
