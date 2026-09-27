@@ -1,5 +1,3 @@
-import type { TaskState } from "@flixo/contracts";
-
 export const RUNTIME_STATES = [
   "IDLE", "PLANNED", "AWAITING_CONFIRMATION", "EXECUTING",
   "VERIFYING", "COMPLETED", "FAILED", "CANCELLED",
@@ -71,7 +69,9 @@ export class TaskStateTransitionError extends Error {
     this.name = "TaskStateTransitionError"; this.from = from; this.to = to;
   }
 }
-export function createTaskContext(taskId = crypto.randomUUID(), traceId = crypto.randomUUID()): TaskContext {
+export type TaskState = (typeof TASK_STATES)[number];
+
+export function createTaskContext(taskId: string = crypto.randomUUID(), traceId: string = crypto.randomUUID()): TaskContext {
   if (!taskId || !traceId) throw new Error("taskId and traceId are required.");
   return Object.freeze({ taskId, traceId, state: "IDLE" as TaskState, revision: 0, confirmationRequired: false });
 }
