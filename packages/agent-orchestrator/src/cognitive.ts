@@ -34,3 +34,31 @@ export class ConfidenceCalibrator {
  record(agentId:string,confidence:number,verified:boolean):void { if(!agentId.trim()) throw new Error("AGENT_ID_REQUIRED"); if(confidence<0||confidence>1) throw new Error("INVALID_CONFIDENCE"); const s=this.samples.get(agentId)??[]; s.push(Object.freeze({confidence,verified})); this.samples.set(agentId,s); }
  summarize(agentId:string):AgentCalibration { const s=this.samples.get(agentId)??[]; if(!s.length)return Object.freeze({sampleCount:0,averageConfidence:0,empiricalAccuracy:0,absoluteCalibrationError:0}); const avg=s.reduce((a,x)=>a+x.confidence,0)/s.length; const acc=s.filter(x=>x.verified).length/s.length; return Object.freeze({sampleCount:s.length,averageConfidence:avg,empiricalAccuracy:acc,absoluteCalibrationError:Math.abs(avg-acc)}); }
 }
+export class CognitiveTraceObserver {
+  constructor(private readonly ledger: AgentCognitiveLedger) {}
+
+  onDispatch(instruction: Readonly<{ stepId:string; commandId:string; role:string; objective:string; constraints:readonly string[]; context:Readonly<Record<string,unknown>> }>): void {
+    this.ledger.upsertState({
+      commandId: instruction.commandId,
+      stepId: instruction.stepId,
+      agentId: instruction.role,
+      goal: instruction.objective,
+      hypotheses: [],
+      assumptions: instruction.constraints,
+      plannedActions: [],
+      observations: [],
+      evidence: [],
+      uncertainties: [],
+      detectedRisks: [],
+      rejectedApproaches: [],
+      confidence: 0.5,
+      verificationState: "pending",
+    });
+  }
+
+  onReport(report: Readonly<{ stepId:string; commandId:string; status:"completed"|"failed"|"blocked"; summary:string; evidence?:Readonly<Record<string,unknown>> }>): void {
+    const evidence = report.evidence ?? {};
+    const agentId = typeof evidence.agentId === "string" ? evidence.agentId : "unknown";
+    this.ledger.observe(report.commandId, report.stepId, agentId, report.summary);
+  }
+}
