@@ -1,15 +1,70 @@
 version: 2
+
 updates:
+  # Root application dependencies.
   - package-ecosystem: npm
     directory: "/"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+      day: monday
+      time: "04:00"
+    open-pull-requests-limit: 10
     versioning-strategy: increase-if-necessary
     labels:
       - security
     groups:
+      npm-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+        patterns:
+          - "*"
       security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
+  # Agent Editor has its own package manifest and runtime/toolchain.
+  - package-ecosystem: npm
+    directory: "/apps/agent-editor"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:15"
+    open-pull-requests-limit: 10
+    versioning-strategy: increase-if-necessary
+    labels:
+      - security
+    groups:
+      agent-editor-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+        patterns:
+          - "*"
+      agent-editor-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
+  # GitHub Actions are part of the repository's executable supply chain.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:30"
+    open-pull-requests-limit: 10
+    labels:
+      - security
+    groups:
+      github-actions-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+      github-actions-security:
         applies-to: security-updates
         patterns:
           - "*"
