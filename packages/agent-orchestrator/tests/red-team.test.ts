@@ -41,3 +41,40 @@ describe("RedTeamWorker", () => {
     expect(report.evidence?.verifiedFindings).toBe(1);
   });
 });
+
+
+test("red team reward exposes false-positive penalty", async () => {
+  const worker = new RedTeamWorker({
+    async invoke(request) {
+      const system = request.messages[0]?.content ?? "";
+      if (system.includes("neutral RED TEAM adjudicator")) {
+        return {
+          content: JSON.stringify({
+            status: "completed",
+            summary: "one supported defect and one false positive",
+            agreement: 0.8,
+            disputes: ["false-positive"],
+            findings: [
+              { category: "security", content: "supported defect", evidence: { test: "x" }, verified: true },
+              { category: "evidence", content: "unsupported claim", evidence: {}, verified: false },
+            ],
+          }),
+        };
+      }
+      return { content: JSON.stringify({ findings: [] }), evidence: {} };
+    },
+  });
+
+  const report = await worker.run({
+    stepId: "step-red-penalty",
+    commandId: "cmd-red-penalty",
+    role: "red-team",
+    objective: "attack the proposal",
+    constraints: [],
+    context: {},
+  });
+  const evidence = report.evidence as { verifiedFindings: number; falsePositiveFindings: number; redTeamReward: { score: number; reasons: readonly string[] } };
+  assert.equal(evidence.verifiedFindings, 1);
+  assert.equal(evidence.falsePositiveFindings, 1);
+  assert.ok(evidence.redTeamReward.reasons.includes("false-positive-adversarial-finding"));
+});
