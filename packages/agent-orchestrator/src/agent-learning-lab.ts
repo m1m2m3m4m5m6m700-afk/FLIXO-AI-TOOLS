@@ -295,7 +295,7 @@ export const createLabParticipant = (
   worker: AgentWorker,
 ): AgentLabParticipant => Object.freeze({
   id: worker.id,
-  async propose(challenge) {
+  async propose(challenge: LabChallenge) {
     const report = await worker.run(Object.freeze({
       stepId: `lab:${challenge.id}:${worker.id}`,
       commandId: `LAB:${challenge.id}`,
