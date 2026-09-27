@@ -30,6 +30,21 @@ const required = (value: string | undefined, name: string): string => {
   return normalized;
 };
 
+const normalizeBaseUrl = (provider: ModelProvider, value: string | undefined): string => {
+  const configured = (value ?? BASE_URLS[provider]).trim().replace(/\/$/u, "");
+  let url: URL;
+  try {
+    url = new URL(configured);
+  } catch {
+    throw new Error("MODEL_PROVIDER_BASE_URL_INVALID");
+  }
+  const expected = new URL(BASE_URLS[provider]);
+  if (url.protocol !== "https:" || url.origin !== expected.origin || url.pathname.replace(/\/$/u, "") !== expected.pathname.replace(/\/$/u, "")) {
+    throw new Error("MODEL_PROVIDER_BASE_URL_FORBIDDEN");
+  }
+  return url.toString().replace(/\/$/u, "");
+};
+
 const boundedTimeout = (value: number | undefined): number => {
   const timeout = Math.floor(value ?? 60_000);
   if (!Number.isInteger(timeout) || timeout < 1_000 || timeout > 300_000) throw new Error("MODEL_PROVIDER_TIMEOUT_INVALID");
