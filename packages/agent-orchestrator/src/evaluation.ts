@@ -50,7 +50,7 @@ export const AGENT_TRAINING_CASES: readonly TrainingCase[] = Object.freeze([
 ]);
 
 export class AgentEvaluationEngine {
-  private readonly results: EvaluationResult[] = [];
+  private readonly evaluationResults: EvaluationResult[] = [];
   private readonly ledger: RewardLedgerEntry[] = [];
   private readonly profiles = new Map<string, AgentTrainingProfile>();
 
@@ -96,7 +96,7 @@ export class AgentEvaluationEngine {
     };
     this.profiles.set(testCase.agentId, updated);
     const result=Object.freeze({ caseId:testCase.id, agentId:testCase.agentId, score, passed, evidence, timestamp:new Date().toISOString() });
-    this.results.push(result);
+    this.evaluationResults.push(result);
     this.ledger.push(Object.freeze({
       agentId:testCase.agentId, caseId:testCase.id, points:reward,
       reason: penalty > 0 ? "policy-penalty" : passed ? "evaluation-passed" : "evaluation-partial",
@@ -110,7 +110,7 @@ export class AgentEvaluationEngine {
   }
   leaderboard(): readonly AgentTrainingProfile[] { return Object.freeze([...this.profiles.values()].sort((a,b)=>b.trustScore-a.trustScore || b.xp-a.xp)); }
   rewardLedger(): readonly RewardLedgerEntry[] { return Object.freeze([...this.ledger]); }
-  results(): readonly EvaluationResult[] { return Object.freeze([...this.results]); }
+  results(): readonly EvaluationResult[] { return Object.freeze([...this.evaluationResults]); }
   benchmark(agentId: string): TrainingCase {
     const c=AGENT_TRAINING_CASES.find(x=>x.agentId===agentId); if (!c) throw new Error(`AGENT_NOT_REGISTERED:${agentId}`); return c;
   }
