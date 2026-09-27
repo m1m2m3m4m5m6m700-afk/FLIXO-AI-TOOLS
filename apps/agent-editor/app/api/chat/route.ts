@@ -12,10 +12,12 @@ const llmRouter = createDefaultLLMRouter();
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ErrorResponseSchema = z.object({
-  error: z.string().min(1),
-  requestId: z.string().uuid(),
-});
+const ErrorResponseSchema = z
+  .object({
+    error: z.string().min(1),
+    requestId: z.string().uuid(),
+  })
+  .strict();
 
 const MAX_BODY_BYTES = 256 * 1024;
 
@@ -191,8 +193,9 @@ export async function POST(request: Request): Promise<Response> {
 
     const body = sanitizeChatRequest(schemaCheck.data);
     const useMockEngine =
-      process.env.NODE_ENV !== "production" &&
-      process.env.FLIXO_ENABLE_MOCK_LLM === "true";
+      process.env.FLIXO_ENABLE_MOCK_LLM === "true" ||
+      (process.env.NODE_ENV !== "production" &&
+        llmRouter.configuredProviders().length === 0);
     if (!useMockEngine && llmRouter.configuredProviders().length === 0) {
       return NextResponse.json(
         ErrorResponseSchema.parse({
