@@ -44,3 +44,5 @@ test("continual learning grows with experiences and produces curriculum", () => 
   assert.equal(curriculum.length, 8);
   assert.ok(curriculum[0].priority > curriculum[7].priority);
 });
+
+test("skill memory identifies weak patterns and targets them in curriculum",()=>{ const store=new InMemoryExperienceStore(); const learning=new ContinualLearningEngine(store); learning.record(experience("tester",30,1)); const snapshot=learning.snapshot("tester"); assert.ok(snapshot.skills.length>0); assert.ok(snapshot.weaknesses.length>0); const item=learning.curriculum("tester","verify a change")[0]; assert.equal(item.focus,"below-reward-threshold"); assert.ok(item.difficulty>0); });
