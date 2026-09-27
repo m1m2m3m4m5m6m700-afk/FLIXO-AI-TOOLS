@@ -1,4 +1,4 @@
-import { EXTERNAL_AGENT_ADAPTERS } from './agent-profile.ts';
+import { EXTERNAL_AGENT_ADAPTERS } from '../agent/agent-profile.ts';
 
 const SHA40 = /^[a-f0-9]{40}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
