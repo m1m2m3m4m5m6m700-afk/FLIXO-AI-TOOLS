@@ -52,6 +52,32 @@ test("records supervised heartbeat and report events", () => {
   network.end("cmd-1");
 });
 
+test("binds heartbeats and reports to the authorized step agent", () => {
+  const network = new AgentNetworkControlPlane();
+  network.begin("cmd-binding", "human");
+  network.authorize("step-1", "cmd-binding", "tester", ["testing"], ["run-tests"]);
+  assert.throws(() => network.heartbeat({
+    commandId: "cmd-binding",
+    stepId: "step-1",
+    agentId: "reviewer",
+    status: "running",
+    progressPercent: 10,
+    phase: "spoof",
+    timestamp: new Date().toISOString(),
+  }), /AGENT_STEP_ASSIGNMENT_MISMATCH/);
+  assert.throws(() => network.report("cmd-binding", "step-1", "reviewer", "completed", "spoofed"), /AGENT_STEP_ASSIGNMENT_MISMATCH/);
+  network.report("cmd-binding", "step-1", "tester", "completed", "ok");
+  assert.throws(() => network.report("cmd-binding", "step-1", "tester", "completed", "duplicate"), /STEP_ALREADY_REPORTED/);
+  network.end("cmd-binding");
+});
+
+test("rejects command-id reuse to prevent stale run ownership", () => {
+  const network = new AgentNetworkControlPlane();
+  network.begin("cmd-reuse", "human");
+  network.end("cmd-reuse");
+  assert.throws(() => network.begin("cmd-reuse", "human"), /COMMAND_ID_REUSE_FORBIDDEN/);
+});
+
 test("registry rejects autonomous adapters", () => {
   const registry = new SupervisedAgentRegistry();
   assert.throws(() => registry.register({
