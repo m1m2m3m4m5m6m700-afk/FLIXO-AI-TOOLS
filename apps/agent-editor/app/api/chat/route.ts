@@ -187,12 +187,25 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const body = sanitizeChatRequest(schemaCheck.data);
+    const useMockEngine =
+      process.env.NODE_ENV !== "production" &&
+      process.env.FLIXO_ENABLE_MOCK_LLM === "true";
+    const llmRouter = createDefaultLLMRouter();
+
+    if (!useMockEngine && llmRouter.configuredProviders().length === 0) {
+      return NextResponse.json(
+        ErrorResponseSchema.parse({
+          error: "LLM_PROVIDER_UNAVAILABLE",
+          requestId,
+        }),
+        { status: 503 },
+      );
+    }
+
     const runtime = new AgentRuntime(
       createDefaultToolRegistry(),
-      {
-        useMockEngine: process.env.FLIXO_ENABLE_MOCK_LLM === "true",
-      },
-      createDefaultLLMRouter(),
+      { useMockEngine },
+      llmRouter,
     );
 
     return createAgentStream(runtime, body, requestId, request.signal);
