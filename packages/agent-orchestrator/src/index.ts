@@ -1,3 +1,5 @@
+import { AgentCapability, AgentNetworkControlPlane } from "./network.ts";
+
 export type CommandAuthority = Readonly<{
   commandId: string;
   issuedBy: "human" | "system";
@@ -19,6 +21,7 @@ export type AgentStep = Readonly<{
   objective: string;
   dependsOn: readonly string[];
   constraints: readonly string[];
+  requiredCapabilities?: readonly AgentCapability[];
 }>;
 
 export type AgentPlan = Readonly<{
@@ -73,6 +76,8 @@ export class DirectCommandOrchestrator {
     if (this.activeCommandId !== null) throw new Error("COMMAND_ALREADY_ACTIVE");
 
     this.activeCommandId = command.commandId;
+    const network = new AgentNetworkControlPlane();
+    network.begin(command.commandId, command.issuedBy);
     try {
       const plan = await this.planner.plan(command, objective);
       this.assertPlan(plan, command);
@@ -110,6 +115,8 @@ export class DirectCommandOrchestrator {
         }
 
         const batch = await Promise.all(ready.map(async (step) => {
+          const requiredCapabilities = step.requiredCapabilities ?? [];
+          network.authorize(step.stepId, command.commandId, step.role, requiredCapabilities);
           const worker = this.workers.get(step.role);
           if (!worker) {
             const report: AgentReport = Object.freeze({
@@ -148,6 +155,7 @@ export class DirectCommandOrchestrator {
 
       return Object.freeze([...reports.values()]);
     } finally {
+      network.end(command.commandId);
       this.activeCommandId = null;
     }
   }
