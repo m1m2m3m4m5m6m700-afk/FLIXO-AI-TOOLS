@@ -145,7 +145,6 @@ export class DirectCommandOrchestrator {
             throw new Error("WORKER_REPORT_IDENTITY_MISMATCH");
           }
           this.network.report(command.commandId, step.stepId, step.role, report.status, report.summary);
-          this.network.report(command.commandId, step.stepId, step.role, report.status, report.summary);
           this.observer.onReport(report);
           return report;
         }));
