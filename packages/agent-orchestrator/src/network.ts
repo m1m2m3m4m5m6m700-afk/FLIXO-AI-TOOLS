@@ -118,14 +118,17 @@ export class AgentNetworkControlPlane {
     this.activeCommandId = null;
   }
 
-  authorize(stepId: string, commandId: string, role: string, required: readonly AgentCapability[] = []): AgentDescriptor {
+  authorize(stepId: string, commandId: string, role: string, requiredCapabilities: readonly AgentCapability[] = [], requiredPermissions: readonly AgentPermission[] = []): AgentDescriptor {
     this.assertActive(commandId);
     const agent = this.agents.get(role);
     if (!agent) throw new Error(`AGENT_NOT_REGISTERED:${role}`);
-    if (!required.every((capability) => agent.capabilities.includes(capability))) {
+    if (!requiredCapabilities.every((capability) => agent.capabilities.includes(capability))) {
       throw new Error(`AGENT_CAPABILITY_DENIED:${role}`);
     }
-    this.emit("dispatch", commandId, stepId, agent.id, { role, required });
+    if (!requiredPermissions.every((permission) => agent.permissions.includes(permission))) {
+      throw new Error(`AGENT_PERMISSION_DENIED:${role}`);
+    }
+    this.emit("dispatch", commandId, stepId, agent.id, { role, requiredCapabilities, requiredPermissions });
     return agent;
   }
 
