@@ -4,39 +4,63 @@ import { ProjectStateSchema } from "./project";
 export const MessageRoleSchema = z.enum(["system", "user", "assistant", "tool"]);
 export type MessageRole = z.infer<typeof MessageRoleSchema>;
 
-export const ToolCallRequestSchema = z.object({
-  callId: z.string().min(1),
-  toolName: z.string().min(1),
-  parameters: z.record(z.string(), z.unknown()),
-});
+export const ToolCallRequestSchema = z
+  .object({
+    callId: z.string().min(1).max(128),
+    toolName: z.string().min(1).max(128),
+    parameters: z.record(z.string(), z.unknown()),
+  })
+  .strict();
 export type ToolCallRequest = z.infer<typeof ToolCallRequestSchema>;
 
-export const ToolCallResultSchema = z.object({
-  callId: z.string().min(1),
-  toolName: z.string().min(1),
-  status: z.enum(["success", "error"]),
-  data: z.record(z.string(), z.unknown()).optional(),
-  errorDetails: z.string().optional(),
-  executionTimeMs: z.number().nonnegative().optional(),
-});
+export const ToolCallResultSchema = z
+  .object({
+    callId: z.string().min(1).max(128),
+    toolName: z.string().min(1).max(128),
+    status: z.enum(["success", "error"]),
+    data: z.record(z.string(), z.unknown()).optional(),
+    errorDetails: z.string().min(1).max(16_000).optional(),
+    executionTimeMs: z.number().finite().nonnegative().optional(),
+  })
+  .strict();
 export type ToolCallResult = z.infer<typeof ToolCallResultSchema>;
 
-export const ChatMessageSchema = z.object({
-  id: z.string().uuid(),
-  role: MessageRoleSchema,
-  content: z.string(),
-  toolCalls: z.array(ToolCallRequestSchema).optional(),
-  toolResults: z.array(ToolCallResultSchema).optional(),
-  timestamp: z.string().datetime(),
-});
+export const ChatMessageSchema = z
+  .object({
+    id: z.string().uuid(),
+    role: MessageRoleSchema,
+    content: z.string().max(100_000),
+    toolCalls: z.array(ToolCallRequestSchema).max(100).optional(),
+    toolResults: z.array(ToolCallResultSchema).max(100).optional(),
+    timestamp: z.string().datetime(),
+  })
+  .strict();
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 
-export const AgentResponseSchema = z.object({
-  messageId: z.string().uuid(),
-  content: z.string(),
-  requestedToolCalls: z.array(ToolCallRequestSchema).default([]),
-  toolResults: z.array(ToolCallResultSchema).default([]),
-  updatedProjectState: ProjectStateSchema.optional(),
-  requiresUserConfirmation: z.boolean().default(false),
-});
+export const AgentResponseSchema = z
+  .object({
+    messageId: z.string().uuid(),
+    content: z.string().max(100_000),
+    requestedToolCalls: z.array(ToolCallRequestSchema).max(100).default([]),
+    toolResults: z.array(ToolCallResultSchema).max(100).default([]),
+    updatedProjectState: ProjectStateSchema.optional(),
+    requiresUserConfirmation: z.boolean().default(false),
+  })
+  .strict();
 export type AgentResponse = z.infer<typeof AgentResponseSchema>;
+
+export const MockLLMResultSchema = z
+  .object({
+    content: z.string().min(1).max(100_000),
+    toolCalls: z.array(ToolCallRequestSchema).max(100),
+  })
+  .strict();
+export type MockLLMResult = z.infer<typeof MockLLMResultSchema>;
+
+export const AgentRuntimeOptionsSchema = z
+  .object({
+    maxIterations: z.number().int().min(1).max(5).default(5),
+    useMockEngine: z.boolean().optional(),
+  })
+  .strict();
+export type AgentRuntimeOptions = z.input<typeof AgentRuntimeOptionsSchema>;
