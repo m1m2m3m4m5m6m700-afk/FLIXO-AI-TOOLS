@@ -7,6 +7,8 @@ import { ObjectiveVerifier } from "./objective-verifier.ts";
 export * from "./network.ts";
 export * from "./evaluation.ts";
 
+const MAX_PLAN_STEPS = 32;
+
 export type CommandAuthority = Readonly<{
   commandId: string;
   issuedBy: "human" | "system";
@@ -176,7 +178,7 @@ export class DirectCommandOrchestrator {
           break;
         }
 
-        const batch = await Promise.all(ready.map(async (step) => {
+        const batch = await Promise.allSettled(ready.map(async (step) => {
           const requiredCapabilities = step.requiredCapabilities ?? [];
           const requiredPermissions = step.requiredPermissions ?? [];
           this.network.authorize(step.stepId, command.commandId, step.role, requiredCapabilities, requiredPermissions);
@@ -188,7 +190,10 @@ export class DirectCommandOrchestrator {
               commandId: command.commandId,
               status: "failed",
               summary: `No worker registered for role: ${step.role}`,
+              evidence: { testsPassed: 0, testsFailed: 1, evidenceVerified: false, outOfScopeActions: 0, delegatedTasks: 0, notes: "WORKER_NOT_REGISTERED" },
             });
+            this.network.report(command.commandId, step.stepId, step.role, report.status, report.summary);
+            await this.persistLatestAuditEvent();
             await this.observer.onReport(report);
             return report;
           }
@@ -219,7 +224,25 @@ export class DirectCommandOrchestrator {
             confidence: 0.5,
             verificationState: "pending",
           });
-          const rawReport = await worker.run(instruction);
+          let rawReport: AgentReport;
+          try {
+            rawReport = await worker.run(instruction);
+          } catch (error) {
+            rawReport = Object.freeze({
+              stepId: step.stepId,
+              commandId: command.commandId,
+              status: "failed" as const,
+              summary: `Worker '${step.role}' threw before producing a report.`,
+              evidence: {
+                testsPassed: 0,
+                testsFailed: 1,
+                evidenceVerified: false,
+                outOfScopeActions: 0,
+                delegatedTasks: 0,
+                notes: error instanceof Error ? error.name : "UNKNOWN_WORKER_ERROR",
+              },
+            });
+          }
           if (rawReport.commandId !== command.commandId || rawReport.stepId !== step.stepId) {
             throw new Error("WORKER_REPORT_IDENTITY_MISMATCH");
           }
@@ -240,7 +263,13 @@ export class DirectCommandOrchestrator {
           return report;
         }));
 
-        for (const report of batch) {
+        const rejectedBatch = batch.find((result) => result.status === "rejected");
+        if (rejectedBatch) throw rejectedBatch.reason;
+        const completedBatch = batch.map((result) => {
+          if (result.status !== "fulfilled") throw result.reason;
+          return result.value;
+        });
+        for (const report of completedBatch) {
           reports.set(report.stepId, report);
           pending.delete(report.stepId);
         }
@@ -298,12 +327,42 @@ export class DirectCommandOrchestrator {
   private assertPlan(plan: AgentPlan, command: CommandAuthority): void {
     if (plan.commandId !== command.commandId) throw new Error("PLAN_COMMAND_ID_MISMATCH");
     if (!plan.steps.length) throw new Error("EMPTY_AGENT_PLAN");
+    if (plan.steps.length > MAX_PLAN_STEPS) throw new Error("PLAN_STEP_LIMIT_EXCEEDED");
     const ids = new Set<string>();
     for (const step of plan.steps) {
+      if (!step.stepId.trim()) throw new Error("STEP_ID_REQUIRED");
       if (ids.has(step.stepId)) throw new Error(`DUPLICATE_STEP_ID:${step.stepId}`);
       ids.add(step.stepId);
+      if (!step.role.trim()) throw new Error(`EMPTY_STEP_ROLE:${step.stepId}`);
       if (!step.objective.trim()) throw new Error(`EMPTY_STEP_OBJECTIVE:${step.stepId}`);
+      if (!Array.isArray(step.dependsOn) || !Array.isArray(step.constraints)) throw new Error(`INVALID_STEP_CONTRACT:${step.stepId}`);
+      const dependencies = new Set(step.dependsOn);
+      if (dependencies.size !== step.dependsOn.length) throw new Error(`DUPLICATE_DEPENDENCY:${step.stepId}`);
+      if (dependencies.has(step.stepId)) throw new Error(`SELF_DEPENDENCY:${step.stepId}`);
+      if (step.execution && (
+        !step.execution.toolId.trim()
+        || !(step.requiredPermissions ?? []).includes("execute")
+      )) {
+        throw new Error(`EXECUTION_PERMISSION_REQUIRED:${step.stepId}`);
+      }
     }
+    const byId = new Map(plan.steps.map((step) => [step.stepId, step]));
+    for (const step of plan.steps) {
+      for (const dependency of step.dependsOn) {
+        if (!byId.has(dependency)) throw new Error(`UNKNOWN_DEPENDENCY:${step.stepId}:${dependency}`);
+      }
+    }
+    const visiting = new Set<string>();
+    const visited = new Set<string>();
+    const visit = (stepId: string): void => {
+      if (visited.has(stepId)) return;
+      if (visiting.has(stepId)) throw new Error("PLAN_DEPENDENCY_CYCLE");
+      visiting.add(stepId);
+      for (const dependency of byId.get(stepId)?.dependsOn ?? []) visit(dependency);
+      visiting.delete(stepId);
+      visited.add(stepId);
+    };
+    for (const step of plan.steps) visit(step.stepId);
   }
 }
 
