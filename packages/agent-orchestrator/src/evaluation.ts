@@ -1,4 +1,4 @@
-import { AgentCapability, AgentDescriptor } from "./network.ts";
+import type { AgentCapability, AgentDescriptor } from "./network.ts";
 
 export type EvaluationCriterion = Readonly<{ id: string; description: string; weight: number }>;
 export type TrainingCase = Readonly<{ id: string; agentId: string; objective: string; criteria: readonly EvaluationCriterion[]; constraints: readonly string[] }>;
