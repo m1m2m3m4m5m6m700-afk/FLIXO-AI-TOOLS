@@ -1,5 +1,6 @@
 import { AgentCapability, AgentHeartbeat, AgentNetworkControlPlane, AgentNetworkSnapshot, DEFAULT_AGENT_NETWORK } from "./network.ts";
 import { AdversarialTwinWorker } from "./adversarial.ts";
+import { RedTeamWorker } from "./red-team.ts";
 export * from "./network.ts";
 export * from "./evaluation.ts";
 
@@ -91,6 +92,10 @@ export class DirectCommandOrchestrator {
     if (worker.id !== role) throw new Error("ADVERSARIAL_ROLE_ID_MISMATCH");
     this.workers.set(role, worker);
     this.adversarialRoles.add(role);
+  }
+
+  enableDefaultRedTeam(invoker: import("./model-adapter.ts").AgentModelInvoker): void {
+    if (!this.workers.has("red-team")) this.registerWorker(new RedTeamWorker(invoker));
   }
 
   enableDefaultAdversarialMode(invoker: import("./model-adapter.ts").AgentModelInvoker): void {
@@ -222,3 +227,4 @@ export * from "./model-adapter.ts";
 export * from "./continual-learning.ts";
 export * from "./http-model-invoker.ts";
 export * from "./adversarial.ts";
+export * from "./red-team.ts";
