@@ -8,7 +8,7 @@ export function buildSystemPrompt(tools:readonly CanonicalAgentTool[],currentPro
     `Canvas: ${validatedState.dimensions.width}x${validatedState.dimensions.height} @ ${validatedState.dimensions.fps}fps`,
     `Duration: ${validatedState.durationSec}s`,
     `Layers: ${validatedState.layers.length}`,
-    ...validatedState.layers.map((layer)=>`- [${layer.type}] ${layer.id} | ${layer.name} | visible=${layer.visible}`),
+    ...validatedState.layers.map((layer)=>JSON.stringify({id:layer.id,type:layer.type,visible:layer.visible,locked:layer.locked})),
   ].join("\n"):"No active project state loaded.";
   return [
     "You are the FLIXO media editing agent.",
