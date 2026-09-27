@@ -14,7 +14,7 @@ const experience = (agentId: string, score: number, index: number) => Object.fre
     commandId: `command-${index}`,
     status: "completed" as const,
     summary: "verified",
-    evidence: Object.freeze(index === 30 ? { testsPassed: 3, testsFailed: 7, evidenceVerified: false, outOfScopeActions: 0, delegatedTasks: 0 } : { testsPassed: 10, testsFailed: 0, requiredArtifacts: ["code"], completedArtifacts: ["code"], evidenceVerified: true, outOfScopeActions: 0, delegatedTasks: 0 }),
+    evidence: Object.freeze(score < 80 ? { testsPassed: 3, testsFailed: 7, evidenceVerified: false, outOfScopeActions: 0, delegatedTasks: 0 } : { testsPassed: 10, testsFailed: 0, requiredArtifacts: ["code"], completedArtifacts: ["code"], evidenceVerified: true, outOfScopeActions: 0, delegatedTasks: 0 }),
   }),
   reward: Object.freeze({
     score,
