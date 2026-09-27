@@ -93,7 +93,7 @@ Tasks:
 Exit condition: this file exists on the active branch and is updated after each task.
 
 ### P1 — Objective verification
-Status: NEXT
+Status: IN PROGRESS
 Goal: prevent agents from receiving learning credit from self-reported success.
 Tasks:
 - P1.1 Define verification contracts in `packages/contracts`.
@@ -101,6 +101,9 @@ Tasks:
 - P1.3 Separate raw agent claims from verified outcomes.
 - P1.4 Add tests for pass, fail, unresolved, malformed evidence.
 - P1.5 Connect verifier results to reward and cognitive verification state.
+
+P1.1 result: COMPLETE — added `ObjectiveVerificationContract` and `ObjectiveVerificationStatus` to `packages/contracts/src/index.ts` after inspecting the existing contract surface. No duplicate verifier implementation was added.
+Verification: GitHub file read confirmed the contract was written to the active branch.
 
 Exit condition:
 - no reward promotion without an explicit verification result;
@@ -223,6 +226,6 @@ Never write “production-ready” while required verification is missing.
 
 ## 6. Current Next Action
 
-Execute P1.1: inspect existing shared contracts and add the minimum objective-verification contract without duplicating existing types.
+Execute P1.2: implement the deterministic Objective Verifier in `packages/agent-orchestrator` using the new shared contract.
 
-After P1.1, update this file before P1.2.
+Required before P1.3: inspect existing reward/evaluation evidence types and ensure verifier output is the only source used for verification state transitions.
