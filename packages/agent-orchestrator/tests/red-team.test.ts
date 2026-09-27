@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { describe, expect, it } from "vitest";
 import { RedTeamWorker } from "../src/red-team.ts";
 import type { AgentModelInvoker } from "../src/model-adapter.ts";
@@ -26,7 +27,7 @@ describe("RedTeamWorker", () => {
       },
     };
 
-    const report = await new RedTeamWorker(invoker).run({
+    const report = await new RedTeamWorker(invoker, "red-team", async () => true).run({
       stepId: "red-1",
       commandId: "cmd-red",
       role: "red-team",
@@ -63,7 +64,7 @@ test("red team reward exposes false-positive penalty", async () => {
       }
       return { content: JSON.stringify({ findings: [] }), evidence: {} };
     },
-  });
+  }, "red-team", async () => true);
 
   const report = await worker.run({
     stepId: "step-red-penalty",
@@ -77,4 +78,36 @@ test("red team reward exposes false-positive penalty", async () => {
   assert.equal(evidence.verifiedFindings, 1);
   assert.equal(evidence.falsePositiveFindings, 1);
   assert.ok(evidence.redTeamReward.reasons.includes("false-positive-adversarial-finding"));
+});
+
+
+test("model adjudicator cannot self-certify a finding", async () => {
+  const worker = new RedTeamWorker({
+    async invoke(request) {
+      if (request.turn === 2) {
+        return {
+          content: JSON.stringify({
+            status: "completed",
+            summary: "model says verified",
+            findings: [{ category: "security", content: "self-certified", evidence: { test: "model-asserted" }, verified: true }],
+            agreement: 1,
+            disputes: [],
+          }),
+        };
+      }
+      return { content: JSON.stringify({ findings: [] }) };
+    },
+  });
+
+  const report = await worker.run({
+    stepId: "step-self-cert",
+    commandId: "cmd-self-cert",
+    role: "red-team",
+    objective: "reject self-certification",
+    constraints: ["independent-verification-required"],
+    context: {},
+  });
+  const evidence = report.evidence as { verifiedFindings: number; findings: Array<{ verified: boolean }> };
+  assert.equal(evidence.verifiedFindings, 0);
+  assert.equal(evidence.findings[0]?.verified, false);
 });
