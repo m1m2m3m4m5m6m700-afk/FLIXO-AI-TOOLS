@@ -20,6 +20,8 @@ jobs:
     defaults:
       run:
         working-directory: apps/agent-editor
+    env:
+      VITE_SITE_URL: "https://flixoai.vercel.app"
     steps:
       - name: Checkout exact commit
         uses: actions/checkout@v5
