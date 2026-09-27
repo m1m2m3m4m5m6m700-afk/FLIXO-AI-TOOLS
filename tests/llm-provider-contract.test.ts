@@ -7,6 +7,7 @@ import {
   LLMProviderOptionsSchema,
   LLMToolSpecListSchema,
   StreamChunkSchema,
+  createLLMToolSpec,
   createValidatedLLMProvider,
   parseLLMMessages,
   parseLLMProviderOptions,
@@ -45,6 +46,27 @@ test('LLM contract validates messages, tools and runtime options', () => {
   assert.throws(
     () => parseLLMMessages([{ role: 'tool', content: 'missing id' }]),
     (error: unknown) => error instanceof LLMProviderContractError && error.code === 'INVALID_MESSAGE',
+  );
+});
+
+
+test('creates an LLM tool spec directly from a Zod parameter schema', () => {
+  assert.deepEqual(
+    createLLMToolSpec(
+      'resize',
+      'Resize an image.',
+      z.object({ width: z.number().int().positive() }).strict(),
+    ),
+    {
+      name: 'resize',
+      description: 'Resize an image.',
+      parameters: {
+        type: 'object',
+        properties: { width: { type: 'integer', minimum: 0 } },
+        required: ['width'],
+        additionalProperties: false,
+      },
+    },
   );
 });
 
