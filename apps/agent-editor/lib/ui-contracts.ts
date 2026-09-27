@@ -17,6 +17,10 @@ export const MediaCanvasPropsSchema = z.object({
 
 export const TimelineBarPropsSchema = z.object({
   events: z.array(TimelineEventSchema),
+  durationSec: z.number().min(0),
+  fps: z.number().int().positive(),
+  currentTimeSec: z.number().min(0),
+  onSeek: z.function().args(z.number()).returns(z.void()),
 });
 
 export type ChatInterfaceProps = z.infer<typeof ChatInterfacePropsSchema>;
