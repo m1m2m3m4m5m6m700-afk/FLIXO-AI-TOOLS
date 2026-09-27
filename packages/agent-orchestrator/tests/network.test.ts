@@ -6,8 +6,8 @@ import {
   SupervisedAgentRegistry,
 } from "../src/network.ts";
 
-test("registers exactly ten non-autonomous agents", () => {
-  assert.equal(DEFAULT_AGENT_NETWORK.length, 10);
+test("registers exactly eleven non-autonomous agents", () => {
+  assert.equal(DEFAULT_AGENT_NETWORK.length, 11);
   assert.ok(DEFAULT_AGENT_NETWORK.every((agent) => agent.autonomous === false && agent.canDelegate === false));
 });
 
@@ -63,7 +63,7 @@ test("registry rejects autonomous adapters", () => {
 });
 
 
-test("default adversarial mode covers all ten roles", async () => {
+test("default adversarial mode covers all eleven roles", async () => {
   const { DirectCommandOrchestrator } = await import("../src/index.ts");
   const { AgentNetworkControlPlane } = await import("../src/network.ts");
   const orchestrator = new DirectCommandOrchestrator({
@@ -85,4 +85,16 @@ test("default adversarial mode covers all ten roles", async () => {
   const reports = await orchestrator.dispatch({ commandId: "cmd-adversarial", issuedBy: "human", issuedAt: new Date().toISOString() }, "verify");
   assert.equal(reports.length, 1);
   assert.equal((reports[0].evidence as { adversarial: boolean }).adversarial, true);
+});
+
+
+test("enforces agent permissions before dispatch", () => {
+  const network = new AgentNetworkControlPlane();
+  network.begin("cmd-permission", "human");
+  assert.throws(
+    () => network.authorize("step-1", "cmd-permission", "tester", [], ["write-code"]),
+    /AGENT_PERMISSION_DENIED/,
+  );
+  network.authorize("step-2", "cmd-permission", "implementer", ["implementation"], ["execute"]);
+  network.end("cmd-permission");
 });
