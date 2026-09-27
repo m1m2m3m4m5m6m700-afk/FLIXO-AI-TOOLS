@@ -58,7 +58,7 @@ function parseAspectRatio(text: string): string | undefined {
 }
 
 function parseBrightness(text: string): number | undefined {
-  const match = text.match(/(?:increase|raise|boost|decrease|lower|خفض|ارفع|زيادة|تقليل|زِد|رفع)\s+(?:the\s+)?(?:brightness|سطوع)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i);
+  const match = text.match(/(?:increase|raise|boost|decrease|lower|خفض|ارفع|زيادة|تقليل|زِد|رفع)\s+(?:the\s+)?(?:brightness|سطوع|السطوع)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i);
   if (!match) return undefined;
   const amount = Number(match[1]);
   if (!Number.isFinite(amount) || amount > 100) return undefined;
