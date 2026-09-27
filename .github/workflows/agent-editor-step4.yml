@@ -29,7 +29,7 @@ jobs:
       - name: Lint
         run: npm --prefix apps/agent-editor run lint
       - name: Runtime tests
-        run: cd apps/agent-editor && npx vitest run __tests__/agent-runtime.test.ts
+        run: cd apps/agent-editor && npx vitest run --config vitest.config.ts __tests__/agent-runtime.test.ts
       - name: Full isolated test suite
         run: npm --prefix apps/agent-editor run test:unit
       - name: Production build
