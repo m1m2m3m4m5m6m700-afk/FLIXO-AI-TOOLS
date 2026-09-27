@@ -1,4 +1,4 @@
-import { AgentCapability, AgentHeartbeat, AgentNetworkControlPlane, AgentNetworkSnapshot, AgentPermission, DEFAULT_AGENT_NETWORK } from "./network.ts";
+import { AgentCapability, AgentHeartbeat, AgentNetworkControlPlane, AgentNetworkSnapshot, AgentPermission, DEFAULT_AGENT_NETWORK, type AgentAuditSink } from "./network.ts";
 import { AdversarialTwinWorker } from "./adversarial.ts";
 import { RedTeamWorker } from "./red-team.ts";
 import { AgentCognitiveLedger, FailureIntelligence, ConfidenceCalibrator } from "./cognitive.ts";
@@ -88,6 +88,7 @@ export class DirectCommandOrchestrator {
     private readonly cognitiveLedger = new AgentCognitiveLedger(),
     private readonly failureIntelligence = new FailureIntelligence(),
     private readonly confidenceCalibrator = new ConfidenceCalibrator(),
+    private readonly auditSink?: AgentAuditSink,
   ) {}
 
   registerWorker(worker: AgentWorker): void {
@@ -126,6 +127,7 @@ export class DirectCommandOrchestrator {
 
     this.activeCommandId = command.commandId;
     this.network.begin(command.commandId, command.issuedBy);
+    await this.persistLatestAuditEvent();
     try {
       const plan = await this.planner.plan(command, objective);
       this.assertPlan(plan, command);
@@ -175,6 +177,7 @@ export class DirectCommandOrchestrator {
           const requiredCapabilities = step.requiredCapabilities ?? [];
           const requiredPermissions = step.requiredPermissions ?? [];
           this.network.authorize(step.stepId, command.commandId, step.role, requiredCapabilities, requiredPermissions);
+          await this.persistLatestAuditEvent();
           const worker = this.workers.get(step.role);
           if (!worker) {
             const report: AgentReport = Object.freeze({
@@ -219,6 +222,7 @@ export class DirectCommandOrchestrator {
           }
           const report = this.verifyReport(rawReport, step.role);
           this.network.report(command.commandId, step.stepId, step.role, report.status, report.summary);
+          await this.persistLatestAuditEvent();
           await this.observer.onReport(report);
           this.cognitiveLedger.observe(report.commandId, report.stepId, step.role, report.summary);
           const currentState = this.cognitiveLedger.snapshot().states.find((item) => item.commandId === report.commandId && item.stepId === report.stepId);
@@ -241,13 +245,22 @@ export class DirectCommandOrchestrator {
 
       return Object.freeze([...reports.values()]);
     } finally {
+      if (this.auditSink) await this.auditSink.persist(this.network.snapshot().events);
       this.network.end(command.commandId);
       this.activeCommandId = null;
     }
   }
 
-  heartbeat(heartbeat: AgentHeartbeat): void {
+  async heartbeat(heartbeat: AgentHeartbeat): Promise<void> {
     this.network.heartbeat(heartbeat);
+    await this.persistLatestAuditEvent();
+  }
+
+  private async persistLatestAuditEvent(): Promise<void> {
+    if (!this.auditSink) return;
+    const events = this.network.snapshot().events;
+    const latest = events.at(-1);
+    if (latest) await this.auditSink.persist(Object.freeze([latest]));
   }
 
   snapshot(): AgentNetworkSnapshot {
