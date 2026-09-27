@@ -35,7 +35,9 @@ function parseToolResponse(content: string): Record<string, unknown> {
   try {
     const parsed: unknown = JSON.parse(content);
     if (isRecord(parsed)) return parsed;
-  } catch {}
+  } catch {
+    return { result: content };
+  }
   return { result: content };
 }
 
@@ -168,7 +170,9 @@ export class GeminiAdapter implements LLMProvider {
         if (isRecord(payload) && isRecord(payload.error) && typeof payload.error.message === 'string') {
           detail = payload.error.message;
         }
-      } catch {}
+      } catch (error) {
+        void error;
+      }
       throw new GeminiAdapterError(`Gemini API error ${response.status}: ${detail}`, response.status);
     }
 
