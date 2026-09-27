@@ -23,7 +23,6 @@ import {
 } from '../src/lib/agent/flixo-bot-runtime-adapter.ts';
 
 const MAX_MESSAGES = 80;
-const MAX_REQUEST_BODY_BYTES = 512 * 1024;
 const MAX_PROVIDER_CALLS = 2;
 const DEFAULT_TIMEOUT_MS = 4_000;
 const MAX_TIMEOUT_MS = 120_000;
