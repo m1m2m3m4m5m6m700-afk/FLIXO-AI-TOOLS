@@ -1,7 +1,7 @@
 import { AgentCapability, AgentHeartbeat, AgentNetworkControlPlane, AgentNetworkSnapshot, DEFAULT_AGENT_NETWORK } from "./network.ts";
 import { AdversarialTwinWorker } from "./adversarial.ts";
 import { RedTeamWorker } from "./red-team.ts";
-import { AgentCognitiveLedger } from "./cognitive.ts";
+import { AgentCognitiveLedger, FailureIntelligence } from "./cognitive.ts";
 export * from "./network.ts";
 export * from "./evaluation.ts";
 
@@ -80,6 +80,7 @@ export class DirectCommandOrchestrator {
     },
     private readonly network = new AgentNetworkControlPlane(),
     private readonly cognitiveLedger = new AgentCognitiveLedger(),
+    private readonly failureIntelligence = new FailureIntelligence(),
   ) {}
 
   registerWorker(worker: AgentWorker): void {
@@ -227,7 +228,7 @@ export class DirectCommandOrchestrator {
     return this.network.snapshot();
   }
 
-  cognitiveSnapshot(): import("./cognitive.ts").AgentCognitiveSnapshot {
+  failureRecords(agentId?: string) { return this.failureIntelligence.list(agentId); }\n\n  cognitiveSnapshot(): import("./cognitive.ts").AgentCognitiveSnapshot {
     return this.cognitiveLedger.snapshot();
   }
 
