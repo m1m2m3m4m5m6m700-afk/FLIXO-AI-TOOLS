@@ -151,6 +151,14 @@ export type EvolutionBenchmarkContract = Readonly<{
   verifiedAt: string;
 }>;
 
+export type EvolutionMutationPlanContract = Readonly<{
+  executionBoundary: "sandbox-only";
+  sandboxId: string;
+  targetPaths: readonly string[];
+  maxFiles: number;
+  dryRun: true;
+}>;
+
 export type EvolutionProposalContract = Readonly<{
   id: string;
   commandId: string;
@@ -161,6 +169,7 @@ export type EvolutionProposalContract = Readonly<{
   status: EvolutionProposalStatus;
   objectiveVerificationId: string;
   objectiveVerificationStatus: ObjectiveVerificationStatus;
+  mutationPlan: EvolutionMutationPlanContract;
   benchmark?: EvolutionBenchmarkContract;
   appliedRevision?: string;
   rollbackRevision?: string;
