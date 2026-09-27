@@ -69,7 +69,7 @@ export interface AgentPlanner {
 
 export interface AgentObserver {
   onDispatch(instruction: AgentInstruction): void;
-  onReport(report: AgentReport): void;
+  onReport(report: AgentReport): void | Promise<void>;
 }
 
 export class DirectCommandOrchestrator {
@@ -155,7 +155,7 @@ export class DirectCommandOrchestrator {
           reports.set(step.stepId, report);
           pending.delete(step.stepId);
           const verifiedReport = this.verifyReport(report, step.role);
-          this.observer.onReport(verifiedReport);
+          await this.observer.onReport(verifiedReport);
           this.cognitiveLedger.observe(verifiedReport.commandId, verifiedReport.stepId, step.role, verifiedReport.summary);
           const evaluationEvidence = verifiedReport.evidence as EvaluationEvidence | undefined;
           if (evaluationEvidence) {
@@ -183,7 +183,7 @@ export class DirectCommandOrchestrator {
               status: "failed",
               summary: `No worker registered for role: ${step.role}`,
             });
-            this.observer.onReport(report);
+            await this.observer.onReport(report);
             return report;
           }
 
