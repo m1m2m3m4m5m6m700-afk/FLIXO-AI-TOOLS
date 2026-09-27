@@ -58,8 +58,7 @@ const sourceRoots = ["src", "apps", "packages"];
 const importViolations = [];
 const boundaryViolations = [];
 function checkDependencyBoundary(path, source) {
-  const lines = source.split("
-");
+  const lines = source.split("\n");
   const appMatch = path.match(/^apps\/([^/]+)\//u);
   for (const line of lines) {
     const imported = line.match(/(?:from|import)\s*[("']([^"')]+)["')]/u)?.[1];
