@@ -37,6 +37,7 @@ export default function AgentEditorPage() {
     projectState,
     isStreaming,
     activeTool,
+    manualFallbackPath,
     sendMessage,
     stopStreaming,
     setProjectState,
@@ -62,6 +63,7 @@ export default function AgentEditorPage() {
         messages={messages}
         isStreaming={isStreaming}
         activeTool={activeTool}
+        manualFallbackPath={manualFallbackPath}
         onSendMessage={sendMessage}
         onStop={stopStreaming}
       />
