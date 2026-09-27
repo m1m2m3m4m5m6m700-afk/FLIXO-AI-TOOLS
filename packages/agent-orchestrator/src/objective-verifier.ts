@@ -15,8 +15,9 @@ export class ObjectiveVerifier {
     const policyClean=(input.evidence.outOfScopeActions??0)===0&&(input.evidence.delegatedTasks??0)===0;
     checks.push({id:"policy",passed:policyClean,description:"No out-of-scope action or unauthorized delegation is recorded.",evidence:Object.freeze(["outOfScope="+(input.evidence.outOfScopeActions??0),"delegated="+(input.evidence.delegatedTasks??0)])});
     const passed=checks.every(x=>x.passed);
-    const status=passed?"verified":checks.length?"rejected":"unresolved";
-    const reason=passed?"All objective verification checks passed.":checks.filter(x=>!x.passed).map(x=>x.id).join(",");
+    const hasInsufficientEvidence = ((input.requireTests ?? true) && testsTotal === 0) || ((input.requireEvidence ?? true) && input.evidence.evidenceVerified === undefined);
+    const status=passed?"verified":hasInsufficientEvidence?"unresolved":"rejected";
+    const reason=passed?"All objective verification checks passed.":status==="unresolved"?"Objective evidence is insufficient for a definitive verification decision.":checks.filter(x=>!x.passed).map(x=>x.id).join(",");
     return Object.freeze({id:input.id,commandId:input.commandId,stepId:input.stepId,agentId:input.agentId,status,checks:Object.freeze(checks.map(x=>Object.freeze(x))),evidence:Object.freeze(checks.flatMap(x=>x.evidence)),reason,verifiedAt:new Date().toISOString()});
   }
 }
