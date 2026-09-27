@@ -24,6 +24,7 @@ test("evolution governor blocks promotion until benchmark and human approval", (
     summary: "improve bounded implementation",
     baseRevision: "base-1",
     objectiveVerification: verification,
+    mutationPlan: { executionBoundary: "sandbox-only" as const, sandboxId: "sandbox-1", targetPaths: ["sandbox/module.ts"], maxFiles: 4, dryRun: true },
   });
 
   assert.throws(() => governor.requestPromotion("proposal-1"), /EVOLUTION_REQUIRES_BENCHMARK/);
@@ -55,6 +56,7 @@ test("evolution rollback requires explicit human authorization", () => {
     summary: "bounded improvement",
     baseRevision: "base-2",
     objectiveVerification: { ...verification, id: "verification-2", commandId: "cmd-evolution-2" },
+    mutationPlan: { executionBoundary: "sandbox-only", sandboxId: "sandbox-2", targetPaths: ["sandbox/module.ts"], maxFiles: 4, dryRun: true },
   });
   governor.benchmark("proposal-2", { score: 95, threshold: 80, passed: true, revision: "bench-2" });
   governor.requestPromotion("proposal-2");
@@ -99,7 +101,29 @@ test("unverified objective cannot request evolution promotion", () => {
     summary: "unverified change",
     baseRevision: "base-3",
     objectiveVerification: { ...verification, id: "verification-3", commandId: "cmd-evolution-3", status: "unresolved" },
+    mutationPlan: { executionBoundary: "sandbox-only", sandboxId: "sandbox-3", targetPaths: ["sandbox/module.ts"], maxFiles: 4, dryRun: true },
   });
   governor.benchmark("proposal-3", { score: 99, threshold: 80, passed: true, revision: "bench-3" });
   assert.throws(() => governor.requestPromotion("proposal-3"), /EVOLUTION_OBJECTIVE_NOT_VERIFIED/);
+});
+
+
+test("evolution governor rejects unsafe mutation targets", () => {
+  const governor = new EvolutionGovernor();
+  assert.throws(() => governor.propose({
+    id: "proposal-unsafe",
+    commandId: "cmd-unsafe",
+    agentId: "implementer",
+    target: "production",
+    summary: "unsafe",
+    baseRevision: "base",
+    objectiveVerification: { ...verification, id: "verification-unsafe", commandId: "cmd-unsafe" },
+    mutationPlan: {
+      executionBoundary: "sandbox-only",
+      sandboxId: "sandbox-unsafe",
+      targetPaths: ["../production/app.ts"],
+      maxFiles: 1,
+      dryRun: true,
+    },
+  }), /EVOLUTION_UNSAFE_TARGET_PATH/);
 });
