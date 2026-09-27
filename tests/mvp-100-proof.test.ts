@@ -63,6 +63,11 @@ test('deterministic MVP standard-intent suite is 100% exact', () => {
   }
 });
 
+test('video intent specificity prefers the video capability over generic image matches', () => {
+  assert.deepEqual(planFromIntent('crop video to 720x720')?.steps.map((step) => step.toolId), ['video-cropper']);
+  assert.deepEqual(planFromIntent('resize video to 1280x720')?.steps.map((step) => step.toolId), ['video-resizer']);
+});
+
 test('ambiguous effect requests fail closed instead of guessing an adjustment', () => {
   assert.equal(planFromIntent('ارفع التباين'), null);
   assert.equal(planFromIntent('increase contrast'), null);
