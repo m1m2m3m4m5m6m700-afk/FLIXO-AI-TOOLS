@@ -67,7 +67,7 @@ export const createToolBackedWorker = (options: ToolBackedWorkerOptions): AgentW
         stepId: instruction.stepId,
         commandId: instruction.commandId,
         status: "failed",
-        summary: result.error?.message ?? `Tool '${execution.toolId}' failed.`,
+        summary: result.errorDetails ?? `Tool '${execution.toolId}' failed.`,
         evidence: {
           toolId: execution.toolId,
           testsPassed: 0,
@@ -75,7 +75,7 @@ export const createToolBackedWorker = (options: ToolBackedWorkerOptions): AgentW
           evidenceVerified: false,
           outOfScopeActions: 0,
           delegatedTasks: 0,
-          notes: result.error?.code ?? "TOOL_EXECUTION_FAILED",
+          notes: result.errorDetails ?? "TOOL_EXECUTION_FAILED" ?? "TOOL_EXECUTION_FAILED",
         },
       });
     },
