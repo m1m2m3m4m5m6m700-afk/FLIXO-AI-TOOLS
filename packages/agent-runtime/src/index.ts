@@ -12,3 +12,4 @@ export * from "./execution-budget";
 export * from "./stuck-detector";
 export * from "./goal-controller";
 export * from "./math-engine";
+export * from "./model-provider";
