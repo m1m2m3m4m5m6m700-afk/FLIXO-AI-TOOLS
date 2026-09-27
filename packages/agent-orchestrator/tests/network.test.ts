@@ -32,6 +32,29 @@ test("enforces capabilities", () => {
   network.end("cmd-1");
 });
 
+test("rejects role policy escalation during agent registration", () => {
+  const network = new AgentNetworkControlPlane();
+  assert.throws(() => network.register({
+    id: "researcher",
+    role: "researcher",
+    capabilities: ["research"],
+    permissions: ["inspect", "network", "execute"],
+    autonomous: false,
+    canDelegate: false,
+  }), /AGENT_POLICY_ESCALATION_FORBIDDEN/);
+});
+
+test("rejects unknown production agent identities", () => {
+  assert.throws(() => new AgentNetworkControlPlane([{
+    id: "rogue",
+    role: "rogue",
+    capabilities: ["research"],
+    permissions: ["inspect"],
+    autonomous: false,
+    canDelegate: false,
+  }]), /AGENT_POLICY_ESCALATION_FORBIDDEN/);
+});
+
 test("records supervised heartbeat and report events", () => {
   const network = new AgentNetworkControlPlane();
   network.begin("cmd-1", "human");
