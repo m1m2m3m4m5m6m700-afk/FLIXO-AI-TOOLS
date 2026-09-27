@@ -48,7 +48,6 @@ export class SupabaseAgentExperiencePersistence implements AgentExperiencePersis
       sourceAgent: experience.agentId,
       sourceRole: experience.agentId,
       kind: kindFor(experience),
-      status: experience.report.verification?.status === "verified" ? "VERIFIED" : "PROPOSED",
       taskId: experience.id,
       targetSha: this.targetSha,
       claim: claimFor(experience),
