@@ -18,10 +18,10 @@ export const VIDEO_EXECUTORS: Readonly<Record<string, VideoToolExecutor>> = Obje
     crop: {
       x: Math.max(0, Math.floor(numberOr(parameters.x, 0))),
       y: Math.max(0, Math.floor(numberOr(parameters.y, 0))),
-      signal,
       width: Math.max(1, Math.floor(numberOr(parameters.width, 1))),
       height: Math.max(1, Math.floor(numberOr(parameters.height, 1))),
     },
+    signal,
   }),
   'video-resizer': (inputBlob, parameters, _tool, signal) => renderVideoToWebm(inputBlob, {
     width: Math.max(1, Math.floor(numberOr(parameters.width, 1))),
