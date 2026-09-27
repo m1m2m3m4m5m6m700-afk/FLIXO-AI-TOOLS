@@ -198,10 +198,10 @@ Tasks:
 - P8.1 Map real tools to supervised workers. COMPLETE — `apps/agent-editor/lib/agent/supervised-worker.ts` binds allowlisted tools to `AgentWorker`, while execution remains in canonical `ToolRegistry`; network dispatch now enforces required capabilities and permissions.
 - P8.2 Map provider/model router to model invoker. IN PROGRESS.
 - P8.3 Replace duplicated provider HTTP logic where appropriate. PENDING after P8.2 discovery.
-- P8.4 Wire persistent storage only after schema/security verification. PENDING.
-- P8.5 Add observability and rollback. PENDING.
+- P8.4 Wire persistent storage only after schema/security verification. COMPLETE — `AgentExperiencePersistence` now supports awaited write-through and hydration; `SupabaseAgentExperiencePersistence` stores full verified/unverified experiences in the existing `flixo_agent_learning_events` substrate. The database migration was applied to the connected project and verified with RLS/policy/grant checks plus a transactional insert/read/rollback test.
+- P8.5 Add observability and rollback. IN PROGRESS.
 
-Exit condition: production execution remains human-command-gated and every material action is auditable. P8.1–P8.3 source is verified; runtime registration, provider integration, and CI execution remain unobserved.
+Exit condition: production execution remains human-command-gated and every material action is auditable. P8.1–P8.4 source is verified; CI/runtime integration remains unobserved.
 
 ### P9 — Full verification
 Status: PLANNED
@@ -235,7 +235,7 @@ Never write “production-ready” while required verification is missing.
 
 ## 6. Current Next Action
 
-Execute P8.4: wire persistent learning storage only after schema/security verification, using the repository’s existing durable learning/task persistence rather than creating an unbounded new memory store.
+Execute P8.5: connect network events, verification, reward, failure intelligence, and evolution proposals to the durable task/event audit channel, then verify rollback metadata is surfaced without granting autonomous apply authority.
 
 Fine-tuning track: verified experiences remain the only eligible training-data source; model-weight updates are still gated behind dataset provenance, benchmark, sandbox, and human promotion controls.
 
