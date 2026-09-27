@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { AgentRuntime } from "@/lib/agent/runtime";
-import { createDefaultToolRegistry } from "@/lib/tools";
+import { CANONICAL_AGENT_TOOLS } from "@/lib/tools/canonical";
 import { AgentResponseSchema } from "@/lib/schemas/agent";
 import { createDefaultLLMRouter } from "@/lib/llm";
 import { ChatRequestSchema, sanitizeChatRequest } from "@/lib/security/request";
 
-const toolRegistry = createDefaultToolRegistry();
+const canonicalAgentTools = CANONICAL_AGENT_TOOLS;
 const llmRouter = createDefaultLLMRouter();
 
 export const runtime = "nodejs";
@@ -40,7 +40,7 @@ function toPublicResponse(
     requestedToolCalls: response.requestedToolCalls.map((call) => ({
       callId: call.callId,
       toolName: call.toolName,
-      parameters: {},
+      parameters: call.parameters,
     })),
     toolResults: response.toolResults.map((result) => ({
       callId: result.callId,
@@ -95,17 +95,6 @@ function createAgentStream(
                 callId: event.callId,
                 toolName: event.toolName,
               });
-              break;
-            case "tool_call_end":
-              enqueue("tool_call_end", {
-                callId: event.result.callId,
-                toolName: event.result.toolName,
-                status: event.result.status,
-                executionTimeMs: event.result.executionTimeMs,
-              });
-              break;
-            case "state_update":
-              enqueue("state_update", { projectState: event.projectState });
               break;
             case "final":
               enqueue("agent_response", toPublicResponse(event.response));
@@ -218,7 +207,7 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const runtime = new AgentRuntime(
-      toolRegistry,
+      canonicalAgentTools,
       { useMockEngine },
       llmRouter,
     );
