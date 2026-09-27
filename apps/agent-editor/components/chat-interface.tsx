@@ -9,6 +9,7 @@ export interface ChatInterfaceProps {
   messages: ChatMessage[];
   isStreaming: boolean;
   activeTool: string | null;
+  manualFallbackPath: string | null;
   onSendMessage: (text: string) => void;
   onStop: () => void;
 }
@@ -48,6 +49,11 @@ export function ChatInterface(props: ChatInterfaceProps) {
             <span aria-hidden="true">⚙</span>
             <span>Executing Tool: <strong>{parsed.activeTool}</strong></span>
           </div>
+        ) : null}
+        {parsed.manualFallbackPath ? (
+          <a className="tool-indicator" href={parsed.manualFallbackPath} data-testid="manual-fallback">
+            Open manual tool
+          </a>
         ) : null}
       </div>
       <div className="chat-composer">
