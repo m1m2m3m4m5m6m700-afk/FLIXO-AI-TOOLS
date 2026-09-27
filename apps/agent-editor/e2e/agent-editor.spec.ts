@@ -48,5 +48,4 @@ test.describe("FLIXO Agent Editor end-to-end", () => {
     await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
     await expect(page.getByText("Untitled Creative Project", { exact: false })).toBeVisible();
   });
-}
-);
+});
