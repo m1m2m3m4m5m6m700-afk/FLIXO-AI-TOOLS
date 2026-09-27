@@ -1,5 +1,7 @@
 import type { AgentDescriptor } from "./network.ts";
 import type { AgentExperience, ExperienceStore } from "./experience.ts";
+import { AgentRewardEngine } from "./reward.ts";
+import type { AgentInstruction, AgentObserver, AgentReport } from "./index.ts";
 
 export type AgentLearningRecommendation = Readonly<{
   agentId: string;
@@ -47,4 +49,33 @@ export class AgentLearningEngine {
   }
 
   record(experience: AgentExperience): void { this.store.append(experience); }
+}
+
+
+export class AgentLearningObserver implements AgentObserver {
+  private readonly instructions = new Map<string, AgentInstruction>();
+  constructor(
+    private readonly store: ExperienceStore,
+    private readonly rewardEngine = new AgentRewardEngine(),
+  ) {}
+  onDispatch(instruction: AgentInstruction): void {
+    this.instructions.set(instruction.stepId, instruction);
+  }
+  onReport(report: AgentReport): void {
+    const instruction = this.instructions.get(report.stepId);
+    if (!instruction || instruction.commandId !== report.commandId) return;
+    const reward = this.rewardEngine.calculate((report.evidence ?? {}) as Parameters<AgentRewardEngine["calculate"]>[0]);
+    const experience: AgentExperience = Object.freeze({
+      id: report.commandId + ":" + report.stepId,
+      commandId: report.commandId,
+      stepId: report.stepId,
+      agentId: report.role ?? instruction.role,
+      objective: instruction.objective,
+      report,
+      reward,
+      timestamp: new Date().toISOString(),
+    });
+    this.store.append(experience);
+    this.instructions.delete(report.stepId);
+  }
 }
