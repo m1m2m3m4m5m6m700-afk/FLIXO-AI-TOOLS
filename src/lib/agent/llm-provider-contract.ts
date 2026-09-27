@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { zodToJsonSchema, type JsonValue } from './zod-json-schema.ts';
 
+export type { JsonValue } from './zod-json-schema.ts';
 export type LLMRole = 'system' | 'user' | 'assistant' | 'tool';
 export type Role = LLMRole;
 
