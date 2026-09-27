@@ -5,7 +5,7 @@ import {
   ImagePlus, Layers2, MoveHorizontal, MoveVertical, Redo2, RotateCcw, Scan, SlidersHorizontal,
   Sparkles, Sun, Thermometer, Undo2, Upload, WandSparkles, Zap,
 } from 'lucide-react';
-import fragmentSource from './glsl/fragment.glsl?raw';
+import { SEED_FRAGMENT_SHADER as fragmentSource } from './fragment-shader';
 import { SeedGLEngine, type SeedRenderSettings } from './webgl-engine';
 import { DEFAULT_ADVANCED, renderAdvanced, type AdvancedSeedSettings } from './advanced-engine';
 import { CurveMiniPreview, NumericField, SectionReset, StudioSlider, ToolSection } from './studio-controls';
