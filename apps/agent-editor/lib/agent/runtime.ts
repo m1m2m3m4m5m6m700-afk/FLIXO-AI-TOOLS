@@ -1,19 +1,25 @@
 import { z } from "zod";
 import { ToolRegistry } from "./registry";
 import { buildSystemPrompt } from "./prompts";
-import type {
-  AgentResponse,
-  ChatMessage,
-  ToolCallRequest,
-  ToolCallResult,
+import { simulateLLMReasoning } from "./mock-llm";
+import {
+  AgentResponseSchema,
+  AgentRuntimeOptionsSchema,
+  ChatMessageSchema,
+  MockLLMResultSchema,
+  ToolCallRequestSchema,
+  ToolCallResultSchema,
+  type AgentRuntimeOptions,
+  type AgentResponse,
+  type ChatMessage,
+  type ToolCallRequest,
+  type ToolCallResult,
 } from "../schemas/agent";
-import { AgentResponseSchema } from "../schemas/agent";
 import {
   ProjectStateSchema,
   type Layer,
   type ProjectState,
 } from "../schemas/project";
-import { simulateLLMReasoning } from "./mock-llm";
 import {
   LLMUnavailableError,
   toLLMTools,
@@ -22,12 +28,7 @@ import {
   type LLMToolCall,
 } from "../llm";
 
-export const AgentRuntimeOptionsSchema = z.object({
-  maxIterations: z.number().int().positive().max(8).default(5),
-  useMockEngine: z.boolean().default(false),
-});
-
-export type AgentRuntimeOptions = z.input<typeof AgentRuntimeOptionsSchema>;
+export type { AgentRuntimeOptions } from "../schemas/agent";
 
 export type AgentRuntimeStreamEvent =
   | { type: "token"; text: string }
@@ -48,8 +49,13 @@ export class AgentRuntime {
   ) {
     const parsed = AgentRuntimeOptionsSchema.parse(options);
     this.maxIterations = parsed.maxIterations;
-    this.useMockEngine = parsed.useMockEngine;
     this.llmRouter = llmRouter;
+
+    const hasConfiguredLiveProvider =
+      (llmRouter?.configuredProviders().length ?? 0) > 0;
+    this.useMockEngine =
+      parsed.useMockEngine ??
+      (!hasConfiguredLiveProvider && process.env.NODE_ENV !== "production");
   }
 
   async processUserMessage(
@@ -64,14 +70,16 @@ export class AgentRuntime {
       history,
       currentProjectState,
     )) {
-      if (event.type === "final") finalResponse = event.response;
+      if (event.type === "final") {
+        finalResponse = event.response;
+      }
     }
 
     if (!finalResponse) {
       throw new Error("Agent runtime ended without a final response.");
     }
 
-    return finalResponse;
+    return AgentResponseSchema.parse(finalResponse);
   }
 
   async *streamUserMessage(
@@ -79,60 +87,74 @@ export class AgentRuntime {
     history: readonly ChatMessage[],
     currentProjectState?: ProjectState,
   ): AsyncGenerator<AgentRuntimeStreamEvent> {
-    const prompt = userMessage.trim();
-    if (!prompt) {
-      throw new Error("Agent user message must not be empty.");
-    }
+    const prompt = z.string().trim().min(1).max(100_000).parse(userMessage);
+    const parsedHistory = z
+      .array(ChatMessageSchema)
+      .max(24)
+      .parse(history);
+    const parsedProjectState = currentProjectState
+      ? ProjectStateSchema.parse(structuredClone(currentProjectState))
+      : undefined;
 
     const systemPrompt = buildSystemPrompt(
       this.registry.list(),
-      currentProjectState,
+      parsedProjectState,
     );
 
-    let workingProjectState = currentProjectState
-      ? ProjectStateSchema.parse(structuredClone(currentProjectState))
+    let workingProjectState = parsedProjectState
+      ? structuredClone(parsedProjectState)
       : undefined;
     const requestedCalls: ToolCallRequest[] = [];
     const results: ToolCallResult[] = [];
 
     if (this.useMockEngine) {
-      const mockResult = simulateLLMReasoning(prompt, 1);
-      if (mockResult.toolCalls.length === 0) {
-        for (const token of mockResult.content.split(/(?=\s)|(?<=\s)/).filter(Boolean)) {
-          yield { type: "token", text: token };
-        }
+      const mockResult = MockLLMResultSchema.parse(
+        simulateLLMReasoning(prompt, 1),
+      );
 
-        const response = this.buildResponse(
-          mockResult.content,
-          requestedCalls,
-          results,
-          workingProjectState,
-        );
-        yield { type: "final", response };
+      if (mockResult.toolCalls.length === 0) {
+        yield* this.emitContentTokens(mockResult.content);
+        yield {
+          type: "final",
+          response: this.buildResponse(
+            mockResult.content,
+            requestedCalls,
+            results,
+            workingProjectState,
+          ),
+        };
         return;
       }
 
-      const turnToolCalls = mockResult.toolCalls;
-      for (const call of turnToolCalls) {
+      for (const rawCall of mockResult.toolCalls) {
+        const call = ToolCallRequestSchema.parse(rawCall);
         requestedCalls.push(call);
-        yield { type: "tool_call_start", callId: call.callId, toolName: call.toolName };
+        yield {
+          type: "tool_call_start",
+          callId: call.callId,
+          toolName: call.toolName,
+        };
 
-        const result = await this.registry.execute(
-          call.callId,
-          call.toolName,
-          call.parameters,
+        const result = ToolCallResultSchema.parse(
+          await this.registry.execute(
+            call.callId,
+            call.toolName,
+            call.parameters,
+          ),
         );
         results.push(result);
         yield { type: "tool_call_end", result };
 
         if (result.status === "error") {
-          const response = this.buildResponse(
-            "The requested operation could not be completed.",
-            requestedCalls,
-            results,
-            workingProjectState,
-          );
-          yield { type: "final", response };
+          yield {
+            type: "final",
+            response: this.buildResponse(
+              "The requested operation could not be completed.",
+              requestedCalls,
+              results,
+              workingProjectState,
+            ),
+          };
           return;
         }
 
@@ -146,17 +168,16 @@ export class AgentRuntime {
         }
       }
 
-      for (const token of mockResult.content.split(/(?=\s)|(?<=\s)/).filter(Boolean)) {
-        yield { type: "token", text: token };
-      }
-
-      const response = this.buildResponse(
-        mockResult.content,
-        requestedCalls,
-        results,
-        workingProjectState,
-      );
-      yield { type: "final", response };
+      yield* this.emitContentTokens(mockResult.content);
+      yield {
+        type: "final",
+        response: this.buildResponse(
+          mockResult.content,
+          requestedCalls,
+          results,
+          workingProjectState,
+        ),
+      };
       return;
     }
 
@@ -164,10 +185,10 @@ export class AgentRuntime {
       throw new LLMUnavailableError("REAL_LLM_ENGINE_NOT_CONFIGURED");
     }
 
-    const messages: LLMMessage[] = history
+    const messages: LLMMessage[] = parsedHistory
       .filter((message) => message.role !== "system")
       .map((message) => ({
-        role: message.role === "tool" ? "tool" : message.role,
+        role: message.role,
         content: message.content,
         toolCalls: message.toolCalls?.map((call) => ({
           callId: call.callId,
@@ -212,64 +233,77 @@ export class AgentRuntime {
       }
 
       if (turnToolCalls.length === 0) {
-        const response = this.buildResponse(
-          latestAssistantText || "I completed the requested operation.",
-          requestedCalls,
-          results,
-          workingProjectState,
-        );
-        yield { type: "final", response };
+        yield {
+          type: "final",
+          response: this.buildResponse(
+            latestAssistantText || "I completed the requested operation.",
+            requestedCalls,
+            results,
+            workingProjectState,
+          ),
+        };
         return;
       }
+
+      const validatedTurnToolCalls = turnToolCalls.map((call) =>
+        ToolCallRequestSchema.parse({
+          callId: call.callId,
+          toolName: call.toolName,
+          parameters: call.arguments,
+        }),
+      );
 
       messages.push({
         role: "assistant",
         content: latestAssistantText,
-        toolCalls: turnToolCalls,
-      });
-
-      for (const call of turnToolCalls) {
-        const request: ToolCallRequest = {
+        toolCalls: validatedTurnToolCalls.map((call) => ({
           callId: call.callId,
           toolName: call.toolName,
-          parameters: call.arguments,
-        };
-        requestedCalls.push(request);
+          arguments: call.parameters,
+        })),
+      });
+
+      for (const call of validatedTurnToolCalls) {
+        requestedCalls.push(call);
         yield {
           type: "tool_call_start",
           callId: call.callId,
           toolName: call.toolName,
         };
 
-        const result = await this.registry.execute(
-          call.callId,
-          call.toolName,
-          call.arguments,
+        const result = ToolCallResultSchema.parse(
+          await this.registry.execute(
+            call.callId,
+            call.toolName,
+            call.parameters,
+          ),
         );
         results.push(result);
         yield { type: "tool_call_end", result };
 
-        const toolResult = {
-          callId: call.callId,
-          toolName: call.toolName,
-          result: result.data ?? { error: "tool_execution_failed" },
-          isError: result.status === "error",
-        };
-
         messages.push({
           role: "tool",
           content: "",
-          toolResults: [toolResult],
+          toolResults: [
+            {
+              callId: call.callId,
+              toolName: call.toolName,
+              result: result.data ?? { error: "tool_execution_failed" },
+              isError: result.status === "error",
+            },
+          ],
         });
 
         if (result.status === "error") {
-          const response = this.buildResponse(
-            "The requested operation could not be completed.",
-            requestedCalls,
-            results,
-            workingProjectState,
-          );
-          yield { type: "final", response };
+          yield {
+            type: "final",
+            response: this.buildResponse(
+              "The requested operation could not be completed.",
+              requestedCalls,
+              results,
+              workingProjectState,
+            ),
+          };
           return;
         }
 
@@ -284,18 +318,28 @@ export class AgentRuntime {
       }
 
       if (iteration === this.maxIterations) {
-        const response = this.buildResponse(
-          "The operation reached the safety iteration limit before a verified final response was produced.",
-          requestedCalls,
-          results,
-          workingProjectState,
-        );
-        yield { type: "final", response };
+        yield {
+          type: "final",
+          response: this.buildResponse(
+            "The operation reached the safety iteration limit before a verified final response was produced.",
+            requestedCalls,
+            results,
+            workingProjectState,
+          ),
+        };
         return;
       }
     }
 
     throw new Error("Agent runtime exhausted without a terminal state.");
+  }
+
+  private *emitContentTokens(content: string): Generator<
+    Extract<AgentRuntimeStreamEvent, { type: "token" }>
+  > {
+    for (const token of content.split(/(?=\\s)|(?<=\\s)/).filter(Boolean)) {
+      yield { type: "token", text: token };
+    }
   }
 
   private buildResponse(
@@ -319,18 +363,19 @@ export class AgentRuntime {
     toolOutput: Record<string, unknown>,
     state: ProjectState,
   ): ProjectState {
-    const updatedState = structuredClone(state);
-    const now = new Date().toISOString();
+    const parsedState = ProjectStateSchema.parse(state);
+    const validatedOutput = this.registry.parseToolOutput(toolName, toolOutput);
+    const updatedState = structuredClone(parsedState);
 
     if (
       toolName === "remove_background" &&
-      typeof toolOutput.processedImageUrl === "string"
+      typeof validatedOutput.processedImageUrl === "string"
     ) {
       const newLayer: Layer = {
         id: crypto.randomUUID(),
         name: "Background Removed Layer",
         type: "image",
-        url: toolOutput.processedImageUrl,
+        url: validatedOutput.processedImageUrl,
         visible: true,
         locked: false,
         opacity: 1,
@@ -344,65 +389,95 @@ export class AgentRuntime {
         },
         metadata: {
           maskUrl:
-            typeof toolOutput.maskUrl === "string"
-              ? toolOutput.maskUrl
+            typeof validatedOutput.maskUrl === "string"
+              ? validatedOutput.maskUrl
               : "unknown",
         },
       };
-      updatedState.layers.push(newLayer);
-      updatedState.timeline.push({
-        id: crypto.randomUUID(),
-        timestamp: 0,
-        actionType: "remove_background",
-        affectedLayerId: newLayer.id,
-        description: "Created a new layer with background removed.",
-      });
-    } else if (
-      toolName === "apply_color_lut" &&
-      typeof toolOutput.renderedMediaUrl === "string"
-    ) {
+      updatedState.layers = [...updatedState.layers, newLayer];
+      updatedState.timeline = [
+        ...updatedState.timeline,
+        {
+          id: crypto.randomUUID(),
+          timestamp: 0,
+          actionType: "remove_background",
+          affectedLayerId: newLayer.id,
+          description: "Created a new layer with background removed.",
+        },
+      ];
+    } else if (toolName === "apply_color_lut") {
+      const renderedMediaUrl = validatedOutput.renderedMediaUrl;
+      const appliedLut = validatedOutput.appliedLut;
+      const intensityApplied = validatedOutput.intensityApplied;
       const target =
         updatedState.layers.find((layer) => layer.type === "video") ??
         updatedState.layers.find((layer) => layer.type === "image");
 
-      if (target) {
-        target.url = toolOutput.renderedMediaUrl;
-        target.metadata = {
-          ...target.metadata,
-          appliedLut: toolOutput.appliedLut,
-          intensityApplied: toolOutput.intensityApplied,
-        };
-        updatedState.timeline.push({
-          id: crypto.randomUUID(),
-          timestamp: 0,
-          actionType: "apply_color_lut",
-          affectedLayerId: target.id,
-          description: "Applied a predefined color LUT to the target layer.",
-        });
+      if (
+        target &&
+        typeof renderedMediaUrl === "string" &&
+        typeof appliedLut === "string" &&
+        typeof intensityApplied === "number"
+      ) {
+        updatedState.layers = updatedState.layers.map((layer) =>
+          layer.id === target.id
+            ? {
+                ...layer,
+                url: renderedMediaUrl,
+                metadata: {
+                  ...layer.metadata,
+                  appliedLut,
+                  intensityApplied,
+                },
+              }
+            : layer,
+        );
+        updatedState.timeline = [
+          ...updatedState.timeline,
+          {
+            id: crypto.randomUUID(),
+            timestamp: 0,
+            actionType: "apply_color_lut",
+            affectedLayerId: target.id,
+            description: "Applied a predefined color LUT to the target layer.",
+          },
+        ];
       }
-    } else if (
-      toolName === "trim_video" &&
-      typeof toolOutput.trimmedVideoUrl === "string"
-    ) {
+    } else if (toolName === "trim_video") {
+      const trimmedVideoUrl = validatedOutput.trimmedVideoUrl;
+      const newDurationSec = validatedOutput.newDurationSec;
       const target = updatedState.layers.find((layer) => layer.type === "video");
 
+      if (target && typeof trimmedVideoUrl === "string") {
+        updatedState.layers = updatedState.layers.map((layer) =>
+          layer.id === target.id
+            ? { ...layer, url: trimmedVideoUrl }
+            : layer,
+        );
+      }
+      if (target && typeof newDurationSec === "number") {
+        updatedState.durationSec = newDurationSec;
+      }
       if (target) {
-        target.url = toolOutput.trimmedVideoUrl;
-        if (typeof toolOutput.newDurationSec === "number") {
-          updatedState.durationSec = toolOutput.newDurationSec;
-        }
-        updatedState.timeline.push({
-          id: crypto.randomUUID(),
-          timestamp: 0,
-          actionType: "trim_video",
-          affectedLayerId: target.id,
-          description: "Trimmed the video layer to the requested range.",
-        });
+        updatedState.timeline = [
+          ...updatedState.timeline,
+          {
+            id: crypto.randomUUID(),
+            timestamp: 0,
+            actionType: "trim_video",
+            affectedLayerId: target.id,
+            description: "Trimmed the video layer to the requested range.",
+          },
+        ];
       }
     }
 
-    updatedState.updatedAt = now;
-    updatedState.version += 1;
-    return ProjectStateSchema.parse(updatedState);
+    const nextState = {
+      ...updatedState,
+      updatedAt: new Date().toISOString(),
+      version: parsedState.version + 1,
+    };
+
+    return ProjectStateSchema.parse(nextState);
   }
 }

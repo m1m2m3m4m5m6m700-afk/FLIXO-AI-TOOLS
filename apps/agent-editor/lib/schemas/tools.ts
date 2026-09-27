@@ -19,7 +19,7 @@ export const ToolMetaSchema = z.object({
   estimatedCostCredits: z.number().nonnegative().default(0),
   estimatedLatencyMs: z.number().nonnegative().default(100),
   supportedMediaTypes: z.array(z.enum(["image", "video", "audio"])),
-});
+}).strict();
 export type ToolMeta = z.infer<typeof ToolMetaSchema>;
 
 export interface ToolDefinition<
@@ -48,9 +48,11 @@ export function createToolDefinition<
   };
 }
 
-export const RegisteredToolSchema = z.object({
-  name: z.string().min(1),
-  meta: ToolMetaSchema,
-  jsonSchemaInput: z.record(z.string(), z.unknown()),
-});
+export const RegisteredToolSchema = z
+  .object({
+    name: z.string().min(1).max(128),
+    meta: ToolMetaSchema,
+    jsonSchemaInput: z.record(z.string(), z.unknown()),
+  })
+  .strict();
 export type RegisteredTool = z.infer<typeof RegisteredToolSchema>;

@@ -1,18 +1,19 @@
-import { z } from "zod";
-import { ToolCallRequestSchema, type ToolCallRequest } from "../schemas/agent";
+import { MockLLMResultSchema, ToolCallRequestSchema, type MockLLMResult, type ToolCallRequest } from "../schemas/agent";
 import { stableToken } from "../tools/mock-utils";
-
-const MockLLMResultSchema = z.object({
-  content: z.string().min(1),
-  toolCalls: z.array(ToolCallRequestSchema),
-});
-export type MockLLMResult = z.infer<typeof MockLLMResultSchema>;
 
 export function simulateLLMReasoning(
   prompt: string,
   callIndex = 1,
 ): MockLLMResult {
   const normalized = prompt.trim().toLowerCase();
+
+  if (callIndex > 1) {
+    return MockLLMResultSchema.parse({
+      content: "The requested registered operation has been completed.",
+      toolCalls: [],
+    });
+  }
+
   const callId = `mock_call_${stableToken([normalized, String(callIndex)])}`;
 
   const result: { content: string; toolCalls: ToolCallRequest[] } =
@@ -35,7 +36,8 @@ export function simulateLLMReasoning(
           normalized.includes("color") ||
           normalized.includes("filter")
         ? {
-            content: "I will apply a predefined color grading LUT to the target media layer.",
+            content:
+              "I will apply a predefined color grading LUT to the target media layer.",
             toolCalls: [
               {
                 callId,
@@ -71,5 +73,8 @@ export function simulateLLMReasoning(
               toolCalls: [],
             };
 
-  return MockLLMResultSchema.parse(result);
+  return MockLLMResultSchema.parse({
+    ...result,
+    toolCalls: result.toolCalls.map((call) => ToolCallRequestSchema.parse(call)),
+  });
 }

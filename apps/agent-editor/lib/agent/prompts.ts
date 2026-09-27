@@ -1,23 +1,28 @@
-import type { RegisteredTool } from "../schemas/tools";
-import type { ProjectState } from "../schemas/project";
+import { RegisteredToolSchema, type RegisteredTool } from "../schemas/tools";
+import { ProjectStateSchema, type ProjectState } from "../schemas/project";
 
 export function buildSystemPrompt(
   tools: readonly RegisteredTool[],
   currentProjectState?: ProjectState,
 ): string {
-  const toolsDescription = tools
+  const validatedTools = tools.map((tool) => RegisteredToolSchema.parse(tool));
+  const toolsDescription = validatedTools
     .map(
       (tool) =>
         `- ${tool.name}: ${tool.meta.description} (category=${tool.meta.category}, execution=${tool.meta.executionMode})`,
     )
     .join("\n");
 
-  const projectContext = currentProjectState
+  const validatedState = currentProjectState
+    ? ProjectStateSchema.parse(currentProjectState)
+    : undefined;
+
+  const projectContext = validatedState
     ? [
-        `Canvas: ${currentProjectState.dimensions.width}x${currentProjectState.dimensions.height} @ ${currentProjectState.dimensions.fps}fps`,
-        `Duration: ${currentProjectState.durationSec}s`,
-        `Layers: ${currentProjectState.layers.length}`,
-        ...currentProjectState.layers.map(
+        `Canvas: ${validatedState.dimensions.width}x${validatedState.dimensions.height} @ ${validatedState.dimensions.fps}fps`,
+        `Duration: ${validatedState.durationSec}s`,
+        `Layers: ${validatedState.layers.length}`,
+        ...validatedState.layers.map(
           (layer) =>
             `- [${layer.type}] ${layer.id} | ${layer.name} | visible=${layer.visible}`,
         ),

@@ -4,8 +4,13 @@ import {
   ToolDefinition,
   RegisteredTool,
   ToolMeta,
+  ToolMetaSchema,
 } from "../schemas/tools";
-import { ToolCallResultSchema, type ToolCallResult } from "../schemas/agent";
+import {
+  ToolCallRequestSchema,
+  ToolCallResultSchema,
+  type ToolCallResult,
+} from "../schemas/agent";
 
 type StoredTool = ToolDefinition<z.ZodTypeAny, z.ZodTypeAny>;
 
@@ -60,13 +65,19 @@ export class ToolRegistry {
     const startTime = Date.now();
 
     try {
-      const tool = this.get(toolName);
-      const parsedInput = tool.inputSchema.safeParse(rawInput);
+      const request = ToolCallRequestSchema.parse({
+        callId,
+        toolName,
+        parameters: rawInput,
+      });
+
+      const tool = this.get(request.toolName);
+      const parsedInput = tool.inputSchema.safeParse(request.parameters);
 
       if (!parsedInput.success) {
         return this.result({
-          callId,
-          toolName,
+          callId: request.callId,
+          toolName: request.toolName,
           status: "error",
           errorDetails: `Invalid Tool Input Schema: ${parsedInput.error.message}`,
           executionTimeMs: Date.now() - startTime,
@@ -78,8 +89,8 @@ export class ToolRegistry {
 
       if (!parsedOutput.success) {
         return this.result({
-          callId,
-          toolName,
+          callId: request.callId,
+          toolName: request.toolName,
           status: "error",
           errorDetails: `Invalid Tool Output Schema: ${parsedOutput.error.message}`,
           executionTimeMs: Date.now() - startTime,
@@ -88,20 +99,21 @@ export class ToolRegistry {
 
       if (!this.isRecord(parsedOutput.data)) {
         throw new ToolExecutionError(
-          toolName,
+          request.toolName,
           "Tool output must be an object for ToolCallResult.data.",
         );
       }
 
       return this.result({
-        callId,
-        toolName,
+        callId: request.callId,
+        toolName: request.toolName,
         status: "success",
         data: parsedOutput.data,
         executionTimeMs: Date.now() - startTime,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown tool execution failure.";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown tool execution failure.";
       return this.result({
         callId,
         toolName,
@@ -112,17 +124,26 @@ export class ToolRegistry {
     }
   }
 
+  parseToolOutput(toolName: string, data: unknown): Record<string, unknown> {
+    const tool = this.get(toolName);
+    const parsed = tool.outputSchema.parse(data);
+    if (!this.isRecord(parsed)) {
+      throw new ToolExecutionError(toolName, "Validated tool output must be an object.");
+    }
+    return parsed;
+  }
+
   get size(): number {
     return this.tools.size;
   }
 
   private parseMeta(meta: ToolMeta): ToolMeta {
-    return {
+    return ToolMetaSchema.parse({
       ...meta,
       name: meta.name.trim(),
       description: meta.description.trim(),
       supportedMediaTypes: [...meta.supportedMediaTypes],
-    };
+    });
   }
 
   private describeInputSchema(schema: z.ZodTypeAny): Record<string, unknown> {
