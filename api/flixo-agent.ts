@@ -1,18 +1,16 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { ModelProviderClient } from '@flixo/agent-runtime';
 import { createHash, randomUUID } from 'node:crypto';
-import { getCapability, getExecutableCapabilityIds } from '../src/lib/agent/capability-registry.ts';
-import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from '../src/lib/contracts/agent-gateway.ts';
+import { parseAgentDecision, type AgentRequestContract } from '../src/lib/contracts/agent-gateway.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
 import { planFromIntent } from '../src/lib/ai/planner.ts';
-import { isDeterministicPlanCompatible } from '../src/lib/ai/deterministic-boundary.ts';
 import { selectModelForTask } from '../src/lib/agent/model-router.ts';
 import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
 import { createAgentEvent } from '../src/lib/agent/event-gateway.ts';
 import { evaluatePlanApproval } from '../src/lib/agent/approval-policy.ts';
 import { isDurableAgentTaskStoreConfigured, upsertAgentTask, appendAgentTaskEvent } from '../src/server/agent/durable-task-store.ts';
 import { WORKFLOW_TOOL_CATALOG } from '../src/lib/agent/workflow-as-tool.ts';
-import { createExternalAgentLearning, listExternalAgentLearning } from '../src/server/agent/learning-persistence.ts';
+import { listExternalAgentLearning } from '../src/server/agent/learning-persistence.ts';
 import {
   beginFlixoBotGatewayRuntime,
   beginModelTurn,
