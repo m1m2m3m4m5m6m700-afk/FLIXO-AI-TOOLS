@@ -19,6 +19,18 @@ function sseResponse(body: string): Response {
   });
 }
 
+const validProject = {
+  id: "11111111-1111-4111-8111-111111111111",
+  title: "Test",
+  dimensions: { width: 1920, height: 1080, fps: 30 },
+  durationSec: 0,
+  layers: [],
+  timeline: [],
+  createdAt: "2026-09-27T00:00:00.000Z",
+  updatedAt: "2026-09-27T00:00:00.000Z",
+  version: 1,
+};
+
 describe("production hardening", () => {
   it("fails closed for plaintext provider credentials in production", () => {
     const previous = {
@@ -86,24 +98,27 @@ describe("production hardening", () => {
   });
 
   it("bounds the serialized project state accepted by the agent API", () => {
-    const projectState = {
-      id: "11111111-1111-4111-8111-111111111111",
-      title: "Oversized",
-      dimensions: { width: 1920, height: 1080, fps: 30 },
-      durationSec: 0,
-      layers: [],
-      timeline: [],
-      createdAt: "2026-09-27T00:00:00.000Z",
-      updatedAt: "2026-09-27T00:00:00.000Z",
-      version: 1,
-      metadata: "x".repeat(140 * 1024),
+    const oversizedProject = {
+      ...validProject,
+      layers: [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Large metadata",
+          type: "image",
+          visible: true,
+          locked: false,
+          opacity: 1,
+          transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 0 },
+          metadata: { payload: "x".repeat(140 * 1024) },
+        },
+      ],
     };
 
     expect(() =>
       sanitizeChatRequest({
         message: "hello",
         history: [],
-        projectState,
+        projectState: oversizedProject,
       }),
     ).toThrow("PROJECT_STATE_TOO_LARGE");
   });
