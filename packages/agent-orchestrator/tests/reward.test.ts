@@ -21,3 +21,13 @@ test("reward engine penalizes reward hacking signals", () => {
   assert.ok(result.score < 80);
   assert.deepEqual(result.reasons.slice(0, 2), ["out-of-scope-action", "unauthorized-delegation"]);
 });
+
+
+test("adversarial reward favors verified findings and penalizes false positives", () => {
+  const engine = new AgentRewardEngine();
+  const verified = engine.calculateAdversarial({ verifiedFindings: 3, falsePositiveFindings: 0, resolvedDisputes: 2, unresolvedDisputes: 0, agreement: 0.9 });
+  const noisy = engine.calculateAdversarial({ verifiedFindings: 1, falsePositiveFindings: 3, resolvedDisputes: 0, unresolvedDisputes: 2, agreement: 0.2 });
+  assert.ok(verified.score > noisy.score);
+  assert.ok(verified.reasons.includes("verified-defect-discovery"));
+  assert.ok(noisy.reasons.includes("false-positive-adversarial-finding"));
+});
