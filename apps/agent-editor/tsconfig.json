@@ -26,12 +26,6 @@
     "paths": {
       "@/*": [
         "./*"
-      ],
-      "@flixo/contracts": [
-        "../../packages/contracts/src/index.ts"
-      ],
-      "@flixo/agent-runtime": [
-        "../../packages/agent-runtime/src/index.ts"
       ]
     }
   },
