@@ -1,3 +1,4 @@
+import { AgentRuntime as CanonicalAgentRuntime } from "@flixo/agent-runtime";
 import type { AgentInstruction, AgentReport, AgentWorker } from "@flixo/agent-orchestrator";
 import type { ToolRegistry } from "./registry";
 
@@ -9,6 +10,7 @@ export type ToolBackedWorkerOptions = Readonly<{
   role: string;
   toolRegistry: ToolRegistry;
   allowedToolIds: readonly string[];
+  runtime?: CanonicalAgentRuntime;
 }>;
 
 export const createToolBackedWorker = (options: ToolBackedWorkerOptions): AgentWorker => {
@@ -37,21 +39,45 @@ export const createToolBackedWorker = (options: ToolBackedWorkerOptions): AgentW
         });
       }
 
-      const result = await options.toolRegistry.execute(
-        `${instruction.commandId}:${instruction.stepId}`,
-        execution.toolId,
-        execution.parameters,
+      const runtime = options.runtime ?? new CanonicalAgentRuntime(
+        options.toolRegistry.toRuntimeRegistry(),
+        {
+          taskId: instruction.commandId,
+          traceId: instruction.commandId + ":" + instruction.stepId,
+        },
       );
+      if (runtime.state.taskId !== instruction.commandId) {
+        return Object.freeze({
+          stepId: instruction.stepId,
+          commandId: instruction.commandId,
+          status: "blocked",
+          summary: "Canonical runtime task identity does not match the supervised command.",
+          evidence: { toolId: execution.toolId, outOfScopeActions: 1, delegatedTasks: 0, evidenceVerified: false },
+        });
+      }
+      runtime.plan();
+      runtime.requestConfirmation();
+      runtime.confirm();
+      const executionResult = await runtime.execute({
+        requestId: crypto.randomUUID(),
+        taskId: runtime.state.taskId,
+        traceId: runtime.state.traceId,
+        toolCall: {
+          callId: execution.toolId + ":" + instruction.stepId,
+          toolId: execution.toolId,
+          parameters: execution.parameters,
+        },
+      });
 
-      if (result.status === "success") {
+      if (executionResult.result.status === "success") {
         return Object.freeze({
           stepId: instruction.stepId,
           commandId: instruction.commandId,
           status: "completed",
-          summary: `Tool '${execution.toolId}' executed through the canonical ToolRegistry.`,
+          summary: `Tool '${execution.toolId}' executed through @flixo/agent-runtime.`,
           evidence: {
             toolId: execution.toolId,
-            toolResult: result.data ?? {},
+            toolResult: executionResult.result.data ?? {},
             requiredArtifacts: [execution.toolId],
             completedArtifacts: [execution.toolId],
             testsPassed: 0,
@@ -67,7 +93,7 @@ export const createToolBackedWorker = (options: ToolBackedWorkerOptions): AgentW
         stepId: instruction.stepId,
         commandId: instruction.commandId,
         status: "failed",
-        summary: result.errorDetails ?? `Tool '${execution.toolId}' failed.`,
+        summary: executionResult.result.error?.message ?? `Tool '${execution.toolId}' failed.`,
         evidence: {
           toolId: execution.toolId,
           testsPassed: 0,
@@ -75,7 +101,7 @@ export const createToolBackedWorker = (options: ToolBackedWorkerOptions): AgentW
           evidenceVerified: false,
           outOfScopeActions: 0,
           delegatedTasks: 0,
-          notes: result.errorDetails ?? "TOOL_EXECUTION_FAILED" ?? "TOOL_EXECUTION_FAILED",
+          notes: executionResult.result.error?.message ?? "TOOL_EXECUTION_FAILED",
         },
       });
     },
