@@ -16,5 +16,12 @@ export default defineConfig({
     url: "http://127.0.0.1:3001",
     reuseExistingServer: false,
     timeout: 60000,
+    env: {
+      SITE_URL: "https://flixoai.vercel.app",
+      VITE_SITE_URL: "https://flixoai.vercel.app",
+      VITE_RUNTIME_ORIGIN: "http://127.0.0.1:3001",
+      VITE_TEST_ORIGIN: "http://127.0.0.1:3001",
+      FLIXO_ENABLE_MOCK_LLM: "true",
+    },
   },
 });
