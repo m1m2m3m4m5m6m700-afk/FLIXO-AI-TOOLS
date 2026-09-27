@@ -195,6 +195,14 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
         }
       };
 
+      const agentProjectState = projectState
+        ? ProjectStateSchema.parse({
+            ...projectState,
+            layers: projectState.layers.map(({ url: _url, content: _content, metadata: _metadata, ...layer }) => layer),
+            timeline: [],
+          })
+        : undefined;
+
       try {
         const response = await fetch("/api/chat", {
           method: "POST",
@@ -203,7 +211,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
           body: JSON.stringify({
             message: normalizedContent,
             history: requestHistory,
-            projectState,
+            projectState: agentProjectState,
           }),
         });
 
