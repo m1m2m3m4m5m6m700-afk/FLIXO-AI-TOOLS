@@ -33,6 +33,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm test
       - run: npm audit --omit=dev --audit-level=high
+      - run: npm run verify:architecture
       - run: npm run build
       - name: Stamp exact build identity
         shell: bash
@@ -53,9 +54,24 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  agent-editor:
+    name: Agent Editor typecheck and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install --prefix apps/agent-editor --no-audit --no-fund
+      - run: npm run type-check --prefix apps/agent-editor
+      - run: npm run test:unit --prefix apps/agent-editor
+      - run: npm run build --prefix apps/agent-editor
+
   browser:
     name: Chromium browser smoke
-    needs: verify
+    needs: [verify, agent-editor]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -86,7 +102,7 @@ jobs:
 
   trust-gate:
     name: trust-gate
-    needs: [verify, browser]
+    needs: [verify, agent-editor, browser]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -94,10 +110,12 @@ jobs:
       - name: Assert canonical CI gates are GREEN
         env:
           VERIFY_RESULT: ${{ needs.verify.result }}
+          AGENT_EDITOR_RESULT: ${{ needs.agent-editor.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
         run: |
           set -euo pipefail
           test "$VERIFY_RESULT" = success
+          test "$AGENT_EDITOR_RESULT" = success
           test "$BROWSER_RESULT" = success
           echo 'TRUST_GATE=PASS'
 
