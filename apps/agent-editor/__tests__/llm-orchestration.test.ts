@@ -46,6 +46,28 @@ describe("canonical production orchestration contracts", () => {
     expect(events.at(-1)).toEqual({ type: "turn_end", toolCalls: [] });
   });
 
+  it("opens a provider circuit after failure and skips it during cooldown", async () => {
+    const router = new LLMRouter([
+      fakeProvider("openai", "test-openai", failingProvider()),
+    ]);
+
+    await expect((async () => {
+      for await (const _event of router.stream({
+        model: "", systemPrompt: "test", messages: [{ role: "user", content: "hello" }], tools: [],
+      })) {
+        // consume until provider failure
+      }
+    })()).rejects.toThrow();
+
+    await expect((async () => {
+      for await (const _event of router.stream({
+        model: "", systemPrompt: "test", messages: [{ role: "user", content: "hello" }], tools: [],
+      })) {
+        // a cooling provider must not be invoked again
+      }
+    })()).rejects.toThrow("currently cooling down");
+  });
+
   it("sanitizes control characters and rejects oversized history", () => {
     expect(sanitizeChatRequest({ message: "  Hello\u0000 FLIXO  ", history: [] }).message).toBe("Hello FLIXO");
     expect(() => sanitizeChatRequest({
