@@ -43,12 +43,20 @@ for (const [index, entry] of manifest.entries.entries()) {
     if (!(field in entry)) fail(`entry[${index}] is missing ${field}.`);
   }
   if (typeof entry.model !== 'string' || !entry.model.trim()) fail(`entry[${index}] model is empty.`);
+  if (typeof entry.source !== 'string' || !/^https:\/\//u.test(entry.source)) fail(`entry[${index}] source must be HTTPS.`);
+  if (typeof entry.license_file !== 'string' || !entry.license_file.trim()) fail(`entry[${index}] license_file is empty.`);
+  if (typeof entry.download_date !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}$/u.test(entry.download_date)) fail(`entry[${index}] download_date must be YYYY-MM-DD.`);
+  const approvedLicenses = new Set(policy.license_classes.approved_for_initial_review);
+  const prohibitedLicenses = new Set(policy.license_classes.prohibited_by_default);
+  if (prohibitedLicenses.has(entry.license)) fail(`entry[${index}] uses a prohibited license class.`);
+  if (!approvedLicenses.has(entry.license)) fail(`entry[${index}] uses a license requiring explicit review.`);
   if (typeof entry.version !== 'string' || !entry.version.trim()) fail(`entry[${index}] version is empty.`);
   const identity = `${entry.model}@${entry.version}`;
   if (seen.has(identity)) fail(`duplicate model identity: ${identity}`);
   seen.add(identity);
   if (!statuses.has(entry.review_status)) fail(`entry[${index}] has invalid review_status.`);
   if (entry.review_status !== 'PASS') fail(`entry[${index}] is not production-admissible: ${identity}`);
+  if (typeof entry.lifecycle_status !== 'string') fail(`entry[${index}] lifecycle_status is required.`);
   if (entry.lifecycle_status && !['CANDIDATE','APPROVED','ACTIVE','QUARANTINED'].includes(entry.lifecycle_status)) {
     fail(`entry[${index}] has invalid lifecycle_status.`);
   }
