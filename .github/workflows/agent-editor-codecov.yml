@@ -47,9 +47,30 @@ jobs:
       - name: Generate coverage
         run: npm run test:coverage
 
+      - name: Verify coverage artifact and exact SHA
+        working-directory: .
+        env:
+          EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test -s apps/agent-editor/coverage/lcov.info
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          printf 'target_sha=%s\n' "$EXPECTED_SHA" > apps/agent-editor/coverage/exact-sha.txt
+          printf 'coverage_file_sha256=%s\n' "$(sha256sum apps/agent-editor/coverage/lcov.info | cut -d' ' -f1)" >> apps/agent-editor/coverage/exact-sha.txt
+
+      - name: Upload internal coverage evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: flixo-agent-editor-coverage-evidence-${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          path: |
+            apps/agent-editor/coverage/lcov.info
+            apps/agent-editor/coverage/exact-sha.txt
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v6
         with:
           use_oidc: true
           files: apps/agent-editor/coverage/lcov.info
-          fail_ci_if_error: true
+          fail_ci_if_error: false
