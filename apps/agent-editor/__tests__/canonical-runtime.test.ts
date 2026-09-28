@@ -3,6 +3,9 @@ import {
   AgentRuntime,
   RuntimeToolRegistry,
 } from "@flixo/agent-runtime";
+import { createCanonicalRuntime } from "../lib/agent/canonical-runtime-adapter";
+import { ToolRegistry } from "../lib/agent/registry";
+import { z } from "zod";
 
 describe("canonical Agent Runtime", () => {
   it("requires explicit planning and confirmation before execution", async () => {
@@ -71,5 +74,49 @@ describe("canonical Agent Runtime", () => {
     expect(result.result.status).toBe("error");
     expect(result.result.error?.code).toBe("UNKNOWN_TOOL");
     expect(runtime.state.state).toBe("FAILED");
+  });
+});
+
+
+describe("agent-editor runtime adapter boundary", () => {
+  it("builds the application adapter on top of the canonical runtime registry", async () => {
+    const registry = new ToolRegistry();
+    registry.register({
+      meta: {
+        name: "echo",
+        description: "Echo input",
+        category: "utilities",
+        executionMode: "sync",
+        estimatedCostCredits: 0,
+        estimatedLatencyMs: 1,
+        supportedMediaTypes: ["image"],
+      },
+      inputSchema: z.object({ value: z.string() }),
+      outputSchema: z.object({ value: z.string() }),
+      execute: async (input) => input,
+    });
+
+    const runtime = createCanonicalRuntime(registry, {
+      taskId: "adapter-task",
+      traceId: "adapter-trace",
+    });
+
+    runtime.plan();
+    runtime.requestConfirmation();
+    runtime.confirm();
+
+    const result = await runtime.execute({
+      requestId: "adapter-request",
+      taskId: "adapter-task",
+      traceId: "adapter-trace",
+      toolCall: {
+        callId: "adapter-call",
+        toolId: "echo",
+        parameters: { value: "ok" },
+      },
+    });
+
+    expect(result.result.status).toBe("success");
+    expect(result.result.data).toEqual({ value: "ok" });
   });
 });
