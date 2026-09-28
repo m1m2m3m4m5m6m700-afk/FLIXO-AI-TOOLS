@@ -49,19 +49,12 @@ test('public agent response does not expose internal specialist identity', async
     return res;
   }) as import('node:http').ServerResponse['setHeader'];
 
-  await new Promise<void>(async (resolve, reject) => {
-    res.end = ((chunk?: unknown) => {
-      if (chunk !== undefined) chunks.push(Buffer.from(String(chunk)));
-      resolve();
-      return res;
-    }) as import('node:http').ServerResponse['end'];
+  res.end = ((chunk?: unknown) => {
+    if (chunk !== undefined) chunks.push(Buffer.from(String(chunk)));
+    return res;
+  }) as import('node:http').ServerResponse['end'];
 
-    try {
-      await handler(req, res);
-    } catch (error) {
-      reject(error);
-    }
-  });
+  await handler(req, res);
 
   const payload = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, unknown>;
   assert.equal(payload.internalSpecialist, undefined);
