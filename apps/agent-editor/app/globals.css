@@ -50,3 +50,18 @@ button:disabled { cursor: not-allowed; }
   .app-shell { grid-template-columns: 1fr; grid-template-rows: 42vh 58vh; }
   .chat-panel { border-right: 0; border-bottom: 1px solid #1e293b; }
 }
+
+
+.canvas-header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.export-controls { display: flex; align-items: center; gap: 8px; }
+.export-controls select { color: #e2e8f0; background: #0f172a; border: 1px solid #334155; border-radius: 7px; padding: 7px 9px; font-size: 11px; }
+.button.export { color: #fff; background: #059669; }
+.button.export:disabled { opacity: .45; }
+.render-surface { position: relative; width: 100%; height: 100%; display: grid; place-items: center; overflow: hidden; }
+.render-canvas { display: block; width: 100%; height: 100%; object-fit: contain; background: #020617; }
+.render-source-video { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.playback-bar { padding: 10px 0 4px; }
+.playback-bar input { display: block; width: 100%; accent-color: #3b82f6; }
+.export-status { border-top: 1px solid #1e293b; padding: 8px 16px 0; }
+.export-status-row { display: flex; justify-content: space-between; gap: 12px; color: #94a3b8; font-size: 11px; }
+.export-status progress { display: block; width: 100%; height: 5px; margin-top: 6px; }

@@ -1,13 +1,29 @@
-import { compressImage } from '@/tools/image-compressor/engine';
-import { convertImage, cropResizeImage, imageInfo, removeBackground, resizeImage } from '@/tools/image-toolkit/engine';
-import type { CapabilityParameters } from '@/lib/agent/capability-registry';
-import type { ToolDefinition } from '@/config/canonical-tool-definition';
-import { getVideoToolExecutor } from '@/lib/video/video-tool-executors';
+import { compressImage } from '../../tools/image-compressor/engine';
+import { convertImage, cropResizeImage, imageInfo, removeBackground, resizeImage } from '../../tools/image-toolkit/engine';
+import type { CapabilityParameters } from '../agent/capability-registry';
+import { getVideoToolExecutor } from '../video/video-tool-executors';
+
+export type ExecutableToolView = Readonly<{
+  id: string;
+  operational: Readonly<{ executorId: string | null }>;
+  safetyLimits: Readonly<{
+    maxPixels: number;
+    maxFileSizeBytes: number;
+    timeoutMs: number;
+  }>;
+}>;
+
+type ExecutorCoverageTool = Readonly<{
+  id: string;
+  capability: Readonly<{ state: string }>;
+  operational: Readonly<{ executorId: string | null }>;
+}>;
 
 export type ToolExecutorContext = Readonly<{
-  tool: ToolDefinition;
+  tool: ExecutableToolView;
   inputBlob: Blob;
   parameters: CapabilityParameters;
+  signal?: AbortSignal;
 }>;
 
 export type ToolExecutor = (context: ToolExecutorContext) => Promise<Blob>;
@@ -15,39 +31,57 @@ export type ToolParameterRepairer = (parameters: CapabilityParameters, attempt: 
 
 const asFile = (blob: Blob) => new File([blob], 'flixo-pipeline-input.png', { type: blob.type || 'image/png' });
 
-async function imageBitmap(blob: Blob) {
-  if (typeof createImageBitmap === 'function') return createImageBitmap(blob);
-  const url = URL.createObjectURL(blob);
-  const image = new Image();
-  try {
-    image.src = url;
-    await image.decode();
-    return image;
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
+async function effects(blob: Blob, params: CapabilityParameters, signal?: AbortSignal): Promise<Blob> {
+  if (typeof Worker === 'undefined') throw new Error('Image Effects Worker is unavailable.');
+  if (signal?.aborted) throw new DOMException('Execution aborted.', 'AbortError');
 
-function canvasToBlob(canvas: HTMLCanvasElement, type = 'image/png', quality = 0.94) {
-  return new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Image encoding failed.')), type, quality));
-}
+  const info = await imageInfo(blob);
+  const values = [
+    Number(params.brightness ?? 100),
+    Number(params.contrast ?? 100),
+    Number(params.saturate ?? 100),
+    Number(params.grayscale ?? 0),
+  ];
+  if (!values.every(Number.isFinite)) throw new Error('Image effect parameters must be finite numbers.');
 
-async function effects(blob: Blob, params: CapabilityParameters) {
-  const image = await imageBitmap(blob);
-  const canvas = document.createElement('canvas');
-  canvas.width = image.width;
-  canvas.height = image.height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas is unavailable.');
-  const values = [Number(params.brightness ?? 100), Number(params.contrast ?? 100), Number(params.saturate ?? 100), Number(params.grayscale ?? 0)];
-  try {
-    if (!values.every(Number.isFinite)) throw new Error('Image effect parameters must be finite numbers.');
-    ctx.filter = `brightness(${values[0]}%) contrast(${values[1]}%) saturate(${values[2]}%) grayscale(${values[3]}%)`;
-    ctx.drawImage(image, 0, 0);
-    return canvasToBlob(canvas);
-  } finally {
-    if ('close' in image && typeof image.close === 'function') image.close();
-  }
+  return await new Promise<Blob>((resolve, reject) => {
+    const worker = new Worker(
+      new URL('../../tools/_shared/image-effects-worker.ts', import.meta.url),
+      { type: 'classic' },
+    );
+    let settled = false;
+    const cleanup = () => {
+      worker.terminate();
+      signal?.removeEventListener('abort', onAbort);
+    };
+    const finishError = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+    const onAbort = () => finishError(new DOMException('Execution aborted.', 'AbortError'));
+
+    signal?.addEventListener('abort', onAbort, { once: true });
+
+    worker.onmessage = (event: MessageEvent<{ ok: boolean; blob?: Blob; error?: string }>) => {
+      if (event.data.ok && event.data.blob instanceof Blob && event.data.blob.size > 0) {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(event.data.blob);
+        return;
+      }
+      finishError(new Error(event.data.error || 'Image Effects Worker failed.'));
+    };
+    worker.onerror = () => finishError(new Error('Image Effects Worker could not start.'));
+    worker.postMessage({ blob, width: info.width, height: info.height, ...Object.fromEntries([
+      ['brightness', values[0]],
+      ['contrast', values[1]],
+      ['saturate', values[2]],
+      ['grayscale', values[3]],
+    ]) });
+  });
 }
 
 const EXECUTORS: Readonly<Record<string, ToolExecutor>> = Object.freeze({
@@ -85,26 +119,26 @@ const EXECUTORS: Readonly<Record<string, ToolExecutor>> = Object.freeze({
     })
   ).blob,
   'image-converter': async ({ inputBlob, parameters }) => convertImage(inputBlob, String(parameters.format ?? 'image/webp') as 'image/webp' | 'image/jpeg' | 'image/png'),
-  'image-effects': async ({ inputBlob, parameters }) => effects(inputBlob, parameters),
-  'video-trimmer': async ({ inputBlob, parameters, tool }) => {
+  'image-effects': async ({ inputBlob, parameters, signal }) => effects(inputBlob, parameters, signal),
+  'video-trimmer': async ({ inputBlob, parameters, tool, signal }) => {
     const executor = getVideoToolExecutor(tool);
     if (!executor) throw new Error('Video executor unavailable: video-trimmer');
-    return executor(inputBlob, parameters, tool);
+    return executor(inputBlob, parameters, tool, signal);
   },
-  'video-cropper': async ({ inputBlob, parameters, tool }) => {
+  'video-cropper': async ({ inputBlob, parameters, tool, signal }) => {
     const executor = getVideoToolExecutor(tool);
     if (!executor) throw new Error('Video executor unavailable: video-cropper');
-    return executor(inputBlob, parameters, tool);
+    return executor(inputBlob, parameters, tool, signal);
   },
-  'video-resizer': async ({ inputBlob, parameters, tool }) => {
+  'video-resizer': async ({ inputBlob, parameters, tool, signal }) => {
     const executor = getVideoToolExecutor(tool);
     if (!executor) throw new Error('Video executor unavailable: video-resizer');
-    return executor(inputBlob, parameters, tool);
+    return executor(inputBlob, parameters, tool, signal);
   },
-  'video-compressor': async ({ inputBlob, parameters, tool }) => {
+  'video-compressor': async ({ inputBlob, parameters, tool, signal }) => {
     const executor = getVideoToolExecutor(tool);
     if (!executor) throw new Error('Video executor unavailable: video-compressor');
-    return executor(inputBlob, parameters, tool);
+    return executor(inputBlob, parameters, tool, signal);
   },
 });
 
@@ -116,7 +150,7 @@ const REPAIRERS: Readonly<Record<string, ToolParameterRepairer>> = Object.freeze
   },
 });
 
-export function getToolExecutor(tool: ToolDefinition): ToolExecutor {
+export function getToolExecutor(tool: ExecutableToolView): ToolExecutor {
   const executorId = tool.operational.executorId;
   if (!executorId) throw new Error(`Tool '${tool.id}' has no executor binding.`);
   const executor = EXECUTORS[executorId];
@@ -124,12 +158,12 @@ export function getToolExecutor(tool: ToolDefinition): ToolExecutor {
   return executor;
 }
 
-export function repairToolParameters(tool: ToolDefinition, parameters: CapabilityParameters, attempt: number): CapabilityParameters | null {
+export function repairToolParameters(tool: ExecutableToolView, parameters: CapabilityParameters, attempt: number): CapabilityParameters | null {
   const executorId = tool.operational.executorId;
   return executorId ? REPAIRERS[executorId]?.(parameters, attempt) ?? null : null;
 }
 
-export function assertExecutorCoverage(tools: readonly ToolDefinition[]): void {
+export function assertExecutorCoverage(tools: readonly ExecutorCoverageTool[]): void {
   const executable = tools.filter((tool) => tool.capability.state === 'EXECUTABLE');
   const missingIds = executable.filter((tool) => !tool.operational.executorId).map((tool) => tool.id);
   const referencedIds = new Set(executable.map((tool) => tool.operational.executorId).filter((id): id is string => Boolean(id)));

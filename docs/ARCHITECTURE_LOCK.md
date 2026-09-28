@@ -1,40 +1,47 @@
 # FLIXO Architecture Lock
 
-This baseline is anchored to the current main branch. It defines authority boundaries; it does not add a second runtime.
+Baseline is bound to the execution stream and must be refreshed whenever canonical control-plane contracts change.
 
-## Locked topology
+## Locked architecture
 
-Human Authority
--> deterministic Control Plane
--> Planner / Executor / Verifier
+Human Authority -> deterministic Control Plane -> Planner / Executor / Verifier.
+The manual tool path remains independent.
 
-Governance is deterministic CI/repository policy. Manual tool routes remain independent of the Agent Router.
+Governance is deterministic CI/repository policy, not an autonomous authority.
 
 ## Allowed authority roles
 
-- PLANNER: intent interpretation and plan proposal only.
-- EXECUTOR: canonical registered execution only.
-- VERIFIER: output/evidence verification only.
-- GOVERNANCE: deterministic policy/gates only.
+| Role | Authority |
+|---|---|
+| PLANNER | propose plan/intents only |
+| EXECUTOR | invoke canonical registered execution only |
+| VERIFIER | verify output/evidence only |
+| GOVERNANCE | deterministic gates/policy only |
 
-Advisory profiles and external workers are overlays, not additional authority classes.
+Advisory/helper profiles are role overlays. They do not constitute additional authority classes and cannot mutate, merge, promote, certify, or change scope outside the canonical Control Plane.
 
-## Prohibited autonomous authority
+## Non-negotiable invariants
 
-No Agent may independently merge to main, certify an MVP, change MVP scope, disable security/CI, delete tests, create a second registry, or create a second certification path.
+- No Agent directly changes Control Plane state.
+- No Agent certifies.
+- No Agent merges or promotes to main.
+- No Agent changes MVP scope.
+- No Agent bypasses the canonical execution gate.
+- Autonomous execution is bounded by attempts, time, mutations, and scope.
+- Evidence is valid only when bound to the exact SHA under verification.
+- Infrastructure Green, Product Green, and MVP Certified are separate states.
+- Manual execution remains functional without the Agent Router.
 
-## Bounded autonomy
+## Baseline agent seats
 
-Every execution is bounded by attempts, time, mutations, and scope. Exhaustion is BLOCKED/fail-closed.
+The runtime may contain many advisory profiles, but only these authority seats exist:
+- Planner
+- Executor
+- Verifier
+- Governance
 
-## Evidence
-
-Every accepted transition requires evidence bound to the exact SHA under verification. Skipped, cancelled, stale, contradictory, or missing required evidence is not success.
-
-## Success-state separation
-
-Infrastructure Green, Product Green, and MVP Certified are independent states. A lower state never implies a higher state.
+External workers such as repair/review adapters are disposable role overlays and have no independent authority.
 
 ## Change control
 
-A new authority seat, mutation path, registry, execution path, or certification authority requires explicit Human Authority approval and contract tests.
+Adding a new authority seat, new mutation path, second registry, second certification path, or autonomous promotion path is prohibited without explicit Human Authority approval.

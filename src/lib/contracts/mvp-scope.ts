@@ -21,6 +21,48 @@ export const FLIXO_MVP_SCOPE = Object.freeze({
   }),
 } as const);
 
+export type MvpStandardIntentCase = Readonly<{
+  id: string;
+  request: string;
+  expectedToolIds: readonly string[];
+}>;
+
+export const MVP_STANDARD_INTENT_SUITE_VERSION = 1 as const;
+
+/**
+ * Versioned deterministic acceptance corpus. Every case must resolve to the exact
+ * canonical executable tool chain without a provider/network dependency.
+ */
+export const MVP_STANDARD_INTENT_SUITE: readonly MvpStandardIntentCase[] = Object.freeze([
+  { id: 'compress-en', request: 'compress my image', expectedToolIds: ['image-compressor'] },
+  { id: 'compress-ar', request: 'ضغط الصور', expectedToolIds: ['image-compressor'] },
+  { id: 'convert-webp-en', request: 'convert this image to webp', expectedToolIds: ['image-converter'] },
+  { id: 'convert-webp-ar', request: 'تحويل الصورة إلى webp', expectedToolIds: ['image-converter'] },
+  { id: 'upscale-en', request: 'upscale this image 2x', expectedToolIds: ['image-upscaler'] },
+  { id: 'upscale-ar', request: 'زيادة الدقة', expectedToolIds: ['image-upscaler'] },
+  { id: 'crop-en', request: 'crop this image to square', expectedToolIds: ['image-cropper'] },
+  { id: 'crop-ar', request: 'قص الصورة مربع', expectedToolIds: ['image-cropper'] },
+  { id: 'effects-en', request: 'increase contrast by 10%', expectedToolIds: ['image-effects'] },
+  { id: 'effects-ar', request: 'ارفع التباين 10%', expectedToolIds: ['image-effects'] },
+  { id: 'brightness-ar', request: 'ارفع السطوع 10%', expectedToolIds: ['image-effects'] },
+  { id: 'saturation-ar', request: 'ارفع التشبع 10%', expectedToolIds: ['image-effects'] },
+  { id: 'grayscale-ar', request: 'اجعل الصورة أبيض وأسود', expectedToolIds: ['image-effects'] },
+  { id: 'effects-negative-ar', request: 'خفض التباين 10%', expectedToolIds: ['image-effects'] },
+  { id: 'effects-en-brightness', request: 'increase brightness by 10%', expectedToolIds: ['image-effects'] },
+  { id: 'effects-en-saturation', request: 'increase saturation by 10%', expectedToolIds: ['image-effects'] },
+  { id: 'effects-en-grayscale', request: 'make it black and white', expectedToolIds: ['image-effects'] },
+  { id: 'effects-compound-ar', request: 'ارفع التباين 10% وارفع التشبع 20%', expectedToolIds: ['image-effects'] },
+  { id: 'trim-video-en', request: 'trim video', expectedToolIds: ['video-trimmer'] },
+  { id: 'crop-video-en', request: 'crop video to 720x720', expectedToolIds: ['video-cropper'] },
+  { id: 'crop-video-ar', request: 'قص الفيديو إلى 720×720', expectedToolIds: ['video-cropper'] },
+  { id: 'resize-video-en', request: 'resize video to 1280x720', expectedToolIds: ['video-resizer'] },
+  { id: 'resize-video-ar', request: 'غيّر حجم الفيديو إلى 1280×720', expectedToolIds: ['video-resizer'] },
+  { id: 'trim-video-ar', request: 'اقتطع أول 5 ثواني من الفيديو', expectedToolIds: ['video-trimmer'] },
+  { id: 'compress-video-ar', request: 'ضغط الفيديو', expectedToolIds: ['video-compressor'] },
+  { id: 'compound-webp', request: 'compress this image under 200KB and convert to WebP', expectedToolIds: ['image-converter', 'image-compressor'] },
+  { id: 'product-square', request: 'prepare a product image for a shop, square', expectedToolIds: ['background-remover', 'image-cropper'] },
+] as const);
+
 type MVPScopedTool = Pick<
   ToolDefinition,
   'id' | 'isReady' | 'path' | 'capability' | 'executionMode' |

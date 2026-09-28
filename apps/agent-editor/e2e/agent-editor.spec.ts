@@ -13,17 +13,46 @@ test.describe("FLIXO Agent Editor end-to-end", () => {
     await expect(page.getByText("Untitled Creative Project", { exact: false })).toBeVisible();
     await page.getByLabel("Describe the edit").fill("Remove background from image");
     await page.getByRole("button", { name: "Send" }).click();
-    await expect(page.getByText("Background Removed Layer", { exact: true })).toBeVisible();
-    await expect(page.getByText("remove_background", { exact: true })).toBeVisible();
+    await expect(page.getByText(/Untitled Creative Project · v2/u)).toBeVisible();
+    await expect(page.getByTestId("active-tool")).toHaveCount(0);
     expect(consoleErrors).toEqual([]);
   });
 
+  test("scrubs by frame and exports the rendered canvas through a dedicated worker", async ({ page }) => {
+    await page.goto("/");
+    const scrubber = page.getByTestId("frame-scrubber");
+    await expect(scrubber).toBeVisible();
+    await scrubber.focus();
+    await scrubber.press("ArrowRight");
+    await expect(page.getByText("Frame 1 ·", { exact: false })).toBeVisible();
+
+    const workerPromise = page.waitForEvent("worker");
+
+    await page.getByRole("combobox", { name: "Export format" }).selectOption("png");
+    await page.getByRole("button", { name: "Export" }).click();
+
+    await workerPromise;
+    await expect(page.getByTestId("export-progress")).toContainText("Export ready.");
+    const downloadPromise = page.waitForEvent("download");
+    const download = await page.getByRole("link", { name: "Download export" }).click().then(
+      () => downloadPromise,
+    );
+
+    expect(download.suggestedFilename()).toMatch(/\.png$/u);
+  });
+
   test("Stop aborts the active SSE request without losing the last valid state", async ({ page }) => {
+    await page.route("**/api/chat", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await route.continue();
+    });
     await page.goto("/");
     await page.getByLabel("Describe the edit").fill("Remove background from image");
     await page.getByRole("button", { name: "Send" }).click();
-    await expect(page.getByRole("button", { name: "Stop" })).toBeVisible();
-    await page.getByRole("button", { name: "Stop" }).click();
+    const stopButton = page.getByRole("button", { name: "Stop" });
+    await expect(stopButton).toBeVisible();
+    await expect(stopButton).toBeEnabled();
+    await stopButton.click();
     await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
     await expect(page.getByText("Untitled Creative Project", { exact: false })).toBeVisible();
   });

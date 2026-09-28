@@ -1,39 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { applyColorLutTool } from "../lib/tools/apply-color-lut";
-import { removeBackgroundTool } from "../lib/tools/remove-background";
-import { trimVideoTool } from "../lib/tools/trim-video";
+import { CANONICAL_AGENT_TOOLS, validateCanonicalAgentParameters } from "../lib/tools/canonical";
 
-describe("STEP 3 deterministic tool contracts", () => {
-  it("validates and preserves LUT parameters", async () => {
-    const output = await applyColorLutTool.execute({
-      mediaUrl: "https://example.com/video.mp4",
-      lutName: "teal_and_orange",
-      intensity: 0.75,
-    });
-
-    expect(output.appliedLut).toBe("teal_and_orange");
-    expect(output.intensityApplied).toBe(0.75);
+describe("canonical tool contracts", () => {
+  it("contains exactly the canonical executable MVP set", () => {
+    expect(CANONICAL_AGENT_TOOLS).toHaveLength(10);
+    for (const tool of CANONICAL_AGENT_TOOLS) {
+      expect(tool.executorId).toBe(tool.id);
+      expect(tool.outputContractId).toBe(tool.id);
+      expect(tool.executionMode).toBe("LOCAL");
+    }
   });
 
-  it("rejects an invalid remove-background URL", async () => {
-    await expect(
-      removeBackgroundTool.execute({
-        imageUrl: "not-a-url",
-        threshold: 0.5,
-        outputFormat: "png",
-      }),
-    ).rejects.toThrow();
-  });
+  it("validates image and video parameters against the canonical schema", () => {
+    expect(validateCanonicalAgentParameters("image-effects", {
+      brightness: 105, contrast: 120, saturate: 95, grayscale: 0,
+    })).toEqual({ brightness: 105, contrast: 120, saturate: 95, grayscale: 0 });
 
-  it("computes exact trim duration", async () => {
-    const output = await trimVideoTool.execute({
-      videoUrl: "https://example.com/clip.mp4",
-      startTimeSec: 2,
-      endTimeSec: 7,
-    });
-
-    expect(output.newDurationSec).toBe(5);
-    expect(output.startTimeSec).toBe(2);
-    expect(output.endTimeSec).toBe(7);
+    expect(validateCanonicalAgentParameters("video-trimmer", {
+      startSec: 2, endSec: 7,
+    })).toEqual({ startSec: 2, endSec: 7 });
   });
 });

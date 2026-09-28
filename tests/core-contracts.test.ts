@@ -13,8 +13,8 @@ const {
   IMAGE_COMPRESSOR_MAX_PIXELS,
 } = await import('../src/tools/image-compressor/file-safety.ts');
 const { solveMath, verifyMathReceipt } =
-  await import('../packages/agent-runtime/src/math-engine.ts');
-const { decomposeTask } = await import('../packages/agent-runtime/src/task-decomposer.ts');
+  await import('../src/lib/agent/universal/math-engine.ts');
+const { decomposeTask } = await import('../src/lib/agent/task-decomposer.ts');
 const {
   createMissionContract,
   canExecuteMissionTask,
@@ -175,4 +175,24 @@ test('agent outcomes distinguish stale SHA from verified current SHA', () => {
 
   const current = buildAgentOutcome({ ...common, currentSha: exactSha });
   assert.equal(current.learning, 'VERIFIED_KNOWLEDGE');
+});
+
+test('external repair/review adapters enforce exact-SHA and authority boundaries', async()=>{
+ const {EXTERNAL_AGENT_ADAPTERS}=await import('../src/lib/agent/agent-profile.ts');
+ const {assertExternalAgentActionAllowed,assertExactShaMatch,validateMiniSweRepairCandidate,validateCodeRabbitReviewEvidence}=await import('../src/lib/developer/external-agent-adapters.ts');
+ const exactSha='1'.repeat(40);
+ assert.equal(EXTERNAL_AGENT_ADAPTERS.find(a=>a.id==='mini-swe-agent')?.profileId,'actionRepairBot');
+ assert.equal(EXTERNAL_AGENT_ADAPTERS.find(a=>a.id==='coderabbit')?.profileId,'reviewAgent');
+ assert.doesNotThrow(()=>assertExternalAgentActionAllowed('mini-swe-agent','LOCAL_SANDBOX_WRITE'));
+ assert.doesNotThrow(()=>assertExternalAgentActionAllowed('mini-swe-agent','PROPOSE_PATCH'));
+ assert.doesNotThrow(()=>assertExternalAgentActionAllowed('coderabbit','REVIEW_DIFF'));
+ for(const action of ['MUTATE_REPOSITORY','CREATE_BRANCH','PUSH','CERTIFY','PROMOTE'] as const) assert.throws(()=>assertExternalAgentActionAllowed('mini-swe-agent',action),/EXTERNAL_AGENT_ACTION_FORBIDDEN/);
+ assert.doesNotThrow(()=>assertExactShaMatch(exactSha,exactSha));
+ assert.throws(()=>assertExactShaMatch(exactSha,'2'.repeat(40)),/EXTERNAL_AGENT_STALE_SHA/);
+ const candidate=validateMiniSweRepairCandidate({adapter:'mini-swe-agent',role:'REPAIR_WORKER',baseSha:exactSha,workspaceHeadSha:'3'.repeat(40),status:'CANDIDATE',patchPath:'artifacts/mini-swe-agent/repair.patch',patchSha256:'4'.repeat(64),changedPaths:['src/example.ts'],authorityBinding:'CANONICAL_CONTROL_PLANE',mutationAuthority:false,certificationAuthority:false,branchCreation:false,directPush:false,directPromotion:false},exactSha);
+ assert.equal(candidate.status,'CANDIDATE');
+ assert.throws(()=>validateMiniSweRepairCandidate({...candidate,baseSha:'5'.repeat(40)},exactSha),/EXTERNAL_AGENT_STALE_SHA/);
+ const review=validateCodeRabbitReviewEvidence({adapter:'coderabbit',role:'REVIEWER',reviewedSha:exactSha,status:'REVIEWED',reviewId:'coderabbit-review-test',authorityBinding:'CANONICAL_CONTROL_PLANE',mutationAuthority:false,certificationAuthority:false,branchCreation:false,directPush:false,directPromotion:false},exactSha);
+ assert.equal(review.reviewedSha,exactSha);
+ assert.throws(()=>validateCodeRabbitReviewEvidence({...review,reviewedSha:'6'.repeat(40)},exactSha),/EXTERNAL_AGENT_STALE_SHA/);
 });

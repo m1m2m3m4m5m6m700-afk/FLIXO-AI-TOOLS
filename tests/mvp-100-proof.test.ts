@@ -22,10 +22,18 @@ const {
   TOOL_OUTPUT_CONTRACTS,
 } = await import('../src/lib/contracts/tool-output-contracts.ts');
 const { assertToolOutputContract } = await import('../src/lib/contracts/tool-output.ts');
-const { assertMvpScope, assertMvpManualAgentCoverage, toAgentFileMetadata, FLIXO_MVP_SCOPE } = await import('../src/lib/contracts/mvp-scope.ts');
+const {
+  assertMvpScope,
+  assertMvpManualAgentCoverage,
+  toAgentFileMetadata,
+  FLIXO_MVP_SCOPE,
+  MVP_STANDARD_INTENT_SUITE,
+  MVP_STANDARD_INTENT_SUITE_VERSION,
+} = await import('../src/lib/contracts/mvp-scope.ts');
 const {
   assessVisualGoal,
   deriveVisualGoalSpec,
+  verifyVisualGoal,
 } = await import('../src/lib/agent/visual-goal-verifier.ts');
 
 test('mandatory FLIXO MVP scope is enforced at the canonical registry boundary', () => {
@@ -37,6 +45,46 @@ test('mandatory FLIXO MVP scope is enforced at the canonical registry boundary',
   assert.equal(FLIXO_MVP_SCOPE.processing.backendRequiredForFileExecution, false);
   assert.equal(FLIXO_MVP_SCOPE.hosting.staticCdnOnly, true);
   assert.equal(FLIXO_MVP_SCOPE.offline.executableAfterAssetsLoaded, true);
+});
+
+test('deterministic MVP standard-intent suite is 100% exact', () => {
+  assert.equal(MVP_STANDARD_INTENT_SUITE_VERSION, 1);
+  for (const testCase of MVP_STANDARD_INTENT_SUITE) {
+    const plan = planFromIntent(testCase.request);
+    assert.ok(plan, testCase.id);
+    assert.deepEqual(
+      plan?.steps.map((step) => step.toolId),
+      testCase.expectedToolIds,
+      testCase.id,
+    );
+    for (const step of plan?.steps ?? []) {
+      assert.ok(MVP_EXECUTABLE_TOOL_IDS.includes(step.toolId as typeof MVP_EXECUTABLE_TOOL_IDS[number]), testCase.id);
+    }
+  }
+});
+
+test('Arabic crop intent is not confused with video trim', () => {
+  assert.deepEqual(planFromIntent('قص الفيديو إلى 720×720')?.steps.map((step) => step.toolId), ['video-cropper']);
+  assert.deepEqual(planFromIntent('اقتطع أول 5 ثواني من الفيديو')?.steps.map((step) => step.toolId), ['video-trimmer']);
+});
+
+test('video intent specificity prefers the video capability over generic image matches', () => {
+  assert.deepEqual(planFromIntent('crop video to 720x720')?.steps.map((step) => step.toolId), ['video-cropper']);
+  assert.deepEqual(planFromIntent('resize video to 1280x720')?.steps.map((step) => step.toolId), ['video-resizer']);
+});
+
+test('ambiguous effect requests fail closed instead of guessing an adjustment', () => {
+  assert.equal(planFromIntent('ارفع التباين'), null);
+  assert.equal(planFromIntent('increase contrast'), null);
+});
+
+test('visual goal verification fails closed when a browser decoder is unavailable', async () => {
+  if (typeof document !== 'undefined' && typeof createImageBitmap === 'function') return;
+  const input = new Blob([Uint8Array.from([1, 2, 3])], { type: 'image/png' });
+  const output = new Blob([Uint8Array.from([4, 5, 6])], { type: 'image/png' });
+  const report = await verifyVisualGoal(input, output, 'image-effects', { brightness: 150 });
+  assert.equal(report.verified, false);
+  assert.equal(report.mode, 'NO_BROWSER_DECODER');
 });
 
 test('agent gateway file payload is metadata-only and never contains file bytes', () => {

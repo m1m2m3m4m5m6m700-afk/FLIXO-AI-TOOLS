@@ -7,6 +7,7 @@ export type VideoRenderOptions = Readonly<{
   fps?: number;
   videoBitsPerSecond?: number;
   audioBitsPerSecond?: number;
+  signal?: AbortSignal;
 }>;
 
 type MediaRecorderConstructor = typeof MediaRecorder;
@@ -127,12 +128,13 @@ export async function renderVideoToWebm(inputBlob: Blob, options: VideoRenderOpt
       recorder.onstop = () => resolve();
     });
 
-    await seek(video, startSec);
+    if (options.signal?.aborted) throw new DOMException('Video operation aborted.', 'AbortError');
+    await seek(video, startSec, options.signal);
 
     let drawing = true;
     let frameHandle = 0;
     const draw = () => {
-      if (!drawing) return;
+      if (!drawing || options.signal?.aborted) return;
       context.drawImage(video, source.x, source.y, source.width, source.height, 0, 0, canvas.width, canvas.height);
       frameHandle = requestAnimationFrame(draw);
     };
@@ -142,8 +144,15 @@ export async function renderVideoToWebm(inputBlob: Blob, options: VideoRenderOpt
     await video.play();
 
     await new Promise<void>((resolve, reject) => {
+      const onAbort = () => reject(new DOMException('Video operation aborted.', 'AbortError'));
+      options.signal?.addEventListener('abort', onAbort, { once: true });
       const tick = () => {
+        if (options.signal?.aborted) {
+          reject(new DOMException('Video operation aborted.', 'AbortError'));
+          return;
+        }
         if (video.currentTime >= endSec || video.ended) {
+          options.signal?.removeEventListener('abort', onAbort);
           resolve();
           return;
         }

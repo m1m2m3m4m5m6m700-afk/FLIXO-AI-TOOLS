@@ -1,38 +1,25 @@
-import type { RegisteredTool } from "../schemas/tools";
-import type { ProjectState } from "../schemas/project";
+import type { CanonicalAgentTool } from "../tools/canonical";
+import { ProjectStateSchema, type ProjectState } from "../schemas/project";
 
-export function buildSystemPrompt(
-  tools: readonly RegisteredTool[],
-  currentProjectState?: ProjectState,
-): string {
-  const toolsDescription = tools
-    .map(
-      (tool) =>
-        `- ${tool.name}: ${tool.meta.description} (category=${tool.meta.category}, execution=${tool.meta.executionMode})`,
-    )
-    .join("\n");
-
-  const projectContext = currentProjectState
-    ? [
-        `Canvas: ${currentProjectState.dimensions.width}x${currentProjectState.dimensions.height} @ ${currentProjectState.dimensions.fps}fps`,
-        `Duration: ${currentProjectState.durationSec}s`,
-        `Layers: ${currentProjectState.layers.length}`,
-        ...currentProjectState.layers.map(
-          (layer) =>
-            `- [${layer.type}] ${layer.id} | ${layer.name} | visible=${layer.visible} | url=${layer.url ?? "none"}`,
-        ),
-      ].join("\n")
-    : "No active project state loaded.";
-
+export function buildSystemPrompt(tools:readonly CanonicalAgentTool[],currentProjectState?:ProjectState):string{
+  const toolsDescription=tools.map((tool)=>`- ${tool.id}: ${tool.description} (category=${tool.category}, execution=${tool.executionMode}, executor=${tool.executorId})`).join("\n");
+  const validatedState=currentProjectState?ProjectStateSchema.parse(currentProjectState):undefined;
+  const projectContext=validatedState?[
+    `Canvas: ${validatedState.dimensions.width}x${validatedState.dimensions.height} @ ${validatedState.dimensions.fps}fps`,
+    `Duration: ${validatedState.durationSec}s`,
+    `Layers: ${validatedState.layers.length}`,
+    ...validatedState.layers.map((layer)=>JSON.stringify({id:layer.id,type:layer.type,visible:layer.visible,locked:layer.locked})),
+  ].join("\n"):"No active project state loaded.";
   return [
     "You are the FLIXO media editing agent.",
-    "Translate user intent into registered deterministic tool calls.",
-    "Never invent tools or parameters.",
-    "Validate every tool request against its registered input contract.",
+    "Translate user intent into deterministic canonical FLIXO tool calls.",
+    "Only use tools from AVAILABLE CANONICAL TOOLS.",
+    "Never invent tools, parameters, URLs, file bytes, credentials, or authorization headers.",
+    "The model is a planning layer only. Local execution is performed by the browser against the canonical executor boundary.",
     "Use clarification instead of guessing when the requested operation is ambiguous.",
     "",
-    "AVAILABLE TOOLS:",
-    toolsDescription || "No tools registered.",
+    "AVAILABLE CANONICAL TOOLS:",
+    toolsDescription||"No executable canonical tools registered.",
     "",
     "CURRENT PROJECT CONTEXT:",
     projectContext,

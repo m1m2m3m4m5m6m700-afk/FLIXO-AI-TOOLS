@@ -27,6 +27,10 @@ function normalizeOrigin(value: string, variableName: string): string {
 }
 
 export function getCanonicalSiteOrigin(): string {
+  if (typeof window !== 'undefined') {
+    return OFFICIAL_PRODUCTION_ORIGIN;
+  }
+
   const viteConfigured = readOriginEnv('VITE_SITE_URL');
   const siteConfigured = readOriginEnv('SITE_URL');
   const configured = viteConfigured || siteConfigured;

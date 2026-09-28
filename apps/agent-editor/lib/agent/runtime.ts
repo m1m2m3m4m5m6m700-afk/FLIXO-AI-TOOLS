@@ -1,164 +1,71 @@
-import { AgentRuntime as CanonicalAgentRuntime } from "@flixo/agent-runtime";
 import { z } from "zod";
-import type { AgentResponse, ChatMessage, ToolCallRequest, ToolCallResult } from "../schemas/agent";
-import { AgentResponseSchema } from "../schemas/agent";
-import { ProjectStateSchema, type Layer, type ProjectState } from "../schemas/project";
+import { buildSystemPrompt } from "./prompts";
 import { simulateLLMReasoning } from "./mock-llm";
-import type { ToolRegistry } from "./registry";
+import { AgentResponseSchema,AgentRuntimeOptionsSchema,ChatMessageSchema,MockLLMResultSchema,ToolCallRequestSchema,type AgentRuntimeOptions,type AgentResponse,type ChatMessage,type ToolCallRequest } from "../schemas/agent";
+import { ProjectStateSchema,type ProjectState } from "../schemas/project";
+import { LLMUnavailableError,toLLMTools,type LLMMessage,type LLMRouter,type LLMToolCall } from "../llm";
+import { CANONICAL_AGENT_TOOLS,getCanonicalAgentTool,validateCanonicalAgentParameters,type CanonicalAgentTool } from "../tools/canonical";
 
-export const AgentRuntimeOptionsSchema = z.object({
-  maxIterations: z.number().int().positive().max(20).default(5),
-  useMockEngine: z.boolean().default(true),
-});
-export type AgentRuntimeOptions = z.input<typeof AgentRuntimeOptionsSchema>;
+export type { AgentRuntimeOptions } from "../schemas/agent";
+export type AgentRuntimeStreamEvent={type:"token";text:string}|{type:"tool_call_start";callId:string;toolName:string}|{type:"final";response:AgentResponse};
 
-/**
- * Application orchestration adapter.
- * Lifecycle/state/execution authority is @flixo/agent-runtime.
- * Mock reasoning remains application-local and deterministic.
- */
-export class AgentRuntime {
-  private readonly maxIterations: number;
-  private readonly useMockEngine: boolean;
-
-  constructor(
-    private readonly registry: ToolRegistry,
-    options: AgentRuntimeOptions = {},
-    identity: Readonly<{ taskId?: string; traceId?: string }> = {},
-  ) {
-    const parsed = AgentRuntimeOptionsSchema.parse(options);
-    this.maxIterations = parsed.maxIterations;
-    this.useMockEngine = parsed.useMockEngine;
-    this.identity = {
-      taskId: identity.taskId ?? crypto.randomUUID(),
-      traceId: identity.traceId ?? crypto.randomUUID(),
-    };
+export class AgentRuntime{
+  private readonly useMockEngine:boolean;
+  private readonly llmRouter?:LLMRouter;
+  private readonly tools:readonly CanonicalAgentTool[];
+  constructor(tools:readonly CanonicalAgentTool[]=CANONICAL_AGENT_TOOLS,options:AgentRuntimeOptions={},llmRouter?:LLMRouter){
+    const parsed=AgentRuntimeOptionsSchema.parse(options);
+    this.llmRouter=llmRouter;this.tools=tools;
+    const live=(llmRouter?.configuredProviders().length??0)>0;
+    this.useMockEngine=parsed.useMockEngine??(!live&&process.env.NODE_ENV!=="production");
   }
-
-  private readonly identity: Readonly<{ taskId: string; traceId: string }>;
-
-  async processUserMessage(
-    userMessage: string,
-    history: readonly ChatMessage[],
-    currentProjectState?: ProjectState,
-  ): Promise<AgentResponse> {
-    const prompt = userMessage.trim();
-    if (!prompt) throw new Error("Agent user message must not be empty.");
-    if (!this.useMockEngine) {
-      throw new Error("REAL_LLM_ENGINE_NOT_CONFIGURED: deterministic mock mode only.");
-    }
-
-    const canonical = new CanonicalAgentRuntime(this.registry.toRuntimeRegistry(), this.identity);
-    let workingProjectState = currentProjectState
-      ? ProjectStateSchema.parse(structuredClone(currentProjectState))
-      : undefined;
-    const requestedCalls: ToolCallRequest[] = [];
-    const results: ToolCallResult[] = [];
-    let finalAssistantText = "";
-
-    for (let iteration = 1; iteration <= this.maxIterations; iteration += 1) {
-      const llmResult = simulateLLMReasoning(prompt, iteration);
-      finalAssistantText = llmResult.content;
-      if (llmResult.toolCalls.length === 0) break;
-
-      canonical.plan();
-      canonical.requestConfirmation();
-      canonical.confirm();
-
-      for (const callRequest of llmResult.toolCalls) {
-        requestedCalls.push(callRequest);
-        const execution = await canonical.execute({
-          requestId: crypto.randomUUID(),
-          taskId: canonical.state.taskId,
-          traceId: canonical.state.traceId,
-          toolCall: {
-            callId: callRequest.callId,
-            toolId: callRequest.toolName,
-            parameters: callRequest.parameters,
-          },
-        });
-
-        const result = execution.result;
-        const mapped = result.status === "success"
-          ? { callId: result.callId, toolName: result.toolId, status: "success" as const, data: result.data, executionTimeMs: result.durationMs }
-          : { callId: result.callId, toolName: result.toolId, status: "error" as const, errorDetails: result.error?.message, executionTimeMs: result.durationMs };
-        results.push(mapped);
-
-        if (result.status === "success" && workingProjectState && result.data) {
-          workingProjectState = this.applyToolResultToState(
-            callRequest.toolName,
-            result.data,
-            workingProjectState,
-          );
-        }
+  async processUserMessage(userMessage:string,history:readonly ChatMessage[],currentProjectState?:ProjectState):Promise<AgentResponse>{
+    let finalResponse:AgentResponse|undefined;
+    for await(const event of this.streamUserMessage(userMessage,history,currentProjectState)) if(event.type==="final") finalResponse=event.response;
+    if(!finalResponse) throw new Error("Agent runtime ended without a final response.");
+    return AgentResponseSchema.parse(finalResponse);
+  }
+  async *streamUserMessage(userMessage:string,history:readonly ChatMessage[],currentProjectState?:ProjectState):AsyncGenerator<AgentRuntimeStreamEvent>{
+    const prompt=z.string().trim().min(1).max(100_000).parse(userMessage);
+    const parsedHistory=z.array(ChatMessageSchema).max(24).parse(history);
+    const parsedProjectState=currentProjectState?ProjectStateSchema.parse(structuredClone(currentProjectState)):undefined;
+    const systemPrompt=buildSystemPrompt(this.tools,parsedProjectState);
+    let requestedCalls:ToolCallRequest[]=[];let assistantText="";
+    if(this.useMockEngine){
+      const mockResult=MockLLMResultSchema.parse(simulateLLMReasoning(prompt,1));
+      requestedCalls=mockResult.toolCalls.map((call)=>this.validateToolCall(call));
+      for(const call of requestedCalls) yield {type:"tool_call_start",callId:call.callId,toolName:call.toolName};
+      assistantText=mockResult.content;
+    }else{
+      if(!this.llmRouter) throw new LLMUnavailableError("REAL_LLM_ENGINE_NOT_CONFIGURED");
+      const messages:LLMMessage[]=parsedHistory.filter((message)=>message.role!=="system").map((message)=>({
+        role:message.role,content:message.content,
+        toolCalls:message.toolCalls?.map((call)=>({callId:call.callId,toolName:call.toolName,arguments:call.parameters})),
+        toolResults:message.toolResults?.map((result)=>({callId:result.callId,toolName:result.toolName,result:result.data??{error:"tool_execution_failed"},isError:result.status==="error"})),
+      }));
+      messages.push({role:"user",content:prompt});
+      for await(const event of this.llmRouter.stream({model:"",systemPrompt,messages,tools:toLLMTools(this.tools)})){
+        if(event.type==="text_delta"){assistantText+=event.text;yield {type:"token",text:event.text};}
+        else if(event.type==="turn_end") requestedCalls=event.toolCalls.map((call)=>this.validateToolCall(ToolCallRequestSchema.parse({callId:call.callId,toolName:call.toolName,parameters:call.arguments})));
       }
-
-      if (results.some((result) => result.status === "error")) {
-        finalAssistantText =
-          "The requested operation could not be completed because one or more tool contracts rejected the execution request.";
-        canonical.fail();
-      } else {
-        canonical.beginVerification();
-        canonical.complete();
-      }
-      break;
+      for(const call of requestedCalls) yield {type:"tool_call_start",callId:call.callId,toolName:call.toolName};
     }
-
-    void history;
+    yield {type:"final",response:this.buildResponse(assistantText||"I prepared a canonical local execution plan.",requestedCalls,parsedProjectState)};
+  }
+  private validateToolCall(call:ToolCallRequest):ToolCallRequest{
+    const tool=getCanonicalAgentTool(call.toolName);
+    if(!tool||!this.tools.some((candidate)=>candidate.id===call.toolName)) throw new Error(`CANONICAL_TOOL_NOT_EXECUTABLE:${call.toolName}`);
+    return ToolCallRequestSchema.parse({...call,parameters:validateCanonicalAgentParameters(call.toolName,call.parameters)});
+  }
+  private buildResponse(content:string,calls:readonly ToolCallRequest[],projectState?:ProjectState):AgentResponse{
     return AgentResponseSchema.parse({
-      messageId: crypto.randomUUID(),
-      content: finalAssistantText,
-      requestedToolCalls: requestedCalls,
-      toolResults: results,
-      updatedProjectState: workingProjectState,
-      requiresUserConfirmation: canonical.state.state === "AWAITING_CONFIRMATION",
+      messageId:crypto.randomUUID(),content,requestedToolCalls:calls,
+      localExecutionPlans:calls.map((call)=>{
+        const tool=getCanonicalAgentTool(call.toolName);
+        if(!tool) throw new Error(`CANONICAL_TOOL_NOT_EXECUTABLE:${call.toolName}`);
+        return {callId:call.callId,toolName:call.toolName,executorId:tool.executorId,maxPixels:tool.maxPixels,maxFileSizeBytes:tool.maxFileSizeBytes,outputContractId:tool.outputContractId};
+      }),
+      toolResults:[],updatedProjectState:undefined,requiresUserConfirmation:false,
     });
-  }
-
-  private applyToolResultToState(
-    toolName: string,
-    toolOutput: Record<string, unknown>,
-    state: ProjectState,
-  ): ProjectState {
-    const updatedState = structuredClone(state);
-    const now = new Date().toISOString();
-
-    if (toolName === "remove_background" && typeof toolOutput.processedImageUrl === "string") {
-      const newLayer: Layer = {
-        id: crypto.randomUUID(), name: "Background Removed Layer", type: "image",
-        url: toolOutput.processedImageUrl, visible: true, locked: false, opacity: 1,
-        transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, zIndex: updatedState.layers.length },
-        metadata: { maskUrl: typeof toolOutput.maskUrl === "string" ? toolOutput.maskUrl : "unknown" },
-      };
-      updatedState.layers.push(newLayer);
-      updatedState.timeline.push({
-        id: crypto.randomUUID(), timestamp: 0, actionType: "remove_background",
-        affectedLayerId: newLayer.id, description: "Created a new layer with background removed.",
-      });
-    } else if (toolName === "apply_color_lut" && typeof toolOutput.renderedMediaUrl === "string") {
-      const target = updatedState.layers.find((layer) => layer.type === "video") ?? updatedState.layers.find((layer) => layer.type === "image");
-      if (target) {
-        target.url = toolOutput.renderedMediaUrl;
-        target.metadata = { ...target.metadata, appliedLut: toolOutput.appliedLut, intensityApplied: toolOutput.intensityApplied };
-        updatedState.timeline.push({
-          id: crypto.randomUUID(), timestamp: 0, actionType: "apply_color_lut",
-          affectedLayerId: target.id, description: "Applied a predefined color LUT to the target layer.",
-        });
-      }
-    } else if (toolName === "trim_video" && typeof toolOutput.trimmedVideoUrl === "string") {
-      const target = updatedState.layers.find((layer) => layer.type === "video");
-      if (target) {
-        target.url = toolOutput.trimmedVideoUrl;
-        if (typeof toolOutput.newDurationSec === "number") updatedState.durationSec = toolOutput.newDurationSec;
-        updatedState.timeline.push({
-          id: crypto.randomUUID(), timestamp: 0, actionType: "trim_video",
-          affectedLayerId: target.id, description: "Trimmed the video layer to the requested range.",
-        });
-      }
-    }
-
-    updatedState.updatedAt = now;
-    updatedState.version += 1;
-    return ProjectStateSchema.parse(updatedState);
   }
 }
