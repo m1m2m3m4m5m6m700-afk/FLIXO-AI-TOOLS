@@ -653,7 +653,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
             provider: attempt.provider,
             model: lastModel,
             fallback: attempt.rank > 1,
-            internalSpecialist: selectedInternalSpecialist,
           });
           return;
         } catch (error) {
@@ -675,7 +674,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
       await respondWithRuntime(boundedDecision, {
         fallback: true,
-        internalSpecialist: selectedInternalSpecialist,
       });
   } catch (error) {
     if (error instanceof Error && (
