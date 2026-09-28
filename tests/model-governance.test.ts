@@ -13,6 +13,9 @@ import {
 const base = (): ModelManifestEntry => ({
   model: 'example/model',
   version: '1.0.0',
+  provider: 'openai',
+  deployment_mode: 'HOSTED',
+  supported_tasks: ['PLAN'],
   source: 'https://example.invalid/model',
   license: 'Apache-2.0',
   license_file: 'LICENSE',
