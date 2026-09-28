@@ -610,19 +610,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       fallback: true,
       internalSpecialist: selectedInternalSpecialist,
     });
-  } catch (error) {
-        modelFailure = error;
-        if (botRuntime) botRuntime = noteProviderFailure(botRuntime, attempt.provider + ':' + (error instanceof Error ? error.name : 'UNKNOWN_ERROR'));
-      }
-    }
 
-    console.error('[flixo-agent] admitted model fabric exhausted; using deterministic fallback', {
-      attempts: modelAttempts.length,
-      providerError: modelFailure instanceof Error ? modelFailure.name : modelFailure ? 'unknown' : 'NO_ADMITTED_MODEL',
-    });
-    const decision = fallbackDecision(userMessage, body.file, locale);
-    const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
-    await respondWithRuntime(boundedDecision, { fallback: true });
   } catch (error) {
     if (error instanceof Error && (
       error.message === 'Request body is too large.'
