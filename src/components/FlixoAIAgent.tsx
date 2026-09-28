@@ -145,7 +145,6 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     if (turns.length === 0) return [{ id: 1, role: 'agent', text: copy.greeting }];
     return turns.map((turn, index) => ({ id: index + 1, role: turn.role, text: turn.text }));
   });
-  const [messageId, setMessageId] = useState(() => loadConversationMemory().turns.length + 1);
   const [filterHandoff, setFilterHandoff] = useState<FilterMaskHandoff | null>(null);
 
   const contextualQuery = useMemo(() => contextualizeCommand(query, memory), [query, memory]);
@@ -171,8 +170,10 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const resolveFilterMaskHandoff = (command: string) => resolveFilterMaskSelection(command);
 
   const pushMessage = (role: Message['role'], text: string) => {
-    setMessages((current) => [...current, { id: messageId, role, text }]);
-    setMessageId((value) => value + 1);
+    setMessages((current) => {
+      const nextId = current.reduce((max, message) => Math.max(max, message.id), 0) + 1;
+      return [...current, { id: nextId, role, text }];
+    });
     setMemory((current) => rememberTurn(current, { role, text }));
   };
   const applyFilterMaskHandoff = (command: string, detectedLocale: Locale) => {
