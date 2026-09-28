@@ -274,6 +274,36 @@ Certification requires:
 
 External agents review and challenge. They do not certify.
 
+
+## External Review v2 — Execution Addendum
+
+المراجعة الخارجية لا تملك وصولاً للمستودع، لذلك تعامل معها كفرضيات لا كحقائق. ابدأ دائماً من أحدث commit فعلي في GitHub، ولا تستخدم SHA تاريخياً كدليل حالي.
+
+أولوية التحقق الجديدة:
+- إثبات أن SHA الملتقط أثناء تنفيذ الاختبار يطابق SHA المعلن في evidence وهدف الشهادة، مع اختبار artifact/cache substitution.
+- حصر كل انتقال نهائي إلى SUCCESS/COMPLETED وإثبات وجود نتيجة Verifier قبله، بما في ذلك recovery وalternate paths.
+- فحص boundary بين Validator وExecutor بحثاً عن mutable references أو تغيرات بعد validation؛ اختر أقل آلية deterministic تثبت سلامة الخطة.
+- فحص صلاحيات Verifier/receipt وإثبات أن Executor لا يستطيع اعتماد نتيجته بنفسه.
+- توسيع Public Surface Inventory إلى كل capability-bearing data channel، وليس routes فقط.
+- تتبع Memory إلى Planner ثم Canonical Validation؛ إذا أمكن لذاكرة غير موثوقة التأثير قبل validation، فهذه P0.
+- اختبار browser privacy في المسارات العادية ومسارات الخطأ والتشخيص، وفق network primitives الفعلية المكتشفة.
+- إثبات تطابق canonical capability/executor/verifier/output schema بين Agent Guided وManual Standalone عند تنفيذ capability نفسها.
+- ربط idempotency بالعملية state-changing نفسها، واختبار replay/retry.
+- التحقق من أن Planner/UI/Executor/tests لا تستخدم capability registry مستقلة أو fixtures غير متطابقة مع المصدر canonical.
+- منع experimental/non-admitted capabilities من التحول إلى جزء فعلي من MVP.
+- اختبار حدود الموارد وrace conditions قبل تغيير أرقام resilience أو إضافة آليات جديدة.
+
+### False-Green priority
+
+حاول عمداً إثبات حالات: evidence صحيح نصياً مع runtime مختلف، artifact قديم، نجاح نهائي بلا Verifier، خطة تغيرت بعد validation، قناة بيانات تحمل capability hint وتجاوزت validation، browser test ناقص، Manual bypass، memory poisoning، أو SKIP/CANCELLED محسوبة نجاحاً.
+
+### قاعدة التطوير
+
+لا تضف آلية ثقيلة قبل إثبات أن الخطر موجود وأن الحل الأبسط لا يكفي. لا تنشئ Registry/Authority/Verifier/Certification system ثانية. كل finding جديد يجب أن يخرج بصيغة:
+OBSERVED FACT → HYPOTHESIS → COUNTERARGUMENT → MINIMAL EXPERIMENT → EVIDENCE → DISPOSITION.
+
+المراجعة التالية يجب أن تبحث عن gap جديد أو counterexample أقوى أو simplification أو evidence requirement جديد، لا إعادة R-023..R-040 حرفياً.
+
 ## Final objective
 
 The goal is not “make the current plan look complete”.
