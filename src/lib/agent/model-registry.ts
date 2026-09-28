@@ -1,4 +1,7 @@
-import manifestJson from '../../../docs/MODEL_LICENSE_MANIFEST.json';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import type { ModelGateStatus, ModelLifecycleStatus, ModelManifestEntry } from './model-governance.ts';
 import { evaluateModelAdmission, isProductionEligible, modelIdentity } from './model-governance.ts';
 import type { ModelSelection } from './model-router.ts';
@@ -10,10 +13,16 @@ type ManifestDocument = {
   entries: ModelManifestEntry[];
 };
 
-const manifest = manifestJson as unknown as ManifestDocument;
+const manifestPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../../docs/MODEL_LICENSE_MANIFEST.json');
+const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as ManifestDocument;
 
 function assertManifestShape(): void {
-  if (manifest.schema_version !== '1.0.0' || manifest.status !== 'ACTIVE' || manifest.authority !== 'FLIXO_CONTROL_PLANE' || !Array.isArray(manifest.entries)) {
+  if (
+    manifest.schema_version !== '1.0.0'
+    || manifest.status !== 'ACTIVE'
+    || manifest.authority !== 'FLIXO_CONTROL_PLANE'
+    || !Array.isArray(manifest.entries)
+  ) {
     throw new Error('MODEL_MANIFEST_INVALID');
   }
 }
@@ -52,7 +61,7 @@ export function admitModelSelection(selection: Pick<ModelSelection, 'model'>): M
   return Object.freeze({
     identity: modelIdentity(entry),
     status,
-    lifecycle: entry.lifecycle_status ?? 'CANDIDATE',
+    lifecycle: entry.lifecycle_status,
     eligible,
   });
 }
