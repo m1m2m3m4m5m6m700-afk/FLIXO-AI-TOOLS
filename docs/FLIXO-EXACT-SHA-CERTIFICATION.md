@@ -5,8 +5,10 @@ Status: **NOT CERTIFIED**
 ## Current evidence anchor
 - Repository: `m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS`
 - Branch: `execution`
-- Candidate SHA: `7beda429612230d0c771b28c443e11c900833e0b`
+- Candidate SHA: `2a95ae529a38c7c53bc241bb474fe7db07f13f5a`
+- PR: #889 (draft/open; base `main`)
 - Combined commit status at this SHA: **no statuses reported**
+- Branch relation at verification: `execution` is 331 commits ahead and 17 behind `main`; branch is diverged.
 - Therefore: **no GREEN / no certification claim is permitted yet**.
 
 ## Certification rule
