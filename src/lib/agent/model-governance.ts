@@ -22,7 +22,7 @@ export type ModelManifestEntry = Readonly<{
   FLIXO_owned_layer: string;
   fallback_models: readonly string[];
   review_status: ModelGateStatus;
-  lifecycle_status?: ModelLifecycleStatus;
+  lifecycle_status: ModelLifecycleStatus;
 }>;
 
 const HEX_SHA256 = /^[a-f0-9]{64}$/iu;
