@@ -640,7 +640,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       });
 
       json(res, 200, { ...responseDecision, ...extra, approval, taskId, conversationId });
-    };    try {
+    };
       let modelFailure: unknown = null;
       for (const attempt of modelAttempts) {
         try {
@@ -677,7 +677,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         fallback: true,
         internalSpecialist: selectedInternalSpecialist,
       });
-    }
   } catch (error) {
     if (error instanceof Error && (
       error.message === 'Request body is too large.'
