@@ -638,7 +638,15 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         });
       });
 
-      json(res, 200, { ...responseDecision, ...extra, approval, taskId, conversationId });
+      const publicExtra = {
+        latencyMs: extra.latencyMs,
+        provider: extra.provider,
+        model: extra.model,
+        fallback: extra.fallback,
+        runtime: extra.runtime,
+        runtimeStale: extra.runtimeStale,
+      };
+      json(res, 200, { ...responseDecision, ...publicExtra, approval, taskId, conversationId });
     };
       let modelFailure: unknown = null;
       for (const attempt of modelAttempts) {
