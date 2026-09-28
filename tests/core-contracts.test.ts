@@ -14,7 +14,7 @@ const {
 } = await import('../src/tools/image-compressor/file-safety.ts');
 const { solveMath, verifyMathReceipt } =
   await import('../packages/agent-runtime/src/math-engine.ts');
-const { decomposeTask } = await import('../src/lib/agent/task-decomposer.ts');
+const { decomposeTask } = await import('../packages/agent-runtime/src/task-decomposer.ts');
 const {
   createMissionContract,
   canExecuteMissionTask,
