@@ -3,10 +3,8 @@ import { AnthropicProvider } from "./providers/anthropic";
 import { GeminiProvider } from "./providers/gemini";
 import { OpenAIProvider } from "./providers/openai";
 import { LLMRouter } from "./router";
-import {
-  findRegisteredModel,
-  isProductionEligible,
-} from "../../../../src/lib/agent/model-registry";
+import { findRegisteredModel } from "../../../../src/lib/agent/model-registry";
+import { isProductionEligible } from "../../../../src/lib/agent/model-governance";
 import type { LLMProvider, LLMProviderName, LLMToolDefinition } from "./types";
 import type { CanonicalAgentTool } from "../tools/canonical";
 
