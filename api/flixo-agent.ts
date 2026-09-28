@@ -8,6 +8,7 @@ import { isDeterministicPlanCompatible } from '../src/lib/ai/deterministic-bound
 import { listAdmittedModelCandidates } from '../src/lib/agent/model-fabric.ts';
 import { nextModelAttempts, recordProviderFailure, recordProviderSuccess } from '../src/lib/agent/model-resilience.ts';
 import { routeUserRequestThroughFlixoAgent } from '../src/lib/agent/flixo-agent-orchestrator.ts';
+import { assertToolPlanValid } from '../src/lib/agent/tool-plan-validator.ts';
 import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
 import { createAgentEvent } from '../src/lib/agent/event-gateway.ts';
 import { evaluatePlanApproval } from '../src/lib/agent/approval-policy.ts';
@@ -216,6 +217,7 @@ export function enforceDeterministicExecutionBoundary(
   }
 
   if (decision.mode === 'plan' && decision.plan) {
+    assertToolPlanValid(input, decision.plan);
     if (!isDeterministicPlanCompatible(decision.plan, deterministic)) {
       throw new Error('AI_PLAN_CONFLICTS_WITH_DETERMINISTIC_QUICKFLOW');
     }
@@ -547,7 +549,16 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       if (providerCalls >= MAX_PROVIDER_CALLS) throw new Error('AI provider call budget exhausted.');
       providerCalls += 1;
       lastModel = attempt.model;
-      if (!botRuntime) return callProvider(attempt.provider, promptMessages, runtime.timeoutMs, runtime.maxTokens, attempt.model);
+      if (!botRuntime) {
+        try {
+          const raw = await callProvider(attempt.provider, promptMessages, runtime.timeoutMs, runtime.maxTokens, attempt.model);
+          recordProviderSuccess(attempt.provider);
+          return raw;
+        } catch (error) {
+          recordProviderFailure(attempt.provider);
+          throw error;
+        }
+      }
       const turn = beginModelTurn(botRuntime, attempt.provider);
       botRuntime = turn.runtime;
       try {
