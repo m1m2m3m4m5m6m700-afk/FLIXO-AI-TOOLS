@@ -73,3 +73,17 @@ A mission is complete only when every task is completed and each task has verifi
 ## MVP scope decision
 
 The authoritative scope decision is documented in `docs/MVP-SCOPE-DECISION.md`. Agents must not add, remove, or reclassify executable MVP capabilities without changing the canonical contract and its tests.
+
+## Bounded automation contract
+
+The operational invariants for agent automation are documented in `docs/AGENT-AUTOMATION-CONTROL.md`.
+
+They are mandatory guardrails, not a second authority system:
+- Infrastructure Green, Product Green, and MVP Certified remain separate states.
+- Autonomous work is bounded by attempts, time, mutations, and scope.
+- Budget exhaustion is recovery/fail-closed escalation, never an unbounded retry.
+- Agents propose; deterministic gates decide merge, CI/security changes, capability activation, and certification.
+- ACTIVE/ready capabilities require the canonical Registry -> schema -> executor -> output contract -> verifier chain.
+- Evidence is valid only for the exact SHA under verification.
+- Manual tool routes must remain usable without the Agent Router.
+- Red-team and human release review are required on the same SHA for MVP certification.
