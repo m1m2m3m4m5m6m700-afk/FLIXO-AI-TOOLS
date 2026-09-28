@@ -8,10 +8,10 @@ Use the existing FLIXO runtime contracts as the source of truth:
 
 - Capability identity: `src/lib/agent/capability-registry.ts`
 - Execution boundary: `src/lib/agent/execution-gate.ts`
-- Task state: `src/lib/agent/task-state.ts`
-- Agent profiles: `src/lib/agent/agent-profile.ts`
-- Mission/task/evidence lifecycle: `src/lib/agent/mission-contract.ts`
-- Outcome and learning contract: `src/lib/agent/cognitive-outcome.ts`
+- Task state: `packages/agent-runtime/src/state.ts`
+- Agent profiles: `packages/agent-runtime/src/agent-profile.ts`
+- Mission/task/evidence lifecycle: `packages/agent-runtime/src/mission-contract.ts`
+- Outcome and learning contract: `packages/agent-runtime/src/cognitive-outcome.ts`
 
 Do not create a second tool registry, authority model, certification mechanism, or execution path.
 
