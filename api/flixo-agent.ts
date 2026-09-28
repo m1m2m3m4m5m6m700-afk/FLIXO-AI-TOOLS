@@ -426,7 +426,8 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       return;
     }
     const locale = body.locale ?? 'en';
-    const flixoRoute = routeUserRequestThroughFlixoAgent(userMessage, configuredRuntime().provider);
+    const runtime = configuredRuntime();
+    const flixoRoute = routeUserRequestThroughFlixoAgent(userMessage, runtime.provider);
     const conversationId = body.conversationId ?? 'UI-CONVERSATION:' + randomUUID();
     const taskId = body.taskId ?? 'UI-FLIXO-TASK:' + randomUUID();
     const idempotencyKey = body.idempotencyKey ?? 'chat:' + conversationId + ':' + taskId + ':' + messages.length;
@@ -443,7 +444,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         hasFile: Boolean(body.file),
       },
     });
-    const runtime = configuredRuntime();
     const provider = runtime.provider;
     const recentMessages = messages.slice(-24);
     const sharedLearning = { lessons: [], antiLessons: [], advice: [], errors: [], obligations: [], counterexamples: [], verifications: [] };
