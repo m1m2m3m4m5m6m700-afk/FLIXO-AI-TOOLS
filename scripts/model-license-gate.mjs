@@ -24,7 +24,7 @@ function readJson(file) {
 const manifest = readJson(manifestPath);
 const policy = readJson(policyPath);
 
-if (manifest?.schema_version !== '1.0.0') fail('unsupported manifest schema.');
+if (!['1.0.0','1.1.0'].includes(manifest?.schema_version)) fail('unsupported manifest schema.');
 if (manifest?.status !== 'ACTIVE') fail('manifest status must be ACTIVE.');
 if (manifest?.authority !== 'FLIXO_CONTROL_PLANE') fail('manifest authority is not FLIXO_CONTROL_PLANE.');
 if (manifest?.rules?.latest_version_allowed !== false) fail('latest-version selection must remain disabled.');
