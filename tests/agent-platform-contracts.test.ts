@@ -211,3 +211,41 @@ test('approval policy is fail-closed for non-executable capabilities and explici
   assert.equal(evaluatePlanApproval(plan!).level, 'AUTO');
   assert.ok(evaluatePlanApproval(plan!).reasons.length > 0);
 });
+
+
+test('external event ingress rejects unauthenticated public requests before persistence', async () => {
+  const { default: handler } = await import('../api/flixo-event.ts');
+
+  const req = {
+    method: 'POST',
+    headers: {
+      'x-flixo-event-secret': 'wrong-secret',
+    },
+    async *[Symbol.asyncIterator]() {
+      yield Buffer.from('{}');
+    },
+  } as unknown as import('node:http').IncomingMessage;
+
+  const response = {
+    statusCode: 200,
+    headers: new Map<string, string>(),
+    body: '',
+    setHeader(name: string, value: string) {
+      this.headers.set(name, value);
+      return this;
+    },
+    end(value?: string) {
+      this.body = value ?? '';
+    },
+  } as unknown as import('node:http').ServerResponse;
+
+  process.env.FLIXO_EVENT_GATEWAY_SECRET = 'expected-secret';
+  try {
+    await handler(req, response);
+  } finally {
+    delete process.env.FLIXO_EVENT_GATEWAY_SECRET;
+  }
+
+  assert.equal(response.statusCode, 401);
+  assert.match(response.body, /Unauthorized event gateway request/u);
+});

@@ -9,9 +9,20 @@ export default defineConfig({
     alias: {
       "@": path.resolve(appRoot),
     },
+    dedupe: ["react", "react-dom"],
   },
   test: {
     environment: "node",
+    server: {
+      deps: {
+        inline: ["react", "react-dom"],
+      },
+    },
     include: ["__tests__/**/*.test.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov"],
+      reportsDirectory: "./coverage",
+    },
   },
 });

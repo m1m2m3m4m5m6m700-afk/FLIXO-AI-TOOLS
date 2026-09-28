@@ -1,6 +1,7 @@
 import { lazy } from 'react';
 import { z, type ZodType } from 'zod';
-import { LOCALES, type Locale } from '@/lib/i18n/config.ts';
+import { LOCALES, type Locale } from '../lib/i18n/config.ts';
+import { getCanonicalCapabilityDefinition, MVP_EXECUTABLE_TOOL_IDS as CANONICAL_MVP_IDS, type CanonicalCapabilityDefinition, type CanonicalCapabilityState, type CanonicalExecutionMode, type CanonicalCapabilityParameters, type CanonicalCapabilityVerifier, type CanonicalCapabilityLimits } from '../lib/agent/canonical-capability-definition';
 import type { ComponentType, LazyExoticComponent } from 'react';
 
 export type ToolFamily = 'image' | 'video' | 'audio' | 'ai' | 'editor';
@@ -32,11 +33,11 @@ export type ToolSource = Readonly<{
 // ToolConfig is the canonical source shape consumed by the definition builder.
 type ToolConfig = ToolSource;
 
-export type CapabilityState = 'RECOGNIZED' | 'PLANNABLE' | 'EXECUTABLE' | 'UNAVAILABLE';
-export type ExecutionMode = 'LOCAL' | 'HYBRID' | 'CLOUD';
-export type CapabilityParameters = Record<string, string | number | boolean>;
-export type CapabilityVerifier = (inputBlob: Blob, outputBlob: Blob, parameters: CapabilityParameters, signal?: AbortSignal) => Promise<boolean>;
-export type CapabilityLimits = Readonly<{ maxPixels: number; maxFileSizeBytes: number; timeoutMs: number }>;
+export type CapabilityState = CanonicalCapabilityState;
+export type ExecutionMode = CanonicalExecutionMode;
+export type CapabilityParameters = CanonicalCapabilityParameters;
+export type CapabilityVerifier = CanonicalCapabilityVerifier;
+export type CapabilityLimits = CanonicalCapabilityLimits;
 
 export type ToolDefinition = Readonly<{
   id: string;
@@ -139,7 +140,7 @@ const TOOL_INTENTS: Readonly<Record<string, readonly string[]>> = {
   'video-compressor': ['compress video', 'reduce video size', 'video compression', 'ضغط الفيديو', 'تصغير حجم الفيديو'],
 };
 
-export const MVP_EXECUTABLE_TOOL_IDS = Object.freeze(['background-remover', 'image-upscaler', 'image-cropper', 'image-compressor', 'image-converter', 'image-effects', 'video-trimmer', 'video-cropper', 'video-resizer', 'video-compressor'] as const);
+export const MVP_EXECUTABLE_TOOL_IDS = CANONICAL_MVP_IDS;
 const EXECUTABLE_IDS: ReadonlySet<string> = new Set(MVP_EXECUTABLE_TOOL_IDS);
 const defaultVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, _parameters, signal) => !signal?.aborted && outputBlob.size > 0;
 const targetSizeVerifier: CapabilityVerifier = async (_inputBlob, outputBlob, parameters, signal) => {
@@ -197,23 +198,24 @@ function localizedRoute(path: string, locale: Locale): string {
 
 export function toToolDefinition(tool: ToolConfig): ToolDefinition {
   const routes = Object.fromEntries(LOCALES.map((locale) => [locale, localizedRoute(tool.path, locale)])) as Record<Locale, string>;
-  const capabilityState = stateFor(tool);
-  const executionMode: ExecutionMode = tool.id === 'ai-image-generator' || tool.id === 'photo-colorizer' ? 'CLOUD' : 'LOCAL';
-  const parameterSchema = PARAMETER_SCHEMAS[tool.id] ?? COMMON_PARAMETERS;
-  const safetyLimits = Object.freeze(tool.id.startsWith('video-')
+  const canonicalCapability = getCanonicalCapabilityDefinition(tool.id) as CanonicalCapabilityDefinition | undefined;
+  const capabilityState = canonicalCapability?.state ?? stateFor(tool);
+  const executionMode: ExecutionMode = canonicalCapability?.executionMode ?? (tool.id === 'ai-image-generator' || tool.id === 'photo-colorizer' ? 'CLOUD' : 'LOCAL');
+  const parameterSchema = canonicalCapability?.parameterSchema ?? PARAMETER_SCHEMAS[tool.id] ?? COMMON_PARAMETERS;
+  const safetyLimits = canonicalCapability?.safetyLimits ?? Object.freeze(tool.id.startsWith('video-')
     ? { maxPixels: 64_000_000, maxFileSizeBytes: 512 * 1024 * 1024, timeoutMs: 10 * 60 * 1000 }
     : { maxPixels: DEFAULT_MAX_PIXELS, maxFileSizeBytes: DEFAULT_MAX_FILE_SIZE_BYTES, timeoutMs: DEFAULT_TIMEOUT_MS });
-  const verifier = verifierFor(tool.id);
-  const intents = Object.freeze(TOOL_INTENTS[tool.id] ?? []);
-  const operational: ToolOperationalProfile = Object.freeze({
+  const verifier = canonicalCapability?.verifier ?? verifierFor(tool.id);
+  const intents = Object.freeze(canonicalCapability?.intents ?? TOOL_INTENTS[tool.id] ?? []);
+  const operational: ToolOperationalProfile = canonicalCapability?.operational ?? Object.freeze({
     lifecycle: tool.isReady ? 'ready' : 'experimental',
     execution: executionFor(executionMode),
     contracts: Object.freeze(['structural', 'runtime', 'artifact'] as const),
     executorId: capabilityState === 'EXECUTABLE' ? tool.id : null,
     outputContractId: tool.isReady ? tool.id : null,
   });
-  const requirements: ToolRequirements = Object.freeze({ browser: true, network: executionMode === 'CLOUD' });
-  const recovery: ToolRecoveryPolicy = Object.freeze({ maxAttempts: capabilityState === 'EXECUTABLE' ? 3 : 0, replanOnFailure: false });
+  const requirements: ToolRequirements = canonicalCapability?.requirements ?? Object.freeze({ browser: true, network: executionMode === 'CLOUD' });
+  const recovery: ToolRecoveryPolicy = canonicalCapability?.recovery ?? Object.freeze({ maxAttempts: capabilityState === 'EXECUTABLE' ? 3 : 0, replanOnFailure: false });
   return Object.freeze({
     id: tool.id,
     family: tool.family ?? 'image',

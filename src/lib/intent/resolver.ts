@@ -20,19 +20,20 @@ const TOOL_RULES: readonly KeywordRule[] = Object.freeze(
 
 const score = (normalized: string, terms: readonly string[]) => {
   const matchedTerms = terms.filter((term) => includesTerm(normalized, term));
-  return { matchedTerms, value: matchedTerms.length };
+  const specificity = matchedTerms.reduce((total, term) => total + normalizeIntent(term).split(' ').filter(Boolean).length, 0);
+  return { matchedTerms, value: matchedTerms.length, specificity };
 };
 
 const resolveBest = <T extends { readonly id: string; readonly intentPatterns: readonly string[] }>(
   normalized: string,
   candidates: readonly T[],
 ): IntentMatch => {
-  let winner: { candidate: T; matchedTerms: string[]; value: number } | null = null;
+  let winner: { candidate: T; matchedTerms: string[]; value: number; specificity: number } | null = null;
   for (const candidate of candidates) {
     const result = score(normalized, candidate.intentPatterns);
     if (result.value === 0) continue;
-    if (!winner || result.value > winner.value) {
-      winner = { candidate, matchedTerms: result.matchedTerms, value: result.value };
+    if (!winner || result.value > winner.value || (result.value === winner.value && result.specificity > winner.specificity)) {
+      winner = { candidate, matchedTerms: result.matchedTerms, value: result.value, specificity: result.specificity };
     }
   }
   if (!winner) return { kind: 'none', id: null, confidence: 0, matchedTerms: [] };

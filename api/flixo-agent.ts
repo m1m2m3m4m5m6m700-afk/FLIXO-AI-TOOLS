@@ -5,7 +5,10 @@ import { parseAgentDecision, parseAgentRequest, type AgentRequestContract } from
 import { TOOL_CATALOG } from '../src/config/registry.ts';
 import { planFromIntent } from '../src/lib/ai/planner.ts';
 import { isDeterministicPlanCompatible } from '../src/lib/ai/deterministic-boundary.ts';
-import { selectModelForTask } from '../src/lib/agent/model-router.ts';
+import { listAdmittedModelCandidates } from '../src/lib/agent/model-fabric.ts';
+import { nextModelAttempts, recordProviderFailure, recordProviderSuccess } from '../src/lib/agent/model-resilience.ts';
+import { routeUserRequestThroughFlixoAgent } from '../src/lib/agent/flixo-agent-orchestrator.ts';
+import { assertToolPlanValid } from '../src/lib/agent/tool-plan-validator.ts';
 import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
 import { createAgentEvent } from '../src/lib/agent/event-gateway.ts';
 import { evaluatePlanApproval } from '../src/lib/agent/approval-policy.ts';
@@ -25,7 +28,7 @@ import {
 
 const MAX_MESSAGES = 80;
 const MAX_REQUEST_BODY_BYTES = 512 * 1024;
-const MAX_PROVIDER_CALLS = 2;
+const MAX_PROVIDER_CALLS = 3;
 const DEFAULT_TIMEOUT_MS = 4_000;
 const MAX_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_TOKENS = 900;
@@ -214,6 +217,7 @@ export function enforceDeterministicExecutionBoundary(
   }
 
   if (decision.mode === 'plan' && decision.plan) {
+    assertToolPlanValid(input, decision.plan);
     if (!isDeterministicPlanCompatible(decision.plan, deterministic)) {
       throw new Error('AI_PLAN_CONFLICTS_WITH_DETERMINISTIC_QUICKFLOW');
     }
@@ -424,6 +428,8 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       return;
     }
     const locale = body.locale ?? 'en';
+    const runtime = configuredRuntime();
+    const flixoRoute = routeUserRequestThroughFlixoAgent(userMessage, runtime.provider);
     const conversationId = body.conversationId ?? 'UI-CONVERSATION:' + randomUUID();
     const taskId = body.taskId ?? 'UI-FLIXO-TASK:' + randomUUID();
     const idempotencyKey = body.idempotencyKey ?? 'chat:' + conversationId + ':' + taskId + ':' + messages.length;
@@ -440,9 +446,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         hasFile: Boolean(body.file),
       },
     });
-    const runtime = configuredRuntime();
     const provider = runtime.provider;
     const recentMessages = messages.slice(-24);
+    const modelAttempts = nextModelAttempts(listAdmittedModelCandidates({ taskInput: userMessage, preferredProvider: provider }));
     const sharedLearning = { lessons: [], antiLessons: [], advice: [], errors: [], obligations: [], counterexamples: [], verifications: [] };
     const targetSha = exactSha();
     let botRuntime: FlixoBotGatewayRuntime | null = targetSha
@@ -521,24 +527,45 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           catalogFingerprint: TOOL_CATALOG.fingerprint,
         }),
       },
+      {
+        role: 'system' as const,
+        content: JSON.stringify({
+          FLIXO_AGENT_BOUNDARY: true,
+          publicAgent: flixoRoute.routing.publicAgent,
+          internalSpecialist: flixoRoute.routing.specialist,
+          task: flixoRoute.routing.task,
+          directSpecialistAccess: flixoRoute.routing.directSpecialistAccess,
+          routingReason: flixoRoute.routing.reason,
+        }),
+      },
       ...recentMessages,
     ];
     const started = Date.now();
     let providerCalls = 0;
     let lastModel: string | null = null;
-    const invoke = async (selectedProvider: SupportedProvider): Promise<string> => {
+    const invoke = async (attempt: typeof modelAttempts[number]): Promise<string> => {
       if (providerCalls >= MAX_PROVIDER_CALLS) throw new Error('AI provider call budget exhausted.');
       providerCalls += 1;
-      const modelSelection = selectModelForTask({ taskInput: userMessage, provider: selectedProvider });
-      lastModel = modelSelection.model;
-      if (!botRuntime) return callProvider(selectedProvider, promptMessages, runtime.timeoutMs, runtime.maxTokens, modelSelection.model);
-      const turn = beginModelTurn(botRuntime, selectedProvider);
+      lastModel = attempt.model;
+      if (!botRuntime) {
+        try {
+          const raw = await callProvider(attempt.provider, promptMessages, runtime.timeoutMs, runtime.maxTokens, attempt.model);
+          recordProviderSuccess(attempt.provider);
+          return raw;
+        } catch (error) {
+          recordProviderFailure(attempt.provider);
+          throw error;
+        }
+      }
+      const turn = beginModelTurn(botRuntime, attempt.provider);
       botRuntime = turn.runtime;
       try {
-        const raw = await callProvider(selectedProvider, promptMessages, runtime.timeoutMs, runtime.maxTokens, modelSelection.model);
+        const raw = await callProvider(attempt.provider, promptMessages, runtime.timeoutMs, runtime.maxTokens, attempt.model);
+        recordProviderSuccess(attempt.provider);
         botRuntime = finishModelTurn(botRuntime, turn.spanId, 'success');
         return raw;
       } catch (error) {
+        recordProviderFailure(attempt.provider);
         botRuntime = finishModelTurn(botRuntime, turn.spanId, 'failure');
         throw error;
       }
@@ -611,43 +638,50 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         });
       });
 
-      json(res, 200, { ...responseDecision, ...extra, approval, taskId, conversationId });
+      const publicExtra = {
+        latencyMs: extra.latencyMs,
+        provider: extra.provider,
+        model: extra.model,
+        fallback: extra.fallback,
+        runtime: extra.runtime,
+        runtimeStale: extra.runtimeStale,
+      };
+      json(res, 200, { ...responseDecision, ...publicExtra, approval, taskId, conversationId });
     };
-    try {
-      const raw = await invoke(provider);
-      const decision = parseAgentDecision(parseJsonObject(raw));
-      const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
-      await persistLearningCandidate(boundedDecision, userMessage, locale, provider);
-      await respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider, model: lastModel });
-    } catch (providerError) {
-      if (botRuntime) botRuntime = noteProviderFailure(botRuntime, `${provider}:${providerError instanceof Error ? providerError.name : 'UNKNOWN_ERROR'}`);
-      if (runtime.fallbackProvider) {
+      let modelFailure: unknown = null;
+      for (const attempt of modelAttempts) {
         try {
-          const raw = await invoke(runtime.fallbackProvider);
+          const raw = await invoke(attempt);
           const decision = parseAgentDecision(parseJsonObject(raw));
           const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
-          await persistLearningCandidate(boundedDecision, userMessage, locale, runtime.fallbackProvider);
-          await respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider: runtime.fallbackProvider, model: lastModel, fallback: true });
-          return;
-        } catch (fallbackError) {
-          if (botRuntime) botRuntime = noteProviderFailure(botRuntime, `${runtime.fallbackProvider}:${fallbackError instanceof Error ? fallbackError.name : 'UNKNOWN_ERROR'}`);
-          console.error('[flixo-agent] provider failure', {
-            primary: provider,
-            fallback: runtime.fallbackProvider,
-            primaryError: providerError instanceof Error ? providerError.name : 'unknown',
-            fallbackError: fallbackError instanceof Error ? fallbackError.name : 'unknown',
+          await persistLearningCandidate(boundedDecision, userMessage, locale, attempt.provider);
+          await respondWithRuntime(boundedDecision, {
+            latencyMs: Date.now() - started,
+            provider: attempt.provider,
+            model: lastModel,
+            fallback: attempt.rank > 1,
           });
+          return;
+        } catch (error) {
+          modelFailure = error;
+          if (botRuntime) {
+            botRuntime = noteProviderFailure(
+              botRuntime,
+              attempt.provider + ':' + (error instanceof Error ? error.name : 'UNKNOWN_ERROR'),
+            );
+          }
         }
-      } else {
-        console.error('[flixo-agent] provider failure', {
-          provider,
-          error: providerError instanceof Error ? providerError.name : 'unknown',
-        });
       }
+
+      console.error('[flixo-agent] admitted model fabric exhausted; using deterministic fallback', {
+        attempts: modelAttempts.length,
+        providerError: modelFailure instanceof Error ? modelFailure.name : modelFailure ? 'unknown' : 'NO_ADMITTED_MODEL',
+      });
       const decision = fallbackDecision(userMessage, body.file, locale);
       const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
-      await respondWithRuntime(boundedDecision, { fallback: true });
-    }
+      await respondWithRuntime(boundedDecision, {
+        fallback: true,
+      });
   } catch (error) {
     if (error instanceof Error && (
       error.message === 'Request body is too large.'

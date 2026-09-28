@@ -172,9 +172,14 @@ export async function verifyVisualGoal(
   }
   const [input, output] = await Promise.all([decodeBlob(inputBlob), decodeBlob(outputBlob)]);
   if (!input || !output) {
+    const requiresVisualProof = ['image-upscaler', 'image-cropper', 'image-effects'].includes(toolId);
     return Object.freeze({
-      verified: true, geometryVerified: true, visibleChangeVerified: true,
-      visibleChangeScore: null, reasons: Object.freeze(['VISUAL_GOAL_DECODER_UNAVAILABLE']), mode: 'NO_BROWSER_DECODER',
+      verified: !requiresVisualProof,
+      geometryVerified: !requiresVisualProof,
+      visibleChangeVerified: !requiresVisualProof,
+      visibleChangeScore: null,
+      reasons: Object.freeze(['VISUAL_GOAL_DECODER_UNAVAILABLE']),
+      mode: 'NO_BROWSER_DECODER',
     });
   }
   return assessVisualGoal(spec, input, output);

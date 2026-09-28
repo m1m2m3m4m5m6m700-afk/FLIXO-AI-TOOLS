@@ -1,0 +1,37 @@
+language: "en-US"
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "main"
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 0
+  path_instructions:
+    - path: "src/lib/agent/**"
+      instructions: |
+        Treat these files as canonical runtime/control-plane code.
+        Do not recommend a second registry, execution path, authority model, or certification mechanism.
+        Require exact-SHA binding and fail closed on stale evidence.
+        External adapters are workers/reviewers only and must not gain mutation, branch, push, merge, or certification authority.
+    - path: "src/lib/developer/**"
+      instructions: |
+        Treat external developer tooling as adapters only.
+        mini-SWE-agent can propose a sandbox patch; canonical FLIXO code must remain the mutation authority.
+        CodeRabbit is an independent reviewer only.
+        Flag secrets, direct GitHub writes, branch creation, stale-SHA evidence, and gate bypasses.
+    - path: ".github/workflows/**"
+      instructions: |
+        Enforce least privilege, exact-SHA checks, and fail-closed behavior.
+        External repair workers must not push, create branches, merge, or alter promotion state.
+        Never log credentials or authorization headers.
+    - path: "tests/**"
+      instructions: |
+        Preserve deterministic exact-SHA, stale-evidence, authority-boundary, and negative-path tests.
+        Never weaken, delete, skip, or mask assertions.
+chat:
+  auto_reply: true

@@ -1,0 +1,12 @@
+{
+  "schedule": "weekly",
+  "ignoredFiles": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.next/**",
+    "**/coverage/**"
+  ],
+  "aggressiveCompression": false,
+  "compressWiki": false,
+  "minKBReduced": 10
+}

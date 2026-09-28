@@ -7,10 +7,7 @@ import { useAgentChat } from "@/lib/hooks/use-agent-chat";
 import { ProjectStateSchema, type ProjectState } from "@/lib/schemas/project";
 
 const SAMPLE_IMAGE =
-  "data:image/svg+xml;charset=utf-8," +
-  encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720"><rect width="1280" height="720" fill="#0f172a"/><circle cx="640" cy="300" r="160" fill="#e2e8f0"/><text x="640" y="560" fill="#fff" font-size="52" text-anchor="middle" font-family="sans-serif">FLIXO SAMPLE</text></svg>',
-  );
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
 const INITIAL_STATE: ProjectState = ProjectStateSchema.parse({
   id: "11111111-1111-4111-8111-111111111111",
@@ -25,7 +22,7 @@ const INITIAL_STATE: ProjectState = ProjectStateSchema.parse({
     visible: true,
     locked: false,
     opacity: 1,
-    transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 0 },
+    transform: { x: 0, y: 0, scaleX: 1280, scaleY: 720, rotation: 0, zIndex: 0 },
     metadata: {},
   }],
   timeline: [],
@@ -40,6 +37,7 @@ export default function AgentEditorPage() {
     projectState,
     isStreaming,
     activeTool,
+    manualFallbackPath,
     sendMessage,
     stopStreaming,
     setProjectState,
@@ -65,6 +63,7 @@ export default function AgentEditorPage() {
         messages={messages}
         isStreaming={isStreaming}
         activeTool={activeTool}
+        manualFallbackPath={manualFallbackPath}
         onSendMessage={sendMessage}
         onStop={stopStreaming}
       />

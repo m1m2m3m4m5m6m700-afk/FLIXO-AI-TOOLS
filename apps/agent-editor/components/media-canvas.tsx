@@ -1,34 +1,107 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MediaCanvasPropsSchema } from "@/lib/ui-contracts";
-import type { Layer, ProjectState } from "@/lib/schemas/project";
+import type { ProjectState } from "@/lib/schemas/project";
 import { TimelineBar } from "./timeline-bar";
+import { PreviewCanvas } from "@/lib/media/preview-canvas";
+import { ClientMediaExportManager } from "@/lib/media/export-manager";
+import type { ExportProgress, MediaExportFormat } from "@/lib/media/export-protocol";
+import { resolveFrameSync } from "@/lib/media/frame-sync";
 
 export interface MediaCanvasProps {
   projectState?: ProjectState;
   onToggleVisibility: (layerId: string) => void;
 }
 
-function renderLayer(layer: Layer) {
-  if (!layer.visible) return null;
+const EXPORT_OPTIONS: Array<{ value: MediaExportFormat; label: string }> = [
+  { value: "mp4", label: "MP4" },
+  { value: "webm", label: "WEBM" },
+  { value: "gif", label: "GIF" },
+  { value: "png", label: "PNG Frame" },
+  { value: "png-zip", label: "PNG ZIP" },
+];
 
-  if (layer.type === "image" && layer.url) {
-    return <img key={layer.id} src={layer.url} alt={layer.name} style={{ opacity: layer.opacity }} />;
-  }
-  if (layer.type === "video" && layer.url) {
-    return <video key={layer.id} src={layer.url} controls style={{ opacity: layer.opacity }} />;
-  }
-  if (layer.type === "text") {
-    return <div key={layer.id} style={{ opacity: layer.opacity, padding: 20 }}>{layer.content ?? layer.name}</div>;
-  }
-  if (layer.type === "audio" && layer.url) {
-    return <audio key={layer.id} src={layer.url} controls />;
-  }
-  return null;
+function triggerDownload(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function fileNameFor(format: MediaExportFormat, title: string): string {
+  const safeTitle = title.replace(/[^a-zA-Z0-9_-]/g, "_") || "flixo-export";
+  return safeTitle + "." + (format === "png-zip" ? "zip" : format);
 }
 
 export function MediaCanvas(props: MediaCanvasProps) {
   const parsed = MediaCanvasPropsSchema.parse(props);
+  const [currentTimeSec, setCurrentTimeSec] = useState(0);
+  const [exportFormat, setExportFormat] = useState<MediaExportFormat>("mp4");
+  const [exportState, setExportState] = useState<ExportProgress | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [downloadName, setDownloadName] = useState<string | null>(null);
+  const exportManagerRef = useRef<ClientMediaExportManager | null>(null);
+
+  useEffect(() => {
+    exportManagerRef.current = new ClientMediaExportManager();
+    return () => {
+      exportManagerRef.current?.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+    };
+  }, [downloadUrl]);
+
+  const handleExport = useCallback(async () => {
+    if (!parsed.projectState || !exportManagerRef.current) return;
+
+    setExportState({
+      jobId: "pending",
+      phase: "queued",
+      progress: 0,
+      message: "Queued client-side export.",
+    });
+
+    try {
+      const blob = await exportManagerRef.current.export(
+        parsed.projectState,
+        exportFormat,
+        {
+          currentTimeSec,
+          onProgress: setExportState,
+        },
+      );
+      const fileName = fileNameFor(exportFormat, parsed.projectState.title);
+      const nextDownloadUrl = URL.createObjectURL(blob);
+      setDownloadUrl((previousUrl) => {
+        if (previousUrl) URL.revokeObjectURL(previousUrl);
+        return nextDownloadUrl;
+      });
+      setDownloadName(fileName);
+      triggerDownload(blob, fileName);
+      setExportState({
+        jobId: "completed",
+        phase: "completed",
+        progress: 1,
+        message: "Export ready.",
+      });
+    } catch (error) {
+      setExportState({
+        jobId: "error",
+        phase: "error",
+        progress: 0,
+        message: error instanceof Error ? error.message : "Export failed.",
+      });
+    }
+  }, [currentTimeSec, exportFormat, parsed.projectState]);
 
   if (!parsed.projectState) {
     return (
@@ -39,6 +112,12 @@ export function MediaCanvas(props: MediaCanvasProps) {
   }
 
   const state = parsed.projectState;
+  const sync = resolveFrameSync(state, currentTimeSec);
+  const busy =
+    exportState?.phase === "rendering" ||
+    exportState?.phase === "encoding" ||
+    exportState?.phase === "loading-wasm";
+
   return (
     <section className="canvas-panel" aria-label="Media canvas">
       <header className="canvas-header">
@@ -46,17 +125,39 @@ export function MediaCanvas(props: MediaCanvasProps) {
           <div className="kicker">MEDIA CANVAS</div>
           <div className="title">{state.title} · v{state.version}</div>
         </div>
-        <div className="timeline-meta">
-          {state.dimensions.width}×{state.dimensions.height} · {state.dimensions.fps}fps · {state.layers.length} layers
+
+        <div className="canvas-header-actions">
+          <div className="timeline-meta">
+            {state.dimensions.width}×{state.dimensions.height} · {state.dimensions.fps}fps · frame {sync.frameIndex}
+          </div>
+
+          <div className="export-controls">
+            <select
+              aria-label="Export format"
+              value={exportFormat}
+              onChange={(event) => setExportFormat(event.target.value as MediaExportFormat)}
+              disabled={busy}
+            >
+              {EXPORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="button export"
+              onClick={() => void handleExport()}
+              disabled={busy}
+            >
+              Export
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="canvas-main">
         <div className="preview-shell">
           <div className="preview-frame" aria-label="Live canvas preview" data-testid="media-preview">
-            {state.layers.length === 0
-              ? <div className="empty-state">Canvas Empty</div>
-              : state.layers.slice().sort((a, b) => a.transform.zIndex - b.transform.zIndex).map(renderLayer)}
+            <PreviewCanvas projectState={state} frameIndex={sync.frameIndex} />
           </div>
         </div>
 
@@ -82,7 +183,32 @@ export function MediaCanvas(props: MediaCanvasProps) {
         </div>
       </div>
 
-      <TimelineBar events={state.timeline} />
+      {exportState ? (
+        <div className="export-status" data-testid="export-progress" aria-live="polite">
+          <div className="export-status-row">
+            <span>{exportState.message}</span>
+            <strong>{Math.round(exportState.progress * 100)}%</strong>
+          </div>
+          <progress value={exportState.progress} max={1} />
+          {downloadUrl && downloadName && exportState.phase === "completed" ? (
+            <a
+              className="export-download"
+              href={downloadUrl}
+              download={downloadName}
+            >
+              Download export
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+
+      <TimelineBar
+        events={state.timeline}
+        durationSec={state.durationSec}
+        fps={state.dimensions.fps}
+        currentTimeSec={sync.timeSec}
+        onSeek={(timeSec) => setCurrentTimeSec(timeSec)}
+      />
     </section>
   );
 }
