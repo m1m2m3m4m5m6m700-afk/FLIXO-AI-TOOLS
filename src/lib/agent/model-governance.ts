@@ -2,9 +2,16 @@ export type ModelGateStatus = 'PASS' | 'REVIEW_REQUIRED' | 'BLOCKED' | 'UNKNOWN'
 
 export type ModelLifecycleStatus = 'CANDIDATE' | 'APPROVED' | 'ACTIVE' | 'QUARANTINED';
 
+export type ModelTaskKind = 'CHAT' | 'UNDERSTAND' | 'PLAN' | 'EXECUTION_PLANNING' | 'VERIFY' | 'REVIEW';
+
+export type ModelProvider = 'openai' | 'openrouter' | 'gemini' | 'local';
+
 export type ModelManifestEntry = Readonly<{
   model: string;
   version: string;
+  provider: ModelProvider;
+  deployment_mode: 'HOSTED' | 'LOCAL';
+  supported_tasks: readonly ModelTaskKind[];
   source: string;
   license: string;
   license_file: string;
@@ -45,7 +52,8 @@ export function evaluateModelAdmission(entry: ModelManifestEntry): ModelGateStat
     entry.review_status,
   ];
 
-  if (!entry.model || !entry.version || !entry.source || !entry.license || !entry.license_file) return 'BLOCKED';
+  if (!entry.model || !entry.version || !entry.provider || !entry.source || !entry.license || !entry.license_file) return 'BLOCKED';
+  if (!entry.supported_tasks.length) return 'BLOCKED';
   if (!HEX_SHA256.test(entry.artifact_sha256)) return 'BLOCKED';
   if (checks.includes('BLOCKED')) return 'BLOCKED';
   if (checks.includes('UNKNOWN')) return 'UNKNOWN';
