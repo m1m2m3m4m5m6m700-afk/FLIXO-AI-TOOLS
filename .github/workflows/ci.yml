@@ -40,6 +40,8 @@ jobs:
           set -euo pipefail
           python3 scripts/three_critic_review.py --self-test
           python3 tests/three_critic_review.test.py
+      - name: Model license and admission gate
+        run: npm run test:model-license
       - name: Run npm test
         shell: bash
         run: |
