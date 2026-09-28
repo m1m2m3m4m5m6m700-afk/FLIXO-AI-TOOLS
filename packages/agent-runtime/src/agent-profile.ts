@@ -189,6 +189,11 @@ export const AUTONOMOUS_EXECUTION_SQUAD = Object.freeze([
 ] as const);
 
 export function assertAutonomousExecutionSquadSafety(): void {
+  const allowedSeats = ['PLANNER', 'EXECUTOR', 'VERIFIER'] as const;
+  if (AUTONOMOUS_EXECUTION_SQUAD.length !== allowedSeats.length
+    || AUTONOMOUS_EXECUTION_SQUAD.some((seat, index) => seat.seat !== allowedSeats[index])) {
+    throw new Error('AUTONOMOUS_SQUAD_ROLE_BOUNDARY_INVALID');
+  }
   const mutationSeats = AUTONOMOUS_EXECUTION_SQUAD.filter((seat) => seat.mode === 'CANONICAL_MUTATION');
   if (mutationSeats.length !== 1 || mutationSeats[0]?.profileId !== 'actionRepairBot') {
     throw new Error('AUTONOMOUS_SQUAD_MUTATION_AUTHORITY_INVALID');
