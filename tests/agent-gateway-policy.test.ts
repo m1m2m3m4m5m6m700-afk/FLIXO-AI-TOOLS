@@ -1,5 +1,8 @@
 import { strict as assert } from 'node:assert';
 import { assertPublicAgentBoundary, routeThroughFlixoAgent } from '../src/lib/agent/agent-gateway-policy.ts';
+import { test } from 'node:test';
+import { Readable } from 'node:stream';
+import { Writable } from 'node:stream';
 
 const edit = routeThroughFlixoAgent('remove the background and compress the image');
 assert.equal(edit.publicAgent, 'FLIXO_AGENT');
@@ -17,10 +20,6 @@ assert.equal(ordinary.specialist, null);
 assert.doesNotThrow(() => assertPublicAgentBoundary('FLIXO_AGENT'));
 assert.throws(() => assertPublicAgentBoundary('reviewAgent'), /DIRECT_SPECIALIST_ACCESS_DENIED/);
 
-import { strict as assert } from 'node:assert';
-import { test } from 'node:test';
-import { Readable } from 'node:stream';
-import { Writable } from 'node:stream';
 
 test('public agent response does not expose internal specialist identity', async () => {
   const { default: handler } = await import('../api/flixo-agent.ts');
