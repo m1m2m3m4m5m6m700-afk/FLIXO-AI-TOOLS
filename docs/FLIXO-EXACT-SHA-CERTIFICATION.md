@@ -1,6 +1,6 @@
 # FLIXO — Exact-SHA Certification Record
 
-Status: NOT CERTIFIED — implementation progressed; exact-SHA CI evidence is still required.
+Status: NOT CERTIFIED — fresh CI evidence is pending for exact SHA 1b859aba22699c214e3fc87481938a1b000b293b.
 
 ## Current evidence anchor
 - Repository: `m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS`
