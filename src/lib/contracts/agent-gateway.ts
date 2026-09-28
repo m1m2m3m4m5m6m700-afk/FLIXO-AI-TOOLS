@@ -7,6 +7,8 @@ const ChatMessageSchema = z.object({
   content: z.string().trim().min(1).max(12_000),
 }).strict();
 
+const MAX_AGENT_MESSAGE_CHARS = 64_000;
+
 const AgentFileSchema = z.object({
   name: z.string().trim().min(1).max(512),
   type: z.string().max(128),
@@ -23,7 +25,16 @@ export const AgentRequestSchema = z.object({
   conversationId: z.string().trim().min(1).max(256).optional(),
   taskId: z.string().trim().min(1).max(256).nullable().optional(),
   memory: LayeredMemorySchema.nullable().optional(),
-}).strict();
+}).strict().superRefine((value, ctx) => {
+  const totalMessageChars = (value.messages ?? []).reduce((sum, message) => sum + message.content.length, 0);
+  if (totalMessageChars > MAX_AGENT_MESSAGE_CHARS) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["messages"],
+      message: "Agent message history exceeds the aggregate context budget.",
+    });
+  }
+});
 
 export type AgentRequestContract = Readonly<{
   locale?: string;

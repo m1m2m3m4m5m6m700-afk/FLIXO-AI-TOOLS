@@ -211,3 +211,15 @@ test('approval policy is fail-closed for non-executable capabilities and explici
   assert.equal(evaluatePlanApproval(plan!).level, 'AUTO');
   assert.ok(evaluatePlanApproval(plan!).reasons.length > 0);
 });
+
+
+test('chat gateway rejects oversized aggregate message history', async () => {
+  const { parseAgentRequest } = await import('../src/lib/contracts/agent-gateway.ts');
+  const message = 'x'.repeat(12_000);
+  assert.throws(
+    () => parseAgentRequest({
+      messages: Array.from({ length: 6 }, () => ({ role: 'user', content: message })),
+    }),
+    /aggregate context budget/,
+  );
+});
