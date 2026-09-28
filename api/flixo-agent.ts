@@ -541,7 +541,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       ...recentMessages,
     ];
     const started = Date.now();
-    const selectedInternalSpecialist = flixoRoute.routing.specialist;
     let providerCalls = 0;
     let lastModel: string | null = null;
     const invoke = async (attempt: typeof modelAttempts[number]): Promise<string> => {
