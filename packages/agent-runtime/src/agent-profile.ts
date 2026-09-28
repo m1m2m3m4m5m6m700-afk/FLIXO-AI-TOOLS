@@ -183,14 +183,9 @@ export function assertAgentProfileSafety(profile: AgentProfile): void {
  * Mutation ownership remains with the canonical execution gate and control plane.
  */
 export const AUTONOMOUS_EXECUTION_SQUAD = Object.freeze([
-  Object.freeze({ seat: 'SCOUT', profileId: 'codeScout', mode: 'READ_ONLY' as const }),
-  Object.freeze({ seat: 'RCA', profileId: 'errorAgent', mode: 'READ_ONLY' as const }),
-  Object.freeze({ seat: 'FALSIFIER', profileId: 'reviewAgent', mode: 'READ_ONLY' as const }),
-  Object.freeze({ seat: 'REPAIR', profileId: 'actionRepairBot', mode: 'CANONICAL_MUTATION' as const }),
-  Object.freeze({ seat: 'TEST', profileId: 'testAgent', mode: 'VERIFY' as const }),
-  Object.freeze({ seat: 'SECURITY', profileId: 'securityAgent', mode: 'READ_ONLY' as const }),
-  Object.freeze({ seat: 'LEARN', profileId: 'actionHistorian', mode: 'LEARNING' as const }),
-  Object.freeze({ seat: 'CERTIFY', profileId: 'certificationAuthority', mode: 'READ_ONLY' as const }),
+  Object.freeze({ seat: 'PLANNER', profileId: 'analysis', mode: 'READ_ONLY' as const }),
+  Object.freeze({ seat: 'EXECUTOR', profileId: 'actionRepairBot', mode: 'CANONICAL_MUTATION' as const }),
+  Object.freeze({ seat: 'VERIFIER', profileId: 'reviewAgent', mode: 'VERIFY' as const }),
 ] as const);
 
 export function assertAutonomousExecutionSquadSafety(): void {
