@@ -77,3 +77,75 @@ When a finding is BLOCKER/HIGH, explicitly answer:
 - Can the result be proven on the same exact SHA?
 
 Required review output may therefore contain both findings and stronger alternatives. The goal is not merely to validate the existing plan; it is to improve the execution path while preserving canonical authority and Exact-SHA discipline.
+
+
+## Agent Review Response Contract — Mandatory for Machine Ingestion
+
+When a review is consumed by automation, return a structured review object with these required fields:
+- current_fact_sha
+- confirmed_facts[]
+- hypotheses[]
+- experiments[]
+- findings[]
+- proposed_changes[]
+- success_criterion
+- certification_impact
+- next_action
+
+Every finding must include:
+`finding_id, sha, severity, file, evidence, impact, proposed_action`.
+
+Every plan change must include:
+`plan_change, why, evidence_needed, files, risk, acceptance_test`.
+
+A review with a missing SHA, stale SHA, unsupported mutation, or prohibited authority change is not actionable and must be rejected or escalated.
+
+## Forbidden-Action Invariant
+
+Treat these as hard invariants, not advisory prose:
+- direct specialist selection/invocation by a public user;
+- second registry, authority, executor, verifier, or certification path;
+- direct writes to `main`;
+- autonomous merge/promotion/certification;
+- MVP scope expansion without Human Authority;
+- using stale SHA/evidence as proof;
+- weakening/skipping/masking required tests or gates.
+
+If a proposed change violates an invariant, report the finding and stop that mutation. Do not rationalize the bypass.
+
+## Replanning Budget
+
+For each HIGH/BLOCKER finding, allow at most two replanning cycles. If unresolved after the second cycle, mark the work BLOCKED and escalate to Human Authority. Never enter an unbounded replanning loop.
+
+## Resilience Contract
+
+The current canonical resilience parameters are:
+- maximum provider calls: 3;
+- circuit failure threshold: 2;
+- circuit cooldown: 30 seconds;
+- retry loops: disabled;
+- deterministic fallback: enabled.
+
+Agents must verify these values from canonical code/tests rather than creating a duplicate configuration source.
+
+## Precedence
+
+Human Authority > canonical runtime contracts + canonical MVP scope > CI/repository enforcement > unified execution plan > supporting documents.
+
+CI enforces canonical contracts; it does not redefine MVP scope. If CI conflicts with a canonical contract/scope, treat the CI as defective and block promotion until corrected.
+
+## Public Boundary Review
+
+Before declaring the single-agent boundary verified, inspect every real public surface that exists: HTTP/API routes, streaming/WebSocket paths, client command paths, error envelopes, telemetry/debug outputs. Do not assume the orchestrator is the only entry point. User-visible output must not expose internal specialist selection as a control surface.
+
+## Privacy Proof
+
+A claim of browser-local execution is not evidence by itself. Where applicable, test fetch/XHR/WebSocket/sendBeacon/form submission and assert that private File/Blob/ArrayBuffer/base64 payloads cannot reach planning/provider endpoints. Use CSP/Trusted Types only where they are actually part of the deployed application.
+
+## Certification Evidence
+
+Every evidence artifact must contain an explicit SHA. Evidence for SHA A cannot certify SHA B. Required checks that are skipped or cancelled are not PASS. Any material mutation after evidence collection invalidates that evidence and requires a fresh run.
+
+## Open Plan Improvement
+
+Agents are expected to propose stronger alternatives when evidence supports them. Prefer one deterministic invariant/test over several duplicated patches. Do not create a new authority file merely to document an existing rule. If the existing plan is wrong or inefficient, submit a PLAN-CHANGE proposal with evidence rather than silently working around it.
