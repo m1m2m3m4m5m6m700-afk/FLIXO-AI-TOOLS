@@ -1,0 +1,33 @@
+name: Temporary Lockfile Repair
+
+on:
+  push:
+    branches: [execution]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: ${{ github.event.head_commit.author.name != 'lockfile-repair' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact execution head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+      - name: Regenerate canonical npm lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit canonical lockfile and remove repair workflow
+        shell: bash
+        run: |
+          git config user.name "lockfile-repair"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git rm .github/workflows/lockfile-repair.yml
+          if git diff --cached --quiet; then
+            echo "No lockfile delta; removing temporary workflow only."
+          fi
+          git commit -m "fix: synchronize npm lockfile with workspace manifests"
+          git push origin HEAD:execution
