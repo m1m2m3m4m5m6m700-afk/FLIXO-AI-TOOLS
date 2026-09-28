@@ -23,7 +23,8 @@
     "provenance_status",
     "FLIXO_owned_layer",
     "fallback_models",
-    "review_status"
+    "review_status",
+    "lifecycle_status"
   ],
   "review_status_values": [
     "PASS",
