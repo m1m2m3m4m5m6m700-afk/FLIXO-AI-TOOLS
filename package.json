@@ -22,7 +22,13 @@
     "test": "npm run test:model-license && npm run typecheck && npm run lint && npm run test:core",
     "ci": "npm run test && npm run build",
     "test:model-license": "node scripts/model-license-gate.mjs",
-    "test:model-license:release": "node scripts/model-license-gate.mjs --require-entry"
+    "test:model-license:release": "node scripts/model-license-gate.mjs --require-entry",
+    "test:agent-editor": "npm run type-check --workspace=apps/agent-editor && npm run test:unit --workspace=apps/agent-editor",
+    "build:agent-editor": "npm run build --workspace=apps/agent-editor",
+    "verify:architecture": "node scripts/verify-architecture.mjs",
+    "verify:contracts": "node scripts/verify-contract-boundary.mjs",
+    "typecheck:contracts": "npx tsc -p packages/contracts/tsconfig.json --noEmit",
+    "typecheck:agent-runtime": "npx tsc -p packages/agent-runtime/tsconfig.json --noEmit"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
@@ -49,5 +55,10 @@
     "typescript-eslint": "^8.56.1",
     "typescript": "^5.8.3",
     "vite": "^8.2.1"
-  }
+  },
+  "workspaces": [
+    "apps/agent-editor",
+    "packages/contracts",
+    "packages/agent-runtime"
+  ]
 }
