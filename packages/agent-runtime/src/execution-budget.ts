@@ -2,6 +2,8 @@ export const EXECUTION_BUDGET_VERSION = 1 as const;
 
 export type ExecutionBudgetLimits = Readonly<{
   maxSteps: number;
+  maxScope: number;
+  maxMutations: number;
   maxToolCalls: number;
   maxRetries: number;
   maxElapsedMs: number;
@@ -11,6 +13,8 @@ export type ExecutionBudgetLimits = Readonly<{
 
 export type ExecutionBudgetUsage = Readonly<{
   steps: number;
+  scope: number;
+  mutations: number;
   toolCalls: number;
   retries: number;
   elapsedMs: number;
@@ -27,6 +31,8 @@ export type ExecutionBudget = Readonly<{
 
 export const DEFAULT_EXECUTION_BUDGET: ExecutionBudgetLimits = Object.freeze({
   maxSteps: 4,
+  maxScope: 4,
+  maxMutations: 4,
   maxToolCalls: 8,
   maxRetries: 6,
   maxElapsedMs: 120_000,
@@ -54,6 +60,8 @@ export function createExecutionBudget(
     limits: Object.freeze(merged),
     usage: Object.freeze({
       steps: 0,
+      scope: 0,
+      mutations: 0,
       toolCalls: 0,
       retries: 0,
       elapsedMs: 0,
@@ -67,6 +75,8 @@ export function createExecutionBudget(
 function next(budget: ExecutionBudget, delta: Partial<ExecutionBudgetUsage>): ExecutionBudget {
   const usage = Object.freeze({
     steps: budget.usage.steps + (delta.steps ?? 0),
+    scope: budget.usage.scope + (delta.scope ?? 0),
+    mutations: budget.usage.mutations + (delta.mutations ?? 0),
     toolCalls: budget.usage.toolCalls + (delta.toolCalls ?? 0),
     retries: budget.usage.retries + (delta.retries ?? 0),
     elapsedMs: Math.max(0, Date.now() - budget.startedAtMs),
@@ -76,6 +86,8 @@ function next(budget: ExecutionBudget, delta: Partial<ExecutionBudgetUsage>): Ex
 
   const checks: Array<[keyof ExecutionBudgetLimits, number, keyof ExecutionBudgetUsage]> = [
     ['maxSteps', usage.steps, 'steps'],
+    ['maxScope', usage.scope, 'scope'],
+    ['maxMutations', usage.mutations, 'mutations'],
     ['maxToolCalls', usage.toolCalls, 'toolCalls'],
     ['maxRetries', usage.retries, 'retries'],
     ['maxElapsedMs', usage.elapsedMs, 'elapsedMs'],
@@ -93,7 +105,11 @@ function next(budget: ExecutionBudget, delta: Partial<ExecutionBudgetUsage>): Ex
 }
 
 export function consumeStep(budget: ExecutionBudget): ExecutionBudget {
-  return next(budget, { steps: 1 });
+  return next(budget, { steps: 1, scope: 1 });
+}
+
+export function consumeMutation(budget: ExecutionBudget): ExecutionBudget {
+  return next(budget, { mutations: 1 });
 }
 
 export function consumeToolCall(budget: ExecutionBudget): ExecutionBudget {
