@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0.0",
+  "status": "ACTIVE",
+  "authority": "FLIXO_CONTROL_PLANE",
+  "policy_reference": "docs/MODEL-LICENSE-POLICY.json",
+  "entries": [],
+  "required_fields": [
+    "model",
+    "version",
+    "source",
+    "license",
+    "license_file",
+    "artifact_sha256",
+    "download_date",
+    "commercial_use",
+    "fine_tuning",
+    "redistribution",
+    "distillation",
+    "adapter_policy",
+    "acceptable_use_policy",
+    "trademark_restrictions",
+    "training_data_restrictions",
+    "provenance_status",
+    "FLIXO_owned_layer",
+    "fallback_models",
+    "review_status"
+  ],
+  "review_status_values": [
+    "PASS",
+    "REVIEW_REQUIRED",
+    "BLOCKED",
+    "UNKNOWN"
+  ],
+  "rules": {
+    "unknown_is_production_blocked": true,
+    "latest_version_allowed": false,
+    "automatic_promotion_allowed": false,
+    "automatic_license_acceptance_allowed": false,
+    "missing_artifact_hash_requires_review": true
+  }
+}
