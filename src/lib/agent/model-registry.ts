@@ -18,7 +18,7 @@ const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as ManifestDocum
 
 function assertManifestShape(): void {
   if (
-    manifest.schema_version !== '1.0.0'
+    !['1.0.0','1.1.0'].includes(manifest.schema_version)
     || manifest.status !== 'ACTIVE'
     || manifest.authority !== 'FLIXO_CONTROL_PLANE'
     || !Array.isArray(manifest.entries)
