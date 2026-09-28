@@ -11,7 +11,7 @@ import { assertToolOutputContract, type ToolOutputResult } from '@/lib/contracts
 import { verifyVisualGoal, deriveVisualGoalSpec } from '@/lib/agent/visual-goal-verifier';
 import { reviewOutputBasics, type OutputReview } from '@/lib/agent/output-review';
 import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelinePlanFingerprint, createPipelineReceiptChain, createPipelineStepReceipt, type PipelineReceiptChain, type PipelineStepReceipt } from '@/lib/workflows/pipeline-receipt';
-import { assertExecutionBudgetAlive, consumeOutputBytes, consumeRetry, consumeStep, consumeToolCall, createExecutionBudget, type ExecutionBudget } from '@flixo/agent-runtime';
+import { assertExecutionBudgetAlive, consumeMutation, consumeOutputBytes, consumeRetry, consumeStep, consumeToolCall, createExecutionBudget, type ExecutionBudget } from '@flixo/agent-runtime';
 
 export type PipelineRuntimeHooks = Readonly<{
   beforeTool?: (input: Readonly<{
@@ -219,6 +219,8 @@ export async function runWorkflowPipeline(
   let currentBlob: Blob = initialFile;
   let budget: ExecutionBudget = createExecutionBudget({
     maxSteps: plan.steps.length,
+    maxScope: plan.steps.length,
+    maxMutations: plan.steps.length,
     maxToolCalls: Math.min(32, plan.steps.length * 3),
     maxRetries: Math.max(0, plan.steps.length * 2),
   });
@@ -283,6 +285,8 @@ export async function runWorkflowPipeline(
           outcome: 'SUCCESS',
         });
         lastOutput = output;
+        budget = consumeMutation(budget);
+        assertExecutionBudgetAlive(budget);
         verified = await verifyPipelineOutput(step.toolId, stableBlob, output, params);
         const visualSpec = deriveVisualGoalSpec(step.toolId, params);
         const review = reviewOutputBasics(stableBlob, output, {
