@@ -14,7 +14,8 @@
       "source-available",
       "non-commercial",
       "research-only",
-      "model-specific-license"
+      "model-specific-license",
+      "openrail++"
     ],
     "prohibited_by_default": [
       "no-license",
@@ -33,5 +34,7 @@
     "BLOCKED",
     "UNKNOWN"
   ],
-  "production_rule": "Only PASS may be production-eligible, and PASS still requires compatibility, security, evaluation, and human approval under the FLIXO control plane."
+  "production_rule": "Only PASS may be production-eligible, and PASS still requires compatibility, security, evaluation, and human approval under the FLIXO control plane.",
+  "candidate_catalog_reference": "docs/MODEL-CANDIDATE-CATALOG.json",
+  "candidate_catalog_rule": "Candidate catalog entries are non-admitting. They may be reviewed for future FLIXO use, but they must not be copied into the production manifest without exact version, artifact SHA-256, license text, model terms/AUP, provenance, compatibility, security, evaluation and human approval."
 }
