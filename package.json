@@ -2,9 +2,7 @@
   "name": "flixo-tools",
   "private": true,
   "type": "module",
-  "engines": {
-    "node": "22.x"
-  },
+  "engines": {"node": "22.x"},
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "npm run typecheck && npm run lint && vite build && FLIXO_GENERATED_OUTPUT_DIR=dist npm run generate:robots && FLIXO_GENERATED_OUTPUT_DIR=dist npm run generate:sitemap && npm run generate:static-routes",
@@ -17,7 +15,7 @@
     "generate:robots": "node scripts/generate-robots.mjs",
     "generate:sitemap": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-sitemap.mjs",
     "generate:static-routes": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-static-route-entries.mjs",
-    "test:core": "node scripts/assert-test-files.mjs tests/core-contracts.test.ts tests/mvp-100-proof.test.ts tests/agent-browser-observation.contract.test.ts tests/visual-task-spec.test.ts tests/output-review.test.ts tests/video-task-spec.test.ts tests/llm-provider-contract.test.ts tests/zod-json-schema.test.ts tests/gemini-adapter.test.ts tests/agent-automation-control.test.ts tests/red-team-regression.test.ts && node --import=./scripts/register-node-resolver.mjs --test --experimental-strip-types tests/core-contracts.test.ts tests/mvp-100-proof.test.ts tests/agent-browser-observation.contract.test.ts tests/visual-task-spec.test.ts tests/output-review.test.ts tests/video-task-spec.test.ts tests/llm-provider-contract.test.ts tests/zod-json-schema.test.ts tests/agent-automation-control.test.ts tests/red-team-regression.test.ts",
+    "test:core": "node scripts/assert-test-files.mjs tests/core-contracts.test.ts tests/mvp-100-proof.test.ts tests/agent-browser-observation.contract.test.ts tests/visual-task-spec.test.ts tests/output-review.test.ts tests/video-task-spec.test.ts tests/llm-provider-contract.test.ts tests/zod-json-schema.test.ts tests/agent-automation-control.test.ts tests/red-team-regression.test.ts && node --import=./scripts/register-node-resolver.mjs --test --experimental-strip-types tests/core-contracts.test.ts tests/mvp-100-proof.test.ts tests/agent-browser-observation.contract.test.ts tests/visual-task-spec.test.ts tests/output-review.test.ts tests/video-task-spec.test.ts tests/llm-provider-contract.test.ts tests/zod-json-schema.test.ts tests/agent-automation-control.test.ts tests/red-team-regression.test.ts",
     "test:e2e": "playwright test",
     "test": "npm run typecheck && npm run lint && npm run test:core",
     "ci": "npm run test && npm run build"
@@ -36,7 +34,7 @@
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
     "@types/node": "^22.16.5",
-    "@types/react": "^19.2.0",
+    "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.2.0",
     "eslint": "^10.8.0",
@@ -44,8 +42,8 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^15.15.0",
-    "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
+    "typescript": "^5.8.3",
     "vite": "^8.2.1"
   }
 }
