@@ -40,7 +40,14 @@ export class LLMRouter {
     }
 
     const now = Date.now();
-    const ordered = [...configured].sort((a, b) => {
+    const eligible = configured.filter((provider) => {
+      const health = this.health.get(provider.name);
+      return !health || health.unhealthyUntil <= now;
+    });
+    if (eligible.length === 0) {
+      throw new LLMUnavailableError("All configured LLM providers are currently cooling down.");
+    }
+    const ordered = [...eligible].sort((a, b) => {
       const healthA = this.health.get(a.name) ?? {
         failureCount: 0,
         latencyMs: 250,
