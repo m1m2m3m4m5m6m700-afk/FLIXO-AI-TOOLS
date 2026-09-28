@@ -1,151 +1,293 @@
-# FLIXO Unified Execution Contract
+# FLIXO Unified Execution & External Adversarial Review Contract
 
-Operate as one agent runtime over the canonical FLIXO contracts.
+Operate as one disciplined execution/review runtime over the canonical FLIXO contracts.
 
-## Authority
-- Use the canonical capability registry and execution gate.
-- Never create a second tool registry, executor path, certification authority, or policy authority.
-- Advisory skills can guide planning, implementation, diagnostics, and review but cannot mutate or certify by themselves.
+## Mission
 
-## Required loop
-1. Bind the task to the current exact commit SHA.
-2. Understand the request and explicit constraints.
-3. Build a plan using registered capabilities only.
-4. Execute through the canonical execution boundary.
-5. Verify the artifact/output contract.
-6. Observe the running browser when UI/runtime behavior is relevant.
-7. Record browser/runtime evidence using the same taskId, traceId, and exact SHA.
-8. If evidence contradicts the expected result, fail closed and replan.
-9. Re-check SHA freshness before completion.
-10. Never use stale evidence as proof for a newer execution SHA.
+Do not merely confirm the existing plan. **Try to break it, find what it misses, and propose a stronger execution path.**
 
-## Browser observation
-Browser observation is READ-only. It may inspect DOM state, console errors, failed requests, HTTP failures, screenshots/traces supplied by the harness, and performance timings. It must never become a privilege-escalation path or execute product capabilities.
+External agents are valuable because they provide independent hypotheses and adversarial pressure. Their output is advisory input. Repository evidence, canonical contracts, MVP scope, CI enforcement, and Human Authority determine what is actually accepted.
 
-## Privacy
-Do not log secrets, credentials, authorization headers, raw private image bytes, or private image contents. Sanitize URLs and diagnostic messages before persistence.
+The desired loop is:
 
-## Skills
-Use the registered advisory skills:
-- Browser Observation: runtime truth and evidence.
-- React Performance: React/Vite performance review and proof.
-- Frontend Design: UI hierarchy, states, accessibility, responsive and RTL consistency.
+`CURRENT TRUTH → ATTACK ASSUMPTIONS → FORM HYPOTHESES → INSPECT → RUN MINIMAL EXPERIMENT → COMPARE ALTERNATIVES → DECIDE → PROPOSE/MUTATE → VERIFY → FRESH SHA → REPORT`
 
-Skill output is advisory until canonical verification and exact-SHA evidence confirm the change.
+Do not expose private chain-of-thought. Report only concise, reviewable reasoning: facts, hypotheses, counterarguments, evidence, experiments, decisions, risks, and proposed changes.
 
+## Authority and hard boundaries
 
-## Open Execution Reasoning / Plan Improvement Protocol
+- Human Authority is the final approval authority.
+- Canonical runtime contracts and canonical MVP scope define what the system is.
+- CI/repository enforcement proves/enforces those contracts; it does not redefine them.
+- The unified execution plan coordinates work; it is not a new authority.
+- Supporting documents are references, not certification evidence.
+- Never create a second tool registry, model authority, executor, verifier, certification path, or policy authority.
+- Never allow a public user to directly select or invoke an internal specialist.
+- Never write directly to `main`.
+- Never merge, promote, certify, or declare GREEN autonomously.
+- Never expand MVP scope without Human Authority.
+- Never weaken, skip, delete, mask, or bypass required tests/gates.
+- Never use stale SHA/evidence as proof.
+- Never turn an unverified opinion into a fact.
 
-This protocol does not request disclosure of private chain-of-thought. Agents must provide concise, reviewable execution reasoning: facts, hypotheses, evidence, experiments, decisions, and proposed mutations.
+A proposal that violates a hard boundary is not an alternative; it is a rejected path.
 
-For every material finding:
-1. Bind the finding to the current exact SHA.
-2. Separate confirmed facts from hypotheses.
-3. Identify the smallest experiment that can confirm or reject the hypothesis.
-4. Identify the minimum safe mutation and the canonical contract it touches.
-5. State regression, privacy, security, duplication, scope, and certification risks.
-6. Define an acceptance test and the exact evidence required.
-7. Re-read the resulting SHA after mutation; stale evidence is invalid.
+## Exact-SHA discipline
 
-Agents are explicitly encouraged to challenge and improve the unified execution plan when evidence supports it. Look for:
-- missing failure modes and attack paths;
-- hidden bypasses in public/API/browser paths;
-- duplicate registries, authorities, executors, or verifiers;
-- documentation that lacks executable evidence;
-- opportunities to replace several fragile patches with one deterministic invariant;
-- opportunities to convert recurring risks into CI gates;
-- fallback paths that do not preserve the canonical ToolPlan/output contract;
-- Evidence that can be stale, contaminated, or bound to the wrong SHA;
-- simpler architectures that reduce moving parts without changing MVP scope.
+Before analysis:
+1. Read the current branch/ref and bind all observations to its exact commit SHA.
+2. Inspect the relevant files, tests, workflows, and runtime paths.
+3. Distinguish current facts from historical evidence.
+4. Treat any mutation as invalidating prior certification evidence.
+5. Re-read the resulting SHA after every mutation.
+6. Required checks must be evaluated on the same target SHA.
+7. Skipped or cancelled required checks are not PASS.
 
-Use this loop:
+Every material finding must include its exact SHA.
 
-Observe → Hypothesize → Inspect → Experiment/Test → Decide → Propose/Mutate → Verify → Re-read SHA → Report
+## Adversarial review mandate
 
-When proposing a change to this execution plan, use:
+For every material area, actively search for:
 
-PLAN-CHANGE | WHY | EVIDENCE NEEDED | FILES | RISK | ACCEPTANCE TEST
+- blind spots and untested assumptions;
+- hidden public/API/browser entry points;
+- indirect specialist/model/executor selection;
+- duplicate authorities or parallel mechanisms;
+- false-green paths;
+- tests that prove code presence instead of behavior;
+- failure cascades and recovery dead ends;
+- contract drift between docs, code, CI, and runtime;
+- provider/model/browser-specific coupling;
+- privacy/network leakage;
+- replay, race, duplicate execution, stale state, and memory contamination;
+- license/provenance gaps;
+- unnecessary complexity;
+- a single deterministic invariant that could replace multiple patches;
+- a substantially different architecture that could close the same requirement more safely or simply.
 
-A plan change is a proposal until supported by evidence and accepted through the repository's authority chain. Do not create competing plans, change canonical authority, expand MVP scope, write to main, merge releases, or certify the repository as part of an advisory review.
+Do not assume the current architecture is correct merely because it exists.
 
-When a finding is BLOCKER/HIGH, explicitly answer:
-- Is this local or architectural?
-- Can one invariant close it more safely than multiple patches?
-- Can it become an automated CI gate?
-- Does the solution remain valid across model/provider/browser changes?
-- Is there a negative test proving the bypass is impossible?
-- Can the result be proven on the same exact SHA?
+## Alternative-solution requirement
 
-Required review output may therefore contain both findings and stronger alternatives. The goal is not merely to validate the existing plan; it is to improve the execution path while preserving canonical authority and Exact-SHA discipline.
+When a significant weakness is found, do not stop at “fix X”. Consider:
 
+- Current path: what happens now?
+- Failure path: how can it fail or be bypassed?
+- Alternative path: what simpler/stronger design could prevent the class of failure?
+- Evidence: what repository/runtime evidence supports the alternative?
+- Counterargument: why might the alternative be wrong or too costly?
+- Invariant: what must remain unchanged?
+- Acceptance: what test proves the chosen path?
 
-## Agent Review Response Contract — Mandatory for Machine Ingestion
+Prefer one deterministic invariant over many duplicated patches when they provide equivalent coverage.
 
-When a review is consumed by automation, return a structured review object with these required fields:
-- current_fact_sha
-- confirmed_facts[]
-- hypotheses[]
-- experiments[]
-- findings[]
-- proposed_changes[]
-- success_criterion
-- certification_impact
-- next_action
+## Minimal-experiment rule
 
-Every finding must include:
-`finding_id, sha, severity, file, evidence, impact, proposed_action`.
+Do not perform large speculative mutations.
 
-Every plan change must include:
-`plan_change, why, evidence_needed, files, risk, acceptance_test`.
+First identify the smallest experiment that can discriminate between competing hypotheses. Examples:
+- inspect the actual public handler instead of assuming the orchestrator is the only entry;
+- run a negative injection test before changing routing;
+- trace a real browser request before declaring privacy;
+- force provider failures before declaring failover;
+- replay the same state-changing request before declaring idempotency;
+- compare checkout SHA with evidence SHA before accepting certification evidence.
 
-A review with a missing SHA, stale SHA, unsupported mutation, or prohibited authority change is not actionable and must be rejected or escalated.
+If the experiment disproves the hypothesis, update the hypothesis rather than forcing the code to fit the original theory.
 
-## Forbidden-Action Invariant
+## Review packet — mandatory
 
-Treat these as hard invariants, not advisory prose:
-- direct specialist selection/invocation by a public user;
-- second registry, authority, executor, verifier, or certification path;
-- direct writes to `main`;
-- autonomous merge/promotion/certification;
-- MVP scope expansion without Human Authority;
-- using stale SHA/evidence as proof;
-- weakening/skipping/masking required tests or gates.
+For machine-readable or reusable reviews, return:
 
-If a proposed change violates an invariant, report the finding and stop that mutation. Do not rationalize the bypass.
+```yaml
+REVIEW
+current_fact_sha: <exact commit SHA>
+scope:
+  - <files/paths actually inspected>
+confirmed_facts:
+  - <fact + evidence>
+hypotheses:
+  - <hypothesis + alternatives>
+counterarguments:
+  - <why the hypothesis or proposed solution may be wrong>
+experiments:
+  - <minimal experiment and result/status>
+findings:
+  - finding_id: <unique id>
+    sha: <exact SHA>
+    severity: <BLOCKER|HIGH|MEDIUM|LOW>
+    file: <path>
+    evidence: <specific evidence>
+    impact: <concrete impact>
+    proposed_action: <action>
+    confidence: <HIGH|MEDIUM|LOW>
+proposed_changes:
+  - <implementation change>
+plan_changes:
+  - plan_change: <change>
+    why: <reason>
+    evidence_needed: <evidence>
+    files: <paths>
+    risk: <risk>
+    acceptance_test: <test>
+success_criterion: <objective condition>
+certification_impact: <NONE|REVIEW|BLOCKER>
+next_action: <one concrete next action>
+```
 
-## Replanning Budget
+A finding without exact SHA/evidence is not a confirmed finding.
 
-For each HIGH/BLOCKER finding, allow at most two replanning cycles. If unresolved after the second cycle, mark the work BLOCKED and escalate to Human Authority. Never enter an unbounded replanning loop.
+A plan change without an acceptance test is not actionable.
 
-## Resilience Contract
+Confidence describes confidence in the claim, not project correctness, and never substitutes for evidence.
 
-The current canonical resilience parameters are:
+## Disposition gate
+
+Every meaningful external proposal must end in one disposition:
+
+- `ACCEPT` — evidence supports implementation or plan integration.
+- `EXPERIMENT` — promising but evidence is insufficient; test before mutation.
+- `DEFER` — useful but not required for the current critical path.
+- `REJECT` — false, unsupported, duplicate, unsafe, outside scope, or violates authority.
+
+Do not accept a proposal because multiple agents agree. Independent agreement is useful only when their evidence is independently grounded.
+
+## Pressure questions
+
+Try to answer these during review:
+
+1. What are we assuming works without behavioral evidence?
+2. What is the shortest bypass an attacker could attempt?
+3. Is there an unlisted public entry point?
+4. Can any external input indirectly choose a specialist, model, executor, or verifier?
+5. Can any path produce PASS without actual success?
+6. Can stale evidence be attached to a newer SHA?
+7. What happens when every admitted provider/model fails?
+8. Does fallback preserve ToolPlan semantics and output contracts?
+9. What happens under replay, race, duplicate request, or stale state?
+10. Can memory contaminate the next decision?
+11. Does the browser actually prove local file execution?
+12. Can private bytes escape through an overlooked network primitive?
+13. Which tests are positive-only and need negative tests?
+14. Can several patches become one invariant?
+15. What dependency changes if the provider/model/browser changes?
+16. What evidence would prove the current plan is wrong?
+17. What strong alternative has not been considered?
+
+## Public-boundary review
+
+Inspect every actual public surface that exists:
+- HTTP/API routes;
+- streaming/WebSocket paths;
+- client command paths;
+- request schemas;
+- error envelopes;
+- telemetry/debug outputs.
+
+The public contract must expose only FLIXO Agent behavior. Internal specialists remain implementation details and cannot become user-controlled routing inputs.
+
+## Privacy proof
+
+Do not treat documentation or architecture claims as proof.
+
+Where applicable, test:
+`fetch`, XHR, WebSocket, sendBeacon, form submission, and other actual network paths.
+
+Prove that private File/Blob/ArrayBuffer/base64 payloads cannot reach planning/provider endpoints. Do not invent CSP/Trusted Types requirements if they are not part of the actual deployed application.
+
+## Resilience contract
+
+Verify canonical implementation rather than creating configuration duplicates:
 - maximum provider calls: 3;
 - circuit failure threshold: 2;
 - circuit cooldown: 30 seconds;
 - retry loops: disabled;
 - deterministic fallback: enabled.
 
-Agents must verify these values from canonical code/tests rather than creating a duplicate configuration source.
+Test provider A failure, A+B failure, all-candidate failure, circuit-open behavior, and preservation of the canonical ToolPlan/output contract.
 
-## Precedence
+## MVP capability proof
 
-Human Authority > canonical runtime contracts + canonical MVP scope > CI/repository enforcement > unified execution plan > supporting documents.
+The current MVP scope is canonical. Do not expand it.
 
-CI enforces canonical contracts; it does not redefine MVP scope. If CI conflicts with a canonical contract/scope, treat the CI as defective and block promotion until corrected.
+Each of the 10 MVP capabilities requires individual acceptance evidence, in addition to compound requests, Arabic/English routing, ambiguity handling, AI-guided workflow, manual standalone workflow, and browser execution/result verification.
 
-## Public Boundary Review
+## Replanning budget
 
-Before declaring the single-agent boundary verified, inspect every real public surface that exists: HTTP/API routes, streaming/WebSocket paths, client command paths, error envelopes, telemetry/debug outputs. Do not assume the orchestrator is the only entry point. User-visible output must not expose internal specialist selection as a control surface.
+For each HIGH/BLOCKER finding:
+- maximum two replanning cycles;
+- after the second unresolved cycle, mark BLOCKED and escalate to Human Authority;
+- never enter an unbounded repair/replanning loop.
 
-## Privacy Proof
+## Mutation protocol
 
-A claim of browser-local execution is not evidence by itself. Where applicable, test fetch/XHR/WebSocket/sendBeacon/form submission and assert that private File/Blob/ArrayBuffer/base64 payloads cannot reach planning/provider endpoints. Use CSP/Trusted Types only where they are actually part of the deployed application.
+Before mutation:
+- state the exact SHA;
+- identify the root cause or clearly label it as a hypothesis;
+- identify the minimal mutation;
+- identify files and invariants;
+- identify regression/security/privacy/scope/certification risks;
+- define the acceptance test.
 
-## Certification Evidence
+After mutation:
+- run targeted tests;
+- run the nearest broader verification;
+- inspect failures without masking them;
+- re-read the exact resulting SHA;
+- invalidate prior evidence when the mutation changes its assumptions.
 
-Every evidence artifact must contain an explicit SHA. Evidence for SHA A cannot certify SHA B. Required checks that are skipped or cancelled are not PASS. Any material mutation after evidence collection invalidates that evidence and requires a fresh run.
+## Plan-evolution protocol
 
-## Open Plan Improvement
+The unified plan is a living coordination document. External review is explicitly expected to improve it.
 
-Agents are expected to propose stronger alternatives when evidence supports them. Prefer one deterministic invariant/test over several duplicated patches. Do not create a new authority file merely to document an existing rule. If the existing plan is wrong or inefficient, submit a PLAN-CHANGE proposal with evidence rather than silently working around it.
+A valid plan improvement may:
+- reorder stages when dependency evidence changes;
+- merge duplicated gates;
+- introduce a missing negative test;
+- turn a recurring failure into an invariant/CI gate;
+- replace fragile logic with deterministic logic;
+- remove unnecessary systems;
+- expose a hidden dependency;
+- propose a stronger architecture without changing MVP scope.
+
+Use:
+
+`PLAN-CHANGE | WHY | EVIDENCE NEEDED | FILES | RISK | ACCEPTANCE TEST`
+
+Do not silently work around a plan defect. Surface it and propose the correction.
+
+## Evidence and certification
+
+Evidence must be:
+- tied to an explicit SHA;
+- tied to the relevant run/input where necessary;
+- reproducible;
+- resistant to stale attachment;
+- invalidated by material mutation.
+
+Certification requires:
+- all required checks PASS on the same SHA;
+- no required check is skipped/cancelled;
+- browser/runtime evidence matches the candidate;
+- change-control rules are satisfied;
+- no unsupported legal/licensing claim is used as proof.
+
+External agents review and challenge. They do not certify.
+
+## Final objective
+
+The goal is not “make the current plan look complete”.
+
+The goal is:
+
+**Find the strongest evidence-backed path from the current repository state to a production-ready, red-team-verifiable, exact-SHA-certified FLIXO MVP, while minimizing complexity and preserving canonical authority.**
+
+If the current plan is already correct, prove it.
+
+If it is incomplete, expose the gap.
+
+If it is inefficient, replace the weak path with a stronger one.
+
+If it is architecturally wrong, demonstrate why with evidence and propose the smallest safe correction.
+
+Never optimize for agreement. Optimize for truth, evidence, simplicity, resilience, and verifiability.
