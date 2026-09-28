@@ -304,6 +304,25 @@ OBSERVED FACT → HYPOTHESIS → COUNTERARGUMENT → MINIMAL EXPERIMENT → EVID
 
 المراجعة التالية يجب أن تبحث عن gap جديد أو counterexample أقوى أو simplification أو evidence requirement جديد، لا إعادة R-023..R-040 حرفياً.
 
+
+## External Review v3 — Additional attack surface
+
+المراجعة التالية يجب أن تهاجم أيضاً طبقات لم تكن مثبتة من المراجعات السابقة:
+
+- Build reproducibility: هل تطابق Git SHA يضمن فعلاً تطابق bundle/worker/WASM الذي ينفذه المتصفح؟ افحص lockfile، generated assets، manifest، cache keys، service-worker cache، وdeployment artifact identity. لا تفترض أن الحل HMAC أو cryptographic signing مطلوب؛ أثبت أولاً وجود gap ثم اختر أبسط deterministic proof.
+- Memory trust boundary: اعتبر Memory advisory/untrusted حتى يثبت repository data-flow خلاف ذلك. اختبر valid-but-poisoned parameters، وليس فقط invalid capability IDs. إذا أثرت Memory في authority أو execution parameters قبل canonical validation، ارفعها إلى P0.
+- Binary aliasing: لا تكتفِ بـObject.freeze(). هاجم TypedArray وArrayBuffer وImageData وBlob وtransferables وSharedArrayBuffer/worker semantics، وخصوصاً partial mutation ثم fallback/retry. structuredClone/transfer اقتراح تجريبي لا mandate مسبق.
+- Verifier independence: حاول إثبات أن Verifier لا يقرر النجاح اعتماداً على Executor status/metadata وحده. اختبر هل يمكن تبديل status مع إبقاء raw output نفسه أو العكس.
+- Generated/dependency identity: افحص ما إذا كان lockfile + reproducible build كافيين؛ إذا لم يكونا كافيين، اقترح artifact identity assertion مرتبطاً بالشهادة.
+
+### مهم
+
+اقتراح Worker/Actor isolated architecture من المراجعة السابقة هو **بديل معماري فقط** وليس قراراً. لا يُعتمد إلا إذا أثبتت التجارب أن boundary الحالي لا يستطيع تحقيق invariants المطلوبة بحل أبسط.
+
+واقتراح HMAC/cryptographic receipt أيضاً **ليس قراراً**. لا تنتقل إلى cryptographic mechanism قبل إثبات threat model والحاجة الفعلية.
+
+لا تعيد R-030..R-040 حرفياً. المطلوب counterexample جديد أو simplification أو evidence gap جديد.
+
 ## Final objective
 
 The goal is not “make the current plan look complete”.
