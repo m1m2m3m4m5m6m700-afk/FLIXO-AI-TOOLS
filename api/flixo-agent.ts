@@ -7,6 +7,7 @@ import { planFromIntent } from '../src/lib/ai/planner.ts';
 import { isDeterministicPlanCompatible } from '../src/lib/ai/deterministic-boundary.ts';
 import { selectModelForTask } from '../src/lib/agent/model-router.ts';
 import { assertModelSelectionAdmitted } from '../src/lib/agent/model-registry.ts';
+import { routeUserRequestThroughFlixoAgent } from '../src/lib/agent/flixo-agent-orchestrator.ts';
 import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
 import { createAgentEvent } from '../src/lib/agent/event-gateway.ts';
 import { evaluatePlanApproval } from '../src/lib/agent/approval-policy.ts';
@@ -425,6 +426,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       return;
     }
     const locale = body.locale ?? 'en';
+    const flixoRoute = routeUserRequestThroughFlixoAgent(userMessage, configuredRuntime().provider);
     const conversationId = body.conversationId ?? 'UI-CONVERSATION:' + randomUUID();
     const taskId = body.taskId ?? 'UI-FLIXO-TASK:' + randomUUID();
     const idempotencyKey = body.idempotencyKey ?? 'chat:' + conversationId + ':' + taskId + ':' + messages.length;
@@ -522,9 +524,22 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           catalogFingerprint: TOOL_CATALOG.fingerprint,
         }),
       },
+      {
+        role: 'system' as const,
+        content: JSON.stringify({
+          FLIXO_AGENT_BOUNDARY: true,
+          publicAgent: flixoRoute.routing.publicAgent,
+          internalSpecialist: flixoRoute.routing.specialist,
+          task: flixoRoute.routing.task,
+          directSpecialistAccess: flixoRoute.routing.directSpecialistAccess,
+          routingReason: flixoRoute.routing.reason,
+        }),
+      },
+      },
       ...recentMessages,
     ];
     const started = Date.now();
+    const selectedInternalSpecialist = flixoRoute.routing.specialist;
     let providerCalls = 0;
     let lastModel: string | null = null;
     const invoke = async (selectedProvider: SupportedProvider): Promise<string> => {
@@ -629,7 +644,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           const decision = parseAgentDecision(parseJsonObject(raw));
           const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
           await persistLearningCandidate(boundedDecision, userMessage, locale, runtime.fallbackProvider);
-          await respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider: runtime.fallbackProvider, model: lastModel, fallback: true });
+          await respondWithRuntime(boundedDecision, { latencyMs: Date.now() - started, provider: runtime.fallbackProvider, model: lastModel, fallback: true, specialist: selectedInternalSpecialist });
           return;
         } catch (fallbackError) {
           if (botRuntime) botRuntime = noteProviderFailure(botRuntime, `${runtime.fallbackProvider}:${fallbackError instanceof Error ? fallbackError.name : 'UNKNOWN_ERROR'}`);
@@ -648,7 +663,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       }
       const decision = fallbackDecision(userMessage, body.file, locale);
       const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
-      await respondWithRuntime(boundedDecision, { fallback: true });
+      await respondWithRuntime(boundedDecision, { fallback: true, specialist: selectedInternalSpecialist });
     }
   } catch (error) {
     if (error instanceof Error && (
