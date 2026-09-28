@@ -75,3 +75,19 @@ test('fallback requires explicit registry identity and production eligibility', 
   assert.equal(canFallbackTo(primary, { ...fallback, lifecycle_status: 'QUARANTINED' }), false);
   assert.equal(canFallbackTo(primary, { ...fallback, version: '3.0.0' }), false);
 });
+
+
+test('unregistered model selections fail closed', async () => {
+  const { admitModelSelection, assertModelSelectionAdmitted, listRegisteredModels } = await import('../src/lib/agent/model-registry.ts');
+  assert.equal(listRegisteredModels().length, 0);
+  assert.deepEqual(admitModelSelection({ model: 'unregistered/model' }), {
+    identity: 'unregistered/model',
+    status: 'BLOCKED',
+    lifecycle: 'UNREGISTERED',
+    eligible: false,
+  });
+  assert.throws(
+    () => assertModelSelectionAdmitted({ model: 'unregistered/model' }),
+    /MODEL_NOT_ADMITTED:unregistered\/model:BLOCKED/,
+  );
+});
