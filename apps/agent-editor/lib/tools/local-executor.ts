@@ -1,6 +1,6 @@
 "use client";
 import { authorizeExecution } from "../../../../src/lib/agent/execution-gate";
-import { createTaskContext, transitionTask, confirmTask } from "../../../../src/lib/agent/task-state";
+import { createTaskContext, transitionTask, confirmTask } from "@flixo/agent-runtime";
 import { executeCanonicalLocalTool } from "../../../../src/lib/workflows/canonical-local-execution";
 import type { LocalExecutionPlan,ToolCallRequest } from "../schemas/agent";
 import { ProjectStateSchema,type ProjectState } from "../schemas/project";
