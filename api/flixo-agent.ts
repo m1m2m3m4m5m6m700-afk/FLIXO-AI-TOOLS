@@ -574,43 +574,110 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
     const respondWithRuntime = async (decision: ReturnType<typeof parseAgentDecision>, extra: Record<string, unknown> = {}) => {
       if (botRuntime) {
-        let modelFailure: unknown = null;
-    for (const attempt of modelAttempts) {
-      try {
-        const raw = await invoke(attempt);
-        const decision = parseAgentDecision(parseJsonObject(raw));
-        const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
-        await persistLearningCandidate(boundedDecision, userMessage, locale, attempt.provider);
-        await respondWithRuntime(boundedDecision, {
-          latencyMs: Date.now() - started,
-          provider: attempt.provider,
-          model: lastModel,
-          fallback: attempt.rank > 1,
-          internalSpecialist: selectedInternalSpecialist,
+        try {
+          const currentSha = exactSha();
+          if (currentSha && currentSha !== botRuntime.state.exactSha) {
+            botRuntime = markFlixoBotGatewayRuntimeStale(botRuntime, currentSha);
+            extra.runtimeStale = true;
+          } else {
+            botRuntime = finalizeFlixoBotGatewayRuntime(botRuntime, decision.mode, decision);
+          }
+          extra.runtime = toFlixoBotRuntimeSummary(botRuntime);
+        } catch (runtimeError) {
+          console.warn('[flixo-agent] runtime finalization warning', {
+            error: runtimeError instanceof Error ? runtimeError.name : 'unknown',
+          });
+          extra.runtime = botRuntime ? toFlixoBotRuntimeSummary(botRuntime) : null;
+        }
+      } else {
+        extra.runtime = null;
+      }
+
+      const approval = decision.plan ? evaluatePlanApproval(decision.plan) : null;
+      const responseDecision = Object.freeze({
+        ...decision,
+        approval,
+      });
+
+      const runtimeSummary = extra.runtime ?? null;
+      const taskState = responseDecision.mode === 'plan'
+        ? 'AWAITING_CONFIRMATION'
+        : responseDecision.mode === 'clarify'
+          ? 'NEEDS_INPUT'
+          : 'IDLE';
+      const lifecycle = responseDecision.mode === 'plan'
+        ? 'AWAITING_CONFIRMATION'
+        : 'QUEUED';
+
+      await persistTaskEvent(
+        createAgentEvent({
+          source: 'SYSTEM',
+          eventType: responseDecision.mode === 'plan' ? 'agent.plan' : 'agent.decision',
+          idempotencyKey: idempotencyKey + ':decision:' + responseDecision.mode,
+          conversationId,
+          taskId,
+          traceId: botRuntime?.state.traceId ?? null,
+          payload: {
+            mode: responseDecision.mode,
+            confidence: responseDecision.confidence,
+            approval,
+            provider: responseDecision.provider ?? extra.provider ?? null,
+            model: extra.model ?? null,
+          },
+        }),
+        {
+          lifecycle,
+          taskState,
+          confirmationRequired: responseDecision.mode === 'plan',
+          revision: responseDecision.mode === 'plan' ? 2 : 1,
+          plan: responseDecision.plan,
+          runtime: runtimeSummary,
+        },
+      ).catch((error) => {
+        console.warn('[flixo-agent] durable decision persistence warning', {
+          error: error instanceof Error ? error.name : 'unknown',
         });
-        return;
-      } catch (error) {
-        modelFailure = error;
-        if (botRuntime) {
-          botRuntime = noteProviderFailure(
-            botRuntime,
-            attempt.provider + ':' + (error instanceof Error ? error.name : 'UNKNOWN_ERROR'),
-          );
+      });
+
+      json(res, 200, { ...responseDecision, ...extra, approval, taskId, conversationId });
+    };    try {
+      let modelFailure: unknown = null;
+      for (const attempt of modelAttempts) {
+        try {
+          const raw = await invoke(attempt);
+          const decision = parseAgentDecision(parseJsonObject(raw));
+          const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
+          await persistLearningCandidate(boundedDecision, userMessage, locale, attempt.provider);
+          await respondWithRuntime(boundedDecision, {
+            latencyMs: Date.now() - started,
+            provider: attempt.provider,
+            model: lastModel,
+            fallback: attempt.rank > 1,
+            internalSpecialist: selectedInternalSpecialist,
+          });
+          return;
+        } catch (error) {
+          modelFailure = error;
+          if (botRuntime) {
+            botRuntime = noteProviderFailure(
+              botRuntime,
+              attempt.provider + ':' + (error instanceof Error ? error.name : 'UNKNOWN_ERROR'),
+            );
+          }
         }
       }
+
+      console.error('[flixo-agent] admitted model fabric exhausted; using deterministic fallback', {
+        attempts: modelAttempts.length,
+        providerError: modelFailure instanceof Error ? modelFailure.name : modelFailure ? 'unknown' : 'NO_ADMITTED_MODEL',
+      });
+      const decision = fallbackDecision(userMessage, body.file, locale);
+      const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
+      await respondWithRuntime(boundedDecision, {
+        fallback: true,
+        internalSpecialist: selectedInternalSpecialist,
+      });
     }
-
-    console.error('[flixo-agent] admitted model fabric exhausted; using deterministic fallback', {
-      attempts: modelAttempts.length,
-      providerError: modelFailure instanceof Error ? modelFailure.name : modelFailure ? 'unknown' : 'NO_ADMITTED_MODEL',
-    });
-    const decision = fallbackDecision(userMessage, body.file, locale);
-    const boundedDecision = enforceDeterministicExecutionBoundary(userMessage, decision);
-    await respondWithRuntime(boundedDecision, {
-      fallback: true,
-      internalSpecialist: selectedInternalSpecialist,
-    });
-
   } catch (error) {
     if (error instanceof Error && (
       error.message === 'Request body is too large.'
