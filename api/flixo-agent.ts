@@ -6,6 +6,7 @@ import { TOOL_CATALOG } from '../src/config/registry.ts';
 import { planFromIntent } from '../src/lib/ai/planner.ts';
 import { isDeterministicPlanCompatible } from '../src/lib/ai/deterministic-boundary.ts';
 import { selectModelForTask } from '../src/lib/agent/model-router.ts';
+import { assertModelSelectionAdmitted } from '../src/lib/agent/model-registry.ts';
 import { buildFlixoHumanConversationPrompt } from '../src/lib/agent/human-conversation.ts';
 import { createAgentEvent } from '../src/lib/agent/event-gateway.ts';
 import { evaluatePlanApproval } from '../src/lib/agent/approval-policy.ts';
@@ -530,6 +531,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       if (providerCalls >= MAX_PROVIDER_CALLS) throw new Error('AI provider call budget exhausted.');
       providerCalls += 1;
       const modelSelection = selectModelForTask({ taskInput: userMessage, provider: selectedProvider });
+      assertModelSelectionAdmitted(modelSelection);
       lastModel = modelSelection.model;
       if (!botRuntime) return callProvider(selectedProvider, promptMessages, runtime.timeoutMs, runtime.maxTokens, modelSelection.model);
       const turn = beginModelTurn(botRuntime, selectedProvider);
