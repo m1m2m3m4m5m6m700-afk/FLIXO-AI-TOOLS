@@ -141,7 +141,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.141.0"
-          command: deploy --dry-run --config wrangler.jsonc --name ${{ env.WRANGLER_WORKER_NAME }} --var FLIXO_DEPLOYMENT_SHA:${{ steps.sha.outputs.sha }}
+          command: deploy --dry-run --config wrangler.jsonc --name ${{ env.WRANGLER_WORKER_NAME }} --var FLIXO_DEPLOYMENT_SHA:${{ steps.sha.outputs.sha }} --define "__FLIXO_DEPLOYMENT_SHA__:'${{ steps.sha.outputs.sha }}'"
 
       - name: Deploy to Cloudflare (flixoai)
         if: steps.freshness.outputs.is_current == 'true'
@@ -150,7 +150,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.141.0"
-          command: deploy --config wrangler.jsonc --name ${{ env.WRANGLER_WORKER_NAME }} --var FLIXO_DEPLOYMENT_SHA:${{ steps.sha.outputs.sha }}
+          command: deploy --config wrangler.jsonc --name ${{ env.WRANGLER_WORKER_NAME }} --var FLIXO_DEPLOYMENT_SHA:${{ steps.sha.outputs.sha }} --define "__FLIXO_DEPLOYMENT_SHA__:'${{ steps.sha.outputs.sha }}'"
 
       - name: Verify production identity
         if: steps.freshness.outputs.is_current == 'true'
