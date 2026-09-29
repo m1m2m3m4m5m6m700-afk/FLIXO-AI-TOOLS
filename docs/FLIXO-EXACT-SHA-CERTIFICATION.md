@@ -6,13 +6,13 @@ This document is a control-plane record. It must never be interpreted as certifi
 
 ## Current runtime-verified candidate
 - Repository: m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS
-- Execution SHA: $sha
-- Main SHA at reconciliation: af261be4476eccf293956d792bbb15e2e019061
+- Execution SHA: `9ef8b894ecf5126e2c73a1356f6827181e48f290`
+- Main SHA at reconciliation: `faf261be4476eccf293956d792bbb15e2e019061`
 - Integration PR: #923
 - Direct main mutation: none
 
 ## Exact-SHA verification
-The candidate $sha passed:
+The candidate `9ef8b894ecf5126e2c73a1356f6827181e48f290` passed:
 - typecheck/lint/core tests/build
 - Chromium browser smoke
 - trust-gate
