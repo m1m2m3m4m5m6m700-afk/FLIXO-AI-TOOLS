@@ -54,16 +54,37 @@ async function runWithTimeout<T>(toolId:string,timeoutMs:number,operation:(signa
 async function dimensionsFor(
   blob: Blob,
 ): Promise<{ width: number; height: number } | undefined> {
-  if (!blob.type.startsWith("image/") || typeof createImageBitmap !== "function") {
-    return undefined;
+  if (blob.type.startsWith("image/") && typeof createImageBitmap === "function") {
+    const bitmap = await createImageBitmap(blob);
+    try {
+      return { width: bitmap.width, height: bitmap.height };
+    } finally {
+      bitmap.close();
+    }
   }
 
-  const bitmap = await createImageBitmap(blob);
-  try {
-    return { width: bitmap.width, height: bitmap.height };
-  } finally {
-    bitmap.close();
+  if (blob.type === "video/webm" && typeof document !== "undefined") {
+    const url = URL.createObjectURL(blob);
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.src = url;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        video.onloadedmetadata = () => resolve();
+        video.onerror = () => reject(new Error("CANONICAL_VIDEO_OUTPUT_METADATA_INVALID"));
+      });
+      if (!Number.isFinite(video.videoWidth) || !Number.isFinite(video.videoHeight) || video.videoWidth < 1 || video.videoHeight < 1) {
+        throw new Error("CANONICAL_VIDEO_OUTPUT_DIMENSIONS_INVALID");
+      }
+      return { width: video.videoWidth, height: video.videoHeight };
+    } finally {
+      URL.revokeObjectURL(url);
+      video.removeAttribute("src");
+      video.load();
+    }
   }
+
+  return undefined;
 }
 
 export async function executeCanonicalLocalTool(
