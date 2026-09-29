@@ -65,7 +65,7 @@ export class AgentRuntime{
         if(!tool) throw new Error(`CANONICAL_TOOL_NOT_EXECUTABLE:${call.toolName}`);
         return {callId:call.callId,toolName:call.toolName,executorId:tool.executorId,maxPixels:tool.maxPixels,maxFileSizeBytes:tool.maxFileSizeBytes,outputContractId:tool.outputContractId};
       }),
-      toolResults:[],updatedProjectState:undefined,requiresUserConfirmation:false,
+      toolResults:[],updatedProjectState:undefined,requiresUserConfirmation:calls.length>0,
     });
   }
 }
