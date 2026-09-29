@@ -63,8 +63,15 @@ function buildResponse(requiresUserConfirmation: boolean) {
 }
 
 describe("Agent execution security", () => {
-  it("fails closed when a planned mutation lacks explicit confirmation", () => {
-    expect(() => prepareAgentLocalExecution(buildResponse(false)))
+  it("rejects a planned local mutation whose response omits confirmation", () => {
+    expect(() => buildResponse(false))
+      .toThrow("Local execution plans require explicit user confirmation.");
+  });
+
+  it("fails closed at the execution-preparation boundary if confirmation is tampered", () => {
+    const response = buildResponse(true);
+    const tampered = { ...response, requiresUserConfirmation: false } as never;
+    expect(() => prepareAgentLocalExecution(tampered))
       .toThrow("AGENT_EXECUTION_CONFIRMATION_REQUIRED");
   });
 
