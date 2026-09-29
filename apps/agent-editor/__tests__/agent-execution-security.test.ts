@@ -79,6 +79,11 @@ describe("Agent execution security", () => {
     const pending = prepareAgentLocalExecution(buildResponse(true));
     expect(pending?.requestedToolCalls).toHaveLength(1);
     expect(pending?.localExecutionPlans).toHaveLength(1);
+    expect(pending?.preview).toEqual([{
+      callId: "call-1",
+      toolName: "image-effects",
+      parameters: { contrast: 10 },
+    }]);
   });
 
   it("never selects a locked media layer", () => {
