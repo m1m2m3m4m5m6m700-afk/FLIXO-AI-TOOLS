@@ -1,8 +1,15 @@
 import type { AgentResponse, LocalExecutionPlan, ToolCallRequest } from "../schemas/agent";
 
+export type AgentExecutionPreview = Readonly<{
+  callId: string;
+  toolName: string;
+  parameters: Readonly<Record<string, unknown>>;
+}>;
+
 export type PendingAgentExecution = Readonly<{
   requestedToolCalls: readonly ToolCallRequest[];
   localExecutionPlans: readonly LocalExecutionPlan[];
+  preview: readonly AgentExecutionPreview[];
 }>;
 
 /**
@@ -33,5 +40,12 @@ export function prepareAgentLocalExecution(
   return Object.freeze({
     requestedToolCalls: response.requestedToolCalls,
     localExecutionPlans: response.localExecutionPlans,
+    preview: Object.freeze(response.requestedToolCalls.map((call) =>
+      Object.freeze({
+        callId: call.callId,
+        toolName: call.toolName,
+        parameters: Object.freeze({ ...call.parameters }),
+      }),
+    )),
   });
 }
