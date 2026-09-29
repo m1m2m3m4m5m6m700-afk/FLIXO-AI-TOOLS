@@ -1,79 +1,39 @@
 # FLIXO — Final Release Evidence
 
-Status: **CURRENT MAIN RELEASE VERIFIED / PRODUCTION VERIFIED**
+Status: NOT YET CERTIFIED / NOT YET PROMOTED
 
-## Exact current release identity
-- Repository: `m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS`
-- Current main SHA: `4c214a4dc0f4853f8144d9251de4597706d6b58e`
-- Source promotion PR: #913
-- PR head tested before merge: `73f1ab9cd51b5774ad0838313f82f7dc2db37c3d`
-- Merge commit: `4c214a4dc0f4853f8144d9251de4597706d6b58e`
-- Direct main mutation: none
+## Control-plane interpretation
 
-## Current main CI evidence
-- FLIXO CI run `36507652326`: **PASS**
-  - typecheck/lint/core contracts/build: PASS
-  - production audit: PASS
-  - exact build identity: PASS
-  - Chromium browser smoke: PASS
-  - trust-gate: PASS
-  - Exact-SHA promotion proof: PASS
-- FLIXO CodeQL run `36507652313`: **PASS**
-- FLIXO Secret Scan run `36507652259`: **PASS**
-- Release Drafter run `36507652332`: **PASS**
+This document is a policy/evidence-record template, not a self-certifying runtime source of truth.
 
-## Candidate auxiliary evidence
-The dedicated Agent Editor workflows passed on the exact pre-merge candidate `73f1ab9cd51b5774ad0838313f82f7dc2db37c3d`:
-- Step 4: `36507192206`
-- Step 5-6: `36507192265`
-- Coverage: `36507192253`
-- FLIXO CI: `36507192311`
-- CodeQL: `36507192230`
-- Secret Scan: `36507192277`
+The exact release-candidate SHA MUST be read from the current controlled integration PR head and the exact GitHub Actions evidence for that same SHA. This file intentionally does not embed its own Git commit SHA because doing so would be self-referential: changing this file creates a new SHA and invalidates SHA-specific evidence.
 
-These remain candidate evidence, not evidence for a different SHA.
+Current integration lane:
+- Repository: m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS
+- Integration PR: #923
+- Promotion path: execution -> main only
+- Direct main mutation: forbidden
 
-## Production deployment evidence
-- Workflow run: `36507988214`
-- Final deployment attempt: **2**
-- Deployment SHA: `4c214a4dc0f4853f8144d9251de4597706d6b58e`
-- worker: `flixoai`
-- trusted default-branch/current-main check: PASS
-- certified build artifact download: PASS
-- strict `flixoai` allowlist: PASS
-- Cloudflare credential validation: PASS
-- dry-run: PASS
-- Cloudflare deploy: PASS
-- immutable production identity: PASS
-- production browser verification: PASS
-- deployment evidence artifact: `flixoai-cloudflare-evidence-4c214a4dc0f4853f8144d9251de4597706d6b58e`
-- final artifact ID: `11008425736`
-- final artifact ZIP SHA-256: `87b7fe3a401754390dd5a0eca1e1b1d89d98ea6f2b2aefd9a6d7036296e3ccaf`
+Required evidence categories:
+- FLIXO CI verify/build
+- Chromium browser smoke
+- trust-gate
+- Exact-SHA promotion proof
+- Agent Editor STEP 4
+- Agent Editor Step 5-6
+- Agent Editor Coverage
+- CodeQL
+- Secret Scan/Gitleaks
+- clean-clone Red Team
+- deployment identity when applicable
 
-## Production browser receipt
-- test id: `28c7d873ae2d6bfcc8a6-089fdb96fbfb9727fcfb`
-- title: `production root and Arabic locale are browser-clean`
-- exact SHA bound: `4c214a4dc0f4853f8144d9251de4597706d6b58e`
-- project: chromium
-- status: passed
-- console errors: 0
-- page errors: 0
-- request failures: 0
-- runtime state: clean
-- Arabic page: `/ar/`
-- document lang: `ar`
-- direction: `rtl`
-
-## Delegated agents
-Custom repository agents:
-- `.github/agents/flixo-p0-implementer.agent.md`
-- `.github/agents/flixo-model-resilience.agent.md`
-- `.github/agents/flixo-browser-privacy.agent.md`
-- `.github/agents/flixo-redteam-certification.agent.md`
-
-Issue packets #907–#910 were completed and closed. The connected GitHub integration did not provide external Copilot bot-assignment permission (403), so no false external-bot assignment is claimed.
+Current blockers remain:
+1. Main governance hardening is incomplete and cannot be changed through the connected control plane without an exposed ruleset-write capability.
+2. The model-license manifest has zero production-admitted models; release mode requires an evidenced admitted model.
+3. Prompt 17, release candidate freeze, Prompt 19 exact-SHA certification, and owner-authorized execution->main promotion remain pending.
 
 ## Final disposition
-**MVP IMPLEMENTATION 100/100 — RELEASE VERIFIED — PRODUCTION VERIFIED**
 
-Older SHA evidence remains historical and is not reused as current-main proof.
+NOT_READY — BLOCKERS ENUMERATED
+
+This file must not be changed to CERTIFIED/RELEASE VERIFIED until the active execution plan's exact-SHA evidence, governance, model-admission, Red-Team, certification, promotion, and post-merge requirements are all satisfied.

@@ -21,7 +21,7 @@ type DeviceMemoryNavigator = Navigator & { deviceMemory?: number };
 
 let ffmpegState: FFmpeg | null = null;
 let activeJobId: string | null = null;
-let activeFfmpegBasePath = "/ffmpeg";
+const FFMPEG_BASE_PATH = "/ffmpeg";
 const cancelledJobs = new Set<string>();
 const imageBitmapCache = new Map<string, Promise<ImageBitmap>>();
 const videoSourceCache = new Map<string, string>();
@@ -113,8 +113,8 @@ async function ensureFfmpegLoaded(jobId: string): Promise<FFmpeg> {
   });
 
   await instance.load({
-    coreURL: activeFfmpegBasePath + "/ffmpeg-core.js",
-    wasmURL: activeFfmpegBasePath + "/ffmpeg-core.wasm",
+    coreURL: FFMPEG_BASE_PATH + "/ffmpeg-core.js",
+    wasmURL: FFMPEG_BASE_PATH + "/ffmpeg-core.wasm",
   });
 
   ffmpegState = instance;
@@ -409,8 +409,6 @@ async function runExport(rawRequest: unknown): Promise<void> {
   const project = ProjectStateSchema.parse(request.project);
 
   activeJobId = request.jobId;
-  activeFfmpegBasePath = request.ffmpegBasePath.replace(/[\\/]+$/u, "");
-
   const frameCount = Math.max(1, request.frameEnd - request.frameStart + 1);
   assertMemoryBudget(project, frameCount, request.format);
   emitProgress(request.jobId, "memory-check", 0.05, "Memory safety budget accepted.");

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ProjectStateSchema } from "./project";
+const MAX_AGENT_TOOL_CALLS = 4;
 export const MessageRoleSchema=z.enum(["system","user","assistant","tool"]);
 export type MessageRole=z.infer<typeof MessageRoleSchema>;
 export const ToolCallRequestSchema=z.object({callId:z.string().min(1).max(128),toolName:z.string().min(1).max(128),parameters:z.record(z.string(),z.unknown())}).strict();
@@ -10,7 +11,13 @@ export const ToolCallResultSchema=z.object({callId:z.string().min(1).max(128),to
 export type ToolCallResult=z.infer<typeof ToolCallResultSchema>;
 export const ChatMessageSchema=z.object({id:z.string().uuid(),role:MessageRoleSchema,content:z.string().max(100_000),toolCalls:z.array(ToolCallRequestSchema).max(100).optional(),toolResults:z.array(ToolCallResultSchema).max(100).optional(),timestamp:z.string().datetime()}).strict();
 export type ChatMessage=z.infer<typeof ChatMessageSchema>;
-export const AgentResponseSchema=z.object({messageId:z.string().uuid(),content:z.string().max(100_000),requestedToolCalls:z.array(ToolCallRequestSchema).max(100).default([]),localExecutionPlans:z.array(LocalExecutionPlanSchema).max(100).default([]),toolResults:z.array(ToolCallResultSchema).max(100).default([]),updatedProjectState:ProjectStateSchema.optional(),requiresUserConfirmation:z.boolean().default(false)}).strict();
+export const AgentResponseSchema=z.object({messageId:z.string().uuid(),content:z.string().max(100_000),requestedToolCalls:z.array(ToolCallRequestSchema).max(MAX_AGENT_TOOL_CALLS).default([]),localExecutionPlans:z.array(LocalExecutionPlanSchema).max(MAX_AGENT_TOOL_CALLS).default([]),toolResults:z.array(ToolCallResultSchema).max(100).default([]),updatedProjectState:ProjectStateSchema.optional(),requiresUserConfirmation:z.boolean().default(false)}).strict().superRefine((data,ctx)=>{
+  const callIds=new Set<string>();
+  data.requestedToolCalls.forEach((call,index)=>{if(callIds.has(call.callId))ctx.addIssue({code:z.ZodIssueCode.custom,path:["requestedToolCalls",index,"callId"],message:"Duplicate tool call id."});callIds.add(call.callId);});
+  const planIds=new Set<string>();
+  data.localExecutionPlans.forEach((plan,index)=>{if(planIds.has(plan.callId))ctx.addIssue({code:z.ZodIssueCode.custom,path:["localExecutionPlans",index,"callId"],message:"Duplicate execution plan id."});planIds.add(plan.callId);});
+  if(data.localExecutionPlans.length>0&&data.requiresUserConfirmation!==true){ctx.addIssue({code:z.ZodIssueCode.custom,path:["requiresUserConfirmation"],message:"Local execution plans require explicit user confirmation."});}
+});
 export type AgentResponse=z.infer<typeof AgentResponseSchema>;
 export const MockLLMResultSchema=z.object({content:z.string().min(1).max(100_000),toolCalls:z.array(ToolCallRequestSchema).max(100)}).strict();
 export type MockLLMResult=z.infer<typeof MockLLMResultSchema>;

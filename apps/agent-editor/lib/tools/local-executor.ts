@@ -8,16 +8,18 @@ import { ProjectStateSchema,type ProjectState } from "../schemas/project";
 function assertLocalMediaUrl(url:string):void{
   if(!url.startsWith("blob:")&&!url.startsWith("data:")) throw new Error("AGENT_LOCAL_MEDIA_SOURCE_REQUIRED");
 }
-function pickTargetLayer(state:ProjectState,toolName:string){
+export function pickTargetLayer(state:ProjectState,toolName:string){
   const preferredType=toolName.startsWith("video-")?"video":"image";
-  return state.layers.find((layer)=>layer.visible&&layer.type===preferredType&&Boolean(layer.url))
-    ??state.layers.find((layer)=>layer.visible&&(layer.type==="image"||layer.type==="video")&&Boolean(layer.url));
+  return state.layers.find((layer)=>layer.visible&&!layer.locked&&layer.type===preferredType&&Boolean(layer.url))
+    ??state.layers.find((layer)=>layer.visible&&!layer.locked&&(layer.type==="image"||layer.type==="video")&&Boolean(layer.url));
 }
-export async function executeAgentToolLocally(state:ProjectState,call:ToolCallRequest,plan:LocalExecutionPlan):Promise<ProjectState>{
+export async function executeAgentToolLocally(state:ProjectState,call:ToolCallRequest,plan:LocalExecutionPlan,confirmation:"CONFIRM"):Promise<ProjectState>{
+  if(confirmation!=="CONFIRM") throw new Error("AGENT_EXECUTION_CONFIRMATION_REQUIRED");
   if(plan.callId!==call.callId||plan.toolName!==call.toolName) throw new Error("AGENT_EXECUTION_PLAN_MISMATCH");
   const parsedState=ProjectStateSchema.parse(state);
   const target=pickTargetLayer(parsedState,call.toolName);
   if(!target?.url) throw new Error("AGENT_TARGET_LAYER_NOT_FOUND:"+call.toolName);
+  if(target.locked) throw new Error("AGENT_TARGET_LAYER_LOCKED:"+target.id);
   assertLocalMediaUrl(target.url);
   const response=await fetch(target.url);
   if(!response.ok) throw new Error("AGENT_LOCAL_MEDIA_READ_FAILED:"+call.toolName);

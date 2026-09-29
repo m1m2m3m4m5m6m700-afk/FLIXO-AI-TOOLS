@@ -11,10 +11,21 @@ test.describe("FLIXO Agent Editor end-to-end", () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Chat workspace" })).toBeVisible();
     await expect(page.getByText("Untitled Creative Project", { exact: false })).toBeVisible();
+    const initialCanvas = await page.locator('[data-testid="media-preview"] canvas').evaluate((element) => (element as HTMLCanvasElement).toDataURL());
     await page.getByLabel("Describe the edit").fill("Remove background from image");
     await page.getByRole("button", { name: "Send" }).click();
+
+    // Red-Team regression: a generated local mutation must not execute before confirmation.
+    await expect(page.getByTestId("confirmation-prompt")).toBeVisible();
+    await expect(page.getByText(/Untitled Creative Project · v2/u)).toHaveCount(0);
+    await expect(page.getByTestId("active-tool")).toHaveCount(0);
+
+    await page.getByTestId("confirmation-prompt").getByRole("button", { name: "Confirm" }).click();
     await expect(page.getByText(/Untitled Creative Project · v2/u)).toBeVisible();
     await expect(page.getByTestId("active-tool")).toHaveCount(0);
+    await expect.poll(
+      async () => page.locator('[data-testid="media-preview"] canvas').evaluate((element) => (element as HTMLCanvasElement).toDataURL()),
+    ).not.toBe(initialCanvas);
     expect(consoleErrors).toEqual([]);
   });
 

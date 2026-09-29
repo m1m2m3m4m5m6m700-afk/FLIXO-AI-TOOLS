@@ -55,8 +55,14 @@ jobs:
           set -euo pipefail
           test -s apps/agent-editor/coverage/lcov.info
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(grep -c '^SF:' apps/agent-editor/coverage/lcov.info)" -gt 0
+          test "$(grep -c '^LF:' apps/agent-editor/coverage/lcov.info)" -gt 0
+          test "$(grep -c '^LH:' apps/agent-editor/coverage/lcov.info)" -gt 0
           printf 'target_sha=%s\n' "$EXPECTED_SHA" > apps/agent-editor/coverage/exact-sha.txt
           printf 'coverage_file_sha256=%s\n' "$(sha256sum apps/agent-editor/coverage/lcov.info | cut -d' ' -f1)" >> apps/agent-editor/coverage/exact-sha.txt
+          printf 'coverage_source_files=%s\n' "$(grep -c '^SF:' apps/agent-editor/coverage/lcov.info)" >> apps/agent-editor/coverage/exact-sha.txt
+          printf 'coverage_lines_found=%s\n' "$(awk -F: '/^LF:/{sum += $2} END {print sum + 0}' apps/agent-editor/coverage/lcov.info)" >> apps/agent-editor/coverage/exact-sha.txt
+          printf 'coverage_lines_hit=%s\n' "$(awk -F: '/^LH:/{sum += $2} END {print sum + 0}' apps/agent-editor/coverage/lcov.info)" >> apps/agent-editor/coverage/exact-sha.txt
 
       - name: Upload internal coverage evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -68,9 +74,3 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v6
-        with:
-          use_oidc: true
-          files: apps/agent-editor/coverage/lcov.info
-          fail_ci_if_error: false

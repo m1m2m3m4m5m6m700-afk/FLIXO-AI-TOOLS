@@ -7,6 +7,7 @@ import { LLMUnavailableError,toLLMTools,type LLMMessage,type LLMRouter,type LLMT
 import { CANONICAL_AGENT_TOOLS,getCanonicalAgentTool,validateCanonicalAgentParameters,type CanonicalAgentTool } from "../tools/canonical";
 
 export type { AgentRuntimeOptions } from "../schemas/agent";
+const MAX_AGENT_TOOL_CALLS = 4;
 export type AgentRuntimeStreamEvent={type:"token";text:string}|{type:"tool_call_start";callId:string;toolName:string}|{type:"final";response:AgentResponse};
 
 export class AgentRuntime{
@@ -33,7 +34,7 @@ export class AgentRuntime{
     let requestedCalls:ToolCallRequest[]=[];let assistantText="";
     if(this.useMockEngine){
       const mockResult=MockLLMResultSchema.parse(simulateLLMReasoning(prompt,1));
-      requestedCalls=mockResult.toolCalls.map((call)=>this.validateToolCall(call));
+      if(mockResult.toolCalls.length>MAX_AGENT_TOOL_CALLS) throw new Error("AGENT_TOOL_CALL_BUDGET_EXCEEDED"); requestedCalls=mockResult.toolCalls.map((call)=>this.validateToolCall(call));
       for(const call of requestedCalls) yield {type:"tool_call_start",callId:call.callId,toolName:call.toolName};
       assistantText=mockResult.content;
     }else{
@@ -46,7 +47,7 @@ export class AgentRuntime{
       messages.push({role:"user",content:prompt});
       for await(const event of this.llmRouter.stream({model:"",systemPrompt,messages,tools:toLLMTools(this.tools)})){
         if(event.type==="text_delta"){assistantText+=event.text;yield {type:"token",text:event.text};}
-        else if(event.type==="turn_end") requestedCalls=event.toolCalls.map((call)=>this.validateToolCall(ToolCallRequestSchema.parse({callId:call.callId,toolName:call.toolName,parameters:call.arguments})));
+        else if(event.type==="turn_end"){ if(event.toolCalls.length>MAX_AGENT_TOOL_CALLS) throw new Error("AGENT_TOOL_CALL_BUDGET_EXCEEDED"); requestedCalls=event.toolCalls.map((call)=>this.validateToolCall(ToolCallRequestSchema.parse({callId:call.callId,toolName:call.toolName,parameters:call.arguments}))); }
       }
       for(const call of requestedCalls) yield {type:"tool_call_start",callId:call.callId,toolName:call.toolName};
     }
@@ -65,7 +66,7 @@ export class AgentRuntime{
         if(!tool) throw new Error(`CANONICAL_TOOL_NOT_EXECUTABLE:${call.toolName}`);
         return {callId:call.callId,toolName:call.toolName,executorId:tool.executorId,maxPixels:tool.maxPixels,maxFileSizeBytes:tool.maxFileSizeBytes,outputContractId:tool.outputContractId};
       }),
-      toolResults:[],updatedProjectState:undefined,requiresUserConfirmation:false,
+      toolResults:[],updatedProjectState:undefined,requiresUserConfirmation:calls.length>0,
     });
   }
 }

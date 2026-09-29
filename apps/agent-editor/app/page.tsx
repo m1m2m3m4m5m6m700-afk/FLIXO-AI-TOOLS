@@ -7,7 +7,7 @@ import { useAgentChat } from "@/lib/hooks/use-agent-chat";
 import { ProjectStateSchema, type ProjectState } from "@/lib/schemas/project";
 
 const SAMPLE_IMAGE =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAFklEQVR4nGP8////fwYkwMSABggLAAAGXQQE3kxYjAAAAABJRU5ErkJggg==";
 
 const INITIAL_STATE: ProjectState = ProjectStateSchema.parse({
   id: "11111111-1111-4111-8111-111111111111",
@@ -38,7 +38,11 @@ export default function AgentEditorPage() {
     isStreaming,
     activeTool,
     manualFallbackPath,
+    confirmationPending,
+    confirmationPreview,
     sendMessage,
+    confirmPendingExecution,
+    cancelPendingExecution,
     stopStreaming,
     setProjectState,
   } = useAgentChat({ initialProjectState: INITIAL_STATE });
@@ -64,7 +68,11 @@ export default function AgentEditorPage() {
         isStreaming={isStreaming}
         activeTool={activeTool}
         manualFallbackPath={manualFallbackPath}
+        confirmationPending={confirmationPending}
+        confirmationPreview={confirmationPreview}
         onSendMessage={sendMessage}
+        onConfirm={confirmPendingExecution}
+        onCancel={cancelPendingExecution}
         onStop={stopStreaming}
       />
       <MediaCanvas

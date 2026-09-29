@@ -33,6 +33,9 @@ const DEFAULT_TIMEOUT_MS = 4_000;
 const MAX_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_TOKENS = 900;
 const MAX_RESPONSE_TOKENS = 4_096;
+const AGENT_RATE_LIMIT = 20;
+const AGENT_RATE_WINDOW_MS = 60_000;
+const agentRateBuckets = new Map<string, { count: number; resetAt: number }>();
 const SUPPORTED_PROVIDERS = ['openai', 'openrouter', 'gemini'] as const;
 type SupportedProvider = (typeof SUPPORTED_PROVIDERS)[number];
 
@@ -108,11 +111,41 @@ async function fetchWithTimeout(
   }
 }
 
-function json(res: ServerResponse, status: number, body: unknown): void {
+function json(res: ServerResponse, status: number, body: unknown, retryAfterSeconds?: number): void {
   res.statusCode = status;
   res.setHeader('content-type', 'application/json; charset=utf-8');
   res.setHeader('cache-control', 'no-store');
+  if (retryAfterSeconds !== undefined) res.setHeader('retry-after', String(retryAfterSeconds));
   res.end(JSON.stringify(body));
+}
+
+function clientKey(req: IncomingMessage): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  const first = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  if (typeof first === 'string' && first.trim()) return first.split(',')[0]!.trim().slice(0, 128);
+  const real = req.headers['x-real-ip'];
+  if (typeof real === 'string' && real.trim()) return real.trim().slice(0, 128);
+  return 'unknown';
+}
+
+function allowAgentRequest(req: IncomingMessage): { allowed: true } | { allowed: false; retryAfterSeconds: number } {
+  const now = Date.now();
+  if (agentRateBuckets.size > 10_000) {
+    for (const [key, bucket] of agentRateBuckets) {
+      if (now >= bucket.resetAt) agentRateBuckets.delete(key);
+    }
+  }
+  const key = clientKey(req);
+  const current = agentRateBuckets.get(key);
+  if (!current || now >= current.resetAt) {
+    agentRateBuckets.set(key, { count: 1, resetAt: now + AGENT_RATE_WINDOW_MS });
+    return { allowed: true };
+  }
+  if (current.count >= AGENT_RATE_LIMIT) {
+    return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((current.resetAt - now) / 1000)) };
+  }
+  current.count += 1;
+  return { allowed: true };
 }
 
 async function readBody(req: IncomingMessage): Promise<AgentRequestContract> {
@@ -419,6 +452,11 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     json(res, 405, { error: 'Method not allowed.' });
     return;
   }
+  const rate = allowAgentRequest(req);
+  if (!rate.allowed) {
+    json(res, 429, { error: 'AI agent request rate limit exceeded.' }, rate.retryAfterSeconds);
+    return;
+  }
   try {
     const body = await readBody(req);
     const messages = [...(body.messages ?? [])].slice(-MAX_MESSAGES);
@@ -431,7 +469,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const runtime = configuredRuntime();
     const flixoRoute = routeUserRequestThroughFlixoAgent(userMessage, runtime.provider);
     const conversationId = body.conversationId ?? 'UI-CONVERSATION:' + randomUUID();
-    const taskId = body.taskId ?? 'UI-FLIXO-TASK:' + randomUUID();
+    // Task identity is server-owned. Accepting a caller-supplied taskId would let
+    // a public client overwrite another durable task record if the identifier
+    // becomes known.
+    const taskId = 'UI-FLIXO-TASK:' + randomUUID();
     const idempotencyKey = body.idempotencyKey ?? 'chat:' + conversationId + ':' + taskId + ':' + messages.length;
     const inboundEvent = createAgentEvent({
       source: body.file ? 'FILE_UPLOAD' : 'USER_MESSAGE',

@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { getReadyToolConfigs } from '@/config/tools';
 import { getBestToolIntent } from '@/lib/intent-router';
+import { getCanonicalMvpAgentTools } from '@/lib/agent/mvp-agent-surface';
 import { addToolToChain, getToolChain } from '@/lib/tool-chain';
 import { ToolChainPanel } from './tool-chain-panel';
 import { AgentPlanCard } from './agent-plan-card';
@@ -32,9 +33,9 @@ export function AgentWorkbench({ locale = 'en' }: Props) {
   const [query, setQuery] = useState('');
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
   const tools = useMemo(() => getReadyToolConfigs(), []);
-  const match = useMemo(() => getBestToolIntent(query, tools), [query, tools]);
-  const activeTool = useMemo(() => tools.find((tool) => tool.id === activeToolId) ?? match?.tool ?? null, [activeToolId, match, tools]);
-  const visibleTools = useMemo(() => tools.filter((tool) => ['image-compressor', 'image-converter', 'background-remover', 'image-ocr', 'image-upscaler', 'image-cropper'].includes(tool.id)).slice(0, 6), [tools]);
+  const mvpTools = useMemo(() => getCanonicalMvpAgentTools(tools), [tools]);
+  const match = useMemo(() => getBestToolIntent(query, mvpTools), [query, mvpTools]);
+  const activeTool = useMemo(() => mvpTools.find((tool) => tool.id === activeToolId) ?? match?.tool ?? null, [activeToolId, match, mvpTools]);
   const chainCount = getToolChain().length;
   const visualSpec = useMemo(() => compileVisualTaskSpec(query, match ? {
     workflowName: query.trim(),
@@ -65,9 +66,9 @@ export function AgentWorkbench({ locale = 'en' }: Props) {
           {activeTool && <div className="agent-workbench__active"><span>{t.selected}</span><strong>{activeTool.title}</strong><small>{t.file} {chainCount ? '(' + chainCount + '/8)' : ''}</small></div>}
         </div>
         <aside className="agent-workbench__tools" aria-label={t.tools}>
-          <div className="agent-workbench__tools-head"><strong>{t.tools}</strong><span>{tools.length}</span></div>
+          <div className="agent-workbench__tools-head"><strong>{t.tools}</strong><span>{mvpTools.length}</span></div>
           <div className="agent-workbench__tool-list">
-            {visibleTools.map((tool) => <button type="button" key={tool.id} className={activeTool?.id === tool.id ? 'is-active' : ''} onClick={() => selectTool(tool.id)}><span>{tool.title}</span><small>{tool.category}</small></button>)}
+            {mvpTools.map((tool) => <button type="button" key={tool.id} className={activeTool?.id === tool.id ? 'is-active' : ''} onClick={() => selectTool(tool.id)}><span>{tool.title}</span><small>{tool.category}</small></button>)}
           </div>
         </aside>
       </div>

@@ -21,7 +21,7 @@ describe("canonical Agent Runtime", () => {
     });
 
     expect(runtime.state.state).toBe("IDLE");
-    expect(() => runtime.execute({
+    await expect(runtime.execute({
       requestId: "request-1",
       taskId: "task-1",
       traceId: "trace-1",

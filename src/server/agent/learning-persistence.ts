@@ -120,7 +120,7 @@ export async function listExternalAgentLearning(targetSha: string, limit = 64): 
   if (!SHA40.test(String(targetSha))) throw new Error('EXTERNAL_AGENT_LEARNING_SHA_REQUIRED');
   if (!Number.isInteger(limit) || limit < 1 || limit > 128) throw new Error('EXTERNAL_AGENT_LEARNING_LIMIT_INVALID');
   const body = await request(
-    `/rest/v1/flixo_agent_learning_events?target_sha=eq.${encodeURIComponent(targetSha)}&status=neq.BLOCKED&select=*&order=created_at.desc&limit=${limit}`,
+    `/rest/v1/flixo_agent_learning_events?target_sha=eq.${encodeURIComponent(targetSha)}&status=eq.VERIFIED&canonical_green=eq.true&select=*&order=created_at.desc&limit=${limit}`,
   );
   if (!Array.isArray(body)) throw new Error('EXTERNAL_AGENT_LEARNING_RESPONSE_INVALID');
   return Object.freeze(body.filter((item): item is ExternalAgentLearning => {

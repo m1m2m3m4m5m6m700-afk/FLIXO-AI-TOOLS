@@ -118,43 +118,190 @@ const META: Record<string, {title:string;description:string;category:"Images"|"V
   "video-compressor": {title:"Video Compressor",description:"Compress a video locally with bounded browser recording bitrate.",category:"Video",family:"video"},
 };
 
-const defaultVerifier: CanonicalCapabilityVerifier = async (_input, output, _parameters, signal) =>
-  !signal?.aborted && output.size > 0;
-const targetSizeVerifier: CanonicalCapabilityVerifier = async (_input, output, parameters, signal) => {
-  if (signal?.aborted || output.size <= 0) return false;
-  const target = typeof parameters.targetSizeKB === "number" ? parameters.targetSizeKB : undefined;
-  return target === undefined ? true : output.size <= target * 1024;
-};
-const formatVerifier: CanonicalCapabilityVerifier = async (_input, output, parameters, signal) => {
-  const format = parameters.format;
-  return !signal?.aborted && output.size > 0 && (typeof format !== "string" || output.type === format);
-};
-const videoVerifier: CanonicalCapabilityVerifier = async (_input, output, _parameters, signal) => {
-  if (signal?.aborted || output.size <= 0 || output.type !== "video/webm" || typeof document === "undefined") return false;
-  const url = URL.createObjectURL(output);
+type MediaDimensions = Readonly<{ width: number; height: number; duration?: number }>;
+
+async function readImageDimensions(blob: Blob, signal?: AbortSignal): Promise<MediaDimensions | undefined> {
+  if (signal?.aborted || !blob.type.startsWith("image/")) return undefined;
+  if (typeof createImageBitmap === "function") {
+    const bitmap = await createImageBitmap(blob);
+    try {
+      return { width: bitmap.width, height: bitmap.height };
+    } finally {
+      bitmap.close();
+    }
+  }
+  if (typeof document === "undefined") return undefined;
+  const url = URL.createObjectURL(blob);
+  const image = new Image();
+  try {
+    image.src = url;
+    await new Promise<void>((resolve, reject) => {
+      const onAbort = () => reject(new DOMException("Image verification aborted.", "AbortError"));
+      const cleanup = () => signal?.removeEventListener("abort", onAbort);
+      image.onload = () => { cleanup(); resolve(); };
+      image.onerror = () => { cleanup(); reject(new Error("Image output could not be decoded.")); };
+      signal?.addEventListener("abort", onAbort, { once: true });
+    });
+    return { width: image.naturalWidth, height: image.naturalHeight };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function readVideoDimensions(blob: Blob, signal?: AbortSignal): Promise<MediaDimensions | undefined> {
+  if (signal?.aborted || blob.type !== "video/webm" || typeof document === "undefined") return undefined;
+  const url = URL.createObjectURL(blob);
   const video = document.createElement("video");
   video.preload = "metadata";
   video.src = url;
   try {
-    await new Promise<void>((resolve,reject)=>{
-      video.onloadedmetadata=()=>resolve();
-      video.onerror=()=>reject(new Error("Video output metadata could not be decoded."));
+    await new Promise<void>((resolve, reject) => {
+      const onAbort = () => reject(new DOMException("Video verification aborted.", "AbortError"));
+      const cleanup = () => signal?.removeEventListener("abort", onAbort);
+      video.onloadedmetadata = () => { cleanup(); resolve(); };
+      video.onerror = () => { cleanup(); reject(new Error("Video output could not be decoded.")); };
+      signal?.addEventListener("abort", onAbort, { once: true });
     });
-    return Number.isFinite(video.duration)&&video.duration>0&&video.videoWidth>0&&video.videoHeight>0;
-  } catch { return false; }
-  finally {
-    URL.revokeObjectURL(url); video.removeAttribute("src"); video.load();
+    if (!Number.isFinite(video.duration) || video.duration <= 0 || video.videoWidth <= 0 || video.videoHeight <= 0) return undefined;
+    return { width: video.videoWidth, height: video.videoHeight, duration: video.duration };
+  } finally {
+    URL.revokeObjectURL(url);
+    video.removeAttribute("src");
+    video.load();
   }
+}
+
+function hasNonNeutralEffect(parameters: CanonicalCapabilityParameters): boolean {
+  return ["brightness", "contrast", "saturate", "grayscale"].some((name) => {
+    const value = parameters[name];
+    if (typeof value !== "number") return false;
+    const neutral = name === "grayscale" ? 0 : 100;
+    return value !== neutral;
+  });
+}
+
+async function hasMeaningfulPixelChange(input: Blob, output: Blob, signal?: AbortSignal): Promise<boolean> {
+  if (signal?.aborted || typeof document === "undefined") return false;
+  const [inputBitmap, outputBitmap] = await Promise.all([createImageBitmap(input), createImageBitmap(output)]);
+  const size = 32;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return false;
+  try {
+    context.clearRect(0, 0, size, size);
+    context.drawImage(inputBitmap, 0, 0, size, size);
+    const source = context.getImageData(0, 0, size, size).data;
+    context.clearRect(0, 0, size, size);
+    context.drawImage(outputBitmap, 0, 0, size, size);
+    const target = context.getImageData(0, 0, size, size).data;
+    let changed = 0;
+    let totalDelta = 0;
+    for (let index = 0; index < target.length; index += 4) {
+      const delta = Math.abs(source[index] - target[index]) + Math.abs(source[index + 1] - target[index + 1]) + Math.abs(source[index + 2] - target[index + 2]) + Math.abs(source[index + 3] - target[index + 3]);
+      totalDelta += delta;
+      if (delta >= 12) changed += 1;
+    }
+    return changed >= 2 && totalDelta >= 64;
+  } finally {
+    inputBitmap.close();
+    outputBitmap.close();
+  }
+}
+
+const defaultVerifier: CanonicalCapabilityVerifier = async (input, output, _parameters, signal) => {
+  if (signal?.aborted || output.size <= 0 || !output.type.startsWith("image/")) return false;
+  const [inputDimensions, outputDimensions] = await Promise.all([readImageDimensions(input, signal), readImageDimensions(output, signal)]);
+  return Boolean(
+    inputDimensions &&
+    outputDimensions &&
+    outputDimensions.width > 0 &&
+    outputDimensions.height > 0,
+  );
+};
+
+const backgroundRemovalVerifier: CanonicalCapabilityVerifier = async (input, output, _parameters, signal) => {
+  if (signal?.aborted || output.size <= 0 || output.type !== "image/png") return false;
+  const [inputDimensions, outputDimensions] = await Promise.all([readImageDimensions(input, signal), readImageDimensions(output, signal)]);
+  if (!inputDimensions || !outputDimensions || inputDimensions.width !== outputDimensions.width || inputDimensions.height !== outputDimensions.height) return false;
+  return hasMeaningfulPixelChange(input, output, signal);
+};
+
+const upscalerVerifier: CanonicalCapabilityVerifier = async (input, output, parameters, signal) => {
+  if (signal?.aborted || output.size <= 0 || !output.type.startsWith("image/")) return false;
+  const [inputDimensions, outputDimensions] = await Promise.all([readImageDimensions(input, signal), readImageDimensions(output, signal)]);
+  if (!inputDimensions || !outputDimensions) return false;
+  const scale = typeof parameters.scale === "number" ? parameters.scale : 2;
+  return outputDimensions.width === Math.max(1, Math.round(inputDimensions.width * scale)) &&
+    outputDimensions.height === Math.max(1, Math.round(inputDimensions.height * scale));
+};
+
+const cropperVerifier: CanonicalCapabilityVerifier = async (input, output, parameters, signal) => {
+  if (signal?.aborted || output.size <= 0 || output.type !== "image/png") return false;
+  const outputDimensions = await readImageDimensions(output, signal);
+  if (!outputDimensions) return false;
+  const width = typeof parameters.width === "number" ? parameters.width : undefined;
+  const height = typeof parameters.height === "number" ? parameters.height : undefined;
+  if (width !== undefined || height !== undefined) {
+    return outputDimensions.width === (width ?? outputDimensions.width) &&
+      outputDimensions.height === (height ?? outputDimensions.height);
+  }
+  const inputDimensions = await readImageDimensions(input, signal);
+  if (!inputDimensions) return false;
+  const ratio = typeof parameters.aspectRatio === "string" ? parameters.aspectRatio.split(":").map(Number) : [1, 1];
+  const ratioValue = ratio[1] > 0 ? ratio[0] / ratio[1] : 1;
+  const sourceRatio = inputDimensions.width / inputDimensions.height;
+  const cropWidth = sourceRatio > ratioValue ? Math.max(1, Math.round(inputDimensions.height * ratioValue)) : inputDimensions.width;
+  const cropHeight = sourceRatio > ratioValue ? inputDimensions.height : Math.max(1, Math.round(inputDimensions.width / ratioValue));
+  return outputDimensions.width === cropWidth && outputDimensions.height === cropHeight;
+};
+
+const targetSizeVerifier: CanonicalCapabilityVerifier = async (input, output, parameters, signal) => {
+  if (signal?.aborted || output.size <= 0 || !output.type.startsWith("image/")) return false;
+  const target = typeof parameters.targetSizeKB === "number" ? parameters.targetSizeKB : undefined;
+  if (target !== undefined && output.size > target * 1024) return false;
+  if (target === undefined && output.size > input.size && typeof parameters.quality === "number") return false;
+  return true;
+};
+
+const formatVerifier: CanonicalCapabilityVerifier = async (_input, output, parameters, signal) => {
+  const format = parameters.format;
+  return !signal?.aborted && output.size > 0 && typeof format === "string" && output.type === format;
+};
+
+const effectsVerifier: CanonicalCapabilityVerifier = async (input, output, parameters, signal) => {
+  if (signal?.aborted || output.size <= 0 || output.type !== "image/png" || !hasNonNeutralEffect(parameters)) return false;
+  const [inputDimensions, outputDimensions] = await Promise.all([readImageDimensions(input, signal), readImageDimensions(output, signal)]);
+  if (!inputDimensions || !outputDimensions || inputDimensions.width !== outputDimensions.width || inputDimensions.height !== outputDimensions.height) return false;
+  return hasMeaningfulPixelChange(input, output, signal);
+};
+
+const videoVerifier: CanonicalCapabilityVerifier = async (input, output, parameters, signal) => {
+  if (signal?.aborted || output.size <= 0 || output.type !== "video/webm") return false;
+  const [inputMeta, outputMeta] = await Promise.all([readVideoDimensions(input, signal), readVideoDimensions(output, signal)]);
+  if (!inputMeta || !outputMeta) return false;
+  if (parameters.width !== undefined && parameters.height !== undefined) {
+    if (outputMeta.width !== Number(parameters.width) || outputMeta.height !== Number(parameters.height)) return false;
+  }
+  if (parameters.startSec !== undefined || parameters.endSec !== undefined) {
+    const start = Number(parameters.startSec ?? 0);
+    const end = Number(parameters.endSec ?? inputMeta.duration ?? 0);
+    const expected = Math.max(0.001, Math.min(inputMeta.duration ?? end, end) - Math.min(Math.max(0, start), Math.max(0, (inputMeta.duration ?? 0) - 0.001)));
+    if (Math.abs((outputMeta.duration ?? 0) - expected) > 0.35) return false;
+  }
+  if (parameters.videoBitsPerSecond !== undefined && output.size >= input.size) return false;
+  return outputMeta.duration !== undefined && outputMeta.duration > 0;
 };
 
 function createCapability(id:(typeof MVP_EXECUTABLE_TOOL_IDS)[number]):CanonicalCapabilityDefinition{
   const meta=META[id];
   const isVideo=id.startsWith("video-");
-  const execution=(isVideo || id==="image-effects")?"browser-worker":"browser-local";
+  const execution = "browser-local" as const;
   const safetyLimits=Object.freeze(isVideo
     ? {maxPixels:64_000_000,maxFileSizeBytes:512*1024*1024,timeoutMs:10*60*1000}
     : {maxPixels:16_000_000,maxFileSizeBytes:64*1024*1024,timeoutMs:30_000});
-  const verifier=id==="image-compressor"?targetSizeVerifier:id==="image-converter"?formatVerifier:isVideo?videoVerifier:defaultVerifier;
+  const verifier=id==="background-remover"?backgroundRemovalVerifier:id==="image-upscaler"?upscalerVerifier:id==="image-cropper"?cropperVerifier:id==="image-compressor"?targetSizeVerifier:id==="image-converter"?formatVerifier:id==="image-effects"?effectsVerifier:isVideo?videoVerifier:defaultVerifier;
   return Object.freeze({
     id,...meta,state:"EXECUTABLE" as const,executionMode:"LOCAL" as const,execution,
     intents:Object.freeze(INTENTS[id]),

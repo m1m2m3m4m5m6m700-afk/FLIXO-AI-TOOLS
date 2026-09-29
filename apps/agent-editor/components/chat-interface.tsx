@@ -10,7 +10,11 @@ export interface ChatInterfaceProps {
   isStreaming: boolean;
   activeTool: string | null;
   manualFallbackPath: string | null;
+  confirmationPending: boolean;
+  confirmationPreview: readonly { callId: string; toolName: string; parameters: Readonly<Record<string, unknown>> }[];
   onSendMessage: (text: string) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
   onStop: () => void;
 }
 
@@ -44,6 +48,24 @@ export function ChatInterface(props: ChatInterfaceProps) {
             <div>{message.content || (parsed.isStreaming ? "Thinking…" : "")}</div>
           </article>
         ))}
+        {parsed.confirmationPending ? (
+          <div className="tool-indicator" role="group" aria-label="Agent execution confirmation" data-testid="confirmation-prompt">
+            <strong>Exact local actions awaiting approval</strong>
+            {parsed.confirmationPreview.map((action) => (
+              <div key={action.callId} data-testid="confirmation-action">
+                <div><strong>{action.toolName}</strong></div>
+                <pre>{JSON.stringify(action.parameters, null, 2)}</pre>
+              </div>
+            ))}
+            <span>This preview is generated from the validated execution request, not from the agent&apos;s explanatory text.</span>
+            <button type="button" className="button send" onClick={parsed.onConfirm}>
+              Confirm
+            </button>
+            <button type="button" className="button stop" onClick={parsed.onCancel}>
+              Cancel
+            </button>
+          </div>
+        ) : null}
         {parsed.activeTool ? (
           <div className="tool-indicator" data-testid="active-tool">
             <span aria-hidden="true">⚙</span>

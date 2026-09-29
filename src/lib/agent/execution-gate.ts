@@ -1,8 +1,8 @@
 import { assertExecutionResourceBudget, validateCapabilityParameters, getCapability } from './capability-registry.ts';
 import { authorizeCapabilityAccess } from './capability-access.ts';
 import { assertExecutionAllowed, type TaskContext } from '@flixo/agent-runtime';
-import { getToolDefinition } from '@/config/canonical-tool-definition.ts';
-import { assertMvpLocalExecutionBoundary } from '@/lib/contracts/mvp-scope.ts';
+import { getToolDefinition } from '../../config/canonical-tool-definition.ts';
+import { assertMvpLocalExecutionBoundary } from '../contracts/mvp-scope.ts';
 import { assertExecutionPermission, assertExecutionSecurityBoundary, createExecutionAuditEvent, deriveRecoveryMetadata, deriveToolSecurityProfile, type ExecutionAuditEvent } from './execution-observability.ts';
 
 export type ExecutionGateInput = Readonly<{
