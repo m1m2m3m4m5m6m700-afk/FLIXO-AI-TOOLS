@@ -1,6 +1,5 @@
 import type { Document, Layer, LayerId, AssetRef } from '../document';
 import { validateDocument } from '../document';
-import { createHistory, currentDocument, executeCommand, redo, undo, type HistoryState } from '../commands/history';
 import type { DocumentCommand } from '../commands';
 import type { DocumentEngine, DocumentEngineSnapshot, EngineOperation, EngineReceipt, LayerPatch } from './types';
 
@@ -8,7 +7,10 @@ const cloneDocument = (document: Document): Document => Object.freeze({
   ...document,
   canvas: Object.freeze({ ...document.canvas }),
   assets: Object.freeze(document.assets.map((asset) => Object.freeze({ ...asset }))),
-  layers: Object.freeze(document.layers.map((layer) => Object.freeze({ ...layer, transform: Object.freeze({ ...layer.transform }) }))),
+  layers: Object.freeze(document.layers.map((layer) => Object.freeze({
+    ...layer,
+    transform: Object.freeze({ ...layer.transform }),
+  }))),
   metadata: Object.freeze({ ...document.metadata }),
 });
 
@@ -23,7 +25,12 @@ const replaceLayer = (document: Document, layerId: LayerId, transform: (layer: L
   return cloneDocument({ ...document, layers });
 };
 
-const command = (id: string, label: string, apply: (document: Document) => Document, changedLayerIds: readonly LayerId[]): DocumentCommand => ({
+const makeCommand = (
+  id: string,
+  label: string,
+  apply: (document: Document) => Document,
+  changedLayerIds: readonly LayerId[],
+): DocumentCommand => ({
   id,
   label,
   execute: ({ document }) => {
@@ -35,142 +42,155 @@ const command = (id: string, label: string, apply: (document: Document) => Docum
   serialize: () => ({ id, label, changedLayerIds }),
 });
 
-class EngineCommandHistory {
-  private readonly root: Document;
-  private state: HistoryState;
+class TransactionalHistory {
+  private readonly nodes = new Map<string, { document: Document; parentId: string | null }>();
+  private currentId = 'root';
+  private version = 1;
 
   constructor(document: Document) {
-    this.root = document;
-    this.state = createHistory(document, 'root');
+    validateDocument(document);
+    this.nodes.set('root', { document: cloneDocument(document), parentId: null });
   }
 
-  get current(): Document { return currentDocument(this.state); }
-  get canUndo(): boolean { return this.state.currentId !== this.state.rootId; }
-  get canRedo(): boolean {
-    return [...this.state.nodes.values()].some((node) => node.parentId === this.state.currentId);
+  get document(): Document { return this.nodes.get(this.currentId)!.document; }
+  get revision(): number { return this.version; }
+
+  private assertVersion(expectedVersion: number): void {
+    if (expectedVersion !== this.version) throw new Error('STALE_DOCUMENT_VERSION');
   }
 
   apply(operation: EngineOperation, changedLayerIds: readonly LayerId[]): EngineReceipt {
-    const current = this.current;
-    if (operation.expectedVersion !== current.version) throw new Error('STALE_DOCUMENT_VERSION');
+    this.assertVersion(operation.expectedVersion);
+    const current = this.document;
     const next = operation.command.execute({ document: current });
-    const versioned = cloneDocument({ ...next, version: current.version + 1 });
-    validateDocument(versioned);
-    this.state = executeCommand(
-      this.state,
-      {
-        ...operation.command,
-        execute: () => versioned,
-        undo: () => current,
-      },
-      operation.id,
-    );
+    validateDocument(next);
+    const nextVersion = this.version + 1;
+    const nodeId = operation.id;
+    if (this.nodes.has(nodeId)) throw new Error('DUPLICATE_OPERATION_ID');
+    this.nodes.set(nodeId, { document: cloneDocument({ ...next, version: current.version + 1 }), parentId: this.currentId });
+    this.currentId = nodeId;
+    this.version = nextVersion;
     return Object.freeze({
       operationId: operation.id,
       label: operation.label,
-      previousVersion: current.version,
-      version: versioned.version,
+      previousVersion: nextVersion - 1,
+      version: nextVersion,
       changedLayerIds: Object.freeze([...changedLayerIds]),
     });
   }
 
-  stepUndo(): EngineReceipt | null {
-    if (!this.canUndo) return null;
-    const before = this.current;
-    this.state = undo(this.state);
-    const after = this.current;
-    return Object.freeze({ operationId: 'undo', label: 'Undo', previousVersion: before.version, version: after.version, changedLayerIds: Object.freeze([]) });
+  undo(): EngineReceipt | null {
+    const current = this.nodes.get(this.currentId);
+    if (!current || current.parentId === null) return null;
+    const previousVersion = this.version;
+    this.currentId = current.parentId;
+    this.version += 1;
+    return Object.freeze({ operationId: 'undo', label: 'Undo', previousVersion, version: this.version, changedLayerIds: Object.freeze([]) });
   }
 
-  stepRedo(childId?: string): EngineReceipt | null {
-    if (!this.canRedo) return null;
-    const before = this.current;
-    this.state = redo(this.state, childId);
-    const after = this.current;
-    return Object.freeze({ operationId: 'redo', label: 'Redo', previousVersion: before.version, version: after.version, changedLayerIds: Object.freeze([]) });
+  redo(childId?: string): EngineReceipt | null {
+    const current = this.nodes.get(this.currentId);
+    if (!current) throw new Error('HISTORY_CURRENT_NODE_MISSING');
+    const children = [...this.nodes.entries()].filter(([, node]) => node.parentId === this.currentId);
+    if (children.length === 0) return null;
+    const entry = childId ? children.find(([id]) => id === childId) : children[0];
+    if (!entry) throw new Error('HISTORY_CHILD_NODE_NOT_FOUND');
+    const previousVersion = this.version;
+    this.currentId = entry[0];
+    this.version += 1;
+    return Object.freeze({ operationId: 'redo', label: 'Redo', previousVersion, version: this.version, changedLayerIds: Object.freeze([]) });
+  }
+
+  canUndo(): boolean {
+    return this.nodes.get(this.currentId)?.parentId !== null;
+  }
+
+  canRedo(): boolean {
+    return [...this.nodes.values()].some((node) => node.parentId === this.currentId);
   }
 }
 
 export const createDocumentEngine = (document: Document): DocumentEngine => {
-  validateDocument(document);
-  const history = new EngineCommandHistory(cloneDocument(document));
-
-  const run = (operation: EngineOperation, changedLayerIds: readonly LayerId[]): EngineReceipt =>
-    history.apply(operation, changedLayerIds);
+  const history = new TransactionalHistory(document);
+  const run = (operation: EngineOperation, changedLayerIds: readonly LayerId[]): EngineReceipt => history.apply(operation, changedLayerIds);
 
   return {
     snapshot: (): DocumentEngineSnapshot => Object.freeze({
-      document: history.current,
-      canUndo: history.canUndo,
-      canRedo: history.canRedo,
+      document: history.document,
+      version: history.revision,
+      canUndo: history.canUndo(),
+      canRedo: history.canRedo(),
     }),
 
     execute: (operation) => run(operation, []),
-
-    undo: () => history.stepUndo(),
-    redo: (childId) => history.stepRedo(childId),
+    undo: () => history.undo(),
+    redo: (childId) => history.redo(childId),
 
     addAsset: (asset: AssetRef, expectedVersion: number) => {
       const id = 'asset-add-' + asset.id;
-      const operation: EngineOperation = {
+      return run({
         id,
         label: 'Add asset',
         expectedVersion,
-        command: command(id, 'Add asset', (document) => {
+        command: makeCommand(id, 'Add asset', (document) => {
           if (document.assets.some((candidate) => candidate.id === asset.id)) throw new Error('DUPLICATE_ASSET_ID');
           return { ...document, assets: [...document.assets, Object.freeze({ ...asset })] };
         }, []),
-      };
-      return run(operation, []);
+      }, []);
     },
 
     addLayer: (layer: Layer, expectedVersion: number) => {
-      const operation: EngineOperation = {
-        id: 'layer-add-' + layer.id,
+      const id = 'layer-add-' + layer.id;
+      return run({
+        id,
         label: 'Add layer',
         expectedVersion,
-        command: command('layer-add-' + layer.id, 'Add layer', (document) => {
+        command: makeCommand(id, 'Add layer', (document) => {
           if (document.layers.some((candidate) => candidate.id === layer.id)) throw new Error('DUPLICATE_LAYER_ID');
           return { ...document, layers: [...document.layers, Object.freeze({ ...layer, transform: Object.freeze({ ...layer.transform }) })] };
         }, [layer.id]),
-      };
-      return run(operation, [layer.id]);
+      }, [layer.id]);
     },
 
     updateLayer: (layerId: LayerId, patch: LayerPatch, expectedVersion: number) => {
-      const operation: EngineOperation = {
-        id: 'layer-update-' + layerId,
+      const id = 'layer-update-' + layerId;
+      return run({
+        id,
         label: 'Update layer',
         expectedVersion,
-        command: command('layer-update-' + layerId, 'Update layer', (document) =>
-          replaceLayer(document, layerId, (layer) => ({ ...layer, ...patch, id: layer.id, transform: patch.transform ? Object.freeze({ ...patch.transform }) : layer.transform })), [layerId]),
-      };
-      return run(operation, [layerId]);
+        command: makeCommand(id, 'Update layer', (document) =>
+          replaceLayer(document, layerId, (layer) => ({
+            ...layer,
+            ...patch,
+            id: layer.id,
+            transform: patch.transform ? Object.freeze({ ...patch.transform }) : layer.transform,
+          })), [layerId]),
+      }, [layerId]);
     },
 
     removeLayer: (layerId: LayerId, expectedVersion: number) => {
-      const operation: EngineOperation = {
-        id: 'layer-remove-' + layerId,
+      const id = 'layer-remove-' + layerId;
+      return run({
+        id,
         label: 'Remove layer',
         expectedVersion,
-        command: command('layer-remove-' + layerId, 'Remove layer', (document) => {
+        command: makeCommand(id, 'Remove layer', (document) => {
           if (!document.layers.some((layer) => layer.id === layerId)) throw new Error('LAYER_NOT_FOUND');
           return { ...document, layers: document.layers.filter((layer) => layer.id !== layerId) };
         }, [layerId]),
-      };
-      return run(operation, [layerId]);
+      }, [layerId]);
     },
 
     reorderLayer: (layerId: LayerId, zIndex: number, expectedVersion: number) => {
       if (!Number.isInteger(zIndex)) throw new Error('LAYER_Z_INDEX_INVALID');
-      const operation: EngineOperation = {
-        id: 'layer-reorder-' + layerId,
+      const id = 'layer-reorder-' + layerId;
+      return run({
+        id,
         label: 'Reorder layer',
         expectedVersion,
-        command: command('layer-reorder-' + layerId, 'Reorder layer', (document) =>
+        command: makeCommand(id, 'Reorder layer', (document) =>
           replaceLayer(document, layerId, (layer) => ({ ...layer, zIndex })), [layerId]),
-      };
-      return run(operation, [layerId]);
+      }, [layerId]);
     },
   };
 };

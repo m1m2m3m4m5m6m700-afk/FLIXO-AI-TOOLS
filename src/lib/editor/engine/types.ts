@@ -18,12 +18,12 @@ export type EngineReceipt = Readonly<{
 
 export type DocumentEngineSnapshot = Readonly<{
   document: Document;
+  version: number;
   canUndo: boolean;
   canRedo: boolean;
 }>;
 
 export type LayerPatch = Readonly<Partial<Layer>>;
-
 export type AssetInput = Readonly<AssetRef>;
 
 export type DocumentEngine = Readonly<{
