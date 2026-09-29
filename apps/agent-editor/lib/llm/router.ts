@@ -13,6 +13,7 @@ type ProviderHealth = {
   failureCount: number;
   latencyMs: number;
   unhealthyUntil: number;
+  lastFailureAt: number | null;
 };
 
 const MAX_PROVIDER_ATTEMPTS = 3;
@@ -53,6 +54,7 @@ export class LLMRouter {
         failureCount: 0,
         latencyMs: 250,
         unhealthyUntil: 0,
+        lastFailureAt: null,
       };
       const healthB = this.health.get(b.name) ?? {
         failureCount: 0,
