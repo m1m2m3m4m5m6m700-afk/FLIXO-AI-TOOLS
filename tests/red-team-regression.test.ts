@@ -5,7 +5,7 @@ test('red-team: exhausted attempt budget cannot continue autonomously', () => {
   const budget = { attempts: 2, timeMs: 10_000, mutations: 1, scope: 4 };
   const used = { attempts: 2, timeMs: 1_000, mutations: 1, scope: 1 };
   assert.equal(used.attempts >= budget.attempts, true);
-  assert.equal(used.attempts >= budget.attempts, true);
+  assert.equal(used.mutations >= budget.mutations, true);
 });
 
 test('red-team: provider input contract contains metadata only, never file bytes', () => {
@@ -52,4 +52,21 @@ test('red-team: external repair/review workers have no certification authority',
   assert.equal(workerAuthorities.includes('certify'), false);
   assert.equal(workerAuthorities.includes('merge'), false);
   assert.equal(workerAuthorities.includes('promote'), false);
+});
+
+test('red-team: static agent UI exposes only canonical MVP tools', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const html = await readFile(new URL('../public/flixo-agent-ui.html', import.meta.url), 'utf8');
+  for (const toolId of [
+    'background-remover',
+    'image-upscaler',
+    'image-cropper',
+    'image-compressor',
+    'image-converter',
+    'image-effects',
+  ]) {
+    assert.match(html, new RegExp("id:'" + toolId + "'"));
+  }
+  assert.doesNotMatch(html, /id:'(?:image-ocr|pix)'/);
+  assert.doesNotMatch(html, /\.innerHTML\s*=/);
 });
