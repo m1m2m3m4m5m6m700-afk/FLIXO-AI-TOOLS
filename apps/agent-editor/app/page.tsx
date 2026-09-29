@@ -38,7 +38,10 @@ export default function AgentEditorPage() {
     isStreaming,
     activeTool,
     manualFallbackPath,
+    confirmationPending,
     sendMessage,
+    confirmPendingExecution,
+    cancelPendingExecution,
     stopStreaming,
     setProjectState,
   } = useAgentChat({ initialProjectState: INITIAL_STATE });
@@ -64,7 +67,10 @@ export default function AgentEditorPage() {
         isStreaming={isStreaming}
         activeTool={activeTool}
         manualFallbackPath={manualFallbackPath}
+        confirmationPending={confirmationPending}
         onSendMessage={sendMessage}
+        onConfirm={confirmPendingExecution}
+        onCancel={cancelPendingExecution}
         onStop={stopStreaming}
       />
       <MediaCanvas
