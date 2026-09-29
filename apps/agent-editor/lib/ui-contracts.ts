@@ -7,7 +7,10 @@ export const ChatInterfacePropsSchema = z.object({
   isStreaming: z.boolean(),
   activeTool: z.string().nullable(),
   manualFallbackPath: z.string().regex(/^\/en\/tools\/[a-z0-9-]+$/).nullable(),
+  confirmationPending: z.boolean(),
   onSendMessage: z.function().args(z.string()).returns(z.unknown()),
+  onConfirm: z.function().args().returns(z.unknown()),
+  onCancel: z.function().args().returns(z.unknown()),
   onStop: z.function().args().returns(z.unknown()),
 });
 
