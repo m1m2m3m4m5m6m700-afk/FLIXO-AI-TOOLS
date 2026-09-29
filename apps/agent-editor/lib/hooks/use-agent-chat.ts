@@ -9,7 +9,7 @@ import {
   type ChatMessage,
 } from "@/lib/schemas/agent";
 import { ProjectStateSchema, type ProjectState } from "@/lib/schemas/project";
-import { prepareAgentLocalExecution, type PendingAgentExecution } from "@/lib/agent/confirmation-gate";
+import { prepareAgentLocalExecution, type AgentExecutionPreview, type PendingAgentExecution } from "@/lib/agent/confirmation-gate";
 import { executeAgentToolLocally } from "@/lib/tools/local-executor";
 
 export interface UseAgentChatOptions {
@@ -64,6 +64,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [manualFallbackPath, setManualFallbackPath] = useState<string | null>(null);
   const [confirmationPending, setConfirmationPending] = useState(false);
+  const [confirmationPreview, setConfirmationPreview] = useState<readonly AgentExecutionPreview[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
   const pendingExecutionRef = useRef<PendingAgentExecution | null>(null);
@@ -140,6 +141,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
     if (!pending || isStreaming) return;
     pendingExecutionRef.current = null;
     setConfirmationPending(false);
+    setConfirmationPreview([]);
     const now = new Date().toISOString();
     const userMessage = ChatMessageSchema.parse({
       id: crypto.randomUUID(),
@@ -162,6 +164,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
     if (!pendingExecutionRef.current) return;
     pendingExecutionRef.current = null;
     setConfirmationPending(false);
+    setConfirmationPreview([]);
     setActiveTool(null);
     setManualFallbackPath(null);
     const now = new Date().toISOString();
@@ -194,6 +197,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
       const pending = prepareAgentLocalExecution(response);
       if (pending) {
         pendingExecutionRef.current = pending;
+        setConfirmationPreview(pending.preview);
         setConfirmationPending(true);
         setActiveTool(null);
         setMessages((previous) =>
