@@ -11,6 +11,7 @@ test.describe("FLIXO Agent Editor end-to-end", () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Chat workspace" })).toBeVisible();
     await expect(page.getByText("Untitled Creative Project", { exact: false })).toBeVisible();
+    const initialCanvas = await page.locator('[data-testid="media-preview"] canvas').evaluate((canvas) => canvas.toDataURL());
     await page.getByLabel("Describe the edit").fill("Remove background from image");
     await page.getByRole("button", { name: "Send" }).click();
 
@@ -22,6 +23,9 @@ test.describe("FLIXO Agent Editor end-to-end", () => {
     await page.getByTestId("confirmation-prompt").getByRole("button", { name: "Confirm" }).click();
     await expect(page.getByText(/Untitled Creative Project · v2/u)).toBeVisible();
     await expect(page.getByTestId("active-tool")).toHaveCount(0);
+    await expect.poll(
+      async () => page.locator('[data-testid="media-preview"] canvas').evaluate((canvas) => canvas.toDataURL()),
+    ).not.toBe(initialCanvas);
     expect(consoleErrors).toEqual([]);
   });
 
