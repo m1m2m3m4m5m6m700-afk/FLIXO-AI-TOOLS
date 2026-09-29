@@ -16,6 +16,15 @@ type ProviderHealth = {
   lastFailureAt: number | null;
 };
 
+function defaultProviderHealth(): ProviderHealth {
+  return {
+    failureCount: 0,
+    latencyMs: 250,
+    unhealthyUntil: 0,
+    lastFailureAt: null,
+  };
+}
+
 const MAX_PROVIDER_ATTEMPTS = 3;
 const FAILURE_THRESHOLD = 2;
 const COOLDOWN_MS = 30_000;
@@ -56,11 +65,7 @@ export class LLMRouter {
         unhealthyUntil: 0,
         lastFailureAt: null,
       };
-      const healthB = this.health.get(b.name) ?? {
-        failureCount: 0,
-        latencyMs: 250,
-        unhealthyUntil: 0,
-      };
+      const healthB = this.health.get(b.name) ?? defaultProviderHealth();
       return rankHealth(healthA, now) - rankHealth(healthB, now);
     });
 
@@ -85,11 +90,7 @@ export class LLMRouter {
 
       attempts += 1;
       const startedAt = Date.now();
-      const health = this.health.get(provider.name) ?? {
-        failureCount: 0,
-        latencyMs: 250,
-        unhealthyUntil: 0,
-      };
+      const health = this.health.get(provider.name) ?? defaultProviderHealth();
 
       try {
         let sawTerminalEvent = false;
@@ -164,11 +165,7 @@ export class LLMRouter {
             (candidate) =>
               candidate !== provider &&
               !isCooling(
-                this.health.get(candidate.name) ?? {
-                  failureCount: 0,
-                  latencyMs: 250,
-                  unhealthyUntil: 0,
-                },
+                this.health.get(candidate.name) ?? defaultProviderHealth(),
                 Date.now(),
               ),
           );
