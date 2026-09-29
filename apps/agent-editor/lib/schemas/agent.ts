@@ -10,7 +10,11 @@ export const ToolCallResultSchema=z.object({callId:z.string().min(1).max(128),to
 export type ToolCallResult=z.infer<typeof ToolCallResultSchema>;
 export const ChatMessageSchema=z.object({id:z.string().uuid(),role:MessageRoleSchema,content:z.string().max(100_000),toolCalls:z.array(ToolCallRequestSchema).max(100).optional(),toolResults:z.array(ToolCallResultSchema).max(100).optional(),timestamp:z.string().datetime()}).strict();
 export type ChatMessage=z.infer<typeof ChatMessageSchema>;
-export const AgentResponseSchema=z.object({messageId:z.string().uuid(),content:z.string().max(100_000),requestedToolCalls:z.array(ToolCallRequestSchema).max(100).default([]),localExecutionPlans:z.array(LocalExecutionPlanSchema).max(100).default([]),toolResults:z.array(ToolCallResultSchema).max(100).default([]),updatedProjectState:ProjectStateSchema.optional(),requiresUserConfirmation:z.boolean().default(false)}).strict();
+export const AgentResponseSchema=z.object({messageId:z.string().uuid(),content:z.string().max(100_000),requestedToolCalls:z.array(ToolCallRequestSchema).max(100).default([]),localExecutionPlans:z.array(LocalExecutionPlanSchema).max(100).default([]),toolResults:z.array(ToolCallResultSchema).max(100).default([]),updatedProjectState:ProjectStateSchema.optional(),requiresUserConfirmation:z.boolean().default(false)}).strict().superRefine((data,ctx)=>{
+  if(data.localExecutionPlans.length>0&&data.requiresUserConfirmation!==true){
+    ctx.addIssue({code:z.ZodIssueCode.custom,path:["requiresUserConfirmation"],message:"Local execution plans require explicit user confirmation."});
+  }
+});
 export type AgentResponse=z.infer<typeof AgentResponseSchema>;
 export const MockLLMResultSchema=z.object({content:z.string().min(1).max(100_000),toolCalls:z.array(ToolCallRequestSchema).max(100)}).strict();
 export type MockLLMResult=z.infer<typeof MockLLMResultSchema>;
