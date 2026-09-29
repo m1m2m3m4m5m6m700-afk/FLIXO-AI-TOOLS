@@ -203,9 +203,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
                   ...message,
                   content:
                     response.content +
-                    "
-
-Review the requested edit, then Confirm or Cancel.",
+                    "\n\nReview the requested edit, then Confirm or Cancel.",
                 }
               : message,
           ),
