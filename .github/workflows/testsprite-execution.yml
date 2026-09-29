@@ -1,0 +1,177 @@
+name: TestSprite Live E2E (execution)
+
+on:
+  push:
+    branches:
+      - execution
+  workflow_dispatch:
+    inputs:
+      bootstrap_suite:
+        description: "Create any missing FLIXO TestSprite cases from committed plans before running the suite"
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: testsprite-execution-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  testsprite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout exact execution SHA
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Start FLIXO
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup npm run dev -- --host 127.0.0.1 --port 3000 >/tmp/flixo-vite.log 2>&1 &
+          echo $! >/tmp/flixo-vite.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:3000/ >/dev/null; then
+              echo "FLIXO is live on http://127.0.0.1:3000"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::FLIXO did not become reachable on port 3000."
+          cat /tmp/flixo-vite.log
+          exit 1
+
+      - name: Install pinned TestSprite CLI
+        run: npm install --global @testsprite/testsprite-cli@0.4.0
+
+      - name: Validate committed TestSprite plans offline
+        run: testsprite test lint --plan-from-dir .testsprite/plans
+
+      - name: Verify TestSprite configuration
+        env:
+          TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
+          TESTSPRITE_PROJECT_ID: ${{ vars.TESTSPRITE_PROJECT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${TESTSPRITE_API_KEY}" || {
+            echo "::error::TESTSPRITE_API_KEY repository secret is missing."
+            exit 3
+          }
+          test -n "${TESTSPRITE_PROJECT_ID}" || {
+            echo "::error::TESTSPRITE_PROJECT_ID repository variable is missing."
+            echo "Create a TestSprite V3 frontend project once with: testsprite project create --type frontend --name FLIXO-AI-TOOLS --local 3000"
+            exit 4
+          }
+          testsprite --version
+          testsprite doctor
+
+      - name: Bootstrap missing FLIXO TestSprite cases
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.bootstrap_suite }}
+        env:
+          TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
+          TESTSPRITE_PROJECT_ID: ${{ vars.TESTSPRITE_PROJECT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .testsprite/bootstrap-plans
+          mkdir -p .testsprite/bootstrap-plans
+
+          for template in .testsprite/plans/*.json; do
+            target=".testsprite/bootstrap-plans/$(basename "${template}")"
+            sed "s/__TESTSPRITE_PROJECT_ID__/${TESTSPRITE_PROJECT_ID}/g" "${template}" > "${target}"
+          done
+
+          testsprite test lint --plan-from-dir .testsprite/bootstrap-plans
+
+          testsprite test list --project "${TESTSPRITE_PROJECT_ID}" --type frontend --max-items 200 --output json > .testsprite/existing-tests.json
+
+          missing=0
+          for plan in .testsprite/bootstrap-plans/*.json; do
+            name="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync(process.argv[1],"utf8")).name)' "${plan}")"
+            exists="$(node -e '
+              const fs=require("fs");
+              const data=JSON.parse(fs.readFileSync(".testsprite/existing-tests.json","utf8"));
+              const wanted=process.argv[1];
+              const tests=data.tests ?? data.result?.tests ?? data.items ?? [];
+              process.stdout.write(tests.some((t) => t.name === wanted) ? "yes" : "no");
+            ' "${name}")"
+            if [ "${exists}" != "yes" ]; then
+              echo "Missing TestSprite case: ${name}"
+              missing=$((missing + 1))
+              cp "${plan}" ".testsprite/bootstrap-plans/missing-$(basename "${plan}")"
+              rm "${plan}"
+            fi
+          done
+
+          if [ "${missing}" -gt 0 ]; then
+            testsprite test create-batch --plan-from-dir .testsprite/bootstrap-plans --output json
+          else
+            echo "All committed FLIXO TestSprite cases already exist."
+          fi
+
+      - name: Run TestSprite suite against exact execution build
+        env:
+          TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
+          TESTSPRITE_PROJECT_ID: ${{ vars.TESTSPRITE_PROJECT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA="$(git rev-parse HEAD)"
+          echo "## TestSprite exact-SHA verification" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tested SHA: `${SHA}`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Target: local FLIXO on port 3000" >> "$GITHUB_STEP_SUMMARY"
+          set +e
+          testsprite test run --all --project "${TESTSPRITE_PROJECT_ID}" --local 3000 --wait --timeout 1200 --report junit --report-file testsprite-junit.xml --summary-file testsprite-summary.json --output json
+          RUN_RC=$?
+          set -e
+          test -f testsprite-summary.json || {
+            echo "::error::TestSprite produced no summary file."
+            exit 1
+          }
+          TESTSPRITE_RUN_RC="${RUN_RC}" node <<'NODE'
+          const fs = require('fs');
+          const summary = JSON.parse(fs.readFileSync('testsprite-summary.json', 'utf8'));
+          const total = Number(summary.total ?? 0);
+          const passed = Number(summary.passed ?? 0);
+          const failed = Number(summary.failed ?? 0);
+          const skipped = Number(summary.skipped ?? 0);
+          const timedOut = Number(summary.timedOut ?? summary.timed_out ?? 0);
+          const runRc = Number(process.env.TESTSPRITE_RUN_RC ?? 1);
+
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            `- TestSprite verdict: total=${total}, passed=${passed}, failed=${failed}, skipped=${skipped}, timedOut=${timedOut}\\n`);
+
+          if (total < 1) throw new Error('FAIL-CLOSED: TestSprite dispatched zero tests.');
+          if (passed !== total || failed !== 0 || skipped !== 0 || timedOut !== 0) {
+            throw new Error(
+              `FAIL-CLOSED: incomplete TestSprite verdict. total=${total} passed=${passed} failed=${failed} skipped=${skipped} timedOut=${timedOut}`,
+            );
+          }
+          if (runRc !== 0) throw new Error(`FAIL-CLOSED: TestSprite exited with code ${runRc}.`);
+          NODE
+
+      - name: Upload TestSprite evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testsprite-results-${{ github.sha }}
+          path: |
+            testsprite-junit.xml
+            testsprite-summary.json
+            .testsprite/bootstrap-plans
+            /tmp/flixo-vite.log
+          if-no-files-found: ignore
