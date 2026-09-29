@@ -1,18 +1,20 @@
-﻿# FLIXO — Exact-SHA Certification Record
+# FLIXO — Exact-SHA Certification Record
 
 Status: NOT CURRENT CERTIFICATION
 
-This document is a control-plane record. It must never be interpreted as certification merely because CI evidence exists.
+This document is a control-plane policy/evidence record. It must never be interpreted as certification merely because CI evidence exists.
 
-## Current runtime-verified candidate
+## Exact-SHA handling
+
+The authoritative candidate SHA MUST be obtained from the current PR #923 head and matched against every required CI/security/test artifact. This file intentionally does not self-embed a candidate SHA because changing the file would create a new commit and invalidate the evidence it attempted to describe.
+
+Authoritative integration path:
 - Repository: m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS
-- Execution SHA: `9ef8b894ecf5126e2c73a1356f6827181e48f290`
-- Main SHA at reconciliation: `faf261be4476eccf293956d792bbb15e2e019061`
 - Integration PR: #923
+- Execution -> main only
 - Direct main mutation: none
 
-## Exact-SHA verification
-The candidate `9ef8b894ecf5126e2c73a1356f6827181e48f290` passed:
+Required evidence includes:
 - typecheck/lint/core tests/build
 - Chromium browser smoke
 - trust-gate
@@ -22,11 +24,12 @@ The candidate `9ef8b894ecf5126e2c73a1356f6827181e48f290` passed:
 - internal exact-SHA coverage
 - CodeQL
 - Secret Scan/Gitleaks
-- production audit gate in FLIXO CI
+- clean-clone Red Team
+- deployment identity when applicable
 
-## Certification blockers
+Certification blockers remain:
 - Main governance ruleset does not currently require approvals/Code Owner review or strict required checks.
 - Model admission manifest currently contains zero admitted production models.
-- These blockers prevent final certification and promotion.
+- Prompt 17, release candidate freeze, Prompt 19 exact-SHA certification, and owner-authorized execution->main promotion remain pending.
 
 Certification state: NOT_READY.

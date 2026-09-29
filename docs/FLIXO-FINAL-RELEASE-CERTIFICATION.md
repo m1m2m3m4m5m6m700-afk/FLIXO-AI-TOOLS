@@ -1,32 +1,39 @@
-﻿# FLIXO — Final Release Evidence
+# FLIXO — Final Release Evidence
 
 Status: NOT YET CERTIFIED / NOT YET PROMOTED
 
-## Current runtime-verified candidate
+## Control-plane interpretation
+
+This document is a policy/evidence-record template, not a self-certifying runtime source of truth.
+
+The exact release-candidate SHA MUST be read from the current controlled integration PR head and the exact GitHub Actions evidence for that same SHA. This file intentionally does not embed its own Git commit SHA because doing so would be self-referential: changing this file creates a new SHA and invalidates SHA-specific evidence.
+
+Current integration lane:
 - Repository: m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS
-- Execution SHA: `c4441a138ac438d43272fbe934fc3e68ea9718aa`
-- Main SHA: `faf261be4476eccf293956d792bbb15e2e019061`
 - Integration PR: #923
-- Direct main mutation: none
+- Promotion path: execution -> main only
+- Direct main mutation: forbidden
 
-## Verified evidence
-- FLIXO CI verify: PASS
-- Chromium browser smoke: PASS
-- trust-gate: PASS
-- Exact-SHA promotion proof: PASS
-- Agent Editor STEP 4: PASS
-- Agent Editor Step 5-6: PASS
-- Agent Editor Coverage/internal lcov: PASS
-- CodeQL: PASS
-- Secret Scan/Gitleaks: PASS
-- production audit gate: PASS
+Required evidence categories:
+- FLIXO CI verify/build
+- Chromium browser smoke
+- trust-gate
+- Exact-SHA promotion proof
+- Agent Editor STEP 4
+- Agent Editor Step 5-6
+- Agent Editor Coverage
+- CodeQL
+- Secret Scan/Gitleaks
+- clean-clone Red Team
+- deployment identity when applicable
 
-## Current release blockers
+Current blockers remain:
 1. Main governance hardening is incomplete and cannot be changed through the connected control plane without an exposed ruleset-write capability.
 2. The model-license manifest has zero production-admitted models; release mode requires an evidenced admitted model.
-3. Prompt 17, release candidate freeze, Prompt 19 exact-SHA certification, and owner-authorized execution→main promotion remain pending.
+3. Prompt 17, release candidate freeze, Prompt 19 exact-SHA certification, and owner-authorized execution->main promotion remain pending.
 
 ## Final disposition
+
 NOT_READY — BLOCKERS ENUMERATED
 
-This file must not be changed to CERTIFIED/RELEASE VERIFIED until Prompt 17 PASS, Release Candidate Freeze, Prompt 19 exact-SHA certification, and owner-authorized execution→main promotion with post-merge verification all exist on one lineage.
+This file must not be changed to CERTIFIED/RELEASE VERIFIED until the active execution plan's exact-SHA evidence, governance, model-admission, Red-Team, certification, promotion, and post-merge requirements are all satisfied.
