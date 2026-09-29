@@ -13,6 +13,6 @@ test('production worker applies security headers', async () => {
 test('production worker returns JSON 404 for API paths instead of SPA HTML', async () => {
   const response = await worker.fetch(new Request('https://flixoai.example/api/flixo-agent'), { ASSETS: { fetch: async () => { throw new Error('API asset fallback must not run'); } } });
   assert.equal(response.status, 404);
-  assert.match(response.headers.get('content-type') ?? '', /application\\/json/iu);
+  assert.equal((response.headers.get('content-type') ?? '').includes('application/json'), true);
   assert.equal((await response.json() as { error: string }).error, 'API_NOT_EXPOSED_ON_STATIC_PRODUCTION_WORKER');
 });
