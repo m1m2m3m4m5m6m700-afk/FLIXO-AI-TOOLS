@@ -4,8 +4,8 @@ Status: NOT YET CERTIFIED / NOT YET PROMOTED
 
 ## Current runtime-verified candidate
 - Repository: m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS
-- Execution SHA: $sha
-- Main SHA: af261be4476eccf293956d792bbb15e2e019061
+- Execution SHA: `c4441a138ac438d43272fbe934fc3e68ea9718aa`
+- Main SHA: `faf261be4476eccf293956d792bbb15e2e019061`
 - Integration PR: #923
 - Direct main mutation: none
 
