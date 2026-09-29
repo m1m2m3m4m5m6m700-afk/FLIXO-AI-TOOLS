@@ -279,7 +279,7 @@ async function callOpenRouter(
     headers: {
       'content-type': 'application/json',
       authorization: `Bearer ${apiKey}`,
-      'HTTP-Referer': process.env.VITE_SITE_URL || 'https://flixoai.vercel.app',
+      'HTTP-Referer': process.env.VITE_SITE_URL || 'https://flixoai.m1m2m3m4m5m6m700.workers.dev',
       'X-Title': 'FLIXO AI',
     },
     body: JSON.stringify({

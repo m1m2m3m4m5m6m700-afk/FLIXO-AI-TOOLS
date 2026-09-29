@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-process.env.VITE_SITE_URL = process.env.VITE_SITE_URL || 'https://flixoai.vercel.app';
+process.env.VITE_SITE_URL = process.env.VITE_SITE_URL || 'https://flixoai.m1m2m3m4m5m6m700.workers.dev';
 
 const { CANONICAL_LOCALES, DEFAULT_LOCALE, LOCALE_METADATA, normalizeLocale } =
   await import('../src/lib/i18n/config.ts');
@@ -41,7 +41,7 @@ test('routing resolves every tool path from the locale contract', () => {
   const tool = { path: '/en/image-compressor' };
   assert.equal(getLocalizedToolPath(tool, 'ar'), '/ar/image-compressor');
   assert.equal(getLocalizedToolPath({ path: '/image-compressor' }, 'vi'), '/vi/image-compressor');
-  assert.equal(getLocalizedToolUrl('https://flixoai.vercel.app', tool, 'de'), 'https://flixoai.vercel.app/de/image-compressor');
+  assert.equal(getLocalizedToolUrl('https://flixoai.m1m2m3m4m5m6m700.workers.dev', tool, 'de'), 'https://flixoai.m1m2m3m4m5m6m700.workers.dev/de/image-compressor');
   assert.throws(() => getLocalizedToolPath({ path: '/en/image-compressor?x=1' }, 'en'), /query\/hash/);
 });
 
