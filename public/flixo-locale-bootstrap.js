@@ -1,4 +1,4 @@
-/* global window, document, console */
+/* global window, document */
 (() => {
   const localeMap = {
     en: ['en', 'ltr'], ar: ['ar', 'rtl'], es: ['es', 'ltr'], fr: ['fr', 'ltr'], de: ['de', 'ltr'],
