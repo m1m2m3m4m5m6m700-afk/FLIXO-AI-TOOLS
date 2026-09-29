@@ -49,3 +49,10 @@ Exit: both workflows verified; no private byte egress; negative paths fail close
 Order: WORKER-01 baseline -> WORKER-02 runtime -> WORKER-03 routing/model -> WORKER-04 browser/red-team -> final certification.
 Each worker reads the current exact SHA, reports fact/gap, performs minimal mutation only for confirmed gap, runs targeted tests, invalidates stale evidence after mutation, and hands exact SHA forward.
 No worker may claim certification.
+## Current delegated issue packets
+- WORKER-02 / P0-01: Issue #907; custom profile: .github/agents/flixo-p0-implementer.agent.md
+- WORKER-03 / P0-02: Issue #908; custom profile: .github/agents/flixo-model-resilience.agent.md
+- WORKER-04 / P0-03: Issue #909; custom profile: .github/agents/flixo-browser-privacy.agent.md
+- WORKER-04 / P0-04: Issue #910; custom profile: .github/agents/flixo-redteam-certification.agent.md
+
+Agent profile assignment through the Copilot API could not be completed by the connected GitHub integration (403); the issue packets and repository profiles are created and ready for Copilot assignment when the repository policy exposes that capability.

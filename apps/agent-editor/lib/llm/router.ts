@@ -13,7 +13,21 @@ type ProviderHealth = {
   failureCount: number;
   latencyMs: number;
   unhealthyUntil: number;
+  lastFailureAt: number | null;
 };
+
+function defaultProviderHealth(): ProviderHealth {
+  return {
+    failureCount: 0,
+    latencyMs: 250,
+    unhealthyUntil: 0,
+    lastFailureAt: null,
+  };
+}
+
+const MAX_PROVIDER_ATTEMPTS = 3;
+const FAILURE_THRESHOLD = 2;
+const COOLDOWN_MS = 30_000;
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
@@ -22,6 +36,10 @@ function isAbortError(error: unknown): boolean {
 function rankHealth(health: ProviderHealth, now: number): number {
   const cooldownPenalty = health.unhealthyUntil > now ? 1_000_000 : 0;
   return cooldownPenalty + health.failureCount * 5_000 + health.latencyMs;
+}
+
+function isCooling(health: ProviderHealth, now: number): boolean {
+  return health.unhealthyUntil > now;
 }
 
 export class LLMRouter {
@@ -40,39 +58,39 @@ export class LLMRouter {
     }
 
     const now = Date.now();
-    const eligible = configured.filter((provider) => {
-      const health = this.health.get(provider.name);
-      return !health || health.unhealthyUntil <= now;
-    });
-    if (eligible.length === 0) {
-      throw new LLMUnavailableError("All configured LLM providers are currently cooling down.");
-    }
-    const ordered = [...eligible].sort((a, b) => {
+    const ordered = [...configured].sort((a, b) => {
       const healthA = this.health.get(a.name) ?? {
         failureCount: 0,
         latencyMs: 250,
         unhealthyUntil: 0,
+        lastFailureAt: null,
       };
-      const healthB = this.health.get(b.name) ?? {
-        failureCount: 0,
-        latencyMs: 250,
-        unhealthyUntil: 0,
-      };
+      const healthB = this.health.get(b.name) ?? defaultProviderHealth();
       return rankHealth(healthA, now) - rankHealth(healthB, now);
     });
 
+    const available = ordered.filter((provider) => {
+      const health = this.health.get(provider.name);
+      return !health || !isCooling(health, now);
+    });
+
+    if (available.length === 0) {
+      throw new LLMUnavailableError(
+        "All configured LLM providers are currently cooling down.",
+      );
+    }
+
     let committedText = "";
     let lastError: unknown = undefined;
+    let attempts = 0;
 
-    for (const provider of ordered) {
+    for (const provider of available) {
+      if (attempts >= MAX_PROVIDER_ATTEMPTS) break;
       if (request.signal?.aborted) return;
 
+      attempts += 1;
       const startedAt = Date.now();
-      const health = this.health.get(provider.name) ?? {
-        failureCount: 0,
-        latencyMs: 250,
-        unhealthyUntil: 0,
-      };
+      const health = this.health.get(provider.name) ?? defaultProviderHealth();
 
       try {
         let sawTerminalEvent = false;
@@ -125,8 +143,10 @@ export class LLMRouter {
 
         lastError = error;
         health.failureCount += 1;
-        health.unhealthyUntil =
-          Date.now() + Math.min(60_000, 1_000 * 2 ** Math.min(health.failureCount, 6));
+        health.lastFailureAt = Date.now();
+        if (health.failureCount >= FAILURE_THRESHOLD) {
+          health.unhealthyUntil = Date.now() + COOLDOWN_MS;
+        }
         this.health.set(provider.name, health);
 
         const safeReason =
@@ -135,11 +155,25 @@ export class LLMRouter {
             : "streaming failure";
         console.warn(`[FLIXO_LLM_FAILOVER] ${provider.name}: ${safeReason}`);
 
-        if (provider !== ordered[ordered.length - 1]) {
-          request = {
-            ...request,
-            resumePrefix: committedText.slice(-2048),
-          };
+        request = {
+          ...request,
+          resumePrefix: committedText.slice(-2048),
+        };
+
+        if (health.unhealthyUntil > Date.now()) {
+          const remaining = available.some(
+            (candidate) =>
+              candidate !== provider &&
+              !isCooling(
+                this.health.get(candidate.name) ?? defaultProviderHealth(),
+                Date.now(),
+              ),
+          );
+          if (!remaining) {
+            throw new LLMUnavailableError(
+              "All configured LLM providers are currently cooling down.",
+            );
+          }
         }
       }
     }
