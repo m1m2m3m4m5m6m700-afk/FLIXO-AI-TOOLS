@@ -1,37 +1,31 @@
 # FLIXO — Final Release Evidence
 
-Status: **CURRENT CANDIDATE — NOT YET PROMOTED**
+Status: NOT YET CERTIFIED / NOT YET PROMOTED
 
-## Exact candidate identity
-
+## Last runtime-verified candidate
 - Repository: `m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS`
+- Execution SHA: `ecb640aa79023e03c1a4a37f27cb72bbb31cb072`
 - Main SHA: `faf261be4476eccf293956d792bbb15e2e019061`
-- Execution candidate: `bd41019c3c296d9a8e01453b4aa2218e12593646`
 - Integration PR: #923
-- Direct main mutation during remediation: none
+- Direct main mutation: none
 
-## Fresh candidate evidence
+## Verified evidence
+- FLIXO CI verify: PASS
+- Chromium browser smoke: PASS
+- trust-gate: PASS
+- Exact-SHA promotion proof: PASS
+- Agent Editor STEP 4: PASS
+- Agent Editor Step 5-6: PASS
+- Agent Editor Coverage/internal lcov: PASS
+- CodeQL: PASS
+- Secret Scan/Gitleaks: PASS
 
-- FLIXO CI #15122: PASS
-- Agent Editor STEP 4 #293: PASS
-- Agent Editor Step 5-6 #803: PASS
-- Agent Editor Coverage #485: PASS
-- FLIXO CodeQL #242: PASS
-- FLIXO Secret Scan #238: PASS
-- Clean exact-SHA `npm audit --json`: 0 vulnerabilities
-
-## RT3 closure
-
-- RT3-001: explicit user confirmation now gates local Agent execution.
-- RT3-002: locked media layers cannot be selected or mutated by the local Agent executor.
-- RT3-003: Vitest/coverage tooling upgraded to 5.0.2 and exact-SHA audit is clean.
-
-## Historical evidence
-
-The former production record for `4c214a4dc0f4853f8144d9251de4597706d6b58e` and its associated runs remains historical. It is not current-main evidence.
+## Current release blockers
+1. Main governance hardening is incomplete and cannot be changed through the connected control plane without an exposed ruleset-write capability.
+2. The model-license manifest has zero production-admitted models; release mode requires an evidenced admitted model.
+3. A documentation-only alignment commit requires a fresh exact-SHA verification before it can be considered part of a final release lineage.
 
 ## Final disposition
+NOT_READY — BLOCKERS ENUMERATED
 
-**RELEASE CANDIDATE / NOT YET PROMOTED.**
-
-Final release verification must bind tested, built, browser-verified, security-verified, covered, certified, and deployed identities to one lineage after the final promotion sequence.
+This file must not be changed to CERTIFIED/RELEASE VERIFIED until Prompt 17 PASS, Release Candidate Freeze, Prompt 19 exact-SHA certification, and owner-authorized execution→main promotion with post-merge verification all exist on one lineage.

@@ -1,41 +1,33 @@
 # FLIXO Prompt 01 — Exact-SHA State Reconciliation
 
-STATUS: **PASS — CURRENT CANDIDATE RECONCILED**
-PROMPT_ID: **01**
-START_SHA: `faf261be4476eccf293956d792bbb15e2e019061`
-END_SHA: `bd41019c3c296d9a8e01453b4aa2218e12593646`
-MUTATED: **true (security/test remediation and evidence reconciliation)**
-NEXT_PROMPT: **02**
+STATUS: PASS — HISTORICAL EVIDENCE, REVALIDATION REQUIRED AFTER DOCUMENTATION COMMIT
+PROMPT_ID: 01
+LAST_RUNTIME_VERIFIED_SHA: `ecb640aa79023e03c1a4a37f27cb72bbb31cb072`
+INTEGRATION_PR: #923
 
-## Exact lineage
+## Last verified runtime candidate
+- Main SHA: `faf261be4476eccf293956d792bbb15e2e019061`
+- Execution SHA: `ecb640aa79023e03c1a4a37f27cb72bbb31cb072`
+- PR base: `faf261be4476eccf293956d792bbb15e2e019061`
+- PR head: `ecb640aa79023e03c1a4a37f27cb72bbb31cb072`
 
-- CURRENT_MAIN_SHA: `faf261be4476eccf293956d792bbb15e2e019061`
-- CURRENT_EXECUTION_SHA: `bd41019c3c296d9a8e01453b4aa2218e12593646`
-- ACTIVE_INTEGRATION_PR: #923
-- PR_BASE_SHA: `faf261be4476eccf293956d792bbb15e2e019061`
-- PR_HEAD_SHA: `bd41019c3c296d9a8e01453b4aa2218e12593646`
+## Exact-SHA evidence on the last runtime candidate
+- FLIXO CI verify: PASS
+- Chromium browser smoke: PASS
+- trust-gate: PASS
+- Exact-SHA promotion proof: PASS
+- Agent Editor STEP 4: PASS
+- Agent Editor Step 5-6: PASS
+- Agent Editor Coverage/internal lcov: PASS
+- CodeQL: PASS
+- Secret Scan/Gitleaks: PASS
 
-## Fresh required-check evidence
+## Important freshness rule
+This file is being corrected as documentation only. Any commit after the runtime candidate above invalidates SHA-specific release evidence until the new head is reverified.
 
-- FLIXO CI #15122: **PASS**
-- Agent Editor STEP 4 #293: **PASS**
-- Agent Editor Step 5-6 #803: **PASS**
-- Agent Editor Coverage #485: **PASS**
-- FLIXO CodeQL #242: **PASS**
-- FLIXO Secret Scan #238: **PASS**
-- Clean exact-SHA `npm audit --json`: **0 vulnerabilities**
+## Current release blockers
+1. GitHub main ruleset is under-hardened: 0 required approvals, Code Owner review disabled, strict required-status policy disabled, stale-review dismissal disabled, and review-thread resolution disabled.
+2. `docs/MODEL_LICENSE_MANIFEST.json` has zero admitted production models; release mode explicitly requires at least one evidenced model entry.
+3. Final certification and promotion remain blocked until governance and model-admission prerequisites are satisfied and the final candidate is reverified.
 
-## Security remediation
-
-- RT3-001: explicit confirmation is mandatory at response schema, Agent hook, and executor boundaries.
-- RT3-002: locked media layers are excluded by the target selector and rejected defensively by the executor.
-- RT3-003: Vitest and coverage tooling upgraded to 5.0.2; exact-SHA audit is clean.
-
-## Stale evidence invalidated
-
-Historical release evidence for `4c214a4dc0f4853f8144d9251de4597706d6b58e` and older candidate SHAs is not valid evidence for this candidate.
-No direct main mutation occurred during the remediation.
-
-## Decision
-
-**CURRENT CANDIDATE READY FOR FINAL RED-TEAM / RELEASE-CERTIFICATION FLOW.**
+Decision: NOT CERTIFIED.
