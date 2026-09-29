@@ -29,6 +29,8 @@ const {
   FLIXO_MVP_SCOPE,
   MVP_STANDARD_INTENT_SUITE,
   MVP_STANDARD_INTENT_SUITE_VERSION,
+  MVP_NEGATIVE_INTENT_SUITE,
+  MVP_NEGATIVE_INTENT_SUITE_VERSION,
 } = await import('../src/lib/contracts/mvp-scope.ts');
 const {
   assessVisualGoal,
@@ -48,7 +50,8 @@ test('mandatory FLIXO MVP scope is enforced at the canonical registry boundary',
 });
 
 test('deterministic MVP standard-intent suite is 100% exact', () => {
-  assert.equal(MVP_STANDARD_INTENT_SUITE_VERSION, 1);
+  assert.equal(MVP_STANDARD_INTENT_SUITE_VERSION, 2);
+  assert.equal(MVP_NEGATIVE_INTENT_SUITE_VERSION, 1);
   for (const testCase of MVP_STANDARD_INTENT_SUITE) {
     const plan = planFromIntent(testCase.request);
     assert.ok(plan, testCase.id);
@@ -60,6 +63,12 @@ test('deterministic MVP standard-intent suite is 100% exact', () => {
     for (const step of plan?.steps ?? []) {
       assert.ok(MVP_EXECUTABLE_TOOL_IDS.includes(step.toolId as typeof MVP_EXECUTABLE_TOOL_IDS[number]), testCase.id);
     }
+  }
+});
+
+test('versioned negative MVP intent corpus fails closed', () => {
+  for (const testCase of MVP_NEGATIVE_INTENT_SUITE) {
+    assert.equal(planFromIntent(testCase.request), null, testCase.id);
   }
 });
 
