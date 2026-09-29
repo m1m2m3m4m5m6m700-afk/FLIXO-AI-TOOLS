@@ -27,13 +27,18 @@ export type MvpStandardIntentCase = Readonly<{
   expectedToolIds: readonly string[];
 }>;
 
-export const MVP_STANDARD_INTENT_SUITE_VERSION = 1 as const;
+export const MVP_STANDARD_INTENT_SUITE_VERSION = 2 as const;
+export const MVP_NEGATIVE_INTENT_SUITE_VERSION = 1 as const;
+
+type MvpNegativeIntentCase = Readonly<{ id: string; request: string }>
 
 /**
  * Versioned deterministic acceptance corpus. Every case must resolve to the exact
  * canonical executable tool chain without a provider/network dependency.
  */
 export const MVP_STANDARD_INTENT_SUITE: readonly MvpStandardIntentCase[] = Object.freeze([
+  { id: 'background-en', request: 'remove the background from this image', expectedToolIds: ['background-remover'] },
+  { id: 'background-ar', request: 'إزالة الخلفية', expectedToolIds: ['background-remover'] },
   { id: 'compress-en', request: 'compress my image', expectedToolIds: ['image-compressor'] },
   { id: 'compress-ar', request: 'ضغط الصور', expectedToolIds: ['image-compressor'] },
   { id: 'convert-webp-en', request: 'convert this image to webp', expectedToolIds: ['image-converter'] },
@@ -61,6 +66,12 @@ export const MVP_STANDARD_INTENT_SUITE: readonly MvpStandardIntentCase[] = Objec
   { id: 'compress-video-ar', request: 'ضغط الفيديو', expectedToolIds: ['video-compressor'] },
   { id: 'compound-webp', request: 'compress this image under 200KB and convert to WebP', expectedToolIds: ['image-converter', 'image-compressor'] },
   { id: 'product-square', request: 'prepare a product image for a shop, square', expectedToolIds: ['background-remover', 'image-cropper'] },
+] as const);
+
+export const MVP_NEGATIVE_INTENT_SUITE: readonly MvpNegativeIntentCase[] = Object.freeze([
+  { id: 'unsupported-object-removal', request: 'remove the object from this image' },
+  { id: 'ambiguous-contrast-en', request: 'increase contrast' },
+  { id: 'ambiguous-contrast-ar', request: 'ارفع التباين' },
 ] as const);
 
 type MVPScopedTool = Pick<
