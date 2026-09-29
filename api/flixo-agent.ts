@@ -469,7 +469,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const runtime = configuredRuntime();
     const flixoRoute = routeUserRequestThroughFlixoAgent(userMessage, runtime.provider);
     const conversationId = body.conversationId ?? 'UI-CONVERSATION:' + randomUUID();
-    const taskId = body.taskId ?? 'UI-FLIXO-TASK:' + randomUUID();
+    // Task identity is server-owned. Accepting a caller-supplied taskId would let
+    // a public client overwrite another durable task record if the identifier
+    // becomes known.
+    const taskId = 'UI-FLIXO-TASK:' + randomUUID();
     const idempotencyKey = body.idempotencyKey ?? 'chat:' + conversationId + ':' + taskId + ':' + messages.length;
     const inboundEvent = createAgentEvent({
       source: body.file ? 'FILE_UPLOAD' : 'USER_MESSAGE',
