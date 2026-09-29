@@ -57,7 +57,7 @@ export function ChatInterface(props: ChatInterfaceProps) {
                 <pre>{JSON.stringify(action.parameters, null, 2)}</pre>
               </div>
             ))}
-            <span>This preview is generated from the validated execution request, not from the agent's explanatory text.</span>
+            <span>This preview is generated from the validated execution request, not from the agent&apos;s explanatory text.</span>
             <button type="button" className="button send" onClick={parsed.onConfirm}>
               Confirm
             </button>
