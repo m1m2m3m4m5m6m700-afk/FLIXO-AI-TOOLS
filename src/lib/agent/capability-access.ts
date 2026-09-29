@@ -1,6 +1,6 @@
 import { getCapability,type CapabilityParameters } from './capability-registry.ts';
 import { deriveToolSecurityProfile,assertExecutionSecurityBoundary,type ExecutionPermission } from './execution-observability.ts';
-import { getToolDefinition,type ToolDefinition } from '@/config/canonical-tool-definition.ts';
+import { getToolDefinition,type ToolDefinition } from '../../config/canonical-tool-definition.ts';
 export type CapabilityTrust='CORE'|'TRUSTED'|'UNTRUSTED';
 export type CapabilityAccess=Readonly<{capabilityId:string;permission:ExecutionPermission;trust:CapabilityTrust;executionMode:ToolDefinition['executionMode'];network:boolean;externalProcessing:boolean;localOnly:boolean;}>;
 const R:Record<CapabilityTrust,number>=Object.freeze({UNTRUSTED:0,TRUSTED:1,CORE:2});
