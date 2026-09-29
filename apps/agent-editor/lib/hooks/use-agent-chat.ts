@@ -150,11 +150,14 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
                 : message,
             ),
           );
-          if (response.localExecutionPlans.length > 0) {
+          if (response.requestedToolCalls.length > 0) {
             localExecutionPromise = localExecutionPromise.then(async () => {
               let working = ProjectStateSchema.parse(projectState);
               let failedToolName: string | null = null;
               try {
+                if (response.localExecutionPlans.length !== response.requestedToolCalls.length) {
+                  throw new Error("AGENT_EXECUTION_PLAN_SET_MISMATCH");
+                }
                 for (const call of response.requestedToolCalls) {
                   const plan = response.localExecutionPlans.find((candidate) => candidate.callId === call.callId);
                   if (!plan) throw new Error("AGENT_EXECUTION_PLAN_MISSING");
@@ -166,7 +169,8 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
                 }
               } catch (error) {
                 if (failedToolName) {
-                  setManualFallbackPath("/en/tools/" + encodeURIComponent(failedToolName));
+                  const locale = typeof window !== "undefined" && window.location.pathname.startsWith("/ar/") ? "ar" : "en";
+                  setManualFallbackPath("/" + locale + "/tools/" + encodeURIComponent(failedToolName));
                 }
                 setMessages((previous) =>
                   previous.map((message) =>
