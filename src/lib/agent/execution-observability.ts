@@ -1,4 +1,4 @@
-import type { ToolDefinition } from '@/config/canonical-tool-definition.ts';
+import type { ToolDefinition } from '../../config/canonical-tool-definition.ts';
 import type { TaskContext } from '@flixo/agent-runtime';
 
 export type ExecutionPermission = 'READ' | 'WRITE' | 'EXECUTE';
