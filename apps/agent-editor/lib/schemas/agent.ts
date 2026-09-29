@@ -8,9 +8,10 @@ export const LocalExecutionPlanSchema=z.object({callId:z.string().min(1).max(128
 export type LocalExecutionPlan=z.infer<typeof LocalExecutionPlanSchema>;
 export const ToolCallResultSchema=z.object({callId:z.string().min(1).max(128),toolName:z.string().min(1).max(128),status:z.enum(["success","error"]),data:z.record(z.string(),z.unknown()).optional(),errorDetails:z.string().min(1).max(16_000).optional(),executionTimeMs:z.number().finite().nonnegative().optional()}).strict();
 export type ToolCallResult=z.infer<typeof ToolCallResultSchema>;
-export const ChatMessageSchema=z.object({id:z.string().uuid(),role:MessageRoleSchema,content:z.string().max(100_000),toolCalls:z.array(ToolCallRequestSchema).max(100).optional(),toolResults:z.array(ToolCallResultSchema).max(100).optional(),timestamp:z.string().datetime()}).strict();
+export const ChatMessageSchema=z.object({id:z.string().uuid(),role:MessageRoleSchema,content:z.string().max(100_000),toolCalls:z.array(ToolCallRequestSchema).max(100).optional(),toolResults:z.array(ToolCallResultSchema).max(MAX_AGENT_TOOL_CALLS).optional(),timestamp:z.string().datetime()}).strict();
 export type ChatMessage=z.infer<typeof ChatMessageSchema>;
-export const AgentResponseSchema=z.object({messageId:z.string().uuid(),content:z.string().max(100_000),requestedToolCalls:z.array(ToolCallRequestSchema).max(100).default([]),localExecutionPlans:z.array(LocalExecutionPlanSchema).max(100).default([]),toolResults:z.array(ToolCallResultSchema).max(100).default([]),updatedProjectState:ProjectStateSchema.optional(),requiresUserConfirmation:z.boolean().default(false)}).strict().superRefine((data,ctx)=>{
+const MAX_AGENT_TOOL_CALLS = 4;
+export const AgentResponseSchema=z.object({messageId:z.string().uuid(),content:z.string().max(100_000),requestedToolCalls:z.array(ToolCallRequestSchema).max(MAX_AGENT_TOOL_CALLS).default([]),localExecutionPlans:z.array(LocalExecutionPlanSchema).max(MAX_AGENT_TOOL_CALLS).default([]),toolResults:z.array(ToolCallResultSchema).max(100).default([]),updatedProjectState:ProjectStateSchema.optional(),requiresUserConfirmation:z.boolean().default(false)}).strict().superRefine((data,ctx)=>{
   if(data.localExecutionPlans.length>0&&data.requiresUserConfirmation!==true){
     ctx.addIssue({code:z.ZodIssueCode.custom,path:["requiresUserConfirmation"],message:"Local execution plans require explicit user confirmation."});
   }
