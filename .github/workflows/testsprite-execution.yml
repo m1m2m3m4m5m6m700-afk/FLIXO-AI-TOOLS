@@ -40,18 +40,21 @@ jobs:
           for i in {1..60}; do
             if curl -fsS http://127.0.0.1:3000/ >/dev/null; then
               echo "FLIXO is live on http://127.0.0.1:3000"
-              break
+              exit 0
             fi
             sleep 2
           done
-          curl -fsS http://127.0.0.1:3000/ >/dev/null
+          echo "::error::FLIXO did not become reachable on port 3000."
+          cat /tmp/flixo-vite.log
+          exit 1
 
       - name: Install pinned TestSprite CLI
         run: npm install --global @testsprite/testsprite-cli@0.4.0
 
-      - name: Verify TestSprite credentials and connectivity
+      - name: Verify TestSprite configuration
         env:
           TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
+          TESTSPRITE_PROJECT_ID: ${{ vars.TESTSPRITE_PROJECT_ID }}
         shell: bash
         run: |
           set -euo pipefail
@@ -59,141 +62,26 @@ jobs:
             echo "::error::TESTSPRITE_API_KEY repository secret is missing."
             exit 3
           }
+          test -n "${TESTSPRITE_PROJECT_ID}" || {
+            echo "::error::TESTSPRITE_PROJECT_ID repository variable is missing."
+            echo "Create a TestSprite frontend project once with: testsprite project create --type frontend --name FLIXO-AI-TOOLS --local 3000"
+            exit 4
+          }
           testsprite --version
           testsprite doctor
 
-      - name: Resolve or create FLIXO TestSprite project
-        id: project
+      - name: Run TestSprite suite against exact execution build
         env:
           TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
           TESTSPRITE_PROJECT_ID: ${{ vars.TESTSPRITE_PROJECT_ID }}
         shell: bash
         run: |
           set -euo pipefail
-          project_id="${TESTSPRITE_PROJECT_ID:-}"
-          if [ -z "${project_id}" ]; then
-            projects="$(testsprite project list --output json)"
-            project_id="$(printf '%s' "${projects}" | node -e '
-              let s = "";
-              process.stdin.on("data", d => s += d);
-              process.stdin.on("end", () => {
-                const d = JSON.parse(s);
-                const rows = d.projects ?? d.result?.projects ?? [];
-                const p = rows.find(x => x.name === "FLIXO-AI-TOOLS");
-                process.stdout.write(p?.id ?? "");
-              });
-            ')"
-          fi
-          if [ -z "${project_id}" ]; then
-            created="$(testsprite project create --type frontend --name "FLIXO-AI-TOOLS" --local 3000 --skip-preflight --output json)"
-            project_id="$(printf '%s' "${created}" | node -e '
-              let s = "";
-              process.stdin.on("data", d => s += d);
-              process.stdin.on("end", () => {
-                const d = JSON.parse(s);
-                process.stdout.write(d.id ?? d.project?.id ?? d.result?.id ?? d.result?.project?.id ?? "");
-              });
-            ')"
-          fi
-          test -n "${project_id}" || {
-            echo "::error::Unable to resolve or create the TestSprite project."
-            exit 5
-          }
-          echo "project_id=${project_id}" >> "$GITHUB_OUTPUT"
-          echo "TestSprite project: ${project_id}"
-
-      - name: Author missing FLIXO smoke tests
-        env:
-          TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
-          PROJECT_ID: ${{ steps.project.outputs.project_id }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p .testsprite/plans
-
-          cat >.testsprite/plans/home.json <<EOF
-          {
-            "projectId": "${PROJECT_ID}",
-            "type": "frontend",
-            "name": "FLIXO home page renders the primary workspace",
-            "planSteps": [
-              {"type":"action","description":"Navigate to /"},
-              {"type":"assertion","description":"Verify the FLIXO application renders without a startup error and the main workspace is visible."},
-              {"type":"assertion","description":"Verify the page exposes a navigation link or control that can open the Tools area."}
-            ]
-          }
-          EOF
-
-          cat >.testsprite/plans/agent.json <<EOF
-          {
-            "projectId": "${PROJECT_ID}",
-            "type": "frontend",
-            "name": "FLIXO agent page is reachable",
-            "planSteps": [
-              {"type":"action","description":"Navigate to /agent"},
-              {"type":"assertion","description":"Verify the FLIXO Agent page renders without a startup error."},
-              {"type":"assertion","description":"Verify the page exposes the agent workspace or conversation surface."}
-            ]
-          }
-          EOF
-
-          cat >.testsprite/plans/tools.json <<EOF
-          {
-            "projectId": "${PROJECT_ID}",
-            "type": "frontend",
-            "name": "FLIXO tools catalog is reachable",
-            "planSteps": [
-              {"type":"action","description":"Navigate to /tools"},
-              {"type":"assertion","description":"Verify the tools catalog renders without a startup error."},
-              {"type":"assertion","description":"Verify at least one tool entry or tool card is visible."}
-            ]
-          }
-          EOF
-
-          cat >.testsprite/plans/arabic.json <<EOF
-          {
-            "projectId": "${PROJECT_ID}",
-            "type": "frontend",
-            "name": "FLIXO Arabic home route renders RTL",
-            "planSteps": [
-              {"type":"action","description":"Navigate to /ar"},
-              {"type":"assertion","description":"Verify the Arabic FLIXO home page renders without a startup error."},
-              {"type":"assertion","description":"Verify the document uses Arabic locale direction RTL."}
-            ]
-          }
-          EOF
-
-          existing="$(testsprite test list --project "${PROJECT_ID}" --type frontend --output json)"
-          for plan in .testsprite/plans/*.json; do
-            name="$(node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); process.stdout.write(p.name)' "${plan}")"
-            exists="$(printf '%s' "${existing}" | node -e '
-              const wanted = process.argv[1];
-              let s = "";
-              process.stdin.on("data", d => s += d);
-              process.stdin.on("end", () => {
-                const d = JSON.parse(s);
-                const rows = d.tests ?? d.result?.tests ?? [];
-                process.stdout.write(rows.some(x => x.name === wanted) ? "yes" : "no");
-              });
-            ' "${name}")"
-            if [ "${exists}" != "yes" ]; then
-              testsprite test create --plan-from "${plan}" --output json
-            fi
-          done
-
-      - name: Run TestSprite suite against exact local build
-        env:
-          TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
-          PROJECT_ID: ${{ steps.project.outputs.project_id }}
-        shell: bash
-        run: |
-          set -euo pipefail
           SHA="$(git rev-parse HEAD)"
-          echo "tested_sha=${SHA}" >> "$GITHUB_STEP_SUMMARY"
-          echo "## TestSprite" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Execution SHA: `${SHA}`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Project: `${PROJECT_ID}`" >> "$GITHUB_STEP_SUMMARY"
-          testsprite test run --all --project "${PROJECT_ID}" --local 3000 --wait --timeout 1200 --report junit --report-file testsprite-junit.xml --summary-file testsprite-summary.json --output json
+          echo "## TestSprite exact-SHA verification" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tested SHA: `${SHA}`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Target: local FLIXO on port 3000" >> "$GITHUB_STEP_SUMMARY"
+          testsprite test run --all --project "${TESTSPRITE_PROJECT_ID}" --local 3000 --wait --timeout 1200 --report junit --report-file testsprite-junit.xml --summary-file testsprite-summary.json --output json
 
       - name: Upload TestSprite evidence
         if: always()
@@ -203,6 +91,5 @@ jobs:
           path: |
             testsprite-junit.xml
             testsprite-summary.json
-            .testsprite/
             /tmp/flixo-vite.log
           if-no-files-found: ignore
