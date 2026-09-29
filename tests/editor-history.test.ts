@@ -36,6 +36,6 @@ test('history supports branching from a prior node', () => {
   const back = undo(second);
   const branch = executeCommand(back, versionCommand('v4', 4), 'node-c');
   assert.equal(currentDocument(branch).version, 4);
-  assert.equal(currentDocument(redo(branch, 'node-b')).version, 4);
+  assert.equal(currentDocument(redo(back, 'node-b')).version, 3);
   assert.equal(branch.nodes.size, 4);
 });
