@@ -134,7 +134,35 @@ jobs:
           echo "## TestSprite exact-SHA verification" >> "$GITHUB_STEP_SUMMARY"
           echo "- Tested SHA: `${SHA}`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Target: local FLIXO on port 3000" >> "$GITHUB_STEP_SUMMARY"
+          set +e
           testsprite test run --all --project "${TESTSPRITE_PROJECT_ID}" --local 3000 --wait --timeout 1200 --report junit --report-file testsprite-junit.xml --summary-file testsprite-summary.json --output json
+          RUN_RC=$?
+          set -e
+          test -f testsprite-summary.json || {
+            echo "::error::TestSprite produced no summary file."
+            exit 1
+          }
+          TESTSPRITE_RUN_RC="${RUN_RC}" node <<'NODE'
+          const fs = require('fs');
+          const summary = JSON.parse(fs.readFileSync('testsprite-summary.json', 'utf8'));
+          const total = Number(summary.total ?? 0);
+          const passed = Number(summary.passed ?? 0);
+          const failed = Number(summary.failed ?? 0);
+          const skipped = Number(summary.skipped ?? 0);
+          const timedOut = Number(summary.timedOut ?? summary.timed_out ?? 0);
+          const runRc = Number(process.env.TESTSPRITE_RUN_RC ?? 1);
+
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            `- TestSprite verdict: total=${total}, passed=${passed}, failed=${failed}, skipped=${skipped}, timedOut=${timedOut}\\n`);
+
+          if (total < 1) throw new Error('FAIL-CLOSED: TestSprite dispatched zero tests.');
+          if (passed !== total || failed !== 0 || skipped !== 0 || timedOut !== 0) {
+            throw new Error(
+              `FAIL-CLOSED: incomplete TestSprite verdict. total=${total} passed=${passed} failed=${failed} skipped=${skipped} timedOut=${timedOut}`,
+            );
+          }
+          if (runRc !== 0) throw new Error(`FAIL-CLOSED: TestSprite exited with code ${runRc}.`);
+          NODE
 
       - name: Upload TestSprite evidence
         if: always()
