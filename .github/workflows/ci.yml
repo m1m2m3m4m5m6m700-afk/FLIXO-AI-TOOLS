@@ -143,6 +143,7 @@ jobs:
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
           BASE_BRANCH: ${{ github.event.pull_request.base.ref || github.ref_name }}
           ACTOR: ${{ github.actor }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
           TRUST_RESULT: ${{ needs.trust-gate.result }}
         run: |
           set -euo pipefail
@@ -150,8 +151,15 @@ jobs:
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
 
           if [ "$BASE_BRANCH" = "main" ]; then
-            if [ "$HEAD_BRANCH" != "execution" ] && [ "$ACTOR" != "dependabot[bot]" ]; then
-              echo "Unsupported main PR source: head=$HEAD_BRANCH actor=$ACTOR" >&2
+            if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+              if [ "$HEAD_BRANCH" != "execution" ] && [ "$ACTOR" != "dependabot[bot]" ]; then
+                echo "Unsupported main PR source: head=$HEAD_BRANCH actor=$ACTOR" >&2
+                exit 1
+              fi
+            elif [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$HEAD_BRANCH" = "main" ]; then
+              echo "Direct main push release event accepted for exact-SHA post-merge verification."
+            else
+              echo "Unsupported main verification event: event=$GITHUB_EVENT_NAME head=$HEAD_BRANCH" >&2
               exit 1
             fi
           elif [ "$BASE_BRANCH" = "execution" ]; then
