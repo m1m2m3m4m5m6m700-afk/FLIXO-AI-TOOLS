@@ -1,4 +1,0 @@
-import type {KnowledgeRecord} from './types';
-export type MemoryLayer='WORKING'|'SESSION'|'USER'|'EPISODIC'|'SEMANTIC'|'ERROR_REPAIR';
-export type MemoryPolicy={minConfidence:number;maxRecords:number;retentionDays:number};
-export function selectMemories(records:readonly KnowledgeRecord[],layer:MemoryLayer,policy:MemoryPolicy){if(!Number.isFinite(policy.minConfidence)||policy.minConfidence<0||policy.minConfidence>1)throw new Error('Invalid memory confidence policy');return records.filter(r=>r.validity==='CURRENT'&&r.confidence>=policy.minConfidence).sort((a,b)=>b.confidence-a.confidence||a.fingerprint.localeCompare(b.fingerprint)).slice(0,policy.maxRecords).map(r=>Object.freeze({layer,record:r}));}

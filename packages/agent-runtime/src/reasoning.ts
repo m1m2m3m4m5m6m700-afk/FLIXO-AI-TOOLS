@@ -1,2 +1,0 @@
-export type PlanStep={id:string,dependsOn:string[],action:string};
-export function validatePlan(steps:readonly PlanStep[]){const ids=new Set<string>();for(const s of steps){if(ids.has(s.id))throw new Error('Duplicate plan step');ids.add(s.id);if(s.dependsOn.includes(s.id))throw new Error('Self dependency');for(const d of s.dependsOn)if(!ids.has(d))throw new Error('Dependency must precede dependent step');}return [...steps];}
