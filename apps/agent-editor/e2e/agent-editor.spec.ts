@@ -24,7 +24,7 @@ test.describe("FLIXO Agent Editor end-to-end", () => {
     await expect(page.getByText(/Untitled Creative Project · v2/u)).toBeVisible();
     await expect(page.getByTestId("active-tool")).toHaveCount(0);
     await expect.poll(
-      async () => page.locator('[data-testid="media-preview"] canvas').evaluate((canvas) => canvas.toDataURL()),
+      async () => page.locator('[data-testid="media-preview"] canvas').evaluate((element) => (element as HTMLCanvasElement).toDataURL()),
     ).not.toBe(initialCanvas);
     expect(consoleErrors).toEqual([]);
   });
