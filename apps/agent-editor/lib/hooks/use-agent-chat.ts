@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { interpretConfirmation, type ConfirmationDecision } from "@flixo/agent-runtime";
 import { z } from "zod";
 import {
   AgentResponseSchema,
@@ -8,6 +9,7 @@ import {
   type ChatMessage,
 } from "@/lib/schemas/agent";
 import { ProjectStateSchema, type ProjectState } from "@/lib/schemas/project";
+import { prepareAgentLocalExecution, type PendingAgentExecution } from "@/lib/agent/confirmation-gate";
 import { executeAgentToolLocally } from "@/lib/tools/local-executor";
 
 export interface UseAgentChatOptions {
@@ -61,17 +63,204 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [manualFallbackPath, setManualFallbackPath] = useState<string | null>(null);
+  const [confirmationPending, setConfirmationPending] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
+  const pendingExecutionRef = useRef<PendingAgentExecution | null>(null);
 
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
+  const executePendingExecution = useCallback(
+    async (pending: PendingAgentExecution, assistantMessageId: string) => {
+      setIsStreaming(true);
+      setActiveTool(null);
+      setManualFallbackPath(null);
+      let working: ProjectState;
+      let failedToolName: string | null = null;
+      try {
+        if (!projectState) throw new Error("AGENT_PROJECT_STATE_REQUIRED");
+        working = ProjectStateSchema.parse(projectState);
+        for (const call of pending.requestedToolCalls) {
+          const plan = pending.localExecutionPlans.find(
+            (candidate) => candidate.callId === call.callId,
+          );
+          if (!plan) throw new Error("AGENT_EXECUTION_PLAN_MISSING");
+          failedToolName = call.toolName;
+          setActiveTool(call.toolName);
+          working = await executeAgentToolLocally(
+            working,
+            call,
+            plan,
+            "CONFIRM",
+          );
+          setProjectState(working);
+          failedToolName = null;
+        }
+        setMessages((previous) =>
+          previous.map((message) =>
+            message.id === assistantMessageId
+              ? {
+                  ...message,
+                  content: "Confirmed. Local execution completed.",
+                }
+              : message,
+          ),
+        );
+      } catch (error) {
+        if (failedToolName) {
+          setManualFallbackPath(
+            "/en/tools/" + encodeURIComponent(failedToolName),
+          );
+        }
+        setMessages((previous) =>
+          previous.map((message) =>
+            message.id === assistantMessageId
+              ? {
+                  ...message,
+                  content:
+                    error instanceof Error
+                      ? error.message
+                      : "Local execution failed.",
+                }
+              : message,
+          ),
+        );
+      } finally {
+        setActiveTool(null);
+        setIsStreaming(false);
+      }
+    },
+    [projectState, setProjectState],
+  );
+
+  const confirmPendingExecution = useCallback(async () => {
+    const pending = pendingExecutionRef.current;
+    if (!pending || isStreaming) return;
+    pendingExecutionRef.current = null;
+    setConfirmationPending(false);
+    const now = new Date().toISOString();
+    const userMessage = ChatMessageSchema.parse({
+      id: crypto.randomUUID(),
+      role: "user",
+      content: "Confirm",
+      timestamp: now,
+    });
+    const assistantMessageId = crypto.randomUUID();
+    const assistantMessage = ChatMessageSchema.parse({
+      id: assistantMessageId,
+      role: "assistant",
+      content: "Confirmed. Executing the approved local edit.",
+      timestamp: now,
+    });
+    setMessages((previous) => [...previous, userMessage, assistantMessage]);
+    await executePendingExecution(pending, assistantMessageId);
+  }, [executePendingExecution, isStreaming]);
+
+  const cancelPendingExecution = useCallback(() => {
+    if (!pendingExecutionRef.current) return;
+    pendingExecutionRef.current = null;
+    setConfirmationPending(false);
+    setActiveTool(null);
+    setManualFallbackPath(null);
+    const now = new Date().toISOString();
+    setMessages((previous) => [
+      ...previous,
+      ChatMessageSchema.parse({
+        id: crypto.randomUUID(),
+        role: "user",
+        content: "Cancel",
+        timestamp: now,
+      }),
+      ChatMessageSchema.parse({
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: "Cancelled. No local tool was executed.",
+        timestamp: now,
+      }),
+    ]);
+  }, []);
+
+  const handleAgentResponse = useCallback(
+    (response: z.infer<typeof AgentResponseSchema>, assistantMessageId: string) => {
+      setMessages((previous) =>
+        previous.map((message) =>
+          message.id === assistantMessageId
+            ? { ...message, content: response.content }
+            : message,
+        ),
+      );
+      const pending = prepareAgentLocalExecution(response);
+      if (pending) {
+        pendingExecutionRef.current = pending;
+        setConfirmationPending(true);
+        setActiveTool(null);
+        setMessages((previous) =>
+          previous.map((message) =>
+            message.id === assistantMessageId
+              ? {
+                  ...message,
+                  content:
+                    response.content +
+                    "
+
+Review the requested edit, then Confirm or Cancel.",
+                }
+              : message,
+          ),
+        );
+        return;
+      }
+      if (response.requiresUserConfirmation) {
+        throw new Error("AGENT_EXECUTION_CONFIRMATION_REQUIRED");
+      }
+      if (response.updatedProjectState) {
+        const parsed = ProjectStateSchema.safeParse(response.updatedProjectState);
+        if (parsed.success) setProjectState(parsed.data);
+      }
+    },
+    [setProjectState],
+  );
+
   const sendMessage = useCallback(
     async (content: string) => {
       const normalizedContent = content.trim();
-      if (!normalizedContent || isStreaming) return;
+      if (!normalizedContent) return;
+
+      if (pendingExecutionRef.current) {
+        if (isStreaming) return;
+        const decision: ConfirmationDecision = interpretConfirmation(
+          normalizedContent,
+        );
+        if (decision === "CONFIRM") {
+          await confirmPendingExecution();
+          return;
+        }
+        if (decision === "CANCEL") {
+          cancelPendingExecution();
+          return;
+        }
+        const now = new Date().toISOString();
+        setMessages((previous) => [
+          ...previous,
+          ChatMessageSchema.parse({
+            id: crypto.randomUUID(),
+            role: "user",
+            content: normalizedContent,
+            timestamp: now,
+          }),
+          ChatMessageSchema.parse({
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: "Confirmation required before the pending edit can run. Reply Confirm or Cancel.",
+            timestamp: now,
+          }),
+        ]);
+        return;
+      }
+
+      if (isStreaming) return;
 
       const now = new Date().toISOString();
       const userMessage = ChatMessageSchema.parse({
@@ -101,8 +290,6 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
       let lastEventId = 0;
       let sawAgentResponse = false;
       let sawDone = false;
-      let localExecutionPromise = Promise.resolve();
-
       const applyEvent = (event: SseEvent) => {
         if (event.id !== null && event.id <= lastEventId) return;
         if (event.id !== null) lastEventId = event.id;
@@ -116,13 +303,12 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
         }
 
         if (event.event === "tool_call_start") {
-          const payload = z
+          z
             .object({
               callId: z.string().min(1),
               toolName: z.string().min(1),
             })
             .parse(JSON.parse(event.data));
-          setActiveTool(payload.toolName);
           return;
         }
 
@@ -143,43 +329,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
         if (event.event === "agent_response") {
           const response = AgentResponseSchema.parse(JSON.parse(event.data));
           sawAgentResponse = true;
-          setMessages((previous) =>
-            previous.map((message) =>
-              message.id === assistantMessageId
-                ? { ...message, content: response.content }
-                : message,
-            ),
-          );
-          if (response.localExecutionPlans.length > 0) {
-            localExecutionPromise = localExecutionPromise.then(async () => {
-              let working = ProjectStateSchema.parse(projectState);
-              let failedToolName: string | null = null;
-              try {
-                for (const call of response.requestedToolCalls) {
-                  const plan = response.localExecutionPlans.find((candidate) => candidate.callId === call.callId);
-                  if (!plan) throw new Error("AGENT_EXECUTION_PLAN_MISSING");
-                  failedToolName = call.toolName;
-                  setActiveTool(call.toolName);
-                  working = await executeAgentToolLocally(working, call, plan);
-                  setProjectState(working);
-                  failedToolName = null;
-                }
-              } catch (error) {
-                if (failedToolName) {
-                  setManualFallbackPath("/en/tools/" + encodeURIComponent(failedToolName));
-                }
-                setMessages((previous) =>
-                  previous.map((message) =>
-                    message.id === assistantMessageId
-                      ? { ...message, content: error instanceof Error ? error.message : "Local execution failed." }
-                      : message,
-                  ),
-                );
-              } finally {
-                setActiveTool(null);
-              }
-            });
-          }
+          handleAgentResponse(response, assistantMessageId);
           return;
         }
 
@@ -231,17 +381,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
         if (contentType.includes("application/json")) {
           const result = AgentResponseSchema.parse(await response.json());
           sawAgentResponse = true;
-          setMessages((previous) =>
-            previous.map((message) =>
-              message.id === assistantMessageId
-                ? { ...message, content: result.content }
-                : message,
-            ),
-          );
-          if (result.updatedProjectState) {
-            const parsed = ProjectStateSchema.safeParse(result.updatedProjectState);
-            if (parsed.success) setProjectState(parsed.data);
-          }
+          handleAgentResponse(result, assistantMessageId);
           return;
         }
 
@@ -281,8 +421,6 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
           }
         }
 
-        await localExecutionPromise;
-
         if (!sawDone && !sawAgentResponse) {
           setMessages((previous) =>
             previous.map((message) =>
@@ -307,7 +445,13 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
         abortControllerRef.current = null;
       }
     },
-    [isStreaming, projectState],
+    [
+      cancelPendingExecution,
+      confirmPendingExecution,
+      handleAgentResponse,
+      isStreaming,
+      projectState,
+    ],
   );
 
   const stopStreaming = useCallback(() => {
@@ -320,7 +464,10 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
     isStreaming,
     activeTool,
     manualFallbackPath,
+    confirmationPending,
     sendMessage,
+    confirmPendingExecution,
+    cancelPendingExecution,
     stopStreaming,
     setProjectState,
   };
