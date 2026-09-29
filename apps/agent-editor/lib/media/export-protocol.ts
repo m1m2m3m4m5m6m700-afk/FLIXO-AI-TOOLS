@@ -5,13 +5,12 @@ export const MediaExportFormatSchema = z.enum(["mp4", "webm", "gif", "png", "png
 export type MediaExportFormat = z.infer<typeof MediaExportFormatSchema>;
 
 export const ExportRequestSchema = z.object({
-  jobId: z.string().min(1),
+  jobId: z.string().min(1).max(128),
   project: z.unknown(),
   format: MediaExportFormatSchema,
   frameStart: z.number().int().nonnegative(),
   frameEnd: z.number().int().nonnegative(),
-  ffmpegBasePath: z.string().min(1).default("/ffmpeg"),
-});
+}).strict();
 
 export type ExportRequest = Omit<z.infer<typeof ExportRequestSchema>, "project"> & {
   project: ProjectState;

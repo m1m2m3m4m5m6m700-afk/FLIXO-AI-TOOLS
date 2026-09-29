@@ -5,7 +5,7 @@ import type { ToolOutputContract, ToolOutputVariant } from './tool-output';
 const image: ToolOutputVariant = { kind: 'image', outputMimeTypes: ['image/png', 'image/jpeg', 'image/webp'], allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'], signatures: ['89504e470d0a1a0a', 'ffd8ff', '52494646'], compoundSignatures: [{ offset: 8, signature: '57454250', mimeTypes: ['image/webp'] }], downloadRequired: true, minOutputBytes: 1, maxOutputBytes: 50 * 1024 * 1024, maxPixels: 100_000_000, validateDimensions: true };
 const svg: ToolOutputVariant = { kind: 'svg', outputMimeTypes: ['image/svg+xml'], allowedExtensions: ['svg'], downloadRequired: true, minOutputBytes: 1, maxOutputBytes: 10 * 1024 * 1024, parseAs: 'utf8' };
 const text: ToolOutputVariant = { kind: 'text', outputMimeTypes: ['text/plain'], allowedExtensions: ['txt'], downloadRequired: true, minOutputBytes: 1, maxOutputBytes: 25 * 1024 * 1024, parseAs: 'utf8' };
-const video: ToolOutputVariant = { kind: 'video', outputMimeTypes: ['video/webm'], allowedExtensions: ['webm'], signatures: ['1a45dfa3'], downloadRequired: true, minOutputBytes: 4, maxOutputBytes: 512 * 1024 * 1024, validateDimensions: false };
+const video: ToolOutputVariant = { kind: 'video', outputMimeTypes: ['video/webm'], allowedExtensions: ['webm'], signatures: ['1a45dfa3'], downloadRequired: true, minOutputBytes: 4, maxOutputBytes: 512 * 1024 * 1024, maxPixels: 64_000_000, validateDimensions: true };
 const json: ToolOutputVariant = { kind: 'json', outputMimeTypes: ['application/json'], allowedExtensions: ['json'], downloadRequired: true, minOutputBytes: 2, maxOutputBytes: 25 * 1024 * 1024, parseAs: 'json' };
 
 const contracts: Record<string, ToolOutputContract> = {
