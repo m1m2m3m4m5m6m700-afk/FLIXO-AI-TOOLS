@@ -73,4 +73,4 @@ jobs:
         with:
           use_oidc: true
           files: apps/agent-editor/coverage/lcov.info
-          fail_ci_if_error: false
+          fail_ci_if_error: true
