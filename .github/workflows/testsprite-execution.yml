@@ -5,6 +5,12 @@ on:
     branches:
       - execution
   workflow_dispatch:
+    inputs:
+      bootstrap_suite:
+        description: "Create any missing FLIXO TestSprite cases from committed plans before running the suite"
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
   group: testsprite-execution-${{ github.ref }}
@@ -64,11 +70,55 @@ jobs:
           }
           test -n "${TESTSPRITE_PROJECT_ID}" || {
             echo "::error::TESTSPRITE_PROJECT_ID repository variable is missing."
-            echo "Create a TestSprite frontend project once with: testsprite project create --type frontend --name FLIXO-AI-TOOLS --local 3000"
+            echo "Create a TestSprite V3 frontend project once with: testsprite project create --type frontend --name FLIXO-AI-TOOLS --local 3000"
             exit 4
           }
           testsprite --version
           testsprite doctor
+
+      - name: Bootstrap missing FLIXO TestSprite cases
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.bootstrap_suite }}
+        env:
+          TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
+          TESTSPRITE_PROJECT_ID: ${{ vars.TESTSPRITE_PROJECT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .testsprite/bootstrap-plans
+          mkdir -p .testsprite/bootstrap-plans
+
+          for template in .testsprite/plans/*.json; do
+            target=".testsprite/bootstrap-plans/$(basename "${template}")"
+            sed "s/__TESTSPRITE_PROJECT_ID__/${TESTSPRITE_PROJECT_ID}/g" "${template}" > "${target}"
+          done
+
+          testsprite test lint --plan-from-dir .testsprite/bootstrap-plans
+
+          testsprite test list --project "${TESTSPRITE_PROJECT_ID}" --type frontend --max-items 200 --output json > .testsprite/existing-tests.json
+
+          missing=0
+          for plan in .testsprite/bootstrap-plans/*.json; do
+            name="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync(process.argv[1],"utf8")).name)' "${plan}")"
+            exists="$(node -e '
+              const fs=require("fs");
+              const data=JSON.parse(fs.readFileSync(".testsprite/existing-tests.json","utf8"));
+              const wanted=process.argv[1];
+              const tests=data.tests ?? data.result?.tests ?? data.items ?? [];
+              process.stdout.write(tests.some((t) => t.name === wanted) ? "yes" : "no");
+            ' "${name}")"
+            if [ "${exists}" != "yes" ]; then
+              echo "Missing TestSprite case: ${name}"
+              missing=$((missing + 1))
+              cp "${plan}" ".testsprite/bootstrap-plans/missing-$(basename "${plan}")"
+              rm "${plan}"
+            fi
+          done
+
+          if [ "${missing}" -gt 0 ]; then
+            testsprite test create-batch --plan-from-dir .testsprite/bootstrap-plans --output json
+          else
+            echo "All committed FLIXO TestSprite cases already exist."
+          fi
 
       - name: Run TestSprite suite against exact execution build
         env:
@@ -91,5 +141,6 @@ jobs:
           path: |
             testsprite-junit.xml
             testsprite-summary.json
+            .testsprite/bootstrap-plans
             /tmp/flixo-vite.log
           if-no-files-found: ignore
