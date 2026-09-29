@@ -1,7 +1,0 @@
-# Security-sensitive repository control plane.
-# Enforce this file through the GitHub branch Ruleset/required-review setting.
-/.github/workflows/ @m1m2m3m4m5m6m700-afk
-/.github/CODEOWNERS @m1m2m3m4m5m6m700-afk
-/scripts/ci/ @m1m2m3m4m5m6m700-afk
-/docs/security.md @m1m2m3m4m5m6m700-afk
-/docs/agents/ @m1m2m3m4m5m6m700-afk
