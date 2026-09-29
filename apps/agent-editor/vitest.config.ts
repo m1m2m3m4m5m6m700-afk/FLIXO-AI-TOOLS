@@ -6,9 +6,16 @@ const appRoot = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   resolve: {
-    alias: {
-      "@": path.resolve(appRoot),
-    },
+    alias: [
+      {
+        find: "@/config",
+        replacement: path.resolve(appRoot, "../../src/config"),
+      },
+      {
+        find: "@",
+        replacement: path.resolve(appRoot),
+      },
+    ],
     dedupe: ["react", "react-dom"],
   },
   test: {
