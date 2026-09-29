@@ -25,3 +25,12 @@ test('production worker rejects mismatched deployment identity', async () => {
   });
   assert.equal(response.status, 404);
 });
+
+
+test('production worker rejects identity when canonical asset SHA does not match', async () => {
+  const requested = 'a'.repeat(40);
+  const response = await worker.fetch(new Request('https://flixoai.example/__flixo-identity-' + requested + '.txt'), {
+    ASSETS: { fetch: async () => new Response('b'.repeat(40) + '\n', { status: 200 }) },
+  });
+  assert.equal(response.status, 404);
+});
