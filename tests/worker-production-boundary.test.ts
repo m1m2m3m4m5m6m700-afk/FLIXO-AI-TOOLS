@@ -16,3 +16,12 @@ test('production worker returns JSON 404 for API paths instead of SPA HTML', asy
   assert.equal((response.headers.get('content-type') ?? '').includes('application/json'), true);
   assert.equal((await response.json() as { error: string }).error, 'API_NOT_EXPOSED_ON_STATIC_PRODUCTION_WORKER');
 });
+
+test('production worker rejects mismatched deployment identity', async () => {
+  const requested = 'a'.repeat(40);
+  const response = await worker.fetch(new Request('https://flixoai.example/__flixo-identity-' + requested + '.txt'), {
+    FLIXO_DEPLOYMENT_SHA: 'b'.repeat(40),
+    ASSETS: { fetch: async () => { throw new Error('asset fallback must not run for identity'); } },
+  });
+  assert.equal(response.status, 404);
+});
