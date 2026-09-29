@@ -48,5 +48,6 @@ describe("AgentRuntime — canonical planning only",()=>{
     expect(response.localExecutionPlans[0]?.executorId).toBe("background-remover");
     expect(response.toolResults).toHaveLength(0);
     expect(response.updatedProjectState).toBeUndefined();
+    expect(response.requiresUserConfirmation).toBe(true);
   });
 });
