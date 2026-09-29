@@ -8,6 +8,11 @@ export const ChatInterfacePropsSchema = z.object({
   activeTool: z.string().nullable(),
   manualFallbackPath: z.string().regex(/^\/en\/tools\/[a-z0-9-]+$/).nullable(),
   confirmationPending: z.boolean(),
+  confirmationPreview: z.array(z.object({
+    callId: z.string().min(1).max(128),
+    toolName: z.string().min(1).max(128),
+    parameters: z.record(z.string(), z.unknown()),
+  }).strict()),
   onSendMessage: z.function().args(z.string()).returns(z.unknown()),
   onConfirm: z.function().args().returns(z.unknown()),
   onCancel: z.function().args().returns(z.unknown()),
