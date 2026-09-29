@@ -164,7 +164,7 @@ export const createDocumentEngine = (document: Document): DocumentEngine => {
             ...patch,
             id: layer.id,
             transform: patch.transform ? Object.freeze({ ...patch.transform }) : layer.transform,
-          })), [layerId]),
+          }) as Layer), [layerId]),
       }, [layerId]);
     },
 
