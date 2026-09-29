@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const ja: LocalizedToolSeo = { title:'画像に透かしを追加', description:'ブラウザで画像にテキスト透かしを追加できます。', intro:'透かし文字を入力し、元画像をアップロードせずにローカルで処理します。', keywords:['画像 透かし 追加','ウォーターマーク追加','画像に文字'], howTo:['画像をアップロード。','透かし文字を入力。','適用して結果をダウンロード。'], features:['ローカル処理','テキスト透かし','高速ダウンロード'], altText:['透かしエディター','文字プレビュー','透かし付き画像'] };

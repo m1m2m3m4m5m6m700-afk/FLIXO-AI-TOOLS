@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest'; export const zh: LocalizedToolSeo = { title: '在线放大图片', description: '在浏览器中本地放大图片。', intro: '放大 JPG、PNG 和 WebP 图片，适合屏幕和数字内容处理，原始文件无需上传服务器。', keywords: ['图片放大', '提高图片分辨率', '照片放大'], howTo: ['选择图片。', '选择放大倍数。', '下载结果。'], features: ['本地处理', '支持 JPG、PNG、WebP', '简单控制'], altText: ['图片放大工具界面'] };

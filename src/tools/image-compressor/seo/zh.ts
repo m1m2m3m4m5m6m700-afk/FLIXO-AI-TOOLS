@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const zh: LocalizedToolSeo = Object.freeze({ title: '在线压缩图片 | FLIXO', description: '直接在浏览器中压缩 JPG、PNG 和 WebP 图片，减少文件大小。', intro: 'FLIXO Image Compressor 可在浏览器本地压缩图片，无需上传到服务器。选择一张或多张图片，调整质量或目标大小，然后下载优化后的文件。', keywords: ['压缩图片','减小图片大小','JPG PNG 压缩','压缩 WebP'], howTo: ['选择一张或多张图片。','调整质量或目标大小。','下载压缩后的图片。'], features: ['浏览器本地处理','批量压缩','支持 JPG、PNG 和 WebP','可选调整尺寸'], altText: ['图片压缩工作区','原始图片预览','可下载的压缩图片'] });

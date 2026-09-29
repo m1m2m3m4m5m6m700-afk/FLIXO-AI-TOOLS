@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const ja: LocalizedToolSeo = Object.freeze({ title: '画像をオンラインでトリミング | FLIXO', description: 'JPG、PNG、WebP画像をブラウザ上で直接トリミング・サイズ変更できます。', intro: 'FLIXO Image Cropper は画像をブラウザ内でローカルにトリミング・リサイズできるツールです。画像を選択し、切り抜き範囲と必要な出力サイズを指定して、プレビュー後に結果をダウンロードできます。', keywords: ['画像トリミング','画像切り抜きオンライン','画像サイズ変更','JPG PNG WebP トリミング'], howTo: ['画像を選択します。','トリミング範囲と必要なサイズを指定します。','プレビューを確認してダウンロードします。'], features: ['ブラウザ内ローカル処理','正確なトリミング','任意のリサイズ','JPG、PNG、WebP対応'], altText: ['画像トリミング画面','元画像のプレビュー','ダウンロード可能なトリミング画像'] });

@@ -1,0 +1,1 @@
+import { createRoute } from '@tanstack/react-router';import { rootRoute } from './__root';import { ToolsPage } from './tools-page';export const toolsRoute=createRoute({getParentRoute:()=>rootRoute,path:'/tools',component:()=> <ToolsPage locale="en" />});

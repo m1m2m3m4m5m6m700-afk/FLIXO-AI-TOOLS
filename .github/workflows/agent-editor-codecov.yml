@@ -1,0 +1,76 @@
+name: FLIXO Agent Editor Coverage
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [execution]
+  workflow_dispatch:
+
+concurrency:
+  group: agent-editor-codecov-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  coverage:
+    name: Agent Editor coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/agent-editor
+    env:
+      VITE_SITE_URL: "https://flixoai.m1m2m3m4m5m6m700.workers.dev"
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Node 22
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Install root dependencies
+        working-directory: .
+        run: npm ci --no-audit --no-fund
+
+      - name: Install agent editor dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Generate coverage
+        run: npm run test:coverage
+
+      - name: Verify coverage artifact and exact SHA
+        working-directory: .
+        env:
+          EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test -s apps/agent-editor/coverage/lcov.info
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(grep -c '^SF:' apps/agent-editor/coverage/lcov.info)" -gt 0
+          test "$(grep -c '^LF:' apps/agent-editor/coverage/lcov.info)" -gt 0
+          test "$(grep -c '^LH:' apps/agent-editor/coverage/lcov.info)" -gt 0
+          printf 'target_sha=%s\n' "$EXPECTED_SHA" > apps/agent-editor/coverage/exact-sha.txt
+          printf 'coverage_file_sha256=%s\n' "$(sha256sum apps/agent-editor/coverage/lcov.info | cut -d' ' -f1)" >> apps/agent-editor/coverage/exact-sha.txt
+          printf 'coverage_source_files=%s\n' "$(grep -c '^SF:' apps/agent-editor/coverage/lcov.info)" >> apps/agent-editor/coverage/exact-sha.txt
+          printf 'coverage_lines_found=%s\n' "$(awk -F: '/^LF:/{sum += $2} END {print sum + 0}' apps/agent-editor/coverage/lcov.info)" >> apps/agent-editor/coverage/exact-sha.txt
+          printf 'coverage_lines_hit=%s\n' "$(awk -F: '/^LH:/{sum += $2} END {print sum + 0}' apps/agent-editor/coverage/lcov.info)" >> apps/agent-editor/coverage/exact-sha.txt
+
+      - name: Upload internal coverage evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: flixo-agent-editor-coverage-evidence-${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          path: |
+            apps/agent-editor/coverage/lcov.info
+            apps/agent-editor/coverage/exact-sha.txt
+          if-no-files-found: error
+          retention-days: 14
+

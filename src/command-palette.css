@@ -1,0 +1,84 @@
+.flixo-command-palette__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: start center;
+  padding: 12vh 16px 24px;
+  background: rgba(0, 0, 0, 0.58);
+  backdrop-filter: blur(8px);
+}
+
+.flixo-command-palette {
+  width: min(680px, 100%);
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 18px;
+  background: #0b1118;
+  color: #eef8ff;
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.45);
+}
+
+.flixo-command-palette__input {
+  width: 100%;
+  min-height: 58px;
+  padding: 0 18px;
+  border: 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1rem;
+}
+
+.flixo-command-palette__list {
+  max-height: min(60vh, 520px);
+  overflow: auto;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+}
+
+.flixo-command-palette__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #cbd5e1;
+  text-align: start;
+  cursor: pointer;
+}
+
+.flixo-command-palette__item:hover,
+.flixo-command-palette__item[aria-selected='true'] {
+  background: rgba(103, 232, 249, 0.10);
+  color: #f8fdff;
+}
+
+.flixo-command-palette__item-title {
+  font-weight: 700;
+}
+
+.flixo-command-palette__item-meta {
+  color: #7f93a6;
+  font-size: 0.78rem;
+}
+
+.flixo-command-palette__empty {
+  padding: 24px;
+  color: #7f93a6;
+  text-align: center;
+}
+
+@media (max-width: 680px) {
+  .flixo-command-palette__backdrop {
+    padding: 8vh 10px 16px;
+  }
+}

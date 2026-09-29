@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const ko: LocalizedToolSeo = Object.freeze({title:'Seed GPU 사진 편집기 온라인 | FLIXO',description:'브라우저에서 WebGL, 색상 조정, 블러, 곡선과 로컬 내보내기로 사진을 편집하세요.',intro:'FLIXO Seed는 빠른 WebGL 미리보기와 고급 조정을 제공하는 GPU 사진 편집기입니다.',keywords:['GPU 사진 편집기','WebGL 사진 편집기','온라인 사진 편집','로컬 이미지 편집'],howTo:['이미지를 선택하세요.','색상과 고급 설정을 조정하세요.','GPU 미리보기를 확인하세요.','PNG를 다운로드하세요.'],features:['로컬 처리','WebGL 미리보기','비파괴 히스토리','PNG 내보내기'],altText:['Seed 편집기 미리보기','GPU 조정 도구','편집된 이미지']});
