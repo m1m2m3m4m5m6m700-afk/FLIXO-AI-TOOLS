@@ -57,6 +57,9 @@ jobs:
       - name: Install pinned TestSprite CLI
         run: npm install --global @testsprite/testsprite-cli@0.4.0
 
+      - name: Validate committed TestSprite plans offline
+        run: testsprite test lint --plan-from-dir .testsprite/plans
+
       - name: Verify TestSprite configuration
         env:
           TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
