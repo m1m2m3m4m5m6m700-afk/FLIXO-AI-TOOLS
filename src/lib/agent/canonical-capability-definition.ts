@@ -221,6 +221,13 @@ const defaultVerifier: CanonicalCapabilityVerifier = async (input, output, _para
   );
 };
 
+const backgroundRemovalVerifier: CanonicalCapabilityVerifier = async (input, output, _parameters, signal) => {
+  if (signal?.aborted || output.size <= 0 || output.type !== "image/png") return false;
+  const [inputDimensions, outputDimensions] = await Promise.all([readImageDimensions(input, signal), readImageDimensions(output, signal)]);
+  if (!inputDimensions || !outputDimensions || inputDimensions.width !== outputDimensions.width || inputDimensions.height !== outputDimensions.height) return false;
+  return hasMeaningfulPixelChange(input, output, signal);
+};
+
 const upscalerVerifier: CanonicalCapabilityVerifier = async (input, output, parameters, signal) => {
   if (signal?.aborted || output.size <= 0 || !output.type.startsWith("image/")) return false;
   const [inputDimensions, outputDimensions] = await Promise.all([readImageDimensions(input, signal), readImageDimensions(output, signal)]);
@@ -294,7 +301,7 @@ function createCapability(id:(typeof MVP_EXECUTABLE_TOOL_IDS)[number]):Canonical
   const safetyLimits=Object.freeze(isVideo
     ? {maxPixels:64_000_000,maxFileSizeBytes:512*1024*1024,timeoutMs:10*60*1000}
     : {maxPixels:16_000_000,maxFileSizeBytes:64*1024*1024,timeoutMs:30_000});
-  const verifier=id==="image-upscaler"?upscalerVerifier:id==="image-cropper"?cropperVerifier:id==="image-compressor"?targetSizeVerifier:id==="image-converter"?formatVerifier:id==="image-effects"?effectsVerifier:isVideo?videoVerifier:defaultVerifier;
+  const verifier=id==="background-remover"?backgroundRemovalVerifier:id==="image-upscaler"?upscalerVerifier:id==="image-cropper"?cropperVerifier:id==="image-compressor"?targetSizeVerifier:id==="image-converter"?formatVerifier:id==="image-effects"?effectsVerifier:isVideo?videoVerifier:defaultVerifier;
   return Object.freeze({
     id,...meta,state:"EXECUTABLE" as const,executionMode:"LOCAL" as const,execution,
     intents:Object.freeze(INTENTS[id]),
