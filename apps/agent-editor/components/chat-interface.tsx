@@ -10,7 +10,10 @@ export interface ChatInterfaceProps {
   isStreaming: boolean;
   activeTool: string | null;
   manualFallbackPath: string | null;
+  confirmationPending: boolean;
   onSendMessage: (text: string) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
   onStop: () => void;
 }
 
@@ -44,6 +47,17 @@ export function ChatInterface(props: ChatInterfaceProps) {
             <div>{message.content || (parsed.isStreaming ? "Thinking…" : "")}</div>
           </article>
         ))}
+        {parsed.confirmationPending ? (
+          <div className="tool-indicator" role="group" aria-label="Agent execution confirmation" data-testid="confirmation-prompt">
+            <span>Agent proposed a local edit. Review the request before execution.</span>
+            <button type="button" className="button send" onClick={parsed.onConfirm}>
+              Confirm
+            </button>
+            <button type="button" className="button stop" onClick={parsed.onCancel}>
+              Cancel
+            </button>
+          </div>
+        ) : null}
         {parsed.activeTool ? (
           <div className="tool-indicator" data-testid="active-tool">
             <span aria-hidden="true">⚙</span>
