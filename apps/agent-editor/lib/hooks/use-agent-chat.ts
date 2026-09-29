@@ -467,6 +467,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
     activeTool,
     manualFallbackPath,
     confirmationPending,
+    confirmationPreview,
     sendMessage,
     confirmPendingExecution,
     cancelPendingExecution,
