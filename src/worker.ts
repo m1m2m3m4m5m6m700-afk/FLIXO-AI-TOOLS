@@ -12,10 +12,13 @@ const SECURITY_HEADERS: Record<string, string> = Object.freeze({
 function secure(response: Response): Response { const headers = new Headers(response.headers); for (const [k,v] of Object.entries(SECURITY_HEADERS)) headers.set(k,v); return new Response(response.body,{status:response.status,statusText:response.statusText,headers}); }
 function apiNotFound(): Response { return secure(new Response(JSON.stringify({error:'API_NOT_EXPOSED_ON_STATIC_PRODUCTION_WORKER'})+'\n',{status:404,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store, max-age=0'}})); }
 function identityResponse(sha:string): Response { return secure(new Response(sha+'\n',{status:200,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store, max-age=0','x-flixo-deployment-sha':sha}})); }
-async function verifyIdentityAsset(env:Env,requestedSha:string):Promise<Response>{
- const configuredSha=env.FLIXO_DEPLOYMENT_SHA?.trim().toLowerCase();
- if(!configuredSha || !SHA_PATTERN.test(configuredSha) || configuredSha!==requestedSha) return secure(new Response('Not Found\n',{status:404,headers:{'content-type':'text/plain','cache-control':'no-store'}}));
- return identityResponse(configuredSha);
+async function verifyIdentityAsset(request:Request,env:Env,requestedSha:string):Promise<Response>{
+  const configuredSha=env.FLIXO_DEPLOYMENT_SHA?.trim().toLowerCase();
+  if(configuredSha&&(!SHA_PATTERN.test(configuredSha)||configuredSha!==requestedSha)) return secure(new Response('Not Found\\n',{status:404,headers:{'content-type':'text/plain','cache-control':'no-store'}}));
+  const assetResponse=await env.ASSETS.fetch(new Request(new URL('/flixo-head-sha.txt',request.url),request));
+  if(!assetResponse.ok) return secure(new Response('Not Found\\n',{status:404,headers:{'content-type':'text/plain','cache-control':'no-store'}}));
+  if((await assetResponse.text()).trim()!==requestedSha) return secure(new Response('Not Found\\n',{status:404,headers:{'content-type':'text/plain','cache-control':'no-store'}}));
+  return identityResponse(requestedSha);
 }
 export default {
  async fetch(request:Request,env:Env):Promise<Response>{
