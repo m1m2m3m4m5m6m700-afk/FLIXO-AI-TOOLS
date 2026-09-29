@@ -249,7 +249,7 @@ async function assertRouteEvidence(
   const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
   expect(canonical).toBeTruthy();
   const canonicalUrl = new URL(canonical!, page.url());
-  const productionOrigin = new URL('https://flixoai.vercel.app').origin;
+  const productionOrigin = new URL('https://flixoai.m1m2m3m4m5m6m700.workers.dev').origin;
   expect(canonicalUrl.protocol).toBe('https:');
   expect(canonicalUrl.origin).toBe(productionOrigin);
   expect(canonicalUrl.pathname).toBe(pathname);

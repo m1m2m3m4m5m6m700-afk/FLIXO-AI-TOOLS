@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const DEFAULT_ORIGIN = 'https://flixoai.vercel.app';
+const DEFAULT_ORIGIN = 'https://flixoai.m1m2m3m4m5m6m700.workers.dev';
 const configuredOrigin =
   process.env.SITE_ORIGIN?.trim() ||
   process.env.VITE_SITE_URL?.trim() ||

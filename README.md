@@ -37,6 +37,6 @@ The production build generates `robots.txt`, `sitemap.xml`, and physical SPA rou
 
 ## Deployment
 
-`wrangler.jsonc` defines the Cloudflare asset deployment. `vercel.json` remains compatible with the existing Vercel Vite environment.
+`wrangler.jsonc` defines the canonical Cloudflare production deployment at `https://flixoai.m1m2m3m4m5m6m700.workers.dev`. Vercel remains a compatibility environment and is not the canonical production origin.
 
 Provider and database credentials remain server-side. Never expose secrets through `VITE_*` variables.
