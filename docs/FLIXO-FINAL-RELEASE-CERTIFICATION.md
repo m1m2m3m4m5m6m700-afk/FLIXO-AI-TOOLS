@@ -1,11 +1,11 @@
-# FLIXO — Final Release Evidence
+﻿# FLIXO — Final Release Evidence
 
 Status: NOT YET CERTIFIED / NOT YET PROMOTED
 
-## Last runtime-verified candidate
-- Repository: `m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS`
-- Execution SHA: `ecb640aa79023e03c1a4a37f27cb72bbb31cb072`
-- Main SHA: `faf261be4476eccf293956d792bbb15e2e019061`
+## Current runtime-verified candidate
+- Repository: m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS
+- Execution SHA: $sha
+- Main SHA: af261be4476eccf293956d792bbb15e2e019061
 - Integration PR: #923
 - Direct main mutation: none
 
@@ -19,11 +19,12 @@ Status: NOT YET CERTIFIED / NOT YET PROMOTED
 - Agent Editor Coverage/internal lcov: PASS
 - CodeQL: PASS
 - Secret Scan/Gitleaks: PASS
+- production audit gate: PASS
 
 ## Current release blockers
 1. Main governance hardening is incomplete and cannot be changed through the connected control plane without an exposed ruleset-write capability.
 2. The model-license manifest has zero production-admitted models; release mode requires an evidenced admitted model.
-3. A documentation-only alignment commit requires a fresh exact-SHA verification before it can be considered part of a final release lineage.
+3. Prompt 17, release candidate freeze, Prompt 19 exact-SHA certification, and owner-authorized execution→main promotion remain pending.
 
 ## Final disposition
 NOT_READY — BLOCKERS ENUMERATED
