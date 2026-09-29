@@ -11,7 +11,7 @@ test.describe("FLIXO Agent Editor end-to-end", () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Chat workspace" })).toBeVisible();
     await expect(page.getByText("Untitled Creative Project", { exact: false })).toBeVisible();
-    const initialCanvas = await page.locator('[data-testid="media-preview"] canvas').evaluate((canvas) => canvas.toDataURL());
+    const initialCanvas = await page.locator('[data-testid="media-preview"] canvas').evaluate((element) => (element as HTMLCanvasElement).toDataURL());
     await page.getByLabel("Describe the edit").fill("Remove background from image");
     await page.getByRole("button", { name: "Send" }).click();
 
