@@ -117,7 +117,7 @@ test('canonical MVP capability verifiers accept measurable valid artifacts and r
     imageDimensions.set(output, { width: 200, height: 100 });
     assert.equal(await definition('image-upscaler').verifier(input, output, { scale: 2 }), true);
 
-    imageDimensions.set(output, { width: 100, height: 100 });
+    imageDimensions.set(output, { width: 50, height: 50 });
     assert.equal(await definition('image-cropper').verifier(input, output, { aspectRatio: '1:1' }), true);
 
     const effectsInput = new Blob(['effects-input'], { type: 'image/png' });
