@@ -39,6 +39,7 @@ export default function AgentEditorPage() {
     activeTool,
     manualFallbackPath,
     confirmationPending,
+    confirmationPreview,
     sendMessage,
     confirmPendingExecution,
     cancelPendingExecution,
@@ -68,6 +69,7 @@ export default function AgentEditorPage() {
         activeTool={activeTool}
         manualFallbackPath={manualFallbackPath}
         confirmationPending={confirmationPending}
+        confirmationPreview={confirmationPreview}
         onSendMessage={sendMessage}
         onConfirm={confirmPendingExecution}
         onCancel={cancelPendingExecution}
