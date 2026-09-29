@@ -96,7 +96,6 @@ export class ClientMediaExportManager {
           format,
           frameStart,
           frameEnd,
-          ffmpegBasePath: "/ffmpeg",
         },
       });
     });
