@@ -1,3 +1,5 @@
+declare const __FLIXO_DEPLOYMENT_SHA__: string | undefined;
+
 type AssetsBinding = { fetch(request: Request): Promise<Response>; };
 type Env = { ASSETS: AssetsBinding; FLIXO_DEPLOYMENT_SHA?: string; };
 const SHA_PATTERN = /^[a-f0-9]{40}$/u;
@@ -13,7 +15,11 @@ function secure(response: Response): Response { const headers = new Headers(resp
 function apiNotFound(): Response { return secure(new Response(JSON.stringify({error:'API_NOT_EXPOSED_ON_STATIC_PRODUCTION_WORKER'})+'\n',{status:404,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store, max-age=0'}})); }
 function identityResponse(sha:string): Response { return secure(new Response(sha+'\n',{status:200,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store, max-age=0','x-flixo-deployment-sha':sha}})); }
 async function verifyIdentityAsset(request:Request,env:Env,requestedSha:string):Promise<Response>{
-  const configuredSha=env.FLIXO_DEPLOYMENT_SHA?.trim().toLowerCase();
+  const buildSha = typeof __FLIXO_DEPLOYMENT_SHA__ === 'string' ? __FLIXO_DEPLOYMENT_SHA__.trim().toLowerCase() : undefined;
+  const configuredSha = buildSha ?? env.FLIXO_DEPLOYMENT_SHA?.trim().toLowerCase();
+  if (buildSha && env.FLIXO_DEPLOYMENT_SHA && buildSha !== env.FLIXO_DEPLOYMENT_SHA.trim().toLowerCase()) {
+    return secure(new Response('Not Found\\n',{status:404,headers:{'content-type':'text/plain','cache-control':'no-store'}}));
+  }
   if(!configuredSha || !SHA_PATTERN.test(configuredSha) || configuredSha!==requestedSha) return secure(new Response('Not Found\\n',{status:404,headers:{'content-type':'text/plain','cache-control':'no-store'}}));
   return identityResponse(requestedSha);
 }
