@@ -1,0 +1,2 @@
+export type SupervisorDecision='ALLOW'|'REVIEW'|'STOP';
+export function supervise(input:{confidence:number,toolRisk:'LOW'|'MEDIUM'|'HIGH',validationPassed:boolean,loopCount:number}){if(!input.validationPassed||input.loopCount>3)return 'STOP' as SupervisorDecision;if(input.toolRisk==='HIGH'&&input.confidence<.9)return 'REVIEW' as SupervisorDecision;return 'ALLOW' as SupervisorDecision;}

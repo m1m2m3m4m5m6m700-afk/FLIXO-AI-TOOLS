@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "states": [
+    "PROPOSED",
+    "PLANNED",
+    "APPROVED",
+    "EXECUTING",
+    "VERIFYING",
+    "PASSED",
+    "FAILED",
+    "ROLLED_BACK",
+    "BLOCKED"
+  ],
+  "transitions": {
+    "PROPOSED": [
+      "PLANNED",
+      "BLOCKED"
+    ],
+    "PLANNED": [
+      "APPROVED",
+      "BLOCKED"
+    ],
+    "APPROVED": [
+      "EXECUTING",
+      "BLOCKED"
+    ],
+    "EXECUTING": [
+      "VERIFYING",
+      "FAILED",
+      "BLOCKED"
+    ],
+    "VERIFYING": [
+      "PASSED",
+      "FAILED",
+      "ROLLED_BACK",
+      "BLOCKED"
+    ],
+    "FAILED": [
+      "ROLLED_BACK",
+      "BLOCKED"
+    ],
+    "PASSED": [],
+    "ROLLED_BACK": [],
+    "BLOCKED": []
+  }
+}

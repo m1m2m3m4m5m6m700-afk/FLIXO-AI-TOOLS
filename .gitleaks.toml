@@ -1,0 +1,32 @@
+title = "FLIXO AI Tools Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+  [[rules.allowlists]]
+  description = "Known non-secret localStorage key in historical communication store commits"
+  condition = "AND"
+  commits = [
+    "c5184d553a96199dc91001e7d775a69078ca65cd",
+    "1ced2a86f8a08311341342cbc446ebd5f8959fe4",
+  ]
+  paths = [
+    '''^src/lib/communicationStore\.ts$''',
+  ]
+
+[[rules]]
+id = "jwt"
+
+  [[rules.allowlists]]
+  description = "Known public sample JWT used only by the JWT decoder demo"
+  condition = "AND"
+  commits = [
+    "c5184d553a96199dc91001e7d775a69078ca65cd",
+    "1ced2a86f8a08311341342cbc446ebd5f8959fe4",
+  ]
+  paths = [
+    '''^src/lib/tool-runtime/tools/jwt-decoder\.tsx$''',
+  ]

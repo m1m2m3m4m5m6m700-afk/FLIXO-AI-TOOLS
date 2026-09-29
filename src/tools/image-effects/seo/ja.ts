@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const ja: LocalizedToolSeo = { title:'画像エフェクト オンライン', description:'ブラウザで画像にエフェクトを適用します。', intro:'画像をアップロードし、効果を選択してローカル処理し、結果をダウンロードします。', keywords:['画像 エフェクト','写真 エフェクト','画像編集'], howTo:['画像をアップロード。','効果を選択。','適用してダウンロード。'], features:['ブラウザ処理','画像エフェクト','高速ダウンロード'], altText:['画像エフェクトツール','効果プレビュー','編集済み画像'] };

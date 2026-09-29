@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0.0",
+  "purpose": "FLIXO model admission and sustainability policy",
+  "license_classes": {
+    "approved_for_initial_review": [
+      "MIT",
+      "Apache-2.0",
+      "BSD-2-Clause",
+      "BSD-3-Clause"
+    ],
+    "review_required": [
+      "custom",
+      "unknown",
+      "source-available",
+      "non-commercial",
+      "research-only",
+      "model-specific-license",
+      "openrail++"
+    ],
+    "prohibited_by_default": [
+      "no-license",
+      "proprietary-without-commercial-rights",
+      "non-redistributable-when-redistribution-is-required"
+    ]
+  },
+  "important": [
+    "An approved SPDX-style license class is not sufficient by itself; model-specific terms and acceptable-use policies must also be checked.",
+    "License status does not establish ownership of base weights, adapters, datasets, or derivative works.",
+    "Training-data provenance is a separate admission gate."
+  ],
+  "gate_outcomes": [
+    "PASS",
+    "REVIEW_REQUIRED",
+    "BLOCKED",
+    "UNKNOWN"
+  ],
+  "production_rule": "Only PASS may be production-eligible, and PASS still requires compatibility, security, evaluation, and human approval under the FLIXO control plane.",
+  "candidate_catalog_reference": "docs/MODEL-CANDIDATE-CATALOG.json",
+  "candidate_catalog_rule": "Candidate catalog entries are non-admitting. They may be reviewed for future FLIXO use, but they must not be copied into the production manifest without exact version, artifact SHA-256, license text, model terms/AUP, provenance, compatibility, security, evaluation and human approval."
+}
