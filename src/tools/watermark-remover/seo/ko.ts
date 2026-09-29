@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const ko: LocalizedToolSeo = { title:'이미지 워터마크 제거', description:'브라우저에서 이미지의 워터마크 영역을 직접 제거합니다.', intro:'워터마크 영역을 선택하고 원본 파일을 업로드하지 않고 로컬에서 이미지를 처리합니다.', keywords:['이미지 워터마크 제거','워터마크 지우기','워터마크 제거 도구'], howTo:['이미지를 업로드합니다.','워터마크 영역을 선택합니다.','제거 후 결과를 다운로드합니다.'], features:['브라우저 로컬 처리','간단한 영역 선택','빠른 다운로드'], altText:['워터마크 제거 편집기','선택된 워터마크 영역','워터마크 제거 미리보기'] };

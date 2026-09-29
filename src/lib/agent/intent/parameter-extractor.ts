@@ -1,0 +1,171 @@
+import { getCapability, validateCapabilityParameters, type CapabilityState } from '@/lib/agent/capability-registry';
+
+export type ExtractedOperation = {
+  capability: string;
+  params: Record<string, string | number | boolean>;
+};
+
+export type StructuredIntentPayload = Readonly<{
+  operations: readonly ExtractedOperation[];
+  unrecognizedFragments: readonly string[];
+}>;
+
+export type ExtractionResult = Readonly<{
+  success: boolean;
+  payload?: StructuredIntentPayload;
+  errors: readonly string[];
+}>;
+
+const EXECUTABLE_STATES: readonly CapabilityState[] = ['EXECUTABLE'];
+const MIME_BY_FORMAT = Object.freeze({ webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' });
+const normalizeText = (input: string): string => input.toLocaleLowerCase().replace(/\u00a0/g, ' ').replace(/[،،]/g, ',').replace(/\s+/g, ' ').trim();
+
+function addOperation(operations: ExtractedOperation[], capabilityId: string, params: Record<string, string | number | boolean>): void {
+  const capability = getCapability(capabilityId);
+  if (!capability || !EXECUTABLE_STATES.includes(capability.state)) return;
+  const previous = operations.find((operation) => operation.capability === capabilityId);
+  if (previous) previous.params = { ...previous.params, ...params };
+  else operations.push({ capability: capabilityId, params });
+}
+
+function parseTargetSize(text: string): number | undefined {
+  const match = text.match(/(?:under|below|less than|maximum|max|at most|أقل من|اقل من|تحت|بحد أقصى|حد أقصى)\s*(\d+(?:\.\d+)?)\s*(kb|kib|mb|mib|كيلوبايت|ميجابايت)/i);
+  if (!match) return undefined;
+  const value = Number(match[1]);
+  const unit = match[2].toLocaleLowerCase();
+  if (!Number.isFinite(value) || value <= 0) return undefined;
+  return unit === 'mb' || unit === 'mib' || unit === 'ميجابايت' ? Math.round(value * 1024) : Math.round(value);
+}
+
+function parseFormat(text: string): string | undefined {
+  const match = text.match(/(?:to|as|format(?: to)?|تحويل(?: لـ| إلى| الى)?|صيغة(?: إلى| الى)?)\s*(webp|png|jpe?g)\b/i) ?? text.match(/\b(webp|png|jpe?g)\b/i);
+  return match ? MIME_BY_FORMAT[match[1].toLocaleLowerCase() as keyof typeof MIME_BY_FORMAT] : undefined;
+}
+
+function parseDimensions(text: string): { width: number; height: number } | undefined {
+  const match = text.match(/(?:resize|crop|dimensions?|size|قص|أبعاد|حجم|غيّر الحجم|غير الحجم)\s*(?:image|photo|video|الفيديو|فيديو|الصورة|الصوره)?\s*(?:to|إلى|الى|لـ)?\s*(\d{1,5})\s*[x×]\s*(\d{1,5})/i);
+  if (!match) return undefined;
+  const width = Number(match[1]); const height = Number(match[2]);
+  return Number.isInteger(width) && Number.isInteger(height) && width > 0 && height > 0 ? { width, height } : undefined;
+}
+
+function parseAspectRatio(text: string): string | undefined {
+  if (/(?:\bsquare\b|مربع|مربعة|مربعه|شكل\s+مربع)/i.test(text)) return '1:1';
+  const match = text.match(/(?:aspect\s+ratio|ratio|نسبة\s*(?:الأبعاد|ابعاد)?)\s*(?:is|of|=|هي|:)?\s*(\d{1,3})\s*[:/]\s*(\d{1,3})/i);
+  if (!match) return undefined;
+  const left = Number(match[1]); const right = Number(match[2]);
+  return Number.isInteger(left) && Number.isInteger(right) && left > 0 && right > 0 ? `${left}:${right}` : undefined;
+}
+
+function parseBrightness(text: string): number | undefined {
+  const match = text.match(/(?:increase|raise|boost|decrease|lower|خفض|ارفع|زيادة|تقليل|زِد|رفع)\s+(?:the\s+)?(?:brightness|سطوع|السطوع)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i);
+  if (!match) return undefined;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount) || amount > 100) return undefined;
+  return /(?:decrease|lower|خفض|تقليل)/i.test(match[0]) ? Math.max(0, 100 - amount) : Math.min(200, 100 + amount);
+}
+
+function parsePercentageAdjustment(text: string, subject: 'contrast' | 'saturation'): number | undefined {
+  const pattern = subject === 'contrast'
+    ? /(?:increase|raise|boost|decrease|lower|رفع|ارفع|زيادة|تقليل|خفض|زِد)\s+(?:the\s+)?(?:contrast|تباين|التباين)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i
+    : /(?:increase|raise|boost|decrease|lower|رفع|ارفع|زيادة|تقليل|خفض|زِد)\s+(?:the\s+)?(?:saturation|saturate|تشبع|التشبع)\s*(?:by|to|بـ|بمقدار|إلى|الى)?\s*(\d+(?:\.\d+)?)\s*%/i;
+  const match = text.match(pattern);
+  if (!match) return undefined;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount) || amount > 100) return undefined;
+  return /(?:decrease|lower|خفض|تقليل)/i.test(match[0]) ? Math.max(0, 100 - amount) : Math.min(200, 100 + amount);
+}
+
+function parseGrayscale(text: string): number | undefined {
+  return /(?:grayscale|grey\s*scale|black\s+and\s+white|أبيض\s*و\s*أسود|ابيض\s*و\s*اسود|تدرج\s+الرمادي)/i.test(text) ? 100 : undefined;
+}
+
+function parseUpscaleScale(text: string): number | undefined {
+  const match = text.match(/(?:upscale|upscaled|scale|increase\s+resolution|raise\s+resolution|رفع\s+الدقة|زيادة\s+الدقة|تكبير\s+الصورة|كبر\s+الصورة)[^0-9]{0,40}(\d+(?:\.\d+)?)\s*x\b/i);
+  if (!match) return undefined;
+  const scale = Number(match[1]);
+  return Number.isFinite(scale) && scale > 0 && scale <= 8 ? scale : undefined;
+}
+
+function validateOperation(operation: ExtractedOperation, errors: string[]): void {
+  const capability = getCapability(operation.capability);
+  if (!capability) { errors.push(`Unknown capability '${operation.capability}'.`); return; }
+  if (!EXECUTABLE_STATES.includes(capability.state)) { errors.push(`Capability '${operation.capability}' is not executable.`); return; }
+  try {
+    operation.params = validateCapabilityParameters(operation.capability, operation.params);
+    if (operation.capability === 'image-cropper') {
+      const width = typeof operation.params.width === 'number' ? operation.params.width : undefined;
+      const height = typeof operation.params.height === 'number' ? operation.params.height : undefined;
+      if (width !== undefined && height !== undefined && width * height > capability.safetyLimits.maxPixels) errors.push(`Capability '${operation.capability}' request exceeds the safe pixel limit.`);
+    }
+  } catch (error) { errors.push(error instanceof Error ? error.message : `Invalid parameters for '${operation.capability}'.`); }
+}
+
+export function extractParameters(input: string): ExtractionResult {
+  if (typeof input !== 'string' || input.trim().length === 0) return { success: false, errors: ['Input text is empty.'], payload: { operations: [], unrecognizedFragments: [] } };
+  const text = normalizeText(input);
+  const operations: ExtractedOperation[] = [];
+  const errors: string[] = [];
+  const unrecognizedFragments: string[] = [];
+  const targetSizeKB = parseTargetSize(text);
+  const format = parseFormat(text);
+  const dimensions = parseDimensions(text);
+  const aspectRatio = parseAspectRatio(text);
+  const brightness = parseBrightness(text);
+  const contrast = parsePercentageAdjustment(text, 'contrast');
+  const saturation = parsePercentageAdjustment(text, 'saturation');
+  const grayscale = parseGrayscale(text);
+  const upscaleScale = parseUpscaleScale(text);
+  const hasUpscaleIntent = /(?:upscale|upscaled|increase\s+resolution|raise\s+resolution|رفع\s+الدقة|زيادة\s+الدقة|تكبير\s+الصورة|كبر\s+الصورة)/i.test(text);
+  const hasContrastIntent = /(?:contrast|تباين|التباين)/i.test(text);
+  const hasBrightnessIntent = /(?:brightness|سطوع)/i.test(text);
+  const hasSaturationIntent = /(?:saturation|saturate|تشبع|التشبع)/i.test(text);
+  const hasEffectDirection = /(?:increase|raise|boost|decrease|lower|رفع|ارفع|زيادة|تقليل|خفض|زِد)/i;
+  if (hasContrastIntent && hasEffectDirection.test(text) && contrast === undefined) {
+    errors.push('Contrast adjustments require an explicit percentage.');
+  }
+  if (hasBrightnessIntent && hasEffectDirection.test(text) && brightness === undefined) {
+    errors.push('Brightness adjustments require an explicit percentage.');
+  }
+  if (hasSaturationIntent && hasEffectDirection.test(text) && saturation === undefined) {
+    errors.push('Saturation adjustments require an explicit percentage.');
+  }
+  const hasVideoCompressionIntent = /(?:(?:compress|compression|ضغط|تصغير)[^\n]{0,40}(?:video|الفيديو|فيديو)|(?:video|الفيديو|فيديو)[^\n]{0,40}(?:compress|compression|ضغط|تصغير))/i.test(text);
+  const hasVideoCropIntent = /(?:(?:crop|قص)[^\n]{0,40}(?:video|الفيديو|فيديو)|(?:video|الفيديو|فيديو)[^\n]{0,40}(?:crop|قص))/i.test(text);
+  const hasVideoResizeIntent = /(?:(?:resize|dimensions?|size|تغيير\s+حجم|تغيير\s+دقة|حجم|أبعاد)[^\n]{0,40}(?:video|الفيديو|فيديو)|(?:video|الفيديو|فيديو)[^\n]{0,40}(?:resize|dimensions?|size|تغيير\s+حجم|تغيير\s+دقة|حجم|أبعاد))/i.test(text);
+  const hasCompressionIntent = /(?:compress|compression|ضغط|تصغير)/i.test(text) && !hasVideoCompressionIntent;
+  const hasConversionIntent = /(?:convert|conversion|تحويل|حول|حوّل)/i.test(text);
+  const hasBackgroundRemovalIntent = /(?:remove\s+(?:the\s+)?background|background\s+removal|إزالة\s+الخلفية|ازالة\s+الخلفية|شيل\s+الخلفية|شيل\s+خلفية|بدون\s+خلفية|خلفية\s+شفافة)/i.test(text);
+
+  if (hasBackgroundRemovalIntent) addOperation(operations, 'background-remover', {});
+  if (hasVideoCompressionIntent) addOperation(operations, 'video-compressor', {});
+  if (hasCompressionIntent) addOperation(operations, 'image-compressor', targetSizeKB === undefined ? {} : { targetSizeKB });
+  else if (targetSizeKB !== undefined && !hasVideoCompressionIntent) addOperation(operations, 'image-compressor', { targetSizeKB });
+  if (hasConversionIntent && format !== undefined) addOperation(operations, 'image-converter', { format });
+  if (format !== undefined && !hasCompressionIntent && !hasConversionIntent) addOperation(operations, 'image-converter', { format });
+  if (dimensions) {
+    if (hasVideoCropIntent) addOperation(operations, 'video-cropper', { width: dimensions.width, height: dimensions.height });
+    else if (hasVideoResizeIntent) addOperation(operations, 'video-resizer', { width: dimensions.width, height: dimensions.height });
+    else addOperation(operations, 'image-cropper', { width: dimensions.width, height: dimensions.height, mode: 'exact' });
+  }
+  if (aspectRatio) addOperation(operations, 'image-cropper', { aspectRatio });
+  if (brightness !== undefined) addOperation(operations, 'image-effects', { brightness });
+  if (contrast !== undefined) addOperation(operations, 'image-effects', { contrast });
+  if (saturation !== undefined) addOperation(operations, 'image-effects', { saturate: saturation });
+  if (grayscale !== undefined) addOperation(operations, 'image-effects', { grayscale });
+  if (hasUpscaleIntent) addOperation(operations, 'image-upscaler', upscaleScale === undefined ? {} : { scale: upscaleScale });
+  if (hasCompressionIntent && targetSizeKB === undefined) addOperation(operations, 'image-compressor', {});
+  if (hasConversionIntent && format === undefined) errors.push('A target output format is required for image conversion.');
+  if (/\b(?:crop|قص)\b/i.test(text) && dimensions === undefined && aspectRatio === undefined) {
+    errors.push(hasVideoCropIntent ? 'Video crop requests require explicit dimensions.' : 'Crop requests require explicit dimensions or an aspect ratio.');
+  }
+  if (hasVideoResizeIntent && dimensions === undefined) errors.push('Video resize requests require explicit dimensions.');
+  for (const operation of operations) validateOperation(operation, errors);
+
+  const knownSignal = /(?:compress|ضغط|convert|تحويل|حول|حوّل|webp|png|jpe?g|resize|dimensions|size|أبعاد|حجم|aspect\s+ratio|نسبة|square|مربع|مربعة|خلفية|background|remove|إزالة|ازالة|شيل|brightness|سطوع|contrast|تباين|saturation|saturate|تشبع|grayscale|grey\s*scale|black\s+and\s+white|أبيض\s*و\s*أسود|ابيض\s*و\s*اسود|upscale|upscaled|resolution|رفع\s+الدقة|زيادة\s+الدقة|تكبير\s+الصورة|\d+\s*[x×]\s*\d+|\d+(?:\.\d+)?\s*(?:kb|kib|mb|mib|كيلوبايت|ميجابايت))/i;
+  if (!knownSignal.test(text)) unrecognizedFragments.push(input.trim());
+  if (operations.length === 0 && errors.length === 0) errors.push('No executable operation could be safely extracted.');
+  if (unrecognizedFragments.length > 0) errors.push('Unrecognized instruction content requires explicit handling before execution.');
+  if (errors.length > 0) return { success: false, errors, payload: { operations: [], unrecognizedFragments } };
+  return { success: true, errors: [], payload: { operations, unrecognizedFragments } };
+}

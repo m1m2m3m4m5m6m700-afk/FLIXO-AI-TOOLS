@@ -1,0 +1,2 @@
+[functions.flixo-council-runtime]
+verify_jwt = false

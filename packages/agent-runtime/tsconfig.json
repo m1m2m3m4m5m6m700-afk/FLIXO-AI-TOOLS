@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "outDir": "dist",
+    "noEmit": true,
+    "paths": {
+      "@flixo/contracts": [
+        "../contracts/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "../contracts/src/**/*.ts"
+  ]
+}

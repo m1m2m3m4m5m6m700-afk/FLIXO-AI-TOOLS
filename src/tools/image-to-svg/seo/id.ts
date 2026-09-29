@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const id: LocalizedToolSeo = { title:'Konversi Gambar ke SVG', description:'Konversi gambar ke SVG langsung di browser.', intro:'Konversi gambar yang didukung menjadi SVG secara lokal tanpa mengunggah file asli.', keywords:['gambar ke svg','konverter svg','ubah gambar ke svg'], howTo:['Unggah gambar.','Konversi ke SVG.','Unduh hasilnya.'], features:['Pemrosesan lokal','Ekspor SVG','Unduhan cepat'], altText:['Alat gambar ke SVG','Pratinjau konversi','Hasil SVG'] };

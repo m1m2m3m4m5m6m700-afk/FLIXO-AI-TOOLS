@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const ko: LocalizedToolSeo = { title:'온라인 밈 생성기', description:'브라우저에서 이미지를 로컬 처리해 밈을 만듭니다.', intro:'이미지를 업로드하고 밈 텍스트를 추가한 뒤 결과를 다운로드합니다.', keywords:['밈 생성기','온라인 밈','밈 만들기'], howTo:['이미지를 업로드합니다.','텍스트를 추가합니다.','밈을 만들고 다운로드합니다.'], features:['로컬 이미지 처리','사용자 지정 텍스트','결과 다운로드'], altText:['밈 작업 공간','텍스트 미리보기','완성된 밈'] };

@@ -1,0 +1,649 @@
+import { useMemo, useState } from 'react';
+import { planFromIntent, type ExecutionPlan } from '@/lib/ai/planner';
+import { buildIntentPlan, toExecutionPlan } from '@/lib/agent/intent/intent-plan';
+import { verifyExecutionPlanSemantics } from '@/lib/agent/cognitive-orchestrator';
+import { assessCognitiveRequest, validateCanonicalExecutionPlanWithRuntimeControls } from '@/lib/agent/cognitive-orchestrator';
+import type { PipelineProgress } from '@/lib/workflows/pipeline-runner';
+import { cancelPreparedExecution, confirmPreparedExecution, executePreparedExecution, prepareExecution, restorePreparedExecution, type PreparedExecution } from '@/lib/agent/execution-integrator';
+import { TOOL_CATALOG } from '@/config/registry';
+import { findToolIntent } from '@/lib/intent-router';
+import { detectAgentLocale } from '@/lib/agent/language-detector';
+
+import {
+  classifyConversation,
+  contextualizeCommand,
+  loadConversationMemory,
+  rememberTurn,
+  setConversationTask,
+  clearConversationTask,
+  buildLayeredMemorySnapshot,
+  type ConversationMemory,
+} from '@/lib/agent/conversation';
+import { AGENT_I18N } from '@/data/agent-locales';
+import type { Locale } from '@/lib/i18n';
+import { type FilterMaskHandoff } from '@/tools/filter-mask/handoff';
+import { askConversationalAgent } from '@/lib/agent/conversational-agent';
+import { getLiveFilter } from '@/tools/filter-mask/registry';
+import { toAgentFileMetadata } from '@/lib/contracts/mvp-scope';
+import { resolveFilterMaskSelection } from '@/lib/intent/resolver';
+import { FlixoAIAgentStudio } from './FlixoAIAgentStudio';
+import './FlixoAIAgentStudio.css';
+
+type AgentState = 'idle' | 'ready' | 'running' | 'success' | 'error';
+type Message = { id: number; role: 'user' | 'agent'; text: string };
+type SaveFilePicker = (options: {
+  suggestedName: string;
+  types: Array<{ description: string; accept: Record<string, string[]> }>;
+}) => Promise<{
+  createWritable: () => Promise<{
+    write: (data: Blob) => Promise<void>;
+    close: () => Promise<void>;
+  }>;
+}>;
+
+const CONFIRMATIONS = /^(نعم|أيوه|ايوه|نفذ|نفّذ|ابدأ|ابدئي|موافق|تمام|yes|y|ok|okay|go|execute|run|ejecutar|exécuter|ausführen|실행|実行|jalankan|esegui|uitvoeren|wykonaj|executar|kör|ดำเนินการ|çalıştır|виконати|thực hiện)$/i;
+const CANCELLATIONS = /^(لا|لأ|الغاء|إلغاء|cancel|no|n|stop)$/i;
+const getDownloadFilename = (mimeType: string): string => {
+  if (mimeType === 'image/jpeg') return 'flixo-agent-result.jpg';
+  if (mimeType === 'image/png') return 'flixo-agent-result.png';
+  if (mimeType === 'image/webp') return 'flixo-agent-result.webp';
+  if (mimeType === 'image/svg+xml') return 'flixo-agent-result.svg';
+  if (mimeType === 'text/plain') return 'flixo-agent-result.txt';
+  if (mimeType === 'application/json') return 'flixo-agent-result.json';
+  return 'flixo-agent-result.bin';
+};
+
+const getSaveFilePicker = (): SaveFilePicker | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  return (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker;
+};
+
+const saveResultToFile = async (blob: Blob): Promise<void> => {
+  const showSaveFilePicker = getSaveFilePicker();
+  if (!showSaveFilePicker) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = getDownloadFilename(blob.type);
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    return;
+  }
+
+  const handle = await showSaveFilePicker({
+    suggestedName: getDownloadFilename(blob.type),
+    types: [
+      {
+        description: 'FLIXO result',
+        accept: {
+          'image/png': ['.png'],
+          'image/jpeg': ['.jpg', '.jpeg'],
+          'image/webp': ['.webp'],
+          'image/svg+xml': ['.svg'],
+          'text/plain': ['.txt'],
+          'application/json': ['.json'],
+        },
+      },
+    ],
+  });
+
+  const writable = await handle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+};
+
+const GENERIC_CROP_REQUEST = /(?:^|\\s)(?:(?:أريد|اريد|ممكن|هل\\s+تستطيع|please)\\s+)?(?:قص|اقت(?:ص|طع)|crop)(?:\\s+(?:صورة|الصور|الصورة|image|photo))?\\s*$/i;
+const conversationalReply = (
+  kind: ReturnType<typeof classifyConversation>,
+  responseCopy: typeof AGENT_I18N.en,
+): string | null => {
+  switch (kind) {
+    case 'greeting':
+      return responseCopy.greeting;
+    case 'thanks':
+      return responseCopy.understood;
+    case 'farewell':
+      return responseCopy.cancelled;
+    case 'capability':
+      return responseCopy.lead;
+    case 'help':
+      return responseCopy.lead;
+    case 'conversation':
+      return responseCopy.greeting;
+    default:
+      return null;
+  }
+};
+
+
+function loadRestoredAgentExecution(): PreparedExecution | null {
+  const saved = loadConversationMemory();
+  if (!saved.activePlan || !saved.runtimeResumeState) return null;
+  try {
+    return restorePreparedExecution(saved.activePlan, saved.runtimeResumeState);
+  } catch {
+    return null;
+  }
+}
+
+export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
+  const copy = AGENT_I18N[locale] ?? AGENT_I18N.en;
+  const [query, setQuery] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [plan, setPlan] = useState<ExecutionPlan | null>(() => loadConversationMemory().activePlan);
+  const [preparedExecution, setPreparedExecution] = useState<PreparedExecution | null>(() => loadRestoredAgentExecution());
+  const [state, setState] = useState<AgentState>(() => loadRestoredAgentExecution() ? 'ready' : 'idle');
+  const [progress, setProgress] = useState<PipelineProgress | null>(null);
+  const [result, setResult] = useState<Blob | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [memory, setMemory] = useState<ConversationMemory>(() => loadConversationMemory());
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const turns = loadConversationMemory().turns;
+    if (turns.length === 0) return [{ id: 1, role: 'agent', text: copy.greeting }];
+    return turns.map((turn, index) => ({ id: index + 1, role: turn.role, text: turn.text }));
+  });
+  const [messageId, setMessageId] = useState(() => loadConversationMemory().turns.length + 1);
+  const [filterHandoff, setFilterHandoff] = useState<FilterMaskHandoff | null>(null);
+
+  const contextualQuery = useMemo(() => contextualizeCommand(query, memory), [query, memory]);
+  const intent = useMemo(() => contextualQuery.trim() ? findToolIntent(contextualQuery, TOOL_CATALOG.ready)[0] : null, [contextualQuery]);
+  const planned = useMemo(() => {
+    if (!contextualQuery.trim()) return null;
+    return assessCognitiveRequest(contextualQuery).executionPlan;
+  }, [contextualQuery]);
+  const filterMaskMatch = intent?.tool.id === 'filter-mask';
+  const manualFallback = useMemo(() => {
+    const latestUserCommand = [...messages].reverse().find((message) => message.role === 'user')?.text ?? '';
+    if (!latestUserCommand.trim()) return null;
+    const candidate = findToolIntent(latestUserCommand, TOOL_CATALOG.ready)
+      .find(({ tool }) => tool.executionMode === 'LOCAL' && !tool.requirements.network)?.tool;
+    if (!candidate) return null;
+    return Object.freeze({
+      id: candidate.id,
+      title: candidate.title,
+      path: candidate.routes[locale] ?? candidate.path,
+    });
+  }, [messages, locale]);
+
+  const resolveFilterMaskHandoff = (command: string) => resolveFilterMaskSelection(command);
+
+  const pushMessage = (role: Message['role'], text: string) => {
+    setMessages((current) => [...current, { id: messageId, role, text }]);
+    setMessageId((value) => value + 1);
+    setMemory((current) => rememberTurn(current, { role, text }));
+  };
+  const applyFilterMaskHandoff = (command: string, detectedLocale: Locale) => {
+    const nextHandoff = resolveFilterMaskHandoff(command);
+    if (!nextHandoff) return false;
+    const selected = getLiveFilter(nextHandoff.canonicalId);
+    setFilterHandoff(nextHandoff);
+    setPreparedExecution(null);
+    setPlan(null);
+    setState('ready');
+    setError(null);
+    setMemory((current) => setConversationTask(current, {
+      command,
+      toolId: 'filter-mask',
+      planReady: false,
+    }));
+    const label = selected?.label ?? nextHandoff.canonicalId;
+    pushMessage(
+      'agent',
+      detectedLocale === 'ar'
+        ? 'جهزت Filter Mask. الاختيار: ' + label + ' (' + nextHandoff.canonicalId + ')، الشدة ' + nextHandoff.parameters.intensity + '%، التكبير ' + nextHandoff.parameters.zoom.toFixed(1) + '×، النسبة ' + nextHandoff.parameters.aspectRatio + '، والجودة ' + nextHandoff.parameters.captureQuality + '. افتح المعاينة المباشرة.'
+        : 'Filter Mask is ready. Selection: ' + label + ' (' + nextHandoff.canonicalId + '), intensity ' + nextHandoff.parameters.intensity + '%, zoom ' + nextHandoff.parameters.zoom.toFixed(1) + '×, aspect ' + nextHandoff.parameters.aspectRatio + ', quality ' + nextHandoff.parameters.captureQuality + '. Open the live preview.',
+    );
+    return true;
+  };
+
+  const buildPlan = (command: string, responseCopy = copy): ExecutionPlan | null => {
+    setError(null); setResult(null); setProgress(null);
+    const contextualCommand = contextualizeCommand(command, memory);
+    const cognitive = assessCognitiveRequest(contextualCommand);
+    if (cognitive.decision === 'NEEDS_INPUT') {
+      const missing = cognitive.intentPlan.missing[0];
+      const question = cognitive.clarificationQuestion?.question ?? missing?.question ?? null;
+      setPreparedExecution(null);
+      setPlan(null);
+      setState('idle');
+      setError(null);
+      setMemory((current) => setConversationTask(current, {
+        command: contextualCommand,
+        toolId: missing?.capability ?? current.activeToolId,
+        pendingToolId: missing?.capability ?? null,
+        pendingQuestion: question,
+        planReady: false,
+      }));
+      return null;
+    }
+    if (cognitive.decision !== 'EXECUTE_READY' || !cognitive.executionPlan) {
+      setPreparedExecution(null);
+      setPlan(null);
+      setState('error');
+      setError(cognitive.intentPlan.explanation || cognitive.semantic.reasons.join(', ') || responseCopy.noSafePlan);
+      return null;
+    }
+
+    const nextPlan = cognitive.executionPlan;
+    const firstStep = nextPlan.steps[0];
+    const prepared = prepareExecution(nextPlan, { runtimeRequest: contextualCommand });
+    setMemory((current) => setConversationTask(current, {
+      command: contextualCommand,
+      toolId: firstStep?.toolId ?? null,
+      pendingToolId: null,
+      pendingQuestion: null,
+      planReady: true,
+      plan: prepared.plan,
+      runtimeResumeState: null,
+    }));
+    setPlan(prepared.plan);
+    setPreparedExecution(prepared);
+    setState('ready');
+    return prepared.plan;
+  };
+
+  const runConversationalTurn = async (command: string, responseCopy = copy): Promise<boolean> => {
+    const contextualCommand = contextualizeCommand(command, memory);
+
+    // Deterministic QuickFlow is the primary execution path. It must not depend
+    // on provider availability or runtime-delegation latency.
+    try {
+      const deterministic = assessCognitiveRequest(contextualCommand);
+      if (deterministic.decision === 'EXECUTE_READY' && deterministic.executionPlan) {
+        const prepared = prepareExecution(deterministic.executionPlan);
+        setPlan(prepared.plan);
+        setPreparedExecution(prepared);
+        setState('ready');
+        setError(null);
+        setFilterHandoff(null);
+        setMemory((current) => setConversationTask(current, {
+          command: contextualCommand,
+          toolId: prepared.plan.steps[0]?.toolId ?? null,
+          pendingToolId: null,
+          pendingQuestion: null,
+          planReady: true,
+          plan: prepared.plan,
+          runtimeResumeState: null,
+        }));
+        pushMessage(
+          'agent',
+          file
+            ? responseCopy.execute
+            : responseCopy.uploadThenExecute,
+        );
+        return true;
+      }
+    } catch {
+      // Continue only when no local manual fallback can safely handle the request.
+    }
+
+    try {
+      const deterministicPlan = buildIntentPlan(contextualCommand);
+      const executionPlan = toExecutionPlan(deterministicPlan);
+      if (executionPlan && verifyExecutionPlanSemantics(deterministicPlan, executionPlan).ok) {
+        const prepared = prepareExecution(executionPlan);
+        setPlan(prepared.plan);
+        setPreparedExecution(prepared);
+        setState('ready');
+        setError(null);
+        setFilterHandoff(null);
+        setMemory((current) => setConversationTask(current, {
+          command: contextualCommand,
+          toolId: prepared.plan.steps[0]?.toolId ?? null,
+          pendingToolId: null,
+          pendingQuestion: null,
+          planReady: true,
+          plan: prepared.plan,
+          runtimeResumeState: null,
+        }));
+        pushMessage('agent', file ? responseCopy.execute : responseCopy.uploadThenExecute);
+        return true;
+      }
+    } catch {
+      // Advisory/cognitive layers must never become execution authority.
+    }
+
+    const localManualFallback = findToolIntent(contextualCommand, TOOL_CATALOG.ready)
+      .some(({ tool }) => tool.executionMode === 'LOCAL' && !tool.requirements.network);
+    if (localManualFallback) return false;
+
+    try {
+      const decision = await askConversationalAgent({
+        idempotencyKey: crypto.randomUUID(),
+        conversationId: memory.conversationId,
+        taskId: memory.taskId,
+        locale,
+        messages: [
+          ...messages.slice(-23).map((message) => ({
+            role: message.role === 'agent' ? 'assistant' as const : 'user' as const,
+            content: message.text,
+          })),
+          { role: 'user' as const, content: command },
+        ],
+        file: toAgentFileMetadata(file),
+        activePlan: plan,
+        activeCommand: memory.activeCommand,
+        memory: buildLayeredMemorySnapshot(memory),
+      });
+
+      // Provider-generated execution plans are still bounded by the same
+      // deterministic planner/runtime contracts before they can execute.
+      if (decision.fallback && !(decision.mode === 'plan' && decision.plan)) return false;
+
+      if (decision.mode === 'plan' && decision.plan) {
+        // The API gateway already enforces the deterministic QuickFlow boundary.
+        // Validate the returned canonical execution plan without rebuilding the intent/world-model.
+        const runtimeObservations = messages.slice(-8).map((message) => ({
+          kind: message.role === 'user' ? 'INPUT' as const : 'RESULT' as const,
+          signature: message.text,
+        }));
+        const conversationalPlan = decision.plan as ExecutionPlan;
+        const runtime = await validateCanonicalExecutionPlanWithRuntimeControls(
+          conversationalPlan,
+          runtimeObservations,
+        );
+        if (!runtime.ready || !runtime.executionPlan) {
+          setPreparedExecution(null);
+          setPlan(null);
+          setState('error');
+          const reason = runtime.goal.assessments.at(-1)?.reason ?? responseCopy.noSafePlan;
+          setError(reason);
+          pushMessage('agent', responseCopy.noSafePlan);
+          return true;
+        }
+        const validatedPlan = runtime.executionPlan;
+        const wasReplanned = JSON.stringify(validatedPlan.steps) !== JSON.stringify(conversationalPlan.steps);
+        const prepared = decision.runtime?.resumeState && !wasReplanned
+          ? restorePreparedExecution(validatedPlan, decision.runtime.resumeState)
+          : prepareExecution(validatedPlan);
+        setPlan(prepared.plan);
+        setPreparedExecution(prepared);
+        setState('ready');
+        setError(null);
+        setFilterHandoff(null);
+        setMemory((current) => setConversationTask(current, {
+          command: contextualizeCommand(command, memory),
+          toolId: validatedPlan.steps[0]?.toolId ?? null,
+          planReady: true,
+          plan: prepared.plan,
+          taskId: decision.runtime?.taskId ?? memory.taskId,
+          runtimeResumeState: prepared.runtimeState ? JSON.stringify(prepared.runtimeState) : null,
+        }));
+        pushMessage(
+          'agent',
+          file
+            ? decision.reply + ' ' + responseCopy.execute
+            : decision.reply + ' ' + responseCopy.uploadThenExecute,
+        );
+        return true;
+      }
+
+      setPreparedExecution(null);
+      setPlan(null);
+      setError(null);
+      setState('idle');
+      setFilterHandoff(null);
+
+      if (decision.mode === 'clarify') {
+        setMemory((current) => setConversationTask(current, {
+          command: contextualCommand,
+          toolId: current.activeToolId,
+          pendingQuestion: decision.question,
+          planReady: false,
+        }));
+        pushMessage('agent', decision.reply);
+        if (decision.question && decision.question.trim() !== decision.reply.trim()) {
+          pushMessage('agent', decision.question);
+        }
+        return true;
+      }
+
+      setMemory((current) => setConversationTask(current, {
+        command: current.activeCommand ?? command,
+        toolId: current.activeToolId,
+        planReady: false,
+      }));
+      pushMessage('agent', decision.reply);
+      return true;
+    } catch {
+      try {
+        const fallbackPlan = buildPlan(contextualCommand, responseCopy);
+        if (!fallbackPlan) return false;
+        pushMessage('agent', file ? responseCopy.planReady : responseCopy.uploadThenExecute);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  };
+
+  const execute = async (prepared = preparedExecution, responseCopy = copy) => {
+    if (!file || !prepared) return;
+    setState('running'); setError(null);
+    pushMessage('agent', `${responseCopy.success} ${prepared.plan.steps.length} ${responseCopy.step}.`);
+    try {
+      const confirmed = await confirmPreparedExecution(prepared);
+      setPreparedExecution(confirmed);
+      setMemory((current) => setConversationTask(current, {
+        command: current.activeCommand ?? '',
+        planReady: false,
+        plan: confirmed.plan,
+        runtimeResumeState: confirmed.runtimeState ? JSON.stringify(confirmed.runtimeState) : null,
+      }));
+      const result = await executePreparedExecution(
+        confirmed,
+        file,
+        setProgress,
+        (runtime) => {
+          setPreparedExecution((current) => current ? { ...current, runtimeState: runtime } : current);
+          setMemory((current) => setConversationTask(current, {
+            command: current.activeCommand ?? '',
+            planReady: false,
+            plan: confirmed.plan,
+            runtimeResumeState: JSON.stringify(runtime),
+          }));
+        },
+      );
+      setResult(result.output); setState('success');
+      setMemory((current) => setConversationTask(current, {
+        command: current.activeCommand ?? '',
+        toolId: null,
+        pendingToolId: null,
+        pendingQuestion: null,
+        planReady: false,
+        plan: null,
+        runtimeResumeState: null,
+      }));
+      pushMessage('agent', responseCopy.success);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'Execution failed.';
+      setError(message); setState('error');
+      pushMessage('agent', `${responseCopy.stopped} ${message}`);
+    }
+  };
+  const sendMessage = async () => {
+    const command = query.trim();
+    if (!command || state === 'running') return;
+
+    const detectedLocale = detectAgentLocale(command, locale);
+    const responseCopy = AGENT_I18N[detectedLocale] ?? copy;
+    pushMessage('user', command);
+    setQuery('');
+
+    if (CONFIRMATIONS.test(command) && preparedExecution) {
+      if (!file) {
+        setError(responseCopy.needImage);
+        pushMessage('agent', responseCopy.planReadyNoFile);
+        setState('error');
+        return;
+      }
+      await execute(preparedExecution, responseCopy);
+      return;
+    }
+
+    if (CANCELLATIONS.test(command)) {
+      if (preparedExecution) {
+        try { cancelPreparedExecution(preparedExecution); } catch { /* keep cancellation fail-closed */ }
+      }
+      setPreparedExecution(null);
+      setPlan(null);
+      setState('idle');
+      setError(null);
+      setMemory((current) => clearConversationTask(current));
+      setFilterHandoff(null);
+      pushMessage('agent', responseCopy.cancelled);
+      return;
+    }
+
+    if (filterMaskMatch && applyFilterMaskHandoff(command, detectedLocale)) return;
+
+    if (await runConversationalTurn(command, responseCopy)) return;
+
+    const localManualFallback = findToolIntent(command, TOOL_CATALOG.ready)
+      .some(({ tool }) => tool.executionMode === 'LOCAL' && !tool.requirements.network);
+    if (localManualFallback) {
+      setPlan(null);
+      setPreparedExecution(null);
+      setState('error');
+      setError(responseCopy.noSafePlan);
+      return;
+    }
+
+    const conversationKind = classifyConversation(command);
+    const naturalReply = conversationalReply(conversationKind, responseCopy);
+    if (naturalReply) {
+      setPlan(null);
+      setPreparedExecution(null);
+      setState('idle');
+      setError(null);
+      pushMessage('agent', naturalReply);
+      return;
+    }
+
+    if (GENERIC_CROP_REQUEST.test(command)) {
+      setMemory((current) => setConversationTask(current, {
+        command,
+        toolId: 'image-cropper',
+        pendingToolId: 'image-cropper',
+        pendingQuestion: detectedLocale === 'ar'
+          ? 'ما النسبة أو الأبعاد التي تريدها؟ مثال: 1:1 أو 1200×800.'
+          : 'What aspect ratio or dimensions do you want? For example: 1:1 or 1200×800.',
+        planReady: false,
+      }));
+      setPlan(null);
+      setPreparedExecution(null);
+      setState('idle');
+      setError(null);
+      pushMessage('agent', detectedLocale === 'ar'
+        ? 'مفهوم. سنقص الصورة. ما النسبة أو الأبعاد؟ يمكنك الرد فقط بـ «مربع» أو «1:1» أو «1200×800».'
+        : 'Got it. We will crop the image. What ratio or dimensions do you want? You can simply reply “square”, “1:1”, or “1200×800”.');
+      return;
+    }
+
+    const nextPlan = buildPlan(command, responseCopy);
+    if (!nextPlan) {
+      const latestMemory = loadConversationMemory();
+      const pendingQuestion = latestMemory.pendingQuestion;
+      pushMessage('agent', pendingQuestion ?? responseCopy.clarification);
+      return;
+    }
+
+    if (!file) {
+      pushMessage('agent', responseCopy.planReadyNoFile);
+      return;
+    }
+
+    pushMessage('agent', responseCopy.understood);
+  };
+
+  const prepare = async () => {
+    const command = query.trim(); if (!command) return;
+    const detectedLocale = detectAgentLocale(command, locale);
+    const responseCopy = AGENT_I18N[detectedLocale] ?? copy;
+    pushMessage('user', command); setQuery('');
+    if (filterMaskMatch && applyFilterMaskHandoff(command, detectedLocale)) return;
+
+    // The Analyze action is a deterministic local planning boundary. Resolve the
+    // canonical QuickFlow first so advisory/runtime/provider layers cannot block
+    // a locally executable MVP request.
+    try {
+      const deterministicPlan = planFromIntent(contextualizeCommand(command, memory));
+      if (deterministicPlan) {
+        const prepared = prepareExecution(deterministicPlan);
+        const contextualCommand = contextualizeCommand(command, memory);
+        setPlan(prepared.plan);
+        setPreparedExecution(prepared);
+        setState('ready');
+        setError(null);
+        setMemory((current) => setConversationTask(current, {
+          command: contextualCommand,
+          toolId: prepared.plan.steps[0]?.toolId ?? null,
+          pendingToolId: null,
+          pendingQuestion: null,
+          planReady: true,
+          plan: prepared.plan,
+          runtimeResumeState: null,
+        }));
+        pushMessage('agent', file ? responseCopy.execute : responseCopy.uploadThenExecute);
+        return;
+      }
+    } catch {
+      // Fall through to the full cognitive/recovery path.
+    }
+
+    if (await runConversationalTurn(command, responseCopy)) return;
+    const naturalReply = conversationalReply(classifyConversation(command), responseCopy);
+    if (naturalReply) { pushMessage('agent', naturalReply); return; }
+    if (GENERIC_CROP_REQUEST.test(command)) {
+      setMemory((current) => setConversationTask(current, { command, toolId: 'image-cropper', pendingToolId: 'image-cropper', pendingQuestion: responseCopy.clarification, planReady: false }));
+      pushMessage('agent', detectedLocale === 'ar' ? 'مفهوم. أعطني النسبة أو الأبعاد وسأجهز خطة القص.' : 'Understood. Give me the ratio or dimensions and I will prepare the crop plan.');
+      return;
+    }
+    const nextPlan = await buildPlan(command, responseCopy);
+    if (nextPlan) pushMessage('agent', file ? `${responseCopy.planReady} ${responseCopy.execute}` : `${responseCopy.planReady} ${responseCopy.uploadThenExecute}`);
+  };
+
+  return (
+    <FlixoAIAgentStudio
+      locale={locale}
+      copy={copy}
+      messages={messages}
+      query={query}
+      setQuery={setQuery}
+      file={file}
+      onFileChange={(nextFile) => {
+        setFile(nextFile);
+        setMemory((current) => clearConversationTask(current));
+        setPlan(null);
+        setPreparedExecution(null);
+        setResult(null);
+        setState('idle');
+        setError(null);
+        setProgress(null);
+      }}
+      state={state}
+      sendMessage={sendMessage}
+      prepare={prepare}
+      intent={intent}
+      plan={plan}
+      planned={planned}
+      progress={progress}
+      error={error}
+      result={result}
+      filterHandoff={filterHandoff}
+      manualFallback={manualFallback}
+      tools={TOOL_CATALOG.ready}
+      onDownload={() => {
+        if (!result) return;
+        void saveResultToFile(result).catch((cause) => {
+          const message = cause instanceof Error ? cause.message : 'Unable to save the result file.';
+          setError(message);
+          setState('error');
+        });
+      }}
+    />
+  );
+}
