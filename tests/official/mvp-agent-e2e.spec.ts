@@ -1,5 +1,5 @@
-import { expect, test } from './fixtures/universal-runtime-evidence';
-import { PNG } from './helpers/image-tool-fixture';
+import { expect, test } from '../fixtures/universal-runtime-evidence';
+import { PNG } from '../helpers/image-tool-fixture';
 
 test.describe('FLIXO MVP agent full journey', () => {
   test('upload → natural request → plan → execute → verify → result → save stays local when agent API is unavailable', async ({ page }) => {
@@ -20,10 +20,6 @@ test.describe('FLIXO MVP agent full journey', () => {
     const studio = page.getByTestId('flixo-agent-studio');
     await expect(studio).toBeVisible();
 
-  test('agent file picker accepts both images and videos', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('#flixo-agent-file')).toHaveAttribute('accept', 'image/*,video/*');
-  });
 
     await page.locator('#flixo-agent-file').setInputFiles({
       name: 'mvp-agent-fixture.png',
@@ -53,6 +49,11 @@ test.describe('FLIXO MVP agent full journey', () => {
     expect(await download.failure()).toBeNull();
     expect(download.suggestedFilename()).toBe('flixo-agent-result.webp');
     expect(conversationalApiCalls).toBe(0);
+  });
+
+  test('agent file picker accepts both images and videos', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#flixo-agent-file')).toHaveAttribute('accept', 'image/*,video/*');
   });
 
   test('unsupported executable intent falls back to the matching local manual tool without provider access', async ({ page }) => {
@@ -125,4 +126,3 @@ test.describe('FLIXO MVP mobile + Arabic journey', () => {
     await expect(page.getByTestId('flixo-agent-result-preview')).toHaveAttribute('src', /^blob:/);
   });
 });
-
