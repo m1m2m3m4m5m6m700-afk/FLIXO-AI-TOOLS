@@ -9,12 +9,25 @@ import type { LLMProvider, LLMProviderName, LLMToolDefinition } from "./types";
 import type { CanonicalAgentTool } from "../tools/canonical";
 
 const PROVIDER_ORDER: readonly LLMProviderName[] = ["openai", "anthropic", "gemini"];
+const DEFAULT_OMNIROUTE_BASE_URL = "http://127.0.0.1:20128/v1";
 
 function isAdmittedAgentModel(provider: LLMProviderName, model: string): boolean {
   const entry = findRegisteredModel(model);
   if (!entry || entry.provider !== provider) return false;
   if (!isProductionEligible(entry)) return false;
 
+  return entry.supported_tasks.some((task) =>
+    task === "CHAT"
+    || task === "UNDERSTAND"
+    || task === "PLAN"
+    || task === "EXECUTION_PLANNING"
+  );
+}
+
+function isAdmittedOmniRouteModel(model: string): boolean {
+  if (model === "auto") return process.env.NODE_ENV !== "production";
+  const entry = findRegisteredModel(model);
+  if (!entry || !isProductionEligible(entry)) return false;
   return entry.supported_tasks.some((task) =>
     task === "CHAT"
     || task === "UNDERSTAND"
@@ -34,6 +47,17 @@ export function createDefaultLLMRouter(): LLMRouter {
     if (name === "openai") providers.push(new OpenAIProvider(model, key));
     else if (name === "anthropic") providers.push(new AnthropicProvider(model, key));
     else providers.push(new GeminiProvider(model, key));
+  }
+
+  if (process.env.FLIXO_OMNIROUTE_ENABLED === "true") {
+    const model = process.env.FLIXO_LLM_OMNIROUTE_MODEL?.trim();
+    const baseUrl = process.env.FLIXO_OMNIROUTE_BASE_URL?.trim() || DEFAULT_OMNIROUTE_BASE_URL;
+    const apiKey = process.env.FLIXO_OMNIROUTE_API_KEY?.trim() || "";
+    if (model && isAdmittedOmniRouteModel(model)) {
+      providers.push(new OpenAIProvider(model, apiKey, `${baseUrl.replace(/\/+$/, "")}/chat/completions`, "omniroute", false));
+    } else if (model) {
+      console.warn("[FLIXO_OMNIROUTE_CONFIG] model not admitted; provider disabled.");
+    }
   }
 
   return new LLMRouter(providers);

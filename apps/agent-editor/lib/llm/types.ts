@@ -1,4 +1,4 @@
-export const LLM_PROVIDER_NAMES = ["openai", "anthropic", "gemini"] as const;
+export const LLM_PROVIDER_NAMES = ["openai", "anthropic", "gemini", "omniroute"] as const;
 export type LLMProviderName = (typeof LLM_PROVIDER_NAMES)[number];
 
 export type LLMMessageRole = "system" | "user" | "assistant" | "tool";

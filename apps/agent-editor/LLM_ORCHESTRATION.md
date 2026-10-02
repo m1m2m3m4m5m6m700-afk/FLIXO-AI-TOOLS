@@ -4,7 +4,7 @@ The agent-editor runtime is a provider-neutral planning layer. The canonical `To
 
 ## Providers
 
-OpenAI, Anthropic, and Gemini are implemented behind the `LLMProvider` interface. `LLMRouter` keeps per-instance health metrics, ranks configured providers using failures, cooldown, and observed latency, and fails over when a provider rejects or drops a stream.
+OpenAI, Anthropic, and Gemini are implemented behind the `LLMProvider` interface. OmniRoute is exposed through the same OpenAI-compatible transport as a provider named `omniroute`, so FLIXO stays provider-neutral while gaining a local multi-provider gateway. `LLMRouter` keeps per-instance health metrics, ranks configured providers using failures, cooldown, and observed latency, and fails over when a provider rejects or drops a stream.
 
 Provider API keys are server-only. Production requires the AES-256-GCM encrypted credential envelope; plaintext provider environment keys are rejected in production. The encryption key is separate from the encrypted credential payload and must never be committed.
 

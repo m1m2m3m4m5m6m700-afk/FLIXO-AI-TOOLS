@@ -6,6 +6,7 @@ import {
   type LLMStreamEvent,
   type LLMStreamRequest,
   type LLMToolDefinition,
+  type LLMProviderName,
 } from "../types";
 
 type OpenAIChunk = {
@@ -70,16 +71,20 @@ function toTools(tools: readonly LLMToolDefinition[]) {
 }
 
 export class OpenAIProvider implements LLMProvider {
-  readonly name = "openai" as const;
+  readonly name: LLMProviderName;
 
   constructor(
     public readonly model: string,
     private readonly apiKey: string,
     private readonly baseUrl = "https://api.openai.com/v1/chat/completions",
-  ) {}
+    name: LLMProviderName = "openai",
+    private readonly requiresApiKey = true,
+  ) {
+    this.name = name;
+  }
 
   isConfigured(): boolean {
-    return Boolean(this.apiKey && this.model);
+    return Boolean(this.model && this.baseUrl && (!this.requiresApiKey || this.apiKey));
   }
 
   async *stream(request: LLMStreamRequest): AsyncGenerator<LLMStreamEvent> {
@@ -87,7 +92,7 @@ export class OpenAIProvider implements LLMProvider {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
+        ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
       },
       body: JSON.stringify({
         model: request.model,
@@ -102,8 +107,8 @@ export class OpenAIProvider implements LLMProvider {
     const contentType = response.headers.get("content-type") ?? "";
     if (!response.ok || !response.body || !contentType.includes("text/event-stream")) {
       throw new LLMProviderError(
-        "openai",
-        "OpenAI request was rejected.",
+        this.name,
+        "OpenAI-compatible request was rejected.",
         { status: response.status, retryable: response.status >= 429 || response.status >= 500 },
       );
     }
@@ -137,8 +142,8 @@ export class OpenAIProvider implements LLMProvider {
       for (const call of toolCalls.values()) {
         if (!call.toolName) {
           throw new LLMProviderError(
-            "openai",
-            "OpenAI returned a tool call without a function name.",
+            this.name,
+            "OpenAI-compatible response returned a tool call without a function name.",
             { retryable: true },
           );
         }
@@ -148,16 +153,16 @@ export class OpenAIProvider implements LLMProvider {
           parsed = JSON.parse(call.arguments) as unknown;
         } catch {
           throw new LLMProviderError(
-            "openai",
-            "OpenAI returned malformed tool arguments.",
+            this.name,
+            "OpenAI-compatible response returned malformed tool arguments.",
             { retryable: true },
           );
         }
 
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
           throw new LLMProviderError(
-            "openai",
-            "OpenAI returned a non-object tool argument payload.",
+            this.name,
+            "OpenAI-compatible response returned a non-object tool argument payload.",
             { retryable: true },
           );
         }
@@ -174,8 +179,8 @@ export class OpenAIProvider implements LLMProvider {
       if (error instanceof LLMProviderError) throw error;
       if (error instanceof Error && error.name === "AbortError") throw error;
       throw new LLMProviderError(
-        "openai",
-        "OpenAI streaming connection failed.",
+        this.name,
+        "OpenAI-compatible streaming connection failed.",
         { retryable: true },
       );
     }
