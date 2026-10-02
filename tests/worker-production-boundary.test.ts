@@ -45,10 +45,29 @@ test('production worker rejects a versioned identity that does not match the Wor
   const requested = 'a'.repeat(40);
   const deployed = 'b'.repeat(40);
   const response = await worker.fetch(new Request('https://flixoai.example/__flixo-identity-' + requested + '.txt'), {
-    ASSETS: { fetch: async () => new Response('Not Found\\n', { status: 404 }) },
+    ASSETS: {
+      fetch: async (request) => {
+        const path = new URL(request.url).pathname;
+        if (path === '/__flixo-identity.txt' || path === '/__flixo-identity-' + requested + '.txt') {
+          return new Response(requested + '\\n', { status: 200 });
+        }
+        return new Response('Not Found\\n', { status: 404 });
+      },
+    },
     FLIXO_DEPLOYMENT_SHA: deployed,
   });
   assert.equal(response.status, 404);
+});
+
+test('production worker serves the canonical identity endpoint from the Worker environment', async () => {
+  const deployed = 'c'.repeat(40);
+  const response = await worker.fetch(new Request('https://flixoai.example/__flixo-identity.txt'), {
+    ASSETS: { fetch: async () => new Response('stale\n', { status: 200 }) },
+    FLIXO_DEPLOYMENT_SHA: deployed,
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await response.text()).trim(), deployed);
+  assert.equal(response.headers.get('x-flixo-deployment-sha'), deployed);
 });
 
 test('production worker falls back to the exact versioned identity asset', async () => {
