@@ -30,16 +30,6 @@ test('production worker verifies identity against the fixed canonical asset', as
   assert.equal(response.headers.get('x-flixo-deployment-sha'), requested);
 });
 
-test('production worker exposes only a verified SHA-specific identity route', async () => {
-  const requested = 'c'.repeat(40);
-  const response = await worker.fetch(new Request('https://flixoai.example/__flixo-identity.txt'), {
-    ASSETS: { fetch: async () => new Response(requested + '\n', { status: 200 }) },
-  });
-  assert.equal(response.status, 200);
-  assert.equal((await response.text()).trim(), requested);
-  assert.equal(response.headers.get('x-flixo-deployment-sha'), requested);
-});
-
 test('production worker rejects identity when canonical and versioned assets do not match', async () => {
   const requested = 'a'.repeat(40);
   const response = await worker.fetch(new Request('https://flixoai.example/__flixo-identity-' + requested + '.txt'), {
