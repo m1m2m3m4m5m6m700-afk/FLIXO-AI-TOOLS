@@ -1,5 +1,5 @@
 type AssetsBinding = { fetch(request: Request): Promise<Response> };
-type Env = { ASSETS: AssetsBinding; FLIXO_DEPLOYMENT_SHA?: string };
+type Env = { ASSETS: AssetsBinding };
 const SHA_PATTERN = /^[a-f0-9]{40}$/u;
 const VERSIONED_IDENTITY_PATTERN = /^\/__flixo-identity-([a-f0-9]{40})\.txt$/u;
 const DIRECTORY_IDENTITY_PATTERN = /^\/__flixo\/identity\/([a-f0-9]{40})\/index\.txt$/u;
@@ -23,26 +23,14 @@ async function readIdentityAsset(env:Env, request:Request, path:string):Promise<
 }
 async function verifyIdentityAsset(request:Request,env:Env,requestedSha:string):Promise<Response>{
   if(!SHA_PATTERN.test(requestedSha)) return identity404();
-  const deploymentSha = env.FLIXO_DEPLOYMENT_SHA?.trim().toLowerCase();
-  if (deploymentSha !== undefined) {
-    if (SHA_PATTERN.test(deploymentSha) && deploymentSha === requestedSha) return identityResponse(requestedSha);
-    return identity404();
-  }
   const canonicalBody = await readIdentityAsset(env, request, CANONICAL_IDENTITY_ASSET_PATH);
   if(canonicalBody === requestedSha) return identityResponse(requestedSha);
-  const versionedBody = await readIdentityAsset(env, request, `/__flixo-identity-${requestedSha}.txt`);
-  if(versionedBody === requestedSha) return identityResponse(requestedSha);
   return identity404();
 }
 export default {
  async fetch(request:Request,env:Env):Promise<Response>{
   const url=new URL(request.url);
   if(url.pathname.startsWith('/api/')) return apiNotFound();
-  if (url.pathname === CANONICAL_IDENTITY_ASSET_PATH) {
-    const deploymentSha = env.FLIXO_DEPLOYMENT_SHA?.trim().toLowerCase() ?? null;
-    if (deploymentSha && SHA_PATTERN.test(deploymentSha)) return identityResponse(deploymentSha);
-    return identity404();
-  }
   const versioned=url.pathname.match(VERSIONED_IDENTITY_PATTERN);
   if(versioned) return verifyIdentityAsset(request,env,versioned[1]);
   const directory=url.pathname.match(DIRECTORY_IDENTITY_PATTERN);
