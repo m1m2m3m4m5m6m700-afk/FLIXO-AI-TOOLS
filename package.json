@@ -28,7 +28,8 @@
     "verify:architecture": "node scripts/verify-architecture.mjs",
     "verify:contracts": "node scripts/verify-contract-boundary.mjs",
     "typecheck:contracts": "npx tsc -p packages/contracts/tsconfig.json --noEmit",
-    "typecheck:agent-runtime": "npx tsc -p packages/agent-runtime/tsconfig.json --noEmit"
+    "typecheck:agent-runtime": "npx tsc -p packages/agent-runtime/tsconfig.json --noEmit",
+    "verify:launch": "node scripts/verify-public-launch-readiness.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
