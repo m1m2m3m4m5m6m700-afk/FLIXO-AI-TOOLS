@@ -23,8 +23,11 @@ async function readIdentityAsset(env:Env, request:Request, path:string):Promise<
 }
 async function verifyIdentityAsset(request:Request,env:Env,requestedSha:string):Promise<Response>{
   if(!SHA_PATTERN.test(requestedSha)) return identity404();
-  const deploymentSha = env.FLIXO_DEPLOYMENT_SHA?.trim().toLowerCase() ?? null;
-  if (deploymentSha === requestedSha) return identityResponse(requestedSha);
+  const deploymentSha = env.FLIXO_DEPLOYMENT_SHA?.trim().toLowerCase();
+  if (deploymentSha !== undefined) {
+    if (SHA_PATTERN.test(deploymentSha) && deploymentSha === requestedSha) return identityResponse(requestedSha);
+    return identity404();
+  }
   const canonicalBody = await readIdentityAsset(env, request, CANONICAL_IDENTITY_ASSET_PATH);
   if(canonicalBody === requestedSha) return identityResponse(requestedSha);
   const versionedBody = await readIdentityAsset(env, request, `/__flixo-identity-${requestedSha}.txt`);
