@@ -32,7 +32,7 @@ test('production worker verifies identity against the fixed canonical asset', as
 
 test('production worker falls back to the exact versioned identity asset', async () => {
   const requested = 'a'.repeat(40);
-  let paths: string[] = [];
+  const paths: string[] = [];
   const response = await worker.fetch(new Request('https://flixoai.example/__flixo-identity-' + requested + '.txt'), {
     ASSETS: { fetch: async (request) => {
       const path = new URL(request.url).pathname;
