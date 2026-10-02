@@ -30,7 +30,25 @@ test('production worker verifies identity against the fixed canonical asset', as
   assert.equal(response.headers.get('x-flixo-deployment-sha'), requested);
 });
 
-test('production worker rejects identity when canonical asset SHA does not match', async () => {
+test('production worker falls back to the exact versioned identity asset', async () => {
+  const requested = 'a'.repeat(40);
+  const paths: string[] = [];
+  const response = await worker.fetch(new Request('https://flixoai.example/__flixo-identity-' + requested + '.txt'), {
+    ASSETS: { fetch: async (request) => {
+      const path = new URL(request.url).pathname;
+      paths.push(path);
+      if (path === '/__flixo-identity.txt') return new Response('Not Found\n', { status: 404 });
+      if (path === '/__flixo-identity-' + requested + '.txt') return new Response(requested + '\n', { status: 200 });
+      throw new Error('unexpected asset path: ' + path);
+    } },
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await response.text()).trim(), requested);
+  assert.equal(response.headers.get('x-flixo-deployment-sha'), requested);
+  assert.deepEqual(paths, ['/__flixo-identity.txt', '/__flixo-identity-' + requested + '.txt']);
+});
+
+test('production worker rejects identity when canonical and versioned assets do not match', async () => {
   const requested = 'a'.repeat(40);
   const response = await worker.fetch(new Request('https://flixoai.example/__flixo-identity-' + requested + '.txt'), {
     ASSETS: { fetch: async () => new Response('b'.repeat(40) + '\n', { status: 200 }) },

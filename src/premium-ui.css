@@ -1,0 +1,918 @@
+/*
+ * FLIXO Premium UI System
+ * Visual-only layer. Product behavior, routing, and tool contracts are untouched.
+ */
+
+:root {
+  --flx-bg: #05070b;
+  --flx-surface: #0b0f15;
+  --flx-surface-2: #0f141c;
+  --flx-surface-3: #131a23;
+  --flx-line: rgba(255,255,255,.085);
+  --flx-line-strong: rgba(255,255,255,.14);
+  --flx-text: #f5f7fa;
+  --flx-muted: #98a2af;
+  --flx-subtle: #6e7885;
+  --flx-cyan: #67e8f9;
+  --flx-violet: #a78bfa;
+  --flx-green: #7dd3a6;
+  --flx-shadow: 0 30px 90px rgba(0,0,0,.34);
+}
+
+::selection {
+  background: rgba(103,232,249,.26);
+  color: #fff;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(103,232,249,.78);
+  outline-offset: 3px;
+}
+
+/* ----------------------------- Home / catalog ---------------------------- */
+
+.home-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(900px 420px at 50% -12%, rgba(103,232,249,.11), transparent 64%),
+    radial-gradient(760px 520px at 96% 20%, rgba(167,139,250,.08), transparent 68%),
+    linear-gradient(180deg, #07090d 0%, #05070b 58%, #040509 100%) !important;
+  color: var(--flx-text);
+}
+
+.home-shell::before {
+  opacity: .52 !important;
+  background:
+    radial-gradient(circle at 32% 18%, rgba(103,232,249,.06), transparent 24%),
+    radial-gradient(circle at 76% 42%, rgba(167,139,250,.05), transparent 25%);
+}
+
+.home-nav {
+  border-bottom: 1px solid rgba(255,255,255,.065) !important;
+  background: rgba(5,7,11,.68) !important;
+  box-shadow: 0 8px 36px rgba(0,0,0,.16);
+}
+
+.home-nav-inner {
+  min-height: 70px !important;
+}
+
+.home-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border-radius: 13px;
+}
+
+.home-brand img {
+  display: block;
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.11);
+  box-shadow: 0 10px 28px rgba(0,0,0,.30);
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.home-brand:hover img {
+  transform: translateY(-1px);
+  border-color: rgba(103,232,249,.28);
+  box-shadow: 0 14px 34px rgba(0,0,0,.36), 0 0 24px rgba(103,232,249,.08);
+}
+
+.home-nav-links a,
+.home-nav-language {
+  color: #aeb9c6 !important;
+  border-color: transparent !important;
+}
+
+.home-nav-links a:hover,
+.home-nav-language:hover {
+  color: #f5fbff !important;
+  background: rgba(255,255,255,.045) !important;
+}
+
+.home-nav-language {
+  background: rgba(255,255,255,.025) !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.home-content {
+  padding-bottom: 104px !important;
+}
+
+.home-hero {
+  position: relative;
+  isolation: isolate;
+  max-width: 980px;
+  padding: clamp(78px, 12vw, 146px) 0 30px !important;
+}
+
+.home-hero::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 520px;
+  height: 260px;
+  inset-inline-start: 8%;
+  top: 6%;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(103,232,249,.12), transparent 70%);
+  filter: blur(30px);
+  pointer-events: none;
+}
+
+.home-badge {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 8px 30px rgba(103,232,249,.05);
+}
+
+.image-tool-eyebrow {
+  color: #8bdfe9 !important;
+  font-size: .68rem !important;
+  letter-spacing: .17em !important;
+}
+
+.home-hero h1 {
+  font-weight: 700 !important;
+  text-wrap: balance;
+  text-shadow: 0 18px 60px rgba(0,0,0,.34);
+}
+
+.home-hero h1 span {
+  background: linear-gradient(90deg, #d7fbff 0%, #67e8f9 45%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+}
+
+.home-lead {
+  max-width: 720px !important;
+  color: #9aa6b3 !important;
+  text-wrap: pretty;
+}
+
+.home-hero-command {
+  border-color: rgba(255,255,255,.09) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 12px 34px rgba(0,0,0,.14);
+  transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+
+.home-hero-command:hover {
+  transform: translateY(-1px);
+  border-color: rgba(103,232,249,.24) !important;
+  background: linear-gradient(180deg, rgba(103,232,249,.07), rgba(255,255,255,.025)) !important;
+}
+
+.home-search-panel {
+  top: 76px !important;
+  border-color: rgba(255,255,255,.085) !important;
+  background: rgba(8,11,16,.78) !important;
+  box-shadow: var(--flx-shadow) !important;
+}
+
+.home-search-wrap {
+  background: rgba(255,255,255,.045) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.02);
+}
+
+.home-search-wrap:focus-within {
+  box-shadow: inset 0 0 0 1px rgba(103,232,249,.18), 0 0 0 4px rgba(103,232,249,.05);
+}
+
+.home-search-wrap input::placeholder {
+  color: #626e7b;
+}
+
+.search-command-button {
+  min-width: 42px;
+  min-height: 36px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 10px;
+  background: rgba(255,255,255,.035);
+  color: #9bdfe7;
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+
+.search-command-button:hover {
+  border-color: rgba(103,232,249,.3);
+  background: rgba(103,232,249,.07);
+  color: #dffbff;
+}
+
+.intent-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 9px;
+  padding: 11px 12px;
+  border: 1px solid rgba(103,232,249,.12);
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(103,232,249,.045), rgba(167,139,250,.03));
+  color: #c9e8ec;
+  text-decoration: none;
+}
+
+.intent-suggestion:hover {
+  border-color: rgba(103,232,249,.24);
+}
+
+.intent-suggestion strong {
+  color: #effcff;
+  font-size: .75rem;
+}
+
+.intent-suggestion small {
+  color: #6f7b87;
+  white-space: nowrap;
+}
+
+.home-trust-grid {
+  gap: 10px !important;
+}
+
+.home-trust-grid div {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(255,255,255,.07) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.032), rgba(255,255,255,.018)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.home-trust-grid div::after {
+  content: "";
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  inset-inline-end: -55px;
+  top: -55px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(103,232,249,.08), transparent 70%);
+  pointer-events: none;
+}
+
+.home-quick-drop,
+.home-final-cta,
+.agent-workbench {
+  border-color: rgba(255,255,255,.08) !important;
+  box-shadow: 0 22px 80px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.home-quick-drop {
+  background:
+    radial-gradient(500px 180px at 5% 10%, rgba(103,232,249,.05), transparent 72%),
+    linear-gradient(180deg, rgba(255,255,255,.028), rgba(255,255,255,.016)) !important;
+}
+
+.home-drop-zone {
+  transition: border-color .18s ease, transform .18s ease, background .18s ease;
+}
+
+.home-drop-zone:hover {
+  transform: translateY(-1px);
+}
+
+.drop-result {
+  align-items: center !important;
+  border-top-color: rgba(255,255,255,.07) !important;
+}
+
+.primary-button,
+.download-button {
+  background: linear-gradient(135deg, #dffcff 0%, #67e8f9 100%) !important;
+  color: #061116 !important;
+  box-shadow: 0 10px 30px rgba(103,232,249,.13);
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+
+.primary-button:hover,
+.download-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 15px 34px rgba(103,232,249,.18);
+  filter: saturate(1.05);
+}
+
+.home-tools-section {
+  margin-top: 46px !important;
+}
+
+.home-tools-grid {
+  gap: 12px !important;
+}
+
+.home-tool-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 176px !important;
+  border-color: rgba(255,255,255,.075) !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.028), rgba(255,255,255,.015)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.023);
+}
+
+.home-tool-card::after {
+  content: "";
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  inset-inline-end: -110px;
+  bottom: -110px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(167,139,250,.08), transparent 70%);
+  pointer-events: none;
+  transition: transform .25s ease;
+}
+
+.home-tool-card:hover::after,
+.home-tool-card:focus-visible::after {
+  transform: scale(1.25);
+}
+
+.home-tool-card:hover,
+.home-tool-card:focus-visible {
+  transform: translateY(-3px) !important;
+  border-color: rgba(103,232,249,.26) !important;
+  background: linear-gradient(180deg, rgba(103,232,249,.045), rgba(255,255,255,.02)) !important;
+  box-shadow: 0 18px 50px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+.tool-card-category {
+  color: #8bdfe9 !important;
+}
+
+.tool-card-arrow {
+  transition: transform .18s ease, color .18s ease;
+}
+
+.home-tool-card:hover .tool-card-arrow,
+.home-tool-card:focus-visible .tool-card-arrow {
+  transform: translate(2px,-2px);
+  color: #bff8fd;
+}
+
+.home-tool-card h3 {
+  color: #edf1f5;
+  text-wrap: balance;
+}
+
+.home-tool-card p {
+  color: #8894a0;
+}
+
+.home-final-cta {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(500px 220px at 0% 50%, rgba(103,232,249,.07), transparent 70%),
+    radial-gradient(420px 220px at 100% 50%, rgba(167,139,250,.07), transparent 70%),
+    linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.016)) !important;
+}
+
+.home-final-cta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255,255,255,.025);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.agent-workbench {
+  background:
+    radial-gradient(500px 240px at 10% 0%, rgba(103,232,249,.06), transparent 72%),
+    linear-gradient(180deg, #0b1016, #090d13) !important;
+}
+
+.agent-workbench__header {
+  padding: 22px 24px !important;
+  border-bottom-color: rgba(255,255,255,.065) !important;
+}
+
+.agent-workbench__header h2 {
+  font-size: 1.3rem !important;
+  letter-spacing: -.03em;
+}
+
+.agent-workbench__message,
+.agent-workbench__result,
+.agent-workbench__active,
+.agent-workbench__tool-list button {
+  border-color: rgba(255,255,255,.075) !important;
+  background: rgba(255,255,255,.022) !important;
+}
+
+.agent-workbench textarea {
+  border-color: rgba(255,255,255,.09) !important;
+  background: rgba(4,7,11,.62) !important;
+}
+
+.agent-workbench textarea:focus {
+  border-color: rgba(103,232,249,.28) !important;
+  box-shadow: 0 0 0 4px rgba(103,232,249,.045) !important;
+}
+
+.agent-workbench button,
+.agent-workbench__result-actions a {
+  background: linear-gradient(180deg, #f5f7fa, #dfe6eb) !important;
+  color: #071017 !important;
+  transition: transform .16s ease, filter .16s ease;
+}
+
+.agent-workbench button:hover:not(:disabled),
+.agent-workbench__result-actions a:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+.agent-workbench__tool-list button.is-active {
+  border-color: rgba(103,232,249,.28) !important;
+  background: linear-gradient(180deg, rgba(103,232,249,.09), rgba(103,232,249,.035)) !important;
+  color: #d8fbff !important;
+}
+
+.flixo-ai-agent {
+  box-shadow: 0 20px 80px rgba(0,0,0,.16);
+}
+
+/* ------------------------------ Tool surface ----------------------------- */
+
+.tool-page-modern {
+  --tp-bg: #05070b;
+  --tp-panel: #0b1016;
+  --tp-panel-strong: #080c11;
+  --tp-line: rgba(255,255,255,.078);
+  --tp-line-strong: rgba(103,232,249,.25);
+  background:
+    radial-gradient(800px 360px at 50% -10%, rgba(103,232,249,.075), transparent 68%),
+    radial-gradient(640px 460px at 96% 25%, rgba(167,139,250,.06), transparent 72%),
+    #05070b !important;
+}
+
+.tool-page-modern__nav {
+  background: rgba(5,7,11,.70) !important;
+  box-shadow: 0 8px 34px rgba(0,0,0,.15);
+}
+
+.tool-page-modern__nav-link,
+.tool-page-modern__lang,
+.tool-page-modern__favorite {
+  min-height: 36px !important;
+  border-radius: 10px !important;
+  background: rgba(255,255,255,.026) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.tool-page-modern__brand-logo {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 10px !important;
+  border-color: rgba(255,255,255,.11) !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,.28);
+}
+
+.tool-page-modern__hero {
+  margin-top: 18px !important;
+  padding: 24px 0 20px !important;
+  border-bottom-color: rgba(255,255,255,.065) !important;
+}
+
+.tool-page-modern__eyebrow {
+  color: #7fdbe4 !important;
+}
+
+.tool-page-modern__title {
+  font-weight: 720 !important;
+  text-wrap: balance;
+}
+
+.tool-page-modern__description {
+  color: #919daa !important;
+  font-size: .94rem !important;
+}
+
+.tool-page-modern__badge,
+.tool-page-modern__chip,
+.tool-page-modern__privacy {
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.022);
+}
+
+.tool-page-modern__workspace {
+  position: relative;
+  margin-top: 20px !important;
+  padding: 10px !important;
+  border-radius: 16px !important;
+  border-color: rgba(255,255,255,.085) !important;
+  background: rgba(255,255,255,.018) !important;
+  box-shadow: 0 30px 90px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.025) !important;
+}
+
+.tool-page-modern__workspace-bar {
+  min-height: 36px !important;
+  color: #6e7986 !important;
+}
+
+.tool-page-modern__tool-host {
+  border-color: rgba(255,255,255,.065) !important;
+  background:
+    radial-gradient(620px 280px at 50% 0%, rgba(103,232,249,.04), transparent 75%),
+    #080c11 !important;
+}
+
+.tool-page-modern__seo-card {
+  border-color: rgba(255,255,255,.07) !important;
+  background: rgba(255,255,255,.018) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.02);
+}
+
+.tool-page-modern__seo-card h2,
+.tool-page-modern__seo-card h3 {
+  color: #edf2f6;
+}
+
+.tool-page-modern__seo-card p,
+.tool-page-modern__seo-card li {
+  color: #828d99;
+}
+
+.flixo-universal-tool-surface {
+  --tool-ui-bg: #080c11;
+  --tool-ui-panel: #0d1218;
+  --tool-ui-panel-2: #111821;
+  --tool-ui-line: rgba(255,255,255,.08);
+  --tool-ui-line-strong: rgba(255,255,255,.14);
+  --tool-ui-text: #eef2f6;
+  --tool-ui-muted: #7f8995;
+  --tool-ui-accent: #a78bfa;
+  background:
+    radial-gradient(600px 240px at 50% 0%, rgba(103,232,249,.035), transparent 74%),
+    var(--tool-ui-bg);
+}
+
+.flixo-universal-tool-surface :where(button,[role="button"]) {
+  min-height: 38px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, rgba(255,255,255,.043), rgba(255,255,255,.018));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.flixo-universal-tool-surface :where(button,[role="button"]):hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,.18);
+  background: linear-gradient(180deg, rgba(255,255,255,.065), rgba(255,255,255,.025));
+}
+
+.flixo-universal-tool-surface :where(button[type="submit"],button[data-primary="true"],[role="button"][data-primary="true"]) {
+  background: linear-gradient(135deg, #af92ff, #876ee2) !important;
+  border-color: rgba(213,202,255,.33);
+  box-shadow: 0 10px 24px rgba(133,110,226,.18);
+}
+
+.flixo-universal-tool-surface :where(input:not([type="file"]),select,textarea) {
+  min-height: 40px;
+  border-radius: 9px;
+  background: rgba(5,8,12,.72);
+  border-color: rgba(255,255,255,.09);
+}
+
+.flixo-universal-tool-surface :where(input:not([type="file"]),select,textarea):focus {
+  border-color: rgba(167,139,250,.44);
+  box-shadow: 0 0 0 4px rgba(167,139,250,.055);
+}
+
+@media (max-width: 980px) {
+  .home-tools-grid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+}
+
+@media (max-width: 680px) {
+  .home-content { width: min(100% - 20px, 1180px) !important; }
+  .home-hero { padding-top: 62px !important; }
+  .home-hero-command { width: 100%; justify-content: center; }
+  .home-tools-grid { grid-template-columns: 1fr !important; }
+  .home-trust-grid { grid-template-columns: 1fr !important; }
+  .tool-page-modern__hero { padding-top: 18px !important; }
+  .tool-page-modern__workspace { margin-top: 14px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-brand img,
+  .home-hero-command,
+  .home-drop-zone,
+  .primary-button,
+  .download-button,
+  .home-tool-card,
+  .tool-card-arrow,
+  .agent-workbench button,
+  .agent-workbench__result-actions a,
+  .flixo-universal-tool-surface :where(button,[role="button"]) {
+    transition: none !important;
+  }
+}
+
+
+/* ---------------------------- Agent-first landing ------------------------- */
+.agent-first-home {
+  min-height: 100vh;
+  color: var(--flx-text);
+  background:
+    radial-gradient(850px 420px at 50% 4%, rgba(103,232,249,.10), transparent 68%),
+    radial-gradient(620px 420px at 86% 38%, rgba(167,139,250,.075), transparent 70%),
+    linear-gradient(180deg, #070a0f, #05070b 76%, #040509);
+}
+.agent-first-home::before {
+  background:
+    radial-gradient(circle at 50% 10%, rgba(103,232,249,.05), transparent 28%),
+    linear-gradient(rgba(255,255,255,.016) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.016) 1px, transparent 1px) !important;
+  background-size: auto, 42px 42px, 42px 42px;
+  opacity: .48;
+}
+.agent-first-nav {
+  width: min(1240px, calc(100% - 36px)) !important;
+  height: 72px !important;
+}
+.agent-first-brand {
+  padding: 4px;
+  border-radius: 13px;
+}
+.agent-first-nav-actions {
+  gap: 7px !important;
+}
+.agent-first-tools-button,
+.agent-first-new-chat,
+.agent-first-language {
+  min-height: 40px !important;
+  border-color: rgba(255,255,255,.08) !important;
+  background: rgba(255,255,255,.028) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+  transition: transform .16s ease, border-color .16s ease, background .16s ease, color .16s ease;
+}
+.agent-first-tools-button:hover,
+.agent-first-new-chat:hover,
+.agent-first-language:hover {
+  transform: translateY(-1px);
+  border-color: rgba(103,232,249,.22) !important;
+  background: rgba(103,232,249,.045) !important;
+  color: #ecfbfd !important;
+}
+.agent-first-main {
+  width: min(940px, calc(100% - 28px)) !important;
+  padding-top: clamp(84px, 13vh, 152px) !important;
+}
+.agent-first-heading {
+  margin-bottom: 34px !important;
+}
+.agent-first-mark {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 13px !important;
+  border-color: rgba(103,232,249,.2) !important;
+  background: linear-gradient(145deg, rgba(103,232,249,.095), rgba(167,139,250,.08)) !important;
+  box-shadow: 0 14px 36px rgba(0,0,0,.2);
+}
+.agent-first-heading h1 {
+  max-width: 880px;
+  margin-inline: auto !important;
+  font-weight: 720 !important;
+  text-wrap: balance;
+  text-shadow: 0 20px 70px rgba(0,0,0,.34);
+}
+.agent-first-heading h1 span {
+  background: linear-gradient(90deg, #e4fdff, #67e8f9 45%, #b29bff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+}
+.agent-first-heading p {
+  color: #8d99a6 !important;
+}
+.agent-first-chat {
+  border-color: rgba(255,255,255,.09) !important;
+  border-radius: 24px !important;
+  background:
+    radial-gradient(560px 180px at 50% 0%, rgba(103,232,249,.045), transparent 75%),
+    rgba(10,14,19,.78) !important;
+  box-shadow: 0 38px 120px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+.agent-first-chat .flixo-ai-agent-inputs textarea {
+  border-color: rgba(255,255,255,.09) !important;
+  background: rgba(255,255,255,.035) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.02);
+}
+.agent-first-chat .flixo-ai-agent-inputs textarea:focus {
+  border-color: rgba(103,232,249,.28) !important;
+  box-shadow: 0 0 0 4px rgba(103,232,249,.045), inset 0 1px 0 rgba(255,255,255,.02) !important;
+}
+.agent-first-chat .flixo-ai-agent-examples button {
+  transition: transform .16s ease, border-color .16s ease, background .16s ease, color .16s ease;
+}
+.agent-first-chat .flixo-ai-agent-examples button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(103,232,249,.2) !important;
+  background: rgba(103,232,249,.045) !important;
+}
+.agent-first-hint {
+  color: #687582 !important;
+}
+@media (max-width: 640px) {
+  .agent-first-nav { width: min(100% - 18px, 1240px) !important; }
+  .agent-first-main { width: min(100% - 18px, 940px) !important; padding-top: 56px !important; }
+  .agent-first-heading h1 { font-size: clamp(2.25rem, 12vw, 3.8rem) !important; }
+  .agent-first-chat { border-radius: 17px !important; }
+}
+
+
+/* ------------------------- Standalone AI agent page ------------------------ */
+.flixo-agent-page {
+  color: var(--flx-text) !important;
+  background:
+    radial-gradient(900px 430px at 50% -10%, rgba(103,232,249,.085), transparent 68%),
+    radial-gradient(620px 460px at 100% 58%, rgba(167,139,250,.065), transparent 72%),
+    #05070b !important;
+}
+.flixo-agent-page__nav {
+  border-bottom-color: rgba(255,255,255,.065) !important;
+  background: rgba(5,7,11,.68) !important;
+}
+.flixo-agent-page__nav-inner {
+  max-width: 1280px !important;
+  height: 70px !important;
+}
+.flixo-agent-page__brand {
+  gap: 10px !important;
+  color: #f2f7fa !important;
+}
+.flixo-agent-page__brand img {
+  border: 1px solid rgba(255,255,255,.1);
+  box-shadow: 0 10px 28px rgba(0,0,0,.25);
+}
+.flixo-agent-page__links a {
+  border-color: rgba(255,255,255,.08) !important;
+  border-radius: 10px !important;
+  background: rgba(255,255,255,.025) !important;
+  color: #9da8b4 !important;
+  transition: transform .16s ease, border-color .16s ease, color .16s ease;
+}
+.flixo-agent-page__links a:hover {
+  transform: translateY(-1px);
+  border-color: rgba(103,232,249,.24) !important;
+  color: #eefcff !important;
+}
+.flixo-agent-page__body {
+  padding: 28px 20px 80px !important;
+}
+.flixo-agent-page__studio {
+  max-width: 1320px !important;
+}
+
+/* The full Studio already provides the product shell; make the chrome calmer. */
+.flixo-agent-studio {
+  border-color: rgba(255,255,255,.085) !important;
+  border-radius: 22px !important;
+  background: #080c11 !important;
+  box-shadow: 0 34px 110px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.025) !important;
+}
+.flixo-agent-rail {
+  background: #060a0f !important;
+  border-color: rgba(255,255,255,.065) !important;
+}
+.flixo-agent-rail-btn:hover,
+.flixo-agent-rail-btn.active {
+  border-color: rgba(103,232,249,.2) !important;
+  background: rgba(103,232,249,.055) !important;
+}
+.flixo-agent-chat-col {
+  background:
+    radial-gradient(560px 260px at 50% 0%, rgba(103,232,249,.045), transparent 72%),
+    #080c11 !important;
+}
+.flixo-agent-chat-top {
+  border-bottom-color: rgba(255,255,255,.065) !important;
+}
+.flixo-agent-bubble,
+.flixo-agent-inline-card,
+.flixo-agent-inline-progress,
+.flixo-agent-error,
+.flixo-agent-success-card {
+  border-color: rgba(255,255,255,.075) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.032), rgba(255,255,255,.017)) !important;
+}
+.flixo-agent-msg.user .flixo-agent-bubble {
+  border-color: rgba(103,232,249,.19) !important;
+  background: linear-gradient(135deg, rgba(103,232,249,.09), rgba(167,139,250,.06)) !important;
+}
+.flixo-agent-avatar {
+  border-color: rgba(103,232,249,.2) !important;
+  background: rgba(103,232,249,.045) !important;
+}
+.flixo-agent-editor-col,
+.flixo-agent-tools-col {
+  border-color: rgba(255,255,255,.065) !important;
+}
+
+/* ------------------------------ Admin console ----------------------------- */
+.admin-shell {
+  background:
+    radial-gradient(900px 420px at 15% -6%, rgba(167,139,250,.11), transparent 67%),
+    radial-gradient(760px 460px at 94% 8%, rgba(103,232,249,.075), transparent 68%),
+    #05070b !important;
+}
+.admin-topbar {
+  border-color: rgba(255,255,255,.075) !important;
+  border-radius: 17px !important;
+  background: rgba(10,14,21,.68) !important;
+  box-shadow: 0 18px 60px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.025);
+}
+.brand-mark {
+  box-shadow: 0 12px 32px rgba(103,232,249,.12) !important;
+}
+.hero-badge {
+  border-color: rgba(167,139,250,.22) !important;
+  background: linear-gradient(145deg, rgba(167,139,250,.08), rgba(103,232,249,.035)) !important;
+}
+.admin-shell .card {
+  border-color: rgba(255,255,255,.075) !important;
+  background: linear-gradient(180deg, rgba(17,23,33,.82), rgba(9,13,19,.86)) !important;
+  box-shadow: 0 22px 70px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.022) !important;
+}
+.admin-shell .metric,
+.admin-shell .mini,
+.admin-shell .module,
+.admin-shell .exec {
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+.admin-shell .metric:hover,
+.admin-shell .mini:hover,
+.admin-shell .module:hover,
+.admin-shell .exec:hover {
+  transform: translateY(-1px);
+  border-color: rgba(103,232,249,.15) !important;
+}
+.admin-shell .tab {
+  border-color: rgba(255,255,255,.075) !important;
+  background: rgba(255,255,255,.02) !important;
+}
+.admin-shell .tab-active {
+  border-color: rgba(103,232,249,.22) !important;
+  background: linear-gradient(135deg, rgba(103,232,249,.08), rgba(167,139,250,.075)) !important;
+}
+.admin-shell .table-wrap {
+  border-color: rgba(255,255,255,.065) !important;
+}
+.admin-shell .admin-table th {
+  background: rgba(255,255,255,.025) !important;
+}
+.admin-shell .path {
+  border-color: rgba(103,232,249,.13) !important;
+  background: linear-gradient(135deg, rgba(103,232,249,.05), rgba(167,139,250,.04)) !important;
+}
+.admin-shell code,
+.admin-shell .chip {
+  color: #cfd9e5;
+}
+.admin-shell .chip {
+  border-color: rgba(255,255,255,.075) !important;
+  background: rgba(255,255,255,.02) !important;
+}
+
+/* Admin login is rendered with inline CSS; explicit importance keeps the same design language. */
+.admin-login-shell {
+  background:
+    radial-gradient(720px 360px at 50% 0%, rgba(103,232,249,.10), transparent 68%),
+    radial-gradient(560px 340px at 86% 70%, rgba(167,139,250,.08), transparent 72%),
+    #05070b !important;
+}
+.admin-login-card {
+  border-color: rgba(255,255,255,.085) !important;
+  border-radius: 22px !important;
+  background: linear-gradient(180deg, rgba(15,20,28,.94), rgba(9,13,19,.96)) !important;
+  box-shadow: 0 34px 100px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.025) !important;
+}
+.admin-login-mark {
+  background: linear-gradient(135deg, #b09aff, #67e8f9) !important;
+  box-shadow: 0 14px 32px rgba(103,232,249,.12) !important;
+}
+.admin-login-form input {
+  border-color: rgba(255,255,255,.09) !important;
+  background: rgba(3,7,11,.65) !important;
+}
+.admin-login-form input:focus {
+  border-color: rgba(103,232,249,.28) !important;
+  box-shadow: 0 0 0 4px rgba(103,232,249,.05) !important;
+}
+.admin-primary {
+  background: linear-gradient(135deg, #dffcff, #67e8f9 56%, #a488ef) !important;
+  color: #071116 !important;
+  box-shadow: 0 12px 30px rgba(103,232,249,.13);
+}
