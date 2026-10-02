@@ -31,14 +31,9 @@ env:
 jobs:
   deploy:
     name: Deploy exact SHA to Cloudflare flixoai
-    if: >-
-      github.ref == 'refs/heads/main' &&
-      ((github.event_name == 'workflow_dispatch') ||
-       (github.event_name == 'schedule') ||
-       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-       (github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.head_branch == 'main' &&
-        github.event.workflow_run.event == 'push')))
+    # All declared triggers are constrained to the default branch; keeping the
+    # job guard to the branch invariant avoids event-payload-dependent skip behavior.
+    if: github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
