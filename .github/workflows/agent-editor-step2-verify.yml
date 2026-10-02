@@ -3,6 +3,7 @@ name: Agent Editor Step 5-6 Verification
 on:
   push:
     branches:
+      - main
       - execution
   pull_request:
     branches:
