@@ -1,5 +1,5 @@
 type AssetsBinding = { fetch(request: Request): Promise<Response> };
-type Env = { ASSETS: AssetsBinding };
+type Env = { ASSETS: AssetsBinding; FLIXO_DEPLOYMENT_SHA?: string };
 const SHA_PATTERN = /^[a-f0-9]{40}$/u;
 const VERSIONED_IDENTITY_PATTERN = /^\/__flixo-identity-([a-f0-9]{40})\.txt$/u;
 const DIRECTORY_IDENTITY_PATTERN = /^\/__flixo\/identity\/([a-f0-9]{40})\/index\.txt$/u;
@@ -23,6 +23,17 @@ async function readIdentityAsset(env:Env, request:Request, path:string):Promise<
 }
 async function verifyIdentityAsset(request:Request,env:Env,requestedSha:string):Promise<Response>{
   if(!SHA_PATTERN.test(requestedSha)) return identity404();
+
+  // The deployment binding is authoritative when present. The versioned
+  // asset fallback exists only for environments where the binding is absent.
+  const configuredSha = env.FLIXO_DEPLOYMENT_SHA?.trim().toLowerCase();
+  if(configuredSha !== undefined){
+    if(SHA_PATTERN.test(configuredSha) && configuredSha === requestedSha) {
+      return identityResponse(requestedSha);
+    }
+    return identity404();
+  }
+
   const canonicalBody = await readIdentityAsset(env, request, CANONICAL_IDENTITY_ASSET_PATH);
   if(canonicalBody === requestedSha) return identityResponse(requestedSha);
   const versionedBody = await readIdentityAsset(env, request, `/__flixo-identity-${requestedSha}.txt`);
