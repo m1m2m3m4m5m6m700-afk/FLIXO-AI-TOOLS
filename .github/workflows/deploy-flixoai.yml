@@ -1,6 +1,8 @@
 name: FLIXOAI Cloudflare Deployment
 
 on:
+  push:
+    branches: [main]
   workflow_run:
     workflows: ["FLIXO CI"]
     types: [completed]
@@ -30,9 +32,10 @@ jobs:
     if: >-
       github.ref == 'refs/heads/main' &&
       ((github.event_name == 'workflow_dispatch') ||
+       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
        (github.event.workflow_run.conclusion == 'success' &&
         github.event.workflow_run.head_branch == 'main' &&
-        github.event.workflow_run.event == 'push'))
+        github.event.workflow_run.event == 'push')))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -44,7 +47,7 @@ jobs:
           MANUAL_SHA: ${{ inputs.sha }}
         run: |
           set -euo pipefail
-          sha="${MANUAL_SHA:-$EVENT_SHA}"
+          sha="${MANUAL_SHA:-${EVENT_SHA:-$GITHUB_SHA}}"
           test -n "$sha"
           printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
 
@@ -75,6 +78,30 @@ jobs:
           printf 'is_current=true\n' >> "$GITHUB_OUTPUT"
           test "$(git rev-parse HEAD)" = "$DEPLOYMENT_SHA"
 
+      - name: Wait for exact-SHA FLIXO CI success (push controller)
+        if: github.event_name == 'push' && steps.freshness.outputs.is_current == 'true'
+        env:
+          DEPLOYMENT_SHA: ${{ steps.sha.outputs.sha }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$DEPLOYMENT_SHA&event=push&per_page=10")"
+            result="$(printf '%s' "$runs" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s).workflow_runs||[]; const r=x.find(r=>r.head_sha===process.env.DEPLOYMENT_SHA); console.log(r ? r.status+":"+r.conclusion : "MISSING")})')"
+            echo "FLIXO CI exact-SHA state: $result (attempt $attempt/30)"
+            if [ "$result" = "completed:success" ]; then
+              echo "EXACT_SHA_CI_GATE=PASS"
+              exit 0
+            fi
+            if [[ "$result" == completed:* && "$result" != "completed:null" ]]; then
+              echo "Exact-SHA FLIXO CI did not succeed: $result"
+              exit 1
+            fi
+            sleep 20
+          done
+          echo "Timed out waiting for exact-SHA FLIXO CI"
+          exit 1
       - name: Download certified build artifact
         if: github.event_name == 'workflow_run' && steps.freshness.outputs.is_current == 'true'
         env:
