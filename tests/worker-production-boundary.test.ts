@@ -17,6 +17,19 @@ test('production worker returns JSON 404 for API paths instead of SPA HTML', asy
   assert.equal((await response.json() as { error: string }).error, 'API_NOT_EXPOSED_ON_STATIC_PRODUCTION_WORKER');
 });
 
+test('production worker verifies identity against the fixed canonical asset', async () => {
+  const requested = 'a'.repeat(40);
+  const response = await worker.fetch(new Request('https://flixoai.example/__flixo-identity-' + requested + '.txt'), {
+    ASSETS: { fetch: async (request) => {
+      assert.equal(new URL(request.url).pathname, '/__flixo-identity.txt');
+      return new Response(requested + '\\n', { status: 200 });
+    } },
+  });
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), requested);
+  assert.equal(response.headers.get('x-flixo-deployment-sha'), requested);
+});
+
 test('production worker rejects identity when canonical asset SHA does not match', async () => {
   const requested = 'a'.repeat(40);
   const response = await worker.fetch(new Request('https://flixoai.example/__flixo-identity-' + requested + '.txt'), {
