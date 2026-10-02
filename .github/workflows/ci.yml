@@ -228,6 +228,7 @@ jobs:
           gh run download "$GITHUB_RUN_ID" -n "flixo-build-${GITHUB_RUN_ID}" -D dist
           test "$(cat dist/flixo-head-sha.txt)" = "$DEPLOYMENT_SHA"
           test "$(cat "dist/__flixo-identity-$DEPLOYMENT_SHA.txt")" = "$DEPLOYMENT_SHA"
+          test "$(cat dist/__flixo-identity.txt)" = "$DEPLOYMENT_SHA"
           test "$(cat "dist/__flixo/identity/$DEPLOYMENT_SHA/index.txt")" = "$DEPLOYMENT_SHA"
           test -s dist/index.html
 
