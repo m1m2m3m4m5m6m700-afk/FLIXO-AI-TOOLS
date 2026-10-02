@@ -1,5 +1,5 @@
 type AssetsBinding = { fetch(request: Request): Promise<Response>; };
-type Env = { ASSETS: AssetsBinding; FLIXO_DEPLOYMENT_SHA?: string; };
+type Env = { ASSETS: AssetsBinding; };
 const SHA_PATTERN = /^[a-f0-9]{40}$/u;
 const VERSIONED_IDENTITY_PATTERN = /^\/__flixo-identity-([a-f0-9]{40})\.txt$/u;
 const DIRECTORY_IDENTITY_PATTERN = /^\/__flixo\/identity\/([a-f0-9]{40})\/index\.txt$/u;
@@ -12,9 +12,11 @@ const SECURITY_HEADERS: Record<string, string> = Object.freeze({
 function secure(response: Response): Response { const headers = new Headers(response.headers); for (const [k,v] of Object.entries(SECURITY_HEADERS)) headers.set(k,v); return new Response(response.body,{status:response.status,statusText:response.statusText,headers}); }
 function apiNotFound(): Response { return secure(new Response(JSON.stringify({error:'API_NOT_EXPOSED_ON_STATIC_PRODUCTION_WORKER'})+'\n',{status:404,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store, max-age=0'}})); }
 function identityResponse(sha:string): Response { return secure(new Response(sha+'\n',{status:200,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store, max-age=0','x-flixo-deployment-sha':sha}})); }
+const CANONICAL_IDENTITY_ASSET_PATH = '/__flixo-identity.txt';
 async function verifyIdentityAsset(request:Request,env:Env,requestedSha:string):Promise<Response>{
   if(!SHA_PATTERN.test(requestedSha)) return secure(new Response('Not Found\\n',{status:404,headers:{'content-type':'text/plain','cache-control':'no-store'}}));
-  const assetResponse = await env.ASSETS.fetch(request);
+  const assetRequest = new URL(CANONICAL_IDENTITY_ASSET_PATH, request.url);
+  const assetResponse = await env.ASSETS.fetch(assetRequest);
   if(assetResponse.status !== 200) return secure(new Response('Not Found\\n',{status:404,headers:{'content-type':'text/plain','cache-control':'no-store'}}));
   const body = (await assetResponse.text()).trim().toLowerCase();
   if(body !== requestedSha) return secure(new Response('Not Found\\n',{status:404,headers:{'content-type':'text/plain','cache-control':'no-store'}}));
