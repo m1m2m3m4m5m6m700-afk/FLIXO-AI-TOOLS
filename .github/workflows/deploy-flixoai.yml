@@ -1,8 +1,6 @@
 name: FLIXOAI Cloudflare Deployment
 
 on:
-  push:
-    branches: [main]
   workflow_run:
     workflows: ["FLIXO CI"]
     types: [completed]
@@ -77,7 +75,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$DEPLOYMENT_SHA"
 
       - name: Wait for exact-SHA FLIXO CI success (automatic controller)
-        if: (github.event_name == 'push' || github.event_name == 'schedule') && steps.freshness.outputs.is_current == 'true'
+        if: github.event_name == 'schedule' && steps.freshness.outputs.is_current == 'true'
         env:
           DEPLOYMENT_SHA: ${{ steps.sha.outputs.sha }}
           GH_TOKEN: ${{ github.token }}
