@@ -43,7 +43,7 @@ jobs:
         run: npm ci
 
       - name: Install agent editor dependencies
-        run: npm install --no-package-lock
+        run: npm install --no-package-lock --workspaces=false
 
       - name: Type-check
         run: npm run type-check
