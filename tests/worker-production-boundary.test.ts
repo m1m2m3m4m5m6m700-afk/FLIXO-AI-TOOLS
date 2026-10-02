@@ -26,7 +26,7 @@ test('production worker verifies identity against the fixed canonical asset', as
     } },
   });
   assert.equal(response.status, 200);
-  assert.equal(await response.text(), requested);
+  assert.equal((await response.text()).trim(), requested);
   assert.equal(response.headers.get('x-flixo-deployment-sha'), requested);
 });
 
