@@ -4,7 +4,7 @@ All launch copy is subordinate to the verified candidate capability set.
 
 ## Core message
 
-FLIXO is a browser-first AI creative toolbox for fast image and visual editing. The product combines natural-language agent guidance with direct manual tools while keeping browser-local file handling as a core privacy boundary.
+FLIXO is a browser-first AI image-editing product combining natural-language agent guidance with direct manual tools. The public MVP claim set is limited to the six executable capabilities: background removal, image upscaling, image cropping/resizing, image compression, image conversion, and image effects. Browser-local file handling is a core privacy boundary.
 
 ## Product Hunt
 
