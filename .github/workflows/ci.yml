@@ -203,7 +203,7 @@ jobs:
             runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$DEPLOYMENT_SHA&event=push&per_page=100")"
             all_ok=true
             for workflow in "${required[@]}"; do
-              state="$(WORKFLOW="$workflow" printf '%s' "$runs" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const w=process.env.WORKFLOW;const x=(JSON.parse(s).workflow_runs||[]).filter(r=>r.head_sha===process.env.DEPLOYMENT_SHA&&r.name===w);const r=x[0];console.log(r?`${r.status}:${r.conclusion||"null"}`:"MISSING")})')"
+              state="$(printf '%s' "$runs" | WORKFLOW="$workflow" DEPLOYMENT_SHA="$DEPLOYMENT_SHA" node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const w=process.env.WORKFLOW;const x=(JSON.parse(s).workflow_runs||[]).filter(r=>r.head_sha===process.env.DEPLOYMENT_SHA&&r.name===w);const r=x[0];console.log(r?`${r.status}:${r.conclusion||"null"}`:"MISSING")})')"
               echo "$workflow => $state"
               case "$state" in
                 completed:success) ;;
