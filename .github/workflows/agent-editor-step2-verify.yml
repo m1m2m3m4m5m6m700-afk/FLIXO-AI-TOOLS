@@ -42,9 +42,6 @@ jobs:
         working-directory: .
         run: npm ci
 
-      - name: Install agent editor dependencies
-        run: npm install --no-package-lock
-
       - name: Type-check
         run: npm run type-check
 

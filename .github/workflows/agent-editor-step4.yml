@@ -40,9 +40,6 @@ jobs:
         working-directory: .
         run: npm ci --no-audit --no-fund
 
-      - name: Install isolated app dependencies
-        run: npm install --no-audit --no-fund
-
       - name: Type-check
         run: npm run type-check
 
