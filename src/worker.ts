@@ -15,7 +15,8 @@ function identityResponse(sha:string): Response { return secure(new Response(sha
 const CANONICAL_IDENTITY_ASSET_PATH = '/__flixo-identity.txt';
 async function verifyIdentityAsset(request:Request,env:Env,requestedSha:string):Promise<Response>{
   if(!SHA_PATTERN.test(requestedSha)) return secure(new Response('Not Found\\n',{status:404,headers:{'content-type':'text/plain','cache-control':'no-store'}}));
-  const assetRequest = new URL(CANONICAL_IDENTITY_ASSET_PATH, request.url);
+  const assetUrl = new URL(CANONICAL_IDENTITY_ASSET_PATH, request.url);
+  const assetRequest = new Request(assetUrl, request);
   const assetResponse = await env.ASSETS.fetch(assetRequest);
   if(assetResponse.status !== 200) return secure(new Response('Not Found\\n',{status:404,headers:{'content-type':'text/plain','cache-control':'no-store'}}));
   const body = (await assetResponse.text()).trim().toLowerCase();
