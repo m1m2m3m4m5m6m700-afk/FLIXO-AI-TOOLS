@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [execution]
+    branches: [main, execution]
   workflow_dispatch:
 
 concurrency:
@@ -58,19 +58,13 @@ jobs:
           test "$(grep -c '^SF:' apps/agent-editor/coverage/lcov.info)" -gt 0
           test "$(grep -c '^LF:' apps/agent-editor/coverage/lcov.info)" -gt 0
           test "$(grep -c '^LH:' apps/agent-editor/coverage/lcov.info)" -gt 0
-          printf 'target_sha=%s\n' "$EXPECTED_SHA" > apps/agent-editor/coverage/exact-sha.txt
-          printf 'coverage_file_sha256=%s\n' "$(sha256sum apps/agent-editor/coverage/lcov.info | cut -d' ' -f1)" >> apps/agent-editor/coverage/exact-sha.txt
-          printf 'coverage_source_files=%s\n' "$(grep -c '^SF:' apps/agent-editor/coverage/lcov.info)" >> apps/agent-editor/coverage/exact-sha.txt
-          printf 'coverage_lines_found=%s\n' "$(awk -F: '/^LF:/{sum += $2} END {print sum + 0}' apps/agent-editor/coverage/lcov.info)" >> apps/agent-editor/coverage/exact-sha.txt
-          printf 'coverage_lines_hit=%s\n' "$(awk -F: '/^LH:/{sum += $2} END {print sum + 0}' apps/agent-editor/coverage/lcov.info)" >> apps/agent-editor/coverage/exact-sha.txt
-
-      - name: Upload internal coverage evidence
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: flixo-agent-editor-coverage-evidence-${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          path: |
-            apps/agent-editor/coverage/lcov.info
-            apps/agent-editor/coverage/exact-sha.txt
-          if-no-files-found: error
-          retention-days: 14
-
+          printf 'target_sha=%s
+' "$EXPECTED_SHA" > apps/agent-editor/coverage/exact-sha.txt
+          printf 'coverage_file_sha256=%s
+' "$(sha256sum apps/agent-editor/coverage/lcov.info | cut -d' ' -f1)" >> apps/agent-editor/coverage/exact-sha.txt
+          printf 'coverage_source_files=%s
+' "$(grep -c '^SF:' apps/agent-editor/coverage/lcov.info)" >> apps/agent-editor/coverage/exact-sha.txt
+          printf 'coverage_lines_found=%s
+' "$(awk -F: '/^LF:/{sum += $2} END {print sum + 0}' apps/agent-editor/coverage/lcov.info)" >> apps/agent-editor/coverage/exact-sha.txt
+          printf 'coverage_lines_hit=%s
+' "$(awk -F: '/^LH:/{sum += $2} END {print sum + 0}' apps/agent-editor/coverage/lcov.info)" >> apps/agent-editor/coverage/exact-sha.txt
