@@ -7,6 +7,8 @@ on:
     workflows: ["FLIXO CI"]
     types: [completed]
     branches: [main]
+  schedule:
+    - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       sha:
@@ -32,6 +34,7 @@ jobs:
     if: >-
       github.ref == 'refs/heads/main' &&
       ((github.event_name == 'workflow_dispatch') ||
+       (github.event_name == 'schedule') ||
        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
        (github.event.workflow_run.conclusion == 'success' &&
         github.event.workflow_run.head_branch == 'main' &&
@@ -78,8 +81,8 @@ jobs:
           printf 'is_current=true\n' >> "$GITHUB_OUTPUT"
           test "$(git rev-parse HEAD)" = "$DEPLOYMENT_SHA"
 
-      - name: Wait for exact-SHA FLIXO CI success (push controller)
-        if: github.event_name == 'push' && steps.freshness.outputs.is_current == 'true'
+      - name: Wait for exact-SHA FLIXO CI success (automatic controller)
+        if: (github.event_name == 'push' || github.event_name == 'schedule') && steps.freshness.outputs.is_current == 'true'
         env:
           DEPLOYMENT_SHA: ${{ steps.sha.outputs.sha }}
           GH_TOKEN: ${{ github.token }}
