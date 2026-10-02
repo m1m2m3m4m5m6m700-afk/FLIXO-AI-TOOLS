@@ -1,5 +1,5 @@
 type AssetsBinding = { fetch(request: Request): Promise<Response>; };
-type Env = { ASSETS: AssetsBinding; FLIXO_DEPLOYMENT_SHA?: string; };
+type Env = { ASSETS: AssetsBinding; };
 const SHA_PATTERN = /^[a-f0-9]{40}$/u;
 const VERSIONED_IDENTITY_PATTERN = /^\/__flixo-identity-([a-f0-9]{40})\.txt$/u;
 const DIRECTORY_IDENTITY_PATTERN = /^\/__flixo\/identity\/([a-f0-9]{40})\/index\.txt$/u;
