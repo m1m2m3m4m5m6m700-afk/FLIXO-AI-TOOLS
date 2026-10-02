@@ -7,13 +7,13 @@ type EncryptedCredential = {
   data: string;
 };
 
-const ENV_NAMES: Record<LLMProviderName, string> = {
+const ENV_NAMES: Partial<Record<LLMProviderName, string>> = {
   openai: "OPENAI_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
   gemini: "GEMINI_API_KEY",
 };
 
-const MODEL_ENV_NAMES: Record<LLMProviderName, string> = {
+const MODEL_ENV_NAMES: Partial<Record<LLMProviderName, string>> = {
   openai: "FLIXO_LLM_OPENAI_MODEL",
   anthropic: "FLIXO_LLM_ANTHROPIC_MODEL",
   gemini: "FLIXO_LLM_GEMINI_MODEL",
@@ -60,9 +60,9 @@ export function getProviderApiKey(provider: LLMProviderName): string | undefined
   if (encrypted) return encrypted;
 
   const directName = ENV_NAMES[provider];
-  const direct = process.env[directName]?.trim();
+  const direct = directName ? process.env[directName]?.trim() : undefined;
 
-  if (process.env.NODE_ENV === "production" && direct) {
+  if (process.env.NODE_ENV === "production" && directName && direct) {
     throw new Error(
       `PLAINTEXT_LLM_CREDENTIAL_DISABLED: production provider key '${directName}' must be supplied through FLIXO_LLM_KEYS_ENCRYPTED.`,
     );
@@ -72,6 +72,7 @@ export function getProviderApiKey(provider: LLMProviderName): string | undefined
 }
 
 export function getProviderModel(provider: LLMProviderName): string | undefined {
-  const model = process.env[MODEL_ENV_NAMES[provider]]?.trim();
+  const modelName = MODEL_ENV_NAMES[provider];
+  const model = modelName ? process.env[modelName]?.trim() : undefined;
   return model || undefined;
 }
