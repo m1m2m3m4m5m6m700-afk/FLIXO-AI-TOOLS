@@ -22,7 +22,7 @@ test('production worker verifies identity against the fixed canonical asset', as
   const response = await worker.fetch(new Request('https://flixoai.example/__flixo-identity-' + requested + '.txt'), {
     ASSETS: { fetch: async (request) => {
       assert.equal(new URL(request.url).pathname, '/__flixo-identity.txt');
-      return new Response(requested + '\\n', { status: 200 });
+      return new Response(requested + '\n', { status: 200 });
     } },
   });
   assert.equal(response.status, 200);
