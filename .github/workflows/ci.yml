@@ -66,6 +66,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$BUILD_SHA"
           printf '%s\n' "$BUILD_SHA" > dist/flixo-head-sha.txt
           printf '%s\n' "$BUILD_SHA" > "dist/__flixo-identity-$BUILD_SHA.txt"
+          printf '%s\n' "$BUILD_SHA" > dist/__flixo-identity.txt
           mkdir -p "dist/__flixo/identity/$BUILD_SHA"
           printf '%s\n' "$BUILD_SHA" > "dist/__flixo/identity/$BUILD_SHA/index.txt"
       - name: Upload build artifact
@@ -263,7 +264,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.141.0"
-          command: deploy --config wrangler.jsonc --name ${{ env.WRANGLER_WORKER_NAME }} --var FLIXO_DEPLOYMENT_SHA:${{ github.sha }} --define "__FLIXO_DEPLOYMENT_SHA__:'${{ github.sha }}'"
+          command: deploy --config wrangler.jsonc --name ${{ env.WRANGLER_WORKER_NAME }} --var FLIXO_DEPLOYMENT_SHA:${{ github.sha }}
 
       - name: Verify immutable production identity
         shell: bash
