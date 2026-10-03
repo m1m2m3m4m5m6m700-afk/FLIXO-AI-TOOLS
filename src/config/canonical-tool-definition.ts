@@ -1,8 +1,9 @@
-import { lazy } from 'react';
+import { createElement, lazy } from 'react';
 import { z, type ZodType } from 'zod';
 import { LOCALES, type Locale } from '../lib/i18n/config.ts';
 import { getCanonicalCapabilityDefinition, MVP_EXECUTABLE_TOOL_IDS as CANONICAL_MVP_IDS, type CanonicalCapabilityDefinition, type CanonicalCapabilityState, type CanonicalExecutionMode, type CanonicalCapabilityParameters, type CanonicalCapabilityVerifier, type CanonicalCapabilityLimits } from './manual-capability-definition';
 import type { ComponentType, LazyExoticComponent } from 'react';
+import type { LocalToolId } from '../tools/image-toolkit/engine.ts';
 
 export type ToolFamily = 'image' | 'video' | 'audio' | 'ai' | 'editor';
 export type ToolCategory = 'Images' | 'Video' | 'Audio' | 'AI' | 'Editor';
@@ -32,6 +33,13 @@ export type ToolSource = Readonly<{
 
 // ToolConfig is the canonical source shape consumed by the definition builder.
 type ToolConfig = ToolSource;
+
+const createImageToolkitComponent = (toolId: Exclude<LocalToolId, 'ai-image-generator' | 'image-compressor'>) =>
+  lazy(() =>
+    import('@/tools/image-toolkit').then((m) => ({
+      default: ((props: Record<string, unknown>) => createElement(m.ImageToolPage, { ...props, toolId })) as ComponentType,
+    })),
+  );
 
 export type CapabilityState = CanonicalCapabilityState;
 export type ExecutionMode = CanonicalExecutionMode;
@@ -86,17 +94,17 @@ const IMAGE_TOOL_CONFIGS: readonly ToolSource[] = Object.freeze([
   { id: 'pix', title: 'Pix Studio', path: '/en/pix', description: 'Professional browser-based image editor with tune, liquify, dispersion, text, history, and PNG export.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/pix')) },
   { id: 'ai-image-generator', title: 'AI Image Generator', path: '/en/ai-image-generator', description: 'Generate images through a configured image endpoint.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/ai-image-generator').then((m) => ({ default: m.AiImageGeneratorTool }))) },
   { id: 'photo-colorizer', title: 'Photo Colorizer', path: '/en/photo-colorizer', description: 'Colorize photos through a configured AI endpoint.', category: 'Images', isReady: false, component: lazy(() => import('@/tools/photo-colorizer')) },
-  { id: 'image-rotate', title: 'Rotate Image', path: '/en/image-rotate', description: 'Rotate images locally in your browser.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/image-toolkit').then((m) => ({ default: m.ImageToolPage as ComponentType }))) },
-  { id: 'image-flip-horizontal', title: 'Flip Image Horizontal', path: '/en/image-flip-horizontal', description: 'Flip images horizontally locally.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/image-toolkit').then((m) => ({ default: m.ImageToolPage as ComponentType }))) },
-  { id: 'image-flip-vertical', title: 'Flip Image Vertical', path: '/en/image-flip-vertical', description: 'Flip images vertically locally.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/image-toolkit').then((m) => ({ default: m.ImageToolPage as ComponentType }))) },
-  { id: 'image-brightness', title: 'Brightness', path: '/en/image-brightness', description: 'Adjust image brightness locally.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/image-toolkit').then((m) => ({ default: m.ImageToolPage as ComponentType }))) },
-  { id: 'image-contrast', title: 'Contrast', path: '/en/image-contrast', description: 'Adjust image contrast locally.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/image-toolkit').then((m) => ({ default: m.ImageToolPage as ComponentType }))) },
-  { id: 'image-saturation', title: 'Saturation', path: '/en/image-saturation', description: 'Adjust image saturation locally.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/image-toolkit').then((m) => ({ default: m.ImageToolPage as ComponentType }))) },
-  { id: 'image-grayscale', title: 'Grayscale', path: '/en/image-grayscale', description: 'Convert images to grayscale locally.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/image-toolkit').then((m) => ({ default: m.ImageToolPage as ComponentType }))) },
-  { id: 'image-invert', title: 'Invert Colors', path: '/en/image-invert', description: 'Invert image colors locally.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/image-toolkit').then((m) => ({ default: m.ImageToolPage as ComponentType }))) },
-  { id: 'image-sepia', title: 'Sepia', path: '/en/image-sepia', description: 'Apply a sepia effect locally.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/image-toolkit').then((m) => ({ default: m.ImageToolPage as ComponentType }))) },
-  { id: 'image-blur', title: 'Blur', path: '/en/image-blur', description: 'Apply a blur effect locally.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/image-toolkit').then((m) => ({ default: m.ImageToolPage as ComponentType }))) },
-  { id: 'image-sharpen', title: 'Sharpen', path: '/en/image-sharpen', description: 'Sharpen images locally.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/image-toolkit').then((m) => ({ default: m.ImageToolPage as ComponentType }))) },
+  { id: 'image-rotate', title: 'Rotate Image', path: '/en/image-rotate', description: 'Rotate images locally in your browser.', category: 'Images', isReady: true, component: createImageToolkitComponent('image-rotate') },
+  { id: 'image-flip-horizontal', title: 'Flip Image Horizontal', path: '/en/image-flip-horizontal', description: 'Flip images horizontally locally.', category: 'Images', isReady: true, component: createImageToolkitComponent('image-flip-horizontal') },
+  { id: 'image-flip-vertical', title: 'Flip Image Vertical', path: '/en/image-flip-vertical', description: 'Flip images vertically locally.', category: 'Images', isReady: true, component: createImageToolkitComponent('image-flip-vertical') },
+  { id: 'image-brightness', title: 'Brightness', path: '/en/image-brightness', description: 'Adjust image brightness locally.', category: 'Images', isReady: true, component: createImageToolkitComponent('image-brightness') },
+  { id: 'image-contrast', title: 'Contrast', path: '/en/image-contrast', description: 'Adjust image contrast locally.', category: 'Images', isReady: true, component: createImageToolkitComponent('image-contrast') },
+  { id: 'image-saturation', title: 'Saturation', path: '/en/image-saturation', description: 'Adjust image saturation locally.', category: 'Images', isReady: true, component: createImageToolkitComponent('image-saturation') },
+  { id: 'image-grayscale', title: 'Grayscale', path: '/en/image-grayscale', description: 'Convert images to grayscale locally.', category: 'Images', isReady: true, component: createImageToolkitComponent('image-grayscale') },
+  { id: 'image-invert', title: 'Invert Colors', path: '/en/image-invert', description: 'Invert image colors locally.', category: 'Images', isReady: true, component: createImageToolkitComponent('image-invert') },
+  { id: 'image-sepia', title: 'Sepia', path: '/en/image-sepia', description: 'Apply a sepia effect locally.', category: 'Images', isReady: true, component: createImageToolkitComponent('image-sepia') },
+  { id: 'image-blur', title: 'Blur', path: '/en/image-blur', description: 'Apply a blur effect locally.', category: 'Images', isReady: true, component: createImageToolkitComponent('image-blur') },
+  { id: 'image-sharpen', title: 'Sharpen', path: '/en/image-sharpen', description: 'Sharpen images locally.', category: 'Images', isReady: true, component: createImageToolkitComponent('image-sharpen') },
   { id: 'video-trimmer', title: 'Video Trimmer', path: '/en/video-trimmer', description: 'Trim a video locally in the browser with WebCodecs-compatible playback and MediaRecorder output.', family: 'video', category: 'Video', isReady: true, component: lazy(() => import('@/tools/video-local').then((m) => ({ default: m.VideoLocalTool }))) },
   { id: 'video-cropper', title: 'Video Cropper', path: '/en/video-cropper', description: 'Crop a video locally to a deterministic rectangle.', family: 'video', category: 'Video', isReady: true, component: lazy(() => import('@/tools/video-local').then((m) => ({ default: m.VideoLocalTool }))) },
   { id: 'video-resizer', title: 'Video Resizer', path: '/en/video-resizer', description: 'Resize a video locally to exact output dimensions.', family: 'video', category: 'Video', isReady: true, component: lazy(() => import('@/tools/video-local').then((m) => ({ default: m.VideoLocalTool }))) },
