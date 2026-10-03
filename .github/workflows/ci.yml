@@ -293,7 +293,7 @@ jobs:
           set -euo pipefail
           identity_url="$FLIXOAI_PRODUCTION_ORIGIN/__flixo-identity-$DEPLOYMENT_SHA.txt?__flixo_sha=$DEPLOYMENT_SHA&__flixo_verify=$GITHUB_RUN_ID"
           status="$(curl --silent --show-error --location --compressed --retry 10 --retry-delay 3 --retry-all-errors --max-time 30 -H 'Cache-Control: no-cache, no-store' -o /tmp/flixo-production-identity.txt -w '%{http_code}' "$identity_url")"
-          body="$(tr -d '\r\n\ufeff' < /tmp/flixo-production-identity.txt)"
+          body="$(tr -d '\r\n' < /tmp/flixo-production-identity.txt)"
           echo "HTTP=$status BODY=$body"
           test "$status" = "200"
           test "$body" = "$DEPLOYMENT_SHA"
