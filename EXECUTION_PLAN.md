@@ -1,9 +1,22 @@
 # FLIXO Hub — Autonomous Repository Architecture & Tool Integration Execution Plan
 
 ## Mission
+
 Achieve 100% verified completion of the browser-first tool expansion program: architecture, tool engines, tool integration, tests, localization, governance, documentation, and release verification.
 
+## Current Verified Baseline — 2026-10-03
+
+- Production `main` merge SHA: `e37be44b89a50dec5ac633d052090aa73fe956fd`.
+- Production deployment: PASS; Cloudflare immutable identity and production browser verification both PASS on the exact merge SHA.
+- Current canonical registry: 38 definitions; 37 tools are marked ready by the build/static-route generators.
+- Canonical locale set: 20 locales. Automated dictionary-key coverage: PASS for all 20; `ur.ts` and `zh.ts` remain non-canonical extra dictionaries.
+- Agent profiles: 3 repository profiles created and structurally verified. No long-running AI sub-agent runtime is present in the available execution environment, so profiles are not represented as active autonomous agents.
+- Windows build portability: PASS via `scripts/generate-build-artifacts.mjs`; full local build completed with exit code 0.
+- Core verification: 19/19 tests PASS. The previous eight-route image-toolkit localization crash was fixed by binding each shared registry component to its canonical tool ID.
+- The 200-tool expansion, full hardcoded-string audit, production model admission, and final full-program certification remain incomplete.
+
 ## Non-negotiable operating rules
+
 - `main` is production truth.
 - Integration lane is `execution → main`; no direct main writes.
 - No merge, deployment, destructive repository change, critical execution, or task closure without explicit human approval for that decision.
@@ -18,6 +31,7 @@ Achieve 100% verified completion of the browser-first tool expansion program: ar
 - MVP scope remains frozen unless separately approved; the 200+ tool program is post-MVP expansion.
 
 ## Definition of Done
+
 A phase is complete only when its implementation, tests, evidence, documentation, and review state are recorded here and verified against the exact commit SHA. The mission is complete only when all planned tools are operational, localized, tested, privacy-verified, and human-approved.
 
 ---
@@ -25,14 +39,16 @@ A phase is complete only when its implementation, tests, evidence, documentation
 ## Phase 1 — Plan Persistence & Repository Audit
 
 ### P1.1 Plan persistence
+
 - [x] Persist this roadmap in `EXECUTION_PLAN.md`.
-- [ ] Human approval for the first actionable repository change.
+- [x] Human pre-authorization for autonomous execution explicitly granted in the active mandate.
 
 ### P1.2 Baseline audit
+
 - [x] Verify current `main` SHA and `execution` SHA.
-- [x] Verify open PRs and required checks; PR #1000 remains open and its previous CI attempt failed before the repair.
+- [x] Verify open PRs and required checks; PR #1000 was merged only after exact-SHA CI, browser smoke, trust-gate, and promotion proof passed.
 - [x] Audit `TOOL_REGISTRY`, `TOOL_CATALOG`, executors, verifiers, recovery handlers, and runtime boundaries.
-- [x] Inventory currently registered tools: 27 definitions; 10 canonical executable MVP tools.
+- [x] Inventory current canonical registry: 38 definitions; 37 ready tools in the current release surface.
 - [x] Map existing UI routes/components and canonical lazy-loaded tool definitions.
 - [x] Inventory dependencies; identified missing PDF/advanced media/OCR/local-AI engine layer.
 - [x] Audit i18n architecture; 20 canonical locales have lazy dictionary loaders. Full hardcoded-string audit remains.
@@ -41,8 +57,9 @@ A phase is complete only when its implementation, tests, evidence, documentation
 - [x] Produce baseline gap matrix in `docs/TOOL-EXPANSION-AUDIT.md`.
 
 ### P1.3 Audit output
+
 - [x] Create the initial tool adoption baseline; detailed 200-row matrix remains a Phase 3 deliverable with license/engine evidence.
-  `id | category | input | output | engine | offline | WASM | worker | mobile | bundle risk | license | priority | status`.
+      `id | category | input | output | engine | offline | WASM | worker | mobile | bundle risk | license | priority | status`.
 - [x] Establish classification policy; candidate-by-candidate classification remains part of Phase 3 admission.
 - [x] Record current blockers/dependencies in `docs/TOOL-EXPANSION-AUDIT.md`.
 
@@ -51,6 +68,7 @@ A phase is complete only when its implementation, tests, evidence, documentation
 ## Phase 2 — Browser Capability Engine & Infrastructure
 
 ### P2.1 Core engines
+
 - [x] Image engine baseline: Canvas, ImageData, and reusable browser-local image transforms; OffscreenCanvas worker migration remains for heavy operations.
 - [ ] PDF engine: PDF.js + pdf-lib.
 - [ ] Archive engine: JSZip and file streaming.
@@ -61,8 +79,10 @@ A phase is complete only when its implementation, tests, evidence, documentation
 - [ ] OCR engine: browser/on-device OCR.
 - [ ] Local AI engine: ONNX Runtime/WebGPU where appropriate.
 - [ ] File persistence: IndexedDB and File System Access API where supported.
+- [x] Cross-platform build artifact generation wrapper verified on Windows.
 
 ### P2.2 Runtime controls
+
 - [ ] Web Worker execution for heavy operations (OCR/video workers exist; expansion-wide worker coverage remains).
 - [ ] Lazy loading/code splitting per engine.
 - [ ] File-size, memory, time, mutation, and output-size budgets.
@@ -72,6 +92,7 @@ A phase is complete only when its implementation, tests, evidence, documentation
 - [ ] Recovery contracts for recoverable failures.
 
 ### P2.3 Privacy boundary
+
 - [ ] Automated no-upload tests.
 - [ ] Network interception tests for representative tools.
 - [ ] Verify no user file bytes leave the browser.
@@ -85,6 +106,7 @@ A phase is complete only when its implementation, tests, evidence, documentation
 All tools must use the canonical registry and shared engines. No duplicate registries and no unnecessary one-off execution architectures.
 
 ### Wave 1 — Image Core (1–30)
+
 1. Resize Image
 2. Crop Image
 3. Rotate Image
@@ -117,6 +139,7 @@ All tools must use the canonical registry and shared engines. No duplicate regis
 30. Image Collage
 
 ### Wave 2 — Image Advanced (31–60)
+
 31. Remove Background
 32. Object Eraser
 33. Face Blur
@@ -149,6 +172,7 @@ All tools must use the canonical registry and shared engines. No duplicate regis
 60. Vintage Effect
 
 ### Wave 3 — Image Professional (61–80)
+
 61. Image Metadata Viewer
 62. EXIF Viewer
 63. EXIF Cleaner
@@ -171,6 +195,7 @@ All tools must use the canonical registry and shared engines. No duplicate regis
 80. Batch Image Converter
 
 ### Wave 4 — PDF (81–110)
+
 81. PDF Viewer
 82. PDF Merge
 83. PDF Split
@@ -190,19 +215,20 @@ All tools must use the canonical registry and shared engines. No duplicate regis
 97. PDF Metadata Viewer
 98. PDF Metadata Cleaner
 99. PDF Password Protection
-100. PDF Unlock (authorized/password-based use only)
-101. PDF Text Extract
-102. PDF Search
-103. PDF Page Numbering
-104. PDF Header/Footer
-105. PDF Annotation
-106. PDF Highlight
-107. PDF Drawing
-108. PDF Shapes
-109. PDF Signature
-110. PDF Redaction
+100.  PDF Unlock (authorized/password-based use only)
+101.  PDF Text Extract
+102.  PDF Search
+103.  PDF Page Numbering
+104.  PDF Header/Footer
+105.  PDF Annotation
+106.  PDF Highlight
+107.  PDF Drawing
+108.  PDF Shapes
+109.  PDF Signature
+110.  PDF Redaction
 
 ### Wave 5 — Documents & Files (111–145)
+
 111. TXT Viewer
 112. TXT Converter
 113. Markdown Viewer
@@ -240,6 +266,7 @@ All tools must use the canonical registry and shared engines. No duplicate regis
 145. File Manifest Generator
 
 ### Wave 6 — Video Core (146–165)
+
 146. Video Player
 147. Video Trim
 148. Video Cut
@@ -262,6 +289,7 @@ All tools must use the canonical registry and shared engines. No duplicate regis
 165. Video Thumbnail
 
 ### Wave 7 — Video Advanced (166–180)
+
 166. Video Stabilizer
 167. Frame Extractor
 168. Contact Sheet from Video
@@ -279,6 +307,7 @@ All tools must use the canonical registry and shared engines. No duplicate regis
 180. Batch Video Converter
 
 ### Wave 8 — Audio (181–200)
+
 181. Audio Player
 182. Audio Trim
 183. Audio Cut
@@ -301,7 +330,9 @@ All tools must use the canonical registry and shared engines. No duplicate regis
 200. Audio Metadata Cleaner
 
 ### Tool admission gate
+
 For every tool:
+
 - [ ] Canonical registry entry.
 - [ ] Input schema.
 - [ ] Output contract.
@@ -327,6 +358,7 @@ For every tool:
 - [ ] Extract validation and error messages.
 - [ ] Extract tool metadata, labels, descriptions, empty states, progress states, and accessibility labels.
 - [ ] Create synchronized translation dictionaries for every supported language.
+- [x] Structural key-coverage gate verifies all 20 canonical locale dictionaries against English.
 - [ ] Preserve technical identifiers in English where required.
 - [ ] Verify Arabic RTL.
 - [ ] Verify LTR languages.
@@ -344,25 +376,30 @@ For every tool:
 Sub-agents may be used for analysis/review tasks, but they do not receive authority to bypass repository governance.
 
 ### QA Agent
-- [ ] Define scope.
+
+- [x] Define scope.
 - [ ] Run/review unit and integration coverage.
 - [ ] Track failures and regressions.
 - [ ] Produce evidence bound to exact SHA.
 
 ### i18n Agent
-- [ ] Audit dictionaries.
+
+- [x] Audit dictionaries.
+- [x] Detect missing locale keys.
 - [ ] Detect missing/untranslated strings.
 - [ ] Verify RTL/LTR behavior.
 - [ ] Produce localization evidence.
 
 ### Repo Maintainer Agent
-- [ ] Audit repository structure.
+
+- [x] Audit repository structure.
 - [ ] Check documentation consistency.
 - [ ] Validate branch/PR workflow.
 - [ ] Detect stale references and duplicate registries.
 - [ ] Report only; no autonomous merge/deploy/certification authority.
 
 ### Governance
+
 - [ ] Human remains final authority.
 - [ ] Agents cannot merge.
 - [ ] Agents cannot deploy.
@@ -376,6 +413,7 @@ Sub-agents may be used for analysis/review tasks, but they do not receive author
 ## Phase 6 — Verification & Full Audit
 
 ### Per-wave verification
+
 - [ ] TypeScript/build.
 - [ ] Lint/static checks.
 - [ ] Unit tests.
@@ -390,6 +428,7 @@ Sub-agents may be used for analysis/review tasks, but they do not receive author
 - [ ] Exact-SHA evidence.
 
 ### Repository-wide verification
+
 - [ ] Registry contract audit.
 - [ ] No duplicate registry.
 - [ ] No orphaned tool routes.
@@ -425,15 +464,16 @@ Sub-agents may be used for analysis/review tasks, but they do not receive author
 
 ## Evidence Log
 
-| Phase | Status | Exact SHA | Evidence | Human approval |
-|---|---|---|---|---|
-| Phase 1 | AUDITED / CI PENDING | `75bfb2a77513c98a18d619a74f12daedbe547e0c` | `EXECUTION_PLAN.md`, `docs/TOOL-EXPANSION-AUDIT.md`; Secret Scan PASS, CodeQL PASS; FLIXO CI #15554 still pending | autonomous execution authorized |
-| Phase 2 | IN PROGRESS | `78ab851692122f8bf187f8b72e27b4cb27fdf27c` | Shared image engine + first 11 transform adapters/UI paths added; CI verification pending | autonomous execution authorized |
-| Phase 3 | NOT STARTED | pending | pending | pending |
-| Phase 4 | NOT STARTED | pending | pending | pending |
-| Phase 5 | NOT STARTED | pending | pending | pending |
-| Phase 6 | NOT STARTED | pending | pending | pending |
-| Phase 7 | NOT STARTED | pending | pending | pending |
+| Phase   | Status                                            | Exact SHA                                  | Evidence                                                                                                                                         | Human approval                   |
+| ------- | ------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------- |
+| Phase 1 | AUDITED / CI PENDING                              | `75bfb2a77513c98a18d619a74f12daedbe547e0c` | `EXECUTION_PLAN.md`, `docs/TOOL-EXPANSION-AUDIT.md`; Secret Scan PASS, CodeQL PASS; FLIXO CI #15554 still pending                                | autonomous execution authorized  |
+| Phase 2 | IN PROGRESS                                       | `78ab851692122f8bf187f8b72e27b4cb27fdf27c` | Shared image engine + first 11 transform adapters/UI paths added; CI verification pending                                                        | autonomous execution authorized  |
+| Phase 3 | NOT STARTED                                       | pending                                    | pending                                                                                                                                          | pending                          |
+| Phase 4 | NOT STARTED                                       | pending                                    | pending                                                                                                                                          | pending                          |
+| Phase 5 | NOT STARTED                                       | pending                                    | pending                                                                                                                                          | pending                          |
+| Phase 6 | NOT STARTED                                       | pending                                    | pending                                                                                                                                          | pending                          |
+| Phase 7 | CURRENT RELEASE VERIFIED; FULL PROGRAM INCOMPLETE | `e37be44b89a50dec5ac633d052090aa73fe956fd` | CI, CodeQL, Secret Scan, Chromium smoke, trust-gate, exact-SHA proof, Cloudflare deployment, immutable identity, production browser verification | pre-authorized by active mandate |
 
 ## Completion Rule
+
 Do not mark this mission complete, issue a final certificate, or report 100% completion until every unchecked item is verified, evidence is recorded against the exact SHA, required repository/production checks are PASS, and the corresponding human approvals are explicitly recorded.
