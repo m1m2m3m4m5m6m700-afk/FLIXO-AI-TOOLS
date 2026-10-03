@@ -1,6 +1,6 @@
 {
-  "name": "FLIXO AI Tools",
-  "short_name": "FLIXO",
+  "name": "FLIXO Hub",
+  "short_name": "FLIXO Hub",
   "description": "Fast browser-first productivity tools with privacy-focused local processing.",
   "start_url": "/en",
   "display": "standalone",
