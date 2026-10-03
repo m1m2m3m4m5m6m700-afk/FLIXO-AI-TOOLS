@@ -14,6 +14,34 @@ import { TOOL_CATALOG } from '../config/registry';
 import { ROADMAP_CATEGORIES } from '../data/roadmap-categories';
 import { classifyHomeIntent, type AssistantResult } from '../lib/home-intent-classifier';
 
+const HOME_H1_BY_LOCALE: Readonly<Record<string, string>> = {
+  en: 'Your digital tools. In one place.',
+  ar: 'كل أدواتك الرقمية. في مساحة واحدة.',
+  es: 'Tus herramientas digitales. En un solo lugar.',
+  fr: 'Vos outils numériques. En un seul endroit.',
+  de: 'Ihre digitalen Werkzeuge. An einem Ort.',
+  hi: 'आपके डिजिटल टूल्स। एक ही जगह।',
+  id: 'Semua alat digital Anda. Dalam satu tempat.',
+  it: 'I tuoi strumenti digitali. In un unico posto.',
+  ja: 'デジタルツールを、ひとつの場所に。',
+  ko: '모든 디지털 도구를. 한곳에서.',
+  ms: 'Semua alat digital anda. Dalam satu tempat.',
+  nl: 'Al je digitale tools. Op één plek.',
+  pl: 'Twoje narzędzia cyfrowe. W jednym miejscu.',
+  pt: 'Suas ferramentas digitais. Em um só lugar.',
+  ru: 'Все ваши цифровые инструменты. В одном месте.',
+  sv: 'Dina digitala verktyg. På ett ställe.',
+  th: 'เครื่องมือดิจิทัลทั้งหมดของคุณ ในที่เดียว',
+  tr: 'Tüm dijital araçlarınız. Tek bir yerde.',
+  uk: 'Усі ваші цифрові інструменти. В одному місці.',
+  vi: 'Mọi công cụ kỹ thuật số của bạn. Ở một nơi.',
+};
+
+function homeLocale(): string {
+  if (typeof window === 'undefined') return 'en';
+  return window.location.pathname.match(/^\/([a-z]{2})(?:\/|$)/u)?.[1] ?? 'en';
+}
+
 const FEATURED_IDS = [
   'background-remover',
   'image-upscaler',
@@ -189,8 +217,11 @@ export function OfficialHome() {
                 المتصفح أولًا · بدون حساب · بدون تنفيذ وكيل
               </span>
               <h1>
-                كل أدواتك الرقمية.
-                <em> في مساحة واحدة.</em>
+                {(() => {
+                  const value = HOME_H1_BY_LOCALE[homeLocale()] ?? HOME_H1_BY_LOCALE.en;
+                  const parts = value.split('. ');
+                  return parts.length > 1 ? <>{parts[0]}.<em> {parts.slice(1).join('. ')}</em></> : value;
+                })()}
               </h1>
               <p>
                 FLIXO يبني تجربة موحّدة للوصول إلى أدوات الصور والملفات والنصوص والتحويلات،
