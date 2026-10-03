@@ -4,12 +4,20 @@
 
 Achieve 100% verified completion of the browser-first tool expansion program: architecture, tool engines, tool integration, tests, localization, governance, documentation, and release verification.
 
+## Current Autonomous Execution Session — 2026-10-03
+
+- User-authorized mandate: execute the repository completion program continuously toward the defined 100% target.
+- Working lane: `execution`; `main` remains production truth and promotion evidence must be exact-SHA bound.
+- Initial workspace state: `c7b1362a5` was one commit ahead and two commits behind `origin/main`; the latest `origin/main` was integrated into `execution` before further changes.
+- i18n normalization completed in this session: test suites now derive their locale matrix from `CANONICAL_LOCALES`; unsupported duplicate dictionary files `ur.ts` and `zh.ts` were removed.
+- Current i18n structural gate after normalization: 20 canonical locales, 20/20 key coverage, zero extra dictionaries.
+
 ## Current Verified Baseline — 2026-10-03
 
 - Production `main` merge SHA: `263827228cbe5f4851470297fde5f2858ff844de`.
 - Production deployment: PASS; Cloudflare immutable identity and production browser verification both PASS on the exact merge SHA `263827228cbe5f4851470297fde5f2858ff844de` after a transient first-probe retry.
 - Current canonical registry: 43 definitions; 42 tools are marked ready by the build/static-route generators.
-- Canonical locale set: 20 locales. Automated dictionary-key coverage: PASS for all 20; `ur.ts` and `zh.ts` remain non-canonical extra dictionaries.
+- Canonical locale set: 20 locales. Automated dictionary-key coverage: PASS for all 20; no non-canonical locale dictionary files remain.
 - Agent profiles: 3 repository profiles created and structurally verified. No long-running AI sub-agent runtime is present in the available execution environment, so profiles are not represented as active autonomous agents.
 - Windows build portability: PASS via `scripts/generate-build-artifacts.mjs`; full local build completed with exit code 0.
 - Core verification: 19/19 tests PASS. The previous eight-route image-toolkit localization crash was fixed by binding each shared registry component to its canonical tool ID.
