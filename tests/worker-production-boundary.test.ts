@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import worker from '../src/worker.ts';
+import worker, { resolveDeploymentIdentity } from '../src/worker.ts';
+
+test('deployment identity resolver requires an exact 40-character SHA match', () => {
+  const sha = 'a'.repeat(40);
+  assert.equal(resolveDeploymentIdentity(sha, sha), sha);
+  assert.equal(resolveDeploymentIdentity(sha, 'b'.repeat(40)), null);
+  assert.equal(resolveDeploymentIdentity(sha, 'a'.repeat(39)), null);
+});
+
 
 test('production worker applies security headers', async () => {
   const response = await worker.fetch(new Request('https://flixoai.example/'), { ASSETS: { fetch: async () => new Response('<html></html>', { status: 200, headers: { 'content-type': 'text/html' } }) } });
@@ -17,17 +25,12 @@ test('production worker returns JSON 404 for API paths instead of SPA HTML', asy
   assert.equal((await response.json() as { error: string }).error, 'API_NOT_EXPOSED_ON_STATIC_PRODUCTION_WORKER');
 });
 
-test('production worker verifies identity against the exact versioned asset', async () => {
+test('production worker rejects identity before deploy-time SHA binding', async () => {
   const requested = 'a'.repeat(40);
   const response = await worker.fetch(new Request('https://flixoai.example/__flixo-identity-' + requested + '.txt'), {
-    ASSETS: { fetch: async (request) => {
-      assert.equal(new URL(request.url).pathname, '/__flixo-identity-' + requested + '.txt');
-      return new Response(requested + '\n', { status: 200 });
-    } },
+    ASSETS: { fetch: async () => new Response(requested + '\n', { status: 200 }) },
   });
-  assert.equal(response.status, 200);
-  assert.equal((await response.text()).trim(), requested);
-  assert.equal(response.headers.get('x-flixo-deployment-sha'), requested);
+  assert.equal(response.status, 404);
 });
 
 test('production worker rejects identity when the exact versioned asset does not match', async () => {
