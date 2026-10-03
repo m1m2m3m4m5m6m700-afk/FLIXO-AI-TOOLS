@@ -72,29 +72,6 @@ export function ToolsPage({ locale = 'en' as Locale }: { locale?: Locale }) {
     return !query.trim() || haystack.includes(query.trim().toLowerCase());
   }), [ready, locale, query]);
 
-  const AGENT_NAV_LABELS: Readonly<Record<Locale, string>> = {
-  en: 'Agent',
-  ar: 'الوكيل',
-  es: 'Agente de IA',
-  fr: 'Agent IA',
-  de: 'KI-Agent',
-  hi: 'एआई एजेंट',
-  id: 'Agen AI',
-  it: 'Agente IA',
-  ja: 'AIエージェント',
-  ko: 'AI 에이전트',
-  ms: 'Ejen AI',
-  nl: 'AI-agent',
-  pl: 'Agent AI',
-  pt: 'Agente IA',
-  ru: 'ИИ-агент',
-  sv: 'AI-agent',
-  th: 'เอเจนต์ AI',
-  tr: 'Yapay zekâ ajanı',
-  uk: 'AI-агент',
-  vi: 'Tác nhân AI',
-};
-
 const ar = locale === 'ar';
 
   return (
