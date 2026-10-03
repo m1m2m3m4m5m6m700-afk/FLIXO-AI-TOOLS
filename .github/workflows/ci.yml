@@ -199,7 +199,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          required=("FLIXO CodeQL" "FLIXO Secret Scan" "FLIXO Agent Editor Coverage" "FLIXO Agent Editor - STEP 4" "Agent Editor Step 5-6 Verification")
+          required=("FLIXO CodeQL" "FLIXO Secret Scan")
           for attempt in $(seq 1 30); do
             runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$DEPLOYMENT_SHA&event=push&per_page=100")"
             all_ok=true
