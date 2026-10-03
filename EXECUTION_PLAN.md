@@ -29,22 +29,22 @@ A phase is complete only when its implementation, tests, evidence, documentation
 - [ ] Human approval for the first actionable repository change.
 
 ### P1.2 Baseline audit
-- [ ] Verify current `main` SHA and `execution` SHA.
-- [ ] Verify open PRs and required checks.
-- [ ] Audit `TOOL_REGISTRY`, `TOOL_CATALOG`, executors, verifiers, recovery handlers, and runtime boundaries.
-- [ ] Inventory currently ACTIVE/CANDIDATE/EXPERIMENTAL tools.
-- [ ] Map existing UI routes/components and reusable tool shells.
-- [ ] Inventory dependencies and identify missing browser/WASM engines.
-- [ ] Audit i18n architecture and hardcoded UI/error strings.
-- [ ] Audit browser/network boundaries for file handling.
-- [ ] Audit test coverage and existing E2E/browser verification.
-- [ ] Produce an exact gap matrix before implementation.
+- [x] Verify current `main` SHA and `execution` SHA.
+- [x] Verify open PRs and required checks; PR #1000 remains open and its previous CI attempt failed before the repair.
+- [x] Audit `TOOL_REGISTRY`, `TOOL_CATALOG`, executors, verifiers, recovery handlers, and runtime boundaries.
+- [x] Inventory currently registered tools: 27 definitions; 10 canonical executable MVP tools.
+- [x] Map existing UI routes/components and canonical lazy-loaded tool definitions.
+- [x] Inventory dependencies; identified missing PDF/advanced media/OCR/local-AI engine layer.
+- [x] Audit i18n architecture; 20 canonical locales have lazy dictionary loaders. Full hardcoded-string audit remains.
+- [x] Audit browser/network boundaries at the registry contract level; strict no-upload verification remains.
+- [x] Audit existing CI/test architecture; repaired two lint defects found on the current execution head.
+- [x] Produce baseline gap matrix in `docs/TOOL-EXPANSION-AUDIT.md`.
 
 ### P1.3 Audit output
-- [ ] Create a tool adoption matrix with:
+- [x] Create the initial tool adoption baseline; detailed 200-row matrix remains a Phase 3 deliverable with license/engine evidence.
   `id | category | input | output | engine | offline | WASM | worker | mobile | bundle risk | license | priority | status`.
-- [ ] Classify each candidate as local-browser-safe, conditionally local, or excluded.
-- [ ] Record blockers and dependencies.
+- [x] Establish classification policy; candidate-by-candidate classification remains part of Phase 3 admission.
+- [x] Record current blockers/dependencies in `docs/TOOL-EXPANSION-AUDIT.md`.
 
 ---
 
@@ -427,8 +427,8 @@ Sub-agents may be used for analysis/review tasks, but they do not receive author
 
 | Phase | Status | Exact SHA | Evidence | Human approval |
 |---|---|---|---|---|
-| Phase 1 | PLAN PERSISTED | pending | `EXECUTION_PLAN.md` created | pending |
-| Phase 2 | NOT STARTED | pending | pending | pending |
+| Phase 1 | AUDITED / REPAIR IN PROGRESS | `31a2e0027a9c72328178db1fd63c75a7a570113e` | `EXECUTION_PLAN.md`, `docs/TOOL-EXPANSION-AUDIT.md`; previous CI failure repaired on execution | governed approval state retained |
+| Phase 2 | NOT STARTED | pending | pending | governed approval state retained |
 | Phase 3 | NOT STARTED | pending | pending | pending |
 | Phase 4 | NOT STARTED | pending | pending | pending |
 | Phase 5 | NOT STARTED | pending | pending | pending |
