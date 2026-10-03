@@ -31,9 +31,9 @@ export default {
   const url=new URL(request.url);
   if(url.pathname.startsWith('/api/')) return apiNotFound();
   const versioned=url.pathname.match(VERSIONED_IDENTITY_PATTERN);
-  if(versioned) return verifyIdentity(versioned[1], EMBEDDED_DEPLOYMENT_SHA, request, env.ASSETS);
+  if(versioned) return verifyIdentity(versioned[1], env.FLIXO_DEPLOYMENT_SHA ?? EMBEDDED_DEPLOYMENT_SHA, request, env.ASSETS);
   const directory=url.pathname.match(DIRECTORY_IDENTITY_PATTERN);
-  if(directory) return verifyIdentity(directory[1], EMBEDDED_DEPLOYMENT_SHA, request, env.ASSETS);
+  if(directory) return verifyIdentity(directory[1], env.FLIXO_DEPLOYMENT_SHA ?? EMBEDDED_DEPLOYMENT_SHA, request, env.ASSETS);
   if(url.pathname.startsWith('/__flixo-identity-')||url.pathname.startsWith('/__flixo/identity/')) return secure(new Response('Not Found\n',{status:404}));
   return secure(await env.ASSETS.fetch(request));
  },
