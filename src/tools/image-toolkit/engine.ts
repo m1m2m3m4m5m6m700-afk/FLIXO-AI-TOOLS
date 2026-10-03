@@ -9,7 +9,8 @@ export type LocalToolId =
   | 'object-remover'
   | 'crop-resize'
   | 'watermark-remover'
-  | 'raster-to-svg';
+  | 'raster-to-svg'
+  | 'image-rotate' | 'image-flip-horizontal' | 'image-flip-vertical' | 'image-brightness' | 'image-contrast' | 'image-saturation' | 'image-grayscale' | 'image-invert' | 'image-sepia' | 'image-blur' | 'image-sharpen';
 
 export type ImageInfo = { width: number; height: number };
 
