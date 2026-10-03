@@ -1,5 +1,5 @@
 type AssetsBinding = { fetch(request: Request): Promise<Response> };
-type Env = { ASSETS: AssetsBinding };
+type Env = { ASSETS: AssetsBinding; FLIXO_DEPLOYMENT_SHA?: string };
 const SHA_PATTERN = /^[a-f0-9]{40}$/u;
 const VERSIONED_IDENTITY_PATTERN = /^\/__flixo-identity-([a-f0-9]{40})\.txt$/u;
 const DIRECTORY_IDENTITY_PATTERN = /^\/__flixo\/identity\/([a-f0-9]{40})\/index\.txt$/u;
@@ -18,8 +18,8 @@ function secure(response: Response): Response { const headers = new Headers(resp
 function apiNotFound(): Response { return secure(new Response(JSON.stringify({error:'API_NOT_EXPOSED_ON_STATIC_PRODUCTION_WORKER'})+'\n',{status:404,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store, max-age=0'}})); }
 function identityResponse(sha:string): Response { return secure(new Response(sha+'\n',{status:200,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store, max-age=0','x-flixo-deployment-sha':sha}})); }
 function identity404():Response { return secure(new Response('Not Found\n',{status:404,headers:{'content-type':'text/plain','cache-control':'no-store'}})); }
-function verifyIdentity(requestedSha:string):Response {
-  const verifiedSha = resolveDeploymentIdentity(requestedSha, EMBEDDED_DEPLOYMENT_SHA);
+function verifyIdentity(requestedSha:string,deploymentSha:string):Response {
+  const verifiedSha = resolveDeploymentIdentity(requestedSha, deploymentSha);
   return verifiedSha ? identityResponse(verifiedSha) : identity404();
 }
 export default {
@@ -27,9 +27,9 @@ export default {
   const url=new URL(request.url);
   if(url.pathname.startsWith('/api/')) return apiNotFound();
   const versioned=url.pathname.match(VERSIONED_IDENTITY_PATTERN);
-  if(versioned) return verifyIdentity(versioned[1]);
+  if(versioned) return verifyIdentity(versioned[1], env.FLIXO_DEPLOYMENT_SHA ?? EMBEDDED_DEPLOYMENT_SHA);
   const directory=url.pathname.match(DIRECTORY_IDENTITY_PATTERN);
-  if(directory) return verifyIdentity(directory[1]);
+  if(directory) return verifyIdentity(directory[1], env.FLIXO_DEPLOYMENT_SHA ?? EMBEDDED_DEPLOYMENT_SHA);
   if(url.pathname.startsWith('/__flixo-identity-')||url.pathname.startsWith('/__flixo/identity/')) return secure(new Response('Not Found\n',{status:404}));
   return secure(await env.ASSETS.fetch(request));
  },
