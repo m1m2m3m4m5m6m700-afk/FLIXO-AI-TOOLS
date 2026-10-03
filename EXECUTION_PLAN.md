@@ -427,7 +427,7 @@ Sub-agents may be used for analysis/review tasks, but they do not receive author
 
 | Phase | Status | Exact SHA | Evidence | Human approval |
 |---|---|---|---|---|
-| Phase 1 | AUDITED / REPAIR IN PROGRESS | `31a2e0027a9c72328178db1fd63c75a7a570113e` | `EXECUTION_PLAN.md`, `docs/TOOL-EXPANSION-AUDIT.md`; previous CI failure repaired on execution | governed approval state retained |
+| Phase 1 | AUDITED / CI PENDING | `75bfb2a77513c98a18d619a74f12daedbe547e0c` | `EXECUTION_PLAN.md`, `docs/TOOL-EXPANSION-AUDIT.md`; Secret Scan PASS, CodeQL PASS; FLIXO CI #15554 still pending | autonomous execution authorized |
 | Phase 2 | NOT STARTED | pending | pending | governed approval state retained |
 | Phase 3 | NOT STARTED | pending | pending | pending |
 | Phase 4 | NOT STARTED | pending | pending | pending |
