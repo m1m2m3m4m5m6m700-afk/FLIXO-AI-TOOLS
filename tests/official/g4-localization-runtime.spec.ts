@@ -17,7 +17,7 @@ const getImageAccessibilityIssues = (
   if (img.getAttribute('role') === 'presentation') return [];
   return img.hasAttribute('alt') ? [] : ['visible image missing alt'];
 };
-const sharedPhrases = new Set(['FLIXO AI Tools', 'FLIXO home']);
+const sharedPhrases = new Set(['FLIXO AI Tools', 'FLIXO Hub', 'FLIXO home']);
 
 const technicalCapabilityPhrase = /^(?:WebGPU|WASM|CPU)(?:\s+(?:WebGPU|WASM|CPU))*$/u;
 const technicalCodecPhrase = /^(?:WebP|JPG|PNG|JPEG|GIF|SVG)(?:\s+(?:WebP|JPG|PNG|JPEG|GIF|SVG))*$/u;
