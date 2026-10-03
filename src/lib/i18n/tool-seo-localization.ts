@@ -42,7 +42,7 @@ export const TOOL_SEO_NAMES: Readonly<Record<string, ToolSeoLocale>> = Object.fr
   'image-sepia': Object.freeze({ en:'Sepia Image Effect', ar:'تأثير سيبيا للصورة', es:'Efecto sepia', fr:'Effet sépia', de:'Sepia-Effekt', hi:'सेपिया इमेज इफेक्ट', id:'Kesan Sepia', it:'Effetto seppia', ja:'セピア効果', ko:'세피아 효과', ms:'Kesan Sepia', nl:'Sepia-effect', pl:'Efekt sepii', pt:'Efeito Sépia', ru:'Эффект сепии', sv:'Sepiaeffekt', th:'เอฟเฟกต์ซีเปีย', tr:'Sepya efekti', uk:'Ефект сепії', vi:'Hiệu ứng màu nâu đỏ' }),
   'image-blur': Object.freeze({ en:'Blur Image', ar:'تمويه الصورة', es:'Desenfocar imagen', fr:'Flouter l’image', de:'Bild weichzeichnen', hi:'इमेज धुंधली करें', id:'Kaburkan Gambar', it:'Sfoca immagine', ja:'画像をぼかす', ko:'이미지 흐리게', ms:'Kaburkan Imej', nl:'Afbeelding vervagen', pl:'Rozmycie obrazu', pt:'Desfocar Imagem', ru:'Размытие изображения', sv:'Görseli bulanıklaştır', th:'เบลอรูปภาพ', tr:'Görsel bulanıklaştırma', uk:'Розмиття зображення', vi:'Làm mờ ảnh' }),
   'image-sharpen': Object.freeze({ en:'Sharpen Image', ar:'زيادة حدة الصورة', es:'Enfocar imagen', fr:'Accentuer l’image', de:'Bild schärfen', hi:'इमेज शार्प करें', id:'Tajamkan Gambar', it:'Nitidezza immagine', ja:'画像をシャープに', ko:'이미지 선명하게', ms:'Menajamkan Imej', nl:'Afbeelding verscherpen', pl:'Wyostrzanie obrazu', pt:'Aumentar Nitidez da Imagem', ru:'Повышение резкости изображения', sv:'Skärpa bild', th:'เพิ่มความคมชัดรูปภาพ', tr:'Görsel keskinleştirme', uk:'Підвищення різкості зображення', vi:'Làm sắc nét ảnh' }),
-);
+});
 
 export function getToolSeoName(toolId: string, locale: Locale): string | undefined {
   return TOOL_SEO_NAMES[toolId]?.[locale];
