@@ -232,6 +232,26 @@ jobs:
           test "$(cat "dist/__flixo/identity/$DEPLOYMENT_SHA/index.txt")" = "$DEPLOYMENT_SHA"
           test -s dist/index.html
 
+      - name: Bind exact deployment SHA into Worker runtime
+        shell: bash
+        env:
+          DEPLOYMENT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+
+          path = Path('src/worker.ts')
+          text = path.read_text(encoding='utf-8')
+          marker = "const EMBEDDED_DEPLOYMENT_SHA = '__FLIXO_DEPLOYMENT_SHA__';"
+          replacement = f"const EMBEDDED_DEPLOYMENT_SHA = '{os.environ['DEPLOYMENT_SHA']}';"
+          assert text.count(marker) == 1
+          path.write_text(text.replace(marker, replacement), encoding='utf-8')
+          assert replacement in path.read_text(encoding='utf-8')
+          PY
+          grep -F "const EMBEDDED_DEPLOYMENT_SHA = '$DEPLOYMENT_SHA';" src/worker.ts
+
       - name: Safety Guard — strict Cloudflare target allowlist
         shell: bash
         run: |
