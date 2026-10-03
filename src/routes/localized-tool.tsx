@@ -2,7 +2,6 @@ import { createRoute, notFound, redirect } from '@tanstack/react-router';
 import { getToolById, getToolByRoute } from '../config/registry';
 import { getLocalizedToolPath } from '../lib/routing/route-resolver';
 import { getToolSeo } from '../lib/seo/tool-seo';
-import { SITE_ORIGIN } from '../lib/i18n';
 import { LocalizedToolPage } from './localized-tool-page';
 import { rootRoute } from './__root';
 
