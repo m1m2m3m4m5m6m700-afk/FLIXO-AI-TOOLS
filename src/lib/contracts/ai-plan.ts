@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { getCapability, validateCapabilityParameters } from '@/lib/agent/capability-registry';
+import { getCapability, validateCapabilityParameters } from '@/config/manual-capability-definition';
 import { TOOL_CATALOG } from '@/config/registry';
 
 export const MAX_PLAN_STEPS = 4;
