@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect, useLayoutEffect } from 'react';
 import { HeadContent, Scripts, Outlet, createRootRoute, useLocation } from '@tanstack/react-router';
 import { applyDocumentLocale, installDocumentLocaleContract, localeFromPathname } from '../lib/i18n/runtime-document-locale';
 import { SITE_ORIGIN } from '../lib/i18n';
-import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 
 const CommandPalette = lazy(async () => {
   const module = await import('../components/command-palette');
@@ -12,7 +11,7 @@ const CommandPalette = lazy(async () => {
 const GLOBAL_STRUCTURED_DATA = {
   '@context': 'https://schema.org',
   '@graph': [
-    { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization`, name: 'FLIXO AI', url: SITE_ORIGIN, logo: `${SITE_ORIGIN}/flixo-logo.webp` },
+    { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization`, name: 'FLIXO AI', url: SITE_ORIGIN },
     { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, name: 'FLIXO AI', url: SITE_ORIGIN, publisher: { '@id': `${SITE_ORIGIN}/#organization` } },
   ],
 } as const;
@@ -48,7 +47,7 @@ export const rootRoute = createRootRoute({
       };
     }, []);
     const structuredDataJson = JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c');
-    return <><HeadContent /><RuntimeLocaleAttributes /><script type="application/ld+json">{structuredDataJson}</script><FlixoGlobalLogo /><Suspense fallback={null}><CommandPalette /></Suspense><RouteContent /><Scripts /></>;
+    return <><HeadContent /><RuntimeLocaleAttributes /><script type="application/ld+json">{structuredDataJson}</script><Suspense fallback={null}><CommandPalette /></Suspense><RouteContent /><Scripts /></>;
   },
   head: () => ({
     meta: [
@@ -62,16 +61,11 @@ export const rootRoute = createRootRoute({
       { property: 'og:title', content: 'FLIXO AI — Browser-first AI image editing' },
       { property: 'og:description', content: 'Browser-first AI image editing with background removal, upscaling, cropping, compression, conversion, and image effects.' },
       { property: 'og:url', content: SITE_ORIGIN },
-      { property: 'og:image', content: `${SITE_ORIGIN}/flixo-logo.webp` },
       { name: 'twitter:card', content: 'summary_large_image' },
       { name: 'twitter:title', content: 'FLIXO AI — Fast browser-first tools' },
       { name: 'twitter:description', content: 'Browser-first image editing with direct manual tools and local privacy.' },
-      { name: 'twitter:image', content: `${SITE_ORIGIN}/flixo-logo.webp` },
     ],
     links: [
-      { rel: 'icon', href: '/flixo-favicon.png', type: 'image/png' },
-      { rel: 'alternate icon', href: '/flixo-favicon.png', type: 'image/png' },
-      { rel: 'apple-touch-icon', href: '/flixo-logo.webp' },
     ],
   }),
 });

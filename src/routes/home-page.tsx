@@ -1,7 +1,6 @@
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { TOOL_CATALOG } from '../config/registry';
-import { FlixoLogoImage } from '../components/FlixoLogoImage';
 import { loadHomeCopy } from '@/lib/i18n/home-loader';
 import { getAuthoritativeToolSeoName } from '@/config/tool-seo-name-resolver';
 import { localizeMsUkCategory, localizeMsUkDescription } from '@/lib/i18n/ms-uk-category';
@@ -67,7 +66,7 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
     <main className="home-shell" lang={localeMetadata.languageTag} dir={localeMetadata.direction}>
       <nav className="home-nav" aria-label={copy.ariaPrimary}>
         <div className="home-container home-nav-inner">
-          <Link className="home-brand" to="/" aria-label={copy.ariaHome}><FlixoLogoImage alt="FLIXO AI Tools" width={40} height={40} /></Link>
+          <Link className="home-brand" to="/" aria-label={copy.ariaHome}>FLIXO Hub</Link>
           <div className="home-nav-links"><a href="#tools">{locale === 'ar' ? 'أدوات الصور' : copy.nav.tools}</a><Link to="/$locale/$tool" params={{ locale, tool: 'filter-mask' }}>{FILTER_LABELS[locale] ?? copy.nav.categories}</Link></div>
           <label className="sr-only" htmlFor="home-language">{copy.nav.switch}</label>
           <select id="home-language" className="home-nav-language" value={locale} aria-label={copy.nav.switch} onChange={(event) => { const nextLocale = event.target.value as Locale; void navigate(nextLocale === 'en' ? { to: '/' } : { to: '/$locale', params: { locale: nextLocale } }); }}>

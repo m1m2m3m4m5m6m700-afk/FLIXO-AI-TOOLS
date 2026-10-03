@@ -7,7 +7,6 @@ import { TOOL_UI_I18N } from '../data/tool-ui-i18n';
 import { localizeMsUkCategory } from '../lib/i18n/ms-uk-category';
 import { localizeToolCategory } from '../lib/i18n/tool-localization';
 import { AutoLocalizedToolSurface } from '../components/auto-localized-tool-surface';
-import { FlixoLogoImage } from '../components/FlixoLogoImage';
 import { getToolPrivacyCopy } from '../lib/privacy';
 import { getFavorites, recordRecentTool, toggleFavorite } from '../lib/local-workspace';
 import '../tool-page-modern.css';
@@ -82,7 +81,7 @@ export function LocalizedToolPage() {
       <script type="application/ld+json">{structuredDataJson}</script>
       <nav className="tool-page-modern__nav" aria-label={copy.navigation}>
         <div className="tool-page-modern__nav-inner">
-          <a className="tool-page-modern__brand" href={homeUrl} aria-label={copy.home}><FlixoLogoImage alt="FLIXO" width={44} height={44} className="tool-page-modern__brand-logo" /></a>
+          <a className="tool-page-modern__brand" href={homeUrl} aria-label={copy.home}>FLIXO Hub</a>
           <div className="tool-page-modern__nav-actions">
             <button className={`tool-page-modern__favorite ${favorite ? 'is-active' : ''}`} type="button" onClick={onToggleFavorite} aria-pressed={favorite} title={copy.favorite}><span aria-hidden="true">{favorite ? '★' : '☆'}</span> {copy.favorite}</button>
             <a className="tool-page-modern__nav-link" href={homeUrl}>← {copy.home}</a>
@@ -91,7 +90,7 @@ export function LocalizedToolPage() {
         </div>
       </nav>
       <div className="tool-page-modern__body">
-        <div className="tool-page-modern__breadcrumbs" aria-label={copy.about}><a className="tool-page-modern__crumb" href={homeUrl}>FLIXO</a><span className="tool-page-modern__crumb-sep">/</span><span className="tool-page-modern__crumb">{localizedCategory}</span><span className="tool-page-modern__crumb-sep">/</span><span className="tool-page-modern__crumb" aria-current="page">{localizedTitle}</span></div>
+        <div className="tool-page-modern__breadcrumbs" aria-label={copy.about}><a className="tool-page-modern__crumb" href={homeUrl}>FLIXO Hub</a><span className="tool-page-modern__crumb-sep">/</span><span className="tool-page-modern__crumb">{localizedCategory}</span><span className="tool-page-modern__crumb-sep">/</span><span className="tool-page-modern__crumb" aria-current="page">{localizedTitle}</span></div>
         <header className="tool-page-modern__hero"><div className="tool-page-modern__hero-grid"><div><p className="tool-page-modern__eyebrow">FLIXO · {localizedCategory.toUpperCase()}</p><h1 ref={headingRef} tabIndex={-1} className="tool-page-modern__title">{localizedTitle}</h1><p className="tool-page-modern__description">{localizedDescription}</p><div className="tool-page-modern__meta"><div className="tool-page-modern__meta-row"><span className="tool-page-modern__badge"><span className="tool-page-modern__badge-dot" /> {copy.ready}</span><span className="tool-page-modern__chip">{copy.language}: {seo.languageTag}</span><span className="tool-page-modern__chip">{localizedCategory}</span></div><div className={`tool-page-modern__privacy ${privacy.mode === 'local' ? 'tool-page-modern__privacy--local' : 'tool-page-modern__privacy--remote'}`} role="status" aria-label={privacy.label}><span aria-hidden="true">{privacy.mode === 'local' ? '●' : '↗'}</span><strong>{privacy.label}</strong><span>{privacy.detail}</span></div></div></div></div></header>
         <section className="tool-page-modern__workspace" aria-label={localizedTitle} aria-busy="false"><div className="tool-page-modern__workspace-bar"><span className="tool-page-modern__status"><span className="tool-page-modern__status-led" /> {copy.workspace}</span><span>{seo.tool.id}</span></div><div className="tool-page-modern__tool-host flixo-universal-tool-surface" data-flixo-i18n-root="tool-surface" aria-live="polite"><AutoLocalizedToolSurface locale={locale} toolId={seo.tool.id}><Suspense fallback={<div className="tool-page-modern__loading" role="status" aria-live="polite">{copy.loading}</div>}><ToolSurfaceSemanticBoundary><ToolComponent locale={locale} /></ToolSurfaceSemanticBoundary></Suspense></AutoLocalizedToolSurface></div></section>
         <Suspense fallback={<div className="tool-page-modern__loading" role="status" aria-live="polite">{copy.loading}</div>}><LazyToolChainPanel currentToolId={seo.tool.id} /></Suspense>
