@@ -1,6 +1,6 @@
 import { createRoute } from '@tanstack/react-router';
 import { rootRoute } from './__root';
-import { AgentFirstHome } from '../components/AgentFirstHome';
+import { OfficialHome } from '../components/OfficialHome';
 import { buildSeoMetadata } from '../lib/seo';
 
 const SEO = buildSeoMetadata({
@@ -8,7 +8,7 @@ const SEO = buildSeoMetadata({
   path: '/',
   title: 'FLIXO | أدوات سريعة وخصوصية أولًا',
   description:
-    'اكتشف أدوات سريعة للصور والذكاء الاصطناعي وOCR والتحويل وغيرها، مع معالجة محلية داخل المتصفح عندما تكون مدعومة.',
+    'اكتشف أدوات سريعة للصور والملفات والنصوص مع معالجة محلية داخل المتصفح عندما تكون مدعومة.',
 });
 
 export const arIndexRoute = createRoute({
@@ -43,5 +43,5 @@ export const arIndexRoute = createRoute({
       },
     ],
   }),
-  component: () => <AgentFirstHome locale="ar" />,
+  component: OfficialHome,
 });
