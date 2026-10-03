@@ -9,7 +9,7 @@ const sitemap = readFileSync('dist/sitemap.xml', 'utf8');
 const routes = [...new Set([...sitemap.matchAll(/<url>\s*<loc>([^<]+)<\/loc>[\s\S]*?<\/url>/gu)].map((match) => new URL(match[1]).pathname))].sort();
 const localeCodes = LOCALES;
 const languageTags = Object.fromEntries(LOCALES.map((locale) => [locale, LOCALE_METADATA[locale].languageTag])) as Record<(typeof localeCodes)[number], string>;
-const sharedTerms = new Set(['FLIXO', 'QuickFlow', 'OCR', 'PDF', 'English', 'العربية', 'Smart Intent', 'Ctrl K', 'WebP', 'PNG', 'JPEG', 'GIF', 'SVG', 'CSV', 'JSON', 'ZIP', 'MP3', 'MP4', 'Whisper', 'WebGPU', 'WASM', 'Photo', 'Zoom', 'Mono', 'Retro']);
+const sharedTerms = new Set(['FLIXO', 'Hub', 'QuickFlow', 'OCR', 'PDF', 'English', 'العربية', 'Smart Intent', 'Ctrl K', 'WebP', 'PNG', 'JPEG', 'GIF', 'SVG', 'CSV', 'JSON', 'ZIP', 'MP3', 'MP4', 'Whisper', 'WebGPU', 'WASM', 'Photo', 'Zoom', 'Mono', 'Retro']);
 
 const getImageAccessibilityIssues = (
   img: Pick<HTMLImageElement, 'getAttribute' | 'hasAttribute'>,
@@ -17,7 +17,7 @@ const getImageAccessibilityIssues = (
   if (img.getAttribute('role') === 'presentation') return [];
   return img.hasAttribute('alt') ? [] : ['visible image missing alt'];
 };
-const sharedPhrases = new Set(['FLIXO AI Tools', 'FLIXO home']);
+const sharedPhrases = new Set(['FLIXO AI Tools', 'FLIXO Hub', 'FLIXO home']);
 
 const technicalCapabilityPhrase = /^(?:WebGPU|WASM|CPU)(?:\s+(?:WebGPU|WASM|CPU))*$/u;
 const technicalCodecPhrase = /^(?:WebP|JPG|PNG|JPEG|GIF|SVG)(?:\s+(?:WebP|JPG|PNG|JPEG|GIF|SVG))*$/u;
