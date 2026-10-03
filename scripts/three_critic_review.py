@@ -11,7 +11,7 @@ try:
 except ImportError:
     anthropic = None
 
-MODEL=os.getenv("FLIXO_AGENT_MODEL","claude-sonnet-4-6")
+MODEL=os.getenv("FLIXO_REVIEW_MODEL","claude-sonnet-4-6")
 MAX_ROUNDS=3
 THRESHOLDS={"security":0.85,"logic":0.70,"performance":0.60}
 
