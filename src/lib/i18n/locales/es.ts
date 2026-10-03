@@ -5,7 +5,7 @@ export const es = {
   languageTag: 'es',
   direction: 'ltr' as const,
   siteName: 'FLIXO',
-  homeTitle: 'Herramientas online gratuitas',
+  homeTitle: 'Crea y edita online',
   homeDescription: 'Herramientas rápidas en el navegador para imágenes y tareas diarias.',
   seedUi: {
     zoomIn: 'Acercar lienzo',
