@@ -51,7 +51,7 @@ A phase is complete only when its implementation, tests, evidence, documentation
 ## Phase 2 — Browser Capability Engine & Infrastructure
 
 ### P2.1 Core engines
-- [ ] Image engine: Canvas, ImageData, OffscreenCanvas.
+- [x] Image engine baseline: Canvas, ImageData, and reusable browser-local image transforms; OffscreenCanvas worker migration remains for heavy operations.
 - [ ] PDF engine: PDF.js + pdf-lib.
 - [ ] Archive engine: JSZip and file streaming.
 - [ ] Crypto engine: Web Crypto.
@@ -63,7 +63,7 @@ A phase is complete only when its implementation, tests, evidence, documentation
 - [ ] File persistence: IndexedDB and File System Access API where supported.
 
 ### P2.2 Runtime controls
-- [ ] Web Worker execution for heavy operations.
+- [ ] Web Worker execution for heavy operations (OCR/video workers exist; expansion-wide worker coverage remains).
 - [ ] Lazy loading/code splitting per engine.
 - [ ] File-size, memory, time, mutation, and output-size budgets.
 - [ ] Abort/cancellation support.
@@ -428,7 +428,7 @@ Sub-agents may be used for analysis/review tasks, but they do not receive author
 | Phase | Status | Exact SHA | Evidence | Human approval |
 |---|---|---|---|---|
 | Phase 1 | AUDITED / CI PENDING | `75bfb2a77513c98a18d619a74f12daedbe547e0c` | `EXECUTION_PLAN.md`, `docs/TOOL-EXPANSION-AUDIT.md`; Secret Scan PASS, CodeQL PASS; FLIXO CI #15554 still pending | autonomous execution authorized |
-| Phase 2 | NOT STARTED | pending | pending | governed approval state retained |
+| Phase 2 | IN PROGRESS | `78ab851692122f8bf187f8b72e27b4cb27fdf27c` | Shared image engine + first 11 transform adapters/UI paths added; CI verification pending | autonomous execution authorized |
 | Phase 3 | NOT STARTED | pending | pending | pending |
 | Phase 4 | NOT STARTED | pending | pending | pending |
 | Phase 5 | NOT STARTED | pending | pending | pending |
