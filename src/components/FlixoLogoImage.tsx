@@ -13,7 +13,7 @@ type Props = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'onError'> & {
 export function FlixoLogoImage({
   width = 40,
   height = 40,
-  alt = 'FLIXO AI Tools',
+  alt = 'FLIXO Hub',
   wrapperStyle,
   style,
   ...props
