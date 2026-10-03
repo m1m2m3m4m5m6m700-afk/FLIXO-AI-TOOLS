@@ -5,12 +5,6 @@ on:
     branches:
       - execution
   workflow_dispatch:
-    inputs:
-      bootstrap_suite:
-        description: "Create any missing FLIXO TestSprite cases from committed plans before running the suite"
-        required: true
-        default: false
-        type: boolean
 
 concurrency:
   group: testsprite-execution-${{ github.ref }}
@@ -57,7 +51,7 @@ jobs:
       - name: Install pinned TestSprite CLI
         run: npm install --global @testsprite/testsprite-cli@0.4.0
 
-      - name: Validate committed TestSprite plans offline
+      - name: Validate committed manual TestSprite plans offline
         run: testsprite test lint --plan-from-dir .testsprite/plans
 
       - name: Verify TestSprite configuration
@@ -73,34 +67,31 @@ jobs:
           }
           test -n "${TESTSPRITE_PROJECT_ID}" || {
             echo "::error::TESTSPRITE_PROJECT_ID repository variable is missing."
-            echo "Create a TestSprite V3 frontend project once with: testsprite project create --type frontend --name FLIXO-AI-TOOLS --local 3000"
             exit 4
           }
           testsprite --version
           testsprite doctor
 
-      - name: Bootstrap missing FLIXO TestSprite cases
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.bootstrap_suite }}
+      - name: Reconcile committed manual TestSprite cases
         env:
           TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
           TESTSPRITE_PROJECT_ID: ${{ vars.TESTSPRITE_PROJECT_ID }}
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf .testsprite/bootstrap-plans
-          mkdir -p .testsprite/bootstrap-plans
+          rm -rf .testsprite/runtime-plans .testsprite/missing-plans
+          mkdir -p .testsprite/runtime-plans .testsprite/missing-plans
 
           for template in .testsprite/plans/*.json; do
-            target=".testsprite/bootstrap-plans/$(basename "${template}")"
+            target=".testsprite/runtime-plans/$(basename "${template}")"
             sed "s/__TESTSPRITE_PROJECT_ID__/${TESTSPRITE_PROJECT_ID}/g" "${template}" > "${target}"
           done
 
-          testsprite test lint --plan-from-dir .testsprite/bootstrap-plans
-
+          testsprite test lint --plan-from-dir .testsprite/runtime-plans
           testsprite test list --project "${TESTSPRITE_PROJECT_ID}" --type frontend --max-items 200 --output json > .testsprite/existing-tests.json
 
           missing=0
-          for plan in .testsprite/bootstrap-plans/*.json; do
+          for plan in .testsprite/runtime-plans/*.json; do
             name="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync(process.argv[1],"utf8")).name)' "${plan}")"
             exists="$(node -e '
               const fs=require("fs");
@@ -110,20 +101,41 @@ jobs:
               process.stdout.write(tests.some((t) => t.name === wanted) ? "yes" : "no");
             ' "${name}")"
             if [ "${exists}" != "yes" ]; then
-              echo "Missing TestSprite case: ${name}"
+              cp "${plan}" ".testsprite/missing-plans/$(basename "${plan}")"
               missing=$((missing + 1))
-              cp "${plan}" ".testsprite/bootstrap-plans/missing-$(basename "${plan}")"
-              rm "${plan}"
             fi
           done
 
           if [ "${missing}" -gt 0 ]; then
-            testsprite test create-batch --plan-from-dir .testsprite/bootstrap-plans --output json
-          else
-            echo "All committed FLIXO TestSprite cases already exist."
+            testsprite test create-batch --plan-from-dir .testsprite/missing-plans --output json
+            testsprite test list --project "${TESTSPRITE_PROJECT_ID}" --type frontend --max-items 200 --output json > .testsprite/existing-tests.json
           fi
 
-      - name: Run TestSprite suite against exact execution build
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const data = JSON.parse(fs.readFileSync('.testsprite/existing-tests.json', 'utf8'));
+          const tests = data.tests ?? data.result?.tests ?? data.items ?? [];
+          const plans = fs.readdirSync('.testsprite/runtime-plans')
+            .filter((name) => name.endsWith('.json'))
+            .sort()
+            .map((name) => JSON.parse(fs.readFileSync(path.join('.testsprite/runtime-plans', name), 'utf8')));
+
+          const ids = [];
+          for (const plan of plans) {
+            const matches = tests.filter((test) => test.name === plan.name);
+            if (matches.length !== 1) {
+              throw new Error(`FAIL-CLOSED: expected exactly one TestSprite case named "${plan.name}", found ${matches.length}.`);
+            }
+            const id = matches[0].id ?? matches[0].testId ?? matches[0].test_id;
+            if (!id) throw new Error(`FAIL-CLOSED: TestSprite case "${plan.name}" has no test id.`);
+            ids.push(String(id));
+          }
+          if (ids.length < 2) throw new Error('FAIL-CLOSED: manual TestSprite suite is incomplete.');
+          fs.writeFileSync('.testsprite/manual-test-ids.txt', ids.join('\n') + '\n');
+          NODE
+
+      - name: Run committed manual TestSprite suite against exact execution build
         env:
           TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
           TESTSPRITE_PROJECT_ID: ${{ vars.TESTSPRITE_PROJECT_ID }}
@@ -131,17 +143,27 @@ jobs:
         run: |
           set -euo pipefail
           SHA="$(git rev-parse HEAD)"
+          mapfile -t TEST_IDS < .testsprite/manual-test-ids.txt
+          test "${#TEST_IDS[@]}" -ge 2 || {
+            echo "::error::FAIL-CLOSED: fewer than two committed manual TestSprite cases were resolved."
+            exit 1
+          }
+
           echo "## TestSprite exact-SHA verification" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Tested SHA: `${SHA}`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tested SHA: \`${SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Manual committed cases: ${#TEST_IDS[@]}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Target: local FLIXO on port 3000" >> "$GITHUB_STEP_SUMMARY"
+
           set +e
-          testsprite test run --all --project "${TESTSPRITE_PROJECT_ID}" --local 3000 --wait --timeout 1200 --report junit --report-file testsprite-junit.xml --summary-file testsprite-summary.json --output json
+          testsprite test run "${TEST_IDS[@]}" --local 3000 --wait --timeout 1200 --report junit --report-file testsprite-junit.xml --summary-file testsprite-summary.json --output json
           RUN_RC=$?
           set -e
+
           test -f testsprite-summary.json || {
             echo "::error::TestSprite produced no summary file."
             exit 1
           }
+
           TESTSPRITE_RUN_RC="${RUN_RC}" node <<'NODE'
           const fs = require('fs');
           const summary = JSON.parse(fs.readFileSync('testsprite-summary.json', 'utf8'));
@@ -155,7 +177,7 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
             `- TestSprite verdict: total=${total}, passed=${passed}, failed=${failed}, skipped=${skipped}, timedOut=${timedOut}\\n`);
 
-          if (total < 1) throw new Error('FAIL-CLOSED: TestSprite dispatched zero tests.');
+          if (total < 2) throw new Error('FAIL-CLOSED: TestSprite dispatched fewer than two committed manual tests.');
           if (passed !== total || failed !== 0 || skipped !== 0 || timedOut !== 0) {
             throw new Error(
               `FAIL-CLOSED: incomplete TestSprite verdict. total=${total} passed=${passed} failed=${failed} skipped=${skipped} timedOut=${timedOut}`,
@@ -172,6 +194,7 @@ jobs:
           path: |
             testsprite-junit.xml
             testsprite-summary.json
-            .testsprite/bootstrap-plans
+            .testsprite/manual-test-ids.txt
+            .testsprite/runtime-plans
             /tmp/flixo-vite.log
           if-no-files-found: ignore

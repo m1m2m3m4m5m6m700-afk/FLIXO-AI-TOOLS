@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/TestSprite/testsprite-cli/v0.4.0/schemas/plan.schema.json",
+  "projectId": "__TESTSPRITE_PROJECT_ID__",
+  "type": "frontend",
+  "name": "FLIXO Background Remover opens as a standalone manual browser tool",
+  "description": "The Background Remover must be reachable directly as a standalone local tool without requiring an agent or chat workflow.",
+  "priority": "p0",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navigate to /ar/background-remover"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the Background Remover tool page loads successfully."
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the page provides a direct manual image upload or file-selection control for the tool."
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the tool can be used from this standalone page without opening or confirming an agent chat."
+    },
+    {
+      "type": "assertion",
+      "description": "Verify no agent execution control is required to begin the Background Remover workflow."
+    }
+  ]
+}
