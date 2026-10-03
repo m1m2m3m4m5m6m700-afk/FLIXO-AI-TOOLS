@@ -32,7 +32,7 @@ function toLocalizedTool(tool: ToolDefinition, locale: Locale): ToolCardProps {
 }
 
 function renderHeroTitle(value: string) {
-  const match = /^([\\s\\S]*?)<span>([\\s\\S]*?)<\\/span>([\\s\\S]*)$/.exec(value);
+  const match = /^([\s\S]*?)<span>([\s\S]*?)<\/span>([\s\S]*)$/.exec(value);
   if (!match) return value;
   return <>{match[1]}<span>{match[2]}</span>{match[3]}</>;
 }
