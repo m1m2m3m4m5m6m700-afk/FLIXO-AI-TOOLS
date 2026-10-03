@@ -5,7 +5,6 @@ import {
   Check,
   ChevronDown,
   Moon,
-  Search,
   ShieldCheck,
   Sparkles,
   Sun,
@@ -104,16 +103,14 @@ export function OfficialHome() {
   const [requestText, setRequestText] = useState('');
   const [assistantResult, setAssistantResult] = useState<AssistantResult | null>(null);
   const [thinking, setThinking] = useState(false);
-  const [dark, setDark] = useState(true);
-
-  useEffect(() => {
+  const [dark, setDark] = useState(() => {
+    if (typeof window === 'undefined') return true;
     try {
-      const stored = window.localStorage.getItem('flixo-official-theme');
-      if (stored === 'light') setDark(false);
+      return window.localStorage.getItem('flixo-official-theme') !== 'light';
     } catch {
-      // Browser storage is optional.
+      return true;
     }
-  }, []);
+  });
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
