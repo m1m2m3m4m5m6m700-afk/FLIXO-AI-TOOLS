@@ -295,6 +295,67 @@ export async function rasterToSvg(blob: Blob, columns = 48): Promise<Blob> {
   return new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
 }
 
+export type BasicImageEffect =
+  | 'brightness' | 'contrast' | 'saturation' | 'grayscale' | 'invert' | 'sepia' | 'blur' | 'sharpen';
+
+export async function applyBasicImageEffect(blob: Blob, effect: BasicImageEffect, value = 100): Promise<Blob> {
+  const image = await loadImage(blob);
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const ctx = canvas.getContext('2d', { willReadFrequently: effect !== 'blur' });
+  if (!ctx) throw new Error('Canvas is unavailable.');
+  const normalized = Math.max(0, Math.min(200, value));
+  if (effect === 'blur') {
+    ctx.filter = `blur(${Math.max(0, normalized / 20)}px)`;
+  } else if (effect === 'brightness') {
+    ctx.filter = `brightness(${normalized}%)`;
+  } else if (effect === 'contrast') {
+    ctx.filter = `contrast(${normalized}%)`;
+  } else if (effect === 'saturation') {
+    ctx.filter = `saturate(${normalized}%)`;
+  } else if (effect === 'grayscale') {
+    ctx.filter = `grayscale(${Math.max(0, Math.min(100, normalized))}%)`;
+  } else if (effect === 'invert') {
+    ctx.filter = `invert(${Math.max(0, Math.min(100, normalized))}%)`;
+  } else if (effect === 'sepia') {
+    ctx.filter = `sepia(${Math.max(0, Math.min(100, normalized))}%)`;
+  }
+  ctx.drawImage(image, 0, 0);
+  if (effect === 'sharpen') {
+    sharpenCanvas(ctx, Math.max(0.02, Math.min(0.35, normalized / 1000)));
+  }
+  return canvasBlob(canvas, 'image/png');
+}
+
+export async function rotateImage(blob: Blob, degrees = 90): Promise<Blob> {
+  const image = await loadImage(blob);
+  const normalized = ((degrees % 360) + 360) % 360;
+  const swap = normalized === 90 || normalized === 270;
+  const canvas = document.createElement('canvas');
+  canvas.width = swap ? image.naturalHeight : image.naturalWidth;
+  canvas.height = swap ? image.naturalWidth : image.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas is unavailable.');
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate((normalized * Math.PI) / 180);
+  ctx.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
+  return canvasBlob(canvas, 'image/png');
+}
+
+export async function flipImage(blob: Blob, horizontal = true): Promise<Blob> {
+  const image = await loadImage(blob);
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas is unavailable.');
+  ctx.translate(horizontal ? canvas.width : 0, horizontal ? 0 : canvas.height);
+  ctx.scale(horizontal ? -1 : 1, horizontal ? 1 : -1);
+  ctx.drawImage(image, 0, 0);
+  return canvasBlob(canvas, 'image/png');
+}
+
 export function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
