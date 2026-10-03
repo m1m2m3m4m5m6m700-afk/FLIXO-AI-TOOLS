@@ -1,6 +1,6 @@
-# FLIXO AI
+# FLIXO Hub
 
-FLIXO AI is a browser-first AI toolbox built with React 19, Vite, TypeScript, TanStack Router, and Cloudflare Workers assets.
+FLIXO Hub is a browser-first AI toolbox built with React 19, Vite, TypeScript, TanStack Router, and Cloudflare Workers assets.
 
 ## Architecture
 
