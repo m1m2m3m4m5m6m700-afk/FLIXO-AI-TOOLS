@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from '@tanstack/react-router';
-import { convertImage, cropResizeImage, imageInfo, removeBackground, rasterToSvg, resizeImage, watermarkRemove, fillRemoveRegion } from './engine';
+import { applyBasicImageEffect, convertImage, cropResizeImage, flipImage, imageInfo, removeBackground, rasterToSvg, resizeImage, rotateImage, watermarkRemove, fillRemoveRegion } from './engine';
 import { recognizeWithOcrWorker } from './ocr-worker-client';
 import { assertImageCropperOutputIntegrity } from '../image-cropper/output-integrity';
 import { assertImageConverterOutputIntegrity } from '../image-converter/output-integrity';
@@ -20,6 +20,17 @@ const DEFINITIONS: Record<Exclude<LocalToolId, 'ai-image-generator' | 'image-com
   'crop-resize': { title: 'Crop & Resize', description: 'Crop an image and export it at exact dimensions.', accept: 'image/png,image/jpeg,image/webp' },
   'watermark-remover': { title: 'Watermark Remover', description: 'Reconstruct a selected watermark region locally with edge interpolation.', accept: 'image/png,image/jpeg,image/webp' },
   'raster-to-svg': { title: 'Raster to SVG', description: 'Convert a small raster image to compact pixel-based SVG locally.', accept: 'image/png,image/jpeg,image/webp' },
+  'image-rotate': { title: 'Rotate Image', description: 'Rotate an image locally in your browser.', accept: 'image/png,image/jpeg,image/webp' },
+  'image-flip-horizontal': { title: 'Flip Image Horizontal', description: 'Flip an image horizontally in your browser.', accept: 'image/png,image/jpeg,image/webp' },
+  'image-flip-vertical': { title: 'Flip Image Vertical', description: 'Flip an image vertically in your browser.', accept: 'image/png,image/jpeg,image/webp' },
+  'image-brightness': { title: 'Brightness', description: 'Adjust image brightness locally.', accept: 'image/png,image/jpeg,image/webp' },
+  'image-contrast': { title: 'Contrast', description: 'Adjust image contrast locally.', accept: 'image/png,image/jpeg,image/webp' },
+  'image-saturation': { title: 'Saturation', description: 'Adjust image saturation locally.', accept: 'image/png,image/jpeg,image/webp' },
+  'image-grayscale': { title: 'Grayscale', description: 'Convert an image to grayscale locally.', accept: 'image/png,image/jpeg,image/webp' },
+  'image-invert': { title: 'Invert Colors', description: 'Invert image colors locally.', accept: 'image/png,image/jpeg,image/webp' },
+  'image-sepia': { title: 'Sepia', description: 'Apply a sepia effect locally.', accept: 'image/png,image/jpeg,image/webp' },
+  'image-blur': { title: 'Blur', description: 'Apply a local blur effect.', accept: 'image/png,image/jpeg,image/webp' },
+  'image-sharpen': { title: 'Sharpen', description: 'Sharpen an image locally.', accept: 'image/png,image/jpeg,image/webp' },
 };
 
 type Props = { toolId: Exclude<LocalToolId, 'image-compressor'> };
@@ -154,6 +165,17 @@ export function ImageToolPage({ toolId }: Props) {
       else if (toolId === 'object-remover') { blob = await fillRemoveRegion(file, { x: Number(cropX), y: Number(cropY), width: Number(cropW), height: Number(cropH) }); fileName += '-object-removed.png'; }
       else if (toolId === 'watermark-remover') { blob = await watermarkRemove(file, { x: Number(cropX), y: Number(cropY), width: Number(cropW), height: Number(cropH) }); fileName += '-watermark-removed.png'; }
       else if (toolId === 'crop-resize') { blob = await cropResizeImage(file, { x: Number(cropX), y: Number(cropY), width: Number(cropW), height: Number(cropH) }, { width: Number(outW), height: Number(outH) }); info = await imageInfo(blob); assertImageCropperOutputIntegrity(blob, info); fileName += '-cropped.png'; }
+      else if (toolId === 'image-rotate') { blob = await rotateImage(file, 90); fileName += '-rotated.png'; }
+      else if (toolId === 'image-flip-horizontal') { blob = await flipImage(file, true); fileName += '-flipped-h.png'; }
+      else if (toolId === 'image-flip-vertical') { blob = await flipImage(file, false); fileName += '-flipped-v.png'; }
+      else if (toolId === 'image-brightness') { blob = await applyBasicImageEffect(file, 'brightness', 115); fileName += '-brightness.png'; }
+      else if (toolId === 'image-contrast') { blob = await applyBasicImageEffect(file, 'contrast', 115); fileName += '-contrast.png'; }
+      else if (toolId === 'image-saturation') { blob = await applyBasicImageEffect(file, 'saturation', 115); fileName += '-saturation.png'; }
+      else if (toolId === 'image-grayscale') { blob = await applyBasicImageEffect(file, 'grayscale', 100); fileName += '-grayscale.png'; }
+      else if (toolId === 'image-invert') { blob = await applyBasicImageEffect(file, 'invert', 100); fileName += '-invert.png'; }
+      else if (toolId === 'image-sepia') { blob = await applyBasicImageEffect(file, 'sepia', 100); fileName += '-sepia.png'; }
+      else if (toolId === 'image-blur') { blob = await applyBasicImageEffect(file, 'blur', 80); fileName += '-blur.png'; }
+      else if (toolId === 'image-sharpen') { blob = await applyBasicImageEffect(file, 'sharpen', 110); fileName += '-sharpen.png'; }
       else { blob = await rasterToSvg(file, Number(columns) || 48); fileName += '.svg'; }
       if (blob.type.startsWith('image/') && !info) info = await imageInfo(blob);
       replaceResult(await createResult(blob, fileName, info));

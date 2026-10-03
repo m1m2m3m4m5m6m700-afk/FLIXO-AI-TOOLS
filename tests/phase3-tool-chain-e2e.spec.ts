@@ -31,4 +31,29 @@ test.describe('Phase 3 local tool chaining', () => {
     await expect(panel.getByText(/Output ready:/)).toBeVisible({ timeout: 15_000 });
     await expect(panel.getByRole('link', { name: 'Download result' })).toHaveAttribute('download', /-2x\.png$/);
   });
+  test('executes newly added browser-local image transforms', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'flixo:tool-chain:v1',
+        JSON.stringify([
+          { id: 'image-rotate', order: 0 },
+          { id: 'image-flip-horizontal', order: 1 },
+          { id: 'image-grayscale', order: 2 },
+        ]),
+      );
+    });
+    await page.goto('/en/image-rotate');
+    const panel = page.getByRole('complementary', { name: 'Tool chaining workspace' });
+    await expect(panel).toBeVisible();
+    await panel.getByRole('button', { name: 'Open' }).click();
+    await expect(panel.getByText('3/8 steps')).toBeVisible();
+    await panel.locator('input[type=file]').setInputFiles({
+      name: 'fixture.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(ONE_BY_ONE_PNG, 'base64'),
+    });
+    await panel.getByRole('button', { name: 'Run chain locally' }).click();
+    await expect(panel.getByText(/Output ready:/)).toBeVisible({ timeout: 15_000 });
+    await expect(panel.getByRole('link', { name: 'Download result' })).toHaveAttribute('download', /-grayscale.png$/);
+  });
 });

@@ -2,7 +2,6 @@ import { createRoute, notFound, redirect } from '@tanstack/react-router';
 import { getToolById, getToolByRoute } from '../config/registry';
 import { getLocalizedToolPath } from '../lib/routing/route-resolver';
 import { getToolSeo } from '../lib/seo/tool-seo';
-import { SITE_ORIGIN } from '../lib/i18n';
 import { LocalizedToolPage } from './localized-tool-page';
 import { rootRoute } from './__root';
 
@@ -37,13 +36,11 @@ export const localizedToolRoute = createRoute({
         { property: 'og:description', content: seo.description },
         { property: 'og:url', content: seo.url },
         { property: 'og:locale', content: seo.languageTag },
-        { property: 'og:image', content: `${SITE_ORIGIN}/flixo-logo.webp` },
         { property: 'og:image:alt', content: socialImageAlt },
         { property: 'og:image:type', content: 'image/webp' },
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:title', content: seo.title },
         { name: 'twitter:description', content: seo.description },
-        { name: 'twitter:image', content: `${SITE_ORIGIN}/flixo-logo.webp` },
         { name: 'twitter:image:alt', content: socialImageAlt },
       ],
       links: [
