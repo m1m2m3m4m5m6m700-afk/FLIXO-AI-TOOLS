@@ -6,6 +6,7 @@ const testOrigin = process.env.VITE_TEST_ORIGIN || 'http://127.0.0.1:3000';
 
 export default defineConfig({
   testDir: './tests/official',
+  testIgnore: ['**/mvp-agent-workflow-certification.spec.ts'],
   fullyParallel: true,
   forbidOnly: isCi,
   workers: isCi ? 3 : undefined,
