@@ -5,7 +5,7 @@ const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const lock = JSON.parse(readFileSync("package-lock.json", "utf8"));
 const workspace = pkg.workspaces;
 
-const requiredWorkspaces = ["packages/contracts", "packages/agent-runtime"];
+const requiredWorkspaces = ["packages/contracts"];
 
 if (!Array.isArray(workspace) || !requiredWorkspaces.every((entry) => workspace.includes(entry))) {
   console.error("Architecture gate: canonical npm workspaces are incomplete.");
@@ -25,8 +25,8 @@ for (const entry of requiredWorkspaces) {
   }
 }
 
-if (!pkg.scripts["typecheck:contracts"] || !pkg.scripts["typecheck:agent-runtime"]) {
-  console.error("Architecture gate: canonical package typechecks are missing.");
+if (!pkg.scripts["typecheck:contracts"]) {
+  console.error("Architecture gate: canonical package typecheck is missing.");
   process.exit(1);
 }
 

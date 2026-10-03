@@ -12,6 +12,5 @@ Ownership rules:
 
 Migration rule:
 
-Existing src/lib/agent and apps/agent-editor/lib/agent implementations remain authoritative for their current surfaces until runtime extraction is complete. This package is the compatibility boundary, not a second runtime.
 
 1.0.0 is the initial stable envelope version.

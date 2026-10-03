@@ -1,8 +1,0 @@
-{
-  "name": "@flixo/agent-runtime",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@flixo/contracts": "0.1.0" }
-}

@@ -12,7 +12,6 @@ reviews:
     auto_incremental_review: true
     auto_pause_after_reviewed_commits: 0
   path_instructions:
-    - path: "src/lib/agent/**"
       instructions: |
         Treat these files as canonical runtime/control-plane code.
         Do not recommend a second registry, execution path, authority model, or certification mechanism.
