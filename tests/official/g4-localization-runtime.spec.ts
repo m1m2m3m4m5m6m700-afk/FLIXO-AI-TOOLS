@@ -199,6 +199,7 @@ async function collectNavigation(page: Page, pathname: string): Promise<{ respon
   try {
     const response = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
     await waitForNavigationSettled(page);
+    await page.waitForFunction(() => Boolean(document.querySelector('h1')?.textContent?.trim()), undefined, { timeout: 15_000 });
     await Promise.all(consoleErrorPromises.splice(0));
     return { response, snapshot: await snapshot(page), runtimeErrors };
   } finally {

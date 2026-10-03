@@ -4,12 +4,20 @@
 
 Achieve 100% verified completion of the browser-first tool expansion program: architecture, tool engines, tool integration, tests, localization, governance, documentation, and release verification.
 
+## Current Autonomous Execution Session — 2026-10-03
+
+- User-authorized mandate: execute the repository completion program continuously toward the defined 100% target.
+- Working lane: `execution`; `main` remains production truth and promotion evidence must be exact-SHA bound.
+- Initial workspace state: `c7b1362a5` was one commit ahead and two commits behind `origin/main`; the latest `origin/main` was integrated into `execution` before further changes.
+- i18n normalization completed in this session: test suites now derive their locale matrix from `CANONICAL_LOCALES`; unsupported duplicate dictionary files `ur.ts` and `zh.ts` were removed.
+- Current i18n structural gate after normalization: 20 canonical locales, 20/20 key coverage, zero extra dictionaries.
+
 ## Current Verified Baseline — 2026-10-03
 
-- Production `main` merge SHA: `e37be44b89a50dec5ac633d052090aa73fe956fd`.
-- Production deployment: PASS; Cloudflare immutable identity and production browser verification both PASS on the exact merge SHA.
-- Current canonical registry: 38 definitions; 37 tools are marked ready by the build/static-route generators.
-- Canonical locale set: 20 locales. Automated dictionary-key coverage: PASS for all 20; `ur.ts` and `zh.ts` remain non-canonical extra dictionaries.
+- Production `main` merge SHA: `263827228cbe5f4851470297fde5f2858ff844de`.
+- Production deployment: PASS; Cloudflare immutable identity and production browser verification both PASS on the exact merge SHA `263827228cbe5f4851470297fde5f2858ff844de` after a transient first-probe retry.
+- Current canonical registry: 43 definitions; 42 tools are marked ready by the build/static-route generators.
+- Canonical locale set: 20 locales. Automated dictionary-key coverage: PASS for all 20; no non-canonical locale dictionary files remain.
 - Agent profiles: 3 repository profiles created and structurally verified. No long-running AI sub-agent runtime is present in the available execution environment, so profiles are not represented as active autonomous agents.
 - Windows build portability: PASS via `scripts/generate-build-artifacts.mjs`; full local build completed with exit code 0.
 - Core verification: 19/19 tests PASS. The previous eight-route image-toolkit localization crash was fixed by binding each shared registry component to its canonical tool ID.
@@ -48,7 +56,7 @@ A phase is complete only when its implementation, tests, evidence, documentation
 - [x] Verify current `main` SHA and `execution` SHA.
 - [x] Verify open PRs and required checks; PR #1000 was merged only after exact-SHA CI, browser smoke, trust-gate, and promotion proof passed.
 - [x] Audit `TOOL_REGISTRY`, `TOOL_CATALOG`, executors, verifiers, recovery handlers, and runtime boundaries.
-- [x] Inventory current canonical registry: 38 definitions; 37 ready tools in the current release surface.
+- [x] Inventory current canonical registry: 43 definitions; 42 ready tools in the current release surface; five Wave 1 image tools are implemented and classified `EXPERIMENTAL`, outside the frozen MVP executable set.
 - [x] Map existing UI routes/components and canonical lazy-loaded tool definitions.
 - [x] Inventory dependencies; identified missing PDF/advanced media/OCR/local-AI engine layer.
 - [x] Audit i18n architecture; 20 canonical locales have lazy dictionary loaders. Full hardcoded-string audit remains.
@@ -70,6 +78,7 @@ A phase is complete only when its implementation, tests, evidence, documentation
 ### P2.1 Core engines
 
 - [x] Image engine baseline: Canvas, ImageData, and reusable browser-local image transforms; OffscreenCanvas worker migration remains for heavy operations.
+- [x] Wave 1 image admission: Resize, Hue, Pixelate, Padding, and Rounded Corners each have a local executor path, parameter schema, intent phrases, 20-locale SEO identity, and Chromium functional evidence (5/5 PASS).
 - [ ] PDF engine: PDF.js + pdf-lib.
 - [ ] Archive engine: JSZip and file streaming.
 - [ ] Crypto engine: Web Crypto.

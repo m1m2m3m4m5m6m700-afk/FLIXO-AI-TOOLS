@@ -6,9 +6,9 @@ This manifest is the single release-truth record for the public launch candidate
 
 ## Candidate identity
 
-- Candidate SHA: `b3dd497f354a54434938582128e9ae45e2e94067`
+- Candidate SHA: `REQUIRED`
 - Candidate branch: `main`
-- Source main SHA at freeze: `b3dd497f354a54434938582128e9ae45e2e94067`
+- Source main SHA at freeze: `REQUIRED`
 - Release tag: `PENDING`
 - Production deployment ID: `REQUIRED`
 - Production immutable identity: `REQUIRED`

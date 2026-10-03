@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from '@tanstack/react-router';
-import { applyBasicImageEffect, convertImage, cropResizeImage, flipImage, imageInfo, removeBackground, rasterToSvg, resizeImage, rotateImage, watermarkRemove, fillRemoveRegion } from './engine';
+import { applyBasicImageEffect, convertImage, cropResizeImage, fillRemoveRegion, flipImage, hueShiftImage, imageInfo, padImage, pixelateImage, removeBackground, rasterToSvg, resizeImage, rotateImage, roundedCornersImage, watermarkRemove } from './engine';
 import { recognizeWithOcrWorker } from './ocr-worker-client';
 import { assertImageCropperOutputIntegrity } from '../image-cropper/output-integrity';
 import { assertImageConverterOutputIntegrity } from '../image-converter/output-integrity';
@@ -31,6 +31,11 @@ const DEFINITIONS: Record<Exclude<LocalToolId, 'ai-image-generator' | 'image-com
   'image-sepia': { title: 'Sepia', description: 'Apply a sepia effect locally.', accept: 'image/png,image/jpeg,image/webp' },
   'image-blur': { title: 'Blur', description: 'Apply a local blur effect.', accept: 'image/png,image/jpeg,image/webp' },
   'image-sharpen': { title: 'Sharpen', description: 'Sharpen an image locally.', accept: 'image/png,image/jpeg,image/webp' },
+  'image-resizer': { title: 'Resize Image', description: 'Resize an image locally with deterministic browser resampling.', accept: 'image/png,image/jpeg,image/webp' },
+  'image-hue': { title: 'Hue', description: 'Shift image hue locally in the browser.', accept: 'image/png,image/jpeg,image/webp' },
+  'image-pixelate': { title: 'Pixelate Image', description: 'Pixelate an image locally without uploading it.', accept: 'image/png,image/jpeg,image/webp' },
+  'image-padding': { title: 'Image Padding', description: 'Add transparent padding around an image locally.', accept: 'image/png,image/jpeg,image/webp' },
+  'image-rounded-corners': { title: 'Rounded Corners', description: 'Add rounded transparent corners to an image locally.', accept: 'image/png,image/jpeg,image/webp' },
 };
 
 type Props = { toolId: Exclude<LocalToolId, 'image-compressor'> };
@@ -176,6 +181,11 @@ export function ImageToolPage({ toolId }: Props) {
       else if (toolId === 'image-sepia') { blob = await applyBasicImageEffect(file, 'sepia', 100); fileName += '-sepia.png'; }
       else if (toolId === 'image-blur') { blob = await applyBasicImageEffect(file, 'blur', 80); fileName += '-blur.png'; }
       else if (toolId === 'image-sharpen') { blob = await applyBasicImageEffect(file, 'sharpen', 110); fileName += '-sharpen.png'; }
+      else if (toolId === 'image-resizer') { const factor = Number(scale); if (!Number.isFinite(factor) || factor < 0.1 || factor > 8) throw new Error('Scale must be between 0.1 and 8.'); blob = await resizeImage(file, factor); fileName += `-resized-${factor}x.png`; }
+      else if (toolId === 'image-hue') { blob = await hueShiftImage(file, 30); fileName += '-hue.png'; }
+      else if (toolId === 'image-pixelate') { blob = await pixelateImage(file, 10); fileName += '-pixelated.png'; }
+      else if (toolId === 'image-padding') { blob = await padImage(file, 24); fileName += '-padded.png'; }
+      else if (toolId === 'image-rounded-corners') { blob = await roundedCornersImage(file, 24); fileName += '-rounded.png'; }
       else { blob = await rasterToSvg(file, Number(columns) || 48); fileName += '.svg'; }
       if (blob.type.startsWith('image/') && !info) info = await imageInfo(blob);
       replaceResult(await createResult(blob, fileName, info));
@@ -193,7 +203,7 @@ export function ImageToolPage({ toolId }: Props) {
               ? <label><span>{ui.prompt}</span><textarea data-testid="ai-image-prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder={ui.prompt} rows={6} /></label>
               : <><label className="upload-zone" htmlFor="image-tool-file"><span className="upload-title">{file ? file.name : ui.chooseImage}</span><span className="upload-subtitle">{definition.accept.replaceAll('image/', '').toUpperCase() || ui.imageInput}</span></label><input id="image-tool-file" className="sr-only" type="file" accept={definition.accept} onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></>}
             {toolId === 'image-converter' && <label><span>{ui.outputFormat}</span><select aria-label={ui.outputFormat} value={outputFormat} onChange={(event) => setOutputFormat(event.target.value as typeof outputFormat)}><option value="image/webp">WebP</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select></label>}
-            {toolId === 'image-upscaler' && <label><span>{ui.scale}</span><input aria-label={ui.scale} inputMode="decimal" value={scale} onChange={(event) => setScale(event.target.value)} /></label>}
+            {(toolId === 'image-upscaler' || toolId === 'image-resizer') && <label><span>{ui.scale}</span><input aria-label={ui.scale} inputMode="decimal" value={scale} onChange={(event) => setScale(event.target.value)} /></label>}
             {toolId === 'background-remover' && <label><span>{ui.backgroundTolerance}</span><input aria-label={ui.backgroundTolerance} inputMode="numeric" value={tolerance} onChange={(event) => setTolerance(event.target.value)} /></label>}
             {toolId === 'raster-to-svg' && <label><span>{ui.svgColumns}</span><input aria-label={ui.svgColumns} inputMode="numeric" value={columns} onChange={(event) => setColumns(event.target.value)} /></label>}
             {['object-remover', 'watermark-remover', 'crop-resize'].includes(toolId) && <div className="control-grid">{([ [ui.x, cropX, setCropX, 'object-x'], [ui.y, cropY, setCropY, 'object-y'], [ui.width, cropW, setCropW, 'object-width'], [ui.height, cropH, setCropH, 'object-height'] ] as const).map(([labelText, value, setter, testId]) => <label key={testId}><span>{labelText}</span><input data-testid={testId} aria-label={labelText} inputMode="numeric" value={value} onChange={(event) => setter(event.target.value)} /></label>)}{toolId === 'crop-resize' && <><label><span>{ui.outputWidth}</span><input aria-label={ui.outputWidth} inputMode="numeric" value={outW} onChange={(event) => setOutW(event.target.value)} /></label><label><span>{ui.outputHeight}</span><input aria-label={ui.outputHeight} inputMode="numeric" value={outH} onChange={(event) => setOutH(event.target.value)} /></label></>}</div>}

@@ -1,42 +1,49 @@
-# FLIXO Hub — Tool Expansion Baseline Audit
-
-Audit baseline: execution `557e5f78f5f27bee3bca99aab0f18c29375ae29c` and main `86223d5be5cecbf7c6fa9a8af7bc79ddebc92c9f`.
+Audit baseline: execution `653e84d508bfc1d95f0c1547a2e973b277cd1680` and main `263827228cbe5f4851470297fde5f2858ff844de`.
 
 ## Current registry
-- 27 tool definitions are currently present in `src/config/canonical-tool-definition.ts`.
-- 10 are in the canonical executable MVP set.
-- The remaining registered definitions are not all production-local executables; their capability state is derived from canonical capability metadata and intent registration.
+- 43 tool definitions are currently present in `src/config/canonical-tool-definition.ts`.
+- 10 are in the frozen canonical executable MVP set.
+- 42 are marked ready by the current static-route generator; the five Wave 1 image tools below are explicitly classified `EXPERIMENTAL` and remain outside the frozen MVP executable set.
 - `TOOL_REGISTRY` is the canonical registry and `TOOL_CATALOG` is derived from it.
-- `src/config/tools.ts` exposes only a deprecated compatibility alias; it is not a second source of definitions.
+- `src/config/tools.ts` remains a compatibility surface; it is not a second source of definitions.
 
 ## Current registered IDs
-filter-mask, image-compressor, background-remover, image-upscaler, image-converter, object-remover, watermark-remover, image-cropper, image-to-svg, image-ocr, background-blur, passport-photo-maker, watermark-adder, meme-generator, collage-maker, image-effects, exif-cleaner, svg-optimizer, mockup-generator, seed, pix, ai-image-generator, photo-colorizer, video-trimmer, video-cropper, video-resizer, video-compressor.
+filter-mask, image-compressor, background-remover, image-upscaler, image-converter, object-remover, watermark-remover, image-cropper, image-to-svg, image-ocr, background-blur, passport-photo-maker, watermark-adder, meme-generator, collage-maker, image-effects, exif-cleaner, svg-optimizer, mockup-generator, seed, pix, ai-image-generator, photo-colorizer, video-trimmer, video-cropper, video-resizer, video-compressor, image-resizer, image-hue, image-pixelate, image-padding, image-rounded-corners.
 
 ## Current executable MVP IDs
 background-remover, image-upscaler, image-cropper, image-compressor, image-converter, image-effects, video-trimmer, video-cropper, video-resizer, video-compressor.
 
-## Localization baseline
-The repository currently declares 20 canonical locales:
-ar, en, es, fr, de, hi, id, it, ja, ko, ms, nl, pl, pt, ru, sv, th, tr, uk, vi.
-The locale loader has a lazy dictionary loader for all 20 declared locales. Tool SEO manifests are generated across the same locale set. Localization completeness still requires automated missing-key, untranslated-string, and runtime verification.
+## Wave 1 experimental admission
+- image-resizer
+- image-hue
+- image-pixelate
+- image-padding
+- image-rounded-corners
+Each has a browser-local executor path, parameter schema, intent phrases, localized SEO identity for all 20 canonical locales, and Chromium functional evidence (5/5 PASS). G4 localization/SEO verification passes 44/44 locally, including these new routes.
+These tools are not promoted into the frozen MVP executable set and are not represented as autonomous agents.
 
-## Dependency baseline
-Current package dependencies include React, TanStack Router, JSZip, Zod, Lucide React, Motion and related build/test tooling. PDF, FFmpeg, OCR, and ONNX/WebGPU engines are not yet represented as the required expansion engine layer and must be introduced only after license, bundle, browser-compatibility, and privacy review.
+## Localization baseline
+The repository declares 20 canonical locales:
+ar, en, es, fr, de, hi, id, it, ja, ko, ms, nl, pl, pt, ru, sv, th, tr, uk, vi.
+Automated dictionary structure/key coverage passes all 20 canonical locale dictionaries, with no non-canonical locale dictionary files remaining. Full hardcoded UI-string migration is not yet certified.
+
+## Dependency and privacy baseline
+Production dependency audit currently reports zero high/critical/moderate vulnerabilities in runtime dependencies.
+PDF, FFmpeg, advanced OCR/AI, and other heavy browser-local engines remain excluded until licensing, bundle, browser-compatibility, privacy, worker/cancellation, and verifier contracts are satisfied.
+The strict no-upload claim still requires dedicated network-interception evidence for every admitted capability.
 
 ## Architecture gaps for the 200-tool program
-1. Shared capability engines for PDF, advanced media codecs, audio processing, OCR, and local AI need to be added.
-2. Heavy operations need worker boundaries and cancellation/budget controls.
-3. The registry needs a scalable tool-definition/admission pattern without creating a second registry.
-4. Every new tool needs executor, verifier, recovery, schema, localization, privacy, browser, performance, and E2E evidence.
-5. A strict no-upload claim needs network interception tests and a policy for self-hosting WASM/model assets.
-6. The current 200-tool list is a target catalog, not evidence that 200 implementations already exist.
-7. Cloud-dependent capabilities must remain excluded from the strict browser-local tool count unless an equivalent local implementation is verified.
+1. Shared capability engines for PDF, advanced media codecs, audio processing, OCR, and local AI remain to be added where required.
+2. Heavy operations need worker boundaries, cancellation, and resource budgets.
+3. New tools must continue using the canonical registry/admission pattern without introducing a second registry.
+4. Every additional tool requires executor, verifier, recovery, schema, localization, privacy, browser, performance, and E2E evidence.
+5. The current 200-tool list remains a target catalog, not evidence that 200 implementations exist.
+6. Cloud-dependent capabilities remain excluded from the strict browser-local tool count unless an equivalent local implementation is verified.
 
-## Immediate CI blocker discovered and repaired
-The previous CI run for execution commit `b700a17443927ecc2bc0de4acfd4d00741c61eb8` failed in lint because:
-- `public/sw.js` referenced an undefined `SHELL_ASSETS` after logo assets were removed.
-- `src/routes/localized-tool.tsx` retained an unused `SITE_ORIGIN` import.
-Both defects were repaired on execution. The repair head is `557e5f78f5f27bee3bca99aab0f18c29375ae29c`.
+## Verified repair history
+- The shared image-toolkit route crash caused by missing canonical `toolId` injection was repaired and promoted through PR #1000.
+- The production identity probe transiently returned 404 immediately after deploy on main SHA `263827228cbe5f4851470297fde5f2858ff844de`; the production job was rerun and subsequently passed immutable identity and production browser verification.
+- The G4 localization suite had an async H1 race; its navigation helper now waits for non-empty H1 content before asserting localized route metadata. The repaired local suite is 44/44 PASS.
 
 ## Gate status
-This audit does not certify the 200-tool program. It establishes the implementation baseline and identifies the next executable work: validate the repaired execution head, then build the shared browser capability engines before admitting additional tools.
+This audit does not certify the 200-tool program. The current production release is verified on main SHA `263827228cbe5f4851470297fde5f2858ff844de`. The next work is controlled expansion of the target catalog while preserving the frozen MVP boundary, exact-SHA evidence, localization coverage, privacy verification, and fail-closed release gates.
