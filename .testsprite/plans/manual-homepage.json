@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/TestSprite/testsprite-cli/v0.4.0/schemas/plan.schema.json",
+  "projectId": "__TESTSPRITE_PROJECT_ID__",
+  "type": "frontend",
+  "name": "FLIXO manual homepage exposes the official browser-first tool experience",
+  "description": "The official homepage must present the manual browser-first product, expose featured tools, and avoid any executable agent/chat entry point.",
+  "priority": "p0",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navigate to /"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the official FLIXO homepage loads in Arabic and presents the browser-first manual experience."
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the page states that the current official path has no agent execution and that manual execution is the official path."
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the featured tools area includes the Background Remover, Image Upscaler, Image Cropper, Image Compressor, Image Converter, and Image Effects capabilities."
+    },
+    {
+      "type": "assertion",
+      "description": "Verify there is no executable agent chat, agent workspace, or agent navigation entry point on the homepage."
+    }
+  ]
+}
