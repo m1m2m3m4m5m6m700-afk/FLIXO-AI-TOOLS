@@ -1,7 +1,7 @@
 import { lazy } from 'react';
 import { z, type ZodType } from 'zod';
 import { LOCALES, type Locale } from '../lib/i18n/config.ts';
-import { getCanonicalCapabilityDefinition, MVP_EXECUTABLE_TOOL_IDS as CANONICAL_MVP_IDS, type CanonicalCapabilityDefinition, type CanonicalCapabilityState, type CanonicalExecutionMode, type CanonicalCapabilityParameters, type CanonicalCapabilityVerifier, type CanonicalCapabilityLimits } from '../lib/agent/canonical-capability-definition';
+import { getCanonicalCapabilityDefinition, MVP_EXECUTABLE_TOOL_IDS as CANONICAL_MVP_IDS, type CanonicalCapabilityDefinition, type CanonicalCapabilityState, type CanonicalExecutionMode, type CanonicalCapabilityParameters, type CanonicalCapabilityVerifier, type CanonicalCapabilityLimits } from './manual-capability-definition';
 import type { ComponentType, LazyExoticComponent } from 'react';
 
 export type ToolFamily = 'image' | 'video' | 'audio' | 'ai' | 'editor';

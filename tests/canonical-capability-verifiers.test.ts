@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-const { CAPABILITY_DEFINITIONS } = await import('../src/lib/agent/canonical-capability-definition.ts');
+const { CAPABILITY_DEFINITIONS } = await import('../src/config/manual-capability-definition.ts');
 
 function definition(id: string) {
   const result = CAPABILITY_DEFINITIONS.find((item) => item.id === id);

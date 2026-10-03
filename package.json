@@ -1,62 +1,60 @@
 {
-  "name": "flixo-tools",
-  "private": true,
-  "type": "module",
-  "engines": {
-    "node": "22.x"
-  },
-  "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 3000",
-    "build": "npm run typecheck && npm run lint && vite build && FLIXO_GENERATED_OUTPUT_DIR=dist npm run generate:robots && FLIXO_GENERATED_OUTPUT_DIR=dist npm run generate:sitemap && npm run generate:static-routes",
-    "build:runtime": "vite build",
-    "preview": "vite preview --host 0.0.0.0 --port 4173",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
-    "format:check": "npx --yes prettier@3.6.2 --check .",
-    "audit:production": "npm audit --omit=dev --audit-level=high",
-    "generate:robots": "node scripts/generate-robots.mjs",
-    "generate:sitemap": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-sitemap.mjs",
-    "generate:static-routes": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-static-route-entries.mjs",
-    "test:core": "node scripts/assert-test-files.mjs tests/core-contracts.test.ts tests/canonical-capability-verifiers.test.ts tests/agent-visual-contracts.test.ts tests/editor-color-scene.test.ts tests/editor-document-model.test.ts tests/editor-history.test.ts tests/editor-masks.test.ts tests/editor-performance.test.ts tests/editor-render-graph.test.ts tests/editor-selection-render.test.ts tests/agent-visual-planner.test.ts tests/mvp-100-proof.test.ts tests/agent-browser-observation.contract.test.ts tests/visual-task-spec.test.ts tests/output-review.test.ts tests/video-task-spec.test.ts tests/llm-provider-contract.test.ts tests/model-governance.test.ts tests/zod-json-schema.test.ts tests/agent-automation-control.test.ts tests/worker-production-boundary.test.ts tests/red-team-regression.test.ts && node --import=./scripts/register-node-resolver.mjs --test --experimental-strip-types tests/core-contracts.test.ts tests/canonical-capability-verifiers.test.ts tests/mvp-100-proof.test.ts tests/agent-browser-observation.contract.test.ts tests/visual-task-spec.test.ts tests/output-review.test.ts tests/video-task-spec.test.ts tests/llm-provider-contract.test.ts tests/model-governance.test.ts tests/zod-json-schema.test.ts tests/agent-automation-control.test.ts tests/worker-production-boundary.test.ts tests/red-team-regression.test.ts",
-    "test:e2e": "playwright test",
-    "test": "npm run test:model-license && npm run typecheck && npm run lint && npm run test:core",
-    "ci": "npm run test && npm run build",
-    "test:model-license": "node scripts/model-license-gate.mjs",
-    "test:model-license:release": "node scripts/model-license-gate.mjs --require-entry",
-    "verify:architecture": "node scripts/verify-architecture.mjs",
-    "verify:contracts": "node scripts/verify-contract-boundary.mjs",
-    "typecheck:contracts": "npx tsc -p packages/contracts/tsconfig.json --noEmit",
-    "typecheck:agent-runtime": "npx tsc -p packages/agent-runtime/tsconfig.json --noEmit",
-    "verify:launch": "node scripts/verify-public-launch-readiness.mjs"
-  },
-  "dependencies": {
-    "@radix-ui/react-accordion": "^1.2.12",
-    "@tanstack/react-router": "1.170.32",
-    "jszip": "^3.10.1",
-    "lucide-react": "^0.575.0",
-    "motion": "^12.43.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "zod": "^3.24.2"
-  },
-  "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.62.1",
-    "@types/node": "^22.16.5",
-    "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.7",
-    "@vitejs/plugin-react": "^5.2.0",
-    "eslint": "^10.8.0",
-    "eslint-config-prettier": "^10.1.1",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.3",
-    "globals": "^15.15.0",
-    "typescript-eslint": "^8.56.1",
-    "typescript": "^5.8.3",
-    "vite": "^8.2.1"
-  },
-  "workspaces": [
-    "packages/contracts",
-    "packages/agent-runtime"
-  ]
+    "name":  "flixo-tools",
+    "private":  true,
+    "type":  "module",
+    "engines":  {
+                    "node":  "22.x"
+                },
+    "scripts":  {
+                    "dev":  "vite --host 0.0.0.0 --port 3000",
+                    "build":  "npm run typecheck \u0026\u0026 npm run lint \u0026\u0026 vite build \u0026\u0026 FLIXO_GENERATED_OUTPUT_DIR=dist npm run generate:robots \u0026\u0026 FLIXO_GENERATED_OUTPUT_DIR=dist npm run generate:sitemap \u0026\u0026 npm run generate:static-routes",
+                    "build:runtime":  "vite build",
+                    "preview":  "vite preview --host 0.0.0.0 --port 4173",
+                    "typecheck":  "tsc --noEmit",
+                    "lint":  "eslint .",
+                    "format:check":  "npx --yes prettier@3.6.2 --check .",
+                    "audit:production":  "npm audit --omit=dev --audit-level=high",
+                    "generate:robots":  "node scripts/generate-robots.mjs",
+                    "generate:sitemap":  "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-sitemap.mjs",
+                    "generate:static-routes":  "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-static-route-entries.mjs",
+                    "test:core":  "node scripts/assert-test-files.mjs tests/canonical-capability-verifiers.test.ts tests/editor-color-scene.test.ts tests/editor-document-model.test.ts tests/editor-history.test.ts tests/editor-masks.test.ts tests/editor-performance.test.ts tests/editor-render-graph.test.ts tests/worker-production-boundary.test.ts \u0026\u0026 node --import=./scripts/register-node-resolver.mjs --test --experimental-strip-types tests/canonical-capability-verifiers.test.ts tests/editor-color-scene.test.ts tests/editor-document-model.test.ts tests/editor-history.test.ts tests/editor-masks.test.ts tests/editor-performance.test.ts tests/editor-render-graph.test.ts tests/worker-production-boundary.test.ts",
+                    "test:e2e":  "playwright test",
+                    "test":  "npm run test:model-license \u0026\u0026 npm run typecheck \u0026\u0026 npm run lint \u0026\u0026 npm run test:core",
+                    "ci":  "npm run test \u0026\u0026 npm run build",
+                    "test:model-license":  "node scripts/model-license-gate.mjs",
+                    "test:model-license:release":  "node scripts/model-license-gate.mjs --require-entry",
+                    "verify:architecture":  "node scripts/verify-architecture.mjs",
+                    "verify:contracts":  "node scripts/verify-contract-boundary.mjs",
+                    "typecheck:contracts":  "npx tsc -p packages/contracts/tsconfig.json --noEmit",
+                    "verify:launch":  "node scripts/verify-public-launch-readiness.mjs"
+                },
+    "dependencies":  {
+                         "@radix-ui/react-accordion":  "^1.2.12",
+                         "@tanstack/react-router":  "1.170.32",
+                         "jszip":  "^3.10.1",
+                         "lucide-react":  "^0.575.0",
+                         "motion":  "^12.43.0",
+                         "react":  "^19.2.0",
+                         "react-dom":  "^19.2.0",
+                         "zod":  "^3.24.2"
+                     },
+    "devDependencies":  {
+                            "@eslint/js":  "^10.0.1",
+                            "@playwright/test":  "^1.62.1",
+                            "@types/node":  "^22.16.5",
+                            "@types/react":  "^19.1.0",
+                            "@types/react-dom":  "^19.1.7",
+                            "@vitejs/plugin-react":  "^5.2.0",
+                            "eslint":  "^10.8.0",
+                            "eslint-config-prettier":  "^10.1.1",
+                            "eslint-plugin-react-hooks":  "^7.1.1",
+                            "eslint-plugin-react-refresh":  "^0.5.3",
+                            "globals":  "^15.15.0",
+                            "typescript-eslint":  "^8.56.1",
+                            "typescript":  "^5.8.3",
+                            "vite":  "^8.2.1"
+                        },
+    "workspaces":  [
+                       "packages/contracts"
+                   ]
 }

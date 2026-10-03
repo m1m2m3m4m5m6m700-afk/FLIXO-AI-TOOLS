@@ -1,4 +1,4 @@
-import type { CapabilityParameters } from '../agent/capability-registry';
+type CapabilityParameters = Record<string, string | number | boolean>;
 import { renderVideoToWebm } from './video-executor';
 
 export type VideoToolExecutor = (inputBlob: Blob, parameters: CapabilityParameters, tool: { id: string }, signal?: AbortSignal) => Promise<Blob>;

@@ -1,99 +1,10 @@
-# FLIXO MVP — GPT Architectural Mandate
+﻿# FLIXO Manual-Only Product Directive
 
-This file is the shared agent prompt/context for the FLIXO MVP. It is not a second runtime authority.
+FLIXO production exposes direct manual browser tools only.
 
-## Product workflow
-
-FLIXO MUST support two user workflows simultaneously:
-
-1. AI Agent Guided Workflow
-   - The user uploads a file and describes the intended result in natural language.
-   - The Agent Router resolves the request against the canonical capability registry.
-   - The router may produce a deterministic local plan or use an optional LLM for planning.
-   - Tool chains must be represented as canonical capability steps with validated parameters.
-   - The agent does not execute arbitrary code and does not directly mutate tool state.
-   - Ambiguous, unsupported, unsafe, or failed requests must fail closed and expose the nearest relevant manual tool.
-
-2. Manual Standalone Workflow
-   - The user can bypass the agent completely.
-   - Every executable MVP capability must remain directly usable through its localized manual route.
-   - Manual execution uses the same canonical tool contracts, local executor, verifier, safety limits, and output contract where applicable.
-
-## MVP execution boundary
-
-- User file bytes remain in the browser during MVP execution.
-- Executable MVP capabilities are LOCAL and MUST NOT require network access.
-- Backend/API infrastructure is never required to transform user files.
-- Optional LLM/provider calls are planning-only and may receive file metadata, never raw File/Blob bytes.
-- Browser execution may use HTML5 Canvas, Web Worker, WebCodecs, WASM, or equivalent bounded client-side engines.
-- Outputs must pass the canonical verifier and output-contract checks before success is reported.
-- Resource, timeout, size, pixel, and abort limits are fail-closed.
-
-## Canonical authority
-
-Do NOT create a second registry, executor registry, authority model, verification system, or certification mechanism.
-
-Runtime authority remains in:
-- `src/config/canonical-tool-definition.ts`
-- `src/lib/agent/capability-registry.ts`
-- `src/lib/agent/execution-gate.ts`
-- `src/lib/workflows/executor-registry.ts`
-- `src/lib/workflows/canonical-local-execution.ts`
-- `src/lib/contracts/tool-output-contracts.ts`
-- `src/lib/contracts/mvp-scope.ts`
-
-The agent prompt may describe these contracts but must never override them.
-
-## Deterministic intent requirements
-
-The MVP acceptance corpus is versioned in `src/lib/contracts/mvp-scope.ts`.
-
-A request is executable only when:
-- intent resolves to a canonical executable capability;
-- parameters pass the capability schema;
-- the resulting chain is within the bounded MVP step limit;
-- each step is executable, local, and registered;
-- the final output passes verification.
-
-Natural-language parsing must not silently discard unknown instruction fragments.
-
-## Failure and fallback
-
-- Never pretend a failed execution succeeded.
-- Never treat skipped/cancelled checks as success.
-- Never use stale-SHA evidence to certify a newer commit.
-- On ambiguity, unsafe parameters, unavailable capability, provider failure, or verification failure: fail closed or replan within the existing bounded recovery contract.
-- If the agent cannot safely execute the request, expose a manual route for the actual relevant tool when one exists.
-
-## Evidence and promotion
-
-Every execution claim must be bound to the exact execution SHA.
-Fresh CI/runtime evidence is required for the current head.
-A newer commit invalidates older execution evidence for promotion decisions.
-
-External repair/review agents are workers only:
-- mini-SWE-agent: disposable repair proposal; no push/branch/merge/certification authority.
-- CodeRabbit: independent review evidence; no mutation/certification authority.
-- Canonical FLIXO control-plane rules decide whether external evidence is accepted.
-
-## Scope discipline
-
-MVP scope is limited to the explicitly executable capability set recorded by the canonical contract. Post-MVP systems must not become hidden dependencies of the MVP.
-
-When a requirement conflicts with the canonical runtime contract, stop and surface the contradiction instead of creating another parallel mechanism.
-
-## Canonical MVP executable scope
-
-The current executable MVP scope is exactly ten capabilities:
-- background-remover
-- image-upscaler
-- image-cropper
-- image-compressor
-- image-converter
-- image-effects
-- video-trimmer
-- video-cropper
-- video-resizer
-- video-compressor
-
-This scope is governed by the canonical capability/tool definition and formalized in `docs/MVP-SCOPE-DECISION.md`. An executable capability outside this set is a scope-contract failure.
+- No public or internal AI agent runtime.
+- No agent gateway, specialist router, autonomous planner, agent memory, or agent execution loop.
+- User actions are initiated explicitly from tool pages.
+- Supported local tool chains execute only through direct browser-local adapters.
+- Raw files remain browser-local unless a specific standalone tool explicitly documents a remote dependency.
+- `src/config/registry.ts` remains the canonical tool registry.

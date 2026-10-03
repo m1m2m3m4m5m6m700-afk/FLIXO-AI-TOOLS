@@ -8,7 +8,6 @@ FLIXO AI is a browser-first AI toolbox built with React 19, Vite, TypeScript, Ta
 - `src/lib/i18n` — the exact 20-locale contract and lazy translation loading.
 - `src/lib/routing` — pure localized route resolution.
 - `src/lib/seo` — canonical URLs, hreflang, JSON-LD, and breadcrumb generation.
-- `src/lib/agent` — deterministic AI engines and conversation/runtime infrastructure.
 - `src/tools` — isolated user-facing tools.
 - `api` — server-side gateways and protected admin endpoints.
 - `supabase` — active persistence configuration only.

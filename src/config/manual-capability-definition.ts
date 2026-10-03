@@ -315,3 +315,15 @@ function createCapability(id:(typeof MVP_EXECUTABLE_TOOL_IDS)[number]):Canonical
 export const CAPABILITY_DEFINITIONS:readonly CanonicalCapabilityDefinition[]=Object.freeze(MVP_EXECUTABLE_TOOL_IDS.map(createCapability));
 const BY_ID=new Map(CAPABILITY_DEFINITIONS.map((definition)=>[definition.id,definition]));
 export function getCanonicalCapabilityDefinition(id:string){return BY_ID.get(id);}
+
+export function getCapability(id: string) {
+  return getCanonicalCapabilityDefinition(id);
+}
+
+export function validateCapabilityParameters(id: string, parameters: CanonicalCapabilityParameters) {
+  const definition = getCanonicalCapabilityDefinition(id);
+  if (!definition) throw new Error(`Unknown manual capability: ${id}`);
+  const result = definition.parameterSchema.safeParse(parameters);
+  if (!result.success) throw new Error(`Invalid parameters for manual capability ${id}.`);
+  return result.data;
+}
