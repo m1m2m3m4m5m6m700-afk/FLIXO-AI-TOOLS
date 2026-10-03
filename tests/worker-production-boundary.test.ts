@@ -17,11 +17,11 @@ test('production worker returns JSON 404 for API paths instead of SPA HTML', asy
   assert.equal((await response.json() as { error: string }).error, 'API_NOT_EXPOSED_ON_STATIC_PRODUCTION_WORKER');
 });
 
-test('production worker verifies identity against the fixed canonical asset', async () => {
+test('production worker verifies identity against the exact versioned asset', async () => {
   const requested = 'a'.repeat(40);
   const response = await worker.fetch(new Request('https://flixoai.example/__flixo-identity-' + requested + '.txt'), {
     ASSETS: { fetch: async (request) => {
-      assert.equal(new URL(request.url).pathname, '/__flixo-identity.txt');
+      assert.equal(new URL(request.url).pathname, '/__flixo-identity-' + requested + '.txt');
       return new Response(requested + '\n', { status: 200 });
     } },
   });
@@ -30,10 +30,13 @@ test('production worker verifies identity against the fixed canonical asset', as
   assert.equal(response.headers.get('x-flixo-deployment-sha'), requested);
 });
 
-test('production worker rejects identity when canonical and versioned assets do not match', async () => {
+test('production worker rejects identity when the exact versioned asset does not match', async () => {
   const requested = 'a'.repeat(40);
   const response = await worker.fetch(new Request('https://flixoai.example/__flixo-identity-' + requested + '.txt'), {
-    ASSETS: { fetch: async () => new Response('b'.repeat(40) + '\n', { status: 200 }) },
+    ASSETS: { fetch: async (request) => {
+      assert.equal(new URL(request.url).pathname, '/__flixo-identity-' + requested + '.txt');
+      return new Response('b'.repeat(40) + '\n', { status: 200 });
+    } },
   });
   assert.equal(response.status, 404);
 });
