@@ -7,7 +7,7 @@ const SEO = buildSeoMetadata({
   locale: 'en',
   path: '/',
   title: 'FLIXO | Browser-first tools',
-  description: 'FLIXO is a browser-first toolkit for images, files, PDF, text and everyday digital work.',
+  description: 'FLIXO is a browser-first toolkit for images, files, PDF, text and everyday digital work with direct manual tools.',
 });
 
 export const indexRoute = createRoute({

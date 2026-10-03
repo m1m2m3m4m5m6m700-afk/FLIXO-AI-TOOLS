@@ -65,7 +65,7 @@ export const rootRoute = createRootRoute({
       { property: 'og:image', content: `${SITE_ORIGIN}/flixo-logo.webp` },
       { name: 'twitter:card', content: 'summary_large_image' },
       { name: 'twitter:title', content: 'FLIXO AI — Fast browser-first tools' },
-      { name: 'twitter:description', content: 'Browser-first image editing with agent guidance and direct manual tools.' },
+      { name: 'twitter:description', content: 'Browser-first image editing with direct manual tools and local privacy.' },
       { name: 'twitter:image', content: `${SITE_ORIGIN}/flixo-logo.webp` },
     ],
     links: [
