@@ -4,7 +4,7 @@ This is an implementation target matrix, not a claim that these tools are alread
 
 | # | Tool | Family | Engine | Offline target | Worker | Priority | Status |
 |---:|---|---|---|---|---|---|---|
-| 1 | Resize Image | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | CANDIDATE |
+| 1 | Resize Image | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | EXPERIMENTAL |
 | 2 | Crop Image | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | CANDIDATE |
 | 3 | Rotate Image | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | EXPERIMENTAL |
 | 4 | Flip Horizontal | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | EXPERIMENTAL |
@@ -16,19 +16,19 @@ This is an implementation target matrix, not a claim that these tools are alread
 | 10 | Brightness | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | EXPERIMENTAL |
 | 11 | Contrast | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | EXPERIMENTAL |
 | 12 | Saturation | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | EXPERIMENTAL |
-| 13 | Hue | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | CANDIDATE |
+| 13 | Hue | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | EXPERIMENTAL |
 | 14 | Grayscale | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | EXPERIMENTAL |
 | 15 | Sepia | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | CANDIDATE |
 | 16 | Invert | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | EXPERIMENTAL |
 | 17 | Blur | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | EXPERIMENTAL |
 | 18 | Sharpen | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | EXPERIMENTAL |
-| 19 | Pixelate | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | CANDIDATE |
+| 19 | Pixelate | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | EXPERIMENTAL |
 | 20 | Noise Reduction | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | CANDIDATE |
 | 21 | Image Border | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | CANDIDATE |
-| 22 | Rounded Corners | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | CANDIDATE |
+| 22 | Rounded Corners | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | EXPERIMENTAL |
 | 23 | Image Background | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | CANDIDATE |
 | 24 | Transparent Background | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | CANDIDATE |
-| 25 | Image Padding | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | CANDIDATE |
+| 25 | Image Padding | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | EXPERIMENTAL |
 | 26 | Image Fit | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | CANDIDATE |
 | 27 | Image Fill | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | CANDIDATE |
 | 28 | Image Watermark | Image | Canvas/OffscreenCanvas | Yes | Optional | P1 | CANDIDATE |

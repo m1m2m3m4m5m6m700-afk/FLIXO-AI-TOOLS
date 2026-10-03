@@ -10,7 +10,7 @@ export type LocalToolId =
   | 'crop-resize'
   | 'watermark-remover'
   | 'raster-to-svg'
-  | 'image-rotate' | 'image-flip-horizontal' | 'image-flip-vertical' | 'image-brightness' | 'image-contrast' | 'image-saturation' | 'image-grayscale' | 'image-invert' | 'image-sepia' | 'image-blur' | 'image-sharpen';
+  | 'image-rotate' | 'image-flip-horizontal' | 'image-flip-vertical' | 'image-brightness' | 'image-contrast' | 'image-saturation' | 'image-grayscale' | 'image-invert' | 'image-sepia' | 'image-blur' | 'image-sharpen' | 'image-resizer' | 'image-hue' | 'image-pixelate' | 'image-padding' | 'image-rounded-corners';
 
 export type ImageInfo = { width: number; height: number };
 
@@ -294,6 +294,73 @@ export async function rasterToSvg(blob: Blob, columns = 48): Promise<Blob> {
   }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges"><title>${escapeXml('FLIXO Raster to SVG')}</title>${rects.join('')}</svg>`;
   return new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+}
+
+export async function hueShiftImage(blob: Blob, degrees = 30): Promise<Blob> {
+  const image = await loadImage(blob);
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas is unavailable.');
+  ctx.filter = `hue-rotate(${degrees}deg)`;
+  ctx.drawImage(image, 0, 0);
+  return canvasBlob(canvas, 'image/png');
+}
+
+export async function pixelateImage(blob: Blob, blockSize = 8): Promise<Blob> {
+  const image = await loadImage(blob);
+  const width = image.naturalWidth;
+  const height = image.naturalHeight;
+  const block = Math.max(2, Math.min(64, Math.round(blockSize)));
+  const lowCanvas = document.createElement('canvas');
+  lowCanvas.width = Math.max(1, Math.ceil(width / block));
+  lowCanvas.height = Math.max(1, Math.ceil(height / block));
+  const lowCtx = lowCanvas.getContext('2d');
+  if (!lowCtx) throw new Error('Canvas is unavailable.');
+  lowCtx.imageSmoothingEnabled = false;
+  lowCtx.drawImage(image, 0, 0, lowCanvas.width, lowCanvas.height);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas is unavailable.');
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(lowCanvas, 0, 0, lowCanvas.width, lowCanvas.height, 0, 0, width, height);
+  return canvasBlob(canvas, 'image/png');
+}
+
+export async function padImage(blob: Blob, padding = 24): Promise<Blob> {
+  const image = await loadImage(blob);
+  const safePadding = Math.max(0, Math.min(2000, Math.round(padding)));
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth + safePadding * 2;
+  canvas.height = image.naturalHeight + safePadding * 2;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas is unavailable.');
+  ctx.drawImage(image, safePadding, safePadding);
+  return canvasBlob(canvas, 'image/png');
+}
+
+export async function roundedCornersImage(blob: Blob, radius = 24): Promise<Blob> {
+  const image = await loadImage(blob);
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas is unavailable.');
+  const r = Math.max(0, Math.min(Math.min(canvas.width, canvas.height) / 2, Math.round(radius)));
+  ctx.beginPath();
+  ctx.moveTo(r, 0);
+  ctx.arcTo(canvas.width, 0, canvas.width, canvas.height, r);
+  ctx.arcTo(canvas.width, canvas.height, 0, canvas.height, r);
+  ctx.arcTo(0, canvas.height, 0, 0, r);
+  ctx.arcTo(0, 0, canvas.width, 0, r);
+  ctx.closePath();
+  ctx.clip();
+  ctx.drawImage(image, 0, 0);
+  return canvasBlob(canvas, 'image/png');
 }
 
 export type BasicImageEffect =

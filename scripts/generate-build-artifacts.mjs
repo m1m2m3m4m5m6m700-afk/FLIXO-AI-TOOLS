@@ -3,6 +3,9 @@ import { spawnSync } from "node:child_process";
 const root = process.cwd();
 const env = {
   ...process.env,
+  SITE_URL: process.env.SITE_URL ?? "https://flixoai.m1m2m3m4m5m6m700.workers.dev",
+  VITE_SITE_URL:
+    process.env.VITE_SITE_URL ?? "https://flixoai.m1m2m3m4m5m6m700.workers.dev",
   FLIXO_GENERATED_OUTPUT_DIR: "dist",
 };
 
