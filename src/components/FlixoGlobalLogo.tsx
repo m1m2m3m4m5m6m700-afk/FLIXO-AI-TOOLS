@@ -59,8 +59,8 @@ export function FlixoGlobalLogo() {
   return (
     <a
       href="/"
-      aria-label="FLIXO AI Tools"
-      title="FLIXO AI Tools"
+      aria-label="FLIXO Hub"
+      title="FLIXO Hub"
       style={shellStyle}
       onClick={handleAdminGesture}
       onMouseEnter={(event) => {
@@ -75,7 +75,7 @@ export function FlixoGlobalLogo() {
       }}
     >
       <FlixoLogoImage
-        alt="FLIXO AI Tools"
+        alt="FLIXO Hub"
         width={192}
         height={192}
         style={imageStyle}
