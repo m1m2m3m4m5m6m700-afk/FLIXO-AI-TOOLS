@@ -102,7 +102,6 @@ const ar = locale === 'ar';
       <header className="tools-modern-nav">
         <Link className="tools-modern-brand" to={ar ? '/ar' : '/'} aria-label="FLIXO"><img src="/flixo-brand-mark.webp" alt="FLIXO" width={36} height={36} /><span>FLIXO</span></Link>
         <Link className="tools-modern-back" to={ar ? '/ar' : '/'}>{ar ? 'الرئيسية' : 'Home'}</Link>
-        <Link className="tools-modern-back" to={locale === 'en' ? '/agent' : '/$locale/agent'} params={locale === 'en' ? undefined : { locale }}>{AGENT_NAV_LABELS[locale]}</Link>
       </header>
 
       <div className="tools-modern-container">
