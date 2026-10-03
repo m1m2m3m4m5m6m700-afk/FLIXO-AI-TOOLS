@@ -322,8 +322,8 @@ export function getCapability(id: string) {
 
 export function validateCapabilityParameters(id: string, parameters: CanonicalCapabilityParameters) {
   const definition = getCanonicalCapabilityDefinition(id);
-  if (!definition) throw new Error(Unknown manual capability: );
+  if (!definition) throw new Error(`Unknown manual capability: ${id}`);
   const result = definition.parameterSchema.safeParse(parameters);
-  if (!result.success) throw new Error(Invalid parameters for manual capability .);
+  if (!result.success) throw new Error(`Invalid parameters for manual capability ${id}.`);
   return result.data;
 }
