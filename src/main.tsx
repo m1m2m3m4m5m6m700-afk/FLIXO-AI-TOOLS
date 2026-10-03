@@ -14,6 +14,7 @@ import './components/FlixoAIAgent.css';
 import './components/FlixoAIAgentStudio.css';
 import './tools/seed/seed-premium.css';
 import './premium-ui.css';
+import './official-home.css';
 
 if (typeof window !== 'undefined') {
   applyDocumentLocale(localeFromPathname(window.location.pathname));
