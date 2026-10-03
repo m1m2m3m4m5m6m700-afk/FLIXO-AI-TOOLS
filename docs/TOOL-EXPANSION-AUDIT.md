@@ -25,7 +25,7 @@ These tools are not promoted into the frozen MVP executable set and are not repr
 ## Localization baseline
 The repository declares 20 canonical locales:
 ar, en, es, fr, de, hi, id, it, ja, ko, ms, nl, pl, pt, ru, sv, th, tr, uk, vi.
-Automated dictionary structure/key coverage passes all 20 canonical locale dictionaries. `ur.ts` and `zh.ts` remain non-canonical extra dictionaries. Full hardcoded UI-string migration is not yet certified.
+Automated dictionary structure/key coverage passes all 20 canonical locale dictionaries, with no non-canonical locale dictionary files remaining. Full hardcoded UI-string migration is not yet certified.
 
 ## Dependency and privacy baseline
 Production dependency audit currently reports zero high/critical/moderate vulnerabilities in runtime dependencies.
