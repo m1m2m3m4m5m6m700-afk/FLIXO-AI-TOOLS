@@ -45,8 +45,8 @@ export function ToolsPage({ locale = 'en' as Locale }: { locale?: Locale }) {
   return (
     <main className="tools-modern" lang={locale} dir={ar ? 'rtl' : 'ltr'}>
       <header className="tools-modern-nav">
-        <Link className="tools-modern-brand" to={ar ? '/ar' : '/'} aria-label="FLIXO">
-          <img src="/flixo-brand-mark.webp" alt="" width={36} height={36} /><span>FLIXO</span>
+        <Link className="tools-modern-brand" to={ar ? '/ar' : '/'} aria-label="FLIXO Hub">
+          <img src="/flixo-brand-mark.webp" alt="" width={36} height={36} /><span>FLIXO Hub</span>
         </Link>
         <Link className="tools-modern-back" to={ar ? '/ar' : '/'}>{ar ? 'العودة للرئيسية' : 'Back home'}</Link>
       </header>
@@ -55,7 +55,7 @@ export function ToolsPage({ locale = 'en' as Locale }: { locale?: Locale }) {
           <div className="tools-modern-hero-topline"><span>WORKSPACE · MANUAL TOOLS</span><span>{tools.length} {ar ? 'متاحة الآن' : 'available now'}</span></div>
           <div>
             <h1 id="tools-title">{ar ? 'مساحة الأدوات.' : 'Tool workspace.'}</h1>
-            <p>{ar ? 'سطح واحد لاكتشاف وتشغيل الأدوات اليدوية المنشورة فعليًا في FLIXO. لا أدوات وهمية، ولا مسار وكيل.' : 'One surface for discovering and launching the tools actually published in FLIXO. No phantom tools, no agent execution path.'}</p>
+            <p>{ar ? 'سطح واحد لاكتشاف وتشغيل الأدوات اليدوية المنشورة فعليًا في FLIXO. لا أدوات وهمية، ولا مسار وكيل.' : 'One surface for discovering and launching the tools actually published in FLIXO Hub. No phantom tools, no agent execution path.'}</p>
           </div>
           <div className="tools-modern-search-wrap">
             <SlidersHorizontal aria-hidden="true" />
