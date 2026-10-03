@@ -10,8 +10,6 @@ import './styles.css';
 import './home-motion.css';
 import './command-palette.css';
 import './home-modern.css';
-import './components/FlixoAIAgent.css';
-import './components/FlixoAIAgentStudio.css';
 import './tools/seed/seed-premium.css';
 import './premium-ui.css';
 import './official-home.css';
